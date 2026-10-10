@@ -70,13 +70,13 @@
                AutomationProperties.Name="Evidence status and storage limitations" />
     <Grid Grid.Row="5" ColumnDefinitions="320,*" ColumnSpacing="14">
       <Grid RowDefinitions="*,Auto,*">
-        <ListBox x:Name="Records" ItemsSource="{Binding Records}" AutomationProperties.Name="Cited evidence records">
+        <controls:ScrollableListBox x:Name="Records" ItemsSource="{Binding Records}" AutomationProperties.Name="Cited evidence records">
           <ListBox.ItemTemplate>
             <DataTemplate><TextBlock Text="{Binding Reference.Citation}" TextWrapping="Wrap" /></DataTemplate>
           </ListBox.ItemTemplate>
-        </ListBox>
+        </controls:ScrollableListBox>
         <TextBlock Grid.Row="1" Text="Parent / explicit links (select, then Open segment)" Margin="0,12" TextWrapping="Wrap" />
-        <ListBox x:Name="Segments" Grid.Row="2" ItemsSource="{Binding Segments}"
+        <controls:ScrollableListBox x:Name="Segments" Grid.Row="2" ItemsSource="{Binding Segments}"
                  AutomationProperties.Name="Trace parent and link segment availability">
           <ListBox.ItemTemplate>
             <DataTemplate>
@@ -87,7 +87,7 @@
               </StackPanel>
             </DataTemplate>
           </ListBox.ItemTemplate>
-        </ListBox>
+        </controls:ScrollableListBox>
       </Grid>
       <ScrollViewer Grid.Column="1" HorizontalScrollBarVisibility="Disabled">
         <controls:NamedTextBlock Text="{Binding ResultText}" TextWrapping="Wrap" FontFamily="Consolas"

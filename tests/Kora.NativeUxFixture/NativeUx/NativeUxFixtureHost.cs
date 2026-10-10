@@ -18,7 +18,9 @@ public static class NativeUxFixtureHost
                     + "<existing absolute directory on a fixed local drive> are required. UNC, mapped-drive and reparse-point parents are not accepted.");
                 return 2;
             }
-            using var session = new NativeUxFixtureSession(scratchParent);
+            using var session = new NativeUxFixtureSession(scratchParent,
+                args.Length == 4 && string.Equals(args[3], "--silent-caption-fixture", StringComparison.Ordinal),
+                args.Length == 4 && string.Equals(args[3], "--list-overflow-fixture", StringComparison.Ordinal));
             using var clipboard = new NativeUxClipboardGuard();
             Console.WriteLine($"Synthetic native UX fixture. PID: {Environment.ProcessId}. Scratch: {session.LocalRoot}");
             Console.WriteLine("No production startup, instance handoff, audio, model, network, browser, shared clipboard or installed artifact discovery.");
@@ -35,7 +37,9 @@ public static class NativeUxFixtureHost
     internal static bool TryGetScratchParent(string[] args, out string scratchParent)
     {
         scratchParent = string.Empty;
-        if (args.Length != 3 || !string.Equals(args[0], "--launch-native-fixtures", StringComparison.Ordinal)
+        if (args.Length is not (3 or 4)
+            || args.Length == 4 && args[3] is not ("--silent-caption-fixture" or "--list-overflow-fixture")
+            || !string.Equals(args[0], "--launch-native-fixtures", StringComparison.Ordinal)
             || !string.Equals(args[1], "--scratch-parent", StringComparison.Ordinal)
             || !IsLocalScratchParent(args[2]))
         {

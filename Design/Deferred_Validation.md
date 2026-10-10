@@ -116,6 +116,473 @@ outcomes. Actual privacy/audio/lock/device/handoff/crash and installed trials
 still need prepared, separately scoped boundaries; no full R03/R05/R12/R14/A4,
 runtime/inference/containment or release gate is closed by this batch.
 
+### 2026-10-10 Extended Workstation Proof
+
+The [extended driver](../eng/Invoke-NativeUxWorkstation.ps1) reuses the maintained
+five-row native mechanics driver, then launches a separate exact-owned fixture
+for ten additional scratch-only scopes. The first batch was merged in #157;
+these expanded application and fixture changes were validated separately.
+
+Two final repetitions passed all five baseline and ten narrowed expanded rows
+each using identical driver/preparation bytes. All four owned fixture processes
+exited 0, cleaned their exact scratch children and required no forced termination;
+their PIDs were absent after completion. The final worktree build-input digest
+matched its frozen preparation bundle. Release solution build/publish completed
+with zero warnings/errors after a locked machine-feed restore resolved missing
+unit-project assets. Admission contracts passed 43 checks, focused preparation
+passed 79 tests, and the combined eight relevant regression classes passed 86
+tests with zero skips. These overlapping test sets are not additive totals.
+
+The expanded rows passed native exact-ID session create/rename,
+alternating bounded passive history, guide/detail lifetime and immutable source
+digest checks, all bundled default-package file tabs, explicit retained/missing
+evidence links with cross-session navigation confinement, stale displayed
+generation refusal, owned-window native display placement, exact queue
+removal/manual dispatch, synthetic gate closure with old-epoch dispatch refusal,
+and metadata-only logical disposition with retained tombstone citations.
+
+The native display trial observed two OS-enumerated work areas at native DPI 96
+and 192. It verified actual owned-window containment, exact selector focus and
+original placement restoration without global display changes or screenshots.
+This is not readable-text, physical-rig or all-window mixed-DPI acceptance.
+The queue uses the real bounded local-version service in fixture scratch stores,
+not a model/effect/provider action. Post-reopen dispatch returned zero receipts
+for the exact still-pending old-epoch entry; it was then deliberately cleared.
+The disposable metadata-only session retained bounded exact-ID history at its
+tombstone generation, while the unrelated session remained unchanged.
+
+Native passive work observation exposed a real presentation-focus defect:
+rebuilding every work-row object/list moved focus off the exact control during
+the periodic refresh. The fix retains collection membership and exact
+task/source row identity, updates only changed displayed fields, and preserves
+selection without renewing inspected task cancellation authority. Focused
+headless tests cover stable realized containers, meaningful row text, no
+unchanged-field notifications, expiry-state changes, stale queue revisions,
+selection isolation and closed/disposed content clearing. The successful native
+run also preserved the exact focused control through a passive queued refresh.
+
+**Unqualified boundary:** after retained terminal queue rows, a newly enqueued
+pending row appeared in truthful native structured receipts/work status but was
+not discovered in the Windows UIA realized list descendants. Headless peer
+descendants exposed it. Failed native development trials remain failed; a custom
+child-event peer and a collection-rebinding experiment did not repair the native
+result and were removed. W09 checks exact structured queue/dispatch receipts
+and clearing only; it does not claim that new row was discoverable or announced.
+This limitation required separate diagnosis before qualifying that native route.
+The later work-list scroll-provider correction below records the new native
+results; it does not relabel these earlier observations.
+
+The operator's minimum remaining human work is documented as three passes:
+listen to actual Narrator output, inspect rendered themes/text sizes/physical
+displays, then restore settings and attest to the five independently scoped
+observations. Machine mechanics never populate the operator template.
+No actual lock/privacy transition, audio, model, hosted account, normal profile
+source, installer, clipboard/disclosure or global Windows setting is admitted.
+
+### 2026-10-10 Additional File-Only Native Speech Slice
+
+After completing the workstation mechanics, the operator requested another safe
+workstation proof without publishing the expanded changes. The retained
+[speech fixture renderer](../experiments/r02-speech-proof/Render-Fixtures.ps1)
+was copied byte-for-byte into two new local evidence directories outside the
+checkout. It rendered authored synthetic text only through installed SAPI file
+streams: no microphone, render endpoint, production host, optional model,
+network request, installation or global setting was used.
+
+Two installed English desktop voices each rendered six phrases at native rates
+-1 and +1, yielding 24 WAVs per repetition. All 48 files matched their provenance
+digests and contained nonempty/nonzero mono PCM16 at 16 kHz. Every faster-rate
+utterance had fewer frames than its corresponding slower-rate utterance.
+All 24 corresponding waveform SHA-256 values matched between repetitions on
+this profile; no cross-machine/voice-version bit identity is claimed.
+
+A separate local .NET harness then used the repository's exact Windows
+RID-specific System.Speech 10.0.12 implementation with the installed en-US
+recognizer. It loaded bounded authored command choices plus dictation and
+supplied only provenance-bound WAV files, never the production capture factory
+or a default audio device. All 32 positive synthetic file trials matched their
+normalized expected text; confidence ranged from approximately 0.6481 to 0.9894.
+The all-zero PCM silence control returned no result; malformed WAV input raised
+an explicit FormatException. These are native file-boundary observations, not
+production confidence-threshold, command-authorization or dispatch acceptance.
+
+Two earlier harness failures remain retained: PowerShell's assembly-version
+conflict, then platform refusal from the neutral System.Speech API stub.
+The dependency manifest identified the actual Windows runtime implementation;
+correcting that isolated harness reference required no application changes.
+The corrected harness built with zero warnings/errors. The speech output
+policy/rate/volume/generation slice passed 32 tests and the fake-boundary
+activation/shutdown/bounded-buffer slice passed 67 tests, with zero skips.
+Raw synthetic WAVs, native recognition receipts, source hashes and logs remain
+local; no recordings or profile content were captured or published.
+
+**Disposition: scoped file-only native speech evidence, not D-002/D-007,
+R03/R09/R10 or acoustic acceptance.** Physical first-command-word behavior,
+recognition across real speakers/noise, wake/false-activation quality, live
+playback/stop timing, endpoint routing/privacy transitions and packaged-host
+integration still need separately approved fixtures and participants.
+
+### 2026-10-10 Native Ownership Presentation Slice
+
+The exact production
+[ownership prompt policy](../src/Kora.Windows/Coordination/NativeLifecyclePrompt.cs)
+was linked unchanged into a local isolated test host. A read-only preflight
+passed three current-profile/session eligibility checks and denied an invalid
+WTS session in all three repetitions. It displayed no dialog and did not start
+an assistant or transfer ownership. Current-user protocol/continuity tests
+passed 24 cases with zero skips, including real restricted test mutex exclusion,
+current-user-only pipe OS peer-PID queries and held process-token/creation checks.
+Their names are GUID-scoped test names, not live coordinator names; the pipe
+peer test is within one process, not a cross-account/cross-build owner trial.
+
+The operator then separately approved bounded synthetic native dialogs. Two
+fresh-process repetitions used identical built harness bytes, each exercising
+three expiry and three predicate-invalidation dialogs plus a denied-predicate
+no-display control. Native window discovery admitted only the host's own PID
+and dialog class. Read-only GUI-thread/ancestor checks observed focus on the
+exact owned No control (native control ID 7) in all twelve displayed dialogs.
+No keyboard/mouse input, screenshots, executable-identity disclosure or
+ownership action was performed.
+
+All one-second expiry cases returned denial after approximately 1080-1106 ms;
+all invalidation cases returned denial and closed their dialog before the
+separate fifteen-second timeout, with total trial times approximately
+100-126 ms. These durations include setup/observation and are not measurements
+of a lock-notification-to-audio-release boundary or a claimed 500 ms privacy
+target. Denied predicates displayed nothing. Every exact dialog was gone after
+return, and the native policy retained default No. Both hosts exited cleanly;
+source/receipt/harness hashes and individual observations remain local.
+
+**Disposition: scoped current-profile native ownership presentation evidence.**
+Actual same/different-build handoff, authenticated candidate content identity,
+approval/expiry races during real work, device/service resource quiescence,
+crash takeover/return, installed protection, lock transitions and screen-reader
+announcements remain separate A05/A06/accessibility acceptance. No global
+session setting, alternate account, production host, audio, model, normal
+profile content or live ownership marker was used.
+
+### 2026-10-10 Additional Native Typed-Slash Presentation
+
+An unpublished local driver reused the maintained five-row baseline and the
+unchanged frozen native fixture, then opened a fresh owned process for three
+additional native presentation rows. Two final repetitions passed all three
+rows each with identical driver/preparation bytes; both extra processes and
+their baseline processes exited 0 with exact scratch cleanup and no forced
+termination. No production application change was needed for these rows.
+
+The response window's nonactivating show retained focus in the exact launcher
+HWND rather than moving it into the new response HWND. The launcher command's
+temporary disabled state can move focus from its button to its own window;
+that is not activation of the response window. Eleven native input cases
+covered plain/empty input, slash and case-insensitive prefixes, skill-kind
+qualification, nonmatching template/unknown inputs and argument-bearing text.
+Only the single declared non-executable synthetic `/inspect-fixture` option
+appeared in matching cases.
+
+Three independent open/select/fill/close cycles per repetition verified that
+passive list selection did not fill input, explicit invocation of its exact
+owned candidate button filled `/inspect-fixture `, hid the dropdown and returned
+focus to the exact native typed field. The driver activated only the verified
+owned response window for that deliberate interaction. Run and Enter were
+never invoked; no artifact, clipboard, model, audio, network or application
+process action was admitted. Six deterministic artifact-route/dropdown tests
+also passed with zero skips, covering the shared typed/activated-voice route,
+model-action gate, unknown commands, stale options and kind filtering.
+
+Two earlier probes remain failed receipts: an overstrong launcher-button focus
+expectation, then PowerShell's automatic `$input` enumerator shadowing a test
+field variable. Corrected native results are not retroactive passes for those
+attempts. The current fixture has no synthetic caption playback-state hooks;
+the separate caption's native rendering/placement/lifecycle remains unqualified,
+not inferred from response-window nonactivation or static caption contracts.
+Actual Narrator and rendered readability observations remain human-scoped.
+
+### 2026-10-10 Additional Native Assistant-Name Preferences
+
+An unpublished local driver reused the unchanged frozen fixture in private
+scratch storage. Two final repetitions passed four additional native rows each:
+unsaved Kora default without an unnecessary Apply; explicit invalid `bad/name`
+refusal without persistence or identity change; domain-normalized `Nova Ray`
+save with exact native title/editor updates; and explicit reset to Kora with
+same-process settings reopen/readback and no remaining atomic-write temporary.
+All four baseline/name fixture processes exited 0, cleaned their exact scratch
+children and required no forced termination. Identical driver/preparation
+bytes, preference digests, source fingerprints and native receipts remain local.
+
+The name rules/options passed 14 tests, command/service/preferences passed 43,
+and directly related view-model lifecycle tests passed 12, all with zero skips.
+The latter use deterministic fake capture boundaries; native prefix-retirement
+acceptance is not implied. The consent-denied native fixture truthfully retained
+its closed-microphone consent explanation and never invoked Enable listening.
+No production profile write, audio endpoint, model, network or Windows setting
+change was admitted.
+
+Two earlier attempts remain failed receipts. The first driver expected an
+invalid draft to remain after refusal, although the UI restores authoritative
+state. The second expected the prefix-change hold explanation, although missing
+voice consent correctly takes precedence. Correcting those observations does
+not relabel their original results.
+
+**Disposition: scoped native preference mechanics, not accessibility or live
+capture acceptance.** The editor's native accessible Name was empty in both
+final repetitions and remains an unqualified screen-reader discovery boundary.
+Settings reopening is not process-restart persistence acceptance; actual
+Narrator, rendered readability and live capture retirement remain separate.
+
+### 2026-10-10 Silent Native Caption Presentation
+
+The operator explicitly approved a separate silent synthetic-playback fixture
+and fresh local payload, with all changes unpublished. Its exact additional
+launch flag leaves the ordinary fixture's effect refusals unchanged. A test-only
+in-memory Windows-provider contract supplies an authored utterance, exact
+playback ID and frame; it has no synthesis engine, native audio endpoint or
+capture implementation. The ordinary typed response path, caption policy,
+admitted preference commands and production caption window/controller are used.
+
+Two final identical-byte repetitions passed five additional native rows each:
+queued text without a visible caption; exact read-only utterance and
+nonactivating show at all four primary-display corners; native pin plus truthful
+PREVIOUS SPEECH retention beyond the one-second unpinned delay; explicit active
+Stop and completed-caption typed Stop without replay; and synthetic privacy
+hide/pin retirement with fail-closed gate reopening and no automatic replay.
+Each repetition admitted eight distinct synthetic playback identities.
+At native DPI 96, all four measured caption bounds were inside the primary
+5120-by-1392 working area at the expected 24-pixel margins, within the stated
+two-pixel coordinate tolerance. No secondary-display visual acceptance is implied.
+
+Fresh preparation passed 83 tests with zero skips and zero build/publish
+warnings/errors. Separate caption-domain, preference/service, view-model
+transition and UI groups passed 4, 92, 39 and 1 tests respectively, all with zero
+skips. These 136 related tests are not added to the preparation count as a
+repository-wide total. Both final native processes and their baseline processes
+exited 0, cleaned their exact scratch children and required no forced
+termination. The new and original frozen payload manifests remain unchanged;
+the old workstation results apply to their original bytes, not the new fixture.
+
+Failed preparations, targeted diagnosis reports and four earlier native attempts
+remain retained. The synthetic provider initially conflated arming with active
+output; the fixture now separates them so ordinary prior-source retirement does
+not cancel a future reservation. Native waits initially accepted stale
+unchanged-placement/absent-window observations before async Save/Stop completion;
+exact completed-operation and monotonic snapshot-revision receipts now gate
+progress. A retention timer also shadowed a shared helper's local variable.
+No production permission or caption policy was weakened to repair these probes.
+
+The fourth native attempt deliberately tried fresh playback after gate-only
+reopening and was refused by the held private-presentation boundary. The final
+row verifies that refusal state/no replay, not successful recovery. Real
+transition/recovery, acoustic playback/Stop/resource timing, physical rendered
+readability and Narrator output remain separately approved/unqualified scopes.
+Raw local receipts are research evidence, never security audit or release
+authority. No audio, real Windows transition, installation, normal profile
+content, model, network, clipboard or screenshot operation was admitted.
+
+### 2026-10-10 Assistant-Name Native Accessibility Correction
+
+Following the empty-name observation above, the operator approved a narrowly
+scoped label correction and fresh native validation, unpublished. The
+[settings editor](../src/Kora/SettingsWindow.axaml) now exposes
+"Display and push-to-talk command-prefix name" and binds its HelpText to the
+existing authoritative assistant-name configuration description. Name limits,
+normalization, persistence and consent semantics are unchanged; no duplicate
+validation or description rules were introduced.
+
+Fresh preparation passed 84 focused tests with zero skips, including stable
+headless Name/HelpText after save/reset; build and publish had zero warnings or
+errors. Both final native repetitions passed the four name-preference rows,
+using identical driver/preparation bytes. Windows UIA discovered the field by
+its exact label, and its HelpText exactly matched the visible authoritative
+description for default Kora, normalized Nova Ray and reset/reopened Kora.
+The 43 maintained automation contracts also passed without native launch.
+All four baseline/name processes exited 0, removed their exact scratch children
+and required no forced termination. Local source/payload/test/receipt identities
+remain preserved; prior empty-name receipts remain historical failures on their
+original bytes, not overwritten.
+
+**Disposition: corrected and machine-verified native editor label/help.**
+Actual Narrator understanding, rendered readability, live capture retirement
+and process-restart persistence remain unqualified. No normal profile, audio,
+model, network, global Windows setting or publication operation was admitted.
+
+### 2026-10-10 Native Work-List Scroll Provider Correction
+
+The operator approved a bounded new-work-row investigation and another
+one-hour interactive window, keeping all expanded changes unpublished.
+A temporary scratch-only diagnostic fixture compared authoritative items,
+realized containers, viewport/extent/offset and actual Windows UIA descendants.
+It reproduced a pending task at index 2 below the first two retained terminal
+rows: the host had a nonempty scroll range but the native list reported no
+vertical scrolling. The pending row was not lost by collection reconciliation;
+it was not realized within the viewport.
+
+Avalonia 12.1.3's stock items peer advertises ScrollPattern while reading an
+uninitialized scroll-provider field. The scoped
+[work-list control](../src/Kora/Controls/ScrollableListBox.cs) now delegates that
+interface to the current template's real scroll viewer. Native provider discovery
+may run off-thread, so it returns the peer without touching controls; delegated
+members resolve the template only when the bridge invokes them on the UI thread.
+Virtualization, collection ordering, stable row identity, passive selection and
+inspected cancellation authority are unchanged. No custom child-event peer or
+collection rebinding was retained. The temporary diagnostic launcher action was
+removed from the final payload.
+
+The separate diagnostic payload passed three native rows: terminal population,
+new exact pending-row discovery through the list's truthful native scroll range,
+and all five 0/25/50/75/100-percent positions with exact focused-container and
+scroll-position preservation through passive refresh. Its original payload
+identity remains local; it is not relabeled as the later final source.
+
+Final preparation passed 86 focused tests, zero skips, with zero build/publish
+warnings or errors. Added contracts cover off-thread provider discovery,
+template replacement, unavailable/disabled/invalid scroll operations, unchanged
+selection and bounded realization of new pending work. The four supporting
+work/queue/authority classes passed 32 tests with zero skips. All 43 maintained
+admission contracts passed without native launch. These are scoped test groups,
+not a repository-wide qualification total.
+
+Two final identical-driver/preparation repetitions passed all five baseline and
+ten maintained workstation rows each. W09 now requires native discovery of the
+exact new pending task after terminal-populated work before synthetic gate
+closure; it then retains the old-epoch dispatch refusal/no-replay and deliberate
+clear checks. W08 again preserved exact native focus without passive dispatch.
+All four final owned fixture PIDs were absent afterward, exited 0, cleaned their
+exact scratch children and required no forced termination. The current
+build-input fingerprint matched final preparation; original workstation,
+caption and name-label payload/test manifests were independently verified
+unchanged.
+
+Earlier failed builds and native probes remain retained, including driver
+selection/readiness/retired-HWND corrections and the first adapter's off-thread
+provider-discovery failure. One early readiness failure interrupted dispatch
+completion and ended with an evidence-file cleanup error, exit 1 and retained
+exact scratch residue; it is not relabeled as a clean pass. Raw diagnostics,
+receipts, payloads, TRX and the strict final summary remain local.
+
+**Disposition: native discovery of this exact bounded work-list route is
+corrected and machine-verified.** Narrator announcement/understanding,
+rendered readability, physical-display and full all-surface accessibility
+qualification remain open. Other stock list surfaces were not qualified by this
+scoped correction; the later approved two-surface extension below records its
+own fresh native outcomes. No audio, real Windows transition, ownership transfer,
+installation, model/provider/network, normal profile, clipboard, screenshot or
+publication operation was admitted.
+
+### 2026-10-10 Extended Native List Overflow Validation
+
+The operator next approved checking other bounded native lists without initially
+changing behavior. The scratch-only audit created nine metadata-only sessions
+and read one authoritative bounded evidence page. Windows UIA realized six
+session rows and three of 43 evidence records while both stock lists reported
+no native vertical scroll range. The local-event and evidence-link lists had
+no overflow content and were explicitly not treated as passing overflow trials.
+The original two findings and clean audit receipts remain unchanged locally.
+
+After separate approval to fix the confirmed surfaces, the durable-session and
+cited-evidence record lists reused the
+[same scroll-provider control](../src/Kora/Controls/ScrollableListBox.cs).
+No extra provider abstraction, altered ordering/selection, disabled
+virtualization, native event workaround or authority change was introduced.
+The focused headless contract checks overflowing real window controls and
+unchanged exact session entries/selection and evidence-page state after scroll.
+
+Two final identical-byte native repetitions each discovered all nine exact
+new synthetic session IDs and all 43 exact citations in the bounded evidence
+page, using overlapping native scroll positions. Both lists had demonstrated
+overflow and a truthful nonempty ScrollPattern range; merely advertising the
+pattern or testing an entirely realized list was not sufficient. Variable-height
+evidence realization changes estimated extent and reported percentages, so
+receipts preserve requested and actual positions instead of requiring an
+unchanged percentage. Discovery of every exact citation is the acceptance
+check, not a frozen scroll-geometry proxy.
+
+Fresh preparation passed 87 focused tests, zero skips, with zero build/publish
+warnings or errors. Five supporting work/session/evidence classes passed 35
+tests with zero skips. All 43 admission contracts passed without native launch.
+Two more identical-driver/preparation full workstation repetitions passed all
+five baseline and ten workstation rows, including exact newly added pending
+work discovery and passive focus/no-dispatch, on this final combined payload.
+All eight final owned fixture PIDs were absent afterward, exited 0, cleaned
+their exact scratch children and required no forced termination. The current
+source matched the sealed preparation identity; prior work-list, workstation,
+caption and name-label payload/test manifests remained unchanged.
+
+The initial new headless test incorrectly required a filtered session projection
+to retain its array reference; the corrected contract compares exact unchanged
+entries. Two driver attempts incorrectly waited for Create before filling its
+required draft and for a frozen percentage during variable-height realization.
+Their failed original receipts remain retained, not relabeled as final passes.
+Raw scripts, payloads, detailed snapshots, TRX and strict summary remain local.
+
+**Disposition: all three demonstrated bounded list scroll routes are corrected
+and machine-verified.** Local-event, evidence-link and typed-command-catalogue
+overflow are not qualified by these tests; no oversized synthetic content was
+injected for those lists. The protected microphone-recovery device surface was
+not exercised. Actual Narrator output, rendered readability, physical displays,
+real privacy/ownership/audio and installed/provider/model acceptance remain
+separate. All expanded automation and corrections remain unpublished.
+
+### 2026-10-10 Remaining Synthetic Small-List Overflow Validation
+
+The operator separately approved synthetic overflow coverage for local events,
+trace links and the typed-command catalogue, then approved fixing all three
+confirmed scroll gaps. The new exact `--list-overflow-fixture` mode is separate
+from default native launch and cannot combine with silent captions. It uses
+nine successful scratch local-version dispatch receipts and one pending task,
+the real event source/broker with its eight-visible limit and two-omitted status,
+twelve missing host activity links, and twelve non-executable catalogue entries.
+No event eligibility, fatigue, queue capacity or navigation/execution authority
+was bypassed. Normal voice consent and external-effect refusals remain intact.
+
+The initial native audit realized only two of eight event rows, three of twelve
+link rows and three of twelve command rows, with no native vertical scroll
+range on any list. All audit processes exited cleanly. After approval, these
+three controls reused the existing
+[scroll-provider correction](../src/Kora/Controls/ScrollableListBox.cs).
+The focused real-window test checks scrolling without changed event selection,
+status, missing-link records, evidence state, command selection/draft or the
+exact pending queue snapshot.
+
+Two final repetitions on identical driver/preparation bytes each discovered
+**8/8 exact event IDs, 12/12 missing-link trace IDs and 12/12 slash command names**
+through truthful native scroll ranges on genuinely overflowing lists. Each
+trial retained the eight-visible/two-omitted broker result, missing/non-navigable
+link authority, `/overflow` draft and exact sole pending task. No event control,
+link navigation, catalogue application or Run/Enter operation was invoked.
+Requested and actual scroll percentages remain in the local receipts; every
+exact token's discovery, not frozen estimated geometry, is the native check.
+
+Fresh preparation passed 90 focused tests without skips or build/publish
+warnings/errors. Four supporting application classes passed 1,244 tests;
+six event/work/session/evidence integration classes passed 38 tests; all 43
+admission contracts passed without native launch. These are scoped test groups,
+not an aggregate repository-wide result. Two more final-payload workstation
+repetitions each passed five baseline and ten expanded rows, including exact
+new-work discovery, passive focus and old-epoch no-dispatch.
+
+All eight final owned fixture processes exited 0, cleaned their exact scratch
+children, needed no forced termination and were absent when the strict summary
+was sealed. Current build inputs matched the final preparation fingerprint.
+Prior extended-list, work-list, workstation, caption and name-label payload/test
+manifests remained unchanged. Raw scripts, snapshots, payloads, TRX and the
+source-bound summary remain local and unpublished.
+
+The earlier overflow preparation with ten pending tasks legitimately produced
+only one eligible ready-head event. Its failed test receipt remains unchanged;
+the replacement fixture explicitly dispatches nine scratch tasks instead of
+manufacturing trailing-head observations. The initial analyzer/build failure
+and original three native findings are likewise retained, not relabeled.
+
+**Disposition: all six demonstrated bounded native list scroll routes are
+corrected and machine-verified.** No further manual repetition of their exact
+discovery mechanics is required. Actual Narrator understanding, rendered
+readability/text scales/physical displays and restoration/attestation still
+require the three operator passes in the
+[walkthrough](../tests/Kora.NativeUxFixture/README.md#minimum-operator-walkthrough-after-automated-mechanics).
+The protected microphone-recovery device list, real audio/privacy transitions,
+ownership transfer and installed provider/model/network scopes remain
+unqualified and separately gated. No release/full-accessibility certification
+or publication is implied.
+
 ### 2026-10-09 Bounded Native UX and Light-Text Continuation
 
 **Disposition: scoped native observations recorded; light-mode secondary-text

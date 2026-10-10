@@ -59,7 +59,7 @@
     </WrapPanel>
     </StackPanel>
     <Grid Grid.Row="4" ColumnDefinitions="320,*" ColumnSpacing="14">
-      <ListBox x:Name="Records" ItemsSource="{Binding Sessions}" SelectedItem="{Binding SelectedSessionRecord, Mode=OneWay}" IsEnabled="{Binding CanRead}"
+      <controls:ScrollableListBox x:Name="Records" ItemsSource="{Binding Sessions}" SelectedItem="{Binding SelectedSessionRecord, Mode=OneWay}" IsEnabled="{Binding CanRead}"
                AutomationProperties.Name="Durable session names, exact IDs, lifecycle and optimistic revisions">
         <ListBox.ItemTemplate>
           <DataTemplate>
@@ -72,11 +72,11 @@
             </StackPanel>
           </DataTemplate>
         </ListBox.ItemTemplate>
-      </ListBox>
+      </controls:ScrollableListBox>
       <Grid Grid.Column="1" RowDefinitions="Auto,2*,Auto,Auto,*" RowSpacing="10">
         <controls:NamedTextBlock Text="{Binding WorkStatus}" TextWrapping="Wrap"
                                 AutomationProperties.Name="Selected exact session work snapshot, revisions, observation time, capacity and gaps" />
-        <ListBox Grid.Row="1" x:Name="WorkRecords" ItemsSource="{Binding WorkRecords}"
+        <controls:ScrollableListBox Grid.Row="1" x:Name="WorkRecords" ItemsSource="{Binding WorkRecords}"
                  SelectedItem="{Binding SelectedWorkRecord, Mode=OneWay}"
                  AutomationProperties.Name="Authoritative queued, current, waiting, blocked, cancelled and unknown work; selection is passive">
           <ListBox.ItemTemplate>
@@ -89,7 +89,7 @@
               </StackPanel>
             </DataTemplate>
           </ListBox.ItemTemplate>
-        </ListBox>
+        </controls:ScrollableListBox>
         <WrapPanel Grid.Row="2">
           <Button x:Name="ReadQueue" Content="Refresh selected _work" IsEnabled="{Binding CanRefreshWork}"
                   AutomationProperties.Name="Passively refresh selected exact session work; no meaningful activity or dispatch" />
@@ -108,7 +108,7 @@
         <StackPanel Grid.Row="3" Spacing="4">
           <controls:NamedTextBlock Text="{Binding LocalEventStatus}" TextWrapping="Wrap"
                                   AutomationProperties.Name="Trusted visual local event status, fatigue, deferral and no replay reasons; no speech or focus change" />
-          <ListBox x:Name="EventRecords" MaxHeight="130" ItemsSource="{Binding LocalEvents}"
+          <controls:ScrollableListBox x:Name="EventRecords" MaxHeight="130" ItemsSource="{Binding LocalEvents}"
                    SelectedItem="{Binding SelectedLocalEvent, Mode=OneWay}"
                    AutomationProperties.Name="Content-free exact host event IDs and revisions; pending questions remain independent">
             <ListBox.ItemTemplate>
@@ -123,7 +123,7 @@
                 </StackPanel>
               </DataTemplate>
             </ListBox.ItemTemplate>
-          </ListBox>
+          </controls:ScrollableListBox>
           <WrapPanel>
             <Button x:Name="ReviewLocalEvent" Content="Review exact event" IsEnabled="{Binding CanControlLocalEvent}"
                     AutomationProperties.Name="Review only the selected exact event ID and revision; does not answer or retarget any question" />
@@ -169,7 +169,8 @@
           </ListBox>
         <ScrollViewer Grid.Row="1">
           <controls:NamedTextBlock Text="{Binding Detail}" TextWrapping="Wrap" FontFamily="Consolas"
-                     AutomationProperties.Name="Typed question, exact task and evidence details; inspection is not approval" />
+                     AutomationProperties.Name="Typed question, exact task and evidence details; inspection is not approval"
+                     AutomationProperties.AutomationId="SessionDetail" />
         </ScrollViewer>
         </Grid>
         </TabItem>

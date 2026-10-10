@@ -1,13 +1,39 @@
 using System.Globalization;
 
+using Kora.Application.Infrastructure;
 using Kora.Core.Hosting;
 using Kora.Core.Interaction;
 using Kora.Core.Storage;
 
 namespace Kora;
 
-internal sealed record SessionWorkRow(SessionQueueObservation? Queue, HostTaskObservation? Task, DateTimeOffset ObservedAt)
+internal sealed class SessionWorkRow(SessionQueueObservation? queue, HostTaskObservation? task, DateTimeOffset observedAt) : ObservableObject
 {
+    public SessionQueueObservation? Queue { get; private set; } = queue;
+    public HostTaskObservation? Task { get; private set; } = task;
+    public DateTimeOffset ObservedAt { get; private set; } = observedAt;
+
+    internal void Update(SessionWorkRow observation)
+    {
+        if (TaskId != observation.TaskId || (Queue is null) != (observation.Queue is null))
+        {
+            throw new InvalidOperationException("A presentation row cannot retarget its exact task identity or source kind.");
+        }
+        var identity = Identity;
+        var state = State;
+        var revisions = Revisions;
+        var deadline = Deadline;
+        Queue = observation.Queue;
+        Task = observation.Task;
+        ObservedAt = observation.ObservedAt;
+        if (!string.Equals(identity, Identity, StringComparison.Ordinal)) { OnPropertyChanged(nameof(Identity)); }
+        if (!string.Equals(state, State, StringComparison.Ordinal)) { OnPropertyChanged(nameof(State)); }
+        if (!string.Equals(revisions, Revisions, StringComparison.Ordinal)) { OnPropertyChanged(nameof(Revisions)); }
+        if (!string.Equals(deadline, Deadline, StringComparison.Ordinal)) { OnPropertyChanged(nameof(Deadline)); }
+    }
+
+    public override string ToString() => State + " | " + Identity + " | " + Revisions + " | " + Deadline;
+
     public Guid TaskId => Queue?.Entry.Request.TaskId.Value ?? Task!.Task.Request.TaskId.Value;
     public string Identity => "Task " + TaskId.ToString("D") + " | request "
         + (Queue?.Entry.Request.RequestId.Value ?? Task!.Task.Request.RequestId.Value).ToString("D");

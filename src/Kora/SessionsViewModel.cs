@@ -475,7 +475,9 @@ internal sealed partial class SessionsViewModel(
         ClearLocalEvents();
         selectionEpoch++;
         workSnapshot = null;
-        workRecords = [];
+        presentingWork = true;
+        try { workRecords.Clear(); }
+        finally { presentingWork = false; }
         selectedWork = null;
         queueSnapshot = null;
         selectedQueueEntry = null;

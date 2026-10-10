@@ -14,6 +14,7 @@ using Kora.Application.Maintenance;
 using Kora.Application.Skills;
 using Kora.Application.Tools;
 using Kora.Application.ViewModels;
+using Kora.Application.Voice;
 using Kora.Core.Artifacts;
 using Kora.Core.Authorization;
 using Kora.Core.Commands;
@@ -24,6 +25,7 @@ using Kora.Core.Hosting;
 using Kora.Core.Interaction;
 using Kora.Core.Maintenance;
 using Kora.Core.Skills;
+using Kora.Core.Voice;
 using Kora.Tools.Clipboard;
 using Kora.Tools.Runtime;
 using Kora.Windows.Storage;
@@ -35,7 +37,7 @@ using static Kora.NativeUxFixture.FixtureBoundaries;
 
 namespace Kora.NativeUxFixture;
 
-internal sealed class NativeUxFixtureSession : IApplicationDataPaths, IDisposable
+internal sealed partial class NativeUxFixtureSession : IApplicationDataPaths, IDisposable
 {
     private readonly CancellationTokenSource cancellation = new();
     private readonly List<MaintenanceViewModel> maintenance = [];
@@ -43,15 +45,21 @@ internal sealed class NativeUxFixtureSession : IApplicationDataPaths, IDisposabl
     private bool initialized;
     private MainViewModel? main;
     private AssistantNameConfigurationService? assistantNameConfiguration;
+    private SessionQueueService? queue;
+    private SessionWorkspaceService? sessions;
     private readonly EvidenceLoggerProvider? evidenceProvider;
+    private AudioControlAdmission? captionAdmission;
 
-    internal NativeUxFixtureSession(string scratchParent)
+    internal NativeUxFixtureSession(string scratchParent, bool silentCaption = false, bool listOverflow = false)
     {
+        if (silentCaption && listOverflow) { throw new ArgumentException("Synthetic caption and list-overflow fixture modes are separate."); }
         if (!NativeUxFixtureHost.IsLocalScratchParent(scratchParent))
         {
             throw new ArgumentException("An existing absolute scratch parent on a fixed local drive, not a reparse point, is required.", nameof(scratchParent));
         }
         LocalRoot = Path.Combine(Path.GetFullPath(scratchParent), "kora-native-ux-" + Guid.NewGuid().ToString("N"));
+        SilentSpeech = silentCaption ? new SilentCaptionSpeech() : null;
+        ListOverflow = listOverflow;
         if (Directory.Exists(LocalRoot) || File.Exists(LocalRoot))
         {
             throw new IOException("The fresh native UX scratch path already exists.");
@@ -70,7 +78,6 @@ internal sealed class NativeUxFixtureSession : IApplicationDataPaths, IDisposabl
             Interactions = new(this, Tasks);
             VersionQuery = new(new(Tasks), Audit, Loggers.CreateLogger<DurableVersionQuery>());
             Evidence = new(new WindowsSqliteEvidenceReader(sink), Access, TimeProvider.System, NullLogger<DurableEvidenceQuery>.Instance);
-            Sessions = new(Interactions, new(Tasks), Access, NullLogger<SessionWorkspaceService>.Instance);
             SharedAdmission = new(Interactions, Interactions, new(Tasks));
             SharedSkills = new(new(this), new DeniedSharedSkillReader(), SharedAdmission, Audit,
                 NullLogger<SharedSkillDiscoveryService>.Instance);
@@ -95,9 +102,11 @@ internal sealed class NativeUxFixtureSession : IApplicationDataPaths, IDisposabl
     internal WindowsSqliteHostInteractionStore Interactions { get; }
     internal DurableVersionQuery VersionQuery { get; }
     internal DurableEvidenceQuery Evidence { get; }
-    internal SessionWorkspaceService Sessions { get; }
+    internal SessionWorkspaceService Sessions => sessions
+        ?? throw new InvalidOperationException("The native fixture workspace has not initialized.");
     internal SharedSkillAdmission SharedAdmission { get; }
     internal SharedSkillDiscoveryService SharedSkills { get; }
+    internal SilentCaptionSpeech? SilentSpeech { get; }
 
     private sealed class DeniedSharedSkillReader : ISharedSkillSourceReader
     {
@@ -128,29 +137,48 @@ internal sealed class NativeUxFixtureSession : IApplicationDataPaths, IDisposabl
             new("kora.fixture.inspect", ArtifactKind.Skill, "Inspect synthetic fixture", "Non-executable native UX catalogue fixture.",
                 "inspect-fixture", ["inspect synthetic fixture"], "synthetic", "1.0.0", new string('0', 64),
                 "Inspection fixture only. No script or effect is admitted."),
+            .. ListOverflow ? Enumerable.Range(1, 12).Select(index =>
+                new ArtifactDefinition($"kora.fixture.overflow{index:00}", ArtifactKind.Skill, $"Synthetic overflow {index:00}",
+                    "Non-executable synthetic list overflow fixture.", $"overflow-{index:00}", [$"synthetic overflow {index:00}"], "synthetic", "1.0.0",
+                    new string('0', 64), "No script, provider or effect is admitted.")) : [],
         ]);
         var commands = new BuiltInCommandCatalog();
         var runtime = new RecordedRuntimeObservation(bootstrapper);
         var capabilities = new ReadOnlyCapabilityRegistry(Access, new(), new(), new(new AssemblyApplicationInfo()),
             new(bootstrapper), new(runtime), new(runtime), NullLogger<ReadOnlyCapabilityRegistry>.Instance);
+        queue = new(Interactions, Interactions, new(Tasks), Access, new DeterministicVersionQueueAction(capabilities),
+            new(), NullLogger<SessionQueueService>.Instance);
+        sessions = new(Interactions, new(Tasks), Access, NullLogger<SessionWorkspaceService>.Instance, queue);
         var clipboard = new ClipboardSnapshotBroker(new FixtureClipboardReader(), TimeProvider.System,
             NullLogger<ClipboardSnapshotBroker>.Instance);
-        var speech = new FixtureSpeech();
+        ITextToSpeechService speech = SilentSpeech is { } silent ? silent : new FixtureSpeech();
+        var audioPreferences = new LocalAudioDevicePreferences(this, NullLogger<LocalAudioDevicePreferences>.Instance);
+        SpeechTextConfigurationService? captionConfiguration = null;
+        if (SilentSpeech is not null)
+        {
+            audioPreferences.SaveOutputDeviceId(SilentSpeech.GetDefaultOutputDevice().Id);
+            var captionPreferences = new LocalSpeechTextPreferences(this);
+            captionPreferences.Save(SpeechTextMode.CurrentUtterance);
+            captionPreferences.SaveOptions(new(SpeechCaptionPlacement.TopLeft, 1));
+            captionAdmission = new(Interactions, Interactions, new(Tasks));
+            captionConfiguration = new(captionPreferences, captionAdmission, Audit);
+        }
         assistantNameConfiguration = new(new LocalAssistantNamePreferences(this, NullLogger<LocalAssistantNamePreferences>.Instance),
             commands, Audit, NullLogger<AssistantNameConfigurationService>.Instance);
         main = new(commands, new(commands), catalogue, new(catalogue), bootstrapper,
             new(bootstrapper, execution, execution), execution, new LocalModelApprovalPreferences(this), models, Access,
             new FixtureVoice(), speech, assistantNameConfiguration, appearances,
             new LocalOptionalSpeechOfferPreferences(this),
-            new LocalAudioDevicePreferences(this, NullLogger<LocalAudioDevicePreferences>.Instance),
+            audioPreferences,
             new LocalResponseOutputPreferences(this, NullLogger<LocalResponseOutputPreferences>.Instance),
-            new LocalCallAwarePreferences(this, NullLogger<LocalCallAwarePreferences>.Instance), new FixtureCallState(),
+            new LocalCallAwarePreferences(this, NullLogger<LocalCallAwarePreferences>.Instance),
+            new FixtureCallState(SilentSpeech is null ? Kora.Core.Communication.CallState.Unavailable : Kora.Core.Communication.CallState.Clear),
             Access, execution, new AvaloniaUiDispatcher(), Access, new AssemblyApplicationInfo(), Audit,
             NullLogger<MainViewModel>.Instance, consent, Access, VersionQuery, capabilities,
             new AppearanceConfigurationService(appearances, Audit, NullLogger<AppearanceConfigurationService>.Instance),
             new SpeechConfigurationService(new LocalTextToSpeechPreferences(this, NullLogger<LocalTextToSpeechPreferences>.Instance),
                 speech, Audit, NullLogger<SpeechConfigurationService>.Instance),
-            clipboard, new(clipboard), new(clipboard), new(clipboard));
+            clipboard, new(clipboard), new(clipboard), new(clipboard), speechTextConfiguration: captionConfiguration);
         Main.BindCallOwnershipGate(() => Access.Open);
         Main.BindClipboardOwnershipGate(static () => false);
         await Main.InitializeAsync();
@@ -170,6 +198,7 @@ internal sealed class NativeUxFixtureSession : IApplicationDataPaths, IDisposabl
             activity.Complete(HostOperationOutcome.Completed);
         }
         initialized = true;
+        if (ListOverflow) { await InitializeListOverflowAsync(); }
         startup.Complete(HostOperationOutcome.Completed);
     }
 
@@ -283,6 +312,13 @@ internal sealed class NativeUxFixtureSession : IApplicationDataPaths, IDisposabl
         foreach (var model in maintenance) { model.Dispose(); }
         main?.Dispose();
         assistantNameConfiguration?.Dispose();
+        // The fixture's synchronous shutdown drains only local-version work; queue disposal uses ConfigureAwait(false), with no UI continuation.
+#pragma warning disable VSTHRD002
+        queue?.DisposeAsync().AsTask().GetAwaiter().GetResult();
+        OverflowEvents?.DisposeAsync().AsTask().GetAwaiter().GetResult();
+        captionAdmission?.DisposeAsync().AsTask().GetAwaiter().GetResult();
+        SilentSpeech?.DisposeAsync().AsTask().GetAwaiter().GetResult();
+#pragma warning restore VSTHRD002
         Access.Dispose();
         Loggers.Dispose();
         evidenceProvider?.Dispose();

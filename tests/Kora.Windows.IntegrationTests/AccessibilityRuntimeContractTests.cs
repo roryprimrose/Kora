@@ -1,7 +1,10 @@
 using Avalonia.Automation;
 using Avalonia.Automation.Peers;
+using Avalonia.Automation.Provider;
 using Avalonia.Controls;
 using Avalonia.Controls.Documents;
+using Avalonia.Controls.Presenters;
+using Avalonia.Controls.Templates;
 using Avalonia.Headless;
 using Avalonia.Input;
 using Avalonia.Media.Imaging;
@@ -146,6 +149,60 @@ public sealed class AccessibilityRuntimeContractTests
             {
                 window.ClearAndClose();
             }
+        });
+    }
+
+    [Fact]
+    public async Task Scrollable_list_provider_discovers_off_thread_and_uses_the_current_template_without_changing_selection()
+    {
+        await HeadlessSession.RunAsync(async () =>
+        {
+            var list = new ScrollableListBox
+            {
+                ItemsSource = Enumerable.Range(1, 12).Select(index => $"Synthetic row {index}").ToArray(),
+                Height = 80,
+                SelectedIndex = 3,
+            };
+            var peer = ControlAutomationPeer.CreatePeerForElement(list)!;
+            var provider = await Task.Run(() => peer.GetProvider<IScrollProvider>());
+            provider.Should().NotBeNull();
+            Action unavailable = () => provider!.SetScrollPercent(-1, 0);
+            unavailable.Should().Throw<InvalidOperationException>().WithMessage("*no available scroll provider*");
+            var window = new Window { Content = list, Width = 400, Height = 200 };
+            window.Show();
+            try
+            {
+                list.UpdateLayout();
+                var first = (ScrollViewer)list.Scroll!;
+                provider!.VerticallyScrollable.Should().BeTrue();
+                provider.SetScrollPercent(-1, 100);
+                list.UpdateLayout();
+                first.Offset.Y.Should().BeGreaterThan(0);
+                var originalOffset = first.Offset.Y;
+                var presenter = new ItemsPresenter { Name = "PART_ItemsPresenter", ItemsPanel = list.ItemsPanel };
+                var replacement = new ScrollViewer { Name = "PART_ScrollViewer", Content = presenter };
+                list.Template = new FuncControlTemplate<ListBox>((_, scope) =>
+                {
+                    scope.Register(presenter.Name!, presenter);
+                    scope.Register(replacement.Name!, replacement);
+                    return replacement;
+                });
+                list.ApplyTemplate();
+                list.UpdateLayout();
+                list.Scroll.Should().BeSameAs(replacement);
+                provider.SetScrollPercent(-1, 50);
+                list.UpdateLayout();
+                replacement.Offset.Y.Should().BeGreaterThan(0);
+                provider.VerticalScrollPercent.Should().BeApproximately(50, 0.01);
+                first.Offset.Y.Should().Be(originalOffset);
+                list.SelectedIndex.Should().Be(3, "scrolling is not selection, inspection or execution");
+                Action invalid = () => provider.SetScrollPercent(-1, 101);
+                invalid.Should().Throw<ArgumentOutOfRangeException>();
+                list.IsEnabled = false;
+                Action disabled = () => provider.Scroll(ScrollAmount.NoAmount, ScrollAmount.SmallIncrement);
+                disabled.Should().Throw<ElementNotEnabledException>();
+            }
+            finally { window.Close(); }
         });
     }
 

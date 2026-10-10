@@ -1,6 +1,7 @@
 using System.Diagnostics;
 
 using Avalonia.Controls;
+using Avalonia.Automation.Peers;
 using Avalonia.Interactivity;
 
 using AwesomeAssertions;
@@ -11,6 +12,7 @@ using Kora.Core.Diagnostics;
 using Kora.Core.Hosting;
 using Kora.Core.Interaction;
 using Kora.Core.Platform;
+using Kora.Core.Voice;
 using Kora.Application.Presentation;
 using Kora.NativeUxFixture;
 
@@ -40,6 +42,228 @@ public sealed class NativeUxFixtureContractTests
         parent.Should().Be(Path.GetFullPath(Path.GetTempPath()));
         NativeUxFixtureHost.TryGetScratchParent(["--launch-native-fixtures", "--scratch-parent",
             Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"))], out _).Should().BeFalse();
+    }
+
+    [Fact]
+    public void Silent_caption_mode_requires_the_exact_additional_launch_flag()
+    {
+        NativeUxFixtureHost.TryGetScratchParent(
+            ["--launch-native-fixtures", "--scratch-parent", Path.GetTempPath(), "--silent-caption-fixture"], out _).Should().BeTrue();
+        NativeUxFixtureHost.TryGetScratchParent(
+            ["--launch-native-fixtures", "--scratch-parent", Path.GetTempPath(), "--silent-caption-fixture", "--extra"], out _).Should().BeFalse();
+        NativeUxFixtureHost.TryGetScratchParent(
+            ["--silent-caption-fixture", "--scratch-parent", Path.GetTempPath()], out _).Should().BeFalse();
+    }
+
+    [Fact]
+    public void List_overflow_mode_requires_its_exact_separate_flag()
+    {
+        NativeUxFixtureHost.TryGetScratchParent(
+            ["--launch-native-fixtures", "--scratch-parent", Path.GetTempPath(), "--list-overflow-fixture"], out _).Should().BeTrue();
+        NativeUxFixtureHost.TryGetScratchParent(
+            ["--launch-native-fixtures", "--scratch-parent", Path.GetTempPath(), "--list-overflow-fixture", "--silent-caption-fixture"], out _).Should().BeFalse();
+        var mixed = () => new NativeUxFixtureSession(Path.GetTempPath(), silentCaption: true, listOverflow: true);
+        mixed.Should().Throw<ArgumentException>();
+    }
+
+    [Fact]
+    public async Task List_overflow_keeps_real_queue_event_limits_missing_links_and_nonexecutable_catalogue()
+    {
+        await HeadlessSession.RunAsync(async () =>
+        {
+            using var fixture = new NativeUxFixtureSession(Path.GetTempPath(), listOverflow: true);
+            await fixture.InitializeAsync();
+            fixture.SilentSpeech.Should().BeNull();
+            fixture.Main.HasVoiceConsent.Should().BeFalse();
+            fixture.Main.CommandText = "/overflow";
+            fixture.Main.ArtifactCommandOptions.Should().HaveCount(12);
+            var target = fixture.LifecycleTarget!;
+            var queue = await fixture.Interactions.ReadQueueAsync(target.SessionId, fixture.Token);
+            queue.Entries.Should().ContainSingle().Which.State.Should().Be(SessionQueueState.Pending);
+            var viewer = new SessionsViewModel(fixture.Sessions, fixture.Evidence, fixture.Access,
+                Microsoft.Extensions.Logging.Abstractions.NullLogger<SessionsViewModel>.Instance, fixture.OverflowEvents);
+            await viewer.RefreshAsync();
+            await viewer.SelectAsync(viewer.Sessions.Single(entry => entry.Authority.SessionId == target.SessionId));
+            viewer.LocalEvents.Should().HaveCount(LocalEventSnapshot.MaximumVisible);
+            viewer.LocalEventStatus.Should().Contain("2 omitted");
+            await viewer.RefreshWorkAsync();
+            viewer.LocalEvents.Should().HaveCount(8);
+            (await fixture.Interactions.ReadQueueAsync(target.SessionId, fixture.Token)).Should().BeEquivalentTo(queue);
+            var evidence = new EvidenceViewModel(fixture.Evidence, () => fixture.Access.CanInspect,
+                Microsoft.Extensions.Logging.Abstractions.NullLogger<EvidenceViewModel>.Instance)
+            { TraceFilter = fixture.OverflowTrace!.TraceId };
+            await evidence.SearchAsync();
+            var linked = evidence.Records.Single(record => record.Reference.Source == Kora.Core.Diagnostics.EvidenceSource.Span);
+            linked.RelatedSegments.Should().HaveCount(12).And.OnlyContain(segment => segment.Record == null);
+            linked.RelatedSegments.Select(segment => segment.TraceId).Should().BeEquivalentTo(fixture.OverflowLinks);
+            evidence.Close();
+            viewer.Close();
+        });
+    }
+
+    [Fact]
+    public async Task Small_list_scrolling_preserves_event_selection_missing_link_authority_command_draft_and_pending_queue()
+    {
+        await HeadlessSession.RunAsync(async () =>
+        {
+            using var fixture = new NativeUxFixtureSession(Path.GetTempPath(), listOverflow: true);
+            await fixture.InitializeAsync();
+            var target = fixture.LifecycleTarget!;
+            var queue = await fixture.Interactions.ReadQueueAsync(target.SessionId, fixture.Token);
+            var viewer = new SessionsViewModel(fixture.Sessions, fixture.Evidence, fixture.Access,
+                Microsoft.Extensions.Logging.Abstractions.NullLogger<SessionsViewModel>.Instance, fixture.OverflowEvents);
+            await viewer.RefreshAsync();
+            await viewer.SelectAsync(viewer.Sessions.Single(entry => entry.Authority.SessionId == target.SessionId));
+            var sessionWindow = new SessionsWindow(viewer);
+            sessionWindow.Show();
+            try
+            {
+                var events = viewer.LocalEvents.ToArray();
+                events.Should().HaveCount(8);
+                var selected = viewer.SelectedLocalEvent;
+                var status = viewer.LocalEventStatus;
+                ScrollToEnd(sessionWindow.FindControl<ListBox>("EventRecords")!);
+                viewer.LocalEvents.Should().Equal(events);
+                viewer.SelectedLocalEvent.Should().BeSameAs(selected);
+                viewer.LocalEventStatus.Should().Be(status).And.Contain("2 omitted");
+            }
+            finally { sessionWindow.Close(); }
+
+            var evidence = new EvidenceViewModel(fixture.Evidence, () => fixture.Access.CanInspect,
+                Microsoft.Extensions.Logging.Abstractions.NullLogger<EvidenceViewModel>.Instance)
+            { TraceFilter = fixture.OverflowTrace!.TraceId };
+            await evidence.SearchAsync();
+            evidence.Select(evidence.Records.Single(record => record.Reference.Source == EvidenceSource.Span));
+            var evidenceWindow = new EvidenceWindow(evidence);
+            evidenceWindow.Show();
+            try
+            {
+                var segments = evidence.Segments;
+                var result = evidence.ResultText;
+                segments.Should().HaveCount(12).And.OnlyContain(segment => segment.Record == null);
+                var records = evidence.Records;
+                var selected = evidenceWindow.FindControl<ListBox>("Segments")!.SelectedItem;
+                ScrollToEnd(evidenceWindow.FindControl<ListBox>("Segments")!);
+                evidence.Segments.Should().BeSameAs(segments);
+                evidence.Records.Should().BeSameAs(records);
+                evidence.ResultText.Should().Be(result);
+                evidenceWindow.FindControl<ListBox>("Segments")!.SelectedItem.Should().BeSameAs(selected);
+            }
+            finally { evidenceWindow.Close(); }
+
+            fixture.Main.CommandText = "/overflow";
+            var responseWindow = new ResponseWindow(fixture.Main);
+            responseWindow.Show();
+            try
+            {
+                var options = fixture.Main.ArtifactCommandOptions.ToArray();
+                options.Should().HaveCount(12);
+                var commands = responseWindow.FindControl<ListBox>("ArtifactCommandList")!;
+                var selected = commands.SelectedItem;
+                ScrollToEnd(commands);
+                fixture.Main.ArtifactCommandOptions.Should().Equal(options);
+                fixture.Main.CommandText.Should().Be("/overflow");
+                commands.SelectedItem.Should().BeSameAs(selected);
+            }
+            finally { responseWindow.Close(); }
+            (await fixture.Interactions.ReadQueueAsync(target.SessionId, fixture.Token)).Should().BeEquivalentTo(queue);
+        });
+    }
+
+    private static void ScrollToEnd(ListBox list)
+    {
+        list.Height = 90;
+        list.UpdateLayout();
+        var provider = ControlAutomationPeer.CreatePeerForElement(list)!
+            .GetProvider<Avalonia.Automation.Provider.IScrollProvider>()!;
+        provider.VerticallyScrollable.Should().BeTrue();
+        provider.VerticalViewSize.Should().BeGreaterThan(0).And.BeLessThan(100);
+        provider.SetScrollPercent(-1, 100);
+        list.UpdateLayout();
+        provider.VerticalScrollPercent.Should().BeApproximately(100, 0.01);
+    }
+
+    [Fact]
+    public async Task Silent_caption_models_exact_playback_identity_without_an_audio_implementation()
+    {
+        await using var speech = new SilentCaptionSpeech();
+        var unarmed = () => speech.SpeakAsync("Synthetic text.", speech.GetDefaultVoice(), speech.GetDefaultOutputDevice(),
+            Guid.NewGuid(), TestContext.Current.CancellationToken);
+        await unarmed.Should().ThrowAsync<InvalidOperationException>();
+        var started = speech.Arm();
+        var id = Guid.NewGuid();
+        var playback = speech.SpeakAsync("Synthetic text.", speech.GetDefaultVoice(), speech.GetDefaultOutputDevice(),
+            id, TestContext.Current.CancellationToken);
+        await started;
+        playback.IsCompleted.Should().BeFalse();
+        speech.PlaybackFrame.Should().Be(SpeechPlaybackFrame.Inactive);
+        speech.ObservePlayback();
+        speech.PlaybackFrame.PlaybackId.Should().Be(id);
+        speech.ExactText.Should().Be("Synthetic text.");
+        var duplicate = () => speech.SpeakAsync("Other text.", speech.GetDefaultVoice(), speech.GetDefaultOutputDevice(), id);
+        await duplicate.Should().ThrowAsync<InvalidOperationException>();
+        speech.Complete();
+        await playback;
+        speech.PlaybackFrame.Should().Be(SpeechPlaybackFrame.Inactive);
+        speech.AdmittedRequests.Should().Be(1);
+        var install = () => speech.InstallProviderAsync("any", new Progress<SpeechProviderInstallProgress>());
+        await install.Should().ThrowAsync<InvalidOperationException>();
+    }
+
+    [Fact]
+    public async Task Silent_caption_uses_the_ordinary_response_path_and_pin_completion_stop_retirement()
+    {
+        await HeadlessSession.RunAsync(async () =>
+        {
+            using var fixture = new NativeUxFixtureSession(Path.GetTempPath(), silentCaption: true);
+            await fixture.InitializeAsync();
+            fixture.Main.HasVoiceConsent.Should().BeFalse();
+            fixture.Main.IsVoiceEnabled.Should().BeFalse();
+            await fixture.QueueSyntheticCaptionAsync();
+            fixture.Main.IsSpeechCaptionVisible.Should().BeFalse("queued text is not playback");
+            fixture.ObserveSyntheticCaption();
+            fixture.Main.IsSpeechCaptionVisible.Should().BeTrue();
+            fixture.Main.SpeechCaptionText.Should().Be(fixture.SilentSpeech!.ExactText);
+            await fixture.Main.ToggleSpeechCaptionPinCommand.ExecuteAsync();
+            fixture.Main.IsSpeechCaptionPinned.Should().BeTrue();
+            await fixture.CompleteSyntheticCaptionAsync();
+            fixture.Main.IsPreviousSpeechCaption.Should().BeTrue();
+            fixture.Main.IsSpeechCaptionVisible.Should().BeTrue();
+            await fixture.StopSyntheticCaptionAsync();
+            fixture.Main.SpeechCaptionText.Should().BeNull();
+            fixture.Main.IsSpeechCaptionPinned.Should().BeFalse();
+            fixture.SilentSpeech.AdmittedRequests.Should().Be(1);
+        });
+    }
+
+    [Fact]
+    public async Task Silent_caption_placement_uses_admitted_preferences_and_privacy_never_replays()
+    {
+        await HeadlessSession.RunAsync(async () =>
+        {
+            using var fixture = new NativeUxFixtureSession(Path.GetTempPath(), silentCaption: true);
+            await fixture.InitializeAsync();
+            using var first = System.Text.Json.JsonDocument.Parse(fixture.SyntheticCaptionStatus("inspect"));
+            using var second = System.Text.Json.JsonDocument.Parse(fixture.SyntheticCaptionStatus("inspect"));
+            second.RootElement.GetProperty("snapshotRevision").GetInt64().Should()
+                .BeGreaterThan(first.RootElement.GetProperty("snapshotRevision").GetInt64());
+            second.RootElement.GetProperty("completedOperation").GetString().Should().Be("inspect");
+            foreach (var placement in Enum.GetValues<SpeechCaptionPlacement>())
+            {
+                await fixture.SetSyntheticCaptionPlacementAsync(placement);
+                fixture.Main.SpeechCaptionPlacement.Should().Be(placement);
+            }
+            await fixture.QueueSyntheticCaptionAsync();
+            fixture.ObserveSyntheticCaption();
+            fixture.Access.SetOpen(false);
+            await fixture.StopSyntheticCaptionAsync();
+            fixture.Main.SpeechCaptionText.Should().BeNull();
+            fixture.Main.IsVoiceEnabled.Should().BeFalse();
+            fixture.Access.SetOpen(true);
+            fixture.Main.RefreshSpeechPlaybackFrame();
+            fixture.Main.IsSpeechCaptionVisible.Should().BeFalse();
+            fixture.SilentSpeech!.AdmittedRequests.Should().Be(1);
+        });
     }
 
     [Fact]
@@ -200,6 +424,209 @@ public sealed class NativeUxFixtureContractTests
             stored.Status.Should().Be(QuestionStatus.Pending);
             stored.Draft.Should().BeNull();
             state.Close("Fixture complete.");
+        });
+    }
+
+    [Fact]
+    public async Task Native_work_peer_exposes_new_pending_rows_after_retained_terminal_rows_without_window_recreation()
+    {
+        await HeadlessSession.RunAsync(async () =>
+        {
+            using var fixture = new NativeUxFixtureSession(Path.GetTempPath());
+            await fixture.InitializeAsync();
+            var viewer = new SessionsViewModel(fixture.Sessions, fixture.Evidence, fixture.Access,
+                Microsoft.Extensions.Logging.Abstractions.NullLogger<SessionsViewModel>.Instance);
+            await viewer.RefreshAsync();
+            await viewer.SelectAsync(viewer.Sessions.Single(entry =>
+                entry.Authority.SessionId == fixture.LifecycleTarget!.SessionId));
+            await viewer.EnqueueVersionAsync();
+            viewer.SelectWorkRecord(viewer.WorkRecords.Single(record => record.Queue?.Entry.State == SessionQueueState.Pending));
+            await viewer.RemoveQueueEntryAsync();
+            await viewer.EnqueueVersionAsync();
+            await viewer.DispatchQueueAsync();
+            var window = new SessionsWindow(viewer);
+            window.Show();
+            try
+            {
+                var records = window.FindControl<ListBox>("WorkRecords")!;
+                records.UpdateLayout();
+                var peer = ControlAutomationPeer.CreatePeerForElement(records)!;
+                _ = Descendants(peer).ToArray();
+                await viewer.EnqueueVersionAsync();
+                records.UpdateLayout();
+                var pending = viewer.WorkRecords.Single(record => record.Queue?.Entry.State == SessionQueueState.Pending);
+                records.ContainerFromItem(pending).Should().NotBeNull();
+                Descendants(peer).Should().Contain(child => child.GetName().Contains(pending.TaskId.ToString("D"), StringComparison.Ordinal));
+            }
+
+            finally { window.Close(); }
+        });
+    }
+
+    [Fact]
+    public async Task Bounded_work_list_scroll_provider_realizes_new_pending_work_and_preserves_passive_focus()
+    {
+        await HeadlessSession.RunAsync(async () =>
+        {
+            using var fixture = new NativeUxFixtureSession(Path.GetTempPath());
+            await fixture.InitializeAsync();
+            var viewer = new SessionsViewModel(fixture.Sessions, fixture.Evidence, fixture.Access,
+                Microsoft.Extensions.Logging.Abstractions.NullLogger<SessionsViewModel>.Instance);
+            await viewer.RefreshAsync();
+            await viewer.SelectAsync(viewer.Sessions.Single(entry =>
+                entry.Authority.SessionId == fixture.LifecycleTarget!.SessionId));
+            await viewer.EnqueueVersionAsync();
+            viewer.SelectWorkRecord(viewer.WorkRecords.Single(record => record.Queue?.Entry.State == SessionQueueState.Pending));
+            await viewer.RemoveQueueEntryAsync();
+            await viewer.EnqueueVersionAsync();
+            await viewer.DispatchQueueAsync();
+            var window = new SessionsWindow(viewer);
+            var records = window.FindControl<ListBox>("WorkRecords")!;
+            records.Height = 110;
+            var peer = ControlAutomationPeer.CreatePeerForElement(records)!;
+            var discovered = await Task.Run(() => peer.GetProvider<Avalonia.Automation.Provider.IScrollProvider>());
+            discovered.Should().NotBeNull("native provider discovery occurs off-thread and must not read the template");
+            window.Show();
+            try
+            {
+                records.UpdateLayout();
+                await viewer.EnqueueVersionAsync();
+                records.UpdateLayout();
+                var pending = viewer.WorkRecords.Single(record => record.Queue?.Entry.State == SessionQueueState.Pending);
+                var provider = peer.GetProvider<Avalonia.Automation.Provider.IScrollProvider>()!;
+                provider.Should().NotBeNull();
+                provider.VerticallyScrollable.Should().BeTrue();
+                provider.VerticalViewSize.Should().BeGreaterThan(0).And.BeLessThan(100);
+                provider.SetScrollPercent(-1, 100);
+                records.UpdateLayout();
+                provider.VerticalScrollPercent.Should().BeApproximately(100, 0.01);
+                Control? container = null;
+                foreach (var percent in new double[] { 0, 25, 50, 75, 100 })
+                {
+                    provider.SetScrollPercent(-1, percent);
+                    records.UpdateLayout();
+                    container = records.ContainerFromItem(pending);
+                    if (container is not null) { break; }
+                }
+                container.Should().NotBeNull("native scrolling must realize the previously off-viewport pending row");
+                container!.Focus().Should().BeTrue();
+                viewer.SelectWorkRecord(pending);
+                var collection = viewer.WorkRecords;
+                var offset = provider.VerticalScrollPercent;
+                await viewer.RefreshWorkAsync();
+                records.UpdateLayout();
+                viewer.WorkRecords.Should().BeSameAs(collection);
+                viewer.SelectedWorkRecord.Should().BeSameAs(pending);
+                records.ContainerFromItem(pending).Should().BeSameAs(container);
+                window.FocusManager!.GetFocusedElement().Should().BeSameAs(container);
+                provider.VerticalScrollPercent.Should().BeApproximately(offset, 0.01);
+                pending.Queue!.Entry.State.Should().Be(SessionQueueState.Pending);
+                provider.SetScrollPercent(-1, 0);
+                records.UpdateLayout();
+                provider.VerticalScrollPercent.Should().Be(0);
+            }
+            finally { window.Close(); }
+        });
+    }
+
+    private static IEnumerable<AutomationPeer> Descendants(AutomationPeer parent)
+    {
+        foreach (var child in parent.GetChildren() ?? [])
+        {
+            yield return child;
+            foreach (var descendant in Descendants(child)) { yield return descendant; }
+        }
+    }
+
+    [Fact]
+    public async Task Scratch_session_and_evidence_lists_expose_scrollable_overflow_without_mutating_selection_or_sources()
+    {
+        await HeadlessSession.RunAsync(async () =>
+        {
+            using var fixture = new NativeUxFixtureSession(Path.GetTempPath());
+            await fixture.InitializeAsync();
+            var viewer = new SessionsViewModel(fixture.Sessions, fixture.Evidence, fixture.Access,
+                Microsoft.Extensions.Logging.Abstractions.NullLogger<SessionsViewModel>.Instance);
+            for (var index = 0; index < 9; index++)
+            {
+                viewer.NameDraft = $"Synthetic scroll test {index}";
+                await viewer.CreateAsync();
+            }
+            await viewer.RefreshAsync();
+            var sessionWindow = new SessionsWindow(viewer);
+            sessionWindow.Show();
+            try
+            {
+                var records = sessionWindow.FindControl<ListBox>("Records")!;
+                records.Height = 90;
+                records.UpdateLayout();
+                var peer = ControlAutomationPeer.CreatePeerForElement(records)!;
+                var provider = peer.GetProvider<Avalonia.Automation.Provider.IScrollProvider>()!;
+                provider.VerticallyScrollable.Should().BeTrue();
+                var selected = viewer.SelectedSessionRecord;
+                var sessions = viewer.Sessions;
+                provider.SetScrollPercent(-1, 100);
+                records.UpdateLayout();
+                provider.VerticalScrollPercent.Should().BeApproximately(100, 0.01);
+                viewer.SelectedSessionRecord.Should().BeSameAs(selected);
+                viewer.Sessions.Should().Equal(sessions);
+            }
+            finally { sessionWindow.Close(); }
+
+            var evidence = new EvidenceViewModel(fixture.Evidence, () => fixture.Access.CanInspect,
+                Microsoft.Extensions.Logging.Abstractions.NullLogger<EvidenceViewModel>.Instance);
+            await evidence.SearchAsync();
+            var evidenceWindow = new EvidenceWindow(evidence);
+            evidenceWindow.Show();
+            try
+            {
+                var records = evidenceWindow.FindControl<ListBox>("Records")!;
+                records.Height = 90;
+                records.UpdateLayout();
+                var provider = ControlAutomationPeer.CreatePeerForElement(records)!
+                    .GetProvider<Avalonia.Automation.Provider.IScrollProvider>()!;
+                provider.VerticallyScrollable.Should().BeTrue();
+                var page = evidence.Records;
+                var details = evidence.ResultText;
+                provider.SetScrollPercent(-1, 100);
+                records.UpdateLayout();
+                provider.VerticalScrollPercent.Should().BeApproximately(100, 0.01);
+                evidence.Records.Should().BeSameAs(page);
+                evidence.ResultText.Should().Be(details);
+                evidence.Segments.Should().BeEmpty("scrolling cannot select or navigate a trace segment");
+            }
+            finally { evidenceWindow.Close(); }
+        });
+    }
+
+    [Fact]
+    public async Task Fixture_queue_runs_only_the_admitted_local_version_and_refuses_dispatch_after_privacy_closure()
+    {
+        await HeadlessSession.RunAsync(async () =>
+        {
+            using var fixture = new NativeUxFixtureSession(Path.GetTempPath());
+            await fixture.InitializeAsync();
+            var viewer = new SessionsViewModel(fixture.Sessions, fixture.Evidence, fixture.Access,
+                Microsoft.Extensions.Logging.Abstractions.NullLogger<SessionsViewModel>.Instance);
+            await viewer.RefreshAsync();
+            await viewer.SelectAsync(viewer.Sessions.Single(entry =>
+                entry.Authority.SessionId == fixture.LifecycleTarget!.SessionId));
+            await viewer.EnqueueVersionAsync();
+            viewer.QueueRecords.Should().ContainSingle().Which.State.Should().Be(SessionQueueState.Pending);
+            await viewer.DispatchQueueAsync();
+            viewer.QueueRecords.Should().BeEmpty();
+            viewer.Detail.Should().Contain("\"queueDispatch\":").And.Contain("\"Succeeded\"");
+            fixture.Main.HasVoiceConsent.Should().BeFalse();
+            fixture.Main.LocalModelsEnabled.Should().BeFalse();
+            fixture.Main.HostedModelsEnabled.Should().BeFalse();
+            await viewer.EnqueueVersionAsync();
+            var pending = viewer.QueueRecords.Single();
+            fixture.Access.SetOpen(false);
+            await viewer.DispatchQueueAsync();
+            viewer.Status.Should().Contain("Sessions unavailable/denied:");
+            (await fixture.Interactions.ReadQueueEntryAsync(pending.Request.SessionId, pending.Request.TaskId,
+                CancellationToken.None))!.State.Should().Be(SessionQueueState.Pending);
+            viewer.Close();
         });
     }
 

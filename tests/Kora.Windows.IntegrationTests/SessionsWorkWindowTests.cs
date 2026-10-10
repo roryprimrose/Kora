@@ -105,6 +105,50 @@ public sealed class SessionsWorkWindowTests
     }
 
     [WindowsFact]
+    public async Task Passive_refresh_keeps_the_focused_work_container_and_updates_its_observation_without_retargeting()
+    {
+        await HeadlessSession.RunAsync(async () =>
+        {
+            using var fixture = new InteractionStorageFixture();
+            await fixture.InitializeAsync();
+            var question = await WindowsSqliteTaskControlTests.WaitAsync(fixture);
+            var access = new WindowsSqliteSessionWorkspaceTests.Access();
+            var viewer = CreateViewer(fixture, access);
+            await viewer.RefreshAsync();
+            await viewer.SelectAsync(viewer.Sessions.Single());
+            var row = viewer.WorkRecords.Single();
+            viewer.SelectWorkRecord(row);
+            var window = new SessionsWindow(viewer);
+            window.Show();
+            try
+            {
+                var records = window.FindControl<ListBox>("WorkRecords")!;
+                records.UpdateLayout();
+                var container = records.ContainerFromItem(row)
+                    ?? throw new InvalidOperationException("The displayed work row did not realize its native container.");
+                container.Focus().Should().BeTrue();
+                var changed = new List<string?>();
+                row.PropertyChanged += (_, args) => changed.Add(args.PropertyName);
+                fixture.Time.Now = fixture.Time.Now.AddSeconds(1);
+                await viewer.RefreshWorkAsync();
+                changed.Should().BeEmpty("a new observation time alone must not reannounce unchanged work fields");
+                row.ToString().Should().Contain(row.TaskId.ToString("D")).And.Contain("Waiting for user");
+                fixture.Time.Now = question.ExpiresAt;
+                await viewer.RefreshWorkAsync();
+                viewer.WorkRecords.Should().ContainSingle().Which.Should().BeSameAs(row);
+                viewer.SelectedWorkRecord.Should().BeSameAs(row);
+                records.ContainerFromItem(row).Should().BeSameAs(container);
+                window.FocusManager!.GetFocusedElement().Should().BeSameAs(container);
+                row.ObservedAt.Should().Be(fixture.Time.Now);
+                row.State.Should().Contain("User-wait expired");
+                changed.Should().Contain(nameof(SessionWorkRow.State));
+                viewer.CanCancelWork.Should().BeFalse("stable presentation identity does not renew inspected authority");
+            }
+            finally { window.Close(); }
+        });
+    }
+
+    [WindowsFact]
     public async Task Concurrent_queue_change_rejects_stale_native_controls_then_refresh_exposes_truthful_terminal_records()
     {
         using var fixture = new InteractionStorageFixture();

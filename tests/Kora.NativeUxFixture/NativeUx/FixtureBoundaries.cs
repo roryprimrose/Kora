@@ -107,10 +107,10 @@ internal static class FixtureBoundaries
         public void RestartCurrentApplication() => throw new InvalidOperationException("Fixture cannot restart applications.");
     }
 
-    internal sealed class FixtureCallState : ICallStateService
+    internal sealed class FixtureCallState(CallState state = CallState.Unavailable) : ICallStateService
     {
         public event EventHandler<CallStateChangedEventArgs>? StateChanged { add { } remove { } }
-        public CallState CurrentState => CallState.Unavailable;
+        public CallState CurrentState => state;
     }
 
     internal sealed class FixtureClipboardReader : IPlainTextClipboardReader

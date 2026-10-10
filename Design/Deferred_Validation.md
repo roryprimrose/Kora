@@ -670,6 +670,32 @@ publication bundle remains unchanged. Earlier caption/name/other-list
 observations above retain their earlier fingerprints and are not reattributed
 to this latest queue update. No additional protected or human proof is claimed.
 
+### 2026-10-10 PR 162 Retention-Main Auto-Merge Revalidation
+
+The operator enabled protected squash auto-merge for #162, then approved
+another main update and a new fixed one-hour synthetic desktop-validation
+window. Main `fae6428` was merged without rewriting published history. Its
+per-session retention inspection, reviewed control fences and live presentation
+state remain intact; no retention policy or grant boundary was changed.
+
+Fresh Release solution build/publish passed with zero warnings/errors.
+Preparation passed 106 focused tests, supporting Application classes passed
+1,598 tests and seven retention/storage/work/list/event Windows classes passed
+57 tests, all without skips. All 43 admission contracts passed without native
+launch. One final-payload workstation repetition passed five baseline plus ten
+expanded rows. Fresh overflow repetitions discovered exact 8/8 event IDs,
+12/12 missing links, 12/12 command names, 9/9 new session IDs and 43/43 citations.
+These are scoped groups and repetitions, not repository-wide certification.
+
+All six final native processes exited 0, cleaned their exact scratch children,
+required no force and were absent when the source-bound summary was sealed.
+Native operations used the newly recorded fixed cutoff; previous queue-update
+and publication bundles remain unchanged. No new live retention-control trial
+or caption/name/audio/Narrator/readability/physical-display acceptance is
+attributed to these bytes. The renewed window retains the original synthetic
+ownership/privacy boundaries. Auto-merge does not bypass required checks,
+approvals or up-to-date branch rules.
+
 ### 2026-10-09 Bounded Native UX and Light-Text Continuation
 
 **Disposition: scoped native observations recorded; light-mode secondary-text

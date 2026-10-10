@@ -1,5 +1,7 @@
 # Skill and task execution design
 
+The proposed [Session Permission Levels](../Design/Session_Permission_Levels.md) feature changes ordinary review below: exact grants first, then Review all / Model review / Approve all. Required action review describes Review all or independently mandatory confirmation. Immutable resources, prohibited effects, consent and execution constraints still apply; this is not implemented support.
+
 This page specifies requirements for future stored skills and user-approved
 application and script execution. **These execution features are not available
 in the current release.** Today, model grants apply only to named built-in
@@ -306,20 +308,16 @@ always grants. Other tasks' unrelated grants remain valid.
 
 ## Task execution gate
 
-The host also applies the default-On
-[in-call grant-ignore policy](../Design/Call_Aware_Speech.md#ignoring-reusable-grants-during-calls).
-During protected calls, Session/Perpetual grants are preserved but cannot
-authorize execution; require fresh single-use approval for each exact invocation.
-Revalidate call/setting policy generation at dispatch, including every queued
-or background step; changing feedback/speech preferences does not bypass it.
+The proposed [session permission levels](../Design/Session_Permission_Levels.md#levels-and-decision-order) apply to direct/UI/model/MCP and generated/stored script actions. Use an exact applicable grant first; otherwise Review all asks, Model review uses an isolated reviewer, and Approve all skips ordinary analysis/approval without creating grants or bypassing mandatory boundaries.
+
+The proposed [call policy](../Design/Call_Aware_Speech.md#spoken-approvals-during-calls) disables spoken approval by default, not grant reuse or levels. UI keeps normal duration choices. Current grant suppression remains until qualified migration; revalidate voice eligibility at answer acceptance and operation authority for every queued/background dispatch.
 
 Before each execution, the host resolves and validates the complete declared
 target set and required/tracked identities, computes current hashes, and
-compares them with the approved grant.
+compares them with the applicable grant or freshly resolved one-invocation level-based admission.
 Checks must happen at execution time, not just when the skill is loaded, the
-grant is created, or a file watcher reports a change. Missing, unreadable,
-invalid, or changed resources fail closed: do not start any part of the task;
-show which resource changed and request a fresh, exact approval. Revoke
+grant is created, or a file watcher reports a change. Missing, unreadable or
+invalid required resources fail closed in every level. Changed verified resources invalidate the old proposal: do not start any part under stale authority; show the change and resolve a fresh exact proposal through the selected level and mandatory policy. Revoke
 authorization for changed approved skill/script content or definition hashes;
 otherwise block unverifiable grant applicability. Audit the denial without
 recording script contents or sensitive arguments. If the revocation or blocker
@@ -358,7 +356,7 @@ verified embedded snapshot must be the source of execution.
 The local model may propose a registered task and explain it, but it cannot
 declare a hash, choose its own grant scope, modify a stored grant, or invoke an
 unchecked process. Kora must resolve the task and resources, present the
-specific action and scope to the user, enforce the approval gate, and dispatch
+specific action and scope to the user when review is required, enforce the shared authorization gate, and dispatch
 only through its host-owned task runner. These rules also apply when a task is
 invoked through an exact built-in command, not just through the model.
 

@@ -4,6 +4,8 @@ Status: bounded manual host mode, independent device-local feedback and conserva
 full R15 remains partial. Automatic tool detection is unavailable, not implemented.
 The remaining detector and configurable exception contracts below are proposed.
 
+[Session Permission Levels](Session_Permission_Levels.md#voice-approval-and-protected-calls) supersedes future call grant-ignore: disable spoken approvals by default, configurable, while preserving grants and the session's level. Delivered manual-mode grant suppression below remains current behavior until qualified migration; this document change does not remove it.
+
 The [delivered R18 broker](Proactive_Interaction.md#delivered-r18-trusted-local-visual-broker---2026-10-09)
 is visual/native only. It neither requests synthesis/playback nor inherits
 Voice/Both feedback as permission. Protected Active/Suspected/Unknown call
@@ -217,34 +219,28 @@ The model-facing `calls.*`, `speech.*`, and `settings.*` boundaries are defined 
 
 ## Ignoring Reusable Grants During Calls
 
-`calls.ignoreReusableGrants` is a separate device-local Boolean setting, **On by default**, discoverable/changeable through the shared voice/UI settings registry.
-When it applies, the host ignores Session and Perpetual grants for authorization and requires a fresh single-use approval for each exact operation that normally requires a grant.
-It does not block all operations: trusted voice or UI approval can authorize that invocation once, subject to normal input, risk, resource, and OS/provider checks.
-Grant-free help/status and deterministic safety controls remain available.
+The former proposed default-On `calls.ignoreReusableGrants` setting is superseded by [Spoken Approvals During Calls](#spoken-approvals-during-calls). Keep this heading for historical links. Current reusable-grant suppression remains described in the [delivered manual-mode boundary](#delivered-bounded-manual-mode---2026-10-07); it is not the target behavior for the new feature.
 
-Use normalized call evidence, not the selected feedback mode: manual Active or any enabled Active/Suspected source activates this gate.
-An enabled Unknown source is conservatively protected while this setting is On; stale/failed detection is not clearance.
-With no configured detector and no manual call state, disclose unavailable automatic protection and use ordinary grant rules.
-Speak-once requests, UI-only/Voice/Both feedback changes, and relaxed speech suppression do not disable this independent authorization setting.
+## Spoken Approvals During Calls
 
-Ignoring is temporary non-use, not revocation, consumption, editing, expiry, or eviction of the reusable grant.
-The inventory/explanation shows "Ignored during call; single-use approval required" and retains the stored scope.
-After verified clearance or explicit disabling of this setting, still-applicable reusable grants become eligible under ordinary policy; ended session grants and removed/inapplicable grants do not.
-Do not turn call clearance into approval of an unanswered prompt or replay an interrupted invocation.
-Creating/editing a Session/Perpetual grant during a call can configure future reuse, but cannot bypass the fresh single-use requirement for the current invocation.
+Propose device-local **`calls.allowSpokenApprovals`**, **Off by default**. During manual Active, supported enabled Active/Suspected, or enabled Unknown/stale/failed call evidence, reject spoken Once/Session/Always approval and disclosure-consent answers while preserving the pending UI card. UI can select every otherwise valid grant duration; calls do not force Once.
 
-Revalidate call evidence and setting/policy generation immediately before every dispatch, including each step of background/queued work.
-Advance this generation on effective protection/setting transitions, not unchanged detector polls; overlapping Active sources do not create a false clearance.
-A call entering the protected state invalidates undispatched authorizations relying on reuse or a pre-call approval; request fresh single-use approval under the current call policy.
-Bind that approval to the exact invocation and call-policy generation and consume it atomically once; changed effects or a new protected-call generation require reassessment.
-Already dispatched effects are not undone or claimed cancelled solely because a call starts; report actual completion/cancellation/unknown outcomes.
-Models, skills, and detector adapters cannot toggle the setting directly. Turning it Off is a protection downgrade requiring exact trusted confirmation; during a protected call it must originate from a new UI request, not voice.
-Approval output follows the separate feedback policy (UI-only by default during calls); voice input remains independently eligible.
+Existing applicable grants, preapproved destinations and the selected Review all / Model review / Approve all level remain effective. Call entry does not revoke/ignore those grants or turn automatic admission into a fresh-approval requirement. Safe and Approve-all eligible actions can continue without prompting; independent consent and mandatory gates still apply.
+
+The setting is independent of voice activation, feedback and speech suppression. Voice commands may remain eligible even when spoken approval is not. Feedback Voice/Both, speak-once readback or an already-open microphone cannot enable spoken approval. No detector/manual state means detection unavailable, not proof of no call.
+
+Enabling permits normal deliberate voice approval subject to exact proposal/target, expiry, required authentication and normal input policy. Enabling during protection requires fresh original UI initiation and explicit confirmation. Voice-originated changes to this voice/in-call setting remain rejected; later UI confirmation cannot relabel their origin.
+
+Recheck call evidence/setting revision at voice-answer acceptance. Call entry or disabling the setting rejects stale unaccepted voice answers; do not revoke a committed grant or accepted decision solely because the channel became unavailable. Mandatory operation/policy/content/cancellation checks still run at dispatch.
+
+Clearance never accepts rejected speech, answers cards, restores grants, reopens capture or replays work. Show **Spoken approvals disabled during call; UI available** separately from the level. See the [voice/call contract](Session_Permission_Levels.md#voice-approval-and-protected-calls) and [acceptance gate](Acceptance_Criteria.md#session-permission-level-gate).
+
+Migration must change host grant applicability, voice-answer eligibility, native/settings explanations and every direct/model/background consumer together behind the feature's enablement gate. Do not advertise the new setting while old grant-ignore remains effective on those routes. Existing stored grants must not be deleted, widened or converted during migration.
 
 ## In-Call Settings Origin Gate
 
 While manual Active, any enabled Active/Suspected source, or enabled Unknown call evidence applies, the host rejects voice-initiated changes to voice settings and **any setting related to in-call options**.
-This covers input/output/activation preferences, in-call feedback, grant-ignore, call speech/Unknown handling, detector enablement/account, manual call-state changes, temporary overrides, speak-once call exceptions, and reset/undo operations affecting these options.
+This covers input/output/activation preferences, in-call feedback, spoken-approval enablement, call speech/Unknown handling, detectors/accounts, manual call state, temporary/speak-once exceptions, and reset/undo. Current grant-ignore downgrades remain restricted until migration.
 The restriction applies to all scopes, including ordinary device/session/task settings whose voice effects would otherwise be masked by an in-call override.
 Inspecting settings/status remains permitted; unrelated settings are not made UI-only.
 

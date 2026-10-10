@@ -909,7 +909,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     public bool IsCancelTaskVisible => IsLocalTaskCancellable || IsSpeaking || clipboardPreview.IsReading
         || IsWebPageRetrievalActive || HasWebResultDetails
-        || filePreview?.IsBusy == true || FileReview is not null || FileRevision is not null
+        || filePreview?.IsBusy == true || sessionFiles?.IsQuiescent == false || FileReview is not null || FileRevision is not null
         || FolderReview is not null || FolderRevision is not null;
 
     public bool IsLocalModelSetupActive
@@ -2806,6 +2806,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         }
         await clipboardPreview.WaitForQuiescenceAsync();
         if (filePreview is not null) { await filePreview.WaitForQuiescenceAsync(); }
+        if (sessionFiles is not null) { await sessionFiles.WaitForQuiescence(); }
         WindowActionRequested?.Invoke(this, WindowAction.Close);
     }
 

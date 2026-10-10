@@ -173,7 +173,9 @@ public sealed partial class SessionWorkspaceServiceTests
             return new(request.SessionId, authority.Generation, preview);
         }
         public ValueTask<HostTaskObservation?> ReadTaskAsync(HostId<SessionIdentity> session, HostId<TaskIdentity> task, CancellationToken cancellationToken) =>
-            ValueTask.FromResult<HostTaskObservation?>(UnknownTask ? null : new(Task, Session.Generation, "unclassified", false, Question));
+            ValueTask.FromResult<HostTaskObservation?>(FileReceipts
+                ? new(TaskWrites.Last(record => record.Request.TaskId == task), Session.Generation, "session-file", true, null)
+                : UnknownTask ? null : new(Task, Session.Generation, "unclassified", false, Question));
         public ValueTask<HostTaskObservation> CancelWaitingTaskAsync(HostRequest control, HostTaskCancellationTarget target,
             Func<bool> canControl, CancellationToken cancellationToken) =>
             ValueTask.FromResult(new HostTaskObservation(new(Request, new(2), HostTaskState.Cancelled),

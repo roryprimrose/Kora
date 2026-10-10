@@ -2,6 +2,10 @@
 
 Status: proposed interaction contract, not a shipped tool loop or skill runner.
 
+The [bounded durable Session file flow](File_And_Folder_Ingestion.md#delivered-durable-single-file-session-attachment---2026-10-10) is native host-only. **Attach text file** captures one immutable UTF-8 text/Markdown file for an exact active session only after separate metadata/durable-copy review and native confirmation. The shared verified capture action never treats volatile preview consent as persistence permission.
+
+Native retained full-source inspection, exact lexical citations and separately reviewed removal are local and passive; one file/session, 256 KiB original bytes, sixteen retained profile files, no eviction. No typed/voice/model route supplies an attachment path, confirmation, body, session generation or retained-copy writer. The read-only six-ID catalogue is unchanged, with no Available context/model descriptor.
+
 R21 now provides a native host-only explicit shared-profile registration/list/
 inspect/recheck and exact native local-read-consent withdrawal route. Its strict
 versioned instruction reader retains exact
@@ -50,7 +54,7 @@ Preview is not model-context selection or transmission consent. See
 R26.1a adds the host-only **preview file** / **clear file preview** and native
 picker/review/confirmation workflow through `Kora.Tools.Files.LocalFilePreview`.
 It admits one volatile immutable fixed-drive strict-UTF-8 text/Markdown preview,
-not a file-model tool, durable attachment, registry, folder, persistent/vector index,
+not a file-model tool, durable attachment consent, managed registry, persistent/vector index,
 reasoning or egress capability. Paths supplied by users/models/documents never
 authorize reads. See [exact delivered limits and Windows identity controls](File_And_Folder_Ingestion.md#delivered-bounded-local-file-preview).
 

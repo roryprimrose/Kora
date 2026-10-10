@@ -29,4 +29,23 @@ public sealed class LocalFileRevision
     public string Digest { get; }
     public DateTimeOffset AdmittedAt { get; }
     public LocalFileReference Reference => new(Review.SourceId, RevisionId, ItemId, Digest);
+
+    private LocalFileRevision(LocalFileRevision captured, LocalFileReference reference)
+    {
+        if (reference.SourceId != captured.Review.SourceId || reference.RevisionId == Guid.Empty
+            || reference.ItemId == Guid.Empty || !string.Equals(reference.Digest, captured.Digest, StringComparison.Ordinal))
+        {
+            throw new InvalidDataException("The retained revision does not match its exact original-byte lineage.");
+        }
+        Review = captured.Review;
+        RevisionId = reference.RevisionId;
+        ItemId = reference.ItemId;
+        Text = captured.Text;
+        Digest = captured.Digest;
+        AdmittedAt = captured.AdmittedAt;
+    }
+
+    public static LocalFileRevision Restore(LocalFileReview review, ReadOnlySpan<byte> originalBytes,
+        DateTimeOffset admittedAt, LocalFileReference reference) =>
+        new(new LocalFileRevision(review, originalBytes, admittedAt), reference);
 }

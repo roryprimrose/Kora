@@ -14,6 +14,12 @@ same live application state as the presence and response surfaces.
 
 ## Per-session retention status and hold
 
+Session file attachments are separate native controls, not a new preference. In **Sessions**, select an exact active session and choose **Attach text file to this exact Session**. Review all native metadata and the durable Kora-copy disclosure, then confirm separately. The fixed limits are one immutable `.txt`/`.md`/`.markdown` file per session, 256 KiB original UTF-8 bytes including BOM, sixteen retained profile files, no eviction.
+
+**Inspect retained attachment / remove Kora copies** reads that session's exact historical snapshot after restart, including retained Done sessions, without resuming or renewing activity. It shows full inert text and exact lexical citations. Removal requires another exact source/session/revision/copy-inventory review and confirmation; original files remain untouched. Existing Keep/ordinary retention and source-copy holds apply.
+
+No limit/format override, folder/version/knowledge setting, model inclusion, OCR/vector, watcher/refresh, provider upload or export is added. Bodies never enter preferences. See the [complete attachment/storage/removal boundary](../Design/File_And_Folder_Ingestion.md#delivered-durable-single-file-session-attachment---2026-10-10).
+
 Open **Sessions**, select one exact immutable session ID, then expand **Selected-session retention: status and exact review**. The panel shows actual recorded UTC last meaningful activity, archive due and delete due dates, kept/purged state and observed work/control holds.
 Copy inventory and broader maintenance availability are not observed here. **Refresh retention status** never renews inactivity, resumes work or runs cleanup.
 If due-content inspection is held, enter the canonical lowercase immutable ID in the existing exact-ID field and choose **Read exact ID retention**. This reads only retention metadata, not names/history/work, and does not resume or implicitly select a conversation. Unknown IDs refuse; removed/purged tombstones cannot be changed.

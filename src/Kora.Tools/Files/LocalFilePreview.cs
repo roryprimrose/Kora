@@ -303,7 +303,18 @@ public sealed partial class LocalFilePreview(
         }, preserveReview: true, token);
     }
 
-    public Task<LocalFileOutcome> ConfirmAsync(Guid exactReviewId, Func<bool> canPresent, CancellationToken token)
+    public Task<LocalFileOutcome> ConfirmAsync(Guid exactReviewId, Func<bool> canPresent, CancellationToken token) =>
+        ConfirmAsync(exactReviewId, canPresent, null, token);
+
+    public Task<LocalFileOutcome> ConfirmAttachment(Guid exactReviewId, Func<bool> canPresent,
+        Func<LocalFileRevision, ReadOnlyMemory<byte>, CancellationToken, Task> persist, CancellationToken token)
+    {
+        ArgumentNullException.ThrowIfNull(persist);
+        return ConfirmAsync(exactReviewId, canPresent, persist, token);
+    }
+
+    private Task<LocalFileOutcome> ConfirmAsync(Guid exactReviewId, Func<bool> canPresent,
+        Func<LocalFileRevision, ReadOnlyMemory<byte>, CancellationToken, Task>? persist, CancellationToken token)
     {
         // Confirmation is native UI only. Typed/spoken IDs or document instructions do not authorize a read.
         var request = HostActivity.RequireCurrent().Request;
@@ -334,6 +345,17 @@ public sealed partial class LocalFilePreview(
             {
                 bytes = await selected.ReadAsync(cancellation).ConfigureAwait(false);
                 captured = new LocalFileRevision(reviewed, bytes, time.GetUtcNow());
+                ReleaseOwned(selected);
+                selected = null!;
+                lock (sync)
+                {
+                    if (releaseFailed || !IsCurrent(admittedGeneration, canPresent, cancellation)
+                        || eligible is null || !eligible()) { return LocalFileOutcome.Cancelled; }
+                }
+                if (persist is not null)
+                {
+                    await persist(captured, bytes, cancellation).ConfigureAwait(false);
+                }
             }
             finally
             {

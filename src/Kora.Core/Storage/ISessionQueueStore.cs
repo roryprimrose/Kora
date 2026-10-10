@@ -14,7 +14,7 @@ public interface ISessionQueueStore
         HostId<TaskIdentity>? task, HostRevision? entryRevision, SessionQueueState outcome,
         Func<bool> eligible, CancellationToken token);
     ValueTask<SessionQueueEntry?> FindReadyAsync(long admissionRevision, SessionQueueLimits limits, CancellationToken token);
-    ValueTask<SessionQueueEntry> AdmitAsync(SessionQueueEntry expected, long admissionRevision,
+    ValueTask<SessionQueueAdmissionReceipt> AdmitAsync(SessionQueueEntry expected, long admissionRevision,
         SessionQueueLimits limits, Func<bool> eligible, CancellationToken token);
     ValueTask<SessionQueueEntry> CompleteAsync(SessionQueueEntry expected, SessionQueueState outcome,
         Func<bool> eligible, CancellationToken token);

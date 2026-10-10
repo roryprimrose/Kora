@@ -37,8 +37,10 @@ Queued/current/waiting/blocked/cancelled/removed/interrupted/Unknown states
 come from durable records. Eligibility reasons use the scheduler's same
 `SessionQueuePolicy`, not a view-model guess. Ready is an observation, not
 permission or a prediction of the next fair admission. Pending expiry is
-30 minutes; a recorded current admission supplies the five-minute active
-deadline. Pre-dispatch question waits have their own expiry and no scheduler
+the entry's captured lifetime (default 30 minutes); a recorded admission supplies
+its captured precise active deadline (default 5 minutes, future-admission setting 1-60).
+Unknown and retained terminal records keep that original deadline; legacy admissions
+remain five minutes, never current defaults. Pre-dispatch question waits have their own expiry and no scheduler
 slot/active clock; their cards remain visible while history/evidence is read.
 Answer/review remains in the original separately owned Questions window.
 

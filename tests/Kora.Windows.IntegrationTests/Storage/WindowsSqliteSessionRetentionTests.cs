@@ -452,7 +452,7 @@ public sealed class WindowsSqliteSessionRetentionTests
     private static async Task<SessionQueueEntry> AdmitAsync(InteractionStorageFixture fixture, SessionQueueEntry entry)
     {
         using var root = HostActivity.BeginRoot(entry.Request, HostActivityLayer.Application, HostOperation.Request);
-        return await fixture.Store.AdmitAsync(entry, 1, new(), () => true, fixture.Token);
+        return (await fixture.Store.AdmitAsync(entry, 1, new(), () => true, fixture.Token)).Entry;
     }
 
     private static async Task<SessionQueueEntry> CompleteAsync(InteractionStorageFixture fixture, SessionQueueEntry entry)

@@ -317,10 +317,10 @@ public sealed partial class WindowsSqliteSessionQueueTests
         }
     }
 
-    private static async Task<SessionQueueEntry> AdmitAsync(InteractionStorageFixture fixture, SessionQueueEntry entry, int slots = 1)
+    private static async Task<SessionQueueEntry> AdmitAsync(InteractionStorageFixture fixture, SessionQueueEntry entry, int slots = 1, int budget = 5)
     {
         using var root = HostActivity.BeginRoot(entry.Request, HostActivityLayer.Application, HostOperation.Request);
-        return await fixture.Store.AdmitAsync(entry, 1, new(executionSlots: slots), () => true, fixture.Token);
+        return (await fixture.Store.AdmitAsync(entry, 1, new(executionSlots: slots, activeBudgetMinutes: budget), () => true, fixture.Token)).Entry;
     }
 
     private static Task<SessionQueueSnapshot> RemoveAsync(InteractionStorageFixture fixture, SessionQueueEntry entry,

@@ -10,6 +10,53 @@ public sealed class SessionQueuePolicyTests
     private static readonly Guid Run = Guid.NewGuid();
 
     [Theory]
+    [InlineData(1, false)]
+    [InlineData(5, false)]
+    [InlineData(60, false)]
+    [InlineData(1, true)]
+    [InlineData(60, true)]
+    public void FutureAdmissionCapturesActiveBudgetWithoutChangingPendingClock(int minutes, bool lifetimeFormat)
+    {
+        var pending = Entry(new(Guid.NewGuid()), 1);
+        if (lifetimeFormat)
+        {
+            pending = pending with { RecordVersion = 2, PendingLifetimeMinutes = 120, ExpiresAt = Now.AddMinutes(120) };
+        }
+        var admitted = pending.Admit(new(2), 2, Now.AddSeconds(1), minutes);
+        admitted.RecordVersion.Should().Be(3);
+        admitted.ActiveBudgetMinutes.Should().Be(minutes);
+        admitted.AdmittedAt.Should().Be(Now.AddSeconds(1));
+        admitted.ActiveDeadlineAt.Should().Be(Now.AddSeconds(1).AddMinutes(minutes));
+        admitted.EnqueuedAt.Should().Be(pending.EnqueuedAt);
+        admitted.ExpiresAt.Should().Be(pending.ExpiresAt);
+        admitted.PendingLifetimeMinutes.Should().Be(lifetimeFormat ? 120 : 30);
+        admitted.Validate();
+        foreach (var state in new[] { SessionQueueState.Succeeded, SessionQueueState.Failed, SessionQueueState.Unknown })
+        {
+            (admitted with { Revision = new(3), State = state }).Validate();
+        }
+        admitted.Invoking(item => item.Admit(new(3), 3, Now, 1)).Should().Throw<InvalidOperationException>();
+        (pending with { DispatchOrder = 1 }).Invoking(item => item.Admit(new(2), 2, Now, 1)).Should().Throw<InvalidOperationException>();
+        foreach (var malformed in new[]
+        {
+            admitted with { ActiveBudgetMinutes = null }, admitted with { AdmittedAt = null },
+            admitted with { ActiveDeadlineAt = null }, admitted with { AdmittedAt = Now.AddTicks(-1) },
+            admitted with { AdmittedAt = Now.ToOffset(TimeSpan.FromHours(1)) },
+            admitted with { DispatchOrder = 1 }, admitted with { Revision = new(1) },
+            admitted with { State = SessionQueueState.Pending }, admitted with { State = SessionQueueState.Interrupted },
+            admitted with { ActiveBudgetMinutes = 0 }, admitted with { ActiveBudgetMinutes = 61 },
+            admitted with { ActiveDeadlineAt = admitted.ActiveDeadlineAt!.Value.AddTicks(1) },
+            admitted with { ActiveDeadlineAt = admitted.ActiveDeadlineAt!.Value.ToOffset(TimeSpan.FromHours(1)) },
+            admitted with { RecordVersion = 2 }, admitted with { RecordVersion = null, PendingLifetimeMinutes = null },
+            admitted with { AdmittedAt = DateTimeOffset.MaxValue, ActiveDeadlineAt = DateTimeOffset.MaxValue },
+            pending with { ActiveBudgetMinutes = 5 }, pending with { AdmittedAt = Now }, pending with { ActiveDeadlineAt = Now },
+        })
+        {
+            malformed.Invoking(item => item.Validate()).Should().Throw<InvalidDataException>();
+        }
+    }
+
+    [Theory]
     [InlineData(1)]
     [InlineData(30)]
     [InlineData(120)]

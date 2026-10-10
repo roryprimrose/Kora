@@ -11,6 +11,27 @@ namespace Kora.Application.UnitTests.Configuration;
 [Collection("Host tracing")]
 public sealed class SessionQueueConfigurationServiceTests
 {
+    [Theory]
+    [InlineData(1)]
+    [InlineData(5)]
+    [InlineData(60)]
+    public async Task ActiveBudgetActivationAndResetAreAuditedConfirmedAndFutureOnly(int minutes)
+    {
+        await using var f = new SessionQueueConfigurationTestFixture();
+        await f.Refresh();
+        await f.Set("120", SessionQueueOption.PendingLifetimeMinutes);
+        await f.Refresh();
+        await f.Set(minutes.ToString(System.Globalization.CultureInfo.InvariantCulture), SessionQueueOption.ActiveBudgetMinutes);
+        f.Service.Get().Effective.Should().Be(new SessionQueueLimits(pendingLifetimeMinutes: 120, activeBudgetMinutes: minutes));
+        f.AuditLog.Events.TakeLast(2).Should().OnlyContain(item => item.ActionId == "configuration.queue-active-budget-minutes");
+        await using var restart = f.Create();
+        restart.Observe();
+        restart.Get().Effective.Should().Be(f.Service.Get().Effective);
+        await f.Refresh();
+        await f.Set(null, SessionQueueOption.ActiveBudgetMinutes);
+        f.Service.Get().Saved.Should().Be(new SessionQueuePreferences(pendingLifetimeMinutes: 120));
+        f.Service.Get().Effective!.ActiveBudgetMinutes.Should().Be(5);
+    }
     [Fact]
     public async Task Defaults_exact_bounds_independent_reset_and_audited_confirmed_restart()
     {
@@ -41,8 +62,9 @@ public sealed class SessionQueueConfigurationServiceTests
         f.Service.IsCurrent(f.Service.Get().Effective!).Should().BeTrue();
         f.Service.IsCurrent(new()).Should().BeFalse();
         SessionQueueConfigurationState.Serialize(f.Service.Get(), 1, "observed").Should()
-            .Contain("\"schema\":2").And.Contain("\"minimum\":1").And.Contain("\"maximum\":10")
-            .And.Contain("\"maximum\":2").And.Contain("\"maximum\":120").And.Contain("\"default\":30").And.Contain("fixed 5 minutes");
+            .Contain("\"schema\":3").And.Contain("\"minimum\":1").And.Contain("\"maximum\":10")
+            .And.Contain("\"maximum\":2").And.Contain("\"maximum\":120").And.Contain("\"default\":30")
+            .And.Contain("\"maximum\":60").And.Contain("\"default\":5").And.Contain("current-task extension");
         var tooLarge = () => SessionQueueConfigurationState.Serialize(f.Service.Get() with { Recovery = new('x', 65536) }, 1, "observed");
         tooLarge.Should().Throw<InvalidDataException>();
         var effective = f.Service.Get().Effective!;

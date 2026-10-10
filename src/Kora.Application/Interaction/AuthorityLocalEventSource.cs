@@ -85,11 +85,14 @@ public sealed class AuthorityLocalEventSource(
                     or SessionQueueEligibility.UnclassifiedWorkOrWait or SessionQueueEligibility.UnknownQuarantine) => LocalEventType.Blocked,
                 _ => null,
             };
-            if (type is null || entry.ExpiresAt <= now || entry.EnqueuedAt > now) { continue; }
+            // Current notices use the admitted active clock, never the independent pending or question clock.
+            // Missing/elapsed active authority suppresses a current notice; it does not fabricate a failed receipt.
+            var expiry = type == LocalEventType.Current ? row.ActiveDeadline : entry.ExpiresAt;
+            if (type is null || expiry is not { } deadline || deadline <= now || entry.EnqueuedAt > now) { continue; }
             events.Add(new(LocalEvent.Identity(LocalEventSource.LocalVersionQueue, session.SessionId.Value, entry.Request.TaskId.Value),
                 1, LocalEventSource.LocalVersionQueue, type.Value, session.SessionId, entry.Request.TaskId,
                 entry.Request.TaskId.Value, session.Generation.Value, entry.Revision.Value, 0, entry.Request.Origin,
-                row.Eligibility, now, entry.ExpiresAt));
+                row.Eligibility, now, deadline));
         }
         foreach (var question in snapshot.PendingQuestions)
         {

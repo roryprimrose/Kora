@@ -1,6 +1,6 @@
 namespace Kora.Core.Configuration;
 
-/// <summary>Admitted fixed-profile queue options; active deadline and automatic dispatch settings are unavailable.</summary>
+/// <summary>Admitted future-only fixed-profile queue options; automatic dispatch remains unavailable.</summary>
 public enum SessionQueueOption
 {
     /// <summary>Future per-session pending admission capacity; never evicts existing entries.</summary>
@@ -9,4 +9,6 @@ public enum SessionQueueOption
     ExecutionSlots,
     /// <summary>Pending lifetime in integer minutes captured only by newly enqueued admitted fixed reads.</summary>
     PendingLifetimeMinutes,
+    /// <summary>Active budget in integer minutes captured only at future fixed read admissions.</summary>
+    ActiveBudgetMinutes,
 }

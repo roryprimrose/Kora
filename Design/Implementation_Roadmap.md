@@ -583,7 +583,33 @@ capacity/copy/crypto consumers and runtime/lifecycle/containment/speech/
 distribution or real installed-native evidence. No harness is promoted,
 deleted, archived or reclassified as a production executor by this increment.
 
+### R10/R13 future-admission active deadlines - 2026-10-10
+
+The fixed synchronous read-only `application.get_version` queue now admits only `queue.active-budget-minutes`: canonical integer **1-60 minutes**, unsaved/default/per-option reset **5**, effective for **future admissions after confirmed activation**, not current work or general execution.
+Native Settings and exact typed/current-name ACTIVATED list/get/status/set/reset preserve original session/control/call/choice/private-owner provenance, required typed REQUESTED/terminal audit, atomic save/readback, unconfirmed marker and completed host intent before activation. All per-option resets preserve independent queue options.
+The short queue/configuration/host/current-intent transaction captures one confirmed budget, precise UTC admission/deadline and same-run monotonic start into committed payload format 3/admission receipt. An old pending entry uses that new budget only on future admission: its original enqueue/lifetime/expiry stays exact.
+Already-admitted/running/Unknown/terminal entries retain original deadlines, including known legacy/format-2 five-minute admissions from original audit time. Legacy and format-2 payload bytes/change hashes remain unchanged; no database/schema/historical authority rewrite occurs.
+Format 3 validates complete canonical integral bounds and exact deadline derivation against the original dispatch digest/time, including after later terminal revisions. Unknown/partial/downgraded/unbound states refuse without replacement. Preference schema 3 preserves valid schema-1/2 fields and supplies only new defaults without write-on-read; malformed/unconfirmed state holds new admissions with explicit recovery.
+Actual callback success requires monotonic elapsed time strictly below the captured budget; equal/late callbacks suppress the version and commit failure. Cancellation/private-authority loss drains callbacks and suppresses late receipts; uncertainty remains Unknown/quarantined without replay/new-slot certainty. UTC Work/status and current-event eligibility consume captured authority rather than mutable defaults or pending/question clocks.
+No physical termination, rollback, provider cessation, automatic dispatch, current-task extension/apply-now, worker/resource/model setter/general execution or expanded slot authority is added. Manual FIFO/fairness/dependencies/current-run isolation remain; R08's independent 15-second model deadline and worker/native/power/security/raw-audio/cancellation-grace limits stay closed/immutable.
+
+#### Maintained consumers and experiment equivalence
+
+Maintained coverage exercises [domain/version validation](../tests/Kora.Core.UnitTests/Hosting/SessionQueuePolicyTests.cs), [configuration/native race boundaries](../tests/Kora.Application.UnitTests/Hosting/SessionWorkspaceServiceTests.Queue.cs), [current-event clocks](../tests/Kora.Application.UnitTests/Interaction/AuthorityLocalEventSourceTests.cs) and [actual dispatch/storage deadlines](../tests/Kora.Windows.IntegrationTests/Storage/WindowsSqliteSessionQueueTests.ActiveDeadline.cs).
+All R02 experiment files/receipts remain unchanged. These production assertions establish bounded deterministic fixed-read timing/storage semantics, not exact complete assertion equivalence across experimental consumers. No harness is promoted, retired, archived or deleted.
+MG1 retains unique released SDK/runtime HTTP/stdio/identity/provider deadline evidence; RT2 retains native lifecycle/file/socket/quiescence receipts; containment retains actual network/token/ACL/child and strict-denial receipts. Storage/legacy failure, capacity/copy/crypto, runtime/native/speech/hardware evidence remain independently necessary.
+No device/provider/account/software-install/app/privileged-OS/network trial was performed. Full R10/R13/A3, real installed-native/accessibility/two-slot provider/hardware, broader profile/RC/SLO acceptance remain open; deterministic tests do not close them.
+
+#### Validation receipt
+
+Isolated precreated branch base `d3c0dc59d74fe5b3379b502a5a8eb4edb40f81de`; shared dirty root never edited/built/switched. Initial NETSDK1004 missing assets permitted locked restore using only the authorized Azure Artifacts feed; no manifests/feed configuration/secrets changed.
+Release build **0 warnings / 0 errors**. All five suites passed: Core **1,531**, Application **3,923**, Tools **167**, Definitions **6**, Windows **1,496**, **zero failures/skips**. After final event/receipt-cancellation hardening and additional tests, full Application **3,926** and focused actual queue/native SQLite **70** passed, with zero failures/skips.
+Latest-only four portable Cobertura inputs pass unchanged exact **100% line / 100% branch** under `.net-test-artifacts/active-final-coverage`. The initial missing event branch was fixed with strong nullable deadline binding and deterministic tests, not suppression or lowered thresholds; ReportGenerator's existing virtual generated-source notices do not change denominators.
+Existing default/parallel runner and exclusive `DurableStorageCompositionTestGroup` global Activity/evidence fixtures remain unchanged. Prior build/test failures (missing assets, receipt contract helper, nullable-event branch and diagnostic/assertion corrections) were preserved and corrected, not explained away.
+
 ### R10/R13 future-only pending lifetime - 2026-10-10
+
+Historical receipt: the later future-admission active-deadline increment above supersedes only active-option availability/serialization; these original pending-lifetime assertions and receipts remain retained.
 
 The delivered fixed synchronous read-only local-version queue adds only `queue.pending-lifetime-minutes`: canonical integer **1-120 minutes**, unsaved/default/per-option reset **30**.
 Native Settings and exact typed/current-name activated discovery/get/status/set/reset share the existing original host intent, session/generation/control/call/preference revisions, typed REQUESTED/terminal audit, atomic save/readback, durable unconfirmed marker and confirmed activation gates.
@@ -623,7 +649,7 @@ dotnet build .\Kora.slnx --configuration Release --no-restore
 
 ### R10/R13 bounded fixed queue settings - 2026-10-09
 
-Historical receipt below describes the initial fixed-30 implementation; the 2026-10-10 future-only option supersedes only its pending-lifetime availability, not its tested evidence or active budget.
+Historical receipt below describes the initial fixed-30/five-minute implementation; the later 2026-10-10 future-enqueue/admission options supersede only those options' availability, not the original evidence.
 
 The existing synchronous read-only local-version queue now exposes only its authoritative domain ranges: pending capacity **1-10/default-reset 10** and global fixed-read slots **1-2/default-reset 1** ([domain](../src/Kora.Core/Hosting/SessionQueueLimits.cs), [preferences](../src/Kora.Core/Configuration/SessionQueuePreferences.cs)).
 Native **Settings > Sessions** and exact typed/current-name activated list/get/status/set/per-option reset share original-input admission and host-held revisions.

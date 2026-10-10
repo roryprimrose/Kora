@@ -12,6 +12,20 @@ application version as a suffix. Source builds default to version `0.1.0`;
 release builds can override that version during publishing. Changes use the
 same live application state as the presence and response surfaces.
 
+## Per-session retention status and hold
+
+Open **Sessions**, select one exact immutable session ID, then expand **Selected-session retention: status and exact review**. The panel shows actual recorded UTC last meaningful activity, archive due and delete due dates, kept/purged state and observed work/control holds.
+Copy inventory and broader maintenance availability are not observed here. **Refresh retention status** never renews inactivity, resumes work or runs cleanup.
+If due-content inspection is held, enter the canonical lowercase immutable ID in the existing exact-ID field and choose **Read exact ID retention**. This reads only retention metadata, not names/history/work, and does not resume or implicitly select a conversation. Unknown IDs refuse; removed/purged tombstones cannot be changed.
+
+Choose **Keep this session** or **Use ordinary retention**, read the exact ID/generation/dates and warning, then use **Confirm exact retention review**. Ordinary retention keeps the original recorded dates: background maintenance may archive/delete soon or already be due. Cancel discards the review.
+This hold only stops automatic session archive/delete; it is not a Perpetual operation grant, consent, memory, recall or execution permission.
+
+Selection, generation, activity/hold revision, ownership/privacy/call or closure changes refuse stale confirmation. If audit/commit/receipt/readback is uncertain, refresh durable state and review again; no rollback or automatic replay is claimed.
+Removed/purged/unknown or malformed state cannot be changed. Due ordinary content without a work hold waits for private background maintenance; browsing itself does not archive/delete.
+
+These are native-only controls, independent of future-only **Settings > Sessions** policy. No typed/voice mutation, model tool, global keep/default, apply-now or forced cleanup is delivered.
+
 ## Local speech text
 
 Speech text is **Off** by default. In response settings select **Inspect speech

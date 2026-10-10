@@ -100,13 +100,13 @@ baseline; no chronology is fabricated. Native future-only
 [configuration](User_Configuration.md#r12-bounded-session-retention-delivered---2026-10-09)
 does not alter existing due dates without subsequent meaningful activity.
 
-Startup/access checks and an owned one-minute host-only maintenance timer
+Startup checks and an owned one-minute host-only maintenance timer
 process at most 32 candidates, never execute or schedule work. Intent-recorded,
 dispatched, Unknown work, unresolved questions and current-run control
 authorities hold rather than being abandoned; held controls cannot starve due
-idle sessions. Exact-generation audited host-only Perpetual session marking
+idle sessions. Exact-generation audited Perpetual session marking
 holds the whole session, independently of Perpetual permission grants. There
-is no new marking UI. Archive revokes source/generation/scoped authority but
+was no marking UI in this original slice; the native increment below supplies it. Archive revokes source/generation/scoped authority but
 preserves content and does not reset the activity clock.
 
 Deletion awaits source/presentation revocation, removes owned history,
@@ -142,6 +142,28 @@ invalidation of #118's selected-session work surface without losing unrelated
 work or its passive-refresh/question coexistence contracts.
 See the [dated roadmap receipt](Implementation_Roadmap.md#r12-bounded-session-retention-delivered---2026-10-09);
 installed/native/RC and full R12/A3 qualification remain open.
+
+### R12 Native Exact-Session Retention Controls - 2026-10-10
+
+The native Sessions panel passively reads the selected immutable ID's actual UTC meaningful-activity, archive due and delete due dates, generation, exemption audit revision and kept/purged state.
+It reports only observed work/control holds; copy inventory and broader maintenance availability are explicitly unobserved, never inferred eligible. Names, traces, history, grants and old previews supply no authority.
+
+**Keep this session** and **Use ordinary retention** each stage a native review, followed by a separate exact confirmation. Ordinary review displays the unchanged recorded dates, labels already-due observations and warns that background archive/delete may follow soon or already be due.
+This is a SESSION retention hold, not a Perpetual OPERATION grant, consent, durable memory, cross-session recall or execution.
+
+Fresh original native input, existing `SessionWorkspaceService` committed control intent, current ownership/privacy/call/input lifetime and exact nonremoved session admit the setting.
+The private SQLite transaction compares generation, all displayed recorded state and the last exemption's committed audit sequence, including hold-change/restore ABA. Clock/activity, policy or another hold mutation conflicts rather than silently changing reviewed consequences. Done sessions use supported metadata-control authority without resume.
+
+Required typed audit and hold update share one commit; terminal bookkeeping is non-substantive, followed by exact readback. Commit/receipt/readback uncertainty is not rollback or success: refresh durable state and review again, never automatically replay.
+Selection changes, closure, privacy loss, purged/removed/unknown or corrupt state refuse and clear previews. Independent grants, memory bodies, source/copy inventory, unrelated sessions and the private timer are unchanged.
+
+Inspection no longer runs maintenance. The replacement passive pre/post admission preserves confirmed retention-policy, ownership/privacy/call and verified copy-inventory checks.
+Due ordinary candidates without existing live/Unknown/question/control holds deny content inspection pending authoritative background maintenance; source authority revision changes suppress late results. Exact retention-status readback is non-content observation, not a cleanup bypass.
+No new apply-now, archive/delete, global default, typed/voice mutation or model descriptor is available.
+The existing exact-ID field also supports native **Read exact ID retention**, using canonical immutable-ID validation. It keeps retention status/review available when due-content inspection is held, without reading names/history/work or fabricating active/resume authority; removed/purged status remains nonmutable.
+
+Maintained [actual SQLite controls](../tests/Kora.Windows.IntegrationTests/Storage/WindowsSqliteSessionRetentionControlTests.cs), [portable admission](../tests/Kora.Application.UnitTests/Hosting/SessionWorkspaceServiceTests.Retention.cs) and [headless native review](../tests/Kora.Windows.IntegrationTests/SessionsRetentionViewModelTests.cs) cover this subset.
+This does not qualify installed native/accessibility, forensic/full-copy deletion, general execution or full R12/RC acceptance.
 
 ### Delivered Bounded Ordered Interaction History - 2026-10-09
 

@@ -37,9 +37,15 @@ internal sealed partial class SessionsWindow : Window
         };
         CreateSession.Click += async (_, _) => await model.CreateAsync();
         RenameSession.Click += async (_, _) => await model.RenameAsync();
+        RefreshRetention.Click += async (_, _) => await model.RefreshRetentionAsync();
+        KeepSession.Click += (_, _) => model.PreviewRetention(keep: true);
+        OrdinaryRetention.Click += (_, _) => model.PreviewRetention(keep: false);
+        ConfirmRetention.Click += async (_, _) => await model.ConfirmRetentionAsync();
+        CancelRetentionReview.Click += (_, _) => model.CancelRetentionReview();
         NextQuestions.Click += async (_, _) => await model.NextQuestionsAsync();
         NextTasks.Click += async (_, _) => await model.NextTasksAsync();
         ReadHistory.Click += async (_, _) => await model.ReadHistoryAsync();
+        ReadExactRetention.Click += async (_, _) => await model.ReadExactRetentionAsync();
         NextHistory.Click += async (_, _) => await model.ReadHistoryAsync(next: true);
         SearchHistory.Click += async (_, _) => await model.SearchHistoryAsync();
         NextHistorySearch.Click += async (_, _) => await model.SearchHistoryAsync(next: true);

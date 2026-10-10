@@ -24,6 +24,22 @@
               AutomationProperties.Name="Rename the exact selected session ID using its generation and metadata revision; does not resume" />
     </Grid>
     <StackPanel Grid.Row="3" Spacing="6">
+    <Expander Header="Selected-session retention: status and exact review">
+      <StackPanel Spacing="6">
+        <controls:NamedTextBlock Text="{Binding RetentionStatus}" TextWrapping="Wrap"
+                                AutomationProperties.Name="Exact selected session retention UTC clocks, kept and purged state; passive observation only" />
+        <WrapPanel>
+          <Button x:Name="RefreshRetention" Content="Refresh _retention status" IsEnabled="{Binding CanRefreshRetention}" />
+          <Button x:Name="KeepSession" Content="_Keep this session" IsEnabled="{Binding CanKeepSession}" />
+          <Button x:Name="OrdinaryRetention" Content="Use _ordinary retention" IsEnabled="{Binding CanUseOrdinaryRetention}" />
+          <Button x:Name="ConfirmRetention" Content="Confirm exact retention review" IsEnabled="{Binding CanConfirmRetention}"
+                  AutomationProperties.Name="Freshly confirm one exact session, generation, displayed dates and hold revision; no cleanup now" />
+          <Button x:Name="CancelRetentionReview" Content="Cancel retention review" />
+        </WrapPanel>
+        <controls:NamedTextBlock Text="{Binding RetentionPreview}" TextWrapping="Wrap"
+                                AutomationProperties.Name="Exact retention confirmation; ordinary policy may already be due; session hold is not an operation grant" />
+      </StackPanel>
+    </Expander>
     <WrapPanel>
       <ComboBox ItemsSource="{Binding ListSearchKinds}" SelectedItem="{Binding ListSearchKind, Mode=TwoWay}"
                 IsEnabled="{Binding CanEditListSearch}" AutomationProperties.Name="Session metadata search mode: literal ordinal case-sensitive NameSubstring or canonical lowercase exact immutable ID" />
@@ -42,6 +58,8 @@
                AutomationProperties.Name="Exact immutable session ID for passive history; names do not select sessions" />
       <Button x:Name="ReadHistory" Content="_Read exact history" IsEnabled="{Binding CanHistory}"
               AutomationProperties.Name="Read bounded ordered session history without resuming, replying, replaying or changing voice target" />
+      <Button x:Name="ReadExactRetention" Content="Read exact ID retention" IsEnabled="{Binding CanReadExactRetention}"
+              AutomationProperties.Name="Read retention metadata only for this canonical exact immutable ID, even when due content inspection is held; names and history are not read" />
       <Button x:Name="NextHistory" Content="Next history snapshot page" IsEnabled="{Binding CanNextHistory}" />
       <Button x:Name="OpenHistoryDetail" Content="Open immutable receipt _details" IsEnabled="{Binding CanOpenHistoryDetail}"
               AutomationProperties.Name="Freshly resolve the exact selected session history receipt into read-only native details; no artifact body or execution authority" />

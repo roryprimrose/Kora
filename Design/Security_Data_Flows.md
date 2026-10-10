@@ -2,6 +2,10 @@
 
 ## Trusted local event broker boundary
 
+The [native exact-session retention control](Interaction_And_Sessions.md#r12-native-exact-session-retention-controls---2026-10-10) is original-user metadata authority only. One fresh committed intent plus current native/ownership/privacy/call/selection lifetime controls one exact nonremoved session. Atomic generation, displayed clocks/flags and exemption-audit identity comparison prevents stale/ABA review; old grants, stored names, foreign/model/system/stopped context and incoming traces cannot relabel authority.
+
+The hold does not change operation grants, consent, memory/recall or execution. Returning ordinary policy requires a new exact due-date warning/review and confirmation, without clock renewal or foreground cleanup. Trusted typed audit, terminal bookkeeping and exact readback precede success; uncertainty is explicit recovery, not rollback/replay. Passive inspection keeps retention-policy/copy/source/due-hold checks without archive/delete, while the existing private timer retains all resource/copy holds.
+
 The [R18 visual broker](Proactive_Interaction.md#delivered-r18-trusted-local-visual-broker---2026-10-09)
 has no model/tool publication or execution API. Only current authoritative
 fixed local-version work/question snapshots and verified maintenance cache

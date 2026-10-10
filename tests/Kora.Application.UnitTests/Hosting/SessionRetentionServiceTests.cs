@@ -91,7 +91,7 @@ public sealed class SessionRetentionServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task Precancelled_run_does_not_enter_storage_and_access_runs_retention_before_returning_content()
+    public async Task Precancelled_run_and_passive_access_never_run_cleanup_and_missing_inspection_seam_fails_closed()
     {
         await using var fixture = new Fixture();
         using var cancellation = new CancellationTokenSource();
@@ -105,8 +105,28 @@ public sealed class SessionRetentionServiceTests : IDisposable
         using var root = HostActivity.BeginRoot(HostRequest.Create(RequestOrigin.LocalUi),
             HostActivityLayer.Application, HostOperation.Request);
         var read = () => workspace.ReadSessionsAsync(null, 25, fixture.Token);
-        await read.Should().ThrowAsync<NotSupportedException>();
-        fixture.Store.Calls.Should().Be(1);
+        await read.Should().ThrowAsync<InvalidOperationException>().WithMessage("*unavailable*");
+        fixture.Store.Calls.Should().Be(0);
+    }
+
+    [Theory]
+    [InlineData("available")]
+    [InlineData("configuration")]
+    [InlineData("access")]
+    [InlineData("disposed")]
+    public async Task Passive_inspection_preserves_configuration_privacy_and_owned_lifetime_without_cleanup(string scenario)
+    {
+        await using var fixture = new Fixture();
+        if (scenario is "configuration") { fixture.Configuration = false; }
+        if (scenario is "access") { fixture.Access.CanControl = false; }
+        if (scenario is "disposed") { await fixture.Service.DisposeAsync(); }
+        if (scenario is "available") { fixture.Service.RequirePassiveInspection(); }
+        else
+        {
+            var inspect = () => fixture.Service.RequirePassiveInspection();
+            inspect.Should().Throw<Exception>();
+        }
+        fixture.Store.Calls.Should().Be(0);
     }
 
     [Theory]

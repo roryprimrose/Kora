@@ -64,6 +64,8 @@ an unavailable content-bearing operation with its current input/result schema:
 no descriptor, model action or result loop is added. This is an explicit
 model-route exception, not a separate weaker path.
 
+The [native exact-session retention panel](Interaction_And_Sessions.md#r12-native-exact-session-retention-controls---2026-10-10) is a deliberate native-only exception: one immutable-ID metadata observation and separate exact Keep/ordinary review/confirmation. No model descriptor or typed/voice mutation is qualified; this SESSION hold is not an operation grant, memory/recall or execution capability.
+
 Delivered exceptions to the proposed full catalogue: R10 has host-only typed
 configuration for appearance, installed provider/voice, spoken-summary caps,
 assistant display/PTT prefix, exact input/output preferences, per-Kora volume,

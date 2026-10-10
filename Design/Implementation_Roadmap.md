@@ -20,6 +20,17 @@ Update this baseline and the evidence below when implementation changes.
 
 ## Delivery and Qualification Dependency Policy
 
+### R12 Native Exact-Session Retention Controls - 2026-10-10
+
+Delivered subset: selected-ID passive UTC activity/archive/delete status and observed hold reasons; native two-step Keep/ordinary review, exact generation/state/exemption-audit CAS, trusted original-user intent/audit/terminal/readback and close/privacy/selection recovery. Done sessions use metadata authority without resume. Ordinary confirmation warns about unchanged soon/already-due recorded dates. No substantive activity, operation-grant/memory/recall authority, foreground cleanup or new policy default is introduced.
+
+Inspection's old maintenance-on-access call is replaced with passive confirmed-policy/copy/source/due-hold admission, checked before/after content retrieval. Startup and the existing owned private timer retain authoritative cleanup and inventory/resource holds. Native status-only observation does not disclose retained conversation or invent maintenance availability. See [canonical contract](Interaction_And_Sessions.md#r12-native-exact-session-retention-controls---2026-10-10), [SQLite regressions](../tests/Kora.Windows.IntegrationTests/Storage/WindowsSqliteSessionRetentionControlTests.cs) and [native binding/recovery](../tests/Kora.Windows.IntegrationTests/SessionsRetentionViewModelTests.cs).
+
+Experiment equivalence is bounded: maintained tests add exact private SQLite hold/CAS/audit/clock/restart, passive admission and headless selection/privacy evidence. They do not replace storage copy/crypto/key/capacity/forensic/native receipts, runtime/containment, acoustic/hardware or immutable historical witnesses and shared consumers. No experiment or consumer is deleted/run/relabelled. Full R12, installed-native/accessibility, general execution and RC/full deletion acceptance remain open.
+
+Validation on `d3c0dc59` (#159): root Release build **0 warnings/errors**; Core **1,512**, Application **3,910**, Tools **167**, Definitions **6**, Windows **1,490** passed with **0 failures/skips**, normal parallel fixtures unchanged. Latest-only portable line/branch gate **100%/100%**. Missing assets required one locked restore from the approved Networking-AAA feed, with no manifest/feed/config changes.
+Focused selectors retain earlier failed/zero-test attempts as non-authoritative; final qualified selectors and actual private SQLite/native regressions pass. Receipts remain in the owned worktree `.net-test-artifacts`; CI must independently validate the PR's exact revision.
+
 ### R12/D-014 Bounded Original-User Session Memory Proposals - 2026-10-10
 
 The [original-user proposal increment](Model_Providers_Memory_And_Knowledge.md#delivered-original-user-session-memory-proposals---2026-10-10) adds native **New session memory from draft** and exact typed/activated `memory propose` input to the same admission workflow used by delivered management. Host-issued identity/lineage/revision needs no existing memory. Creation is only volatile Proposed/Pending metadata.

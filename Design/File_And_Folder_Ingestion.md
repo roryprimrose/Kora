@@ -1,8 +1,8 @@
 # File and Folder Ingestion and Grounded Reasoning
 
-Status: bounded R26 foundations implement **local file inspection and
+Status: bounded R26 foundations implement **exact-session durable single-file attachment, local file inspection and
 selected immutable revision, bounded immediate-folder lexical retrieval and explicit volatile preview refresh**, described below. The broader
-ingestion/attachment, recursive folder, managed knowledge source, persistent/vector
+folder/multiple-version ingestion, recursive folder, managed knowledge source, persistent/vector
 index, multi-source retrieval, reasoning and hosted transmission design
 remains proposed and unavailable.
 
@@ -12,6 +12,34 @@ Related: [Architecture](Architecture.md), [Security and Data Flows](Security_Dat
 [User Configuration](User_Configuration.md),
 [Internal Model Tools](Internal_Model_Tools.md), and
 [Implementation Roadmap](Implementation_Roadmap.md#optional-and-deferred-work).
+
+## Delivered Durable Single-File Session Attachment - 2026-10-10
+
+**Sessions > select an exact Active session > Attach text file to this exact Session** uses the trusted native picker and the same host-owned verified capture broker as local preview. It has separate metadata and durable-copy disclosure, followed by **Confirm: capture and retain this exact file for this Session**. Volatile preview consent never permits persistence.
+
+The fixed product boundary is **one immutable file per exact session**, `.txt`, `.md` or `.markdown`, **262,144 original UTF-8 bytes including an optional BOM**, and **sixteen retained attachments across the current private profile**, with no implicit eviction. A second attachment is refused until the existing attachment has been explicitly removed. There are no folders, extra versions, managed sources, refresh/watchers or model ingestion.
+
+The selected exact session, generation, original native user request/task, private control revision and cancellation remain fenced through capture and atomic commit. The existing Windows fixed-drive canonical retained-handle, ancestor/reparse/hard-link, protected/generated/source-control, identity, stability, size, two-pass consistency, strict UTF-8 and release checks are unchanged.
+
+The capture callback borrows authoritative original bytes only during that same admission, after native release. It never reopens a path or reconstructs bytes from displayed text. The existing private interaction database stores the exact BLOB plus validated source/revision/item/digest, original native metadata/request, owning private profile/session/generation, captured time and `strict-utf8-v1` projection provenance.
+
+Interaction schema **8** adds `session_file`; snapshot format **1** is fixed and validated. The source-preserving version-7 migration retains every existing authority hash, memory/grant, queue/deadline, history and retention row. Unknown versions, malformed bodies, digest/scope/lineage disagreement, missing committed rows, downgraded authority or replaced storage fail closed, not into a new database or defaults.
+
+**Inspect retained attachment / remove Kora copies** resolves only that exact session's retained historical snapshot after restart. Full bounded inert source and the same `lexical-lines-v1` exact citations are available locally without models or network. A retained Done session remains Done. Browsing and search never renew meaningful activity or trigger cleanup; the merged passive-inspection, source-copy, retention and ownership/privacy/call fences still apply.
+
+This is explicitly a **historical admitted revision**, not a current filesystem or access observation. Changing, moving or deleting the original file does not refresh, rebind or reread it. Authority is the exact retained private session snapshot, not its old path. Removing/revoking that retained source, session deletion, unavailable/corrupt storage or closed host admission prevents disclosure and cancels late inspection/search.
+
+Removal first reviews **Remove attachment and Kora copies** with exact session/generation, source/revision/item/digest, storage revision and complete inventory revision; a separate original native confirmation is required within two minutes. Native content is revoked before cleanup. The atomic trusted-audit transaction strips the body and path-bearing metadata, retaining content-free provenance only.
+
+Owned copies are the private SQLite row/cells/free pages and owned PERSIST rollback journal. No artifact, staging, recovery export, backup, index or context-envelope copy is created. Uninventoried private artifacts/staging/backups and live/unresolved/Unknown work hold removal. Secure-delete and committed-journal verification reuse the memory deletion rules; a row deletion alone is not copy-removal completion.
+
+Session disposition and ordinary retention include attachments in their existing source-revocation/inventory path. Failure or interruption leaves a revoked source or an explicit hold, never restored body authority; unrelated sessions, kept sessions and independent Perpetual grants remain separate. Original user files are unchanged. Logical owned-copy deletion is not forensic erasure of storage hardware.
+
+No body, query, excerpt, filename or path enters preferences, logs, audit text, activity tags/Baggage, transcripts/history, speech, clipboard or model/provider requests. Native headers and source text are untrusted data. The six-ID read-only model registry is unchanged; no context descriptor is falsely marked Available.
+
+Evidence: [Core exact-byte restoration](../tests/Kora.Core.UnitTests/Context/LocalFileRevisionRestoreTests.cs), [shared capture and release](../tests/Kora.Tools.UnitTests/Files/LocalSessionFileAttachTests.cs), [host fences/quiescence](../tests/Kora.Application.UnitTests/Hosting/SessionWorkspaceServiceTests.Attachments.cs), [real private SQLite/native capture/restart/removal](../tests/Kora.Windows.IntegrationTests/Storage/WindowsSqliteSessionAttachmentTests.cs), and [native inert-source confirmation](../tests/Kora.Windows.IntegrationTests/SessionAttachmentWindowTests.cs).
+
+Experiment assessment: these maintained tests close only this single-file capture/storage/native consumer. They do not supersede unique encrypted-artifact/DPAPI/rekey/backup, actual native/runtime/inference, RT1/RT2/MG1, containment or historical receipt failures. All experiment consumers and proofs remain retained. Full R26, managed knowledge, model use, OCR/vector/egress and installed/accessibility acceptance remain open.
 
 ## Delivered Bounded Local File Preview
 
@@ -66,7 +94,7 @@ not fabricate quiescence. No watcher, automatic refresh/retry, ambient collectio
 network parsing, inference, egress or document-derived authority exists.
 
 R26.1c below extends this foundation to immediate-folder preview and search.
-UNC/removable-drive ingestion, durable attachments, registry,
+UNC/removable-drive ingestion, durable folder attachments, managed registry,
 managed-source refresh, persistent/vector indexes, local/hosted grounded reasoning,
 screens/images and later formats remain unavailable. This slice does not
 qualify their gates. Native installed/accessibility acceptance remains
@@ -534,6 +562,7 @@ Before advertising the initial file/folder capability:
 | R26.1b - Selected-revision lexical retrieval | Delivered: exact single-file immutable revision search, shared lexical-lines-v1 chunks/ranking and native citations; volatile only | R26.1a and existing ownership/privacy/call/audit boundaries | Bounded exact excerpts, digest/item citations, cancellation/revocation/isolation and no-egress tests; no additional filesystem, model or persistence authority |
 | R26.1c - Bounded folder-scoped lexical retrieval | Delivered: reviewed complete set of 1–32 immediate files, 1 MiB combined bytes, unchanged 256 KiB per file; any subdirectory/inadmissible item rejects the whole selection; native search only, volatile only | R26.1a/b and existing ownership/privacy/call/audit boundaries; no R08/runtime dependency | [Portable admission/retrieval](../tests/Kora.Core.UnitTests/Context/LocalFolderTests.cs), [broker revocation/audit](../tests/Kora.Tools.UnitTests/Files/LocalFolderTests.cs), [host no-egress/no-persistence](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.Folders.cs) and [real Windows denial/inventory/bounds](../tests/Kora.Windows.IntegrationTests/LocalFileTests.Folders.cs); installed UX acceptance outstanding; R26.2 lifecycle remains gated |
 | R26.1d - Explicit volatile preview refresh | Delivered: exact host-held original canonical physical file/folder; fresh complete metadata review and separate native confirmation; unchanged bounds and source ID, fresh revision/items/digests; old single-slot preview retired at start | R26.1a/c and original/current host control, session/task, privacy/call/ownership/generation, audit/release boundaries | [Refresh broker](../tests/Kora.Tools.UnitTests/Files/LocalFileRefreshTests.cs), [host](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.FileRefresh.cs), [actual Windows files](../tests/Kora.Windows.IntegrationTests/LocalFileTests.Refresh.cs); no registry/durability/watch/egress, installed UX and broader R26.2 acceptance open |
+| R26.1e - Durable single-file Session attachment | Delivered: one exact-session immutable UTF-8 text/Markdown file, 256 KiB original bytes, sixteen retained profile files, no eviction; separate native persistence/removal consent and restart-safe inert source/citations | Existing verified capture, consolidated private interaction authority, passive inspection, session/source retention, native UX | Exact-byte/BOM/hash, original-user generation/control, private SQLite migration/audit/reopen/corruption, native full source and owned-copy removal tests; no folders/versions/managed knowledge/model/OCR/vector/egress, no full R26 or installed acceptance |
 | R26.0 - Finalize policy and limits | Agree initial formats, numeric limits, storage/retention, citation shape, local-runtime envelope, and hostile-document fixtures | R04 storage semantics, R06 tool/result bounds, R10 configuration registry, R12 session retention | Approved typed contracts and threat/acceptance fixtures; no runtime capability |
 | R26.1 - Native selection and immutable text snapshot | Add picker plus reviewed absolute path proposal, safe Windows enumeration/read, `.txt`/Markdown extraction, source registry, revision identity, native preview and deletion | R03 ownership/privacy, R04 durable storage/recovery, R05 review/questions, R10 settings | Real Windows file/folder/reparse/access/change/cancel/restart tests; no model exposure |
 | R26.2 - Lexical retrieval and citations | Deterministic chunk/index/search/read-excerpt, source selection, context budget, citation presentation, refresh/disable/remove cleanup | R26.1, R06 admitted descriptors, R12 session/artifact lifecycle, R14 source/citation UI | Grounding, hostile-content, cross-session/source isolation, stale/revoked and interrupted-cleanup evidence |

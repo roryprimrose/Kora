@@ -869,7 +869,7 @@ public sealed partial class MainViewModel
     public async Task<bool> TryPrepareHandoffAsync()
     {
         if (lifecycleAdmissionClosed || !IsHandoffReviewQuiescent || IsBusy || IsWebPageRetrievalActive
-            || !clipboardPreview.IsQuiescent || filePreview?.IsQuiescent == false
+            || !clipboardPreview.IsQuiescent || filePreview?.IsQuiescent == false || sessionFiles?.IsQuiescent == false
             || IsLocalModelSetupActive || IsPowerShellSetupActive || IsSpeechProviderOperationActive
             || activeReasoningTask is { IsCompleted: false } || isModelActionDispatchActive
             || !sessionController.IsCurrentSessionUnlocked())

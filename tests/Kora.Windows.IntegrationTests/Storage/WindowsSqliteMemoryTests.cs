@@ -194,14 +194,14 @@ public sealed partial class WindowsSqliteMemoryTests
         await fixture.InitializeAsync();
         var grants = await fixture.GrantAsync("perpetual");
         var audits = fixture.Count("security_audit_events");
-        fixture.Mutate("DROP TABLE reviewed_memory; DROP TABLE memory_profile; PRAGMA user_version=6;");
+        fixture.Mutate("DROP TABLE session_file; DROP TABLE reviewed_memory; DROP TABLE memory_profile; PRAGMA user_version=6;");
         fixture.Reopen();
         await fixture.Store.InitializeAsync(fixture.Token);
         fixture.Count("security_audit_events").Should().Be(audits);
         (await fixture.Store.ReadGrantsAsync(fixture.Token)).Should().ContainSingle().Which.Should().Be(grants);
         using var service = Service(fixture);
         await Admit(fixture, service);
-        fixture.Mutate("DROP TABLE reviewed_memory; DROP TABLE memory_profile; PRAGMA user_version=6;");
+        fixture.Mutate("DROP TABLE session_file; DROP TABLE reviewed_memory; DROP TABLE memory_profile; PRAGMA user_version=6;");
         fixture.Reopen();
         var action = () => fixture.Store.InitializeAsync(fixture.Token).AsTask();
         await action.Should().ThrowAsync<InvalidDataException>();

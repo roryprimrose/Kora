@@ -22,7 +22,8 @@ internal sealed partial class SessionsViewModel(
     ILogger<SessionsViewModel> logger, LocalEventBroker? localEvents = null,
     Func<AdmittedDetailContent, string>? openHistoryDetail = null,
     Action<HostId<SessionIdentity>>? revokeHistoryDetails = null,
-    Kora.Application.Memory.MemoryManagementService? memories = null) : ObservableObject
+    Kora.Application.Memory.MemoryManagementService? memories = null,
+    SessionAttachmentWindowController? attachments = null) : ObservableObject
 {
     private readonly HostRequest viewer = HostRequest.Create(RequestOrigin.LocalUi);
     private readonly CancellationTokenSource lifetime = new();
@@ -44,6 +45,19 @@ internal sealed partial class SessionsViewModel(
     private bool refreshingWork;
     private bool closed;
     private bool notifying;
+
+    public bool CanAttachFile => CanRead && selected is { Authority.IsActive: true } && attachments is not null;
+    public bool CanInspectAttachment => CanRead && selected is not null && attachments is not null;
+    public Task OpenAttachment(bool attach) => RunAsync(async () =>
+    {
+        var target = RequireSelected();
+        var epoch = selectionEpoch;
+        await (attachments ?? throw new InvalidOperationException("The native attachment surface is unavailable."))
+            .Open(target, attach, () => !closed && access.CanInspect && selectionEpoch == epoch
+                && selected?.Authority == target.Authority, lifetime.Token);
+        status = attach ? "Review exact metadata and separate durable-copy disclosure before confirming."
+            : "Exact retained historical attachment. Browsing never resumes a Done session or renews activity.";
+    });
 
     private SessionListFilter sessionFilter;
     public IReadOnlyList<SessionListFilter> SessionFilters { get; } = Enum.GetValues<SessionListFilter>();
@@ -230,6 +244,7 @@ internal sealed partial class SessionsViewModel(
             + ", scoped grants " + preview.ScopedGrants.ToString(CultureInfo.InvariantCulture)
             + ", observations " + preview.Observations.ToString(CultureInfo.InvariantCulture)
             + ", waits " + preview.Waits.ToString(CultureInfo.InvariantCulture)
+            + ", durable file attachments " + preview.Attachments.ToString(CultureInfo.InvariantCulture)
             + "\n" + SessionDispositionPreview.Scope;
         status = "Preview only; nothing removed. Confirm logical disposition is a separate deliberate action for this exact ID and revision.";
     });
@@ -472,6 +487,7 @@ internal sealed partial class SessionsViewModel(
 
     private void ClearSelection()
     {
+        attachments?.Close();
         if (selected is { } previous) { memories?.ClearSessionDrafts(previous.Authority.SessionId); }
         ClearMemories();
         ClearLocalEvents();
@@ -558,6 +574,8 @@ internal sealed partial class SessionsViewModel(
             OnPropertyChanged(nameof(HistoryRecords));
             OnPropertyChanged(nameof(SelectedHistoryRecord));
             OnPropertyChanged(nameof(CanOpenHistoryDetail));
+            OnPropertyChanged(nameof(CanAttachFile));
+            OnPropertyChanged(nameof(CanInspectAttachment));
             NotifyHistorySearch();
         }
         finally { notifying = previous; }

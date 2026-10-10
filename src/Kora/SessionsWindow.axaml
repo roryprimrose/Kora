@@ -24,6 +24,12 @@
               AutomationProperties.Name="Rename the exact selected session ID using its generation and metadata revision; does not resume" />
     </Grid>
     <StackPanel Grid.Row="3" Spacing="6">
+    <WrapPanel>
+      <Button x:Name="AttachFile" Content="Attach text file to this exact Session" IsEnabled="{Binding CanAttachFile}"
+              AutomationProperties.Name="Native picker then metadata and durable-copy review; one file, 256 KiB original UTF-8 bytes, sixteen retained profile files, no eviction" />
+      <Button x:Name="InspectAttachment" Content="Inspect retained attachment / remove Kora copies" IsEnabled="{Binding CanInspectAttachment}"
+              AutomationProperties.Name="Passive exact-session historical full inert source and lexical citations, including retained Done sessions; separate exact removal confirmation" />
+    </WrapPanel>
     <Expander Header="Selected-session retention: status and exact review">
       <StackPanel Spacing="6">
         <controls:NamedTextBlock Text="{Binding RetentionStatus}" TextWrapping="Wrap"

@@ -369,7 +369,9 @@ public sealed partial class WindowsSqliteHostInteractionStore
         changes.AddRange(grants.Select(GrantChange));
         var memories = MemoryInvalidations(connection, id);
         changes.AddRange(memories.Select(MemoryChange));
+        if (deleting) { changes.AddRange(AttachmentInvalidation(connection, id)); }
         var sequence = AppendAudit(connection, transaction, intent, session, audit, changes: changes);
+        if (deleting) { RevokeAttachment(connection, transaction, id, sequence); }
         WriteSession(connection, transaction, session, deleting ? 2 : 1, sequence);
         foreach (var memory in memories) { WriteMemory(connection, transaction, memory, sequence); }
         foreach (var grant in grants) { WriteGrant(connection, transaction, grant, sequence); }

@@ -10,6 +10,14 @@ and mandatory secure workflows.
 
 Related: [OOTB Phrases](OOTB_Phrases.md), [Environment Setup](Environment_Setup.md), [Call-Aware Speech](Call_Aware_Speech.md), [Security](Security_Data_Flows.md), [Interaction and Sessions](Interaction_And_Sessions.md).
 
+## Fixed Session Attachment Boundary
+
+The [native single-file Session attachment](File_And_Folder_Ingestion.md#delivered-durable-single-file-session-attachment---2026-10-10) has fixed host policy, not a configurable knowledge or model setting: one immutable UTF-8 `.txt`/`.md`/`.markdown` file per exact session, 256 KiB original bytes including BOM, sixteen retained profile files and no eviction.
+
+Persistence requires separate native metadata/durable-copy review and original-user confirmation. Existing session retention/Keep rules govern the snapshot; passive inspection/search neither renew activity nor run cleanup. Removal has its own exact copy inventory/revision review and confirmation. These controls never save bodies in preferences, change provider mode or grant model use.
+
+No format/limit override, folder attachment, managed source, extra version, model-context inclusion, OCR/vector, refresh/watch, egress or generic reset/export setting is added. Missing/corrupt saved source state fails closed; see the canonical storage/removal contract.
+
 ## Configuration Contract
 
 ### Delivered bounded fixed local-version queue settings (R10/R13)

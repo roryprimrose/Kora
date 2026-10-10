@@ -36,6 +36,7 @@ public sealed partial class App : Avalonia.Application
     private SessionsWindowController? sessionsWindow;
     private ClipboardPreviewWindowController? clipboardWindow;
     private LocalFilePreviewWindowController? fileWindow;
+    private SessionAttachmentWindowController? attachmentWindow;
     private MaintenanceWindowController? maintenanceWindow;
     private MainViewModel? viewModel;
     private ILogger<App>? logger;
@@ -124,13 +125,20 @@ public sealed partial class App : Avalonia.Application
                 Services.GetRequiredService<Kora.Core.Diagnostics.IEvidenceQueryAccess>(),
                 Services.GetRequiredService<ILogger<EvidenceViewModel>>());
             evidenceWindow.Bind();
+            fileWindow = new LocalFilePreviewWindowController(viewModel, window);
+            var sessionFiles = Services.GetRequiredService<SessionFileAttachmentService>();
+            Services.GetRequiredService<SessionWorkspaceService>().BindAttachmentLifecycle(sessionFiles);
+            viewModel.BindSessionAttachments(sessionFiles);
+            attachmentWindow = new SessionAttachmentWindowController(viewModel.ReportHostInteractionFailure, sessionFiles,
+                Services.GetRequiredService<SessionWorkspaceService>(),
+                Services.GetRequiredService<Kora.Core.Storage.ISessionWorkspaceAccess>(), fileWindow);
             sessionsWindow = new SessionsWindowController(viewModel,
                 Services.GetRequiredService<Kora.Application.Hosting.SessionWorkspaceService>(),
                 Services.GetRequiredService<Kora.Application.Diagnostics.DurableEvidenceQuery>(),
                 Services.GetRequiredService<Kora.Core.Storage.ISessionWorkspaceAccess>(),
                 Services.GetRequiredService<ILogger<SessionsViewModel>>(),
                 Services.GetRequiredService<Kora.Application.Interaction.LocalEventBroker>(), detailWindow,
-                Services.GetRequiredService<Kora.Application.Memory.MemoryManagementService>());
+                Services.GetRequiredService<Kora.Application.Memory.MemoryManagementService>(), attachmentWindow);
             sessionsWindow.Bind();
             var localEvents = Services.GetRequiredService<Kora.Application.Interaction.LocalEventBroker>();
             Services.GetRequiredService<SessionWorkspaceService>().BindLocalEvents(localEvents);
@@ -140,6 +148,7 @@ public sealed partial class App : Avalonia.Application
             sessionRetention.Revoking += sessionsWindow.RevokeSession;
             sessionRetention.Revoking += detailWindow.RevokeSession;
             sessionRetention.Revoking += viewModel.RevokeSessionPresentation;
+            sessionRetention.Revoking += session => attachmentWindow?.RevokeSession(session);
             var memories = Services.GetRequiredService<Kora.Application.Memory.MemoryManagementService>();
             sessionRetention.Revoking += memories.ExpireSession;
             Services.GetRequiredService<SessionWorkspaceService>().SessionLifecycleChanged += viewModel.RevokeSessionPresentation;
@@ -149,7 +158,6 @@ public sealed partial class App : Avalonia.Application
             viewModel.BindSessionCommands(Services.GetRequiredService<Kora.Application.Hosting.SessionWorkspaceService>());
             viewModel.BindMemoryCommands(memories);
             clipboardWindow = new ClipboardPreviewWindowController(viewModel);
-            fileWindow = new LocalFilePreviewWindowController(viewModel, window);
             viewModel.BindFilePreview(Services.GetRequiredService<Kora.Tools.Files.LocalFilePreview>(), fileWindow,
                 Services.GetRequiredService<Kora.Tools.Files.LocalFileSearch>(), fileWindow,
                 Services.GetRequiredService<Kora.Tools.Files.LocalFileRefresh>());
@@ -257,6 +265,8 @@ public sealed partial class App : Avalonia.Application
         skillPackagesWindow = null;
         sessionsWindow?.Dispose();
         sessionsWindow = null;
+        attachmentWindow?.Dispose();
+        attachmentWindow = null;
         clipboardWindow?.Dispose();
         clipboardWindow = null;
         fileWindow?.Dispose();

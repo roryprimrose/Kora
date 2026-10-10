@@ -40,6 +40,10 @@ public sealed partial class SessionWorkspaceService
         {
             throw new InvalidOperationException("No matching live native disposition preview. Preview again before explicit confirmation.");
         }
+        if (attachmentLifecycle is not null)
+        {
+            await attachmentLifecycle.RevokeForDisposition(preview.Session.Authority.SessionId).ConfigureAwait(false);
+        }
         var receipt = await ControlAsync(preview.Session.Authority.SessionId, origin,
             (request, eligible) => store.DisposeSessionAsync(request, preview, eligible, token), token,
             () => access.ControlRevision == pending.ControlRevision && admission(), existingSubject: true, terminalCommitted: true).ConfigureAwait(false);

@@ -27,12 +27,12 @@ public sealed partial class WindowsSqliteHostInteractionStore
             return preview;
         }, cancellationToken));
 
-    public ValueTask<SessionDispositionReceipt> DisposeSessionAsync(HostRequest request, SessionDispositionPreview preview,
+    public async ValueTask<SessionDispositionReceipt> DisposeSessionAsync(HostRequest request, SessionDispositionPreview preview,
         Func<bool> canControl, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(preview);
         ArgumentNullException.ThrowIfNull(canControl);
-        return RunHostMutationAsync(request, "session.disposition", (connection, transaction, intent, audit) =>
+        var receipt = await RunHostMutationAsync(request, "session.disposition", (connection, transaction, intent, audit) =>
         {
             RequireFreshMetadataIntent(intent);
             if (request.SessionId != preview.Session.Authority.SessionId)
@@ -51,8 +51,15 @@ public sealed partial class WindowsSqliteHostInteractionStore
                 new(checked(target.Authority.Generation.Value + 1)), false);
             var completed = intent.Next(HostTaskState.Succeeded);
             var memories = MemoryInvalidations(connection, request.SessionId);
+            var attachments = AttachmentInvalidation(connection, request.SessionId);
+            if (attachments.Length != 0)
+            {
+                database.RequireEmptyArtifactInventory();
+                Execute(connection, transaction, "PRAGMA secure_delete=ON; PRAGMA journal_size_limit=0;");
+            }
             var sequence = AppendAudit(connection, transaction, intent, removed, audit,
-                changes: [SessionChange(removed, 2), TaskChange(completed), .. memories.Select(MemoryChange)]);
+                changes: [SessionChange(removed, 2), TaskChange(completed), .. memories.Select(MemoryChange), .. attachments]);
+            RevokeAttachment(connection, transaction, request.SessionId, sequence);
             WriteSession(connection, transaction, removed, 2, sequence);
             foreach (var memory in memories) { WriteMemory(connection, transaction, memory, sequence); }
             WindowsSqliteHostTaskStore.WriteTask(connection, transaction, completed);
@@ -65,7 +72,14 @@ public sealed partial class WindowsSqliteHostInteractionStore
                 DELETE FROM session_metadata WHERE session_id=$id;
                 """, ("$id", Id(request.SessionId)));
             return new SessionDispositionReceipt(request.SessionId, removed.Generation, preview);
-        }, cancellationToken, canControl);
+        }, cancellationToken, canControl).ConfigureAwait(false);
+        if (receipt.Removed.Attachments != 0)
+        {
+            using var lease = database.AcquireReadLease(CancellationToken.None);
+            database.ClearCommittedJournal();
+            database.RequireEmptyArtifactInventory();
+        }
+        return receipt;
     }
 
     private static SessionDispositionPreview DescribeDisposition(SqliteConnection connection,
@@ -74,7 +88,8 @@ public sealed partial class WindowsSqliteHostInteractionStore
         var session = target.Authority.SessionId;
         return new(confirmation, target, DispositionRevision(connection, session, control),
             CountDispositionRows(connection, "host_questions", session), CountDispositionRows(connection, "scoped_grants", session),
-            CountDispositionRows(connection, "host_observations", session), CountDispositionRows(connection, "host_task_waits", session));
+            CountDispositionRows(connection, "host_observations", session), CountDispositionRows(connection, "host_task_waits", session))
+        { Attachments = ReadAttachmentRow(connection, session)?.Attachment is null ? 0 : 1 };
     }
 
     private static SessionWorkspaceEntry RequireDispositionTarget(SqliteConnection connection,
@@ -129,6 +144,7 @@ public sealed partial class WindowsSqliteHostInteractionStore
             "SELECT * FROM host_questions WHERE session_id=$id ORDER BY question_id;",
             "SELECT * FROM scoped_grants WHERE session_id=$id ORDER BY approval_id;",
             "SELECT * FROM reviewed_memory WHERE session_id=$id ORDER BY memory_id;",
+            "SELECT * FROM session_file WHERE session_id=$id ORDER BY session_id;",
             "SELECT * FROM host_tasks WHERE session_id=$id AND task_id<>$control ORDER BY task_id;",
             "SELECT * FROM session_history WHERE session_id=$id AND (json_extract(projection,'$.TaskId') IS NULL OR json_extract(projection,'$.TaskId')<>$control) ORDER BY sequence;",
             "SELECT w.* FROM host_task_waits w JOIN host_tasks t ON t.task_id=w.task_id WHERE t.session_id=$id ORDER BY w.task_id;",

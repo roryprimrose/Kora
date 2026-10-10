@@ -28,7 +28,7 @@ public sealed class WindowsSqliteSessionRetentionTests
         var running = await AdmitAsync(fixture, entry);
         var history = await fixture.Store.ReadHistoryAsync(session, null, 50, fixture.Token);
         var audits = fixture.Count("security_audit_events");
-        fixture.Mutate("DROP TABLE reviewed_memory; DROP TABLE memory_profile; DROP TABLE session_retention; PRAGMA user_version=5;");
+        fixture.Mutate("DROP TABLE session_file; DROP TABLE reviewed_memory; DROP TABLE memory_profile; DROP TABLE session_retention; PRAGMA user_version=5;");
         fixture.Time.Now = fixture.Time.Now.AddYears(1);
         fixture.Reopen();
         await fixture.Store.InitializeAsync(fixture.Token);
@@ -411,7 +411,7 @@ public sealed class WindowsSqliteSessionRetentionTests
         await fixture.InitializeAsync();
         await WindowsSqliteSessionWorkspaceTests.FinishAsync(fixture, HostTaskState.Succeeded);
         var id = fixture.Request.SessionId;
-        fixture.Mutate("DROP TABLE reviewed_memory; DROP TABLE memory_profile; DROP TABLE session_retention; PRAGMA user_version=5;");
+        fixture.Mutate("DROP TABLE session_file; DROP TABLE reviewed_memory; DROP TABLE memory_profile; DROP TABLE session_retention; PRAGMA user_version=5;");
         fixture.Time.Now = fixture.Time.Now.AddYears(1);
         fixture.Reopen();
         await fixture.Store.InitializeAsync(fixture.Token);

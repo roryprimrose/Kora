@@ -1,7 +1,7 @@
 # Human Interaction and Persistent Sessions
 
 Status: agreed product direction; bounded durable question/grant/session metadata,
-exact session/task controls and consolidated schema-v6 task/question/queue/required-audit
+exact session/task controls and consolidated schema-v8 task/question/queue/required-audit
 authority with bounded ordered interaction history and inventoried configurable
 session retention implemented. The deterministic
 local-version queue and its exact pending cancellation are delivered; cancellation
@@ -13,6 +13,16 @@ Related: [Architecture](Architecture.md), [Work Management](Work_Management.md),
 
 This is the canonical interaction/session contract. It replaces the former single-conversation, single-executor, memory-only-history direction.
 Windows login sessions, voice capture generations, provider/SDK conversations, and Kora work sessions are different identities; none substitutes for another.
+
+## Durable Single-File Session Attachment
+
+The [bounded R26.1e attachment](File_And_Folder_Ingestion.md#delivered-durable-single-file-session-attachment---2026-10-10) belongs to one exact host-owned session, not the picker request's random session, a selected display name, provider conversation or model context. Native metadata review and separate durable-copy confirmation admit only one immutable UTF-8 text/Markdown file, up to 256 KiB original bytes, within the sixteen-retained-file private-profile bound; no eviction or silent replacement.
+
+Interaction schema 8 preserves existing memory/grant, queue/admitted-deadline, history/retention rows and old audit hashes. Source format 1 stores exact original bytes and validated historical source/revision/item/digest, profile/session/generation and capture provenance. Neither the retained descriptor nor its old path can authorize dispatch, fresh filesystem reads or egress.
+
+Native full-source inspection and the same lexical-lines citations remain available after restart and for retained Done sessions, without resuming them. Browsing does not renew meaningful activity or invoke cleanup. Existing passive-inspection/source-copy/retention fences, original/current privacy/control generations and actual quiescence remain mandatory.
+
+Exact reviewed attachment removal revokes native view/search before atomic body/path-metadata removal and owned-journal verification. Session disposition and ordinary deletion inventory the same copies; live/Unknown work and uninventoried copies hold completion. Content-free provenance remains, original user files and unrelated/kept sessions/Perpetual grants do not change. No body is added to history, memory, preferences, models, logs or audit text.
 
 ## Current Implementation and Design Gap
 

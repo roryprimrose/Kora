@@ -76,8 +76,9 @@ and byte digest. No model, clipboard, execution, egress, refresh or persistence
 is involved. Exact **search file** / **inspect file** focus native bounded
 lexical search of that selected revision, returning exact excerpts and
 source/revision/digest/line citations, not a generated answer. Queries and
-results are volatile and host-only. Folder preview, attachments, knowledge
-sources, persistent/vector indexes and grounded reasoning remain unavailable. See
+results are volatile and host-only. Bounded immediate-folder preview and explicit volatile refresh use the same local broker.
+Separately, **Sessions > Attach text file to this exact Session** retains one immutable UTF-8 text/Markdown file after new metadata/durable-copy review and native confirmation: 256 KiB original bytes, sixteen retained profile files, no eviction. Restart-safe full inert source/citations and exact reviewed copy removal remain local, not model context.
+Managed knowledge, durable folders/versions, persistent/vector indexes and grounded reasoning remain unavailable. See
 [file commands](docs/commands.md#explicit-local-file-preview).
 
 **Skill packages > Shared profile sources (read only)** explicitly registers a

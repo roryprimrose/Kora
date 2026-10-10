@@ -14,6 +14,12 @@ public sealed partial class MainViewModel
     private IUserFolderPicker? folderPicker;
     private LocalFileSearch? fileSearch;
     private LocalFileRefresh? fileRefresh;
+    private SessionFileAttachmentService? sessionFiles;
+    public void BindSessionAttachments(SessionFileAttachmentService service)
+    {
+        if (sessionFiles is not null) { throw new InvalidOperationException("Session attachment service is already bound."); }
+        sessionFiles = service;
+    }
     public LocalFileReview? FileReview => filePreview?.Review;
     public LocalFileRevision? FileRevision => filePreview?.Current;
     public LocalFolderReview? FolderReview => filePreview?.FolderReview;
@@ -71,7 +77,11 @@ public sealed partial class MainViewModel
         activity.Complete(outcome == LocalFileOutcome.Admitted ? HostOperationOutcome.Completed : HostOperationOutcome.Failed);
     }
 
-    public void ClearFilePreview() => filePreview?.Clear();
+    public void ClearFilePreview()
+    {
+        filePreview?.Clear();
+        sessionFiles?.Revoke();
+    }
 
     public Task RefreshFilePreviewAsync(LocalFileReference exactSource)
     {
@@ -240,11 +250,13 @@ public sealed partial class MainViewModel
             + "Refresh file/folder reopens only the exact admitted physical source for a fresh metadata review; confirm again before reads. "
             + "Starting refresh retires the old preview and citations. Failure/cancel leaves no preview; use the native picker again. "
             + "Missing/replaced or aliased original roots cannot be rebound by refresh. Original files are never modified. "
-            + "Durable attachments, knowledge sources, persistent/vector indexes and reasoning are unavailable.");
+            + "Durable single-file Session attachment requires separate native metadata/durable-copy consent in Sessions; this preview never persists. "
+            + "Managed knowledge sources, durable folders/versions, persistent/vector indexes and reasoning are unavailable.");
     }
 
     private void DisposeFilePreview()
     {
+        sessionFiles?.Revoke();
         if (filePreview is null) { return; }
         filePreview.Changed -= OnFilePreviewChanged;
         filePreview.Dispose();

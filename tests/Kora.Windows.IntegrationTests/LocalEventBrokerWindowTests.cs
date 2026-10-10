@@ -124,6 +124,14 @@ public sealed class LocalEventBrokerWindowTests
                 ControlAutomationPeer.CreatePeerForElement(quietButton)!.GetName().Should().Contain("Kora restarts");
                 window.FindControl<Button>("ClearRoutineQuiet")!.IsEnabled.Should().BeTrue();
                 window.FindControl<Button>("ResetRoutineQuiet")!.IsEnabled.Should().BeTrue();
+                using (var nonUser = HostActivity.BeginRoot(HostRequest.Create(RequestOrigin.HostSystem),
+                    HostActivityLayer.Application, HostOperation.Request))
+                {
+                    await viewer.QuietRoutineNoticesAsync();
+                    broker.RoutineQuiet.Enabled.Should().BeFalse();
+                    viewer.Status.Should().Contain("InvalidOperationException");
+                    nonUser.Complete(HostOperationOutcome.Completed);
+                }
                 await viewer.QuietRoutineNoticesAsync();
                 broker.RoutineQuiet.Enabled.Should().BeTrue();
                 var current = await f.Storage.Store.ReadQueueAsync(f.Storage.Request.SessionId, f.Token);

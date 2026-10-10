@@ -3,6 +3,7 @@ using System.Text.Json;
 
 using Kora.Core.Hosting;
 using Kora.Core.Interaction;
+using Kora.Core.Diagnostics;
 
 namespace Kora;
 
@@ -96,8 +97,11 @@ internal sealed partial class SessionsViewModel
     private Task ChangeRoutineQuietAsync(bool enabled)
     {
         var session = selected?.Authority.SessionId;
+        var originalAllowed = !HostActivity.HasScope || HostActivity.Current is { } original
+            && original.Request.Origin == RequestOrigin.LocalUi && !original.Activity!.IsStopped;
         return RunAsync(async () =>
         {
+            if (!originalAllowed) { throw new InvalidOperationException("Quiet control cannot relabel model/system/voice or completed ambient input as native user input."); }
             var target = RequireSelected();
             var broker = localEvents ?? throw new InvalidOperationException("The local broker is unavailable.");
             if (!routineSurfaceOpen) { throw new InvalidOperationException("Run-only quiet control requires the already-open native Sessions surface."); }

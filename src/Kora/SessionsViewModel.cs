@@ -244,6 +244,7 @@ internal sealed partial class SessionsViewModel(
             + ", scoped grants " + preview.ScopedGrants.ToString(CultureInfo.InvariantCulture)
             + ", observations " + preview.Observations.ToString(CultureInfo.InvariantCulture)
             + ", waits " + preview.Waits.ToString(CultureInfo.InvariantCulture)
+            + ", durable file attachments " + preview.Attachments.ToString(CultureInfo.InvariantCulture)
             + "\n" + SessionDispositionPreview.Scope;
         status = "Preview only; nothing removed. Confirm logical disposition is a separate deliberate action for this exact ID and revision.";
     });

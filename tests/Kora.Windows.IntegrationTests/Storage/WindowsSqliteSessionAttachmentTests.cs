@@ -305,6 +305,30 @@ public sealed class WindowsSqliteSessionAttachmentTests
         await read.Should().ThrowAsync<InvalidOperationException>();
     }
 
+    [WindowsFact]
+    public async Task ExplicitRemovalAllowsFreshSingleFileAdmissionWithoutKeepingOldBodyOrRebindingOldCitations()
+    {
+        using var fixture = await Initialize();
+        var original = await Attach(fixture, Encoding.UTF8.GetBytes("OLD_ATTACHMENT_VERSION_34878"));
+        var removal = await fixture.RunAsync(() => fixture.Store.PreviewRemoval(original.Session, fixture.Token));
+        await NewControl(fixture, original.Session);
+        await fixture.RunAsync(async () => await fixture.Store.Remove(fixture.Request, removal, () => true, fixture.Token));
+        var cleanup = await fixture.RunAsync(() => fixture.Store.PreviewRemoval(original.Session, fixture.Token));
+        cleanup.BodyRetained.Should().BeFalse();
+        await NewControl(fixture, original.Session);
+        var replacement = await Attach(fixture, Encoding.UTF8.GetBytes("NEW_ATTACHMENT_VERSION_34878"));
+        replacement.File.Reference.Should().NotBe(original.File.Reference);
+        replacement.StorageRevision.Value.Should().Be(3);
+        fixture.Count("session_file").Should().Be(1);
+        fixture.Reopen();
+        await fixture.Store.InitializeAsync(fixture.Token);
+        (await fixture.RunAsync(() => fixture.Store.ReadAttachment(original.Session, fixture.Token)))!.File.Reference.Should().Be(replacement.File.Reference);
+        foreach (var path in new[] { fixture.DatabasePath, fixture.DatabasePath + "-journal" })
+        {
+            Encoding.UTF8.GetString(File.ReadAllBytes(path)).Should().NotContain("OLD_ATTACHMENT_VERSION_34878");
+        }
+    }
+
     private static async Task<InteractionStorageFixture> Initialize()
     {
         var fixture = new InteractionStorageFixture();

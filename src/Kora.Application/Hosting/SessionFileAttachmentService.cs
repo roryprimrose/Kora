@@ -45,6 +45,12 @@ public sealed partial class SessionFileAttachmentService(
         var original = new HostRequest(new(Guid.NewGuid()), exactTarget.Authority.SessionId, new(Guid.NewGuid()), RequestOrigin.LocalUi);
         pending = new(exactTarget, original, Eligible);
         using var activity = HostActivity.BeginRoot(original, HostActivityLayer.Application, HostOperation.Request);
+        var resolved = await sessions.ReadAttachmentTarget(exactTarget.Authority.SessionId, token).ConfigureAwait(false);
+        if (resolved.Authority != exactTarget.Authority || !Eligible())
+        {
+            activity.Complete(HostOperationOutcome.Failed);
+            throw new InvalidOperationException("The exact selected active-session generation changed before native file review.");
+        }
         if (await Inspect(exactTarget.Authority.SessionId, "session.file.select-check",
             cancellation => sessions.ReadAttachment(exactTarget.Authority.SessionId, cancellation), token).ConfigureAwait(false) is not null)
         {
@@ -67,6 +73,13 @@ public sealed partial class SessionFileAttachmentService(
         }
         using var activity = HostActivity.BeginRoot(captured.Request, HostActivityLayer.Application, HostOperation.Request,
             [new ActivityLink(reviewed.Cause)]);
+        var resolved = await sessions.ReadAttachmentTarget(captured.Request.SessionId, token).ConfigureAwait(false);
+        if (resolved.Authority != captured.Target.Authority || !captured.Admitted())
+        {
+            activity.Complete(HostOperationOutcome.Failed);
+            await Clear().ConfigureAwait(false);
+            throw new InvalidOperationException("The exact session generation or current control changed before capture. Select again.");
+        }
         var outcome = await action.Execute(exactReview, captured.Admitted, async (file, bytes, cancellation) =>
         {
             await sessions.CommitAttachment(captured.Request, captured.Target.Authority.Generation, file, bytes, captured.Admitted, cancellation)
@@ -193,6 +206,13 @@ public sealed partial class SessionFileAttachmentService(
         lock (sync) { outstanding = controlQuiescence.Task; }
         await WaitForInspections().ConfigureAwait(false);
         await outstanding.ConfigureAwait(false);
+    }
+
+    internal async Task RevokeForDisposition(HostId<SessionIdentity> session)
+    {
+        Revoked?.Invoke(session);
+        await Clear().ConfigureAwait(false);
+        await WaitForQuiescence().ConfigureAwait(false);
     }
 
     private async Task WaitForInspections()

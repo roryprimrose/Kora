@@ -359,6 +359,74 @@ public sealed partial class SessionWorkspaceServiceTests
         fixture.TaskWrites.Should().BeEmpty();
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task ChangedExactSessionGenerationBeforeReviewOrConfirmationCannotReadOrPersist(bool afterReview)
+    {
+        using var fixture = new Fixture { FileReceipts = true };
+        var audit = new FileAudit();
+        var capture = new FileCapture();
+        await using var service = FileService(fixture, FileAction(capture, audit), audit);
+        if (afterReview)
+        {
+            await service.Select(new(fixture.Session, null), new FilePicker(), () => true, fixture.Token);
+        }
+        fixture.ExactListReader = session => new(fixture.Session with { Generation = new(2) }, null);
+        Func<Task<LocalFileOutcome>> operation = afterReview
+            ? () => service.Confirm(service.Review!.ReviewId, fixture.Token)
+            : () => service.Select(new(fixture.Session, null), new FilePicker(), () => true, fixture.Token);
+        await operation.Should().ThrowAsync<InvalidOperationException>().WithMessage("*generation*");
+        fixture.RetainedFile.Should().BeNull();
+        fixture.TaskWrites.Should().BeEmpty();
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task OriginalAdmissionClosureDuringExactTargetResolutionRejectsBeforeCapture(bool afterReview)
+    {
+        using var fixture = new Fixture { FileReceipts = true };
+        var audit = new FileAudit();
+        var admitted = true;
+        await using var service = FileService(fixture, FileAction(new FileCapture(), audit), audit);
+        if (afterReview)
+        {
+            await service.Select(new(fixture.Session, null), new FilePicker(), () => admitted, fixture.Token);
+        }
+        fixture.ExactListReader = session =>
+        {
+            admitted = false;
+            return new(fixture.Session, null);
+        };
+        Func<Task<LocalFileOutcome>> operation = afterReview
+            ? () => service.Confirm(service.Review!.ReviewId, fixture.Token)
+            : () => service.Select(new(fixture.Session, null), new FilePicker(), () => admitted, fixture.Token);
+        await operation.Should().ThrowAsync<InvalidOperationException>();
+        fixture.RetainedFile.Should().BeNull();
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task ExactSessionDispositionRevokesAndQuiescesNativeAttachmentBeforeDurableControl(bool nativeViewer)
+    {
+        using var fixture = new Fixture();
+        var audit = new FileAudit();
+        var action = FileAction(new FileCapture(), audit);
+        await using var service = FileService(fixture, action, audit);
+        fixture.Service.BindAttachmentLifecycle(service);
+        using var root = HostActivity.BeginRoot(fixture.Request, HostActivityLayer.Application, HostOperation.Request);
+        await action.Select(new FilePicker(), () => true, fixture.Token);
+        var preview = await fixture.Service.PreviewDispositionAsync(fixture.Request.SessionId, new(1), 0, fixture.Token);
+        var revoked = false;
+        if (nativeViewer) { service.Revoked += session => { revoked = true; session.Should().Be(fixture.Request.SessionId); }; }
+        await fixture.Service.ConfirmDispositionAsync(preview, RequestOrigin.LocalUi, () => true, fixture.Token);
+        revoked.Should().Be(nativeViewer);
+        service.Review.Should().BeNull();
+        service.IsQuiescent.Should().BeTrue();
+    }
+
     [Fact]
     public async Task CancellationInsideRequiredSuccessAuditCannotPublishBodyAfterOperationReturns()
     {

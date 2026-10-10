@@ -7,11 +7,17 @@ namespace Kora.Application.Hosting;
 
 public sealed partial class SessionWorkspaceService
 {
+    private SessionFileAttachmentService? attachmentLifecycle;
+    public void BindAttachmentLifecycle(SessionFileAttachmentService service) => attachmentLifecycle = service;
+
     private ISessionFileStore Files => store as ISessionFileStore
         ?? throw new InvalidOperationException("The private session file store is unavailable.");
 
     public Task<SessionFileAttachment?> ReadAttachment(HostId<SessionIdentity> session, CancellationToken token) =>
         ReadAsync(() => Files.ReadAttachment(session, token), token);
+
+    internal Task<SessionWorkspaceEntry> ReadAttachmentTarget(HostId<SessionIdentity> session, CancellationToken token) =>
+        ReadAsync(() => store.ReadMetadataAsync(session, token), token);
 
     public Task<SessionFileRemoval> PreviewAttachmentRemoval(HostId<SessionIdentity> session, CancellationToken token) =>
         ReadAsync(() => Files.PreviewRemoval(session, token), token);

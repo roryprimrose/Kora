@@ -330,7 +330,7 @@ public sealed partial class LocalFilePreview(
         }
         return RunAsync("file.preview.admit", canPresent, async (_, admittedGeneration, cancellation) =>
         {
-            ILocalFileSelection selected;
+            ILocalFileSelection? selected;
             LocalFileReview reviewed;
             lock (sync)
             {
@@ -346,7 +346,7 @@ public sealed partial class LocalFilePreview(
                 bytes = await selected.ReadAsync(cancellation).ConfigureAwait(false);
                 captured = new LocalFileRevision(reviewed, bytes, time.GetUtcNow());
                 ReleaseOwned(selected);
-                selected = null!;
+                selected = null;
                 lock (sync)
                 {
                     if (releaseFailed || !IsCurrent(admittedGeneration, canPresent, cancellation)

@@ -127,6 +127,7 @@ public sealed partial class App : Avalonia.Application
             evidenceWindow.Bind();
             fileWindow = new LocalFilePreviewWindowController(viewModel, window);
             var sessionFiles = Services.GetRequiredService<SessionFileAttachmentService>();
+            Services.GetRequiredService<SessionWorkspaceService>().BindAttachmentLifecycle(sessionFiles);
             viewModel.BindSessionAttachments(sessionFiles);
             attachmentWindow = new SessionAttachmentWindowController(viewModel.ReportHostInteractionFailure, sessionFiles,
                 Services.GetRequiredService<SessionWorkspaceService>(),

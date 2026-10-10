@@ -83,6 +83,9 @@ internal sealed partial class SessionsWindow : Window
         ReviewLocalEvent.Click += async (_, _) => await model.ReviewLocalEventAsync();
         DismissLocalEvent.Click += async (_, _) => await model.DismissLocalEventAsync();
         DeferLocalEvent.Click += async (_, _) => await model.DeferLocalEventAsync();
+        QuietRoutineNotices.Click += async (_, _) => await model.QuietRoutineNoticesAsync();
+        ClearRoutineQuiet.Click += async (_, _) => await model.ClearRoutineQuietAsync();
+        ResetRoutineQuiet.Click += async (_, _) => await model.ResetRoutineQuietAsync();
         Evidence.Click += async (_, _) => await model.ReadEvidenceAsync();
         NextEvidence.Click += async (_, _) => await model.ReadEvidenceAsync(next: true);
         Done.Click += async (_, _) => await model.ChangeLifecycleAsync(active: false);

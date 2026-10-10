@@ -28,6 +28,10 @@ See the [authoritative proposal boundary](../Design/Model_Providers_Memory_And_K
 
 ## Trusted local event privacy
 
+The native run-only routine quiet choice starts Off and applies only to Work/Maintenance first deliveries and notice rows. It lasts until explicitly cleared/reset or restart; the flag is never persisted. The same bounded suppression history now admits canonical known schema 2 routine-only `RoutineSuppressed` receipts while preserving schema 1 reads and existing expiry/revision/watermark/budget/retention rules. No new preference file or database migration is introduced.
+
+Quiet never suppresses Failure/Attention, required questions/approvals, mandatory security output or independent work/status/citations/recovery. Clear burns current muted sources under existing source locks, without budget consumption or backlog replay. Exact live native session/control/choice admission, trusted requested/terminal audit and generation-checked snapshots prevent model/system/late-render changes. Failures hold with recovery; quiet grants no speech, capture, consent, effect or egress authority.
+
 The [bounded visual broker](commands.md#trusted-local-events) reads only
 authoritative fixed local-version work/question metadata and the already-
 verified maintenance cache. No model text can create events. Stable IDs,

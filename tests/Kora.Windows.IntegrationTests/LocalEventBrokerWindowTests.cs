@@ -54,6 +54,15 @@ public sealed class LocalEventBrokerWindowTests
                 refresh.Focus().Should().BeTrue();
                 await viewer.RefreshWorkAsync();
                 window.FocusManager!.GetFocusedElement().Should().BeSameAs(refresh);
+                await viewer.QuietRoutineNoticesAsync();
+                viewer.RoutineQuietStatus.Should().Contain("On").And.Contain("Work and Maintenance").And.Contain("required questions");
+                broker.RoutineQuiet.Enabled.Should().BeTrue();
+                viewer.LocalEvents.Should().ContainSingle().Which.Event.Category.Should().Be(LocalEventCategory.Attention);
+                viewer.PendingQuestions.Single().Key.Should().Be(question.Key);
+                await viewer.ClearRoutineQuietAsync();
+                await viewer.ResetRoutineQuietAsync();
+                broker.RoutineQuiet.Enabled.Should().BeFalse();
+                window.FocusManager!.GetFocusedElement().Should().BeSameAs(refresh);
                 viewer.LocalEvents.Single().Reason.Should().Be(LocalEventReason.PresentedNoReplay);
                 viewer.LocalEvents.Single().DisplaySummary.Should().Contain("No new notification");
                 viewer.SelectLocalEvent(viewer.LocalEvents.Single());
@@ -83,6 +92,66 @@ public sealed class LocalEventBrokerWindowTests
                 viewer.LocalEvents.Should().BeEmpty();
                 var closed = () => broker.ExecuteAsync(new(LocalEventOperation.Review, held.Id, held.Revision), RequestOrigin.LocalUi, () => true, f.Token);
                 await closed.Should().ThrowAsync<InvalidOperationException>();
+            }
+            finally { window.Close(); }
+        });
+    }
+
+    [WindowsFact]
+    public async Task NativeQuietBindingsHideOnlyRoutineRowsAndPersistNoRunChoiceOrWorkEffect()
+    {
+        await HeadlessSession.RunAsync(async () =>
+        {
+            using var f = new Fixture();
+            await f.Storage.InitializeAsync();
+            await WindowsSqliteSessionWorkspaceTests.FinishAsync(f.Storage, HostTaskState.Succeeded);
+            await using var queue = f.Queue();
+            var service = f.Service(queue);
+            await using var broker = f.Broker();
+            var viewer = f.Viewer(broker, service);
+            await viewer.RefreshAsync();
+            await viewer.SelectAsync(viewer.Sessions.Single());
+            var window = new SessionsWindow(viewer);
+            window.Show();
+            try
+            {
+                var quietButton = window.FindControl<Button>("QuietRoutineNotices")!;
+                quietButton.IsEnabled.Should().BeTrue();
+                ControlAutomationPeer.CreatePeerForElement(quietButton)!.GetName().Should().Contain("Kora restarts");
+                window.FindControl<Button>("ClearRoutineQuiet")!.IsEnabled.Should().BeTrue();
+                window.FindControl<Button>("ResetRoutineQuiet")!.IsEnabled.Should().BeTrue();
+                await viewer.QuietRoutineNoticesAsync();
+                broker.RoutineQuiet.Enabled.Should().BeTrue();
+                var current = await f.Storage.Store.ReadQueueAsync(f.Storage.Request.SessionId, f.Token);
+                await service.ExecuteCommandAsync(new(SessionCommandOperation.QueueEnqueue, f.Storage.Request.SessionId.Value, 1)
+                { QueueRevision = current.Revision, WorkRequestId = Guid.NewGuid(), TaskId = Guid.NewGuid() },
+                    RequestOrigin.LocalUi, () => true, f.Token);
+                var before = await f.Storage.Store.ReadRetentionAsync(f.Storage.Request.SessionId, f.Token);
+                var tasks = f.Storage.Count("host_tasks");
+                var history = await f.Storage.Store.ReadHistoryAsync(f.Storage.Request.SessionId, null, 50, f.Token);
+                await viewer.RefreshWorkAsync();
+                viewer.LocalEvents.Should().BeEmpty();
+                viewer.LocalEventStatus.Should().Contain("1 routine rows hidden").And.Contain("1 current routine sources suppressed");
+                viewer.WorkRecords.Should().Contain(row => row.Queue!.Entry.State == SessionQueueState.Pending);
+                await viewer.ClearRoutineQuietAsync();
+                viewer.LocalEvents.Should().ContainSingle().Which.Reason.Should().Be(LocalEventReason.RoutineSuppressedNoReplay);
+                await viewer.ResetRoutineQuietAsync();
+                (await f.Storage.Store.ReadRetentionAsync(f.Storage.Request.SessionId, f.Token)).Should().Be(before);
+                (await f.Storage.Store.ReadHistoryAsync(f.Storage.Request.SessionId, null, 50, f.Token)).Should().BeEquivalentTo(history);
+                f.Storage.Count("host_tasks").Should().Be(tasks);
+                f.State.Load()!.Budgets.Should().BeEmpty();
+                File.ReadAllText(Path.Combine(f.Storage.Paths.LocalRoot, "Preferences", "local-events.json"))
+                    .Should().NotContain("Enabled").And.NotContain("RoutineQuiet");
+                await using var restarted = f.Broker();
+                restarted.RoutineQuiet.Enabled.Should().BeFalse();
+                (await restarted.ObserveAsync(f.Storage.Request.SessionId, () => true, f.Token))
+                    .Events.Should().ContainSingle().Which.Reason.Should().Be(LocalEventReason.RoutineSuppressedNoReplay);
+                window.Close();
+                viewer.CanChangeRoutineQuiet.Should().BeFalse();
+                viewer.LocalEvents.Should().BeEmpty();
+                var revision = broker.RoutineQuiet.Revision;
+                await viewer.QuietRoutineNoticesAsync();
+                broker.RoutineQuiet.Revision.Should().Be(revision);
             }
             finally { window.Close(); }
         });

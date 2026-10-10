@@ -374,6 +374,7 @@ public sealed partial class LocalEventBrokerTests
         internal Action? OnConfirm { get; set; }
         internal Action<SecurityAuditEvent>? OnAudit { get; set; }
         internal Action? BeforeCurrent { get; set; }
+        internal Action? AfterCurrent { get; set; }
         internal Func<CancellationToken, Task>? BeforeRead { get; set; }
         internal List<(SecurityAuditEvent Event, Guid Session)> Audits { get; } = [];
         internal CancellationToken Token => TestContext.Current.CancellationToken;
@@ -408,7 +409,9 @@ public sealed partial class LocalEventBrokerTests
             if (Events.Count != expected.Count || Events.Any(item => !expected.Any(item.SameSource)))
             { throw new InvalidOperationException("Source race."); }
             token.ThrowIfCancellationRequested();
-            return Task.FromResult(observation());
+            var result = observation();
+            AfterCurrent?.Invoke();
+            return Task.FromResult(result);
         }
         public LocalEventBrokerState? Load()
         {

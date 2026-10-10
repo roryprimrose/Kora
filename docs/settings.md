@@ -12,6 +12,14 @@ application version as a suffix. Source builds default to version `0.1.0`;
 release builds can override that version during publishing. Changes use the
 same live application state as the presence and response surfaces.
 
+## Routine notice quiet mode is run-only
+
+In the already-open **Sessions** window, select an exact session and use **Quiet routine notices for this run**. This one choice suppresses first Work/Maintenance notices before fatigue accounting and hides their notice rows. **Turn routine quiet off** and **Reset routine quiet to Off** clear it. Default is Off on every Kora restart; there is no saved setting or scheduled duration.
+
+Status reports On/Off, omitted routine rows and suppression/no-replay reasons separately. Failures, Attention, mandatory safety/recovery output, questions/approvals and authoritative work/queue/status/citations remain unchanged. Clear admits future new notices only; old muted records can be passive `RoutineSuppressedNoReplay` status, never deferred backlog or speech. Unknown/private/closed/stale/audit/storage state refuses with explicit recovery.
+
+This does not change speech/listening/captions, call/privacy policy, approval authority or work. Quiet-hour schedules, multi-session reminders, proactive speech and broad model/typed quiet settings remain unavailable. Existing [exact event commands](commands.md#trusted-local-events) remain separate; a suppressed routine event cannot be deferred into a replay.
+
 ## Per-session retention status and hold
 
 Session file attachments are separate native controls, not a new preference. In **Sessions**, select an exact active session and choose **Attach text file to this exact Session**. Review all native metadata and the durable Kora-copy disclosure, then confirm separately. The fixed limits are one immutable `.txt`/`.md`/`.markdown` file per session, 256 KiB original UTF-8 bytes including BOM, sixteen retained profile files, no eviction.

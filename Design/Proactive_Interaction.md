@@ -93,6 +93,22 @@ Broader multi-session proactive conversation, detector-driven speech,
 configurable reminders/quiet hours and installed accessibility/release
 acceptance remain gated. All R02 experiment evidence is retained unchanged.
 
+## Delivered run-only routine notice quiet mode - 2026-10-10
+
+In an already-open **Sessions** selected work surface, **Quiet routine notices for this run**, **Turn routine quiet off**, and **Reset routine quiet to Off** control one combined Work/Maintenance choice. Default is Off on every process start; On lasts until explicitly cleared/reset or Kora restarts. No quiet preference, timer, scheduling, network check or consent is saved.
+
+The serialized broker suppresses first routine deliveries **before** presentation and fatigue accounting, and hides routine notice rows while On. Failures and Attention retain their original budgets and admission. Authoritative work/queue/status, history/citations, errors, mandatory security output, questions/approvals and private recovery remain independently reachable. Quiet never interrupts or relabels a pending question; synthesis remains NotRequested even under VoiceOnly.
+
+Native mutation requires the exact live original LocalUi request/session, current selected native lifetime, unchanged private host/call/control/retirement epochs and quiet choice revision. HostSystem, model/ambient callbacks and voice relabelling cannot invoke this internal seam. Requested/terminal typed configuration audit and content-free generated diagnostics retain actual host correlation; failure/cancellation holds notice admission with explicit recovery, not a success-shaped default or silent rollback.
+
+Quiet suppression retains exact source/generation/revision/expiry and advances existing eligible/deferred receipt revisions. `RoutineSuppressed` is not Presented and consumes no category budget. Clear also observes and burns current muted sources under the same owning-source/cache locks; it permits only future new admitted notices, never a deferred backlog or network rerun. Already-presented/dismissed receipts retain their truthful dispositions. After clear, old muted sources may appear only as explicitly labelled `RoutineSuppressedNoReplay` passive status; expiry still wins.
+
+The existing two suppression files, 64-receipt/64-KiB bounds, UTC watermark, four fixed fatigue budgets and retirement rules are unchanged. Canonical schema 1 is read without rewriting; explicit suppression writes known schema 2, adding only the validated routine-only disposition. Schema 1 cannot contain that disposition; unknown versions and invalid/nonroutine suppression fail closed. The run-only flag/revision is never serialized. Restart resets only the choice, not no-replay history or budgets.
+
+Snapshots carry quiet and control generations; old render callbacks cannot publish a pre-quiet routine result after mutation, private closure/reopening or disposal. Status separately counts all omitted rows, routine rows hidden by quiet and current sources suppressed without presentation. Other sessions are not ambiently observed; this remains the bounded already-open native surface, not a reminder scheduler.
+
+Scheduled quiet hours, multi-session reminders, proactive speech, broad model/typed quiet settings and installed accessibility/full R18/RC acceptance remain unavailable. Existing exact event commands remain unchanged for Failure/Attention; exact routine defer cannot revive a quiet-suppressed source. All R02 runtime/native/containment/speech/evidence procedures remain unique historical evidence and are retained, not rerun or promoted by deterministic quiet tests.
+
 ## Product Behaviour
 
 Kora can start a conversation without a preceding user utterance.

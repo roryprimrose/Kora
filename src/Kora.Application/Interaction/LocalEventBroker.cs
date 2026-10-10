@@ -25,7 +25,13 @@ public sealed partial class LocalEventBroker(
     private long retirementEpoch;
     private Func<bool> heldLifetime = static () => false;
     private volatile bool disposed;
-    private bool unavailable;
+    private volatile bool unavailable;
+    private volatile RoutineNoticeQuietState routineQuiet = new(false, 0);
+
+    public RoutineNoticeQuietState RoutineQuiet => routineQuiet;
+    public bool IsAvailable => !disposed && !unavailable;
+    public bool IsCurrent(LocalEventSnapshot snapshot) =>
+        IsAvailable && access.CanControl && snapshot.AdmissionRevision == access.ControlRevision && snapshot.RoutineQuiet == routineQuiet;
 
     public async Task<LocalEventSnapshot> ObserveAsync(HostId<SessionIdentity> session,
         Func<bool> nativeLifetime, CancellationToken cancellationToken)
@@ -52,7 +58,7 @@ public sealed partial class LocalEventBroker(
                 {
                     held = [];
                     activity.Complete(HostOperationOutcome.Failed);
-                    return new([], 0, LocalEventReason.ClockRollback);
+                    return new([], 0, LocalEventReason.ClockRollback) { RoutineQuiet = routineQuiet, AdmissionRevision = revision };
                 }
                 var observed = await source.ReadAsync(session, token).ConfigureAwait(false);
                 now = time.GetUtcNow();
@@ -60,36 +66,22 @@ public sealed partial class LocalEventBroker(
                 {
                     held = [];
                     activity.Complete(HostOperationOutcome.Failed);
-                    return new([], 0, LocalEventReason.ClockRollback);
+                    return new([], 0, LocalEventReason.ClockRollback) { RoutineQuiet = routineQuiet, AdmissionRevision = revision };
                 }
                 var snapshot = await source.WithCurrentAsync(session, observed, () =>
                 {
                     Require(Eligible);
                     token.ThrowIfCancellationRequested();
-                    var receipts = state.Receipts.ToList();
-                    foreach (var item in observed)
-                    {
-                        item.Validate();
-                        if (item.SessionId != session)
-                        { throw new InvalidDataException("A host source cannot retarget the selected session."); }
-                        var prior = receipts.SingleOrDefault(receipt => receipt.Event.Id == item.Id);
-                        if (prior is not null && prior.Event.SameSource(item)) { continue; }
-                        if (prior is not null && (item.Generation < prior.Event.Generation
-                            || item.Generation == prior.Event.Generation && item.SourceRevision < prior.Event.SourceRevision))
-                        { throw new InvalidDataException("An obsolete source revision cannot replace a host event."); }
-                        if (prior is not null) { receipts.Remove(prior); }
-                        if (receipts.Count == LocalEventBrokerState.MaximumReceipts)
-                        { throw new InvalidOperationException("Bounded event suppression capacity is full; nothing was evicted or presented."); }
-                        receipts.Add(new(item with { Revision = checked((prior?.Event.Revision ?? 0) + 1) },
-                            LocalEventDisposition.Eligible, null, now));
-                    }
-                    var proposed = state with { HighWatermark = now, Receipts = receipts };
+                    var proposed = ObserveReceipts(session, observed, now, routineQuiet.Enabled);
+                    var receipts = proposed.Receipts.ToList();
+                    proposed = proposed with { Receipts = receipts };
                     var views = new List<LocalEventView>();
                     var current = observed.Select(item => receipts.Single(receipt => receipt.Event.Id == item.Id))
                         .OrderByDescending(item => item.Event.Priority).ThenBy(item => item.Event.ObservedAt)
                         .ThenBy(item => item.Event.Id).ToArray();
                     foreach (var receipt in current)
                     {
+                        if (routineQuiet.Enabled && RoutineNoticeQuietState.Includes(receipt.Event.Category)) { continue; }
                         var reason = proposed.Reason(receipt, now);
                         if (reason == LocalEventReason.Eligible)
                         {
@@ -104,7 +96,9 @@ public sealed partial class LocalEventBroker(
                             views.Add(new(receipt.Event, reason, receipt.DeferredUntil));
                         }
                     }
-                    foreach (var receipt in current.Where(item => views.All(view => view.Event.Id != item.Event.Id))
+                    foreach (var receipt in current.Where(item =>
+                        !(routineQuiet.Enabled && RoutineNoticeQuietState.Includes(item.Event.Category))
+                        && views.All(view => view.Event.Id != item.Event.Id))
                         .Take(LocalEventSnapshot.MaximumVisible - views.Count))
                     {
                         views.Add(new(receipt.Event, proposed.Reason(receipt, now), receipt.DeferredUntil));
@@ -116,7 +110,13 @@ public sealed partial class LocalEventBroker(
                     heldAdmission = revision;
                     heldLifetime = nativeLifetime;
                     held = current.Select(item => receipts.Single(receipt => receipt.Event.Id == item.Event.Id).Event).ToArray();
-                    return new LocalEventSnapshot(views, Math.Max(0, current.Length - views.Count), LocalEventReason.Eligible);
+                    return new LocalEventSnapshot(views, Math.Max(0, current.Length - views.Count), LocalEventReason.Eligible)
+                    {
+                        RoutineQuiet = routineQuiet,
+                        AdmissionRevision = revision,
+                        RoutineOmitted = current.Count(item => routineQuiet.Enabled && RoutineNoticeQuietState.Includes(item.Event.Category)),
+                        RoutineSuppressed = current.Count(item => item.Disposition == LocalEventDisposition.RoutineSuppressed),
+                    };
                 }, token).ConfigureAwait(false);
                 token.ThrowIfCancellationRequested();
                 Require(Eligible);
@@ -203,6 +203,10 @@ public sealed partial class LocalEventBroker(
                     {
                         return new LocalEventView(target, state.Reason(receipt, now), receipt.DeferredUntil);
                     }
+                    if (command.Operation == LocalEventOperation.Defer
+                        && (receipt.Disposition == LocalEventDisposition.RoutineSuppressed
+                            || routineQuiet.Enabled && RoutineNoticeQuietState.Includes(target.Category)))
+                    { throw new InvalidOperationException("Quiet-suppressed routine notices cannot be deferred into a replay backlog."); }
                     var until = command.Operation == LocalEventOperation.Defer
                         ? (now + LocalEventBrokerState.Deferral < target.ExpiresAt
                             ? now + LocalEventBrokerState.Deferral : target.ExpiresAt) : (DateTimeOffset?)null;

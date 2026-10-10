@@ -17,6 +17,8 @@ public sealed partial class MainViewModelTests
         f.ViewModel.QueueSlotChoices.Should().Equal(1, 2);
         f.ViewModel.QueueLifetimeMinuteChoices.Should().Equal(Enumerable.Range(1, 120));
         f.ViewModel.SelectedQueueLifetimeMinutes.Should().Be(30);
+        f.ViewModel.QueueActiveBudgetMinuteChoices.Should().Equal(Enumerable.Range(1, 60));
+        f.ViewModel.SelectedQueueActiveBudgetMinutes.Should().Be(5);
         f.ViewModel.CanChangeQueueConfigurationNative.Should().BeFalse();
         await f.ViewModel.SaveQueuePendingCommand.ExecuteAsync();
         f.QueuePreferences.Writes.Should().Be(0);
@@ -44,6 +46,18 @@ public sealed partial class MainViewModelTests
         await f.ViewModel.RefreshQueueConfigurationCommand.ExecuteAsync();
         await f.ViewModel.ResetQueueLifetimeCommand.ExecuteAsync();
         f.QueuePreferences.Value.IsDefault.Should().BeTrue();
+        await f.ViewModel.RefreshQueueConfigurationCommand.ExecuteAsync();
+        f.ViewModel.SelectedQueueActiveBudgetMinutes = 60;
+        await f.ViewModel.SaveQueueActiveBudgetCommand.ExecuteAsync();
+        f.QueuePreferences.Value.ActiveBudgetMinutes.Should().Be(60);
+        await f.ViewModel.RefreshQueueConfigurationCommand.ExecuteAsync();
+        await f.ViewModel.ResetQueueActiveBudgetCommand.ExecuteAsync();
+        f.QueuePreferences.Value.IsDefault.Should().BeTrue();
+        await f.RunAsync("set queue.active-budget-minutes to 1");
+        f.QueuePreferences.Value.ActiveBudgetMinutes.Should().Be(1);
+        await f.RunAsync("status queue.active-budget-minutes");
+        f.ViewModel.ResponseBody.Should().Contain("\"activeBudgetMinutes\":1");
+        await f.RunAsync("reset queue.active-budget-minutes");
         await f.RunAsync("set queue.pending-lifetime-minutes to 1");
         f.QueuePreferences.Value.PendingLifetimeMinutes.Should().Be(1);
         await f.RunAsync("status queue.pending-lifetime-minutes");
@@ -67,6 +81,12 @@ public sealed partial class MainViewModelTests
         f.QueuePreferences.Value.PendingLifetimeMinutes.Should().Be(30);
         await f.RaiseActivatedTranscriptAsync("Nova, reset queue.pending-lifetime-minutes", 1);
         f.QueuePreferences.Value.IsDefault.Should().BeTrue();
+        await f.RaiseActivatedTranscriptAsync("Nova, set queue.active-budget-minutes to 5", 1);
+        f.QueuePreferences.Value.ActiveBudgetMinutes.Should().Be(5);
+        await f.RaiseActivatedTranscriptAsync("Nova, reset queue.active-budget-minutes", 1);
+        f.QueuePreferences.Value.IsDefault.Should().BeTrue();
+        f.ViewModel.Invoking(vm => vm.SelectedQueueActiveBudgetMinutes = 0).Should().Throw<ArgumentOutOfRangeException>();
+        f.ViewModel.Invoking(vm => vm.SelectedQueueActiveBudgetMinutes = 61).Should().Throw<ArgumentOutOfRangeException>();
         f.TextToSpeech.SpokenText.Should().BeNull();
         f.Reasoner.Requests.Should().BeEmpty();
         f.ViewModel.Dispose();
@@ -179,6 +199,23 @@ public sealed partial class MainViewModelTests
             Kora.Core.Auditing.SecurityAuditInitiator.VoiceCommand, TestContext.Current.CancellationToken);
         f.QueuePreferences.Writes.Should().Be(0);
         f.ViewModel.ResponseBody.Should().Contain("denied");
+        await f.ViewModel.ExecuteQueueConfigurationCommandAsync(new(AppearanceCommandOperation.Set, SessionQueueOption.ActiveBudgetMinutes, "60"),
+            Kora.Core.Auditing.SecurityAuditInitiator.VoiceCommand, TestContext.Current.CancellationToken);
+        f.QueuePreferences.Writes.Should().Be(0);
+        f.ViewModel.ResponseBody.Should().Contain("denied");
+        f.ViewModel.Dispose();
+    }
+
+    [Fact]
+    public async Task ModelOriginActiveBudgetSetterCannotWriteOrCreateNativeAdmission()
+    {
+        var f = new Fixture(enableQueueConfiguration: true);
+        await using var admission = f.OutputAdmission;
+        await using var configuration = f.QueueConfiguration!;
+        await f.ViewModel.InitializeAsync();
+        await f.ViewModel.ExecuteQueueConfigurationCommandAsync(new(AppearanceCommandOperation.Set, SessionQueueOption.ActiveBudgetMinutes, "60"),
+            Kora.Core.Auditing.SecurityAuditInitiator.ModelSuggestion, TestContext.Current.CancellationToken);
+        f.QueuePreferences.Writes.Should().Be(0);
         f.ViewModel.Dispose();
     }
 

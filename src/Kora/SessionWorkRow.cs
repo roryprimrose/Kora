@@ -26,7 +26,10 @@ internal sealed record SessionWorkRow(SessionQueueObservation? Queue, HostTaskOb
         ? "Pending expiry " + queue.Entry.ExpiresAt.ToString("O", CultureInfo.InvariantCulture)
             + " | captured pending lifetime " + (queue.Entry.PendingLifetimeMinutes ?? SessionQueueLimits.DefaultPendingLifetimeMinutes)
                 .ToString(CultureInfo.InvariantCulture) + " minutes"
-            + (queue.ActiveDeadline is { } deadline ? " | active deadline " + deadline.ToString("O", CultureInfo.InvariantCulture) : " | active budget starts only at admission")
+            + (queue.ActiveDeadline is { } deadline ? " | original active budget "
+                + (queue.Entry.ActiveBudgetMinutes ?? SessionQueueLimits.DefaultActiveBudgetMinutes).ToString(CultureInfo.InvariantCulture)
+                + " minutes | active deadline " + deadline.ToString("O", CultureInfo.InvariantCulture)
+                : " | active budget captured only at future admission")
             + (queue.Entry.Dependency is { } dependency ? " | prerequisite " + dependency.Value.ToString("D") : "")
         : Task?.Question is { } question ? "Question " + question.Key.QuestionId.Value.ToString("D")
             + " | revision " + question.Key.Revision.Value.ToString(CultureInfo.InvariantCulture)

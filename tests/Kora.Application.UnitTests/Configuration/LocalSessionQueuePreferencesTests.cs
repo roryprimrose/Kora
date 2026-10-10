@@ -9,6 +9,29 @@ public sealed class LocalSessionQueuePreferencesTests : IDisposable
 {
     private readonly string root = Path.Combine(Environment.CurrentDirectory, ".net-test-artifacts", "queue-preferences-" + Guid.NewGuid().ToString("N"));
 
+    [Theory]
+    [InlineData("2\n1\n2\n120", 1, 2, 120)]
+    [InlineData("2\ndefault\ndefault\ndefault", null, null, null)]
+    [InlineData("2\n10\n1\n1", 10, 1, 1)]
+    public void KnownLifetimeSchemaPreservesBytesAndUsesExplicitDefaultActiveBudgetUntilEdit(
+        string content, int? capacity, int? slots, int? lifetime)
+    {
+        var store = new LocalPreferenceStore(new Paths(root));
+        store.WriteText("session-queue.txt", content);
+        var before = File.ReadAllBytes(Path.Combine(root, "Preferences", "session-queue.txt"));
+        var preferences = new LocalSessionQueuePreferences(store);
+        preferences.Load().Should().Be(new SessionQueuePreferences(capacity, slots, lifetime));
+        preferences.Load().Limits.ActiveBudgetMinutes.Should().Be(5);
+        File.ReadAllBytes(Path.Combine(root, "Preferences", "session-queue.txt")).Should().Equal(before);
+        var edited = preferences.Load().With(SessionQueueOption.ActiveBudgetMinutes, "60");
+        preferences.BeginWrite();
+        preferences.Save(edited);
+        preferences.ReadBack().Should().Be(edited);
+        preferences.ConfirmWrite();
+        new LocalSessionQueuePreferences(store).Load().Should().Be(edited);
+        store.ReadLines("session-queue.txt")!.First().Should().Be("3");
+    }
+
     [Fact]
     public void Atomic_overrides_readback_marker_restart_and_per_option_reset_preserve_unrelated_files()
     {
@@ -20,6 +43,8 @@ public sealed class LocalSessionQueuePreferencesTests : IDisposable
         foreach (var saved in new[] { new SessionQueuePreferences(1, 2), new SessionQueuePreferences(10),
             new SessionQueuePreferences(null, 1), new SessionQueuePreferences(1, 2, 1),
             new SessionQueuePreferences(pendingLifetimeMinutes: 30), new SessionQueuePreferences(pendingLifetimeMinutes: 120),
+            new SessionQueuePreferences(1, 2, 120, 1), new SessionQueuePreferences(activeBudgetMinutes: 5),
+            new SessionQueuePreferences(activeBudgetMinutes: 60),
             new SessionQueuePreferences() })
         {
             preferences.BeginWrite();
@@ -52,9 +77,9 @@ public sealed class LocalSessionQueuePreferencesTests : IDisposable
         preferences.BeginWrite();
         preferences.Save(edited);
         preferences.ReadBack().Should().Be(edited);
-        store.ReadLines("session-queue.txt").Should().Equal("2",
+        store.ReadLines("session-queue.txt").Should().Equal("3",
             capacity?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "default",
-            slots?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "default", "120");
+            slots?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "default", "120", "default");
         preferences.ConfirmWrite();
         new LocalSessionQueuePreferences(store).Load().Should().Be(edited);
     }
@@ -79,6 +104,14 @@ public sealed class LocalSessionQueuePreferencesTests : IDisposable
     [InlineData("2\n10\n1\n")]
     [InlineData("2\n10\n1\n30\nextra")]
     [InlineData("3\n10\n1\n30")]
+    [InlineData("3\n10\n1\n30\n0")]
+    [InlineData("3\n10\n1\n30\n61")]
+    [InlineData("3\n10\n1\n30\n05")]
+    [InlineData("3\n10\n1\n30\n5.0")]
+    [InlineData("3\n10\n1\n30\nDefault")]
+    [InlineData("3\n10\n1\n30\n")]
+    [InlineData("3\n10\n1\n30\n5\nextra")]
+    [InlineData("4\n10\n1\n30\n5")]
     public void Unknown_corrupt_and_noncanonical_saved_values_never_default(string content)
     {
         var store = new LocalPreferenceStore(new Paths(root));

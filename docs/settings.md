@@ -834,8 +834,9 @@ permission without navigating through Windows Settings manually.
 
 **Settings > Sessions > Fixed read-only local-version queue** provides pending
 capacity (1-10, default/reset 10), fixed synchronous read-only slots (1-2,
-default/reset 1) and **future pending lifetime in integer minutes** (1-120,
-unsaved/default/reset 30). Highlighting a choice does not save or enqueue work.
+default/reset 1), **future pending lifetime** (1-120 integer minutes,
+default/reset 30) and **future-admission active budget** (1-60 integer minutes,
+default/reset 5). Highlighting a choice does not save or enqueue work.
 Use **Refresh fixed queue settings**, then the option's **Save** or **Reset**.
 Each option resets independently; another Refresh is required before a new edit.
 The [exact typed/current-name commands](commands.md#fixed-queue-settings) use
@@ -843,8 +844,11 @@ the same original-input host admission, revisions and audited confirmation.
 
 Only newly enqueued admitted fixed reads after confirmed activation capture
 the chosen pending lifetime. Existing pending/cancelled/expired/running entries
-keep their exact recorded deadlines and identities. The five-minute active
-budget and separate user-question expiry do not change. No apply-now,
+keep their exact pending deadlines and identities. The chosen active budget
+is captured once at future admission, including from old pending entries.
+Already-admitted/running/Unknown/terminal records keep their original deadline;
+legacy admissions retain five minutes. Separate question/model/provider clocks
+do not change. No apply-now/current-task extension,
 automatic dispatch, worker/model/provider/effect scheduler or expanded slot
 qualification is available. Refresh and preference edits never dispatch,
 cancel, expire old work or extend meaningful activity.
@@ -856,13 +860,16 @@ a draft. Unconfirmed writes remain unavailable across restart: inspect saved
 state and receipts, explicitly repair, then refresh; no automatic retry or false
 rollback. Existing queue authority remains independently inspectable.
 
-Schema-2 `session-queue.txt` adds the minutes override to capacity/slots.
-Known valid schema 1 preserves those overrides and supplies the new lifetime
-default 30; observation never rewrites it. Unknown/malformed/noncanonical,
+Schema-3 `session-queue.txt` contains capacity/slots and both minutes overrides.
+Known valid schemas 1/2 preserve prior fields and supply new defaults (active 5;
+pending 30 for schema 1); observation never rewrites source bytes. Unknown/malformed/noncanonical,
 oversize or invalid UTF-8 data never becomes a default. Legacy queue records
 remain exact fixed-30 with original payloads/digests; format-2 entries capture
 the configured minutes and exact expiry under committed enqueue authority,
-without a database schema or historical authority migration.
+without a database schema or historical authority migration. Explicit format-3
+admissions bind active minutes and precise UTC deadline to their original
+dispatch audit/digest; actual callbacks enforce the same captured monotonic
+budget. Equal/late results suppress output without physical termination claims.
 
 ## Where settings are stored
 

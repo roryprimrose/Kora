@@ -151,16 +151,19 @@ Native **Settings > Sessions > Fixed read-only local-version queue** and exact t
 
 | Exact syntax | Result |
 |---|---|
-| `list queue settings` | All three supported option IDs, ranges/defaults, saved/effective values, minutes unit, revisions and unavailable scope; advertised schema 2 |
+| `list queue settings` | All four supported option IDs, ranges/defaults, saved/effective values, minutes units, revisions and unavailable scope; advertised schema 3 |
 | `get queue.pending-per-session` / `status queue.pending-per-session` | Inspect capacity; integer 1-10, default/reset 10 |
 | `get queue.execution-slots` / `status queue.execution-slots` | Inspect fixed synchronous read-only slots; integer 1-2, default/reset 1 |
 | `set queue.pending-per-session to <integer 1-10>` | Audited future pending-admission capacity; existing entries are never evicted |
 | `set queue.execution-slots to <integer 1-2>` | Audited future fixed-read admission limit; existing active reads are not cancelled |
 | `get queue.pending-lifetime-minutes` / `status queue.pending-lifetime-minutes` | Inspect future pending lifetime; canonical integer 1-120 minutes, unsaved/default/reset 30 |
 | `set queue.pending-lifetime-minutes to <integer 1-120>` | Capture only in newly enqueued admitted fixed reads after confirmed activation; all existing deadlines remain exact |
-| `reset queue.pending-per-session` | Reset only pending capacity; preserve slots/lifetime |
-| `reset queue.execution-slots` | Reset only slots; preserve capacity/lifetime |
-| `reset queue.pending-lifetime-minutes` | Reset only future pending lifetime to 30 minutes; preserve capacity/slots |
+| `get queue.active-budget-minutes` / `status queue.active-budget-minutes` | Inspect future-admission active budget; canonical integer 1-60 minutes, default/reset 5 |
+| `set queue.active-budget-minutes to <integer 1-60>` | Capture once at future fixed-read admission after confirmation, including old pending entries; never changes existing admitted deadlines |
+| `reset queue.pending-per-session` | Reset only pending capacity; preserve slots and both clocks |
+| `reset queue.execution-slots` | Reset only slots; preserve capacity and both clocks |
+| `reset queue.pending-lifetime-minutes` | Reset only future pending lifetime to 30 minutes; preserve capacity/slots/active budget |
+| `reset queue.active-budget-minutes` | Reset only future-admission active budget to 5 minutes; preserve capacity/slots/pending lifetime |
 
 Integers are canonical: no signs, leading zeroes, fractions, extra words or apply-now.
 Native **Refresh** captures a current admitted draft; each **Save**/**Reset** requires that unchanged revision and visible lifetime, then another Refresh.
@@ -168,7 +171,7 @@ Concurrent native/typed edits and hide/reopen retire the old draft; they cannot 
 
 Confirmed limits actually feed enqueue, fair dispatch and native/exact/event observation.
 Reducing capacity never evicts pending work or changes existing entry deadlines; reducing slots never cancels active work or changes its admission budget.
-Pending lifetime defaults to **30 minutes**; its **1-120 integer minutes** option affects future new enqueues only. Active budget stays **5 minutes**, unavailable to edit. No apply-now or existing-deadline shortening/extension is available.
+Pending lifetime defaults to **30 minutes**; its **1-120 integer minutes** option affects future new enqueues only. Active budget defaults to **5 minutes**, **1-60 integer minutes** for future admissions only, including old pending work without changing its pending metadata. No apply-now/current-task extension is available.
 Automatic dispatch, general execution, workers/resource leases, model tools and real two-slot provider/hardware qualification remain unavailable ([queue consumer](../src/Kora.Application/Hosting/SessionQueueService.cs), [deadline tests](../tests/Kora.Windows.IntegrationTests/Storage/WindowsSqliteSessionQueueTests.cs)).
 
 Protected Active/Suspected/Unknown original-voice writes deny without downgrade or deferred application.
@@ -177,8 +180,10 @@ Inspect saved state and receipts, explicitly repair, then Refresh; ordinary refr
 
 Pending eligibility expires at each entry's recorded deadline; an expired head remains visible
 until explicitly removed/cleared, and blocks later work at that position.
-The five-minute active budget starts at admission; late read results cannot
-be successful receipts. Existing pre-dispatch user questions have their own
+The captured active budget starts at original admission; equal/late monotonic
+results cannot be successful receipts and suppress the version. Work/status retains
+the precise original UTC deadline for admitted/Unknown/terminal records, including
+legacy five-minute admissions. Existing pre-dispatch user questions have their own
 expiry and consume neither slot nor active budget; this fixed profile creates
 no in-task questions. It provides no effect-worker cancellation or forced
 termination. A failed batch stops; make a fresh explicit dispatch decision.

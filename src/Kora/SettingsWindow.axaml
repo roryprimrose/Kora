@@ -736,7 +736,7 @@
             <Border Classes="settings-card">
               <StackPanel Spacing="8">
                 <TextBlock Text="Fixed read-only local-version queue" Classes="settings-title" />
-                <TextBlock Text="Manual fair dispatch only. Defaults: 10 pending per session, 1 global slot and 30 minutes pending lifetime. Changes affect future admissions only. Lifetime 1-120 integer minutes is captured by newly enqueued entries after confirmed activation; existing pending/cancelled/expired/running deadlines never change. Active budget stays 5 minutes. Apply-now, active deadline editing, automatic dispatch and general/provider/effect execution are unavailable. Refresh before each Save or Reset."
+                <TextBlock Text="Manual fair dispatch only. Defaults: 10 pending per session, 1 global slot, 30 pending minutes and 5 active minutes. Confirmed edits affect future enqueue/admission only, not existing pending metadata or admitted deadlines. Active budget 1-60 integer minutes is captured at future admission, including old pending entries. Apply-now, current-task extension, automatic dispatch and general/provider/effect execution are unavailable. Refresh before each Save or Reset."
                            Classes="settings-description" TextWrapping="Wrap" />
                 <TextBlock Text="{Binding QueueConfigurationStatus}" Classes="settings-description" TextWrapping="Wrap" />
                 <Button Content="Refresh fixed queue settings" Command="{Binding RefreshQueueConfigurationCommand}" IsEnabled="{Binding CanChangeQueueConfigurationNative}" />
@@ -755,6 +755,11 @@
                           IsEnabled="{Binding CanChangeQueueConfigurationNative}" AutomationProperties.Name="Fixed queue future pending lifetime in minutes" />
                 <Button Content="Save future pending lifetime" Command="{Binding SaveQueueLifetimeCommand}" IsEnabled="{Binding CanChangeQueueConfigurationNative}" />
                 <Button Content="Reset future pending lifetime to 30 minutes" Command="{Binding ResetQueueLifetimeCommand}" IsEnabled="{Binding CanChangeQueueConfigurationNative}" />
+                <TextBlock Text="Active budget for future admissions, including old pending entries (integer minutes, 1-60; default 5). Existing admitted deadlines never change; late results are suppressed, not physically terminated." Classes="settings-description" />
+                <ComboBox ItemsSource="{Binding QueueActiveBudgetMinuteChoices}" SelectedItem="{Binding SelectedQueueActiveBudgetMinutes}"
+                          IsEnabled="{Binding CanChangeQueueConfigurationNative}" AutomationProperties.Name="Fixed queue future active budget in minutes" />
+                <Button Content="Save future active budget" Command="{Binding SaveQueueActiveBudgetCommand}" IsEnabled="{Binding CanChangeQueueConfigurationNative}" />
+                <Button Content="Reset future active budget to 5 minutes" Command="{Binding ResetQueueActiveBudgetCommand}" IsEnabled="{Binding CanChangeQueueConfigurationNative}" />
               </StackPanel>
             </Border>
             <Border Classes="settings-card">

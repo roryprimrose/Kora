@@ -11,10 +11,10 @@ public sealed record SessionQueueConfigurationState(SessionQueuePreferences? Sav
 {
     public bool Available => Effective is not null;
     public string Source => !Available ? "unavailable" : Saved!.IsDefault ? "default" : "saved";
-    public int Schema => 2;
+    public int Schema => 3;
     public string Scope => "device-local; fixed synchronous read-only application.get_version queue only";
-    public string Timing => "future admission only; pending lifetime captured at new enqueue after confirmed activation; lowering capacity never evicts; existing pending and active deadlines unchanged";
-    public string Unavailable => "apply-now, active budget (fixed 5 minutes), automatic dispatch, general execution, provider/resource/effect qualification";
+    public string Timing => "after confirmed activation: pending lifetime captured at new enqueue; active budget captured once at future admission (including old pending entries); lowering capacity never evicts; existing pending metadata and admitted deadlines unchanged";
+    public string Unavailable => "apply-now, current-task extension, automatic dispatch, general execution, provider/resource/effect qualification";
     public string Syntax => SessionQueueConfigurationCommand.Syntax;
 
     public static string Serialize(SessionQueueConfigurationState state, long callRevision, string outcome)
@@ -33,8 +33,12 @@ public sealed record SessionQueueConfigurationState(SessionQueuePreferences? Sav
                 new { Id = SessionQueueConfigurationCommand.LifetimeOptionId, Minimum = 1,
                     Maximum = SessionQueueLimits.MaximumPendingLifetimeMinutes, Default = SessionQueueLimits.DefaultPendingLifetimeMinutes,
                     Saved = state.Saved?.PendingLifetimeMinutes, Effective = state.Effective?.PendingLifetimeMinutes },
+                new { Id = SessionQueueConfigurationCommand.ActiveOptionId, Minimum = 1,
+                    Maximum = SessionQueueLimits.MaximumActiveBudgetMinutes, Default = SessionQueueLimits.DefaultActiveBudgetMinutes,
+                    Saved = state.Saved?.ActiveBudgetMinutes, Effective = state.Effective?.ActiveBudgetMinutes },
             },
             PendingLifetimeUnit = "minutes",
+            ActiveBudgetUnit = "minutes",
         }, Json);
         if (bytes.Length > SessionCommand.MaximumResultBytes)
         {

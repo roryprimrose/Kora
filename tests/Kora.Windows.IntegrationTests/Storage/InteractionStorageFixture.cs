@@ -183,6 +183,9 @@ internal sealed class InteractionStorageFixture : IDisposable
     internal sealed class Clock : TimeProvider
     {
         internal DateTimeOffset Now { get; set; } = new(2026, 10, 6, 12, 0, 0, TimeSpan.Zero);
+        internal long MonotonicTicks { get; set; }
+        public override long TimestampFrequency => TimeSpan.TicksPerSecond;
+        public override long GetTimestamp() => MonotonicTicks;
         public override DateTimeOffset GetUtcNow() => Now;
     }
 }

@@ -127,7 +127,7 @@ public sealed partial class WindowsSqliteHostInteractionStore
             return ready;
         }, token));
 
-    public ValueTask<SessionQueueEntry> AdmitAsync(SessionQueueEntry expected, long admissionRevision,
+    public ValueTask<SessionQueueAdmissionReceipt> AdmitAsync(SessionQueueEntry expected, long admissionRevision,
         SessionQueueLimits limits, Func<bool> eligible, CancellationToken token) =>
         RunHostMutationAsync(expected.Request, "queue.admit.version", (connection, transaction, intent, audit) =>
         {
@@ -141,15 +141,17 @@ public sealed partial class WindowsSqliteHostInteractionStore
             {
                 throw new InvalidOperationException("The exact active session generation is required.");
             }
-            var admitted = expected with { Revision = new(checked(expected.Revision.Value + 1)),
-                State = SessionQueueState.Running, DispatchOrder = NextQueuePosition(connection) };
+            var started = time.GetTimestamp();
+            var admittedAt = time.GetUtcNow();
+            var admitted = expected.Admit(new(checked(expected.Revision.Value + 1)), NextQueuePosition(connection),
+                admittedAt, limits.ActiveBudgetMinutes);
             var dispatched = intent.Next(HostTaskState.DispatchRecorded);
             var sequence = AppendAudit(connection, transaction, intent, session, audit,
-                changes: [QueueChange(admitted), TaskChange(dispatched)]);
+                changes: [QueueChange(admitted), TaskChange(dispatched)], admissionTime: admittedAt);
             WindowsSqliteHostTaskStore.WriteTask(connection, transaction, dispatched);
             WriteQueue(connection, transaction, admitted, sequence);
             TouchActivity(connection, transaction, expected.Request.SessionId);
-            return admitted;
+            return new SessionQueueAdmissionReceipt(admitted, started);
         }, token, eligible, requireIdle: false);
 
     public ValueTask<SessionQueueEntry> CompleteAsync(SessionQueueEntry expected, SessionQueueState outcome,
@@ -284,6 +286,16 @@ public sealed partial class WindowsSqliteHostInteractionStore
             }
             ValidateRowAuthority(connection, reader.GetInt64(4),
                 Change("queue", Id(entry.Request.TaskId), entry.Revision.Value, payload));
+            if (entry.RecordVersion == SessionQueueEntry.CapturedActiveRecordVersion)
+            {
+                // Terminal updates must retain the original admitted budget/time, not merely acquire a new digest.
+                ValidateRowAuthority(connection, entry.DispatchOrder,
+                    QueueChange(entry with { State = SessionQueueState.Running, Revision = new(2) }));
+                if (ReadAdmissionTime(connection, entry) != entry.AdmittedAt)
+                {
+                    throw new InvalidDataException("The active deadline is not bound to its original committed admission.");
+                }
+            }
             entries.Add(entry);
         }
         return entries;

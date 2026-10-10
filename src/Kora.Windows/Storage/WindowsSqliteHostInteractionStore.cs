@@ -548,7 +548,7 @@ public sealed partial class WindowsSqliteHostInteractionStore : IHostInteraction
     private long AppendAudit(SqliteConnection connection, SqliteTransaction transaction, HostTaskRecord intent,
         WorkSessionAuthorization session, SecurityAuditEvent audit, HostInteractionDecision? decision = null,
         IReadOnlyList<AuthorityChange>? changes = null, SecurityAuditEvent? requestedAudit = null,
-        HostRevision? requestedGrantRevision = null)
+        HostRevision? requestedGrantRevision = null, DateTimeOffset? admissionTime = null)
     {
         var live = HostActivity.RequireCurrent();
         if (live.Request.RequestId != intent.Request.RequestId || live.CorrelationId != audit.CorrelationId
@@ -577,7 +577,7 @@ public sealed partial class WindowsSqliteHostInteractionStore : IHostInteraction
             previousHash = reader.GetString(1);
         }
         var trace = live.Activity!;
-        var committedAt = time.GetUtcNow();
+        var committedAt = admissionTime ?? time.GetUtcNow();
         var envelope = new AuthorityAudit(live.Request, intent.Revision, session.Generation, audit,
             trace.TraceId.ToHexString(), trace.SpanId.ToHexString(), committedAt,
             auditPolicy is null ? retentionPolicy.AuditDue(committedAt) : auditPolicy.Due(committedAt), decision?.Outcome,

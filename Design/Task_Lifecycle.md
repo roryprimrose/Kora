@@ -27,8 +27,9 @@ wait/deadline cancellation and effect/provider qualification remain unavailable.
 
 The [bounded queue settings](User_Configuration.md#delivered-bounded-fixed-local-version-queue-settings-r10r13) expose pending capacity 1-10/default-reset 10 and fixed read-only slots 1-2/default-reset 1 for future admission only.
 Lowering capacity does not evict/reclassify pending work; lowering slots does not cancel/reinterpret active work.
-The thirty-minute pending lifetime and five-minute active budget remain fixed/uneditable, with existing deadlines unchanged ([durable tests](../tests/Kora.Windows.IntegrationTests/Storage/WindowsSqliteSessionQueueTests.cs)).
-The broader proposed limit table below does not enable deadline editing or general two-slot execution.
+Pending lifetime is 1-120 integer minutes/default 30 for future enqueues; active budget is 1-60 integer minutes/default 5 captured at future admission, including old pending work without changing its pending metadata. Already-admitted/Unknown/terminal records retain original precise deadlines; legacy admissions remain five minutes.
+The actual monotonic callback budget and persisted UTC projection share original dispatch authority. Equal/late versions are suppressed; cancellation drains callbacks and uncertainty quarantines, not physical termination/replay ([durable enforcement](../tests/Kora.Windows.IntegrationTests/Storage/WindowsSqliteSessionQueueTests.ActiveDeadline.cs)).
+The broader proposed limit table below does not enable current-task/apply-now extensions or general two-slot execution.
 
 Assistant startup and release/debug takeover obey [Instance Coordination](Instance_Coordination.md): one exclusive active owner, explicit quiescent transfer, and no task/grant/listening replay on return.
 

@@ -9,6 +9,24 @@ namespace Kora.Windows.IntegrationTests;
 public sealed class DetailWindowContractTests
 {
     [Fact]
+    public void ActualResponseWebDetailsButtonCarriesItsImmutableItemNotLatestResponseAndIsFullyComposed()
+    {
+        var response = XDocument.Parse(Read("ResponseWindow.axaml"));
+        var button = response.Descendants().Single(element => string.Equals(element.Name.LocalName, "Button", StringComparison.Ordinal)
+            && string.Equals(element.Attribute("Content")?.Value, "Open exact web-result details", StringComparison.Ordinal));
+        button.Attribute("Tag")!.Value.Should().Be("{Binding}");
+        button.Attribute("Click")!.Value.Should().Be("OnWebResultDetailsClicked");
+        button.Attribute("AutomationProperties.Name")!.Value.Should().Be("Open exact web-result details");
+        button.Ancestors().Single(element => string.Equals(element.Name.LocalName, "ItemsControl", StringComparison.Ordinal))
+            .Attribute("ItemsSource")!.Value.Should().Be("{Binding WebResultDetailActions}");
+        Read("ResponseWindow.axaml.cs").Should().Contain("Tag: DetailContentReference reference")
+            .And.Contain("OpenWebResult(reference, this)").And.Contain("ReportWebResultDetailStatus(status)");
+        Read("DetailWindowController.cs").Should().Contain("BindWebResultSource(viewModel.ResolveWebResultDetails)")
+            .And.Contain("WebResultDetailsChanged +=").And.NotContain("WebPageGet").And.NotContain("HttpClient")
+            .And.NotContain("Navigate").And.NotContain("Process.Start");
+        Read("App.axaml.cs").Should().Contain("detailWindow = new DetailWindowController");
+    }
+    [Fact]
     public void NativeShellHasOwnedNonTopmostChromeSeparateFromReaderAndAccessibleTabOrder()
     {
         var document = XDocument.Parse(Read("DetailWindow.axaml"));

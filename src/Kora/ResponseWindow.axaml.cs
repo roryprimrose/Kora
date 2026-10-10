@@ -10,6 +10,7 @@ using Avalonia.Threading;
 using Kora.Application.ViewModels;
 using Kora.Application.Visuals;
 using Kora.Core.Configuration;
+using Kora.Core.Presentation;
 
 using Microsoft.Extensions.DependencyInjection;
 
@@ -22,15 +23,17 @@ public sealed partial class ResponseWindow : Window
     private readonly PresentationInactivityTimeout responseInactivity = new();
     private readonly DispatcherTimer positionSaveTimer;
     private bool positionInitialized;
+    private readonly DetailWindowController? details;
 
     public ResponseWindow()
-        : this(App.Services.GetRequiredService<MainViewModel>())
+        : this(App.Services.GetRequiredService<MainViewModel>(), (Avalonia.Application.Current as App)?.Details)
     {
     }
 
-    public ResponseWindow(MainViewModel viewModel)
+    public ResponseWindow(MainViewModel viewModel, DetailWindowController? detailController = null)
     {
         this.viewModel = viewModel;
+        details = detailController;
         AvaloniaXamlLoader.Load(this);
         DataContext = viewModel;
         responseTimeoutTimer = new DispatcherTimer();
@@ -80,6 +83,21 @@ public sealed partial class ResponseWindow : Window
         if (sender is Button { Tag: ResponseAction action })
         {
             await viewModel.ExecuteResponseActionAsync(action);
+        }
+    }
+
+    private void OnWebResultDetailsClicked(object? sender, RoutedEventArgs eventArgs)
+    {
+        if (sender is Button { Tag: DetailContentReference reference })
+        {
+            var status = details?.OpenWebResult(reference, this)
+                ?? "Exact web-result details unavailable: the native host is not composed.";
+            // Presentation feedback is separate: never replace/retarget the source response.
+            viewModel.ReportWebResultDetailStatus(status);
+        }
+        else
+        {
+            viewModel.ReportWebResultDetailStatus("Exact web-result details unavailable: this source control was retired.");
         }
     }
 
@@ -194,6 +212,7 @@ public sealed partial class ResponseWindow : Window
 
     private void OnClosed(object? sender, EventArgs eventArgs)
     {
+        viewModel.RetireWebResultDetails();
         responseTimeoutTimer.Stop();
         responseInactivity.Stop();
         positionSaveTimer.Stop();

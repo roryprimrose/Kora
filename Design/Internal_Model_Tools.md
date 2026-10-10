@@ -58,6 +58,12 @@ are admitted; HTML is reduced to bounded normalized text. The model descriptor
 must not become Available until its execution lane invokes the same action with
 the host grant callback and has passed the tool-loop qualification gates.
 
+Successful original-user retrieval now provides [immutable volatile native details](Information_Display.md#delivered-immutable-volatile-web-result-details---2026-10-10) over the exact already-returned normalized text.
+The host-held result/reference and original admission, not a URI or serialized tool/model JSON, resolve the current snapshot. Complete provenance and the returned-text digest are inert source data, not live server or durable session authority.
+
+Opening/reopening/search/source/close never invoke this action or any network. The unchanged 256 KiB raw/60 KiB text/64 KiB serialized-result limits remain distinct from the complete native 256 KiB metadata-plus-text source bound.
+Source admission failure is explicit; successful empty text is not fabricated. Private copy uses the existing native disclosure/current-source gate. This does **not** make the descriptor Available or qualify a tool-result loop.
+
 The [Implementation Status and Delivery Roadmap](Implementation_Roadmap.md)
 maps the current bootstrap and every catalogue family to dependency-ordered
 implementation and acceptance work. Roadmap inventory IDs are not tool IDs.

@@ -10,6 +10,29 @@ The bounded native shared-question slice additionally reuses this passive
 plain-text renderer for complete immutable host-record review, separate from
 native answer/approval controls.
 
+## Delivered Immutable Volatile Web-Result Details - 2026-10-10
+
+An actual successful original-user `get web page <URI>` result now offers **Open exact web-result details** in the compact response. It opens or activates the same immutable host-issued item/revision in the existing native-text-v1 viewer.
+Opening, reopening, searching, source inspection and closing make no retrieval request, navigate no URI and change no task, grant, question, approval or session target.
+
+The new `RetrievedWebResult` classification is an **untrusted external observation**, not EmbeddedDocument, FinalizedResponse or SessionHistory. The host captures the original admitted request/session/task/origin and privacy/control generation.
+These are volatile host-request correlation, not a fabricated durable workspace admission. URLs, incoming trace headers and serialized result/model JSON cannot resolve or mint the current snapshot.
+
+Complete inert typed provenance is included in bounded source: requested/final URI, media type, redirect count, retrieval time, truncation flag, exact returned normalized text SHA-256/UTF-8 byte count and limits.
+The digest identifies returned normalized text, never original HTML/body, server identity or a fresh/live URI. Native chrome uses fixed labels of at most 256 characters; long identities remain complete in source, not abbreviated into authority.
+
+The unchanged retrieval bounds are 256 KiB raw content, 60 KiB normalized text, five redirects and the existing 64 KiB serialized tool-result envelope.
+Metadata plus exact text must fit the native profile's complete 256 KiB UTF-8 source bound; details fail explicitly rather than shortening any field or text. Successful empty returned text remains empty and is eligible through honest provenance, without invented content.
+
+Only one current volatile web snapshot is retained. Replacing/dismissing/closing the response, cancellation, disposal, privacy/ownership/call/control change or failed source admission retires its reference and clears associated viewers/search/copy targets.
+A removed old control cannot retarget the latest result. Closing only the detail viewer permits explicit reopening of the same still-current source. Eight native viewers remain the shared limit. Retirement also clears the compact response's matching web body, never an unrelated later response or required question/card.
+
+Rendering is strictly inert plain text: no HTML, active links/images/scripts/styles, resource loading, browser, autodownload or further network. Private source/selection copy retains explicit native disclosure confirmation and fresh admission to that original snapshot.
+There is no persistence, export, speech/caption creation, diagnostic content, model context or provider transmission. Existing admitted session-history copy and passive retention semantics remain separate and unchanged.
+
+Maintained Core/Application/native fake and headless-binding tests cover provenance/digests/empty/truncation/bounds, actual response-to-viewer reuse, zero additional transport calls, retired controls and private/late/native-failure paths.
+They do not qualify installed visual/accessibility/DPI, transport security, durable conversation/knowledge, general details or the unavailable parameterized model tool loop.
+
 ## Delivered Exact Native Provider-Handoff Review - 2026-10-10
 
 The [native handoff window](../src/Kora/ModelHandoffWindow.axaml) displays actual audited host-issued offers: original session/task/request/origin, question/offer identities/revisions, generation/control/policy/destination/catalogue revisions, typed reason and validity. Production shows unavailable/no pending qualified offer.

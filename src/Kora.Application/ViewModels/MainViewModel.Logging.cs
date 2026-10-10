@@ -4,6 +4,9 @@ namespace Kora.Application.ViewModels;
 
 public sealed partial class MainViewModel
 {
+    [LoggerMessage(118, LogLevel.Warning, "Original-user web-result presentation failed; exception type {ExceptionType}.")]
+    private static partial void WebPagePresentationFailed(ILogger logger, string exceptionType);
+
     [LoggerMessage(115, LogLevel.Error, "Native speech-text presentation failed; exception type {ExceptionType}.")]
     private static partial void CaptionPresentationFailed(ILogger logger, string exceptionType);
 

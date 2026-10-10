@@ -10,13 +10,16 @@ public sealed class ResponseWindowController : IDisposable
     private readonly ILogger<ResponseWindowController> logger;
     private ResponseWindow? window;
     private bool disposed;
+    private readonly DetailWindowController? details;
 
     public ResponseWindowController(
         MainViewModel viewModel,
-        ILogger<ResponseWindowController> logger)
+        ILogger<ResponseWindowController> logger,
+        DetailWindowController? detailController = null)
     {
         this.viewModel = viewModel;
         this.logger = logger;
+        details = detailController;
         viewModel.WindowActionRequested += OnWindowActionRequested;
     }
 
@@ -45,7 +48,7 @@ public sealed class ResponseWindowController : IDisposable
         switch (action)
         {
             case WindowAction.Show when viewModel.IsVisualResponseVisible:
-                window ??= new ResponseWindow(viewModel);
+                window ??= new ResponseWindow(viewModel, details);
                 DesktopLog.Debug(logger, "Showing the visual response window");
                 window.ShowResponse();
 

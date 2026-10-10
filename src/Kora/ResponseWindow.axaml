@@ -70,8 +70,20 @@
 
       <StackPanel
           Grid.Row="3"
-          IsVisible="{Binding HasResponseActions}">
-        <ItemsControl ItemsSource="{Binding ResponseActions}">
+          Spacing="6">
+        <ItemsControl ItemsSource="{Binding WebResultDetailActions}" IsVisible="{Binding HasWebResultDetails}">
+          <ItemsControl.ItemTemplate>
+            <DataTemplate>
+              <Button Content="Open exact web-result details"
+                      AutomationProperties.Name="Open exact web-result details"
+                      Tag="{Binding}"
+                      Click="OnWebResultDetailsClicked"
+                      HorizontalAlignment="Left" />
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+        <TextBlock Text="{Binding WebResultDetailStatus}" Classes="muted" FontSize="11" TextWrapping="Wrap" />
+        <ItemsControl ItemsSource="{Binding ResponseActions}" IsVisible="{Binding HasResponseActions}">
           <ItemsControl.ItemsPanel>
             <ItemsPanelTemplate>
               <WrapPanel Orientation="Horizontal" />

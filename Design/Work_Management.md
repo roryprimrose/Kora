@@ -12,6 +12,46 @@ Related: [Interaction and Sessions](Interaction_And_Sessions.md), [Architecture]
 
 ## Delivered deterministic local-version queue
 
+### Delivered fixed first-page read profiles - 2026-10-12
+
+The existing version syntax/default is unchanged. Native Sessions offers three
+additional explicit enqueue buttons; typed/current-name activated enqueue accepts
+the exact `capabilities.list`, `readiness.get` or `runtime.list` profile token.
+All four invoke the same registry and existing C# actions, not another dispatcher.
+No capability ID argument, JSON, count, offset, refresh, provider/model selection,
+grant or execution descriptor is accepted.
+
+New page entries use explicit payload format 4 with a closed typed profile and
+the same captured pending/active clocks. Unknown/missing profiles and malformed
+or downgraded formats fail closed. Original absent/2/3 canonical bytes, audit
+digests and transitions stay unchanged; the version default continues formats
+2/3 and its original typed transient Version receipt.
+
+Successful page results are typed fixed metadata, bounded by the authoritative
+registry wire envelope (six records, 4096 serialized UTF-8 bytes). The private
+queue row and its committed digest bind the result to the exact original profile,
+request/session/admission and terminal outcome. Failure/denial, shape mismatch,
+oversize, cancellation or late output never publishes successful data. Result
+admission and publication recheck current private epochs and strict monotonic
+budget; uncertain storage remains Unknown, not invented success or replay.
+
+Manual dispatch exposes results; native Inspect selected work and exact
+`queue status` retrieve the retained page snapshot. The 64 KiB batch limit may
+omit page data with an explicit exact-status recovery marker, without losing
+receipts or creating another dispatch. Work/AllWork/events remain metadata-only;
+passive status does not invoke, probe, renew clocks/activity or requeue.
+Removed-session status is unavailable; existing retention deletion removes
+queue rows. No raw probe detail, user content, model output or arbitrary dump
+enters the authority row or audit (which retains its typed change digest only).
+
+The [real private SQLite/registry tests](../tests/Kora.Windows.IntegrationTests/Storage/WindowsSqliteSessionQueueTests.Profiles.cs)
+and [native consumer tests](../tests/Kora.Windows.IntegrationTests/SessionsViewModelQueueTests.cs)
+cover the new routes. Maintained native-UX fixtures continue their original
+version-only source profile; no maintained experiment consumes the new profiles.
+No experiment is edited or retired. Installed/native accessibility, hardware,
+provider/runtime containment and broader R13 management remain independent E/Q
+qualification gates, not claims of this deterministic metadata increment.
+
 ### Delivered exact current-run dispatch pause - 2026-10-11
 
 Native Sessions and original typed/current-name activated `queue pause`/`queue resume` share `SessionQueueService` and the consolidated host store. `queue pause-status`/Work/All work observe the same host-owned run receipt and domain eligibility reasons, never a view-model readiness heuristic.
@@ -48,15 +88,19 @@ least-recent-admission session fairness. A continuously ready session gets a
 turn within one admission per other continuously ready session; blocked heads
 never gain priority or bypass an earlier pending entry.
 
-The fixed work profile is only `application.get_version` through the existing
-read-only registry with a freshly admitted Native caller. There are no
+The fixed work profiles are `application.get_version`, `capabilities.list`,
+`readiness.get` and `runtime.list` through the existing read-only registry with a
+freshly admitted Native caller bound to the actual queued request/session. The
+three page reads always supply host-owned `{}` (first page, default count six).
+Readiness/runtime return only already-recorded bootstrap observations, never
+a new probe, setup or inference. There are no
 user-provided arguments, content snapshots, model calls, execution tokens,
 arbitrary resources or effect descriptors. IDs/revisions/dependencies are
 metadata, not executable proposals or grants.
 
 Enqueue is not dispatch. The shipped user-selected policy is manual:
 `queue dispatch <session-id> <generation> <queue-revision>` processes at most
-32 already enqueued current-run ready local reads fairly across eligible
+32 already enqueued current-run ready fixed reads fairly across eligible
 sessions, never targets work by name or gives the invoking session priority.
 Newly observed failure stops this dispatch batch; later work needs another
 explicit decision. Exact pre-admission cancel/remove and confirmed pending
@@ -72,7 +116,9 @@ non-dispatchable until explicit removal/clear. The active budget defaults to fiv
 minutes, configurable within 1-60 integer minutes for future admissions only.
 The chosen budget and precise UTC deadline are captured once with the original
 dispatch; monotonic elapsed time includes commit/dispatch delay and must be strictly
-less than that budget to permit success. Equal/late results suppress the version.
+less than that budget at invocation/receipt/publication to permit success. Equal/late
+results suppress data; failures, denial, wrong shapes and oversize output cannot
+become Succeeded.
 No general asynchronous worker deadline/termination is
 claimed. This profile has no runtime approval/clarification step. Existing
 admitted question waits are pre-dispatch, occupy no scheduler slot and have no

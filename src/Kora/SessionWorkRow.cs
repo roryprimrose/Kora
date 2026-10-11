@@ -38,7 +38,7 @@ internal sealed class SessionWorkRow(SessionQueueObservation? queue, HostTaskObs
     public string Identity => "Task " + TaskId.ToString("D") + " | request "
         + (Queue?.Entry.Request.RequestId.Value ?? Task!.Task.Request.RequestId.Value).ToString("D");
     public string State => Queue is { } queue
-        ? "Queue: " + queue.Entry.State + " | " + queue.Eligibility
+        ? "Queue: " + queue.Entry.State + " | " + SessionQueueReadProfiles.CapabilityId(queue.Entry.ReadProfile) + " | " + queue.Eligibility
         : Task is { CurrentSource: true, Task.State: HostTaskState.IntentRecorded, Question.Status: QuestionStatus.Pending }
             ? Task.Question.ExpiresAt <= ObservedAt ? "User-wait expired; cancellation/dispatch unavailable; explicit host recovery required"
                 : "Waiting for user; pre-dispatch, no active-task clock"

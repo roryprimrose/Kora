@@ -26,13 +26,27 @@ public sealed class ReadOnlyCapabilityRegistryTests : IDisposable
     public ReadOnlyCapabilityRegistryTests() => ActivitySource.AddActivityListener(listener);
     public void Dispose() => listener.Dispose();
 
-    [Fact]
-    public void Queued_fixed_read_reuses_the_existing_registry_action_with_fresh_native_authority()
+    [Theory]
+    [InlineData(SessionQueueReadProfile.Version)]
+    [InlineData(SessionQueueReadProfile.Capabilities)]
+    [InlineData(SessionQueueReadProfile.Readiness)]
+    [InlineData(SessionQueueReadProfile.Runtimes)]
+    public void Queued_fixed_read_reuses_the_existing_registry_action_with_fresh_native_authority(SessionQueueReadProfile profile)
     {
         using var fixture = new Fixture();
         using var root = Root();
         var action = new Kora.Application.Hosting.DeterministicVersionQueueAction(fixture.Registry);
-        action.Observe(TestContext.Current.CancellationToken).Outcome.Should().Be(CapabilityOutcome.Succeeded);
+        var reply = action.Observe(profile, TestContext.Current.CancellationToken);
+        SessionQueueReadProfiles.Accepts(profile, reply).Should().BeTrue();
+        fixture.Dependencies.Observations.Should().BeEmpty("reads never run setup or probes");
+        fixture.Host.Current = false;
+        var denied = () => action.Observe(profile, TestContext.Current.CancellationToken);
+        denied.Should().Throw<InvalidOperationException>();
+        fixture.Host.Current = true;
+        using var cancellation = new CancellationTokenSource();
+        cancellation.Cancel();
+        var cancelled = () => action.Observe(profile, cancellation.Token);
+        cancelled.Should().Throw<OperationCanceledException>();
     }
 
     [Fact]

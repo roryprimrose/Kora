@@ -45,12 +45,18 @@ slot/active clock; their cards remain visible while history/evidence is read.
 Answer/review remains in the original separately owned Questions window.
 
 Native Inspect, eligible Cancel, Remove pending ID, confirmed pending Clear,
-fixed version Enqueue and manual fair Dispatch use the already admitted exact
+four fixed no-argument profile Enqueue buttons and manual fair Dispatch use the already admitted exact
 command/host workflows. Displayed IDs/generations/revisions and the captured
 selection epoch bind controls; stale records and session/selection/privacy
 changes refuse. Admitted work cannot be cancelled by pretending its effect
 terminated. Done/disposition/redacted citations and independent Perpetual
 grants retain their existing gates.
+
+Queue rows identify their fixed capability profile. Successful first-page data
+is excluded from passive Work/AllWork/events; **Inspect selected work** reads
+the exact private retained result without rerunning it. The
+[fixed-profile contract](Work_Management.md#delivered-fixed-first-page-read-profiles---2026-10-12)
+owns bounds, format compatibility and unchanged enablement/qualification gates.
 
 An owned five-second passive refresh updates selected work only while idle;
 it never disables/focuses controls or activates another window. Busy/changed

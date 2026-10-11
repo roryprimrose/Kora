@@ -600,6 +600,7 @@ public sealed partial class SessionWorkspaceServiceTests
         internal Func<SessionQueueLimits, Task>? BeforeAdmitAsync { get; set; }
         internal Func<SessionQueueEntry, SessionQueueEntry>? AdmissionReceipt { get; set; }
         internal Action? BeforeComplete { get; set; }
+        internal Action? AfterComplete { get; set; }
         internal Action? AfterQueueRead { get; set; }
         internal CapabilityOutcome QueueActionOutcome { get; init; } = CapabilityOutcome.Succeeded;
         internal int QueueActions { get; private set; }
@@ -652,7 +653,7 @@ public sealed partial class SessionWorkspaceServiceTests
             ValueTask.FromResult(QueueRows.SingleOrDefault(entry => entry.Request.TaskId == task));
         public async ValueTask<SessionQueueSnapshot> EnqueueAsync(HostRequest control, HostRequest work, HostRevision generation,
             long expectedRevision, long admissionRevision, HostId<TaskIdentity>? dependency, SessionQueueLimits limits,
-            Func<bool> eligible, CancellationToken token)
+            Func<bool> eligible, CancellationToken token, SessionQueueReadProfile profile = SessionQueueReadProfile.Version)
         {
             QueueCheck("enqueue");
             if (BeforeEnqueue is { } before) { await before(limits); }
@@ -662,7 +663,8 @@ public sealed partial class SessionWorkspaceServiceTests
             var now = QueueTime.GetUtcNow();
             QueueRows.Add(new(work, generation, new(1), ++QueueRevision, SessionQueueState.Pending, queueRun,
                 admissionRevision, now, now.AddMinutes(limits.PendingLifetimeMinutes), dependency,
-                RecordVersion: SessionQueueEntry.CapturedLifetimeRecordVersion, PendingLifetimeMinutes: limits.PendingLifetimeMinutes));
+                RecordVersion: profile == SessionQueueReadProfile.Version ? SessionQueueEntry.CapturedLifetimeRecordVersion : SessionQueueEntry.FixedReadRecordVersion,
+                PendingLifetimeMinutes: limits.PendingLifetimeMinutes, Profile: profile == SessionQueueReadProfile.Version ? null : profile));
             return QueueSnapshot(control.SessionId);
         }
         public ValueTask<SessionQueueSnapshot> RemovePendingAsync(HostRequest control, HostRevision generation,
@@ -697,26 +699,29 @@ public sealed partial class SessionWorkspaceServiceTests
             return new SessionQueueAdmissionReceipt(AdmissionReceipt?.Invoke(next) ?? next, started);
         }
         public ValueTask<SessionQueueEntry> CompleteAsync(SessionQueueEntry expected, SessionQueueState outcome,
-            Func<bool> eligible, CancellationToken token)
+            Func<bool> eligible, CancellationToken token, CapabilityReply? result = null)
         {
             QueueCheck("complete");
             BeforeComplete?.Invoke();
             if (!eligible()) { throw new InvalidOperationException("Private receipt admission changed."); }
-            var next = expected with { State = outcome, Revision = new(3) };
+            var next = expected with { State = outcome, Revision = new(3), Result = result };
             QueueRows[QueueRows.IndexOf(expected)] = next;
             QueueRevision++;
+            AfterComplete?.Invoke();
             return ValueTask.FromResult(next);
         }
-        public CapabilityReply Observe(CancellationToken token)
+        public CapabilityReply Observe(SessionQueueReadProfile profile, CancellationToken token)
         {
             QueueCheck("action");
             QueueActions++;
             ActionRequests.Add(HostActivity.RequireCurrent().Request);
             ActionLinks.Add(HostActivity.RequireCurrent().Activity!.Links.Count());
             OnObserve?.Invoke();
+            if (QueueReply is { } supplied) { return supplied; }
             return new(QueueActionOutcome, "observed", Version: QueueActionOutcome == CapabilityOutcome.Succeeded
                 ? new("1.0.0", "Not a provider receipt.") : null);
         }
+        internal CapabilityReply? QueueReply { get; set; }
         private sealed class QueueLogger(Fixture fixture) : ILogger<SessionQueueService>
         {
             public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;

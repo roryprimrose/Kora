@@ -105,7 +105,7 @@ public sealed partial class WindowsSqliteSessionQueueTests
 
     private sealed class NeverAction : IDeterministicVersionQueueAction
     {
-        public Kora.Core.Tools.CapabilityReply Observe(CancellationToken token) =>
+        public Kora.Core.Tools.CapabilityReply Observe(SessionQueueReadProfile profile, CancellationToken token) =>
             throw new InvalidOperationException("Passive work inspection must not execute.");
     }
 

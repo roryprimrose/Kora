@@ -118,6 +118,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private CancellationTokenSource? powerShellSetupCancellation;
     private CancellationTokenSource? activeReasoningCancellation;
     private Task? activeReasoningTask;
+    private LocalModelArtifact? activeReasoningArtifact;
     private bool isLocalTaskCancellable;
     private bool isModelActionDispatchActive;
     private bool isModelApprovalPromptActive;
@@ -125,6 +126,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private bool hostedModelsEnabled = ModelExecutionSettings.Default.HostedModelsEnabled;
     private int stoppingAudioOperations;
     private BuiltInAction? pendingModelAction;
+    private LocalModelArtifact? pendingModelActionArtifact;
     private SecurityAuditEvent? pendingModelActionAudit;
     private long pendingModelActionCallRevision;
     private GrantChange? pendingGrantChange;
@@ -243,11 +245,15 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         Kora.Tools.Network.PreapprovedUriAdd? preapprovedUriAdd = null,
         Kora.Tools.Network.PreapprovedUriRemove? preapprovedUriRemove = null,
         Kora.Tools.Network.PreapprovedUriClear? preapprovedUriClear = null,
-        Kora.Tools.Network.WebPageGet? webPageGet = null)
+        Kora.Tools.Network.WebPageGet? webPageGet = null,
+        ArtifactDirectoryConfigurationService? artifactDirectoryConfiguration = null,
+        McpServerConfigurationService? mcpServerConfiguration = null)
     {
         this.commandCatalog = commandCatalog;
         this.commandRouter = commandRouter;
         this.artifactCatalogue = artifactCatalogue;
+        artifactCatalogue.Changed += OnArtifactCatalogueChanged;
+        artifactCatalogue.ReloadFailed += OnArtifactCatalogueReloadFailed;
         this.artifactCommandRouter = artifactCommandRouter;
         this.dependencyBootstrapper = dependencyBootstrapper;
         this.dependencySetup = dependencySetup;
@@ -309,6 +315,12 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         }
         this.responseModeConfiguration = responseModeConfiguration;
         this.providerModeConfiguration = providerModeConfiguration;
+        this.artifactDirectoryConfiguration = artifactDirectoryConfiguration;
+        this.mcpServerConfiguration = mcpServerConfiguration;
+        if (mcpServerConfiguration is not null)
+        {
+            mcpServerConfiguration.Changed += OnMcpServerConfigurationChanged;
+        }
         this.preapprovedUriList = preapprovedUriList;
         this.preapprovedUriAdd = preapprovedUriAdd;
         this.preapprovedUriRemove = preapprovedUriRemove;
@@ -456,6 +468,22 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         ClearPreapprovedUrisCommand = CreateCommand(
             () => RunNativePreapprovedUriCommandAsync(PreapprovedUriCommandOperation.Clear),
             () => CanChangePreapprovedUris && PreapprovedUriPatterns.Count > 0);
+        RefreshArtifactDirectoriesCommand = CreateCommand(
+            RefreshArtifactDirectoriesAsync,
+            () => CanChangeArtifactDirectories);
+        AddArtifactDirectoryCommand = CreateCommand(
+            AddArtifactDirectoryAsync,
+            () => CanChangeArtifactDirectories && !string.IsNullOrWhiteSpace(ArtifactDirectoryInput));
+        RemoveArtifactDirectoryCommand = CreateCommand(
+            RemoveArtifactDirectoryAsync,
+            () => CanChangeArtifactDirectories && SelectedArtifactDirectory is not null);
+        IncludeMcpServerCommand = CreateCommand(
+            () => SetSelectedMcpServerIncludedAsync(included: true),
+            () => CanChangeArtifactDirectories && SelectedMcpServer is { IsIncluded: false });
+        ExcludeMcpServerCommand = CreateCommand(
+            () => SetSelectedMcpServerIncludedAsync(included: false),
+            () => CanChangeArtifactDirectories && SelectedMcpServer is { IsIncluded: true });
+        RefreshArtifactDirectories();
         RefreshInCallFeedbackCommand = CreateCommand(() => ExecuteInCallFeedbackCommandAsync(
             new(AppearanceCommandOperation.Get), SecurityAuditInitiator.LocalUser));
         SaveInCallFeedbackCommand = CreateCommand(() => ExecuteInCallFeedbackCommandAsync(
@@ -537,11 +565,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         ApproveModelActionForSessionCommand = CreateCommand(
             () => ApproveModelActionAsync(ModelApprovalScope.Session),
             () => IsModelActionApprovalPending && !IsBusy && !IsLocalModelSetupActive
-                && !IsPowerShellSetupActive);
+                && !IsPowerShellSetupActive && pendingModelActionArtifact is null);
         ApproveModelActionAlwaysCommand = CreateCommand(
             () => ApproveModelActionAsync(ModelApprovalScope.Always),
             () => IsModelActionApprovalPending && !IsBusy && !IsLocalModelSetupActive
-                && !IsPowerShellSetupActive);
+                && !IsPowerShellSetupActive && pendingModelActionArtifact is null);
         RejectModelActionCommand = CreateCommand(
             RejectPendingModelActionAsync,
             () => IsModelActionApprovalPending);
@@ -4397,6 +4425,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         var speechRevision = Interlocked.Read(ref manualCallSpeechRevision);
         BuiltInAction? automaticAction = null;
         var announceApproval = false;
+        activeReasoningArtifact = artifact;
         try
         {
             var context = new LocalModelContext(
@@ -4411,6 +4440,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                         task.Name, task.State, task.ProgressPercentage)).ToArray());
             var decision = await localModelReasoner.ReasonAsync(request, context, artifact, cancellation.Token);
             cancellation.Token.ThrowIfCancellationRequested();
+            if (artifact is not null && !artifactCatalogue.IsCurrent(artifact.Id, artifact.Digest))
+            {
+                await cancellation.CancelAsync();
+                cancellation.Token.ThrowIfCancellationRequested();
+            }
             if (new object?[] { decision.Answer, decision.Action, decision.GrantChange, decision.Question }
                     .Count(value => value is not null) != 1
                 || decision.Answer is not null && string.IsNullOrWhiteSpace(decision.Answer)
@@ -4443,15 +4477,25 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             }
             else if (decision.GrantChange is { } change)
             {
-                PrepareGrantChange(change, SecurityAuditInitiator.ModelSuggestion);
-                announceApproval = IsGrantChangePending;
+                if (artifact is not null)
+                {
+                    ShowInformation(
+                        "Artifact cannot change reusable grants.",
+                        "Artifact-based requests may propose a consequential action for fresh single-use approval, but cannot add or remove session or always grants.");
+                }
+                else
+                {
+                    PrepareGrantChange(change, SecurityAuditInitiator.ModelSuggestion);
+                    announceApproval = IsGrantChangePending;
+                }
             }
             else if (decision.Action is { } action)
             {
                 if (ModelActionRequiresApproval(action)
-                    && !CanReuseLegacyModelGrant(action))
+                    && (artifact is not null || !CanReuseLegacyModelGrant(action)))
                 {
                     pendingModelAction = action;
+                    pendingModelActionArtifact = artifact;
                     pendingModelActionCallRevision = CallPolicyRevision;
                     pendingModelActionAudit = StartAudit(
                         SecurityAuditCategory.SecurityApproval,
@@ -4476,9 +4520,12 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                     var voicePrefix = RequireAssistantNameForVoiceApproval
                         ? $"{AssistantName}, "
                         : string.Empty;
+                    var approvalChoices = artifact is null
+                        ? $"Say “{voicePrefix}approve once”, “{voicePrefix}approve for this session”, “{voicePrefix}always allow this”, or “{voicePrefix}reject”."
+                        : $"The proposal came from artifact revision {artifact.Digest[..12]}. Only a single-use approval is valid. Say “{voicePrefix}approve once” or “{voicePrefix}reject”.";
                     ShowInformation(
                         "Approve a model-suggested action?",
-                        $"{command.Description} Say “{voicePrefix}approve once”, “{voicePrefix}approve for this session”, “{voicePrefix}always allow this”, or “{voicePrefix}reject”. You can also use the buttons below.");
+                        $"{command.Description} {approvalChoices} You can also use the buttons below.");
                     WindowActionRequested?.Invoke(this, WindowAction.Show);
                     announceApproval = true;
                 }
@@ -4516,6 +4563,10 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         }
         finally
         {
+            if (ReferenceEquals(activeReasoningArtifact, artifact))
+            {
+                activeReasoningArtifact = null;
+            }
             IsLocalTaskCancellable = false;
             if (ReferenceEquals(activeReasoningCancellation, cancellation))
             {
@@ -4742,6 +4793,15 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             ShowInformation("Call policy changed.", "The previous approval is no longer applicable. Initiate a fresh request; nothing was replayed.");
             return;
         }
+        if (pendingModelActionArtifact is { } pendingArtifact
+            && (!artifactCatalogue.IsCurrent(pendingArtifact.Id, pendingArtifact.Digest)
+                || scope != ModelApprovalScope.Once))
+        {
+            ClearPendingModelAction("artifact-revision-ineligible");
+            ShowInformation("Fresh single-use approval is required.",
+                "Artifact-based action proposals cannot create reusable grants, and changed artifact revisions require a new request.");
+            return;
+        }
         var action = ValidateModelActionApproval(
             scope, pendingModelAction, IsBusy, IsLocalModelSetupActive, IsPowerShellSetupActive);
 
@@ -4896,6 +4956,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
         pendingModelActionAudit = null;
         pendingModelAction = null;
+        pendingModelActionArtifact = null;
         OnPropertyChanged(nameof(IsModelActionApprovalPending));
         OnPropertyChanged(nameof(IsApprovalPending));
         OnPropertyChanged(nameof(IsResponseInteractionPending));

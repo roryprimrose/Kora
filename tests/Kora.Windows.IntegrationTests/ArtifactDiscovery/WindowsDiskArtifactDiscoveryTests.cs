@@ -1,6 +1,8 @@
 using AwesomeAssertions;
 
 using Kora.Core.Artifacts;
+using Kora.Core.Configuration;
+using Kora.Core.Dependencies;
 using Kora.Windows.Artifacts;
 
 namespace Kora.Windows.IntegrationTests.ArtifactDiscovery;
@@ -80,6 +82,66 @@ public sealed class WindowsDiskArtifactDiscoveryTests : IDisposable
         discovery.Load().Should().BeEmpty();
     }
 
+    [Fact]
+    public void Load_applies_existing_processing_rules_to_additional_directories_and_agents()
+    {
+        var skills = Path.Combine(root, "custom-skills");
+        var instructions = Path.Combine(root, "custom-instructions");
+        var prompts = Path.Combine(root, "custom-prompts");
+        var agents = Path.Combine(root, "custom-agents");
+        Directory.CreateDirectory(Path.Combine(skills, "deploy-extra"));
+        Directory.CreateDirectory(instructions);
+        Directory.CreateDirectory(prompts);
+        Directory.CreateDirectory(agents);
+        File.WriteAllText(Path.Combine(skills, "deploy-extra", "SKILL.md"), """
+            ---
+            name: deploy-extra
+            description: "Deploy through an additional root."
+            ---
+            Follow the reviewed deployment workflow.
+            """);
+        File.WriteAllText(Path.Combine(instructions, "standards-extra.instructions.md"), """
+            ---
+            name: "Standards Extra"
+            description: "Apply additional standards."
+            ---
+            Apply the additional standards.
+            """);
+        File.WriteAllText(Path.Combine(prompts, "explain-extra.prompt.md"), """
+            ---
+            name: "Explain Extra"
+            ---
+            Explain the supplied result.
+            """);
+        File.WriteAllText(Path.Combine(agents, "review.agent.md"), """
+            ---
+            name: "Review Changes"
+            description: "Review a proposed change."
+            tools: ["read"]
+            ---
+            Review the supplied change using the available read-only context.
+            """);
+        var settings = new ArtifactDirectorySettings([skills], [instructions], [prompts], [agents], [], []);
+        var paths = new Paths(Path.Combine(root, "kora"));
+
+        var artifacts = new WindowsDiskArtifactDiscovery(
+            paths,
+            settings,
+            Path.Combine(root, "empty-profile")).Load();
+
+        artifacts.Select(artifact => artifact.Kind).Should().Equal(
+            ArtifactKind.Skill,
+            ArtifactKind.Instruction,
+            ArtifactKind.Prompt,
+            ArtifactKind.Agent);
+        artifacts.Should().OnlyContain(artifact => artifact.Source == "additional");
+        var agent = artifacts.Single(artifact => artifact.Kind == ArtifactKind.Agent);
+        agent.Kind.Should().Be(ArtifactKind.Agent);
+        agent.CommandName.Should().Be("review-changes");
+        agent.Source.Should().Be("additional");
+        agent.Id.Should().Be("disk.additional.agent.review-changes");
+    }
+
     [Theory]
     [InlineData("No frontmatter")]
     [InlineData("---\ndescription: missing close")]
@@ -100,5 +162,10 @@ public sealed class WindowsDiskArtifactDiscoveryTests : IDisposable
         {
             Directory.Delete(root, recursive: true);
         }
+    }
+
+    private sealed record Paths(string LocalRoot) : IApplicationDataPaths
+    {
+        public string RoamingRoot => LocalRoot;
     }
 }

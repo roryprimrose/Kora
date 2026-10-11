@@ -2,6 +2,7 @@ using System.Security.Cryptography;
 using System.Text;
 
 using Kora.Core.Artifacts;
+using Kora.Core.Configuration;
 using Kora.Core.Dependencies;
 
 namespace Kora.Windows.Artifacts;
@@ -12,13 +13,29 @@ public sealed class WindowsDiskArtifactDiscovery
     private static readonly UTF8Encoding Utf8 = new(false, true);
     private readonly IReadOnlyList<ArtifactRoot> roots;
 
-    public WindowsDiskArtifactDiscovery(IApplicationDataPaths paths)
-        : this(CreateRoots(paths))
+    public WindowsDiskArtifactDiscovery(
+        IApplicationDataPaths paths,
+        ArtifactDirectorySettings? additionalDirectories = null)
+        : this(CreateRoots(
+            paths,
+            additionalDirectories ?? ArtifactDirectorySettings.Empty,
+            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData)))
+    {
+    }
+
+    internal WindowsDiskArtifactDiscovery(
+        IApplicationDataPaths paths,
+        ArtifactDirectorySettings additionalDirectories,
+        string profileRoamingRoot)
+        : this(CreateRoots(paths, additionalDirectories, profileRoamingRoot))
     {
     }
 
     internal WindowsDiskArtifactDiscovery(IReadOnlyList<ArtifactRoot> roots) =>
         this.roots = roots ?? throw new ArgumentNullException(nameof(roots));
+
+    public IReadOnlyList<string> RootPaths =>
+        roots.Select(root => root.Path).Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
 
     public IReadOnlyList<ArtifactDefinition> Load()
     {
@@ -34,24 +51,58 @@ public sealed class WindowsDiskArtifactDiscovery
         return files.Select(item => Parse(item.Root, item.Path)).OfType<ArtifactDefinition>().ToArray();
     }
 
-    private static IReadOnlyList<ArtifactRoot> CreateRoots(IApplicationDataPaths paths)
+    private static ArtifactRoot[] CreateRoots(
+        IApplicationDataPaths paths,
+        ArtifactDirectorySettings additionalDirectories,
+        string profileRoamingRoot)
     {
         ArgumentNullException.ThrowIfNull(paths);
-        var roaming = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
-        return
+        ArgumentNullException.ThrowIfNull(additionalDirectories);
+        ArgumentException.ThrowIfNullOrWhiteSpace(profileRoamingRoot);
+        List<ArtifactRoot> discoveredRoots =
         [
             new(Path.Combine(paths.RoamingRoot, "Skills"), ArtifactKind.Skill, "kora-profile", "SKILL.md", 3),
             new(Path.Combine(paths.RoamingRoot, "Instructions"), ArtifactKind.Instruction, "kora-profile", "*.instructions.md", 0),
             new(Path.Combine(paths.RoamingRoot, "Prompts"), ArtifactKind.Prompt, "kora-profile", "*.prompt.md", 0),
-            new(Path.Combine(roaming, "Code", "User", "prompts"), ArtifactKind.Prompt, "vscode-profile", "*.prompt.md", 0),
-            new(Path.Combine(roaming, "Code", "User", "prompts"), ArtifactKind.Instruction, "vscode-profile", "*.instructions.md", 0),
-            new(Path.Combine(roaming, "Code", "User", "profiles"), ArtifactKind.Prompt, "vscode-profile", "*.prompt.md", 2),
-            new(Path.Combine(roaming, "Code", "User", "profiles"), ArtifactKind.Instruction, "vscode-profile", "*.instructions.md", 2),
-            new(Path.Combine(roaming, "Code - Insiders", "User", "prompts"), ArtifactKind.Prompt, "vscode-insiders-profile", "*.prompt.md", 0),
-            new(Path.Combine(roaming, "Code - Insiders", "User", "prompts"), ArtifactKind.Instruction, "vscode-insiders-profile", "*.instructions.md", 0),
-            new(Path.Combine(roaming, "Code - Insiders", "User", "profiles"), ArtifactKind.Prompt, "vscode-insiders-profile", "*.prompt.md", 2),
-            new(Path.Combine(roaming, "Code - Insiders", "User", "profiles"), ArtifactKind.Instruction, "vscode-insiders-profile", "*.instructions.md", 2),
+            new(Path.Combine(paths.RoamingRoot, "Agents"), ArtifactKind.Agent, "kora-profile", "*.agent.md", 0),
+            new(Path.Combine(profileRoamingRoot, "Code", "User", "prompts"), ArtifactKind.Prompt, "vscode-profile", "*.prompt.md", 0),
+            new(Path.Combine(profileRoamingRoot, "Code", "User", "prompts"), ArtifactKind.Instruction, "vscode-profile", "*.instructions.md", 0),
+            new(Path.Combine(profileRoamingRoot, "Code", "User", "prompts"), ArtifactKind.Agent, "vscode-profile", "*.agent.md", 0),
+            new(Path.Combine(profileRoamingRoot, "Code", "User", "profiles"), ArtifactKind.Prompt, "vscode-profile", "*.prompt.md", 2),
+            new(Path.Combine(profileRoamingRoot, "Code", "User", "profiles"), ArtifactKind.Instruction, "vscode-profile", "*.instructions.md", 2),
+            new(Path.Combine(profileRoamingRoot, "Code", "User", "profiles"), ArtifactKind.Agent, "vscode-profile", "*.agent.md", 2),
+            new(Path.Combine(profileRoamingRoot, "Code - Insiders", "User", "prompts"), ArtifactKind.Prompt, "vscode-insiders-profile", "*.prompt.md", 0),
+            new(Path.Combine(profileRoamingRoot, "Code - Insiders", "User", "prompts"), ArtifactKind.Instruction, "vscode-insiders-profile", "*.instructions.md", 0),
+            new(Path.Combine(profileRoamingRoot, "Code - Insiders", "User", "prompts"), ArtifactKind.Agent, "vscode-insiders-profile", "*.agent.md", 0),
+            new(Path.Combine(profileRoamingRoot, "Code - Insiders", "User", "profiles"), ArtifactKind.Prompt, "vscode-insiders-profile", "*.prompt.md", 2),
+            new(Path.Combine(profileRoamingRoot, "Code - Insiders", "User", "profiles"), ArtifactKind.Instruction, "vscode-insiders-profile", "*.instructions.md", 2),
+            new(Path.Combine(profileRoamingRoot, "Code - Insiders", "User", "profiles"), ArtifactKind.Agent, "vscode-insiders-profile", "*.agent.md", 2),
         ];
+        discoveredRoots.AddRange(CreateAdditionalRoots(additionalDirectories));
+        return discoveredRoots
+            .GroupBy(root => $"{root.Kind}\0{root.Path}", StringComparer.OrdinalIgnoreCase)
+            .Select(group => group.First())
+            .ToArray();
+    }
+
+    private static IEnumerable<ArtifactRoot> CreateAdditionalRoots(ArtifactDirectorySettings settings)
+    {
+        foreach (var kind in Enum.GetValues<ArtifactKind>())
+        {
+            var pattern = kind switch
+            {
+                ArtifactKind.Skill => "SKILL.md",
+                ArtifactKind.Instruction => "*.instructions.md",
+                ArtifactKind.Prompt => "*.prompt.md",
+                ArtifactKind.Agent => "*.agent.md",
+                _ => throw new InvalidDataException("The artifact directory kind is invalid."),
+            };
+            var maximumDepth = kind == ArtifactKind.Skill ? 3 : 0;
+            foreach (var directory in settings.GetDirectories(kind))
+            {
+                yield return new(directory, kind, "additional", pattern, maximumDepth);
+            }
+        }
     }
 
     private static void Discover(
@@ -211,7 +262,13 @@ public sealed class WindowsDiskArtifactDiscovery
 
     private static string RemoveArtifactSuffix(string fileName, ArtifactKind kind)
     {
-        var suffix = kind == ArtifactKind.Prompt ? ".prompt.md" : ".instructions.md";
+        var suffix = kind switch
+        {
+            ArtifactKind.Prompt => ".prompt.md",
+            ArtifactKind.Instruction => ".instructions.md",
+            ArtifactKind.Agent => ".agent.md",
+            _ => string.Empty,
+        };
         return fileName.EndsWith(suffix, StringComparison.OrdinalIgnoreCase)
             ? fileName[..^suffix.Length]
             : fileName;

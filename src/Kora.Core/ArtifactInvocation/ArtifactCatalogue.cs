@@ -6,7 +6,45 @@ namespace Kora.Core.Artifacts;
 
 public sealed class ArtifactCatalogue
 {
+    private ReadOnlyCollection<ArtifactDefinition> artifacts;
+
     public ArtifactCatalogue(IReadOnlyList<ArtifactDefinition> artifacts)
+    {
+        this.artifacts = Validate(artifacts);
+    }
+
+    public event EventHandler? Changed;
+    public event EventHandler<ArtifactCatalogueReloadFailedEventArgs>? ReloadFailed;
+
+    public ReadOnlyCollection<ArtifactDefinition> Artifacts => Volatile.Read(ref artifacts);
+
+    public bool IsCurrent(string id, string digest)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(id);
+        ArgumentException.ThrowIfNullOrWhiteSpace(digest);
+        return Artifacts.Any(artifact =>
+            string.Equals(artifact.Id, id, StringComparison.Ordinal)
+            && string.Equals(artifact.Digest, digest, StringComparison.Ordinal));
+    }
+
+    public void Publish(IReadOnlyList<ArtifactDefinition> updatedArtifacts)
+    {
+        var validated = Validate(updatedArtifacts);
+        var previous = Interlocked.Exchange(ref artifacts, validated);
+        if (!Equivalent(previous, validated))
+        {
+            Changed?.Invoke(this, EventArgs.Empty);
+        }
+    }
+
+    public void ReportReloadFailure(Exception exception)
+    {
+        ArgumentNullException.ThrowIfNull(exception);
+        ReloadFailed?.Invoke(this, new(exception));
+    }
+
+    private static ReadOnlyCollection<ArtifactDefinition> Validate(
+        IReadOnlyList<ArtifactDefinition> artifacts)
     {
         ArgumentNullException.ThrowIfNull(artifacts);
         if (artifacts.Count is 0 or > 128 || artifacts.Any(artifact => artifact is null))
@@ -30,8 +68,14 @@ public sealed class ArtifactCatalogue
                 $"The normalized spoken artifact name “{duplicateSpokenName.Key}” is ambiguous.",
                 nameof(artifacts));
         }
-        Artifacts = new ReadOnlyCollection<ArtifactDefinition>(artifacts.ToArray());
+        return new ReadOnlyCollection<ArtifactDefinition>(artifacts.ToArray());
     }
 
-    public ReadOnlyCollection<ArtifactDefinition> Artifacts { get; }
+    private static bool Equivalent(
+        ReadOnlyCollection<ArtifactDefinition> left,
+        ReadOnlyCollection<ArtifactDefinition> right) =>
+        left.Count == right.Count
+        && left.Zip(right).All(pair =>
+            string.Equals(pair.First.Id, pair.Second.Id, StringComparison.Ordinal)
+            && string.Equals(pair.First.Digest, pair.Second.Digest, StringComparison.Ordinal));
 }

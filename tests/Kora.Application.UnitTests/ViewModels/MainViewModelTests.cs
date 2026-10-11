@@ -4748,6 +4748,109 @@ public sealed partial class MainViewModelTests : IDisposable
     }
 
     [Fact]
+    public async Task Artifact_revision_change_retires_pending_question_and_refreshes_commands()
+    {
+        var fixture = new Fixture();
+        fixture.Probe.Status = new DependencyStatus(
+            "local.inference", "Local model inference (Ollama)",
+            DependencyReadiness.Ready, "Inference verified.");
+        fixture.Reasoner.Question = new LocalModelQuestion("Which target?", ["Current", "Other"]);
+        await fixture.ViewModel.InitializeAsync();
+        await fixture.RunAsync("/lock");
+        await fixture.ViewModel.ActiveReasoningTask!;
+        fixture.ViewModel.IsModelQuestionPending.Should().BeTrue();
+
+        fixture.ArtifactCatalogue.Publish([UpdatedLockArtifact()]);
+
+        fixture.ViewModel.IsModelQuestionPending.Should().BeFalse();
+        fixture.ViewModel.ResponseTitle.Should().Be("Artifact changed.");
+        fixture.ViewModel.CommandText = "/";
+        fixture.ViewModel.ArtifactCommandOptions.Should().ContainSingle()
+            .Which.Name.Should().Be("Updated lock");
+    }
+
+    [Fact]
+    public async Task Artifact_revision_change_cancels_in_flight_reasoning_before_response_publication()
+    {
+        var fixture = new Fixture();
+        fixture.Probe.Status = new DependencyStatus(
+            "local.inference", "Local model inference (Ollama)",
+            DependencyReadiness.Ready, "Inference verified.");
+        fixture.Reasoner.Gate = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        await fixture.ViewModel.InitializeAsync();
+
+        await fixture.RunAsync("/lock");
+        fixture.Reasoner.Requests.Should().ContainSingle();
+        var reasoning = fixture.ViewModel.ActiveReasoningTask!;
+        fixture.ArtifactCatalogue.Publish([UpdatedLockArtifact()]);
+        await reasoning;
+
+        fixture.ViewModel.ResponseTitle.Should().NotBe("Local model response");
+        fixture.ViewModel.SetupTasks.Should().Contain(task =>
+            task.Id == "local.reasoning" && task.State == SetupTaskState.Cancelled);
+    }
+
+    [Fact]
+    public async Task Artifact_action_requires_single_use_revision_current_approval_despite_reusable_grant()
+    {
+        var fixture = await Fixture.CreateInitializedAsync();
+        fixture.ViewModel.PrepareGrantChange(new GrantChange(
+            GrantChangeOperation.Add, BuiltInAction.LockMachine, ModelApprovalScope.Session));
+        await fixture.ViewModel.ConfirmGrantChangeAsync();
+        fixture.Reasoner.Action = BuiltInAction.LockMachine;
+        fixture.Probe.Status = new DependencyStatus(
+            "local.inference", "Local model inference (Ollama)",
+            DependencyReadiness.Ready, "Inference verified.");
+        await fixture.ViewModel.RefreshCommand.ExecuteAsync();
+
+        await fixture.RunAsync("/lock");
+        await fixture.ViewModel.ActiveReasoningTask!;
+
+        fixture.ViewModel.IsModelActionApprovalPending.Should().BeTrue();
+        fixture.ViewModel.ApproveModelActionForSessionCommand.CanExecute(null).Should().BeFalse();
+        fixture.ViewModel.ApproveModelActionAlwaysCommand.CanExecute(null).Should().BeFalse();
+        fixture.Session.LockCalls.Should().Be(0);
+
+        fixture.ArtifactCatalogue.Publish([UpdatedLockArtifact()]);
+
+        fixture.ViewModel.IsModelActionApprovalPending.Should().BeFalse();
+        fixture.Session.LockCalls.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task Artifact_request_cannot_propose_reusable_grant_change()
+    {
+        var fixture = new Fixture();
+        fixture.Probe.Status = new DependencyStatus(
+            "local.inference", "Local model inference (Ollama)",
+            DependencyReadiness.Ready, "Inference verified.");
+        fixture.Reasoner.GrantChange = new(
+            GrantChangeOperation.Add,
+            BuiltInAction.LockMachine,
+            ModelApprovalScope.Session);
+        await fixture.ViewModel.InitializeAsync();
+
+        await fixture.RunAsync("/lock");
+        await fixture.ViewModel.ActiveReasoningTask!;
+
+        fixture.ViewModel.IsGrantChangePending.Should().BeFalse();
+        fixture.ViewModel.ResponseTitle.Should().Be("Artifact cannot change reusable grants.");
+        fixture.ViewModel.SessionAllowedModelActions.Should().BeEmpty();
+    }
+
+    private static ArtifactDefinition UpdatedLockArtifact() => new(
+        "kora.session.lock",
+        ArtifactKind.Skill,
+        "Updated lock",
+        "Lock the current Windows session using revised instructions.",
+        "lock",
+        ["lock", "lock the machine"],
+        "bundled",
+        "2.0.0",
+        new string('f', 64),
+        "Use only the revised lock workflow.");
+
+    [Fact]
     public async Task Unknown_slash_command_fails_closed_without_invoking_the_model()
     {
         var fixture = new Fixture();
@@ -8162,7 +8265,7 @@ public sealed partial class MainViewModelTests : IDisposable
             var clipboard = new Kora.Tools.Clipboard.ClipboardSnapshotBroker(ClipboardReader, TimeProvider.System,
                 NullLogger<Kora.Tools.Clipboard.ClipboardSnapshotBroker>.Instance);
             var runtime = new Kora.Tools.Runtime.RecordedRuntimeObservation(bootstrapper);
-            var artifactCatalogue = new ArtifactCatalogue(
+            ArtifactCatalogue = new ArtifactCatalogue(
             [
                 new ArtifactDefinition(
                     "kora.session.lock",
@@ -8179,8 +8282,8 @@ public sealed partial class MainViewModelTests : IDisposable
             ViewModel = new MainViewModel(
                 Catalog,
                 new BuiltInCommandRouter(Catalog),
-                artifactCatalogue,
-                new ArtifactCommandRouter(artifactCatalogue),
+                ArtifactCatalogue,
+                new ArtifactCommandRouter(ArtifactCatalogue),
                 bootstrapper,
                 new DependencySetupWorkflow(
                     bootstrapper,
@@ -8327,6 +8430,8 @@ public sealed partial class MainViewModelTests : IDisposable
         public FakePowerShellSetup PowerShell { get; }
 
         public FakeLocalModelReasoner Reasoner { get; }
+
+        public ArtifactCatalogue ArtifactCatalogue { get; }
 
         public FakeModelApprovalPreferences ApprovalPreferences { get; }
 

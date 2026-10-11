@@ -17,8 +17,8 @@ narratives here.
 
 ## Delivered Artifact Invocation
 
-Kora has one source-qualified artifact invocation route for the currently
-bundled skills and future instruction and prompt definitions. The route is
+Kora has one source-qualified artifact invocation route for bundled skills and
+compatible skill, instruction, prompt, and agent definitions. The route is
 available from the typed composer and activated voice:
 
 - direct slash command: `/lock`, `/restart`, or `/shutdown`;
@@ -27,7 +27,7 @@ available from the typed composer and activated voice:
   `Kora, use <artifact> to <request>`.
 
 `ArtifactDefinition` is the portable Core contract for the artifact identity,
-kind (`Skill`, `Instruction`, or `Prompt`), display metadata, slash command,
+kind (`Skill`, `Instruction`, `Prompt`, or `Agent`), display metadata, slash command,
 spoken names, source, version, definition digest, and bounded instructions.
 `Kora.Definitions` owns the fixed mapping from embedded resources to those
 definitions. Command and spoken-name conflicts fail catalogue construction.
@@ -44,50 +44,47 @@ free-form model requests.
 
 The response composer binds its `/` dropdown to that same catalogue. A bare
 slash lists all available artifacts; command text and optional
-`/skill `, `/prompt `, or `/instruction ` qualification filter it. Pointer
+`/skill `, `/prompt `, `/instruction `, or `/agent ` qualification filter it. Pointer
 selection and Up/Down/Enter insert the canonical direct command; Escape closes
 the list. Each entry shows command, name, description, and source.
 
 At composition, the embedded catalogue is combined with bounded compatible
-disk definitions. Kora-owned roaming `Skills`, `Instructions`, and `Prompts`
-folders and recognized personal `.copilot`, `.agents`, `.claude`, VS Code, and
-VS Code Insiders customization locations are read without whole-profile
-scanning or reparse traversal. Strict UTF-8, byte/file/depth bounds,
+disk definitions. Kora-owned roaming `Skills`, `Instructions`, `Prompts`, and
+`Agents` folders and recognized VS Code and VS Code Insiders customization
+locations are read without whole-profile scanning or reparse traversal.
+Settings can register up to sixteen additional absolute directories for each
+artifact kind. Additional directories use the same patterns and processing
+pipeline as default roots. Strict UTF-8, byte/file/depth bounds,
 frontmatter, skill folder/name agreement, `user-invocable`, and catalogue
 uniqueness are validated. Invalid or conflicting discovery fails closed.
+Kora watches default and configured roots, debounces disk notifications, builds
+a complete candidate catalogue, and atomically publishes it only after every
+definition and cross-artifact uniqueness rule passes. Invalid intermediate or
+saved content leaves the last known-valid catalogue active and surfaces a
+reload failure. Added, changed, renamed, and removed artifacts become available
+without restarting Kora.
 
-### Proposed Live Rediscovery and Instruction Authoring
+Artifact identity includes its exact content digest. A reload retires any
+in-flight reasoning, clarification, or action approval whose selected
+ID/digest is no longer current. Consequential actions proposed from artifact
+instructions never reuse legacy action grants and can receive only a fresh
+single-use approval for that exact current revision; they cannot create
+session or always grants. This prevents changed instructions from inheriting
+authority established for an earlier or unrelated proposal.
 
-The following extends startup discovery and remains authoring/source-management
-work, not a delivered watcher or save workflow.
+### Proposed Instruction Authoring
 
-Startup establishes the first immutable catalogue revision. The
-[common definition management contract](Definition_Management.md#consistent-external-change-and-reload-contract)
-owns bounded live rediscovery for skills, prompts, instructions, and agent
-profiles, including watcher-loss reconciliation, manual reload, and pre-use
-freshness checks. External changes publish validated candidates without restart,
-not automatic activation. Active requests retain their original snapshot;
-new requests can use only separately reviewed applicable revisions.
-Invalid, partial, missing, aliased, or conflicting changes become visibly
-unavailable. Changed definition/dependency grants are never transferred by
-path or name.
-
-Standalone Kora and compatible profile instructions use the same conversational
-proposal, rendered preview, exact source/diff, validation, conflict and native
-Save-confirmation experience as declarative skill authoring. The instruction
-variant edits one `*.instructions.md` file and omits the skill package tree,
-fixtures, dependency tests and skill capability-enablement workflow.
-Changed instruction applicability still requires exact revision/scope review.
-Voice and typed input can
-propose edits. Profile saves may replace only the exact discovered source file
-after file-identity and base-digest revalidation; they do not provide a general
-model-directed file writer.
-
-Startup-only discovery remains a delivery limitation, not the intended
-lifecycle. The common contract covers Kora-owned and explicitly registered
-profile files across UI, voice, slash lookup, and admitted model context.
-R21's explicit profile skill inspection remains separate and does not authorise
-the other artifact readers, editing, or model exposure.
+Standalone Kora and compatible profile instructions will use the same
+conversational proposal, rendered preview, exact source/diff, validation,
+conflict and native Save-confirmation experience as declarative skill
+authoring. The instruction variant edits one `*.instructions.md` file and omits
+the skill package tree, fixtures, dependency tests and skill
+capability-enablement workflow. Changed instruction applicability still
+requires exact revision/scope review. Voice and typed input may propose edits.
+Profile saves may replace only the exact discovered source file after
+file-identity and base-digest revalidation; they do not provide a general
+model-directed file writer. This authoring workflow remains proposed; live
+read-only rediscovery above is delivered.
 
 Running an artifact means applying its declarative instructions to the current
 model request. It does not execute a packaged script, approve an operation,
@@ -96,6 +93,44 @@ propose an existing registered host action, but that proposal still converges
 on the normal host-owned validation, approval, audit, privacy, and execution
 path. The embedded session-control scripts remain inspection-only until their
 separate runtime and containment work is admitted.
+
+### MCP configuration sources and future request use
+
+The same Settings source list also accepts additional MCP server configuration
+**files**. Kora reads its own roaming `Mcp\mcp.json`, VS Code and VS Code
+Insiders `User\mcp.json`, and Claude Desktop
+`claude_desktop_config.json` when present. Additional entries must be absolute
+file paths. Both the VS Code `servers` shape and the `mcpServers` shape are
+accepted under strict UTF-8, JSON depth, byte, server-count, transport, and
+identity bounds. A configured missing or malformed file fails closed.
+These configuration files are watched under the same debounced reload
+lifecycle, so server metadata and app-level selection surfaces refresh without
+an application restart.
+
+Configuration inspection retains only a source-qualified server ID, name,
+transport class (`stdio` or HTTP), source file name, and app-level
+included/excluded state. Commands, arguments, URLs, headers, environment
+values, and credentials are not copied into presentation or model context.
+Inclusion is an audited device-local preference and is not connection,
+capability, account, egress, tool, or execution approval.
+
+Live MCP use remains gated by R20. When that runtime is delivered, every
+voice, typed, and native-UI request must resolve MCP availability through one
+host-owned catalogue:
+
+1. begin with app-included servers only;
+2. intersect that set with the session's explicit included server and
+   capability selection;
+3. perform fresh connection/capability discovery and policy admission;
+4. expose only admitted capability names and bounded descriptions to the
+   selected model for that request;
+5. route every proposed call through the normal permission, approval, egress,
+   audit, cancellation, and result-provenance boundaries.
+
+Unknown session selection, stale discovery, unavailable identity, or missing
+policy state excludes the server and its capabilities. Model awareness never
+comes from raw configuration JSON and cannot itself include a server, create a
+grant, connect, or invoke a capability.
 
 ## Responsibility and Terminology
 
@@ -288,9 +323,11 @@ Do not move protocol enforcement, authorization or security checks into
 Markdown, templates or model instructions. Existing model-selector framing
 and runtime code are unchanged by this resource migration.
 
-**Agent design direction, not delivered execution:** support named declarative
-task profiles that reference instructions, skills and a bounded subset of
-admitted tools, with typed input/output and runtime/locality/budget constraints.
+**Agent execution direction, not delivered execution:** compatible agent
+Markdown can now be loaded as a declarative instruction artifact. A future
+agent runtime may support named task profiles that reference instructions,
+skills and a bounded subset of admitted tools, with typed input/output and
+runtime/locality/budget constraints.
 A profile is not a running agent, scheduler lane or new permission system.
 The host owns each run's session/task/request identity, original origin,
 resource leases, cancellation, budgets and approval/egress decisions.
@@ -298,8 +335,8 @@ Profile text cannot approve effects, acquire arbitrary context, expand the
 tool subset or select an unapproved processing destination. No recursive
 delegation, concurrent worker creation, profile auto-enablement or provider
 fallback follows from loading a definition. Qualification of the actual
-model/tool loop and host runtime remains mandatory; no agent profile loader
-or agent executor is introduced by this structural delivery.
+model/tool loop and host runtime remains mandatory; loading an agent artifact
+does not introduce an agent executor.
 
 The host maintains related but distinct registries:
 

@@ -5,4 +5,5 @@ public enum ArtifactKind
     Skill,
     Instruction,
     Prompt,
+    Agent,
 }

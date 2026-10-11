@@ -126,6 +126,60 @@ public sealed class ArtifactCommandRouterTests
     }
 
     [Fact]
+    public void Agent_qualification_routes_agent_artifacts()
+    {
+        var agent = new ArtifactDefinition(
+            "kora.review-agent",
+            ArtifactKind.Agent,
+            "Review agent",
+            "Reviews changes.",
+            "review-agent",
+            ["review agent"],
+            "bundled",
+            "1.0.0",
+            new string('b', 64),
+            "Review the supplied changes.");
+        var agentRouter = new ArtifactCommandRouter(new ArtifactCatalogue([agent]));
+
+        var match = agentRouter.Match("/agent review-agent inspect this", "Kora");
+
+        match.IsArtifactCommand.Should().BeTrue();
+        match.Invocation!.Artifact.Should().BeSameAs(agent);
+        match.Invocation.Request.Should().Be("inspect this");
+    }
+
+    [Fact]
+    public void Catalogue_publish_atomically_replaces_revision_and_rejects_invalid_snapshots()
+    {
+        var original = Definition("original", "original");
+        var catalogue = new ArtifactCatalogue([original]);
+        var changes = 0;
+        catalogue.Changed += (_, _) => changes++;
+        var updated = new ArtifactDefinition(
+            original.Id,
+            original.Kind,
+            original.Name,
+            original.Description,
+            original.CommandName,
+            original.SpokenNames,
+            original.Source,
+            "2.0.0",
+            new string('b', 64),
+            "Updated content.");
+
+        catalogue.Publish([updated]);
+
+        catalogue.Artifacts.Should().ContainSingle().Which.Should().BeSameAs(updated);
+        catalogue.IsCurrent(updated.Id, updated.Digest).Should().BeTrue();
+        catalogue.IsCurrent(original.Id, original.Digest).Should().BeFalse();
+        changes.Should().Be(1);
+
+        ((Action)(() => catalogue.Publish([updated, updated]))).Should().Throw<ArgumentException>();
+        catalogue.Artifacts.Should().ContainSingle().Which.Should().BeSameAs(updated);
+        changes.Should().Be(1);
+    }
+
+    [Fact]
     public void Artifact_catalogue_rejects_invalid_bounds_and_conflicts()
     {
         ((Action)(() => _ = new ArtifactCatalogue([]))).Should().Throw<ArgumentException>();

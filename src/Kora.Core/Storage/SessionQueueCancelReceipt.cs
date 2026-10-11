@@ -12,7 +12,7 @@ public sealed record SessionQueueCancelReceipt(Guid ReviewId, long QueueRevision
     {
         if (ReviewId == Guid.Empty || QueueRevision < 0 || RunId == Guid.Empty || ControlRevision < 0
             || AdmissionRevision < 0 || ObservedAt.Offset != TimeSpan.Zero || Entries.IsDefaultOrEmpty
-            || Entries.Length > SessionQueueLimits.MaximumPendingPerSession || Entries.Any(entry => entry is null)
+            || Entries.Length > SessionQueueLimits.MaximumPendingPerSession || Entries.Any(entry => entry is null || entry.Request is null)
             || Entries.Select(entry => entry.Request.TaskId).Distinct().Count() != Entries.Length)
         {
             throw new InvalidDataException("The complete exact cancellation receipt is invalid.");

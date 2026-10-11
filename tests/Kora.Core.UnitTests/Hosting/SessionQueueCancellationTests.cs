@@ -100,6 +100,7 @@ public sealed class SessionQueueCancellationTests
             receipt with { ControlRevision = -1 }, receipt with { AdmissionRevision = -1 },
             receipt with { ObservedAt = Now.ToOffset(TimeSpan.FromHours(1)) },
             receipt with { Entries = default }, receipt with { Entries = [] }, receipt with { Entries = [null!] },
+            receipt with { Entries = [first with { Request = null! }] },
             receipt with { Entries = [first, first] },
             receipt with { Entries = [.. Enumerable.Range(1, 11).Select(index => Entry(index))] },
             receipt with { Entries = [first, second with { State = SessionQueueState.Cancelled }] },

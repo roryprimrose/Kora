@@ -235,6 +235,7 @@ public sealed partial class MainViewModel
         if (auditRetentionConfiguration is not null) { auditRetentionConfiguration.Changed -= OnAuditRetentionChanged; }
         if (responseModeConfiguration is not null) { responseModeConfiguration.Changed -= OnResponseModeConfigurationChanged; }
         if (providerModeConfiguration is not null) { providerModeConfiguration.Changed -= OnProviderModeConfigurationChanged; }
+        if (providerProfileConfiguration is not null) { providerProfileConfiguration.Changed -= OnProviderProfileConfigurationChanged; }
         if (inCallFeedbackConfiguration is not null) { inCallFeedbackConfiguration.Changed -= OnInCallFeedbackChanged; }
         if (speechTextConfiguration is not null) { speechTextConfiguration.Changed -= OnSpeechTextConfigurationChanged; }
         assistantNameConfiguration.Changed -= OnAssistantNameConfigurationChanged;

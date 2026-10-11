@@ -141,7 +141,7 @@ public sealed class WindowsSqliteNativeHandoffReviewTests
         public string Version => "1.0";
         internal int Calls { get; private set; }
         public void Write(SecurityAuditEvent auditEvent) { }
-        public Task<ModelProviderReply> RunAsync(ModelTurnProvenance provenance, ReadOnlyMemory<byte> context,
+        public Task<ModelProviderReply> RunAsync(ModelTurnProvenance provenance, Kora.Core.Providers.ProviderProfileTuple? profile, ReadOnlyMemory<byte> context,
             Func<string, string, CancellationToken, ValueTask<CapabilityReply>> invokeTool, CancellationToken cancellationToken)
         {
             Calls++;

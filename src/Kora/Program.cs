@@ -292,6 +292,7 @@ internal static class Program
         services.AddSingleton<OutputDeviceConfigurationService>();
         services.AddSingleton<ResponseModeConfigurationService>();
         services.AddSingleton<ProviderModeConfigurationService>();
+        ProviderProfileComposition.Configure(services);
         services.AddSingleton<IModelProviderModePreferences>(provider =>
             new LocalModelProviderModePreferences(provider.GetRequiredService<IPreferenceStore>()));
         services.AddSingleton<Kora.Core.Network.IPreapprovedUriPreferences>(provider =>

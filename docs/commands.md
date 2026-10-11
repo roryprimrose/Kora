@@ -39,6 +39,27 @@ Protected/Unknown voice writes refuse; corrupt/unconfirmed state is not a
 default. See [Models and provider controls](settings.md#models) and
 [preference recovery](settings.md#preference-changes-and-recovery).
 
+## Inspect or change app provider profiles
+
+Native **Settings > Providers** and exact typed/current-name activated commands share app-scoped configuration, not authentication or model execution:
+
+| Syntax | Result |
+|---|---|
+| `list app provider settings` | Discover desired/saved/effective service, exact current catalogue and scope |
+| `get providers.app.profile` / `status providers.app.profile` | Inspect saved and effective tuple/account/catalogue state |
+| `set providers.app.default-service to Unset|Local|Copilot|Claude|Codex` | Explicit desired app service only; retain each service's tuple |
+| `reset providers.app.default-service` | Local if supported Ollama installation is observed, otherwise Unset; retain tuples |
+| `set providers.app.profile to <model-id> <reasoning-id> <context-id> for <account-id> at <catalogue-revision>` | Save the selected service's complete exact advertised tuple, with current opaque account/revision |
+| `reset providers.app.profile` | Clear only the selected service's tuple; no automatic replacement |
+| `sign in providers.app.service` | Unavailable: no qualified sign-in adapter; no credentials accessed |
+
+IDs are exact, case-sensitive, bounded catalogue values; labels/marketing names are not IDs. The revision is a canonical positive integer. Choose all dependent values explicitly; unsupported/provider-managed values cannot be invented. Complete input is at most 1,024 UTF-8 bytes; discovery output is at most 64 KiB and never truncated.
+
+Initially desired Local requires installation observation, not endpoint response, model readiness or generation consent. Missing/unknown installation is Unset. Production services currently advertise no models. Saved desired hosted service does not sign in, enable a provider, approve egress or send a request.
+
+Unscoped, session and one-turn directives are not app-scope aliases; those profile override workflows remain unavailable. Existing LocalOnly mode/default is unchanged.
+Protected/Unknown voice writes, stale previews, ownership/privacy/session changes, cancelled or unconfirmed evidence fail closed. See [app profile settings](settings.md#app-default-service-and-desired-profiles).
+
 ## Attach one text file to an exact Session (native only)
 
 For a content-free overview of existing retained slots, use **Tray > Retained session attachments > Refresh metadata**. Opening/listing never reads an original path or body. [Catalogue limits and exact navigation](windows-and-tray.md#retained-session-attachments-metadata-only) explain bounded pages, removed/held status, stale continuation and separate full-byte inspection. This adds no typed/voice/model capture command.

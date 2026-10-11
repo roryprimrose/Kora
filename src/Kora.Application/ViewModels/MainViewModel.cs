@@ -247,7 +247,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         Kora.Tools.Network.PreapprovedUriClear? preapprovedUriClear = null,
         Kora.Tools.Network.WebPageGet? webPageGet = null,
         ArtifactDirectoryConfigurationService? artifactDirectoryConfiguration = null,
-        McpServerConfigurationService? mcpServerConfiguration = null)
+        McpServerConfigurationService? mcpServerConfiguration = null,
+        ProviderProfileConfigurationService? providerProfileConfiguration = null)
     {
         this.commandCatalog = commandCatalog;
         this.commandRouter = commandRouter;
@@ -315,6 +316,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         }
         this.responseModeConfiguration = responseModeConfiguration;
         this.providerModeConfiguration = providerModeConfiguration;
+        this.providerProfileConfiguration = providerProfileConfiguration;
         this.artifactDirectoryConfiguration = artifactDirectoryConfiguration;
         this.mcpServerConfiguration = mcpServerConfiguration;
         if (mcpServerConfiguration is not null)
@@ -391,6 +393,10 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         {
             providerModeConfiguration.Changed += OnProviderModeConfigurationChanged;
         }
+        if (providerProfileConfiguration is not null)
+        {
+            providerProfileConfiguration.Changed += OnProviderProfileConfigurationChanged;
+        }
         if (outputConfiguration is not null)
         {
             outputConfiguration.Changed += OnOutputConfigurationChanged;
@@ -456,6 +462,12 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         RefreshProviderModeCommand = CreateCommand(() => RunNativeProviderModeAsync(AppearanceCommandOperation.Get));
         SaveProviderModeCommand = CreateCommand(() => RunNativeProviderModeAsync(AppearanceCommandOperation.Set));
         ResetProviderModeCommand = CreateCommand(() => RunNativeProviderModeAsync(AppearanceCommandOperation.Reset));
+        RefreshProviderProfileCommand = CreateCommand(() => RunNativeProviderProfileAsync(new(AppearanceCommandOperation.Get)));
+        SaveProviderServiceCommand = CreateCommand(() => RunNativeProviderProfileAsync(new(AppearanceCommandOperation.Set, Kora.Core.Providers.ProviderService.Unset)));
+        ResetProviderServiceCommand = CreateCommand(() => RunNativeProviderProfileAsync(new(AppearanceCommandOperation.Reset)));
+        SaveProviderProfileCommand = CreateCommand(() => RunNativeProviderProfileAsync(new(AppearanceCommandOperation.Set)));
+        ResetProviderProfileCommand = CreateCommand(() => RunNativeProviderProfileAsync(new(AppearanceCommandOperation.Reset, TupleOnly: true)));
+        ProviderSignInCommand = CreateCommand(() => RunNativeProviderProfileAsync(new(AppearanceCommandOperation.Get, SignIn: true)));
         RefreshPreapprovedUrisCommand = CreateCommand(
             () => RunNativePreapprovedUriCommandAsync(PreapprovedUriCommandOperation.List),
             () => CanChangePreapprovedUris);
@@ -3998,6 +4010,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             await ExecuteResponseModeCommandAsync(responseModeCommand, initiator);
             return;
         }
+        if (ProviderProfileCommand.Parse(spokenText, AssistantName) is { } providerProfileCommand)
+        {
+            await ExecuteProviderProfileCommandAsync(providerProfileCommand, initiator);
+            return;
+        }
         if (ProviderModeCommand.Parse(spokenText, AssistantName) is { } providerModeCommand)
         {
             await ExecuteProviderModeCommandAsync(providerModeCommand, initiator);
@@ -5581,6 +5598,10 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         OnPropertyChanged(nameof(ResponseModeConfigurationStatus));
         OnPropertyChanged(nameof(CanChangeProviderMode));
         OnPropertyChanged(nameof(ProviderModeConfigurationStatus));
+        OnPropertyChanged(nameof(CanChangeProviderProfile));
+        OnPropertyChanged(nameof(CanSaveProviderService));
+        OnPropertyChanged(nameof(CanSaveProviderProfile));
+        OnPropertyChanged(nameof(ProviderProfileConfigurationStatus));
         NotifyPreapprovedUriControlChanged();
         OnPropertyChanged(nameof(IsInCallFeedbackOverrideApplied));
         OnPropertyChanged(nameof(InCallFeedbackStatus));
@@ -5608,6 +5629,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             .Concat(ManualCallCommand.FixedPhrases)
             .Concat(ResponseModeCommand.FixedPhrases)
             .Concat(ProviderModeCommand.FixedPhrases)
+            .Concat(ProviderProfileCommand.FixedPhrases)
             .Concat(PreapprovedUriCommand.FixedPhrases)
             .Concat(WebPageCommand.FixedPhrases)
             .Concat(InCallFeedbackCommand.FixedPhrases)

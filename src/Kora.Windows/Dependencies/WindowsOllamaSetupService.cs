@@ -106,7 +106,7 @@ public sealed class WindowsOllamaSetupService : ILocalModelSetup, IDisposable
         }
     }
 
-    private static string InstalledExecutablePath => Path.Combine(
+    internal static string InstalledExecutablePath => Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
         "Programs", "Ollama", "ollama.exe");
 

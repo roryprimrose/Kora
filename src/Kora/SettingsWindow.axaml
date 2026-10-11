@@ -1113,6 +1113,34 @@
             <Button Content="Save provider mode" Command="{Binding SaveProviderModeCommand}" IsEnabled="{Binding CanChangeProviderMode}" />
             <Button Content="Reset provider mode to LocalOnly" Command="{Binding ResetProviderModeCommand}" IsEnabled="{Binding CanChangeProviderMode}" />
             <TextBlock Text="{Binding ProviderModeConfigurationStatus}" Classes="settings-description" TextWrapping="Wrap" />
+            <TextBlock Text="App default service and per-service desired profile" FontSize="24" FontWeight="SemiBold" />
+            <TextBlock Text="Initially Local only when a supported Ollama installation is observed; otherwise Unset. Installation is not model/runtime readiness or generation consent. Explicit saved choices never fall back. LocalOnly safety mode remains independent."
+                       Classes="settings-description" TextWrapping="Wrap" />
+            <Button Content="Inspect app provider settings and current catalogue" Command="{Binding RefreshProviderProfileCommand}"
+                    IsEnabled="{Binding CanChangeProviderProfile}" />
+            <ComboBox ItemsSource="{Binding ProviderServiceChoices}" SelectedItem="{Binding SelectedProviderServiceChoice}"
+                      DisplayMemberBinding="{Binding Label}" IsEnabled="{Binding CanChangeProviderProfile}"
+                      AutomationProperties.Name="Draft desired app default provider service; selection is not authentication" />
+            <Button Content="Save desired app service only" Command="{Binding SaveProviderServiceCommand}" IsEnabled="{Binding CanSaveProviderService}" />
+            <Button Content="Reset app service using installed-or-Unset rule" Command="{Binding ResetProviderServiceCommand}" IsEnabled="{Binding CanChangeProviderProfile}" />
+            <TextBlock Text="Picking a service changes its tuple draft without erasing other services. Save service only, or explicitly save the selected app service and complete tuple together. No advertised catalogue means no model choices; dependent choices are never substituted."
+                       Classes="settings-description" TextWrapping="Wrap" />
+            <TextBlock Text="{Binding ProviderProfileDraftStatus}" Classes="settings-description" TextWrapping="Wrap" />
+            <ComboBox ItemsSource="{Binding ProviderProfileModels}" SelectedItem="{Binding SelectedProviderProfileModel}"
+                      DisplayMemberBinding="{Binding Label}" IsEnabled="{Binding CanChangeProviderProfile}" AutomationProperties.Name="Exact account-bound model" />
+            <ComboBox ItemsSource="{Binding ProviderReasoningChoices}" SelectedItem="{Binding SelectedProviderReasoning}"
+                      DisplayMemberBinding="{Binding Label}" IsEnabled="{Binding CanChangeProviderProfile}" AutomationProperties.Name="Exact reasoning option or advertised provider-managed value" />
+            <ComboBox ItemsSource="{Binding ProviderContextChoices}" SelectedItem="{Binding SelectedProviderContext}"
+                      DisplayMemberBinding="{Binding Label}" IsEnabled="{Binding CanChangeProviderProfile}" AutomationProperties.Name="Exact context preset or advertised provider-managed value" />
+            <TextBlock Text="{Binding SelectedProviderContext.InputTokenLimit, StringFormat='Advertised maximum input tokens: {0}'}" />
+            <TextBlock Text="{Binding SelectedProviderContext.ProviderManaged, StringFormat='Context is provider managed: {0}'}" />
+            <TextBlock Text="{Binding SelectedProviderReasoning.ProviderManaged, StringFormat='Reasoning is provider managed: {0}'}" />
+            <Button Content="Save selected app service and exact model/reasoning/context tuple" Command="{Binding SaveProviderProfileCommand}" IsEnabled="{Binding CanSaveProviderProfile}" />
+            <Button Content="Reset selected service tuple to unresolved; retain other services" Command="{Binding ResetProviderProfileCommand}" IsEnabled="{Binding CanChangeProviderProfile}" />
+            <Button Content="Sign in to selected service (Unavailable: no qualified adapter)" Command="{Binding ProviderSignInCommand}" IsEnabled="{Binding CanSignInProvider}" />
+            <TextBlock Text="Hosted selection never signs in or authorizes egress. No machine credentials, authentication, provider network call, model acquisition or generation occurs here. Session overrides and one-turn directives remain unavailable; use explicit app scope."
+                       Classes="settings-description" TextWrapping="Wrap" />
+            <TextBlock Text="{Binding ProviderProfileConfigurationStatus}" Classes="settings-description" TextWrapping="Wrap" />
             <Button Content="Review pending exact provider handoff" Click="OnReviewHandoffClicked"
                     AutomationProperties.Name="Open original-user exact provider handoff review" />
             <TextBlock Text="Local volatile review only. No pending qualified host offer means unavailable; no sample, send, execution or provider enablement is offered."

@@ -1102,8 +1102,8 @@ Fixed approval lifetimes, process cancellation grace, power confirmations, secre
 | Local model execution | On; device-local; disabling cancels active local inference while deterministic built-ins remain available | "Disable local models" |
 | Hosted model execution | Off until explicitly enabled; still requires at least one independently qualified configured service and signed-in account | "Enable hosted models" |
 | Processing mode | Selected explicitly in setup; local-only or remote-enabled | "Use local-only processing" |
-| Default hosted service | Configured qualified Copilot, Claude, or Codex service; no silent substitution | "Use Claude by default" |
-| Hosted model | Exact model advertised for the selected service and signed-in account | "Use Sonnet with Claude" |
+| Desired app provider service | Local if supported Ollama installation is observed; otherwise Unset. Explicit Local/Copilot/Claude/Codex selection is retained, without authentication or fallback | `set providers.app.default-service to Claude` |
+| Hosted model | Exact model advertised for the selected service and signed-in account; production catalogues currently unavailable | Exact complete `providers.app.profile` tuple |
 | Hosted reasoning level | Exact advertised model-specific choice, or read-only provider-managed when not selectable | "Use high reasoning with my hosted model" |
 | Hosted context size | Exact advertised model-specific token budget/preset, or read-only provider-managed when not selectable | "Use the 128K context" |
 | Local model | Verified installed compatible model | "Use the smaller installed model" |
@@ -1118,7 +1118,7 @@ model, reasoning and context controls only from the selected service's current
 admitted catalogue. Unsupported controls remain visibly provider-managed or
 unavailable; Kora never fabricates a generic value or silently clamps one.
 
-The Providers settings page and session details use one shared revisioned
+The proposed session integration and Providers settings page use one shared revisioned
 draft/save workflow. They show **App default**, **This session**, and the
 resulting effective profile separately. Voice uses the same catalogue and
 workflow. An unscoped directive such as "Use Codex with low reasoning" defaults
@@ -1134,6 +1134,19 @@ That confirms the setting only; each new outgoing payload still follows exact eg
 Remote endpoints require a validated destination and setup/network decision, not guessing or silent fallback.
 Provider changes do not transplant active task context or continue a task under another account automatically.
 Credentials/tokens/passwords are not dictatable option values; voice starts supported sign-in/sign-out/configuration flows.
+
+### Delivered app-default provider profiles
+
+The [bounded canonical provider increment](Model_Providers_Memory_And_Knowledge.md#delivered-bounded-app-provider-profile-configuration) is app-scope only. Native Providers, typed and activated commands share original-user audited atomic save/readback/confirmation. `providers.default-mode` remains LocalOnly by default/reset and is not changed by desired-service selection.
+
+`providers.app.default-service` supports explicit Unset/Local/Copilot/Claude/Codex and installation-based reset. `providers.app.profile` saves complete exact model/reasoning/context IDs for the chosen service, bound to one opaque host account and catalogue revision; reset removes that service's tuple only. All other service tuples survive switching/reset.
+
+No available model is invented when a service catalogue is unavailable. Desired service can be saved unresolved; saved and effective states remain separate. Unknown/stale/expired/cross-service/account-changed tuples fail closed, without nearby values or local/hosted fallback.
+Sign-in is visibly Unavailable without a qualified adapter; no credentials, auth/acquisition/network/generation calls or egress authority are added.
+
+Controls expose exact advertised provider-managed choices and context presets/token metadata, not generic effort levels or budget overrides. Bounds and failure recovery are owned by the canonical provider topic and [workflow tests](../tests/Kora.Application.UnitTests/Configuration/ProviderProfileConfigurationServiceTests.cs).
+
+Only subsequent eligible provider-neutral turns consume these app profiles. Existing admitted turns and buffered bootstrap local reasoning are not rerouted. Session overrides, inherit/reset-session fields, unscoped directives and one-turn changes described above remain unavailable future work; an unscoped directive is not silently promoted to app scope.
 
 ## 6. Definitions and Local Data
 

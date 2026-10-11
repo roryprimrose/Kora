@@ -13,6 +13,8 @@ public sealed class EvidenceLoggerProvider : ILoggerProvider, ISupportExternalSc
     private readonly IEvidenceGapReporter gaps;
     private readonly TimeProvider clock;
     private readonly ActivityListener listener;
+    private readonly Lock captureGate = new();
+    private bool disposed;
     private IExternalScopeProvider scopes = new LoggerExternalScopeProvider();
 
     public EvidenceLoggerProvider(IEnumerable<IEvidenceSink> sinks, IEvidenceGapReporter gaps,
@@ -36,10 +38,21 @@ public sealed class EvidenceLoggerProvider : ILoggerProvider, ISupportExternalSc
 
     public void SetScopeProvider(IExternalScopeProvider scopeProvider) => scopes = scopeProvider;
 
-    public void Dispose() => listener.Dispose();
+    public void Dispose()
+    {
+        lock (captureGate)
+        {
+            if (disposed) { return; }
+            disposed = true;
+            listener.Dispose();
+        }
+    }
 
     private void CaptureActivity(Activity activity)
     {
+        // Removing a listener alone does not join callbacks already writing to owned storage.
+        using var capture = captureGate.EnterScope();
+        if (disposed) { return; }
         var host = HostActivity.Current;
         if (host is null || !ReferenceEquals(host.Activity, activity))
         {
@@ -59,6 +72,8 @@ public sealed class EvidenceLoggerProvider : ILoggerProvider, ISupportExternalSc
     private void Capture<TState>(string category, LogLevel level, EventId eventId,
         TState state, Exception? exception)
     {
+        using var capture = captureGate.EnterScope();
+        ObjectDisposedException.ThrowIf(disposed, this);
         var identity = new HostId<EvidenceIdentity>(Guid.NewGuid());
         DiagnosticEnvelope envelope;
         EvidenceGap? contextGap = null;

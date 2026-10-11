@@ -1,6 +1,7 @@
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Globalization;
+using System.Reflection;
 using System.Text.Json;
 using AwesomeAssertions;
 using Kora.Application.Auditing;
@@ -15,6 +16,44 @@ namespace Kora.Application.UnitTests.Diagnostics;
 [Collection("Host tracing")]
 public sealed class EvidenceLoggerProviderTests
 {
+    [Fact]
+    public void Activity_callback_captured_before_disposal_cannot_write_after_storage_is_released()
+    {
+        var sink = new RecordingSink();
+        using var provider = new EvidenceLoggerProvider([sink], sink);
+        // Model a notification that retained its callback before the listener was removed.
+        var callback = typeof(EvidenceLoggerProvider)
+            .GetMethod("CaptureActivity", BindingFlags.Instance | BindingFlags.NonPublic)!
+            .CreateDelegate<Action<Activity>>(provider);
+        using var activity = HostActivity.BeginRoot(HostRequest.Create(RequestOrigin.LocalUi),
+            HostActivityLayer.Application, HostOperation.Request);
+        provider.Dispose();
+        callback(activity.Activity!);
+        sink.Activities.Should().BeEmpty();
+        sink.Gaps.Should().BeEmpty();
+        activity.Complete(HostOperationOutcome.Completed);
+    }
+
+    [Fact]
+    public void Disposed_provider_rejects_logging_and_does_not_capture_later_activities()
+    {
+        var sink = new RecordingSink();
+        using var provider = new EvidenceLoggerProvider([sink], sink);
+        var logger = provider.CreateLogger("fixture");
+        provider.Dispose();
+        provider.Dispose();
+        var log = () => Log(logger, State());
+        log.Should().Throw<ObjectDisposedException>();
+        using (var activity = HostActivity.BeginRoot(HostRequest.Create(RequestOrigin.LocalUi),
+            HostActivityLayer.Application, HostOperation.Request))
+        {
+            activity.Complete(HostOperationOutcome.Completed);
+        }
+        sink.Diagnostics.Should().BeEmpty();
+        sink.Activities.Should().BeEmpty();
+        sink.Gaps.Should().BeEmpty();
+    }
+
     [Theory]
     [InlineData(false)]
     [InlineData(true)]

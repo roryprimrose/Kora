@@ -39,6 +39,7 @@ public sealed partial class ExactGrantsViewModel
         using var linked = Begin(token);
         var revision = historyControlRevision;
         var version = selectionVersion;
+        var filters = filterVersion;
         // Passive navigation retires actionable review, never creates a revoke preview or adopts old request authority.
         preview = null;
         Reviewed = false;
@@ -85,6 +86,11 @@ public sealed partial class ExactGrantsViewModel
             OnPropertyChanged(nameof(Inspection));
             activity.Complete(HostOperationOutcome.Completed);
         }
+        catch (Exception exception) when (exception is not OutOfMemoryException && IsRetiredFilter(filters))
+        {
+            Failed(exception.GetType().Name);
+            activity.Complete(HostOperationOutcome.Cancelled);
+        }
         catch (OperationCanceledException)
         {
             ClearHistory();
@@ -97,7 +103,7 @@ public sealed partial class ExactGrantsViewModel
             activity.Complete(HostOperationOutcome.Failed);
             throw;
         }
-        finally { active = false; Busy = false; }
+        finally { active = false; EndOperation(); }
     }
 
     private void ClearHistory()

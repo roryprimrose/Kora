@@ -12,11 +12,39 @@
       <TextBlock Text="Stored Active is not a current allow decision. Applicability and running-work status are unknown. Revocation denies subsequent consumes; it does not stop or roll back already-running effects."
                  AutomationProperties.Name="Exact grant scope and evidence limitations" TextWrapping="Wrap" />
     </StackPanel>
-    <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="12">
+    <StackPanel Grid.Row="1" Spacing="8">
+      <WrapPanel>
+        <StackPanel Margin="0,0,12,0">
+          <TextBlock Text="Stored scope" />
+          <ComboBox ItemsSource="{Binding ScopeFilters}" SelectedItem="{Binding ScopeFilter}"
+                    AutomationProperties.Name="Exact stored grant scope filter, Any by default" MinWidth="120" />
+        </StackPanel>
+        <StackPanel Margin="0,0,12,0">
+          <TextBlock Text="Stored status (not applicability)" />
+          <ComboBox ItemsSource="{Binding StatusFilters}" SelectedItem="{Binding StatusFilter}"
+                    AutomationProperties.Name="Exact stored grant status filter, Any by default" MinWidth="180" />
+        </StackPanel>
+        <StackPanel Margin="0,0,12,0">
+          <TextBlock Text="Canonical ActionId (empty means any)" />
+          <TextBox Text="{Binding ActionIdFilter}" PlaceholderText="bounded.read"
+                   AutomationProperties.Name="Exact canonical lowercase ActionId filter" MinWidth="200" />
+        </StackPanel>
+        <StackPanel Margin="0,0,12,0">
+          <TextBlock Text="Original session GUID (correlation only)" />
+          <TextBox Text="{Binding OriginatingSessionFilter}" PlaceholderText="lowercase D GUID, or empty"
+                   AutomationProperties.Name="Exact original session GUID filter, not current session authority" MinWidth="300" />
+        </StackPanel>
+        <Button Content="Clear filters" Command="{Binding ClearFiltersCommand}"
+                AutomationProperties.Name="Clear exact inventory filters and retire prior results and confirmations" />
+      </WrapPanel>
+      <controls:NamedTextBlock Text="{Binding InventorySummary}" TextWrapping="Wrap"
+                              AutomationProperties.Name="Exact inventory query scan bounds, omitted rows and continuation" />
+      <WrapPanel>
       <Button Content="Refresh inventory" Command="{Binding RefreshCommand}" AutomationProperties.Name="Refresh exact grant inventory" />
       <Button Content="Next bounded page" Command="{Binding NextCommand}" AutomationProperties.Name="Read next bounded exact grant page" />
       <Button Content="Inspect selected exact ID" Command="{Binding InspectCommand}" AutomationProperties.Name="Inspect current selected exact grant ID" />
       <Button Content="Preview exact selected batch" Command="{Binding PreviewBatchCommand}" AutomationProperties.Name="Preview every explicitly selected exact grant" />
+      </WrapPanel>
     </StackPanel>
     <Grid Grid.Row="2" ColumnDefinitions="350,*" ColumnSpacing="12">
       <controls:ScrollableListBox ItemsSource="{Binding Records}" SelectedItem="{Binding Selected}"

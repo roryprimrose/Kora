@@ -35,6 +35,10 @@ internal sealed class ExactGrantTestStore(AudioControlTestStore intents, ExactGr
     internal Task<ExactGrantHistoryPage>? PendingHistory { get; set; }
     internal HostRequest? HistoryViewer { get; private set; }
     internal Func<bool>? HistoryAdmission { get; private set; }
+    internal ExactGrantQuery? LastQuery { get; private set; }
+    internal ExactGrantCursor? LastCursor { get; private set; }
+    internal CancellationToken PageToken { get; private set; }
+    internal int Pages { get; private set; }
 
     public ValueTask<ExactGrantHistoryPage> ReadExactGrantHistoryAsync(ExactGrantInspection inspected, HostRequest viewer,
         string? cursor, Func<bool> admitted, CancellationToken cancellationToken)
@@ -48,10 +52,17 @@ internal sealed class ExactGrantTestStore(AudioControlTestStore intents, ExactGr
     }
 
     public ValueTask<ExactGrantPage> ReadExactGrantPageAsync(ExactGrantCursor? cursor, CancellationToken cancellationToken)
+        => ReadExactGrantPageAsync(ExactGrantQuery.Unfiltered, cursor, cancellationToken);
+    public ValueTask<ExactGrantPage> ReadExactGrantPageAsync(ExactGrantQuery query, ExactGrantCursor? cursor, CancellationToken cancellationToken)
     {
+        LastQuery = query;
+        LastCursor = cursor;
+        PageToken = cancellationToken;
+        Pages++;
         BeforePage?.Invoke();
         return PendingPage is { } pending ? new(pending)
-            : ValueTask.FromResult(new ExactGrantPage(Current is { } current ? [current, .. Additional] : Additional, Next));
+            : ValueTask.FromResult(new ExactGrantPage(Current is { } current ? [current, .. Additional] : Additional, Next,
+                Additional.Length + (Current is null ? 0 : 1), ScannedThrough: Current?.Grant.Id.Value));
     }
     public ValueTask<ExactGrantInspection?> InspectExactGrantAsync(HostId<ApprovalIdentity> id, CancellationToken cancellationToken)
     {

@@ -298,6 +298,16 @@ for you.
 
 Open **Exact operation grants** from the tray menu. This is a separate native window for retained host-issued exact approval records, not the **Approvals** tab or the Markdown named-action preferences. It does not import or promote those preferences.
 
+Optional native **Stored scope** and **Stored status** filters default to **Any**. Empty **Canonical ActionId** and **Original session GUID** mean any recorded value. **Clear filters** explicitly restores these defaults; Refresh is still required. All specified predicates must match; they search successive bounded storage pages, not merely the displayed page.
+
+ActionId is exact ordinal/case-sensitive lowercase ASCII (letters/digits/dots/hyphens, 1–128 characters). Origin is an exact nonempty canonical lowercase D GUID. Do not add spaces, uppercase, shortened GUIDs or names: invalid values are explicitly refused, not normalized or replaced with an unfiltered read. Source and skill labels are not authority or inferred ActionIds.
+
+The inventory summary shows matches, validated candidates, advanced predicate omissions, advanced-through ID and Next/end. Each request advances at most **50 stored rows**, validates at most **51 candidates including deferred lookahead**, and returns **50 matches / 64 KiB serialized record metadata** at most. Byte-deferred matches are not skipped; empty pages can have Next.
+
+Next is signed for the exact filter digest, current private store lifetime, original committed audit sequence/hash and predecessor. Any audit-head change or invalid/foreign cursor requires explicit Refresh, never a silent reset. Restart needs a fresh query. Malformed/oversized/duplicate rows and invalid provenance fail even when excluded by your filters.
+
+Changing any filter retires current results/selection/history and single/batch previews/confirmations immediately, cancelling and suppressing late old queries. Fresh inspection and separate explicit confirmation remain mandatory. Original-session filtering is correlation only; independent Perpetual records remain searchable after origin removal. Stored Active does not mean allowed or executed.
+
 1. **Refresh inventory** reads a bounded page (at most **50 records / 64 KiB**) from the current private store. **Next bounded page** continues only that unchanged store snapshot; if it changes, refresh instead.
 2. Select the exact approval ID and choose **Inspect selected exact ID**. Review the current ID/revision, capability/source/skill, scope/original session/generation, creator/time/status, use count/last use/reason and SHA-256 binding identities. No raw parameters, scripts, credentials or provider bodies are shown.
 3. For an Active record only, tick **I reviewed the exact displayed ID and revision** and press **Confirm: revoke this exact inspected ID/revision**. Only that unchanged exact record is revoked, audited and read back. Selection/close/privacy/ownership/control changes retire the confirmation; stale or already terminal records require fresh inspection.
@@ -317,6 +327,8 @@ Tick the separate **I reviewed EVERY displayed exact batch ID** confirmation and
 Stored Active is **not** proof that an operation is currently allowed. Current applicability and already-running work are **unknown** in this window. Revocation denies subsequent exact-grant consumes; it does **not** stop or roll back an already-running effect. Missing/inapplicable data is not guessed. Failure or lost receipt certainty requires closing/reopening and fresh current inspection before any retry; no rollback is promised.
 
 Perpetual records have no expiry/retention/eviction and remain inspectable/revocable independently after origin-session retirement, using a fresh CURRENT native control session. Removed scoped records are unavailable. No global **revoke all** scan, creation/edit/broadening, revival, export, current allow-decision explanation, tool/model invocation or generic voice/typed management is available. Direct lock/power and named-action gates are unchanged.
+
+Filters are read-only native controls, not new tool execution descriptors or model/voice/typed commands. Resource/identity/destination/source/skill-name and current-applicability filters remain unavailable. Reads cannot mutate use counts or raw rows, change history membership, select/revive approvals, copy/export/speak/send content, renew session activity or trigger retention cleanup.
 
 ## Readiness and required tools
 

@@ -1191,6 +1191,20 @@ The tray's separate **Exact operation grants** window reads the initialized priv
 
 Select one exact approval ID, then **Inspect selected exact ID** to reread current immutable metadata. It shows the actual revision, capability/source/skill, binding/content SHA-256 identities, recorded effect classification, scope, original session/generation, creator channel/time, status, count, last use and retained revocation reason. Raw parameters, scripts, bodies, credentials and provider content are not displayed or logged.
 
+**Read-only exact inventory filters — 2026-10-11.** Native controls select stored `OperationGrantScope` (Once/Session/Perpetual) and `OperationGrantStatus` (Active/Consumed/Revoked), canonical ActionId and exact original session. Any scope/status and empty optional text preserve unfiltered inventory records, byte bound and ordinal approval-ID order. **Clear filters** is explicit.
+
+ActionId matches exactly, ordinally and case-sensitively: 1–128 lowercase ASCII letters, digits, dots or hyphens. Origin requires a nonempty canonical lowercase **D GUID** (`xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx`). No trimming, fuzzy names, source/skill inference, numeric enum input or invalid-to-unfiltered fallback is allowed. Invalid values require correction and explicit Refresh.
+
+Each request advances at most **50 stored candidate rows**, validates at most **51 candidates including deferred lookahead**, and returns at most **50 matches / 64 KiB serialized record metadata**. Counts distinguish validated candidates from advanced predicate omissions; the advanced-through ID and Next/end are disclosed. A matching record deferred by the byte bound is not omitted or skipped.
+
+An empty matching page can have **Next**: search later storage pages, not just displayed records. The signed cursor binds the typed filter digest, private store lifetime, original committed audit sequence/hash and advanced-through ID. Its predecessor is independently reread/validated. Any audit-head change invalidates Next; Refresh starts a new snapshot, never silently resets it.
+
+Every scanned row is validated before filtering, including duplicates, oversized/unknown rows, partition identity and committed provenance. Filtering does not hide corruption. Origin is recorded correlation only, never old-session authority: independently retained Perpetual records remain filterable after origin retirement. Stored Active remains unrelated to applicability or effect success.
+
+Changing any filter immediately clears results, selection, history, single/batch previews and confirmations, and cancels/suppresses late old queries. Refresh, fresh exact inspection and separate review/confirmation are still required. Filters cannot select a batch, mutate grants/use counts/history membership, create approvals, renew activity or alter scope, consent or retention.
+
+This is native read-only navigation, not an execution descriptor. Model/voice/typed filter mutation, resource/identity/destination/source/skill-name filters, applicability queries, copy/export/network/speech and forensic observations remain unavailable. Broader proposed permissions controls above and the separately owned action-level permission design are not delivered by these filters.
+
 Active is a stored status, not a current allow decision. Current applicability and already-running work status remain explicitly **unknown**. Missing or removed scoped records are unavailable; independent Perpetual records remain inspectable and revocable after their originating session is retired, without inventing authority for that old session. Perpetual records have no expiry, retention or eviction.
 
 For one active record, review the displayed ID/revision, tick its explicit confirmation and press **Confirm: revoke this exact inspected ID/revision**. A fresh original native-user request and current host-owned control session are committed. The shared store serializes preview/current revision, use, revocation and lifecycle checks with requested/terminal typed audit and the retained revision increment. Changed selection, ownership/privacy/control lifetime or stale/foreign metadata fails closed.

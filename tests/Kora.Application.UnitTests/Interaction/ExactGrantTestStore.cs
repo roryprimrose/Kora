@@ -1,4 +1,4 @@
-using Kora.Application.UnitTests.Configuration;
+﻿using Kora.Application.UnitTests.Configuration;
 using Kora.Core.Auditing;
 using Kora.Core.Authorization;
 using Kora.Core.Hosting;
@@ -30,6 +30,22 @@ internal sealed class ExactGrantTestStore(AudioControlTestStore intents, ExactGr
     internal ExactGrantBatchDecision? BatchResult { get; set; }
     internal Action? BeforePreview { get; set; }
     internal ExactGrantBatch? PreviewResult { get; set; }
+    internal Action? BeforeHistory { get; set; }
+    internal ExactGrantHistoryPage? HistoryResult { get; set; }
+    internal Task<ExactGrantHistoryPage>? PendingHistory { get; set; }
+    internal HostRequest? HistoryViewer { get; private set; }
+    internal Func<bool>? HistoryAdmission { get; private set; }
+
+    public ValueTask<ExactGrantHistoryPage> ReadExactGrantHistoryAsync(ExactGrantInspection inspected, HostRequest viewer,
+        string? cursor, Func<bool> admitted, CancellationToken cancellationToken)
+    {
+        HistoryViewer = viewer;
+        HistoryAdmission = admitted;
+        BeforeHistory?.Invoke();
+        if (ReadFailure is { } failure) { throw failure; }
+        return PendingHistory is { } pending ? new(pending)
+            : ValueTask.FromResult(HistoryResult ?? new(Current, [], null, DateTimeOffset.UnixEpoch, 1, new string('a', 64), 1, 1, false));
+    }
 
     public ValueTask<ExactGrantPage> ReadExactGrantPageAsync(ExactGrantCursor? cursor, CancellationToken cancellationToken)
     {

@@ -1,4 +1,4 @@
-using System.Collections.Immutable;
+﻿using System.Collections.Immutable;
 using System.Text.Json;
 
 using Avalonia.Automation;
@@ -60,7 +60,8 @@ public sealed class WindowsSqliteExactGrantBatchTests
             {
                 window.Show();
                 await state.RefreshAsync(f.Token);
-                var list = window.GetVisualDescendants().OfType<ListBox>().Single();
+                var list = window.GetVisualDescendants().OfType<ListBox>().Single(item =>
+                    string.Equals(AutomationProperties.GetName(item), "Retained exact operation grants", StringComparison.Ordinal));
                 list.SelectionMode.Should().Be(SelectionMode.Multiple);
                 AutomationProperties.GetName(list).Should().Be("Retained exact operation grants");
                 list.SelectedItems!.Add(state.Records[0]);

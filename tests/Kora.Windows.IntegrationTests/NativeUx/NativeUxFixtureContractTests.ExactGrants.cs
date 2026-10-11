@@ -1,4 +1,4 @@
-using System.Text.Json;
+﻿using System.Text.Json;
 
 using Avalonia.Controls;
 using Avalonia.Automation.Peers;
@@ -70,7 +70,8 @@ public sealed partial class NativeUxFixtureContractTests
                 var records = state.Records;
                 var selection = state.Selected;
                 var inspection = state.Inspection;
-                var list = window.GetLogicalDescendants().OfType<ListBox>().Single();
+                var list = window.GetLogicalDescendants().OfType<ListBox>().Single(item =>
+                    string.Equals(Avalonia.Automation.AutomationProperties.GetName(item), "Retained exact operation grants", StringComparison.Ordinal));
                 list.Items.Count.Should().Be(records.Length);
                 foreach (var (label, displayed) in new[]
                 {

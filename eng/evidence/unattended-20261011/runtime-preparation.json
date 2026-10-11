@@ -1,0 +1,113 @@
+{
+  "schemaVersion": 1,
+  "evidenceKind": "unattended-runtime-offline-preparation",
+  "observedAtUtc": "2026-10-10T23:18:54.9571725+00:00",
+  "testedCheckoutHead": "cf44a5f2bc893a5d19f445b4fc4dd31a204b7d18",
+  "historicalBase": "56df1ee136a687d8cd3e2294ca25e38f9eab75dd",
+  "historicalFilesChecked": 133,
+  "historicalEvidenceUnchanged": true,
+  "preparationDisposition": "Pass: offline checks completed; not runtime/provider admission",
+  "processExitCode": 2,
+  "contracts": {
+    "passed": 51,
+    "total": 51,
+    "receiptLocaleContractsPassed": 2,
+    "receiptLocaleContractsTotal": 2
+  },
+  "hostComponents": {
+    "status": "Pass",
+    "total": 22,
+    "passed": 22,
+    "failed": 0,
+    "skipped": 0,
+    "sdk": "10.0.401",
+    "runtime": "10.0.12",
+    "trxSha256": "c7c7b079019dfac7fab69615a202aee0838c29ec1a7e326f8571c843292a5327",
+    "scope": "MG1 host components, including synthetic loopback HTTP only; no Copilot SDK/native or account/provider trials."
+  },
+  "restore": {
+    "lockedMode": true,
+    "source": "https://msazure.pkgs.visualstudio.com/One/_packaging/Networking-AAA/nuget/v3/index.json",
+    "temporaryConfigOutsideRepository": true,
+    "alternateFeedFallback": false,
+    "repositoryPackageSourceChanges": false
+  },
+  "artifacts": [
+    {
+      "name": "source-built-sdk",
+      "status": "Blocked",
+      "expectedSha256": "0b609b73c868099d64e7d5320b927d760d528756ab7c5db0b5692f5dccbf9b3f",
+      "actualSha256": null,
+      "reason": "Not supplied; no ambient cache search or acquisition."
+    },
+    {
+      "name": "released-sdk",
+      "status": "Blocked",
+      "expectedSha256": "c5518980b71d0ef0abd39ecdec7834898878222290c7fd1099a9040c8c5bf2ef",
+      "actualSha256": null,
+      "reason": "Not supplied; no ambient cache search or acquisition."
+    },
+    {
+      "name": "copilot-runtime.exe",
+      "status": "Blocked",
+      "expectedSha256": "7021cf1f25eb6b75e64c05e8f805747c62dd420dc8760659660291809e92603a",
+      "actualSha256": null,
+      "reason": "Not supplied; no ambient cache search or acquisition."
+    },
+    {
+      "name": "runtime.node",
+      "status": "Blocked",
+      "expectedSha256": "41ebb48367f96c984babde61afb68f22a85ab8fd9c037fdccf1778881c4bba05",
+      "actualSha256": null,
+      "reason": "Not supplied; no ambient cache search or acquisition."
+    }
+  ],
+  "stages": [
+    {
+      "id": "offline-preparation",
+      "status": "Ready"
+    },
+    {
+      "id": "synthetic-runtime-regression",
+      "status": "Blocked"
+    },
+    {
+      "id": "dedicated-host-rt2",
+      "status": "Blocked"
+    },
+    {
+      "id": "pv1-execution",
+      "status": "Blocked"
+    },
+    {
+      "id": "pv1-management",
+      "status": "Blocked"
+    },
+    {
+      "id": "r08",
+      "status": "Blocked"
+    },
+    {
+      "id": "r13-model-assisted",
+      "status": "Blocked"
+    },
+    {
+      "id": "r13-deterministic-core",
+      "status": "Independent"
+    }
+  ],
+  "operations": {
+    "copilotNativeLaunches": 0,
+    "traceSessionsStarted": 0,
+    "providerAccountOperations": 0,
+    "liveProviderCalls": 0,
+    "installsOrPolicyChanges": 0,
+    "productionEnabled": false
+  },
+  "receiptHashes": {
+    "readinessSha256": "d0943d430c27cea8c909d08609a96dc29b002d9a3be5bf161d40ad1eae51f0cc",
+    "operatorRequestsSha256": "54db709da45e747c61c99e1629c92345f837cee2245d70a811cc4736487b850e",
+    "contractsSha256": "5850c6cc563614870dab79635222517189b07302eae4ea9897e3d90c7eca4f4e"
+  },
+  "rawArtifactsCommitted": false
+}

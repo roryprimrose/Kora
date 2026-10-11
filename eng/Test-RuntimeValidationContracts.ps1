@@ -73,6 +73,20 @@ $mainLike = Join-Path $OutputDirectory 'not-a-linked-worktree'
 New-Item -ItemType Directory -Path $mainLike | Out-Null
 Reject 'A non-linked checkout cannot run preparation' { Assert-RuntimePreparationCheckout $mainLike }
 Remove-Item -LiteralPath $mainLike
+$identity = Assert-RuntimePreparationCheckout $repository
+Check ($identity.base -ceq '56df1ee136a687d8cd3e2294ca25e38f9eab75dd' -and
+    $identity.head -ceq (& git -C $repository rev-parse HEAD | Out-String).Trim()) `
+    'Current reviewed historical baseline is accepted without weakening checkout identity'
+$changedHistoricalPath = Join-Path $repository 'experiments\r02-runtime-proof\README.md'
+$originalHistoricalBytes = [IO.File]::ReadAllBytes($changedHistoricalPath)
+try {
+    [IO.File]::AppendAllText($changedHistoricalPath, [Environment]::NewLine)
+    Reject 'Historical input changes after the reviewed baseline remain rejected' {
+        Assert-RuntimePreparationCheckout $repository
+    }
+} finally {
+    [IO.File]::WriteAllBytes($changedHistoricalPath, $originalHistoricalBytes)
+}
 
 $stages = @(Get-RuntimeValidationStages)
 Check (@($stages | Where-Object { $_.id -ne 'offline-preparation' -and $_.id -ne 'r13-deterministic-core' -and $_.status -cne 'Blocked' }).Count -eq 0) `

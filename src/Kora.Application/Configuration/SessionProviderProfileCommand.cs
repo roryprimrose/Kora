@@ -9,10 +9,11 @@ namespace Kora.Application.Configuration;
 public sealed record SessionProviderProfileCommand(AppearanceCommandOperation Operation, Guid? Session = null,
     SessionProviderField? Field = null, ProviderService? Service = null, string? Model = null,
     string? Reasoning = null, string? Context = null, string? Account = null, long CatalogueRevision = 0,
-    Guid? Confirmation = null, string? Error = null)
+    Guid? Confirmation = null, string? Error = null, string? Choice = null)
 {
     public const string Syntax = "get providers.session.profile for <session-id> | "
         + "set providers.session.service for <session-id> to Unset|Local|Copilot|Claude|Codex | "
+        + "set providers.session.<model|reasoning|context> for <session-id> to <exact-option-id> for <account-id> at <catalogue-revision> | "
         + "set providers.session.<model|reasoning|context|profile> for <session-id> to <model-id> <reasoning-id> <context-id> for <account-id> at <catalogue-revision> | "
         + "reset providers.session.<service|model|reasoning|context|profile> for <session-id> | "
         + "confirm providers.session.profile <host-issued-confirmation-id>. "
@@ -56,6 +57,20 @@ public sealed record SessionProviderProfileCommand(AppearanceCommandOperation Op
             foreach (var service in Enum.GetValues<ProviderService>())
             { if (service.ToString().Equals(parts[5], StringComparison.OrdinalIgnoreCase)) { return new(AppearanceCommandOperation.Set, session, field, service); } }
             return Invalid();
+        }
+        if (field is SessionProviderField.Model or SessionProviderField.Reasoning or SessionProviderField.Context
+            && parts.Length == 10 && string.Equals(parts[6], "for", StringComparison.Ordinal) && string.Equals(parts[8], "at", StringComparison.Ordinal)
+            && long.TryParse(parts[9], NumberStyles.None, CultureInfo.InvariantCulture, out var fieldRevision) && fieldRevision > 0
+            && string.Equals(parts[9], fieldRevision.ToString(CultureInfo.InvariantCulture), StringComparison.Ordinal))
+        {
+            try
+            {
+                ProviderProfileRules.ValidateId(parts[5]);
+                ProviderProfileRules.ValidateId(parts[7]);
+                return new(AppearanceCommandOperation.Set, session, field, Account: parts[7],
+                    CatalogueRevision: fieldRevision, Choice: parts[5]);
+            }
+            catch (InvalidDataException) { return Invalid(); }
         }
         if (field == SessionProviderField.Service || parts.Length != 12 || !string.Equals(parts[8], "for", StringComparison.Ordinal) || !string.Equals(parts[10], "at", StringComparison.Ordinal)
             || !long.TryParse(parts[11], NumberStyles.None, CultureInfo.InvariantCulture, out var revision) || revision <= 0

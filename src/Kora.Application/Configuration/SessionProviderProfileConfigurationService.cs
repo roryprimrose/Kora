@@ -30,11 +30,7 @@ public sealed partial class SessionProviderProfileConfigurationService(
             var app = preferences.Load() ?? new ProviderProfilePreferences(
                 current.Installation == LocalProviderInstallation.Installed ? ProviderService.Local : ProviderService.Unset, []);
             if (!admitted() || !eligible() || token.IsCancellationRequested) { throw new InvalidOperationException("Provider inspection lost private session/input admission."); }
-            var effectiveService = saved.Desired.EffectiveService(app);
-            var desired = saved.Desired.ResolveDesired(app);
-            var effective = !saved.Held && effectiveService != ProviderService.Unset
-                && (effectiveService != ProviderService.Local || current.Installation == LocalProviderInstallation.Installed)
-                && ProviderProfileRules.Resolve(desired, current.For(effectiveService), time.GetUtcNow()) is not null ? desired : null;
+            var effective = saved.Held ? null : ResolveEffective(saved.Desired, app, current);
             return new SessionProviderDraft(saved, app, current, effective, originalOrigin, admitted, appConfiguration.Get().Revision);
         }, token).ConfigureAwait(false);
         lock (gate)
@@ -55,10 +51,30 @@ public sealed partial class SessionProviderProfileConfigurationService(
     }
 
     public SessionProviderProposal SelectService(SessionProviderDraft draft, ProviderService service) =>
-        Issue(draft, new(service, draft.Saved.Desired.Model, draft.Saved.Desired.Reasoning, draft.Saved.Desired.Context, draft.Saved.Desired.Binding));
+        Issue(draft, new(service, draft.Saved.Desired.Model, draft.Saved.Desired.Reasoning, draft.Saved.Desired.Context, draft.Saved.Desired.Binding), SessionProviderField.Service);
 
     public SessionProviderProposal Reset(SessionProviderDraft draft, SessionProviderField? field = null) =>
-        Issue(draft, field is { } selected ? draft.Saved.Desired.Reset(selected) : SessionProviderOverrides.Inherit);
+        Issue(draft, field is { } selected ? draft.Saved.Desired.Reset(selected) : SessionProviderOverrides.Inherit, field);
+
+    public SessionProviderProposal SelectField(SessionProviderDraft draft, SessionProviderField field, ProviderChoiceId id)
+    {
+        var profileField = field switch
+        {
+            SessionProviderField.Model => ProviderProfileField.Model,
+            SessionProviderField.Reasoning => ProviderProfileField.Reasoning,
+            SessionProviderField.Context => ProviderProfileField.Context,
+            _ => throw new InvalidDataException("Select a model, reasoning or context field; service has its own review."),
+        };
+        var current = draft.Catalogue;
+        var effective = draft.Effective;
+        if (current is null || ProviderProfileRules.Resolve(effective, current, time.GetUtcNow()) is null)
+        { throw new InvalidOperationException("No complete current effective session tuple. Reset unavailable overrides or review the complete profile; no choice was fabricated."); }
+        var candidate = ProviderProfileRules.ReplaceField(effective!, profileField, id);
+        var model = ProviderProfileRules.Resolve(candidate, current, time.GetUtcNow())
+            ?? throw new InvalidOperationException("The exact field choice is unavailable or incompatible with retained reasoning/context. Review the complete profile; no dependent choice was cleared.");
+        return Select(draft, field, model, model.Reasoning.Single(option => option.Id == candidate.Reasoning),
+            model.Context.Single(option => option.Id == candidate.Context));
+    }
 
     public SessionProviderProposal Select(SessionProviderDraft draft, SessionProviderField? field,
         ProviderCatalogueModel model, ProviderProfileOption reasoning, ProviderProfileOption context)
@@ -71,20 +87,32 @@ public sealed partial class SessionProviderProfileConfigurationService(
             || current.Service == ProviderService.Local && draft.Observation.Installation != LocalProviderInstallation.Installed)
         { throw new InvalidOperationException("Choose exact options from the current effective service/account/model catalogue."); }
         var binding = new ProviderProfileTuple(current.Service, current.Account!, current.Revision, model.Id, reasoning.Id, context.Id);
-        return Issue(draft, draft.Saved.Desired.Select(binding, field));
+        var desired = draft.Saved.Desired.Select(binding, field);
+        if (desired.ResolveDesired(draft.App) != binding)
+        { throw new InvalidOperationException("The sparse result does not resolve to the reviewed tuple. Reset dependent overrides or review the complete profile; inherited fields were not frozen."); }
+        return Issue(draft, desired, field);
     }
 
-    private SessionProviderProposal Issue(SessionProviderDraft draft, SessionProviderOverrides desired)
+    private SessionProviderProposal Issue(SessionProviderDraft draft, SessionProviderOverrides desired, SessionProviderField? field)
     {
         lock (gate)
         {
             if (applying || !drafts.Contains(draft) || draft.Saved.Held || !draft.Saved.Session.IsActive
                 || !draft.RemainsAdmitted() || drafts.Count + proposals.Count >= 64)
             { throw new InvalidOperationException("Inspect an exact active session under current original-user admission before reviewing changes."); }
-            var proposal = new SessionProviderProposal(draft, desired);
+            var proposal = new SessionProviderProposal(draft, desired, field, ResolveEffective(desired, draft.App, draft.Observation));
             proposals.Add(proposal);
             return proposal;
         }
+    }
+
+    private ProviderProfileTuple? ResolveEffective(SessionProviderOverrides policy, ProviderProfilePreferences app, ProviderCatalogueObservation observation)
+    {
+        var service = policy.EffectiveService(app);
+        var tuple = policy.ResolveDesired(app);
+        return service != ProviderService.Unset
+            && (service != ProviderService.Local || observation.Installation == LocalProviderInstallation.Installed)
+            && ProviderProfileRules.Resolve(tuple, observation.For(service), time.GetUtcNow()) is not null ? tuple : null;
     }
 
     public async Task<SessionProviderProfile> Confirm(SessionProviderProposal proposal, RequestOrigin origin,

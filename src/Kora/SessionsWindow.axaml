@@ -61,6 +61,25 @@
           <Button x:Name="ReviewProviderService" Content="Review service override" IsEnabled="{Binding CanReviewProviders}" />
           <Button x:Name="ResetProviderService" Content="Inherit app service" IsEnabled="{Binding CanReviewProviders}" />
         </WrapPanel>
+        <TextBlock Text="Change only one field from the current effective tuple. Retained choices must remain compatible; otherwise use complete-profile review below." TextWrapping="Wrap" />
+        <WrapPanel>
+          <ComboBox ItemsSource="{Binding ProviderModels}" SelectedItem="{Binding ProviderFieldModel, Mode=TwoWay}" Width="200"
+              IsEnabled="{Binding CanSelectProviderField}" AutomationProperties.Name="Only session model override; retains effective reasoning and context without freezing inheritance">
+            <ComboBox.ItemTemplate><DataTemplate><TextBlock Text="{Binding Label}" /></DataTemplate></ComboBox.ItemTemplate>
+          </ComboBox>
+          <Button x:Name="ReviewProviderModel" Content="Review model only" IsEnabled="{Binding CanReviewProviderModelField}" />
+          <ComboBox ItemsSource="{Binding ProviderFieldReasonings}" SelectedItem="{Binding ProviderFieldReasoning, Mode=TwoWay}" Width="150"
+              IsEnabled="{Binding CanSelectProviderField}" AutomationProperties.Name="Only session reasoning override; options belong to current effective model">
+            <ComboBox.ItemTemplate><DataTemplate><TextBlock Text="{Binding Label}" /></DataTemplate></ComboBox.ItemTemplate>
+          </ComboBox>
+          <Button x:Name="ReviewProviderReasoning" Content="Review reasoning only" IsEnabled="{Binding CanReviewProviderReasoningField}" />
+          <ComboBox ItemsSource="{Binding ProviderFieldContexts}" SelectedItem="{Binding ProviderFieldContext, Mode=TwoWay}" Width="150"
+              IsEnabled="{Binding CanSelectProviderField}" AutomationProperties.Name="Only session context override; options belong to current effective model and cannot raise security envelope">
+            <ComboBox.ItemTemplate><DataTemplate><TextBlock Text="{Binding Label}" /></DataTemplate></ComboBox.ItemTemplate>
+          </ComboBox>
+          <Button x:Name="ReviewProviderContext" Content="Review context only" IsEnabled="{Binding CanReviewProviderContextField}" />
+        </WrapPanel>
+        <TextBlock Text="Complete-profile recovery: explicitly choose all three values. This replaces all dependent overrides, not app preferences." TextWrapping="Wrap" />
         <WrapPanel>
           <ComboBox ItemsSource="{Binding ProviderModels}" SelectedItem="{Binding ProviderModel, Mode=TwoWay}" Width="200"
               IsEnabled="{Binding CanSelectProviderModel}" AutomationProperties.Name="Exact current advertised model; empty means unavailable, never fake choices">
@@ -74,9 +93,6 @@
               IsEnabled="{Binding CanSelectProviderModel}" AutomationProperties.Name="Exact current model-specific context option; cannot raise security envelope">
             <ComboBox.ItemTemplate><DataTemplate><TextBlock Text="{Binding Label}" /></DataTemplate></ComboBox.ItemTemplate>
           </ComboBox>
-          <Button x:Name="ReviewProviderModel" Content="Review model" IsEnabled="{Binding CanReviewProviderModel}" />
-          <Button x:Name="ReviewProviderReasoning" Content="Review reasoning" IsEnabled="{Binding CanReviewProviderModel}" />
-          <Button x:Name="ReviewProviderContext" Content="Review context" IsEnabled="{Binding CanReviewProviderModel}" />
           <Button x:Name="ReviewProviderTuple" Content="Review complete exact tuple" IsEnabled="{Binding CanReviewProviderModel}" />
         </WrapPanel>
         <WrapPanel>

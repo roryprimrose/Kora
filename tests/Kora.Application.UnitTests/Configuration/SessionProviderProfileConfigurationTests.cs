@@ -179,8 +179,7 @@ public sealed class SessionProviderProfileConfigurationTests
     {
         await using var f = new Fixture(current: true);
         var draft = await f.Inspect();
-        var model = draft.Catalogue!.Models.Single();
-        var proposal = f.Service.Select(draft, null, model, model.Reasoning[0], model.Context[0]);
+        var proposal = f.Service.SelectField(draft, SessionProviderField.Context, new("managed-window"));
         switch (drift)
         {
             case "account": f.Profiles.Catalogue.Account = "other"; break;

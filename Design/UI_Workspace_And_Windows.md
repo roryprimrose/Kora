@@ -25,6 +25,8 @@ Every session/task/question/artifact control names its actual target; ambient an
 
 Individual **Inherit app** resets only that field; **Use app defaults for this session** reviews clearing all four. The same [exact typed/current-name activated service](Model_Providers_Memory_And_Knowledge.md#session-overrides-and-effective-resolution) owns commits. No selection means select a session, never app fallback.
 
+The independent model/reasoning/context pickers change only one sparse field from the current effective tuple; reasoning/context options come from the effective model, not the separate complete-profile draft. Review displays the field, old/new whole effective tuple, sparse changes and revisions. Missing/incompatible tuples require complete-profile recovery; picker changes invalidate native confirmation and cancel writes nothing.
+
 Production supplies no models, so model-dependent save controls are unavailable. Desired service selection remains unresolved and cannot authenticate, dispatch, increase an envelope or reroute the buffered local reasoner. Headless controls/private-store assertions do not qualify native hardware/accessibility/provider installation.
 
 ### Delivered Authoritative Sessions Work Surface - 2026-10-09

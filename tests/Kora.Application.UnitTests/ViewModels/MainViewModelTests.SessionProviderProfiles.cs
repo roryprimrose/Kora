@@ -11,6 +11,58 @@ namespace Kora.Application.UnitTests.ViewModels;
 public sealed partial class MainViewModelTests
 {
     [Theory]
+    [InlineData("model", "compatible-model", false)]
+    [InlineData("reasoning", "exact-effort", false)]
+    [InlineData("context", "exact-window", false)]
+    [InlineData("model", "compatible-model", true)]
+    [InlineData("reasoning", "exact-effort", true)]
+    [InlineData("context", "exact-window", true)]
+    public async Task ShortOriginalInputFieldRouteReviewsWholeEffectiveTupleAndConfirmsOnlySparseChoice(string field, string id, bool voice)
+    {
+        var f = new Fixture();
+        await using var admission = f.OutputAdmission;
+        await using var policy = new SessionProviderProfileConfigurationTests.Fixture(current: true);
+        policy.Profiles.Catalogue.FieldCatalogue = true;
+        f.ViewModel.BindSessionProviderProfiles(policy.Service);
+        f.Voice.Microphones = [new MicrophoneDevice("voice-fixture", "Synthetic microphone")];
+        f.Voice.DefaultMicrophoneId = "voice-fixture";
+        await f.ViewModel.InitializeAsync();
+        async Task Run(string text)
+        {
+            if (voice) { await f.RaiseActivatedTranscriptAsync("Kora, " + text, 1); }
+            else { await f.RunAsync(text); }
+        }
+        await Run("set providers.session." + field + " for " + policy.Session.SessionId.Value.ToString("D") + " to " + id + " for account at 1");
+        policy.Snapshot.Revision.Should().Be(0);
+        using var body = JsonDocument.Parse(f.ViewModel.ResponseBody);
+        body.RootElement.GetProperty("PreviousEffective").GetProperty("Model").GetProperty("Value").GetString().Should().Be("exact-model");
+        body.RootElement.GetProperty("ResultingEffective").GetProperty("Service").GetString().Should().Be(nameof(ProviderService.Local));
+        await Run(body.RootElement.GetProperty("confirmation").GetString()!);
+        policy.Snapshot.Revision.Should().Be(1);
+        policy.Snapshot.Desired.Service.Should().BeNull();
+        policy.Snapshot.Desired.Model.Should().Be(field is "model" ? new ProviderChoiceId(id) : null);
+        policy.Snapshot.Desired.Reasoning.Should().Be(field is "reasoning" ? new ProviderChoiceId(id) : null);
+        policy.Snapshot.Desired.Context.Should().Be(field is "context" ? new ProviderChoiceId(id) : null);
+        policy.Profiles.Preferences.Writes.Should().Be(0);
+        f.Reasoner.Requests.Should().BeEmpty();
+        policy.Store.Tasks.Should().OnlyContain(task => task.Request.Origin == (voice ? Kora.Core.Hosting.RequestOrigin.ActivatedVoice : Kora.Core.Hosting.RequestOrigin.LocalUi));
+    }
+
+    [Fact]
+    public async Task FabricatedShortCommandWithoutFieldCannotReviewOrWritePolicy()
+    {
+        var f = new Fixture();
+        await using var admission = f.OutputAdmission;
+        await using var policy = new SessionProviderProfileConfigurationTests.Fixture(current: true);
+        f.ViewModel.BindSessionProviderProfiles(policy.Service);
+        await f.ViewModel.InitializeAsync();
+        await f.ViewModel.ExecuteSessionProviderProfileCommand(new(AppearanceCommandOperation.Set, policy.Session.SessionId.Value,
+            Account: "account", CatalogueRevision: 1, Choice: "exact-model"), SecurityAuditInitiator.TypedCommand);
+        policy.Snapshot.Revision.Should().Be(0);
+        f.ViewModel.ResponseTitle.Should().Be("Session provider policy not confirmed.");
+    }
+
+    [Theory]
     [InlineData("unauthorized")]
     [InlineData("disposed")]
     [InlineData("privacy")]

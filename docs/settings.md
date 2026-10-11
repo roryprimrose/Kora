@@ -276,6 +276,8 @@ In **Sessions**, select an existing exact session, expand **Selected-session pro
 
 Service/model/reasoning/context each start as **Inherit app**. Review one exact desired field, then use **Confirm exact selected-session proposal** separately. **Inherit app service/model/reasoning/context** resets just one field; **Use app defaults for this session** reviews clearing all four. Cancel/close saves nothing. Session overrides never write app preferences.
 
+Choose only one model, reasoning or context option in the independent field pickers; the other two choices come from the current effective tuple, not the separate full-profile draft. Review shows old/new whole effective tuples and sparse changes. Only the selected field becomes explicit. Missing/incompatible state requires complete-profile recovery; retained nulls inherit later app edits. Changing a picker invalidates confirmation.
+
 Service can remain desired/unresolved. Model-dependent saves require the current exact advertised catalogue; production has no models, so these save controls stay unavailable. A service override inherits that service's app tuple, not another service's IDs. Stale session/selection/generation/policy/app revision or catalogue/account changes refuse confirmation without substitution.
 
 Later edits affect future admitted provider-neutral turns only. Existing LocalOnly/handoff/envelope boundaries and the buffered local bootstrap reasoner are unchanged; no authentication, network/model call or egress is enabled. [Exact commands and recovery](commands.md#inspect-or-change-an-exact-session-provider-profile) share the same private durable session-policy workflow.

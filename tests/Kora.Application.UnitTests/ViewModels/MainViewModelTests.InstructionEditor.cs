@@ -1,4 +1,4 @@
-using AwesomeAssertions;
+﻿using AwesomeAssertions;
 
 using Kora.Core.Communication;
 using Kora.Core.Artifacts;
@@ -15,6 +15,8 @@ public sealed partial class MainViewModelTests
     [InlineData("Kora, instructions edit example", "Inspect", "example")]
     [InlineData("instructions inspect example", "Inspect", "example")]
     [InlineData("instructions save", "Save", null)]
+    [InlineData("instructions copy new-copy", "Save as new copy", "new-copy")]
+    [InlineData("Kora, instructions copy new-copy", "Save as new copy", "new-copy")]
     [InlineData("instructions reload", "Reload", null)]
     [InlineData("instructions discard", "Reload", null)]
     [InlineData("instructions cancel", "Cancel", null)]
@@ -26,6 +28,8 @@ public sealed partial class MainViewModelTests
     [InlineData("Kora, prompts edit example", "Inspect", "example")]
     [InlineData("prompts inspect example", "Inspect", "example")]
     [InlineData("prompts save", "Save", null)]
+    [InlineData("prompts copy new-copy", "Save as new copy", "new-copy")]
+    [InlineData("Kora, prompts copy new-copy", "Save as new copy", "new-copy")]
     [InlineData("prompts reload", "Reload", null)]
     [InlineData("prompts discard", "Reload", null)]
     [InlineData("prompts cancel", "Cancel", null)]

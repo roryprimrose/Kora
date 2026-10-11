@@ -9,7 +9,7 @@ No AI model, hosted account or network is involved in editing.
 
 | Kind/source/channel | This increment |
 |---|---|
-| Kora-owned instructions | Native single-file create/list/inspect/edit/Save/reload/Delete and separate explicit-use review |
+| Kora-owned instructions | Native single-file create/list/inspect/edit/Save/Save as new copy/reload/Delete and separate explicit-use review |
 | Kora-owned prompts | The same editor and reviews for literal saved user requests; no parameters/substitutions or instruction/system authority |
 | Registered profile instructions | Existing read/selection only; no original writer or fork |
 | Skills and agents | Existing bounded readers only; authoring is a separate follow-on |
@@ -42,7 +42,7 @@ at most 16 fields/4096 UTF-8 bytes: `kora-format: 1`, `name`, `description`, opt
 Compatible legacy headers without the version marker can round-trip unchanged.
 A changed Save explicitly includes the v1 marker in the reviewed proposed source, retaining unrelated metadata/BOM/line endings.
 Unknown metadata, scopes or
-unsupported formats are not silently removed; use an external editor. Fork is not implemented.
+unsupported formats are not silently removed; use an external editor. Copying an unsupported source is unavailable.
 The editable prompt subset requires `name` and `description` and a literal body.
 Parameter declarations, `${...}` substitutions, tools/model/agent references and
 other unsupported metadata are incompatible, not silently interpreted. This is
@@ -51,7 +51,21 @@ not full Copilot prompt-format support. Original unchanged legacy reader behavio
 **Save** (or `instructions save`) shows full original/proposed source and both exact digests.
 Confirm only after reviewing metadata, body and attribution. **Delete** / `instructions delete`
 has its own destructive exact-original review; source removal is not deletion.
-No rename, restore, backup-copy, script, agent-execution or generic file-editor controls are offered.
+No rename, restore, profile fork, script, agent-execution or generic file-editor controls are offered.
+
+## Save an owned draft as a new copy
+
+Inspect a supported canonical **native v1 owned** source. Edit its draft, enter a different canonical ID in **new-copy-owned-id**, then choose **Save as new copy**.
+`instructions copy new-id` and `prompts copy new-id` (also prefixed with the current assistant name) open the same native review. The command kind must match the open original; it never switches/discards the draft.
+Review the exact source ID/path/base revision and digest, frozen current draft, destination ID/path, BOM and complete proposed bytes.
+Only the draft's declared `name` is replaced with the chosen new ID; supported metadata, attribution, body, BOM and line endings are retained. Missing instruction names remain filename-derived. No attribution or provenance is invented.
+Legacy files without `kora-format: 1`, noncanonical originals and unsupported metadata remain unavailable for copy rather than being implicitly upgraded or imported.
+
+The destination must be absent at final comparison and publication uses atomic create-no-replace. Occupied, concurrently created or case-aliased destinations cannot be overwritten: choose another new ID or cancel. Ordinary Save's accepted narrow replacement race does not apply to copy creation.
+Cancel writes nothing and keeps the original draft. Success keeps the original source and open draft intact and shows the new ID/digest receipt. Explicitly List/Inspect the destination when ready, acknowledging any dirty original before switching, and independently **Review use**.
+Copy does not save, discard, rename or delete the source, inherit its activation/grants, or retarget references. Disk changes do not silently replace the frozen reviewed source/draft.
+Changing draft, kind, selection, name, current command input, ownership or call/privacy/session admission invalidates copy review.
+A failed or unconfirmed publication can leave a durable destination; inspect/reconcile that ID explicitly. No rollback is claimed and the original's unchanged reviewed use is not held by the copy attempt.
 
 ## Resolve a conflict
 
@@ -68,7 +82,7 @@ replaced source directories, protected roots or arbitrary paths.
 
 **Reload** / `instructions reload` also asks before abandoning a dirty draft.
 Closing the dirty editor or exiting Kora offers **Save / Discard / Cancel**.
-Privacy closure clears private editor text and retires pending actions; cancelled or failed publication
+Privacy closure clears private editor text and retires pending actions; cancelled or failed ordinary publication
 may already have changed disk. In that case Kora holds further writes/use until explicit Reload/reconciliation,
 does not claim rollback, and reports recovery instead of false success.
 

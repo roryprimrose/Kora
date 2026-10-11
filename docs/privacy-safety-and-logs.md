@@ -467,6 +467,9 @@ Logs support diagnostics and future local reasoning, but intentionally omit:
 Configuration writes, application and script execution categories, approvals,
 protected operations, and their outcomes use typed audit events without raw
 sensitive content.
+Owned instruction/literal-prompt **Save as new copy** is a native-reviewed same-kind create-no-replace operation, not a profile-original writer.
+Typed requested/terminal copy audits bind the host request and a bounded hash of source-qualified base/draft/destination/proposal identity; no raw content enters tags or baggage.
+Source/draft remain intact, destination is disabled, and uncertain post-publication outcomes hold only the destination without claiming rollback or inherited authority.
 
 The current host writes both ordinary diagnostics and typed audit events
 to those files and independent private-profile SQLite projections. Required

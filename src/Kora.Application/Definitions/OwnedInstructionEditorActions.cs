@@ -1,4 +1,4 @@
-using Kora.Core.Artifacts;
+﻿using Kora.Core.Artifacts;
 using Kora.Core.Auditing;
 using Kora.Core.Hosting;
 using Kora.Core.Commands;
@@ -43,24 +43,45 @@ public sealed class OwnedInstructionEditorActions(
         return document;
     }
 
+    public OwnedDefinitionCopy PrepareCopy(string destinationName, OwnedInstructionSnapshot source, string draft)
+    {
+        source.Document.RequireOwnedCopySource();
+        OwnedInstructionNames.WriteName(source.Name);
+        OwnedInstructionNames.WriteName(destinationName);
+        if (source.Document.Definition.Kind != Kind
+            || !string.Equals(source.CanonicalFileName, source.Name + OwnedDefinitionKind.Extension(Kind), StringComparison.Ordinal)
+            || string.Equals(source.Name, destinationName, StringComparison.Ordinal))
+        { throw new InvalidDataException("A copy requires a supported canonical original owned source and a different new same-kind owned ID."); }
+        // No legacy upgrade or source re-read: both base and draft are the user's frozen owned editor snapshots.
+        var frozenDraft = ArtifactFileDocument.Parse(ArtifactFileDocument.Encode(draft, source.Document.HasBom), Kind, "kora-profile", source.Name);
+        var proposed = frozenDraft.WithOwnedCopyName(destinationName);
+        proposed = Validate(destinationName, proposed.Text, proposed.HasBom);
+        return new(source, frozenDraft, destinationName, proposed);
+    }
+
     public Task<InstructionWriteResult> Save(string name, OwnedInstructionSnapshot? expected,
         ArtifactFileDocument? replacement, Func<CancellationToken, Task<bool>> exactConfirmation,
-        Func<bool> eligible, CancellationToken token) =>
+        Func<bool> eligible, CancellationToken token, OwnedDefinitionCopy? copy = null,
+        Func<OwnedInstructionSnapshot, bool>? reconcile = null) =>
         admission.Run(eligible, async (request, session, current, admitted) =>
         {
             if (expected is not null && expected.Document.Definition.Kind != Kind
                 || replacement is not null && replacement.Definition.Kind != Kind)
             { throw new InvalidDataException("The exact mutation belongs to a different owned kind."); }
+            if (copy is not null && (expected is not null || !ReferenceEquals(replacement, copy.Proposed)
+                || !string.Equals(name, copy.DestinationName, StringComparison.Ordinal)))
+            { throw new InvalidDataException("The copy approval does not match the exact new-file proposal."); }
             if (!await exactConfirmation(admitted).ConfigureAwait(false))
             { return new InstructionWriteResult(false, false, false, expected); }
             admitted.ThrowIfCancellationRequested();
             await admission.Publish(request, session, current, static () => true, admitted).ConfigureAwait(false);
             var audit = new SecurityAuditEvent(request.RequestId.Value, SecurityAuditCategory.ConfigurationWrite,
-                replacement is null ? Kind == ArtifactKind.Instruction ? "definition.instruction.delete" : "definition.prompt.delete"
+                copy is not null ? Kind == ArtifactKind.Instruction ? "definition.instruction.copy" : "definition.prompt.copy"
+                    : replacement is null ? Kind == ArtifactKind.Instruction ? "definition.instruction.delete" : "definition.prompt.delete"
                     : Kind == ArtifactKind.Instruction ? "definition.instruction.save" : "definition.prompt.save",
                 SecurityAuditOutcome.Requested, request.Origin == RequestOrigin.ActivatedVoice
                     ? SecurityAuditInitiator.VoiceCommand : SecurityAuditInitiator.LocalUser,
-                Kind == ArtifactKind.Instruction ? "definition.owned-instruction" : "definition.owned-prompt");
+                copy?.AuditTarget ?? (Kind == ArtifactKind.Instruction ? "definition.owned-instruction" : "definition.owned-prompt"));
             auditLog.Write(audit);
             var unchanged = expected is not null && replacement is not null
                 && string.Equals(expected.Document.Definition.Digest, replacement.Definition.Digest, StringComparison.Ordinal);
@@ -68,11 +89,15 @@ public sealed class OwnedInstructionEditorActions(
             // Hold before any physical publication; failed/uncertain saves never leave old guidance current.
             try
             {
+                if (copy is not null) { _ = Validate(name, copy.Proposed.Text, copy.Proposed.HasBom); }
                 if (!unchanged) { HoldRevision(name); }
                 var result = await store.Write(name, expected, replacement, current,
                     operation => admission.Publish(request, session, current, operation, admitted).AsTask(), admitted).ConfigureAwait(false);
                 publicationObserved = result.Published;
                 await admission.Publish(request, session, current, static () => true, admitted).ConfigureAwait(false);
+                if (copy is not null && result.Published && reconcile is not null
+                    && !await admission.Publish(request, session, current, () => reconcile(result.Current!), admitted).ConfigureAwait(false))
+                { throw new IOException("The saved copy catalogue is unconfirmed. Inspect the destination; the original draft is retained."); }
                 if (result.Conflict) { HoldRevision(name); }
                 auditLog.Write(audit.WithOutcome(result.Conflict ? SecurityAuditOutcome.Failed : SecurityAuditOutcome.Succeeded,
                     result.Conflict ? "base-conflict" : null));

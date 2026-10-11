@@ -1,4 +1,4 @@
-using Kora.Core.Hosting;
+﻿using Kora.Core.Hosting;
 
 namespace Kora.Application.ViewModels;
 
@@ -38,11 +38,12 @@ public sealed partial class MainViewModel
             "editor" or "list" => "List", "create" => "Create", "edit" or "inspect" => "Inspect",
             "save" => "Save", "reload" or "discard" => "Reload", "delete" => "Delete", "activate" => "Review use",
             "cancel" => "Cancel",
+            "copy" => "Save as new copy",
             _ => null,
         };
         if (operation is null)
-        { ReportHostInteractionFailure("Use instructions/prompts editor/list/create/edit/inspect/save/reload/delete/activate/cancel. Body text and paths are not editor commands."); return; }
-        if (operation is "Create" or "Inspect" ? words.Length != 3 : words.Length != 2)
+        { ReportHostInteractionFailure("Use instructions/prompts editor/list/create/edit/inspect/save/copy/reload/delete/activate/cancel. Body text and paths are not editor commands."); return; }
+        if (operation is "Create" or "Inspect" or "Save as new copy" ? words.Length != 3 : words.Length != 2)
         { ReportHostInteractionFailure("Use an exact bounded owned ID; editor commands do not accept body text or paths."); return; }
         if ((prompt ? OwnedPromptEditorRequested : OwnedInstructionEditorRequested) is { } handler)
         { await handler(operation, words.Length == 3 ? words[2] : null); }

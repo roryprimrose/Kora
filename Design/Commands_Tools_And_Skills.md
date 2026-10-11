@@ -290,6 +290,8 @@ for a voice-first product; they do not warrant a parallel capability engine.
 
 The delivered owned instruction/literal prompt editor uses one closed
 Instruction/Prompt writer and admitted save/conflict/review machinery.
+Exact `instructions copy <new-id>` / `prompts copy <new-id>` and native **Save as new copy** review the current supported native v1 owned draft, create a distinct disabled same-kind owned file without replacement, and retain the original draft.
+Separate inspection/use review is mandatory; no profile fork, inherited authority, model route or reference retargeting is added.
 Only host-derived immediate `.instructions.md` / `.prompt.md` targets beneath
 the corresponding Kora data roots are writable. Prompt selection remains
 explicit user-request content through the existing request/provider/approval

@@ -36,59 +36,35 @@ There is no delivered clipboard-write action.
 ### R06 read-only observations
 
 [ReadOnlyCapabilityCatalog](../Kora.Core/Tools/ReadOnlyCapabilityCatalog.cs) owns
-six explicit canonical IDs, all at descriptor schema version 1:
+the six IDs and schema; [the canonical contract](../../Design/Internal_Model_Tools.md#delivered-bounded-read-only-host-foundation)
+owns lane/wire bounds and unavailable adapter behavior.
 
-| ID | Implementation |
-|---|---|
-| `capabilities.list` | `CapabilitiesList` |
-| `capabilities.get` | `CapabilitiesGet` |
-| `application.get_version` | `ApplicationGetVersion` |
-| `readiness.get` | `ReadinessGet` |
-| `runtime.list` | `RuntimeList` |
-| `runtime.get_status` | `RuntimeGetStatus` |
-
-The actions' `Execute` methods are **internal**, called by the admitted
+Actions' internal `Execute` methods are called only by
 [ReadOnlyCapabilityRegistry](../Kora.Application/Tools/ReadOnlyCapabilityRegistry.cs)
-through the assembly friendship in the project file. Do not make them public
-SDK/reflection bypasses. The gateway owns current-host/live-request/caller
-admission, strict JSON wire parsing, trace/cancellation, structured logging and
-complete serialized-result bounds.
+through assembly friendship. Do not make them public SDK/reflection bypasses.
+The gateway owns live host/caller admission, strict JSON, cancellation/trace,
+logging and complete serialized bounds. Readiness/runtime actions project
+recorded observations, not fresh probes.
 
-Only the Native route is currently composed. Descriptor lane classification
-does not qualify a model adapter. The contract allows at most 1,024 input UTF-8
-bytes, six records and 4,096 bytes for the **complete serialized output**, not
-just result text. Readiness/runtime actions project timestamped recorded
-observations; they do not reprobe, install or infer. Missing observations remain
-explicitly unobserved/unavailable; `ToolLoopQualified` remains false.
-
-For an existing contract example, `describe capability application.get_version`
-maps to `capabilities.get` with wire input `{"id":"application.get_version"}`.
-See [command presentation](../Kora.Application/ViewModels/MainViewModel.Capabilities.cs)
-and the [exact user commands](../../docs/commands.md#read-only-host-discovery).
-The wire example is not a public callable SDK.
+For example, `describe capability application.get_version` resolves to
+`capabilities.get` with `{"id":"application.get_version"}`.
+See [presentation wiring](../Kora.Application/ViewModels/MainViewModel.Capabilities.cs)
+and [exact commands](../../docs/commands.md#read-only-host-discovery).
+This is not a public callable SDK.
 
 ### R07 clipboard actions
 
-The three clipboard classes delegate to the same broker. Core owns
-[snapshot validation](../Kora.Core/Context/ClipboardSnapshot.cs) and
-[command/origin rules](../Kora.Core/Context/ClipboardCommand.cs);
-[WindowsPlainTextClipboardReader](../Kora.Windows/Context/WindowsPlainTextClipboardReader.cs)
-implements the native seam. Application's
-[clipboard workflow](../Kora.Application/ViewModels/MainViewModel.Clipboard.cs)
-and desktop controls converge on these actions.
+The three actions delegate to [ClipboardSnapshotBroker](Clipboard/ClipboardSnapshotBroker.cs).
+Core owns [snapshot validation](../Kora.Core/Context/ClipboardSnapshot.cs) and
+[origin rules](../Kora.Core/Context/ClipboardCommand.cs); the
+[Windows reader](../Kora.Windows/Context/WindowsPlainTextClipboardReader.cs)
+implements the native seam. [Application routing](../Kora.Application/ViewModels/MainViewModel.Clipboard.cs)
+and desktop controls use the same actions.
 
-Delivered behavior is one explicit immutable local plain-text preview,
-same-ID reuse and revoke/clear, bounded to 256 KiB UTF-8. There is no clipboard
-write, automatic refresh, persisted history or provider submission. Reuse does
-not reread the source. The broker checks deliberate origin and live eligibility,
-cancels stale generations and requires verified native resource release before
-claiming quiescence.
-
-`context.capture_clipboard` and `context.inspect` are **proposed model contracts**,
-not IDs registered by these classes. Explanation and model dispatch remain
-unavailable pending the qualified tool/result loop and clipboard-answering,
-secret and egress gates. Preview does not grant transmission consent. See the
-[delivered boundary](../../Design/Security_Data_Flows.md#delivered-r07-local-clipboard-preview---2026-10-07).
+[Clipboard policy](../../Design/Security_Data_Flows.md#delivered-r07-local-clipboard-preview---2026-10-07)
+owns immutable reuse/revoke, exact bounds and privacy/quiescence requirements.
+No clipboard write or model submission is delivered; preview is not transmission
+consent. Do not create separate provider or view-model implementations.
 
 ### Preapproved network addresses
 

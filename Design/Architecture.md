@@ -541,8 +541,16 @@ The store uses standard SQLite for configuration, session/events, and task/actio
 The owner-approved D-009 baseline supersedes mandatory page encryption and database-key/rekey admission.
 Transactional persistence, schema validation/migration, journal/backup deletion and failure behavior remain delivery gates.
 Machine-local configuration/enablement/audit storage is under `%LOCALAPPDATA%\Kora`.
-Kora-specific declarative skill packages are under the Windows Roaming AppData folder at `%APPDATA%\Kora\Skills`.
-Shared profile skill roots are registered read-only sources, not writable storage.
+Kora-owned declarative definitions use Windows Roaming AppData data partitions:
+`%APPDATA%\Kora\Skills`, `Prompts`, `Instructions`, and `Agents`.
+The target [definition management architecture](Definition_Management.md)
+also treats supported registered personal profile definitions as editable
+originals through a dedicated writer, not generic writable/executable storage.
+Current R21 profile registration remains read-only until that writer and
+expanded source scope are qualified. Core owns kinds, validation, and revision
+rules; Application owns authoring/reconciliation; Windows owns race-resistant
+source reads/publication; desktop delegates native/voice presentation.
+Bundled resources remain in Definitions, with no execution/persistence authority.
 Credentials are represented by opaque references to an OS-protected credential store.
 Large retained artifacts use a private managed store linked by immutable digest, session ID, and deletion ownership.
 Default inactivity archiving/deletion is 24 hours/30 days, both configurable; passive history access never extends retention.
@@ -615,7 +623,7 @@ are privately pre-created; each connection uses `PERSIST` journaling with
 `synchronous=FULL` so normal commits/reopens retain the owned journal rather
 than recreating it with a different default owner. A missing managed journal
 requires explicit recovery, not automatic replacement. Maintained
-[production interruption/reopening tests](Implementation_Roadmap.md#r04-production-store-interruption-and-reopening---2026-10-07)
+[production interruption/reopening tests](Archive/Implementation_Roadmap_2026-10-11.md#r04-production-store-interruption-and-reopening---2026-10-07)
 now exercise actual PERSIST/FULL hot-journal and owned-process interruption
 semantics, not physical power-loss or installed acceptance. Earlier uncomposed
 prototype databases without this journal are not silently migrated.
@@ -706,7 +714,7 @@ No deadline rewrite, audit pruning, session/history/grant/task/question/approval
 deletion, ordinary/file-policy change or janitor scheduling is introduced.
 This does not complete R04/R10 or forensic/encryption/disposal qualification.
 
-The subsequent bounded [interaction/session-authority slice](Implementation_Roadmap.md#r04r05-durable-interaction-and-minimal-session-authority---2026-10-06)
+The subsequent bounded [interaction/session-authority slice](Archive/Implementation_Roadmap_2026-10-11.md#r04r05-durable-interaction-and-minimal-session-authority---2026-10-06)
 adds `InteractionStorageV1/interaction.db` using the same private owner/ACL/
 reparse, PERSIST/FULL and exact-schema checks. It stores only host-admitted
 typed questions/options/drafts/answers, exact proposals/grants and minimal
@@ -758,7 +766,7 @@ whole-store rollback detection, installed/power-loss acceptance and broader
 R12 lifecycle/UI/retention remain open. Missing/corrupt schema, journal, audit
 or private permissions fail explicitly without replacement or repair.
 
-The bounded [production interruption continuation](Implementation_Roadmap.md#r04-production-store-interruption-and-reopening---2026-10-07)
+The bounded [production interruption continuation](Archive/Implementation_Roadmap_2026-10-11.md#r04-production-store-interruption-and-reopening---2026-10-07)
 originally used those adapters and exact version-1 schemas; current maintained
 tests also qualify consolidated schema v3. Maintained disposable
 Windows tests terminate only their owned helper processes before or after

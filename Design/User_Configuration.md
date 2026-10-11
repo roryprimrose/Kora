@@ -55,7 +55,7 @@ Cancellation/private-authority loss suppresses late receipts and drains admitted
 Apply-now, current-task extension and the broader 1-50 capacity/general execution contract are not delivered ([actual enforcement and durable tests](../tests/Kora.Windows.IntegrationTests/Storage/WindowsSqliteSessionQueueTests.ActiveDeadline.cs)).
 No worker, automatic dispatch, resource lease, model tool, general execution or real two-slot provider/hardware qualification is added ([bounded workflow](../src/Kora.Application/Configuration/SessionQueueConfigurationService.cs)).
 
-Validation and retained experiment reasons are recorded in the [active-deadline delivery receipt](Implementation_Roadmap.md#r10r13-future-admission-active-deadlines---2026-10-10). Full R10/R13/A3, installed native/accessibility and affected provider/hardware acceptance remain open under the [three-tier qualification policy](Acceptance_Criteria.md#three-tier-qualification-policy).
+Validation and retained experiment reasons are recorded in the [active-deadline delivery receipt](Archive/Implementation_Roadmap_2026-10-11.md#r10r13-future-admission-active-deadlines---2026-10-10). Full R10/R13/A3, installed native/accessibility and affected provider/hardware acceptance remain open under the [three-tier qualification policy](Acceptance_Criteria.md#three-tier-qualification-policy).
 
 ### R18 bounded local event suppression
 
@@ -119,7 +119,7 @@ build with existing locked dependency assets (no restore/feed change needed);
 Core 1,028, Application 2,860, Tools 69, Definitions 6,
 Windows 1,215 passed with zero
 failures/skips; portable line/branch coverage 100%/100%. See the
-[dated evidence receipt](Implementation_Roadmap.md#r12-bounded-session-retention-delivered---2026-10-09).
+[dated evidence receipt](Archive/Implementation_Roadmap_2026-10-11.md#r12-bounded-session-retention-delivered---2026-10-09).
 
 ### Delivered bounded device-local in-call feedback (R10/R15)
 
@@ -173,7 +173,7 @@ This deterministic source/native-seam slice does not close full R10/R15,
 automatic detector/source freshness qualification, native accessibility,
 real-call/acoustic leakage/stop timing, speak-once/downgrade review, proactive
 configuration, general tools or A0-A4 acceptance. See the
-[experiment disposition](Implementation_Roadmap.md#bounded-in-call-feedback-experiment-disposition).
+[experiment disposition](Archive/Implementation_Roadmap_2026-10-11.md#bounded-in-call-feedback-experiment-disposition).
 
 ### Delivered bounded local speech text (R25)
 
@@ -1132,13 +1132,14 @@ Remote endpoints require a validated destination and setup/network decision, not
 Provider changes do not transplant active task context or continue a task under another account automatically.
 Credentials/tokens/passwords are not dictatable option values; voice starts supported sign-in/sign-out/configuration flows.
 
-## 6. Skills and Local Data
+## 6. Definitions and Local Data
 
 | Option | Default / limits | Example verbal setter |
 |---|---|---|
-| Shared skill sources | User-selected bounded read-only roots | "Use skills from my Copilot profile" |
-| Skill enablement/default source binding | Reviewed digest/device-local binding | "Use the Kora-specific deployment skill when I say deployment" |
-| Source refresh preference | Revalidate before dispatch; optional bounded discovery refresh | "Refresh shared skill discovery every hour" |
+| Definition sources and kinds | Explicit registered bounded personal files/roots; target supports declarative editing, current R21 grants local read only | "Use skills and prompts from my Copilot profile" |
+| Definition activation/default source binding | Reviewed digest/device-local binding; new/changed content is not automatically activated | "Use the Kora-specific deployment skill when I say deployment" |
+| Instruction applicability | Explicit reviewed session/task scope and supported matching rules; no ambient policy injection | "Apply this instruction to this session" |
+| Source refresh preference | Common bounded reload; watchers advisory and freshness checked before use; no restart requirement in qualified target | "Reload my definitions"; "Refresh profile definitions every hour" |
 | Knowledge source registration | None by default; explicit reviewed file/folder and session/managed scope | "Add my Team TSGs folder as a knowledge source" |
 | Knowledge source refresh | Manual initially; later bounded scheduled refresh only after R26 background-work gates | "Refresh Team TSGs" |
 | Knowledge retrieval strategy | Lexical initially; verified hybrid/vector retrieval optional later | "Use lexical retrieval for Team TSGs" |
@@ -1155,7 +1156,14 @@ picker rather than being guessed. Adding a knowledge source, using its excerpts
 with a hosted model and deleting Kora's derived copies are separate decisions.
 The complete source, retrieval, settings and voice contract is
 [File and Folder Ingestion](File_And_Folder_Ingestion.md).
-The Roaming AppData skill store and protected installation/source layout are architectural boundaries, not voice-selectable arbitrary write roots.
+The Roaming AppData definition stores and protected installation/source layout
+are architectural boundaries, not voice-selectable arbitrary write roots.
+Supported profile originals have normal UI/voice editing through the dedicated
+writer and exact-change confirmation, not a separate edit-enable preference.
+Source registration/removal, save/delete, activation, and reload are distinct
+operations; reload cannot authorise changed definitions.
+See [Definition Management](Definition_Management.md) for all four kinds,
+profile formats, external-change conflicts, and channel parity.
 Permitted conversation history uses durable standard SQLite under verified private profile permissions and session retention. Copies outside that boundary are readable; database encryption is not required. Raw audio/secret persistence, silent remote diagnostic upload, automatic executable imports and secret logging remain unsupported.
 Diagnostic, audit and session retention are independent. Session deletion does
 not remove content-minimising audit records, while audit expiry does not remove

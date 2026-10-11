@@ -77,7 +77,7 @@ skill review, queue/status and diagnostic evidence are reused separately, not
 duplicated or persisted here. Artifact bodies, general finalized-response/
 script/diff routing, conversation composer, model history reasoning,
 Ask Evidence, broad export and installed accessibility/DPI acceptance remain
-gated. See [the roadmap/evidence assessment](Implementation_Roadmap.md#r14-immutable-selected-session-receipt-details---2026-10-09).
+gated. See [the roadmap/evidence assessment](Archive/Implementation_Roadmap_2026-10-11.md#r14-immutable-selected-session-receipt-details---2026-10-09).
 
 ## Delivered Bounded Passive Session History - 2026-10-09
 
@@ -675,6 +675,7 @@ security decisions:
 | Long answer, documentation, commands/settings report, model result | Detailed information window | Full document or immutable item | Read-only; content links request native navigation |
 | Session list, conversation, queue, lifecycle, evidence filters | Sessions workspace | Open one answer/artifact/evidence record in the detail window | Session selection and lifecycle controls are typed native controls |
 | Skill discovery and review | Skills management/review surface | Render purpose/instructions Markdown and exact manifest/source/diff tabs | Enable, disable, save, test, and capability review are separate native workflows |
+| Standalone instruction authoring | Skill authoring workspace in single-file mode | Render instruction Markdown plus exact source/diff | Voice/typed refinement changes only the proposal; exact native Save revalidates source identity and base digest, and profile editing is not general file-write authority |
 | Multi-file skill or script review | Skill/revision view with host-owned file tree and tabs | Each selected file uses Markdown or exact language-highlighted source rendering; digest and dependency status remain visible | Tab selection is not approval; review binds the complete immutable revision/file set |
 | Permission grant inventory and editing | Permissions & Approvals workspace | Optional inert explanation, provenance, and use-evidence detail | Filter, narrow, revoke, broaden/request, and confirm are typed native operations, never HTML/Markdown controls |
 | Settings and setup/recovery | Dedicated typed native pages | Help/details may open passive documentation | Validation, persistence, consent, and recovery stay outside rendered content |

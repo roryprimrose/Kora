@@ -34,7 +34,7 @@ public sealed class WindowsSharedSkillWithdrawalTests
     }
 
     [Fact]
-    public async Task Foreign_global_activity_can_hold_private_database_after_listener_disposal_until_callback_finishes()
+    public async Task Provider_disposal_drains_foreign_activity_before_private_database_cleanup()
     {
         using var paths = new OwnedStorageFixture();
         using var checkpoint = new PausedCommit(TestContext.Current.CancellationToken);
@@ -47,17 +47,32 @@ public sealed class WindowsSharedSkillWithdrawalTests
             using var activity = HostActivity.BeginRoot(foreignRequest, HostActivityLayer.Application, HostOperation.Request);
             activity.Complete(HostOperationOutcome.Completed);
         }, TestContext.Current.CancellationToken);
+        Task? disposal = null;
         try
         {
             (await Task.WhenAny(checkpoint.Entered.Task, foreign)).Should().BeSameAs(checkpoint.Entered.Task);
             checkpoint.Request.Should().BeSameAs(foreignRequest);
-            provider.Dispose();
+            var disposalEntered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            disposal = Task.Factory.StartNew(() =>
+            {
+                disposalEntered.SetResult();
+                provider.Dispose();
+            }, TestContext.Current.CancellationToken, TaskCreationOptions.LongRunning, TaskScheduler.Default);
+            await disposalEntered.Task.WaitAsync(TestContext.Current.CancellationToken);
+            Func<Task> prematureDisposal = () => disposal.WaitAsync(TimeSpan.FromSeconds(1),
+                TestContext.Current.CancellationToken);
+            await prematureDisposal.Should().ThrowAsync<TimeoutException>();
             foreign.IsCompleted.Should().BeFalse();
-            // Removing a process-global listener does not join an already executing foreign callback.
             var remove = () => File.Delete(Path.Combine(paths.LocalRoot, WindowsSqliteEvidenceSink.PartitionName, "evidence.db"));
             remove.Should().Throw<IOException>();
         }
-        finally { checkpoint.Release(); await foreign; }
+        finally
+        {
+            checkpoint.Release();
+            await foreign;
+            if (disposal is not null) { await disposal; }
+        }
+        File.Delete(Path.Combine(paths.LocalRoot, WindowsSqliteEvidenceSink.PartitionName, "evidence.db"));
     }
 
     [Theory]

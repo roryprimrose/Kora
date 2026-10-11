@@ -85,6 +85,21 @@ public static class LocalModelQuestionSpeech
         return -1;
     }
 
+    public static string? GetFreeTextAnswer(string transcript, string assistantName)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(transcript);
+        var answer = transcript.Trim();
+        var name = AssistantNameRules.Normalize(assistantName);
+        if (answer.StartsWith(name, StringComparison.OrdinalIgnoreCase)
+            && (answer.Length == name.Length || !char.IsLetterOrDigit(answer[name.Length])))
+        {
+            answer = answer[name.Length..].TrimStart(' ', '\t', ',', ':', '-', '—');
+        }
+        return answer.Length is > 0 and <= LocalModelQuestion.MaximumFreeTextLength
+            ? answer
+            : null;
+    }
+
     public static bool IsCancellation(string transcript, string assistantName)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(transcript);

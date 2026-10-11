@@ -58,7 +58,7 @@ Apply the three-tier policy to these proofs:
 3. An RC manifest that includes those capabilities must carry their completed
    qualification; merging scoped code or evidence does not qualify that RC.
 
-The [2026-10-08 file-only continuation](Deferred_Validation.md#2026-10-08-file-only-runtime-preparation)
+The [2026-10-08 file-only continuation](Archive/Deferred_Validation_2026-10-11.md#2026-10-08-file-only-runtime-preparation)
 does not change these tiers or admit either SDK profile. Production has no
 Copilot SDK composition or equivalent MG1 management-envelope consumer in
 `src`/`tests`. The local Ollama reasoner is a different contract, not a

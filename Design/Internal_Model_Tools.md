@@ -85,27 +85,13 @@ The same registry serves local inference and approved remote/agent adapters, but
 
 ## Model-facing coverage rule
 
-Model discovery is a normal entry point for user-visible Kora actions, not a
-special integration added only to complex workflows. Each new action must be
-evaluated for both an exact deterministic command and a typed model-facing
-descriptor, alongside any UI surface. Implement every applicable route over
-the same registered host action and policy gate. This allows common requests
-to work without inference while allowing a model to identify less exact
-natural-language intent and propose the same action.
-
-An advertised descriptor is proposal authority only. The host still validates
-the action and inputs, applies origin/privacy/ownership policy, obtains any
-required approval, revalidates availability, performs the effect, and returns
-a structured result. Models cannot invent actions, handlers, command lines, or
-parameters outside the admitted schema.
-
-The capability inventory must state and justify any missing deterministic or
-model-facing route. Valid exceptions include actions that inherently require
-interactive visual selection, have no safe unambiguous static phrase, are
-unavailable in the current build, or have not passed their security and
-containment gates. Delivery tests verify command/action resolution, shared
-policy behavior, unavailable and unauthorized failures, and rejection of
-unknown model proposals.
+The [action exposure rule](Commands_Tools_And_Skills.md#action-exposure-is-the-default)
+owns route convergence and exception criteria. Evaluate exact commands, native
+controls and model descriptors for each action; implement every applicable
+route over one registered action/gateway. Record why a route is omitted or
+unavailable. A descriptor is proposal authority only, never execution permission.
+Tests must reject unknown, ambiguous, unavailable and unauthorized proposals
+without effects.
 
 ## Implemented Bootstrap Surface
 
@@ -341,12 +327,28 @@ retry or authorize an evidenced operation.
 
 ### Skills and Registered Execution
 
+The proposed common lifecycle is
+[Definition Management](Definition_Management.md). `definitions.*` covers all
+four kinds and Kora-owned/registered profile originals; `skills.*` remains a
+kind-specific projection over the same host actions, not a second writer,
+registry, approval path, or execution engine. None of these proposed IDs is
+added to the delivered six-ID model catalogue by this design.
+
+| Tool IDs | Inputs and bounded results | Lanes | Availability / boundary |
+|---|---|---|---|
+| `definitions.list`, `definitions.inspect` | Kind/source/state filters or exact source-qualified revision; bounded descriptors/source review | E; M descriptors-only | Proposed R21/R22 extension; disabled/incompatible entries remain visible; source text is untrusted and egress-controlled |
+| `definitions.sources_list`, `definitions.propose_source`, `definitions.remove_source`, `definitions.refresh` | Exact registered scope/revision or deliberate source selection; consent/discovery/reconciliation proposal/result | E | Proposed; explicit bounded file/root/kind scope; editor registration never approves writes; removal never deletes originals; all reload triggers share one pipeline |
+| `definitions.stage_revision`, `definitions.validate`, `definitions.test_simulated` | Kind, exact base/proposal, bounded field/section changes or fixtures; shared draft/diff/diagnostics | E | Proposed; create/edit/fork data only, source-preserving format checks, zero real effects; unknown agent runtime remains unavailable |
+| `definitions.save_revision`, `definitions.rename`, `definitions.restore_revision`, `definitions.delete` | Exact operation/proposal, source/file-set identity, base/new digests and registered target; confirmation/result | E | Proposed; dedicated declarative writer, Kora or profile original, exact user confirmation and typed audit; no executable/bundled/protected edits or generic filesystem writes |
+| `definitions.enable`, `definitions.disable`, `definitions.set_scope` | Exact reviewed revision and supported applicability scope; activation/binding result | E | Proposed; separate from save, device-local, no grants; instruction scope cannot widen policy or source access |
+| `definitions.invoke` | Exact enabled prompt/skill or qualified agent profile, typed inputs and admitted context; request/task reference | E | Proposed; kind-specific application under normal host gates; instructions use reviewed applicability, agent run requires independent runtime qualification |
+
 | Tool IDs | Inputs and bounded results | Lanes | Availability / boundary |
 |---|---|---|---|
 | `skills.list`, `skills.inspect` | Registered source/skill/revision ID; source-qualified descriptor, digest and declared dependencies | E; M descriptors-only | Proposed B; instructions are untrusted and egress-controlled |
-| `skills.sources_list`, `skills.propose_source`, `skills.remove_source`, `skills.refresh` | Approved bounded source ID or explicit source selection; registration/discovery proposal/result | E | Proposed B; shared profile sources remain read-only; no whole-profile scan |
+| `skills.sources_list`, `skills.propose_source`, `skills.remove_source`, `skills.refresh` | Approved bounded source ID or explicit source selection; registration/discovery proposal/result | E | Proposed B; current R21 is read-only; target editor scope is explicit, with no write approval from registration or whole-profile scan |
 | `skills.stage_revision`, `skills.validate`, `skills.test_simulated` | Exact declarative proposal/base digest and bounded fixtures; staged revision, diagnostics/assertions | E | Proposed C; models propose data, never validator code; simulated tests cause no tool effects |
-| `skills.save_revision`, `skills.enable`, `skills.disable`, `skills.restore_revision`, `skills.delete` | Exact skill/revision/base digest and host-chosen store target; separately confirmed mutation/result | E | Proposed C (enable/disable in B); save/enable never grants future execution; no deleting bundled/shared files |
+| `skills.save_revision`, `skills.enable`, `skills.disable`, `skills.restore_revision`, `skills.delete` | Exact skill/revision/base digest and host-derived Kora/profile target; separately confirmed mutation/result | E | Proposed C (enable/disable in B); common dedicated writer, explicit original/copy target; no bundled/executable mutation; save/enable never grants future execution |
 | `skills.invoke` | Pinned admitted skill/revision, schema-valid inputs and context IDs; new task/invocation reference | E | Proposed B/C; normal scheduler, egress and action approvals |
 | `execution.prepare`, `execution.invoke` | Registered task/implementation ID, complete dependency digests, declared invocation/resources; review proposal/admitted receipt | E | Deferred for general scripts/apps; fixed bundled actions use dedicated computer tools; no arbitrary shell strings |
 | `execution.status`, `execution.cancel` | Exact Kora-owned invocation ID; observed receipt/cancellation certainty | E | With admitted execution capability; never arbitrary process-ID/name killing |

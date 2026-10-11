@@ -860,12 +860,26 @@ Installed paths are resolved by the host; development deployments must register 
 Repository protection also uses configured repository identity, including remote/API identifiers, so an alternate clone or remote Git tool is not a bypass.
 If protected identities or effective targets cannot be established, fail closed for the affected write/execution capability.
 
-The skill writer accepts a validated data package and host-derived destination under the dedicated skill store, not arbitrary filesystem arguments.
+The definition writer accepts a validated declarative package/file and a
+host-derived destination under the dedicated Kora store or an explicitly
+registered compatible personal profile scope, not arbitrary filesystem
+arguments. Profile editing is a proposed qualified extension, not an authority
+of delivered R21 local-read registration.
 Resolve target identity and reject traversal, link/reparse-point/hard-link aliases, renamed/replaced targets, and writes through protected ancestors.
 Revalidate at application time using race-resistant filesystem operations; string-prefix path checks are insufficient.
 Do not permit overwrite/delete/rename of protected resources or staging/backups within protected locations.
-Registered shared profile skill sources are also read-only across Kora's write-capable pathways.
-Only the dedicated Roaming AppData skill store admits authoring writes; it cannot be an alias into shared sources or protected code roots.
+Registered shared profile definitions remain protected from generic
+write-capable pathways, including tools, scripts, MCP, and agent executors.
+In the target editor design, only the dedicated definition writer may apply
+exact user-confirmed declarative mutations within registered profile scope.
+There is no blanket write grant from registration, activation, or file metadata,
+and existing read-only registrations are not silently upgraded.
+Kora-owned stores and profile targets cannot alias protected code roots;
+executable scripts/hooks, credentials, policy, and bundled content remain
+uneditable. Source-preserving format validation, base identity/digest checks,
+atomic publication/recovery, and requested/terminal typed audit are mandatory.
+See [Definition Management](Definition_Management.md#editing-ownership-and-confirmation)
+for the shared UI/voice writer and reload contract.
 Skill-source enablement is device-local and digest-bound, never granted by roaming package metadata.
 See [Skill Storage](Skill_Storage.md) for source scope and redirected/network-backed storage policy.
 
@@ -1203,8 +1217,8 @@ and the [staged roadmap](Implementation_Roadmap.md#r02-windows-containment-follo
 | Task/action/approval audit metadata | Trusted typed audit events flow through `ILogger` to daily JSON and dedicated `security_audit_events` in private local SQLite. Audit authority/tamper evidence remains separate D-008 work, not a property of encryption or ACLs. Retention defaults to 90 days, configurable 30-365. Preserve structured envelope, W3C/host identities and typed correlation/action/resource/hash/scope/policy/outcome/error fields; never raw parameters/content. Arbitrary `SecurityAudit=true` properties confer no authority. |
 | Application diagnostic events and spans | Permitted `ILogger` events independently flow to daily JSON and private local SQLite; database diagnostics default to 30 days. Separate `application_log_events`, `activity_spans` and `activity_links` preserve original templates, typed properties/scopes, W3C causal context and trusted host IDs independently of rendered text. Files retain at most 30 files/30 days and remain available for database/pipeline failure and recovery. Neither sink contains transcripts, response bodies, speech text, audio, credentials or secrets. |
 | Configuration and grants | Single-use grants are consumed and session grants end with their session; perpetual grants have no expiry/retention/eviction and remain independently until explicitly removed/edited, with minimal provenance surviving originating session deletion; no secrets in configuration |
-| Kora-specific skill definitions/revisions | Persist in `%APPDATA%\Kora\Skills` until explicitly removed; not cleared with conversation history |
-| Shared profile skill snapshots | Approved in-memory revision snapshots; re-read/revalidate on restart; source files remain untouched |
+| Kora-owned definitions/revisions | Skills, prompts, instructions, and agent profiles persist in their kind-specific roaming data stores until explicitly removed; not cleared with conversation history; no credentials or grants in content |
+| Shared profile definition snapshots | Admitted immutable in-memory revisions, refreshed/revalidated under the common source lifecycle; no silent content cache persistence. Inspection, refresh, and unregister leave originals untouched; only separately confirmed dedicated editor mutations change supported originals |
 | Approved export | User-selected location with an explicit content preview |
 
 Persistent permitted session history is required, with first-use storage/retention disclosure and explicit deletion controls; it is separate from content-free diagnostics.

@@ -348,59 +348,10 @@ and reviews without declaring those gates passed or authorizing a live trial.
 
 ### R03 validation evidence
 
-The initial R03 snapshot on approved R01 `7d5e6a3` passed local suites but failed
-the 100% coverage gate (98.7% line / 97.5% branch). Hosted Windows CI also found
-SID-alias ACL comparison and elevated-runner assumptions. These are historical
-failed checks, not waived or relabeled as passing evidence.
-
-After rebasing onto `bcd4b81` (including the merged R02 speech/containment/storage proofs),
-the CI fixes and expanded privacy/race tests were validated with .NET SDK
-10.0.401 on Windows:
-
-| Check | Result |
-| --- | --- |
-| Locked solution restore | Passed |
-| Fresh Debug and Release solution builds | Passed, zero warnings/errors |
-| Release Core unit tests | 251 passed |
-| Release application unit tests | 742 passed |
-| Release Windows tests | 188 passed |
-| Locked framework-dependent win-x64 and win-x86 publish | Passed; binaries not launched |
-| Merged portable line/branch coverage | 100% / 100%; passed the unchanged 100% / 100% gate |
-
-Coverage includes 4,982 of 4,982 lines and 1,943 of 1,943 branches. No coverage
-exclusions or threshold reductions were introduced. The added tests exercise
-queued privacy transitions, output/consent failures, endpoint selection,
-approval rechecks, lifecycle admission, SAPI stream compatibility, bounded
-native cleanup, transient selector reset and audio-failure containment.
-Clearing selection now closes armed input; protected binary ACL comparison
-preserves exact SID/rights enforcement, and production elevated-process
-admission still denies.
-The Windows count combines deterministic fakes with non-disruptive native
-object/device enumeration checks; it is not 188 real lifecycle or microphone
-trials. Debug/Release publishing is not proof of cross-build or cross-architecture
-handoff. Real Windows reference trials remain explicitly outstanding acceptance
-evidence. The shared register records the bounded interactive subset and the
-deferred cases; hosted CI and required reviews still must pass before this
-scoped implementation can merge.
-
-On 2026-10-05, a separately approved bounded trial used the physical HyperX
-Cloud Alpha Wireless microphone and headphones in a non-elevated interactive
-session. Held PTT recognized "Kora, what can you do?" at confidence
-`0.82509285`, admitted one `ShowHelp` command and completed the spoken response.
-Kora remained responsive and an ordinary tray exit removed the continuity
-marker after verified clean shutdown. This is partial A01/A02/A07 evidence,
-not full R03 acceptance. No ambient response without PTT is expected because
-production wake is unavailable. Lock/disconnect/suspend, permission/device
-mutation, takeover/return, failure recovery, output rerouting and the complete
-input/accessibility matrix remain untested; see the
-[shared deferred-validation register](../Design/Deferred_Validation.md#2026-10-05-bounded-interactive-result).
-
-A later bounded continuation passed Space and Enter PTT, focus-loss closure,
-silent activation, explicit voice Preview and Stop speaking. Exit during active
-speech initially exposed UI-context and WASAPI lock deadlocks; after correction,
-the process exited, text-to-speech disposed and the continuity marker was
-automatically removed. Release x64/Debug x64 ownership decline, accepted
-takeover and exact-original return also passed. Release x86 execution remains
-blocked by the missing x86 .NET Desktop Runtime and must be proven through the
-installer/runtime acceptance session; no runtime was downloaded during this
-trial.
+Maintained deterministic/native-seam checks and bounded physical PTT/handoff
+trials cover only their recorded scope. They do not qualify production wake,
+the complete A01-A07 matrix, acoustic playback rejection or installed profiles.
+Failed and successful historical attempts remain in the
+[R03 receipts](../Design/Archive/Deferred_Validation_2026-10-11.md#r03-windows-ownership-and-audio-privacy).
+Use the [live validation register](../Design/Deferred_Validation.md#r03-windows-ownership-and-audio-privacy)
+for remaining evidence and approval prerequisites.

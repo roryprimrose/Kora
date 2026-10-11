@@ -6,6 +6,11 @@ Kora-specific authoring remain proposed Slice B/C work.
 
 Related: [Extensibility](Extensibility.md), [Skill Authoring](Skill_Authoring.md), [Bundled Skills](Built_In_Skills.md), [Security and Data Flows](Security_Data_Flows.md).
 
+[Definition Management](Definition_Management.md) owns the proposed common
+source, UI/voice editing, activation, and external-reload contract for skills,
+prompts, instructions, and agent profiles. Its first-class profile editor
+does not expand the delivered R21 read-only boundary below.
+
 ## Source Partitions
 
 | Partition | Location | Kora access |
@@ -176,7 +181,11 @@ references, and availability. A model selection resolves the host-held pinned
 snapshot; it cannot select live files, arbitrary script paths, or an unenabled
 revision. Advertising a skill never advertises a grant.
 See [Commands, Tools, Skills, and Model Interaction](Commands_Tools_And_Skills.md).
-Shared roots and their resolved contents are protected from Kora-originated writes, including generic tools, scripts, and MCP pathways.
+Shared roots and their resolved contents are protected from generic
+Kora-originated writes, including tools, scripts, and MCP pathways.
+Future in-place declarative editing uses the qualified
+[dedicated writer and exact-change confirmation](Definition_Management.md#editing-ownership-and-confirmation);
+registration or enablement alone never permits writes.
 Reparse/link targets outside approved source scope require explicit source selection; do not follow arbitrary package links.
 
 Example voice flow:
@@ -327,19 +336,33 @@ Keep the approved snapshot in memory for invocation; do not read live changing i
 Include all permitted referenced package content in the revision identity.
 Recheck source content/access before new dispatch and reconcile watcher notifications; watchers alone are not authoritative.
 
+Use the [common reconciliation pipeline](Definition_Management.md#consistent-external-change-and-reload-contract)
+for owned and profile sources, manual reload, external changes, and saves.
+Refresh catalogues, UI/voice lookup, applicable instructions, and agent
+dependencies together; changed revisions require review, not automatic enablement.
+
 Changed content suspends new invocations pending review of the new digest.
 An active task retains its existing snapshot; queued tasks do not silently switch versions.
 Deletion, source removal, or lost access disables new dispatch and prompts for a fresh decision.
 On restart, revalidate content and device-local enablement before using a source.
 No silent content-bearing cache persistence is introduced for shared sources.
 
-## Editing Without Changing Shared Sources
+## Editing and Kora-Owned Forks
 
 "Kora, improve this skill" creates a proposal for a Kora-owned copy with a new scoped ID under `%APPDATA%\Kora\Skills`.
 Explain that it is a fork, preserve source attribution/digest, and show the diff before saving.
-Do not modify, rename, delete, or place backups in the shared source.
+The fork operation does not modify, rename, delete, or place backups in the
+shared source. In the target editor design, supported profile originals can
+also be edited directly rather than requiring a fork.
 The copy does not inherit grants, enablement, bundled executable trust, or priority privileges.
 Later shared-source changes are shown as a difference; no automatic merge/update of the fork.
+
+An explicit "edit the original" request may instead enter the future dedicated
+profile writer after registered scope validation, compatibility/round-trip
+checks, exact diff/base validation, and action-specific confirmation.
+This is not available in R21 and never admits executable or protected-file edits.
+Dirty drafts and external changes follow the same conflict rules as Kora-owned
+definitions; see [Definition Management](Definition_Management.md).
 
 ## Roaming Behaviour and Boundaries
 

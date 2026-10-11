@@ -13,21 +13,12 @@ where applicable to the enabled capability/profile.
 
 ## Delivered R13 deterministic-core evidence scope
 
-Focused deterministic tests cover fixed local-version FIFO/round-robin
-starvation bounds, per-session/global admission limits, exact identities and
-duplicate/concurrent revision conflicts, pre/post-admission cancellation,
-pending expiry, separate pre-dispatch user-wait isolation, Unknown/dependency
-quarantine and unrelated progress, restart interruption/no replay,
-schema-v4/v5 migration, stale callbacks, logical disposition/independent grants,
-private admission failures, atomic audit/storage failure, fresh activity links,
-no content logging/model egress and disposal.
-
-These tests qualify only the bounded deterministic fixed read-only core.
-Manual dispatch and the existing synchronous version registry are not
-two effect/provider lanes, resource-lease execution, hard worker termination,
-general in-task question continuation, production MG1 inference or hardware
-acceptance. Broader A3/runtime/provider/containment criteria remain open;
-unavailable descriptors cannot be enabled by this evidence.
+The [R13 delivery inventory](Implementation_Roadmap.md#current-delivery) and
+[original evidence scope](Archive/Implementation_Roadmap_2026-10-11.md#r13-deterministic-local-version-queue-increment---2026-10-09)
+cover only the bounded fixed read-only core. Manual version dispatch does not
+qualify concurrent effect/provider lanes, resource leases, worker termination,
+general question continuation or production management inference. The stable
+criteria below still apply to those capabilities.
 
 ## Three-Tier Qualification Policy
 
@@ -642,9 +633,16 @@ Use at least 30 measured trials and concurrent completion/cancellation fixtures.
 - Shared skill instructions sent to a remote model pass the same reviewed egress policy as other selected context.
 - Cancellation and disconnect tests leave no falsely successful task state.
 
-## Gate 3: Voice-Driven Skill Authoring and Application Integrity
+## Gate 3: Voice/Text Skill and Instruction Authoring and Application Integrity
 
 - A user creates, refines, tests with mocks, and separately confirms exact save/enable through voice, UI, or mixed input with no manual file editing.
+- Standalone Kora and compatible profile instructions use the same proposal,
+  rendered preview, exact source/diff, validation, conflict, and revision-bound
+  Save controls as skills, with a single-file editor and no package tree,
+  fixtures, dependency test, or skill capability-enablement step. Changed
+  guidance requires separate exact revision/applicability review.
+- Voice and typed-composer refinements produce the same bounded instruction proposal; neither can save without exact native confirmation.
+- Editing a profile instruction replaces only its exact discovered source file after source-root, file-identity, and unchanged-base-digest checks; changed, missing, aliased, inaccessible, or conflicting files reject the save and require refresh/review.
 - Spoken capability summaries and the displayed diff identify the same proposed revision.
 - The proposal phase creates no installed-skill writes; staged proposals remain data only.
 - Native save approval binds exact package files, base hashes, and new content; later refinement invalidates approval and the saved revision remains disabled.
@@ -659,14 +657,99 @@ Use at least 30 measured trials and concurrent completion/cancellation fixtures.
 - Changed skill content is not activated before policy/dependency checks and separate exact voice/UI enablement confirmation covering tools, resources, destinations, and instruction-risk summary.
 - Active tasks retain their original digest-pinned skill revision while new invocations use the enabled revision.
 - A request to improve a bundled skill creates only a distinct declarative user adaptation; it never mutates embedded resources, copies executable scripts, or shadows reserved controls.
-- Editing a shared profile skill creates a reviewed copy under `%APPDATA%\Kora\Skills` with attribution and a distinct scoped ID; source bytes, names, and timestamps remain unchanged.
+- Creating a Kora-owned fork of a shared profile skill preserves attribution
+  and uses a distinct scoped ID; source bytes, names, and timestamps remain
+  unchanged. Direct supported profile editing follows the separate common
+  definition management gate below, not an implicit power of R21 inspection.
 - Actual Roaming AppData resolution works with a non-default profile location; no hard-coded user path or arbitrary model-selected destination is used.
 - Skills remain partitioned from `%LOCALAPPDATA%\Kora` enablement/audit records and the credential facility.
 - Roamed definitions on a second simulated device do not inherit enablement, credentials, action approvals, script trust, or priority routing.
 - Incomplete/conflicting roaming revisions are disabled for reconciliation; interrupted saves do not silently replace the last valid revision.
+- Valid external definition changes are rediscovered as reviewable candidates
+  without restart; new invocations use only reviewed applicable revisions.
+  Active invocations retain their immutable pinned definition set.
+- Filesystem notifications are hints only; bounded authoritative rediscovery and reconciliation handle partial writes, rename/replace, duplicate events, notification loss, reparse/identity changes, malformed content, and catalogue conflicts.
+- Invalid or incomplete externally changed definitions become visibly unavailable and stale bytes are not silently advertised as current.
+- Grants whose complete binding includes the changed artifact or dependency digest no longer match the new revision and require fresh review; they do not transfer by path, name, ID, or restoration of old bytes, while unrelated grants remain unchanged.
 - Local-only mode rejects network-backed skill roots explicitly; Kora does not silently move storage or claim control of OS-managed synchronisation.
 - Removing a shared source registration leaves source files intact; clearing conversation history does not delete authored skills.
 - Skills cannot change policy, register arbitrary executable loading locations, or grant permissions.
+
+### Definition Management and External Reload Gate
+
+Apply [Definition Management](Definition_Management.md) to the complete
+kind/source/channel matrix: skills, prompts, instructions, and agent profiles;
+Kora-owned and registered personal profile files; native UI, typed, activated
+voice, and mixed-input workflows. Bundled definitions remain immutable.
+Current R21 read-only inspection and startup artifact discovery do not pass
+this gate or acquire new permissions from its documentation.
+
+- Each writable kind/source pair supports list/search/inspect, create, edit,
+  rename, validate, save, restore where a reviewed prior revision is available,
+  delete, optional fork, separate activation/disable, and refresh/reconcile.
+  Every action has matching native/typed/voice targets, draft state,
+  validation, confirmations, cancellation, audit, and truthful outcomes.
+- Supported profile originals are first-class editable files, not mandatory
+  forks or a read-only tier with an edit-enable switch. Registration discloses
+  editor scope; no write occurs without its exact mutation confirmation.
+  Existing R21 read consent is not silently upgraded to editor scope.
+- Versioned native and supported profile format fixtures include `SKILL.md`,
+  `.prompt.md`, `.instructions.md`, `.agent.md`, and each advertised
+  tool-specific format. Exact original bytes/metadata are inspectable; edits
+  preserve unrelated fields, BOM/encoding, and line endings. Unsupported
+  required semantics remain visibly incompatible, not silently discarded.
+- Reader/writer limits are concrete and tested at and beyond every bound;
+  strict UTF-8, malformed frontmatter, aliases, unknown schema versions,
+  conflicting names, unresolved references, and dependency cycles fail closed.
+- Prompts require explicit invocation and clarify missing parameters;
+  template expansion performs zero evaluation, implicit reads, or secret
+  substitution. Instructions apply only in reviewed scopes. Agent profiles
+  resolve bounded admitted references/constraints and cannot supply grants.
+- An unqualified agent runtime leaves Run unavailable while safe profile
+  inspection/editing remains possible. A save, simulation, activation, or
+  reload creates zero agent runs or real tool effects.
+- Profile writes are confined to registered declarative scope through the
+  dedicated writer. Generic tools/scripts/MCP cannot mutate those sources.
+  Bundled content, executable scripts/hooks, Kora code/loading roots, policy,
+  credentials, and link/reparse/hard-link/protected aliases remain denied.
+- Exact save/rename/delete/restore proposals bind operation, source identity,
+  complete base file-set/digests, new bytes, destination, and current session
+  generation. Concurrent voice/UI changes invalidate approval; commit once.
+  External changes before commit reject the stale mutation without overwrite.
+- Partial publication, audit failure, cancellation before/after durable
+  commit, unavailable atomic publication, and crash/restart fixtures preserve
+  observed effects and explicit reconciliation; no false rollback/success.
+- Source removal leaves originals intact, cancels pending reads/writes,
+  invalidates approvals, and clears denied content. Delete-original,
+  delete-copy, disable, and unregister have distinct exact confirmations.
+- Reload triggers (save, manual, watcher, scheduled, startup, pre-use) use
+  one bounded pipeline. UI, voice lookup, slash completion, instruction
+  applicability, dependencies, and model descriptors see the same published
+  source-catalogue revision, never a partial package or mixed revision.
+- No-change reload preserves activation. Added definitions start disabled;
+  changed definitions require review and block new use. Invalid/deleted/
+  inaccessible/replaced sources show truthful unavailable status and cannot
+  retain an apparently current usable cache. Old bytes cannot revive revoked
+  grants. Unaffected sources/revisions retain their status.
+- Missing/duplicate/coalesced watcher events, watcher overflow, concurrent
+  reloads, and superseded/cancelled late results do not bypass pre-use identity/
+  digest checks or publish stale catalogues. Restart is not required for
+  qualified live reload and does not automatically activate changed files.
+- Clean editors disclose a new candidate revision without activation; dirty
+  editors retain base/draft and support compare, explicit validated rebase,
+  discard/reload, or save-copy through UI and voice. Zero silent draft loss,
+  automatic merge, or external-content overwrite is permitted.
+- Changed shared references invalidate affected skills, scoped instructions,
+  and agent profiles, not unrelated definitions. Active tasks/clarifications
+  pin their admitted definition set; queues never switch revisions silently.
+  Revoked access/grants still block subsequent action/egress boundaries.
+- Normal source edits are visible to other profile consumers without implicit
+  Git commits or executable builds. Kora-owned forks never auto-merge or inherit
+  source grants; roamed content is disabled pending device-local review.
+- Offline/model-unavailable and speech-unavailable fixtures retain native
+  editing/recovery. Privacy closure clears denied content, cancels pending
+  work, and rejects stale voice/UI approvals. Passive reload preserves focus
+  and does not speak private content or renew user activity.
 
 ### No-Self-Modification Gate
 
@@ -1100,25 +1183,11 @@ acceptance remain unqualified.
 
 ### Delivered Bounded In-Call Feedback Evidence (R10/R15)
 
-Maintained deterministic tests exercise all Voice/UI/Both/Inherit choices,
-unsaved UI/reset/restart provenance and complete task/queue/session/device
-precedence for Active/Suspected versus Clear/Unavailable/Unknown. Unknown/invalid
-evidence and corrupt/unconfirmed storage retain speech refusal/complete visual
-recovery, independently of legacy suppression and feedback selection.
-
-Application/native-source and current-user shared-SQLite composition tests cover
-original voice refusal (including UI relabelling), fresh UI admission, exact
-current-name discovery and grammar, call/configuration/session/input/native
-lifetime revisions, stale callbacks, audit/readback/intent failure, cancellation,
-pending previews and active-output retirement without replay or implicit capture,
-consent, permission or grant changes. See
-[the delivered contract](User_Configuration.md#delivered-bounded-device-local-in-call-feedback-r10r15).
-
-This is automated source/native-seam evidence, not acceptance of automatic
-detectors/source-age handling, native keyboard/screen-reader interaction,
-real-call/acoustic leakage or measured native output-stop timing. Full R10/R15,
-proactive configuration, temporary/speak-once/downgrade review, internal model
-tool exposure and A0-A4 remain open; the future gates below still apply.
+The [configuration contract](User_Configuration.md#delivered-bounded-device-local-in-call-feedback-r10r15)
+and [roadmap](Implementation_Roadmap.md#current-delivery) identify the delivered
+bounded subset. Deterministic/native-seam evidence does not qualify automatic
+detectors, real-call acoustic leakage, measured output-stop timing or complete
+native accessibility. The future criteria below remain required.
 
 ### Internal Model Tool Exposure
 

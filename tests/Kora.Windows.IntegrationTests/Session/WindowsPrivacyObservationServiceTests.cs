@@ -257,20 +257,25 @@ public sealed class WindowsPrivacyObservationServiceTests
         var changes = new List<WindowsPrivacyChangedEventArgs>();
         observer.Changed += (_, args) => changes.Add(args);
         source.Snapshot = Ready with { MicrophoneAccess = MicrophoneAccessState.Denied };
-        var refresh = Task.Run(observer.Refresh, TestContext.Current.CancellationToken);
-        await readEntered.Task.WaitAsync(TimeSpan.FromSeconds(2), TestContext.Current.CancellationToken);
-        var disposal = Task.Run(observer.Dispose, TestContext.Current.CancellationToken);
+        // Both operations intentionally block; they must not depend on thread-pool injection.
+        var refresh = Task.Factory.StartNew(observer.Refresh, TestContext.Current.CancellationToken,
+            TaskCreationOptions.LongRunning, TaskScheduler.Default);
+        Task? disposal = null;
         try
         {
-            await disposalEntered.Task.WaitAsync(TimeSpan.FromSeconds(2), TestContext.Current.CancellationToken);
+            await readEntered.Task.WaitAsync(TestContext.Current.CancellationToken);
+            disposal = Task.Factory.StartNew(observer.Dispose, TestContext.Current.CancellationToken,
+                TaskCreationOptions.LongRunning, TaskScheduler.Default);
+            await disposalEntered.Task.WaitAsync(TestContext.Current.CancellationToken);
             // Current remains readable while disposal waits for the native query.
             observer.Current.MicrophoneAccess.Should().Be(MicrophoneAccessState.Allowed);
         }
         finally
         {
             releaseRead.Set();
+            await refresh;
+            if (disposal is not null) { await disposal; }
         }
-        await Task.WhenAll(refresh, disposal);
 
         changes.Should().BeEmpty();
         disposedDuringRead.Should().BeFalse();

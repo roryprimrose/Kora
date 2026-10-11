@@ -11,7 +11,7 @@ The [Implementation Status and Delivery Roadmap](Implementation_Roadmap.md)
 records what the current source actually delivers and the dependency/value-ordered
 work remaining. A documented capability, local readiness proof or native window
 does not establish acceptance of an entire checkpoint.
-The [current merged snapshot](Implementation_Roadmap.md#current-merged-snapshot---2026-10-07)
+The [current merged snapshot](Archive/Implementation_Roadmap_2026-10-11.md#current-merged-snapshot---2026-10-07)
 also includes minimal durable session authority/workspace/names/native empty
 creation and exact-ID typed/activated-voice session commands, explicit local
 clipboard preview, read-only discovery, bounded
@@ -154,9 +154,10 @@ Use a controllable test MCP server for acceptance testing. A real connector must
 No repository writes, arbitrary scripts, or remote mutation tools are enabled in this slice.
 The fixed computer-control scripts from Slice A are not a generic script execution capability.
 
-### Slice C: Voice-Driven Skill Authoring
+### Slice C: Voice/Text Skill and Instruction Authoring
 
-Add a narrowly scoped Builder workflow that develops usable skills through voice:
+Add a narrowly scoped Builder workflow that develops usable skills and
+standalone instructions through voice, typed, or mixed interaction:
 
 1. Describe the desired skill verbally and clarify behaviour, inputs, and tools.
 2. Generate and refine a declarative proposal without modifying installed skills.
@@ -165,9 +166,25 @@ Add a narrowly scoped Builder workflow that develops usable skills through voice
 5. Approve and save the validated revision to the dedicated user skill store.
 6. Separately confirm exact enablement through voice or UI, then invoke it through either channel under normal task permissions.
 
-See [Voice-Driven Skill Authoring](Skill_Authoring.md).
-Kora-specific skills and edited copies of shared skills are saved under `%APPDATA%\Kora\Skills`; shared profile sources are never edited.
+Standalone instructions reuse proposal/refinement, rendered preview, exact
+source/diff, validation, conflict handling and revision-bound Save, but use a
+single-file editor without package fixtures or dependency tests. Saving does
+not activate changed guidance; applicability follows the common definition
+revision review rather than the skill's capability-enablement workflow.
+Compatible profile instructions may replace only their exact discovered file
+after identity and unchanged-base-digest revalidation.
+
+See [Skill and Instruction Authoring](Skill_Authoring.md).
+Kora-specific skills and optional copies of shared skills are saved under
+`%APPDATA%\Kora\Skills`. The target also supports editing compatible personal
+profile originals through the dedicated declarative writer with exact-change
+confirmation, not generic filesystem or executable writes.
 See [Skill Sources and Roaming Storage](Skill_Storage.md).
+Apply [Definition Management](Definition_Management.md) for consistent native/
+voice authoring and external reload across all supported kinds and sources.
+Deliver kinds/formats incrementally; prompt support is lightweight flexibility,
+and agent execution requires separate runtime qualification. Current R21
+read-only inspection does not qualify these editing or reload operations.
 External build/test commands and Git writes are outside the MVP skill-authoring workflow; it requires neither compiled code nor a commit.
 
 This slice does not enable generic autonomous repository modification.

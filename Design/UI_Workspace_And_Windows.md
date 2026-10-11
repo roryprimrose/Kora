@@ -31,6 +31,10 @@ Production supplies no models, so model-dependent save controls are unavailable.
 
 ### Delivered Authoritative Sessions Work Surface - 2026-10-09
 
+**Sessions > selected expired queue entry > Review expired removal and NEW tail task** shows the original retained history/UTC deadline and separate host-issued fresh IDs, same bounded profile/exact prerequisite and future pending lifetime/deadline.
+Separate confirmation commits one atomic removal/new tail decision; cancel changes nothing. Stale selection/private closure clears the draft and late callbacks never retarget another session.
+No replay, dependency retarget, auto-resume/dispatch or installed-native qualification is implied ([contract](Work_Management.md#delivered-reviewed-expired-pending-removal-and-fresh-tail-decision---2026-10-12)).
+
 The [reviewed selected pending cancellation](Work_Management.md#delivered-atomic-selected-pending-cancellation---2026-10-12) uses an independent, explicitly empty-by-default current-run pending-only multi-selection. It cannot select question waits, running tasks, terminal receipts or another session.
 
 Review displays the complete ordered count/IDs/revisions/profiles/original deadlines; separate **Cancel these pending entries only** confirms one atomic exact set. Cancel review keeps selection and draft.

@@ -28,6 +28,8 @@ public sealed record SessionCommandResult(string Outcome, string Message)
     public SessionQueueMoveReceipt? QueueMoveReceipt { get; init; }
     public SessionQueueCancelReview? QueueCancelReview { get; init; }
     public SessionQueueCancelReceipt? QueueCancelReceipt { get; init; }
+    public SessionQueueRequeueReview? QueueRequeueReview { get; init; }
+    public SessionQueueRequeueReceipt? QueueRequeueReceipt { get; init; }
     public static byte[] Serialize(SessionCommandResult result)
     {
         var bytes = JsonSerializer.SerializeToUtf8Bytes(result, Json);

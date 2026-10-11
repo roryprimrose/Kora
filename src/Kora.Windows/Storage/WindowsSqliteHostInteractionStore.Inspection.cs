@@ -134,7 +134,7 @@ public sealed partial class WindowsSqliteHostInteractionStore
             audit.Changes.Select(change => new AuthorityAuditChange(change.Kind, change.Id, change.Revision, change.Digest)).ToArray(),
             audit.RequestedAudit, audit.RequestedGrantRevision,
             audit.RequestedGrants?.Select(change => new AuthorityAuditChange(change.Kind, change.Id, change.Revision, change.Digest)).ToArray())
-        { QueueMoveReceipt = audit.QueueMoveReceipt, QueueCancelReceipt = audit.QueueCancelReceipt };
+        { QueueMoveReceipt = audit.QueueMoveReceipt, QueueCancelReceipt = audit.QueueCancelReceipt, QueueRequeueReceipt = audit.QueueRequeueReceipt };
 
     private static EvidenceSnapshot ReadAuditSnapshot(SqliteConnection connection, string identity, EvidenceSnapshot? prior)
     {

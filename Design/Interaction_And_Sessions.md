@@ -32,6 +32,9 @@ Exact reviewed attachment removal revokes native view/search before atomic body/
 
 ## Current Implementation and Design Gap
 
+The [reviewed expired current-run fixed-read replacement](Work_Management.md#delivered-reviewed-expired-pending-removal-and-fresh-tail-decision---2026-10-12) uses the same native/exact/current-name activated service: review old removal with retained history plus separate host-issued fresh IDs/profile/prerequisite/lifetime/deadline, then confirm exactly.
+The one atomic transaction places the new decision at session tail. Cancel/stale input admits nothing; original source remains unchanged on pre-commit failure. Dependencies never retarget, passive viewing never renews activity, and previous-run Interrupted/Unknown work is not replayable.
+
 The [atomic selected pending cancellation](Work_Management.md#delivered-atomic-selected-pending-cancellation---2026-10-12) is exact one-session/current-run original-user control. Native independent pending selection and typed/current-name activated full-set review/confirmation share host-issued membership and the consolidated audited physical commit fence.
 
 One changed member/queue/run/generation/source/private receipt refuses all. Cancel review preserves selection without writes. Cancellation retains history and dependents, leaves pause/deadlines/relative order unchanged and cannot cancel current work, replay prior runs, retarget voice/questions, delete content or create provider/effect authority.

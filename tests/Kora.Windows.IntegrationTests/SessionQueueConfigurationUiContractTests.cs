@@ -6,6 +6,30 @@ namespace Kora.Windows.IntegrationTests;
 public sealed class SessionQueueConfigurationUiContractTests
 {
     [Fact]
+    public void NativeExpiredReplacementReviewAndSeparateConfirmationUseActualSelectedQueueAndClearOnClosure()
+    {
+        var root = SourceRoot();
+        var controls = XDocument.Load(Path.Combine(root, "src", "Kora", "SessionsWindow.axaml")).Descendants().ToArray();
+        foreach (var (name, admission) in new[] { ("ReviewExpiredRequeue", "CanReviewExpiredRequeue"),
+            ("ConfirmExpiredRequeue", "CanConfirmExpiredRequeue"), ("DiscardExpiredRequeue", "CanDiscardExpiredRequeue") })
+        {
+            controls.Single(control => control.Attributes().Any(attribute =>
+                string.Equals(attribute.Name.LocalName, "Name", StringComparison.Ordinal)
+                && string.Equals(attribute.Value, name, StringComparison.Ordinal)))
+                .Attribute("IsEnabled")!.Value.Should().Be("{Binding " + admission + "}");
+        }
+        var controller = File.ReadAllText(Path.Combine(root, "src", "Kora", "SessionsWindow.axaml.cs"));
+        controller.Should().Contain("await model.ReviewExpiredRequeueAsync()")
+            .And.Contain("await model.ConfirmExpiredRequeueAsync()").And.Contain("await model.DiscardExpiredRequeueAsync()");
+        var model = File.ReadAllText(Path.Combine(root, "src", "Kora", "SessionsViewModel.QueueRequeue.cs"));
+        model.Should().Contain("SessionCommandOperation.QueueRequeueExpiredReview")
+            .And.Contain("SessionCommandOperation.QueueRequeueExpiredConfirm")
+            .And.Contain("SessionCommandOperation.QueueRequeueExpiredDiscard")
+            .And.Contain("selectionEpoch == epoch").And.Contain("queueRequeueEpoch == selectionEpoch");
+        File.ReadAllText(Path.Combine(root, "src", "Kora", "SessionsViewModel.cs")).Should().Contain("queueRequeueReview = null;");
+    }
+
+    [Fact]
     public void Native_fixed_queue_options_and_per_option_resets_bind_shared_admission_and_visible_lifetime()
     {
         var root = SourceRoot();

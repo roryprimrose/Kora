@@ -40,6 +40,9 @@ remain intact; cached maintenance Check/Open stays separately native.
 
 ## Deterministic fixed local-version queue boundary
 
+The [expired current-run removal/new-decision transaction](Work_Management.md#delivered-reviewed-expired-pending-removal-and-fresh-tail-decision---2026-10-12) binds the exact stored Pending source/task/run/private epoch and host-issued fresh same-profile request/task IDs to a separate user confirmation.
+Queue/order/pause/settings/source revisions and actual original UTC expiry are checked under the same short private SQLite admission fence. Typed original/fresh audit lineage and old Removed/Cancelled plus new Pending/IntentRecorded changes commit all-or-none, without new grants, replay, dependency retarget or side-file authority. Unknown commit/delivery holds admission.
+
 The [selected pending cancellation](Work_Management.md#delivered-atomic-selected-pending-cancellation---2026-10-12) admits only a complete host-reviewed same-session current-run set of at most the shared ten pending IDs/revisions. No arbitrary payload/path/model selection enters it.
 Original native/typed/activated input, private epoch, generation, queue/run/control and full ordered membership bind review and physical commit.
 

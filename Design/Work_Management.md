@@ -149,8 +149,7 @@ unknown subjects/profiles and authority failures refuse without eviction.
 The pending lifetime defaults to 30 minutes, configurable within 1-120 integer
 minutes for future newly enqueued admitted fixed reads only. Each entry captures
 its lifetime at enqueue; later edits never reinterpret or change that deadline.
-Expired heads remain visible and
-non-dispatchable until explicit removal/clear. The active budget defaults to five
+Expired heads remain visible and non-dispatchable until explicit removal/clear or the separately reviewed current-run removal/new-decision transaction below. The active budget defaults to five
 minutes, configurable within 1-60 integer minutes for future admissions only.
 The chosen budget and precise UTC deadline are captured once with the original
 dispatch; monotonic elapsed time includes commit/dispatch delay and must be strictly
@@ -372,6 +371,27 @@ fixture has no production ledger, task slots, resource leases, account capacity
 or approval authority; RT2/PV1 and production admission remain separate.
 
 ## Authoritative Work Ledger
+
+### Delivered reviewed expired pending removal and fresh tail decision - 2026-10-12
+
+Native Sessions and [exact typed/current-name activated commands](../docs/commands.md#deterministic-local-version-queue) review one exact expired **stored Pending**, never-admitted fixed read in the active session/current run and original private admission epoch.
+Expiry is the original captured UTC deadline at or before now; previous-run Interrupted, Unknown, terminal, running and privacy-retired work are not replacement sources.
+
+The host issues separate fresh request/task IDs and displays the old request/task, original enqueue/expiry/profile/dependency, generation/entry/queue/order/pause/configuration revisions and new captured UTC enqueue/lifetime/expiry.
+Separate exact confirmation removes only the old source from dispatch, retaining Removed queue history and its Cancelled task outcome, and enqueues a new same-profile decision strictly at the authoritative session tail.
+
+The [shared store transaction](../src/Kora.Windows/Storage/WindowsSqliteHostInteractionStore.QueueRequeue.cs) validates stored state, old task/run, private/source admission, current settings, capacity and complete reviewed lineage under the existing short private SQLite admission fence.
+One freed slot is used in that same transaction; lowered capacity below the resulting total refuses without eviction.
+Typed REQUESTED/terminal audit, exact original/fresh association and readback precede publication; uncertain commit/delivery retains an explicit admission hold.
+
+All four fixed no-argument profiles use their existing formats and normal manual dispatch policy. The original payload format, UTC deadlines, IDs and historical digests remain evidence; only truthful removal/terminal revisions change.
+Active budget is captured only at later normal dispatch. Cancel review admits no fresh IDs and changes nothing; stale proposals refuse wholly, without retry or target substitution.
+
+The original prerequisite ID is retained and revalidated, never silently retargeted. Current same-session pending prerequisites before the new tail or exact durable Succeeded prerequisites are admitted; missing, invalid or cyclic lineage refuses.
+Existing dependents of the removed task stay blocked; no cascade or global descendant count is claimed. Unselected order, fairness, slots, running callbacks and pause/hold fences remain independent.
+
+This is a new explicit user decision, not deadline extension, old-request replay, success/result copying or automatic dispatch/resume. Restart projects pending work Interrupted and admitted uncertainty Unknown without replay. Passive preview/list does not renew meaningful activity.
+[Storage tests](../tests/Kora.Windows.IntegrationTests/Storage/WindowsSqliteSessionQueueTests.Requeue.cs) exercise actual private transactions; installed-native, hardware, physical-stop and broader worker/provider qualifications remain open.
 
 The [Sessions workspace](UI_Workspace_And_Windows.md#sessions-workspace) presents the session list beside full conversation/history, per-session task/queue, and All work.
 The compact latest-interaction view shares selected session identity, not an execution slot; background progress/attention never replaces another session's conversation or question.

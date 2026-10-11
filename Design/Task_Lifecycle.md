@@ -15,6 +15,8 @@ The delivered fixed read-only queue records Pending, Running (admitted
 dispatch, not independent proof of an effect), Succeeded/Failed, exact
 pre-admission Cancelled/Removed and restart Interrupted/Unknown projections.
 Expiry is a visible non-dispatchable pending projection, not a silent deletion.
+The [reviewed current-run replacement](Work_Management.md#delivered-reviewed-expired-pending-removal-and-fresh-tail-decision---2026-10-12) removes one exact expired stored Pending entry, retaining Removed queue history and a Cancelled old task.
+A separate fresh request/task becomes IntentRecorded/Pending at session tail with current confirmed future pending lifetime. Original IDs/deadlines/prerequisites remain unchanged; existing dependents stay blocked on the old task. No expiry extension, replay, automatic dispatch or previous-run recovery is added.
 Queued identities and revisioned task transitions share the atomic required
 authority audit. A lost or rejected receipt remains unverified, never an
 inferred success, cancellation or automatic retry.

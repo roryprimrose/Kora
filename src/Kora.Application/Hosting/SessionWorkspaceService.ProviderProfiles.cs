@@ -18,7 +18,8 @@ public sealed partial class SessionWorkspaceService
         { throw new InvalidOperationException("Missing or replaced live host context cannot admit a session provider control."); }
         if (HostActivity.Current is { } current)
         {
-            if (current.Activity!.IsStopped || current.Outcome != HostOperationOutcome.Unknown || current.Request.InvocationId is not null)
+            // Stopping an activity withdraws Activity.Current; the HasScope fence above rejects that missing segment.
+            if (current.Outcome != HostOperationOutcome.Unknown || current.Request.InvocationId is not null)
             { throw new InvalidOperationException("A model/tool, stopped or completed callback cannot create an original-user session provider control."); }
             origin = current.Request.Origin;
         }

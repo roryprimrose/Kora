@@ -31,6 +31,7 @@ public sealed class SessionProviderProfileConfigurationTests
     [InlineData("stopped")]
     [InlineData("stopped-bound")]
     [InlineData("completed")]
+    [InlineData("expired-control")]
     [InlineData("system")]
     [InlineData("user")]
     public async Task IncomingCallbacksCannotRelabelModelOrExpiredContextAsOriginalSessionPolicyInput(string context)
@@ -41,7 +42,8 @@ public sealed class SessionProviderProfileConfigurationTests
         using var root = HostActivity.BeginRoot(request, HostActivityLayer.Application, HostOperation.Request);
         if (context is "stopped") { root.Activity!.Stop(); }
         if (context is "stopped-bound") { root.Activity!.Stop(); Activity.Current = root.Activity; }
-        if (context is "completed") { root.Complete(HostOperationOutcome.Completed); }
+        if (context is "completed" or "expired-control") { root.Complete(HostOperationOutcome.Completed); }
+        if (context is "expired-control") { root.Activity!.Stop(); Activity.Current = root.Activity; }
         if (context is "user")
         {
             var draft = await f.Inspect();
@@ -49,6 +51,27 @@ public sealed class SessionProviderProfileConfigurationTests
             f.Service.Discard(draft);
         }
         else { await f.Invoking(value => value.Inspect()).Should().ThrowAsync<InvalidOperationException>(); }
+        f.Snapshot.Revision.Should().Be(0);
+    }
+
+    [Theory]
+    [InlineData("initial")]
+    [InlineData("publication")]
+    [InlineData("cancel")]
+    public async Task PassiveInspectionRevalidatesAndTruthfullyTerminatesWithoutWritingIntent(string failure)
+    {
+        await using var f = new Fixture();
+        using var cancellation = new CancellationTokenSource();
+        var calls = 0;
+        bool Admission()
+        {
+            calls++;
+            return failure is not "initial" && (failure is not "publication" || calls != 4);
+        }
+        if (failure is "cancel") { f.Profiles.Catalogue.BeforeObservation = () => throw new OperationCanceledException(); }
+        await f.Service.Invoking(service => service.Inspect(f.Session.SessionId, RequestOrigin.LocalUi,
+            Admission, cancellation.Token)).Should().ThrowAsync<Exception>();
+        f.Store.Tasks.Should().BeEmpty();
         f.Snapshot.Revision.Should().Be(0);
     }
 

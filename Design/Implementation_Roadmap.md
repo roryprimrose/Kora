@@ -38,6 +38,12 @@ Exact experiment-equivalence assessment: maintained tests cover production inten
 
 Runtime, native/provider, containment, speech/privacy/hardware receipts and active proof consumers remain unchanged. No executable/consumer is removed or proof gate weakened.
 
+Validation on rebased base `e4433d9650486ef9250a3c0c44cf9f1e11ff8f44`, implementation head `893da6a13efcd184b318561f7a4281abaced8bb6`: Release solution **0 warnings/errors**; Core **1,652**, Application **4,200**, Tools **187**, Definitions **6**, Windows **1,705** passed, **0 failures/skips**, unchanged default parallel mode. Focused native question/recovery suite: **59 passed**, no failures/skips.
+
+Latest-only existing portable gate: **100% lines** (21,128/21,128) and **100% branches** (12,816/12,816). One initial missing-assets failure required locked restore solely from Networking-AAA; no manifest/feed changes. Earlier compiler/analyzer/test-context failures and a stopped misbound cross-thread fixture attempt remain failed receipts, not qualification. Final shared-workspace cancellation and ownership-epoch checks pass.
+
+No live application/device/account/network/OS trial or proof-owned fixture/driver changes were made. The original and final validation outputs remain in the isolated worktree's `.net-test-artifacts` directories.
+
 ### R14 Bounded Passive Cross-Session Work / Attention Overview - 2026-10-11
 
 Delivered subset: **Tray > Sessions > All work / attention overview** opens an owned native read-only window; explicit Refresh/Next/Cancel observes up to ten admitted metadata identities and independent current per-session work snapshots per call, plus bounded metadata lookahead.

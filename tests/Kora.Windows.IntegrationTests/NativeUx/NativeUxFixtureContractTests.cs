@@ -67,6 +67,17 @@ public sealed partial class NativeUxFixtureContractTests
     }
 
     [Fact]
+    public void All_work_mode_requires_its_exact_separate_flag()
+    {
+        NativeUxFixtureHost.TryGetScratchParent(
+            ["--launch-native-fixtures", "--scratch-parent", Path.GetTempPath(), "--all-work-fixture"], out _).Should().BeTrue();
+        NativeUxFixtureHost.TryGetScratchParent(
+            ["--launch-native-fixtures", "--scratch-parent", Path.GetTempPath(), "--all-work-fixture", "--exact-grants-fixture"], out _).Should().BeFalse();
+        var mixed = () => new NativeUxFixtureSession(Path.GetTempPath(), exactGrants: true, allWork: true);
+        mixed.Should().Throw<ArgumentException>();
+    }
+
+    [Fact]
     public async Task List_overflow_keeps_real_queue_event_limits_missing_links_and_nonexecutable_catalogue()
     {
         await HeadlessSession.RunAsync(async () =>

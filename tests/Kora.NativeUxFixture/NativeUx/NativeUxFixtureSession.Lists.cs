@@ -13,6 +13,7 @@ namespace Kora.NativeUxFixture;
 internal sealed partial class NativeUxFixtureSession
 {
     internal bool ListOverflow { get; }
+    internal bool AllWork { get; }
     internal LocalEventBroker? OverflowEvents { get; private set; }
     internal TraceSnapshot? OverflowTrace { get; private set; }
     internal IReadOnlyList<string> OverflowLinks { get; private set; } = [];
@@ -53,5 +54,17 @@ internal sealed partial class NativeUxFixtureSession
             ?? throw new InvalidOperationException("The synthetic overflow trace was not sampled.");
         OverflowLinks = links.Select(context => context.TraceId.ToHexString()).ToArray();
         linked.Complete(HostOperationOutcome.Completed);
+    }
+
+    private async Task InitializeAllWorkAsync()
+    {
+        for (var index = 0; index < 12; index++)
+        {
+            var request = HostRequest.Create(RequestOrigin.LocalUi);
+            using var activity = HostActivity.BeginRoot(request, HostActivityLayer.Desktop, HostOperation.Request);
+            await Tasks.CommitAsync(new(request, new(1), HostTaskState.IntentRecorded), 0, Token);
+            await Interactions.CreateSessionAsync(request, Token);
+            activity.Complete(HostOperationOutcome.Completed);
+        }
     }
 }

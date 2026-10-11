@@ -744,6 +744,54 @@ batch. Raw snapshots, receipts, payloads, TRX, immutable approval and sealed
 summary remain local. Publication of this driver/documentation does not
 broaden the recorded qualification or relabel historical receipts.
 
+### 2026-10-11 Automated Native All Work and Exact-Batch Controls
+
+The operator approved one fixed scratch-only interactive window ending
+2026-10-11 00:31:39.8149558 UTC. Preparation opened no windows and passed a
+zero-warning/error Release build and publish plus 136 focused tests with zero
+failures/skips. The final source identity was
+`cf44a5f2bc893a5d19f445b4fc4dd31a204b7d18`, with build-input digest
+`785a52acbc33ed54cde50e96b40f936cb5b46e263635e1c6e1e59ed019f15161`
+over 1,599 files. The exact-grant no-launch suite separately passed 20
+admission/recursion/discovery contracts.
+
+Two identical-byte [All Work driver](../eng/Invoke-NativeUxAllWork.ps1) runs
+passed all five rows each. The real scratch-composed Sessions/All Work
+controllers and private stores exposed no automatic collection, nonempty unique
+pages bounded to at most ten complete groups, exact passive details/navigation,
+disjoint continuation without a global all-clear claim, filter retirement and
+synthetic privacy closure/fresh-window no replay. Both processes exited 0,
+cleaned their exact scratch children and required no force. The driver digest
+was `6845078a2122e1d28ebc769869b1cfab9f0bb3c69bf1d501db27fa27ccbb07da`.
+
+Two identical-byte [exact-grant driver](../eng/Invoke-NativeUxExactGrants.ps1)
+runs passed the existing eight rows plus complete three-ID selected-batch
+preview/retirement and one atomic batch revocation/readback row. Every selected
+grant read back Revoked at revision 2, the earlier independent single-record
+revocation remained, and unrelated Perpetual authority was byte-equivalent.
+Both processes exited 0, cleaned their exact scratch children and required no
+force. The driver digest was
+`c3d4a6f8d677b45092cf3aab9ecee868505c5168448b932184af7e171d594063`.
+
+Earlier All Work attempts remain failed local receipts: labelled peer discovery,
+visible-name versus stable automation-ID assumptions and an exact-ten assertion
+were corrected without changing product authority; a later repetition retained
+AW01/AW02 passes then failed on a transient passive UIA provider HRESULT. The
+final driver permits a bounded retry only for passive provider discovery after
+exact ownership revalidation; consequential actions are never retried. An
+exact-grant repetition later exposed the same transient provider behavior at
+G04 and exited cleanly before the final exact-driver correction. All four final
+repetitions used zero discovery retries.
+
+**Disposition: these current-main bounded native mechanics are machine-verified
+without operator control input.** All Work does not establish global work
+coordination, provider/resource execution or unread tracking. Exact batch
+revocation denies subsequent consumes; it does not cancel or roll back running
+effects and is not a provider/account/resource revoke-all implementation.
+Real ownership/privacy transitions, installed behavior, human
+Narrator/readability/physical-display acceptance and full R05/R14/release
+qualification remain open. Raw IDs, paths, payloads, logs and TRX remain local.
+
 ### 2026-10-10 Automated Native Exact-Grant Inspection and Revocation
 
 After the unattended child batch completed, the operator-authorized parent

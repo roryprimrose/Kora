@@ -50,11 +50,12 @@ internal sealed partial class NativeUxFixtureSession : IApplicationDataPaths, ID
     private readonly EvidenceLoggerProvider? evidenceProvider;
     private AudioControlAdmission? captionAdmission;
 
-    internal NativeUxFixtureSession(string scratchParent, bool silentCaption = false, bool listOverflow = false, bool exactGrants = false)
+    internal NativeUxFixtureSession(string scratchParent, bool silentCaption = false, bool listOverflow = false,
+        bool exactGrants = false, bool allWork = false)
     {
-        if ((silentCaption ? 1 : 0) + (listOverflow ? 1 : 0) + (exactGrants ? 1 : 0) > 1)
+        if ((silentCaption ? 1 : 0) + (listOverflow ? 1 : 0) + (exactGrants ? 1 : 0) + (allWork ? 1 : 0) > 1)
         {
-            throw new ArgumentException("Synthetic caption, list-overflow and exact-grants fixture modes are separate.");
+            throw new ArgumentException("Synthetic caption, list-overflow, exact-grants and all-work fixture modes are separate.");
         }
         if (!NativeUxFixtureHost.IsLocalScratchParent(scratchParent))
         {
@@ -64,6 +65,7 @@ internal sealed partial class NativeUxFixtureSession : IApplicationDataPaths, ID
         SilentSpeech = silentCaption ? new SilentCaptionSpeech() : null;
         ListOverflow = listOverflow;
         ExactGrants = exactGrants;
+        AllWork = allWork;
         if (Directory.Exists(LocalRoot) || File.Exists(LocalRoot))
         {
             throw new IOException("The fresh native UX scratch path already exists.");
@@ -207,6 +209,7 @@ internal sealed partial class NativeUxFixtureSession : IApplicationDataPaths, ID
         initialized = true;
         if (ListOverflow) { await InitializeListOverflowAsync(); }
         if (ExactGrants) { await InitializeExactGrantsAsync(); }
+        if (AllWork) { await InitializeAllWorkAsync(); }
         startup.Complete(HostOperationOutcome.Completed);
     }
 

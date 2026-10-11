@@ -225,6 +225,34 @@ observes metadata; due timer cleanup/hold enforcement is separate storage-test
 evidence. No native due-date, power-loss, copy-disposal, forensic-erasure,
 installed, audio, real OS-transition or human accessibility acceptance is inferred.
 
+### Separate All Work overview automation
+
+The [All Work driver](../../eng/Invoke-NativeUxAllWork.ps1) launches the
+separate `--all-work-fixture` mode with twelve additional metadata-only scratch
+sessions. It composes the production `SessionsWindowController`,
+`AllWorkWindowController`, workspace service and private SQLite stores. It does
+not read the normal profile or add another overview implementation.
+
+```powershell
+$allWork = Join-Path $env:TEMP ('kora-native-all-work-' + [guid]::NewGuid().ToString('N'))
+.\eng\Invoke-NativeUxAllWork.ps1 -PreparedDirectory $proof -OutputDirectory $allWork `
+    -DeadlineUtc ([DateTimeOffset]::UtcNow.AddMinutes(15)) -ApproveDesktopAutomation
+```
+
+The five rows verify no automatic collection on open; a nonempty unique page
+bounded to at most ten groups and the complete-output byte limit; exact passive
+selection/details/navigation without authority renewal; disjoint keyset
+continuation without a global all-clear claim; filter retirement of rows and
+continuation; and synthetic privacy closure followed by a fresh empty window.
+The driver uses exact PID/HWND and foreground checks. A bounded retry is allowed
+only for passive UIA provider discovery after rechecking ownership; no button,
+selection, navigation or confirmation action is automatically retried.
+
+This is scratch native mechanics, not installed-native, normal-profile,
+provider/resource coordination, general work execution, human accessibility or
+real privacy-transition acceptance. Preserve failed attempts and require normal
+owned-process exit and exact-child cleanup.
+
 ### Separate silent caption fixture
 
 The default fixture still refuses all speech. A separately approved launch may
@@ -280,7 +308,7 @@ artifact commands. Limits, virtualization, passive selection and execution
 boundaries are unchanged. Exact native discovery is machine evidence, not a
 claim that Narrator announced the rows or that their rendering is readable.
 
-### Exact-grant inspection and single-record revocation preparation
+### Exact-grant inspection and reviewed revocation preparation
 
 The [exact-grant driver](../../eng/Invoke-NativeUxExactGrants.ps1) is a separate
 scratch-only proof. Its default `Prepare` stage builds/publishes the fixture and
@@ -335,7 +363,8 @@ when storage revalidates the confirmation after asynchronous I/O. Failure
 presentation retains a live host diagnostic activity without granting control.
 If an enumerated owned HWND retires before UIA resolves its provider, discovery
 records the retirement only after Windows confirms that the handle has no owner.
-Provider failures for live handles still abort; consequential actions are never retried.
+A transient live-provider failure permits only bounded passive discovery retry
+after exact ownership revalidation; consequential actions are never retried.
 
 | Row | Machine assertion |
 | --- | --- |
@@ -347,8 +376,10 @@ Provider failures for live handles still abort; consequential actions are never 
 | G06 | Synthetic privacy closes the old window; a fresh window has no replayed review |
 | G07 | Explicit reviewed revoke of target only, immutable readback and subsequent genuine consume denial |
 | G08 | 48 unrelated grants including Perpetual unchanged; target/Perpetual clocks unchanged; fresh-window readback |
+| G09 | Complete three-ID current-page batch preview; preview alone grants nothing; selection and refresh retire preview/confirmation |
+| G10 | One atomic reviewed three-ID revocation, revision-2 readback for every target, preserved unrelated single revocation and unchanged Perpetual authority |
 
-There are no automatic action retries, bulk removal, approvals from inspection,
+There are no automatic action retries, revoke-all scans, approvals from inspection,
 or promises that revocation stops or rolls back running effects. The native
 receipt is synthetic mechanics only, not Narrator/readability, real OS privacy,
 real effect containment, process restart or installed qualification. G02 can

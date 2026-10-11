@@ -349,6 +349,11 @@ internal sealed class NativeUxFixtureWindow : Window, IDisposable
                 session.Access, NullLogger<SessionsViewModel>.Instance, session.OverflowEvents);
             sessions.Bind();
             controllers.Add(sessions);
+            var allWork = new AllWorkWindowController(session.Main, session.Sessions, session.Access,
+                NullLogger<AllWorkViewModel>.Instance, sessions);
+            allWork.Bind();
+            sessions.OpenAllWork = allWork.Open;
+            controllers.Add(allWork);
             if (session.ExactGrants)
             {
                 controllers.Add(new ExactGrantsWindowController(session.Main, session.Interactions,

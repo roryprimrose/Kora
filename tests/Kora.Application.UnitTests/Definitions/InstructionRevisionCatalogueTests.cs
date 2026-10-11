@@ -101,7 +101,7 @@ public sealed class InstructionRevisionCatalogueTests
         var invalid = new[]
         {
             "{\"Version\":1,\"Revisions\":{\"\":null}}",
-            "{\"Version\":1,\"Revisions\":{\"" + new string('a', 65) + "\":null}}",
+            "{\"Version\":1,\"Revisions\":{\"" + new string('a', 129) + "\":null}}",
             "{\"Version\":1,\"Revisions\":{\"example\":\"" + new string('a', 257) + "\"}}",
             "{\"Version\":1,\"Revisions\":{\"example\":\"" + new string('g', 64) + "\"}}",
             "{\"Version\":1,\"Revisions\":{\"example\":null,\"example\":null}}",
@@ -151,5 +151,48 @@ public sealed class InstructionRevisionCatalogueTests
         registry.PrepareActivation(snapshot);
         registry.MarkUnavailable();
         ((Action)(() => registry.CompleteActivation(snapshot))).Should().Throw<InvalidOperationException>();
+    }
+
+    [Fact]
+    public void PersistedNameBoundsCannotBeExceededAndDeletedRowsNeedNoAuthorityTombstone()
+    {
+        var store = new LocalSharedSkillPreferencesTests.Store();
+        var registry = new InstructionRevisionCatalogue(store);
+        for (var index = 0; index < 128; index++) { registry.Hold("item-" + index); }
+        ((Action)(() => registry.Hold("item-128"))).Should().Throw<InvalidDataException>();
+        var legacy = Snapshot(native: false) with { Name = "Legacy.Name" };
+        var candidate = Candidate(legacy) with { OwnedInstructionName = legacy.Name };
+        registry.Reconcile([candidate]).Single().IsUseEnabled.Should().BeFalse();
+        registry.Reconcile([]).Should().BeEmpty();
+        registry.Reconcile([candidate]).Single().IsUseEnabled.Should().BeFalse();
+    }
+
+    [Fact]
+    public void SerializedMetadataCapacityFailsBeforeReplacingSavedState()
+    {
+        var names = Enumerable.Range(0, 128).Select(i => new string('界', 127) + (char)(0x4e00 + i)).ToArray();
+        var original = "{\"Version\":1,\"Revisions\":{" + string.Join(",", names.Select(name => $"\"{name}\":\"{new string('a', 256)}\"")) + "}}";
+        var store = new LocalSharedSkillPreferencesTests.Store { Text = original };
+        var registry = new InstructionRevisionCatalogue(store);
+        ((Action)(() => registry.Hold(names[0]))).Should().Throw<InvalidDataException>();
+        store.Text.Should().Be(original);
+        store.Writes.Should().Be(0);
+    }
+
+    [Fact]
+    public void FreshnessRequiresAnActuallyEnabledCurrentRunOrUnchangedLegacyRevision()
+    {
+        var registry = new InstructionRevisionCatalogue(new LocalSharedSkillPreferencesTests.Store());
+        var legacy = Snapshot(native: false);
+        registry.IsEnabled(legacy).Should().BeFalse();
+        registry.Reconcile([Candidate(legacy)]);
+        registry.IsEnabled(legacy).Should().BeTrue();
+        registry.Hold(legacy.Name);
+        registry.IsEnabled(legacy).Should().BeFalse();
+        registry.PrepareActivation(legacy);
+        registry.CompleteActivation(legacy);
+        registry.IsEnabled(legacy).Should().BeTrue();
+        registry.MarkUnavailable();
+        registry.IsEnabled(legacy).Should().BeFalse();
     }
 }

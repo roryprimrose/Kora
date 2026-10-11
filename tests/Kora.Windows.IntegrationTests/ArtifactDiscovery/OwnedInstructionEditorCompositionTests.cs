@@ -12,6 +12,7 @@ using Kora.Core.Configuration;
 using Kora.Core.Dependencies;
 using Kora.Core.Diagnostics;
 using Kora.Core.Hosting;
+using Kora.Core.Commands;
 using Kora.Windows.Artifacts;
 using Kora.Windows.IntegrationTests.Storage;
 using Kora.Windows.Storage;
@@ -48,7 +49,7 @@ public sealed class OwnedInstructionEditorCompositionTests : IDisposable
         Directory.CreateDirectory(paths.RoamingRoot);
         var tasks = new WindowsSqliteHostTaskStore(paths);
         await tasks.InitializeAsync(TestContext.Current.CancellationToken);
-        var interactions = new WindowsSqliteHostInteractionStore(paths, tasks);
+        var interactions = new WindowsSqliteHostInteractionStore(paths, tasks, new Clock());
         await interactions.InitializeAsync(TestContext.Current.CancellationToken);
         await using var admission = new InstructionControlAdmission(interactions, interactions, new HostTaskCoordinator(tasks));
         var store = new WindowsOwnedInstructionStore(paths);
@@ -58,7 +59,8 @@ public sealed class OwnedInstructionEditorCompositionTests : IDisposable
         var bundled = new ArtifactDefinition("bundled.test", ArtifactKind.Prompt, "Bundled", "Read only", "test",
             ["test"], "bundled", "1", new string('a', 64), "Body");
         var catalogue = new ArtifactCatalogue(revisions.Reconcile([bundled]));
-        var actions = new OwnedInstructionEditorActions(store, admission, revisions, catalogue, audit);
+        var actions = new OwnedInstructionEditorActions(store, admission, revisions, catalogue, audit,
+            new BuiltInCommandRouter(new BuiltInCommandCatalog()));
         var workflow = new InstructionSaveWorkflow(actions);
         using var reload = new ArtifactCatalogueReloadService(catalogue, paths, preferences,
             new ArtifactDirectoryConfigurationService(preferences, audit),
@@ -101,6 +103,10 @@ public sealed class OwnedInstructionEditorCompositionTests : IDisposable
     {
         public ArtifactDirectorySettings Load() => ArtifactDirectorySettings.Empty;
         public void Save(ArtifactDirectorySettings settings) => throw new NotSupportedException();
+    }
+    private sealed class Clock : TimeProvider
+    {
+        public override DateTimeOffset GetUtcNow() => new(2026, 10, 11, 0, 0, 0, TimeSpan.Zero);
     }
     private sealed class Audit : ISecurityAuditLog
     {

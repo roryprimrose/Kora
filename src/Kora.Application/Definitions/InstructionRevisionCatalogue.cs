@@ -9,6 +9,7 @@ namespace Kora.Application.Definitions;
 public sealed class InstructionRevisionCatalogue
 {
     private const string FileName = "instruction-revisions.json";
+    private const int MaximumPreferenceBytes = 128 * 1024;
     private static readonly string[] PreferenceProperties = ["Revisions", "Version"];
     private readonly IPreferenceStore store;
     private readonly Lock gate = new();
@@ -30,7 +31,7 @@ public sealed class InstructionRevisionCatalogue
             var names = discovered.Where(item => item.OwnedInstructionName is not null)
                 .Select(item => item.OwnedInstructionName!).ToHashSet(StringComparer.Ordinal);
             foreach (var name in state.Keys.Where(name => !names.Contains(name)).ToArray())
-            { state[name] = null; preparedReviews.Remove(name); enabledForRun.Remove(name); }
+            { state.Remove(name); preparedReviews.Remove(name); enabledForRun.Remove(name); }
             var result = discovered.Select(artifact =>
             {
                 if (artifact.OwnedInstructionName is not { } name) { return artifact; }
@@ -56,6 +57,7 @@ public sealed class InstructionRevisionCatalogue
 
     public void Hold(string name)
     {
+        OwnedInstructionNames.ReadName(name);
         lock (gate)
         {
             var state = Load() ?? new Dictionary<string, string?>(StringComparer.Ordinal);
@@ -102,6 +104,17 @@ public sealed class InstructionRevisionCatalogue
         }
     }
 
+    public bool IsEnabled(OwnedInstructionSnapshot snapshot)
+        {
+            lock (gate)
+            {
+                if (unavailable) { return false; }
+                var saved = Load();
+                return string.Equals(enabledForRun.GetValueOrDefault(snapshot.Name), snapshot.Revision, StringComparison.Ordinal)
+                    || string.Equals(saved?.GetValueOrDefault(snapshot.Name), snapshot.Revision, StringComparison.Ordinal);
+        }
+    }
+
     public void MarkUnavailable()
     {
         lock (gate)
@@ -118,7 +131,7 @@ public sealed class InstructionRevisionCatalogue
 
     private Dictionary<string, string?>? Load()
     {
-        var text = store.ReadText(FileName, 32 * 1024);
+        var text = store.ReadText(FileName, MaximumPreferenceBytes);
         if (text is null)
         {
             if (stateObserved) { throw new InvalidDataException("Previously observed instruction revision state is missing; restore verified preferences."); }
@@ -136,9 +149,9 @@ public sealed class InstructionRevisionCatalogue
             var result = new Dictionary<string, string?>(StringComparer.Ordinal);
             foreach (var item in root.GetProperty("Revisions").EnumerateObject())
             {
+                OwnedInstructionNames.ReadName(item.Name);
                 var digest = item.Value.ValueKind == JsonValueKind.Null ? null : item.Value.GetString();
-                if (item.Name.Length is 0 or > 64 || item.Name.Any(c => c is not (>= 'a' and <= 'z' or >= '0' and <= '9' or '-'))
-                    || digest is not null && (digest.Length is < 64 or > 256 || digest.Any(c => c is not (>= 'a' and <= 'f' or >= '0' and <= '9' or '.')))
+                if (digest is not null && (digest.Length is < 64 or > 256 || digest.Any(c => c is not (>= 'a' and <= 'f' or >= '0' and <= '9' or '.')))
                     || !result.TryAdd(item.Name, digest) || result.Count > 128)
                 { throw new InvalidDataException("Invalid instruction revision identity or digest."); }
             }
@@ -153,8 +166,10 @@ public sealed class InstructionRevisionCatalogue
         var text = JsonSerializer.Serialize(new { Version = 1, Revisions = state });
         try
         {
+            if (state.Count > 128 || System.Text.Encoding.UTF8.GetByteCount(text) > MaximumPreferenceBytes)
+            { throw new InvalidDataException("The owned instruction revision inventory exceeds its persisted bounds."); }
             store.WriteText(FileName, text);
-            if (!string.Equals(store.ReadText(FileName, 32 * 1024), text, StringComparison.Ordinal))
+            if (!string.Equals(store.ReadText(FileName, MaximumPreferenceBytes), text, StringComparison.Ordinal))
             { throw new IOException("Instruction revision publication is unconfirmed."); }
             stateObserved = true;
         }

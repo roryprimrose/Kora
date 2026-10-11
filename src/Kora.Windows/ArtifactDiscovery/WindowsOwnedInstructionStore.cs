@@ -29,7 +29,7 @@ public sealed partial class WindowsOwnedInstructionStore(IApplicationDataPaths p
             var files = Directory.EnumerateFiles(directory, "*.instructions.md", SearchOption.TopDirectoryOnly)
                 .Select(Path.GetFileName).OfType<string>().ToArray();
             if (files.Length > 128) { throw new InvalidDataException("The owned inventory exceeds 128 files."); }
-            return files.Select(file => ValidateName(file[..^".instructions.md".Length])).Order(StringComparer.Ordinal).ToArray();
+            return files.Select(file => OwnedInstructionNames.ReadName(file[..^".instructions.md".Length])).Order(StringComparer.Ordinal).ToArray();
         }
     }, token);
 
@@ -40,7 +40,7 @@ public sealed partial class WindowsOwnedInstructionStore(IApplicationDataPaths p
         lock (gate)
         {
             using var pinned = PinRoot(token);
-            return ReadCore(ValidateName(name), pinned, token);
+            return ReadCore(OwnedInstructionNames.ReadName(name), pinned, token);
         }
     }
 
@@ -50,10 +50,12 @@ public sealed partial class WindowsOwnedInstructionStore(IApplicationDataPaths p
     {
         lock (gate)
         {
-            name = ValidateName(name);
+            name = OwnedInstructionNames.WriteName(name);
             replacement?.RequireEditableInstruction();
             using var pinned = PinRoot(token);
             var current = ReadCore(name, pinned, token);
+            if (current is not null && !string.Equals(current.CanonicalFileName, name + ".instructions.md", StringComparison.Ordinal))
+            { throw new InvalidDataException("The selected filename is a case alias, not the original canonical owned write target."); }
             if (!Same(expected, current))
             { return new InstructionWriteResult(false, false, true, current); }
             RequireEligible(eligible, token);
@@ -62,9 +64,12 @@ public sealed partial class WindowsOwnedInstructionStore(IApplicationDataPaths p
             { return new InstructionWriteResult(false, false, false, current, Unchanged: true); }
             if (replacement is not null && !replacement.Metadata.ContainsKey("kora-format"))
             { throw new InvalidDataException("New or changed owned instructions require the reviewed native v1 marker."); }
+            if (current is null && replacement is not null
+                && Directory.EnumerateFiles(directory, "*.instructions.md", SearchOption.TopDirectoryOnly).Take(128).Count() >= 128)
+            { throw new InvalidDataException("The owned instruction inventory is full; no new file was created."); }
             if (replacement is null)
             {
-                if (current is null) { return new InstructionWriteResult(false, false, true, null); }
+                if (current is null) { return new InstructionWriteResult(false, false, false, null, Unchanged: true); }
                 using var target = OpenFile(Target(name), 0x80010000, 1);
                 var reviewed = ReadHandle(name, pinned, target, token);
                 if (!Same(current, reviewed)) { return new InstructionWriteResult(false, false, true, reviewed); }
@@ -137,6 +142,7 @@ public sealed partial class WindowsOwnedInstructionStore(IApplicationDataPaths p
             && string.Equals(expected.Name, current.Name, StringComparison.Ordinal)
             && string.Equals(expected.DirectoryIdentity, current.DirectoryIdentity, StringComparison.Ordinal)
             && string.Equals(expected.FileIdentity, current.FileIdentity, StringComparison.Ordinal)
+            && string.Equals(expected.CanonicalFileName, current.CanonicalFileName, StringComparison.Ordinal)
             && string.Equals(expected.Document.Definition.Digest, current.Document.Definition.Digest, StringComparison.Ordinal);
 
     private static void RequireEligible(Func<bool> eligible, CancellationToken token)
@@ -157,7 +163,9 @@ public sealed partial class WindowsOwnedInstructionStore(IApplicationDataPaths p
             throw NativeFailure("The owned instruction is inaccessible.");
         }
         VerifyFile(handle, Target(name));
-        return ReadHandle(name, pinned, handle, token);
+        var canonicalFile = Path.GetFileName(CoordinationNative.CanonicalPath(handle));
+        var canonicalName = canonicalFile[..^".instructions.md".Length];
+        return ReadHandle(canonicalName, pinned, handle, token) with { CanonicalFileName = canonicalFile };
     }
 
     private OwnedInstructionSnapshot ReadHandle(string name, Pinned pinned, SafeFileHandle handle, CancellationToken token)
@@ -195,11 +203,22 @@ public sealed partial class WindowsOwnedInstructionStore(IApplicationDataPaths p
                 token.ThrowIfCancellationRequested();
                 if (component.Length > 0) { current = Path.Combine(current, component); }
                 var handle = CreateFile(current, 0x80, 3, nint.Zero, 3, 0x02200000, nint.Zero);
+                var error = Marshal.GetLastWin32Error();
+                if (handle.IsInvalid && error is 2 or 3 && binding is null
+                    && string.Equals(current, root, StringComparison.OrdinalIgnoreCase))
+                {
+                    handle.Dispose();
+                    using var owner = WindowsIdentity.GetCurrent();
+                    RestrictedStorageDirectory.CreateRestrictedDirectory(current,
+                        owner.User ?? throw new InvalidOperationException("The application data owner is unknown."));
+                    handle = CreateFile(current, 0x80, 3, nint.Zero, 3, 0x02200000, nint.Zero);
+                }
                 pinned.Add(handle);
                 VerifyDirectory(handle, current);
             }
             if (!Directory.Exists(directory))
             {
+                if (binding is not null) { throw new InvalidDataException("The previously bound instruction source is missing; no implicit recreation."); }
                 using var ownerIdentity = WindowsIdentity.GetCurrent();
                 RestrictedStorageDirectory.CreateRestrictedDirectory(directory,
                     ownerIdentity.User ?? throw new InvalidOperationException("The current storage owner is unknown."));
@@ -227,18 +246,6 @@ public sealed partial class WindowsOwnedInstructionStore(IApplicationDataPaths p
     }.Where(path => !string.IsNullOrWhiteSpace(path)).Any(path =>
         root.Equals(path.TrimEnd('\\'), StringComparison.OrdinalIgnoreCase)
         || root.StartsWith(path.TrimEnd('\\') + '\\', StringComparison.OrdinalIgnoreCase));
-
-    private static string ValidateName(string name)
-    {
-        if (string.IsNullOrWhiteSpace(name) || name.Length > 64
-            || name.StartsWith('-') || name.EndsWith('-')
-            || name.Any(character => character is not (>= 'a' and <= 'z' or >= '0' and <= '9' or '-'))
-            || name is "con" or "prn" or "aux" or "nul"
-            || Enumerable.Range(1, 9).Any(index => string.Equals(name, "com" + index, StringComparison.Ordinal)
-                || string.Equals(name, "lpt" + index, StringComparison.Ordinal)))
-        { throw new InvalidDataException("Use a bounded lowercase ASCII instruction ID, not a path or device name."); }
-        return name;
-    }
 
     private static SafeFileHandle OpenFile(string path, uint access, uint sharing)
     {

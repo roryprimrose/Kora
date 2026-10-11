@@ -20,11 +20,15 @@ public sealed partial class MainViewModel
             && CanRevealPrivatePresentation;
     }
 
+    private bool IsInstructionEditorCommand(string input) =>
+        Kora.Core.Artifacts.ArtifactCommandRouter.RemoveActivationPrefix(input.Trim(), AssistantName)
+            .StartsWith("instructions ", StringComparison.OrdinalIgnoreCase);
+
     private async Task ExecuteInstructionEditorCommand(string input)
     {
-        var normalized = commandRouter.Match(input, AssistantName).NormalizedTranscript;
+        var normalized = Kora.Core.Artifacts.ArtifactCommandRouter.RemoveActivationPrefix(input.Trim(), AssistantName);
         var words = normalized.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-        string? operation = words[1] switch
+        string? operation = words[1].ToLowerInvariant() switch
         {
             "editor" or "list" => "List", "create" => "Create", "edit" or "inspect" => "Inspect",
             "save" => "Save", "reload" or "discard" => "Reload", "delete" => "Delete", "activate" => "Review use",

@@ -543,6 +543,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                   && (!IsBusy || IsSetupStatusCommand()
                       || SessionCommand.Parse(CommandText, AssistantName) is not null
                       || MemoryCommand.Parse(CommandText, AssistantName) is not null
+                      || IsInstructionEditorCommand(CommandText)
                       || Kora.Core.Interaction.LocalEventCommand.Parse(CommandText, AssistantName) is not null
                       || ManualCallCommand.Parse(CommandText, AssistantName) is not null));
         PreviewVoiceCommand = CreateCommand(
@@ -3935,7 +3936,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             ApplicationLog.Information(logger, "Rejected command input outside the active unlocked host");
             return;
         }
-        if (commandRouter.Match(spokenText, AssistantName).NormalizedTranscript.StartsWith("instructions ", StringComparison.Ordinal))
+        if (IsInstructionEditorCommand(spokenText))
         {
             if (!isAssistantNameAvailable && commandRouter.IsActivationPrefixed(spokenText, AssistantName))
             {

@@ -9,6 +9,7 @@ using Kora.Core.Artifacts;
 using Kora.Core.Auditing;
 using Kora.Core.Diagnostics;
 using Kora.Core.Hosting;
+using Kora.Core.Commands;
 
 namespace Kora.Application.UnitTests.Definitions;
 
@@ -216,13 +217,15 @@ public sealed class InstructionEditorTests : IDisposable
         var control = new AudioControlTestStore();
         var admission = new InstructionControlAdmission(control, control, new HostTaskCoordinator(control));
         var actions = new OwnedInstructionEditorActions(files, admission, revisions,
-            new ArtifactCatalogue([Candidate(original)]), new Audit());
+            new ArtifactCatalogue([Candidate(original)]), new Audit(), new BuiltInCommandRouter(new BuiltInCommandCatalog()));
         ((Action)(() => actions.Validate("new", original.Document.Text, false))).Should().Throw<ArgumentException>();
         foreach (var reserved in new[] { "skill", "skills", "instruction", "instructions", "prompt", "prompts", "agent", "agents", "definitions", "help", "exit", "settings" })
         {
             ((Action)(() => actions.Validate("example", Snapshot().Document.Text.Replace("name: example", "name: " + reserved, StringComparison.Ordinal), false)))
                 .Should().Throw<InvalidDataException>();
         }
+        ((Action)(() => actions.Validate("example", Snapshot().Document.Text.Replace("name: example", "name: local models", StringComparison.Ordinal), false)))
+            .Should().Throw<InvalidDataException>();
     }
 
     [Fact]
@@ -298,6 +301,25 @@ public sealed class InstructionEditorTests : IDisposable
         f.Catalogue.Artifacts.Should().BeEmpty();
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task ReviewedUseExpiringAfterDurableCompletionCannotBeOffered(bool cancel)
+    {
+        await using var f = new Fixture();
+        await f.Actions.List(f.Eligible, CancellationToken.None);
+        using var cancellation = new CancellationTokenSource();
+        f.Control.BeforeCommit = record =>
+        {
+            if (!record.IsTerminal) { return; }
+            if (cancel) { cancellation.Cancel(); }
+            else { f.Open = false; }
+        };
+        var activate = () => f.Actions.Activate(f.Files.Current!, _ => Task.FromResult(true), f.Eligible, cancellation.Token);
+        await activate.Should().ThrowAsync<InvalidOperationException>();
+        f.Catalogue.Artifacts.Should().BeEmpty();
+    }
+
     private sealed class Fixture : IAsyncDisposable
     {
         internal readonly AudioControlTestStore Control = new();
@@ -315,7 +337,7 @@ public sealed class InstructionEditorTests : IDisposable
             Revisions = new(new LocalSharedSkillPreferencesTests.Store());
             Catalogue = new(Revisions.Reconcile([Candidate(Files.Current!)]));
             Admission = new(Control, Control, new HostTaskCoordinator(Control));
-            Actions = new(Files, Admission, Revisions, Catalogue, Audit);
+            Actions = new(Files, Admission, Revisions, Catalogue, Audit, new BuiltInCommandRouter(new BuiltInCommandCatalog()));
             Workflow = new(Actions);
         }
         public ValueTask DisposeAsync() => Admission.DisposeAsync();

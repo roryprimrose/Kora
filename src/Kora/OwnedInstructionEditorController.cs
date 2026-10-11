@@ -33,7 +33,9 @@ internal sealed partial class OwnedInstructionEditorController(
 
     internal void Open(bool load = true)
     {
-        if (disposed || !ownsHost() || !main.CaptureInstructionEditorEligibility()()) { return; }
+        if (disposed) { return; }
+        if (!ownsHost() || !main.CaptureInstructionEditorEligibility()())
+        { main.ReportHostInteractionFailure("Owned instruction editing requires the current unlocked owning host and eligible clear call/privacy state."); return; }
         if (window is not null) { window.Activate(); return; }
         lifetime = new();
         window = new(action => _ = Run(action));
@@ -74,7 +76,9 @@ internal sealed partial class OwnedInstructionEditorController(
             switch (action)
             {
                 case "List":
-                    opened.Files.ItemsSource = await actions.List(Eligible, token);
+                    var files = await actions.List(Eligible, token);
+                    if (!Eligible()) { return; }
+                    opened.Files.ItemsSource = files;
                     if (!reload.ReloadNow()) { throw new IOException("The catalogue could not be reconciled."); }
                     opened.Report("Owned file inventory refreshed. Disabled revisions remain inspectable. Select an ID and Inspect.");
                     break;
@@ -83,8 +87,10 @@ internal sealed partial class OwnedInstructionEditorController(
                     var name = opened.NameInput.Text ?? string.Empty;
                     if (await actions.Inspect(name, Eligible, token) is not null)
                     { throw new InvalidOperationException("That exact owned ID already exists. Inspect it; no implicit overwrite."); }
+                    if (!Eligible()) { return; }
                     selectedName = name;
                     baseline = null;
+                    opened.Source.IsReadOnly = false;
                     originalText = string.Empty;
                     opened.Source.Text = $"---\r\nkora-format: 1\r\nname: {name}\r\ndescription: Describe this instruction.\r\n---\r\nWrite instruction guidance here.\r\n";
                     opened.Report("New in-memory draft. Nothing saved or offered for use.");
@@ -104,14 +110,10 @@ internal sealed partial class OwnedInstructionEditorController(
                     if (Dirty || baseline is null || uncertain)
                     { throw new InvalidOperationException("Save/reload an exact clean revision before reviewing use."); }
                     var reviewed = baseline;
-                    await actions.Activate(reviewed, async admitted =>
-                        await opened.Choose("Review exact instruction use",
-                            $"Owned ID: {reviewed.Name}; exact digest {reviewed.Document.Definition.Digest}. "
-                            + "This is untrusted guidance, not host policy. Permit explicit selection for new requests only? "
-                            + "No new permissions, executable tools, agent runtime, automatic applicability or mid-task context update.",
-                            reviewed.Document.Text, reviewed.Document.Text, ["Permit explicit use", "Cancel"], admitted) == 0
-                        && Eligible() && ReferenceEquals(baseline, reviewed) && !Dirty, Eligible, token);
-                    opened.Report("Review finished. The exact current revision is offered only if activation succeeded.");
+                    var activated = await actions.Activate(reviewed, admitted => ConfirmUse(opened, reviewed, Eligible, admitted), Eligible, token);
+                    if (!Eligible()) { return; }
+                    opened.Report(activated ? "Exact revision reviewed for explicit use in this unlocked host run. No automatic applicability or new permissions."
+                        : "Use review cancelled. No new revision applicability granted.");
                     break;
             }
         }
@@ -134,15 +136,30 @@ internal sealed partial class OwnedInstructionEditorController(
         finally { busy = false; }
     }
 
+    private async Task<bool> ConfirmUse(OwnedInstructionEditorWindow opened, OwnedInstructionSnapshot reviewed,
+        Func<bool> eligible, CancellationToken token)
+    {
+        if (!Avalonia.Threading.Dispatcher.UIThread.CheckAccess())
+        { return await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => ConfirmUse(opened, reviewed, eligible, token)); }
+        if (!eligible()) { return false; }
+        return await opened.Choose("Review exact instruction use",
+                            $"Owned ID: {reviewed.Name}; exact digest {reviewed.Document.Definition.Digest}. "
+                            + "This is untrusted guidance, not host policy. Permit explicit selection for new requests only? "
+                            + "No new permissions, executable tools, agent runtime, automatic applicability or mid-task context update.",
+                            reviewed.Document.Text, reviewed.Document.Text, ["Permit explicit use", "Cancel"], token) == 0
+            && eligible() && ReferenceEquals(baseline, reviewed) && !Dirty;
+    }
+
     private async Task<bool> Save(OwnedInstructionEditorWindow opened, bool delete, Func<bool> eligible, CancellationToken token)
     {
         if (selectedName is null || uncertain) { throw new InvalidOperationException("Inspect/create, or explicitly Reload/reconcile first."); }
         var name = selectedName;
         var text = opened.Source.Text ?? string.Empty;
         var result = await saves.Save(name, baseline, text, delete,
-            new NativeInstructionMutationReview(opened, Path.Combine(paths.RoamingRoot, "Instructions", name + ".instructions.md"), () => eligible()
+            new NativeInstructionMutationReview(opened, Path.Combine(paths.RoamingRoot, "Instructions"), () => eligible()
                 && string.Equals(text, opened.Source.Text ?? string.Empty, StringComparison.Ordinal)),
             eligible, token);
+        if (!eligible()) { return false; }
         if (result.Reloaded)
         {
             baseline = result.Current; originalText = baseline?.Document.Text ?? string.Empty;
@@ -157,7 +174,8 @@ internal sealed partial class OwnedInstructionEditorController(
         originalText = baseline?.Document.Text ?? string.Empty;
         opened.Source.Text = originalText;
         if (result.Deleted) { selectedName = null; }
-        opened.Report(result.Unchanged ? "Exact original bytes and identity are unchanged. Existing reviewed use preserved; no file write."
+        opened.Report(result.Unchanged ? delete ? "Reviewed original already absent; no file deleted or use enabled."
+            : "Exact original bytes and identity are unchanged. Existing reviewed use preserved; no file write."
             : result.Deleted ? "Owned original deleted and catalogue reconciled."
             : "Complete bytes saved/read back and catalogue reconciled. Revision disabled until separate exact use review.");
         return true;
@@ -168,8 +186,26 @@ internal sealed partial class OwnedInstructionEditorController(
         if (name is null) { throw new InvalidOperationException("Select the exact owned instruction ID."); }
         var loaded = await actions.Inspect(name, eligible, token);
         if (!eligible()) { return; }
-        baseline = loaded; selectedName = name; originalText = loaded?.Document.Text ?? string.Empty;
+        baseline = loaded; selectedName = loaded?.Name ?? name; originalText = loaded?.Document.Text ?? string.Empty;
         opened.Source.Text = originalText;
+        opened.Source.IsReadOnly = false;
+        if (loaded is not null)
+        {
+            try
+            {
+                OwnedInstructionNames.WriteName(loaded.Name);
+                if (!string.Equals(loaded.CanonicalFileName, loaded.Name + ".instructions.md", StringComparison.Ordinal))
+                { throw new InvalidDataException("This original filename is read-only; external editing is required, rename/fork is not implemented."); }
+                loaded.Document.RequireEditableInstruction();
+            }
+            catch (InvalidDataException exception)
+            {
+                opened.Source.IsReadOnly = true;
+                opened.Report("Exact original inspected, read-only: " + exception.Message);
+                uncertain = !reload.ReloadNow();
+                return;
+            }
+        }
         uncertain = !reload.ReloadNow();
         opened.Report(loaded is null ? "The owned original is missing; no file was written."
             : $"Owned ID {name}; original digest {loaded.Document.Definition.Digest}; BOM={loaded.Document.HasBom}. "
@@ -194,8 +230,8 @@ internal sealed partial class OwnedInstructionEditorController(
 
     private async Task<bool> PrepareClose()
     {
+        if (busy) { window?.Report("Wait for current operation to retire before closing."); return false; }
         if (window is not { } opened || lifetime is null) { return true; }
-        if (busy) { opened.Report("Wait for current operation to retire before closing."); return false; }
         if (!Dirty) { return true; }
         try
         {

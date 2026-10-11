@@ -55,8 +55,10 @@ internal sealed class OwnedInstructionEditorWindow : Window
     internal async Task<int> Choose(string title, string details, string? original, string? proposed,
         string[] choices, CancellationToken token)
     {
+        token.ThrowIfCancellationRequested();
         if (!Avalonia.Threading.Dispatcher.UIThread.CheckAccess())
         { return await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => Choose(title, details, original, proposed, choices, token)); }
+        if (!IsVisible) { throw new InvalidOperationException("The private instruction review window is no longer visible."); }
         var dialog = new Window { Title = title, Width = 900, Height = 680, CanResize = true };
         var root = new DockPanel { Margin = new(12) };
         var explanation = new TextBlock { Text = details, TextWrapping = TextWrapping.Wrap };

@@ -1,12 +1,14 @@
 using Kora.Core.Artifacts;
 using Kora.Core.Auditing;
 using Kora.Core.Hosting;
+using Kora.Core.Commands;
 
 namespace Kora.Application.Definitions;
 
 public sealed class OwnedInstructionEditorActions(
     IOwnedInstructionStore store, InstructionControlAdmission admission,
-    InstructionRevisionCatalogue revisions, ArtifactCatalogue catalogue, ISecurityAuditLog auditLog)
+    InstructionRevisionCatalogue revisions, ArtifactCatalogue catalogue, ISecurityAuditLog auditLog,
+    BuiltInCommandRouter controls)
 {
     public Task<IReadOnlyList<string>> List(Func<bool> eligible, CancellationToken token) =>
         admission.Run(eligible, async (_, _, _, admitted) => await store.List(admitted).ConfigureAwait(false), token);
@@ -16,6 +18,7 @@ public sealed class OwnedInstructionEditorActions(
 
     public ArtifactFileDocument Validate(string name, string text, bool bom)
     {
+        OwnedInstructionNames.WriteName(name);
         var document = ArtifactFileDocument.Parse(ArtifactFileDocument.Encode(text, bom),
             ArtifactKind.Instruction, "kora-profile", name);
         document.RequireEditableInstruction();
@@ -23,6 +26,8 @@ public sealed class OwnedInstructionEditorActions(
         if (proposed.CommandName is "skill" or "skills" or "instruction" or "instructions" or "prompt"
             or "prompts" or "agent" or "agents" or "definitions" or "help" or "exit" or "settings")
         { throw new InvalidDataException("The instruction cannot shadow a reserved control."); }
+        if (proposed.SpokenNames.Any(name => new[] { "use " + name, "run " + name }.Any(phrase => controls.Match(phrase).IsMatch)))
+        { throw new InvalidDataException("The declared instruction name would shadow a registered built-in command."); }
         _ = new ArtifactCatalogue([.. catalogue.Candidates.Where(item => !string.Equals(item.OwnedInstructionName, name, StringComparison.Ordinal)), proposed]);
         return document;
     }
@@ -82,6 +87,7 @@ public sealed class OwnedInstructionEditorActions(
     public async Task<bool> Activate(OwnedInstructionSnapshot reviewed,
         Func<CancellationToken, Task<bool>> exactConfirmation, Func<bool> eligible, CancellationToken token)
     {
+        reviewed.Document.RequireEditableInstruction();
         try
         {
         var outcome = await admission.Run(eligible, async (request, session, current, admitted) =>
@@ -93,7 +99,7 @@ public sealed class OwnedInstructionEditorActions(
                 || !string.Equals(live.Document.Definition.Digest, reviewed.Document.Definition.Digest, StringComparison.Ordinal))
             { throw new InvalidOperationException("The reviewed instruction revision changed. Reload and review again."); }
             var audit = new SecurityAuditEvent(request.RequestId.Value, SecurityAuditCategory.ConfigurationWrite,
-                "definition.instruction.activate", SecurityAuditOutcome.Requested, request.Origin == RequestOrigin.ActivatedVoice
+                "definition.instruction.review-use", SecurityAuditOutcome.Requested, request.Origin == RequestOrigin.ActivatedVoice
                     ? SecurityAuditInitiator.VoiceCommand : SecurityAuditInitiator.LocalUser,
                 "definition.owned-instruction");
             auditLog.Write(audit);
@@ -108,7 +114,7 @@ public sealed class OwnedInstructionEditorActions(
                 if (candidate is null || !string.Equals(candidate.Digest, live.Document.Definition.Digest, StringComparison.Ordinal)
                     || !string.Equals(candidate.OwnedInstructionRevision, live.Revision, StringComparison.Ordinal))
                 { throw new InvalidOperationException("The reviewed revision is not the coherent current catalogue candidate."); }
-                auditLog.Write(audit.WithOutcome(SecurityAuditOutcome.Succeeded));
+                auditLog.Write(audit.WithOutcome(SecurityAuditOutcome.Succeeded, "exact-revision-reviewed"));
                 return true;
             }
             catch
@@ -142,15 +148,19 @@ public sealed class OwnedInstructionEditorActions(
     {
         if (candidate.OwnedInstructionName is null) { return true; }
         OwnedInstructionSnapshot? live;
-        try { live = await Inspect(candidate.OwnedInstructionName, eligible, token).ConfigureAwait(false); }
+        try
+        {
+            live = await Inspect(candidate.OwnedInstructionName, eligible, token).ConfigureAwait(false);
+            if (live is not null && string.Equals(candidate.OwnedInstructionRevision, live.Revision, StringComparison.Ordinal)
+                && catalogue.IsCurrent(candidate.Id, candidate.Digest) && revisions.IsEnabled(live))
+            { return true; }
+        }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException
             or InvalidDataException or InvalidOperationException or OperationCanceledException)
         {
             HoldRevision(candidate.OwnedInstructionName);
             return false;
         }
-        if (live is not null && string.Equals(candidate.OwnedInstructionRevision, live.Revision, StringComparison.Ordinal))
-        { return true; }
         HoldRevision(candidate.OwnedInstructionName);
         return false;
     }

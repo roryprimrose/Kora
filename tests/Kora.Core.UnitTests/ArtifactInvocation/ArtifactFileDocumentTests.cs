@@ -29,7 +29,7 @@ public sealed class ArtifactFileDocumentTests
         document.CopyBytes()[0] = 0;
         document.CopyBytes().Should().Equal(bytes);
         new OwnedInstructionSnapshot("example", "aaa", "bbb", document).Revision.Should()
-            .Be(document.Definition.Digest + ".aaa.bbb");
+            .StartWith(document.Definition.Digest + ".aaa.bbb.").And.HaveLength(137);
     }
 
     [Theory]
@@ -171,5 +171,14 @@ public sealed class ArtifactFileDocumentTests
         failure.CancellationRequested.Should().Be(cancelled);
         failure.InnerException.Should().BeSameAs(cause);
         failure.Message.Should().Contain("publication occurred").And.Contain("No rollback");
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData(" ")]
+    public void SharedExactActivationPrefixRejectsMissingInput(string? text)
+    {
+        ((Action)(() => ArtifactCommandRouter.RemoveActivationPrefix(text!, "Kora"))).Should().Throw<ArgumentException>();
     }
 }

@@ -1,8 +1,3 @@
----
-title: Kora-owned instruction editor
-description: Edit one bounded local instruction with exact review and explicit conflict choices.
----
-
 # Kora-owned instruction editor
 
 ## Open and select
@@ -30,6 +25,8 @@ it does not undo an already-started publication. `instructions discard` opens
 the same deliberate discard/reload workflow as `instructions reload`.
 The editor writes only `%APPDATA%\Kora\Instructions\<id>.instructions.md`, using Kora's application-data paths.
 Profile originals and bundled resources remain read-only here.
+Noncanonical legacy filenames remain visible/inspectable and retain unchanged
+legacy selection behavior, but are read-only rather than silently renamed by Save.
 
 ## Edit, review and save
 

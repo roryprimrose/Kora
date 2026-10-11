@@ -101,6 +101,50 @@ public sealed partial class WindowsOwnedInstructionStoreTests : IDisposable
     }
 
     [Fact]
+    public async Task FirstOwnedApplicationDirectoryCanBeCreatedButBoundSourceLossCannotBeRecreatedImplicitly()
+    {
+        Directory.CreateDirectory(root);
+        var roaming = Path.Combine(root, "fresh-roaming");
+        var store = new WindowsOwnedInstructionStore(new Paths(roaming));
+        (await store.List(TestContext.Current.CancellationToken)).Should().BeEmpty();
+        Directory.Exists(Path.Combine(roaming, "Instructions")).Should().BeTrue();
+        Directory.Delete(Path.Combine(roaming, "Instructions"));
+        var read = () => store.Read("example", TestContext.Current.CancellationToken);
+        await read.Should().ThrowAsync<InvalidDataException>();
+        Directory.Exists(Path.Combine(roaming, "Instructions")).Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task LegacyFilenameAndCaseAliasesRemainInspectableWithoutImplicitRenameAuthority()
+    {
+        var store = Create();
+        await store.List(TestContext.Current.CancellationToken);
+        var path = Path.Combine(root, "Instructions", "Legacy.Name.instructions.md");
+        File.WriteAllBytes(path, Document().CopyBytes());
+        (await store.List(TestContext.Current.CancellationToken)).Should().Equal("Legacy.Name");
+        var original = await store.Read("legacy.name", TestContext.Current.CancellationToken);
+        original!.Name.Should().Be("Legacy.Name");
+        original.CanonicalFileName.Should().Be("Legacy.Name.instructions.md");
+        var write = () => store.Write("Legacy.Name", original, Document("Draft"), () => true, TestContext.Current.CancellationToken);
+        await write.Should().ThrowAsync<InvalidDataException>();
+        File.ReadAllBytes(path).Should().Equal(Document().CopyBytes());
+    }
+
+    [Fact]
+    public async Task CanonicalBaseWithNoncanonicalSuffixCannotBeImplicitlyRenamedBySave()
+    {
+        var store = Create();
+        await store.List(TestContext.Current.CancellationToken);
+        var path = Path.Combine(root, "Instructions", "example.instructions.MD");
+        File.WriteAllBytes(path, Document().CopyBytes());
+        var original = await store.Read("example", TestContext.Current.CancellationToken);
+        original!.CanonicalFileName.Should().Be("example.instructions.MD");
+        var write = () => store.Write("example", original, Document("Draft"), () => true, TestContext.Current.CancellationToken);
+        await write.Should().ThrowAsync<InvalidDataException>();
+        File.ReadAllBytes(path).Should().Equal(Document().CopyBytes());
+    }
+
+    [Fact]
     public async Task DirectoryNamedAsAnInstructionCannotBeReplacedOrFollowed()
     {
         var store = Create();

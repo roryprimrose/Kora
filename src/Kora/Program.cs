@@ -249,15 +249,23 @@ internal static class Program
             new LocalArtifactDirectoryPreferences(provider.GetRequiredService<IPreferenceStore>()));
         services.AddSingleton<ArtifactDirectoryConfigurationService>();
         services.AddSingleton<McpServerConfigurationService>();
+        services.AddSingleton<Kora.Application.Definitions.InstructionRevisionCatalogue>();
         services.AddSingleton(provider =>
         {
             var embedded = EmbeddedArtifactCatalogue.Load();
             var additionalDirectories = provider.GetRequiredService<IArtifactDirectoryPreferences>().Load();
-            var disk = new WindowsDiskArtifactDiscovery(paths, additionalDirectories).Load();
-            return new ArtifactCatalogue([.. embedded.Artifacts, .. disk]);
+            var disk = new WindowsDiskArtifactDiscovery(paths, additionalDirectories,
+                provider.GetRequiredService<WindowsOwnedInstructionStore>()).Load();
+            return new ArtifactCatalogue(provider.GetRequiredService<Kora.Application.Definitions.InstructionRevisionCatalogue>()
+                .Reconcile([.. embedded.Artifacts, .. disk]));
         });
         services.AddSingleton<ArtifactCommandRouter>();
         services.AddSingleton<ArtifactCatalogueReloadService>();
+        services.AddSingleton<WindowsOwnedInstructionStore>();
+        services.AddSingleton<IOwnedInstructionStore>(provider => provider.GetRequiredService<WindowsOwnedInstructionStore>());
+        services.AddSingleton<Kora.Application.Definitions.InstructionControlAdmission>();
+        services.AddSingleton<Kora.Application.Definitions.OwnedInstructionEditorActions>();
+        services.AddSingleton<Kora.Application.Definitions.InstructionSaveWorkflow>();
         services.AddSingleton<IApplicationDataPaths>(paths);
         services.AddSingleton(evidence);
         services.AddSingleton(diagnosticPolicy);
@@ -274,6 +282,7 @@ internal static class Program
         services.AddSingleton<ISessionRetentionStore>(interactions);
         services.AddSingleton<SessionRetentionService>();
         services.AddSingleton<ISharedSkillSessionStore>(interactions);
+        services.AddSingleton<IInstructionControlSessionStore>(interactions);
         services.AddSingleton<ISharedSkillSourceReader, WindowsProfileSkillReader>();
         services.AddSingleton<LocalSharedSkillPreferences>();
         services.AddSingleton<SharedSkillAdmission>();

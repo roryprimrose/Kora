@@ -52,6 +52,10 @@ public sealed record ArtifactDefinition
     public string Version { get; }
     public string Digest { get; }
     public string Content { get; }
+    public string? OwnedInstructionName { get; init; }
+    public bool IsUseEnabled { get; init; } = true;
+    public bool RequiresInstructionReview { get; init; }
+    public string? OwnedInstructionRevision { get; init; }
 
     private static string ValidateIdentifier(string value, string parameterName, int maximum)
     {

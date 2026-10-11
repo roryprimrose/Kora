@@ -16,7 +16,9 @@ public sealed class ArtifactCatalogue
     public event EventHandler? Changed;
     public event EventHandler<ArtifactCatalogueReloadFailedEventArgs>? ReloadFailed;
 
-    public ReadOnlyCollection<ArtifactDefinition> Artifacts => Volatile.Read(ref artifacts);
+    public ReadOnlyCollection<ArtifactDefinition> Candidates => Volatile.Read(ref artifacts);
+    public ReadOnlyCollection<ArtifactDefinition> Artifacts =>
+        new(Candidates.Where(artifact => artifact.IsUseEnabled).ToArray());
 
     public bool IsCurrent(string id, string digest)
     {
@@ -77,5 +79,6 @@ public sealed class ArtifactCatalogue
         left.Count == right.Count
         && left.Zip(right).All(pair =>
             string.Equals(pair.First.Id, pair.Second.Id, StringComparison.Ordinal)
-            && string.Equals(pair.First.Digest, pair.Second.Digest, StringComparison.Ordinal));
+            && string.Equals(pair.First.Digest, pair.Second.Digest, StringComparison.Ordinal)
+            && pair.First.IsUseEnabled == pair.Second.IsUseEnabled);
 }

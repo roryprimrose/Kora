@@ -1,6 +1,8 @@
 # Voice- and Text-Driven Skill and Instruction Authoring
 
-Status: proposed required MVP capability, planned for Slice C; not delivered.
+Status: broader conversational/package authoring remains planned for Slice C.
+A bounded native Kora-owned standalone instruction editor is delivered through
+the common contract; this is not full skill/profile/agent authoring.
 
 The delivered R21 shared-profile slice is **local read-only discovery and exact
 inspection only**, not this authoring workflow. Registering or inspecting a root
@@ -64,10 +66,25 @@ that exact source. This is a narrow profile-instruction writer, not arbitrary
 file-write authority. The host retains the source root, file identity, original
 byte digest, and reviewed replacement bytes; immediately before replacement it
 reopens and verifies the same non-reparse file and unchanged base digest.
-Changed, missing, aliased, inaccessible, or conflicting bases reject the save
-and require refresh/review. The host chooses the existing path, writes through
+Changed, missing or conflicting bases reject ordinary Save and require explicit
+Reload/Overwrite/Cancel under the
+[accepted optimistic owned-instruction conflict contract](Definition_Management.md#editing-ownership-and-confirmation).
+The user accepts that a content edit after the final comparison may be overwritten;
+this is not conditional content CAS. Aliased, redirected, inaccessible or
+unauthorised sources remain unavailable, not overrideable conflict choices.
+The host chooses the existing path, writes through
 the shared atomic preference/file replacement mechanism where applicable, and
 never accepts a model-supplied destination.
+
+The current native editor supports only Kora-owned files, strict UTF-8 ≤64 KiB,
+original BOM/line endings/source preservation and the bounded v1 scalar metadata
+subset documented in [Definition Management](Definition_Management.md#bounded-owned-instruction-editor-increment).
+Registered profile originals remain read-only in this increment. The native text
+editor works without inference/speech; exact typed/activated controls focus its
+same actions and reviews. Dirty closing/shutdown offers Save/Discard/Cancel.
+Saving holds the new revision; separate review offers explicit selection only.
+Conversational refinement, dictation, forks, rename/restore and broader
+applicability are not delivered.
 
 Saving a standalone instruction does not enable a skill, grant a tool
 permission, approve an effect, activate changed guidance, or make its content

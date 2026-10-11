@@ -1,4 +1,5 @@
 using Kora.Application.Configuration;
+using Kora.Application.Definitions;
 using Kora.Core.Artifacts;
 using Kora.Core.Configuration;
 using Kora.Core.Dependencies;
@@ -18,6 +19,9 @@ internal sealed partial class ArtifactCatalogueReloadService : IDisposable
     private readonly ArtifactDirectoryConfigurationService configuration;
     private readonly McpServerConfigurationService mcpConfiguration;
     private readonly ILogger<ArtifactCatalogueReloadService> logger;
+    private readonly InstructionRevisionCatalogue? instructionRevisions;
+    private readonly WindowsOwnedInstructionStore? ownedInstructions;
+    private readonly string? profileRoamingRoot;
     private readonly Lock gate = new();
     private readonly List<FileSystemWatcher> watchers = [];
     private Timer? timer;
@@ -29,7 +33,10 @@ internal sealed partial class ArtifactCatalogueReloadService : IDisposable
         IArtifactDirectoryPreferences preferences,
         ArtifactDirectoryConfigurationService configuration,
         McpServerConfigurationService mcpConfiguration,
-        ILogger<ArtifactCatalogueReloadService> logger)
+        ILogger<ArtifactCatalogueReloadService> logger,
+        InstructionRevisionCatalogue? instructionRevisions = null,
+        WindowsOwnedInstructionStore? ownedInstructions = null,
+        string? profileRoamingRoot = null)
     {
         this.catalogue = catalogue;
         this.paths = paths;
@@ -37,6 +44,9 @@ internal sealed partial class ArtifactCatalogueReloadService : IDisposable
         this.configuration = configuration;
         this.mcpConfiguration = mcpConfiguration;
         this.logger = logger;
+        this.instructionRevisions = instructionRevisions;
+        this.ownedInstructions = ownedInstructions;
+        this.profileRoamingRoot = profileRoamingRoot;
     }
 
     internal void Start()
@@ -73,7 +83,8 @@ internal sealed partial class ArtifactCatalogueReloadService : IDisposable
                 or ArgumentException
                 or NotSupportedException)
             {
-                ArtifactWatcherFailed(logger, exception);
+                ArtifactWatcherFailed(logger, exception.GetType().Name);
+                HoldOwnedInstructions();
                 catalogue.ReportReloadFailure(exception);
             }
         }
@@ -94,16 +105,21 @@ internal sealed partial class ArtifactCatalogueReloadService : IDisposable
 
     private void ScheduleReload() => timer!.Change(DebounceDelay, Timeout.InfiniteTimeSpan);
 
-    private void Reload(object? state)
+    internal bool ReloadNow()
     {
+        lock (gate)
+        {
+        if (disposed) { return false; }
         try
         {
             var settings = preferences.Load();
-            var disk = new WindowsDiskArtifactDiscovery(paths, settings).Load();
+            var disk = Discovery(settings).Load();
             var embedded = EmbeddedArtifactCatalogue.Load();
-            catalogue.Publish([.. embedded.Artifacts, .. disk]);
+            ArtifactDefinition[] candidates = [.. embedded.Artifacts, .. disk];
+            catalogue.Publish(instructionRevisions?.Reconcile(candidates) ?? candidates);
             mcpConfiguration.NotifyChanged();
             ArtifactReloaded(logger, catalogue.Artifacts.Count);
+            return true;
         }
         catch (Exception exception) when (exception is IOException
             or UnauthorizedAccessException
@@ -111,10 +127,15 @@ internal sealed partial class ArtifactCatalogueReloadService : IDisposable
             or ArgumentException
             or NotSupportedException)
         {
-            ArtifactReloadFailed(logger, exception);
+            ArtifactReloadFailed(logger, exception.GetType().Name);
+            HoldOwnedInstructions();
             catalogue.ReportReloadFailure(exception);
+            return false;
+        }
         }
     }
+
+    private void Reload(object? state) => ReloadNow();
 
     private void ConfigureWatchers()
     {
@@ -126,7 +147,7 @@ internal sealed partial class ArtifactCatalogueReloadService : IDisposable
         watchers.Clear();
 
         var settings = preferences.Load();
-        var discovery = new WindowsDiskArtifactDiscovery(paths, settings);
+        var discovery = Discovery(settings);
         var targets = discovery.RootPaths
             .Select(path => new WatchTarget(path, IsFile: false))
             .Concat(mcpConfiguration.SourceFiles.Select(path => new WatchTarget(path, IsFile: true)))
@@ -185,7 +206,8 @@ internal sealed partial class ArtifactCatalogueReloadService : IDisposable
     private void OnWatcherError(object sender, ErrorEventArgs args)
     {
         var exception = args.GetException();
-        ArtifactWatcherFailed(logger, exception);
+        ArtifactWatcherFailed(logger, exception.GetType().Name);
+        HoldOwnedInstructions();
         catalogue.ReportReloadFailure(exception);
         lock (gate)
         {
@@ -218,4 +240,16 @@ internal sealed partial class ArtifactCatalogueReloadService : IDisposable
     }
 
     private sealed record WatchTarget(string Path, bool IsFile);
+
+    private WindowsDiskArtifactDiscovery Discovery(ArtifactDirectorySettings settings) =>
+        new(paths, settings, ownedInstructions, profileRoamingRoot);
+
+    private void HoldOwnedInstructions()
+    {
+        catalogue.Publish(catalogue.Candidates.Select(item => item.OwnedInstructionName is not null
+            ? item with { IsUseEnabled = false } : item).ToArray());
+        try { instructionRevisions?.MarkUnavailable(); }
+        catch (Exception failure) when (failure is IOException or UnauthorizedAccessException or InvalidDataException)
+        { ArtifactReloadFailed(logger, failure.GetType().Name); }
+    }
 }

@@ -141,6 +141,7 @@
 
       <StackPanel Grid.Row="7" Spacing="6" IsVisible="{Binding IsModelQuestionPending}">
         <TextBlock Text="CHOOSE AN OPTION (NOT AN APPROVAL)" Classes="eyebrow" />
+        <TextBlock Text="Choose a suggestion or type or speak your own answer." Classes="muted" FontSize="11" />
         <ScrollViewer MaxHeight="170" VerticalScrollBarVisibility="Auto">
           <ItemsControl ItemsSource="{Binding ModelQuestionChoices}">
             <ItemsControl.ItemTemplate>
@@ -199,13 +200,13 @@
             x:Name="CommandInput"
             Text="{Binding CommandText}"
             AutomationProperties.Name="Typed command or artifact slash input"
-            PlaceholderText="Type a command or / for artifacts"
+            PlaceholderText="{Binding CommandInputPlaceholder}"
             KeyDown="OnCommandTextKeyDown"
             VerticalContentAlignment="Center" />
         <Button
             Grid.Column="1"
             Classes="primary"
-            Content="Run"
+            Content="{Binding CommandSubmitLabel}"
             Command="{Binding RunTypedCommand}" />
       </Grid>
     </Grid>

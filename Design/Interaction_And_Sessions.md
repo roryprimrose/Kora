@@ -73,13 +73,12 @@ input, renew cancellation inspection, extend activity, resume or dispatch.
 The runnable bootstrap has one response title/body and latest transcript in `MainViewModel`, displayed by `ResponseWindow`.
 Typed and recognized spoken commands converge on the deterministic built-in command router.
 The updated bootstrap also handles unmatched requests with a verified local model, including clarifying questions and host-validated registered action/grant proposals with once/session/always choices.
-The proposed custom-answer extension treats clarifying-question options as
-suggestions rather than a closed enum: every such question also exposes a bounded
-custom-answer path by default. Mouse choice, typed custom text and activated voice
-dictation converge on the same continuation validation and retain their input
-lineage. A custom answer remains clarification, not approval, permission, or
-execution authority; recognized built-in commands may still explicitly supersede
-the pending question. This contract does not claim the extension is delivered.
+Clarifying-question options are suggestions rather than a closed enum: every
+such question also exposes a bounded custom-answer path by default. Mouse choice,
+typed custom text and activated voice dictation converge on the same continuation
+validation and retain their input lineage. A custom answer remains clarification,
+not approval, permission, or execution authority; recognized built-in commands may
+still explicitly supersede the pending question.
 These named model-action preferences are not the future executable/script digest-bound grants; direct exact lock is still ungated while model-suggested lock asks for approval.
 The compact surface has a text field, Run, and Dismiss, with positioning and auto-hide preferences.
 The separate Documentation window renders trusted embedded documentation, not arbitrary session artifacts.

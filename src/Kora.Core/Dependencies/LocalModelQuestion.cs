@@ -1,3 +1,6 @@
 namespace Kora.Core.Dependencies;
 
-public sealed record LocalModelQuestion(string Prompt, IReadOnlyList<string> Options);
+public sealed record LocalModelQuestion(string Prompt, IReadOnlyList<string> Options)
+{
+    public const int MaximumFreeTextLength = 500;
+}

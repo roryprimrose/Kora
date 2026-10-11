@@ -1,5 +1,7 @@
 using System.Runtime.InteropServices;
 using System.Diagnostics;
+using System.Security.AccessControl;
+using System.Security.Principal;
 
 using AwesomeAssertions;
 
@@ -78,7 +80,7 @@ public sealed partial class WindowsOwnedInstructionStoreTests : IDisposable
         var store = Create();
         var created = await store.Write("example", null, Document(), () => true, TestContext.Current.CancellationToken);
         var temporary = Path.Combine(root, "Instructions", ".external.tmp");
-        File.WriteAllBytes(temporary, Document("External atomic revision").CopyBytes());
+        WriteOwnedFile(temporary, Document("External atomic revision").CopyBytes());
         File.Move(temporary, Path.Combine(root, "Instructions", "example.instructions.md"), overwrite: true);
         var result = await store.Write("example", created.Current, Document("Draft"), () => true, TestContext.Current.CancellationToken);
         result.Conflict.Should().BeTrue();
@@ -120,7 +122,7 @@ public sealed partial class WindowsOwnedInstructionStoreTests : IDisposable
         var store = Create();
         await store.List(TestContext.Current.CancellationToken);
         var path = Path.Combine(root, "Instructions", "Legacy.Name.instructions.md");
-        File.WriteAllBytes(path, Document().CopyBytes());
+        WriteOwnedFile(path, Document().CopyBytes());
         (await store.List(TestContext.Current.CancellationToken)).Should().Equal("Legacy.Name");
         var original = await store.Read("legacy.name", TestContext.Current.CancellationToken);
         original!.Name.Should().Be("Legacy.Name");
@@ -136,7 +138,7 @@ public sealed partial class WindowsOwnedInstructionStoreTests : IDisposable
         var store = Create();
         await store.List(TestContext.Current.CancellationToken);
         var path = Path.Combine(root, "Instructions", "example.instructions.MD");
-        File.WriteAllBytes(path, Document().CopyBytes());
+        WriteOwnedFile(path, Document().CopyBytes());
         var original = await store.Read("example", TestContext.Current.CancellationToken);
         original!.CanonicalFileName.Should().Be("example.instructions.MD");
         var write = () => store.Write("example", original, Document("Draft"), () => true, TestContext.Current.CancellationToken);
@@ -161,7 +163,8 @@ public sealed partial class WindowsOwnedInstructionStoreTests : IDisposable
         var store = Create();
         await store.List(TestContext.Current.CancellationToken);
         Directory.Move(Path.Combine(root, "Instructions"), Path.Combine(root, "old"));
-        Directory.CreateDirectory(Path.Combine(root, "Instructions"));
+        using var identity = WindowsIdentity.GetCurrent();
+        Kora.Windows.Storage.RestrictedStorageDirectory.CreateRestrictedDirectory(Path.Combine(root, "Instructions"), identity.User!);
         var write = () => store.Write("example", null, Document(), () => true, TestContext.Current.CancellationToken);
         await write.Should().ThrowAsync<InvalidDataException>();
         Directory.GetFiles(Path.Combine(root, "Instructions")).Should().BeEmpty();
@@ -264,6 +267,20 @@ public sealed partial class WindowsOwnedInstructionStoreTests : IDisposable
     public void Dispose()
     {
         if (Directory.Exists(root)) { Directory.Delete(root, recursive: true); }
+    }
+
+    private static void WriteOwnedFile(string path, byte[] bytes)
+    {
+        using var identity = WindowsIdentity.GetCurrent();
+        var owner = identity.User ?? throw new InvalidOperationException("The private fixture owner is unavailable.");
+        var security = new FileSecurity();
+        security.SetOwner(owner);
+        security.SetAccessRuleProtection(isProtected: true, preserveInheritance: false);
+        security.AddAccessRule(new FileSystemAccessRule(owner, FileSystemRights.FullControl, AccessControlType.Allow));
+        using var stream = new FileInfo(path).Create(FileMode.CreateNew, FileSystemRights.Read | FileSystemRights.Write,
+            FileShare.None, 4096, FileOptions.None, security);
+        stream.Write(bytes);
+        stream.Flush(flushToDisk: true);
     }
 
     private sealed record Paths(string RoamingRoot) : IApplicationDataPaths

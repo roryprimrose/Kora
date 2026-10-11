@@ -19,6 +19,22 @@ public sealed partial class SessionWorkspaceService
     internal Task<SessionWorkspaceEntry> ReadAttachmentTarget(HostId<SessionIdentity> session, CancellationToken token) =>
         ReadAsync(() => store.ReadMetadataAsync(session, token), token);
 
+    private ISessionAttachmentCatalogueStore AttachmentCatalogue => store as ISessionAttachmentCatalogueStore
+        ?? throw new InvalidOperationException("The private attachment metadata catalogue is unavailable.");
+
+    public Task<SessionAttachmentPage> ReadAttachmentCatalogue(SessionAttachmentQuery query, string? cursor,
+        Func<bool> admitted, CancellationToken token) =>
+        // The catalogue enforces the same passive retention/source gate without Open/ValidateAuthority,
+        // which would materialize every body. Exact navigation still uses the existing full-read path.
+        ReadAsync(() => AttachmentCatalogue.ReadAttachmentPage(query, cursor, admitted, token), token, retentionStatusOnly: true);
+
+    internal Task VerifyAttachmentSummary(SessionAttachmentSummary exact, Func<bool> admitted, CancellationToken token) =>
+        ReadAsync(async () =>
+        {
+            await AttachmentCatalogue.VerifyAttachmentSummary(exact, admitted, token).ConfigureAwait(false);
+            return true;
+        }, token, retentionStatusOnly: true);
+
     public Task<SessionFileRemoval> PreviewAttachmentRemoval(HostId<SessionIdentity> session, CancellationToken token) =>
         ReadAsync(() => Files.PreviewRemoval(session, token), token);
 
@@ -26,6 +42,7 @@ public sealed partial class SessionWorkspaceService
         LocalFileRevision file, ReadOnlyMemory<byte> bytes, Func<bool> admitted, CancellationToken token)
     {
         RequireNativeFileInput();
+        InvalidateWorkOverview(original.SessionId);
         return ControlAsync(original.SessionId, RequestOrigin.LocalUi,
             (request, eligible) => Files.Attach(request, generation, file, bytes, eligible, token),
             token, admitted, existingSubject: true, resolveTerminalReceipt: true, originalTask: original.TaskId);

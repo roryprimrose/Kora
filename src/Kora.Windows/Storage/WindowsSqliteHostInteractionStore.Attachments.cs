@@ -240,44 +240,27 @@ public sealed partial class WindowsSqliteHostInteractionStore
     private static AttachmentRow? ReadAttachmentRow(SqliteConnection connection, HostId<SessionIdentity> session)
     {
         using var command = connection.CreateCommand();
-        command.CommandText = "SELECT revision,descriptor,body,audit_sequence,length(body),typeof(body) FROM session_file WHERE session_id=$session;";
+        command.CommandText = """
+            SELECT revision,CASE WHEN typeof(descriptor)='text' AND length(CAST(descriptor AS BLOB))<=8192
+                THEN descriptor ELSE NULL END,body,audit_sequence,length(body),typeof(body)
+            FROM session_file WHERE session_id=$session;
+            """;
         command.Parameters.AddWithValue("$session", Id(session));
         using var reader = command.ExecuteReader();
         if (!reader.Read()) { return null; }
+        if (reader.GetFieldType(0) != typeof(long) || reader.GetFieldType(3) != typeof(long))
+        {
+            throw new InvalidDataException("The attachment storage revision or audit index has an invalid SQLite type.");
+        }
         var revision = reader.GetInt64(0);
-        var data = HostInteractionCodec.Decode<AttachmentData>(reader.GetString(1));
-        if (data.Request is null || data.Reference is null || data.Reference.Digest is null
-            || data.Format != 1 || data.Profile != ReadMemoryProfile(connection) || data.Session != session
-            || data.Request.SessionId != session || data.Request.Origin != RequestOrigin.LocalUi || data.Request.InvocationId is not null
-            || data.Generation.Value <= 0 || data.ReviewId == Guid.Empty
-            || data.Reference.SourceId == Guid.Empty || data.Reference.RevisionId == Guid.Empty || data.Reference.ItemId == Guid.Empty
-            || !IsHex(data.Reference.Digest, 64) || data.CapturedAt.Offset != TimeSpan.Zero
-            || !Same(data.Projection, SessionFileAttachment.Projection) || data.MediaType is not ("text/plain" or "text/markdown") || revision <= 0
-            || data.Generation.Value > RequireSession(connection, session).Authority.Generation.Value
-            || reader.IsDBNull(2) != (data.Metadata is null)
-            || !reader.IsDBNull(2) && (reader.GetInt64(4) > LocalFilePolicy.MaximumBytes || !Same(reader.GetString(5), "blob")))
-        {
-            throw new InvalidDataException("The retained snapshot format, profile, scope, projection or original lineage is invalid.");
-        }
-        ValidateRowAuthority(connection, reader.GetInt64(3), AttachmentChange(data, revision));
-        var copyPending = AttachmentCopyVerificationPending(connection, reader.GetInt64(3), data);
-        if (copyPending && data.Metadata is null)
-        {
-            throw new InvalidDataException("A pending replacement cannot be a removed snapshot.");
-        }
+        var descriptor = DecodeAttachmentDescriptor(connection, session, revision,
+            reader.IsDBNull(1) ? null : reader.GetString(1), reader.GetInt64(3),
+            reader.IsDBNull(4) ? null : reader.GetInt64(4), reader.GetString(5));
+        var data = descriptor.Data;
+        var copyPending = descriptor.CopyVerificationPending;
         LocalFileRevision? file = null;
         if (data.Metadata is { } metadata)
         {
-            var task = ReadTask(connection, data.Request.TaskId);
-            if (metadata.CanonicalPath is null
-                || !Same(data.MediaType, AttachmentMediaType(metadata.CanonicalPath))
-                || task is null || task.Request.SessionId != session || task.Request.Origin != RequestOrigin.LocalUi
-                || task.Request.InvocationId is not null
-                || (copyPending ? task.State is not (HostTaskState.IntentRecorded or HostTaskState.Interrupted)
-                    : task.State != HostTaskState.Succeeded))
-            {
-                throw new InvalidDataException("The retained attachment lost its original committed capture task or exact type/metadata provenance.");
-            }
             var bytes = reader.GetFieldValue<byte[]>(2);
             try
             {
@@ -289,12 +272,59 @@ public sealed partial class WindowsSqliteHostInteractionStore
                 throw new InvalidDataException("The retained snapshot has an invalid strict-UTF-8 projection.", exception);
             }
             finally { CryptographicOperations.ZeroMemory(bytes); }
-            if (RequireSession(connection, session).State == 2)
+        }
+        return new(data, revision, file is null ? null : new(session, data.Generation, new(revision), file), copyPending);
+    }
+
+    // This authoritative descriptor decoder is shared by cheap metadata and full original-byte reads.
+    // It never certifies the bytes; full reads still restore and hash the original BLOB above.
+    private static AttachmentDescriptor DecodeAttachmentDescriptor(SqliteConnection connection,
+        HostId<SessionIdentity> session, long revision, string? json, long auditSequence, long? bytes, string bodyType)
+    {
+        if (json is null) { throw new InvalidDataException("The retained attachment descriptor is oversized or has an invalid stored type."); }
+        var data = HostInteractionCodec.Decode<AttachmentData>(json);
+        var owner = ReadCatalogueSession(connection, session, requireLatest: false);
+        if (data.Request is null || data.Reference is null || data.Reference.Digest is null
+            || data.Format != 1 || data.Profile != ReadMemoryProfile(connection) || data.Session != session
+            || data.Request.SessionId != session || data.Request.Origin != RequestOrigin.LocalUi || data.Request.InvocationId is not null
+            || data.Generation.Value <= 0 || data.ReviewId == Guid.Empty
+            || data.Reference.SourceId == Guid.Empty || data.Reference.RevisionId == Guid.Empty || data.Reference.ItemId == Guid.Empty
+            || !IsHex(data.Reference.Digest, 64) || data.CapturedAt.Offset != TimeSpan.Zero
+            || !Same(data.Projection, SessionFileAttachment.Projection) || data.MediaType is not ("text/plain" or "text/markdown") || revision <= 0
+            || data.Generation.Value > owner.Authority.Generation.Value
+            || (bytes is null) != (data.Metadata is null)
+            || data.Metadata is null && !Same(bodyType, "null")
+            || bytes is not null && (bytes < 0 || bytes > LocalFilePolicy.MaximumBytes || !Same(bodyType, "blob")))
+        {
+            throw new InvalidDataException("The retained snapshot format, profile, scope, projection or original lineage is invalid.");
+        }
+        ValidateAttachmentRowAuthority(connection, auditSequence, AttachmentChange(data, revision));
+        var copyPending = AttachmentCopyVerificationPending(connection, auditSequence, data);
+        if (copyPending && data.Metadata is null)
+        {
+            throw new InvalidDataException("A pending replacement cannot be a removed snapshot.");
+        }
+        if (data.Metadata is { } metadata)
+        {
+            var task = ReadTask(connection, data.Request.TaskId);
+            if (metadata.CanonicalPath is null
+                || !Same(data.MediaType, AttachmentMediaType(metadata.CanonicalPath))
+                || task is null || task.Request.SessionId != session || task.Request.Origin != RequestOrigin.LocalUi
+                || task.Request.InvocationId is not null || string.IsNullOrWhiteSpace(metadata.FileIdentity)
+                || metadata.ByteLength != bytes
+                || (copyPending ? task.State is not (HostTaskState.IntentRecorded or HostTaskState.Interrupted)
+                    : task.State != HostTaskState.Succeeded))
+            {
+                throw new InvalidDataException("The retained attachment lost its original committed capture task or exact type/metadata provenance.");
+            }
+            LocalFilePolicy.ValidatePath(metadata.CanonicalPath);
+            _ = WindowsSqliteHostTaskStore.ValidateTaskLedger(connection, task);
+            if (owner.State == 2)
             {
                 throw new InvalidDataException("Removed session authority retains an unrevoked body.");
             }
         }
-        return new(data, revision, file is null ? null : new(session, data.Generation, new(revision), file), copyPending);
+        return new(data, copyPending, bytes);
     }
 
     private static void ValidateAttachments(SqliteConnection connection)
@@ -313,6 +343,15 @@ public sealed partial class WindowsSqliteHostInteractionStore
                 }
             }
         }
+        ValidateAttachmentProvenance(connection);
+        command.CommandText = "SELECT session_id FROM session_file;";
+        using var sessions = command.ExecuteReader();
+        while (sessions.Read()) { _ = PendingReplacementRequest(connection, new(ParseId(sessions.GetString(0)))); }
+    }
+
+    private static void ValidateAttachmentProvenance(SqliteConnection connection)
+    {
+        using var command = connection.CreateCommand();
         command.CommandText = """
             SELECT 1 FROM (
                 SELECT json_extract(c.value,'$.Id') AS id, MAX(a.sequence) AS sequence
@@ -325,9 +364,6 @@ public sealed partial class WindowsSqliteHostInteractionStore
         {
             throw new InvalidDataException("Committed attachment or removal provenance is missing or stale.");
         }
-        command.CommandText = "SELECT session_id FROM session_file;";
-        using var sessions = command.ExecuteReader();
-        while (sessions.Read()) { _ = PendingReplacementRequest(connection, new(ParseId(sessions.GetString(0)))); }
     }
 
     private static void RevokeAttachment(SqliteConnection connection, SqliteTransaction transaction,
@@ -348,6 +384,7 @@ public sealed partial class WindowsSqliteHostInteractionStore
 
     private sealed record AttachmentRow(AttachmentData Data, long Revision, SessionFileAttachment? Attachment,
         bool CopyVerificationPending);
+    private sealed record AttachmentDescriptor(AttachmentData Data, bool CopyVerificationPending, long? Bytes);
     private static string AttachmentMediaType(string path) =>
         path.EndsWith(".txt", StringComparison.OrdinalIgnoreCase) ? "text/plain" : "text/markdown";
     private sealed record AttachmentData(int Format, HostId<DeviceProfileIdentity> Profile, HostId<SessionIdentity> Session,

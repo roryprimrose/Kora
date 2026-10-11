@@ -40,6 +40,8 @@ Original user intent, current owning unlocked host, active control session/gener
 
 ## Attach one text file to an exact Session (native only)
 
+For a content-free overview of existing retained slots, use **Tray > Retained session attachments > Refresh metadata**. Opening/listing never reads an original path or body. [Catalogue limits and exact navigation](windows-and-tray.md#retained-session-attachments-metadata-only) explain bounded pages, removed/held status, stale continuation and separate full-byte inspection. This adds no typed/voice/model capture command.
+
 Open **Sessions**, select the exact Active session, then **Attach text file to this exact Session**. A trusted native picker opens only metadata; review canonical path/native identity, source and host session, bytes/time, fixed limits and local durable retention/copy disclosure. **Confirm: capture and retain this exact file for this Session** is separate persistence consent, not the existing volatile preview confirmation.
 
 One immutable UTF-8 `.txt`/`.md`/`.markdown` file per session; maximum 262,144 original bytes including BOM; sixteen retained files across the private profile; no eviction or silent overwrite. Attach refuses a second file. No typed/voice/model attachment path or confirmation command is delivered.

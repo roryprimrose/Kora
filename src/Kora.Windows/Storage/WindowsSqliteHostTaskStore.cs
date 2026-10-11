@@ -577,41 +577,7 @@ public sealed class WindowsSqliteHostTaskStore : IHostTaskStore
         while (reader.Read())
         {
             var task = Decode(reader);
-            using var events = connection.CreateCommand();
-            events.CommandText = "SELECT revision,state FROM host_task_events WHERE task_id=$task ORDER BY revision;";
-            events.Parameters.AddWithValue("$task", task.Request.TaskId.Value.ToString("D"));
-            using var ledger = events.ExecuteReader();
-            HostTaskRecord? previous = null;
-            while (ledger.Read())
-            {
-                var record = new HostTaskRecord(task.Request, new(ledger.GetInt64(0)), (HostTaskState)ledger.GetInt64(1));
-                if (previous is null
-                    ? record.Revision.Value != 1 || record.State != HostTaskState.IntentRecorded
-                    : record.Revision.Value != previous.Revision.Value + 1 || previous.IsTerminal)
-                {
-                    throw new InvalidDataException("The persisted task ledger is discontinuous or replays terminal work.");
-                }
-                if (previous is not null)
-                {
-                    try
-                    {
-                        if (previous.Next(record.State) != record)
-                        {
-                            throw new InvalidDataException("The persisted task ledger transition is invalid.");
-                        }
-                    }
-                    catch (InvalidOperationException exception)
-                    {
-                        throw new InvalidDataException("The persisted task ledger transition is invalid.", exception);
-                    }
-                }
-                previous = record;
-                count++;
-            }
-            if (previous != task)
-            {
-                throw new InvalidDataException("The task ledger and durable receipt disagree.");
-            }
+            count += ValidateTaskLedger(connection, task);
         }
         using var total = connection.CreateCommand();
         total.CommandText = "SELECT count(*) FROM host_task_events;";
@@ -619,6 +585,48 @@ public sealed class WindowsSqliteHostTaskStore : IHostTaskStore
         {
             throw new InvalidDataException("The task ledger contains orphan events.");
         }
+    }
+
+    internal static long ValidateTaskLedger(SqliteConnection connection, HostTaskRecord task)
+    {
+        if (task.Revision.Value > 3) { throw new InvalidDataException("The persisted task revision exceeds its canonical ledger bound."); }
+        using var events = connection.CreateCommand();
+        events.CommandText = "SELECT revision,state FROM host_task_events WHERE task_id=$task ORDER BY revision LIMIT 4;";
+        events.Parameters.AddWithValue("$task", task.Request.TaskId.Value.ToString("D"));
+        using var ledger = events.ExecuteReader();
+        HostTaskRecord? previous = null;
+        var count = 0L;
+        while (ledger.Read())
+        {
+            var record = new HostTaskRecord(task.Request, new(ledger.GetInt64(0)), (HostTaskState)ledger.GetInt64(1));
+            if (previous is null
+                ? record.Revision.Value != 1 || record.State != HostTaskState.IntentRecorded
+                : record.Revision.Value != previous.Revision.Value + 1 || previous.IsTerminal)
+            {
+                throw new InvalidDataException("The persisted task ledger is discontinuous or replays terminal work.");
+            }
+            if (previous is not null)
+            {
+                try
+                {
+                    if (previous.Next(record.State) != record)
+                    {
+                        throw new InvalidDataException("The persisted task ledger transition is invalid.");
+                    }
+                }
+                catch (InvalidOperationException exception)
+                {
+                    throw new InvalidDataException("The persisted task ledger transition is invalid.", exception);
+                }
+            }
+            previous = record;
+            count++;
+        }
+        if (previous != task)
+        {
+            throw new InvalidDataException("The task ledger and durable receipt disagree.");
+        }
+        return count;
     }
 
     internal static HostTaskRecord Decode(SqliteDataReader reader)

@@ -38,6 +38,7 @@ public sealed partial class App : Avalonia.Application
     private ClipboardPreviewWindowController? clipboardWindow;
     private LocalFilePreviewWindowController? fileWindow;
     private SessionAttachmentWindowController? attachmentWindow;
+    private AttachmentCatalogueWindowController? attachmentCatalogue;
     private MaintenanceWindowController? maintenanceWindow;
     private MainViewModel? viewModel;
     private ILogger<App>? logger;
@@ -122,7 +123,8 @@ public sealed partial class App : Avalonia.Application
                 () => maintenanceWindow?.Open(),
                 microphoneRecovery.Open,
                 () => exactGrants?.Open(),
-                () => questionWindow.ReturnToCurrentQuestionAsync(window));
+                () => questionWindow.ReturnToCurrentQuestionAsync(window),
+                () => attachmentCatalogue?.Open());
             evidenceWindow = new EvidenceWindowController(viewModel,
                 Services.GetRequiredService<Kora.Application.Diagnostics.DurableEvidenceQuery>(),
                 Services.GetRequiredService<Kora.Core.Diagnostics.IEvidenceQueryAccess>(),
@@ -135,6 +137,10 @@ public sealed partial class App : Avalonia.Application
             attachmentWindow = new SessionAttachmentWindowController(viewModel.ReportHostInteractionFailure, sessionFiles,
                 Services.GetRequiredService<SessionWorkspaceService>(),
                 Services.GetRequiredService<Kora.Core.Storage.ISessionWorkspaceAccess>(), fileWindow);
+            attachmentCatalogue = new(viewModel, Services.GetRequiredService<SessionWorkspaceService>(), sessionFiles,
+                attachmentWindow, Services.GetRequiredService<Kora.Core.Storage.ISessionWorkspaceAccess>(),
+                Services.GetRequiredService<ILogger<AttachmentCatalogueViewModel>>(),
+                Services.GetRequiredService<SessionAttachmentCatalogueService>());
             sessionsWindow = new SessionsWindowController(viewModel,
                 Services.GetRequiredService<Kora.Application.Hosting.SessionWorkspaceService>(),
                 Services.GetRequiredService<Kora.Application.Diagnostics.DurableEvidenceQuery>(),
@@ -276,6 +282,8 @@ public sealed partial class App : Avalonia.Application
         allWorkWindow = null;
         sessionsWindow?.Dispose();
         sessionsWindow = null;
+        attachmentCatalogue?.Dispose();
+        attachmentCatalogue = null;
         attachmentWindow?.Dispose();
         attachmentWindow = null;
         clipboardWindow?.Dispose();

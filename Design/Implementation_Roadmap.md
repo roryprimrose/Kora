@@ -1047,6 +1047,18 @@ their original snapshots. External #81 is runtime-validation preparation only;
 external presence fade #85 is merged, while pointer hide-timer #86 is still open
 at this reconciliation. Neither is coordinator-owned delivery.
 
+### R26.1i bounded retained attachment metadata catalogue - 2026-10-11
+
+Delivered **Tray > Retained session attachments**, a separate native manual read-only catalogue over initialized private Session slots, with no original-path/picker/body read on opening or listing. Sixteen rows / 64 KiB per page, sixty-four scanned slots, bounded typed authority-validation segments, a five-second read budget and two-minute authenticated continuation lifetime are explicit.
+
+Active/Done/Removed lifecycle and Confirmed/Held/Unavailable copy-certification headers remain distinct from full body integrity and present file access. Removed historical slots are optionally paged without changing the sixteen-live-body cap or eviction policy. Changed authority/store/profile/query rejects continuation; empty filtered or pending-authority pages explicitly retain Next, never a false all-clear.
+
+Exact native navigation re-resolves the original Session/generation/storage/source reference through the existing passive workspace and full original-byte/hash/provenance inspection. Replacement/removal/held sources refuse rather than retarget. Lifecycle/private/source/query/selection retirement clears navigation and suppresses late callbacks; Done inspection does not resume, create an intent, renew activity or trigger cleanup.
+
+See [canonical scope and evidence](File_And_Folder_Ingestion.md#delivered-retained-attachment-metadata-catalogue---2026-10-11). Maintained strict shape, actual private SQLite metadata SELECT/tombstone/cursor/failure and headless native consumer tests qualify only this increment. Schema/body/capture/copy/retention and exact citations stay unchanged; no index, extra format, managed source, model ingestion or installed acceptance is claimed.
+
+Experiment assessment retains every unique native/storage/runtime/legacy/privacy/resource witness and historical failure receipt; no detector/experiment or RT1/RT2/MG1/containment proof is wholly superseded or retired.
+
 ### R26.1h passive exact citation-to-source navigation - 2026-10-11
 
 Delivered selectable native search-citation rows and explicit **Show exact cited source span** for admitted text/Markdown file/folder previews and retained Session attachments. The accessible inert span is the exact unmodified original UTF-16 slice, with source/revision/item/digest and end-exclusive line/column/range; complete original source remains visible. Explicit navigation alone reveals/focuses; passive updates do not steal focus.

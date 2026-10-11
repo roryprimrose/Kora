@@ -158,11 +158,7 @@ public sealed partial class WindowsSqliteHostInteractionStore
 
     private static bool AttachmentCopyVerificationPending(SqliteConnection connection, long sequence, AttachmentData data)
     {
-        using var command = connection.CreateCommand();
-        command.CommandText = "SELECT envelope FROM security_audit_events WHERE sequence=$sequence;";
-        command.Parameters.AddWithValue("$sequence", sequence);
-        var envelope = HostInteractionCodec.Decode<AuthorityAudit>((string)(command.ExecuteScalar()
-            ?? throw new InvalidDataException("Attachment copy authority is missing.")));
+        var envelope = ReadAttachmentAudit(connection, sequence);
         var pending = envelope.Audit.Outcome == SecurityAuditOutcome.Requested;
         if (pending && (!Same(envelope.Audit.ActionId, "session.file.replace")
             || envelope.Request.SessionId != data.Request.SessionId || envelope.Request.TaskId != data.Request.TaskId
@@ -177,7 +173,7 @@ public sealed partial class WindowsSqliteHostInteractionStore
     {
         using var command = connection.CreateCommand();
         command.CommandText = """
-            SELECT envelope FROM security_audit_events
+            SELECT sequence FROM security_audit_events
             WHERE sequence IN (
                 SELECT MAX(sequence) FROM security_audit_events
                 WHERE json_extract(envelope,'$.Audit.ActionId')='session.file.replace'
@@ -193,12 +189,40 @@ public sealed partial class WindowsSqliteHostInteractionStore
         command.Parameters.AddWithValue("$requested", (int)SecurityAuditOutcome.Requested);
         using var reader = command.ExecuteReader();
         if (!reader.Read()) { return null; }
-        var envelope = HostInteractionCodec.Decode<AuthorityAudit>(reader.GetString(0));
+        var envelope = ReadAttachmentAudit(connection, reader.GetInt64(0));
         if (reader.Read() || envelope.Request.Origin != RequestOrigin.LocalUi || envelope.Request.InvocationId is not null)
         {
             throw new InvalidDataException("Pending replacement has conflicting or non-native authority.");
         }
         return envelope.Request;
+    }
+
+    private static AuthorityAudit ReadAttachmentAudit(SqliteConnection connection, long sequence)
+    {
+        using var command = connection.CreateCommand();
+        command.CommandText = """
+            SELECT a.correlation_id,a.previous_hash,a.hash,
+                CASE WHEN typeof(a.envelope)='text' AND length(CAST(a.envelope AS BLOB))<=131072
+                    THEN a.envelope ELSE NULL END,p.hash
+            FROM security_audit_events a LEFT JOIN security_audit_events p ON p.sequence=a.sequence-1
+            WHERE a.sequence=$sequence;
+            """;
+        command.Parameters.AddWithValue("$sequence", sequence);
+        using var row = command.ExecuteReader();
+        if (!row.Read() || row.IsDBNull(3)
+            || !Same(row.GetString(1), sequence == 1 ? EmptyHash : row.IsDBNull(4) ? string.Empty : row.GetString(4)))
+        {
+            throw new InvalidDataException("Attachment copy authority is missing, oversized or inconsistent.");
+        }
+        return DecodeAuthorityAudit(sequence, row.GetString(0), row.GetString(1), row.GetString(2), row.GetString(3));
+    }
+
+    private static void ValidateAttachmentRowAuthority(SqliteConnection connection, long sequence, AuthorityChange change)
+    {
+        if (!ReadAttachmentAudit(connection, sequence).Changes.Contains(change))
+        {
+            throw new InvalidDataException("Attachment metadata is not bound to its exact typed authoritative audit commit.");
+        }
     }
 
     private static HostId<TaskIdentity>? PendingReplacementIntent(SqliteConnection connection, HostId<SessionIdentity> session)

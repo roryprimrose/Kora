@@ -28,7 +28,22 @@ public sealed partial class ModelTurnHost
                 activity.Complete(ToActivityOutcome(initialized.Result.Outcome));
                 return new(initialized.Result);
             }
-            var resolved = await providerProfileConfiguration!.ResolveTurnAsync(Live, token).ConfigureAwait(false);
+            if (sessionProfiles is null)
+            {
+                var unavailable = Finish(ModelTurnOutcome.Unavailable, ModelTurnReason.SessionNotAdmitted);
+                CompleteAudit(auditEvent, unavailable);
+                activity.Complete(ToActivityOutcome(unavailable.Outcome));
+                return new(unavailable);
+            }
+            var sessionProfile = await sessionProfiles.ReadProviderProfile(current.Request.SessionId, token).ConfigureAwait(false);
+            if (sessionProfile.Held || !sessionProfile.Session.IsActive || sessionProfile.Session.SessionId != current.Request.SessionId)
+            {
+                var unavailable = Finish(ModelTurnOutcome.Unavailable, ModelTurnReason.SessionNotAdmitted);
+                CompleteAudit(auditEvent, unavailable);
+                activity.Complete(ToActivityOutcome(unavailable.Outcome));
+                return new(unavailable);
+            }
+            var resolved = await providerProfileConfiguration!.ResolveTurnAsync(Live, sessionProfile.Desired, token).ConfigureAwait(false);
             ModelTurnAdmission admission;
             if (resolved.Selection is null)
             { admission = new(Finish(ModelTurnOutcome.Unavailable, ModelTurnReason.UnregisteredModel)); }
@@ -52,11 +67,16 @@ public sealed partial class ModelTurnHost
                     {
                         turn.Policy = policy;
                         turn.Profile = resolved.Tuple;
+                        turn.SessionPolicyRevision = sessionProfile.Revision;
                     }
                 }
             }
             CompleteAudit(auditEvent, admission.Result);
-            if (admission.Turn is not null && (!Live() || !resolved.Current() || token.IsCancellationRequested))
+            var verified = admission.Turn is null ? null
+                : await sessionProfiles.ReadProviderProfile(current.Request.SessionId, token).ConfigureAwait(false);
+            if (admission.Turn is not null && (!Live() || !resolved.Current() || token.IsCancellationRequested
+                || verified!.Held || verified.Session != sessionProfile.Session || verified.Revision != sessionProfile.Revision
+                || !string.Equals(verified.Desired.Serialize(), sessionProfile.Desired.Serialize(), StringComparison.Ordinal)))
             {
                 admission = new(Finish(token.IsCancellationRequested ? ModelTurnOutcome.Cancelled : ModelTurnOutcome.Denied,
                     token.IsCancellationRequested ? ModelTurnReason.CallerCancelled : ModelTurnReason.PolicyChanged));

@@ -6,7 +6,7 @@ using Kora.Core.Providers;
 
 namespace Kora.Application.Configuration;
 
-/// <summary>Only explicitly app-scoped directives are admitted; session/one-turn overrides remain unavailable.</summary>
+/// <summary>Only explicitly app-scoped directives are admitted here; exact-session review uses its independent parser.</summary>
 public sealed record ProviderProfileCommand(AppearanceCommandOperation Operation, ProviderService? Service = null,
     string? Model = null, string? Reasoning = null, string? Context = null, string? Account = null, long CatalogueRevision = 0,
     bool TupleOnly = false, bool SignIn = false, string? Error = null)

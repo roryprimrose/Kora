@@ -262,7 +262,7 @@ public sealed class ProviderProfileConfigurationService(
 
     // The turn consumer observes again; settings snapshots are never dispatch or account authority.
     internal async Task<(ProviderProfileTuple? Tuple, ModelProviderSelection? Selection, Func<bool> Current)> ResolveTurnAsync(
-        Func<bool> eligible, CancellationToken token)
+        Func<bool> eligible, SessionProviderOverrides overrides, CancellationToken token)
     {
         if (!eligible()) { throw new InvalidOperationException("Provider profile host admission is closed."); }
         var current = await catalogue.ObserveAsync(token).ConfigureAwait(false);
@@ -272,13 +272,14 @@ public sealed class ProviderProfileConfigurationService(
             if (applying || !eligible() || token.IsCancellationRequested) { throw new InvalidOperationException("Provider profile admission changed during observation."); }
             var value = Read();
             var resolved = value ?? new ProviderProfilePreferences(Initial(current.Installation), []);
-            var tuple = resolved.For(resolved.Service);
-            var model = resolved.Service == ProviderService.Unset
-                || resolved.Service == ProviderService.Local && current.Installation != LocalProviderInstallation.Installed
-                ? null : ProviderProfileRules.Resolve(tuple, current.For(resolved.Service), time.GetUtcNow());
+            var service = overrides.EffectiveService(resolved);
+            var tuple = overrides.ResolveDesired(resolved);
+            var model = service == ProviderService.Unset
+                || service == ProviderService.Local && current.Installation != LocalProviderInstallation.Installed
+                ? null : ProviderProfileRules.Resolve(tuple, current.For(service), time.GetUtcNow());
             var expected = revision;
             bool Current() => !applying && revision == expected && eligible() && Same(Read(), value)
-                && model is not null && current.For(resolved.Service).IsCurrent(time.GetUtcNow());
+                && model is not null && current.For(service).IsCurrent(time.GetUtcNow());
             return (model is null ? null : tuple, model?.Selection, Current);
         }
     }

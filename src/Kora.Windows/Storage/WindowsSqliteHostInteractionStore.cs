@@ -65,8 +65,9 @@ public sealed partial class WindowsSqliteHostInteractionStore : IHostInteraction
             new(4, 5, HostInteractionSchema.HistoryTables, MigrateQueue),
             new(5, 6, HostInteractionSchema.QueueTables, MigrateRetention),
             memoryMigration: new(6, 7, HostInteractionSchema.RetentionTables, MigrateMemory),
-            attachmentMigration: new(7, HostInteractionSchema.Version, HostInteractionSchema.MemoryTables, MigrateAttachments),
-            migrationAdmission: ValidateAttachmentMigrationAdmission);
+            attachmentMigration: new(7, 8, HostInteractionSchema.MemoryTables, MigrateAttachments),
+            migrationAdmission: ValidateAttachmentMigrationAdmission,
+            providerProfileMigration: new(8, HostInteractionSchema.Version, HostInteractionSchema.AttachmentTables, MigrateProviderProfiles));
     }
 
     public ValueTask InitializeAsync(CancellationToken cancellationToken) =>
@@ -224,6 +225,8 @@ public sealed partial class WindowsSqliteHostInteractionStore : IHostInteraction
             (connection, transaction, intent, audit) =>
             {
                 var previous = RequireSession(connection, request.SessionId);
+                if (remove && ReadProviderProfileRow(connection, request.SessionId).Revision != 0)
+                { throw new InvalidOperationException("Use reviewed exact session disposition to inventory and remove durable provider policy copies."); }
                 if (canControl is not null && (!canControl() || ReadQuestions(connection, request.SessionId)
                     .Any(q => q.Status == QuestionStatus.Pending)))
                 {
@@ -500,6 +503,7 @@ public sealed partial class WindowsSqliteHostInteractionStore : IHostInteraction
         ValidateRetention(connection);
         ValidateMemory(connection);
         ValidateAttachments(connection);
+        ValidateProviderProfiles(connection);
     }
 
     private static void ValidateConsolidatedAuthority(SqliteConnection connection)
@@ -676,7 +680,7 @@ public sealed partial class WindowsSqliteHostInteractionStore : IHostInteraction
             || audit.Audit.Category != SecurityAuditCategory.SecurityApproval
             || !Same(audit.Audit.TargetId, Id(audit.Request.TaskId))
             || audit.Changes.Any(change => change.Digest is null || !IsHex(change.Digest, 64) || change.Revision <= 0
-                || change.Kind is not ("session" or "observation" or "question" or "grant" or "metadata" or "task" or "wait" or "queue" or "retention" or "memory" or "session-file")
+                || change.Kind is not ("session" or "observation" or "question" or "grant" or "metadata" or "task" or "wait" or "queue" or "retention" or "memory" or "session-file" or "session-provider-profile")
                 || !Guid.TryParseExact(change.Id, "D", out var id) || id == Guid.Empty
                 || !Same(change.Id, id.ToString("D"))))
         {
@@ -684,6 +688,20 @@ public sealed partial class WindowsSqliteHostInteractionStore : IHostInteraction
         }
         var batch = Same(audit.Audit.ActionId, "approval.revoke-exact-batch");
         var queueControl = Same(audit.Audit.ActionId, "queue.pause") || Same(audit.Audit.ActionId, "queue.resume");
+        if (Same(audit.Audit.ActionId, ProviderProfileAction)
+            && (audit.Request.InvocationId is not null || audit.Request.Origin is not (RequestOrigin.LocalUi or RequestOrigin.ActivatedVoice)
+                || audit.Audit.Initiator != (audit.Request.Origin == RequestOrigin.LocalUi ? SecurityAuditInitiator.TypedCommand : SecurityAuditInitiator.VoiceCommand)
+                || audit.Audit.Outcome is not (SecurityAuditOutcome.Requested or SecurityAuditOutcome.Succeeded)
+                || audit.RequestedAudit is not null || audit.Audit.ApprovalId is not null || audit.ApprovalId is not null
+                || audit.Outcome is not null || audit.QuestionId is not null || audit.QuestionRevision is not null || audit.GrantRevision is not null
+                || audit.Audit.Outcome == SecurityAuditOutcome.Requested && (audit.Changes.Length > 1
+                    || audit.Changes.Length == 1 && (!Same(audit.Changes[0].Kind, "session-provider-profile")
+                        || !Same(audit.Changes[0].Id, Id(audit.Request.SessionId))))
+                || audit.Audit.Outcome == SecurityAuditOutcome.Succeeded && (audit.Changes.Length != 2
+                    || !audit.Changes.Any(change => Same(change.Kind, "session-provider-profile") && Same(change.Id, Id(audit.Request.SessionId)))
+                    || !audit.Changes.Any(change => Same(change.Kind, "task") && Same(change.Id, Id(audit.Request.TaskId))
+                        && change.Revision == audit.IntentRevision.Value + 1))))
+        { throw new InvalidDataException("Provider policy requires exact original input, requested audit and terminal control, never grants."); }
         if ((Same(audit.Audit.ActionId, "approval.revoke-exact") || batch || queueControl) != (audit.RequestedAudit is not null)
             || !batch && !queueControl && (audit.RequestedAudit is null) != (audit.RequestedGrantRevision is null)
             || audit.RequestedGrantRevision is { Value: <= 0 }

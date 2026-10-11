@@ -15,7 +15,11 @@ internal sealed partial class SessionsWindow : Window
         DataContext = model;
         PropertyChanged += (_, args) =>
         {
-            if (args.Property == IsVisibleProperty) { model.SetRoutineQuietSurfaceOpen(IsVisible); }
+            if (args.Property == IsVisibleProperty)
+            {
+                model.SetRoutineQuietSurfaceOpen(IsVisible);
+                model.SetProviderSurfaceOpen(IsVisible);
+            }
         };
         Refresh.Click += async (_, _) => await model.RefreshAsync();
         Next.Click += async (_, _) => await model.NextAsync();
@@ -45,6 +49,19 @@ internal sealed partial class SessionsWindow : Window
         RenameSession.Click += async (_, _) => await model.RenameAsync();
         AttachFile.Click += async (_, _) => await model.OpenAttachment(attach: true);
         InspectAttachment.Click += async (_, _) => await model.OpenAttachment(attach: false);
+        RefreshProviders.Click += async (_, _) => await model.RefreshProviders();
+        ReviewProviderService.Click += async (_, _) => await model.ReviewProviderField(Kora.Core.Providers.SessionProviderField.Service, reset: false);
+        ReviewProviderModel.Click += async (_, _) => await model.ReviewProviderField(Kora.Core.Providers.SessionProviderField.Model, reset: false);
+        ReviewProviderReasoning.Click += async (_, _) => await model.ReviewProviderField(Kora.Core.Providers.SessionProviderField.Reasoning, reset: false);
+        ReviewProviderContext.Click += async (_, _) => await model.ReviewProviderField(Kora.Core.Providers.SessionProviderField.Context, reset: false);
+        ReviewProviderTuple.Click += async (_, _) => await model.ReviewProviderField(null, reset: false);
+        ResetProviderService.Click += async (_, _) => await model.ReviewProviderField(Kora.Core.Providers.SessionProviderField.Service, reset: true);
+        ResetProviderModel.Click += async (_, _) => await model.ReviewProviderField(Kora.Core.Providers.SessionProviderField.Model, reset: true);
+        ResetProviderReasoning.Click += async (_, _) => await model.ReviewProviderField(Kora.Core.Providers.SessionProviderField.Reasoning, reset: true);
+        ResetProviderContext.Click += async (_, _) => await model.ReviewProviderField(Kora.Core.Providers.SessionProviderField.Context, reset: true);
+        ResetProviders.Click += async (_, _) => await model.ReviewProviderField(null, reset: true);
+        ConfirmProviders.Click += async (_, _) => await model.ConfirmProviders();
+        CancelProviders.Click += (_, _) => model.ClearProviderReview();
         RefreshRetention.Click += async (_, _) => await model.RefreshRetentionAsync();
         KeepSession.Click += (_, _) => model.PreviewRetention(keep: true);
         OrdinaryRetention.Click += (_, _) => model.PreviewRetention(keep: false);

@@ -265,7 +265,17 @@ Status separates saved, desired and effective state. Unknown, expired, retired, 
 
 This is independent of the unchanged **LocalOnly** `providers.default-mode` safety default and existing bootstrap local-model switches. Only subsequent eligible provider-neutral policy turns consume profiles; app edits never reroute/cancel/retry an admitted turn or change the buffered local bootstrap reasoner.
 
-Session inheritance/overrides, unscoped “Use Claude” directives and one-turn profile changes are not delivered. Use explicit [app-scoped commands](commands.md#inspect-or-change-app-provider-profiles). Larger context choices do not override Kora's existing limits. Failed/unconfirmed writes require inspecting saved state and audit/control receipts before explicit repair and refresh, not automatic retry.
+Durable session inheritance/overrides use the separate Sessions controls below. Generic unscoped “Use Claude” and one-turn directives remain deferred; existing [app-scoped commands](commands.md#inspect-or-change-app-provider-profiles) never alias session changes. Larger context choices cannot override Kora's limits. Failed/unconfirmed writes require inspecting saved state and audit/control receipts before explicit repair and refresh, not automatic retry.
+
+### Exact session provider overrides
+
+In **Sessions**, select an existing exact session, expand **Selected-session provider overrides**, then **Refresh exact session provider status**. Status separately shows saved sparse values, inherited flags/app values, effective resolved/unavailable tuple and current catalogue/account provenance.
+
+Service/model/reasoning/context each start as **Inherit app**. Review one exact desired field, then use **Confirm exact selected-session proposal** separately. **Inherit app service/model/reasoning/context** resets just one field; **Use app defaults for this session** reviews clearing all four. Cancel/close saves nothing. Session overrides never write app preferences.
+
+Service can remain desired/unresolved. Model-dependent saves require the current exact advertised catalogue; production has no models, so these save controls stay unavailable. A service override inherits that service's app tuple, not another service's IDs. Stale session/selection/generation/policy/app revision or catalogue/account changes refuse confirmation without substitution.
+
+Later edits affect future admitted provider-neutral turns only. Existing LocalOnly/handoff/envelope boundaries and the buffered local bootstrap reasoner are unchanged; no authentication, network/model call or egress is enabled. [Exact commands and recovery](commands.md#inspect-or-change-an-exact-session-provider-profile) share the same private durable session-policy workflow.
 
 **Review pending exact provider handoff** opens local volatile original-user review of actual audited host-issued offers, never sample/model-supplied envelopes. Production has no qualified offers and reports unavailable. Choose an offer, then **Read complete exact envelope** before explicitly approving context only, declining, cancelling or removing evidence.
 

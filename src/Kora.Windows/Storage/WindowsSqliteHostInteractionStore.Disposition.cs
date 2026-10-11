@@ -52,7 +52,7 @@ public sealed partial class WindowsSqliteHostInteractionStore
             var completed = intent.Next(HostTaskState.Succeeded);
             var memories = MemoryInvalidations(connection, request.SessionId);
             var attachments = AttachmentInvalidation(connection, request.SessionId);
-            if (attachments.Length != 0)
+            if (attachments.Length != 0 || CountDispositionRows(connection, "session_provider_profile", request.SessionId) != 0)
             {
                 database.RequireEmptyArtifactInventory();
                 Execute(connection, transaction, "PRAGMA secure_delete=ON; PRAGMA journal_size_limit=0;");
@@ -70,10 +70,11 @@ public sealed partial class WindowsSqliteHostInteractionStore
                 DELETE FROM host_questions WHERE session_id=$id;
                 DELETE FROM scoped_grants WHERE session_id=$id;
                 DELETE FROM session_metadata WHERE session_id=$id;
+                DELETE FROM session_provider_profile WHERE session_id=$id;
                 """, ("$id", Id(request.SessionId)));
             return new SessionDispositionReceipt(request.SessionId, removed.Generation, preview);
         }, cancellationToken, canControl).ConfigureAwait(false);
-        if (receipt.Removed.Attachments != 0)
+        if (receipt.Removed.Attachments != 0 || receipt.Removed.ProviderProfiles != 0)
         {
             using var lease = database.AcquireReadLease(CancellationToken.None);
             database.ClearCommittedJournal();
@@ -89,7 +90,10 @@ public sealed partial class WindowsSqliteHostInteractionStore
         return new(confirmation, target, DispositionRevision(connection, session, control),
             CountDispositionRows(connection, "host_questions", session), CountDispositionRows(connection, "scoped_grants", session),
             CountDispositionRows(connection, "host_observations", session), CountDispositionRows(connection, "host_task_waits", session))
-        { Attachments = ReadAttachmentRow(connection, session)?.Attachment is null ? 0 : 1 };
+        {
+            Attachments = ReadAttachmentRow(connection, session)?.Attachment is null ? 0 : 1,
+            ProviderProfiles = CountDispositionRows(connection, "session_provider_profile", session),
+        };
     }
 
     private static SessionWorkspaceEntry RequireDispositionTarget(SqliteConnection connection,
@@ -147,6 +151,7 @@ public sealed partial class WindowsSqliteHostInteractionStore
             "SELECT * FROM scoped_grants WHERE session_id=$id ORDER BY approval_id;",
             "SELECT * FROM reviewed_memory WHERE session_id=$id ORDER BY memory_id;",
             "SELECT * FROM session_file WHERE session_id=$id ORDER BY session_id;",
+            "SELECT * FROM session_provider_profile WHERE session_id=$id ORDER BY session_id;",
             "SELECT * FROM host_tasks WHERE session_id=$id AND task_id<>$control ORDER BY task_id;",
             "SELECT * FROM session_history WHERE session_id=$id AND (json_extract(projection,'$.TaskId') IS NULL OR json_extract(projection,'$.TaskId')<>$control) ORDER BY sequence;",
             "SELECT w.* FROM host_task_waits w JOIN host_tasks t ON t.task_id=w.task_id WHERE t.session_id=$id ORDER BY w.task_id;",

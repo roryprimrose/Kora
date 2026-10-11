@@ -187,7 +187,7 @@ public sealed partial class MainViewModel
             SynchronizeProviderProfileConfiguration();
             var response = JsonSerializer.Serialize(new
             {
-                scope = "App default; session overrides and one-turn changes are unavailable",
+                scope = "App default only; exact session overrides use separate review; one-turn changes are unavailable",
                 outcome = command.SignIn ? "Unavailable: no qualified sign-in adapter; no account credentials accessed"
                     : saved ? "Desired configuration saved only; nothing authenticated, sent or executed" : "Observed; no execution authority",
                 state = service.Get(),

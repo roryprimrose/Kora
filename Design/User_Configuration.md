@@ -1146,7 +1146,17 @@ Sign-in is visibly Unavailable without a qualified adapter; no credentials, auth
 
 Controls expose exact advertised provider-managed choices and context presets/token metadata, not generic effort levels or budget overrides. Bounds and failure recovery are owned by the canonical provider topic and [workflow tests](../tests/Kora.Application.UnitTests/Configuration/ProviderProfileConfigurationServiceTests.cs).
 
-Only subsequent eligible provider-neutral turns consume these app profiles. Existing admitted turns and buffered bootstrap local reasoning are not rerouted. Session overrides, inherit/reset-session fields, unscoped directives and one-turn changes described above remain unavailable future work; an unscoped directive is not silently promoted to app scope.
+Only subsequent eligible provider-neutral turns consume these app profiles. Existing admitted turns and buffered bootstrap local reasoning are not rerouted. Durable exact-session controls below are separate; generic unscoped directives and one-turn changes remain future work and are never silently promoted to app scope.
+
+### Delivered exact-session sparse provider overrides
+
+[Session provider policy](Model_Providers_Memory_And_Knowledge.md#session-overrides-and-effective-resolution) durably stores service/model/reasoning/context as Inherit app or exact current catalogue-bound values in the private consolidated session SQLite authority. Existing/legacy sessions start all-inherit, never a fabricated hosted choice.
+
+Native selected-session status/review/confirmation and exact `providers.session.* for <session-id>` typed/current-name activated commands share original-user admission, session/generation/policy/app/catalogue/account fences. Individual reset clears only one field; explicit **Use app defaults for this session** clears all four. Session writes never change app preferences, and later app edits change inherited values on subsequent turns without rewriting saved session policy.
+
+Saved desired and effective resolved/unavailable state are distinct. Model-dependent controls remain unavailable with the honest production catalogue; desired service selection authenticates/executes nothing. Requested/terminal typed audit, atomic policy/save/readback/control receipt and durable unresolved-outcome holds precede confirmation; malformed/unknown state requires inspection/repair, not inheritance, retry/reset, fallback or rollback claims.
+
+Session retention/disposition inventory includes the policy row and committed journal. The actual provider-neutral turn consumer captures immutable effective tuple/catalogue/session-policy revision, preserving admitted turns across later edits; pre-dispatch private authority/account/catalogue/installation loss refuses. Buffered local bootstrap reasoning, LocalOnly/handoff/envelope gates, authentication/providers, generic multi-action and one-turn directives remain untouched/unavailable.
 
 ## 6. Definitions and Local Data
 

@@ -25,7 +25,9 @@
       <Button Grid.Column="2" x:Name="RenameSession" Content="Re_name selected ID" IsEnabled="{Binding CanRename}"
               AutomationProperties.Name="Rename the exact selected session ID using its generation and metadata revision; does not resume" />
     </Grid>
-    <StackPanel Grid.Row="3" Spacing="6">
+    <ScrollViewer Grid.Row="3" MaxHeight="260" VerticalScrollBarVisibility="Auto"
+                  AutomationProperties.Name="Selected-session controls and provider policy review; scroll for complete controls">
+    <StackPanel Spacing="6">
     <WrapPanel>
       <Button x:Name="AttachFile" Content="Attach text file to this exact Session" IsEnabled="{Binding CanAttachFile}"
               AutomationProperties.Name="Native picker then metadata and durable-copy review; one file, 256 KiB original UTF-8 bytes, sixteen retained profile files, no eviction" />
@@ -46,6 +48,45 @@
         </WrapPanel>
         <controls:NamedTextBlock Text="{Binding RetentionPreview}" TextWrapping="Wrap"
                                 AutomationProperties.Name="Exact retention confirmation; ordinary policy may already be due; session hold is not an operation grant" />
+      </StackPanel>
+    </Expander>
+    <Expander Header="Selected-session provider overrides: inherit app or exact desired choices">
+      <StackPanel Spacing="6">
+        <controls:NamedTextBlock Text="{Binding ProviderStatus}" TextWrapping="Wrap"
+            AutomationProperties.Name="Exact selected session saved sparse fields, inherited flags, effective unavailable or resolved tuple, account and catalogue provenance; no generation or authentication" />
+        <WrapPanel>
+          <Button x:Name="RefreshProviders" Content="Refresh exact session provider status" IsEnabled="{Binding CanInspectProviders}" />
+          <ComboBox ItemsSource="{Binding ProviderServices}" SelectedItem="{Binding ProviderService, Mode=TwoWay}"
+              IsEnabled="{Binding CanReviewProviders}" AutomationProperties.Name="Desired service for this exact session; selecting grants nothing" />
+          <Button x:Name="ReviewProviderService" Content="Review service override" IsEnabled="{Binding CanReviewProviders}" />
+          <Button x:Name="ResetProviderService" Content="Inherit app service" IsEnabled="{Binding CanReviewProviders}" />
+        </WrapPanel>
+        <WrapPanel>
+          <ComboBox ItemsSource="{Binding ProviderModels}" SelectedItem="{Binding ProviderModel, Mode=TwoWay}" Width="200"
+              IsEnabled="{Binding CanSelectProviderModel}" AutomationProperties.Name="Exact current advertised model; empty means unavailable, never fake choices">
+            <ComboBox.ItemTemplate><DataTemplate><TextBlock Text="{Binding Label}" /></DataTemplate></ComboBox.ItemTemplate>
+          </ComboBox>
+          <ComboBox ItemsSource="{Binding ProviderReasonings}" SelectedItem="{Binding ProviderReasoning, Mode=TwoWay}" Width="150"
+              IsEnabled="{Binding CanSelectProviderModel}" AutomationProperties.Name="Exact current model-specific reasoning option">
+            <ComboBox.ItemTemplate><DataTemplate><TextBlock Text="{Binding Label}" /></DataTemplate></ComboBox.ItemTemplate>
+          </ComboBox>
+          <ComboBox ItemsSource="{Binding ProviderContexts}" SelectedItem="{Binding ProviderContext, Mode=TwoWay}" Width="150"
+              IsEnabled="{Binding CanSelectProviderModel}" AutomationProperties.Name="Exact current model-specific context option; cannot raise security envelope">
+            <ComboBox.ItemTemplate><DataTemplate><TextBlock Text="{Binding Label}" /></DataTemplate></ComboBox.ItemTemplate>
+          </ComboBox>
+          <Button x:Name="ReviewProviderModel" Content="Review model" IsEnabled="{Binding CanReviewProviderModel}" />
+          <Button x:Name="ReviewProviderReasoning" Content="Review reasoning" IsEnabled="{Binding CanReviewProviderModel}" />
+          <Button x:Name="ReviewProviderContext" Content="Review context" IsEnabled="{Binding CanReviewProviderModel}" />
+          <Button x:Name="ReviewProviderTuple" Content="Review complete exact tuple" IsEnabled="{Binding CanReviewProviderModel}" />
+        </WrapPanel>
+        <WrapPanel>
+          <Button x:Name="ResetProviderModel" Content="Inherit app model" IsEnabled="{Binding CanReviewProviders}" />
+          <Button x:Name="ResetProviderReasoning" Content="Inherit app reasoning" IsEnabled="{Binding CanReviewProviders}" />
+          <Button x:Name="ResetProviderContext" Content="Inherit app context" IsEnabled="{Binding CanReviewProviders}" />
+          <Button x:Name="ResetProviders" Content="Use app defaults for this session: review all-field reset" IsEnabled="{Binding CanReviewProviders}" />
+          <Button x:Name="ConfirmProviders" Content="Confirm exact selected-session proposal" IsEnabled="{Binding CanConfirmProviders}" />
+          <Button x:Name="CancelProviders" Content="Cancel provider review" />
+        </WrapPanel>
       </StackPanel>
     </Expander>
     <WrapPanel>
@@ -84,6 +125,7 @@
       <Button x:Name="ClearHistorySearch" Content="Clear query and results" IsEnabled="{Binding CanRead}" />
     </WrapPanel>
     </StackPanel>
+    </ScrollViewer>
     <Grid Grid.Row="4" ColumnDefinitions="320,*" ColumnSpacing="14">
       <controls:ScrollableListBox x:Name="Records" ItemsSource="{Binding Sessions}" SelectedItem="{Binding SelectedSessionRecord, Mode=OneWay}" IsEnabled="{Binding CanRead}"
                AutomationProperties.Name="Durable session names, exact IDs, lifecycle and optimistic revisions">
@@ -99,7 +141,7 @@
           </DataTemplate>
         </ListBox.ItemTemplate>
       </controls:ScrollableListBox>
-      <Grid Grid.Column="1" RowDefinitions="Auto,2*,Auto,Auto,*" RowSpacing="10">
+      <Grid Grid.Column="1" RowDefinitions="Auto,2*,Auto,*,*" RowSpacing="10">
         <controls:NamedTextBlock Text="{Binding WorkStatus}" TextWrapping="Wrap"
                                 AutomationProperties.Name="Selected exact session work snapshot, revisions, observation time, capacity and gaps" />
         <controls:ScrollableListBox Grid.Row="1" x:Name="WorkRecords" ItemsSource="{Binding WorkRecords}"
@@ -138,7 +180,9 @@
           <Button x:Name="ClearQueue" Content="Confirm clear displayed pending queue" IsEnabled="{Binding CanClearQueue}"
                   AutomationProperties.Name="Explicitly confirm removal of the displayed pending queue at its exact revision; active work and history remain" />
         </WrapPanel>
-        <StackPanel Grid.Row="3" Spacing="4">
+        <ScrollViewer Grid.Row="3" MaxHeight="180" VerticalScrollBarVisibility="Auto"
+                      AutomationProperties.Name="Routine notices and pending exact questions; scroll for complete retained cards">
+        <StackPanel Spacing="4">
           <controls:NamedTextBlock Text="{Binding RoutineQuietStatus}" TextWrapping="Wrap"
                                   AutomationProperties.Name="Run-only routine quiet status; Work and Maintenance only, failures and required questions unchanged" />
           <WrapPanel>
@@ -193,6 +237,7 @@
           </ItemsControl>
           </ScrollViewer>
         </StackPanel>
+        </ScrollViewer>
         <TabControl Grid.Row="4">
         <TabItem Header="History and evidence">
         <Grid RowDefinitions="Auto,*" RowSpacing="6">

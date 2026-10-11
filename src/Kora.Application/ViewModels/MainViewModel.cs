@@ -4010,6 +4010,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             await ExecuteResponseModeCommandAsync(responseModeCommand, initiator);
             return;
         }
+        if (SessionProviderProfileCommand.Parse(spokenText, AssistantName) is { } sessionProviderProfileCommand)
+        {
+            await ExecuteSessionProviderProfileCommand(sessionProviderProfileCommand, initiator);
+            return;
+        }
         if (ProviderProfileCommand.Parse(spokenText, AssistantName) is { } providerProfileCommand)
         {
             await ExecuteProviderProfileCommandAsync(providerProfileCommand, initiator);
@@ -5630,6 +5635,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             .Concat(ResponseModeCommand.FixedPhrases)
             .Concat(ProviderModeCommand.FixedPhrases)
             .Concat(ProviderProfileCommand.FixedPhrases)
+            .Concat(SessionProviderProfileCommand.FixedPhrases)
             .Concat(PreapprovedUriCommand.FixedPhrases)
             .Concat(WebPageCommand.FixedPhrases)
             .Concat(InCallFeedbackCommand.FixedPhrases)

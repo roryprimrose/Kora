@@ -3,6 +3,7 @@ using System.Diagnostics;
 using Avalonia.Controls;
 using Avalonia.Automation.Peers;
 using Avalonia.Interactivity;
+using Avalonia.VisualTree;
 
 using AwesomeAssertions;
 
@@ -474,7 +475,7 @@ public sealed partial class NativeUxFixtureContractTests
                     records.UpdateLayout();
                     if (records.ContainerFromItem(pending) is not null) { break; }
                 }
-                records.ContainerFromItem(pending).Should().NotBeNull();
+                records.ContainerFromItem(pending).Should().NotBeNull($"the work viewport must remain usable (bounds {records.Bounds}, scroll {provider.VerticalScrollPercent}, view {provider.VerticalViewSize}; ancestors {string.Join(';', records.GetVisualAncestors().OfType<Control>().Select(control => control.GetType().Name + ':' + control.Bounds))})");
                 Descendants(peer).Should().Contain(child => child.GetName().Contains(pending.TaskId.ToString("D"), StringComparison.Ordinal));
             }
 

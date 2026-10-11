@@ -7,14 +7,14 @@ using Kora.Core.Communication;
 
 namespace Kora.Application.UnitTests.Configuration;
 
-internal sealed class AudioControlTestStore : ISessionWorkspaceStore, IAudioControlSessionStore, IMaintenanceControlSessionStore,
+internal class AudioControlTestStore : ISessionWorkspaceStore, IAudioControlSessionStore, IMaintenanceControlSessionStore,
     IDiagnosticRetentionSessionStore, IAuditRetentionSessionStore, ISharedSkillSessionStore, IManualCallControlStore, IHostTaskStore
 {
     public ValueTask<SessionDispositionPreview> PreviewDispositionAsync(HostId<SessionIdentity> session,
         HostRevision expectedGeneration, long expectedMetadataRevision, CancellationToken cancellationToken) => throw new NotSupportedException();
     public ValueTask<SessionDispositionReceipt> DisposeSessionAsync(HostRequest request, SessionDispositionPreview preview,
         Func<bool> canControl, CancellationToken cancellationToken) => throw new NotSupportedException();
-    public ValueTask<HostTaskObservation?> ReadTaskAsync(HostId<SessionIdentity> session, HostId<TaskIdentity> task,
+    public virtual ValueTask<HostTaskObservation?> ReadTaskAsync(HostId<SessionIdentity> session, HostId<TaskIdentity> task,
         CancellationToken cancellationToken) => throw new NotSupportedException();
     public ValueTask<HostTaskObservation> CancelWaitingTaskAsync(HostRequest control, HostTaskCancellationTarget target,
         Func<bool> canControl, CancellationToken cancellationToken) => throw new NotSupportedException();
@@ -121,7 +121,7 @@ internal sealed class AudioControlTestStore : ISessionWorkspaceStore, IAudioCont
         throw new NotSupportedException();
     public ValueTask<SessionPage<SessionWorkspaceEntry>> ReadMetadataPageAsync(Guid? after, int limit, CancellationToken cancellationToken) =>
         throw new NotSupportedException();
-    public ValueTask<SessionWorkspaceEntry> ReadMetadataAsync(HostId<SessionIdentity> session, CancellationToken cancellationToken) =>
+    public virtual ValueTask<SessionWorkspaceEntry> ReadMetadataAsync(HostId<SessionIdentity> session, CancellationToken cancellationToken) =>
         throw new NotSupportedException();
     public ValueTask<SessionWorkspaceEntry> CreateNamedSessionAsync(HostRequest request, SessionName name, Func<bool> canControl, CancellationToken cancellationToken) =>
         throw new NotSupportedException();

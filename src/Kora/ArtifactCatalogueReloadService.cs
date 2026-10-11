@@ -21,6 +21,8 @@ internal sealed partial class ArtifactCatalogueReloadService : IDisposable
     private readonly ILogger<ArtifactCatalogueReloadService> logger;
     private readonly InstructionRevisionCatalogue? instructionRevisions;
     private readonly WindowsOwnedInstructionStore? ownedInstructions;
+    private readonly InstructionRevisionCatalogue? promptRevisions;
+    private readonly WindowsOwnedInstructionStore? ownedPrompts;
     private readonly string? profileRoamingRoot;
     private readonly Lock gate = new();
     private readonly List<FileSystemWatcher> watchers = [];
@@ -36,7 +38,9 @@ internal sealed partial class ArtifactCatalogueReloadService : IDisposable
         ILogger<ArtifactCatalogueReloadService> logger,
         InstructionRevisionCatalogue? instructionRevisions = null,
         WindowsOwnedInstructionStore? ownedInstructions = null,
-        string? profileRoamingRoot = null)
+        string? profileRoamingRoot = null,
+        InstructionRevisionCatalogue? promptRevisions = null,
+        WindowsOwnedInstructionStore? ownedPrompts = null)
     {
         this.catalogue = catalogue;
         this.paths = paths;
@@ -47,6 +51,8 @@ internal sealed partial class ArtifactCatalogueReloadService : IDisposable
         this.instructionRevisions = instructionRevisions;
         this.ownedInstructions = ownedInstructions;
         this.profileRoamingRoot = profileRoamingRoot;
+        this.promptRevisions = promptRevisions;
+        this.ownedPrompts = ownedPrompts;
     }
 
     internal void Start()
@@ -116,7 +122,8 @@ internal sealed partial class ArtifactCatalogueReloadService : IDisposable
             var disk = Discovery(settings).Load();
             var embedded = EmbeddedArtifactCatalogue.Load();
             ArtifactDefinition[] candidates = [.. embedded.Artifacts, .. disk];
-            catalogue.Publish(instructionRevisions?.Reconcile(candidates) ?? candidates);
+            var reconciled = instructionRevisions?.Reconcile(candidates) ?? candidates;
+            catalogue.Publish(promptRevisions?.Reconcile(reconciled) ?? reconciled);
             mcpConfiguration.NotifyChanged();
             ArtifactReloaded(logger, catalogue.Artifacts.Count);
             return true;
@@ -242,13 +249,16 @@ internal sealed partial class ArtifactCatalogueReloadService : IDisposable
     private sealed record WatchTarget(string Path, bool IsFile);
 
     private WindowsDiskArtifactDiscovery Discovery(ArtifactDirectorySettings settings) =>
-        new(paths, settings, ownedInstructions, profileRoamingRoot);
+        new(paths, settings, ownedInstructions, profileRoamingRoot, ownedPrompts);
 
     private void HoldOwnedInstructions()
     {
         catalogue.Publish(catalogue.Candidates.Select(item => item.OwnedInstructionName is not null
             ? item with { IsUseEnabled = false } : item).ToArray());
         try { instructionRevisions?.MarkUnavailable(); }
+        catch (Exception failure) when (failure is IOException or UnauthorizedAccessException or InvalidDataException)
+        { ArtifactReloadFailed(logger, failure.GetType().Name); }
+        try { promptRevisions?.MarkUnavailable(); }
         catch (Exception failure) when (failure is IOException or UnauthorizedAccessException or InvalidDataException)
         { ArtifactReloadFailed(logger, failure.GetType().Name); }
     }

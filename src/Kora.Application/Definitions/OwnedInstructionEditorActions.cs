@@ -8,8 +8,19 @@ namespace Kora.Application.Definitions;
 public sealed class OwnedInstructionEditorActions(
     IOwnedInstructionStore store, InstructionControlAdmission admission,
     InstructionRevisionCatalogue revisions, ArtifactCatalogue catalogue, ISecurityAuditLog auditLog,
-    BuiltInCommandRouter controls)
+    BuiltInCommandRouter controls, ArtifactKind kind = ArtifactKind.Instruction)
 {
+    public ArtifactKind Kind { get; } = ValidateKind(kind);
+
+    private static ArtifactKind ValidateKind(ArtifactKind value)
+    {
+        _ = OwnedDefinitionKind.DirectoryName(value);
+        return value;
+    }
+
+    private bool Matches(ArtifactDefinition candidate, string name) =>
+        candidate.Kind == Kind && string.Equals(candidate.OwnedInstructionName, name, StringComparison.Ordinal);
+
     public Task<IReadOnlyList<string>> List(Func<bool> eligible, CancellationToken token) =>
         admission.Run(eligible, async (_, _, _, admitted) => await store.List(admitted).ConfigureAwait(false), token);
 
@@ -20,7 +31,7 @@ public sealed class OwnedInstructionEditorActions(
     {
         OwnedInstructionNames.WriteName(name);
         var document = ArtifactFileDocument.Parse(ArtifactFileDocument.Encode(text, bom),
-            ArtifactKind.Instruction, "kora-profile", name);
+            Kind, "kora-profile", name);
         document.RequireEditableInstruction();
         var proposed = document.Definition;
         if (proposed.CommandName is "skill" or "skills" or "instruction" or "instructions" or "prompt"
@@ -28,7 +39,7 @@ public sealed class OwnedInstructionEditorActions(
         { throw new InvalidDataException("The instruction cannot shadow a reserved control."); }
         if (proposed.SpokenNames.Any(name => new[] { "use " + name, "run " + name }.Any(phrase => controls.Match(phrase).IsMatch)))
         { throw new InvalidDataException("The declared instruction name would shadow a registered built-in command."); }
-        _ = new ArtifactCatalogue([.. catalogue.Candidates.Where(item => !string.Equals(item.OwnedInstructionName, name, StringComparison.Ordinal)), proposed]);
+        _ = new ArtifactCatalogue([.. catalogue.Candidates.Where(item => !Matches(item, name)), proposed]);
         return document;
     }
 
@@ -37,14 +48,19 @@ public sealed class OwnedInstructionEditorActions(
         Func<bool> eligible, CancellationToken token) =>
         admission.Run(eligible, async (request, session, current, admitted) =>
         {
+            if (expected is not null && expected.Document.Definition.Kind != Kind
+                || replacement is not null && replacement.Definition.Kind != Kind)
+            { throw new InvalidDataException("The exact mutation belongs to a different owned kind."); }
             if (!await exactConfirmation(admitted).ConfigureAwait(false))
             { return new InstructionWriteResult(false, false, false, expected); }
             admitted.ThrowIfCancellationRequested();
             await admission.Publish(request, session, current, static () => true, admitted).ConfigureAwait(false);
             var audit = new SecurityAuditEvent(request.RequestId.Value, SecurityAuditCategory.ConfigurationWrite,
-                replacement is null ? "definition.instruction.delete" : "definition.instruction.save",
+                replacement is null ? Kind == ArtifactKind.Instruction ? "definition.instruction.delete" : "definition.prompt.delete"
+                    : Kind == ArtifactKind.Instruction ? "definition.instruction.save" : "definition.prompt.save",
                 SecurityAuditOutcome.Requested, request.Origin == RequestOrigin.ActivatedVoice
-                    ? SecurityAuditInitiator.VoiceCommand : SecurityAuditInitiator.LocalUser, "definition.owned-instruction");
+                    ? SecurityAuditInitiator.VoiceCommand : SecurityAuditInitiator.LocalUser,
+                Kind == ArtifactKind.Instruction ? "definition.owned-instruction" : "definition.owned-prompt");
             auditLog.Write(audit);
             var unchanged = expected is not null && replacement is not null
                 && string.Equals(expected.Document.Definition.Digest, replacement.Definition.Digest, StringComparison.Ordinal);
@@ -64,7 +80,7 @@ public sealed class OwnedInstructionEditorActions(
             }
             catch (Exception exception)
             {
-                catalogue.Publish(catalogue.Candidates.Select(item => string.Equals(item.OwnedInstructionName, name, StringComparison.Ordinal)
+                catalogue.Publish(catalogue.Candidates.Select(item => Matches(item, name)
                     ? item with { IsUseEnabled = false } : item).ToArray());
                 var observed = publicationObserved || exception is InstructionPublicationUnconfirmedException;
                 auditLog.Write(audit.WithOutcome(observed ? SecurityAuditOutcome.Unknown
@@ -79,7 +95,7 @@ public sealed class OwnedInstructionEditorActions(
 
     private void HoldRevision(string name)
     {
-        catalogue.Publish(catalogue.Candidates.Select(item => string.Equals(item.OwnedInstructionName, name, StringComparison.Ordinal)
+        catalogue.Publish(catalogue.Candidates.Select(item => Matches(item, name)
             ? item with { IsUseEnabled = false } : item).ToArray());
         revisions.Hold(name);
     }
@@ -88,6 +104,8 @@ public sealed class OwnedInstructionEditorActions(
         Func<CancellationToken, Task<bool>> exactConfirmation, Func<bool> eligible, CancellationToken token)
     {
         reviewed.Document.RequireEditableInstruction();
+        if (reviewed.Document.Definition.Kind != Kind)
+        { throw new InvalidDataException("The reviewed definition belongs to another owned kind."); }
         try
         {
         var outcome = await admission.Run(eligible, async (request, session, current, admitted) =>
@@ -99,9 +117,10 @@ public sealed class OwnedInstructionEditorActions(
                 || !string.Equals(live.Document.Definition.Digest, reviewed.Document.Definition.Digest, StringComparison.Ordinal))
             { throw new InvalidOperationException("The reviewed instruction revision changed. Reload and review again."); }
             var audit = new SecurityAuditEvent(request.RequestId.Value, SecurityAuditCategory.ConfigurationWrite,
-                "definition.instruction.review-use", SecurityAuditOutcome.Requested, request.Origin == RequestOrigin.ActivatedVoice
+                Kind == ArtifactKind.Instruction ? "definition.instruction.review-use" : "definition.prompt.review-use",
+                SecurityAuditOutcome.Requested, request.Origin == RequestOrigin.ActivatedVoice
                     ? SecurityAuditInitiator.VoiceCommand : SecurityAuditInitiator.LocalUser,
-                "definition.owned-instruction");
+                Kind == ArtifactKind.Instruction ? "definition.owned-instruction" : "definition.owned-prompt");
             auditLog.Write(audit);
             try
             {
@@ -110,7 +129,7 @@ public sealed class OwnedInstructionEditorActions(
                     revisions.PrepareActivation(live);
                     return true;
                 }, admitted).ConfigureAwait(false);
-                var candidate = catalogue.Candidates.SingleOrDefault(item => string.Equals(item.OwnedInstructionName, live.Name, StringComparison.Ordinal));
+                var candidate = catalogue.Candidates.SingleOrDefault(item => Matches(item, live.Name));
                 if (candidate is null || !string.Equals(candidate.Digest, live.Document.Definition.Digest, StringComparison.Ordinal)
                     || !string.Equals(candidate.OwnedInstructionRevision, live.Revision, StringComparison.Ordinal))
                 { throw new InvalidOperationException("The reviewed revision is not the coherent current catalogue candidate."); }
@@ -129,7 +148,7 @@ public sealed class OwnedInstructionEditorActions(
             if (!eligible() || token.IsCancellationRequested)
             { throw new InvalidOperationException("Reviewed instruction use expired before publication."); }
             revisions.CompleteActivation(reviewed);
-            catalogue.Publish(catalogue.Candidates.Select(item => string.Equals(item.OwnedInstructionName, reviewed.Name, StringComparison.Ordinal)
+            catalogue.Publish(catalogue.Candidates.Select(item => Matches(item, reviewed.Name)
                 && string.Equals(item.OwnedInstructionRevision, reviewed.Revision, StringComparison.Ordinal)
                     ? item with { IsUseEnabled = true } : item).ToArray());
         }
@@ -137,7 +156,7 @@ public sealed class OwnedInstructionEditorActions(
         }
         catch
         {
-            catalogue.Publish(catalogue.Candidates.Select(item => string.Equals(item.OwnedInstructionName, reviewed.Name, StringComparison.Ordinal)
+            catalogue.Publish(catalogue.Candidates.Select(item => Matches(item, reviewed.Name)
                 ? item with { IsUseEnabled = false } : item).ToArray());
             revisions.Hold(reviewed.Name);
             throw;
@@ -147,6 +166,7 @@ public sealed class OwnedInstructionEditorActions(
     public async Task<bool> IsCurrent(ArtifactDefinition candidate, Func<bool> eligible, CancellationToken token)
     {
         if (candidate.OwnedInstructionName is null) { return true; }
+        if (candidate.Kind != Kind) { return false; }
         OwnedInstructionSnapshot? live;
         try
         {
@@ -168,7 +188,7 @@ public sealed class OwnedInstructionEditorActions(
     public void SuspendReviewedUse()
     {
         var names = revisions.SuspendReviewedUse();
-        catalogue.Publish(catalogue.Candidates.Select(item => item.OwnedInstructionName is { } name
+        catalogue.Publish(catalogue.Candidates.Select(item => item.Kind == Kind && item.OwnedInstructionName is { } name
             && names.Contains(name, StringComparer.Ordinal) ? item with { IsUseEnabled = false } : item).ToArray());
     }
 }

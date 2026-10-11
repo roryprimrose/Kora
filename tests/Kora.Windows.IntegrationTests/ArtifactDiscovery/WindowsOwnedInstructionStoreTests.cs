@@ -13,24 +13,30 @@ namespace Kora.Windows.IntegrationTests.ArtifactDiscovery;
 
 public sealed partial class WindowsOwnedInstructionStoreTests : IDisposable
 {
+    private ArtifactKind kind = ArtifactKind.Instruction;
+    private string OwnedDirectory => Path.Combine(root, OwnedDefinitionKind.DirectoryName(kind));
+    private string Target => Path.Combine(OwnedDirectory, "example" + OwnedDefinitionKind.Extension(kind));
     private readonly string root = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..",
         ".net-test-artifacts", "instruction-tests", Guid.NewGuid().ToString("N")));
 
-    private WindowsOwnedInstructionStore Create()
+    private WindowsOwnedInstructionStore Create(ArtifactKind kind = ArtifactKind.Instruction)
     {
+        this.kind = kind;
         Directory.CreateDirectory(root);
-        return new(new Paths(root));
+        return new(new Paths(root), kind);
     }
 
-    private static ArtifactFileDocument Document(string body = "Original", bool bom = false) =>
+    private ArtifactFileDocument Document(string body = "Original", bool bom = false) =>
         ArtifactFileDocument.Parse(ArtifactFileDocument.Encode(
             $"---\r\nkora-format: 1\r\nname: example\r\ndescription: Description.\r\nattribution: Own text.\r\n---\r\n{body}\r\n",
-            bom), ArtifactKind.Instruction, "kora-profile", "example");
+            bom), kind, "kora-profile", "example");
 
-    [Fact]
-    public async Task SavePublishesExactBytesAndDeletionUsesTheReviewedIdentity()
+    [Theory]
+    [InlineData(ArtifactKind.Instruction)]
+    [InlineData(ArtifactKind.Prompt)]
+    public async Task SavePublishesExactBytesAndDeletionUsesTheReviewedIdentity(ArtifactKind kind)
     {
-        var store = Create();
+        var store = Create(kind);
         var document = Document(bom: true);
         var created = await store.Write("example", null, document, () => true, TestContext.Current.CancellationToken);
         created.Published.Should().BeTrue();
@@ -44,16 +50,18 @@ public sealed partial class WindowsOwnedInstructionStoreTests : IDisposable
         (await store.Read("example", TestContext.Current.CancellationToken)).Should().BeNull();
     }
 
-    [Fact]
-    public async Task DetectedExternalReplacementConflictsAndExplicitReviewedOverwriteCanConflictAgain()
+    [Theory]
+    [InlineData(ArtifactKind.Instruction)]
+    [InlineData(ArtifactKind.Prompt)]
+    public async Task DetectedExternalReplacementConflictsAndExplicitReviewedOverwriteCanConflictAgain(ArtifactKind kind)
     {
-        var store = Create();
+        var store = Create(kind);
         var created = await store.Write("example", null, Document(), () => true, TestContext.Current.CancellationToken);
-        File.WriteAllBytes(Path.Combine(root, "Instructions", "example.instructions.md"), Document("External").CopyBytes());
+        File.WriteAllBytes(Target, Document("External").CopyBytes());
         var conflict = await store.Write("example", created.Current, Document("Draft"), () => true, TestContext.Current.CancellationToken);
         conflict.Conflict.Should().BeTrue();
         conflict.Current!.Document.Definition.Content.Should().Be("External");
-        File.WriteAllBytes(Path.Combine(root, "Instructions", "example.instructions.md"), Document("External again").CopyBytes());
+        File.WriteAllBytes(Target, Document("External again").CopyBytes());
         var renewed = await store.Write("example", conflict.Current, Document("Draft"), () => true, TestContext.Current.CancellationToken);
         renewed.Conflict.Should().BeTrue();
         var overwritten = await store.Write("example", renewed.Current, Document("Draft"), () => true, TestContext.Current.CancellationToken);
@@ -61,13 +69,15 @@ public sealed partial class WindowsOwnedInstructionStoreTests : IDisposable
         overwritten.Current!.Document.Definition.Content.Should().Be("Draft");
     }
 
-    [Fact]
-    public async Task ContentOnlyEditAfterFinalComparisonAcceptsWholeByteLastWriterWins()
+    [Theory]
+    [InlineData(ArtifactKind.Instruction)]
+    [InlineData(ArtifactKind.Prompt)]
+    public async Task ContentOnlyEditAfterFinalComparisonAcceptsWholeByteLastWriterWins(ArtifactKind kind)
     {
-        var store = Create();
+        var store = Create(kind);
         var created = await store.Write("example", null, Document(), () => true, TestContext.Current.CancellationToken);
         store.AfterFinalComparison = () =>
-            File.WriteAllBytes(Path.Combine(root, "Instructions", "example.instructions.md"), Document("Narrow race").CopyBytes());
+            File.WriteAllBytes(Target, Document("Narrow race").CopyBytes());
         var saved = await store.Write("example", created.Current, Document("Kora draft", bom: true), () => true,
             TestContext.Current.CancellationToken);
         saved.Published.Should().BeTrue();
@@ -157,25 +167,29 @@ public sealed partial class WindowsOwnedInstructionStoreTests : IDisposable
         Directory.Exists(Path.Combine(root, "Instructions", "example.instructions.md")).Should().BeTrue();
     }
 
-    [Fact]
-    public async Task ReplacedParentFailsClosedAndNoDraftIsWrittenElsewhere()
+    [Theory]
+    [InlineData(ArtifactKind.Instruction)]
+    [InlineData(ArtifactKind.Prompt)]
+    public async Task ReplacedParentFailsClosedAndNoDraftIsWrittenElsewhere(ArtifactKind kind)
     {
-        var store = Create();
+        var store = Create(kind);
         await store.List(TestContext.Current.CancellationToken);
-        Directory.Move(Path.Combine(root, "Instructions"), Path.Combine(root, "old"));
+        Directory.Move(OwnedDirectory, Path.Combine(root, "old"));
         using var identity = WindowsIdentity.GetCurrent();
-        Kora.Windows.Storage.RestrictedStorageDirectory.CreateRestrictedDirectory(Path.Combine(root, "Instructions"), identity.User!);
+        Kora.Windows.Storage.RestrictedStorageDirectory.CreateRestrictedDirectory(OwnedDirectory, identity.User!);
         var write = () => store.Write("example", null, Document(), () => true, TestContext.Current.CancellationToken);
         await write.Should().ThrowAsync<InvalidDataException>();
-        Directory.GetFiles(Path.Combine(root, "Instructions")).Should().BeEmpty();
+        Directory.GetFiles(OwnedDirectory).Should().BeEmpty();
     }
 
-    [Fact]
-    public async Task HardlinkedTargetIsRejectedWithoutModifyingEitherAlias()
+    [Theory]
+    [InlineData(ArtifactKind.Instruction)]
+    [InlineData(ArtifactKind.Prompt)]
+    public async Task HardlinkedTargetIsRejectedWithoutModifyingEitherAlias(ArtifactKind kind)
     {
-        var store = Create();
+        var store = Create(kind);
         await store.List(TestContext.Current.CancellationToken);
-        var target = Path.Combine(root, "Instructions", "example.instructions.md");
+        var target = Target;
         var other = Path.Combine(root, "outside.instructions.md");
         File.WriteAllBytes(other, Document("Outside").CopyBytes());
         CreateHardLink(target, other, nint.Zero).Should().BeTrue();
@@ -185,12 +199,47 @@ public sealed partial class WindowsOwnedInstructionStoreTests : IDisposable
     }
 
     [Fact]
-    public async Task ReparseOwnedDirectoryIsRejectedWithoutFollowingItsPrivateTarget()
+    public async Task KindMismatchAndUnsupportedKindsCannotPublishIntoAnotherOwnedStore()
     {
-        var store = Create();
+        var instructions = Create();
+        var instruction = Document();
+        var original = await instructions.Write("example", null, instruction, () => true, TestContext.Current.CancellationToken);
+        var prompts = new WindowsOwnedInstructionStore(new Paths(root), ArtifactKind.Prompt);
+        var replacement = () => prompts.Write("example", null, instruction, () => true, TestContext.Current.CancellationToken);
+        await replacement.Should().ThrowAsync<InvalidDataException>();
+        var wrongBase = () => prompts.Write("example", original.Current, null, () => true, TestContext.Current.CancellationToken);
+        await wrongBase.Should().ThrowAsync<InvalidDataException>();
+        ((Action)(() => _ = new WindowsOwnedInstructionStore(new Paths(root), ArtifactKind.Agent))).Should().Throw<InvalidDataException>();
+        File.ReadAllBytes(Target).Should().Equal(instruction.CopyBytes());
+        Directory.Exists(Path.Combine(root, "Prompts")).Should().BeFalse();
+    }
+
+    [Theory]
+    [InlineData("Example.prompt.md")]
+    [InlineData("example.prompt.MD")]
+    [InlineData("example.prompt.md", "kora-format: 2")]
+    [InlineData("example.prompt.md", "parameters: required")]
+    public async Task ManagedPromptAliasesAndUnsupportedFormatsCannotBecomeUsableRevisions(string filename, string? metadata = null)
+    {
+        var store = Create(ArtifactKind.Prompt);
+        await store.List(TestContext.Current.CancellationToken);
+        var path = Path.Combine(OwnedDirectory, filename);
+        var bytes = metadata is null ? Document().CopyBytes()
+            : ArtifactFileDocument.Encode(Document().Text.Replace("kora-format: 1", "kora-format: 1\n" + metadata, StringComparison.Ordinal), false);
+        WriteOwnedFile(path, bytes);
+        var read = () => store.Read("example", TestContext.Current.CancellationToken);
+        await read.Should().ThrowAsync<InvalidDataException>();
+        File.ReadAllBytes(path).Should().Equal(bytes);
+    }
+    [Theory]
+    [InlineData(ArtifactKind.Instruction)]
+    [InlineData(ArtifactKind.Prompt)]
+    public async Task ReparseOwnedDirectoryIsRejectedWithoutFollowingItsPrivateTarget(ArtifactKind kind)
+    {
+        var store = Create(kind);
         var outside = Path.Combine(root, "outside");
         Directory.CreateDirectory(outside);
-        var junction = Path.Combine(root, "Instructions");
+        var junction = OwnedDirectory;
         using var process = Process.Start(new ProcessStartInfo("cmd.exe")
         {
             Arguments = "/c mklink /J \"" + junction + "\" \"" + outside + "\"",
@@ -207,15 +256,17 @@ public sealed partial class WindowsOwnedInstructionStoreTests : IDisposable
         finally { Directory.Delete(junction); }
     }
 
-    [Fact]
-    public async Task PinnedDirectoryCannotBeRedirectedAtTheFinalPublicationBoundary()
+    [Theory]
+    [InlineData(ArtifactKind.Instruction)]
+    [InlineData(ArtifactKind.Prompt)]
+    public async Task PinnedDirectoryCannotBeRedirectedAtTheFinalPublicationBoundary(ArtifactKind kind)
     {
-        var store = Create();
+        var store = Create(kind);
         var created = await store.Write("example", null, Document(), () => true, TestContext.Current.CancellationToken);
         var blocked = false;
         store.AfterFinalComparison = () =>
         {
-            try { Directory.Move(Path.Combine(root, "Instructions"), Path.Combine(root, "redirected")); }
+            try { Directory.Move(OwnedDirectory, Path.Combine(root, "redirected")); }
             catch (IOException) { blocked = true; }
         };
         var result = await store.Write("example", created.Current, Document("Draft"), () => true, TestContext.Current.CancellationToken);
@@ -224,31 +275,35 @@ public sealed partial class WindowsOwnedInstructionStoreTests : IDisposable
         Directory.Exists(Path.Combine(root, "redirected")).Should().BeFalse();
     }
 
-    [Fact]
-    public async Task CancellationBeforePublicationPreservesOriginalAndCleansPrivateStaging()
+    [Theory]
+    [InlineData(ArtifactKind.Instruction)]
+    [InlineData(ArtifactKind.Prompt)]
+    public async Task CancellationBeforePublicationPreservesOriginalAndCleansPrivateStaging(ArtifactKind kind)
     {
-        var store = Create();
+        var store = Create(kind);
         var created = await store.Write("example", null, Document(), () => true, TestContext.Current.CancellationToken);
         using var cancellation = new CancellationTokenSource();
         store.AfterFinalComparison = () => cancellation.Cancel();
         var write = () => store.Write("example", created.Current, Document("Draft"), () => true, cancellation.Token);
         await write.Should().ThrowAsync<OperationCanceledException>();
-        File.ReadAllBytes(Path.Combine(root, "Instructions", "example.instructions.md")).Should().Equal(Document().CopyBytes());
-        Directory.GetFiles(Path.Combine(root, "Instructions"), "*.tmp").Should().BeEmpty();
+        File.ReadAllBytes(Target).Should().Equal(Document().CopyBytes());
+        Directory.GetFiles(OwnedDirectory, "*.tmp").Should().BeEmpty();
     }
 
-    [Fact]
-    public async Task CancellationAfterPublicationReportsObservedEffectAndNeverClaimsRollback()
+    [Theory]
+    [InlineData(ArtifactKind.Instruction)]
+    [InlineData(ArtifactKind.Prompt)]
+    public async Task CancellationAfterPublicationReportsObservedEffectAndNeverClaimsRollback(ArtifactKind kind)
     {
-        var store = Create();
+        var store = Create(kind);
         var created = await store.Write("example", null, Document(), () => true, TestContext.Current.CancellationToken);
         using var cancellation = new CancellationTokenSource();
         store.AfterPublication = () => cancellation.Cancel();
         var write = () => store.Write("example", created.Current, Document("Published"), () => true, cancellation.Token);
         var failure = await write.Should().ThrowAsync<InstructionPublicationUnconfirmedException>();
         failure.Which.CancellationRequested.Should().BeTrue();
-        File.ReadAllBytes(Path.Combine(root, "Instructions", "example.instructions.md")).Should().Equal(Document("Published").CopyBytes());
-        Directory.GetFiles(Path.Combine(root, "Instructions"), "*.tmp").Should().BeEmpty();
+        File.ReadAllBytes(Target).Should().Equal(Document("Published").CopyBytes());
+        Directory.GetFiles(OwnedDirectory, "*.tmp").Should().BeEmpty();
     }
 
     [Theory]

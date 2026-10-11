@@ -13,25 +13,29 @@ using Microsoft.Win32.SafeHandles;
 
 namespace Kora.Windows.Artifacts;
 
-public sealed partial class WindowsOwnedInstructionStore(IApplicationDataPaths paths) : IOwnedInstructionStore
+public sealed partial class WindowsOwnedInstructionStore(IApplicationDataPaths paths, ArtifactKind kind = ArtifactKind.Instruction) : IOwnedInstructionStore
 {
-    private readonly string directory = Path.Combine(paths.RoamingRoot, "Instructions");
+    private readonly string directory = Path.Combine(paths.RoamingRoot, OwnedDefinitionKind.DirectoryName(kind));
+    private readonly string extension = OwnedDefinitionKind.Extension(kind);
+    private readonly int maximumFiles = OwnedDefinitionKind.MaximumFiles(kind);
     private readonly Lock gate = new();
     private string? binding;
     internal Action? AfterFinalComparison { get; set; }
     internal Action? AfterPublication { get; set; }
 
-    public Task<IReadOnlyList<string>> List(CancellationToken token) => Task.Run<IReadOnlyList<string>>(() =>
+    public Task<IReadOnlyList<string>> List(CancellationToken token) => Task.Run(() => ListVerified(token), token);
+
+    internal IReadOnlyList<string> ListVerified(CancellationToken token)
     {
         lock (gate)
         {
             using var pinned = PinRoot(token);
-            var files = Directory.EnumerateFiles(directory, "*.instructions.md", SearchOption.TopDirectoryOnly)
+            var files = Directory.EnumerateFiles(directory, "*" + extension, SearchOption.TopDirectoryOnly)
                 .Select(Path.GetFileName).OfType<string>().ToArray();
-            if (files.Length > 128) { throw new InvalidDataException("The owned inventory exceeds 128 files."); }
-            return files.Select(file => OwnedInstructionNames.ReadName(file[..^".instructions.md".Length])).Order(StringComparer.Ordinal).ToArray();
+            if (files.Length > maximumFiles) { throw new InvalidDataException("The owned kind inventory exceeds 128 files."); }
+            return files.Select(file => OwnedInstructionNames.ReadName(file[..^extension.Length])).Order(StringComparer.Ordinal).ToArray();
         }
-    }, token);
+    }
 
     public Task<OwnedInstructionSnapshot?> Read(string name, CancellationToken token) => Task.Run(() => ReadVerified(name, token), token);
 
@@ -52,9 +56,12 @@ public sealed partial class WindowsOwnedInstructionStore(IApplicationDataPaths p
         {
             name = OwnedInstructionNames.WriteName(name);
             replacement?.RequireEditableInstruction();
+            if (replacement is not null && replacement.Definition.Kind != kind
+                || expected is not null && expected.Document.Definition.Kind != kind)
+            { throw new InvalidDataException("The reviewed definition kind does not match this host-owned store."); }
             using var pinned = PinRoot(token);
             var current = ReadCore(name, pinned, token);
-            if (current is not null && !string.Equals(current.CanonicalFileName, name + ".instructions.md", StringComparison.Ordinal))
+            if (current is not null && !string.Equals(current.CanonicalFileName, name + extension, StringComparison.Ordinal))
             { throw new InvalidDataException("The selected filename is a case alias, not the original canonical owned write target."); }
             if (!Same(expected, current))
             { return new InstructionWriteResult(false, false, true, current); }
@@ -65,7 +72,7 @@ public sealed partial class WindowsOwnedInstructionStore(IApplicationDataPaths p
             if (replacement is not null && !replacement.Metadata.ContainsKey("kora-format"))
             { throw new InvalidDataException("New or changed owned instructions require the reviewed native v1 marker."); }
             if (current is null && replacement is not null
-                && Directory.EnumerateFiles(directory, "*.instructions.md", SearchOption.TopDirectoryOnly).Take(128).Count() >= 128)
+                && Directory.EnumerateFiles(directory, "*" + extension, SearchOption.TopDirectoryOnly).Take(maximumFiles).Count() >= maximumFiles)
             { throw new InvalidDataException("The owned instruction inventory is full; no new file was created."); }
             if (replacement is null)
             {
@@ -97,7 +104,7 @@ public sealed partial class WindowsOwnedInstructionStore(IApplicationDataPaths p
                 // never following a subsequently substituted link or taking a caller-supplied destination.
                 AfterFinalComparison?.Invoke();
                 RequireEligible(eligible, token);
-                Rename(staged, pinned.Last, name + ".instructions.md", replace: current is not null, token);
+                Rename(staged, pinned.Last, name + extension, replace: current is not null, token);
                 published = true;
             }
             finally
@@ -151,7 +158,7 @@ public sealed partial class WindowsOwnedInstructionStore(IApplicationDataPaths p
         if (!eligible()) { throw new InvalidOperationException("Owned instruction host/session/privacy admission changed."); }
     }
 
-    private string Target(string name) => Path.Combine(directory, name + ".instructions.md");
+    private string Target(string name) => Path.Combine(directory, name + extension);
 
     private OwnedInstructionSnapshot? ReadCore(string name, Pinned pinned, CancellationToken token)
     {
@@ -164,8 +171,12 @@ public sealed partial class WindowsOwnedInstructionStore(IApplicationDataPaths p
         }
         VerifyFile(handle, Target(name));
         var canonicalFile = Path.GetFileName(CoordinationNative.CanonicalPath(handle));
-        var canonicalName = canonicalFile[..^".instructions.md".Length];
-        return ReadHandle(canonicalName, pinned, handle, token) with { CanonicalFileName = canonicalFile };
+        var canonicalName = canonicalFile[..^extension.Length];
+        var snapshot = ReadHandle(canonicalName, pinned, handle, token) with { CanonicalFileName = canonicalFile };
+        if (kind == ArtifactKind.Prompt && snapshot.Document.Metadata.ContainsKey("kora-format")
+            && !string.Equals(canonicalFile, canonicalName + extension, StringComparison.Ordinal))
+        { throw new InvalidDataException("The managed prompt filename is not canonical; no alias review or write is permitted."); }
+        return snapshot;
     }
 
     private OwnedInstructionSnapshot ReadHandle(string name, Pinned pinned, SafeFileHandle handle, CancellationToken token)
@@ -183,8 +194,13 @@ public sealed partial class WindowsOwnedInstructionStore(IApplicationDataPaths p
             if (count == 0) { throw new IOException("The instruction changed during the bounded read."); }
             read += count;
         }
-        return new(name, WindowsFileIdentity.Read(pinned.Last), WindowsFileIdentity.Read(handle),
-            ArtifactFileDocument.Parse(bytes, ArtifactKind.Instruction, "kora-profile", name));
+        var document = ArtifactFileDocument.Parse(bytes, kind, "kora-profile", name);
+        if (kind == ArtifactKind.Prompt && document.Metadata.ContainsKey("kora-format"))
+        {
+            OwnedInstructionNames.WriteName(name);
+            document.RequireEditableInstruction();
+        }
+        return new(name, WindowsFileIdentity.Read(pinned.Last), WindowsFileIdentity.Read(handle), document);
     }
 
     private Pinned PinRoot(CancellationToken token)

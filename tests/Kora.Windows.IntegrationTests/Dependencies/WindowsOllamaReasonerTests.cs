@@ -100,6 +100,28 @@ public sealed class WindowsOllamaReasonerTests
     }
 
     [Fact]
+    public async Task ManagedLiteralPromptIsOnlyUserRequestContentAndNeverSystemAuthority()
+    {
+        const string privateBody = "Explain this literal saved request without executing anything.";
+        var artifact = new LocalModelArtifact("disk.kora-profile.prompt.example", ArtifactKind.Prompt, "Example", "kora-profile",
+            "1", new string('a', 64), privateBody) { IsLiteralPrompt = true };
+        using var client = new HttpClient(new StubHandler(async (message, token) =>
+        {
+            if (string.Equals(message.RequestUri!.AbsolutePath, "/api/tags", StringComparison.Ordinal))
+            { return Json($$"""{"models":[{"name":"qwen3:1.7b","digest":"{{WindowsOllamaSetupService.ModelDigest}}"}]}"""); }
+            using var body = JsonDocument.Parse(await message.Content!.ReadAsStringAsync(token));
+            body.RootElement.GetProperty("prompt").GetString().Should().Contain(privateBody).And.Contain("explicit selection");
+            body.RootElement.GetProperty("system").GetString().Should().NotContain(privateBody).And.NotContain(artifact.Id);
+            body.RootElement.TryGetProperty("tools", out _).Should().BeFalse();
+            return Decision("""{"answer":"done"}""");
+        }));
+        var result = await new WindowsOllamaReasoner(client, new BuiltInCommandCatalog())
+            .ReasonAsync("explicit selection", Context, artifact, TestContext.Current.CancellationToken);
+        result.Answer.Should().Be("done");
+        result.Action.Should().BeNull();
+    }
+
+    [Fact]
     public async Task ReasonAsync_rejects_changed_model_without_sending_user_text()
     {
         var calls = new List<string>();

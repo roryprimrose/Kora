@@ -472,6 +472,15 @@ editing, applicability, and reload contract is
 every supported native action has a typed/activated-voice equivalent over the
 same host service. Unqualified agent Run controls disclose unavailability.
 
+The bounded delivered surface is one native Kora-owned instruction/literal
+prompt editor with an explicit kind selector, exact source/diff review,
+Save/Delete, Reload/Overwrite/Cancel and dirty closing/shutdown Save/Discard/Cancel.
+Typed/current-name activated `instructions` and `prompts` controls focus the
+same native actions. Review only permits exact current-run selection for a new
+request; prompts are user-request content, not system guidance, parameters or
+execution authority. Profile/skill/agent editing and the full Definitions
+surface remain separately gated. See [native editor](../docs/instruction-editor.md).
+
 The Skills surface lists source-qualified skills and revisions without reading
 arbitrary profile paths. Selecting a revision shows host-resolved identity,
 origin, compatibility, enablement, requested capabilities, registered

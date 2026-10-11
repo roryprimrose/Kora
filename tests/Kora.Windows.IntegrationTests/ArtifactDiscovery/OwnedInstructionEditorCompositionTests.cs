@@ -41,9 +41,11 @@ public sealed class OwnedInstructionEditorCompositionTests : IDisposable
     }
 
     [Theory]
-    [InlineData(RequestOrigin.LocalUi)]
-    [InlineData(RequestOrigin.ActivatedVoice)]
-    public async Task NativeReviewedSaveUsesActualDurableSessionWriterReadbackAndDisabledSharedCatalogue(RequestOrigin origin)
+    [InlineData(RequestOrigin.LocalUi, ArtifactKind.Instruction)]
+    [InlineData(RequestOrigin.ActivatedVoice, ArtifactKind.Instruction)]
+    [InlineData(RequestOrigin.LocalUi, ArtifactKind.Prompt)]
+    [InlineData(RequestOrigin.ActivatedVoice, ArtifactKind.Prompt)]
+    public async Task NativeReviewedSaveUsesActualDurableSessionWriterReadbackAndDisabledSharedCatalogue(RequestOrigin origin, ArtifactKind kind)
     {
         var paths = new Paths(root);
         Directory.CreateDirectory(paths.RoamingRoot);
@@ -52,20 +54,24 @@ public sealed class OwnedInstructionEditorCompositionTests : IDisposable
         var interactions = new WindowsSqliteHostInteractionStore(paths, tasks, new Clock());
         await interactions.InitializeAsync(TestContext.Current.CancellationToken);
         await using var admission = new InstructionControlAdmission(interactions, interactions, new HostTaskCoordinator(tasks));
-        var store = new WindowsOwnedInstructionStore(paths);
-        var revisions = new InstructionRevisionCatalogue(paths);
+        var store = new WindowsOwnedInstructionStore(paths, kind);
+        var revisions = new InstructionRevisionCatalogue(paths, kind);
         var preferences = new Preferences();
         var audit = new Audit();
         var bundled = new ArtifactDefinition("bundled.test", ArtifactKind.Prompt, "Bundled", "Read only", "test",
             ["test"], "bundled", "1", new string('a', 64), "Body");
         var catalogue = new ArtifactCatalogue(revisions.Reconcile([bundled]));
         var actions = new OwnedInstructionEditorActions(store, admission, revisions, catalogue, audit,
-            new BuiltInCommandRouter(new BuiltInCommandCatalog()));
+            new BuiltInCommandRouter(new BuiltInCommandCatalog()), kind);
         var workflow = new InstructionSaveWorkflow(actions);
         using var reload = new ArtifactCatalogueReloadService(catalogue, paths, preferences,
             new ArtifactDirectoryConfigurationService(preferences, audit),
             new McpServerConfigurationService(paths, preferences, Path.Combine(root, "no-profile")),
-            NullLogger<ArtifactCatalogueReloadService>.Instance, revisions, store, Path.Combine(root, "no-profile"));
+            NullLogger<ArtifactCatalogueReloadService>.Instance,
+            kind == ArtifactKind.Instruction ? revisions : new InstructionRevisionCatalogue(paths),
+            kind == ArtifactKind.Instruction ? store : new WindowsOwnedInstructionStore(paths), Path.Combine(root, "no-profile"),
+            kind == ArtifactKind.Prompt ? revisions : new InstructionRevisionCatalogue(paths, ArtifactKind.Prompt),
+            kind == ArtifactKind.Prompt ? store : new WindowsOwnedInstructionStore(paths, ArtifactKind.Prompt));
         var text = "---\r\nkora-format: 1\r\nname: example\r\ndescription: Test\r\n---\r\nNative draft.\r\n";
         using var originalInput = HostActivity.BeginRoot(HostRequest.Create(origin), HostActivityLayer.Desktop, HostOperation.Request);
         var review = new Review(text);
@@ -73,18 +79,25 @@ public sealed class OwnedInstructionEditorCompositionTests : IDisposable
         saved.Saved.Should().BeTrue();
         review.Reviews.Should().Be(1);
         audit.Events.Select(item => item.Outcome).Should().Equal(SecurityAuditOutcome.Requested, SecurityAuditOutcome.Succeeded);
-        audit.Events.Should().OnlyContain(item => string.Equals(item.TargetId, "definition.owned-instruction", StringComparison.Ordinal));
+        audit.Events.Should().OnlyContain(item => string.Equals(item.TargetId,
+            kind == ArtifactKind.Instruction ? "definition.owned-instruction" : "definition.owned-prompt", StringComparison.Ordinal));
         reload.ReloadNow().Should().BeTrue();
         catalogue.Candidates.Should().Contain(item => string.Equals(item.OwnedInstructionName, "example", StringComparison.Ordinal) && !item.IsUseEnabled);
         var router = new ArtifactCommandRouter(catalogue);
-        router.Match("/instruction example", "Kora").Invocation.Should().BeNull();
+        var command = "/" + kind.ToString().ToLowerInvariant() + " example";
+        router.Match(command, "Kora").Invocation.Should().BeNull();
         (await actions.Activate(saved.Current!, _ => Task.FromResult(true), () => true, TestContext.Current.CancellationToken))
             .Should().BeTrue();
-        router.Match("/instruction example", "Kora").Invocation!.Artifact.Digest.Should().Be(saved.Current!.Document.Definition.Digest);
-        File.WriteAllText(Path.Combine(paths.RoamingRoot, "Instructions", "example.instructions.md"), text + "External edit.");
+        router.Match(command, "Kora").Invocation!.Artifact.Digest.Should().Be(saved.Current!.Document.Definition.Digest);
+        (await actions.IsCurrent(router.Match(command, "Kora").Invocation!.Artifact, () => true, TestContext.Current.CancellationToken)).Should().BeTrue();
+        actions.SuspendReviewedUse();
+        router.Match(command, "Kora").Invocation.Should().BeNull();
+        (await actions.Activate(saved.Current!, _ => Task.FromResult(true), () => true, TestContext.Current.CancellationToken)).Should().BeTrue();
+        var target = Path.Combine(paths.RoamingRoot, OwnedDefinitionKind.DirectoryName(kind), "example" + OwnedDefinitionKind.Extension(kind));
+        File.WriteAllText(target, text + "External edit.");
         reload.ReloadNow().Should().BeTrue();
-        router.Match("/instruction example", "Kora").Invocation.Should().BeNull();
-        File.WriteAllText(Path.Combine(paths.RoamingRoot, "Instructions", "example.instructions.md"), "invalid");
+        router.Match(command, "Kora").Invocation.Should().BeNull();
+        File.WriteAllText(target, "invalid");
         reload.ReloadNow().Should().BeFalse();
         catalogue.Artifacts.Should().NotContain(item => item.OwnedInstructionName != null);
     }

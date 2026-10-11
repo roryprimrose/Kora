@@ -1,7 +1,7 @@
 # Skills, Prompts, Instructions, and Agent Profile Management
 
 Status: shared lifecycle contract with a bounded native Kora-owned instruction
-editor and revision-held catalogue reload increment. Other-kind/profile editing,
+and literal prompt editor and revision-held catalogue reload increment. Skill/agent/profile editing,
 agent execution and the full qualification matrix remain unavailable.
 
 This is the authoritative management contract for all four definition kinds.
@@ -16,7 +16,7 @@ deliveries, not evidence that this full contract is implemented.
 | Kind | Value and application |
 |---|---|
 | Skill | Primary reusable capability: selection guidance, inputs, workflow, and references to admitted tools or resources. Explicit voice/UI invocation and qualified model selection resolve the same enabled immutable revision. |
-| Prompt | Optional saved-request template, explicitly selected for one request. It is lightweight compatibility/flexibility support, not a parallel workflow engine or a requirement for ordinary voice requests. |
+| Prompt | Optional saved request, explicitly selected for one new request. The delivered owned editor supports literal request bodies only, not parameter expansion, a workflow engine, policy or actions. |
 | Instruction | Reusable guidance with an explicit reviewed applicability scope. The host resolves applicable enabled revisions when admitting a request; file discovery alone never inserts guidance into model context. |
 | Agent profile | Declarative specialised role referencing instructions, skills, and a bounded admitted tool subset, with input/output, locality, runtime, and budget constraints. Creating or editing the profile does not qualify an executor or start an agent. |
 
@@ -167,7 +167,7 @@ Reject traversal, reparse/hard-link/alias escapes, replaced directories,
 protected roots, unexpected package members, and conflicting external writes.
 Retain the existing local-only/network-backed storage restrictions.
 
-For the bounded owned single-file instruction writer, the user has explicitly
+For the bounded owned single-file instruction and prompt writer, the user has explicitly
 chosen **optimistic content conflict detection**, not content compare-and-swap.
 Immediately before atomic replacement, compare the live original identity and
 exact digest with the reviewed base. A detected changed, missing or replaced
@@ -258,22 +258,39 @@ or count as user activity/approval.
 
 ## Delivery and Verification
 
-### Bounded owned-instruction editor increment
+### Bounded owned instruction and prompt editor
 
-Native tray and exact `instructions editor/list/create/edit/inspect/save/reload/
-delete/activate` control routes share the same admitted actions, native review
+Native tray and exact `instructions` or `prompts` followed by
+`editor/list/create/edit/inspect/save/reload/delete/activate/cancel` control routes share the same admitted actions, native review
 and writer. Activated controls focus the same native editor; voice-only approval
 and body dictation/refinement are not implemented. No model/network is needed.
 Create and inspect use an explicit bounded ID; mutations target the open original.
-The writer admits only immediate canonical lowercase ASCII `*.instructions.md`
-files in `IApplicationDataPaths.RoamingRoot\Instructions` (maximum 128 files).
+The closed writer kinds admit only immediate canonical lowercase ASCII `*.instructions.md`
+files in `IApplicationDataPaths.RoamingRoot\Instructions` or `*.prompt.md` in
+`IApplicationDataPaths.RoamingRoot\Prompts` (separately bounded to 128 files per kind).
+The coherent catalogue independently admits those two owned inventories and
+retains the existing 128-entry bound for all other artifacts; there is no eviction.
 Strict UTF-8 and the original 64 KiB file-byte bound apply. Native format v1
 uses scalar `kora-format: 1`, `name`, `description` and optional `attribution`;
 the editor preserves original BOM, source text, line endings and supported
 metadata. Compatible legacy files lacking `kora-format` retain unchanged
 behavior; unsupported scope/metadata cannot be implicitly repaired in place.
 Header editing is bounded to 16 fields/4096 UTF-8 bytes. Fork, rename, restore,
-profile mutation, other kinds, executable content and agent runtime are absent.
+profile mutation, skill/agent writers, executable content and agent runtime are absent.
+
+Prompts require `name` and `description` in the editable subset. Unsupported
+parameter declarations, required substitution syntax such as `${input:...}`,
+tools/runtime metadata and other unsupported scalar fields are rejected rather
+than expanded or silently dropped. This is not full Copilot prompt compatibility.
+The existing explicit artifact route carries a managed literal prompt body as
+user-request content, never system/instruction authority. All original request,
+mode/context/provider and action-approval gates remain; saving or reviewing
+does not start reasoning, scheduling or execution.
+One kind selector operates the same native editor and dirty-close/shutdown review.
+Kind plus canonical file/source identity qualifies holds, freshness and audit.
+The existing instruction `instruction-revisions.json` v1 schema is unchanged;
+the prompt kind has independent strict `prompt-revisions.json` v1 state. No
+instruction enablement, revocation or digest migration occurs.
 
 Native file/parent identity and exact bytes are rechecked under durable original
 local-input/session admission. Complete private staging is flushed, then renamed
@@ -281,7 +298,7 @@ relative to the pinned source directory. Pre-publication cancellation leaves the
 base intact; uncertain post-publication readback/audit/catalogue outcomes are held
 and explicitly require reconciliation, never rollback. Saved revisions enter
 disabled, source-qualified catalogue candidates; activation separately reviews
-the exact bytes for explicit instruction selection on a new request, not broad
+the exact bytes for explicit instruction or saved-request selection on a new request, not broad
 automatic applicability or trust. Source changes/replaced identity, failures,
 deletion and restored previously revoked bytes do not auto-activate. Pre-use
 native freshness checking complements advisory watchers. Existing unchanged

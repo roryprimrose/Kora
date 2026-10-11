@@ -24,25 +24,28 @@ public sealed class InstructionEditorTests : IDisposable
     public InstructionEditorTests() => ActivitySource.AddActivityListener(listener);
     public void Dispose() => listener.Dispose();
 
-    private static OwnedInstructionSnapshot Snapshot(string body = "Original", bool native = true) =>
+    private static OwnedInstructionSnapshot Snapshot(string body = "Original", bool native = true, ArtifactKind kind = ArtifactKind.Instruction) =>
         new("example", new string('a', 48), new string('b', 48),
             ArtifactFileDocument.Parse(ArtifactFileDocument.Encode(
                 $"---\n{(native ? "kora-format: 1\n" : "")}name: example\ndescription: Test\n---\n{body}", false),
-                ArtifactKind.Instruction, "kora-profile", "example"));
+                kind, "kora-profile", "example"));
     private static ArtifactDefinition Candidate(OwnedInstructionSnapshot snapshot) =>
         snapshot.Document.Definition with { OwnedInstructionRevision = snapshot.Revision };
 
     [Theory]
-    [InlineData(InstructionConflictChoice.Reload)]
-    [InlineData(InstructionConflictChoice.Overwrite)]
-    [InlineData(InstructionConflictChoice.Cancel)]
-    public async Task ActualSaveWorkflowAppliesOnlyTheExplicitConflictChoice(InstructionConflictChoice choice)
+    [InlineData(InstructionConflictChoice.Reload, ArtifactKind.Instruction)]
+    [InlineData(InstructionConflictChoice.Overwrite, ArtifactKind.Instruction)]
+    [InlineData(InstructionConflictChoice.Cancel, ArtifactKind.Instruction)]
+    [InlineData(InstructionConflictChoice.Reload, ArtifactKind.Prompt)]
+    [InlineData(InstructionConflictChoice.Overwrite, ArtifactKind.Prompt)]
+    [InlineData(InstructionConflictChoice.Cancel, ArtifactKind.Prompt)]
+    public async Task ActualSaveWorkflowAppliesOnlyTheExplicitConflictChoice(InstructionConflictChoice choice, ArtifactKind kind)
     {
-        await using var f = new Fixture();
+        await using var f = new Fixture(kind);
         var original = f.Files.Current!;
-        f.Files.Current = Snapshot("External");
+        f.Files.Current = Snapshot("External", kind: kind);
         var review = new Review { Choice = choice };
-        var draft = Snapshot("Kora draft").Document.Text;
+        var draft = Snapshot("Kora draft", kind: kind).Document.Text;
         var outcome = await f.Workflow.Save("example", original, draft, false, review, f.Eligible, CancellationToken.None);
         review.Conflicts.Should().Be(1);
         if (choice == InstructionConflictChoice.Reload)
@@ -62,18 +65,20 @@ public sealed class InstructionEditorTests : IDisposable
             f.Files.Current!.Document.Definition.Content.Should().Be("Kora draft");
             review.Confirmations.Should().Be(2);
         }
-        draft.Should().Be(Snapshot("Kora draft").Document.Text);
+        draft.Should().Be(Snapshot("Kora draft", kind: kind).Document.Text);
         f.Catalogue.Artifacts.Should().BeEmpty();
     }
 
-    [Fact]
-    public async Task AnotherChangeBeforeFinalComparisonRequiresRenewedConflictReview()
+    [Theory]
+    [InlineData(ArtifactKind.Instruction)]
+    [InlineData(ArtifactKind.Prompt)]
+    public async Task AnotherChangeBeforeFinalComparisonRequiresRenewedConflictReview(ArtifactKind kind)
     {
-        await using var f = new Fixture();
+        await using var f = new Fixture(kind);
         var original = f.Files.Current;
-        f.Files.Current = Snapshot("External");
+        f.Files.Current = Snapshot("External", kind: kind);
         var review = new Review { Choice = InstructionConflictChoice.Overwrite };
-        review.BeforeConfirm = count => { if (count == 2) { f.Files.Current = Snapshot("External again"); } };
+        review.BeforeConfirm = count => { if (count == 2) { f.Files.Current = Snapshot("External again", kind: kind); } };
         var result = await f.Workflow.Save("example", original, Snapshot("Draft").Document.Text,
             false, review, f.Eligible, CancellationToken.None);
         result.Saved.Should().BeTrue();
@@ -101,11 +106,13 @@ public sealed class InstructionEditorTests : IDisposable
     }
 
     [Theory]
-    [InlineData(RequestOrigin.LocalUi)]
-    [InlineData(RequestOrigin.ActivatedVoice)]
-    public async Task NativeSaveReadbackIsDisabledUntilSeparateExactActivationAndSharedLookup(RequestOrigin origin)
+    [InlineData(RequestOrigin.LocalUi, ArtifactKind.Instruction)]
+    [InlineData(RequestOrigin.ActivatedVoice, ArtifactKind.Instruction)]
+    [InlineData(RequestOrigin.LocalUi, ArtifactKind.Prompt)]
+    [InlineData(RequestOrigin.ActivatedVoice, ArtifactKind.Prompt)]
+    public async Task NativeSaveReadbackIsDisabledUntilSeparateExactActivationAndSharedLookup(RequestOrigin origin, ArtifactKind kind)
     {
-        await using var f = new Fixture();
+        await using var f = new Fixture(kind);
         using var originalInput = HostActivity.BeginRoot(HostRequest.Create(origin), HostActivityLayer.Desktop, HostOperation.Request);
         (await f.Actions.List(f.Eligible, CancellationToken.None)).Should().Equal("example");
         (await f.Actions.Inspect("example", f.Eligible, CancellationToken.None)).Should().BeSameAs(f.Files.Current);
@@ -113,15 +120,16 @@ public sealed class InstructionEditorTests : IDisposable
             false, new Review(), f.Eligible, CancellationToken.None);
         f.Catalogue.Publish(f.Revisions.Reconcile([Candidate(saved.Current!)]));
         var router = new ArtifactCommandRouter(f.Catalogue);
-        router.Match("/instruction example", "Kora").Invocation.Should().BeNull();
+        var command = "/" + kind.ToString().ToLowerInvariant() + " example";
+        router.Match(command, "Kora").Invocation.Should().BeNull();
         (await f.Actions.Activate(saved.Current!, _ => Task.FromResult(false), f.Eligible, CancellationToken.None)).Should().BeFalse();
         (await f.Actions.Activate(saved.Current!, _ => Task.FromResult(true), f.Eligible, CancellationToken.None)).Should().BeTrue();
-        router.Match("/instruction example", "Kora").Invocation!.Artifact.Digest.Should().Be(saved.Current!.Document.Definition.Digest);
+        router.Match(command, "Kora").Invocation!.Artifact.Digest.Should().Be(saved.Current!.Document.Definition.Digest);
         router.Match("Kora, use example", "Kora").Invocation.Should().NotBeNull();
         (await f.Actions.IsCurrent(Candidate(saved.Current), f.Eligible, CancellationToken.None)).Should().BeTrue();
-        f.Files.Current = Snapshot("External");
+        f.Files.Current = Snapshot("External", kind: kind);
         (await f.Actions.IsCurrent(Candidate(saved.Current), f.Eligible, CancellationToken.None)).Should().BeFalse();
-        router.Match("/instruction example", "Kora").Invocation.Should().BeNull();
+        router.Match(command, "Kora").Invocation.Should().BeNull();
         f.Catalogue.Publish(f.Revisions.Reconcile([Candidate(f.Files.Current)]));
         f.Catalogue.Artifacts.Should().BeEmpty();
         (await f.Actions.IsCurrent(new ArtifactDefinition("bundled.test", ArtifactKind.Prompt, "Bundled",
@@ -129,15 +137,21 @@ public sealed class InstructionEditorTests : IDisposable
     }
 
     [Theory]
-    [InlineData("privacy")]
-    [InlineData("cancel")]
-    [InlineData("session")]
-    [InlineData("audit-request")]
-    [InlineData("audit-terminal")]
-    [InlineData("storage")]
-    public async Task ChangedAdmissionAndAuditOrStorageFailuresCannotClaimSuccessfulUse(string failure)
+    [InlineData("privacy", ArtifactKind.Instruction)]
+    [InlineData("cancel", ArtifactKind.Instruction)]
+    [InlineData("session", ArtifactKind.Instruction)]
+    [InlineData("audit-request", ArtifactKind.Instruction)]
+    [InlineData("audit-terminal", ArtifactKind.Instruction)]
+    [InlineData("storage", ArtifactKind.Instruction)]
+    [InlineData("privacy", ArtifactKind.Prompt)]
+    [InlineData("cancel", ArtifactKind.Prompt)]
+    [InlineData("session", ArtifactKind.Prompt)]
+    [InlineData("audit-request", ArtifactKind.Prompt)]
+    [InlineData("audit-terminal", ArtifactKind.Prompt)]
+    [InlineData("storage", ArtifactKind.Prompt)]
+    public async Task ChangedAdmissionAndAuditOrStorageFailuresCannotClaimSuccessfulUse(string failure, ArtifactKind kind)
     {
-        await using var f = new Fixture();
+        await using var f = new Fixture(kind);
         using var cancelled = new CancellationTokenSource();
         var review = new Review();
         review.BeforeConfirm = _ =>
@@ -154,12 +168,47 @@ public sealed class InstructionEditorTests : IDisposable
                 { throw new IOException("Audit unavailable"); }
             };
         }
+
         f.Files.FailWrite = failure is "storage";
         var save = () => f.Workflow.Save("example", f.Files.Current, Snapshot("Draft").Document.Text,
             false, review, f.Eligible, cancelled.Token);
         await save.Should().ThrowAsync<Exception>();
         f.Catalogue.Artifacts.Should().BeEmpty();
         f.Audit.Events.Should().NotContain(item => item.Outcome == SecurityAuditOutcome.Succeeded);
+    }
+
+    [Fact]
+    public async Task ClosedKindActionsRejectForeignReviewAndMutationBeforeAnyWriteOrAudit()
+    {
+        await using var f = new Fixture(ArtifactKind.Prompt);
+        var instruction = Snapshot();
+        var expected = () => f.Actions.Save("example", instruction, null, _ => Task.FromResult(true), f.Eligible, CancellationToken.None);
+        await expected.Should().ThrowAsync<InvalidDataException>();
+        var replacement = () => f.Actions.Save("example", null, instruction.Document, _ => Task.FromResult(true), f.Eligible, CancellationToken.None);
+        await replacement.Should().ThrowAsync<InvalidDataException>();
+        var review = () => f.Actions.Activate(instruction, _ => Task.FromResult(true), f.Eligible, CancellationToken.None);
+        await review.Should().ThrowAsync<InvalidDataException>();
+        (await f.Actions.IsCurrent(Candidate(instruction), f.Eligible, CancellationToken.None)).Should().BeFalse();
+        ((Action)(() => _ = new OwnedInstructionEditorActions(f.Files, f.Admission, f.Revisions, f.Catalogue, f.Audit,
+            new BuiltInCommandRouter(new BuiltInCommandCatalog()), ArtifactKind.Agent))).Should().Throw<InvalidDataException>();
+        f.Files.Writes.Should().Be(0);
+        f.Audit.Events.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task SameFileIdInOtherKindIsNotRemovedDisabledOrSelectedByPromptActions()
+    {
+        await using var f = new Fixture(ArtifactKind.Prompt);
+        var instruction = ArtifactFileDocument.Parse(ArtifactFileDocument.Encode(
+            "---\nname: instruction-note\ndescription: Test\n---\nGuidance", false), ArtifactKind.Instruction, "kora-profile", "example").Definition;
+        f.Catalogue.Publish([instruction, Candidate(f.Files.Current!)]);
+        f.Actions.Validate("example", f.Files.Current!.Document.Text, false).Definition.Kind.Should().Be(ArtifactKind.Prompt);
+        var result = await f.Workflow.Save("example", f.Files.Current, Snapshot("Draft").Document.Text,
+            false, new Review(), f.Eligible, CancellationToken.None);
+        result.Saved.Should().BeTrue();
+        f.Catalogue.Artifacts.Should().ContainSingle().Which.Should().BeSameAs(instruction);
+        f.Actions.SuspendReviewedUse();
+        f.Catalogue.Artifacts.Should().ContainSingle().Which.Should().BeSameAs(instruction);
     }
 
     [Theory]
@@ -332,12 +381,13 @@ public sealed class InstructionEditorTests : IDisposable
         internal readonly InstructionSaveWorkflow Workflow;
         internal bool Open = true;
         internal bool Eligible() => Open;
-        internal Fixture()
+        internal Fixture(ArtifactKind kind = ArtifactKind.Instruction)
         {
-            Revisions = new(new LocalSharedSkillPreferencesTests.Store());
+            Files.Current = Snapshot(kind: kind);
+            Revisions = new(new LocalSharedSkillPreferencesTests.Store(), kind);
             Catalogue = new(Revisions.Reconcile([Candidate(Files.Current!)]));
             Admission = new(Control, Control, new HostTaskCoordinator(Control));
-            Actions = new(Files, Admission, Revisions, Catalogue, Audit, new BuiltInCommandRouter(new BuiltInCommandCatalog()));
+            Actions = new(Files, Admission, Revisions, Catalogue, Audit, new BuiltInCommandRouter(new BuiltInCommandCatalog()), kind);
             Workflow = new(Actions);
         }
         public ValueTask DisposeAsync() => Admission.DisposeAsync();

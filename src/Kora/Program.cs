@@ -250,22 +250,45 @@ internal static class Program
         services.AddSingleton<ArtifactDirectoryConfigurationService>();
         services.AddSingleton<McpServerConfigurationService>();
         services.AddSingleton<Kora.Application.Definitions.InstructionRevisionCatalogue>();
+        services.AddKeyedSingleton<Kora.Application.Definitions.InstructionRevisionCatalogue>(ArtifactKind.Prompt,
+            (provider, _) => new(paths, ArtifactKind.Prompt));
         services.AddSingleton(provider =>
         {
             var embedded = EmbeddedArtifactCatalogue.Load();
             var additionalDirectories = provider.GetRequiredService<IArtifactDirectoryPreferences>().Load();
             var disk = new WindowsDiskArtifactDiscovery(paths, additionalDirectories,
-                provider.GetRequiredService<WindowsOwnedInstructionStore>()).Load();
-            return new ArtifactCatalogue(provider.GetRequiredService<Kora.Application.Definitions.InstructionRevisionCatalogue>()
-                .Reconcile([.. embedded.Artifacts, .. disk]));
+                provider.GetRequiredService<WindowsOwnedInstructionStore>(), ownedPrompts:
+                provider.GetRequiredKeyedService<WindowsOwnedInstructionStore>(ArtifactKind.Prompt)).Load();
+            var reconciled = provider.GetRequiredService<Kora.Application.Definitions.InstructionRevisionCatalogue>()
+                .Reconcile([.. embedded.Artifacts, .. disk]);
+            return new ArtifactCatalogue(provider.GetRequiredKeyedService<Kora.Application.Definitions.InstructionRevisionCatalogue>(ArtifactKind.Prompt)
+                .Reconcile(reconciled));
         });
         services.AddSingleton<ArtifactCommandRouter>();
-        services.AddSingleton<ArtifactCatalogueReloadService>();
+        services.AddSingleton(provider => new ArtifactCatalogueReloadService(
+            provider.GetRequiredService<ArtifactCatalogue>(), paths,
+            provider.GetRequiredService<IArtifactDirectoryPreferences>(),
+            provider.GetRequiredService<ArtifactDirectoryConfigurationService>(),
+            provider.GetRequiredService<McpServerConfigurationService>(),
+            provider.GetRequiredService<ILogger<ArtifactCatalogueReloadService>>(),
+            provider.GetRequiredService<Kora.Application.Definitions.InstructionRevisionCatalogue>(),
+            provider.GetRequiredService<WindowsOwnedInstructionStore>(), promptRevisions:
+            provider.GetRequiredKeyedService<Kora.Application.Definitions.InstructionRevisionCatalogue>(ArtifactKind.Prompt),
+            ownedPrompts: provider.GetRequiredKeyedService<WindowsOwnedInstructionStore>(ArtifactKind.Prompt)));
         services.AddSingleton<WindowsOwnedInstructionStore>();
+        services.AddKeyedSingleton<WindowsOwnedInstructionStore>(ArtifactKind.Prompt, (provider, _) => new(paths, ArtifactKind.Prompt));
         services.AddSingleton<IOwnedInstructionStore>(provider => provider.GetRequiredService<WindowsOwnedInstructionStore>());
         services.AddSingleton<Kora.Application.Definitions.InstructionControlAdmission>();
         services.AddSingleton<Kora.Application.Definitions.OwnedInstructionEditorActions>();
         services.AddSingleton<Kora.Application.Definitions.InstructionSaveWorkflow>();
+        services.AddKeyedSingleton<Kora.Application.Definitions.OwnedInstructionEditorActions>(ArtifactKind.Prompt, (provider, _) => new(
+            provider.GetRequiredKeyedService<WindowsOwnedInstructionStore>(ArtifactKind.Prompt),
+            provider.GetRequiredService<Kora.Application.Definitions.InstructionControlAdmission>(),
+            provider.GetRequiredKeyedService<Kora.Application.Definitions.InstructionRevisionCatalogue>(ArtifactKind.Prompt),
+            provider.GetRequiredService<ArtifactCatalogue>(), provider.GetRequiredService<ISecurityAuditLog>(),
+            provider.GetRequiredService<BuiltInCommandRouter>(), ArtifactKind.Prompt));
+        services.AddKeyedSingleton<Kora.Application.Definitions.InstructionSaveWorkflow>(ArtifactKind.Prompt, (provider, _) =>
+            new(provider.GetRequiredKeyedService<Kora.Application.Definitions.OwnedInstructionEditorActions>(ArtifactKind.Prompt)));
         services.AddSingleton<IApplicationDataPaths>(paths);
         services.AddSingleton(evidence);
         services.AddSingleton(diagnosticPolicy);

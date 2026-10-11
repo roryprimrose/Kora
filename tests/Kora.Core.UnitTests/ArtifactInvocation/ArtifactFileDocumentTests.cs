@@ -9,14 +9,16 @@ namespace Kora.Core.UnitTests.Artifacts;
 public sealed class ArtifactFileDocumentTests
 {
     [Theory]
-    [InlineData(false, "\n")]
-    [InlineData(true, "\r\n")]
-    public void ParseAndEncodeRoundTripExactOriginalBytesAndMetadata(bool bom, string newline)
+    [InlineData(false, "\n", ArtifactKind.Instruction)]
+    [InlineData(true, "\r\n", ArtifactKind.Instruction)]
+    [InlineData(false, "\n", ArtifactKind.Prompt)]
+    [InlineData(true, "\r\n", ArtifactKind.Prompt)]
+    public void ParseAndEncodeRoundTripExactOriginalBytesAndMetadata(bool bom, string newline, ArtifactKind kind)
     {
         var text = string.Join(newline, "---", "kora-format: 1", "name: 'Example'",
             "description: \"Read only\"", "attribution: My own text", "---", "  Body  ", "", "Last line", "");
         var bytes = ArtifactFileDocument.Encode(text, bom);
-        var document = ArtifactFileDocument.Parse(bytes, ArtifactKind.Instruction, "kora-profile", "example");
+        var document = ArtifactFileDocument.Parse(bytes, kind, "kora-profile", "example");
         document.RequireEditableInstruction();
         document.HasBom.Should().Be(bom);
         document.Text.Should().Be(text);
@@ -30,6 +32,78 @@ public sealed class ArtifactFileDocumentTests
         document.CopyBytes().Should().Equal(bytes);
         new OwnedInstructionSnapshot("example", "aaa", "bbb", document).Revision.Should()
             .StartWith(document.Definition.Digest + ".aaa.bbb.").And.HaveLength(137);
+    }
+
+    [Theory]
+    [InlineData(ArtifactKind.Instruction, "Instructions", ".instructions.md")]
+    [InlineData(ArtifactKind.Prompt, "Prompts", ".prompt.md")]
+    public void ClosedOwnedKindDefinesOnlyTheHostLayout(ArtifactKind kind, string directory, string extension)
+    {
+        OwnedDefinitionKind.DirectoryName(kind).Should().Be(directory);
+        OwnedDefinitionKind.Extension(kind).Should().Be(extension);
+        OwnedDefinitionKind.MaximumFiles(kind).Should().Be(128);
+    }
+
+    [Fact]
+    public void CatalogueSeparatelyBoundsBothOwnedKindsWithoutEvictingOrWideningOtherArtifacts()
+    {
+        static ArtifactDefinition Definition(ArtifactKind kind, int index, string source = "kora-profile", bool owned = true)
+        {
+            var name = kind.ToString().ToLowerInvariant() + "-" + index;
+            return new("test." + name, kind, name, "Test", name, [name], source, "1", new string('a', 64), "Body")
+            { OwnedInstructionName = owned ? name : null };
+        }
+        var instructions = Enumerable.Range(0, 128).Select(index => Definition(ArtifactKind.Instruction, index)).ToArray();
+        var prompts = Enumerable.Range(0, 128).Select(index => Definition(ArtifactKind.Prompt, index)).ToArray();
+        new ArtifactCatalogue([.. instructions, .. prompts]).Candidates.Should().HaveCount(256);
+        ((Action)(() => _ = new ArtifactCatalogue([.. instructions, Definition(ArtifactKind.Instruction, 128)]))).Should().Throw<ArgumentException>();
+        ((Action)(() => _ = new ArtifactCatalogue([.. prompts, Definition(ArtifactKind.Prompt, 128)]))).Should().Throw<ArgumentException>();
+        ((Action)(() => _ = new ArtifactCatalogue(Enumerable.Range(0, 129).Select(index => Definition(ArtifactKind.Prompt, index, "additional")).ToArray())))
+            .Should().Throw<ArgumentException>();
+        ((Action)(() => _ = new ArtifactCatalogue(Enumerable.Range(0, 129).Select(index => Definition(ArtifactKind.Prompt, index, owned: false)).ToArray())))
+            .Should().Throw<ArgumentException>();
+    }
+    [Theory]
+    [InlineData(ArtifactKind.Skill)]
+    [InlineData(ArtifactKind.Agent)]
+    [InlineData((ArtifactKind)999)]
+    public void OtherKindsCannotAcquireOwnedWriterAuthority(ArtifactKind kind)
+    {
+        ((Action)(() => OwnedDefinitionKind.DirectoryName(kind))).Should().Throw<InvalidDataException>();
+        ((Action)(() => OwnedDefinitionKind.Extension(kind))).Should().Throw<InvalidDataException>();
+        ((Action)(() => OwnedDefinitionKind.MaximumFiles(kind))).Should().Throw<InvalidDataException>();
+        var document = ArtifactFileDocument.Parse(Encoding.UTF8.GetBytes("---\nname: example\ndescription: Test\n---\nBody"),
+            kind == (ArtifactKind)999 ? ArtifactKind.Skill : kind, "kora-profile", "example");
+        ((Action)(() => document.RequireEditableInstruction())).Should().Throw<InvalidDataException>();
+    }
+
+    [Theory]
+    [InlineData("---\nname: example\n---\nBody")]
+    [InlineData("---\ndescription: Test\n---\nBody")]
+    [InlineData("---\nname: example\ndescription: Test\n---\n${input:value}")]
+    [InlineData("---\nname: example\ndescription: Test\nparameters: required\n---\nBody")]
+    public void PromptEditorRejectsUnsupportedParametersOrMissingMetadataWithoutRewritingOriginal(string text)
+    {
+        var bytes = ArtifactFileDocument.Encode(text, true);
+        var document = ArtifactFileDocument.Parse(bytes, ArtifactKind.Prompt, "kora-profile", "example");
+        ((Action)(() => document.RequireEditableInstruction())).Should().Throw<InvalidDataException>();
+        document.CopyBytes().Should().Equal(bytes);
+    }
+
+    [Fact]
+    public void LiteralPromptUpgradePreservesSourceAndCrossKindIdentityIsDistinct()
+    {
+        const string text = "---\r\nname: example\r\ndescription: Test\r\n---\r\nLiteral request.\r\n";
+        var prompt = ArtifactFileDocument.Parse(ArtifactFileDocument.Encode(text, true), ArtifactKind.Prompt, "kora-profile", "example");
+        var upgraded = prompt.WithNativeInstructionVersion("example");
+        upgraded.Definition.Kind.Should().Be(ArtifactKind.Prompt);
+        upgraded.HasBom.Should().BeTrue();
+        upgraded.Text.Should().Be(text.Replace("---\r\nname:", "---\r\nkora-format: 1\r\nname:", StringComparison.Ordinal));
+        var instruction = ArtifactFileDocument.Parse(prompt.CopyBytes(), ArtifactKind.Instruction, "kora-profile", "example");
+        new OwnedInstructionSnapshot("example", "a", "b", prompt).Revision.Should()
+            .NotBe(new OwnedInstructionSnapshot("example", "a", "b", instruction).Revision);
+        new Kora.Core.Dependencies.LocalModelArtifact("test", ArtifactKind.Prompt, "Test", "kora-profile", "1",
+            prompt.Definition.Digest, "Body") { IsLiteralPrompt = true }.IsLiteralPrompt.Should().BeTrue();
     }
 
     [Theory]

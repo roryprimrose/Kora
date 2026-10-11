@@ -6,6 +6,17 @@
 
 Reasoning/context pickers use the saved model. Model review retains both dependent IDs only if supported; missing, stale or incompatible complete bases require the existing full draft/save. No defaults or individual resets are invented. Current production catalogues have no models; these field controls are unavailable. [Settings and recovery](settings.md#app-default-service-and-desired-profiles) describe the exact boundaries.
 
+## Owned instructions and prompts
+
+Open **Tray > Owned instructions and prompts (native editor)**. Choose Instruction
+or Prompt in one model-free text editor, then list/inspect or create an exact ID.
+Save/Delete use native exact-source/diff review; Save does not enable use.
+Changed/missing/replaced bases offer Reload/Overwrite/Cancel, including the
+disclosed narrow optimistic post-comparison content race. Dirty close/shutdown
+offers Save/Discard/Cancel; privacy closure clears drafts and retires reviews.
+Prompt bodies are literal saved user requests, not parameters or system guidance.
+See [native editor commands, bounds and recovery](instruction-editor.md).
+
 ## Authoritative Sessions work
 
 The already-open selected work surface also has a **trusted local events**

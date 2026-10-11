@@ -1,6 +1,6 @@
 # File and Folder Ingestion and Grounded Reasoning
 
-Status: bounded R26 foundations implement **exact-session durable single-file attachment, local file inspection and
+Status: bounded R26 foundations implement **exact-session durable single-file attachment, retained-slot metadata catalogue and exact navigation, local file inspection and
 selected immutable revision, bounded immediate-folder lexical retrieval and explicit volatile preview refresh**, described below. The broader
 folder/multiple-version ingestion, recursive folder, managed knowledge source, persistent/vector
 index, multi-source retrieval, reasoning and hosted transmission design
@@ -14,6 +14,30 @@ Related: [Architecture](Architecture.md), [Security and Data Flows](Security_Dat
 [Implementation Roadmap](Implementation_Roadmap.md#optional-and-deferred-work).
 
 ## Delivered Durable Single-File Session Attachment - 2026-10-10
+
+### Delivered Retained Attachment Metadata Catalogue - 2026-10-11
+
+**Tray > Retained session attachments** opens a separate native, content-free catalogue. Opening performs no read; explicit Refresh/Next/Cancel observes already retained private Session slots. It never opens a picker, reopens an original path, reads new file data, captures, replaces, removes, exports or ingests model context.
+
+- Each page returns at most **sixteen summaries / 64 KiB**, scanning at most **sixty-four slots**. Retained-only is the default; **Include removed slots** shows content-free removal provenance. Historical slots are not the sixteen-live-body cap. A retained-only page can have zero matches and a valid Next.
+- Complete typed audit authority is checked in bounded **4,096-commit segments**, before attachment rows are disclosed. Pending-authority pages are explicitly labelled and contain no attachment summaries; Next continues validation. The existing five-second private lease/SQLite progress budget and five-second cancellation deadline remain finite.
+- Authenticated, run/store/profile/query-bound continuations expire after **two minutes**. Any committed authority-head change rejects Next and requires Refresh; this conservative rule includes unrelated authority changes. No global count, whole-inventory atomicity, physical-deletion or forensic claim is made.
+- Summaries show exact Session ID and current stored Active/Done/Removed state, current/captured generations, storage revision, source/revision/item/original digest headers, stored original byte count, type, captured UTC and **Confirmed / Held / Unavailable** copy certification. No body, excerpt, filename, original path or path-bearing capture metadata is returned/displayed.
+- **Confirmed** means stored capture/replacement copy certification, **not current body-integrity verification or present filesystem access**. Held replacement metadata remains inspectable without reading either body; removed slots are Unavailable. Unknown descriptor/type/scope/profile/session/audit lineage and missing committed provenance fail closed, not into empty success.
+
+The reader uses only the initialized private interaction database, shared read-only lease and bounded descriptor/length/type/audit/current-metadata projections. It never calls the full-body attachment reader or broad `Open`/`ValidateAuthority` path to populate a page. One shared descriptor decoder preserves format/projection/source rules for both cheap metadata and full original-byte reads; current session/metadata/latest-row proofs and passive source-copy/retention gates remain mandatory.
+
+**Open exact session/attachment** re-resolves the original selected Session, current generation, storage revision and source/revision/item/digest through the existing private workspace and `SessionFileAttachmentService.Read` / attachment-window path. Actual original bytes, hash, strict UTF-8 and provenance are verified there. Replacement/removal/held certification or changed lineage refuses; no newer attachment is silently opened.
+
+Retained Done inspection does not resume, renew meaningful activity, dispatch, retarget a current question, consume/create a grant or trigger cleanup. Outstanding native file review/control must finish or be discarded first. Query/selection/source/lifecycle/disposition/retention/replacement/removal/private-owner changes and cancellation/close/disposal clear the page, continuation and exact navigation; late callbacks cannot disclose newer private content.
+
+Schema **8**, attachment format **1**, one-file-per-session / **262,144 original UTF-8 bytes / sixteen retained profile bodies / no eviction**, capture/copy-certification/removal rules and existing exact citations are unchanged. There is no second database, index, preference file, copy cache, managed knowledge source, extra format, modelling or installed/accessibility qualification.
+
+Evidence: [strict summary/page bounds](../tests/Kora.Core.UnitTests/Storage/SessionAttachmentPageTests.cs), [passive host/exact navigation](../tests/Kora.Application.UnitTests/Hosting/SessionWorkspaceServiceTests.AttachmentCatalogue.cs), [actual SQLite SELECT projection, tombstones/cursors/corruption/held status](../tests/Kora.Windows.IntegrationTests/Storage/WindowsSqliteSessionAttachmentTests.Catalogue.cs), and [headless native lifecycle/source navigation](../tests/Kora.Windows.IntegrationTests/AttachmentCatalogueWindowTests.cs).
+
+Experiment assessment: these assertions qualify only the metadata/exact retained-source consumer. Unique native/runtime, encrypted-storage/rekey/backup, legacy migration, privacy/resource and historical failure receipts, RT1/RT2/MG1 and containment proofs remain retained. No experiment or proof gate is retired or weakened; full R26 and managed/model-grounded knowledge remain open.
+
+### Native Capture and Retention
 
 **Sessions > select an exact Active session > Attach text file to this exact Session** uses the trusted native picker and the same host-owned verified capture broker as local preview. It has separate metadata and durable-copy disclosure, followed by **Confirm: capture and retain this exact file for this Session**. Volatile preview consent never permits persistence.
 

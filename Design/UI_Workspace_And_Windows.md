@@ -67,6 +67,18 @@ queue payload. There is no composer, model management, Ask Evidence, export,
 rich browser, new worker/effect/provider or full R14/A4 acceptance. Maintained
 headless focus/accessible-name checks are not installed screen-reader/DPI proof.
 
+### Delivered Retained Session Attachment Catalogue - 2026-10-11
+
+**Tray > Retained session attachments** is a separate native metadata-only window, not the current-question recovery surface, All Work overview, model context or a conversation. Opening reads nothing. Refresh/Next/Cancel returns at most sixteen content-free summaries / 64 KiB, scanning sixty-four slots; optional removal provenance is independent of the sixteen retained-body cap.
+
+Exact IDs, current stored lifecycle, capture/storage generations, source/revision/item/digest headers, byte count/type/captured UTC and copy-certification status are displayed without filenames, original paths or source text. Confirmed certification is not cheap body-integrity verification. Pending authority validation and empty filtered continuation remain explicit; changed authority/store/profile/query and two-minute expiry require Refresh.
+
+Selecting metadata grants nothing. **Open exact session/attachment** uses fresh existing private workspace and full stored-byte inspection, refusing stale/replaced/removed/held references rather than opening newer content. Current Done inspection stays Done and never resumes, dispatches, renews meaningful activity, triggers cleanup or retargets a current question.
+
+Publisher/inspection revocation, lifecycle/disposition/retention, query/selection/private control, cancellation/close/disposal clear page and exact navigation immediately; asynchronous callbacks remain bound to the original owned window and selected reference. Existing native file reviews/controls must be quiescent before navigation. Full inert source/citation lifetime remains owned by the existing attachment controller.
+
+[Canonical limits and evidence](File_And_Folder_Ingestion.md#delivered-retained-attachment-metadata-catalogue---2026-10-11) qualify this consumer only; no managed knowledge, new source consent, body/capture/copy mutation, schema/index/cache, model/network or installed/native acceptance is claimed.
+
 ### Delivered Bounded Passive All Work / Attention Overview - 2026-10-11
 
 **Tray > Sessions > All work / attention overview** opens a separate owned native read-only window. Opening performs no reads or grants; manual Refresh/Next/Cancel scans at most ten canonical session IDs per click through admitted metadata and reads independent current `SessionWorkSnapshot` sources, plus bounded metadata lookahead.

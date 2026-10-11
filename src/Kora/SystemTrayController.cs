@@ -51,7 +51,8 @@ public sealed class SystemTrayController : IDisposable
         Action? reviewMaintenance = null,
         Action? chooseMicrophone = null,
         Action? inspectExactGrants = null,
-        Func<Task>? returnToCurrentQuestion = null)
+        Func<Task>? returnToCurrentQuestion = null,
+        Action? inspectRetainedAttachments = null)
     {
         this.viewModel = viewModel;
         this.logger = logger;
@@ -91,6 +92,12 @@ public sealed class SystemTrayController : IDisposable
             var sessionsItem = new NativeMenuItem("Sessions");
             sessionsItem.Click += (_, _) => RunAfterNativeMenuCloses(inspectSessions);
             menu.Add(sessionsItem);
+        }
+        if (inspectRetainedAttachments is not null)
+        {
+            var attachmentsItem = new NativeMenuItem("Retained session attachments");
+            attachmentsItem.Click += (_, _) => RunAfterNativeMenuCloses(inspectRetainedAttachments);
+            menu.Add(attachmentsItem);
         }
         var previewClipboard = new NativeMenuItem("Preview clipboard (local plain text)");
         var previewClipboardCommand = new AsyncCommand(viewModel.PreviewClipboardAsync,

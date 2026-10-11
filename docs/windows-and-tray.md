@@ -176,6 +176,21 @@ Under **Settings > Appearance > Visual feedback**, configure:
 Presence and response timeouts are independent. **Always show** keeps only
 the response window visible; idle presence still uses its own timeout.
 
+## Retained session attachments (metadata only)
+
+Open **Tray > Retained session attachments**, then choose **Refresh metadata**. Opening alone reads nothing; listing never opens a picker, original file path or attachment body. It shows only already retained private Session slots.
+
+- Each page has at most **16 rows / 64 KiB** and scans at most **64 slots**. **Next bounded page** may continue after zero retained matches. **Include removed slots** shows content-free removal provenance; historical removed slots do not count toward the sixteen-live-file cap.
+- Typed authority is validated in bounded segments before rows are shown. **Authority validation pending** pages contain no attachments; use Next to continue. Reads have a five-second budget. Continuations expire after two minutes; any committed authority, storage/profile or query change requires Refresh.
+- Rows show exact Session ID, current Active/Done/Removed lifecycle, generations, storage revision, source/revision/item/digest headers, byte count/type/captured UTC and copy certification. No filename, path, excerpt or original source metadata appears.
+- **Confirmed** is stored copy certification, not a body-integrity check or current file access. **Held** means replacement disclosure is not certified. **Unavailable** means the slot is removed. Held/removed slots cannot open a body here; use existing exact-session copy recovery where allowed.
+
+Select a confirmed row and choose **Open exact session/attachment**. Kora re-resolves that exact current Session/generation/storage/reference through existing private inspection, then validates actual stored UTF-8 bytes, digest and provenance. A stale/replaced/removed/held selection refuses; it never silently opens a newer file.
+
+A retained Done session remains Done. Browsing does not resume, renew activity, trigger cleanup, create a grant, retarget a question or send model/network content. Finish/discard any outstanding native file review/control first. Query/selection/source/private-owner changes and Cancel/Close clear metadata and exact navigation; late results are discarded.
+
+This is a finite observation, not a global total, whole-inventory snapshot, physical-deletion or forensic claim. Originals and the existing one-file-per-session / 262,144-original-byte / sixteen-retained-body / no-eviction limits remain unchanged. See [native attachment and recovery instructions](commands.md#attach-one-text-file-to-an-exact-session-native-only).
+
 ## Tray icon
 
 **Exact operation grants** opens a distinct native retained-metadata inventory, exact-ID inspection, one-ID revocation and separately reviewed atomic revocation of an explicitly selected bounded batch. It is not the legacy Approvals list and creates no execution authority. [Instructions and limits](settings.md#exact-operation-grants) cover bounds, safe provenance, stale confirmation and unknown running work.
@@ -211,6 +226,7 @@ The right-click menu contains:
 - **Documentation**
 - **Skill packages (inspection only)**
 - **Sessions**
+- **Retained session attachments** (metadata only; explicit Refresh and exact historical navigation)
 - **Preview clipboard (local plain text)**
 - **Release maintenance (notify-only)**
 - **Evidence (read-only)**

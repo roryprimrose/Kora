@@ -1,0 +1,49 @@
+<Window x:Class="Kora.AttachmentCatalogueWindow"
+    xmlns="https://github.com/avaloniaui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:controls="using:Kora.Controls"
+    Title="Retained session attachments - metadata only" Icon="/Assets/Kora.ico"
+    Width="1100" Height="720" MinWidth="850" MinHeight="580"
+    Background="{DynamicResource KoraWindowBackgroundBrush}"
+    Foreground="{DynamicResource KoraForegroundBrush}" WindowStartupLocation="CenterScreen">
+  <Grid Margin="24" RowDefinitions="Auto,Auto,*,Auto" RowSpacing="12">
+    <WrapPanel>
+      <Button x:Name="RefreshPage" Content="_Refresh metadata" IsEnabled="{Binding CanRead}" />
+      <Button x:Name="NextPage" Content="_Next bounded page" IsEnabled="{Binding CanNext}" />
+      <Button x:Name="CancelRead" Content="_Cancel read" IsEnabled="{Binding CanCancel}" />
+      <CheckBox Content="Include _removed slots (provenance only)" IsChecked="{Binding IncludeRemoved, Mode=TwoWay}"
+                IsEnabled="{Binding CanEdit}" />
+    </WrapPanel>
+    <controls:NamedTextBlock Grid.Row="1" Text="{Binding Status}" TextWrapping="Wrap"
+                            AutomationProperties.Name="Content-free metadata scope and finite scan limitations; not full body verification" />
+    <Grid Grid.Row="2" ColumnDefinitions="430,*" ColumnSpacing="12">
+      <controls:ScrollableListBox x:Name="SlotRecords" ItemsSource="{Binding Records}"
+          SelectedItem="{Binding SelectedRecord, Mode=OneWay}"
+          AutomationProperties.Name="Exact retained private session slots; no filenames, original paths or source body">
+        <ListBox.ItemTemplate>
+          <DataTemplate>
+            <StackPanel Spacing="4">
+              <TextBlock Text="{Binding Session.Value, StringFormat='Session: {0}'}" TextWrapping="Wrap" />
+              <TextBlock Text="{Binding SessionState, StringFormat='Stored session: {0}'}" />
+              <TextBlock Text="{Binding CopyStatus, StringFormat='Copy certification: {0}'}" />
+              <TextBlock Text="{Binding StorageRevision.Value, StringFormat='Storage revision: {0}'}" />
+              <TextBlock Text="{Binding StoredBytes, StringFormat='Stored original bytes: {0}'}" />
+              <TextBlock Text="{Binding MediaType}" />
+              <TextBlock Text="{Binding CapturedAt, StringFormat='Captured UTC: {0:O}'}" />
+              <TextBlock Text="{Binding File.Digest, StringFormat='Original digest header: {0}'}" TextWrapping="Wrap" />
+            </StackPanel>
+          </DataTemplate>
+        </ListBox.ItemTemplate>
+      </controls:ScrollableListBox>
+      <ScrollViewer Grid.Column="1" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+        <controls:NamedTextBlock Text="{Binding SelectedDetails}" TextWrapping="Wrap"
+          AutomationProperties.Name="Selected exact session generation, storage revision, source, revision, item and digest headers; no body integrity claim" />
+      </ScrollViewer>
+    </Grid>
+    <WrapPanel Grid.Row="3">
+      <Button x:Name="OpenExact" Content="Open exact _session/attachment" IsEnabled="{Binding CanNavigate}"
+              AutomationProperties.Name="Re-resolve original exact session and attachment; no resume, replacement retarget or new consent" />
+      <Button x:Name="CloseView" Content="_Close" />
+    </WrapPanel>
+  </Grid>
+</Window>

@@ -19,6 +19,7 @@ internal sealed class SessionAttachmentWindowController : IUserFilePicker, IDisp
     private CancellationTokenSource? lifetime;
     private Func<bool>? eligible;
     private HostId<SessionIdentity>? session;
+    private SessionAttachmentSummary? catalogueSelection;
     private Guid reviewing;
     private bool disposed;
 
@@ -42,9 +43,16 @@ internal sealed class SessionAttachmentWindowController : IUserFilePicker, IDisp
         await Dispatcher.UIThread.InvokeAsync(() => picker.SelectAsync(cancellationToken));
 
     internal async Task Open(SessionWorkspaceEntry target, bool attach, Func<bool> admission,
-        CancellationToken token)
+        CancellationToken token, SessionAttachmentSummary? expected = null)
     {
-        Close();
+        if (expected is not null && !service.IsQuiescent)
+        {
+            throw new InvalidOperationException("Finish or discard the current native file review/control before exact catalogue navigation.");
+        }
+        // Exact catalogue navigation owns and cancels this controller's old lifetime, not
+        // the independent catalogue publisher. Other existing routes retain global revocation.
+        Close(revokeService: expected is null);
+        catalogueSelection = expected;
         var control = access.ControlRevision;
         lifetime = CancellationTokenSource.CreateLinkedTokenSource(token);
         var cancellation = lifetime.Token;
@@ -77,20 +85,21 @@ internal sealed class SessionAttachmentWindowController : IUserFilePicker, IDisp
             });
             reviewing = review.ReviewId;
         }
-        else { await ShowRetained(view, target, Current, cancellation); }
+        else { await ShowRetained(view, target, Current, cancellation, expected); }
         if (!Current()) { Close(); return; }
         window?.Show();
         window?.Activate();
     }
 
     private async Task ShowRetained(LocalFilePreviewWindow view, SessionWorkspaceEntry target,
-        Func<bool> current, CancellationToken token)
+        Func<bool> current, CancellationToken token, SessionAttachmentSummary? expected = null)
     {
         var exactSession = target.Authority.SessionId;
         SessionFileAttachment? retained;
         try { retained = await service.Read(exactSession, token); }
-        catch (SessionFileReplacementHeldException)
+        catch (SessionFileReplacementHeldException exception)
         {
+            if (expected is not null) { throw new InvalidOperationException("The selected exact attachment is now held. Refresh the catalogue; no alternate body was opened.", exception); }
             // Failed certification never falls back to either body; only reviewed removal is available.
             var recovery = NewView();
             await ShowRemoval(recovery, exactSession, current, token);
@@ -100,9 +109,11 @@ internal sealed class SessionAttachmentWindowController : IUserFilePicker, IDisp
         if (!current()) { throw new OperationCanceledException(token); }
         if (retained is null)
         {
+            if (expected is not null) { throw new InvalidOperationException("The selected exact attachment is unavailable. Refresh the catalogue."); }
             await ShowRemoval(view, exactSession, current, token);
             return;
         }
+        expected?.RequireAttachment(retained);
         view.ShowAttachment(retained, async (query, mode, searchToken) =>
         {
             using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(token, searchToken);
@@ -243,12 +254,18 @@ internal sealed class SessionAttachmentWindowController : IUserFilePicker, IDisp
 
     private void OnClosed(object? sender, EventArgs args) => Close();
 
-    internal void Close()
+    internal void CloseExact(SessionAttachmentSummary original)
+    {
+        if (ReferenceEquals(catalogueSelection, original)) { Close(revokeService: false); }
+    }
+
+    internal void Close(bool revokeService = true)
     {
         var view = window;
         window = null;
         eligible = null;
         session = null;
+        catalogueSelection = null;
         reviewing = Guid.Empty;
         if (view is not null)
         {
@@ -258,7 +275,7 @@ internal sealed class SessionAttachmentWindowController : IUserFilePicker, IDisp
         lifetime?.Cancel();
         lifetime?.Dispose();
         lifetime = null;
-        service.Revoke();
+        if (revokeService) { service.Revoke(); }
     }
 
     public void Dispose()

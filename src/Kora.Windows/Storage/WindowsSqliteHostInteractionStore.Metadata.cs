@@ -157,7 +157,13 @@ public sealed partial class WindowsSqliteHostInteractionStore
         {
             while (reader.Read()) { _ = DecodeMetadata(connection, reader); }
         }
+        ValidateMetadataProvenance(connection);
+    }
+
+    private static void ValidateMetadataProvenance(SqliteConnection connection)
+    {
         // Legacy absence is valid only when no metadata commit ever existed for that identity.
+        using var command = connection.CreateCommand();
         command.CommandText = """
             SELECT 1 FROM (
                 SELECT json_extract(c.value,'$.Id') AS id, MAX(a.sequence) AS sequence

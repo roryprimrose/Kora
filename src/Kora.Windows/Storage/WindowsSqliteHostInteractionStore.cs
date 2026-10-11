@@ -82,6 +82,7 @@ public sealed partial class WindowsSqliteHostInteractionStore : IHostInteraction
                 throw new InvalidDataException("The initialized authority store was replaced.");
             }
             inspectionIdentity = identity;
+            InitializeAttachmentCatalogue(connection);
         }, cancellationToken));
 
     private void ConsolidateTasks(SqliteConnection connection, SqliteTransaction transaction, CancellationToken token)

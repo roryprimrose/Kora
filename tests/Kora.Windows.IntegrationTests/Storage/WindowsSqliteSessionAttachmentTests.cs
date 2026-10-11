@@ -101,6 +101,10 @@ public sealed partial class WindowsSqliteSessionAttachmentTests
             await NewSession(fixture);
             await Attach(fixture, Encoding.UTF8.GetBytes("retained " + index));
         }
+        var catalogue = await fixture.RunAsync(() => fixture.Store.ReadAttachmentPage(new(), null, () => true, fixture.Token));
+        catalogue.Records.Should().HaveCount(SessionFileAttachment.MaximumRetainedFiles);
+        catalogue.Next.Should().BeNull();
+        catalogue.Records.Should().Contain(item => item.File == first.File.Reference);
         await NewSession(fixture);
         var seventeenth = () => Attach(fixture, Encoding.UTF8.GetBytes("capacity overflow"));
         await seventeenth.Should().ThrowAsync<InvalidOperationException>().WithMessage("*sixteen*");
@@ -391,6 +395,7 @@ public sealed partial class WindowsSqliteSessionAttachmentTests
         internal Action? Audit { get; set; }
         internal Action? Commit { get; set; }
         internal Action? Copies { get; set; }
+        internal Action<SqliteCommand>? Metadata { get; set; }
         internal Action<SqliteConnection, SqliteTransaction>? CommitBoundary { get; set; }
         public void BeforeAudit(SqliteConnection connection, SqliteTransaction transaction) => Audit?.Invoke();
         public void BeforeCommit(SqliteConnection connection, SqliteTransaction transaction)
@@ -399,5 +404,6 @@ public sealed partial class WindowsSqliteSessionAttachmentTests
             CommitBoundary?.Invoke(connection, transaction);
         }
         public void BeforeAttachmentCopyVerification() => Copies?.Invoke();
+        public void BeforeAttachmentMetadataRead(SqliteCommand command) => Metadata?.Invoke(command);
     }
 }

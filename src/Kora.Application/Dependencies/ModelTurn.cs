@@ -28,6 +28,7 @@ public sealed class ModelTurn
 
     public ModelTurnProvenance Provenance { get; }
     public ProviderProfileTuple? Profile { get; internal set; }
+    public long? SessionPolicyRevision { get; internal set; }
     internal Guid Owner { get; }
     internal HostActivity Issuer { get; }
     internal ModelContextEnvelope Context { get; }

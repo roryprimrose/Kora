@@ -8,6 +8,71 @@ namespace Kora.Application.UnitTests.Dependencies;
 
 public sealed partial class ModelTurnHostTests
 {
+    [Fact]
+    public async Task MissingSessionPolicyAuthorityNeverFallsBackToApp()
+    {
+        using var f = new Fixture();
+        using var root = f.Root();
+        f.ProfileCatalogue.Status = ProviderCatalogueStatus.Current;
+        f.ProfilePreferences.Value = new(ProviderService.Local, [Profile()]);
+        (await f.ConfiguredProfiles(missingSessionStore: true).AdmitAsync(ModelTurnChoice.Default, f.Context(), null, Token))
+            .Result.Reason.Should().Be(ModelTurnReason.SessionNotAdmitted);
+        f.Adapter.Calls.Should().Be(0);
+    }
+    [Fact]
+    public async Task SessionPolicyCaptureSurvivesLaterSessionAndAppEditsWithoutRerouteOrCancellation()
+    {
+        using var f = new Fixture();
+        using var root = f.Root();
+        f.ProfileCatalogue.Status = ProviderCatalogueStatus.Current;
+        f.ProfilePreferences.Value = new(ProviderService.Unset, [Profile()]);
+        f.SessionOverrides = new(ProviderService.Local);
+        f.SessionProfileRevision = 7;
+        var host = f.ConfiguredProfiles();
+        var admitted = await host.AdmitAsync(ModelTurnChoice.Default, f.Context(), null, Token);
+        admitted.Turn!.Profile.Should().Be(Profile());
+        admitted.Turn.SessionPolicyRevision.Should().Be(7);
+        f.SessionOverrides = new(ProviderService.Claude);
+        f.SessionProfileRevision = 8;
+        f.ProfilePreferences.Value = new(ProviderService.Codex, [Profile(), Profile(ProviderService.Claude)]);
+        (await host.RunAsync(admitted.Turn, Token)).Outcome.Should().Be(ModelTurnOutcome.Succeeded);
+        f.Adapter.Profile.Should().Be(Profile());
+        (await host.AdmitAsync(ModelTurnChoice.Default, f.Context(), null, Token)).Result.Reason.Should().Be(ModelTurnReason.InvalidPolicy);
+        f.Adapter.Calls.Should().Be(1);
+    }
+
+    [Theory]
+    [InlineData("held")]
+    [InlineData("done")]
+    [InlineData("changed")]
+    public async Task UnknownSessionPolicyOrChangedAdmissionSnapshotFailsClosed(string state)
+    {
+        using var f = new Fixture();
+        using var root = f.Root();
+        f.ProfileCatalogue.Status = ProviderCatalogueStatus.Current;
+        f.ProfilePreferences.Value = new(ProviderService.Local, [Profile()]);
+        if (state is "held") { f.SessionProfileHeld = true; }
+        if (state is "done") { f.Session = f.Session with { IsActive = false }; }
+        if (state is "changed") { f.AfterProfileRead = () => f.SessionProfileRevision++; }
+        var admission = await f.ConfiguredProfiles().AdmitAsync(ModelTurnChoice.Default, f.Context(), null, Token);
+        admission.Turn.Should().BeNull();
+        f.Adapter.Calls.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task PrivateSessionPolicyAuthorityLossBeforeDispatchPreventsCapturedTurnWithoutFallback()
+    {
+        using var f = new Fixture();
+        using var root = f.Root();
+        f.ProfileCatalogue.Status = ProviderCatalogueStatus.Current;
+        f.ProfilePreferences.Value = new(ProviderService.Local, [Profile()]);
+        var host = f.ConfiguredProfiles();
+        var admitted = await host.AdmitAsync(ModelTurnChoice.Default, f.Context(), null, Token);
+        f.SessionProfileHeld = true;
+        (await host.RunAsync(admitted.Turn!, Token)).Outcome.Should().Be(ModelTurnOutcome.Unavailable);
+        f.Adapter.Calls.Should().Be(0);
+    }
+
     private static ProviderProfileTuple Profile(ProviderService service = ProviderService.Local) =>
         new(service, new("account"), new(1), new("exact-model"), new("managed-effort"), new("managed-window"));
 

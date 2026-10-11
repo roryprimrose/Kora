@@ -25,6 +25,7 @@ public sealed partial class ModelTurnHost : IAsyncDisposable
     private readonly ModelProviderRegistration[] registrations;
     private readonly ProviderModeConfigurationService? providerModeConfiguration;
     private readonly ProviderProfileConfigurationService? providerProfileConfiguration;
+    private readonly ISessionProviderProfileStore? sessionProfiles;
     private static readonly TimeSpan Deadline = TimeSpan.FromSeconds(15);
     private readonly Lock dispatchGate = new();
     private readonly CancellationTokenSource lifetime = new();
@@ -37,17 +38,18 @@ public sealed partial class ModelTurnHost : IAsyncDisposable
     public ModelTurnHost(ISessionWorkspaceStore workspace, ISessionWorkspaceAccess access,
         ICapabilityHostAccess host, ReadOnlyCapabilityRegistry tools, ISecurityAuditLog audit,
         ILogger<ModelTurnHost> logger, TimeProvider time, ProviderModeConfigurationService providerModeConfiguration,
-        ProviderProfileConfigurationService providerProfileConfiguration)
+        ProviderProfileConfigurationService providerProfileConfiguration, ISessionProviderProfileStore sessionProfiles)
         : this(workspace, access, host, tools, audit, logger, time,
         [
             new(ModelProviderSelection.OllamaCandidate, ModelQualificationGate.None, DateTimeOffset.MinValue, null),
             new(ModelProviderSelection.CopilotCandidate, ModelQualificationGate.None, DateTimeOffset.MinValue, null),
-        ], providerModeConfiguration, providerProfileConfiguration) { }
+        ], providerModeConfiguration, providerProfileConfiguration, sessionProfiles) { }
 
     internal ModelTurnHost(ISessionWorkspaceStore workspace, ISessionWorkspaceAccess access,
         ICapabilityHostAccess host, ReadOnlyCapabilityRegistry tools, ISecurityAuditLog audit,
         ILogger<ModelTurnHost> logger, TimeProvider time, ModelProviderRegistration[] registrations,
-        ProviderModeConfigurationService? providerModeConfiguration = null, ProviderProfileConfigurationService? providerProfileConfiguration = null)
+        ProviderModeConfigurationService? providerModeConfiguration = null, ProviderProfileConfigurationService? providerProfileConfiguration = null,
+        ISessionProviderProfileStore? sessionProfiles = null)
     {
         this.workspace = workspace;
         this.access = access;
@@ -59,6 +61,7 @@ public sealed partial class ModelTurnHost : IAsyncDisposable
         this.registrations = registrations;
         this.providerModeConfiguration = providerModeConfiguration;
         this.providerProfileConfiguration = providerProfileConfiguration;
+        this.sessionProfiles = sessionProfiles;
     }
 
     public Task<ModelTurnAdmission> AdmitAsync(ModelProviderSelection selection,
@@ -214,6 +217,9 @@ public sealed partial class ModelTurnHost : IAsyncDisposable
         if (reason != ModelTurnReason.None) { return Finish(ModelTurnOutcome.Denied, reason, turn.Provenance); }
         if (turn.Profile is { } profile)
         {
+            if (sessionProfiles is null || (await sessionProfiles.ReadProviderProfile(
+                turn.Provenance.Request.SessionId, token).ConfigureAwait(false)).Held)
+            { return Finish(ModelTurnOutcome.Unavailable, ModelTurnReason.SessionNotAdmitted, turn.Provenance); }
             if (!await providerProfileConfiguration!.ValidateTurnAsync(profile, token).ConfigureAwait(false))
             { return Finish(ModelTurnOutcome.Unavailable, ModelTurnReason.UnregisteredModel, turn.Provenance); }
             reason = await RevalidateAsync(turn, token).ConfigureAwait(false);

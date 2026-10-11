@@ -57,8 +57,25 @@ IDs are exact, case-sensitive, bounded catalogue values; labels/marketing names 
 
 Initially desired Local requires installation observation, not endpoint response, model readiness or generation consent. Missing/unknown installation is Unset. Production services currently advertise no models. Saved desired hosted service does not sign in, enable a provider, approve egress or send a request.
 
-Unscoped, session and one-turn directives are not app-scope aliases; those profile override workflows remain unavailable. Existing LocalOnly mode/default is unchanged.
+Unscoped and one-turn directives are not app-scope aliases and remain unavailable. Exact session controls below are separate; existing LocalOnly mode/default is unchanged.
 Protected/Unknown voice writes, stale previews, ownership/privacy/session changes, cancelled or unconfirmed evidence fail closed. See [app profile settings](settings.md#app-default-service-and-desired-profiles).
+
+## Inspect or change an exact session provider profile
+
+Use **Sessions > Selected-session provider overrides** or exact typed/current-name activated syntax. Session scope is explicit/default for these new mutations, never the app. `<session-id>` and confirmation IDs are canonical lowercase immutable GUIDs, not names or model-supplied destinations.
+
+| Syntax | Result |
+|---|---|
+| `get providers.session.profile for <session-id>` / `status providers.session.profile for <session-id>` | Saved sparse fields, inherited app values, effective resolved/unavailable state and catalogue provenance |
+| `set providers.session.service for <session-id> to Unset|Local|Copilot|Claude|Codex` | Review desired service override; no authentication or execution |
+| `set providers.session.<model|reasoning|context|profile> for <session-id> to <model-id> <reasoning-id> <context-id> for <account-id> at <catalogue-revision>` | Review one sparse field or all three dependent fields, bound to exact current advertised model/options/account/revision |
+| `reset providers.session.<service|model|reasoning|context> for <session-id>` | Review inheritance for only that field |
+| `reset providers.session.profile for <session-id>` | Review **Use app defaults for this session**, clearing all four overrides |
+| `confirm providers.session.profile <host-issued-confirmation-id>` | Separately confirm only the exact still-current original-input review |
+
+No exact eligible session means select one; no app fallback. Service resolution precedes inherited tuple resolution, so an overridden service uses that service's app tuple. App preferences are never written. Later app/session edits affect subsequent turns only; stale original input, session/generation/policy/app revision or catalogue/account invalidate review.
+
+Production has no qualified catalogue models/auth adapters, so model-dependent selection remains unavailable; desired service may be saved unresolved. No sign-in, model call, generation, network/egress or envelope increase occurs. Generic “Use Claude and summarize”, ambiguous labels and one-turn language remain deferred. Unconfirmed outcomes require inspection of exact saved policy and audit/control receipts, never automatic retry/reset or a rollback claim.
 
 ## Attach one text file to an exact Session (native only)
 

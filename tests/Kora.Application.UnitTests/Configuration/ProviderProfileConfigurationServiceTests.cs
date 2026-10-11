@@ -339,7 +339,7 @@ public sealed class ProviderProfileConfigurationServiceTests : IDisposable
         var refresh = f.Refresh();
         FluentActions.Invoking(() => f.Service.CreateResetChoice(tupleOnly: false)).Should().Throw<InvalidOperationException>();
         f.Catalogue.BeforeObservation = null;
-        await FluentActions.Awaiting(() => f.Service.ResolveTurnAsync(static () => true, f.Token)).Should().ThrowAsync<InvalidOperationException>();
+        await FluentActions.Awaiting(() => f.Service.ResolveTurnAsync(static () => true, SessionProviderOverrides.Inherit, f.Token)).Should().ThrowAsync<InvalidOperationException>();
         release.SetResult();
         await refresh;
     }
@@ -359,7 +359,7 @@ public sealed class ProviderProfileConfigurationServiceTests : IDisposable
             if (stage is "cancel" && calls == 2) { cancellation.Cancel(); }
             return stage is not "initial" && (stage is not "observation" || calls != 2);
         }
-        await FluentActions.Awaiting(() => f.Service.ResolveTurnAsync(Eligible, cancellation.Token)).Should().ThrowAsync<InvalidOperationException>();
+        await FluentActions.Awaiting(() => f.Service.ResolveTurnAsync(Eligible, SessionProviderOverrides.Inherit, cancellation.Token)).Should().ThrowAsync<InvalidOperationException>();
     }
 
     [Fact]

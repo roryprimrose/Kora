@@ -1,5 +1,13 @@
 # Security and Data Flows
 
+## Exact-session provider policy boundary
+
+[Sparse durable session overrides](Model_Providers_Memory_And_Knowledge.md#session-overrides-and-effective-resolution) are desired configuration, not authentication, adapter, generation, egress or resource authority. Exact native/typed/current-name activated review requires original local-user input, current private owning host, eligible exact session/generation, policy/app revision and unchanged catalogue/account/model binding.
+
+The existing consolidated private SQLite lease owns requested audit, exact policy revision/save/readback and terminal control receipt. Unresolved requested audit holds policy across restart; corrupt/unknown/oversized or missing audited state never inherits or silently retries. Schema 8→9 preserves old history/audit bytes; complete session disposition/retention inventory and deletion include policy cells and committed journal, not app preferences or unrelated sessions.
+
+Provider-neutral admission captures the immutable effective tuple and session-policy revision; subsequent edits are future-only. Pre-dispatch private session/task/control and catalogue/account/installation loss refuses without fallback. Production still has no advertised models or qualified auth/adapters; buffered local bootstrap inference, LocalOnly/handoff and independent context/resource ceilings remain unchanged. Trace tags/Baggage carry no selection content, account values, paths or credentials.
+
 ## Trusted local event broker boundary
 
 The [native exact-session retention control](Interaction_And_Sessions.md#r12-native-exact-session-retention-controls---2026-10-10) is original-user metadata authority only. One fresh committed intent plus current native/ownership/privacy/call/selection lifetime controls one exact nonremoved session. Atomic generation, displayed clocks/flags and exemption-audit identity comparison prevents stale/ABA review; old grants, stored names, foreign/model/system/stopped context and incoming traces cannot relabel authority.

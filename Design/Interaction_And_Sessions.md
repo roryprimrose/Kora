@@ -1,7 +1,7 @@
 # Human Interaction and Persistent Sessions
 
 Status: agreed product direction; bounded durable question/grant/session metadata,
-exact session/task controls and consolidated schema-v8 task/question/queue/required-audit
+exact session/task controls and consolidated schema-v9 task/question/queue/provider-policy/required-audit
 authority with bounded ordered interaction history and inventoried configurable
 session retention implemented. The deterministic
 local-version queue and its exact pending cancellation are delivered; cancellation
@@ -13,6 +13,12 @@ Related: [Architecture](Architecture.md), [Work Management](Work_Management.md),
 
 This is the canonical interaction/session contract. It replaces the former single-conversation, single-executor, memory-only-history direction.
 Windows login sessions, voice capture generations, provider/SDK conversations, and Kora work sessions are different identities; none substitutes for another.
+
+## Exact-session provider policy
+
+The [durable sparse provider override](Model_Providers_Memory_And_Knowledge.md#session-overrides-and-effective-resolution) belongs to one exact existing eligible session. Schema 9 adds only its audited private policy table; legacy sessions inherit without fabricated choices and old immutable history/audit bytes remain unchanged.
+
+Native selected-session and exact typed/current-name activated review/confirmation share original-user/private admission, generation/policy/app/catalogue/account fences. Session retention/disposition inventory and remove the policy; passive status does not renew activity or create dispatch authority. Provider-neutral turn admission captures immutable resolution and policy revision; later policy edits never mutate an admitted turn. Generic routing, one-turn directives, authentication/providers and buffered-bootstrap rerouting remain unavailable.
 
 ## Durable Single-File Session Attachment
 

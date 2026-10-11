@@ -159,7 +159,7 @@ The [provider-neutral host consumer](../src/Kora.Application/Dependencies/ModelT
 Admitted turns capture immutable profiles and the original live issuing request, not a completed child activity. App edits do not reroute/cancel/retry them; account/catalogue/installation loss before dispatch fails closed without substitution.
 
 This does not reroute the existing buffered local bootstrap reasoner. No real provider-neutral adapter is composed; qualification and final-request egress gates stay closed, including with resolved fake hosted tuples.
-Session inheritance/overrides, unscoped session directives and explicit one-turn changes remain the future contract below, not app-scope aliases.
+Durable exact-session inheritance/overrides are delivered below. Generic unscoped model directives and explicit one-turn changes remain deferred, never app-scope aliases.
 
 - [Domain/persistence tests](../tests/Kora.Core.UnitTests/Providers/ProviderProfilePreferencesTests.cs) and [audit/failure/tuple matrix](../tests/Kora.Application.UnitTests/Configuration/ProviderProfileConfigurationServiceTests.cs) exercise exact state.
 - [Actual UI routing](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.ProviderProfiles.cs) and [subsequent-turn consumer tests](../tests/Kora.Application.UnitTests/Dependencies/ModelTurnHostTests.ProviderProfiles.cs) exercise admission and immutable capture.
@@ -169,6 +169,29 @@ Experiment disposition remains **retain**. Exact deterministic catalogue/configu
 `eng/RuntimeValidation.Common.ps1` still consumes retained runtime profiles; no executable, fixture, unique assertion or receipt is removed and no release gate is closed.
 
 ### Session overrides and effective resolution
+
+#### Delivered exact-session sparse policy
+
+**Sessions > Selected-session provider overrides** and [exact typed/current-name activated syntax](../src/Kora.Application/Configuration/SessionProviderProfileCommand.cs) use [one original-user review service](../src/Kora.Application/Configuration/SessionProviderProfileConfigurationService.cs). Native review and separate confirmation name the immutable session ID, current generation/policy revision, saved sparse fields, proposed fields and current account/catalogue provenance.
+
+Each field defaults to **Inherit app**. Explicit service selection may remain desired/unresolved; model/reasoning/context selections require exact current advertised objects and their service/account/catalogue/model binding. Effective resolution first chooses the session service or app service, then that service's app tuple and sparse fields. Cross-service/account/revision/model-dependent choices fail closed; missing effective fields never substitute another tuple.
+
+Individual reset clears only that field; **Use app defaults for this session** reviews clearing all four. Session writes never change app preferences. App edits affect inherited fields on later turns without rewriting session records. No exact/selected eligible session means select one, not an app fallback. Existing `providers.app.*` routes stay explicitly app-only.
+
+[Interaction schema 9](../src/Kora.Windows/Storage/WindowsSqliteHostInteractionStore.ProviderProfiles.cs) stores bounded canonical schema-1 sparse policy in the existing private consolidated SQLite authority, with original-user intent, host-issued revision, exact generation, typed requested/terminal audit, save/readback and terminal control receipt.
+The requested receipt precedes a provisional held save. Exact readback precedes atomic publication of policy authority, terminal audit and successful control receipt. Unresolved requested/save outcomes hold the old/new desired policy across restart; cancellation after known completed COMMIT never claims rollback.
+
+Legacy sessions have no policy row and inherit; malformed/unknown/partial/oversized or missing audited rows do not inherit. Migration 8→9 validates old authority and preserves immutable history/source bytes and audit digests. Disposition inventories and hashes the policy row; disposition and retention deletion remove session overrides from owned SQLite cells/journal, never app preferences or independent sessions.
+
+Native selection epochs, original activated input/call/privacy/private ownership, generation/policy/app revision and catalogue/account drift invalidate confirmation. Unknown storage/audit/receipt outcomes remain unavailable with explicit inspection/repair guidance, not retry/reset, rollback or substitution claims. Passive displayed drafts do not supply policy/dispatch authority.
+
+[ModelTurnHost](../src/Kora.Application/Dependencies/ModelTurnHost.Profile.cs) actually reads the addressed session policy for subsequent provider-neutral admissions and captures immutable effective tuple/catalogue binding and session-policy revision. Admission rechecks the policy observation; later session/app edits never reroute/retry/cancel an admitted turn. Before dispatch, current private session/task/control authority and newly observed catalogue/account/installation are revalidated without re-resolving desired policy.
+
+Production catalogues still advertise **no models**; model-dependent native save controls stay unavailable. There is no authentication, adapter composition, network/inference, egress, general execution, recall/context assembly or larger-resource permission. LocalOnly, LocalFirst/manual exact handoff and independent envelope ceilings remain unchanged. The buffered local bootstrap reasoner remains untouched, not rerouted by these controls.
+
+[Portable sparse rules](../tests/Kora.Core.UnitTests/Providers/SessionProviderOverridesTests.cs), [shared review tests](../tests/Kora.Application.UnitTests/Configuration/SessionProviderProfileConfigurationTests.cs), [real private SQLite migration/failure tests](../tests/Kora.Windows.IntegrationTests/Storage/WindowsSqliteSessionProviderProfileTests.cs), [native consumer](../tests/Kora.Windows.IntegrationTests/SessionsProviderProfileTests.cs) and [turn capture tests](../tests/Kora.Application.UnitTests/Dependencies/ModelTurnHostTests.ProviderProfiles.cs) qualify this bounded feature, not provider qualification.
+
+The following broader natural-language/one-turn examples remain proposed, not interpreted commands. In particular, “Use Claude and summarize” does not execute a combined directive or silently change the app profile.
 
 A Kora work session may store a sparse override of hosted service, model,
 reasoning level, and context size. Each field is either **Inherit app setting**

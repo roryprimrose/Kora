@@ -147,7 +147,8 @@ public sealed partial class App : Avalonia.Application
                 Services.GetRequiredService<Kora.Core.Storage.ISessionWorkspaceAccess>(),
                 Services.GetRequiredService<ILogger<SessionsViewModel>>(),
                 Services.GetRequiredService<Kora.Application.Interaction.LocalEventBroker>(), detailWindow,
-                Services.GetRequiredService<Kora.Application.Memory.MemoryManagementService>(), attachmentWindow);
+                Services.GetRequiredService<Kora.Application.Memory.MemoryManagementService>(), attachmentWindow,
+                Services.GetRequiredService<Kora.Application.Configuration.SessionProviderProfileConfigurationService>());
             sessionsWindow.Bind();
             allWorkWindow = new AllWorkWindowController(viewModel,
                 Services.GetRequiredService<SessionWorkspaceService>(),
@@ -171,6 +172,7 @@ public sealed partial class App : Avalonia.Application
             sessionRetention.Failed += viewModel.ReportHostInteractionFailure;
             sessionRetention.Start();
             viewModel.BindSessionCommands(Services.GetRequiredService<Kora.Application.Hosting.SessionWorkspaceService>());
+            viewModel.BindSessionProviderProfiles(Services.GetRequiredService<Kora.Application.Configuration.SessionProviderProfileConfigurationService>());
             viewModel.BindMemoryCommands(memories);
             clipboardWindow = new ClipboardPreviewWindowController(viewModel);
             viewModel.BindFilePreview(Services.GetRequiredService<Kora.Tools.Files.LocalFilePreview>(), fileWindow,

@@ -19,6 +19,14 @@ Security controls constrain these workflows; they are not a substitute for desig
 Voice-only, UI-only, and mixed operation use the same services and retained state, subject to explicit call-origin/secure-workflow exceptions.
 Every session/task/question/artifact control names its actual target; ambient animation, window focus, and selected session never supply execution authority.
 
+### Exact selected-session provider review
+
+**Sessions > Selected-session provider overrides** exposes saved sparse service/model/reasoning/context, inherited app fields and separately effective resolved/unavailable state with current catalogue/account provenance. Refresh/review and separate confirmation bind the exact selected session ID, generation/policy revision, private control and selection epoch; stale/hide/close changes never save or retarget.
+
+Individual **Inherit app** resets only that field; **Use app defaults for this session** reviews clearing all four. The same [exact typed/current-name activated service](Model_Providers_Memory_And_Knowledge.md#session-overrides-and-effective-resolution) owns commits. No selection means select a session, never app fallback.
+
+Production supplies no models, so model-dependent save controls are unavailable. Desired service selection remains unresolved and cannot authenticate, dispatch, increase an envelope or reroute the buffered local reasoner. Headless controls/private-store assertions do not qualify native hardware/accessibility/provider installation.
+
 ### Delivered Authoritative Sessions Work Surface - 2026-10-09
 
 The native Sessions window places the bounded All/Active/Done session page

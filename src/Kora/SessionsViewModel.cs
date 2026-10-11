@@ -23,7 +23,8 @@ internal sealed partial class SessionsViewModel(
     Func<AdmittedDetailContent, string>? openHistoryDetail = null,
     Action<HostId<SessionIdentity>>? revokeHistoryDetails = null,
     Kora.Application.Memory.MemoryManagementService? memories = null,
-    SessionAttachmentWindowController? attachments = null) : ObservableObject
+    SessionAttachmentWindowController? attachments = null,
+    Kora.Application.Configuration.SessionProviderProfileConfigurationService? providers = null) : ObservableObject
 {
     private readonly HostRequest viewer = HostRequest.Create(RequestOrigin.LocalUi);
     private readonly CancellationTokenSource lifetime = new();
@@ -572,6 +573,7 @@ internal sealed partial class SessionsViewModel(
 
     private void ClearSelection()
     {
+        ClearProviderReview();
         attachments?.Close();
         if (selected is { } previous) { memories?.ClearSessionDrafts(previous.Authority.SessionId); }
         ClearMemories();
@@ -618,6 +620,7 @@ internal sealed partial class SessionsViewModel(
         try
         {
             NotifyWork();
+            NotifyProviderReview();
             NotifyRetention();
             NotifyMemories();
             NotifyQueue();

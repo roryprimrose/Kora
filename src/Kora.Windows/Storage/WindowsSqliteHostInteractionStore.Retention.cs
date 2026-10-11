@@ -387,6 +387,7 @@ public sealed partial class WindowsSqliteHostInteractionStore
                 DELETE FROM host_questions WHERE session_id=$id;
                 DELETE FROM scoped_grants WHERE session_id=$id;
                 DELETE FROM session_metadata WHERE session_id=$id;
+                DELETE FROM session_provider_profile WHERE session_id=$id;
                 DELETE FROM session_history WHERE session_id=$id;
                 DELETE FROM session_history_heads WHERE session_id=$id;
                 """, ("$id", Id(id)));

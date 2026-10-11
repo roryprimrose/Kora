@@ -485,7 +485,7 @@ public sealed partial class ModelTurnHostTests : IDisposable
         fixture.Messages.Should().NotContain(m => m.Contains("request-secret", StringComparison.Ordinal));
     }
 
-    private sealed class Fixture : ISessionWorkspaceStore, ISessionWorkspaceAccess, ICapabilityHostAccess,
+    private sealed class Fixture : ISessionWorkspaceStore, ISessionWorkspaceAccess, ICapabilityHostAccess, ISessionProviderProfileStore,
         ISecurityAuditLog, IApplicationInfo, ILogger<ModelTurnHost>, ILogger<ModelProviderHandoffWorkflow>, IDisposable
     {
         internal HostRequest Request { get; set; }
@@ -542,6 +542,18 @@ public sealed partial class ModelTurnHostTests : IDisposable
             Workflow = new(PolicyHost, new(Questions, Time), this, this, new(Questions, Time));
         }
         internal HostActivity Root() => HostActivity.BeginRoot(Request, HostActivityLayer.Application, HostOperation.Request);
+        internal Kora.Core.Providers.SessionProviderOverrides SessionOverrides { get; set; } = Kora.Core.Providers.SessionProviderOverrides.Inherit;
+        internal long SessionProfileRevision { get; set; }
+        internal bool SessionProfileHeld { get; set; }
+        internal Action? AfterProfileRead { get; set; }
+        public ValueTask<SessionProviderProfile> ReadProviderProfile(HostId<SessionIdentity> session, CancellationToken token)
+        {
+            var result = new SessionProviderProfile(Session, SessionProfileRevision, SessionOverrides, SessionProfileHeld);
+            AfterProfileRead?.Invoke();
+            return ValueTask.FromResult(result);
+        }
+        public ValueTask<SessionProviderProfile> CommitProviderProfile(HostRequest request, SessionProviderProfile expected,
+            Kora.Core.Providers.SessionProviderOverrides desired, Func<bool> admitted, CancellationToken token) => throw new NotSupportedException();
         internal ModelTurnHost Production()
         {
             var host = new ModelTurnHost(this, this, this, registry, this, this, Time,
@@ -550,9 +562,9 @@ public sealed partial class ModelTurnHostTests : IDisposable
             ownedHosts.Add(host);
             return host;
         }
-        internal ModelTurnHost ConfiguredProfiles(bool production = false)
+        internal ModelTurnHost ConfiguredProfiles(bool production = false, bool missingSessionStore = false)
         {
-            var host = production ? new ModelTurnHost(this, this, this, registry, this, this, Time, ProviderConfiguration, ProfileConfiguration)
+            var host = production ? new ModelTurnHost(this, this, this, registry, this, this, Time, ProviderConfiguration, ProfileConfiguration, this)
                 : new ModelTurnHost(this, this, this, registry, this, this, Time,
                     Enum.GetValues<Kora.Core.Providers.ProviderService>().Where(service => service != Kora.Core.Providers.ProviderService.Unset)
                         .Select(service =>
@@ -565,7 +577,7 @@ public sealed partial class ModelTurnHostTests : IDisposable
                                 _ => ModelProviderIdentity.Codex,
                             } };
                             return new ModelProviderRegistration(selection, Gates(selection), Time.Now.AddMinutes(5), Adapter);
-                        }).ToArray(), ProviderConfiguration, ProfileConfiguration);
+                        }).ToArray(), ProviderConfiguration, ProfileConfiguration, missingSessionStore ? null : this);
             ownedHosts.Add(host);
             return host;
         }

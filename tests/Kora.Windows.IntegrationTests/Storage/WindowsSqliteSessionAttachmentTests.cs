@@ -141,12 +141,12 @@ public sealed partial class WindowsSqliteSessionAttachmentTests
     {
         using var fixture = await Initialize();
         var hashes = ReadString(fixture, "SELECT group_concat(hash) FROM security_audit_events;");
-        fixture.Mutate("DROP TABLE session_file; PRAGMA user_version=7;");
+        fixture.Mutate("DROP TABLE session_provider_profile; DROP TABLE session_file; PRAGMA user_version=7;");
         fixture.Reopen();
         await fixture.Store.InitializeAsync(fixture.Token);
         ReadString(fixture, "SELECT group_concat(hash) FROM security_audit_events;").Should().Be(hashes);
         await Attach(fixture, Encoding.UTF8.GetBytes("admitted"));
-        fixture.Mutate("DROP TABLE session_file; PRAGMA user_version=7;");
+        fixture.Mutate("DROP TABLE session_provider_profile; DROP TABLE session_file; PRAGMA user_version=7;");
         fixture.Reopen();
         var initialize = () => fixture.Store.InitializeAsync(fixture.Token).AsTask();
         await initialize.Should().ThrowAsync<InvalidDataException>().WithMessage("*downgraded*");

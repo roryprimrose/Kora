@@ -87,12 +87,18 @@ of the topic contract or acceptance fixtures.
 | R18 | Trusted proactive/reminder integration beyond bounded local notices | R05/R10/R13/R14/R15/R17 |
 | R19 | Manifest-scoped RC qualification and truthful Slice A reporting | Q: included R07-R18 and shared/transitive controls; not an I prerequisite |
 | R20 | Select and admit one read-only MCP connector and bundled integration skill | R06/R10/R11; E: connector profile |
-| R21 | Shared-source enablement/invocation and broader source management | R05/R06/R10/R11; E: source/skill profile |
-| R22 | Conversational skill and standalone instruction authoring, exact save/reconciliation | R05/R10/R12/R14/R20/R21 |
+| R21 | Shared-source enablement/invocation and bounded common reload across all supported definition kinds; reconcile owned/profile files, UI/voice lookup, and dependent revisions without automatically activating changes | R05/R06/R10/R11; E: source/format profile |
+| R22 | Common UI/typed/voice definition editor for skills, prompts, instructions, and agent profiles; directly edit supported Kora/profile originals, optional forks, exact save/reconciliation and separate applicability review; no executable/bundled mutation or agent runtime qualification | R05/R10/R12/R14/R20/R21 |
 | R23 | Slice B/C and manifest-scoped release regression | Q: R19 and included R20-R22 scope |
 
 Partial packages may progress in parallel once their consumed I subset exists.
 Do not schedule live trials merely because a implementation dependency merged.
+
+[Definition Management](Definition_Management.md) owns the expanded R21/R22
+source/editor/reload contract; [authoring](Skill_Authoring.md) retains the
+single-file instruction experience and skill package checks. Implement formats
+incrementally. Current R21 read consent is not silently expanded to editor
+scope, and profile editing never becomes a generic filesystem/tool permission.
 
 ### R02 Local-Inference Continuation
 

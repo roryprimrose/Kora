@@ -61,24 +61,33 @@ uniqueness are validated. Invalid or conflicting discovery fails closed.
 The following extends startup discovery and remains authoring/source-management
 work, not a delivered watcher or save workflow.
 
-Startup establishes the first immutable catalogue revision. Bounded watchers
-on only those admitted roots treat filesystem notifications as invalidation
-hints and rerun authoritative discovery; reconciliation covers notification
-loss. Valid external skill and instruction changes publish a new digest-pinned
-revision without restart. Active requests retain their original snapshot while
-new requests use the refreshed revision. Invalid, partial, missing, aliased or
-conflicting changed definitions become visibly unavailable rather than using
-stale bytes as current. Grants bound to a changed definition or dependency
-digest no longer match and are never transferred by path or name.
+Startup establishes the first immutable catalogue revision. The
+[common definition management contract](Definition_Management.md#consistent-external-change-and-reload-contract)
+owns bounded live rediscovery for skills, prompts, instructions, and agent
+profiles, including watcher-loss reconciliation, manual reload, and pre-use
+freshness checks. External changes publish validated candidates without restart,
+not automatic activation. Active requests retain their original snapshot;
+new requests can use only separately reviewed applicable revisions.
+Invalid, partial, missing, aliased, or conflicting changes become visibly
+unavailable. Changed definition/dependency grants are never transferred by
+path or name.
 
 Standalone Kora and compatible profile instructions use the same conversational
 proposal, rendered preview, exact source/diff, validation, conflict and native
 Save-confirmation experience as declarative skill authoring. The instruction
 variant edits one `*.instructions.md` file and omits the skill package tree,
-fixtures, dependency tests and enablement workflow. Voice and typed input can
+fixtures, dependency tests and skill capability-enablement workflow.
+Changed instruction applicability still requires exact revision/scope review.
+Voice and typed input can
 propose edits. Profile saves may replace only the exact discovered source file
 after file-identity and base-digest revalidation; they do not provide a general
 model-directed file writer.
+
+Startup-only discovery remains a delivery limitation, not the intended
+lifecycle. The common contract covers Kora-owned and explicitly registered
+profile files across UI, voice, slash lookup, and admitted model context.
+R21's explicit profile skill inspection remains separate and does not authorise
+the other artifact readers, editing, or model exposure.
 
 Running an artifact means applying its declarative instructions to the current
 model request. It does not execute a packaged script, approve an operation,
@@ -106,7 +115,9 @@ The model selects or proposes; the trusted application validates, authorises, ex
 | Tool | A model-facing invocation contract for an admitted capability, with an input schema and structured result | `sessions.get` |
 | Skill | A source-qualified, versioned package describing an outcome, selection guidance, inputs, instructions/workflow, and required tools/tasks | "Lock the machine" |
 | Executable task | A registered effect implemented by exact approved resources and a permitted invocation | `session.lock` backed by an embedded `.ps1` |
-| Prompt / instructions | Context explaining available capabilities and guiding interpretation or skill use; never execution authority | Use lock only for an explicit current-session lock request |
+| Prompt | Optional explicitly invoked saved-request template; not an execution engine or ongoing policy | Summarise this document as decisions, risks, and next steps |
+| Instructions | Reviewed scoped guidance applied to relevant requests; never host policy or execution authority | Use Australian English in this session |
+| Agent profile | Declarative specialised role and bounded references/constraints; not a running agent or grant | Read-only review role using admitted skills/tools |
 | Agent / runtime | The model/tool iteration that requests capabilities, consumes results, and continues the admitted task | Ask for status, receive observed state, explain the blocker |
 | Grant | Host-owned permission for an exact operation and scope; executable grants bind implementation bytes and invocation | Once/session/always approval for the registered lock task |
 
@@ -236,6 +247,11 @@ immutable embedding, bounds, version/digest handling and passive source review;
 they do not need separate projects solely because they have different file
 extensions. `Kora.Tools` remains separate because it implements executable
 C# host actions.
+
+[Definition Management](Definition_Management.md) defines their common
+file/source lifecycle, kind-specific application, equal UI/voice management,
+editing, and external reload. Prompts remain optional reusable-content support
+for a voice-first product; they do not warrant a parallel capability engine.
 
 The source layout is grouped by content kind, with C# loader/catalogue
 namespaces mirroring their actual folders:

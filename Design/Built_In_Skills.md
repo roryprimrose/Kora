@@ -53,10 +53,12 @@ Kora ships useful skills without requiring users to author or download them.
 |---|---|---|
 | Bundled first-party skill | Explicit manifest, selection guidance, Markdown instructions/workflow, optional fixtures, and any registered PowerShell script set, all embedded resources in a protected Kora application binary; scripts may be shared between skills | No user/agent editing or file replacement; updated only with the application through verified out-of-band maintenance |
 | User-authored skill | Declarative manifest/instructions/workflows referencing admitted tools | Created/refined by voice in the dedicated user skill store; cannot create or modify executable scripts |
-| Shared profile skill | Supported declarative/instruction content; executable requirements are not admitted in the MVP | Read-only source reference with explicit revision enablement; edited copies go to Kora's roaming store |
+| Shared profile skill | Supported declarative/instruction content; executable requirements are not admitted in the MVP | Current R21: read-only inspection. Target: explicit revision enablement and direct declarative editing through the dedicated writer; optional copies go to Kora's roaming store |
 
 All sources obey capability checks, action policy, task identity, and auditing.
 See [Skill Storage](Skill_Storage.md) for profile discovery and `%APPDATA%\Kora\Skills`.
+See [Definition Management](Definition_Management.md) for common UI/voice
+editing and reload across all definition kinds, without bundled mutation.
 A bundled package is not a blanket permission grant.
 Its complete definition and every required script are embedded application resources, not separately deployed or writable skill files.
 User skills may reference an admitted action but cannot change its executable implementation or acquire its special routing privileges.

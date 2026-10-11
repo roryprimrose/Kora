@@ -40,7 +40,7 @@ Start with these documents, then follow the topic you need:
 | Commands, actions and definitions | [Interaction and implementation rules](Commands_Tools_And_Skills.md); [canonical tool catalogue](Internal_Model_Tools.md); [invocation contract and reference navigation](Tool_And_Skill_Reference.md) |
 | Extension boundaries | [Extensibility](Extensibility.md); contributor [extension guide](../EXTENDING-KORA.md) |
 | Bundled skills and execution identity | [Built-in skills](Built_In_Skills.md) |
-| Definition sources and authoring | [Skill storage](Skill_Storage.md); [voice/text skill and instruction authoring](Skill_Authoring.md) |
+| Definition sources and authoring | [Definition management](Definition_Management.md) owns UI/voice editing and external reload for skills, prompts, instructions, and agent profiles in Kora-owned/profile files; [skill storage](Skill_Storage.md) and [voice/text skill and instruction authoring](Skill_Authoring.md) supply skill-specific and single-file editing contracts |
 | Task execution and recovery | [Task lifecycle](Task_Lifecycle.md); [work management](Work_Management.md) |
 | Session action-permission levels | [Permission levels](Session_Permission_Levels.md); proposed, not delivered authority |
 | Workspace and windows | [Coordinated workspace](UI_Workspace_And_Windows.md); [information display](Information_Display.md) |

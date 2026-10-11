@@ -167,9 +167,27 @@ Re-running a completed task is a new request with new context/permissions, not r
 | "Disable {skill}" | Block new invocations; cancel affected calls where supported |
 | "Use {skill} to {request}" | Invoke the selected pinned revision under normal policy |
 | "Create a skill that {behaviour}" | Begin voice-driven declarative authoring |
-| "Improve {skill}" | Propose a user revision or Kora-specific fork of read-only content |
+| "Improve {skill}" | Propose a revision of the exact editable original or an optional Kora-owned fork; bundled content requires an adaptation |
 | "Test this skill" | Run simulated examples; real tool trial requires a separate request |
 | "Save this skill" / "Enable this revision" | Separate exact-revision save and enable decisions |
+
+The following extend the same management actions to all supported definition
+kinds in the target [definition editor](Definition_Management.md); they are
+not delivered R21 commands or authority-bearing file text.
+
+| Phrase | Host-owned behavior |
+|---|---|
+| "Show my prompts/instructions/agents" | Filter source-qualified definitions, including disabled/incompatible entries |
+| "Use prompts from my VS Code profile" | Review exact bounded source/kind editor scope; no implicit save or activation |
+| "Create a prompt/instruction/agent that {behaviour}" | Start the kind-specific declarative draft; agent creation does not start a run |
+| "Edit {definition} from {source}" | Edit the exact supported Kora/profile original in the shared UI/voice draft; clarify duplicate names |
+| "Make a Kora copy of {definition}" | Optional distinct attributed fork, without inherited authority |
+| "Change {section} to {text}" / "Read back my changes" | Refine/review an exact draft section; dictated text remains content |
+| "Save these changes" / "Rename {definition}" / "Delete the original profile prompt" | Exact source/base/new-content mutation preview and separate confirmation |
+| "Apply {instruction} to this session" / "Disable {definition}" | Change the reviewed applicability/activation binding, not source permissions or grants |
+| "Use {prompt} to {request}" / "Run {agent} on {task}" | Explicit saved-request application or independently qualified agent run; unavailable runtime is reported |
+| "Reload my definitions" / "Reload {source}" | Common bounded freshness/reconciliation pipeline; no activation of changed content |
+| "Show external changes" / "Keep my draft" / "Reload the external version" | Same dirty-editor conflict choices as native UI; no automatic overwrite or merge |
 
 The model sees summaries only for enabled compatible skills and resolves
 ambiguous names by source-qualified choice. Selecting a skill resolves a

@@ -260,6 +260,10 @@ host columns or the typed audit route. Missing context is reported as an
 explicit gap, not silently promoted to a bootstrap classification. Completed
 spans/links have separate contracts and daily-file copies.
 
+For expected gap-reporter failures, [the provider](../src/Kora.Application/Diagnostics/EvidenceLoggerProvider.cs) attempts all independent sinks and pending gap reports, then preserves original sink/capture errors alongside reporting errors in the thrown exception. Required delivery still fails closed; serialized gap/envelope metadata retains exception types, not messages.
+
+[Focused provider tests](../tests/Kora.Application.UnitTests/Diagnostics/EvidenceLoggerProviderTests.cs) cover nested cause preservation, multiple reports, activity-context restoration, required audit, invalid structured state, metadata privacy, and ordinary-policy unavailability. Retaining a lower-level exception aids diagnosis; it does not identify or fix a particular database failure.
+
 This is not the complete instrumentation or persisted graph. R04 now composes
 the private standard-SQLite task and evidence partitions for exact local
 `ShowVersion` requests from typed or activated-voice input. Independent typed

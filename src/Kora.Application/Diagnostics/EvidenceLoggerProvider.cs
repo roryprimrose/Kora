@@ -91,8 +91,14 @@ public sealed class EvidenceLoggerProvider : ILoggerProvider, ISupportExternalSc
         }
         catch (InvalidDataException invalid)
         {
-            gaps.Report(new EvidenceGap(clock.GetUtcNow(), "capture",
-                EvidenceGapReason.InvalidStructuredState, identity, invalid.GetType().FullName));
+            List<Exception> errors = [invalid];
+            ReportGap(new EvidenceGap(clock.GetUtcNow(), "capture",
+                EvidenceGapReason.InvalidStructuredState, identity, invalid.GetType().FullName), errors);
+            if (errors.Count > 1)
+            {
+                throw new InvalidDataException("Structured evidence capture and gap reporting failed.",
+                    new AggregateException(errors));
+            }
             throw;
         }
 
@@ -130,6 +136,7 @@ public sealed class EvidenceLoggerProvider : ILoggerProvider, ISupportExternalSc
     {
         var failures = new List<EvidenceGap>();
         var errors = new List<Exception>();
+        var requiredFailure = false;
         foreach (var sink in sinks)
         {
             try
@@ -140,29 +147,37 @@ public sealed class EvidenceLoggerProvider : ILoggerProvider, ISupportExternalSc
             {
                 // An explicitly unavailable ordinary policy reports a gap and still attempts the file
                 // sink. It must not break unrelated required audit/session authority on activity disposal.
-                if (!ordinary || exception is not DiagnosticRetentionUnavailableException) { errors.Add(exception); }
+                requiredFailure |= !ordinary || exception is not DiagnosticRetentionUnavailableException;
+                errors.Add(exception);
                 failures.Add(new EvidenceGap(clock.GetUtcNow(), sink.Name,
                     exception is Kora.Core.Storage.StorageAdmissionException
                         ? EvidenceGapReason.StorageNotAdmitted : EvidenceGapReason.SinkFailure,
                     identity, exception.GetType().FullName));
             }
         }
-        // Gap-reporting failure must not prevent either independent delivery attempt.
+        var sinkFailureCount = errors.Count;
         foreach (var gap in failures)
         {
-            try
-            {
-                gaps.Report(gap);
-            }
-            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or InvalidOperationException)
-            {
-                errors.Add(exception);
-            }
+            ReportGap(gap, errors);
         }
-        if (errors.Count != 0)
+        if (requiredFailure || errors.Count > sinkFailureCount)
         {
             throw new IOException("Required evidence delivery or gap reporting failed; independent sinks were attempted.",
                 new AggregateException(errors));
+        }
+    }
+
+    private void ReportGap(EvidenceGap gap, List<Exception> errors)
+    {
+        try
+        {
+            gaps.Report(gap);
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException
+            or InvalidOperationException or InvalidDataException)
+        {
+            // Reporting failures must not replace original causes or skip other pending reports.
+            errors.Add(exception);
         }
     }
 

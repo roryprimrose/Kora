@@ -5,6 +5,12 @@ privacy, isolated scratch SQLite stores and preferences. It never starts the
 production host, reads normal profile sources, captures audio, runs models,
 performs network requests, or uses the shared clipboard.
 
+Evidence capture serializes sink delivery and provider disposal waits for active
+callbacks before scratch cleanup. Removing the process-wide activity listener
+alone is not sufficient to release database handles. Headless tests remain in
+the exclusive UI collection so unrelated test activities do not enter fixture
+storage.
+
 The pending proof is the **screen-reader/text-scale/physical-display slice of
 R05/R12/R14/A4**, not a repeat of the already recorded
 [bounded keyboard observations](evidence/2026-10-09-native-ux.json). This does not

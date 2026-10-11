@@ -12,8 +12,10 @@ internal sealed partial class SessionsViewModel
     private long queueMoveEpoch;
     public bool CanMoveQueueUp => CanReviewQueueMove && QueueMoveRefusal(true) is null;
     public bool CanMoveQueueDown => CanReviewQueueMove && QueueMoveRefusal(false) is null;
-    private bool CanReviewQueueMove => CanChangeQueuePause && selectedQueueEntry is not null;
+    private bool CanReviewQueueMove => CanChangeQueuePause
+        && selectedQueueEntry?.State is SessionQueueState.Pending or SessionQueueState.Expired;
     public bool CanConfirmQueueMove => CanChangeQueuePause && queueMoveReview is { } review
+        && queueSnapshot?.DispatchControl?.Held == false
         && queueMoveEpoch == selectionEpoch && review.Queue.SessionId == selected?.Authority.SessionId
         && review.Queue.Generation == selected.Authority.Generation && review.Queue.Revision == queueSnapshot?.Revision
         && review.Queue.DispatchControl == queueSnapshot.DispatchControl
@@ -45,6 +47,7 @@ internal sealed partial class SessionsViewModel
 
     private string? QueueMoveRefusal(bool up)
     {
+        if (queueSnapshot?.DispatchControl?.Held == true) { return "Queue admission is held/unconfirmed. Refresh exact control/recovery before reviewing a move."; }
         if (!CanReviewQueueMove) { return "Select exact current-run pending work under current private control."; }
         var neighbor = MoveNeighbor(up);
         if (neighbor is null) { return up ? "First pending entry has no previous neighbor." : "Last pending entry has no next neighbor."; }

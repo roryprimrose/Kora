@@ -126,7 +126,10 @@
           <Button x:Name="RemoveQueueEntry" Content="_Remove pending ID" IsEnabled="{Binding CanRemoveQueueEntry}"
                   AutomationProperties.Name="Remove only the exact selected pending queue ID and revision; history retained" />
           <Button x:Name="EnqueueVersion" Content="Enqueue local version" IsEnabled="{Binding CanEnqueueVersion}" />
-          <Button x:Name="DispatchQueue" Content="Dispatch ready local versions fairly" IsEnabled="{Binding CanControlQueue}"
+          <Button x:Name="EnqueueCapabilities" Content="Enqueue capabilities.list" IsEnabled="{Binding CanEnqueueVersion}" />
+          <Button x:Name="EnqueueReadiness" Content="Enqueue readiness.get" IsEnabled="{Binding CanEnqueueVersion}" />
+          <Button x:Name="EnqueueRuntimes" Content="Enqueue runtime.list" IsEnabled="{Binding CanEnqueueVersion}" />
+          <Button x:Name="DispatchQueue" Content="Dispatch ready fixed reads fairly" IsEnabled="{Binding CanControlQueue}"
                   AutomationProperties.Name="Explicit manual bounded fair dispatch among already enqueued current-run sessions; no effect or provider execution" />
           <Button x:Name="PauseQueue" Content="Pause this session's new dispatch" IsEnabled="{Binding CanChangeQueuePause}"
                   AutomationProperties.Name="Pause exact current-run session queue admissions only; already committed work drains normally" />

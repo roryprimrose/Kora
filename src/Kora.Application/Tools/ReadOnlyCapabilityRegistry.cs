@@ -1,6 +1,5 @@
 using System.Text;
 using System.Text.Json;
-using System.Text.Json.Serialization;
 
 using Kora.Core.Diagnostics;
 using Kora.Core.Tools;
@@ -24,11 +23,6 @@ public sealed class ReadOnlyCapabilityRegistry(
     ILogger<ReadOnlyCapabilityRegistry> logger)
 {
     private readonly Guid registryId = Guid.NewGuid();
-    private static readonly JsonSerializerOptions wireOptions = new(JsonSerializerDefaults.Web)
-    {
-        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
-        Converters = { new JsonStringEnumConverter() },
-    };
 
     public CapabilityCaller Admit(CapabilityLane lane)
     {
@@ -80,11 +74,11 @@ public sealed class ReadOnlyCapabilityRegistry(
     }
 
     public static byte[] Serialize(CapabilityReply reply) =>
-        JsonSerializer.SerializeToUtf8Bytes(BoundReply(reply), wireOptions);
+        CapabilityReplyWire.Serialize(BoundReply(reply));
 
     internal static CapabilityReply BoundReply(CapabilityReply reply)
     {
-        if (JsonSerializer.SerializeToUtf8Bytes(reply, wireOptions).Length
+        if (CapabilityReplyWire.GetSerializedSize(reply)
             > ReadOnlyCapabilityCatalog.Limits.MaximumOutputUtf8Bytes)
         {
             return new(CapabilityOutcome.Failed, "output-limit-exceeded");

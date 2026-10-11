@@ -16,6 +16,46 @@ namespace Kora.Windows.IntegrationTests;
 public sealed class SessionsViewModelQueueTests
 {
     [WindowsFact]
+    public async Task Native_fixed_profile_choices_enqueue_shared_actions_and_present_private_exact_receipts()
+    {
+        using var f = new InteractionStorageFixture();
+        await f.InitializeAsync();
+        await WindowsSqliteSessionWorkspaceTests.FinishAsync(f, HostTaskState.Succeeded);
+        using var actions = new WindowsSqliteSessionQueueTests.FixedRegistryFixture(f.Time);
+        var access = new WindowsSqliteSessionWorkspaceTests.Access();
+        await using var queue = new SessionQueueService(f.Store, f.Store, new(f.Tasks), access,
+            new DeterministicVersionQueueAction(actions.Registry), new(), NullLogger<SessionQueueService>.Instance, f.Time);
+        var service = new SessionWorkspaceService(f.Store, new(f.Tasks), access, NullLogger<SessionWorkspaceService>.Instance, queue);
+        var sink = new WindowsSqliteEvidenceSink(f.Paths);
+        sink.Initialize();
+        var viewer = new SessionsViewModel(service, new DurableEvidenceQuery(new WindowsSqliteEvidenceReader(sink),
+            access, f.Time, NullLogger<DurableEvidenceQuery>.Instance), access, NullLogger<SessionsViewModel>.Instance);
+        try
+        {
+            await viewer.RefreshAsync();
+            await viewer.SelectAsync(viewer.Sessions.Single());
+            await viewer.EnqueueVersionAsync();
+            await viewer.EnqueueCapabilitiesAsync();
+            await viewer.EnqueueReadinessAsync();
+            await viewer.EnqueueRuntimesAsync();
+            viewer.QueueRecords.Select(entry => entry.ReadProfile).Should().Equal(Enum.GetValues<SessionQueueReadProfile>());
+            viewer.WorkRecords.Should().Contain(row => row.State.Contains(ReadOnlyCapabilityCatalog.RuntimeList, StringComparison.Ordinal));
+            actions.Probe.Calls.Should().Be(0);
+            await viewer.DispatchQueueAsync();
+            viewer.QueueRecords.Should().BeEmpty();
+            viewer.Detail.Should().Contain("4.5.6").And.Contain("recorded-observations").And.Contain("recorded-observation");
+            var row = viewer.WorkRecords.Single(item => item.Queue?.Entry.ReadProfile == SessionQueueReadProfile.Readiness);
+            row.Queue!.Entry.Result.Should().BeNull();
+            viewer.SelectWorkRecord(row);
+            await viewer.InspectWorkAsync();
+            viewer.Detail.Should().Contain("recorded-observations").And.Contain("No completed observation is recorded.");
+            actions.Probe.Calls.Should().Be(0);
+        }
+        finally { viewer.Close(); }
+        viewer.Detail.Should().BeEmpty();
+    }
+
+    [WindowsFact]
     public async Task NativePauseCanAcknowledgeDuringHeldBatchAndResumeNeverDispatchesOrAltersPendingWork()
     {
         using var fixture = new InteractionStorageFixture();
@@ -121,7 +161,7 @@ public sealed class SessionsViewModelQueueTests
     {
         internal Action? BeforeObserve { get; set; }
         internal int Reads { get; private set; }
-        public CapabilityReply Observe(CancellationToken token)
+        public CapabilityReply Observe(SessionQueueReadProfile profile, CancellationToken token)
         {
             Reads++;
             BeforeObserve?.Invoke();

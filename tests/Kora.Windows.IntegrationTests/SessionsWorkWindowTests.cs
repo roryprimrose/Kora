@@ -137,6 +137,11 @@ public sealed class SessionsWorkWindowTests
                 ControlAutomationPeer.CreatePeerForElement(work)!.GetName().Should().Contain("selection is passive");
                 ControlAutomationPeer.CreatePeerForElement(window.FindControl<Button>("RemoveQueueEntry")!)!
                     .GetName().Should().Contain("exact selected pending queue ID");
+                foreach (var name in new[] { "EnqueueCapabilities", "EnqueueReadiness", "EnqueueRuntimes" })
+                {
+                    ControlAutomationPeer.CreatePeerForElement(window.FindControl<Button>(name)!)!
+                        .GetName().Should().StartWith("Enqueue");
+                }
                 fixture.Time.Now = question.ExpiresAt;
                 await viewer.RefreshWorkAsync();
                 viewer.WorkRecords.Single().State.Should().Contain("User-wait expired");
@@ -297,7 +302,7 @@ public sealed class SessionsWorkWindowTests
 
     private sealed class NoExecution : IDeterministicVersionQueueAction
     {
-        public Kora.Core.Tools.CapabilityReply Observe(CancellationToken token) =>
+        public Kora.Core.Tools.CapabilityReply Observe(SessionQueueReadProfile profile, CancellationToken token) =>
             throw new InvalidOperationException("Browsing and stale controls must never execute.");
     }
 }

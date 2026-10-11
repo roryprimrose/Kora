@@ -11,7 +11,7 @@ using Microsoft.Extensions.Logging;
 
 namespace Kora.Application.Hosting;
 
-/// <summary>Manual bounded fair dispatch of the existing fixed local-version action. No model or effect authority.</summary>
+/// <summary>Manual bounded fair dispatch of four fixed registry reads. No model or effect authority.</summary>
 public sealed partial class SessionQueueService : IAsyncDisposable
 {
     private readonly ISessionQueueStore store;
@@ -106,7 +106,8 @@ public sealed partial class SessionQueueService : IAsyncDisposable
                         new(new(command.WorkRequestId ?? throw new InvalidOperationException("An exact request ID is required.")),
                             session, RequireTask(command), origin),
                         generation, command.QueueRevision, revision, command.DependencyTaskId is { } dependency ? new(dependency) : null,
-                        current, () => Eligible() && (configuration is null || configuration.IsCurrent(current)), token).AsTask(), token).ConfigureAwait(false),
+                        current, () => Eligible() && (configuration is null || configuration.IsCurrent(current)), token,
+                        command.QueueProfile).AsTask(), token).ConfigureAwait(false),
                     SessionCommandOperation.QueueCancel or SessionCommandOperation.QueueRemove =>
                         await store.RemovePendingAsync(request, generation, command.QueueRevision, RequireTask(command),
                             new(command.TaskRevision), command.Operation == SessionCommandOperation.QueueCancel
@@ -157,6 +158,7 @@ public sealed partial class SessionQueueService : IAsyncDisposable
             {
                 reply = reply with { QueueDispatch = await DispatchReadyAsync(revision, Eligible, token).ConfigureAwait(false),
                     Queue = await store.ReadQueueAsync(session, token).ConfigureAwait(false) };
+                reply = BoundDispatchResults(reply);
             }
             token.ThrowIfCancellationRequested();
             RequireEligible(Eligible);
@@ -229,7 +231,7 @@ public sealed partial class SessionQueueService : IAsyncDisposable
                             var admitted = await store.AdmitAsync(ready, admissionRevision, current,
                                 () => eligible() && (configuration is null || configuration.IsCurrent(current)), linked.Token).ConfigureAwait(false);
                             admitted.Entry.Validate();
-                            if (admitted.Entry.RecordVersion != SessionQueueEntry.CapturedActiveRecordVersion
+                            if (admitted.Entry.RecordVersion is not (SessionQueueEntry.CapturedActiveRecordVersion or SessionQueueEntry.FixedReadRecordVersion)
                                 || admitted.Entry.ActiveBudgetMinutes != current.ActiveBudgetMinutes)
                             {
                                 throw new InvalidDataException("The committed active budget is missing or differs from its admitted configuration.");
@@ -283,17 +285,30 @@ public sealed partial class SessionQueueService : IAsyncDisposable
         {
             RequireEligible(eligible);
             token.ThrowIfCancellationRequested();
-            var result = action.Observe(token);
+            var result = time.GetElapsedTime(started) < SessionQueueLimits.ActiveBudget(admitted.ActiveBudgetMinutes!.Value)
+                ? action.Observe(admitted.ReadProfile, token)
+                : new CapabilityReply(CapabilityOutcome.Failed, "active-budget-expired");
             RequireEligible(eligible);
             token.ThrowIfCancellationRequested();
-            var outcome = result.Outcome == CapabilityOutcome.Succeeded
+            var outcome = SessionQueueReadProfiles.Accepts(admitted.ReadProfile, result)
                 && time.GetElapsedTime(started) < SessionQueueLimits.ActiveBudget(admitted.ActiveBudgetMinutes!.Value)
                 ? SessionQueueState.Succeeded : SessionQueueState.Failed;
             var completed = await store.CompleteAsync(admitted, outcome,
-                () => eligible() && !token.IsCancellationRequested, CancellationToken.None).ConfigureAwait(false);
+                () => eligible() && !token.IsCancellationRequested && (outcome != SessionQueueState.Succeeded
+                    || time.GetElapsedTime(started) < SessionQueueLimits.ActiveBudget(admitted.ActiveBudgetMinutes!.Value)),
+                CancellationToken.None,
+                outcome == SessionQueueState.Succeeded && admitted.Profile is not null ? result : null).ConfigureAwait(false);
             lock (causeGate) { causes.Remove(admitted.Request.TaskId); }
+            RequireEligible(eligible);
+            token.ThrowIfCancellationRequested();
+            if (outcome == SessionQueueState.Succeeded
+                && time.GetElapsedTime(started) >= SessionQueueLimits.ActiveBudget(admitted.ActiveBudgetMinutes!.Value))
+            {
+                throw new InvalidOperationException("The fixed read result is too late for current publication; inspect its exact retained receipt.");
+            }
             activity.Complete(outcome == SessionQueueState.Succeeded ? HostOperationOutcome.Completed : HostOperationOutcome.Failed);
-            return new(completed, outcome == SessionQueueState.Succeeded ? result.Version : null);
+            return new(completed with { Result = null }, outcome == SessionQueueState.Succeeded ? result.Version : null,
+                outcome == SessionQueueState.Succeeded && admitted.Profile is not null ? result : null);
         }
         catch
         {
@@ -312,9 +327,23 @@ public sealed partial class SessionQueueService : IAsyncDisposable
     private static HostId<TaskIdentity> RequireTask(SessionCommand command) =>
         new(command.TaskId ?? throw new InvalidOperationException("An exact queue task ID is required."));
 
-    private const string QueueDisclosure = "Fixed local application-version work only; manual fair dispatch, no model/network/audio, "
+    internal static SessionCommandResult BoundDispatchResults(SessionCommandResult reply)
+    {
+        var receipts = reply.QueueDispatch!.ToArray();
+        for (var index = receipts.Length - 1; index >= 0
+            && SessionCommandResult.GetSerializedSize(reply) > SessionCommand.MaximumResultBytes; index--)
+        {
+            if (receipts[index].Result is null) { continue; }
+            receipts[index] = receipts[index] with { Result = null, ResultAvailableByExactStatus = true };
+            reply = reply with { QueueDispatch = receipts };
+        }
+        return reply;
+    }
+
+    private const string QueueDisclosure = "Four fixed no-argument first-page local reads only; manual fair dispatch, no model/network/audio, "
         + "worker, provider, arbitrary resource, action approval or restart replay. Unknown work quarantines its session/dependents. "
-        + "Admission changes require explicit removal/requeue; cancellation/removal applies only before admission.";
+        + "Admission changes require explicit removal/requeue; cancellation/removal applies only before admission. "
+        + "Retained fixed-page results omitted by the batch byte limit are available through exact queue status.";
 
     public async ValueTask DisposeAsync()
     {

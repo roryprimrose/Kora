@@ -1,4 +1,5 @@
 using System.Text;
+using Kora.Core.Hosting;
 
 namespace Kora.Core.Commands;
 
@@ -9,15 +10,16 @@ public sealed partial record SessionCommand
     public Guid? DependencyTaskId { get; init; }
     public Guid? QueueRunId { get; init; }
     public long QueueControlRevision { get; init; }
+    public SessionQueueReadProfile QueueProfile { get; init; } = SessionQueueReadProfile.Version;
     public const string QueueSyntax =
         "queue help | queue list <session-id> | queue status <session-id> <task-id> | "
-        + "queue enqueue <session-id> <generation> <queue-revision> <request-id> <task-id> version [after <task-id>] | "
+        + "queue enqueue <session-id> <generation> <queue-revision> <request-id> <task-id> version|capabilities.list|readiness.get|runtime.list [after <task-id>] | "
         + "queue cancel|remove <session-id> <generation> <queue-revision> <task-id> <entry-revision> | "
         + "queue clear <session-id> <generation> <queue-revision> confirm | "
         + "queue dispatch <session-id> <generation> <queue-revision>. "
         + "queue pause-status <session-id> | queue pause|resume <session-id> <generation> <queue-revision> <run-id> <pause-revision>. "
         + "Pause blocks new admissions only for that exact current-run session; resume never dispatches or replays work. "
-        + "Fixed local-version only; manual fair dispatch of already enqueued current-run work. "
+        + "Four fixed no-argument first-page reads only; manual fair dispatch of already enqueued current-run work. "
         + "Queue revision may be zero for an empty queue. No effects, workers, providers, model or restart replay.";
 
     private static SessionCommand ParseQueue(string text, string input)
@@ -60,7 +62,7 @@ public sealed partial record SessionCommand
                 session, generation) { QueueRevision = revision, TaskId = task, TaskRevision = entryRevision };
         }
         if (operation is "enqueue" && words.Length is 8 or 10 && ExactId(words[5], out var request)
-            && ExactId(words[6], out var queuedTask) && words[7].Equals("version", StringComparison.OrdinalIgnoreCase))
+            && ExactId(words[6], out var queuedTask) && SessionQueueReadProfiles.Parse(words[7]) is { } profile)
         {
             Guid? dependency = null;
             if (words.Length == 10)
@@ -69,7 +71,7 @@ public sealed partial record SessionCommand
                 dependency = after;
             }
             return new(SessionCommandOperation.QueueEnqueue, session, generation)
-            { QueueRevision = revision, WorkRequestId = request, TaskId = queuedTask, DependencyTaskId = dependency };
+            { QueueRevision = revision, WorkRequestId = request, TaskId = queuedTask, DependencyTaskId = dependency, QueueProfile = profile };
         }
         return Invalid();
     }

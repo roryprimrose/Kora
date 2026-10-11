@@ -1,5 +1,6 @@
 using Kora.Core.Hosting;
 using Kora.Core.Storage;
+using Kora.Core.Tools;
 
 using Microsoft.Data.Sqlite;
 
@@ -44,13 +45,14 @@ public sealed partial class WindowsSqliteHostInteractionStore
             _ = QueueSnapshot(connection, session);
             var entry = ReadQueueRows(connection, session).SingleOrDefault(entry => entry.Request.TaskId == task);
             database.VerifyFiles();
-            return entry is null ? null : ProjectQueue(connection, entry);
+            return entry is null ? null : ProjectQueue(connection, entry, includeResult: true);
         }, token));
 
     public ValueTask<SessionQueueSnapshot> EnqueueAsync(HostRequest control, HostRequest work,
         HostRevision generation, long expectedRevision, long admissionRevision, HostId<TaskIdentity>? dependency,
-        SessionQueueLimits limits, Func<bool> eligible, CancellationToken token) =>
-        RunHostMutationAsync(control, "queue.enqueue.version", (connection, transaction, intent, audit) =>
+        SessionQueueLimits limits, Func<bool> eligible, CancellationToken token,
+        SessionQueueReadProfile profile = SessionQueueReadProfile.Version) =>
+        RunHostMutationAsync(control, QueueAction("enqueue", profile), (connection, transaction, intent, audit) =>
         {
             RequireFreshMetadataIntent(intent);
             _ = RequireQueueRevision(connection, control, generation, expectedRevision);
@@ -69,7 +71,9 @@ public sealed partial class WindowsSqliteHostInteractionStore
             var entry = new SessionQueueEntry(work, generation, new(1),
                 NextQueuePosition(connection), SessionQueueState.Pending, runId, admissionRevision,
                 now, now.AddMinutes(limits.PendingLifetimeMinutes), dependency,
-                RecordVersion: SessionQueueEntry.CapturedLifetimeRecordVersion, PendingLifetimeMinutes: limits.PendingLifetimeMinutes);
+                RecordVersion: profile == SessionQueueReadProfile.Version ? SessionQueueEntry.CapturedLifetimeRecordVersion
+                    : SessionQueueEntry.FixedReadRecordVersion, PendingLifetimeMinutes: limits.PendingLifetimeMinutes,
+                Profile: profile == SessionQueueReadProfile.Version ? null : profile);
             entry.Validate();
             var task = new HostTaskRecord(work, new(1), HostTaskState.IntentRecorded);
             var sequence = AppendAudit(connection, transaction, intent, RequireSession(connection, control.SessionId).Authority,
@@ -129,7 +133,7 @@ public sealed partial class WindowsSqliteHostInteractionStore
 
     public ValueTask<SessionQueueAdmissionReceipt> AdmitAsync(SessionQueueEntry expected, long admissionRevision,
         SessionQueueLimits limits, Func<bool> eligible, CancellationToken token) =>
-        RunHostMutationAsync(expected.Request, "queue.admit.version", (connection, transaction, intent, audit) =>
+        RunHostMutationAsync(expected.Request, QueueAction("admit", expected.ReadProfile), (connection, transaction, intent, audit) =>
         {
             if (intent.State != HostTaskState.IntentRecorded || ReadRun(connection, intent.Request.TaskId) != runId
                 || ReadyQueue(connection, admissionRevision, limits) != expected)
@@ -155,8 +159,8 @@ public sealed partial class WindowsSqliteHostInteractionStore
         }, token, eligible, requireIdle: false);
 
     public ValueTask<SessionQueueEntry> CompleteAsync(SessionQueueEntry expected, SessionQueueState outcome,
-        Func<bool> eligible, CancellationToken token) =>
-        RunHostMutationAsync(expected.Request, "queue.receipt.version", (connection, transaction, intent, audit) =>
+        Func<bool> eligible, CancellationToken token, CapabilityReply? result = null) =>
+        RunHostMutationAsync(expected.Request, QueueAction("receipt", expected.ReadProfile), (connection, transaction, intent, audit) =>
         {
             var current = ReadQueueRows(connection, expected.Request.SessionId)
                 .SingleOrDefault(entry => entry.Request.TaskId == expected.Request.TaskId);
@@ -166,7 +170,12 @@ public sealed partial class WindowsSqliteHostInteractionStore
             {
                 throw new InvalidOperationException("Only the exact admitted current-run callback can commit an outcome.");
             }
-            var next = current with { Revision = new(checked(current.Revision.Value + 1)), State = outcome };
+            if (expected.Profile is null && result is not null)
+            {
+                throw new InvalidOperationException("Legacy version receipts do not acquire a new result format.");
+            }
+            var next = current with { Revision = new(checked(current.Revision.Value + 1)), State = outcome, Result = result };
+            next.ValidateStoredResult();
             var task = intent.Next(outcome switch
             {
                 SessionQueueState.Succeeded => HostTaskState.Succeeded,
@@ -241,8 +250,11 @@ public sealed partial class WindowsSqliteHostInteractionStore
             { DispatchControl = QueueControl(connection, session) };
     }
 
-    private SessionQueueEntry ProjectQueue(SqliteConnection connection, SessionQueueEntry entry, DateTimeOffset? observedAt = null)
+    private SessionQueueEntry ProjectQueue(SqliteConnection connection, SessionQueueEntry entry, DateTimeOffset? observedAt = null,
+        bool includeResult = false)
     {
+        // Work/AllWork are metadata projections; only an exact private task-status read discloses retained data.
+        if (!includeResult) { entry = entry with { Result = null }; }
         var task = ReadTask(connection, entry.Request.TaskId)!;
         if (entry.RunId != runId && (entry.IsPending || entry.IsCurrent))
         {
@@ -280,7 +292,7 @@ public sealed partial class WindowsSqliteHostInteractionStore
         {
             var payload = reader.GetString(3);
             var entry = HostInteractionCodec.Decode<SessionQueueEntry>(payload);
-            entry.Validate();
+            entry.ValidateStoredResult();
             if (!Same(HostInteractionCodec.Encode(entry), payload)
                 || !Same(Id(entry.Request.TaskId), reader.GetString(0)) || !Same(Id(entry.Request.SessionId), reader.GetString(1))
                 || entry.Revision.Value != reader.GetInt64(2))
@@ -289,11 +301,12 @@ public sealed partial class WindowsSqliteHostInteractionStore
             }
             ValidateRowAuthority(connection, reader.GetInt64(4),
                 Change("queue", Id(entry.Request.TaskId), entry.Revision.Value, payload));
-            if (entry.RecordVersion == SessionQueueEntry.CapturedActiveRecordVersion)
+            if (entry.RecordVersion is SessionQueueEntry.CapturedActiveRecordVersion or SessionQueueEntry.FixedReadRecordVersion
+                && entry.DispatchOrder > 0)
             {
                 // Terminal updates must retain the original admitted budget/time, not merely acquire a new digest.
                 ValidateRowAuthority(connection, entry.DispatchOrder,
-                    QueueChange(entry with { State = SessionQueueState.Running, Revision = new(2) }));
+                    QueueChange(entry with { State = SessionQueueState.Running, Revision = new(2), Result = null }));
                 if (ReadAdmissionTime(connection, entry) != entry.AdmittedAt)
                 {
                     throw new InvalidDataException("The active deadline is not bound to its original committed admission.");
@@ -306,6 +319,12 @@ public sealed partial class WindowsSqliteHostInteractionStore
 
     private static AuthorityChange QueueChange(SessionQueueEntry entry) =>
         Change("queue", Id(entry.Request.TaskId), entry.Revision.Value, HostInteractionCodec.Encode(entry));
+
+    private static string QueueAction(string phase, SessionQueueReadProfile profile)
+    {
+        _ = SessionQueueReadProfiles.CapabilityId(profile);
+        return profile == SessionQueueReadProfile.Version ? "queue." + phase + ".version" : "queue." + phase + ".fixed-read";
+    }
 
     private static void WriteQueue(SqliteConnection connection, SqliteTransaction transaction, SessionQueueEntry entry, long sequence) =>
         Execute(connection, transaction, """

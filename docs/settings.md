@@ -818,6 +818,11 @@ Each option resets independently; another Refresh is required before a new edit.
 The [exact typed/current-name commands](commands.md#fixed-queue-settings) use
 the same original-input host admission, revisions and audited confirmation.
 
+The displayed legacy settings-group name also covers the three additional
+[fixed first-page profiles](commands.md#deterministic-local-version-queue).
+Their captured deadlines and slots follow the same future-only rules;
+settings never supply page controls, probes or dispatch authority.
+
 Only newly enqueued admitted fixed reads after confirmed activation capture
 the chosen pending lifetime. Existing pending/cancelled/expired/running entries
 keep their exact pending deadlines and identities. The chosen active budget

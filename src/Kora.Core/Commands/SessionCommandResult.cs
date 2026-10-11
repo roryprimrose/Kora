@@ -5,6 +5,8 @@ using System.Text.Json.Serialization;
 using Kora.Core.Hosting;
 using Kora.Core.Interaction;
 using Kora.Core.Storage;
+using Kora.Core.Tools;
+using Kora.Core.Dependencies;
 
 namespace Kora.Core.Commands;
 
@@ -41,6 +43,10 @@ public sealed record SessionCommandResult(string Outcome, string Message)
             new JsonStringEnumConverter<SessionHistoryKind>(), new JsonStringEnumConverter<SessionHistoryAvailability>(),
             new JsonStringEnumConverter<HostInteractionOutcome>(), new JsonStringEnumConverter<QuestionStatus>(),
             new JsonStringEnumConverter<SessionQueueState>(), new JsonStringEnumConverter<SessionQueueEligibility>(),
-            new JsonStringEnumConverter<QuestionKind>() },
+            new JsonStringEnumConverter<QuestionKind>(), new JsonStringEnumConverter<SessionQueueReadProfile>(),
+            new JsonStringEnumConverter<CapabilityOutcome>(), new JsonStringEnumConverter<CapabilityAvailability>(),
+            new JsonStringEnumConverter<CapabilityInputShape>(), new JsonStringEnumConverter<CapabilityOutputShape>(),
+            new JsonStringEnumConverter<CapabilityEffect>(), new JsonStringEnumConverter<CapabilityLane>(),
+            new JsonStringEnumConverter<RuntimeLocality>(), new JsonStringEnumConverter<DependencyReadiness>() },
     };
 }

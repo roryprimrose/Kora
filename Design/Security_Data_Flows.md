@@ -32,6 +32,16 @@ remain intact; cached maintenance Check/Open stays separately native.
 
 ## Deterministic fixed local-version queue boundary
 
+The [four fixed no-argument profiles](Work_Management.md#delivered-fixed-first-page-read-profiles---2026-10-12)
+share the original queue admission fence and freshly admitted Native registry
+caller. New page rows retain only bounded typed catalogue/recorded-readiness/
+runtime metadata, with terminal digest/profile binding. Raw probe details,
+user content, paths, dumps, arbitrary arguments and provider/model authority
+are excluded. Exact private status retrieves the saved observation; Work/AllWork
+and local events exclude result data. Format 4 is explicit; legacy version
+bytes/digests/clocks stay unchanged. No grants, permission levels, egress,
+automatic dispatch or replay are introduced.
+
 The [bounded queue preferences](User_Configuration.md#delivered-bounded-fixed-local-version-queue-settings-r10r13) preserve original-input admission through the existing independent configuration-control session.
 Host-held option/configuration/call revisions and native visible-lifetime identity bind proposals.
 Protected original-voice writes deny without channel relabelling or deferred application.

@@ -44,16 +44,19 @@ separately bound; passive delivery/status never resumes, dispatches, retargets
 voice or updates meaningful activity. Session retirement removes owned broker
 receipts before deletion; restart reconstructs no source or effects from them.
 
-The [R13 fixed local-version queue](Work_Management.md#delivered-deterministic-local-version-queue)
+The [R13 four fixed-read profiles](Work_Management.md#delivered-fixed-first-page-read-profiles---2026-10-12)
 addresses existing immutable session IDs directly. Pending capacity, FIFO,
 fair manual admission, revisions, dependencies and restart interruption are
 host-owned; names/selected windows never substitute for IDs. Queue slots cover
-only this read-only profile, not providers, workers, audio or arbitrary resources.
-Native **Refresh selected work**, **Enqueue local version**, **Dispatch ready local
-versions fairly**, exact pending cancellation and separately labelled confirmed
+only these no-argument read-only profiles, not providers, workers, audio or arbitrary resources.
+Native **Refresh selected work**, the four explicit **Enqueue** buttons, **Dispatch ready fixed
+reads fairly**, exact pending cancellation and separately labelled confirmed
 clear use the same workflow as typed/current-name activated commands. Selection
 alone neither enqueues nor dispatches. New work in Done/Removed sessions is denied.
 Passive history/queue inspection never renews activity or restores authority.
+Exact status/Inspect selected work retrieves successful retained page metadata;
+it never reruns an observation. Work/AllWork exclude result data. The unchanged
+version default keeps its original transient Version receipt and formats 2/3.
 The [exact current-run Pause/Resume controls](Work_Management.md#delivered-exact-current-run-dispatch-pause---2026-10-11) address only that session's new dispatch admissions, not its active callback or lifecycle.
 Native/typed/activated routes share the physical store admission fence and current run/generation/control revision receipt. Paused/held reasons are observational in Work/All work/status.
 Resume neither dispatches nor replays Interrupted work; stale private epochs cannot recover old eligibility.

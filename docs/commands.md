@@ -161,12 +161,15 @@ the queue cannot open a microphone or speak a response.
 |---|---|
 | `queue help` | Bounded syntax and unavailable scope |
 | `queue list <session-id>` | Current entries/revision plus bounded atomic work snapshot, recent receipts, pending question identities, capacity and eligibility reasons |
-| `queue status <session-id> <task-id>` | Exact retained work receipt; unknown IDs provide no authority |
+| `queue status <session-id> <task-id>` | Exact retained work receipt and successful fixed-page snapshot; passive, never reruns the read |
 | `queue enqueue <session-id> <generation> <queue-revision> <request-id> <task-id> version [after <task-id>]` | Add one fixed local application-version read; dependency requires an existing exact task |
+| `queue enqueue <session-id> <generation> <queue-revision> <request-id> <task-id> capabilities.list [after <task-id>]` | Add the fixed capability-metadata first-page read |
+| `queue enqueue <session-id> <generation> <queue-revision> <request-id> <task-id> readiness.get [after <task-id>]` | Add the first page of already-recorded dependency observations, not a fresh check |
+| `queue enqueue <session-id> <generation> <queue-revision> <request-id> <task-id> runtime.list [after <task-id>]` | Add the first page of recorded runtime metadata; no probe, inference or setup |
 | `queue cancel <session-id> <generation> <queue-revision> <task-id> <entry-revision>` | Cancel only that pending entry, not an admitted worker/effect |
 | `queue remove <session-id> <generation> <queue-revision> <task-id> <entry-revision>` | Remove only that pending entry from dispatch, retaining history |
 | `queue clear <session-id> <generation> <queue-revision> confirm` | Explicitly confirm clear of this exact pending snapshot; current work/history remain |
-| `queue dispatch <session-id> <generation> <queue-revision>` | Manually process up to 32 already enqueued ready local-version reads fairly across eligible sessions |
+| `queue dispatch <session-id> <generation> <queue-revision>` | Manually process up to 32 already enqueued ready fixed reads fairly across eligible sessions |
 | `queue pause-status <session-id>` | Passive exact-session current-run pause/hold receipt, reason and work eligibility; no effects |
 | `queue pause <session-id> <generation> <queue-revision> <run-id> <pause-revision>` | Block new admissions for this exact session in the current host run; committed reads drain normally |
 | `queue resume <session-id> <generation> <queue-revision> <run-id> <pause-revision>` | Withdraw only this exact run's explicit pause after current private authority revalidation; never dispatch |
@@ -174,10 +177,19 @@ the queue cannot open a microphone or speak a response.
 Use canonical nonempty D GUIDs and the exact displayed positive session/entry
 revisions. Queue revision is the displayed committed snapshot revision; zero
 is valid only before the first queue mutation. For typed enqueue, supply fresh
-request/task GUIDs; native **Enqueue local version** generates them. Duplicate
+request/task GUIDs; the four explicit native **Enqueue** buttons generate them. Duplicate
 IDs, names, unknown/stale revisions, Done/disposed sessions and full queues
 fail closed. The selected session's ID is visible and never inferred from a
 name, model response or window title.
+
+Only those four profiles are accepted. The three page reads use host-owned `{}`,
+first page/default count six; no JSON, arguments, IDs, count/offset or refresh
+controls are accepted. Each result is limited to six records and 4096 serialized
+UTF-8 bytes. **Inspect selected work** or exact `queue status` shows a retained
+successful page snapshot, not current health. Large manual batches may omit page
+data with `resultAvailableByExactStatus: true`; inspect that exact task instead.
+Work/All work remain metadata-only. Failures, denial, cancellation, stale private
+admission or expired active budgets never deliver successful data.
 
 Enqueue does not start work. Selecting an exact session passively reads work;
 **Refresh selected work** refreshes that observation. Choose **Inspect selected

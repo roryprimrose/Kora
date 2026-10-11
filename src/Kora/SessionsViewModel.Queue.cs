@@ -31,13 +31,16 @@ internal sealed partial class SessionsViewModel
 
     public Task ReadQueueAsync() => RunQueueCommandAsync(SessionCommandOperation.QueueList);
     public Task EnqueueVersionAsync() => RunQueueCommandAsync(SessionCommandOperation.QueueEnqueue);
+    public Task EnqueueCapabilitiesAsync() => RunQueueCommandAsync(SessionCommandOperation.QueueEnqueue, SessionQueueReadProfile.Capabilities);
+    public Task EnqueueReadinessAsync() => RunQueueCommandAsync(SessionCommandOperation.QueueEnqueue, SessionQueueReadProfile.Readiness);
+    public Task EnqueueRuntimesAsync() => RunQueueCommandAsync(SessionCommandOperation.QueueEnqueue, SessionQueueReadProfile.Runtimes);
     public Task DispatchQueueAsync() => RunQueueCommandAsync(SessionCommandOperation.QueueDispatch);
     public Task ClearQueueAsync() => RunQueueCommandAsync(SessionCommandOperation.QueueClear);
     public Task CancelQueueEntryAsync() => RunQueueCommandAsync(SessionCommandOperation.QueueCancel);
     public Task PauseQueueAsync() => RunQueueCommandAsync(SessionCommandOperation.QueuePause);
     public Task ResumeQueueAsync() => RunQueueCommandAsync(SessionCommandOperation.QueueResume);
 
-    private Task RunQueueCommandAsync(SessionCommandOperation operation)
+    private Task RunQueueCommandAsync(SessionCommandOperation operation, SessionQueueReadProfile profile = SessionQueueReadProfile.Version)
     {
         var epoch = selectionEpoch;
         var selectedId = selected?.Authority.SessionId;
@@ -60,6 +63,7 @@ internal sealed partial class SessionsViewModel
                 WorkRequestId = operation == SessionCommandOperation.QueueEnqueue ? Guid.NewGuid() : null,
                 TaskId = operation == SessionCommandOperation.QueueEnqueue ? Guid.NewGuid() : entry?.Request.TaskId.Value,
                 TaskRevision = entry?.Revision.Value ?? 0,
+                QueueProfile = profile,
             };
             var result = await service.ExecuteCommandAsync(command, RequestOrigin.LocalUi,
                 () => !closed && access.CanInspect && selectionEpoch == epoch && selected?.Authority.SessionId == selectedId, lifetime.Token);
@@ -71,7 +75,7 @@ internal sealed partial class SessionsViewModel
                 await RefreshSelectedWorkAsync();
             }
             detail = Encoding.UTF8.GetString(SessionCommandResult.Serialize(result));
-            status = "Exact local-version queue " + result.Outcome
+            status = "Exact fixed-read queue " + result.Outcome
                 + ". Dispatch is manual and fair among already queued sessions; no model, effects, audio or restart replay.";
             NotifyQueue();
         }, dispatchControl: controlsDispatch, queueDispatch: operation == SessionCommandOperation.QueueDispatch);

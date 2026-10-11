@@ -541,8 +541,16 @@ The store uses standard SQLite for configuration, session/events, and task/actio
 The owner-approved D-009 baseline supersedes mandatory page encryption and database-key/rekey admission.
 Transactional persistence, schema validation/migration, journal/backup deletion and failure behavior remain delivery gates.
 Machine-local configuration/enablement/audit storage is under `%LOCALAPPDATA%\Kora`.
-Kora-specific declarative skill packages are under the Windows Roaming AppData folder at `%APPDATA%\Kora\Skills`.
-Shared profile skill roots are registered read-only sources, not writable storage.
+Kora-owned declarative definitions use Windows Roaming AppData data partitions:
+`%APPDATA%\Kora\Skills`, `Prompts`, `Instructions`, and `Agents`.
+The target [definition management architecture](Definition_Management.md)
+also treats supported registered personal profile definitions as editable
+originals through a dedicated writer, not generic writable/executable storage.
+Current R21 profile registration remains read-only until that writer and
+expanded source scope are qualified. Core owns kinds, validation, and revision
+rules; Application owns authoring/reconciliation; Windows owns race-resistant
+source reads/publication; desktop delegates native/voice presentation.
+Bundled resources remain in Definitions, with no execution/persistence authority.
 Credentials are represented by opaque references to an OS-protected credential store.
 Large retained artifacts use a private managed store linked by immutable digest, session ID, and deletion ownership.
 Default inactivity archiving/deletion is 24 hours/30 days, both configurable; passive history access never extends retention.

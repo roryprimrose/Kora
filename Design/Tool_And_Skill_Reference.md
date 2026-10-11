@@ -110,6 +110,13 @@ History and file mirrors are not live grant or audit authority.
 [source storage](Skill_Storage.md) and [authoring](Skill_Authoring.md) own
 discovery, source-qualified revisions and exact save/enablement boundaries.
 Registration, instruction selection and inspection do not execute scripts.
+The proposed [definition management contract](Definition_Management.md) owns
+direct editing of supported personal profile originals and Kora-owned files,
+optional forks, UI/voice parity, and consistent external reload across skills,
+prompts, instructions, and agent profiles. The
+[canonical catalogue](Internal_Model_Tools.md#skills-and-registered-execution)
+owns common `definitions.*` actions and their skill-specific projections;
+this reference does not duplicate their schemas or delivery status.
 
 ## 9. Content Presentation and Viewing
 

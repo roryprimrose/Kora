@@ -1111,13 +1111,14 @@ Remote endpoints require a validated destination and setup/network decision, not
 Provider changes do not transplant active task context or continue a task under another account automatically.
 Credentials/tokens/passwords are not dictatable option values; voice starts supported sign-in/sign-out/configuration flows.
 
-## 6. Skills and Local Data
+## 6. Definitions and Local Data
 
 | Option | Default / limits | Example verbal setter |
 |---|---|---|
-| Shared skill sources | User-selected bounded read-only roots | "Use skills from my Copilot profile" |
-| Skill enablement/default source binding | Reviewed digest/device-local binding | "Use the Kora-specific deployment skill when I say deployment" |
-| Source refresh preference | Revalidate before dispatch; optional bounded discovery refresh | "Refresh shared skill discovery every hour" |
+| Definition sources and kinds | Explicit registered bounded personal files/roots; target supports declarative editing, current R21 grants local read only | "Use skills and prompts from my Copilot profile" |
+| Definition activation/default source binding | Reviewed digest/device-local binding; new/changed content is not automatically activated | "Use the Kora-specific deployment skill when I say deployment" |
+| Instruction applicability | Explicit reviewed session/task scope and supported matching rules; no ambient policy injection | "Apply this instruction to this session" |
+| Source refresh preference | Common bounded reload; watchers advisory and freshness checked before use; no restart requirement in qualified target | "Reload my definitions"; "Refresh profile definitions every hour" |
 | Knowledge source registration | None by default; explicit reviewed file/folder and session/managed scope | "Add my Team TSGs folder as a knowledge source" |
 | Knowledge source refresh | Manual initially; later bounded scheduled refresh only after R26 background-work gates | "Refresh Team TSGs" |
 | Knowledge retrieval strategy | Lexical initially; verified hybrid/vector retrieval optional later | "Use lexical retrieval for Team TSGs" |
@@ -1134,7 +1135,14 @@ picker rather than being guessed. Adding a knowledge source, using its excerpts
 with a hosted model and deleting Kora's derived copies are separate decisions.
 The complete source, retrieval, settings and voice contract is
 [File and Folder Ingestion](File_And_Folder_Ingestion.md).
-The Roaming AppData skill store and protected installation/source layout are architectural boundaries, not voice-selectable arbitrary write roots.
+The Roaming AppData definition stores and protected installation/source layout
+are architectural boundaries, not voice-selectable arbitrary write roots.
+Supported profile originals have normal UI/voice editing through the dedicated
+writer and exact-change confirmation, not a separate edit-enable preference.
+Source registration/removal, save/delete, activation, and reload are distinct
+operations; reload cannot authorise changed definitions.
+See [Definition Management](Definition_Management.md) for all four kinds,
+profile formats, external-change conflicts, and channel parity.
 Permitted conversation history uses durable standard SQLite under verified private profile permissions and session retention. Copies outside that boundary are readable; database encryption is not required. Raw audio/secret persistence, silent remote diagnostic upload, automatic executable imports and secret logging remain unsupported.
 Diagnostic, audit and session retention are independent. Session deletion does
 not remove content-minimising audit records, while audit expiry does not remove

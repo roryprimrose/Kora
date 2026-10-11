@@ -222,7 +222,7 @@ Shared native question/approval components can be hosted in compact or workspace
 | Sessions workspace | Active/Done session list and search beside full selected conversation; per-session work/queue, questions, history, Evidence mode, and management controls | Primary multi-session and retained-evidence UI; responsive while independent sessions run |
 | Detail/artifact viewer | Exact answer, Markdown/static HTML, citations, script/diff source, provenance/revision; search/copy/export/source controls | Bound to an immutable session/artifact reference; stays on that item when workspace selection changes |
 | Skills management and review | Source-qualified skill catalogue, metadata/capabilities/dependencies, immutable revision/file tree, rendered instructions and exact source/diff tabs, enablement state | Purpose-built management surface; file content reuses passive detail renderers, while save/enable/test/revision actions stay native and revision-bound |
-| Instruction management and editing | Source-qualified Kora/profile instruction catalogue, metadata, rendered content, exact source/diff, dirty/conflict state, voice/typed refinement and Save | Reuses the skill authoring workspace without its package tree, fixtures, dependency tests, or enablement controls; profile writes remain exact-file, identity/base-digest-bound native operations |
+| Instruction management and editing | Source-qualified Kora/profile instruction catalogue, metadata, rendered content, exact source/diff, dirty/conflict state, voice/typed refinement, Save and applicability review | Reuses the skill authoring workspace without its package tree, fixtures, dependency tests, or skill capability-enablement controls; profile writes remain exact-file, identity/base-digest-bound native operations and changed guidance is not automatically applied |
 | Permissions and Approvals | Native grant inventory by scope/applicability; inspect, request/edit/remove, linked use evidence | Global inventory with exact session/operation references; not deleted with a conversation's perpetual grants |
 | Settings and setup/recovery | Typed preferences, output/call modes, retention/concurrency, devices/providers/readiness, consent and recovery | Shared application state; optional session scope is explicit; usable without voice/model |
 | Documentation | Trusted embedded guide, help, feature availability | Existing guide stays distinct from generated conversation/artifact content |
@@ -450,6 +450,14 @@ Missing renderers disclose source fallback/unavailable capability without losing
 
 ## Skills and Permission Management
 
+The proposed native **Definitions** surface manages skills, prompts,
+instructions, and agent profiles from bundled, Kora-owned, and registered
+profile sources. Skills remains a focused entry point. The complete control,
+editing, applicability, and reload contract is
+[Definition Management](Definition_Management.md#one-management-surface-equal-ui-and-voice-control);
+every supported native action has a typed/activated-voice equivalent over the
+same host service. Unqualified agent Run controls disclose unavailability.
+
 The Skills surface lists source-qualified skills and revisions without reading
 arbitrary profile paths. Selecting a revision shows host-resolved identity,
 origin, compatibility, enablement, requested capabilities, registered
@@ -466,12 +474,19 @@ Copy all in this surface copies only the complete selected file, never a
 concatenation of sibling files or the whole package. A separate future package
 export must preserve file boundaries and receive its own explicit action.
 
-Editing a Kora-owned declarative skill uses native editor/diff, validation,
-dirty-state, conflict, save, and enablement controls. Shared-profile and bundled
-revisions remain read-only; creating a fork is an explicit separate proposal.
+Editing supported declarative definitions uses native editor/diff, validation,
+dirty-state, conflict, save, and activation controls for every kind.
+Bundled revisions remain immutable. Supported profile originals are directly
+editable through the qualified writer; creating a Kora-owned fork is optional.
+Every original-file mutation or fork is an explicit proposal, never a write
+approved merely by discovery.
 Save and enable are separately confirmed revision-bound operations. Closing
 with unsaved changes follows an explicit save/discard/cancel workflow and never
 silently publishes a draft.
+Clean views disclose externally reloaded revisions; dirty editors retain the
+draft/base and offer compare, explicit rebase, discard/reload, or save-copy.
+UI/voice lookup and dependency status publish the same catalogue revision.
+Reload cannot silently activate changed content or steal focus.
 
 The Permissions & Approvals surface is a native filterable inventory and
 editor over typed grant records. Its list and detail show scope, applicability,

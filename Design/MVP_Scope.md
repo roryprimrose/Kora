@@ -168,13 +168,23 @@ standalone instructions through voice, typed, or mixed interaction:
 
 Standalone instructions reuse proposal/refinement, rendered preview, exact
 source/diff, validation, conflict handling and revision-bound Save, but use a
-single-file editor without package fixtures, dependency tests, or enablement.
+single-file editor without package fixtures or dependency tests. Saving does
+not activate changed guidance; applicability follows the common definition
+revision review rather than the skill's capability-enablement workflow.
 Compatible profile instructions may replace only their exact discovered file
 after identity and unchanged-base-digest revalidation.
 
 See [Skill and Instruction Authoring](Skill_Authoring.md).
-Kora-specific skills and edited copies of shared skills are saved under `%APPDATA%\Kora\Skills`; shared profile sources are never edited.
+Kora-specific skills and optional copies of shared skills are saved under
+`%APPDATA%\Kora\Skills`. The target also supports editing compatible personal
+profile originals through the dedicated declarative writer with exact-change
+confirmation, not generic filesystem or executable writes.
 See [Skill Sources and Roaming Storage](Skill_Storage.md).
+Apply [Definition Management](Definition_Management.md) for consistent native/
+voice authoring and external reload across all supported kinds and sources.
+Deliver kinds/formats incrementally; prompt support is lightweight flexibility,
+and agent execution requires separate runtime qualification. Current R21
+read-only inspection does not qualify these editing or reload operations.
 External build/test commands and Git writes are outside the MVP skill-authoring workflow; it requires neither compiled code nor a commit.
 
 This slice does not enable generic autonomous repository modification.

@@ -1,6 +1,6 @@
 # Voice- and Text-Driven Skill and Instruction Authoring
 
-Status: proposed required MVP capability for Slice C.
+Status: proposed required MVP capability, planned for Slice C; not delivered.
 
 The delivered R21 shared-profile slice is **local read-only discovery and exact
 inspection only**, not this authoring workflow. Registering or inspecting a root
@@ -10,6 +10,12 @@ to a model or authorize edits/execution. See
 
 Related: [Extensibility](Extensibility.md), [Security and Data Flows](Security_Data_Flows.md), [Task Lifecycle](Task_Lifecycle.md), [Acceptance Criteria](Acceptance_Criteria.md).
 
+[Definition Management](Definition_Management.md) owns the shared authoring
+surface for skills, prompts, instructions, and agent profiles, including equal
+UI/voice control, source selection, direct profile edits, and external reload.
+This document adds skill-specific workflow/package checks and the single-file
+instruction editing experience, not a second writer or lifecycle policy.
+
 ## Outcome
 
 The user can say "Kora, create a skill that explains a deployment failure", refine the behaviour through conversation, review it, test it safely, and enable it for later use.
@@ -17,7 +23,8 @@ The same voice, typed-composer, and native review workflow creates and edits
 standalone Kora or compatible profile instructions. An instruction is a
 single-file definition, so its review surface shows metadata, rendered content,
 exact source, and diff without the skill package's file tree, dependencies,
-fixtures, test workflow, or separate enablement step.
+fixtures, test workflow, or skill capability-enablement step.
+Changed instruction applicability still requires the common revision review.
 Creating and improving skills must not require modifying or rebuilding the Kora application.
 
 Skill and instruction authoring change declarative user data, not executable application code.
@@ -63,9 +70,10 @@ the shared atomic preference/file replacement mechanism where applicable, and
 never accepts a model-supplied destination.
 
 Saving a standalone instruction does not enable a skill, grant a tool
-permission, approve an effect, or make its content authoritative. The saved
-instruction becomes a new digest-pinned catalogue revision after successful
-rediscovery.
+permission, approve an effect, activate changed guidance, or make its content
+authoritative. The saved instruction becomes a new digest-pinned catalogue
+candidate after successful rediscovery. Applying it to requests requires
+review of its exact revision and scope under the common lifecycle.
 
 ## Skill Package Boundary
 
@@ -105,13 +113,20 @@ Staging and backup locations are subject to the same boundary.
 Reject traversal, unexpected files, reparse-point/hard-link escapes, and existing targets outside the store.
 
 Built-in skills are embedded immutable application resources. Improving one creates only a declarative user adaptation with a distinct ID and explicit attribution; it cannot overwrite the embedded original or shadow reserved controls.
-Shared profile skills are also read-only to Kora; a voice-requested improvement creates a reviewed Kora-specific fork rather than changing the shared source.
+Supported shared profile skills are directly editable in the target design;
+an improvement can also create a reviewed Kora-specific fork.
+In-place declarative editing uses the dedicated definition writer, with
+source-preserving format validation and exact mutation confirmation;
+it is never generic filesystem access or part of delivered R21 inspection.
 See [Skill Sources and Roaming Storage](Skill_Storage.md).
 Only its declarative behaviour can be copied/refined; a bundled script remains a registered protected action, not copied executable content or a user-editable implementation.
 User skill updates create validated, digest-pinned revisions.
 Active tasks retain the revision they started with; enable a new revision for future tasks only.
 Disable or restore a prior revision through the same reviewed data-only registry operations.
 The registry cannot select arbitrary executable code, modify trust roots, or change tool/security configuration.
+External changes use the common reconciliation pipeline. A dirty voice/UI draft
+keeps its base and reports a conflict; save cannot overwrite a changed source,
+and reload never enables changed content or silently switches queued revisions.
 
 Kora watches only its admitted roaming artifact roots and recognized profile
 instruction roots. Notifications are invalidation hints, never authoritative

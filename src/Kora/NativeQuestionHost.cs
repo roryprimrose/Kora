@@ -21,6 +21,8 @@ internal sealed class NativeQuestionHost : IDisposable
     private readonly ILogger<NativeQuestionViewModel> logger;
     private Func<bool> canInteract = static () => false;
     private Func<CallPolicyObservation>? callObservation;
+    private Func<long>? admissionRevision;
+    private Func<bool>? currentAdmission;
     private SessionWorkspaceService? workspace;
     private NativeQuestionViewModel? current;
     private int waiting;
@@ -32,7 +34,8 @@ internal sealed class NativeQuestionHost : IDisposable
         this.store = store;
         this.time = time;
         this.logger = logger;
-        var gated = new NativeInteractionStore(store, () => !disposed && canInteract());
+        var gated = new NativeInteractionStore(store, () => !disposed && canInteract()
+            && (currentAdmission?.Invoke() ?? true));
         questions = new(gated, time);
         authorization = new(gated, time);
         reviews = new(gated, time);
@@ -40,6 +43,7 @@ internal sealed class NativeQuestionHost : IDisposable
 
     internal void BindGate(Func<bool> gate) => canInteract = gate;
     internal void BindCallObservation(Func<CallPolicyObservation> observe) => callObservation = observe;
+    internal void BindAdmissionRevision(Func<long> observe) => admissionRevision = observe;
     internal void BindWorkspace(SessionWorkspaceService service) => workspace = service;
 
     internal async Task<HostTaskRecord> AskVersionAsync(Func<NativeQuestionViewModel, Task> present,
@@ -59,6 +63,7 @@ internal sealed class NativeQuestionHost : IDisposable
                 pending.Close("Original current-run wait ended. Retained questions are read-only; start a fresh request.");
             }
             current = null;
+            currentAdmission = null;
             Volatile.Write(ref waiting, 0);
         }
     }
@@ -66,6 +71,9 @@ internal sealed class NativeQuestionHost : IDisposable
     private async Task<HostTaskRecord> AskAdmittedVersionAsync(HostRequest request,
         Func<NativeQuestionViewModel, Task> present, CancellationToken cancellationToken)
     {
+        var admittedRevision = admissionRevision?.Invoke();
+        bool Eligible() => !disposed && canInteract() && admittedRevision == admissionRevision?.Invoke();
+        currentAdmission = Eligible;
         await store.CreateSessionAsync(request, cancellationToken);
         // This ordinary read has no admitted exact effect/content/containment authority.
         var policy = callObservation?.Invoke().Authorization(canInteract(), mandatoryGatesSatisfied: false)
@@ -80,14 +88,14 @@ internal sealed class NativeQuestionHost : IDisposable
             throw new InvalidOperationException("The durable native question was not admitted.");
         }
         await store.AdmitVersionWaitAsync(presented.Question.Key, cancellationToken);
-        if (disposed || !canInteract()) { throw new InvalidOperationException("The original native wait admission was withdrawn."); }
+        if (!Eligible()) { throw new InvalidOperationException("The original native wait admission was withdrawn."); }
         var admittedWorkspace = workspace ?? throw new InvalidOperationException("The native task control workspace is not bound.");
         var state = new NativeQuestionViewModel(presented.Question, questions, authorization, reviews,
-            () => !disposed && canInteract(), time, logger, async key =>
+            Eligible, time, logger, async key =>
         {
             var cancelled = await admittedWorkspace.CancelTaskAsync(new(key.Request.SessionId, key.Request.TaskId,
                 new(1), presented.Question.SessionGeneration, key.QuestionId, key.Revision),
-                RequestOrigin.LocalUi, () => !disposed && canInteract(), cancellationToken);
+                RequestOrigin.LocalUi, Eligible, cancellationToken);
             return new(HostInteractionOutcome.Cancelled, "pre-dispatch-work-cancelled", cancelled.Question);
         }, dismissible: true);
         // This one live continuation is the registration; persisted metadata cannot create one.
@@ -148,17 +156,19 @@ internal sealed class NativeQuestionHost : IDisposable
         if (result.Outcome != HostInteractionOutcome.Answered || result.Question is not { } answered
             || answered.Key.Request != request || answered.Key.QuestionId != state.Key.QuestionId
             || answered.Status != QuestionStatus.Answered || answered.AnswerChannel != RequestOrigin.LocalUi
-            || state.IsWithdrawn || disposed || !canInteract())
+            || state.IsWithdrawn || !Eligible())
         {
             throw new InvalidOperationException("The exact native question did not produce an eligible committed answer.");
         }
-        return await store.AdmitVersionDispatchAsync(answered.Key, () => !disposed && canInteract(), cancellationToken);
+        return await store.AdmitVersionDispatchAsync(answered.Key, Eligible, cancellationToken);
     }
 
     internal async Task<NativeQuestionViewModel?> ReturnToCurrentQuestionAsync(CancellationToken cancellationToken)
     {
         var state = current;
-        if (disposed || state is null || state.Completion.IsCompleted || state.HasPendingOperation) { return null; }
+        if (disposed || state is null || admissionRevision is null || state.Completion.IsCompleted || state.HasPendingOperation) { return null; }
+        state.RefreshEligibility();
+        if ((!state.IsEditable && state.HasPresentation) || state.Completion.IsCompleted) { return null; }
         try
         {
             if (!await IsCurrentWaitAsync(state, cancellationToken))

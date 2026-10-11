@@ -23,7 +23,8 @@ internal sealed partial class QuestionWindowController : IDisposable
     private bool disposed;
 
     internal QuestionWindowController(MainViewModel main, NativeQuestionHost host, DurableVersionQuery query,
-        IApplicationInfo info, NativeDetailRenderer renderer, Func<bool> ownsDesktop, ILogger<QuestionWindowController> logger)
+        IApplicationInfo info, NativeDetailRenderer renderer, Func<bool> ownsDesktop,
+        ILogger<QuestionWindowController> logger, Func<long>? admissionRevision = null)
     {
         this.main = main;
         this.host = host;
@@ -32,6 +33,7 @@ internal sealed partial class QuestionWindowController : IDisposable
         this.renderer = renderer;
         this.logger = logger;
         host.BindGate(() => !disposed && ownsDesktop() && main.CanRevealPrivatePresentation);
+        if (admissionRevision is not null) { host.BindAdmissionRevision(admissionRevision); }
         host.BindCallObservation(() => main.CallObservation);
         main.PrivacyClosureRequested += OnPrivacyClosure;
     }

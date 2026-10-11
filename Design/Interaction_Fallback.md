@@ -28,6 +28,8 @@ One private host-owned registration exists only after the original committed int
 
 No caller, model, selected session, history row or copied identity can create or retarget the registration.
 
+The native composition captures the real ownership bridge's admission revision and open capability gate. Handoff/abort or other admission-generation changes revoke the original registration even when the gate later reopens; an unknown revision cannot enable recovery.
+
 Dismissal clears native text, unsaved edits and review state. Return restores only the committed draft at the same revision, without an affirmative default, new question, task, grant or dispatch. An already-open exact window is activated. Neither return nor monitoring extends the original five-minute deadline, meaningful activity, queue slot or active-task clock.
 
 An owned finite deadline and passive current-wait monitor survive absence of a window. Expiry, input/privacy/ownership closure, changed task/question/generation, cancellation, uncertain storage/audit, callback failure or disposal withdraw recovery and end the original await; timer and event resources are released. Late operations cannot revive it. Explicit Submit uses the original continuation for at most one version dispatch; explicit Cancel retains atomic pre-dispatch task/question cancellation and claims no worker termination.

@@ -317,6 +317,7 @@ public sealed class NativeQuestionRecoveryTests
     [InlineData("expiry")]
     [InlineData("monotonic")]
     [InlineData("privacy")]
+    [InlineData("ownership-aba")]
     [InlineData("dispose")]
     [InlineData("unknown")]
     [InlineData("terminal")]
@@ -330,6 +331,8 @@ public sealed class NativeQuestionRecoveryTests
         var clock = new RecoveryClock(f.Time);
         var allowed = true;
         using var host = CreateHost(f, clock, () => allowed);
+        var admission = 1L;
+        host.BindAdmissionRevision(() => admission);
         using var logs = LoggerFactory.Create(_ => { });
         var shown = new TaskCompletionSource<NativeQuestionViewModel>(TaskCreationOptions.RunContinuationsAsynchronously);
         var invoked = false;
@@ -352,6 +355,7 @@ public sealed class NativeQuestionRecoveryTests
             f.Time.Now = f.Time.Now.AddDays(-1);
         }
         if (change is "privacy") { allowed = false; }
+        if (change is "ownership-aba") { admission++; }
         if (change is "dispose") { host.Dispose(); }
         if (change is "unknown" or "terminal" or "revision" or "generation")
         {
@@ -413,6 +417,32 @@ public sealed class NativeQuestionRecoveryTests
             .Contain(record => record.Request == wait.Key.Request && record.State == HostTaskState.Interrupted);
         (await restarted.ReturnToCurrentQuestionAsync(f.Token)).Should().BeNull();
         (await f.Store.ReadGrantsAsync(f.Token)).Should().BeEmpty();
+    }
+
+    [WindowsFact]
+    public async Task Unknown_owner_admission_revision_never_enables_recovery_of_an_existing_native_wait()
+    {
+        using var f = new InteractionStorageFixture();
+        await f.InitializeAsync();
+        using var host = new NativeQuestionHost(f.Store, new RecoveryClock(f.Time), NullLogger<NativeQuestionViewModel>.Instance);
+        var controls = WindowsSqliteSessionWorkspaceTests.Service(f, new());
+        host.BindWorkspace(controls);
+        host.BindGate(static () => true);
+        using var logs = LoggerFactory.Create(_ => { });
+        var shown = new TaskCompletionSource<NativeQuestionViewModel>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var run = CreateQuery(f, logs).RunAsync(RequestOrigin.LocalUi, () => Task.CompletedTask, f.Token,
+            _ => host.AskVersionAsync(model =>
+            {
+                shown.SetResult(model);
+                return Task.CompletedTask;
+            }, f.Token));
+        var model = await shown.Task;
+        model.Dismiss();
+        (await host.ReturnToCurrentQuestionAsync(f.Token)).Should().BeNull();
+        var target = new HostTaskCancellationTarget(model.Key.Request.SessionId, model.Key.Request.TaskId,
+            new(1), model.Question.SessionGeneration, model.Key.QuestionId, model.Key.Revision);
+        await controls.CancelTaskAsync(target, RequestOrigin.LocalUi, () => true, f.Token);
+        (await run).State.Should().Be(HostTaskState.Cancelled);
     }
 
     [Theory]
@@ -601,6 +631,7 @@ public sealed class NativeQuestionRecoveryTests
     {
         var host = new NativeQuestionHost(f.Store, time, NullLogger<NativeQuestionViewModel>.Instance);
         host.BindGate(gate ?? (static () => true));
+        host.BindAdmissionRevision(static () => 1);
         host.BindWorkspace(WindowsSqliteSessionWorkspaceTests.Service(f, new()));
         return host;
     }

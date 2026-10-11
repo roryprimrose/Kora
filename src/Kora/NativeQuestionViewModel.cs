@@ -22,6 +22,7 @@ internal sealed partial class NativeQuestionViewModel : ObservableObject
     private readonly ILogger<NativeQuestionViewModel> logger;
     private readonly ActivityLink[] links;
     private readonly Func<HostQuestionKey, Task<HostInteractionDecision>>? cancel;
+    private readonly bool dismissible;
     private readonly TaskCompletionSource<HostInteractionDecision> completion = new(TaskCreationOptions.RunContinuationsAsynchronously);
     private HostQuestionRecord question;
     private HostQuestionKey? reviewedKey;
@@ -29,6 +30,7 @@ internal sealed partial class NativeQuestionViewModel : ObservableObject
     private bool busy;
     private bool closed;
     private bool cleared;
+    private bool withdrawn;
     private string status = "Choose an answer. Editing is local; Save draft and Submit are explicit.";
     private string reviewText = string.Empty;
     private QuestionAnswer answer;
@@ -36,7 +38,7 @@ internal sealed partial class NativeQuestionViewModel : ObservableObject
     internal NativeQuestionViewModel(HostQuestionRecord question, HostQuestionService questions,
         HostAuthorizationService authorization, HostQuestionReviewService reviews, Func<bool> canInteract,
         TimeProvider time, ILogger<NativeQuestionViewModel> logger,
-        Func<HostQuestionKey, Task<HostInteractionDecision>>? cancel = null)
+        Func<HostQuestionKey, Task<HostInteractionDecision>>? cancel = null, bool dismissible = false)
     {
         this.question = question;
         this.questions = questions;
@@ -46,6 +48,7 @@ internal sealed partial class NativeQuestionViewModel : ObservableObject
         this.time = time;
         this.logger = logger;
         this.cancel = cancel;
+        this.dismissible = dismissible;
         links = Activity.Current is { } activity ? [new(activity.Context)] : [];
         answer = question.Draft ?? EmptyAnswer();
     }
@@ -56,8 +59,10 @@ internal sealed partial class NativeQuestionViewModel : ObservableObject
     internal string Status => status;
     internal string ReviewText => reviewText;
     internal bool HasPresentation => !cleared;
+    internal bool HasPendingOperation => busy;
+    internal bool IsWithdrawn => withdrawn;
     internal bool IsApproval => question.Proposal is not null;
-    internal bool IsEditable => !closed && !busy && question.Status == QuestionStatus.Pending
+    internal bool IsEditable => !closed && !cleared && !busy && question.Status == QuestionStatus.Pending
         && question.ExpiresAt > time.GetUtcNow() && canInteract();
     internal bool CanSubmit => IsEditable && question.Spec.Accepts(answer, submitting: true)
         && (!IsApproval || (reviewedKey == Key && displayedReviewKey == Key));
@@ -158,7 +163,7 @@ internal sealed partial class NativeQuestionViewModel : ObservableObject
                 }
                 if (reviewing)
                 {
-                    reviewText = JsonSerializer.Serialize(exact, ReviewFormat);
+                    reviewText = cleared ? string.Empty : JsonSerializer.Serialize(exact, ReviewFormat);
                     reviewedKey = target;
                     displayedReviewKey = null;
                     status = "Exact host record reviewed. Operation source bytes are not supplied by this contract. Review is not approval, use or execution.";
@@ -170,7 +175,7 @@ internal sealed partial class NativeQuestionViewModel : ObservableObject
                 reviewedKey = null;
                 displayedReviewKey = null;
                 reviewText = string.Empty;
-                answer = question.Draft!;
+                answer = cleared ? EmptyAnswer() : question.Draft!;
             }
             else
             {
@@ -182,16 +187,8 @@ internal sealed partial class NativeQuestionViewModel : ObservableObject
         }
         catch (Exception exception) when (exception is not OutOfMemoryException)
         {
-            closed = true;
-            status = "Interaction/storage/audit failed. No successful answer, approval or use is claimed. Close and start a fresh review; uncertain work is not replayed.";
-            completion.TrySetException(exception);
+            Fail(exception);
             activity.Complete(HostOperationOutcome.Failed);
-            // Never log free-form text, paths, answers or the review record.
-            try { QuestionFailure(logger, target.QuestionId.Value, target.Revision.Value, exception.GetType().FullName); }
-            catch (Exception evidenceFailure) when (evidenceFailure is IOException or InvalidOperationException)
-            {
-                status += " Diagnostic evidence is also unavailable.";
-            }
         }
         finally
         {
@@ -227,6 +224,7 @@ internal sealed partial class NativeQuestionViewModel : ObservableObject
 
     internal void Close(string reason)
     {
+        withdrawn = true;
         closed = true;
         cleared = true;
         answer = EmptyAnswer();
@@ -236,6 +234,70 @@ internal sealed partial class NativeQuestionViewModel : ObservableObject
         status = reason;
         completion.TrySetResult(new(HostInteractionOutcome.Denied, "native-presentation-closed"));
         Notify();
+    }
+
+    internal void Dismiss()
+    {
+        if (!dismissible || completion.Task.IsCompleted)
+        {
+            Close("Native presentation closed. No answer, approval or execution is implied by window closure.");
+            return;
+        }
+        cleared = true;
+        answer = EmptyAnswer();
+        reviewText = string.Empty;
+        reviewedKey = null;
+        displayedReviewKey = null;
+        status = "Presentation dismissed. Return to the current question before its original expiry, or explicitly cancel it.";
+        Notify();
+    }
+
+    internal async Task RestorePresentationAsync()
+    {
+        if (!dismissible || closed || busy || !cleared) { return; }
+        RefreshEligibility();
+        if (closed) { return; }
+        busy = true;
+        using var activity = HostActivity.BeginRoot(Key.Request, HostActivityLayer.Desktop, HostOperation.Presentation, links);
+        try
+        {
+            var decision = await reviews.ReviewAsync(Key, CancellationToken.None);
+            if (decision.Outcome != HostInteractionOutcome.Presented || decision.Question is not { } current
+                || current.Key != Key || current.SessionGeneration != question.SessionGeneration
+                || current.ExpiresAt != question.ExpiresAt || current.Proposal is not null
+                || completion.Task.IsCompleted || !canInteract() || current.ExpiresAt <= time.GetUtcNow())
+            {
+                Close("Current question unavailable. Inspect retained status and start a fresh request; nothing was replayed.");
+                activity.Complete(HostOperationOutcome.Cancelled);
+                return;
+            }
+            question = current;
+            answer = current.Draft ?? EmptyAnswer();
+            cleared = false;
+            status = "Original current-run question restored. Only a committed draft is restored; Submit and Cancel remain explicit.";
+            activity.Complete(HostOperationOutcome.Completed);
+        }
+        catch (Exception exception) when (exception is not OutOfMemoryException)
+        {
+            Fail(exception);
+            activity.Complete(HostOperationOutcome.Failed);
+        }
+        finally
+        {
+            busy = false;
+            Notify();
+        }
+    }
+
+    internal void Fail(Exception exception)
+    {
+        completion.TrySetException(exception);
+        Close("Interaction/storage/audit failed. No successful answer, approval or use is claimed. Inspect retained status and start a fresh request; uncertain work is not replayed.");
+        try { QuestionFailure(logger, Key.QuestionId.Value, Key.Revision.Value, exception.GetType().FullName); }
+        catch (Exception evidenceFailure) when (evidenceFailure is IOException or InvalidOperationException)
+        {
+            status += " Diagnostic evidence is also unavailable.";
+        }
     }
 
     private QuestionAnswer EmptyAnswer() => new([], question.Spec.Kind == QuestionKind.Text ? string.Empty : null);

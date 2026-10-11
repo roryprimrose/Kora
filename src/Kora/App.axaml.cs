@@ -120,7 +120,8 @@ public sealed partial class App : Avalonia.Application
                 () => sessionsWindow?.Open(),
                 () => maintenanceWindow?.Open(),
                 microphoneRecovery.Open,
-                () => exactGrants?.Open());
+                () => exactGrants?.Open(),
+                () => questionWindow.ReturnToCurrentQuestionAsync(window));
             evidenceWindow = new EvidenceWindowController(viewModel,
                 Services.GetRequiredService<Kora.Application.Diagnostics.DurableEvidenceQuery>(),
                 Services.GetRequiredService<Kora.Core.Diagnostics.IEvidenceQueryAccess>(),

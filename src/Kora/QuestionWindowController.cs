@@ -38,12 +38,13 @@ internal sealed partial class QuestionWindowController : IDisposable
 
     internal async Task ReviewVersionAsync(Window owner)
     {
-        if (disposed || !main.CanRevealPrivatePresentation)
+        if (disposed) { return; }
+        if (!main.CanRevealPrivatePresentation)
         {
             main.ReportHostInteractionFailure("Native question denied: privacy or host lifecycle admission is unavailable. Return through the tray after resolving the blocker; no query was dispatched.");
             return;
         }
-        if (running) { window?.Activate(); return; }
+        if (running) { await ReturnToCurrentQuestionAsync(owner); return; }
         window?.Close();
         running = true;
         try
@@ -55,24 +56,10 @@ internal sealed partial class QuestionWindowController : IDisposable
                 version = info.Version;
                 return Task.CompletedTask;
             }, CancellationToken.None, async _ =>
-                await host.AskVersionAsync(async model =>
+                await host.AskVersionAsync(model =>
                 {
-                    state = model;
-                    model.RefreshEligibility();
-                    if (!model.IsEditable) { return; }
-                    window = new(model, renderer);
-                    var opened = window;
-                    opened.Closed += (_, _) =>
-                    {
-                        if (ReferenceEquals(window, opened))
-                        {
-                            window = null;
-                            state = null;
-                        }
-                    };
-                    window.Show(owner);
-                    window.Activate();
-                    await model.Completion;
+                    OpenExact(owner, model);
+                    return Task.CompletedTask;
                 }, CancellationToken.None));
             if (!disposed && main.CanRevealPrivatePresentation)
             {
@@ -84,16 +71,68 @@ internal sealed partial class QuestionWindowController : IDisposable
         }
         catch (OperationCanceledException)
         {
-            window?.ReportOutcome("Question cancelled. No version returned or successful receipt claimed. Incomplete durable work recovers as Unknown, without replay.");
+            const string ended = "Question wait ended or was cancelled. No version returned or successful receipt claimed. Inspect durable Interrupted/Unknown status; no old work is replayed.";
+            if (!disposed)
+            {
+                if (window is not null) { window.ReportOutcome(ended); }
+                else { main.ReportHostInteractionFailure(ended); }
+            }
         }
         catch (Exception exception) when (exception is not OutOfMemoryException)
         {
             const string failure = "Native version review failed. No successful query receipt or approval is claimed. Close and start a fresh review; uncertain work is not replayed.";
-            if (window is not null) { window.ReportOutcome(failure); }
-            else { main.ReportHostInteractionFailure(failure); }
+            if (!disposed)
+            {
+                if (window is not null) { window.ReportOutcome(failure); }
+                else { main.ReportHostInteractionFailure(failure); }
+            }
             QueryFailure(logger, exception.GetType().FullName);
         }
         finally { running = false; }
+    }
+
+    internal async Task ReturnToCurrentQuestionAsync(Window owner)
+    {
+        if (disposed) { return; }
+        try
+        {
+            var model = await host.ReturnToCurrentQuestionAsync(CancellationToken.None);
+            if (disposed) { return; }
+            if (model is null)
+            {
+                main.ReportHostInteractionFailure("Current question recovery unavailable. Only the still-live original current-run local-version wait can reopen. Inspect retained status and start a fresh review; no old task is replayed.");
+                return;
+            }
+            OpenExact(owner, model);
+        }
+        catch (Exception exception) when (exception is not OutOfMemoryException)
+        {
+            if (!disposed)
+            {
+                main.ReportHostInteractionFailure("Current question recovery failed. Storage/audit or host admission is unavailable; no answer, dispatch or successful recovery is claimed. Inspect status before a fresh request.");
+            }
+            QueryFailure(logger, exception.GetType().FullName);
+        }
+    }
+
+    private void OpenExact(Window owner, NativeQuestionViewModel model)
+    {
+        model.RefreshEligibility();
+        if (disposed || !model.IsEditable) { return; }
+        if (window is not null)
+        {
+            if (ReferenceEquals(state, model)) { window.Activate(); }
+            return;
+        }
+        state = model;
+        window = new(model, renderer);
+        var opened = window;
+        opened.Closed += (_, _) =>
+        {
+            if (ReferenceEquals(window, opened)) { window = null; }
+        };
+        window.Show(owner);
+        window.Activate();
     }
 
     private void OnPrivacyClosure(object? sender, EventArgs args)
@@ -111,5 +150,6 @@ internal sealed partial class QuestionWindowController : IDisposable
         main.PrivacyClosureRequested -= OnPrivacyClosure;
         host.BindGate(static () => false);
         OnPrivacyClosure(this, EventArgs.Empty);
+        host.Dispose();
     }
 }

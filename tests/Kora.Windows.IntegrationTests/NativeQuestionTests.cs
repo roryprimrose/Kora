@@ -52,6 +52,8 @@ public sealed class NativeQuestionTests
         }, f.Token));
         var model = await displayed.Task;
         var key = model.Key;
+        model.Dismiss();
+        model.Completion.IsCompleted.Should().BeFalse();
         var command = Kora.Core.Commands.SessionCommand.Parse(
             $"task cancel {key.Request.SessionId.Value:D} {key.Request.TaskId.Value:D} 1 1 {key.QuestionId.Value:D} 1", "Kora")!;
         (await service.ExecuteCommandAsync(command, RequestOrigin.ActivatedVoice, () => true, f.Token)).Outcome.Should().Be("committed");

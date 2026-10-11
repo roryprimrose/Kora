@@ -215,6 +215,7 @@ The right-click menu contains:
 - **Release maintenance (notify-only)**
 - **Evidence (read-only)**
 - **Review local version (native question)**
+- **Return to current question** (only the still-live current-run version question)
 - Read-only generic **input status** (no endpoint ID/name or transcript in the tooltip)
 - **Listening controls > Enable listening / Disable listening**
 - **Voice consent / push-to-talk**
@@ -474,6 +475,16 @@ affected card. Query/audit failures report recovery without a success receipt.
 See [the bounded version route](commands.md#show-the-running-version).
 This question card is separate from passive Sessions/history and is not a
 new side effect or general approval dispatcher.
+
+### Return to the current version question
+
+Use **Tray > Return to current question** after closing/Escape on the native local-version card. This returns to the **same still-live original request, session, task and question**, not a replacement version check. If its exact window is already open, the route activates it; selecting another Session does not retarget it.
+
+Close clears the window's text, unsaved choices and review. Only **Save draft** preserves an answer for return; it does not submit it. A saved draft returns at its current revision; otherwise no affirmative option is selected. **Submit answer** and **Cancel question** remain separate deliberate actions. Cancel commits the original task and question as Cancelled before dispatch, not termination of a running effect.
+
+The original five-minute expiry keeps running while hidden. Reopening does not extend expiry or inactivity, and never creates another intent/question, approval, grant or dispatch. Privacy/ownership loss, changed authority, expiry, cancellation, completed/Unknown work, storage/audit failure and host disposal withdraw recovery and end that wait.
+
+After restart or completion, this route reports **Unavailable**. Inspect retained read-only status and start a fresh review; Kora never replays the old task or resumes Done. Pending/history metadata cannot turn another saved question into active controls. General question recovery, approvals, provider handoff, full composer and prefix-free voice remain separate. Headless checks are not installed screen-reader/DPI acceptance.
 
 Choose **Documentation**, select a guide page, then **Open details** to read
 that exact page in a separate native window. Its host-owned title, provenance,

@@ -169,6 +169,14 @@ separate approval.
 
 ### Delivered Bounded Question Window
 
+**Tray > Return to current question** restores the dismissed original current-run local-version window only while its host-owned original wait remains live. Close/Escape clears native controls, unsaved input and review, but does not submit, cancel or end that wait. The committed draft/current revision may return; there is no affirmative default.
+
+Already-open exact presentation activates, independently of Sessions selection and voice/approval focus.
+
+The original five-minute expiry continues without a window; return extends neither it nor meaningful activity. Exact task/wait/key/generation, live ownership/privacy and audited review must still agree. Expiry, cancellation, completion/Unknown, changed authority, storage/audit failure, closure or disposal removes eligibility and releases the host await/timers.
+
+After restart, retained metadata is read-only **Unavailable** recovery with a fresh-request instruction, never old-task rehydration. No general question/approval composer or installed-native qualification is claimed.
+
 Tray **Review local version (native question)** opens one owned, non-topmost
 window for the original durable local-version request. Opening another while
 it is pending activates that same target, not the foreground session. The

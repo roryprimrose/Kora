@@ -84,7 +84,7 @@ public sealed partial class QuestionWindow : Window
             expiry.Stop();
             expiry.Tick -= OnExpiry;
             state.PropertyChanged -= OnStateChanged;
-            state.Close("Native presentation closed. No answer, approval or execution is implied by window closure.");
+            state.Dismiss();
             refreshing = true;
             input.Text = string.Empty;
             review.Text = string.Empty;

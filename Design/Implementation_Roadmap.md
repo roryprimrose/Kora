@@ -20,6 +20,24 @@ Update this baseline and the evidence below when implementation changes.
 
 ## Delivery and Qualification Dependency Policy
 
+### R14 Current-Run Native Local-Version Question Recovery - 2026-10-11
+
+Delivered subset: **Tray > Return to current question** reopens/activates only the original genuinely live local-version question/wait/continuation. Host-owned single current-run registration, exact stored key/revision/generation and actual task/wait, private desktop admission and audited review are required.
+
+Arbitrary records, models, history, other questions/approvals, HostSystem and previous hosts cannot mint that registration.
+
+Close/Escape dismisses and clears native text, unsaved edits and review without submission/cancellation. Only committed drafts restore. Explicit Submit admits at most one original real version dispatch/terminal receipt; Cancel uses existing atomic pre-dispatch task/question cancellation, never a worker-termination claim.
+
+Original five-minute finite expiry remains enforced with no UI, independent of return, inactivity and active-task clocks.
+
+Expiry, privacy/ownership/input closure, callback failure, changed revision/generation/lifecycle, terminal/Unknown task, required audit/storage uncertainty and disposal withdraw recovery. Late results cannot reopen it; owned deadline/monitor/event resources quiesce. Restart leaves read-only retained status, Interrupted/Unknown recovery and fresh-request guidance, never replay, Done resume or historical active controls.
+
+Maintained [private SQLite recovery/race/finite-await/linked-Activity tests](../tests/Kora.Windows.IntegrationTests/NativeQuestionRecoveryTests.cs) and existing native question/window contracts cover this scope. Headless window clearing/focus is not installed-native screen-reader/DPI acceptance. Generic question recovery, approvals, provider handoff, grants, full composer, model and prefix-free voice remain separate; no new audio/network/hardware/runtime operation is enabled.
+
+Exact experiment-equivalence assessment: maintained tests cover production intent-only no-replay, same-current-wait presentation and atomic draft/answer/cancel boundaries, not a complete experiment assertion set. Storage proof's synthetic engine/crypto/backup/capacity/physical-interruption assertions remain distinct.
+
+Runtime, native/provider, containment, speech/privacy/hardware receipts and active proof consumers remain unchanged. No executable/consumer is removed or proof gate weakened.
+
 ### R14 Bounded Passive Cross-Session Work / Attention Overview - 2026-10-11
 
 Delivered subset: **Tray > Sessions > All work / attention overview** opens an owned native read-only window; explicit Refresh/Next/Cancel observes up to ten admitted metadata identities and independent current per-session work snapshots per call, plus bounded metadata lookahead.

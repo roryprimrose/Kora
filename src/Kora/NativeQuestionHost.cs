@@ -92,11 +92,12 @@ internal sealed class NativeQuestionHost : IDisposable
         }, dismissible: true);
         // This one live continuation is the registration; persisted metadata cannot create one.
         current = state;
+        var externallyCancelled = new TaskCompletionSource<HostTaskObservation>(TaskCreationOptions.RunContinuationsAsynchronously);
         void OnCancelled(HostTaskObservation observation)
         {
             if (observation.Task.Request == request)
             {
-                state.AcceptCommittedCancellation(observation);
+                externallyCancelled.TrySetResult(observation);
             }
         }
         admittedWorkspace.WaitingTaskCancelled += OnCancelled;
@@ -111,16 +112,22 @@ internal sealed class NativeQuestionHost : IDisposable
             var observation = await store.ReadTaskAsync(request.SessionId, request.TaskId, cancellationToken);
             if (observation?.Task.State == HostTaskState.Cancelled) { state.AcceptCommittedCancellation(observation); }
             var presentedTask = present(state);
-            if (await Task.WhenAny(presentedTask, state.Completion).WaitAsync(lifetime.Token) == state.Completion)
+            var first = await Task.WhenAny(presentedTask, state.Completion, externallyCancelled.Task).WaitAsync(lifetime.Token);
+            if (first == externallyCancelled.Task)
             {
-                var decision = await state.Completion;
-                if (decision.Outcome is not (HostInteractionOutcome.Answered or HostInteractionOutcome.Cancelled))
-                {
-                    throw new InvalidOperationException("The original native wait ended without an eligible answer or atomic cancellation.");
-                }
+                state.AcceptCommittedCancellation(await externallyCancelled.Task);
+            }
+            if (first == presentedTask) { await presentedTask; }
+            if (await Task.WhenAny(state.Completion, externallyCancelled.Task).WaitAsync(lifetime.Token) == externallyCancelled.Task)
+            {
+                state.AcceptCommittedCancellation(await externallyCancelled.Task);
+            }
+            var decision = await state.Completion;
+            if (decision.Outcome is not (HostInteractionOutcome.Answered or HostInteractionOutcome.Cancelled))
+            {
+                throw new InvalidOperationException("The original native wait ended without an eligible answer or atomic cancellation.");
             }
             await presentedTask.WaitAsync(lifetime.Token);
-            await state.Completion.WaitAsync(lifetime.Token);
         }
         catch (Exception exception) when (exception is not OutOfMemoryException)
         {

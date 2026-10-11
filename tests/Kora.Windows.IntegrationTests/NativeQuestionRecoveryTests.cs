@@ -24,14 +24,18 @@ namespace Kora.Windows.IntegrationTests;
 [Collection(nameof(DurableStorageCompositionTestGroup))]
 public sealed class NativeQuestionRecoveryTests
 {
-    [WindowsFact]
-    public async Task Native_close_clears_controls_then_exact_reopen_restores_only_the_saved_draft_without_changing_other_focus_targets()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Native_close_clears_controls_then_exact_reopen_restores_only_the_saved_draft_without_changing_other_focus_targets(bool externalCancel)
     {
         await HeadlessSession.RunAsync(async () =>
         {
             using var f = new InteractionStorageFixture();
             await f.InitializeAsync();
             using var host = CreateHost(f, new RecoveryClock(f.Time));
+            var taskControls = WindowsSqliteSessionWorkspaceTests.Service(f, new());
+            host.BindWorkspace(taskControls);
             using var logs = LoggerFactory.Create(_ => { });
             var shown = new TaskCompletionSource<NativeQuestionViewModel>(TaskCreationOptions.RunContinuationsAsynchronously);
             var run = CreateQuery(f, logs).RunAsync(RequestOrigin.LocalUi, () => Task.CompletedTask, f.Token,
@@ -68,8 +72,15 @@ public sealed class NativeQuestionRecoveryTests
                 model.Answer.Choices.Should().Equal("show");
                 second.FocusManager!.GetFocusedElement().Should().NotBeSameAs(second.FindControl<Button>("SubmitAnswer"));
                 second.FindControl<TextBox>("ExactReview")!.Text.Should().BeNullOrEmpty();
-                await model.CancelAsync();
-                (await run).State.Should().Be(HostTaskState.Cancelled);
+                if (externalCancel)
+                {
+                    var target = new HostTaskCancellationTarget(model.Key.Request.SessionId, model.Key.Request.TaskId,
+                        new(1), model.Question.SessionGeneration, model.Key.QuestionId, model.Key.Revision);
+                    // A typed/voice cancellation can originate outside the native UI thread.
+                    await Task.Run(() => taskControls.CancelTaskAsync(target, RequestOrigin.LocalUi, () => true, f.Token), f.Token);
+                }
+                else { await model.CancelAsync(); }
+                (await run.WaitAsync(TimeSpan.FromSeconds(5), f.Token)).State.Should().Be(HostTaskState.Cancelled);
             }
             finally
             {

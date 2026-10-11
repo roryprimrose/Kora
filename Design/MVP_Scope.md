@@ -154,9 +154,10 @@ Use a controllable test MCP server for acceptance testing. A real connector must
 No repository writes, arbitrary scripts, or remote mutation tools are enabled in this slice.
 The fixed computer-control scripts from Slice A are not a generic script execution capability.
 
-### Slice C: Voice-Driven Skill Authoring
+### Slice C: Voice/Text Skill and Instruction Authoring
 
-Add a narrowly scoped Builder workflow that develops usable skills through voice:
+Add a narrowly scoped Builder workflow that develops usable skills and
+standalone instructions through voice, typed, or mixed interaction:
 
 1. Describe the desired skill verbally and clarify behaviour, inputs, and tools.
 2. Generate and refine a declarative proposal without modifying installed skills.
@@ -165,7 +166,13 @@ Add a narrowly scoped Builder workflow that develops usable skills through voice
 5. Approve and save the validated revision to the dedicated user skill store.
 6. Separately confirm exact enablement through voice or UI, then invoke it through either channel under normal task permissions.
 
-See [Voice-Driven Skill Authoring](Skill_Authoring.md).
+Standalone instructions reuse proposal/refinement, rendered preview, exact
+source/diff, validation, conflict handling and revision-bound Save, but use a
+single-file editor without package fixtures, dependency tests, or enablement.
+Compatible profile instructions may replace only their exact discovered file
+after identity and unchanged-base-digest revalidation.
+
+See [Skill and Instruction Authoring](Skill_Authoring.md).
 Kora-specific skills and edited copies of shared skills are saved under `%APPDATA%\Kora\Skills`; shared profile sources are never edited.
 See [Skill Sources and Roaming Storage](Skill_Storage.md).
 External build/test commands and Git writes are outside the MVP skill-authoring workflow; it requires neither compiled code nor a commit.

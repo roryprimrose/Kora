@@ -263,7 +263,24 @@ VS Code Insiders customization locations are read without whole-profile
 scanning or reparse traversal. Strict UTF-8, byte/file/depth bounds,
 frontmatter, skill folder/name agreement, `user-invocable`, and catalogue
 uniqueness are validated. Invalid or conflicting discovery fails closed.
-Discovery occurs at startup; restart is required after disk changes.
+Startup establishes the first immutable catalogue revision. Bounded watchers
+on only those admitted roots treat filesystem notifications as invalidation
+hints and rerun authoritative discovery; reconciliation covers notification
+loss. Valid external skill and instruction changes publish a new digest-pinned
+revision without restart. Active requests retain their original snapshot while
+new requests use the refreshed revision. Invalid, partial, missing, aliased or
+conflicting changed definitions become visibly unavailable rather than using
+stale bytes as current. Grants bound to a changed definition or dependency
+digest no longer match and are never transferred by path or name.
+
+Standalone Kora and compatible profile instructions use the same conversational
+proposal, rendered preview, exact source/diff, validation, conflict and native
+Save-confirmation experience as declarative skill authoring. The instruction
+variant edits one `*.instructions.md` file and omits the skill package tree,
+fixtures, dependency tests and enablement workflow. Voice and typed input can
+propose edits. Profile saves may replace only the exact discovered source file
+after file-identity and base-digest revalidation; they do not provide a general
+model-directed file writer.
 
 Running an artifact means applying its declarative instructions to the current
 model request. It does not execute a packaged script, approve an operation,

@@ -183,7 +183,7 @@ adapter admission or release acceptance.
 5. [Security and Data Flows](Security_Data_Flows.md): consent, identities, execution, and retention.
 6. [Task Lifecycle and Recovery](Task_Lifecycle.md): voice interaction, cancellation, and failure behaviour.
 7. [Work Management and Request Queue](Work_Management.md): contextual scheduling, concurrent management, and grounded status.
-8. [Voice-Driven Skill Authoring](Skill_Authoring.md): creating usable skills without modifying application code.
+8. [Voice- and Text-Driven Skill and Instruction Authoring](Skill_Authoring.md): creating usable skills and standalone instructions without modifying application code.
 9. [Out-of-the-Box Skills and Session Policy](Built_In_Skills.md): explicit embedded manifests, Markdown and shared multi-script packaging, deterministic grant hashes, and mandatory microphone lock policy.
 10. [Skill Sources and Roaming Storage](Skill_Storage.md): read-only profile reuse, Kora-specific partitions, and future folder-based executable-skill dependency discovery.
 11. [Distribution and Updates](Distribution_And_Updates.md): source bootstrap, compiled binaries, startup, and maintenance boundaries.

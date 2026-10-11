@@ -617,9 +617,12 @@ Use at least 30 measured trials and concurrent completion/cancellation fixtures.
 - Shared skill instructions sent to a remote model pass the same reviewed egress policy as other selected context.
 - Cancellation and disconnect tests leave no falsely successful task state.
 
-## Gate 3: Voice-Driven Skill Authoring and Application Integrity
+## Gate 3: Voice/Text Skill and Instruction Authoring and Application Integrity
 
 - A user creates, refines, tests with mocks, and separately confirms exact save/enable through voice, UI, or mixed input with no manual file editing.
+- Standalone Kora and compatible profile instructions use the same proposal, rendered preview, exact source/diff, validation, conflict, and revision-bound Save controls as skills, with a single-file editor and no package tree, fixtures, dependency test, or enablement step.
+- Voice and typed-composer refinements produce the same bounded instruction proposal; neither can save without exact native confirmation.
+- Editing a profile instruction replaces only its exact discovered source file after source-root, file-identity, and unchanged-base-digest checks; changed, missing, aliased, inaccessible, or conflicting files reject the save and require refresh/review.
 - Spoken capability summaries and the displayed diff identify the same proposed revision.
 - The proposal phase creates no installed-skill writes; staged proposals remain data only.
 - Native save approval binds exact package files, base hashes, and new content; later refinement invalidates approval and the saved revision remains disabled.
@@ -639,6 +642,10 @@ Use at least 30 measured trials and concurrent completion/cancellation fixtures.
 - Skills remain partitioned from `%LOCALAPPDATA%\Kora` enablement/audit records and the credential facility.
 - Roamed definitions on a second simulated device do not inherit enablement, credentials, action approvals, script trust, or priority routing.
 - Incomplete/conflicting roaming revisions are disabled for reconciliation; interrupted saves do not silently replace the last valid revision.
+- Valid external skill and instruction changes are rediscovered and available to new invocations without restart; active invocations retain their immutable pinned revision.
+- Filesystem notifications are hints only; bounded authoritative rediscovery and reconciliation handle partial writes, rename/replace, duplicate events, notification loss, reparse/identity changes, malformed content, and catalogue conflicts.
+- Invalid or incomplete externally changed definitions become visibly unavailable and stale bytes are not silently advertised as current.
+- Grants whose complete binding includes the changed artifact or dependency digest no longer match the new revision and require fresh review; they do not transfer by path, name, ID, or restoration of old bytes, while unrelated grants remain unchanged.
 - Local-only mode rejects network-backed skill roots explicitly; Kora does not silently move storage or claim control of OS-managed synchronisation.
 - Removing a shared source registration leaves source files intact; clearing conversation history does not delete authored skills.
 - Skills cannot change policy, register arbitrary executable loading locations, or grant permissions.

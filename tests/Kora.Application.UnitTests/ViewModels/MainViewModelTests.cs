@@ -5888,7 +5888,7 @@ public sealed partial class MainViewModelTests : IDisposable
     }
 
     [Fact]
-    public async Task Unknown_question_answer_remains_pending_until_a_built_in_command_supersedes_it()
+    public async Task Spoken_custom_question_answer_continues_without_becoming_an_approval()
     {
         var fixture = new Fixture();
         fixture.Probe.Status = new DependencyStatus(
@@ -5900,13 +5900,40 @@ public sealed partial class MainViewModelTests : IDisposable
         await fixture.RunAsync("choose a color");
         await fixture.ViewModel.ActiveReasoningTask!;
 
-        await fixture.RaiseActivatedTranscriptAsync("maybe later", 0.9f);
-        fixture.ViewModel.ResponseTitle.Should().Be("Choose an option or cancel the question.");
-        fixture.ViewModel.IsModelQuestionPending.Should().BeTrue();
-        await fixture.RaiseActivatedTranscriptAsync("Kora, what version are you running", 0.9f);
+        fixture.Reasoner.Question = null;
+        await fixture.RaiseActivatedTranscriptAsync("Kora, maybe later", 0.9f);
+        await fixture.ViewModel.ActiveReasoningTask!;
+
         fixture.ViewModel.IsModelQuestionPending.Should().BeFalse();
-        fixture.ViewModel.ResponseTitle.Should().Be("Kora version");
-        fixture.Reasoner.Requests.Should().ContainSingle();
+        fixture.Reasoner.Requests.Should().HaveCount(2);
+        fixture.Reasoner.Requests[1].Should().Contain("\"CustomAnswer\":\"maybe later\"")
+            .And.Contain("not permission");
+        fixture.Session.LockCalls.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task Typed_custom_question_answer_uses_the_same_bounded_continuation()
+    {
+        var fixture = new Fixture();
+        fixture.Probe.Status = new DependencyStatus(
+            "local.inference", "Local model inference (Ollama)", DependencyReadiness.Ready, "Ready.");
+        fixture.Reasoner.Question = new LocalModelQuestion("Which color?", ["Blue", "Green"]);
+        await fixture.ViewModel.InitializeAsync();
+        await fixture.RunAsync("choose a color");
+        await fixture.ViewModel.ActiveReasoningTask!;
+        fixture.ViewModel.CommandInputPlaceholder.Should().Be("Type an option or your own answer");
+        fixture.ViewModel.CommandSubmitLabel.Should().Be("Answer");
+        fixture.Reasoner.Question = null;
+
+        await fixture.RunAsync("Use the color from the current theme");
+        await fixture.ViewModel.ActiveReasoningTask!;
+
+        fixture.ViewModel.IsModelQuestionPending.Should().BeFalse();
+        fixture.ViewModel.CommandInputPlaceholder.Should().Be("Type a command or / for artifacts");
+        fixture.ViewModel.CommandSubmitLabel.Should().Be("Run");
+        fixture.Reasoner.Requests.Should().HaveCount(2);
+        fixture.Reasoner.Requests[1].Should()
+            .Contain("\"CustomAnswer\":\"Use the color from the current theme\"");
     }
 
     [Fact]

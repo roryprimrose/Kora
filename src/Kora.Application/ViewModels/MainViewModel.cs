@@ -648,6 +648,10 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     public IReadOnlyList<ResponseAction> ResponseActions { get; private set; } = [];
     public bool HasResponseActions => ResponseActions.Count > 0;
     public IReadOnlyList<ModelQuestionChoice> ModelQuestionChoices { get; private set; } = [];
+    public string CommandInputPlaceholder => IsModelQuestionPending
+        ? "Type an option or your own answer"
+        : "Type a command or / for artifacts";
+    public string CommandSubmitLabel => IsModelQuestionPending ? "Answer" : "Run";
     public bool IsGrantChangePending => pendingGrantChange is not null;
     public bool IsApprovalPending => IsModelActionApprovalPending || IsGrantChangePending;
     public bool IsGrantEditorVisible
@@ -2662,10 +2666,12 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         OnPropertyChanged(nameof(ModelQuestionChoices));
         OnPropertyChanged(nameof(IsModelQuestionPending));
         OnPropertyChanged(nameof(IsResponseInteractionPending));
+        OnPropertyChanged(nameof(CommandInputPlaceholder));
+        OnPropertyChanged(nameof(CommandSubmitLabel));
         var options = string.Join("; ", ModelQuestionChoices.Select(choice => choice.DisplayText));
         ShowInformation(
             "Kora needs your direction.",
-            $"{question.Prompt}\n{options}\nChoose an option by number or label, by voice or mouse. This is not an action approval. Say “cancel question” to dismiss.");
+            $"{question.Prompt}\n{options}\nChoose an option or provide your own answer by voice or typing. This is not an action approval. Say “cancel question” to dismiss.");
         WindowActionRequested?.Invoke(this, WindowAction.Show);
     }
 
@@ -2678,6 +2684,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         OnPropertyChanged(nameof(ModelQuestionChoices));
         OnPropertyChanged(nameof(IsModelQuestionPending));
         OnPropertyChanged(nameof(IsResponseInteractionPending));
+        OnPropertyChanged(nameof(CommandInputPlaceholder));
+        OnPropertyChanged(nameof(CommandSubmitLabel));
         NotifyOutputPolicyChanged();
     }
 
@@ -2691,15 +2699,37 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             return;
         }
 
-        var answer = choice.Text;
-        var artifact = pendingQuestionArtifact;
-        var followup = JsonSerializer.Serialize(new
+        await SubmitModelQuestionAnswerAsync(
+            question, choice.Text, selectedOption: true, SecurityAuditInitiator.TypedCommand);
+    }
+
+    private async Task SubmitModelQuestionAnswerAsync(
+        LocalModelQuestion question,
+        string answer,
+        bool selectedOption,
+        SecurityAuditInitiator initiator)
+    {
+        if (!ReferenceEquals(pendingModelQuestion, question)
+            || pendingQuestionRequest is not { } original)
         {
-            OriginalRequest = original,
-            ClarificationQuestion = question.Prompt,
-            SelectedOption = answer,
-            Instruction = "Use the user's selected option to continue the original request. This selection is not permission to execute an action.",
-        });
+            return;
+        }
+        var artifact = pendingQuestionArtifact;
+        var followup = selectedOption
+            ? JsonSerializer.Serialize(new
+            {
+                OriginalRequest = original,
+                ClarificationQuestion = question.Prompt,
+                SelectedOption = answer,
+                Instruction = "Use the user's selected option to continue the original request. This selection is not permission to execute an action.",
+            })
+            : JsonSerializer.Serialize(new
+            {
+                OriginalRequest = original,
+                ClarificationQuestion = question.Prompt,
+                CustomAnswer = answer,
+                Instruction = "Use the user's custom answer to continue the original request. This answer is not permission to execute an action.",
+            });
         var depth = pendingQuestionDepth;
         if (!await TryStopQuestionPromptAsync())
         {
@@ -2719,9 +2749,10 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
         await HandleUnmatchedRequestAsync(
             followup,
-            SecurityAuditInitiator.TypedCommand,
+            initiator,
             depth,
-            artifact: artifact);
+            artifact: artifact,
+            activationAlreadyValidated: initiator == SecurityAuditInitiator.VoiceCommand);
     }
 
     public async Task CancelModelQuestionAsync()
@@ -4054,15 +4085,17 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         }
         if (pendingModelQuestion is { } question)
         {
-            if (initiator != SecurityAuditInitiator.VoiceCommand
+            var canAnswer = initiator != SecurityAuditInitiator.VoiceCommand
                 || !RequireAssistantNameForVoiceApproval
-                || commandRouter.IsActivationPrefixed(spokenText, AssistantName))
+                || commandRouter.IsActivationPrefixed(spokenText, AssistantName);
+            if (canAnswer)
             {
                 var index = LocalModelQuestionSpeech.Match(spokenText, question, AssistantName);
                 if (index >= 0)
                 {
                     Transcript = $"“{spokenText}” · {confidence:P0} confidence";
-                    await SelectModelQuestionChoiceAsync(ModelQuestionChoices[index]);
+                    await SubmitModelQuestionAnswerAsync(
+                        question, ModelQuestionChoices[index].Text, selectedOption: true, initiator);
                     return;
                 }
                 if (commandRouter.Match(spokenText, AssistantName).Command?.Action == BuiltInAction.CancelTask
@@ -4071,11 +4104,17 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                     await CancelModelQuestionAsync();
                     return;
                 }
+                if (LocalModelQuestionSpeech.GetFreeTextAnswer(spokenText, AssistantName) is { } answer)
+                {
+                    Transcript = $"“{spokenText}” · {confidence:P0} confidence";
+                    await SubmitModelQuestionAnswerAsync(question, answer, selectedOption: false, initiator);
+                    return;
+                }
             }
-            else if (LocalModelQuestionSpeech.Match(spokenText, question, AssistantName) >= 0)
+            else if (LocalModelQuestionSpeech.GetFreeTextAnswer(spokenText, AssistantName) is not null)
             {
                 ShowInformation("Say the assistant name to answer.",
-                    $"{question.Prompt} Say “{AssistantName}, option one” or choose an option in the response window.");
+                    $"{question.Prompt} Say “{AssistantName}, option one”, address me by name with your own answer, or type an answer in the response window.");
                 return;
             }
 
@@ -4088,8 +4127,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             }
             else
             {
-                ShowInformation("Choose an option or cancel the question.",
-                    $"{question.Prompt} Say “{AssistantName}, option one”, choose a button, or say “{AssistantName}, cancel question”.");
+                ShowInformation("Answer or cancel the question.",
+                    $"{question.Prompt} Say “{AssistantName}, option one”, provide your own answer, choose a button, or say “{AssistantName}, cancel question”.");
                 return;
             }
         }
@@ -4227,9 +4266,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         SecurityAuditInitiator initiator,
         int questionDepth = 0,
         ArtifactInvocation? artifactInvocation = null,
-        LocalModelArtifact? artifact = null)
+        LocalModelArtifact? artifact = null,
+        bool activationAlreadyValidated = false)
     {
         if (initiator == SecurityAuditInitiator.VoiceCommand
+            && !activationAlreadyValidated
             && !commandRouter.IsActivationPrefixed(spokenText, AssistantName))
         {
             ShowInformation(
@@ -4566,7 +4607,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             {
                 var options = string.Join(". ", ModelQuestionChoices.Select(choice => choice.DisplayText));
                 await SpeakCurrentResponseAsync(
-                    $"{question.Prompt} {options}. Choose an option by number or say cancel question. "
+                    $"{question.Prompt} {options}. Choose an option by number, provide your own answer, or say cancel question. "
                     + (RequireAssistantNameForVoiceApproval
                         ? "Begin your answer by addressing me by name."
                         : "You may answer without addressing me by name."),

@@ -40,6 +40,9 @@ remain intact; cached maintenance Check/Open stays separately native.
 
 ## Deterministic fixed local-version queue boundary
 
+The [native optional prerequisite](Work_Management.md#delivered-optional-native-enqueue-prerequisite---2026-10-12) captures only exact same-session immutable ID and real revision from existing bounded host task metadata. It adds an optional optimistic enqueue guard, not durable policy/schema or authority.
+The original audited transaction rechecks task existence/session/revision and private source eligibility before COMMIT; missing/changed source refuses without None fallback. Typed after-task remains unchanged, and normal dispatch reevaluates Succeeded independently of the original observation.
+
 The [expired current-run removal/new-decision transaction](Work_Management.md#delivered-reviewed-expired-pending-removal-and-fresh-tail-decision---2026-10-12) binds the exact stored Pending source/task/run/private epoch and host-issued fresh same-profile request/task IDs to a separate user confirmation.
 Queue/order/pause/settings/source revisions and actual original UTC expiry are checked under the same short private SQLite admission fence. Typed original/fresh audit lineage and old Removed/Cancelled plus new Pending/IntentRecorded changes commit all-or-none, without new grants, replay, dependency retarget or side-file authority. Unknown commit/delivery holds admission.
 

@@ -87,6 +87,7 @@ internal sealed partial class SessionsViewModel(
 
     internal void RevokeSessionList()
     {
+        InvalidateQueuePrerequisite(clearSource: true);
         InvalidateListSearch();
         sessions = null;
         status = "Session metadata source/lifecycle changed. Rows and search continuation revoked; Refresh or Search requires fresh private admission.";
@@ -314,6 +315,7 @@ internal sealed partial class SessionsViewModel(
             var page = await service.SearchListAsync(SessionListSearchKind.ExactId, SessionListFilter.All,
                 session.Value.ToString("D"), null, 1, cancellation.Token);
             var record = page.Records.Single();
+            var observedAdmission = access.ControlRevision;
             var snapshot = await service.ReadWorkAsync(session, cancellation.Token);
             var observedQuestions = await service.ReadQuestionsAsync(session, null, 25, cancellation.Token);
             var observedTasks = await service.ReadTasksAsync(session, null, 25, cancellation.Token);
@@ -334,7 +336,7 @@ internal sealed partial class SessionsViewModel(
             tasks = observedTasks;
             retentionSubject = session;
             retentionObservation = observedRetention;
-            ApplyWork(snapshot);
+            ApplyWork(snapshot, observedAdmission);
             Render();
             status = "Fresh passive exact-session navigation. Opening and selection grant nothing; answer only in the original Questions window.";
             // Navigation cannot renew an inspected task cancellation target, even when a question wait was observed.
@@ -583,6 +585,7 @@ internal sealed partial class SessionsViewModel(
 
     private void ClearSelection()
     {
+        InvalidateQueuePrerequisite(clearSource: true);
         ClearProviderReview();
         attachments?.Close();
         if (selected is { } previous) { memories?.ClearSessionDrafts(previous.Authority.SessionId); }

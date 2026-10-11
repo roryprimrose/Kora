@@ -167,7 +167,7 @@ public sealed partial class SessionQueueService : IAsyncDisposable
                             session, RequireTask(command), origin),
                         generation, command.QueueRevision, revision, command.DependencyTaskId is { } dependency ? new(dependency) : null,
                         current, () => Eligible() && (configuration is null || configuration.IsCurrent(current)), token,
-                        command.QueueProfile).AsTask(), token).ConfigureAwait(false),
+                        command.QueueProfile, command.ExpectedDependencyRevision).AsTask(), token).ConfigureAwait(false),
                     SessionCommandOperation.QueueCancel or SessionCommandOperation.QueueRemove =>
                         await store.RemovePendingAsync(request, generation, command.QueueRevision, RequireTask(command),
                             new(command.TaskRevision), command.Operation == SessionCommandOperation.QueueCancel

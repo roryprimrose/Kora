@@ -454,6 +454,7 @@ public sealed partial class NativeUxFixtureContractTests
             await viewer.EnqueueVersionAsync();
             viewer.SelectWorkRecord(viewer.WorkRecords.Single(record => record.Queue?.Entry.State == SessionQueueState.Pending));
             await viewer.RemoveQueueEntryAsync();
+            viewer.ChooseNoQueuePrerequisite();
             await viewer.EnqueueVersionAsync();
             await viewer.DispatchQueueAsync();
             var window = new SessionsWindow(viewer);
@@ -464,6 +465,7 @@ public sealed partial class NativeUxFixtureContractTests
                 records.UpdateLayout();
                 var peer = ControlAutomationPeer.CreatePeerForElement(records)!;
                 _ = Descendants(peer).ToArray();
+                viewer.ChooseNoQueuePrerequisite();
                 await viewer.EnqueueVersionAsync();
                 records.UpdateLayout();
                 var pending = viewer.WorkRecords.Single(record => record.Queue?.Entry.State == SessionQueueState.Pending);
@@ -498,6 +500,7 @@ public sealed partial class NativeUxFixtureContractTests
             await viewer.EnqueueVersionAsync();
             viewer.SelectWorkRecord(viewer.WorkRecords.Single(record => record.Queue?.Entry.State == SessionQueueState.Pending));
             await viewer.RemoveQueueEntryAsync();
+            viewer.ChooseNoQueuePrerequisite();
             await viewer.EnqueueVersionAsync();
             await viewer.DispatchQueueAsync();
             var window = new SessionsWindow(viewer);
@@ -510,6 +513,7 @@ public sealed partial class NativeUxFixtureContractTests
             try
             {
                 records.UpdateLayout();
+                viewer.ChooseNoQueuePrerequisite();
                 await viewer.EnqueueVersionAsync();
                 records.UpdateLayout();
                 var pending = viewer.WorkRecords.Single(record => record.Queue?.Entry.State == SessionQueueState.Pending);
@@ -639,6 +643,7 @@ public sealed partial class NativeUxFixtureContractTests
             fixture.Main.HasVoiceConsent.Should().BeFalse();
             fixture.Main.LocalModelsEnabled.Should().BeFalse();
             fixture.Main.HostedModelsEnabled.Should().BeFalse();
+            viewer.ChooseNoQueuePrerequisite();
             await viewer.EnqueueVersionAsync();
             var pending = viewer.QueueRecords.Single();
             fixture.Access.SetOpen(false);

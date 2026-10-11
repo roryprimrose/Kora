@@ -183,6 +183,13 @@ share one host service. No model, network or audio is required for management
 or the fixed read. Voice commands still require normal activation/consent;
 the queue cannot open a microphone or speak a response.
 
+In native **Sessions**, use **Optional prerequisite**: keep initial **None**, or explicitly select an exact same-session task from at most 50 already-observed metadata rows. Rows show task/session IDs, observed generation/state/revision and UTC host source; no task body or history is read. Work/question selection never supplies a prerequisite.
+
+Each of the four **Enqueue** buttons applies that one choice through the same route as `[after <task-id>]`. Only exact Succeeded permits later dispatch; pending, failed, cancelled or Unknown can block the FIFO head. Enqueue never runs automatically.
+After enqueue, explicitly choose **None** or select a task again. Refresh/session/private/source changes revoke a choice; stale/missing task revisions require refresh/reselection, never silent None fallback.
+
+Typed syntax and arbitrary exact after-task semantics below are unchanged; no revision token is added to typed enqueue. The native picker is a bounded same-session subset, not cross-session search or existing dependency editing.
+
 | Exact syntax | Result |
 |---|---|
 | `queue help` | Bounded syntax and unavailable scope |

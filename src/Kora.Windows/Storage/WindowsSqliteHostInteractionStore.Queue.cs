@@ -52,12 +52,24 @@ public sealed partial class WindowsSqliteHostInteractionStore
     public ValueTask<SessionQueueSnapshot> EnqueueAsync(HostRequest control, HostRequest work,
         HostRevision generation, long expectedRevision, long admissionRevision, HostId<TaskIdentity>? dependency,
         SessionQueueLimits limits, Func<bool> eligible, CancellationToken token,
-        SessionQueueReadProfile profile = SessionQueueReadProfile.Version) =>
-        RunHostMutationAsync(control, QueueAction("enqueue", profile), (connection, transaction, intent, audit) =>
+        SessionQueueReadProfile profile = SessionQueueReadProfile.Version, HostRevision? expectedDependencyRevision = null)
+    {
+        Func<bool>? dependencyCurrent = null;
+        return RunHostMutationAsync(control, QueueAction("enqueue", profile), (connection, transaction, intent, audit) =>
         {
             RequireFreshMetadataIntent(intent);
             _ = RequireQueueRevision(connection, control, generation, expectedRevision);
             RequireNewQueueWork(connection, control, work, dependency, limits);
+            bool MatchesDependency() => dependency is { } id
+                ? ReadTask(connection, id) is { } source && (expectedDependencyRevision is null
+                    || source.Request.SessionId == control.SessionId && source.Revision == expectedDependencyRevision)
+                : expectedDependencyRevision is null;
+            if (!MatchesDependency())
+            {
+                throw new InvalidOperationException("The exact prerequisite observation changed. Refresh work and explicitly reselect.");
+            }
+            // Recheck after the transaction checkpoint and before COMMIT, never freeze dispatch eligibility.
+            dependencyCurrent = MatchesDependency;
             var now = time.GetUtcNow();
             var entry = NewQueueEntry(connection, work, generation, admissionRevision, dependency, limits, profile, now);
             var task = new HostTaskRecord(work, new(1), HostTaskState.IntentRecorded);
@@ -74,7 +86,8 @@ public sealed partial class WindowsSqliteHostInteractionStore
                 TouchActivity(connection, transaction, work.SessionId);
             }
             return QueueSnapshot(connection, control.SessionId);
-        }, token, eligible, requireIdle: false);
+        }, token, () => eligible() && dependencyCurrent?.Invoke() == true, requireIdle: false);
+    }
 
     public ValueTask<SessionQueueSnapshot> RemovePendingAsync(HostRequest control, HostRevision generation,
         long expectedRevision, HostId<TaskIdentity>? task, HostRevision? entryRevision, SessionQueueState outcome,

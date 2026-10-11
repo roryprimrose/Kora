@@ -22,6 +22,9 @@ No format/limit override, folder attachment, managed source, extra version, mode
 
 ### Delivered bounded fixed local-version queue settings (R10/R13)
 
+The [optional native prerequisite](Work_Management.md#delivered-optional-native-enqueue-prerequisite---2026-10-12) is a volatile explicit decision for one new fixed read, not a device preference or policy edit. Initial None preserves the original route; after enqueue choose None or an exact observed same-session task again.
+Refresh/private/session changes revoke selection. Pending capacity, slots and captured pending/active lifetimes below remain unchanged.
+
 Native **Settings > Sessions > Fixed read-only local-version queue** and exact typed/current-name activated input share the [queue configuration service](../src/Kora.Application/Configuration/SessionQueueConfigurationService.cs).
 Device-local options are `queue.pending-per-session` (**1-10**, default/reset **10**), `queue.execution-slots` (**1-2**, default/reset **1**), `queue.pending-lifetime-minutes` (**1-120 minutes**, default/reset **30**) and `queue.active-budget-minutes` (**1-60 minutes**, default/reset **5**); all values are canonical integers.
 Each option resets independently, preserving the other three; resetting all four removes only this override file ([domain validation](../src/Kora.Core/Configuration/SessionQueuePreferences.cs), [atomic preferences](../src/Kora.Application/Configuration/LocalSessionQueuePreferences.cs)).

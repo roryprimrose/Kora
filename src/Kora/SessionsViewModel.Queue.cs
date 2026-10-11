@@ -47,10 +47,18 @@ internal sealed partial class SessionsViewModel
         var selectedId = selected?.Authority.SessionId;
         var entry = selectedQueueEntry;
         var snapshot = queueSnapshot;
+        var observedAdmission = access.ControlRevision;
+        if (operation == SessionCommandOperation.QueueList) { InvalidateQueuePrerequisite(clearSource: true); }
+        var prerequisite = queuePrerequisite;
+        var prerequisiteEpoch = queuePrerequisiteEpoch;
         var controlsDispatch = operation is SessionCommandOperation.QueuePause or SessionCommandOperation.QueueResume;
         return RunAsync(async () =>
         {
             var target = RequireSelected();
+            if (operation == SessionCommandOperation.QueueEnqueue && !QueuePrerequisiteStillCurrent(prerequisite, prerequisiteEpoch))
+            {
+                throw new InvalidOperationException("The prerequisite choice is stale or missing. Refresh work and explicitly choose None or reselect the exact task.");
+            }
             if (operation != SessionCommandOperation.QueueList && operation != SessionCommandOperation.QueueStatus
                 && snapshot?.SessionId != target.Authority.SessionId)
             {
@@ -65,10 +73,14 @@ internal sealed partial class SessionsViewModel
                 TaskId = operation == SessionCommandOperation.QueueEnqueue ? Guid.NewGuid() : entry?.Request.TaskId.Value,
                 TaskRevision = entry?.Revision.Value ?? 0,
                 QueueProfile = profile,
+                DependencyTaskId = operation == SessionCommandOperation.QueueEnqueue ? prerequisite?.TaskId.Value : null,
+                ExpectedDependencyRevision = operation == SessionCommandOperation.QueueEnqueue ? prerequisite?.Revision : null,
             };
             var result = await service.ExecuteCommandAsync(command, RequestOrigin.LocalUi,
-                () => !closed && access.CanInspect && selectionEpoch == epoch && selected?.Authority.SessionId == selectedId, lifetime.Token);
-            if (result.Work is { } work) { ApplyWork(work); }
+                () => !closed && access.CanInspect && selectionEpoch == epoch && selected?.Authority.SessionId == selectedId
+                    && (operation != SessionCommandOperation.QueueEnqueue || QueuePrerequisiteStillCurrent(prerequisite, prerequisiteEpoch)), lifetime.Token);
+            if (operation == SessionCommandOperation.QueueEnqueue) { InvalidateQueuePrerequisite(requireDecision: true); }
+            if (result.Work is { } work) { ApplyWork(work, observedAdmission); }
             else if (operation != SessionCommandOperation.QueueStatus)
             {
                 queueSnapshot = result.Queue;
@@ -92,5 +104,6 @@ internal sealed partial class SessionsViewModel
         NotifyQueueMove();
         NotifyPendingCancellation();
         NotifyExpiredRequeue();
+        NotifyQueuePrerequisite();
     }
 }

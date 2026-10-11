@@ -270,8 +270,9 @@ Kora should be an MCP host and MCP client.
 # Skills System
 
 Skills describe repeatable behavior.
-Users can develop and refine skills through voice without changing the application.
-See [Voice-Driven Skill Authoring](Skill_Authoring.md).
+Users can develop and refine skills and standalone instructions through voice,
+typed, or mixed interaction without changing the application.
+See [Skill and Instruction Authoring](Skill_Authoring.md).
 Kora also ships out-of-the-box skills, including "Kora, lock the machine", backed by a protected bundled script.
 Graceful shutdown/restart controls use distinct action-specific voice or UI confirmation and retain any mandatory OS checks; application and queue controls have separate reserved intents.
 See [OOTB Phrase Catalogue](OOTB_Phrases.md).

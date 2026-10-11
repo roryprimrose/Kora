@@ -1,6 +1,6 @@
-# Voice-Driven Skill Authoring
+# Voice- and Text-Driven Skill and Instruction Authoring
 
-Status: proposed required MVP capability, delivered in Slice C.
+Status: proposed required MVP capability for Slice C.
 
 The delivered R21 shared-profile slice is **local read-only discovery and exact
 inspection only**, not this authoring workflow. Registering or inspecting a root
@@ -13,9 +13,14 @@ Related: [Extensibility](Extensibility.md), [Security and Data Flows](Security_D
 ## Outcome
 
 The user can say "Kora, create a skill that explains a deployment failure", refine the behaviour through conversation, review it, test it safely, and enable it for later use.
+The same voice, typed-composer, and native review workflow creates and edits
+standalone Kora or compatible profile instructions. An instruction is a
+single-file definition, so its review surface shows metadata, rendered content,
+exact source, and diff without the skill package's file tree, dependencies,
+fixtures, test workflow, or separate enablement step.
 Creating and improving skills must not require modifying or rebuilding the Kora application.
 
-Skill authoring changes declarative user data, not executable application code.
+Skill and instruction authoring change declarative user data, not executable application code.
 Kora cannot modify its own source, installed components, runtime adapters, security policy implementation, or updater through this workflow or any other agent capability.
 
 ## Workflow
@@ -35,6 +40,32 @@ Saving and enabling are separate proposals; a saved revision remains disabled.
 Enablement does not grant a missing tool permission or approve future actions.
 High-risk tool actions during actual skill use retain their existing approval requirements.
 Every changed proposal invalidates any prior approval of that proposal.
+
+## Standalone Instruction Editing
+
+The instruction editor reuses the skill authoring workspace, conversational
+refinement, rendered preview, exact source/diff, validation, dirty-state,
+conflict handling, and revision-bound Save confirmation. It omits package-only
+controls and writes exactly one bounded `*.instructions.md` file. Voice and
+typed input can propose the same edits; neither input route bypasses native
+review or the exact Save confirmation.
+
+Kora-owned instructions are saved under `%APPDATA%\Kora\Instructions`.
+Compatible instructions discovered in an existing VS Code or VS Code Insiders
+profile location may be edited in their original file when the user selects
+that exact source. This is a narrow profile-instruction writer, not arbitrary
+file-write authority. The host retains the source root, file identity, original
+byte digest, and reviewed replacement bytes; immediately before replacement it
+reopens and verifies the same non-reparse file and unchanged base digest.
+Changed, missing, aliased, inaccessible, or conflicting bases reject the save
+and require refresh/review. The host chooses the existing path, writes through
+the shared atomic preference/file replacement mechanism where applicable, and
+never accepts a model-supplied destination.
+
+Saving a standalone instruction does not enable a skill, grant a tool
+permission, approve an effect, or make its content authoritative. The saved
+instruction becomes a new digest-pinned catalogue revision after successful
+rediscovery.
 
 ## Skill Package Boundary
 
@@ -81,6 +112,25 @@ User skill updates create validated, digest-pinned revisions.
 Active tasks retain the revision they started with; enable a new revision for future tasks only.
 Disable or restore a prior revision through the same reviewed data-only registry operations.
 The registry cannot select arbitrary executable code, modify trust roots, or change tool/security configuration.
+
+Kora watches only its admitted roaming artifact roots and recognized profile
+instruction roots. Notifications are invalidation hints, never authoritative
+file content. Each hint triggers bounded rediscovery with the same root,
+UTF-8, size, depth, metadata, reparse, identity, and uniqueness validation as
+initial discovery. A valid external skill or instruction change publishes a
+new immutable catalogue revision without restarting Kora. New invocations use
+that revision; an active invocation retains its pinned snapshot. An invalid,
+partial, conflicting, missing, or unsafe changed definition becomes visibly
+unavailable and is never silently represented by stale bytes as current.
+Rename/replace and notification loss are covered by reconciliation scans.
+
+Any permission or execution grant bound to the prior skill, instruction,
+definition, script-set, or dependency digest no longer matches the new
+revision. Kora never migrates such authority merely because the source path,
+artifact ID, display name, or content later returns to earlier bytes. A fresh
+review and grant are required. Unrelated grants whose complete binding does not
+include the changed artifact remain unaffected. Standalone instruction
+selection itself creates no grant.
 
 ## Validation and Trial Use
 

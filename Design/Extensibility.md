@@ -130,10 +130,16 @@ invocation. See [Out-of-the-Box Skills](Built_In_Skills.md).
 The model sees an available skill summary and proposes selection; the host
 resolves its pinned workflow and registered tasks. Script source is not required
 for model discovery. Selection and execution permission are separate.
-Users can create declarative skills and distinct declarative adaptations by voice through [Skill Authoring](Skill_Authoring.md); they cannot edit a bundled script.
+Users can create declarative skills and distinct declarative adaptations, and
+create or edit standalone instructions, through voice, typed, or mixed
+interaction in [Skill and Instruction Authoring](Skill_Authoring.md); they
+cannot edit a bundled script.
 The dedicated skill store is writable data; bundled skills and executable components remain protected.
 Shared profile skills can be referenced read-only after compatibility review and explicit enablement.
 Kora-specific skills and edited copies live under `%APPDATA%\Kora\Skills`; see [Skill Sources and Roaming Storage](Skill_Storage.md).
+Kora-owned instructions live under `%APPDATA%\Kora\Instructions`; compatible
+VS Code profile instructions can be changed only through the exact-file,
+identity/base-digest-bound instruction Save workflow.
 
 Suggested manifest fields:
 

@@ -100,6 +100,11 @@ internal sealed partial class SessionsWindow : Window
         MoveQueueDown.Click += async (_, _) => await model.ReviewQueueMoveDownAsync();
         ConfirmQueueMove.Click += async (_, _) => await model.ConfirmQueueMoveAsync();
         CancelQueueMove.Click += async (_, _) => await model.CancelQueueMoveAsync();
+        PendingCancellationEntries.SelectionChanged += (_, _) =>
+            model.SelectPendingCancellationEntries(PendingCancellationEntries.SelectedItems?.OfType<Kora.Core.Hosting.SessionQueueEntry>().ToArray() ?? []);
+        ReviewPendingCancellation.Click += async (_, _) => await model.ReviewPendingCancellationAsync();
+        ConfirmPendingCancellation.Click += async (_, _) => await model.ConfirmPendingCancellationAsync();
+        DiscardPendingCancellation.Click += async (_, _) => await model.DiscardPendingCancellationAsync();
         ReadQueue.Click += async (_, _) => await model.RefreshWorkAsync();
         EnqueueVersion.Click += async (_, _) => await model.EnqueueVersionAsync();
         EnqueueCapabilities.Click += async (_, _) => await model.EnqueueCapabilitiesAsync();

@@ -17,6 +17,9 @@ public interface ISessionQueueStore
     /// <summary>Swap only the exact reviewed adjacent pending pair under the authoritative admission fence.</summary>
     ValueTask<SessionQueueSnapshot> MovePendingAsync(HostRequest control, SessionQueueMoveReview review,
         Func<bool> eligible, CancellationToken token);
+    /// <summary>Cancel all and only the exact reviewed pending subset in one authoritative transaction.</summary>
+    ValueTask<SessionQueueSnapshot> CancelSelectedPendingAsync(HostRequest control, SessionQueueCancelReview review,
+        Func<bool> eligible, CancellationToken token);
     ValueTask<SessionQueueSnapshot> EnqueueAsync(HostRequest control, HostRequest work, HostRevision generation,
         long expectedRevision, long admissionRevision, HostId<TaskIdentity>? dependency,
         SessionQueueLimits limits, Func<bool> eligible, CancellationToken token,

@@ -60,6 +60,15 @@ Existing exact lock behavior and non-executing power proposals are unchanged.
 
 ## Ordered Outstanding Work
 
+### R13 selected pending cancellation increment - 2026-10-12
+
+One-session/current-run pending-only subset review and separate atomic confirmation are delivered through native/exact/current-name activated routes.
+The existing consolidated schema-10 host/store path validates complete membership and every authority fence, retains typed audit/control/history receipts, removes only selected dispatch IDs and preserves unselected order/deadlines/results and explicit pause.
+
+Maintained domain/parser, shared service, real private SQLite and native presentation tests cover mixed profiles, bounds, stale sets, failures, callback independence, retained dependents and no replay. These are consumed production-path checks, not evidence for arbitrary queues, general batch effects, current-task termination, broad R13 completion or model authority.
+
+No experiments are edited or retired by this increment. Maintained queue/order/storage/native-consumer regressions provide bounded coverage equivalence only; unique RT1/RT2/MG1/PV1, offline/hardware, worker containment, protected-storage, installed-native/accessibility and physical-stop enablement/RC trials remain open at their existing qualification gates.
+
 These are work packages, not tool IDs. Preserve the original detailed
 [completion conditions](Archive/Implementation_Roadmap_2026-10-11.md#ordered-outstanding-work)
 when planning an increment; the table identifies the next gap, not a waiver

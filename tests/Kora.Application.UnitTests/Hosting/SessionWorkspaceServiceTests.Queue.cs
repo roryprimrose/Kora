@@ -665,6 +665,30 @@ public sealed partial class SessionWorkspaceServiceTests
             AfterMove?.Invoke();
             return ValueTask.FromResult(QueueSnapshot(control.SessionId) with { MoveReceipt = SessionQueueMoveReceipt.FromReview(review) });
         }
+        public ValueTask<SessionQueueSnapshot> CancelSelectedPendingAsync(HostRequest control, SessionQueueCancelReview review,
+            Func<bool> eligible, CancellationToken token)
+        {
+            BeforeMove?.Invoke();
+            if (!eligible() || review.Queue.Revision != QueueRevision || review.Queue.DispatchControl != QueueSnapshot(control.SessionId).DispatchControl)
+            { throw new InvalidOperationException("The exact selected queue changed."); }
+            QueueCheck("cancel-selected");
+            var members = SessionQueueCancellation.Select(QueueSnapshot(control.SessionId),
+                [.. review.Entries.Select(entry => new SessionQueueSelection(entry.Request.TaskId, entry.Revision))]);
+            foreach (var entry in members)
+            {
+                var index = QueueRows.IndexOf(entry);
+                QueueRows[index] = entry with { State = SessionQueueState.Cancelled, Revision = new(entry.Revision.Value + 1) };
+            }
+            if (explicitOrder is not null)
+            {
+                explicitOrder = explicitOrder with { Tasks = [.. explicitOrder.Tasks.Where(id => !members.Any(entry => entry.Request.TaskId == id))] };
+            }
+            QueueRevision++;
+            dispatchControl = review.Queue.DispatchControl;
+            TaskWrites.Add(new(control, new(2), HostTaskState.Succeeded));
+            AfterMove?.Invoke();
+            return ValueTask.FromResult(QueueSnapshot(control.SessionId) with { CancelReceipt = SessionQueueCancelReceipt.FromReview(review) });
+        }
         public ValueTask<SessionQueueSnapshot> SetDispatchPausedAsync(HostRequest control, HostRevision generation,
             long expectedQueueRevision, Guid expectedRunId, long expectedControlRevision, long admissionRevision,
             bool paused, Func<bool> eligible, CancellationToken token)

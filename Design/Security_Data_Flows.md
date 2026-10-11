@@ -40,6 +40,14 @@ remain intact; cached maintenance Check/Open stays separately native.
 
 ## Deterministic fixed local-version queue boundary
 
+The [selected pending cancellation](Work_Management.md#delivered-atomic-selected-pending-cancellation---2026-10-12) admits only a complete host-reviewed same-session current-run set of at most the shared ten pending IDs/revisions. No arbitrary payload/path/model selection enters it.
+Original native/typed/activated input, private epoch, generation, queue/run/control and full ordered membership bind review and physical commit.
+
+All selected queue/task revisions, optional existing order-lineage append, requested/terminal typed audit and terminal control receipt commit together under the existing exclusive SQLite lease.
+Audit provenance retains each exact original member, not parsed rendered messages or an arbitrary SecurityAudit property. Existing canonical bytes/digests, storage inventory and retention/disposition authority are preserved.
+
+One stale member or concurrent mutation refuses all without skipping. Required write/audit/readback/commit uncertainty holds admission; known commit is not undone after failed delivery. No automatic retry, rollback claim, history deletion, provider/worker termination, grant consumption or new persistence authority is introduced.
+
 The [four fixed no-argument profiles](Work_Management.md#delivered-fixed-first-page-read-profiles---2026-10-12)
 share the original queue admission fence and freshly admitted Native registry
 caller. New page rows retain only bounded typed catalogue/recorded-readiness/

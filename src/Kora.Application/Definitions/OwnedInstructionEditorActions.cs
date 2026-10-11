@@ -5,7 +5,7 @@ using Kora.Core.Commands;
 
 namespace Kora.Application.Definitions;
 
-public sealed class OwnedInstructionEditorActions(
+public sealed partial class OwnedInstructionEditorActions(
     IOwnedInstructionStore store, InstructionControlAdmission admission,
     InstructionRevisionCatalogue revisions, ArtifactCatalogue catalogue, ISecurityAuditLog auditLog,
     BuiltInCommandRouter controls, ArtifactKind kind = ArtifactKind.Instruction)
@@ -105,8 +105,8 @@ public sealed class OwnedInstructionEditorActions(
             }
             catch (Exception exception)
             {
-                catalogue.Publish(catalogue.Candidates.Select(item => Matches(item, name)
-                    ? item with { IsUseEnabled = false } : item).ToArray());
+                catalogue.Update(items => items.Select(item => Matches(item, name)
+                    ? item with { IsUseEnabled = false, PreservesCapturedUse = false } : item).ToArray());
                 var observed = publicationObserved || exception is InstructionPublicationUnconfirmedException;
                 auditLog.Write(audit.WithOutcome(observed ? SecurityAuditOutcome.Unknown
                     : exception is OperationCanceledException ? SecurityAuditOutcome.Cancelled : SecurityAuditOutcome.Failed,
@@ -120,9 +120,8 @@ public sealed class OwnedInstructionEditorActions(
 
     private void HoldRevision(string name, bool existingOnly = false)
     {
-        catalogue.Publish(catalogue.Candidates.Select(item => Matches(item, name)
-            ? item with { IsUseEnabled = false } : item).ToArray());
-        revisions.Hold(name, existingOnly);
+        revisions.Hold(name, existingOnly, () => catalogue.Update(items => items.Select(item => Matches(item, name)
+            ? item with { IsUseEnabled = false, PreservesCapturedUse = false } : item).ToArray()));
     }
 
     public async Task<bool> Activate(OwnedInstructionSnapshot reviewed,
@@ -131,6 +130,7 @@ public sealed class OwnedInstructionEditorActions(
         reviewed.Document.RequireEditableInstruction();
         if (reviewed.Document.Definition.Kind != Kind)
         { throw new InvalidDataException("The reviewed definition belongs to another owned kind."); }
+        var epoch = revisions.CaptureReviewEpoch(reviewed);
         try
         {
         var outcome = await admission.Run(eligible, async (request, session, current, admitted) =>
@@ -149,22 +149,24 @@ public sealed class OwnedInstructionEditorActions(
             auditLog.Write(audit);
             try
             {
-                await admission.Publish(request, session, current, () =>
-                {
-                    revisions.PrepareActivation(live);
-                    return true;
-                }, admitted).ConfigureAwait(false);
+                var receipt = await admission.Publish(request, session, current,
+                    () => revisions.PrepareActivation(live, epoch), admitted).ConfigureAwait(false);
                 var candidate = catalogue.Candidates.SingleOrDefault(item => Matches(item, live.Name));
                 if (candidate is null || !string.Equals(candidate.Digest, live.Document.Definition.Digest, StringComparison.Ordinal)
                     || !string.Equals(candidate.OwnedInstructionRevision, live.Revision, StringComparison.Ordinal))
                 { throw new InvalidOperationException("The reviewed revision is not the coherent current catalogue candidate."); }
                 auditLog.Write(audit.WithOutcome(SecurityAuditOutcome.Succeeded, "exact-revision-reviewed"));
+                await admission.Publish(request, session, current, () =>
+                {
+                    revisions.CompleteActivation(reviewed, receipt, catalogue);
+                    return true;
+                }, admitted).ConfigureAwait(false);
                 return true;
             }
             catch
             {
                 auditLog.Write(audit.WithOutcome(SecurityAuditOutcome.Failed, "activation-unconfirmed"));
-                revisions.Hold(reviewed.Name);
+                revisions.HoldExact(reviewed, catalogue);
                 throw;
             }
         }, token).ConfigureAwait(false);
@@ -172,18 +174,15 @@ public sealed class OwnedInstructionEditorActions(
         {
             if (!eligible() || token.IsCancellationRequested)
             { throw new InvalidOperationException("Reviewed instruction use expired before publication."); }
-            revisions.CompleteActivation(reviewed);
-            catalogue.Publish(catalogue.Candidates.Select(item => Matches(item, reviewed.Name)
-                && string.Equals(item.OwnedInstructionRevision, reviewed.Revision, StringComparison.Ordinal)
-                    ? item with { IsUseEnabled = true } : item).ToArray());
         }
         return outcome;
         }
         catch
         {
-            catalogue.Publish(catalogue.Candidates.Select(item => Matches(item, reviewed.Name)
-                ? item with { IsUseEnabled = false } : item).ToArray());
-            revisions.Hold(reviewed.Name);
+            // A stale review never revokes a replacement selected by another operation.
+            if (catalogue.Candidates.Any(item => Matches(item, reviewed.Name)
+                && string.Equals(item.OwnedInstructionRevision, reviewed.Revision, StringComparison.Ordinal)))
+            { revisions.HoldExact(reviewed, catalogue); }
             throw;
         }
     }
@@ -197,23 +196,25 @@ public sealed class OwnedInstructionEditorActions(
         {
             live = await Inspect(candidate.OwnedInstructionName, eligible, token).ConfigureAwait(false);
             if (live is not null && string.Equals(candidate.OwnedInstructionRevision, live.Revision, StringComparison.Ordinal)
-                && catalogue.IsCurrent(candidate.Id, candidate.Digest) && revisions.IsEnabled(live))
-            { return true; }
+                && catalogue.Candidates.Any(item => Matches(item, live.Name)
+                    && string.Equals(item.OwnedInstructionRevision, live.Revision, StringComparison.Ordinal)))
+            { return revisions.IsEnabled(live) && catalogue.IsCurrent(candidate.Id, candidate.Digest); }
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException
             or InvalidDataException or InvalidOperationException or OperationCanceledException)
         {
-            HoldRevision(candidate.OwnedInstructionName);
+            revisions.HoldCandidate(candidate, catalogue);
             return false;
         }
-        HoldRevision(candidate.OwnedInstructionName);
+        revisions.HoldCandidate(candidate, catalogue);
         return false;
     }
 
     public void SuspendReviewedUse()
     {
-        var names = revisions.SuspendReviewedUse();
-        catalogue.Publish(catalogue.Candidates.Select(item => item.Kind == Kind && item.OwnedInstructionName is { } name
-            && names.Contains(name, StringComparer.Ordinal) ? item with { IsUseEnabled = false } : item).ToArray());
+        revisions.SuspendReviewedUse(names => catalogue.Update(items => items.Select(item =>
+            item.Kind == Kind && item.OwnedInstructionName is { } name
+            && names.Contains(name, StringComparer.Ordinal)
+                ? item with { IsUseEnabled = false, PreservesCapturedUse = false } : item).ToArray()));
     }
 }

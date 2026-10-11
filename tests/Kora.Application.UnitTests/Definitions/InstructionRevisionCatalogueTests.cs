@@ -10,6 +10,41 @@ namespace Kora.Application.UnitTests.Definitions;
 
 public sealed class InstructionRevisionCatalogueTests
 {
+    [Fact]
+    public void ExactDisableSeparatesSameFilenameKindsAndLeavesUnrelatedLegacyAndBundledStateUnchanged()
+    {
+        var store = new KindStore();
+        var instructions = new InstructionRevisionCatalogue(store);
+        var prompts = new InstructionRevisionCatalogue(store, ArtifactKind.Prompt);
+        var instruction = Snapshot();
+        var prompt = new OwnedInstructionSnapshot("example", new string('c', 48), new string('d', 48),
+            ArtifactFileDocument.Parse(ArtifactFileDocument.Encode(
+                "---\nkora-format: 1\nname: prompt-example\ndescription: Test\n---\nLiteral request", true),
+                ArtifactKind.Prompt, "kora-profile", "example"));
+        var legacy = new OwnedInstructionSnapshot("legacy", new string('a', 48), new string('e', 48),
+            ArtifactFileDocument.Parse(ArtifactFileDocument.Encode("---\nname: legacy\ndescription: Test\n---\nLegacy content", false),
+                ArtifactKind.Instruction, "kora-profile", "legacy"));
+        var bundled = new ArtifactDefinition("bundled.test", ArtifactKind.Skill, "Bundled", "Test", "bundled",
+            ["bundled"], "bundled", "1", new string('f', 64), "Body");
+        var catalogue = new ArtifactCatalogue(prompts.Reconcile(instructions.Reconcile(
+            [Candidate(instruction), Candidate(prompt), Candidate(legacy), bundled])));
+        instructions.CompleteActivation(instruction, instructions.PrepareActivation(instruction), catalogue);
+        prompts.CompleteActivation(prompt, prompts.PrepareActivation(prompt), catalogue);
+        var promptState = store.Text["prompt-revisions.json"];
+        var legacyState = instructions.IsEnabled(legacy);
+        instructions.DisableExact(instruction, catalogue).Should().BeTrue();
+        instructions.IsEnabled(instruction).Should().BeFalse();
+        prompts.IsEnabled(prompt).Should().BeTrue();
+        store.Text["prompt-revisions.json"].Should().Be(promptState);
+        instructions.IsEnabled(legacy).Should().Be(legacyState).And.BeTrue();
+        catalogue.Artifacts.Should().Contain(bundled);
+        catalogue.Candidates.Single(item => item.Kind == ArtifactKind.Prompt).IsUseEnabled.Should().BeTrue();
+        prompts.HoldCandidate(Candidate(instruction), catalogue);
+        prompts.HoldCandidate(bundled, catalogue);
+        prompts.IsEnabled(prompt).Should().BeTrue();
+        ((Action)(() => instructions.DisableExact(prompt, catalogue))).Should().Throw<InvalidDataException>();
+    }
+
     [Theory]
     [InlineData(ArtifactKind.Instruction)]
     [InlineData(ArtifactKind.Prompt)]
@@ -19,8 +54,7 @@ public sealed class InstructionRevisionCatalogueTests
         var registry = new InstructionRevisionCatalogue(store, kind);
         var original = Snapshot(kind: kind);
         registry.Reconcile([Candidate(original)]);
-        registry.PrepareActivation(original);
-        registry.CompleteActivation(original);
+        registry.CompleteActivation(original, registry.PrepareActivation(original));
         var bytes = store.Text;
         for (var index = 0; index < 129; index++) { registry.Hold("new-" + index, existingOnly: true); }
         store.Text.Should().Be(bytes);
@@ -50,15 +84,13 @@ public sealed class InstructionRevisionCatalogueTests
         var registry = new InstructionRevisionCatalogue(store, kind);
         var snapshot = Snapshot(kind: kind);
         registry.Reconcile([Candidate(snapshot)]).Single().IsUseEnabled.Should().BeFalse();
-        registry.PrepareActivation(snapshot);
-        registry.CompleteActivation(snapshot);
+        registry.CompleteActivation(snapshot, registry.PrepareActivation(snapshot));
         registry.Reconcile([Candidate(snapshot)]).Single().IsUseEnabled.Should().BeTrue();
         new InstructionRevisionCatalogue(store, kind).Reconcile([Candidate(snapshot)]).Single().IsUseEnabled.Should().BeFalse();
         var changed = Snapshot(body: "Changed", kind: kind);
         registry.Reconcile([Candidate(changed)]).Single().IsUseEnabled.Should().BeFalse();
         registry.Reconcile([Candidate(snapshot)]).Single().IsUseEnabled.Should().BeFalse();
-        registry.PrepareActivation(snapshot);
-        registry.CompleteActivation(snapshot);
+        registry.CompleteActivation(snapshot, registry.PrepareActivation(snapshot));
         registry.Reconcile([]).Should().BeEmpty();
         registry.Reconcile([Candidate(snapshot)]).Single().IsUseEnabled.Should().BeFalse();
         registry.MarkUnavailable();
@@ -79,15 +111,14 @@ public sealed class InstructionRevisionCatalogueTests
         both[0].IsUseEnabled.Should().BeTrue();
         both[1].IsUseEnabled.Should().BeFalse();
         store.Text["instruction-revisions.json"].Should().Be(originalState);
-        prompts.PrepareActivation(prompt);
-        prompts.CompleteActivation(prompt);
+        prompts.CompleteActivation(prompt, prompts.PrepareActivation(prompt));
         prompts.IsEnabled(prompt).Should().BeTrue();
         instructions.IsEnabled(instruction).Should().BeTrue();
         prompts.Hold("example");
         prompts.IsEnabled(prompt).Should().BeFalse();
         instructions.IsEnabled(instruction).Should().BeTrue();
         ((Action)(() => prompts.PrepareActivation(instruction))).Should().Throw<InvalidDataException>();
-        ((Action)(() => prompts.CompleteActivation(instruction))).Should().Throw<InvalidDataException>();
+        ((Action)(() => prompts.CompleteActivation(instruction, Guid.NewGuid()))).Should().Throw<InvalidDataException>();
         ((Action)(() => prompts.IsEnabled(instruction))).Should().Throw<InvalidDataException>();
         var restarted = new InstructionRevisionCatalogue(store, ArtifactKind.Prompt);
         restarted.Reconcile(both)[1].IsUseEnabled.Should().BeFalse();
@@ -208,16 +239,15 @@ public sealed class InstructionRevisionCatalogueTests
         var registry = new InstructionRevisionCatalogue(new LocalSharedSkillPreferencesTests.Store());
         var snapshot = Snapshot();
         registry.Reconcile([Candidate(snapshot)]);
-        registry.PrepareActivation(snapshot);
+        var receipt = registry.PrepareActivation(snapshot);
         registry.SuspendReviewedUse().Should().Equal("example");
-        ((Action)(() => registry.CompleteActivation(snapshot))).Should().Throw<InvalidOperationException>();
-        registry.PrepareActivation(snapshot);
-        registry.CompleteActivation(snapshot);
+        ((Action)(() => registry.CompleteActivation(snapshot, receipt))).Should().Throw<InvalidOperationException>();
+        registry.CompleteActivation(snapshot, registry.PrepareActivation(snapshot));
         registry.SuspendReviewedUse().Should().Equal("example");
         registry.Reconcile([Candidate(snapshot)]).Single().IsUseEnabled.Should().BeFalse();
-        registry.PrepareActivation(snapshot);
+        receipt = registry.PrepareActivation(snapshot);
         registry.MarkUnavailable();
-        ((Action)(() => registry.CompleteActivation(snapshot))).Should().Throw<InvalidOperationException>();
+        ((Action)(() => registry.CompleteActivation(snapshot, receipt))).Should().Throw<InvalidOperationException>();
     }
 
     [Fact]
@@ -256,8 +286,7 @@ public sealed class InstructionRevisionCatalogueTests
         registry.IsEnabled(legacy).Should().BeTrue();
         registry.Hold(legacy.Name);
         registry.IsEnabled(legacy).Should().BeFalse();
-        registry.PrepareActivation(legacy);
-        registry.CompleteActivation(legacy);
+        registry.CompleteActivation(legacy, registry.PrepareActivation(legacy));
         registry.IsEnabled(legacy).Should().BeTrue();
         registry.MarkUnavailable();
         registry.IsEnabled(legacy).Should().BeFalse();

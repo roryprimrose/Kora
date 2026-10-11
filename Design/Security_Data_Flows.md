@@ -897,6 +897,9 @@ host-derived destination under the dedicated Kora store or an explicitly
 registered compatible personal profile scope, not arbitrary filesystem
 arguments. Profile editing is a proposed qualified extension, not an authority
 of delivered R21 local-read registration.
+The delivered native v1 owned **Disable reviewed use** is an exact source-qualified revision hold, not source-consent withdrawal or file-write/delete authority.
+It uses existing original-input, private owning-host/call/session admission, fresh native read, separate confirmation and trusted requested/terminal audit. Same-kind strict v1 preference publication/readback and atomic consumer publication fence stale activation/reload.
+Only new selections are withdrawn; inspectable source bytes/permissions remain unchanged and captured reasoning is not rewritten. Pending unadmitted decisions retire; source/access/privacy/action/egress checks remain independently mandatory. Unknown audit/state outcomes stay held/unavailable without restoring previous enablement or retargeting an old receipt.
 Resolve target identity and reject traversal, link/reparse-point/hard-link aliases, renamed/replaced targets, and writes through protected ancestors.
 Revalidate at application time using race-resistant filesystem operations; string-prefix path checks are insufficient.
 Do not permit overwrite/delete/rename of protected resources or staging/backups within protected locations.

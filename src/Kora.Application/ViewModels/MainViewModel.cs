@@ -4492,7 +4492,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                         task.Name, task.State, task.ProgressPercentage)).ToArray());
             var decision = await localModelReasoner.ReasonAsync(request, context, artifact, cancellation.Token);
             cancellation.Token.ThrowIfCancellationRequested();
-            if (artifact is not null && !artifactCatalogue.IsCurrent(artifact.Id, artifact.Digest))
+            if (artifact is not null && !artifactCatalogue.IsCapturedRevisionCurrent(artifact.Id, artifact.Digest))
             {
                 await cancellation.CancelAsync();
                 cancellation.Token.ThrowIfCancellationRequested();
@@ -4514,6 +4514,13 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
             dependencyBootstrapper.Tasks.Update(
                 "local.reasoning", SetupTaskState.Completed, "The local model returned a response.");
+            if (artifact is not null && !artifactCatalogue.IsCurrent(artifact.Id, artifact.Digest)
+                && decision.Answer is null)
+            {
+                ShowInformation("Artifact use disabled.",
+                    "Captured reasoning finished, but no new question or action choice was admitted. Start a fresh request after exact use review; nothing was dispatched or retargeted.");
+                return;
+            }
             if (decision.Question is { } clarification)
             {
                 if (questionDepth >= 3)

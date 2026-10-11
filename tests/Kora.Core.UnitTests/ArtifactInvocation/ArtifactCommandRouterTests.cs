@@ -6,6 +6,29 @@ namespace Kora.Core.UnitTests.Artifacts;
 
 public sealed class ArtifactCommandRouterTests
 {
+    [Fact]
+    public void CatalogueAtomicallyUpdatesNewSelectionAndCapturedUseAsDistinctBoundedStates()
+    {
+        var original = new ArtifactDefinition("kora.example", ArtifactKind.Instruction, "Example", "Test",
+            "example", ["example"], "kora-profile", "1", new string('a', 64), "Immutable content");
+        var catalogue = new ArtifactCatalogue([original]);
+        var changes = 0;
+        catalogue.Changed += (_, _) => changes++;
+        catalogue.IsCapturedRevisionCurrent(original.Id, original.Digest).Should().BeTrue();
+        catalogue.Update(items => items.Select(item => item with { IsUseEnabled = false, PreservesCapturedUse = true }).ToArray());
+        catalogue.Artifacts.Should().BeEmpty();
+        catalogue.IsCurrent(original.Id, original.Digest).Should().BeFalse();
+        catalogue.IsCapturedRevisionCurrent(original.Id, original.Digest).Should().BeTrue();
+        catalogue.IsCapturedRevisionCurrent("other", original.Digest).Should().BeFalse();
+        catalogue.IsCapturedRevisionCurrent(original.Id, new string('b', 64)).Should().BeFalse();
+        catalogue.Update(items => items.Select(item => item with { PreservesCapturedUse = false }).ToArray());
+        catalogue.IsCapturedRevisionCurrent(original.Id, original.Digest).Should().BeFalse();
+        catalogue.Candidates.Should().ContainSingle();
+        changes.Should().Be(2);
+        ((Action)(() => catalogue.Update(_ => []))).Should().Throw<ArgumentException>();
+        catalogue.Candidates.Should().ContainSingle();
+    }
+
     private readonly ArtifactCommandRouter router = new(new ArtifactCatalogue(
     [
         new ArtifactDefinition(

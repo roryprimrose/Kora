@@ -261,7 +261,7 @@ or count as user activity/approval.
 ### Bounded owned instruction and prompt editor
 
 Native tray and exact `instructions` or `prompts` followed by
-`editor/list/create/edit/inspect/save/copy/reload/delete/activate/cancel` control routes share the same admitted actions, native review
+`editor/list/create/edit/inspect/save/copy/reload/delete/activate/disable/stop-use/cancel` control routes share the same admitted actions, native review
 and writer. Activated controls focus the same native editor; voice-only approval
 and body dictation/refinement are not implemented. No model/network is needed.
 Create and inspect use an explicit bounded ID; mutations target the open original.
@@ -313,6 +313,15 @@ automatic applicability or trust. Source changes/replaced identity, failures,
 deletion and restored previously revoked bytes do not auto-activate. Pre-use
 native freshness checking complements advisory watchers. Existing unchanged
 legacy and bundled behavior is preserved.
+
+**Disable reviewed use** / exact `instructions disable` or `instructions stop-use` (and matching `prompts` controls) is delivered for the clean inspected canonical native v1 owned baseline only.
+Separate native confirmation binds kind, source, filename, digest, native identity-qualified revision and current original-input/ownership/privacy/call/session epoch; dirty drafts remain intact with an explicit Save/Reload prerequisite.
+Native source freshness is rechecked before revocation under the existing short admission gate. Old reviews cannot target a replacement, and retired activation preparation/completion or stale reload publication cannot re-enable the held revision.
+Requested/terminal trusted typed audit and the control receipt precede visible completion. Strict per-kind v1 preference hold/readback is durable; cancellation, mandatory audit/storage/readback or terminal failure exposes any held/unavailable outcome without rollback, retry or previous-enable restoration.
+No source writer, deletion or unregistering occurs: original bytes/BOM/metadata/DACL/filename/digest/inventory stay unchanged and bounded inspection/editing remains available.
+Every new explicit selection and catalogue descriptor excludes the held revision. Already admitted reasoning retains its captured immutable content; pending unadmitted question/action choices retire without dispatch or retargeting, and mandatory source/access/privacy/action/egress guards remain.
+No-change/watchers/manual/startup/pre-use reconciliation or restored old bytes cannot resurrect use. Repeated exact Disable reports already held; a later fresh exact use review enables only the current revision.
+Other kinds with the same filename, unrelated copies/sources, bundled and unchanged legacy compatibility remain isolated. Disabled originals can still produce separate disabled owned copies; no profile writer, new source/grant authority, automatic applicability or full-management qualification is introduced.
 
 Production parser, admission/conflict workflow, native storage and catalogue
 fixtures are the maintained assertions for this increment only. They are not

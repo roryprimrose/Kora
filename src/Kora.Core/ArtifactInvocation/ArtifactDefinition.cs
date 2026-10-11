@@ -56,6 +56,9 @@ public sealed record ArtifactDefinition
     // Always qualify them with Kind; a display label or same filename in another kind is not identity.
     public string? OwnedInstructionName { get; init; }
     public bool IsUseEnabled { get; init; } = true;
+    // An explicit use-disable is not source/access revocation. Only already captured content
+    // may finish; all new selections and pending unadmitted decisions still require IsUseEnabled.
+    public bool PreservesCapturedUse { get; init; }
     public bool RequiresInstructionReview { get; init; }
     public string? OwnedInstructionRevision { get; init; }
 

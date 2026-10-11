@@ -108,6 +108,17 @@ public sealed class OwnedInstructionEditorCompositionTests : IDisposable
         reload.ReloadNow().Should().BeTrue();
         router.Match(command, "Kora").Invocation.Should().NotBeNull();
         (await actions.Activate(copied.Current, _ => Task.FromResult(true), () => true, TestContext.Current.CancellationToken)).Should().BeTrue();
+        var disabled = await actions.Disable(saved.Current, _ => Task.FromResult(true), () => true, TestContext.Current.CancellationToken);
+        disabled.WasEnabled.Should().BeTrue();
+        router.Match(command, "Kora").Invocation.Should().BeNull();
+        router.Match("/" + kind.ToString().ToLowerInvariant() + " separate", "Kora").Invocation.Should().NotBeNull();
+        catalogue.Candidates.Should().Contain(item => item.Kind == kind && item.OwnedInstructionName == "example" && !item.IsUseEnabled);
+        reload.ReloadNow().Should().BeTrue();
+        router.Match(command, "Kora").Invocation.Should().BeNull();
+        router.Match("/" + kind.ToString().ToLowerInvariant() + " separate", "Kora").Invocation.Should().NotBeNull();
+        new InstructionRevisionCatalogue(paths, kind).Reconcile(catalogue.Candidates)
+            .Where(item => item.Kind == kind && item.OwnedInstructionName != null).Should().OnlyContain(item => !item.IsUseEnabled);
+        (await store.Read("example", TestContext.Current.CancellationToken))!.Document.CopyBytes().Should().Equal(originalBytes);
         actions.SuspendReviewedUse();
         router.Match(command, "Kora").Invocation.Should().BeNull();
         (await actions.Activate(saved.Current!, _ => Task.FromResult(true), () => true, TestContext.Current.CancellationToken)).Should().BeTrue();

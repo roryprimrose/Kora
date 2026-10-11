@@ -9,7 +9,7 @@ No AI model, hosted account or network is involved in editing.
 
 | Kind/source/channel | This increment |
 |---|---|
-| Kora-owned instructions | Native single-file create/list/inspect/edit/Save/Save as new copy/reload/Delete and separate explicit-use review |
+| Kora-owned instructions | Native single-file create/list/inspect/edit/Save/Save as new copy/reload/Delete, separate explicit-use review and exact native v1 Disable reviewed use |
 | Kora-owned prompts | The same editor and reviews for literal saved user requests; no parameters/substitutions or instruction/system authority |
 | Registered profile instructions | Existing read/selection only; no original writer or fork |
 | Skills and agents | Existing bounded readers only; authoring is a separate follow-on |
@@ -95,6 +95,24 @@ That reviewed use is limited to the current unlocked host run; privacy closure o
 This does not make the text host policy, grant a tool, execute scripts, broaden a source's consent or
 inject new guidance into an existing task. A later external edit, replaced source identity, invalid file,
 deletion or failed reload withholds managed use; restoring old bytes does not resurrect approval.
+
+## Disable reviewed use without editing the source
+
+Inspect the exact canonical native v1 owned instruction or literal prompt, then choose **Disable reviewed use**, `instructions disable` / `instructions stop-use`, or the corresponding `prompts` control.
+Current-assistant-name activated controls focus the same native confirmation; they do not accept body approval, a name-based replacement target or an arbitrary path. No model/network is required.
+The open inspected baseline must be clean: a dirty draft is retained with an explicit Save/Reload requirement, never silently saved or discarded.
+
+The review shows kind, owned source/file, digest, native identity-qualified revision and actual enabled/held status. Confirming holds only that exact revision and returns its control receipt.
+Cancel retains the source, draft and reviewed-use state. Changes to kind, selection, name, draft, original command input, ownership, session generation or privacy/call admission invalidate review. A changed/replaced source requires Reload; an old receipt cannot select its replacement.
+
+Disable never calls the definition writer or deletes/unregisters the source. Bytes, UTF-8 BOM, supported metadata, DACL, filename, digest and inventory remain unchanged; the disabled source stays inspectable/editable through existing bounded reads.
+Typed/slash/native command selection, current-name activated use and admitted catalogue/model descriptors no longer offer it for new requests. Already admitted reasoning retains captured immutable content; pending unadmitted questions/action choices expire without dispatch, reroute or replay.
+Existing source/access/consent, privacy and action/egress checks remain mandatory; disable is not permission to keep using a denied source.
+
+The held revision is durable in the existing per-kind v1 revision preferences. Watcher/manual/no-change reload, restart, pre-use checking or restored old bytes cannot re-enable it. Repeating exact Disable truthfully reports already held; only a fresh exact **Review use** can enable the current revision for a later request.
+Same filenames in another kind, unrelated sources/copies and immutable bundled definitions are unaffected. Copies of disabled originals still enter independently disabled.
+Mandatory audit, preference publication/readback or terminal-bookkeeping failure reports held/unavailable recovery, never success or rollback. A revocation may already be durable: explicitly Reload/read back before a fresh review; no automatic retry or previous-enable restoration.
+Legacy/profile original editing and broader applicability remain deferred; this control does not create grants, change source consent or qualify the full Definitions matrix.
 
 After review, `/instruction <declared-command>` or activated explicit **use** resolves the same catalogue revision.
 For a prompt, use `/prompt <declared-command>` or the same activated explicit

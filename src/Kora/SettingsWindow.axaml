@@ -1019,6 +1019,87 @@
         </ScrollViewer>
       </TabItem>
 
+      <TabItem Header="Artifacts">
+        <ScrollViewer VerticalScrollBarVisibility="Auto">
+          <StackPanel Margin="30,4,30,30" Spacing="16" MaxWidth="700" HorizontalAlignment="Left">
+            <StackPanel Spacing="5" Margin="0,0,0,8">
+              <TextBlock Text="Additional artifact sources" FontSize="28" FontWeight="SemiBold" />
+              <TextBlock
+                  Text="Add absolute directories containing prompts, instructions, skills, or agent profiles, or an MCP server configuration file. Kora validates all configured sources before publishing them."
+                  Classes="muted"
+                  FontSize="13"
+                  TextWrapping="Wrap" />
+            </StackPanel>
+
+            <Border Classes="settings-card">
+              <StackPanel Spacing="10">
+                <TextBlock Text="Source kind" Classes="settings-title" />
+                <ComboBox
+                    ItemsSource="{Binding ArtifactDirectoryKinds}"
+                    SelectedItem="{Binding SelectedArtifactDirectoryKind}"
+                    IsEnabled="{Binding CanChangeArtifactDirectories}"
+                    AutomationProperties.Name="Kind for additional artifact or MCP sources" />
+                <TextBlock
+                    Text="Skills use nested SKILL.md packages. Prompts, instructions, and agents use *.prompt.md, *.instructions.md, and *.agent.md files in a directory. MCP configuration uses one JSON file."
+                    Classes="settings-description"
+                    TextWrapping="Wrap" />
+                <TextBox
+                    Text="{Binding ArtifactDirectoryInput}"
+                    PlaceholderText="C:\Absolute\Path\To\Source"
+                    IsEnabled="{Binding CanChangeArtifactDirectories}"
+                    AutomationProperties.Name="Absolute additional artifact or MCP source path" />
+                <WrapPanel Orientation="Horizontal">
+                  <Button
+                      Content="{Binding ArtifactPathKind, StringFormat='Add {0}'}"
+                      Command="{Binding AddArtifactDirectoryCommand}"
+                      IsEnabled="{Binding CanChangeArtifactDirectories}" />
+                  <Button
+                      Content="Remove selected"
+                      Command="{Binding RemoveArtifactDirectoryCommand}"
+                      IsEnabled="{Binding CanChangeArtifactDirectories}" />
+                  <Button
+                      Content="Refresh"
+                      Command="{Binding RefreshArtifactDirectoriesCommand}"
+                      IsEnabled="{Binding CanChangeArtifactDirectories}" />
+                </WrapPanel>
+                <ListBox
+                    ItemsSource="{Binding AdditionalArtifactDirectories}"
+                    SelectedItem="{Binding SelectedArtifactDirectory}"
+                    MinHeight="100"
+                    MaxHeight="220"
+                    AutomationProperties.Name="Configured additional artifact and MCP source paths" />
+                <controls:NamedTextBlock
+                    Text="{Binding ArtifactDirectoryStatus}"
+                    AutomationProperties.Name="Additional artifact directory status"
+                    AutomationProperties.LiveSetting="Polite"
+                    Classes="settings-description"
+                    TextWrapping="Wrap" />
+                <StackPanel IsVisible="{Binding IsMcpConfigurationSelected}" Spacing="8">
+                  <TextBlock Text="Configured MCP servers" Classes="settings-title" />
+                  <TextBlock
+                      Text="Server command arguments, URLs, headers, environment values, and credentials are not displayed or sent to a model. Inclusion records app-level intent only; live capability discovery and invocation remain unavailable until an admitted MCP runtime is configured."
+                      Classes="settings-description"
+                      TextWrapping="Wrap" />
+                  <ListBox
+                      ItemsSource="{Binding McpServers}"
+                      SelectedItem="{Binding SelectedMcpServer}"
+                      DisplayMemberBinding="{Binding Display}"
+                      MinHeight="100"
+                      MaxHeight="220"
+                      AutomationProperties.Name="Discovered MCP servers and inclusion state" />
+                  <WrapPanel Orientation="Horizontal">
+                    <Button Content="Include selected server" Command="{Binding IncludeMcpServerCommand}"
+                            IsEnabled="{Binding CanChangeArtifactDirectories}" />
+                    <Button Content="Exclude selected server" Command="{Binding ExcludeMcpServerCommand}"
+                            IsEnabled="{Binding CanChangeArtifactDirectories}" />
+                  </WrapPanel>
+                </StackPanel>
+              </StackPanel>
+            </Border>
+          </StackPanel>
+        </ScrollViewer>
+      </TabItem>
+
       <TabItem Header="Providers">
         <ScrollViewer VerticalScrollBarVisibility="Auto">
           <StackPanel Margin="30,4,30,30" Spacing="16" MaxWidth="700" HorizontalAlignment="Left">

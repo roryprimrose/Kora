@@ -1137,17 +1137,16 @@ model; selecting an option is **not** permission to run an action or create a
 grant. A later action proposal still requires its own approval, unless a
 specific grant already covers that action. Kora limits consecutive questions
 to three; start a new request with more details if it reaches that limit.
-## Run skills and future artifacts
+## Run skills and artifacts
 
-Kora can apply a bundled skill's instructions to a local-model request from
-the command box or activated voice. Future bundled instructions and prompts
-use the same command format.
+Kora can apply a bundled or disk-backed skill, instruction, prompt, or agent
+artifact to a local-model request from the command box or activated voice.
 
 **Type a slash command**
 
 Type `/` in the command box to open a dropdown of every available bundled and
 disk-backed artifact. Continue typing to filter by command name, or type a
-kind such as `/skill `, `/prompt `, or `/instruction `. Use Up/Down and Enter
+kind such as `/skill `, `/prompt `, `/instruction `, or `/agent `. Use Up/Down and Enter
 or select an item with the pointer; Escape closes the dropdown.
 
 Use a direct command:
@@ -1170,6 +1169,7 @@ An artifact that accepts request text uses the rest of the line as its input:
 
 ```text
 /prompt explain why this setup failed
+/agent review-changes inspect this patch
 ```
 
 The current release bundles only the three skills listed above. An unknown,
@@ -1192,19 +1192,54 @@ requests.
 
 **Where disk artifacts are loaded from**
 
-Kora loads compatible files at startup from its own roaming `Skills`,
-`Instructions`, and `Prompts` folders and the existing VS Code or VS Code
-Insiders prompt/instruction locations. Personal skill roots under `.copilot`,
-`.agents`, `.claude`, or another selected profile folder **are not loaded into
-the model or artifact command catalogue**. Use the separate read-only native
-inspection below. A shared root registration does not authorize any existing
-prompt/instruction route.
+Kora loads compatible files from its own roaming `Skills`,
+`Instructions`, `Prompts`, and `Agents` folders and the existing VS Code or VS
+Code Insiders customization locations. In **Settings > Artifacts**, you can
+maintain up to sixteen additional absolute directories for each artifact kind.
+These settings are separate from the read-only shared skill source
+registrations below; registering a shared source does not add it to the model
+artifact catalogue.
 
 Disk skills use `SKILL.md`; prompts use `*.prompt.md`; instructions use
-`*.instructions.md`. Files require bounded UTF-8 content and YAML frontmatter.
-Skills marked `user-invocable: false` do not appear. Conflicting command names,
-IDs, or spoken names fail closed instead of choosing one source silently.
-Restart Kora after adding or changing an artifact.
+`*.instructions.md`; agents use `*.agent.md`. Default and additional
+directories use the same bounded UTF-8, YAML frontmatter, traversal, naming,
+digest, and catalogue-conflict rules. Skills marked `user-invocable: false` do
+not appear. Conflicting command names, IDs, or spoken names fail closed instead
+of choosing one source silently. Kora watches default and configured locations
+and automatically publishes a complete valid replacement catalogue after
+changes. Invalid or partially written content leaves the last valid catalogue
+active and reports the reload failure; no restart is needed. Loading an agent
+artifact applies its declarative instructions; it does not start an autonomous
+agent runtime.
+
+If a selected artifact changes while local reasoning, a clarification, or an
+action approval is pending, Kora retires that interaction. Start a new request
+to use the new revision. Action proposals originating from artifact
+instructions require a fresh single-use approval for the current content
+digest. Existing session/always action grants are not reused, and an
+artifact-originated proposal cannot create a reusable grant.
+
+**MCP server configuration files**
+
+Choose `McpServerConfiguration` in **Settings > Artifacts** to add an absolute
+JSON file rather than a directory. Kora also inspects its roaming
+`Mcp\mcp.json`, VS Code/VS Code Insiders `User\mcp.json`, and Claude Desktop
+`claude_desktop_config.json` when present. Supported files contain exactly one
+`servers` or `mcpServers` object. Each entry must declare either a non-empty
+stdio `command` or an HTTP/HTTPS `url`.
+
+The settings page shows only the server name, transport, source file name, and
+whether it is included at application level. It never displays or sends
+commands, arguments, URLs, headers, environment values, or credentials to a
+model. Include/exclude is audited and fail-closed, but does not connect to a
+server or authorize any capability.
+
+Live MCP capability discovery and invocation are not delivered yet. When they
+are added, app inclusion will be intersected with each session's explicit
+server/capability selection. Voice, typed, and UI requests will expose only
+freshly discovered and admitted capability descriptions to the selected
+model; every proposed call will still require the ordinary host permission,
+approval, egress, audit, cancellation, and provenance checks.
 
 ### Inspect shared profile skills locally
 

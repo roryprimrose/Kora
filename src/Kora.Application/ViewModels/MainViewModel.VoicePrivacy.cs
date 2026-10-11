@@ -238,6 +238,12 @@ public sealed partial class MainViewModel
         if (inCallFeedbackConfiguration is not null) { inCallFeedbackConfiguration.Changed -= OnInCallFeedbackChanged; }
         if (speechTextConfiguration is not null) { speechTextConfiguration.Changed -= OnSpeechTextConfigurationChanged; }
         assistantNameConfiguration.Changed -= OnAssistantNameConfigurationChanged;
+        artifactCatalogue.Changed -= OnArtifactCatalogueChanged;
+        artifactCatalogue.ReloadFailed -= OnArtifactCatalogueReloadFailed;
+        if (mcpServerConfiguration is not null)
+        {
+            mcpServerConfiguration.Changed -= OnMcpServerConfigurationChanged;
+        }
     }
 
     public event EventHandler? PrivacyClosureRequested;

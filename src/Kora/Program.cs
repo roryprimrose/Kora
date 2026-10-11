@@ -116,6 +116,7 @@ internal static class Program
                             Task.Run(() => provider.GetRequiredService<DurableHostRecovery>()
                                 .RecoverAsync(CancellationToken.None)).GetAwaiter().GetResult();
                             provider.GetRequiredService<SessionRetentionConfigurationService>().Observe();
+                            provider.GetRequiredService<ArtifactCatalogueReloadService>().Start();
                             Task.Run(() => provider.GetRequiredService<WindowsSqliteHostInteractionStore>()
                                 .ApplyRetentionAsync(() => provider.GetRequiredService<SessionRetentionConfigurationService>().Available,
                                     static (_, _) => ValueTask.CompletedTask, CancellationToken.None).AsTask()).GetAwaiter().GetResult();
@@ -244,13 +245,19 @@ internal static class Program
         services.AddSingleton<IInstanceLifecycleController>(coordinator);
         services.AddSingleton<BuiltInCommandCatalog>();
         services.AddSingleton<BuiltInCommandRouter>();
-        services.AddSingleton(_ =>
+        services.AddSingleton<IArtifactDirectoryPreferences>(provider =>
+            new LocalArtifactDirectoryPreferences(provider.GetRequiredService<IPreferenceStore>()));
+        services.AddSingleton<ArtifactDirectoryConfigurationService>();
+        services.AddSingleton<McpServerConfigurationService>();
+        services.AddSingleton(provider =>
         {
             var embedded = EmbeddedArtifactCatalogue.Load();
-            var disk = new WindowsDiskArtifactDiscovery(paths).Load();
+            var additionalDirectories = provider.GetRequiredService<IArtifactDirectoryPreferences>().Load();
+            var disk = new WindowsDiskArtifactDiscovery(paths, additionalDirectories).Load();
             return new ArtifactCatalogue([.. embedded.Artifacts, .. disk]);
         });
         services.AddSingleton<ArtifactCommandRouter>();
+        services.AddSingleton<ArtifactCatalogueReloadService>();
         services.AddSingleton<IApplicationDataPaths>(paths);
         services.AddSingleton(evidence);
         services.AddSingleton(diagnosticPolicy);

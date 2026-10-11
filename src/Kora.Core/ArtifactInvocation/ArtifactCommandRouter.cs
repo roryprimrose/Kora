@@ -46,6 +46,7 @@ public sealed class ArtifactCommandRouter(ArtifactCatalogue catalogue)
             "skill" => ArtifactKind.Skill,
             "instruction" or "instructions" => ArtifactKind.Instruction,
             "prompt" => ArtifactKind.Prompt,
+            "agent" or "agents" => ArtifactKind.Agent,
             _ => null,
         };
         string commandName;

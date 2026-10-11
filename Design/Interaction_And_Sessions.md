@@ -54,6 +54,10 @@ versions fairly**, exact pending cancellation and separately labelled confirmed
 clear use the same workflow as typed/current-name activated commands. Selection
 alone neither enqueues nor dispatches. New work in Done/Removed sessions is denied.
 Passive history/queue inspection never renews activity or restores authority.
+The [exact current-run Pause/Resume controls](Work_Management.md#delivered-exact-current-run-dispatch-pause---2026-10-11) address only that session's new dispatch admissions, not its active callback or lifecycle.
+Native/typed/activated routes share the physical store admission fence and current run/generation/control revision receipt. Paused/held reasons are observational in Work/All work/status.
+Resume neither dispatches nor replays Interrupted work; stale private epochs cannot recover old eligibility.
+No persisted pause preference, grant consumption, deadline/retention extension, question retargeting or physical-stop claim is added.
 
 The [future-only pending lifetime option](User_Configuration.md#delivered-bounded-fixed-local-version-queue-settings-r10r13) adds canonical integer 1-120 minutes, default/reset 30, only for new admitted fixed local-version entries after confirmed activation.
 The independent future-admission active budget adds canonical integer 1-60 minutes, default/reset 5. Native/exact settings retain original-input/session/generation/control/call/preference revision gates, audit and durable save/readback receipts. No edit dispatches, cancels or extends activity; admitted deadlines and independent question clocks never change.

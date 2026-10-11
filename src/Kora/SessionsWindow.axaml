@@ -128,6 +128,10 @@
           <Button x:Name="EnqueueVersion" Content="Enqueue local version" IsEnabled="{Binding CanEnqueueVersion}" />
           <Button x:Name="DispatchQueue" Content="Dispatch ready local versions fairly" IsEnabled="{Binding CanControlQueue}"
                   AutomationProperties.Name="Explicit manual bounded fair dispatch among already enqueued current-run sessions; no effect or provider execution" />
+          <Button x:Name="PauseQueue" Content="Pause this session's new dispatch" IsEnabled="{Binding CanChangeQueuePause}"
+                  AutomationProperties.Name="Pause exact current-run session queue admissions only; already committed work drains normally" />
+          <Button x:Name="ResumeQueue" Content="Resume this session's dispatch eligibility" IsEnabled="{Binding CanChangeQueuePause}"
+                  AutomationProperties.Name="Withdraw exact current-run pause only; no automatic dispatch, cancellation or restart replay" />
           <Button x:Name="ClearQueue" Content="Confirm clear displayed pending queue" IsEnabled="{Binding CanClearQueue}"
                   AutomationProperties.Name="Explicitly confirm removal of the displayed pending queue at its exact revision; active work and history remain" />
         </WrapPanel>

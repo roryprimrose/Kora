@@ -1,6 +1,7 @@
 using AwesomeAssertions;
 
 using Kora.Core.Hosting;
+using Kora.Core.Storage;
 
 namespace Kora.Core.UnitTests.Hosting;
 
@@ -239,4 +240,37 @@ public sealed class SessionQueuePolicyTests
     private static SessionQueueEntry Entry(HostId<SessionIdentity> session, long position) =>
         new(new(new(Guid.NewGuid()), session, new(Guid.NewGuid()), RequestOrigin.LocalUi), new(1), new(1),
             position, SessionQueueState.Pending, Run, 4, Now, Now.AddMinutes(30));
+
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(true, false)]
+    [InlineData(false, true)]
+    [InlineData(true, true)]
+    public void RunOnlyPauseUsesSameEligibilityAndDoesNotReorderOtherSessions(bool paused, bool held)
+    {
+        var first = Entry(new(Guid.NewGuid()), 1);
+        var later = Entry(first.Request.SessionId, 2);
+        var second = Entry(new(Guid.NewGuid()), 3);
+        var control = new SessionQueueDispatchControl(Run, first.Generation, 2, 4, paused, held);
+        var controls = new Dictionary<HostId<SessionIdentity>, SessionQueueDispatchControl> { [first.Request.SessionId] = control };
+        var tasks = new Dictionary<HostId<TaskIdentity>, HostTaskState>();
+        control.BlocksAdmission.Should().Be(paused || held);
+        control.Reason.Should().Contain(held ? "unconfirmed" : paused ? "pause blocks" : "manual dispatch");
+        SessionQueuePolicy.SelectReady([first, later, second], tasks, Run, Now, 4, new(), controls)
+            .Should().Be(paused || held ? second : first);
+        SessionQueuePolicy.Eligibility(first, [first, later, second], tasks, Run, Now, 4, new(), dispatchControl: control)
+            .Should().Be(held ? SessionQueueEligibility.DispatchControlHeld : paused ? SessionQueueEligibility.DispatchPaused : SessionQueueEligibility.Ready);
+        foreach (var stale in new[] { control with { RunId = Guid.NewGuid() }, control with { Generation = new(2) } })
+        {
+            SessionQueuePolicy.Eligibility(first, [first], tasks, Run, Now, 4, new(), dispatchControl: stale)
+                .Should().Be(SessionQueueEligibility.DispatchControlHeld);
+        }
+        var running = first with { State = SessionQueueState.Running };
+        SessionQueuePolicy.Eligibility(running, [running], tasks, Run, Now, 4, new(), dispatchControl: control)
+            .Should().Be(SessionQueueEligibility.Current);
+        SessionQueuePolicy.Eligibility(first, [first], tasks, Run, Now, 4, new(), unknownWork: true, dispatchControl: control)
+            .Should().Be(SessionQueueEligibility.UnknownQuarantine);
+        SessionQueuePolicy.SelectReady([first], tasks, Run, Now, 4, new(),
+            new Dictionary<HostId<SessionIdentity>, SessionQueueDispatchControl>()).Should().Be(first);
+    }
 }

@@ -8,4 +8,7 @@ public sealed record SessionWorkOverviewObservation(
     int PendingCount, int PendingCapacity, int ExecutionSlots, int ObservedCurrentFixedReads,
     ImmutableArray<SessionQueueObservation> QueueRecords, int OmittedQueueRecords,
     ImmutableArray<SessionWorkOverviewTask> Tasks, int OmittedTasks,
-    ImmutableArray<SessionWorkQuestion> PendingQuestions, int OmittedQuestions);
+    ImmutableArray<SessionWorkQuestion> PendingQuestions, int OmittedQuestions)
+{
+    public SessionQueueDispatchControl? DispatchControl { get; init; }
+}

@@ -401,6 +401,9 @@ are bound to the displayed snapshot; concurrent changes require refresh.
 Selection or reading alone never dispatches, changes voice focus, extends
 activity or resumes work. The queue requires no model/network/audio and
 cannot schedule scripts, arbitrary resources, power or provider effects.
+**Pause this session's new dispatch** and **Resume this session's dispatch eligibility** share the exact original-user queue control action. The observed run ID/pause revision, explicit paused/held reason and policy eligibility appear in selected Work and passive All work even when no entries are present.
+Pause blocks only future admissions from that session; running reads drain normally and other eligible sessions remain fair. Refresh and exact pause controls remain available during a manual batch; stale displayed revisions require refresh.
+Resume never dispatches automatically, changes clocks/retention, clears grants, marks Done or revives previous-run Interrupted work. Fresh runs start unpaused. Routine-notice quiet mode is independent; unknown/audit/storage/private-epoch failures show recovery, not default unpause or physical-stop claims.
 
 Select an existing session to populate its immutable ID, or enter a known exact
 session GUID in the history field. Choose **Read exact history**. **Next history

@@ -146,6 +146,9 @@ the queue cannot open a microphone or speak a response.
 | `queue remove <session-id> <generation> <queue-revision> <task-id> <entry-revision>` | Remove only that pending entry from dispatch, retaining history |
 | `queue clear <session-id> <generation> <queue-revision> confirm` | Explicitly confirm clear of this exact pending snapshot; current work/history remain |
 | `queue dispatch <session-id> <generation> <queue-revision>` | Manually process up to 32 already enqueued ready local-version reads fairly across eligible sessions |
+| `queue pause-status <session-id>` | Passive exact-session current-run pause/hold receipt, reason and work eligibility; no effects |
+| `queue pause <session-id> <generation> <queue-revision> <run-id> <pause-revision>` | Block new admissions for this exact session in the current host run; committed reads drain normally |
+| `queue resume <session-id> <generation> <queue-revision> <run-id> <pause-revision>` | Withdraw only this exact run's explicit pause after current private authority revalidation; never dispatch |
 
 Use canonical nonempty D GUIDs and the exact displayed positive session/entry
 revisions. Queue revision is the displayed committed snapshot revision; zero
@@ -171,6 +174,12 @@ the invoking session gains no priority. Default capacity is ten pending entries
 per session and one admitted task per session. The shipped host uses one
 global slot; only the fixed local-read implementation permits a host
 limit of one or two.
+
+**Pause this session's new dispatch** and **Resume this session's dispatch eligibility** use the displayed exact generation, queue revision, run ID and pause revision from **Refresh selected work**/`queue list`/`queue pause-status`.
+Pause does not suspend/cancel active work, mark Done, clear entries, consume grants, change FIFO/fairness or deadlines, or renew meaningful activity/retention. It is not a saved preference; fresh runs start unpaused.
+Pause can be acknowledged while an admitted read is still running: no later admission from that session can commit after acknowledgement, while unrelated eligible sessions remain fair candidates. Resume does not start a batch; use a separate manual dispatch decision.
+Unknown/unconfirmed audit, storage, cancellation or private-epoch state holds admission with an explicit recovery reason, not a claimed rollback/unpause. A private epoch change cannot restore old queued eligibility; inspect/remove/requeue explicitly. Previous-run pending work remains Interrupted, never revived by resume.
+Quiet routine notices and queue pause are independent. General workers/providers, autoscheduling and current-task cancellation remain unavailable; a pause receipt is not a physical-stop receipt.
 
 ## Fixed queue settings
 

@@ -45,6 +45,9 @@ Lowering slots never cancels or reinterprets active admissions; subsequent fair 
 
 This is only the existing synchronous read-only `application.get_version` profile.
 Manual dispatch, FIFO/fairness, one active task per session and no replay remain unchanged.
+The [exact current-run session queue pause](Work_Management.md#delivered-exact-current-run-dispatch-pause---2026-10-11) is a separate fixed safety control, not a saved queue setting or permission tier.
+Native/typed/activated Pause blocks only new admissions; Resume withdraws only the matched run/generation pause and never dispatches. Work/All work/status show the authoritative pause/hold reason and run receipt. Fresh runs start unpaused while previous pending work remains Interrupted; privacy retirement, audit/storage uncertainty and stale controls never restore queued eligibility.
+Pause/Resume do not change configured limits, captured deadlines, meaningful activity/retention or routine-notice quiet mode; general workers/providers/current-task cancellation remain unavailable.
 Pending lifetime affects **only newly enqueued admitted entries after confirmed activation**. Editing or refreshing preferences never enqueues, dispatches, cancels, expires or extends meaningful activity. Existing pending/cancelled/expired/running entries retain their exact deadlines and identities.
 New queue payload format 2 captures `RecordVersion=2` and integer `PendingLifetimeMinutes`; exact `ExpiresAt - EnqueuedAt` must match that captured value under the original enqueue intent/revision and committed change digest.
 Legacy payloads without either field still require exactly 30 minutes and retain their original serialized bytes/digests; no database schema or historical authority migration occurs. Unknown/partial/downgraded formats and changed raw payload bytes fail closed ([serialization tests](../tests/Kora.Windows.IntegrationTests/Storage/WindowsSqliteSessionQueueTests.Lifetime.cs)).

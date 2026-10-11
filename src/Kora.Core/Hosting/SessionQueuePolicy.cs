@@ -1,3 +1,5 @@
+using Kora.Core.Storage;
+
 namespace Kora.Core.Hosting;
 
 public static class SessionQueuePolicy
@@ -9,7 +11,8 @@ public static class SessionQueuePolicy
     /// <summary>Round-robin by last successful admission, FIFO within each session; blocked heads never bypass.</summary>
     public static SessionQueueEntry? SelectReady(IReadOnlyList<SessionQueueEntry> entries,
         IReadOnlyDictionary<HostId<TaskIdentity>, HostTaskState> tasks, Guid runId,
-        DateTimeOffset now, long admissionRevision, SessionQueueLimits limits)
+        DateTimeOffset now, long admissionRevision, SessionQueueLimits limits,
+        IReadOnlyDictionary<HostId<SessionIdentity>, SessionQueueDispatchControl>? dispatchControls = null)
     {
         ArgumentNullException.ThrowIfNull(entries);
         ArgumentNullException.ThrowIfNull(tasks);
@@ -26,7 +29,8 @@ public static class SessionQueuePolicy
                 Last = group.Max(entry => entry.DispatchOrder),
             })
             .Where(candidate => candidate.Head is { } head && Eligibility(head, entries, tasks,
-                runId, now, admissionRevision, limits) == SessionQueueEligibility.Ready)
+                runId, now, admissionRevision, limits,
+                dispatchControl: dispatchControls?.GetValueOrDefault(head.Request.SessionId)) == SessionQueueEligibility.Ready)
             .OrderBy(candidate => candidate.Last)
             .ThenBy(candidate => candidate.Head!.Position)
             .ThenBy(candidate => candidate.Head!.Request.SessionId.Value)
@@ -36,7 +40,8 @@ public static class SessionQueuePolicy
     public static SessionQueueEligibility Eligibility(SessionQueueEntry entry,
         IReadOnlyList<SessionQueueEntry> entries, IReadOnlyDictionary<HostId<TaskIdentity>, HostTaskState> tasks,
         Guid runId, DateTimeOffset now, long admissionRevision, SessionQueueLimits limits,
-        bool sessionActive = true, bool unclassifiedWorkOrWait = false, bool unknownWork = false)
+        bool sessionActive = true, bool unclassifiedWorkOrWait = false, bool unknownWork = false,
+        SessionQueueDispatchControl? dispatchControl = null)
     {
         ArgumentNullException.ThrowIfNull(entry);
         ArgumentNullException.ThrowIfNull(entries);
@@ -58,6 +63,14 @@ public static class SessionQueuePolicy
         }
         if (unclassifiedWorkOrWait) { return SessionQueueEligibility.UnclassifiedWorkOrWait; }
         if (entry.AdmissionRevision != admissionRevision) { return SessionQueueEligibility.AdmissionChanged; }
+        if (dispatchControl is { } control)
+        {
+            if (control.RunId != runId || control.Generation != entry.Generation || control.Held)
+            {
+                return SessionQueueEligibility.DispatchControlHeld;
+            }
+            if (control.Paused) { return SessionQueueEligibility.DispatchPaused; }
+        }
         if (entries.Any(other => other.Request.SessionId == entry.Request.SessionId && other.IsCurrent))
         {
             return SessionQueueEligibility.SessionCurrent;

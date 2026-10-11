@@ -39,11 +39,13 @@ public sealed partial class WindowsSqliteHostInteractionStore
         unknown.CommandText = "SELECT 1 FROM host_tasks WHERE session_id=$session AND state=7 LIMIT 1;";
         unknown.Parameters.AddWithValue("$session", Id(session));
         var quarantined = unknown.ExecuteScalar() is not null;
+        var dispatchControl = QueueControl(connection, session, admissionRevision);
         var queueRecords = active.Concat(recent).OrderBy(entry => entry.Position).Select(entry =>
         {
             var projected = ProjectQueue(connection, entry, now);
             return new SessionQueueObservation(projected, SessionQueuePolicy.Eligibility(projected,
-                projectedQueue, states, runId, now, admissionRevision, limits, authority.Authority.IsActive, blocked, quarantined),
+                projectedQueue, states, runId, now, admissionRevision, limits, authority.Authority.IsActive, blocked, quarantined,
+                dispatchControl),
                 entry.ActiveDeadlineAt ?? (entry.DispatchOrder > 0
                     ? SessionQueueLimits.ActiveDeadlineAt(ReadAdmissionTime(connection, entry), SessionQueueLimits.DefaultActiveBudgetMinutes) : null));
         }).ToArray();
@@ -53,7 +55,7 @@ public sealed partial class WindowsSqliteHostInteractionStore
         using var head = connection.CreateCommand();
         head.CommandText = "SELECT sequence FROM authority_head WHERE singleton=1;";
         var snapshot = new SessionWorkSnapshot(new(authority.Authority, ReadMetadata(connection, session)),
-            (long)head.ExecuteScalar()!, now, QueueSnapshot(connection, session, now),
+            (long)head.ExecuteScalar()!, now, QueueSnapshot(connection, session, now) with { DispatchControl = dispatchControl },
             rows.Count(entry => entry.RunId == runId && entry.IsPending), limits.PendingPerSession, limits.ExecutionSlots,
             [.. queueRecords], Math.Max(0, rows.Length - active.Length - SessionWorkSnapshot.RecentQueueRecords),
             [.. taskRecords.Records.Select(task => Observe(connection, task, authority.Authority))], taskRecords.Omitted,

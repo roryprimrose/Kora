@@ -82,17 +82,18 @@ public sealed class AuthorityLocalEventSource(
                 (SessionQueueState.Running, SessionQueueEligibility.Current) => LocalEventType.Current,
                 (SessionQueueState.Pending, SessionQueueEligibility.Ready) => LocalEventType.Queued,
                 (SessionQueueState.Pending, SessionQueueEligibility.DependencyNotSucceeded
-                    or SessionQueueEligibility.UnclassifiedWorkOrWait or SessionQueueEligibility.UnknownQuarantine) => LocalEventType.Blocked,
+                    or SessionQueueEligibility.UnclassifiedWorkOrWait or SessionQueueEligibility.UnknownQuarantine
+                    or SessionQueueEligibility.DispatchPaused or SessionQueueEligibility.DispatchControlHeld) => LocalEventType.Blocked,
                 _ => null,
             };
             // Current notices use the admitted active clock, never the independent pending or question clock.
             // Missing/elapsed active authority suppresses a current notice; it does not fabricate a failed receipt.
             var expiry = type == LocalEventType.Current ? row.ActiveDeadline : entry.ExpiresAt;
             if (type is null || expiry is not { } deadline || deadline <= now || entry.EnqueuedAt > now) { continue; }
-            events.Add(new(LocalEvent.Identity(LocalEventSource.LocalVersionQueue, session.SessionId.Value, entry.Request.TaskId.Value),
+            events.Add(new LocalEvent(LocalEvent.Identity(LocalEventSource.LocalVersionQueue, session.SessionId.Value, entry.Request.TaskId.Value),
                 1, LocalEventSource.LocalVersionQueue, type.Value, session.SessionId, entry.Request.TaskId,
                 entry.Request.TaskId.Value, session.Generation.Value, entry.Revision.Value, 0, entry.Request.Origin,
-                row.Eligibility, now, deadline));
+                row.Eligibility, now, deadline) with { RelatedRevision = snapshot.Queue.DispatchControl?.Revision ?? 0 });
         }
         foreach (var question in snapshot.PendingQuestions)
         {

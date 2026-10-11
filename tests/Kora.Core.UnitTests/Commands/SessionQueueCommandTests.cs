@@ -20,6 +20,9 @@ public sealed class SessionQueueCommandTests
     [InlineData("queue remove " + Session + " 1 5 " + TaskId + " 1", SessionCommandOperation.QueueRemove)]
     [InlineData("queue clear " + Session + " 1 5 confirm", SessionCommandOperation.QueueClear)]
     [InlineData("queue dispatch " + Session + " 1 5", SessionCommandOperation.QueueDispatch)]
+    [InlineData("queue pause-status " + Session, SessionCommandOperation.QueuePauseStatus)]
+    [InlineData("queue pause " + Session + " 1 5 " + Request + " 0", SessionCommandOperation.QueuePause)]
+    [InlineData("Kora, queue resume " + Session + " 1 5 " + Request + " 2", SessionCommandOperation.QueueResume)]
     public void Exact_queue_grammar_is_deterministic_without_inference(string input, SessionCommandOperation operation)
     {
         var command = SessionCommand.Parse(input, "Kora")!;
@@ -29,6 +32,11 @@ public sealed class SessionQueueCommandTests
             command.WorkRequestId.Should().Be(Guid.Parse(Request));
             command.TaskId.Should().Be(Guid.Parse(TaskId));
             command.DependencyTaskId.Should().Be(input.Contains(" after ", StringComparison.Ordinal) ? Guid.Parse(Request) : null);
+        }
+        if (operation is SessionCommandOperation.QueuePause or SessionCommandOperation.QueueResume)
+        {
+            command.QueueRunId.Should().Be(Guid.Parse(Request));
+            command.QueueControlRevision.Should().Be(operation == SessionCommandOperation.QueuePause ? 0 : 2);
         }
     }
 
@@ -51,6 +59,13 @@ public sealed class SessionQueueCommandTests
     [InlineData("queue enqueue " + Session + " 1 0 " + Request + " " + TaskId + " version extra")]
     [InlineData("queue list " + Session + "\n")]
     [InlineData("queue replace " + Session + " 1 0")]
+    [InlineData("queue pause " + Session + " 1 0")]
+    [InlineData("queue pause " + Session + " 1 0 " + Request + " -1")]
+    [InlineData("queue pause " + Session + " 1 0 " + Request + " 9223372036854775808")]
+    [InlineData("queue resume " + Session + " 1 0 unknown 0")]
+    [InlineData("queue resume " + Session + " 1 0 00000000-0000-0000-0000-000000000000 0")]
+    [InlineData("queue pause " + Session + " 1 0 " + Request + " 0 extra")]
+    [InlineData("queue pause-status " + Session + " extra")]
     public void Unavailable_effects_names_stale_revisions_and_ambiguous_confirmation_are_rejected(string input) =>
         SessionCommand.Parse(input, "Kora")!.Operation.Should().Be(SessionCommandOperation.Invalid);
 

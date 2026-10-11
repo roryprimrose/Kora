@@ -209,7 +209,9 @@ public sealed partial class WindowsSqliteHostInteractionStore
         }).ToHashSet();
         return SessionQueuePolicy.SelectReady(entries.Where(entry => !blocked.Contains(entry.Request.SessionId))
             .Select(entry => entry.RunId != runId && entry.IsPending ? entry with { State = SessionQueueState.Interrupted } : entry).ToArray(),
-            states, runId, time.GetUtcNow(), admissionRevision, limits);
+            states, runId, time.GetUtcNow(), admissionRevision, limits,
+            entries.Select(entry => entry.Request.SessionId).Distinct()
+                .ToDictionary(session => session, session => QueueControl(connection, session, admissionRevision)));
     }
 
     private SessionQueueSnapshot RequireQueueRevision(SqliteConnection connection, HostRequest control,
@@ -235,7 +237,8 @@ public sealed partial class WindowsSqliteHostInteractionStore
         var revision = (long)command.ExecuteScalar()!;
         return new(session, authority.Authority.Generation, revision,
             rows.Where(entry => entry.IsCurrent || entry.State == SessionQueueState.Unknown || entry.RunId == runId && entry.IsPending)
-                .Select(entry => ProjectQueue(connection, entry, observedAt)).ToArray());
+                .Select(entry => ProjectQueue(connection, entry, observedAt)).ToArray())
+            { DispatchControl = QueueControl(connection, session) };
     }
 
     private SessionQueueEntry ProjectQueue(SqliteConnection connection, SessionQueueEntry entry, DateTimeOffset? observedAt = null)

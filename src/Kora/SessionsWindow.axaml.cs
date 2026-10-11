@@ -82,6 +82,8 @@ internal sealed partial class SessionsWindow : Window
         ReadQueue.Click += async (_, _) => await model.RefreshWorkAsync();
         EnqueueVersion.Click += async (_, _) => await model.EnqueueVersionAsync();
         DispatchQueue.Click += async (_, _) => await model.DispatchQueueAsync();
+        PauseQueue.Click += async (_, _) => await model.PauseQueueAsync();
+        ResumeQueue.Click += async (_, _) => await model.ResumeQueueAsync();
         CancelQueueEntry.Click += async (_, _) => await model.CancelWorkAsync();
         ClearQueue.Click += async (_, _) => await model.ClearQueueAsync();
         EventRecords.SelectionChanged += (_, _) =>

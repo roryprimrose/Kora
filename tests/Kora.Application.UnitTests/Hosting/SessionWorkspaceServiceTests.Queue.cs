@@ -22,6 +22,50 @@ public sealed partial class SessionWorkspaceServiceTests
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
+    public async Task FailedControlDeliveryHoldsOnlyItsCommittedReceiptWithoutClaimingRollback(bool cancellation)
+    {
+        using var f = new Fixture();
+        using var cancel = new CancellationTokenSource();
+        await using var queue = f.QueueService();
+        f.AfterPauseControl = () => { if (cancellation) { cancel.Cancel(); } else { f.CanControl = false; } };
+        var control = () => queue.ExecuteCommandAsync(f.QueueCommand(SessionCommandOperation.QueueResume) with { QueueRunId = f.QueueRun },
+            RequestOrigin.LocalUi, () => true, cancel.Token);
+        await control.Should().ThrowAsync<Exception>();
+        (await f.ReadQueueAsync(f.Request.SessionId, f.Token)).DispatchControl!.Held.Should().BeTrue();
+        f.TaskWrites.Last().State.Should().Be(HostTaskState.Succeeded, "the physical control commit remains truthful; failed delivery does not certify rollback");
+    }
+
+    [Theory]
+    [InlineData(RequestOrigin.LocalUi, true)]
+    [InlineData(RequestOrigin.ActivatedVoice, false)]
+    public async Task OriginalQueuePauseAndResumeRouteToSharedHostControlWithoutDispatchOrDuplicateTerminalReceipt(RequestOrigin origin, bool paused)
+    {
+        using var f = new Fixture();
+        await using var queue = f.QueueService();
+        var workspace = new SessionWorkspaceService(f, new(f), f, f.Logger, queue);
+        var operation = paused ? SessionCommandOperation.QueuePause : SessionCommandOperation.QueueResume;
+        var command = f.QueueCommand(operation) with { QueueRunId = f.QueueRun };
+        var result = await workspace.ExecuteCommandAsync(command, origin, () => true, f.Token);
+        result.Outcome.Should().Be("committed");
+        result.Queue!.DispatchControl!.Paused.Should().Be(paused);
+        result.Queue.DispatchControl.ControlRevision.Should().Be(f.ControlRevision);
+        f.TaskWrites.Should().HaveCount(2);
+        f.TaskWrites.Last().State.Should().Be(HostTaskState.Succeeded);
+        f.TaskWrites.Should().OnlyContain(task => task.Request.Origin == origin);
+        f.QueueActions.Should().Be(0);
+        var status = await workspace.ExecuteCommandAsync(f.QueueCommand(SessionCommandOperation.QueuePauseStatus),
+            origin, () => true, f.Token);
+        status.Outcome.Should().Be("observed");
+        status.Work!.Queue.DispatchControl.Should().Be(result.Queue.DispatchControl);
+        f.TaskWrites.Should().HaveCount(2);
+        var missingRun = () => queue.ExecuteCommandAsync(command with { QueueRunId = null }, origin, () => true, f.Token);
+        await missingRun.Should().ThrowAsync<InvalidOperationException>();
+        f.TaskWrites.Last().State.Should().Be(HostTaskState.Denied);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
     public async Task CancellationOrPrivacyChangeDuringReceiptCannotPassFinalCommitAdmission(bool privacy)
     {
         using var f = new Fixture();
@@ -568,6 +612,13 @@ public sealed partial class SessionWorkspaceServiceTests
         internal QueueClock QueueTime { get; } = new();
         internal SessionQueueLimits? LastAdmittedLimits { get; private set; }
         internal Func<SessionQueueLimits, Task>? BeforeEnqueue { get; set; }
+        private SessionQueueDispatchControl? dispatchControl;
+        internal Action? AfterPauseControl { get; set; }
+        public ValueTask HoldDispatchControlAsync(SessionQueueSnapshot expected, CancellationToken token)
+        {
+            if (dispatchControl == expected.DispatchControl) { dispatchControl = dispatchControl! with { Held = true }; }
+            return ValueTask.CompletedTask;
+        }
         internal SessionQueueService QueueService(int slots = 1, TimeProvider? clock = null, SessionQueueConfigurationService? configuration = null) =>
             new(this, this, new(this), this, this, new(executionSlots: slots), new QueueLogger(this), clock ?? QueueTime, configuration);
         internal SessionCommand QueueCommand(SessionCommandOperation operation) => new(operation, Request.SessionId.Value, 1)
@@ -586,7 +637,17 @@ public sealed partial class SessionWorkspaceServiceTests
             return ValueTask.FromResult(QueueSnapshot(session));
         }
         private SessionQueueSnapshot QueueSnapshot(HostId<SessionIdentity> session) =>
-            new(session, new(1), QueueRevision, QueueRows.Where(entry => entry.IsPending || entry.IsCurrent).ToArray());
+            new(session, new(1), QueueRevision, QueueRows.Where(entry => entry.IsPending || entry.IsCurrent).ToArray())
+            { DispatchControl = dispatchControl };
+        public ValueTask<SessionQueueSnapshot> SetDispatchPausedAsync(HostRequest control, HostRevision generation,
+            long expectedQueueRevision, Guid expectedRunId, long expectedControlRevision, long admissionRevision,
+            bool paused, Func<bool> eligible, CancellationToken token)
+        {
+            dispatchControl = new(expectedRunId, generation, expectedControlRevision + 1, admissionRevision, paused, false);
+            TaskWrites.Add(new(control, new(2), HostTaskState.Succeeded));
+            AfterPauseControl?.Invoke();
+            return ValueTask.FromResult(QueueSnapshot(control.SessionId));
+        }
         public ValueTask<SessionQueueEntry?> ReadQueueEntryAsync(HostId<SessionIdentity> session, HostId<TaskIdentity> task, CancellationToken token) =>
             ValueTask.FromResult(QueueRows.SingleOrDefault(entry => entry.Request.TaskId == task));
         public async ValueTask<SessionQueueSnapshot> EnqueueAsync(HostRequest control, HostRequest work, HostRevision generation,

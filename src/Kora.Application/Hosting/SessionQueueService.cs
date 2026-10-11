@@ -66,11 +66,13 @@ public sealed partial class SessionQueueService : IAsyncDisposable
             throw new InvalidOperationException("Queue management requires original trusted user input.");
         }
         var revision = access.ControlRevision;
-        var inspect = command.Operation is SessionCommandOperation.QueueList or SessionCommandOperation.QueueStatus;
+        var inspect = command.Operation is SessionCommandOperation.QueueList or SessionCommandOperation.QueueStatus or SessionCommandOperation.QueuePauseStatus;
         bool Eligible() => !disposed && !lifetime.IsCancellationRequested && admission()
             && access.ControlRevision == revision && (inspect ? access.CanInspect : access.CanControl);
         var request = new HostRequest(new(Guid.NewGuid()), session, new(Guid.NewGuid()), origin);
         using var root = HostActivity.BeginRoot(request, HostActivityLayer.Application, HostOperation.Request);
+        SessionQueueSnapshot? changedControl = null;
+        var controlDelivered = false;
         try
         {
             token.ThrowIfCancellationRequested();
@@ -80,14 +82,13 @@ public sealed partial class SessionQueueService : IAsyncDisposable
             RequireEligible(Eligible);
             if (inspect)
             {
-                var work = command.Operation == SessionCommandOperation.QueueList
-                    ? await ReadWorkAsync(session, revision, token).ConfigureAwait(false) : null;
-                work?.RequireSubject(session);
-                var result = command.Operation == SessionCommandOperation.QueueList
+                var work = await ReadWorkAsync(session, revision, token).ConfigureAwait(false);
+                work.RequireSubject(session);
+                var result = command.Operation is SessionCommandOperation.QueueList or SessionCommandOperation.QueuePauseStatus
                     ? new SessionCommandResult("observed", QueueDisclosure)
                     { Queue = work!.Queue, Work = work }
                     : new SessionCommandResult("observed", QueueDisclosure)
-                    { QueueEntry = await store.ReadQueueEntryAsync(session, RequireTask(command), token).ConfigureAwait(false) };
+                    { Queue = work.Queue, QueueEntry = await store.ReadQueueEntryAsync(session, RequireTask(command), token).ConfigureAwait(false) };
                 token.ThrowIfCancellationRequested();
                 RequireEligible(Eligible);
                 _ = SessionCommandResult.Serialize(result);
@@ -114,15 +115,28 @@ public sealed partial class SessionQueueService : IAsyncDisposable
                         command.QueueRevision, null, null, SessionQueueState.Removed, Eligible, token).ConfigureAwait(false),
                     SessionCommandOperation.QueueDispatch => await ValidateDispatchAsync(session, generation, command.QueueRevision,
                         Eligible, token).ConfigureAwait(false),
+                    SessionCommandOperation.QueuePause or SessionCommandOperation.QueueResume =>
+                        await store.SetDispatchPausedAsync(request, generation, command.QueueRevision,
+                            command.QueueRunId ?? throw new InvalidOperationException("An exact current queue run ID is required."),
+                            command.QueueControlRevision, revision, command.Operation == SessionCommandOperation.QueuePause,
+                            Eligible, token).ConfigureAwait(false),
                     _ => throw new InvalidOperationException("The deterministic queue operation is unavailable."),
                 };
+                if (command.Operation is SessionCommandOperation.QueuePause or SessionCommandOperation.QueueResume)
+                {
+                    changedControl = snapshot;
+                }
             }
             catch (InvalidOperationException)
             {
                 await tasks.RecordOutcomeAsync(intent, HostTaskState.Denied, CancellationToken.None).ConfigureAwait(false);
                 throw;
             }
-            await tasks.RecordOutcomeAsync(intent, HostTaskState.Succeeded, CancellationToken.None).ConfigureAwait(false);
+            // Pause controls commit their terminal task and audit before publishing run-only state at the admission fence.
+            if (command.Operation is not (SessionCommandOperation.QueuePause or SessionCommandOperation.QueueResume))
+            {
+                await tasks.RecordOutcomeAsync(intent, HostTaskState.Succeeded, CancellationToken.None).ConfigureAwait(false);
+            }
             if (command.Operation == SessionCommandOperation.QueueEnqueue)
             {
                 lock (causeGate) { causes[RequireTask(command)] = (session, root.Activity!.Context); }
@@ -144,8 +158,10 @@ public sealed partial class SessionQueueService : IAsyncDisposable
                 reply = reply with { QueueDispatch = await DispatchReadyAsync(revision, Eligible, token).ConfigureAwait(false),
                     Queue = await store.ReadQueueAsync(session, token).ConfigureAwait(false) };
             }
+            token.ThrowIfCancellationRequested();
             RequireEligible(Eligible);
             _ = SessionCommandResult.Serialize(reply);
+            controlDelivered = true;
             root.Complete(HostOperationOutcome.Completed);
             return reply;
         }
@@ -159,6 +175,13 @@ public sealed partial class SessionQueueService : IAsyncDisposable
             Failure(logger, exception.GetType().Name);
             root.Complete(HostOperationOutcome.Failed);
             throw;
+        }
+        finally
+        {
+            if (changedControl is not null && !controlDelivered)
+            {
+                await store.HoldDispatchControlAsync(changedControl, CancellationToken.None).ConfigureAwait(false);
+            }
         }
     }
 

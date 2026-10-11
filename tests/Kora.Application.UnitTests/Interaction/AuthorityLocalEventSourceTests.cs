@@ -19,6 +19,25 @@ namespace Kora.Application.UnitTests.Interaction;
 [Collection("Host tracing")]
 public sealed class AuthorityLocalEventSourceTests
 {
+    [Fact]
+    public void QueueControlRevisionRetiresOldEventReceiptsWithoutChangingIndependentDeadlines()
+    {
+        using var f = new Fixture();
+        var snapshot = f.Snapshot();
+        var before = AuthorityLocalEventSource.FromWork(snapshot, f.Time.Now).Single();
+        var control = new SessionQueueDispatchControl(Guid.NewGuid(), snapshot.Session.Authority.Generation, 2, 1, true, false);
+        snapshot = snapshot with
+        {
+            Queue = snapshot.Queue with { DispatchControl = control },
+            QueueRecords = [snapshot.QueueRecords[0] with { Eligibility = SessionQueueEligibility.DispatchPaused }],
+        };
+        var paused = AuthorityLocalEventSource.FromWork(snapshot, f.Time.Now).Single();
+        paused.RelatedRevision.Should().Be(2);
+        paused.ExpiresAt.Should().Be(before.ExpiresAt);
+        paused.SameSource(before).Should().BeFalse();
+        paused.Type.Should().Be(LocalEventType.Blocked);
+    }
+
     [Theory]
     [InlineData(1)]
     [InlineData(5)]
@@ -71,6 +90,8 @@ public sealed class AuthorityLocalEventSourceTests
     [InlineData(SessionQueueState.Pending, SessionQueueEligibility.DependencyNotSucceeded, LocalEventType.Blocked)]
     [InlineData(SessionQueueState.Pending, SessionQueueEligibility.UnclassifiedWorkOrWait, LocalEventType.Blocked)]
     [InlineData(SessionQueueState.Pending, SessionQueueEligibility.UnknownQuarantine, LocalEventType.Blocked)]
+    [InlineData(SessionQueueState.Pending, SessionQueueEligibility.DispatchPaused, LocalEventType.Blocked)]
+    [InlineData(SessionQueueState.Pending, SessionQueueEligibility.DispatchControlHeld, LocalEventType.Blocked)]
     public void Only_authoritative_fixed_profile_work_states_become_content_free_events(
         SessionQueueState state, SessionQueueEligibility eligibility, LocalEventType type)
     {

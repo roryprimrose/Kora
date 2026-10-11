@@ -254,6 +254,52 @@ public sealed class SessionAttachmentWindowTests
         ControlAutomationPeer.CreatePeerForElement(span)!.GetName().Should().Contain(attachment.File.ItemId.ToString("D"));
     }
 
+    [Fact]
+    public async Task NativeControllerRevalidatesCurrentStoredRemovalAndClearsHistoricalBodyBeforeNavigation()
+    {
+        await HeadlessSession.RunAsync(async () =>
+        {
+            using var fixture = new InteractionStorageFixture();
+            await fixture.InitializeAsync();
+            await WindowsSqliteSessionWorkspaceTests.FinishAsync(fixture, HostTaskState.Succeeded);
+            var access = new WindowsSqliteSessionWorkspaceTests.Access();
+            var sessions = WindowsSqliteSessionWorkspaceTests.Service(fixture, access);
+            var audit = new Audit();
+            var capture = new Capture();
+            using var preview = new LocalFilePreview(capture, audit, fixture.Time, NullLogger<LocalFilePreview>.Instance);
+            var search = new LocalFileSearch(preview, new LocalFileLexicalRetrieval(), audit, fixture.Time, NullLogger<LocalFileSearch>.Instance);
+            await using var service = new SessionFileAttachmentService(sessions, access,
+                new LocalSessionFileAttach(capture, audit, fixture.Time, NullLogger<LocalFilePreview>.Instance),
+                search, fixture.Time, audit, NullLogger<SessionFileAttachmentService>.Instance);
+            var failures = new List<string>();
+            using var controller = new SessionAttachmentWindowController(failures.Add, service, sessions, access, new Picker());
+            LocalFilePreviewWindow? opened = null;
+            using var windows = Window.WindowOpenedEvent.AddClassHandler<LocalFilePreviewWindow>((window, _) => opened = window);
+            var target = await fixture.Store.ReadMetadataAsync(fixture.Request.SessionId, fixture.Token);
+            await controller.Open(target, attach: true, () => true, fixture.Token);
+            await Press(opened!, "Confirm: capture and retain this exact file for this Session");
+            var retained = (await service.Read(target.Authority.SessionId, fixture.Token))!;
+            await NavigateRetained(opened!, retained, "café");
+            var view = opened!;
+            var rows = view.GetVisualDescendants().OfType<ListBox>().Single();
+            // Another admitted native host consumer removes the stored source, without this viewer's service callback.
+            using (var activity = Kora.Core.Diagnostics.HostActivity.BeginRoot(
+                new(new(Guid.NewGuid()), retained.Session, new(Guid.NewGuid()), RequestOrigin.LocalUi),
+                Kora.Core.Diagnostics.HostActivityLayer.Application, Kora.Core.Diagnostics.HostOperation.Request))
+            {
+                var removal = await sessions.PreviewAttachmentRemoval(retained.Session, fixture.Token);
+                await sessions.RemoveAttachment(removal, () => true, fixture.Token);
+                activity.Complete(Kora.Core.Diagnostics.HostOperationOutcome.Completed);
+            }
+            await Press(view, "Show exact cited source span");
+            view.Content.Should().BeNull();
+            rows.ItemsSource.Should().BeNull();
+            capture.Reads.Should().Be(1);
+            (await service.Read(retained.Session, fixture.Token)).Should().BeNull();
+            failures.Should().ContainSingle().Which.Should().Contain("old source view was cleared");
+        });
+    }
+
     [Theory]
     [InlineData("mode")]
     [InlineData("query")]

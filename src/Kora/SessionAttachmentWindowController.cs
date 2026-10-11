@@ -147,6 +147,11 @@ internal sealed class SessionAttachmentWindowController : IUserFilePicker, IDisp
             if (!current() || !ReferenceEquals(window, view)
                 || resolved?.StorageRevision != retained.StorageRevision || resolved.File.Reference != retained.File.Reference)
             {
+                if (ReferenceEquals(window, view))
+                {
+                    reportFailure("The exact retained revision is unavailable. The old source view was cleared; inspect again.");
+                    RevokeView();
+                }
                 throw new InvalidOperationException("The exact retained revision is unavailable. Inspect again.");
             }
             return resolved.File;

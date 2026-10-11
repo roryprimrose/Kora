@@ -14,6 +14,9 @@ public interface ISessionQueueStore
         bool paused, Func<bool> eligible, CancellationToken token);
     /// <summary>Hold only a matching committed run receipt whose delivery failed; never release or overwrite newer control.</summary>
     ValueTask HoldDispatchControlAsync(SessionQueueSnapshot expected, CancellationToken token);
+    /// <summary>Swap only the exact reviewed adjacent pending pair under the authoritative admission fence.</summary>
+    ValueTask<SessionQueueSnapshot> MovePendingAsync(HostRequest control, SessionQueueMoveReview review,
+        Func<bool> eligible, CancellationToken token);
     ValueTask<SessionQueueSnapshot> EnqueueAsync(HostRequest control, HostRequest work, HostRevision generation,
         long expectedRevision, long admissionRevision, HostId<TaskIdentity>? dependency,
         SessionQueueLimits limits, Func<bool> eligible, CancellationToken token,

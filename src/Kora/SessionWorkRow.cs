@@ -47,7 +47,9 @@ internal sealed class SessionWorkRow(SessionQueueObservation? queue, HostTaskObs
                 : Task.Task.State is HostTaskState.IntentRecorded ? " | Unclassified work; dispatch blocked" : "");
     public string Revisions => "Revision " + (Queue?.Entry.Revision.Value ?? Task!.Task.Revision.Value).ToString(CultureInfo.InvariantCulture)
         + " | generation " + (Queue?.Entry.Generation.Value ?? Task!.Generation.Value).ToString(CultureInfo.InvariantCulture)
-        + (Queue is { } queue ? " | stable FIFO order " + queue.Entry.Position.ToString(CultureInfo.InvariantCulture) : " | source " + Task!.Source);
+        + (Queue is { } queue ? " | original arrival " + queue.Entry.Position.ToString(CultureInfo.InvariantCulture)
+            + (queue.PendingOrder is { } order ? " | pending dispatch order " + order.ToString(CultureInfo.InvariantCulture) : "")
+            : " | source " + Task!.Source);
     public string Deadline => Queue is { } queue
         ? "Pending expiry " + queue.Entry.ExpiresAt.ToString("O", CultureInfo.InvariantCulture)
             + " | captured pending lifetime " + (queue.Entry.PendingLifetimeMinutes ?? SessionQueueLimits.DefaultPendingLifetimeMinutes)

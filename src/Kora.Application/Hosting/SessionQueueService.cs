@@ -95,6 +95,34 @@ public sealed partial class SessionQueueService : IAsyncDisposable
                 root.Complete(HostOperationOutcome.Completed);
                 return result;
             }
+            if (command.Operation is SessionCommandOperation.QueueMoveUp or SessionCommandOperation.QueueMoveDown)
+            {
+                if (!resolved.Authority.IsActive) { throw new InvalidOperationException("Only an exact active session can review a pending move."); }
+                var preview = await ReviewMoveAsync(command, session, revision, Eligible, token).ConfigureAwait(false);
+                var reviewed = new SessionCommandResult("reviewed", "Review this exact pair and original deadlines. Separate exact confirmation required; no dispatch or meaningful activity renewal.")
+                    { Queue = preview.Queue, QueueMoveReview = preview };
+                _ = SessionCommandResult.Serialize(reviewed);
+                token.ThrowIfCancellationRequested();
+                RequireEligible(Eligible);
+                lock (causeGate) { moveReviews.Clear(); moveReviews[session] = (preview, origin); }
+                root.Complete(HostOperationOutcome.Completed);
+                return reviewed;
+            }
+            if (command.Operation == SessionCommandOperation.QueueMoveCancel)
+            {
+                lock (causeGate)
+                {
+                    if (!moveReviews.TryGetValue(session, out var pending) || pending.Review.Id != command.QueueMoveReviewId)
+                    {
+                        throw new InvalidOperationException("The exact move review is no longer current; no queue order mutation occurred.");
+                    }
+                    moveReviews.Remove(session);
+                }
+                root.Complete(HostOperationOutcome.Completed);
+                return new("cancelled-review", "No queue order mutation; the exact review is revoked. Input drafts and original deadlines remain unchanged.");
+            }
+            var moveReview = command.Operation == SessionCommandOperation.QueueMoveConfirm
+                ? ConsumeMoveReview(command, session, revision, origin) : null;
             var intent = await workspace.RecordControlIntentAsync(request, token).ConfigureAwait(false);
             SessionQueueSnapshot snapshot;
             try
@@ -121,9 +149,12 @@ public sealed partial class SessionQueueService : IAsyncDisposable
                             command.QueueRunId ?? throw new InvalidOperationException("An exact current queue run ID is required."),
                             command.QueueControlRevision, revision, command.Operation == SessionCommandOperation.QueuePause,
                             Eligible, token).ConfigureAwait(false),
+                    SessionCommandOperation.QueueMoveConfirm =>
+                        await WithLimitsAsync(current => store.MovePendingAsync(request, moveReview!,
+                            () => Eligible() && (configuration is null || configuration.IsCurrent(current)), token).AsTask(), token).ConfigureAwait(false),
                     _ => throw new InvalidOperationException("The deterministic queue operation is unavailable."),
                 };
-                if (command.Operation is SessionCommandOperation.QueuePause or SessionCommandOperation.QueueResume)
+                if (command.Operation is SessionCommandOperation.QueuePause or SessionCommandOperation.QueueResume or SessionCommandOperation.QueueMoveConfirm)
                 {
                     changedControl = snapshot;
                 }
@@ -134,7 +165,7 @@ public sealed partial class SessionQueueService : IAsyncDisposable
                 throw;
             }
             // Pause controls commit their terminal task and audit before publishing run-only state at the admission fence.
-            if (command.Operation is not (SessionCommandOperation.QueuePause or SessionCommandOperation.QueueResume))
+            if (command.Operation is not (SessionCommandOperation.QueuePause or SessionCommandOperation.QueueResume or SessionCommandOperation.QueueMoveConfirm))
             {
                 await tasks.RecordOutcomeAsync(intent, HostTaskState.Succeeded, CancellationToken.None).ConfigureAwait(false);
             }
@@ -153,7 +184,7 @@ public sealed partial class SessionQueueService : IAsyncDisposable
                     }
                 }
             }
-            var reply = new SessionCommandResult("committed", QueueDisclosure) { Queue = snapshot };
+            var reply = new SessionCommandResult("committed", QueueDisclosure) { Queue = snapshot, QueueMoveReceipt = snapshot.MoveReceipt };
             if (command.Operation == SessionCommandOperation.QueueDispatch)
             {
                 reply = reply with { QueueDispatch = await DispatchReadyAsync(revision, Eligible, token).ConfigureAwait(false),
@@ -354,7 +385,7 @@ public sealed partial class SessionQueueService : IAsyncDisposable
         }
         await lifetime.CancelAsync().ConfigureAwait(false);
         await dispatchGate.WaitAsync(CancellationToken.None).ConfigureAwait(false);
-        lock (causeGate) { causes.Clear(); }
+        lock (causeGate) { causes.Clear(); moveReviews.Clear(); }
         dispatchGate.Dispose();
         lifetime.Dispose();
     }

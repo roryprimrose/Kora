@@ -22,6 +22,7 @@ internal sealed partial class SessionsViewModel
             + " | generation " + snapshot.Session.Authority.Generation.Value.ToString(CultureInfo.InvariantCulture)
             + " | authority revision " + snapshot.AuthorityRevision.ToString(CultureInfo.InvariantCulture)
             + " | queue revision " + snapshot.Queue.Revision.ToString(CultureInfo.InvariantCulture)
+            + " | older order lineages omitted " + snapshot.Queue.OmittedOrders.ToString(CultureInfo.InvariantCulture)
             + "\nDispatch " + (snapshot.Queue.DispatchControl is { } control
                 ? "run " + control.RunId.ToString("D") + " | pause revision " + control.Revision.ToString(CultureInfo.InvariantCulture)
                     + " | paused " + control.Paused + " | held " + control.Held + " | " + control.Reason

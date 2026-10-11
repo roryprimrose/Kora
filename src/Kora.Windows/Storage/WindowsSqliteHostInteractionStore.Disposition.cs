@@ -152,6 +152,8 @@ public sealed partial class WindowsSqliteHostInteractionStore
             "SELECT * FROM reviewed_memory WHERE session_id=$id ORDER BY memory_id;",
             "SELECT * FROM session_file WHERE session_id=$id ORDER BY session_id;",
             "SELECT * FROM session_provider_profile WHERE session_id=$id ORDER BY session_id;",
+            "SELECT * FROM session_queue WHERE session_id=$id ORDER BY task_id;",
+            "SELECT * FROM session_queue_order WHERE session_id=$id ORDER BY order_id;",
             "SELECT * FROM host_tasks WHERE session_id=$id AND task_id<>$control ORDER BY task_id;",
             "SELECT * FROM session_history WHERE session_id=$id AND (json_extract(projection,'$.TaskId') IS NULL OR json_extract(projection,'$.TaskId')<>$control) ORDER BY sequence;",
             "SELECT w.* FROM host_task_waits w JOIN host_tasks t ON t.task_id=w.task_id WHERE t.session_id=$id ORDER BY w.task_id;",

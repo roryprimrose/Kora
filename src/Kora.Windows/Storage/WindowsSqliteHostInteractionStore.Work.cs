@@ -24,6 +24,7 @@ public sealed partial class WindowsSqliteHostInteractionStore
         if (authority.State == 2) { throw new InvalidOperationException("Disposed sessions have no live work surface. Use exact redacted history."); }
         var now = time.GetUtcNow();
         var allQueue = ReadQueueRows(connection);
+        var orders = ReadQueueOrders(connection);
         var projectedQueue = allQueue.Select(entry => ProjectQueue(connection, entry, now)).ToArray();
         var rows = allQueue.Where(entry => entry.Request.SessionId == session).ToArray();
         var active = rows.Where(entry => entry.IsCurrent || entry.State == SessionQueueState.Unknown
@@ -40,14 +41,16 @@ public sealed partial class WindowsSqliteHostInteractionStore
         unknown.Parameters.AddWithValue("$session", Id(session));
         var quarantined = unknown.ExecuteScalar() is not null;
         var dispatchControl = QueueControl(connection, session, admissionRevision);
-        var queueRecords = active.Concat(recent).OrderBy(entry => entry.Position).Select(entry =>
+        var pending = SessionQueueOrdering.Pending(allQueue, session, orders);
+        var queueRecords = active.Concat(recent).OrderBy(entry => SessionQueueOrdering.Key(entry, orders)).ThenBy(entry => entry.Position).Select(entry =>
         {
             var projected = ProjectQueue(connection, entry, now);
             return new SessionQueueObservation(projected, SessionQueuePolicy.Eligibility(projected,
                 projectedQueue, states, runId, now, admissionRevision, limits, authority.Authority.IsActive, blocked, quarantined,
-                dispatchControl),
+                dispatchControl, orders),
                 entry.ActiveDeadlineAt ?? (entry.DispatchOrder > 0
-                    ? SessionQueueLimits.ActiveDeadlineAt(ReadAdmissionTime(connection, entry), SessionQueueLimits.DefaultActiveBudgetMinutes) : null));
+                    ? SessionQueueLimits.ActiveDeadlineAt(ReadAdmissionTime(connection, entry), SessionQueueLimits.DefaultActiveBudgetMinutes) : null))
+                { PendingOrder = entry.IsPending ? pending.ToList().IndexOf(entry) + 1 : null };
         }).ToArray();
         var taskRecords = ReadWorkTasks(connection, session);
         var questions = ReadQuestions(connection, session).Where(question => question.Status == QuestionStatus.Pending)

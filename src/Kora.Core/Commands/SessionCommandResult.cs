@@ -24,6 +24,8 @@ public sealed record SessionCommandResult(string Outcome, string Message)
     public SessionWorkSnapshot? Work { get; init; }
     public SessionQueueEntry? QueueEntry { get; init; }
     public IReadOnlyList<SessionQueueDispatchReceipt>? QueueDispatch { get; init; }
+    public SessionQueueMoveReview? QueueMoveReview { get; init; }
+    public SessionQueueMoveReceipt? QueueMoveReceipt { get; init; }
     public static byte[] Serialize(SessionCommandResult result)
     {
         var bytes = JsonSerializer.SerializeToUtf8Bytes(result, Json);

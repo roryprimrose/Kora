@@ -88,5 +88,6 @@ internal sealed partial class SessionsViewModel
         OnPropertyChanged(nameof(CanControlQueue));
         OnPropertyChanged(nameof(CanCancelQueueEntry));
         OnPropertyChanged(nameof(CanChangeQueuePause));
+        NotifyQueueMove();
     }
 }

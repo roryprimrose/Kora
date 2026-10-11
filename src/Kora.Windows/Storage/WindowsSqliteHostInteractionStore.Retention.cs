@@ -380,6 +380,7 @@ public sealed partial class WindowsSqliteHostInteractionStore
         {
             Execute(connection, transaction, """
                 DELETE FROM host_task_waits WHERE task_id IN (SELECT task_id FROM host_tasks WHERE session_id=$id);
+                DELETE FROM session_queue_order WHERE session_id=$id;
                 DELETE FROM session_queue WHERE session_id=$id;
                 DELETE FROM host_task_runs WHERE task_id IN (SELECT task_id FROM host_tasks WHERE session_id=$id);
                 DELETE FROM host_task_events WHERE task_id IN (SELECT task_id FROM host_tasks WHERE session_id=$id);

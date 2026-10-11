@@ -594,6 +594,7 @@ public sealed partial class SessionWorkspaceServiceTests
     {
         internal List<SessionQueueEntry> QueueRows { get; } = [];
         internal long QueueRevision { get; private set; }
+        internal void AdvanceQueueRevision() => QueueRevision++;
         internal string? QueueFailure { get; set; }
         internal Action? OnObserve { get; set; }
         internal Action? BeforeAdmit { get; set; }
@@ -602,6 +603,7 @@ public sealed partial class SessionWorkspaceServiceTests
         internal Action? BeforeComplete { get; set; }
         internal Action? AfterComplete { get; set; }
         internal Action? AfterQueueRead { get; set; }
+        internal Func<SessionQueueSnapshot, SessionQueueSnapshot>? QueueReadProjection { get; set; }
         internal CapabilityOutcome QueueActionOutcome { get; init; } = CapabilityOutcome.Succeeded;
         internal int QueueActions { get; private set; }
         internal List<HostRequest> ActionRequests { get; } = [];
@@ -614,6 +616,9 @@ public sealed partial class SessionWorkspaceServiceTests
         internal SessionQueueLimits? LastAdmittedLimits { get; private set; }
         internal Func<SessionQueueLimits, Task>? BeforeEnqueue { get; set; }
         private SessionQueueDispatchControl? dispatchControl;
+        private SessionQueueOrder? explicitOrder;
+        internal Action? BeforeMove { get; set; }
+        internal Action? AfterMove { get; set; }
         internal Action? AfterPauseControl { get; set; }
         public ValueTask HoldDispatchControlAsync(SessionQueueSnapshot expected, CancellationToken token)
         {
@@ -635,11 +640,31 @@ public sealed partial class SessionWorkspaceServiceTests
             QueueCheck("read");
             QueueCheck("dispatch-read");
             AfterQueueRead?.Invoke();
-            return ValueTask.FromResult(QueueSnapshot(session));
+            var snapshot = QueueSnapshot(session);
+            return ValueTask.FromResult(QueueReadProjection?.Invoke(snapshot) ?? snapshot);
         }
         private SessionQueueSnapshot QueueSnapshot(HostId<SessionIdentity> session) =>
-            new(session, new(1), QueueRevision, QueueRows.Where(entry => entry.IsPending || entry.IsCurrent).ToArray())
-            { DispatchControl = dispatchControl };
+            new(session, new(1), QueueRevision, QueueRows.Where(entry => entry.IsPending || entry.IsCurrent)
+                .OrderBy(entry => SessionQueueOrdering.Key(entry, explicitOrder is null ? [] : [explicitOrder])).ToArray())
+            { DispatchControl = dispatchControl ?? new(queueRun, new(1), 0, ControlRevision, false, false),
+                Orders = explicitOrder is null ? [] : [explicitOrder] };
+        public ValueTask<SessionQueueSnapshot> MovePendingAsync(HostRequest control, SessionQueueMoveReview review,
+            Func<bool> eligible, CancellationToken token)
+        {
+            BeforeMove?.Invoke();
+            if (!eligible() || review.Queue.Revision != QueueRevision) { throw new InvalidOperationException("The exact queue changed."); }
+            QueueCheck("move");
+            var ids = review.Queue.Entries.Where(entry => entry.IsPending).Select(entry => entry.Request.TaskId).ToArray();
+            var selected = Array.IndexOf(ids, review.Selected.Request.TaskId);
+            var neighbor = Array.IndexOf(ids, review.Neighbor.Request.TaskId);
+            (ids[selected], ids[neighbor]) = (ids[neighbor], ids[selected]);
+            explicitOrder = new(1, Guid.NewGuid(), control.SessionId, new(1), queueRun, 1, [.. ids]);
+            QueueRevision++;
+            dispatchControl = review.Queue.DispatchControl! with { Revision = review.Queue.DispatchControl.Revision + 1 };
+            TaskWrites.Add(new(control, new(2), HostTaskState.Succeeded));
+            AfterMove?.Invoke();
+            return ValueTask.FromResult(QueueSnapshot(control.SessionId) with { MoveReceipt = SessionQueueMoveReceipt.FromReview(review) });
+        }
         public ValueTask<SessionQueueSnapshot> SetDispatchPausedAsync(HostRequest control, HostRevision generation,
             long expectedQueueRevision, Guid expectedRunId, long expectedControlRevision, long admissionRevision,
             bool paused, Func<bool> eligible, CancellationToken token)

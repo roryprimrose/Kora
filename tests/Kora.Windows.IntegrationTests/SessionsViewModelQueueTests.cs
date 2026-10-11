@@ -16,6 +16,65 @@ namespace Kora.Windows.IntegrationTests;
 public sealed class SessionsViewModelQueueTests
 {
     [WindowsFact]
+    public async Task NativeAdjacentReviewCancelConfirmAndStaleSelectionShareExactAuditedQueueWithoutChangingDraftOrDispatch()
+    {
+        using var f = new InteractionStorageFixture();
+        await f.InitializeAsync();
+        await WindowsSqliteSessionWorkspaceTests.FinishAsync(f, HostTaskState.Succeeded);
+        var access = new WindowsSqliteSessionWorkspaceTests.Access();
+        var action = new VersionAction();
+        await using var queue = new SessionQueueService(f.Store, f.Store, new(f.Tasks), access, action,
+            new(), NullLogger<SessionQueueService>.Instance, f.Time);
+        var service = new SessionWorkspaceService(f.Store, new(f.Tasks), access, NullLogger<SessionWorkspaceService>.Instance, queue);
+        var sink = new WindowsSqliteEvidenceSink(f.Paths);
+        sink.Initialize();
+        var viewer = new SessionsViewModel(service, new DurableEvidenceQuery(new WindowsSqliteEvidenceReader(sink),
+            access, f.Time, NullLogger<DurableEvidenceQuery>.Instance), access, NullLogger<SessionsViewModel>.Instance);
+        try
+        {
+            await viewer.RefreshAsync();
+            await viewer.SelectAsync(viewer.Sessions.Single());
+            await viewer.EnqueueVersionAsync();
+            await viewer.EnqueueCapabilitiesAsync();
+            var original = viewer.QueueRecords.ToArray();
+            viewer.NameDraft = "unchanged draft";
+            viewer.SelectWorkRecord(viewer.WorkRecords.Single(row => row.TaskId == original[1].Request.TaskId.Value));
+            viewer.CanMoveQueueUp.Should().BeTrue();
+            viewer.CanMoveQueueDown.Should().BeFalse();
+            viewer.QueueMoveStatus.Should().Contain("Last pending");
+            await viewer.ReviewQueueMoveUpAsync();
+            viewer.CanConfirmQueueMove.Should().BeTrue();
+            viewer.QueueMoveStatus.Should().Contain("Current:").And.Contain("Proposed:").And.Contain("capabilities.list")
+                .And.Contain(original[0].Request.TaskId.Value.ToString("D")).And.Contain(original[0].ExpiresAt.ToString("O"));
+            viewer.QueueRecords.Should().Equal(original);
+            await viewer.CancelQueueMoveAsync();
+            viewer.CanConfirmQueueMove.Should().BeFalse();
+            viewer.QueueRecords.Should().Equal(original);
+            viewer.NameDraft.Should().Be("unchanged draft");
+            await viewer.ReviewQueueMoveUpAsync();
+            await viewer.ConfirmQueueMoveAsync();
+            viewer.QueueRecords.Should().Equal(original.Reverse());
+            viewer.WorkRecords.Where(row => row.Queue?.Entry.IsPending == true).Select(row => row.TaskId)
+                .Should().Equal(original.Reverse().Select(entry => entry.Request.TaskId.Value));
+            viewer.WorkRecords[0].Revisions.Should().Contain("original arrival").And.Contain("pending dispatch order");
+            action.Reads.Should().Be(0);
+            viewer.NameDraft.Should().Be("unchanged draft");
+            viewer.SelectWorkRecord(viewer.WorkRecords.Single(row => row.TaskId == original[0].Request.TaskId.Value));
+            await viewer.ReviewQueueMoveUpAsync();
+            viewer.SelectWorkRecord(viewer.WorkRecords.Single(row => row.TaskId == original[1].Request.TaskId.Value));
+            viewer.CanConfirmQueueMove.Should().BeFalse();
+            await viewer.ConfirmQueueMoveAsync();
+            (await f.Store.ReadQueueAsync(f.Request.SessionId, f.Token)).Entries.Should().Equal(original.Reverse());
+            await viewer.RefreshWorkAsync();
+            viewer.SelectWorkRecord(viewer.WorkRecords.Single(row => row.TaskId == original[1].Request.TaskId.Value));
+            viewer.CanMoveQueueUp.Should().BeFalse();
+            viewer.QueueMoveStatus.Should().Contain("stale");
+        }
+        finally { viewer.Close(); }
+        viewer.QueueMoveStatus.Should().NotContain("task ");
+    }
+
+    [WindowsFact]
     public async Task Native_fixed_profile_choices_enqueue_shared_actions_and_present_private_exact_receipts()
     {
         using var f = new InteractionStorageFixture();

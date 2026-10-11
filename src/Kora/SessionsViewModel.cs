@@ -489,10 +489,15 @@ internal sealed partial class SessionsViewModel(
         }
         catch (OperationCanceledException)
         {
-            if (dispatchControl && !closed && access.CanInspect)
+            if (dispatchControl && !closed && access.CanInspect
+                && (selected?.Authority.SessionId != subject || selectionEpoch != epoch))
+            {
+                activity.Complete(HostOperationOutcome.Cancelled);
+            }
+            else if (dispatchControl && !closed && access.CanInspect)
             {
                 queueSnapshot = null;
-                status = "Dispatch pause control cancelled/unconfirmed. Refresh exact work and control receipts; no rollback or unpause is inferred.";
+                status = "Queue admission control cancelled/unconfirmed. Refresh exact work and control receipts; no rollback or unpause is inferred.";
             }
             else if (routineNoticeControl && !closed && access.CanInspect)
             {
@@ -513,10 +518,15 @@ internal sealed partial class SessionsViewModel(
         }
         catch (Exception exception) when (exception is not OutOfMemoryException)
         {
-            if (dispatchControl && !closed && access.CanInspect)
+            if (dispatchControl && !closed && access.CanInspect
+                && (selected?.Authority.SessionId != subject || selectionEpoch != epoch))
+            {
+                activity.Complete(HostOperationOutcome.Failed);
+            }
+            else if (dispatchControl && !closed && access.CanInspect)
             {
                 queueSnapshot = null;
-                status = "Dispatch pause control unavailable: " + exception.GetType().Name
+                status = "Queue admission control unavailable: " + exception.GetType().Name
                     + ". Refresh exact work and control receipts; no rollback, unpause or termination is inferred.";
             }
             else if (routineNoticeControl)
@@ -587,6 +597,7 @@ internal sealed partial class SessionsViewModel(
         selectedWork = null;
         queueSnapshot = null;
         selectedQueueEntry = null;
+        queueMoveReview = null;
         dispositionPreview = null;
         selected = null;
         selectedTask = null;

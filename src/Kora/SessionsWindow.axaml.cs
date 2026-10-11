@@ -96,6 +96,10 @@ internal sealed partial class SessionsWindow : Window
             model.SelectWorkRecord(WorkRecords.SelectedItem as SessionWorkRow);
         InspectWork.Click += async (_, _) => await model.InspectWorkAsync();
         RemoveQueueEntry.Click += async (_, _) => await model.RemoveQueueEntryAsync();
+        MoveQueueUp.Click += async (_, _) => await model.ReviewQueueMoveUpAsync();
+        MoveQueueDown.Click += async (_, _) => await model.ReviewQueueMoveDownAsync();
+        ConfirmQueueMove.Click += async (_, _) => await model.ConfirmQueueMoveAsync();
+        CancelQueueMove.Click += async (_, _) => await model.CancelQueueMoveAsync();
         ReadQueue.Click += async (_, _) => await model.RefreshWorkAsync();
         EnqueueVersion.Click += async (_, _) => await model.EnqueueVersionAsync();
         EnqueueCapabilities.Click += async (_, _) => await model.EnqueueCapabilitiesAsync();

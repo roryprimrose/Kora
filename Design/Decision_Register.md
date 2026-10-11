@@ -299,7 +299,7 @@ operation proposals, revision/scope checks, atomic Once use, explicit
 remove/edit and permanent observed-content revocation now have concrete
 core/application services and tests. Original caller origin and protected-call
 reusable-grant rules remain enforced; legacy action-name preferences are not
-authority for these bindings. See [R05 delivery/pending gates](Implementation_Roadmap.md#r05-bounded-authorizationquestion-foundation).
+authority for these bindings. See [R05 delivery/pending gates](Archive/Implementation_Roadmap_2026-10-11.md#r05-bounded-authorizationquestion-foundation).
 The adapter is an explicit atomic storage/audit contract with a test-only
 implementation. Production durable approval storage, native trusted input/
 review, actual dispatch composition and the verified R04 handoff remain
@@ -357,7 +357,7 @@ backups/artifact publication, content/session lifecycle and deletion, audit
 checkpoints/pruning, broader migrations and installed/power-loss evidence
 remain open under the R04 inventory and deferred register.
 
-The delivered [R04/R05 interaction slice](Implementation_Roadmap.md#r04r05-durable-interaction-and-minimal-session-authority---2026-10-06)
+The delivered [R04/R05 interaction slice](Archive/Implementation_Roadmap_2026-10-11.md#r04r05-durable-interaction-and-minimal-session-authority---2026-10-06)
 uses this same baseline, not a new provider decision. Its private version-1
 interaction schema atomically persists typed question/grant/session authority
 and its own typed audit. Matching committed task intent is validated while
@@ -390,10 +390,10 @@ empty Create/exact-ID revisioned Rename. Only the private interaction partition
 has validated v1-to-v2 metadata migration; task/evidence schemas are unchanged.
 This adds no conversations, queue/scheduler, model routing, automatic archive/
 retention/delete/export or restoration of consumed authority. The
-[current merged snapshot](Implementation_Roadmap.md#current-merged-snapshot---2026-10-07)
+[current merged snapshot](Archive/Implementation_Roadmap_2026-10-11.md#current-merged-snapshot---2026-10-07)
 is separate from the historical encrypted-route and local validation receipts.
 
-The [2026-10-07 production-store interruption continuation](Implementation_Roadmap.md#r04-production-store-interruption-and-reopening---2026-10-07)
+The [2026-10-07 production-store interruption continuation](Archive/Implementation_Roadmap_2026-10-11.md#r04-production-store-interruption-and-reopening---2026-10-07)
 adds maintained proof for actual task/evidence/interaction adapter writes and
 hot-journal reopening under PERSIST/FULL. No schema migration or provider
 change is required. Uncommitted writes roll back as a unit; committed rows,

@@ -43,6 +43,35 @@ dotnet test --project .\tests\Kora.Definitions.UnitTests\Kora.Definitions.UnitTe
 dotnet test --project .\tests\Kora.Windows.IntegrationTests\Kora.Windows.IntegrationTests.csproj --configuration Release --no-build
 ```
 
+Run the smallest checks covering the change. Tests use xUnit v3 and
+AwesomeAssertions; logging fixtures use Neovolve.Logging.Xunit. Compiler and
+analyzer warnings are errors. Portable CI requires **100% line and branch
+coverage across Core, Application, Tools and Definitions**, retaining reports
+even when the gate fails. Non-destructive Windows integration tests are not
+physical audio, provider or installed acceptance; CI must never lock or restart
+its runner.
+
+Documentation-only changes need local link/heading, exact example and availability
+checks. Changes to the embedded user guide also run its focused tests. They do
+not require device/provider trials. Preserve existing anchors or update their
+consumers, including links embedded in the guide and historical experiments.
+
+### Documentation ownership
+
+Use the [design topic index](Design/README.md#topic-owners) to find the canonical
+contract. The roadmap owns live delivery/dependencies, Acceptance Criteria owns
+qualification, Deferred Validation owns remaining environment trials, Commands
+owns exact syntax, and Settings owns current preference controls.
+Keep introductions short; link policy rather than paraphrasing it in every
+guide. User workflows should not reproduce architecture, test receipts or
+planned model schemas. Keep short local safety/unavailability warnings where
+their omission could mislead.
+
+Retain dated source/test/trial receipts in evidence or the
+[archive](Design/Archive/README.md), not in live status pages. Do not overwrite
+failed/blocked observations, transfer old approvals or relabel old bytes as
+current qualification.
+
 ## Logging conventions
 
 Always use source-generated `[LoggerMessage]` partial methods for `ILogger<T>`
@@ -63,16 +92,8 @@ Tests that install process-wide activity listeners belong to the nonparallel
 `Host tracing` collection. Its collection definition prevents unrelated host
 requests in other test collections from entering a test's evidence sink or
 changing its sampling assumptions. Other collections remain parallel.
-Portable CI retains a generated coverage report even when the unchanged
-100% line/branch gate fails, so uncovered branches can be diagnosed.
-
-Built-in C# actions belong in `Kora.Tools`, with one class per action grouped
-by capability. Bundled skills, prompt templates, shared instructions and future
-agent profiles belong in the single `Kora.Definitions` content project.
-Follow the [tool and definition implementation guidance](Design/Commands_Tools_And_Skills.md#built-in-tool-source-layout-and-implementation):
-preserve the common host gateway, explicit content IDs/bytes/digests and
-existing unavailable/qualification gates. Project placement or a definition
-never grants execution, approval or model-egress authority.
+Project-specific action/definition layout and registration belong in the
+[extension guides](EXTENDING-KORA.md), not another policy copy here.
 
 Run the dependency-license gate before adding or upgrading a package:
 
@@ -110,3 +131,8 @@ version-specific metadata override only with evidence, then regenerate:
 
 Commit the resulting `THIRD-PARTY-NOTICES.md` change with the package and lock
 file changes.
+
+Package versions are centralized in `Directory.Packages.props`; project-level
+overrides are rejected. After an intentional reviewed version change, refresh
+locked dependencies with `dotnet restore .\Kora.slnx --force-evaluate`, then run
+the license gate and review the lock/notice changes.

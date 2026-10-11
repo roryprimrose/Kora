@@ -155,7 +155,7 @@ voice mutations remain denied; fresh admitted UI changes remain possible.
 Changes retire queued/active output without replay/capture/consent/grant changes.
 Native accessibility, source-age/detector integration and real acoustic leakage/
 stop timing remain separate acceptance. All experiment evidence is retained;
-see [the assessed disposition](Implementation_Roadmap.md#bounded-in-call-feedback-experiment-disposition).
+see [the assessed disposition](Archive/Implementation_Roadmap_2026-10-11.md#bounded-in-call-feedback-experiment-disposition).
 
 ## Delivered Bounded Local Caption UX - 2026-10-09
 

@@ -147,34 +147,20 @@ are unchanged. A self-declared checksum or content match is not execution trust.
 
 ## Execution and discovery boundaries
 
-**Delivered:** read-only native inspection of all declared files and
-[explicit bundled artifact instruction selection](ArtifactInvocation/EmbeddedArtifactCatalogue.cs)
-through [slash/activated-voice routing](../../docs/commands.md#run-skills-and-future-artifacts)
-into the existing verified local-model request.
-**Unavailable:** execution of every bundled package script action.
-[SkillPackageSnapshot](../Kora.Core/Skills/SkillPackageSnapshot.cs) explicitly
-reports no admitted interpreter/adapter identity and outstanding worker,
-protected-deployment, network and real-control gates. Script resources are inert;
-neither installation of PowerShell nor package review enables a runner.
-Existing direct native lock/power behavior is not execution of these resources.
+Delivered consumers are native immutable package inspection and
+[explicit artifact instruction selection](ArtifactInvocation/EmbeddedArtifactCatalogue.cs)
+for the existing local-model request. **Every bundled script action is unavailable**;
+PowerShell readiness, package review and model selection do not enable a runner.
+Follow [script admission](../../Design/Built_In_Skills.md#script-admission-and-execution).
 
-Follow [script admission](../../Design/Built_In_Skills.md#script-admission-and-execution)
-and the [R11 delivery/prerequisites](../../Design/Implementation_Roadmap.md#r11-bounded-embedded-package-catalogue-and-native-review---2026-10-07).
-Definitions confer no tool, approval, settings, session or egress authority.
-
-A future agent profile is not a worker, permission system or scheduling lane.
-The host retains identity, leases, budgets, cancellation, approvals and egress;
-loading a profile authorizes no recursive delegation, concurrency,
-auto-enablement or provider fallback. See the
-[agent guide and runtime prerequisites](../../EXTENDING-KORA.md#agent-profiles).
-
-Bundled definitions are distinct from delivered bounded
-[compatible disk instruction discovery](../Kora.Windows/ArtifactDiscovery/WindowsDiskArtifactDiscovery.cs),
-the broader planned [source management](../../Design/Skill_Storage.md#shared-profile-discovery)
-and [declarative authoring](../../Design/Skill_Authoring.md). Disk instructions
-remain untrusted content, not first-party execution trust. Full source
-registration/enablement and agent profiles remain gated; discovery cannot
-overwrite embedded originals or bypass existing action/grant gates.
+Bundled resources are distinct from untrusted
+[disk instructions](../Kora.Windows/ArtifactDiscovery/WindowsDiskArtifactDiscovery.cs),
+[shared source management](../../Design/Skill_Storage.md) and
+[authoring](../../Design/Skill_Authoring.md). They cannot be overwritten by
+discovery or confer executable trust. Agent requirements belong in the
+[profile guide](../../EXTENDING-KORA.md#agent-profiles), not a second loader/
+permission contract here. Definitions confer no tool, approval, settings,
+session or egress authority.
 
 ## Validation
 

@@ -1,101 +1,56 @@
 # Kora user guide
 
-Kora is a Windows-first, local-first voice assistant. The current release can
-recognize a fixed set of local voice commands, speak responses with installed
-Windows voices or an explicitly downloaded local Kokoro provider, accept typed
-commands, manage its audio and response settings, lock Windows, and prepare
-non-destructive shutdown or restart proposals.
+Kora is a Windows-only, local-first assistant with typed commands, explicit
+push-to-talk, local speech and visual responses.
 
-No model, cloud account, or network connection is required for the built-in
-tasks and their exact command variants in the
-[voice and typed commands](commands.md) guide. A separately approved local
-model can answer unmatched requests, ask a bounded clarification question with
-spoken or clickable choices, or suggest a named built-in action. Kora validates
-the action; only model-suggested disruptive actions require approval (unless
-already granted for the action). An exact built-in lock phrase currently runs
-directly without this approval gate. Choosing an answer to a question never
-grants permission to execute an action. Stored `.ps1` skills, general
-application launches, content-bound grants, and a script review window are
-planned, not available. Bundled or compatible profile instructions can be
-selected with [slash or activated-voice artifact commands](commands.md#run-skills-and-future-artifacts)
-for the existing local-model request; selecting instructions does not run
-their scripts or grant permission.
-
-Other bounded native features are
-[minimal durable Sessions and explicit Create/Rename](windows-and-tray.md#minimal-durable-sessions),
-[local immutable clipboard preview](commands.md#explicit-local-clipboard-preview),
-[read-only discovery](commands.md#read-only-host-discovery),
-[appearance, installed speech, summary caps, name/devices/volume and device-default mode](settings.md),
-[tray microphone/PTT recovery](windows-and-tray.md#microphone-and-listening-recovery),
-and [SQLite, independent DailyLog and opt-in ordinary CombinedLog inspection](privacy-safety-and-logs.md#logs).
-Explicit [AuthorityAudit](privacy-safety-and-logs.md#committed-authority-audit-inspection)
-reads actual committed interaction-store audit rows, not file mirrors or forensic proof.
-[Exact-ID session/task commands](commands.md#bounded-exact-id-session-commands)
-share the native workspace service without a model; names are labels, never
-selectors. Task cancellation covers only an admitted current-run local-version
-question wait before dispatch, not running effects or workers.
-[Cached maintenance status/review/snooze](commands.md#exact-cached-release-maintenance)
-adds no network check, browser/download/install or consent grant/renewal;
-existing native Check/Open and network opt-in remain separate.
-Names and empty sessions are not conversation history or queues; clipboard
-explanation and model evidence tools remain unavailable. Ordinary diagnostic
-pruning never deletes audits, sessions or grants.
+Exact built-in commands need no model, cloud account or network connection.
+A separately consented and verified local model can answer unmatched requests
+or propose existing actions. Choosing a clarification answer never approves
+an action. Script-backed skills, general application launching, production wake
+and a generic model tool/result loop remain unavailable.
 
 ## Start here
 
-1. Open Kora.
-2. Review the readiness information. Missing local inference opens Settings on
-   the Readiness tab. Ollama/model and PowerShell setup require separate consent;
-   PowerShell is not required to use local reasoning.
-3. Leave the microphone and audio output on **System** to follow the Windows
-   defaults, or choose specific devices.
-4. Review ongoing voice consent in Speech & audio, or continue without voice.
-5. Hold **Push to talk**, say **"Kora, what can you do?"**, then release, or
-   enter a typed command. Production wake is unavailable; ambient audio is not
-   transcribed.
-6. Select **Disable listening** whenever you want Kora to release the microphone.
-7. Use **Settings** to change the theme, assistant name, speech provider,
-   voice, devices, response output, and detected-call behavior.
+Follow [Getting started](getting-started.md) for requirements, first launch and
+setup. To try a command:
 
-Saved consent permits safe startup to arm push-to-talk without recording. A
-device change by itself does not open capture after you have disabled listening
-for the current run; use **Enable listening** to resume it.
+1. Enter **help** in the typed command box; or
+2. Review voice consent, hold **Push to talk**, say **"Kora, what can you do?"**,
+   then release.
+
+If you renamed the assistant, use the configured name. Saved consent can arm
+push-to-talk at startup, but does not record ambient audio. **Disable listening**
+releases the microphone; device selection alone does not undo that choice.
 
 ## Guide
 
-- [Getting started](getting-started.md)
-- [Voice, microphone, and speakers](voice-and-audio.md)
-- [Responses and detected calls](responses-and-calls.md)
-- [All settings](settings.md)
-- [All built-in tasks and command variants](commands.md)
-- [Tools and built-in skills: current and planned](tools-and-built-in-skills.md)
-- [Windows, tray, and appearance](windows-and-tray.md)
-- [Privacy, safety, and logs](privacy-safety-and-logs.md)
-- [Skill and task execution design (planned)](skill-and-task-execution-design.md)
-- [Troubleshooting](troubleshooting.md)
+| Topic | Read |
+|---|---|
+| Requirements and first launch | [Getting started](getting-started.md) |
+| Microphone, voices and output | [Voice and audio](voice-and-audio.md) |
+| Output modes and manual call protection | [Responses and calls](responses-and-calls.md) |
+| Preference controls, defaults and limits | [Settings](settings.md) |
+| Exact phrases and parameters | [Voice and typed commands](commands.md) |
+| What actions and skills can do now | [Tools and built-in skills](tools-and-built-in-skills.md) |
+| Sessions, windows and tray recovery | [Windows and tray](windows-and-tray.md) |
+| Consent, grants, retained data and diagnostics | [Privacy, safety, and logs](privacy-safety-and-logs.md) |
+| Future execution design | [Skill and task execution design](skill-and-task-execution-design.md) |
+| Problems and recovery | [Troubleshooting](troubleshooting.md) |
 
 ## Open this guide
 
-- Right-click the Kora tray icon and select **Documentation**.
-- Use push-to-talk and say **"Kora, open documentation"** while voice is enabled.
-- Enter **open documentation** in the typed command box.
+Choose **Documentation** from the tray, type **open documentation**, or use
+push-to-talk and say **"Kora, open documentation"**.
 
-If you renamed the assistant, use the configured name instead of Kora.
+## Important limitations
 
-## Current limitations
-
-- Built-in actions use an exact phrase grammar, not fuzzy matching. Unmatched
-  typed requests and assistant-name-prefixed voice requests can use the
-  verified local model for answers or suggestions from the built-in action
-  list. Disruptive suggestions require an on-screen approval unless an
-  action-name grant already covers them; direct exact commands do not.
-- Automatic call detection is not currently available. The delivered
-  [manual call mode](responses-and-calls.md) can protect this run without a
-  detector; enabled Active/Suspected/Unknown observations remain conservative.
-- Ordinary responses while microphone capture is active are visual; previews
-  and spoken approval prompts close capture. New voice replies require new
-  explicit push-to-talk. No ambient grammar runs as a substitute wake engine.
-- Shutdown and computer-restart commands create visible proposals only. They do
-  not send a power request to Windows.
-- Physical speaker failures beyond Windows cannot always be detected. A powered
-  off speaker or disconnected analog cable may not be visible to Kora.
+- Exact commands are not fuzzy matching. See [Commands](commands.md) for accepted
+  variants and the different approval behavior of direct and model-suggested
+  actions.
+- Shutdown and computer-restart commands display proposals only; they do not
+  request Windows power changes.
+- Automatic call detection is unavailable. Use [manual call mode](responses-and-calls.md).
+- Ordinary responses during microphone capture are visual. Spoken previews and
+  approval prompts close capture; a new voice request needs a new PTT activation.
+- File/clipboard inspection does not select model context or grant transmission
+  consent. See [Privacy](privacy-safety-and-logs.md) before using retained content.

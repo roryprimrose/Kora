@@ -598,6 +598,7 @@ internal sealed partial class SessionsViewModel(
         queueSnapshot = null;
         selectedQueueEntry = null;
         queueMoveReview = null;
+        queueRequeueReview = null;
         queueCancelReview = null;
         pendingCancellationSelection = [];
         pendingCancellationEpoch++;

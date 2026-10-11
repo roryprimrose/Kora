@@ -137,6 +137,12 @@ Full R13/A3, installed-native qualification and physical-stop evidence remain op
 
 ## R02 Runtime/Provider Follow-Up Gates
 
+The [reviewed expired current-run pending removal/new-decision increment](Work_Management.md#delivered-reviewed-expired-pending-removal-and-fresh-tail-decision---2026-10-12) joins native/exact/current-name activated consumers to one audited private-store transaction: old Removed/Cancelled history and a separate fresh same-profile task at session tail, never replay or extension.
+Current settings, source/private revisions, capacity and exact dependency lineage are revalidated. Running callbacks, normal manual dispatch/fairness, original deadlines/digests and restart no-replay are unchanged.
+
+Deterministic parser/domain/application and genuine private SQLite tests retain the applicable MG1 envelope, audit/commit/cancellation/race and Unknown/no-retry obligations.
+No experiment or consumer is retired; exact equivalence to retained RT1/RT2/MG1/PV1/offline inference, containment W1-W4, hardware/audio, native installed/accessibility or physical-storage/termination evidence is not established. Full R13 and those separate qualifications remain open.
+
 The [reviewed adjacent pending-order increment](Work_Management.md#delivered-reviewed-adjacent-pending-order---2026-10-12) adds exact native and original typed/activated pair review/confirmation, shared ordering and atomic audited lineage at the existing store seam.
 Arrival identity/digests/deadlines, dependencies, fairness, independent pause and restart no-replay remain authoritative. No experiment consumer is retired or relabelled; full R13/RT2/PV1, workers/providers/resource leases and installed/hardware/native qualification remain open.
 

@@ -25,6 +25,7 @@ internal sealed partial class SessionsViewModel
     {
         if (!CanRead || entry is not null && !QueueRecords.Contains(entry)) { return; }
         selectedQueueEntry = entry;
+        queueRequeueReview = null;
         selectionEpoch++;
         NotifyQueue();
     }
@@ -90,5 +91,6 @@ internal sealed partial class SessionsViewModel
         OnPropertyChanged(nameof(CanChangeQueuePause));
         NotifyQueueMove();
         NotifyPendingCancellation();
+        NotifyExpiredRequeue();
     }
 }

@@ -229,6 +229,15 @@
           </WrapPanel>
           <controls:NamedTextBlock Text="{Binding QueueMoveStatus}" TextWrapping="Wrap"
                                   AutomationProperties.Name="Exact current and proposed adjacent pair order, immutable IDs, profiles and original pending deadlines" />
+          <controls:NamedTextBlock Text="{Binding ExpiredRequeueStatus}" TextWrapping="Wrap"
+                                  AutomationProperties.Name="Review old expired removal with retained history and separate fresh IDs, original prerequisite, fresh lifetime and deadline at queue tail; no replay or dispatch" />
+          <WrapPanel>
+            <Button x:Name="ReviewExpiredRequeue" Content="Review expired removal and NEW tail task" IsEnabled="{Binding CanReviewExpiredRequeue}" />
+            <Button x:Name="ConfirmExpiredRequeue" Content="Confirm exact old removal and NEW tail task" IsEnabled="{Binding CanConfirmExpiredRequeue}"
+                    AutomationProperties.Name="Confirm atomic removal of exact reviewed expired source and admission of separate fresh same-profile decision at tail only" />
+            <Button x:Name="DiscardExpiredRequeue" Content="Cancel replacement review" IsEnabled="{Binding CanDiscardExpiredRequeue}"
+                    AutomationProperties.Name="Cancel expired replacement review without queue mutation or admission of fresh IDs; drafts unchanged" />
+          </WrapPanel>
           <WrapPanel>
             <Button x:Name="ConfirmQueueMove" Content="Confirm exact adjacent move" IsEnabled="{Binding CanConfirmQueueMove}"
                     AutomationProperties.Name="Confirm only reviewed exact adjacent pair, queue and entry revisions, current run and private control" />

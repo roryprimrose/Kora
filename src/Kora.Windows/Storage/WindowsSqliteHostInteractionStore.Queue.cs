@@ -57,25 +57,9 @@ public sealed partial class WindowsSqliteHostInteractionStore
         {
             RequireFreshMetadataIntent(intent);
             _ = RequireQueueRevision(connection, control, generation, expectedRevision);
-            if (work.SessionId != control.SessionId || work.TaskId == control.TaskId
-                || work.RequestId == control.RequestId || work.Origin != control.Origin || work.InvocationId is not null
-                || ReadTask(connection, work.TaskId) is not null || QueueRequestExists(connection, work.RequestId)
-                || ReadQueueRows(connection, control.SessionId).Count(entry => entry.IsPending && entry.RunId == runId) >= limits.PendingPerSession)
-            {
-                throw new InvalidOperationException("The exact work identity conflicts or the pending queue is full.");
-            }
-            if (dependency is { } prerequisite && (prerequisite == work.TaskId || ReadTask(connection, prerequisite) is null))
-            {
-                throw new InvalidOperationException("An existing exact prerequisite task is required.");
-            }
+            RequireNewQueueWork(connection, control, work, dependency, limits);
             var now = time.GetUtcNow();
-            var entry = new SessionQueueEntry(work, generation, new(1),
-                NextQueuePosition(connection), SessionQueueState.Pending, runId, admissionRevision,
-                now, now.AddMinutes(limits.PendingLifetimeMinutes), dependency,
-                RecordVersion: profile == SessionQueueReadProfile.Version ? SessionQueueEntry.CapturedLifetimeRecordVersion
-                    : SessionQueueEntry.FixedReadRecordVersion, PendingLifetimeMinutes: limits.PendingLifetimeMinutes,
-                Profile: profile == SessionQueueReadProfile.Version ? null : profile);
-            entry.Validate();
+            var entry = NewQueueEntry(connection, work, generation, admissionRevision, dependency, limits, profile, now);
             var task = new HostTaskRecord(work, new(1), HostTaskState.IntentRecorded);
             var order = UpdatedQueueOrder(connection, work.SessionId, runId, generation, ids => ids.Add(work.TaskId));
             var sequence = AppendAudit(connection, transaction, intent, RequireSession(connection, control.SessionId).Authority,
@@ -119,7 +103,7 @@ public sealed partial class WindowsSqliteHostInteractionStore
     {
         var control = intent.Request;
         var generation = RequireSession(connection, control.SessionId).Authority.Generation;
-        var changed = rows.Select(entry => entry with { Revision = new(checked(entry.Revision.Value + 1)), State = outcome }).ToArray();
+        var changed = rows.Select(entry => RemovedQueueEntry(entry, outcome)).ToArray();
         var tasksChanged = rows.Select(entry =>
             (ReadTask(connection, entry.Request.TaskId) ?? throw new InvalidDataException("Missing queue task."))
             .Next(HostTaskState.Cancelled)).ToArray();

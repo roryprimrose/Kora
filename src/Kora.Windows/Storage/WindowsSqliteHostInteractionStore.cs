@@ -571,7 +571,7 @@ public sealed partial class WindowsSqliteHostInteractionStore : IHostInteraction
         IReadOnlyList<AuthorityChange>? changes = null, SecurityAuditEvent? requestedAudit = null,
         HostRevision? requestedGrantRevision = null, DateTimeOffset? admissionTime = null,
         AuthorityChange[]? requestedGrants = null, SessionQueueMoveReceipt? queueMoveReceipt = null,
-        SessionQueueCancelReceipt? queueCancelReceipt = null)
+        SessionQueueCancelReceipt? queueCancelReceipt = null, SessionQueueRequeueReceipt? queueRequeueReceipt = null)
     {
         var live = HostActivity.RequireCurrent();
         if (live.Request.RequestId != intent.Request.RequestId || live.CorrelationId != audit.CorrelationId
@@ -606,7 +606,7 @@ public sealed partial class WindowsSqliteHostInteractionStore : IHostInteraction
             auditPolicy is null ? retentionPolicy.AuditDue(committedAt) : auditPolicy.Due(committedAt), decision?.Outcome,
             decision?.Question?.Key.QuestionId, decision?.Question?.Key.Revision,
             decision?.Grant?.Id, decision?.Grant?.Revision, changes?.ToArray() ?? [], requestedAudit, requestedGrantRevision, requestedGrants,
-            queueMoveReceipt, queueCancelReceipt);
+            queueMoveReceipt, queueCancelReceipt, queueRequeueReceipt);
         var json = HostInteractionCodec.Encode(envelope);
         var hash = Hash(sequence, previousHash, json);
         checkpoint?.BeforeAudit(connection, transaction);
@@ -651,6 +651,12 @@ public sealed partial class WindowsSqliteHostInteractionStore : IHostInteraction
                 if (audit.QueueCancelReceipt is { } cancellation)
                 {
                     foreach (var member in cancellation.Entries) { ValidateRowAuthority(connection, member.Position, QueueChange(member)); }
+                }
+                if (audit.QueueRequeueReceipt is { } replacement)
+                {
+                    ValidateRowAuthority(connection, replacement.Original.Position, QueueChange(replacement.Original));
+                    ValidateRowAuthority(connection, replacement.Original.Position, TaskChange(replacement.OriginalTask));
+                    ValidateRowAuthority(connection, replacement.Fresh.Position, QueueChange(replacement.Fresh));
                 }
                 if (reader.GetInt64(0) != next
                     || !Same(reader.GetString(2), hash) || !Same(reader.GetString(3), calculated))
@@ -716,7 +722,29 @@ public sealed partial class WindowsSqliteHostInteractionStore : IHostInteraction
         { throw new InvalidDataException("Provider policy requires exact original input, requested audit and terminal control, never grants."); }
         var queueMove = Same(audit.Audit.ActionId, "queue.move-up") || Same(audit.Audit.ActionId, "queue.move-down");
         var queueCancel = Same(audit.Audit.ActionId, "queue.cancel-selected");
-        var queueControl = Same(audit.Audit.ActionId, "queue.pause") || Same(audit.Audit.ActionId, "queue.resume") || queueMove || queueCancel;
+        var queueRequeue = Same(audit.Audit.ActionId, "queue.requeue-expired");
+        var queueControl = Same(audit.Audit.ActionId, "queue.pause") || Same(audit.Audit.ActionId, "queue.resume") || queueMove || queueCancel || queueRequeue;
+        if (queueRequeue != (audit.QueueRequeueReceipt is not null))
+        {
+            throw new InvalidDataException("Expired replacement requires exact typed original and fresh lineage.");
+        }
+        if (audit.QueueRequeueReceipt is { } replacement)
+        {
+            replacement.Validate();
+            if (replacement.Original.Request.SessionId != audit.Request.SessionId
+                || replacement.Fresh.Request.Origin != audit.Request.Origin
+                || replacement.Original.Generation != audit.SessionGeneration || replacement.Fresh.EnqueuedAt > audit.CommittedAt
+                || replacement.Fresh.Request.RequestId == audit.Request.RequestId || replacement.Fresh.Request.TaskId == audit.Request.TaskId
+                || audit.Changes.Length != 6
+                || !audit.Changes.Contains(QueueChange(RemovedQueueEntry(replacement.Original, SessionQueueState.Removed)))
+                || !audit.Changes.Contains(TaskChange(replacement.OriginalTask.Next(HostTaskState.Cancelled)))
+                || !audit.Changes.Contains(QueueChange(replacement.Fresh))
+                || !audit.Changes.Contains(TaskChange(new(replacement.Fresh.Request, new(1), HostTaskState.IntentRecorded)))
+                || !Same(audit.Changes[4].Kind, "queue-order"))
+            {
+                throw new InvalidDataException("Expired replacement changes do not match all and only the reviewed old removal and new decision.");
+            }
+        }
         if (queueCancel != (audit.QueueCancelReceipt is not null))
         {
             throw new InvalidDataException("Selected cancellation requires its complete exact member receipt.");
@@ -780,11 +808,11 @@ public sealed partial class WindowsSqliteHostInteractionStore : IHostInteraction
             || audit.Request.InvocationId is not null || audit.Request.Origin is not (RequestOrigin.LocalUi or RequestOrigin.ActivatedVoice)
             || audit.Audit.Initiator != (audit.Request.Origin == RequestOrigin.LocalUi
                 ? SecurityAuditInitiator.TypedCommand : SecurityAuditInitiator.VoiceCommand)
-            || !queueCancel && audit.Changes.Length != (queueMove ? 2 : 1)
+            || !queueCancel && !queueRequeue && audit.Changes.Length != (queueMove ? 2 : 1)
             || queueMove && !Same(audit.Changes[0].Kind, "queue-order")
-            || !Same(audit.Changes[queueCancel ? ^1 : queueMove ? 1 : 0].Kind, "task")
-            || !Same(audit.Changes[queueCancel ? ^1 : queueMove ? 1 : 0].Id, Id(audit.Request.TaskId))
-            || audit.IntentRevision.Value == long.MaxValue || audit.Changes[queueCancel ? ^1 : queueMove ? 1 : 0].Revision != audit.IntentRevision.Value + 1))
+            || !Same(audit.Changes[queueCancel || queueRequeue ? ^1 : queueMove ? 1 : 0].Kind, "task")
+            || !Same(audit.Changes[queueCancel || queueRequeue ? ^1 : queueMove ? 1 : 0].Id, Id(audit.Request.TaskId))
+            || audit.IntentRevision.Value == long.MaxValue || audit.Changes[queueCancel || queueRequeue ? ^1 : queueMove ? 1 : 0].Revision != audit.IntentRevision.Value + 1))
         {
             throw new InvalidDataException("Queue control requires exact original input and a terminal task receipt, never grants or persisted dispatch authority.");
         }
@@ -1034,7 +1062,8 @@ public sealed partial class WindowsSqliteHostInteractionStore : IHostInteraction
         [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] HostRevision? RequestedGrantRevision = null,
         [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] AuthorityChange[]? RequestedGrants = null,
         [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] SessionQueueMoveReceipt? QueueMoveReceipt = null,
-        [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] SessionQueueCancelReceipt? QueueCancelReceipt = null);
+        [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] SessionQueueCancelReceipt? QueueCancelReceipt = null,
+        [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] SessionQueueRequeueReceipt? QueueRequeueReceipt = null);
 
     private sealed record AuthorityChange(string Kind, string Id, long Revision, string Digest);
 

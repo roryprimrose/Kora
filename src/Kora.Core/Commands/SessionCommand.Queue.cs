@@ -17,6 +17,9 @@ public sealed partial record SessionCommand
     public long QueueNeighborRevision { get; init; }
     public Guid? QueueMoveReviewId { get; init; }
     public Guid? QueueCancelReviewId { get; init; }
+    public Guid? QueueRequeueReviewId { get; init; }
+    public Guid? FreshRequestId { get; init; }
+    public Guid? FreshTaskId { get; init; }
     public ImmutableArray<SessionQueueSelection> QueueSelection { get; init; } = [];
     public SessionQueueReadProfile QueueProfile { get; init; } = SessionQueueReadProfile.Version;
     public const string QueueSyntax =
@@ -28,6 +31,10 @@ public sealed partial record SessionCommand
         + "queue move-up|move-down <session-id> <generation> <queue-revision> <run-id> <pause-revision> <task-id> <entry-revision> <neighbor-id> <neighbor-revision> | "
         + "queue move-confirm <session-id> <generation> <queue-revision> <run-id> <pause-revision> <task-id> <entry-revision> <neighbor-id> <neighbor-revision> <review-id> confirm. "
         + "queue move-cancel <session-id> <review-id>. "
+        + "queue requeue-expired-review <session-id> <generation> <queue-revision> <run-id> <pause-revision> <task-id> <entry-revision> | "
+        + "queue requeue-expired-confirm <session-id> <generation> <queue-revision> <run-id> <pause-revision> <task-id> <entry-revision> <fresh-request-id> <fresh-task-id> <review-id> confirm | "
+        + "queue requeue-expired-discard <session-id> <review-id>. "
+        + "Replace only reviewed expired current-run pending work: retain Removed history and enqueue a new same-profile decision at the tail; no dependency retarget or dispatch. "
         + "queue cancel-selected-review <session-id> <generation> <queue-revision> <run-id> <pause-revision> <task-id>:<entry-revision>[,<task-id>:<entry-revision>...] | "
         + "queue cancel-selected-confirm <session-id> <generation> <queue-revision> <run-id> <pause-revision> <task-id>:<entry-revision>[,...] <review-id> confirm | "
         + "queue cancel-selected-discard <session-id> <review-id>. "
@@ -49,6 +56,11 @@ public sealed partial record SessionCommand
         }
         if (words.Length < 3 || !ExactId(words[2], out var session)) { return Invalid(); }
         var operation = words[1].ToLowerInvariant();
+        if (operation is "requeue-expired-discard" && words.Length == 4
+            && CanonicalQueueId(words[2], out _) && CanonicalQueueId(words[3], out var requeueDiscard))
+        {
+            return new(SessionCommandOperation.QueueRequeueExpiredDiscard, session) { QueueRequeueReviewId = requeueDiscard };
+        }
         if (operation is "cancel-selected-discard" && words.Length == 4
             && CanonicalQueueId(words[2], out _) && CanonicalQueueId(words[3], out var discardedReview))
         {
@@ -66,6 +78,31 @@ public sealed partial record SessionCommand
         }
         if (words.Length < 5 || !Revision(words[3], true, out var generation)
             || !Revision(words[4], false, out var revision)) { return Invalid(); }
+        if (operation is "requeue-expired-review" or "requeue-expired-confirm")
+        {
+            var confirm = operation is "requeue-expired-confirm";
+            if (words.Length != (confirm ? 13 : 9) || !CanonicalQueueId(words[2], out _)
+                || !CanonicalQueueRevision(words[3], true, out _) || !CanonicalQueueRevision(words[4], false, out _)
+                || !CanonicalQueueId(words[5], out var requeueRun) || !CanonicalQueueRevision(words[6], false, out var pause)
+                || !CanonicalQueueId(words[7], out var oldTask) || !CanonicalQueueRevision(words[8], true, out var oldRevision))
+            {
+                return Invalid();
+            }
+            Guid? freshRequest = null, freshTask = null, review = null;
+            if (confirm)
+            {
+                if (!CanonicalQueueId(words[9], out var newRequest) || !CanonicalQueueId(words[10], out var newTask)
+                    || !CanonicalQueueId(words[11], out var reviewId) || !words[12].Equals("confirm", StringComparison.OrdinalIgnoreCase))
+                {
+                    return Invalid();
+                }
+                freshRequest = newRequest; freshTask = newTask; review = reviewId;
+            }
+            return new(confirm ? SessionCommandOperation.QueueRequeueExpiredConfirm : SessionCommandOperation.QueueRequeueExpiredReview,
+                session, generation) { QueueRevision = revision, QueueRunId = requeueRun, QueueControlRevision = pause,
+                    TaskId = oldTask, TaskRevision = oldRevision, FreshRequestId = freshRequest, FreshTaskId = freshTask,
+                    QueueRequeueReviewId = review };
+        }
         if (operation is "cancel-selected-review" or "cancel-selected-confirm")
         {
             var confirm = operation is "cancel-selected-confirm";

@@ -45,8 +45,9 @@ public sealed partial class SessionQueueService : IAsyncDisposable
         time = timeProvider ?? TimeProvider.System;
     }
 
-    private Task<T> WithLimitsAsync<T>(Func<SessionQueueLimits, Task<T>> operation, CancellationToken token) =>
-        configuration is null ? operation(limits) : configuration.WithLimitsAsync(operation, token);
+    private Task<T> WithLimitsAsync<T>(Func<SessionQueueLimits, Task<T>> operation, CancellationToken token,
+        bool preserveCommittedResult = false) =>
+        configuration is null ? operation(limits) : configuration.WithLimitsAsync(operation, token, preserveCommittedResult);
 
     internal Task<SessionWorkSnapshot> ReadWorkAsync(HostId<SessionIdentity> session, long admissionRevision,
         CancellationToken token) => WithLimitsAsync(current =>
@@ -102,6 +103,19 @@ public sealed partial class SessionQueueService : IAsyncDisposable
                 root.Complete(HostOperationOutcome.Completed);
                 return result;
             }
+            if (command.Operation == SessionCommandOperation.QueueRequeueExpiredReview)
+            {
+                if (!resolved.Authority.IsActive) { throw new InvalidOperationException("Only an exact active session can review expired replacement."); }
+                var result = await ReviewRequeueAsync(command, session, revision, origin, Eligible, token).ConfigureAwait(false);
+                root.Complete(HostOperationOutcome.Completed);
+                return result;
+            }
+            if (command.Operation == SessionCommandOperation.QueueRequeueExpiredDiscard)
+            {
+                _ = ConsumeRequeueReview(command, session, origin, discard: true);
+                root.Complete(HostOperationOutcome.Completed);
+                return new("cancelled-review", "No source removal, fresh task admission or queue change. The host-issued review and fresh IDs are revoked.");
+            }
             if (command.Operation == SessionCommandOperation.QueueCancelSelectedDiscard)
             {
                 DiscardCancellationReview(command, session, revision, origin);
@@ -138,6 +152,9 @@ public sealed partial class SessionQueueService : IAsyncDisposable
                 ? ConsumeMoveReview(command, session, revision, origin) : null;
             var cancelReview = command.Operation == SessionCommandOperation.QueueCancelSelectedConfirm
                 ? ConsumeCancellationReview(command, session, revision, origin) : null;
+            var requeueProposal = command.Operation == SessionCommandOperation.QueueRequeueExpiredConfirm
+                ? ConsumeRequeueReview(command, session, origin) : ((SessionQueueRequeueReview Review, Func<bool> Eligible)?)null;
+            var requeueReview = requeueProposal?.Review;
             var intent = await workspace.RecordControlIntentAsync(request, token).ConfigureAwait(false);
             SessionQueueSnapshot snapshot;
             try
@@ -169,22 +186,35 @@ public sealed partial class SessionQueueService : IAsyncDisposable
                             () => Eligible() && (configuration is null || configuration.IsCurrent(current)), token).AsTask(), token).ConfigureAwait(false),
                     SessionCommandOperation.QueueCancelSelectedConfirm =>
                         await store.CancelSelectedPendingAsync(request, cancelReview!, Eligible, token).ConfigureAwait(false),
+                    SessionCommandOperation.QueueRequeueExpiredConfirm =>
+                        await WithLimitsAsync(async current =>
+                        {
+                            var committed = await store.RequeueExpiredAsync(request, requeueReview!, current, ConfigurationRevision,
+                                () => Eligible() && requeueProposal!.Value.Eligible()
+                                    && (configuration is null || configuration.IsCurrent(current)), token).ConfigureAwait(false);
+                            changedControl = committed;
+                            return committed;
+                        }, token,
+                            preserveCommittedResult: true).ConfigureAwait(false),
                     _ => throw new InvalidOperationException("The deterministic queue operation is unavailable."),
                 };
                 if (command.Operation is SessionCommandOperation.QueuePause or SessionCommandOperation.QueueResume or SessionCommandOperation.QueueMoveConfirm
-                    or SessionCommandOperation.QueueCancelSelectedConfirm)
+                    or SessionCommandOperation.QueueCancelSelectedConfirm or SessionCommandOperation.QueueRequeueExpiredConfirm)
                 {
                     changedControl = snapshot;
                 }
             }
             catch (InvalidOperationException)
             {
-                await tasks.RecordOutcomeAsync(intent, HostTaskState.Denied, CancellationToken.None).ConfigureAwait(false);
+                if (changedControl is null)
+                {
+                    await tasks.RecordOutcomeAsync(intent, HostTaskState.Denied, CancellationToken.None).ConfigureAwait(false);
+                }
                 throw;
             }
             // Pause controls commit their terminal task and audit before publishing run-only state at the admission fence.
             if (command.Operation is not (SessionCommandOperation.QueuePause or SessionCommandOperation.QueueResume or SessionCommandOperation.QueueMoveConfirm
-                or SessionCommandOperation.QueueCancelSelectedConfirm))
+                or SessionCommandOperation.QueueCancelSelectedConfirm or SessionCommandOperation.QueueRequeueExpiredConfirm))
             {
                 await tasks.RecordOutcomeAsync(intent, HostTaskState.Succeeded, CancellationToken.None).ConfigureAwait(false);
             }
@@ -210,17 +240,27 @@ public sealed partial class SessionQueueService : IAsyncDisposable
                     foreach (var entry in cancelReview.Entries) { causes.Remove(entry.Request.TaskId); }
                 }
             }
+            if (requeueReview is not null)
+            {
+                lock (causeGate)
+                {
+                    causes.Remove(requeueReview.Original.Request.TaskId);
+                    causes[requeueReview.FreshRequest.TaskId] = (session, root.Activity!.Context);
+                }
+            }
             var reply = new SessionCommandResult("committed", cancelReview is null ? QueueDisclosure :
                 "All reviewed pending entries cancelled atomically; retained Cancelled history/receipts. Unselected entries and dependents remain in order. "
                 + "Cancelled prerequisites block their dependents under existing policy; no global descendant scan or cascade. Pause and deadlines unchanged; no automatic dispatch or running-work termination.")
-            { Queue = snapshot, QueueMoveReceipt = snapshot.MoveReceipt, QueueCancelReceipt = snapshot.CancelReceipt };
+            { Queue = snapshot, QueueMoveReceipt = snapshot.MoveReceipt, QueueCancelReceipt = snapshot.CancelReceipt,
+                QueueRequeueReceipt = snapshot.RequeueReceipt };
+            if (requeueReview is not null) { reply = reply with { Message = RequeueDisclosure }; }
             if (command.Operation == SessionCommandOperation.QueueDispatch)
             {
                 reply = reply with { QueueDispatch = await DispatchReadyAsync(revision, Eligible, token).ConfigureAwait(false),
                     Queue = await store.ReadQueueAsync(session, token).ConfigureAwait(false) };
                 reply = BoundDispatchResults(reply);
             }
-            token.ThrowIfCancellationRequested();
+            if (requeueReview is null) { token.ThrowIfCancellationRequested(); }
             RequireEligible(Eligible);
             _ = SessionCommandResult.Serialize(reply);
             controlDelivered = true;
@@ -414,7 +454,7 @@ public sealed partial class SessionQueueService : IAsyncDisposable
         }
         await lifetime.CancelAsync().ConfigureAwait(false);
         await dispatchGate.WaitAsync(CancellationToken.None).ConfigureAwait(false);
-        lock (causeGate) { causes.Clear(); moveReviews.Clear(); cancelReviews.Clear(); }
+        lock (causeGate) { causes.Clear(); moveReviews.Clear(); cancelReviews.Clear(); requeueReviews.Clear(); }
         dispatchGate.Dispose();
         lifetime.Dispose();
     }

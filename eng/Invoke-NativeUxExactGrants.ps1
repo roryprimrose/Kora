@@ -17,7 +17,8 @@ $acceptance = @(
     'G01-bounded-passive-inventory', 'G02-genuine-native-overflow',
     'G03-selection-refresh-fences', 'G04-stale-use-revision',
     'G05-stale-origin-lifecycle', 'G06-privacy-close-fresh-window',
-    'G07-single-revoke-readback-denial', 'G08-unrelated-perpetual-clocks-preserved'
+    'G07-single-revoke-readback-denial', 'G08-unrelated-perpetual-clocks-preserved',
+    'G09-batch-preview-selection-fences', 'G10-atomic-batch-revoke-readback'
 )
 if ($Stage -ceq 'Prepare') {
     if ($ApproveDesktopAutomation -or $null -ne $DeadlineUtc -or $ValidateOnly -or $PreparedDirectory) {
@@ -63,6 +64,7 @@ if ($source.revision -cne $prepared.source.revision -or $source.buildInputSha256
 if ($ValidateOnly) { return }
 # Load the maintained helpers without executing their baseline or creating another fixture.
 . $baselineDriver -PreparedDirectory $preparedRoot -OutputDirectory $trialRoot -DeadlineUtc $DeadlineUtc -LoadHelpersOnly
+$originalNamedElementDiscovery = (Get-Command Get-NamedElement).ScriptBlock
 New-ProofDirectory $trialRoot
 $OutputDirectory = $trialRoot
 $scratch = Join-Path $trialRoot 'scratch'
@@ -74,6 +76,7 @@ $receipt = [ordered]@{
     deadlineUtc = $DeadlineUtc.ToUniversalTime().ToString('O'); driverSha256 = $driverHash
     mechanicsSha256 = $helperHash; source = $source; processId = $null; readyObserved = $false
     providerReadinessDeferrals = 0; retiredWindowHandles = 0; forcedTermination = $false; scratchCleaned = $false; exitCode = $null
+    providerDiscoveryRetries = 0
     actionRetries = 0; rows = @(); scope = $exactPreparation.scope
 }
 $script:fixturePid = 0
@@ -81,6 +84,21 @@ $script:launcher = $null
 $script:grantWindow = $null
 $stopAttempted = $false
 
+function Get-NamedElement {
+    param([Windows.Automation.AutomationElement] $Root, [string] $Name, [switch] $Prefix)
+    $until = [DateTimeOffset]::UtcNow.AddSeconds(2)
+    do {
+        Assert-OwnedElement $Root
+        try { return & $originalNamedElementDiscovery -Root $Root -Name $Name -Prefix:$Prefix }
+        catch [Management.Automation.MethodInvocationException] {
+            if ($_.Exception.InnerException -isnot [Runtime.InteropServices.COMException] -and
+                $_.Exception.InnerException -isnot [Windows.Automation.ElementNotAvailableException]) { throw }
+            $receipt.providerDiscoveryRetries++
+        }
+        Start-Sleep -Milliseconds 100
+    } while ([DateTimeOffset]::UtcNow -lt $until)
+    throw "Owned passive exact-grant UIA discovery did not stabilize for '$Name'; no action was retried."
+}
 function Read-ExactFixture {
     param([string] $Action = 'Inspect synthetic exact grant state')
     $previous = (Get-NamedElement $script:launcher 'Native fixture status' -Prefix).Current.Name
@@ -217,6 +235,55 @@ function Confirm-Exact {
     $expected = if ($Stale) { 'Exact preview is stale' } else { 'Exact revocation committed and read back' }
     $null = Wait-Native { (Exact-Text 'Exact grant operation status').Contains($expected, [StringComparison]::Ordinal) } $expected
     Check-Native (!(Get-NamedElement $script:grantWindow 'Confirm revocation of only this exact inspected ID and revision').Current.IsEnabled) 'Exact confirmation must retire after one action.'
+}
+function Exact-ItemText {
+    param([Windows.Automation.AutomationElement] $Item)
+    Assert-OwnedElement $Item
+    @($Item.Current.Name) + @($Item.FindAll([Windows.Automation.TreeScope]::Descendants,
+        [Windows.Automation.PropertyCondition]::new([Windows.Automation.AutomationElement]::ControlTypeProperty,
+            [Windows.Automation.ControlType]::Text)) | ForEach-Object { $_.Current.Name }) -join "`n"
+}
+function Select-ExactBatch {
+    param([string[]] $ExcludedIds)
+    Refresh-Exact
+    $candidates = @(Exact-Items | Where-Object {
+        $id = Exact-ItemId $_
+        $id -notin $ExcludedIds -and (Exact-ItemText $_).Contains('Active', [StringComparison]::Ordinal)
+    } | Select-Object -First 4)
+    if ($candidates.Count -ne 4) { throw 'Four current-page Active exact grants are required for batch mechanics.' }
+    $ids = [Collections.Generic.List[string]]::new()
+    for ($index = 0; $index -lt 3; $index++) {
+        $item = $candidates[$index]
+        $selection = [Windows.Automation.SelectionItemPattern]$item.GetCurrentPattern([Windows.Automation.SelectionItemPattern]::Pattern)
+        if ($index -eq 0) { $selection.Select() } else { $selection.AddToSelection() }
+        $ids.Add((Exact-ItemId $item))
+    }
+    $null = Wait-Native {
+        (Get-NamedElement $script:grantWindow 'Preview every explicitly selected exact grant').Current.IsEnabled
+    } 'explicit exact batch selection'
+    @{ ids = @($ids); extra = $candidates[3] }
+}
+function Preview-ExactBatch {
+    param([string[]] $Ids)
+    Invoke-Named $script:grantWindow 'Preview every explicitly selected exact grant'
+    $null = Wait-Native {
+        $text = Exact-Text 'Complete exact selected batch preview'
+        $text.Contains('selected records: 3', [StringComparison]::Ordinal) -and
+            @($Ids | Where-Object { !$text.Contains($_, [StringComparison]::Ordinal) }).Count -eq 0
+    } 'complete exact selected batch preview'
+}
+function Review-ExactBatch {
+    Invoke-Named $script:grantWindow 'Separate explicit confirmation of the complete exact selected batch'
+    $null = Wait-Native {
+        (Get-NamedElement $script:grantWindow 'Atomically revoke only the complete exact reviewed selected batch').Current.IsEnabled
+    } 'separate exact batch confirmation'
+}
+function Confirm-ExactBatch {
+    Invoke-Named $script:grantWindow 'Atomically revoke only the complete exact reviewed selected batch'
+    $null = Wait-Native {
+        (Exact-Text 'Exact grant operation status').Contains('Entire exact reviewed batch committed and read back', [StringComparison]::Ordinal)
+    } 'atomic exact batch commit and readback'
+    Check-Native (!(Get-NamedElement $script:grantWindow 'Atomically revoke only the complete exact reviewed selected batch').Current.IsEnabled) 'Batch confirmation must retire after one action.'
 }
 
 try {
@@ -361,6 +428,44 @@ try {
         }
         $receipt.final = $after
         @{ unrelatedCount = 48; perpetualUnchanged = $true; clocksRenewed = $false; reopenedReadback = $true }
+    }
+    Trial $acceptance[8] {
+        $selection = Select-ExactBatch @($target, $used, $lifecycle, (Exact-Role $before 'perpetual').Inspection.Grant.Id.Value)
+        Preview-ExactBatch $selection.ids
+        Check-Native (!(Get-NamedElement $script:grantWindow 'Atomically revoke only the complete exact reviewed selected batch').Current.IsEnabled) 'Preview alone cannot authorize batch revocation.'
+        Review-ExactBatch
+        $extra = [Windows.Automation.SelectionItemPattern]$selection.extra.GetCurrentPattern([Windows.Automation.SelectionItemPattern]::Pattern)
+        $extra.AddToSelection()
+        $null = Wait-Native {
+            !(Get-NamedElement $script:grantWindow 'Atomically revoke only the complete exact reviewed selected batch').Current.IsEnabled -and
+                (Exact-Text 'Complete exact selected batch preview').Contains('Select explicit exact IDs', [StringComparison]::Ordinal)
+        } 'changed batch selection retired preview and confirmation'
+        Refresh-Exact
+        Check-Native (!(Get-NamedElement $script:grantWindow 'Atomically revoke only the complete exact reviewed selected batch').Current.IsEnabled) 'Refresh cannot retain batch authority.'
+        @{ selectedIds = $selection.ids; completePreview = $true; selectionChangeRetired = $true; refreshRetired = $true }
+    }
+    Trial $acceptance[9] {
+        $perpetualBefore = Exact-Role $before 'perpetual'
+        $selection = Select-ExactBatch @($target, $used, $lifecycle, $perpetualBefore.Inspection.Grant.Id.Value)
+        Preview-ExactBatch $selection.ids
+        Review-ExactBatch
+        Confirm-ExactBatch
+        foreach ($id in $selection.ids) {
+            Select-Exact $id
+            $text = Exact-Text 'Current exact grant inspection'
+            Check-Native ($text.Contains('revision: 2', [StringComparison]::Ordinal) -and
+                $text.Contains('Stored status: Revoked', [StringComparison]::Ordinal) -and
+                $text.Contains('Use count: 0', [StringComparison]::Ordinal)) 'Every exact batch target must be revoked and read back.'
+        }
+        Select-Exact $target
+        Check-Native ((Exact-Text 'Current exact grant inspection').Contains('Stored status: Revoked', [StringComparison]::Ordinal)) 'The earlier unrelated revoked target must remain unchanged.'
+        $after = Read-ExactFixture
+        $perpetualAfter = Exact-Role $after 'perpetual'
+        Check-Native (($perpetualBefore | ConvertTo-Json -Depth 20 -Compress) -ceq
+            ($perpetualAfter | ConvertTo-Json -Depth 20 -Compress)) 'Unrelated Perpetual grant and retention evidence must remain byte-equivalent.'
+        $receipt.batchFinal = $after
+        @{ selectedIds = $selection.ids; atomicReadbackCount = 3; unrelatedSingleRevocationPreserved = $true
+            perpetualUnchanged = $true; runningEffectsCancelled = $false }
     }
     Close-OwnedWindow $script:grantWindow
     $stopAttempted = $true

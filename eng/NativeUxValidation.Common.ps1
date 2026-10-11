@@ -65,7 +65,10 @@ function Get-NativeUxTestClasses {
         'Kora.Windows.IntegrationTests.BoundedSurfaceAccessibilityTests',
         'Kora.Windows.IntegrationTests.NativeQuestionWindowContractTests',
         'Kora.Windows.IntegrationTests.SessionsViewModelTests',
-        'Kora.Windows.IntegrationTests.DetailWindowContractTests')
+        'Kora.Windows.IntegrationTests.DetailWindowContractTests',
+        'Kora.Windows.IntegrationTests.AllWorkWindowTests',
+        'Kora.Windows.IntegrationTests.ExactGrantsWindowContractTests',
+        'Kora.Windows.IntegrationTests.Storage.WindowsSqliteExactGrantBatchTests')
 }
 
 function Get-NativeUxTestSummary {

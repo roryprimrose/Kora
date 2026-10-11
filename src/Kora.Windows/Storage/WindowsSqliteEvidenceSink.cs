@@ -190,13 +190,19 @@ public sealed partial class WindowsSqliteEvidenceSink : IEvidenceSink
     private SqliteConnection OpenDatabase(bool created)
     {
         var connection = database.Open(created);
-        return ValidateDatabase(connection, cache: validationCache);
+        var validated = ValidateDatabase(connection, cache: validationCache);
+        RestrictedSqliteDatabase.ResetProgressBudget(validated);
+        return validated;
     }
 
     internal FileStream AcquireReadLease(CancellationToken cancellationToken) => database.AcquireReadLease(cancellationToken);
 
-    internal SqliteConnection OpenReadOnly(CancellationToken cancellationToken) =>
-        ValidateDatabase(database.OpenReadOnly(cancellationToken));
+    internal SqliteConnection OpenReadOnly(CancellationToken cancellationToken)
+    {
+        var connection = ValidateDatabase(database.OpenReadOnly(cancellationToken));
+        RestrictedSqliteDatabase.ResetProgressBudget(connection, cancellationToken);
+        return connection;
+    }
 
     private DateTimeOffset DiagnosticDue(DateTimeOffset committed) =>
         diagnosticPolicy is null ? retentionPolicy.DiagnosticDue(committed) : diagnosticPolicy.Due(committed);

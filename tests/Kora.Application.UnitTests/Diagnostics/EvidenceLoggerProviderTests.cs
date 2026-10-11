@@ -561,7 +561,10 @@ public sealed class EvidenceLoggerProviderTests
         var healthy = new RecordingSink { FailReport = true };
         using var provider = new EvidenceLoggerProvider([failed, healthy], healthy);
         var log = () => Log(provider.CreateLogger("fixture"), State());
-        log.Should().Throw<IOException>();
+        var failure = log.Should().Throw<IOException>().Which;
+        var causes = ((AggregateException)failure.InnerException!).Flatten().InnerExceptions;
+        causes.Should().Contain(error => error.Message == "Synthetic failure.");
+        causes.Should().Contain(error => error.Message == "Synthetic reporting failure.");
         healthy.Diagnostics.Should().ContainSingle();
     }
 

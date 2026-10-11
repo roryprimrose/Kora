@@ -150,11 +150,18 @@ public sealed class EvidenceLoggerProvider : ILoggerProvider, ISupportExternalSc
         // Gap-reporting failure must not prevent either independent delivery attempt.
         foreach (var gap in failures)
         {
-            gaps.Report(gap);
+            try
+            {
+                gaps.Report(gap);
+            }
+            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or InvalidOperationException)
+            {
+                errors.Add(exception);
+            }
         }
         if (errors.Count != 0)
         {
-            throw new IOException("Required evidence delivery failed; independent sinks were attempted.",
+            throw new IOException("Required evidence delivery or gap reporting failed; independent sinks were attempted.",
                 new AggregateException(errors));
         }
     }

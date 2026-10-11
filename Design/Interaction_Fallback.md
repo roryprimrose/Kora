@@ -20,6 +20,22 @@ accessibility acceptance remain pending.
 
 ## Delivered Bounded Native Question - 2026-10-07
 
+### Current-run dismissal recovery - 2026-10-11
+
+**Tray > Return to current question** reopens only the genuinely live original native local-version wait. Close/Escape now dismisses that presentation without completing its original question await. Review local version while that workflow remains pending uses the same return route, not another query.
+
+One private host-owned registration exists only after the original committed intent, session, ordinary question and current-run pre-dispatch wait were admitted. Reopening rereads the exact task/wait, current key/revision and session generation, then audits the exact question through the existing review service under live desktop ownership/privacy gates.
+
+No caller, model, selected session, history row or copied identity can create or retarget the registration.
+
+The native composition captures the real ownership bridge's admission revision and open capability gate. Handoff/abort or other admission-generation changes revoke the original registration even when the gate later reopens; an unknown revision cannot enable recovery.
+
+Dismissal clears native text, unsaved edits and review state. Return restores only the committed draft at the same revision, without an affirmative default, new question, task, grant or dispatch. An already-open exact window is activated. Neither return nor monitoring extends the original five-minute deadline, meaningful activity, queue slot or active-task clock.
+
+An owned finite deadline and passive current-wait monitor survive absence of a window. Expiry, input/privacy/ownership closure, changed task/question/generation, cancellation, uncertain storage/audit, callback failure or disposal withdraw recovery and end the original await; timer and event resources are released. Late operations cannot revive it. Explicit Submit uses the original continuation for at most one version dispatch; explicit Cancel retains atomic pre-dispatch task/question cancellation and claims no worker termination.
+
+After restart or original completion, recovery is **Unavailable**: inspect retained read-only status and start a fresh request. Intent-only unfinished work recovers as Interrupted; a dispatched uncertain outcome remains Unknown. No old task is replayed, Done resumed or historical question promoted to controls. General questions, exact approvals, provider handoff, forms and prefix-free voice remain separate and unqualified by this increment.
+
 The host creates one Active durable session for the existing harmless query,
 publishes a fresh ordinary-question policy snapshot with no exact proposal and
 mandatory-effect gates closed, and presents a five-minute question under the
@@ -52,8 +68,8 @@ Review, answer/approval and grant consumption are distinct; the presenter has
 no consume/effect route and legacy action-name grants are not migrated.
 
 Atomic audit/storage failure disables retry on that target and reports failure,
-not success. Explicit cancellation inside the existing query leaves an
-incomplete dispatch record; startup recovery records Unknown without replay.
+not success. Explicit cancellation commits the original pre-dispatch task and
+question as Cancelled atomically; it creates no incomplete dispatch record.
 No cancelled query is labelled Succeeded. Close/conflict/privacy failures also
 claim no successful answer/query receipt. Starting another review is a new
 host request, not an automatic retry. The ordinary typed/voice version command

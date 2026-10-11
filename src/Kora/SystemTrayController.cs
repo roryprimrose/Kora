@@ -50,7 +50,8 @@ public sealed class SystemTrayController : IDisposable
         Action? inspectSessions = null,
         Action? reviewMaintenance = null,
         Action? chooseMicrophone = null,
-        Action? inspectExactGrants = null)
+        Action? inspectExactGrants = null,
+        Func<Task>? returnToCurrentQuestion = null)
     {
         this.viewModel = viewModel;
         this.logger = logger;
@@ -130,6 +131,16 @@ public sealed class SystemTrayController : IDisposable
                     + exception.GetType().Name));
             reviewVersion.Click += (_, _) => RunAfterNativeMenuCloses(() => reviewCommand.Execute(null));
             menu.Add(reviewVersion);
+        }
+        if (returnToCurrentQuestion is not null)
+        {
+            var returnQuestion = new NativeMenuItem("Return to current question");
+            var returnCommand = new AsyncCommand(returnToCurrentQuestion,
+                exception => viewModel.ReportHostInteractionFailure(
+                    "Current question recovery failed. Inspect retained status and start a fresh request. Failure type: "
+                    + exception.GetType().Name));
+            returnQuestion.Click += (_, _) => RunAfterNativeMenuCloses(() => returnCommand.Execute(null));
+            menu.Add(returnQuestion);
         }
         listeningItem = new NativeMenuItem();
         listeningItem.Header = "Listening controls";

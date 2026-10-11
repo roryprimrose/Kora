@@ -982,10 +982,12 @@ record** is passive inspection, not approval or execution. **Cancel question**
 is explicit; Close/Escape only closes presentation. Stale, expired or
 privacy/ownership-unavailable targets cannot be answered.
 
-Storage/audit failure never reports a successful query. Close and start a new
-review after correcting the blocker; Kora does not automatically retry uncertain
-work. Explicit cancellation may leave an incomplete query dispatch record,
-which startup recovers as Unknown without replay. This bounded route does not
+**Tray > Return to current question** returns to that same still-live original version wait after Close/Escape, restoring only its committed draft and current revision. Unsaved edits/review clear on close. The original five-minute expiry continues while hidden; return creates no new query/question/grant or dispatch and never extends activity.
+
+An already-open exact card activates; Sessions selection cannot retarget it.
+
+Storage/audit failure never reports a successful query. Recovery becomes Unavailable after expiry, privacy/ownership loss, changed authority, cancellation, original completion or restart: inspect read-only status and start a fresh review after resolving the blocker. Kora never automatically retries or rehydrates old work.
+Explicit cancellation atomically commits the original task and question as Cancelled before dispatch. Unfinished intent-only work recovers as Interrupted; dispatched uncertain work remains Unknown, without replay. This bounded route does not
 enable general effect approvals, change legacy grants or replace the ordinary
 version phrases above. Desktop/screen-reader/speech acceptance is not yet
 claimed from the automated tests.

@@ -101,9 +101,10 @@ public sealed partial class App : Avalonia.Application
                 Services.GetRequiredService<Kora.Application.Hosting.DurableVersionQuery>(),
                 Services.GetRequiredService<IApplicationInfo>(),
                 new NativeDetailRenderer(Services.GetRequiredService<ILogger<NativeDetailRenderer>>()),
-                () => Services.GetRequiredService<DesktopInstanceOwnershipBridge>().IsReady
+                () => Services.GetRequiredService<DesktopInstanceOwnershipBridge>().IsCapabilityAdmissionOpen
                     && !Services.GetRequiredService<DesktopInstanceOwnershipBridge>().IsHandoffRecoveryRequired,
-                Services.GetRequiredService<ILogger<QuestionWindowController>>());
+                Services.GetRequiredService<ILogger<QuestionWindowController>>(),
+                () => Services.GetRequiredService<DesktopInstanceOwnershipBridge>().AdmissionRevision);
             skillPackagesWindow = new SkillPackagesWindowController(viewModel,
                 () => Services.GetRequiredService<DesktopInstanceOwnershipBridge>().IsReady
                     && !Services.GetRequiredService<DesktopInstanceOwnershipBridge>().IsHandoffRecoveryRequired,
@@ -120,7 +121,8 @@ public sealed partial class App : Avalonia.Application
                 () => sessionsWindow?.Open(),
                 () => maintenanceWindow?.Open(),
                 microphoneRecovery.Open,
-                () => exactGrants?.Open());
+                () => exactGrants?.Open(),
+                () => questionWindow.ReturnToCurrentQuestionAsync(window));
             evidenceWindow = new EvidenceWindowController(viewModel,
                 Services.GetRequiredService<Kora.Application.Diagnostics.DurableEvidenceQuery>(),
                 Services.GetRequiredService<Kora.Core.Diagnostics.IEvidenceQueryAccess>(),

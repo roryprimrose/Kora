@@ -26,6 +26,14 @@ Exact reviewed attachment removal revokes native view/search before atomic body/
 
 ## Current Implementation and Design Gap
 
+The bounded [current-run native question recovery](Interaction_Fallback.md#current-run-dismissal-recovery---2026-10-11) keeps the original local-version continuation live after Close/Escape. **Tray > Return to current question** resolves only that host's still-live admitted wait, exact current key/revision and generation.
+
+It restores committed drafts, not unsaved edits, and never creates a task/question/grant or dispatches by reopening.
+
+The original five-minute finite lifetime remains enforced while hidden. Privacy/ownership/input closure, expiry, cancellation, terminal/Unknown task, stale generation/revision, callback failure, storage/audit uncertainty and disposal withdraw recovery.
+
+Restart has no registration: retained questions remain read-only, with fresh-request guidance and no replay or Done resume. Sessions selection/history metadata is not recovery authority; generic approvals, handoff and voice focus are unchanged.
+
 The [R18 local visual broker](Proactive_Interaction.md#delivered-r18-trusted-local-visual-broker---2026-10-09)
 now observes only fixed authoritative local-version queue/question state and
 already-verified cached maintenance in the already-open selected Sessions

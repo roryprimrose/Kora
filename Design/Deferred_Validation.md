@@ -838,8 +838,15 @@ At published HEAD `448a78f`, pull-request CI passed but feature-push Windows CI
 failed in two headless fixture cases with an authoritative SQLite evidence-sink
 `IOException`; the gap reporter did not preserve its lower-level cause.
 The identical-head full Windows suite subsequently passed all 1,550 tests
-locally, zero failures/skips. This is an unreproduced CI failure, not a confirmed
-root-cause fix; the failed run remains historical evidence.
+locally, zero failures/skips. PR #181 later reproduced the same failure in one
+of 1,640 Windows tests. The evidence connection's five-second SQLite progress
+budget had continued across admission, schema and persisted-envelope validation
+into the later commit; loaded runners could therefore reach the commit with an
+already-expired budget. Evidence writes and reads now receive a fresh bounded
+budget after validation, and gap-reporter failures preserve the original sink
+failure. The exact failing theory passed 25 repeated processes (50 cases), the
+78 SQLite evidence tests passed, and the complete 1,640-test Windows suite
+passed locally. The failed runs remain historical evidence.
 
 After merging current main (#165), fresh preparation passed 110 tests, the
 application and SQLite/window checks passed 34 and 20 respectively, and the

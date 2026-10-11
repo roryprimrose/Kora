@@ -123,10 +123,7 @@ internal sealed partial class RestrictedSqliteDatabase
         try
         {
             connection.Open();
-            var started = Stopwatch.GetTimestamp();
-            SQLitePCL.raw.sqlite3_progress_handler(connection.Handle, 1000,
-                _ => cancellationToken.IsCancellationRequested
-                    || Stopwatch.GetElapsedTime(started) >= TimeSpan.FromSeconds(5) ? 1 : 0, null);
+            ResetProgressBudget(connection, cancellationToken);
             using var settings = connection.CreateCommand();
             settings.CommandText = "PRAGMA query_only=ON; PRAGMA temp_store=MEMORY;";
             settings.ExecuteNonQuery();
@@ -173,10 +170,7 @@ internal sealed partial class RestrictedSqliteDatabase
         try
         {
             connection.Open();
-            var started = Stopwatch.GetTimestamp();
-            SQLitePCL.raw.sqlite3_progress_handler(connection.Handle, 1000,
-                _ => cancellationToken.IsCancellationRequested
-                    || Stopwatch.GetElapsedTime(started) >= TimeSpan.FromSeconds(5) ? 1 : 0, null);
+            ResetProgressBudget(connection, cancellationToken);
             using var settings = connection.CreateCommand();
             // Exclusive mode must precede any page read: hot-journal recovery otherwise unlinks the
             // preowned journal before the connection has had a chance to select PERSIST.
@@ -243,6 +237,15 @@ internal sealed partial class RestrictedSqliteDatabase
                 throw new InvalidDataException("An unexpected file exists in the private SQLite partition.");
             }
         }
+    }
+
+    internal static void ResetProgressBudget(SqliteConnection connection,
+        CancellationToken cancellationToken = default)
+    {
+        var started = Stopwatch.GetTimestamp();
+        SQLitePCL.raw.sqlite3_progress_handler(connection.Handle, 1000,
+            _ => cancellationToken.IsCancellationRequested
+                || Stopwatch.GetElapsedTime(started) >= TimeSpan.FromSeconds(5) ? 1 : 0, null);
     }
 
     private void Migrate(SqliteConnection connection, CancellationToken token)

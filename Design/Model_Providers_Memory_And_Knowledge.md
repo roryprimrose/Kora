@@ -350,6 +350,13 @@ image references, and human-meaningful locations. Structure-aware chunking
 uses section boundaries with bounded overlap rather than arbitrary prompt-size
 splits.
 
+The delivered R26.1g local-only slice is narrower: native exact-source viewers default to unchanged `lexical-lines-v1`; explicitly choosing **Markdown structure-aware** selects `markdown-structure-v2` for that run/view only. It scans bounded top-level ATX/standalone Setext and backtick/tilde fences, retaining exact inert lists/tables/links/image references/authored alt text and original locations.
+
+It is not full CommonMark, rendering, OCR, an index or a model context envelope. There is no overlap/dedup inflation; oversized/incomplete structures are explicitly labelled fragments within the unchanged 2,048-character/128-line and eight-citation/16 KiB global budgets. Plain `.txt` uses original line chunks, unsupported formats/modes/versions deny, and reopening restores only the v1 default.
+
+The exact [supported subset and authority boundary](File_And_Folder_Ingestion.md#delivered-opt-in-markdown-structure-aware-retrieval---2026-10-11) is canonical.
+[Maintained golden tests](../tests/Kora.Core.UnitTests/Context/LocalFileMarkdownRetrievalTests.cs) prove only pure lexical original-snapshot retrieval; optional overlap, managed indexes, semantic ranking and provider-grounded reasoning above remain proposed.
+
 Images are admitted separately from surrounding Markdown:
 
 - initial support retains authored alt text, captions, and nearby text;

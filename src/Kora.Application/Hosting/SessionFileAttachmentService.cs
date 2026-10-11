@@ -11,7 +11,7 @@ namespace Kora.Application.Hosting;
 
 public sealed partial class SessionFileAttachmentService(
     SessionWorkspaceService sessions, ISessionWorkspaceAccess access, LocalSessionFileAttach action,
-    ILocalFileRetrieval retrieval, TimeProvider time, ISecurityAuditLog audit,
+    LocalFileSearch search, TimeProvider time, ISecurityAuditLog audit,
     ILogger<SessionFileAttachmentService> logger) : IAsyncDisposable
 {
     private PendingAttachment? pending;
@@ -202,6 +202,10 @@ public sealed partial class SessionFileAttachmentService(
     }, token);
 
     public Task<LocalFileSearchResult> Search(SessionFileAttachment exact, string query, CancellationToken token) =>
+        Search(exact, query, LocalFileRetrievalMode.LexicalLines, token);
+
+    public Task<LocalFileSearchResult> Search(SessionFileAttachment exact, string query,
+        LocalFileRetrievalMode mode, CancellationToken token) =>
         Inspect(exact.Session, "session.file.search", async cancellation =>
     {
         RequireNative();
@@ -211,10 +215,12 @@ public sealed partial class SessionFileAttachmentService(
         {
             throw new InvalidOperationException("This exact retained attachment is no longer available.");
         }
-        var result = await Task.Run(() => retrieval.Search(current.File, current.File.Reference, query,
-            time.GetUtcNow(), cancellation), cancellation).ConfigureAwait(false);
+        var control = access.ControlRevision;
+        var result = await search.ExecuteRetainedAsync(current.File, query, mode,
+            () => !disposed && epoch == revision && access.CanInspect && control == access.ControlRevision
+                && !cancellation.IsCancellationRequested, cancellation).ConfigureAwait(false);
         var after = await Read(exact.Session, cancellation).ConfigureAwait(false);
-        if (epoch != revision || after?.StorageRevision != exact.StorageRevision)
+        if (epoch != revision || after?.StorageRevision != exact.StorageRevision || after.File.Reference != exact.File.Reference)
         {
             throw new InvalidOperationException("Attachment search was revoked before disclosure.");
         }

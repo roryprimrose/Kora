@@ -103,7 +103,11 @@ internal sealed class SessionAttachmentWindowController : IUserFilePicker, IDisp
             await ShowRemoval(view, exactSession, current, token);
             return;
         }
-        view.ShowAttachment(retained, query => service.Search(retained, query, token),
+        view.ShowAttachment(retained, async (query, mode, searchToken) =>
+        {
+            using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(token, searchToken);
+            return await service.Search(retained, query, mode, cancellation.Token);
+        },
             () => current() && ReferenceEquals(window, view), async () =>
         {
             await ShowRemoval(view, exactSession, current, token);

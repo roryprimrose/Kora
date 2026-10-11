@@ -26,7 +26,11 @@ public sealed partial class MainViewModelTests
             NullLogger<SessionWorkspaceService>.Instance);
         var action = new LocalSessionFileAttach(new FakeFileInspector(), fixture.Audit,
             TimeProvider.System, NullLogger<LocalFilePreview>.Instance);
-        await using var service = new SessionFileAttachmentService(sessions, workspace, action, new LocalFileLexicalRetrieval(),
+        using var preview = new LocalFilePreview(new FakeFileInspector(), fixture.Audit,
+            TimeProvider.System, NullLogger<LocalFilePreview>.Instance);
+        var fileSearch = new LocalFileSearch(preview, new LocalFileLexicalRetrieval(), fixture.Audit,
+            TimeProvider.System, NullLogger<LocalFileSearch>.Instance);
+        await using var service = new SessionFileAttachmentService(sessions, workspace, action, fileSearch,
             TimeProvider.System, fixture.Audit, NullLogger<SessionFileAttachmentService>.Instance);
         fixture.ViewModel.BindSessionAttachments(service);
         var duplicate = () => fixture.ViewModel.BindSessionAttachments(service);
@@ -79,6 +83,12 @@ public sealed partial class MainViewModelTests
         var result = await fixture.ViewModel.SearchFileAsync(exact, "private file marker");
         result.Outcome.Should().Be(LocalFileSearchOutcome.Matched);
         result.Citations.Single().Excerpt.Should().Be(FakeFileInspector.Text);
+        var structured = await fixture.ViewModel.SearchFileAsync(exact, "private file marker",
+            LocalFileRetrievalMode.MarkdownStructure, TestContext.Current.CancellationToken);
+        structured.PolicyVersion.Should().Be("markdown-structure-v2");
+        structured.Citations.Should().Equal(result.Citations);
+        (await fixture.ViewModel.SearchFileAsync(exact, "private", (LocalFileRetrievalMode)99,
+            TestContext.Current.CancellationToken)).Outcome.Should().Be(LocalFileSearchOutcome.Denied);
         (await fixture.ViewModel.SearchFileAsync(exact, "no matching term")).Outcome.Should().Be(LocalFileSearchOutcome.NoMatch);
         (await fixture.ViewModel.SearchFileAsync(exact, " ")).Outcome.Should().Be(LocalFileSearchOutcome.InvalidQuery);
         await fixture.RunAsync("search file for a path or query");

@@ -125,6 +125,16 @@ public sealed partial class OwnedDefinitionEditorWindowTests
             dialog.GetVisualDescendants().OfType<TextBox>().Select(text => text.Text).Should().Equal(source.Document.Text, source.Document.Text);
             string.Join("\n", dialog.GetVisualDescendants().OfType<TextBlock>().Select(text => text.Text))
                 .Should().Contain(source.Revision).And.Contain(source.CanonicalFileName).And.Contain("NEW requests");
+            if (condition is "owner-closed")
+            {
+                f.Access.SetOpen(false);
+                await disable;
+                await f.Main.PrivacyClosureTask;
+                editor.Source.Text.Should().BeEmpty();
+                editor.IsVisible.Should().BeFalse();
+                File.ReadAllBytes(path).Should().Equal(originalBytes);
+                return;
+            }
             switch (condition)
             {
                 case "draft": editor.Source.Text += "Later draft change."; draft = editor.Source.Text; break;
@@ -132,7 +142,6 @@ public sealed partial class OwnedDefinitionEditorWindowTests
                 case "name": editor.NameInput.Text = "other"; break;
                 case "kind": editor.KindInput.SelectedItem = kind == ArtifactKind.Instruction ? ArtifactKind.Prompt : ArtifactKind.Instruction; break;
                 case "owner": ownership++; break;
-                case "owner-closed": f.Access.Open = false; break;
                 case "input": await Run(prefix + " list"); break;
                 case "disk": File.WriteAllBytes(path, Document(kind, "External edit").CopyBytes()); break;
             }

@@ -863,9 +863,10 @@ The source registry normalises supported native and instruction-only `SKILL.md` 
 It cannot infer trust from a package name, location in the user profile, or roaming metadata.
 See [Skill Sources and Roaming Storage](Skill_Storage.md).
 
-## Copilot Integration Proof
+## Hosted Service Integration Proof
 
-Before building the product around Copilot SDK, implement a small disposable integration test that demonstrates:
+Before enabling a Copilot, Claude, or Codex adapter, implement a small
+disposable provider-specific integration test that demonstrates:
 
 1. Streaming output and explicit terminal/error events.
 2. Disabling or intercepting built-in tools and automatic context collection.
@@ -876,13 +877,23 @@ Before building the product around Copilot SDK, implement a small disposable int
 7. Supported authentication without exposing credentials to the model.
 8. Version-specific behaviour recorded in automated adapter conformance tests.
 9. Independent management session progress while task execution is blocked, without cross-session context, tool, or approval leakage.
+10. Exact discovery and request mapping for the account's model, reasoning and
+    context options, including fixed/provider-managed controls.
+11. Catalogue drift between selection, review and dispatch fails unavailable
+    without model, option, account, service, or local fallback.
 
 Use a mock side-effect tool and distinctive synthetic context markers.
 Evidence must show rejected actions never executed and rejected markers never entered outbound model requests.
 If supported SDK hooks cannot establish that, the affected capability is unsupported.
 Do not monkey-patch undocumented internals or claim that a UI approval compensates for an unmediated SDK path.
 
-### R02 Outcome and Candidate Integration Direction
+Qualification is per service, adapter/runtime version, account class and
+enabled capability. Copilot evidence does not qualify Claude or Codex, and
+vice versa. An adapter may remain useful with a provider-managed reasoning or
+context value only when it reports that limitation truthfully and does not
+offer a nonfunctional setting.
+
+### Copilot R02 Outcome and Candidate Integration Direction
 
 The [R02 runtime/provider proof](../experiments/r02-runtime-proof/EVIDENCE.md)
 exercised Node SDK 1.0.16 with runtime 1.0.90. Initial-context mediation,

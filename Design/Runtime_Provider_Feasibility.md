@@ -6,7 +6,7 @@ Reviewed 2026-10-06 UTC against the retained Node proof, separate
 [actual .NET RT1 fixture](../experiments/r02-dotnet-control-proof/README.md)
 and bounded [RT2 lifecycle observation](../experiments/r02-runtime-lifecycle-proof/EVIDENCE.md).
 
-Related: [Architecture](Architecture.md#copilot-integration-proof),
+Related: [Architecture](Architecture.md#hosted-service-integration-proof),
 [Decision Register](Decision_Register.md#r02-runtimeprovider-feasibility-outcomes),
 [Roadmap](Implementation_Roadmap.md#r02-runtimeprovider-follow-up-gates),
 [Security](Security_Data_Flows.md#runtime-egress-enforcement),

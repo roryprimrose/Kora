@@ -1097,13 +1097,34 @@ Fixed approval lifetimes, process cancellation grace, power confirmations, secre
 | Option | Default / limits | Example verbal setter |
 |---|---|---|
 | Local model execution | On; device-local; disabling cancels active local inference while deterministic built-ins remain available | "Disable local models" |
-| Hosted model execution | Off until explicitly enabled; still requires a configured supported provider and credentials | "Enable hosted models" |
+| Hosted model execution | Off until explicitly enabled; still requires at least one independently qualified configured service and signed-in account | "Enable hosted models" |
 | Processing mode | Selected explicitly in setup; local-only or remote-enabled | "Use local-only processing" |
-| Default runtime/provider | Compatible installed/configured choices | "Use my local model by default" |
+| Default hosted service | Configured qualified Copilot, Claude, or Codex service; no silent substitution | "Use Claude by default" |
+| Hosted model | Exact model advertised for the selected service and signed-in account | "Use Sonnet with Claude" |
+| Hosted reasoning level | Exact advertised model-specific choice, or read-only provider-managed when not selectable | "Use high reasoning with my hosted model" |
+| Hosted context size | Exact advertised model-specific token budget/preset, or read-only provider-managed when not selectable | "Use the 128K context" |
 | Local model | Verified installed compatible model | "Use the smaller installed model" |
 | Ollama endpoint | Validated local endpoint by default | "Use my existing Ollama endpoint" |
 | Account/connector selection | Explicit supported signed-in identity | "Use my work account for Teams detection" |
 | Connector enablement | Only registered/validated connector | "Disable the GitHub connector" |
+
+The canonical [hosted service/model/compute profile](Model_Providers_Memory_And_Knowledge.md#hosted-service-model-and-compute-profile)
+defines catalogue freshness, app-level per-service tuples, field-level session
+inheritance, one-turn choices and immutable turn admission. Settings shows
+model, reasoning and context controls only from the selected service's current
+admitted catalogue. Unsupported controls remain visibly provider-managed or
+unavailable; Kora never fabricates a generic value or silently clamps one.
+
+The Providers settings page and session details use one shared revisioned
+draft/save workflow. They show **App default**, **This session**, and the
+resulting effective profile separately. Voice uses the same catalogue and
+workflow. An unscoped directive such as "Use Codex with low reasoning" defaults
+to the addressed session; Kora commits that override before admitting any
+remaining action in the same command. "For this request only" selects one-turn
+scope, while "make this my app default" explicitly selects application scope.
+Other examples include "Use the app context size for this session" and "What
+model is this session using?" A session change does not alter app defaults,
+and an app-default change does not rewrite explicit session overrides.
 
 Changes increasing remote exposure require deliberate exact voice or UI confirmation in the unlocked session, with any explicitly selected speaker protection and mandatory OS/provider checks.
 That confirms the setting only; each new outgoing payload still follows exact egress approval and the selected speaker/privacy and mandatory OS/provider requirements.

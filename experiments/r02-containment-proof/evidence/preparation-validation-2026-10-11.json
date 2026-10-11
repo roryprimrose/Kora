@@ -1,0 +1,52 @@
+{
+  "preparationOnly": true,
+  "sourceRevision": "cf44a5f2bc893a5d19f445b4fc4dd31a204b7d18",
+  "sourceInputsLocallyModified": false,
+  "restore": {
+    "reason": "Focused project assets absent in the isolated worktree",
+    "project": "experiments\\r02-containment-proof\\ContainmentProof.csproj",
+    "lockedMode": true,
+    "source": "https://msazure.pkgs.visualstudio.com/One/_packaging/Networking-AAA/nuget/v3/index.json",
+    "exitCode": 0
+  },
+  "preparation": {
+    "script": "experiments\\r02-containment-proof\\Invoke-Proof.ps1",
+    "prepareOnly": true,
+    "newEvidenceDirectory": true,
+    "exitCode": 0
+  },
+  "build": {
+    "configuration": "Release",
+    "noRestore": true,
+    "warnings": 0,
+    "errors": 0,
+    "exitCode": 0
+  },
+  "deterministicSelfTestAssertions": 5,
+  "passedDeterministicSelfTestAssertions": 5,
+  "failedDeterministicSelfTestAssertions": 0,
+  "liveTrialsPerformed": false,
+  "osAssertions": "Not run",
+  "osProofExitCode": null,
+  "administratorObserverPerformed": false,
+  "appContainerProfileCreated": false,
+  "syntheticCredentialCreated": false,
+  "localNetworkTrialPerformed": false,
+  "auditOrFirewallChangesPerformed": false,
+  "privilegeOrElevationPerformed": false,
+  "runtimeInstallationPerformed": false,
+  "realComputerControlApiPerformed": false,
+  "ownedTrialScratchCreated": false,
+  "trialCleanup": "Not run; no live resources created",
+  "supportedReferenceOsQualified": false,
+  "protectedRuntimeClosureQualified": false,
+  "networkAttribution": "Unproven",
+  "productionProfileCertified": false,
+  "unclosedGates": [
+    "C01-C07",
+    "W1-W4",
+    "R11",
+    "R16",
+    "R17"
+  ]
+}

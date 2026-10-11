@@ -1,0 +1,104 @@
+{
+  "schema_version": 1,
+  "kind": "bounded_unattended_file_only_speech_proof",
+  "created_utc": "2026-10-10T23:20:11.4928703+00:00",
+  "source": {
+    "git_head": "cf44a5f2bc893a5d19f445b4fc4dd31a204b7d18",
+    "main_baseline": "cf44a5f2bc893a5d19f445b4fc4dd31a204b7d18",
+    "branch": "agents/validate-r02-speech-proof-experiments",
+    "source_worktree_dirty_before_receipt": false,
+    "files": {
+      "prepare.py": "7a883eea79630bdecb9ed464927ea3c22e710f2b32cd1fc3307969233e32dcbd",
+      "fixtures.py": "29015cfcc10e300c4f7403230ab24ff2a7b992e5c309f0811b98a7a23500d735",
+      "capture_probe.py": "5005b7e767281bbd150d570345e9561bcdd9a533091ffd268f617e1054d88329",
+      "benchmark.py": "fa3c11c65a4a5388f4b9943677a58682bcde1b1ec3ac5315b965b589d1f151b6",
+      "test_benchmark.py": "4107e52d8cf7b7bff94e7d370c35a8b2f90781c185b7c396a42bd45cf66c9bbc",
+      "privacy_receipts.py": "944ea23481c6352bacba766c6f8e4da49b11d9eba350809ae34cc09ee6ffdb03",
+      "test_privacy_receipts.py": "f4b22943e60a59cc5c34fb098226d250476470af6be0cd385ccc409657e1e935",
+      "Validate.ps1": "07f4eb8974d74a6db72bbfba07e2d51391d90cef8728d0ee240259becf28ffed",
+      "requirements.txt": "701be38c64333558bd046d324f40776d475ed3cda70b33879f58a4bb7208e3da"
+    }
+  },
+  "environment": {
+    "python": "3.12.10",
+    "experiment_virtual_environment_present": false,
+    "model_assets_present": false,
+    "fixtures_present": false,
+    "global_numpy_present": false,
+    "dependencies_or_assets_acquired": false
+  },
+  "checks": {
+    "validate_ps1": {
+      "result": "Blocked",
+      "exit_code": 1,
+      "reason": "Create the experiment-local Python environment first; see README."
+    },
+    "source_compilation": {
+      "result": "Passed",
+      "scope": "All seven experiment Python source and test files compiled with dependency-free CPython compileall."
+    },
+    "privacy_receipt_tests": {
+      "result": "Passed",
+      "passed": 12,
+      "failed": 0,
+      "scratch_output_sha256": "91d736a28185ad68224ae6d228379632245a6d1c42accecc2421eafd11fa1476"
+    },
+    "benchmark_tests": {
+      "result": "Blocked",
+      "tests_executed": 0,
+      "loader_errors": 1,
+      "reason": "ModuleNotFoundError: No module named 'numpy'"
+    },
+    "threshold_sweep": {
+      "result": "Blocked",
+      "paced_seconds_requested": 60,
+      "reason": "The documented experiment-local Python executable was absent."
+    },
+    "file_only_resource_pilot": {
+      "result": "Blocked",
+      "paced_seconds_requested": 1800,
+      "paced_seconds_executed": 0,
+      "reason": "The documented experiment-local Python executable was absent."
+    }
+  },
+  "redistribution_review": {
+    "candidates_json_sha256": "51176597879f70f8a6a30b47694d93e119e0b73ccdb64e6e0985f013de9afba2",
+    "requirements_txt_sha256": "701be38c64333558bd046d324f40776d475ed3cda70b33879f58a4bb7208e3da",
+    "pinned_sherpa_archive_sha256": "f170013b4716e41b62b9bfd809687c207cef798ef9bc6534d524e17af9b6561a",
+    "archive_present_or_rehashed": false,
+    "openwakeword": "Blocked; no reviewed Kora model or commercial-purpose model clearance.",
+    "sherpa_onnx": "Historical synthetic candidate only; archive and extracted model were absent, so no fresh inference or byte verification occurred.",
+    "porcupine": "Blocked; no authorized account, AccessKey, evaluation agreement, Kora profile, or redistribution clearance.",
+    "unreviewed_assets_or_credentials_acquired": false
+  },
+  "packaged_notice_review": {
+    "third_party_notices_sha256": "747fb0c17748c3829d420d8dabd16fccff0a4e0d14eb47e34a8b6f054deacd87",
+    "license_sha256": "3ae8fb82a4ff768f6ef4e24abd0c2a198838822968d0be097d8051daf3e0847c",
+    "allowed_licenses_sha256": "03dfee190194800d9c1c69c63ad6c70b9c3ed3754ddbe5bd54078329991e5b53",
+    "package_overrides_sha256": "0dad200dba91a2d6a3b38eb6a7cc31dc908891655187aa68e05520bd8d33c488",
+    "license_file_identities_sha256": "dce2e7550f3f35d142e9f1e17bd4d0d5829ab59f3d88a8248e0529048ebef2e2",
+    "test_dependency_licenses_ps1_sha256": "c60acaeb6de22fb8eba612b9cd75f9bcbff5253dd6f2713f4a0abfb61320f51e",
+    "inspect_publish_ps1_sha256": "664d9c35beb8505c37733f97251a741714dbbfd8a0f418a81f7f2e43d2c37e91",
+    "historical_published_bytes_evidence_sha256": "0f3013a46c3bb336376b1b7b5e0646c907db697d97a208dfd824b6fbafee5676",
+    "current_notice_parity_rerun": "Blocked",
+    "blocker": "Required project obj/project.assets.json files were absent; no restore or package acquisition was performed.",
+    "packaged_binary_or_model_contents_inspected": false,
+    "per_release_redistribution_clearance_established": false
+  },
+  "safety": {
+    "microphone_capture": false,
+    "audible_playback": false,
+    "kora_launched": false,
+    "native_windows_opened": false,
+    "devices_or_settings_changed": false,
+    "live_or_acoustic_trials": false,
+    "network_or_registry_acquisition": false
+  },
+  "acceptance": {
+    "D-002": "Open",
+    "D-007": "Open",
+    "production_threshold_selected": false,
+    "integrated_resource_gate_qualified": false,
+    "packaged_host_or_redistribution_qualified": false
+  }
+}

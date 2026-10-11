@@ -1,4 +1,4 @@
-using Avalonia.Controls;
+﻿using Avalonia.Controls;
 using Avalonia.Threading;
 using Kora.Application.Hosting;
 using Kora.Core.Context;
@@ -136,7 +136,21 @@ internal sealed class SessionAttachmentWindowController : IUserFilePicker, IDisp
             reviewing = replacement.Next.ReviewId;
             reviewView.Show();
             reviewView.Activate();
-        } : null);
+        } : null, async navigationToken =>
+        {
+            using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(token, navigationToken);
+            if (!current() || !ReferenceEquals(window, view))
+            {
+                throw new InvalidOperationException("The exact retained inspection is no longer current.");
+            }
+            var resolved = await service.Read(exactSession, cancellation.Token);
+            if (!current() || !ReferenceEquals(window, view)
+                || resolved?.StorageRevision != retained.StorageRevision || resolved.File.Reference != retained.File.Reference)
+            {
+                throw new InvalidOperationException("The exact retained revision is unavailable. Inspect again.");
+            }
+            return resolved.File;
+        });
     }
 
     private LocalFilePreviewWindow NewView()

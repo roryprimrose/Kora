@@ -1,4 +1,4 @@
-using Kora.Core.Context;
+﻿using Kora.Core.Context;
 
 namespace Kora.Application.Presentation;
 
@@ -8,6 +8,7 @@ public sealed class LocalFileSearchSelection : IDisposable
     private CancellationTokenSource? pending;
     private long generation;
     private bool disposed;
+    private LocalFileSearchResult? currentResult;
     public LocalFileRetrievalMode Mode { get; private set; }
 
     public void Select(LocalFileRetrievalMode mode)
@@ -30,6 +31,7 @@ public sealed class LocalFileSearchSelection : IDisposable
         {
             generation++;
             pending?.Cancel();
+            currentResult = null;
         }
     }
 
@@ -62,6 +64,7 @@ public sealed class LocalFileSearchSelection : IDisposable
                 {
                     throw new InvalidOperationException("The search policy does not match this exact selected run.");
                 }
+                currentResult = result;
                 return result;
             }
         }
@@ -71,6 +74,27 @@ public sealed class LocalFileSearchSelection : IDisposable
         {
             lock (sync) { if (ReferenceEquals(pending, cancellation)) { pending = null; } }
             cancellation.Dispose();
+        }
+    }
+
+    public bool IsCurrent(LocalFileSearchResult result, Func<bool> isCurrent)
+    {
+        lock (sync) { return !disposed && ReferenceEquals(currentResult, result) && isCurrent(); }
+    }
+
+    public LocalFileCitationSpan Resolve(LocalFileCitation citation, IReadOnlyList<LocalFileRevision> files,
+        Func<bool> isCurrent)
+    {
+        lock (sync)
+        {
+            if (disposed || !isCurrent() || currentResult is not { Outcome: LocalFileSearchOutcome.Matched } result
+                || !result.Citations.Any(row => ReferenceEquals(row, citation)))
+            {
+                throw new InvalidOperationException("Select a citation from the current successful admitted search.");
+            }
+            var file = files.SingleOrDefault(item => item.Reference == citation.Source)
+                ?? throw new InvalidOperationException("The exact cited admitted item is no longer available.");
+            return LocalFileLexicalRetrieval.ResolveCitation(file, citation, Mode);
         }
     }
 

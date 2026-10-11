@@ -1,4 +1,4 @@
-using System.Text;
+﻿using System.Text;
 
 using Avalonia.Automation.Peers;
 using Avalonia.Controls;
@@ -68,7 +68,9 @@ public sealed class SessionAttachmentWindowTests
                 capture.Disposals.Should().Be(1);
                 capture.Bytes.Should().OnlyContain(value => value == 0);
                 var retained = (await service.Read(target.Authority.SessionId, fixture.Token))!;
-                window.ShowAttachment(retained, (query, mode, token) => service.Search(retained, query, mode, token), () => true, () => Task.CompletedTask);
+                window.ShowAttachment(retained, (query, mode, token) => service.Search(retained, query, mode, token),
+                    () => true, () => Task.CompletedTask, resolveCurrent: async token =>
+                    (await service.Read(target.Authority.SessionId, token))!.File);
                 window.UpdateLayout();
                 var displayed = string.Join("\n", window.GetVisualDescendants().OfType<TextBlock>().Select(block => block.Text));
                 displayed.Should().Contain(Capture.Text).And.Contain(retained.File.Digest)
@@ -84,7 +86,19 @@ public sealed class SessionAttachmentWindowTests
                 var citations = string.Join("\n", window.GetVisualDescendants().OfType<TextBlock>().Select(block => block.Text));
                 citations.Should().Contain("Policy: markdown-structure-v2").And.Contain("Authored heading: 1:1")
                     .And.Contain(retained.File.Reference.RevisionId.ToString("D"));
+                var rows = window.GetVisualDescendants().OfType<ListBox>().Single();
+                rows.SelectedItem = rows.ItemsSource!.Cast<LocalFileCitation>().Single();
+                await Press(window, "Show exact cited source span");
+                window.UpdateLayout();
+                var span = window.GetVisualDescendants().OfType<Kora.Controls.NamedTextBlock>().Single(block =>
+                    Avalonia.Automation.AutomationProperties.GetName(block)?.StartsWith("Exact cited original source span", StringComparison.Ordinal) == true);
+                span.Text.Should().Be(Capture.Text);
+                span.IsFocused.Should().BeTrue();
+                ControlAutomationPeer.CreatePeerForElement(span)!.GetName().Should().Contain(Capture.Text)
+                    .And.Contain(retained.File.ItemId.ToString("D"));
+                capture.Reads.Should().Be(1);
                 selector.SelectedIndex = 0;
+                span.Text.Should().BeNull();
                 citations = string.Join("\n", window.GetVisualDescendants().OfType<TextBlock>().Select(block => block.Text));
                 citations.Should().NotContain("Policy: markdown-structure-v2");
                 await Press(window, "Search selected immutable revision locally");
@@ -154,6 +168,7 @@ public sealed class SessionAttachmentWindowTests
                 await Press(opened!, "Confirm: capture and retain this exact file for this Session");
                 var old = (await service.Read(target.Authority.SessionId, fixture.Token))!;
                 var retiredView = opened!;
+                await NavigateRetained(retiredView, old, "OLD_NATIVE_REPLACEMENT_CONTENT_654891");
                 await Press(retiredView, "Replace retained attachment");
                 picker.Calls.Should().Be(2);
                 var reviewed = opened!;
@@ -199,7 +214,11 @@ public sealed class SessionAttachmentWindowTests
                 opened!.UpdateLayout();
                 var shown = string.Join("\n", opened.GetVisualDescendants().OfType<TextBlock>().Select(block => block.Text));
                 shown.Should().Contain(current.File.Text).And.Contain(current.File.Digest).And.NotContain(oldText);
+                await NavigateRetained(opened, current, "native");
+                var removedSpan = opened.GetVisualDescendants().OfType<Kora.Controls.NamedTextBlock>().Single(block =>
+                    Avalonia.Automation.AutomationProperties.GetName(block)?.StartsWith("Exact cited original source span", StringComparison.Ordinal) == true);
                 await Press(opened, "Review Remove attachment and Kora copies");
+                removedSpan.Text.Should().BeNull();
                 await Press(opened, "Confirm: Remove attachment and Kora copies");
                 (await service.Read(old.Session, fixture.Token)).Should().BeNull();
                 (await File.ReadAllTextAsync(firstPath, fixture.Token)).Should().Be(oldText);
@@ -216,6 +235,23 @@ public sealed class SessionAttachmentWindowTests
         var button = window.GetVisualDescendants().OfType<Button>().Single(button =>
             string.Equals(button.Content as string, caption, StringComparison.Ordinal));
         return ((AsyncCommand)button.Command!).ExecuteAsync();
+    }
+
+    private static async Task NavigateRetained(LocalFilePreviewWindow window, SessionFileAttachment attachment, string query)
+    {
+        window.UpdateLayout();
+        window.GetVisualDescendants().OfType<TextBox>().Single(box =>
+            box.PlaceholderText?.StartsWith("Untrusted lexical query", StringComparison.Ordinal) == true).Text = query;
+        await Press(window, "Search selected immutable revision locally");
+        var rows = window.GetVisualDescendants().OfType<ListBox>().Single();
+        rows.SelectedItem = rows.ItemsSource!.Cast<LocalFileCitation>().Single();
+        await Press(window, "Show exact cited source span");
+        window.UpdateLayout();
+        var span = window.GetVisualDescendants().OfType<Kora.Controls.NamedTextBlock>().Single(block =>
+            Avalonia.Automation.AutomationProperties.GetName(block)?.StartsWith("Exact cited original source span", StringComparison.Ordinal) == true);
+        span.Text.Should().Be(attachment.File.Text);
+        span.IsFocused.Should().BeTrue();
+        ControlAutomationPeer.CreatePeerForElement(span)!.GetName().Should().Contain(attachment.File.ItemId.ToString("D"));
     }
 
     [Theory]

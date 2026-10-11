@@ -1023,6 +1023,17 @@ their original snapshots. External #81 is runtime-validation preparation only;
 external presence fade #85 is merged, while pointer hide-timer #86 is still open
 at this reconciliation. Neither is coordinator-owned delivery.
 
+### R26.1h passive exact citation-to-source navigation - 2026-10-11
+
+Delivered selectable native search-citation rows and explicit **Show exact cited source span** for admitted text/Markdown file/folder previews and retained Session attachments. The accessible inert span is the exact unmodified original UTF-16 slice, with source/revision/item/digest and end-exclusive line/column/range; complete original source remains visible. Explicit navigation alone reveals/focuses; passive updates do not steal focus.
+
+Current successful query/mode/result generation and exact row reference are required. Core reuses the authoritative v1/v2 scanner to validate source/range/excerpt/location/heading/fragment semantics. Folder navigation selects the actual exact item, never names/paths/index guesses. Retained navigation revalidates the current authoritative private stored session/storage revision, with no original-path read or cached fallback.
+
+Query/mode/cancel/row/source/privacy/lifecycle/replacement/removal/close retirement clears target and suppresses late callbacks. Same immutable admission only: no picker/filesystem acquisition/refresh, clipboard/copy, rendered Markdown/link/script/URL fetch, persisted index/preferences/history, model context or session activity renewal/cleanup.
+
+See [canonical scope and evidence](File_And_Folder_Ingestion.md#delivered-passive-exact-citation-to-source-navigation---2026-10-11). Exact policy/generation tests and actual headless single/folder/retained span, viewport, accessible focus and no-recapture tests qualify this consumer only.
+No experiment/historical receipt is retired; native/runtime/privacy/storage/resource/quality proofs remain distinct. Full CommonMark, managed sources, model grounding/provider and installed/native acceptance remain open.
+
 ### R26.1g opt-in Markdown structure-aware retrieval - 2026-10-11
 
 Delivered native run-only selection over exact already-admitted volatile file/folder and retained Session snapshots. `lexical-lines-v1` remains the unchanged default; `markdown-structure-v2` is selected explicitly in each exact source view, never a saved/global setting. Unknown modes/returned versions deny rather than falling back.

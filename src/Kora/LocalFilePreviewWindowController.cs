@@ -1,4 +1,4 @@
-using Avalonia.Controls;
+﻿using Avalonia.Controls;
 using Avalonia.Platform.Storage;
 using Avalonia.Threading;
 using Kora.Application.ViewModels;
@@ -108,7 +108,7 @@ internal sealed class LocalFilePreviewWindowController : IUserFilePicker, IUserF
         {
             var exactSource = revision.Reference;
             view.ShowRevision(revision, (query, mode, token) => host.SearchFileAsync(exactSource, query, mode, token),
-                () => !disposed && host.FileRevision?.Reference == exactSource,
+                () => !disposed && ReferenceEquals(window, view) && ReferenceEquals(host.FileRevision, revision),
                 () => !disposed && ReferenceEquals(window, view) && host.FileRevision?.Reference == exactSource
                     ? host.RefreshFilePreviewAsync(exactSource)
                     : Task.FromException(new InvalidOperationException("The exact file preview is stale; no refresh was authorized.")));
@@ -117,7 +117,7 @@ internal sealed class LocalFilePreviewWindowController : IUserFilePicker, IUserF
         {
             var exactSource = folderRevision.Reference;
             view.ShowFolderRevision(folderRevision, (query, mode, token) => host.SearchFolderAsync(exactSource, query, mode, token),
-                () => !disposed && host.FolderRevision?.Reference == exactSource,
+                () => !disposed && ReferenceEquals(window, view) && ReferenceEquals(host.FolderRevision, folderRevision),
                 () => !disposed && ReferenceEquals(window, view) && host.FolderRevision?.Reference == exactSource
                     ? host.RefreshFolderPreviewAsync(exactSource)
                     : Task.FromException(new InvalidOperationException("The exact folder preview is stale; no refresh was authorized.")));

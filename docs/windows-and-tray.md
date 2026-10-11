@@ -109,6 +109,16 @@ Unchanged limits: 256 UTF-16 characters / 512 UTF-8 query bytes, 32 unique terms
 
 See the [precise supported subset, unsupported formats and maintained evidence](../Design/File_And_Folder_Ingestion.md#delivered-opt-in-markdown-structure-aware-retrieval---2026-10-11). Model grounding, managed knowledge, OCR/vector retrieval and installed/accessibility acceptance remain unavailable or separately gated.
 
+### Show an exact cited source span
+
+After a successful search, select a citation row and press **Show exact cited source span**. Kora reveals and focuses an accessible inert text span containing exactly those original characters; its identity and one-based UTF-16 line/column range (end exclusive) are shown above it. The complete original source remains below. For a folder, the actual exact admitted file selector changes to the cited item, not another item with a similar name.
+
+The action uses only this current successful search generation and exact source/revision/item/digest. It does not open links, render Markdown, fetch images, read the original path, refresh, copy to the clipboard or send content to a model. Retained Session files are revalidated against the current private stored revision; they remain historical snapshots, not live filesystem observations. Truncated results omit matches honestly; navigation never fetches omitted files or expands the admitted scope.
+
+Search completion does not move focus. Query/mode changes, Cancel search, another citation selection, source refresh/replacement/removal, privacy/lifecycle changes and closing the view clear the target and prevent late old callbacks from revealing content. If the exact source is unavailable, inspect the current source and search again; no newer body or cached fallback is substituted.
+
+The span is non-selectable plain text, without clipboard-copy shortcuts. Heading context describes an authored label, not executable navigation; a structural fragment is still a bounded fragment, not an intact section. Full CommonMark/rendering, managed sources, AI grounding and installed accessibility qualification remain separate. See [exact navigation scope and evidence](../Design/File_And_Folder_Ingestion.md#delivered-passive-exact-citation-to-source-navigation---2026-10-11).
+
 ## Kora's presence
 
 Kora's presence is the animated group of dots that communicates the assistant's

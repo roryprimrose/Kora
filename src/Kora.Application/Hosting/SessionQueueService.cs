@@ -104,7 +104,7 @@ public sealed partial class SessionQueueService : IAsyncDisposable
                 _ = SessionCommandResult.Serialize(reviewed);
                 token.ThrowIfCancellationRequested();
                 RequireEligible(Eligible);
-                lock (causeGate) { moveReviews[session] = (preview, origin); }
+                lock (causeGate) { moveReviews.Clear(); moveReviews[session] = (preview, origin); }
                 root.Complete(HostOperationOutcome.Completed);
                 return reviewed;
             }
@@ -385,7 +385,7 @@ public sealed partial class SessionQueueService : IAsyncDisposable
         }
         await lifetime.CancelAsync().ConfigureAwait(false);
         await dispatchGate.WaitAsync(CancellationToken.None).ConfigureAwait(false);
-        lock (causeGate) { causes.Clear(); }
+        lock (causeGate) { causes.Clear(); moveReviews.Clear(); }
         dispatchGate.Dispose();
         lifetime.Dispose();
     }

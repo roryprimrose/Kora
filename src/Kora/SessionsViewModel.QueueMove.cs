@@ -106,9 +106,18 @@ internal sealed partial class SessionsViewModel
             };
             await service.ExecuteCommandAsync(command, RequestOrigin.LocalUi,
                 () => !closed && access.CanControl && selectionEpoch == epoch
-                    && selected?.Authority.SessionId == review.Queue.SessionId, lifetime.Token);
+                    && selected?.Authority.SessionId == review.Queue.SessionId
+                    && selected.Authority.Generation == review.Queue.Generation, lifetime.Token);
+            if (selectionEpoch != epoch || selected?.Authority.SessionId != review.Queue.SessionId)
+            {
+                throw new OperationCanceledException("Selection changed after the committed pair receipt; refresh that exact session.");
+            }
             queueMoveReview = null;
             await RefreshSelectedWorkAsync();
+            if (selectionEpoch != epoch || selected?.Authority.SessionId != review.Queue.SessionId)
+            {
+                throw new OperationCanceledException("Selection changed during the committed order observation.");
+            }
             status = "Exact adjacent order committed with required audit. Original arrival/deadlines retained; dispatch and explicit pause unchanged.";
             NotifyQueueMove();
         }, dispatchControl: true);
@@ -117,6 +126,8 @@ internal sealed partial class SessionsViewModel
     public Task CancelQueueMoveAsync()
     {
         var review = queueMoveReview;
+        var epoch = selectionEpoch;
+        var subject = selected?.Authority.SessionId;
         queueMoveReview = null;
         NotifyQueueMove();
         return RunAsync(async () =>
@@ -124,9 +135,13 @@ internal sealed partial class SessionsViewModel
             if (review is not null)
             {
                 await service.ExecuteCommandAsync(new(SessionCommandOperation.QueueMoveCancel, review.Queue.SessionId.Value)
-                    { QueueMoveReviewId = review.Id }, RequestOrigin.LocalUi, () => !closed, lifetime.Token);
+                    { QueueMoveReviewId = review.Id }, RequestOrigin.LocalUi,
+                    () => !closed && selectionEpoch == epoch && selected?.Authority.SessionId == subject, lifetime.Token);
             }
-            status = "Queue move review cancelled; order and draft unchanged.";
+            if (selectionEpoch == epoch && selected?.Authority.SessionId == subject)
+            {
+                status = "Queue move review cancelled; order and draft unchanged.";
+            }
         }, dispatchControl: true);
     }
 

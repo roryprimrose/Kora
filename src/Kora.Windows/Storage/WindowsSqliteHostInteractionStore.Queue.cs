@@ -256,12 +256,13 @@ public sealed partial class WindowsSqliteHostInteractionStore
             """;
         command.Parameters.AddWithValue("$session", Id(session));
         var revision = (long)command.ExecuteScalar()!;
-        var orders = ReadQueueOrders(connection).Where(order => order.SessionId == session).ToArray();
+        var allOrders = ReadQueueOrders(connection).Where(order => order.SessionId == session).ToArray();
+        var orders = allOrders.TakeLast(2).ToArray();
         return new(session, authority.Authority.Generation, revision,
             rows.Where(entry => entry.IsCurrent || entry.State == SessionQueueState.Unknown || entry.RunId == runId && entry.IsPending)
                 .OrderBy(entry => SessionQueueOrdering.Key(entry, orders)).ThenBy(entry => entry.Position)
                 .Select(entry => ProjectQueue(connection, entry, observedAt)).ToArray())
-            { DispatchControl = QueueControl(connection, session), Orders = orders };
+            { DispatchControl = QueueControl(connection, session), Orders = orders, OmittedOrders = Math.Max(0, allOrders.Length - orders.Length) };
     }
 
     private SessionQueueEntry ProjectQueue(SqliteConnection connection, SessionQueueEntry entry, DateTimeOffset? observedAt = null,

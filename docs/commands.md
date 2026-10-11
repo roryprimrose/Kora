@@ -241,13 +241,14 @@ Unknown/unconfirmed audit, storage, cancellation or private-epoch state holds ad
 Quiet routine notices and queue pause are independent. General workers/providers, autoscheduling and current-task cancellation remain unavailable; a pause receipt is not a physical-stop receipt.
 
 **Review Move up/down** selects only the displayed previous/next pending neighbor in this exact session. The first/last entry has no move in that direction, with an explicit reason. Review shows both profiles, immutable IDs/revisions, current/proposed order and original deadlines.
-**Confirm exact adjacent move** is separate; **Cancel move review** leaves order and draft unchanged. Typed/activated confirmation must repeat every exact binding plus the returned review ID and `confirm`.
+**Confirm exact adjacent move** is separate; **Cancel move review** leaves order and draft unchanged. Typed/activated confirmation must repeat every exact binding plus the returned review ID and `confirm`. A fresh review replaces the prior volatile review, never accumulates replayable authority.
 
 Concurrent admission/removal/enqueue/reorder, changed session/run/private control, selection or closed authority makes confirmation stale: refresh and review again. No name-based retargeting, cross-session shuffle, arbitrary position or automatic reprioritization is accepted.
 Pending prerequisite inversion and expired/private-retired/previous-run/nonpending pairs refuse; remove/requeue requires a separate decision. Unmet cross-session dependencies still block the chosen head.
 
 Only pending dispatch order changes. Original arrival, enqueue/expiry, active deadlines, results, history and fairness remain intact; new enqueue follows the current pending order. No pause/resume/dispatch or activity renewal follows a move.
 Running callbacks remain independent; previous-run Interrupted/Unknown work never replays. Audit/storage/delivery uncertainty holds admission with explicit recovery, never an optimistic success-shaped list.
+Queue snapshots include at most two latest order lineages with `omittedOrders`; older exact move receipts remain in authoritative audit/history, not fabricated current ordering.
 
 ## Fixed queue settings
 

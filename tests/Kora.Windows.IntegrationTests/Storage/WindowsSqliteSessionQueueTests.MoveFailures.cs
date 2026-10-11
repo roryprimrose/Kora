@@ -50,7 +50,8 @@ public sealed partial class WindowsSqliteSessionQueueTests
         var held = await f.Store.ReadQueueAsync(f.Request.SessionId, f.Token);
         held.DispatchControl!.Held.Should().BeTrue();
         held.Orders.Should().BeEmpty();
-        held.Entries.Should().Equal(first, second);
+        held.Entries.Should().Equal(boundary is "deadline" ? first with { State = SessionQueueState.Expired } : first,
+            boundary is "deadline" ? second with { State = SessionQueueState.Expired } : second);
         QueueBytes(f).Should().Equal(original);
         f.Count("security_audit_events").Should().Be(auditCount);
         (await f.Store.ReadRetentionAsync(f.Request.SessionId, f.Token)).Should().Be(retention);

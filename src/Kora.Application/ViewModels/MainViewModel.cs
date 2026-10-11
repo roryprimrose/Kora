@@ -466,6 +466,13 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         SaveProviderServiceCommand = CreateCommand(() => RunNativeProviderProfileAsync(new(AppearanceCommandOperation.Set, Kora.Core.Providers.ProviderService.Unset)));
         ResetProviderServiceCommand = CreateCommand(() => RunNativeProviderProfileAsync(new(AppearanceCommandOperation.Reset)));
         SaveProviderProfileCommand = CreateCommand(() => RunNativeProviderProfileAsync(new(AppearanceCommandOperation.Set)));
+        ReviewProviderModelCommand = CreateCommand(() => ReviewNativeProviderField(Kora.Core.Providers.ProviderProfileField.Model));
+        ReviewProviderReasoningCommand = CreateCommand(() => ReviewNativeProviderField(Kora.Core.Providers.ProviderProfileField.Reasoning));
+        ReviewProviderContextCommand = CreateCommand(() => ReviewNativeProviderField(Kora.Core.Providers.ProviderProfileField.Context));
+        ConfirmProviderFieldCommand = CreateCommand(() => ExecuteProviderProfileCommandAsync(
+            new(AppearanceCommandOperation.Set, Confirmation: ProviderFieldConfirmationId ?? Guid.Empty), SecurityAuditInitiator.LocalUser));
+        CancelProviderFieldCommand = CreateCommand(() => ExecuteProviderProfileCommandAsync(
+            new(AppearanceCommandOperation.Set, Confirmation: ProviderFieldConfirmationId ?? Guid.Empty, Cancel: true), SecurityAuditInitiator.LocalUser));
         ResetProviderProfileCommand = CreateCommand(() => RunNativeProviderProfileAsync(new(AppearanceCommandOperation.Reset, TupleOnly: true)));
         ProviderSignInCommand = CreateCommand(() => RunNativeProviderProfileAsync(new(AppearanceCommandOperation.Get, SignIn: true)));
         RefreshPreapprovedUrisCommand = CreateCommand(

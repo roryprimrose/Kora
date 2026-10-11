@@ -1103,9 +1103,9 @@ Fixed approval lifetimes, process cancellation grace, power confirmations, secre
 | Hosted model execution | Off until explicitly enabled; still requires at least one independently qualified configured service and signed-in account | "Enable hosted models" |
 | Processing mode | Selected explicitly in setup; local-only or remote-enabled | "Use local-only processing" |
 | Desired app provider service | Local if supported Ollama installation is observed; otherwise Unset. Explicit Local/Copilot/Claude/Codex selection is retained, without authentication or fallback | `set providers.app.default-service to Claude` |
-| Hosted model | Exact model advertised for the selected service and signed-in account; production catalogues currently unavailable | Exact complete `providers.app.profile` tuple |
-| Hosted reasoning level | Exact advertised model-specific choice, or read-only provider-managed when not selectable | "Use high reasoning with my hosted model" |
-| Hosted context size | Exact advertised model-specific token budget/preset, or read-only provider-managed when not selectable | "Use the 128K context" |
+| App profile model | Exact current service/account model; production catalogue unavailable | `set providers.app.model to <id> for <account> at <revision>`, then confirm the complete tuple |
+| App profile reasoning | Exact saved-model option or advertised provider-managed value | `set providers.app.reasoning to <id> for <account> at <revision>`, then confirm |
+| App profile context | Exact saved-model budget/preset or advertised provider-managed value | `set providers.app.context to <id> for <account> at <revision>`, then confirm |
 | Local model | Verified installed compatible model | "Use the smaller installed model" |
 | Ollama endpoint | Validated local endpoint by default | "Use my existing Ollama endpoint" |
 | Account/connector selection | Explicit supported signed-in identity | "Use my work account for Teams detection" |
@@ -1140,6 +1140,8 @@ Credentials/tokens/passwords are not dictatable option values; voice starts supp
 The [bounded canonical provider increment](Model_Providers_Memory_And_Knowledge.md#delivered-bounded-app-provider-profile-configuration) is app-scope only. Native Providers, typed and activated commands share original-user audited atomic save/readback/confirmation. `providers.default-mode` remains LocalOnly by default/reset and is not changed by desired-service selection.
 
 `providers.app.default-service` supports explicit Unset/Local/Copilot/Claude/Codex and installation-based reset. `providers.app.profile` saves complete exact model/reasoning/context IDs for the chosen service, bound to one opaque host account and catalogue revision; reset removes that service's tuple only. All other service tuples survive switching/reset.
+
+Native and exact `providers.app.model`, `.reasoning` and `.context` edits review one field while retaining the saved complete tuple's other exact IDs. Separate host-issued confirmation uses the existing audited atomic writer. Compatible model edits retain reasoning/context; missing, stale or incompatible bases require complete tuple draft/save. No defaults, partial persistence or field-only resets occur. Individual edits leave the app default and session overrides unchanged.
 
 No available model is invented when a service catalogue is unavailable. Desired service can be saved unresolved; saved and effective states remain separate. Unknown/stale/expired/cross-service/account-changed tuples fail closed, without nearby values or local/hosted fallback.
 Sign-in is visibly Unavailable without a qualified adapter; no credentials, auth/acquisition/network/generation calls or egress authority are added.

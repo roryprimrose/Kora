@@ -1,5 +1,11 @@
 # Windows, tray, and appearance
 
+## Native app provider field review
+
+**Settings > Providers** retains the complete app tuple workflow and adds individual exact model/reasoning/context review. Inspect current catalogue, select the service, review one field, inspect the whole resulting tuple/account/revision/provenance, then confirm or cancel separately. Individual edits retain the app default, other service tuples and session overrides.
+
+Reasoning/context pickers use the saved model. Model review retains both dependent IDs only if supported; missing, stale or incompatible complete bases require the existing full draft/save. No defaults or individual resets are invented. Current production catalogues have no models; these field controls are unavailable. [Settings and recovery](settings.md#app-default-service-and-desired-profiles) describe the exact boundaries.
+
 ## Authoritative Sessions work
 
 The already-open selected work surface also has a **trusted local events**

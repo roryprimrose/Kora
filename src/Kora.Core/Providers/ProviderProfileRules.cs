@@ -5,6 +5,19 @@ namespace Kora.Core.Providers;
 
 public static class ProviderProfileRules
 {
+    public static ProviderProfileTuple ReplaceField(ProviderProfileTuple tuple, ProviderProfileField field, ProviderChoiceId id)
+    {
+        ValidateTuple(tuple);
+        ArgumentNullException.ThrowIfNull(id);
+        return field switch
+        {
+            ProviderProfileField.Model => tuple with { Model = id },
+            ProviderProfileField.Reasoning => tuple with { Reasoning = id },
+            ProviderProfileField.Context => tuple with { Context = id },
+            _ => throw new ArgumentOutOfRangeException(nameof(field)),
+        };
+    }
+
     public static void ValidateId(string? value)
     {
         if (string.IsNullOrWhiteSpace(value) || value.Length > 128 || value.Any(character => character is < '!' or > '~'))

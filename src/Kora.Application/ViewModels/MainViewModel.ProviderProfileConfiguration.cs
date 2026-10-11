@@ -17,7 +17,7 @@ public sealed partial class MainViewModel
     private static readonly JsonSerializerOptions ProviderProfileJsonOptions = new()
     {
         Converters = { new JsonStringEnumConverter<ProviderService>(), new JsonStringEnumConverter<LocalProviderInstallation>(),
-            new JsonStringEnumConverter<Kora.Core.Dependencies.ModelProviderIdentity>() },
+            new JsonStringEnumConverter<Kora.Core.Dependencies.ModelProviderIdentity>(), new JsonStringEnumConverter<ProviderProfileField>() },
     };
     private readonly ProviderProfileConfigurationService? providerProfileConfiguration;
     private ProviderProfileChoice? selectedProviderServiceChoice;
@@ -25,6 +25,12 @@ public sealed partial class MainViewModel
     private ProviderProfileOption? selectedProviderReasoning;
     private ProviderProfileOption? selectedProviderContext;
     private bool providerProfileControlActive;
+    private ProviderProfileChoice? providerFieldPreview;
+    private long providerFieldPreviewCallRevision;
+    private long providerServiceDraftRevision;
+    private long providerFieldPreviewSelectionRevision;
+    private ProviderProfileOption? selectedProviderReasoningField;
+    private ProviderProfileOption? selectedProviderContextField;
 
     public AsyncCommand RefreshProviderProfileCommand { get; }
     public AsyncCommand SaveProviderServiceCommand { get; }
@@ -32,6 +38,45 @@ public sealed partial class MainViewModel
     public AsyncCommand SaveProviderProfileCommand { get; }
     public AsyncCommand ResetProviderProfileCommand { get; }
     public AsyncCommand ProviderSignInCommand { get; }
+    public AsyncCommand ReviewProviderModelCommand { get; }
+    public AsyncCommand ReviewProviderReasoningCommand { get; }
+    public AsyncCommand ReviewProviderContextCommand { get; }
+    public AsyncCommand ConfirmProviderFieldCommand { get; }
+    public AsyncCommand CancelProviderFieldCommand { get; }
+    public Guid? ProviderFieldConfirmationId => providerFieldPreview?.Confirmation;
+    public bool CanConfirmProviderField => CanChangeProviderProfile && providerFieldPreview is not null;
+    public IReadOnlyList<ProviderProfileOption> ProviderReasoningFieldChoices => SavedProviderModel?.Reasoning ?? [];
+    public IReadOnlyList<ProviderProfileOption> ProviderContextFieldChoices => SavedProviderModel?.Context ?? [];
+    private ProviderCatalogueModel? SavedProviderModel => SelectedProviderServiceChoice is { } choice
+        ? providerProfileConfiguration?.SavedModelFor(choice) : null;
+    public ProviderProfileOption? SelectedProviderReasoningField
+    {
+        get => selectedProviderReasoningField;
+        set { if (SetProperty(ref selectedProviderReasoningField, value)) { OnPropertyChanged(nameof(CanReviewProviderReasoning)); } }
+    }
+    public ProviderProfileOption? SelectedProviderContextField
+    {
+        get => selectedProviderContextField;
+        set { if (SetProperty(ref selectedProviderContextField, value)) { OnPropertyChanged(nameof(CanReviewProviderContext)); } }
+    }
+    public bool CanReviewProviderModel => CanChangeProviderProfile && SavedProviderModel is not null
+        && SelectedProviderProfileModel is not null && ProviderProfileModels.Any(model => ReferenceEquals(model, SelectedProviderProfileModel));
+    public bool CanReviewProviderReasoning => CanChangeProviderProfile && SelectedProviderReasoningField is not null
+        && ProviderReasoningFieldChoices.Any(option => ReferenceEquals(option, SelectedProviderReasoningField));
+    public bool CanReviewProviderContext => CanChangeProviderProfile && SelectedProviderContextField is not null
+        && ProviderContextFieldChoices.Any(option => ReferenceEquals(option, SelectedProviderContextField));
+    public string ProviderFieldPreviewStatus => providerFieldPreview is { } preview ? JsonSerializer.Serialize(new
+    {
+        scope = "App individual field review; no write before confirmation",
+        field = preview.Field,
+        service = preview.Tuple!.Service,
+        savedTuple = preview.BaseTuple,
+        proposedTuple = preview.Tuple,
+        dependentValidity = "All retained exact IDs supported in this account/catalogue",
+        preferenceRevision = preview.Revision,
+        catalogue = providerProfileConfiguration!.CatalogueFor(preview),
+        confirmation = preview.Confirmation,
+    }, ProviderProfileJsonOptions) : "No pending app field review. Select an advertised exact field; a current saved complete tuple is required.";
     public IReadOnlyList<ProviderProfileChoice> ProviderServiceChoices => providerProfileConfiguration?.Choices ?? [];
     public IReadOnlyList<ProviderCatalogueModel> ProviderProfileModels => SelectedProviderServiceChoice is { } choice
         && providerProfileConfiguration is { } configuration ? configuration.ModelsFor(choice) : [];
@@ -43,7 +88,13 @@ public sealed partial class MainViewModel
         set
         {
             if (!SetProperty(ref selectedProviderServiceChoice, value)) { return; }
+            providerServiceDraftRevision = checked(providerServiceDraftRevision + 1);
             SelectedProviderProfileModel = null;
+            SelectedProviderReasoningField = null;
+            SelectedProviderContextField = null;
+            OnPropertyChanged(nameof(ProviderReasoningFieldChoices));
+            OnPropertyChanged(nameof(ProviderContextFieldChoices));
+            NotifyProviderFieldControls();
             OnPropertyChanged(nameof(ProviderProfileModels));
             OnPropertyChanged(nameof(CanSaveProviderService));
             OnPropertyChanged(nameof(ProviderProfileDraftStatus));
@@ -61,6 +112,7 @@ public sealed partial class MainViewModel
             OnPropertyChanged(nameof(ProviderContextChoices));
             OnPropertyChanged(nameof(CanSaveProviderProfile));
             OnPropertyChanged(nameof(ProviderProfileDraftStatus));
+            OnPropertyChanged(nameof(CanReviewProviderModel));
         }
     }
     public ProviderProfileOption? SelectedProviderReasoning
@@ -127,6 +179,31 @@ public sealed partial class MainViewModel
         OnPropertyChanged(nameof(CanChangeProviderProfile));
         OnPropertyChanged(nameof(CanSaveProviderService));
         OnPropertyChanged(nameof(CanSaveProviderProfile));
+        NotifyProviderFieldControls();
+    }
+
+    private void NotifyProviderFieldControls()
+    {
+        OnPropertyChanged(nameof(CanReviewProviderModel));
+        OnPropertyChanged(nameof(CanReviewProviderReasoning));
+        OnPropertyChanged(nameof(CanReviewProviderContext));
+        OnPropertyChanged(nameof(CanConfirmProviderField));
+        OnPropertyChanged(nameof(ProviderFieldConfirmationId));
+        OnPropertyChanged(nameof(ProviderFieldPreviewStatus));
+    }
+
+    private Task ReviewNativeProviderField(ProviderProfileField field)
+    {
+        var id = field switch
+        {
+            ProviderProfileField.Model when CanReviewProviderModel => SelectedProviderProfileModel!.Id,
+            ProviderProfileField.Reasoning when CanReviewProviderReasoning => SelectedProviderReasoningField!.Id,
+            ProviderProfileField.Context when CanReviewProviderContext => SelectedProviderContextField!.Id,
+            _ => throw new InvalidOperationException("Choose an exact advertised field for a current saved complete tuple; use the complete profile draft/save to recover."),
+        };
+        var choice = providerProfileConfiguration!.CreateFieldChoice(field, id, SelectedProviderServiceChoice);
+        return ExecuteProviderProfileCommandAsync(new(AppearanceCommandOperation.Set, Field: field, FieldValue: id),
+            SecurityAuditInitiator.LocalUser, choice);
     }
 
     private Task RunNativeProviderProfileAsync(ProviderProfileCommand command) =>
@@ -159,11 +236,39 @@ public sealed partial class MainViewModel
         var callRevision = CallPolicyRevision;
         providerProfileControlActive = true;
         OnPropertyChanged(nameof(CanChangeProviderProfile));
+        NotifyProviderFieldControls();
         try
         {
-            if (nativeChoice is null) { await service.RefreshAsync(origin, Eligible, cancellationToken); }
+            if (command.Confirmation is null)
+            {
+                providerFieldPreview = null;
+                if (nativeChoice is null) { await service.RefreshAsync(origin, Eligible, cancellationToken); }
+            }
             var saved = false;
-            if (command.Operation is AppearanceCommandOperation.Set or AppearanceCommandOperation.Reset)
+            var reviewed = false;
+            if (command.Confirmation is { } confirmation)
+            {
+                var preview = providerFieldPreview;
+                if (preview is null || preview.Confirmation != confirmation || providerFieldPreviewSelectionRevision != providerServiceDraftRevision)
+                { throw new InvalidOperationException("App field confirmation is missing, foreign or the selected service changed. Review the exact complete tuple again."); }
+                providerFieldPreview = null;
+                if (!command.Cancel)
+                { saved = await service.SelectAsync(preview, providerFieldPreviewCallRevision, origin, initiator, communicationPolicy, Eligible, cancellationToken); }
+            }
+            else if (command.Field is { } field && command.Operation == AppearanceCommandOperation.Set)
+            {
+                var choice = nativeChoice ?? service.CreateFieldChoice(field,
+                    command.FieldValue ?? throw new InvalidOperationException("An exact field ID is required."));
+                if (nativeChoice is null && (!string.Equals(choice.Tuple!.Account.Value, command.Account, StringComparison.Ordinal)
+                    || choice.Tuple.CatalogueRevision.Value != command.CatalogueRevision))
+                { throw new InvalidOperationException("Account/catalogue preview changed; inspect and explicitly choose again."); }
+                if (nativeChoice is null) { SynchronizeProviderProfileConfiguration(); }
+                providerFieldPreview = choice;
+                providerFieldPreviewCallRevision = callRevision;
+                providerFieldPreviewSelectionRevision = providerServiceDraftRevision;
+                reviewed = true;
+            }
+            else if (command.Operation is AppearanceCommandOperation.Set or AppearanceCommandOperation.Reset)
             {
                 var choice = nativeChoice;
                 if (choice is null && command.Operation == AppearanceCommandOperation.Reset) { choice = service.CreateResetChoice(command.TupleOnly); }
@@ -184,12 +289,17 @@ public sealed partial class MainViewModel
                 saved = await service.SelectAsync(choice, callRevision, origin, initiator, communicationPolicy, Eligible, cancellationToken);
             }
             if (!Eligible()) { throw new InvalidOperationException("App provider presentation admission changed."); }
-            SynchronizeProviderProfileConfiguration();
+            if (!reviewed) { SynchronizeProviderProfileConfiguration(); }
             var response = JsonSerializer.Serialize(new
             {
                 scope = "App default only; exact session overrides use separate review; one-turn changes are unavailable",
                 outcome = command.SignIn ? "Unavailable: no qualified sign-in adapter; no account credentials accessed"
-                    : saved ? "Desired configuration saved only; nothing authenticated, sent or executed" : "Observed; no execution authority",
+                    : reviewed ? "Review exact field and whole resulting tuple; confirm or cancel using the host-issued ID; no write yet"
+                    : command.Cancel ? "Cancelled; no write"
+                    : saved ? "Desired configuration saved only; nothing authenticated, sent or executed"
+                    : command.Operation is AppearanceCommandOperation.Set or AppearanceCommandOperation.Reset ? "Denied; no confirmed write"
+                    : "Observed; no execution authority",
+                fieldReview = reviewed ? ProviderFieldPreviewStatus : null,
                 state = service.Get(),
                 models = service.Models,
                 syntax = ProviderProfileCommand.Syntax,
@@ -211,6 +321,7 @@ public sealed partial class MainViewModel
         catch (Exception exception) when (exception is IOException or InvalidDataException or UnauthorizedAccessException or InvalidOperationException
             or OperationCanceledException or TimeoutException or ArgumentOutOfRangeException)
         {
+            providerFieldPreview = null;
             service.HoldUnavailable();
             ApplicationLog.Error(logger, exception, "Inspecting or saving app provider profiles");
             if (!disposed)
@@ -226,7 +337,9 @@ public sealed partial class MainViewModel
         finally
         {
             providerProfileControlActive = false;
-            SynchronizeProviderProfileConfiguration();
+            if (providerFieldPreview is null) { SynchronizeProviderProfileConfiguration(); }
+            OnPropertyChanged(nameof(CanChangeProviderProfile));
+            NotifyProviderFieldControls();
         }
     }
 }

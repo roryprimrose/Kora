@@ -8,7 +8,7 @@ public sealed class ProviderProfileChoice
 {
     internal ProviderProfileChoice(ProviderProfilePreferences value, long revision, Guid owner,
         WorkSessionAuthorization session, RequestOrigin origin, Func<bool> remainsAdmitted, ProviderProfileTuple? tuple = null,
-        LocalProviderInstallation? resetInstallation = null)
+        LocalProviderInstallation? resetInstallation = null, ProviderProfileField? field = null, ProviderProfileTuple? baseTuple = null)
     {
         Value = value;
         Revision = revision;
@@ -18,6 +18,9 @@ public sealed class ProviderProfileChoice
         RemainsAdmitted = remainsAdmitted;
         Tuple = tuple;
         ResetInstallation = resetInstallation;
+        Field = field;
+        BaseTuple = baseTuple;
+        Confirmation = field is null ? Guid.Empty : Guid.NewGuid();
     }
 
     public ProviderService Service => Value.Service;
@@ -30,4 +33,7 @@ public sealed class ProviderProfileChoice
     internal Func<bool> RemainsAdmitted { get; }
     internal ProviderProfileTuple? Tuple { get; }
     internal LocalProviderInstallation? ResetInstallation { get; }
+    internal ProviderProfileField? Field { get; }
+    internal ProviderProfileTuple? BaseTuple { get; }
+    internal Guid Confirmation { get; }
 }

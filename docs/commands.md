@@ -50,10 +50,16 @@ Native **Settings > Providers** and exact typed/current-name activated commands 
 | `set providers.app.default-service to Unset|Local|Copilot|Claude|Codex` | Explicit desired app service only; retain each service's tuple |
 | `reset providers.app.default-service` | Local if supported Ollama installation is observed, otherwise Unset; retain tuples |
 | `set providers.app.profile to <model-id> <reasoning-id> <context-id> for <account-id> at <catalogue-revision>` | Save the selected service's complete exact advertised tuple, with current opaque account/revision |
+| `get/status providers.app.<model|reasoning|context>` | Inspect the same complete app profile and current catalogue |
+| `set providers.app.<model|reasoning|context> to <exact-id> for <account-id> at <catalogue-revision>` | Review one field against the current saved complete tuple for the desired app service; retain other exact fields |
+| `confirm providers.app.profile <host-issued-confirmation-id>` | Save only that reviewed field and whole complete tuple, with fresh original-user admission |
+| `cancel providers.app.profile <host-issued-confirmation-id>` | Discard the review without writing; confirmation cannot be replayed |
 | `reset providers.app.profile` | Clear only the selected service's tuple; no automatic replacement |
 | `sign in providers.app.service` | Unavailable: no qualified sign-in adapter; no credentials accessed |
 
 IDs are exact, case-sensitive, bounded catalogue values; labels/marketing names are not IDs. The revision is a canonical positive integer. Choose all dependent values explicitly; unsupported/provider-managed values cannot be invented. Complete input is at most 1,024 UTF-8 bytes; discovery output is at most 64 KiB and never truncated.
+
+Individual setters never persist partial profiles or change the desired default service. Model edits preserve saved reasoning/context IDs only when supported by the new model. Missing/incompatible/stale bases require the existing complete tuple draft/save; no default, field reset or silent clearing is offered. Native field review may target another service while retaining the app default. Confirmation IDs are exact lowercase GUIDs issued by this host.
 
 Initially desired Local requires installation observation, not endpoint response, model readiness or generation consent. Missing/unknown installation is Unset. Production services currently advertise no models. Saved desired hosted service does not sign in, enable a provider, approve egress or send a request.
 

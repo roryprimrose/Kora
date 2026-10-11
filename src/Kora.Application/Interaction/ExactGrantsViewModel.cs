@@ -58,6 +58,7 @@ public sealed partial class ExactGrantsViewModel : ObservableObject, IDisposable
         ReadHistoryCommand = new(() => ReadHistoryAsync(), ReportFailure, () => CanReadHistory);
         NextHistoryCommand = new(() => NextHistoryAsync(), ReportFailure,
             () => CanReadHistory && historyNext is not null);
+        ClearFiltersCommand = new(() => { ClearFilters(); return Task.CompletedTask; }, ReportFailure, () => !disposed);
     }
 
     public AsyncCommand RefreshCommand { get; }
@@ -109,6 +110,7 @@ public sealed partial class ExactGrantsViewModel : ObservableObject, IDisposable
         using var linked = Begin(token);
         var revision = access.ControlRevision;
         var version = selectionVersion;
+        var filters = filterVersion;
         try
         {
             var current = await store.PreviewExactGrantBatchAsync(selection, linked.Token);
@@ -123,7 +125,11 @@ public sealed partial class ExactGrantsViewModel : ObservableObject, IDisposable
             Message = "Review EVERY selected exact ID/revision/scope/action/status, then separately confirm this complete batch. Denies future consumes; does not cancel or roll back running work.";
             OnPropertyChanged(nameof(BatchInspection));
         }
-        finally { Busy = false; }
+        catch (Exception exception) when (exception is not OutOfMemoryException && IsRetiredFilter(filters))
+        {
+            Failed(exception.GetType().Name);
+        }
+        finally { EndOperation(); }
     }
 
     public async Task RevokeBatchAsync(CancellationToken token = default)
@@ -133,6 +139,7 @@ public sealed partial class ExactGrantsViewModel : ObservableObject, IDisposable
         var exact = batchPreview!;
         var revision = batchControlRevision;
         var version = selectionVersion;
+        var filters = filterVersion;
         bool Admitted() => !disposed && nativeAdmission() && access.CanControl && access.ControlRevision == revision
             && selectionVersion == version && ReferenceEquals(batchPreview, exact) && BatchReviewed;
         try
@@ -145,7 +152,11 @@ public sealed partial class ExactGrantsViewModel : ObservableObject, IDisposable
                 ? "Entire exact reviewed batch committed and read back. Future consumes denied for ALL selected IDs. Running effects: unknown; not cancelled or rolled back. Refresh current authority."
                 : "Entire exact batch rejected: a selected record or preview changed. NONE revoked by this batch. Refresh and inspect a new complete selection.";
         }
-        finally { Busy = false; }
+        catch (Exception exception) when (exception is not OutOfMemoryException && IsRetiredFilter(filters))
+        {
+            Failed(exception.GetType().Name);
+        }
+        finally { EndOperation(); }
     }
     public ImmutableArray<ExactGrantInspection> Records { get => records; private set => SetProperty(ref records, value); }
     public string Message { get => message; private set => SetProperty(ref message, value); }
@@ -177,12 +188,14 @@ public sealed partial class ExactGrantsViewModel : ObservableObject, IDisposable
 
     private async Task ReadPageAsync(ExactGrantCursor? cursor, CancellationToken token)
     {
+        var query = ExactGrantQuery.FromInput(ScopeFilter, StatusFilter, ActionIdFilter, OriginatingSessionFilter);
         using var linked = Begin(token);
         var revision = access.ControlRevision;
         batchSelection = [];
         ClearBatch();
         Selected = null;
         var version = ++selectionVersion;
+        var filters = filterVersion;
         preview = null;
         ClearHistory();
         Reviewed = false;
@@ -190,14 +203,19 @@ public sealed partial class ExactGrantsViewModel : ObservableObject, IDisposable
         next = null;
         try
         {
-            var page = await store.ReadExactGrantPageAsync(cursor, linked.Token);
+            var page = await store.ReadExactGrantPageAsync(query, cursor, linked.Token);
             RequireCurrent(revision, version, controlRequired: false, linked.Token);
             Records = page.Records;
             next = page.Next;
+            DescribeInventory(page);
             Message = page.Next is null ? "Current bounded page. No more records in this snapshot."
                 : "Current bounded page. Next reads another page from the same unchanged snapshot.";
         }
-        finally { Busy = false; }
+        catch (Exception exception) when (exception is not OutOfMemoryException && IsRetiredFilter(filters))
+        {
+            Failed(exception.GetType().Name);
+        }
+        finally { EndOperation(); }
     }
 
     public async Task InspectAsync(CancellationToken token = default)
@@ -208,6 +226,7 @@ public sealed partial class ExactGrantsViewModel : ObservableObject, IDisposable
         using var linked = Begin(token);
         var revision = access.ControlRevision;
         var version = selectionVersion;
+        var filters = filterVersion;
         preview = null;
         Reviewed = false;
         OnPropertyChanged(nameof(Inspection));
@@ -224,7 +243,11 @@ public sealed partial class ExactGrantsViewModel : ObservableObject, IDisposable
             OnPropertyChanged(nameof(Inspection));
             NotifyCommands();
         }
-        finally { Busy = false; }
+        catch (Exception exception) when (exception is not OutOfMemoryException && IsRetiredFilter(filters))
+        {
+            Failed(exception.GetType().Name);
+        }
+        finally { EndOperation(); }
     }
 
     public async Task RevokeAsync(CancellationToken token = default)
@@ -234,6 +257,7 @@ public sealed partial class ExactGrantsViewModel : ObservableObject, IDisposable
         var exact = preview!;
         var revision = previewControlRevision;
         var version = selectionVersion;
+        var filters = filterVersion;
         bool Admitted() => !disposed && nativeAdmission() && access.CanControl && access.ControlRevision == revision
             && selectionVersion == version && ReferenceEquals(preview, exact) && Reviewed;
         try
@@ -248,7 +272,11 @@ public sealed partial class ExactGrantsViewModel : ObservableObject, IDisposable
                 : "Exact preview is stale, missing or already terminal. No new revocation applied. Refresh and inspect current authority.";
             OnPropertyChanged(nameof(Inspection));
         }
-        finally { Busy = false; }
+        catch (Exception exception) when (exception is not OutOfMemoryException && IsRetiredFilter(filters))
+        {
+            Failed(exception.GetType().Name);
+        }
+        finally { EndOperation(); }
     }
 
     private CancellationTokenSource Begin(CancellationToken token)
@@ -260,7 +288,8 @@ public sealed partial class ExactGrantsViewModel : ObservableObject, IDisposable
         }
         token.ThrowIfCancellationRequested();
         Busy = true;
-        return CancellationTokenSource.CreateLinkedTokenSource(token, lifetime.Token);
+        currentOperation = CancellationTokenSource.CreateLinkedTokenSource(token, lifetime.Token);
+        return currentOperation;
     }
 
     private void RequireCurrent(long revision, long version, bool controlRequired, CancellationToken token)
@@ -321,6 +350,7 @@ public sealed partial class ExactGrantsViewModel : ObservableObject, IDisposable
         RevokeBatchCommand.NotifyCanExecuteChanged();
         ReadHistoryCommand.NotifyCanExecuteChanged();
         NextHistoryCommand.NotifyCanExecuteChanged();
+        ClearFiltersCommand.NotifyCanExecuteChanged();
         OnPropertyChanged(nameof(CanRevoke));
         OnPropertyChanged(nameof(CanRevokeBatch));
     }
@@ -336,6 +366,14 @@ public sealed partial class ExactGrantsViewModel : ObservableObject, IDisposable
         ClearHistory();
         ClearBatch();
         batchSelection = [];
+        next = null;
+        scopeFilter = statusFilter = "Any";
+        actionIdFilter = originatingSessionFilter = string.Empty;
+        InventorySummary = "Closed. No retained query metadata or late private output is admitted.";
+        OnPropertyChanged(nameof(ScopeFilter));
+        OnPropertyChanged(nameof(StatusFilter));
+        OnPropertyChanged(nameof(ActionIdFilter));
+        OnPropertyChanged(nameof(OriginatingSessionFilter));
         Records = [];
         Reviewed = false;
         Message = "Closed. No late private output is admitted.";

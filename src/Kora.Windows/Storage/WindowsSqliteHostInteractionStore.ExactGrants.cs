@@ -1,4 +1,5 @@
 using System.Collections.Immutable;
+using System.Security.Cryptography;
 using System.Text;
 
 using Kora.Core.Auditing;
@@ -17,10 +18,17 @@ public sealed partial class WindowsSqliteHostInteractionStore : IExactGrantStore
     private readonly Lock exactGrantControlGate = new();
     private readonly HashSet<HostId<SessionIdentity>> exactGrantControlSessions = [];
     private ExactGrantBatch? currentExactGrantBatch;
+    private readonly byte[] exactGrantCursorKey = RandomNumberGenerator.GetBytes(32);
     // No Open/ValidateAuthority here: those collect all grants. Passive reads use the initialized
     // shared private lease and validate only bounded exact rows and their committed provenance.
     public ValueTask<ExactGrantPage> ReadExactGrantPageAsync(ExactGrantCursor? cursor, CancellationToken cancellationToken) =>
-        new(Task.Run(() =>
+        ReadExactGrantPageAsync(ExactGrantQuery.Unfiltered, cursor, cancellationToken);
+
+    public ValueTask<ExactGrantPage> ReadExactGrantPageAsync(ExactGrantQuery query, ExactGrantCursor? cursor,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(query);
+        return new(Task.Run(() =>
         {
             using var lease = database.AcquireReadLease(cancellationToken);
             var identity = RequireInspectionIdentity();
@@ -29,7 +37,8 @@ public sealed partial class WindowsSqliteHostInteractionStore : IExactGrantStore
             var snapshot = ReadAuditSnapshot(connection, identity, null);
             var head = (Sequence: snapshot.AuthorityCeiling!.Value, Hash: snapshot.AuthorityCeilingDigest!);
             if (cursor is not null && (!Same(cursor.StoreIdentity, identity)
-                || cursor.AuditSequence != head.Sequence || !Same(cursor.AuditHash, head.Hash) || cursor.After == Guid.Empty))
+                || cursor.AuditSequence != head.Sequence || !Same(cursor.AuditHash, head.Hash) || cursor.After == Guid.Empty
+                || !Same(cursor.QueryDigest, query.Digest) || !ValidExactGrantCursor(cursor)))
             {
                 throw new InvalidDataException("The exact-grant continuation changed; start a fresh inventory.");
             }
@@ -42,18 +51,31 @@ public sealed partial class WindowsSqliteHostInteractionStore : IExactGrantStore
             var records = ImmutableArray.CreateBuilder<ExactGrantInspection>();
             var bytes = 0;
             var more = false;
+            var scanned = 0;
+            var advanced = 0;
+            var omitted = 0;
+            Guid? after = null;
             while (rows.Read())
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 var item = DecodeExactGrant(connection, rows, identity);
+                scanned++;
+                // Filter only after canonical row, partition, duplicate and committed provenance validation.
+                var matches = query.Matches(item.Grant);
                 var size = Encoding.UTF8.GetByteCount(HostInteractionCodec.Encode(item));
-                if (records.Count == ExactGrantPage.MaximumRecords || bytes + size > ExactGrantPage.MaximumBytes)
+                if (advanced == ExactGrantPage.MaximumRecords || matches && bytes + size > ExactGrantPage.MaximumBytes)
                 {
                     more = true;
                     break;
                 }
-                records.Add(item);
-                bytes += size;
+                advanced++;
+                after = item.Grant.Id.Value;
+                if (matches)
+                {
+                    records.Add(item);
+                    bytes += size;
+                }
+                else { omitted++; }
             }
             cancellationToken.ThrowIfCancellationRequested();
             database.VerifyFiles();
@@ -61,9 +83,23 @@ public sealed partial class WindowsSqliteHostInteractionStore : IExactGrantStore
             {
                 throw new InvalidDataException("The initialized exact-grant store changed during inspection.");
             }
-            return new ExactGrantPage(records.ToImmutable(), more
-                ? new(identity, head.Sequence, head.Hash, records[^1].Grant.Id.Value) : null);
+            if (more && after is null) { throw new InvalidDataException("An exact-grant record cannot fit the bounded inventory."); }
+            var continuation = more ? SignExactGrantCursor(new(identity, head.Sequence, head.Hash, after!.Value, query.Digest)) : null;
+            return new ExactGrantPage(records.ToImmutable(), continuation, scanned, omitted, after,
+                more && advanced == ExactGrantPage.MaximumRecords);
         }, cancellationToken));
+    }
+
+    private ExactGrantCursor SignExactGrantCursor(ExactGrantCursor cursor) =>
+        cursor with { Proof = Convert.ToHexStringLower(HMACSHA256.HashData(exactGrantCursorKey,
+            Encoding.UTF8.GetBytes(HostInteractionCodec.Encode(cursor with { Proof = string.Empty })))) };
+
+    private bool ValidExactGrantCursor(ExactGrantCursor cursor)
+    {
+        if (cursor.Proof is null || cursor.Proof.Length != 64) { return false; }
+        var expected = SignExactGrantCursor(cursor).Proof;
+        return CryptographicOperations.FixedTimeEquals(Encoding.UTF8.GetBytes(expected), Encoding.UTF8.GetBytes(cursor.Proof));
+    }
 
     public ValueTask<ExactGrantInspection?> InspectExactGrantAsync(HostId<ApprovalIdentity> id, CancellationToken cancellationToken)
     {
@@ -253,7 +289,7 @@ public sealed partial class WindowsSqliteHostInteractionStore : IExactGrantStore
         command.Parameters.AddWithValue("$bytes", ExactGrantPage.MaximumStoredRecordBytes);
         command.Parameters.AddWithValue("$after", after?.ToString("D") ?? string.Empty);
         command.Parameters.AddWithValue("$exact", exact is { } id ? Id(id) : DBNull.Value);
-        command.Parameters.AddWithValue("$limit", exact is null ? ExactGrantPage.MaximumRecords + 1 : 2);
+        command.Parameters.AddWithValue("$limit", exact is null ? ExactGrantPage.MaximumScannedRows : 2);
         return command;
     }
 

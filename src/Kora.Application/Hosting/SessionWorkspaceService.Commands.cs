@@ -18,7 +18,8 @@ public sealed partial class SessionWorkspaceService
         }
         if (command.Operation is SessionCommandOperation.QueueList or SessionCommandOperation.QueueStatus
             or SessionCommandOperation.QueueEnqueue or SessionCommandOperation.QueueCancel or SessionCommandOperation.QueueRemove
-            or SessionCommandOperation.QueueClear or SessionCommandOperation.QueueDispatch)
+            or SessionCommandOperation.QueueClear or SessionCommandOperation.QueueDispatch
+            or SessionCommandOperation.QueuePause or SessionCommandOperation.QueueResume or SessionCommandOperation.QueuePauseStatus)
         {
             return (queue ?? throw new InvalidOperationException("The deterministic queue service is unavailable."))
                 .ExecuteCommandAsync(command, origin, admission, token);

@@ -465,17 +465,20 @@ internal sealed partial class SessionsViewModel(
     }
 
     private async Task RunAsync(Func<Task> operation, bool passive = false,
-        HostId<SessionIdentity>? activitySession = null, bool routineNoticeControl = false)
+        HostId<SessionIdentity>? activitySession = null, bool routineNoticeControl = false,
+        bool dispatchControl = false, bool queueDispatch = false)
     {
-        if (busy || closed || passive && refreshingWork || routineNoticeControl && changingRoutineQuiet) { return; }
+        if (busy && !(passive && dispatchingQueue) && !(dispatchControl && dispatchingQueue) || closed || passive && refreshingWork
+            || routineNoticeControl && changingRoutineQuiet || dispatchControl && changingQueueControl) { return; }
         var subject = selected?.Authority.SessionId;
         var epoch = selectionEpoch;
         var clearedPresentation = false;
         using var activity = HostActivity.BeginRoot(new(new(Guid.NewGuid()), activitySession ?? viewer.SessionId,
             viewer.TaskId, RequestOrigin.LocalUi), HostActivityLayer.Desktop, HostOperation.Request);
-        if (routineNoticeControl) { changingRoutineQuiet = true; NotifyLocalEvents(); }
+        if (dispatchControl) { changingQueueControl = true; NotifyQueue(); }
+        else if (routineNoticeControl) { changingRoutineQuiet = true; NotifyLocalEvents(); }
         else if (passive) { refreshingWork = true; }
-        else { busy = true; Notify(); }
+        else { busy = true; dispatchingQueue = queueDispatch; Notify(); }
         try
         {
             if (!access.CanInspect) { throw new InvalidOperationException("Private desktop ownership is unavailable."); }
@@ -485,7 +488,12 @@ internal sealed partial class SessionsViewModel(
         }
         catch (OperationCanceledException)
         {
-            if (routineNoticeControl && !closed && access.CanInspect)
+            if (dispatchControl && !closed && access.CanInspect)
+            {
+                queueSnapshot = null;
+                status = "Dispatch pause control cancelled/unconfirmed. Refresh exact work and control receipts; no rollback or unpause is inferred.";
+            }
+            else if (routineNoticeControl && !closed && access.CanInspect)
             {
                 ClearLocalEvents();
                 status = "Routine quiet control cancelled/unconfirmed. Refresh exact notice recovery; no rollback, default or backlog replay is claimed. Authoritative work remains independent.";
@@ -504,7 +512,13 @@ internal sealed partial class SessionsViewModel(
         }
         catch (Exception exception) when (exception is not OutOfMemoryException)
         {
-            if (routineNoticeControl)
+            if (dispatchControl && !closed && access.CanInspect)
+            {
+                queueSnapshot = null;
+                status = "Dispatch pause control unavailable: " + exception.GetType().Name
+                    + ". Refresh exact work and control receipts; no rollback, unpause or termination is inferred.";
+            }
+            else if (routineNoticeControl)
             {
                 ClearLocalEvents();
                 eventUnavailable = "Routine quiet control held/unavailable: " + exception.GetType().Name + ". No confirmed choice is inferred; restart/refresh recovery and independent work remain available.";
@@ -524,7 +538,15 @@ internal sealed partial class SessionsViewModel(
         }
         finally
         {
-            if (routineNoticeControl)
+            if (dispatchControl)
+            {
+                changingQueueControl = false;
+                NotifyQueue();
+                NotifyWork();
+                OnPropertyChanged(nameof(Status));
+                OnPropertyChanged(nameof(Detail));
+            }
+            else if (routineNoticeControl)
             {
                 changingRoutineQuiet = false;
                 NotifyLocalEvents();
@@ -543,8 +565,8 @@ internal sealed partial class SessionsViewModel(
                 OnPropertyChanged(nameof(Detail));
                 NotifyHistory();
             }
-            else { busy = false; Notify(); }
-            if (closed && !busy && !refreshingWork && !changingRoutineQuiet) { lifetime.Dispose(); }
+            else { busy = false; dispatchingQueue = false; Notify(); }
+            if (closed && !busy && !refreshingWork && !changingRoutineQuiet && !changingQueueControl) { lifetime.Dispose(); }
         }
     }
 
@@ -584,7 +606,7 @@ internal sealed partial class SessionsViewModel(
         InvalidateListSearch();
         listQuery = string.Empty;
         lifetime.Cancel();
-        if (!busy && !refreshingWork && !changingRoutineQuiet) { lifetime.Dispose(); }
+        if (!busy && !refreshingWork && !changingRoutineQuiet && !changingQueueControl) { lifetime.Dispose(); }
         sessions = null;
         ClearSelection();
         Notify();

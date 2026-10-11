@@ -390,7 +390,8 @@ public sealed partial class WindowsSqliteHostInteractionStore : IHostInteraction
 
     private ValueTask<T> RunHostMutationAsync<T>(HostRequest request, string action,
         Func<SqliteConnection, SqliteTransaction, HostTaskRecord, SecurityAuditEvent, T> mutation,
-        CancellationToken cancellationToken, Func<bool>? canControl = null, bool requireIdle = true)
+        CancellationToken cancellationToken, Func<bool>? canControl = null, bool requireIdle = true,
+        Action<T>? committed = null)
     {
         RequireLive(request);
         return new(Task.Run(() =>
@@ -415,6 +416,7 @@ public sealed partial class WindowsSqliteHostInteractionStore : IHostInteraction
                         value = mutation(connection, transaction, intent, audit);
                         Commit(transaction, request, cancellationToken, canControl);
                     }
+                    committed?.Invoke(value);
                     storage.Complete(HostOperationOutcome.Completed);
                     return value;
                 }
@@ -681,8 +683,9 @@ public sealed partial class WindowsSqliteHostInteractionStore : IHostInteraction
             throw new InvalidDataException("The typed interaction audit chain or identity is invalid.");
         }
         var batch = Same(audit.Audit.ActionId, "approval.revoke-exact-batch");
-        if ((Same(audit.Audit.ActionId, "approval.revoke-exact") || batch) != (audit.RequestedAudit is not null)
-            || !batch && (audit.RequestedAudit is null) != (audit.RequestedGrantRevision is null)
+        var queueControl = Same(audit.Audit.ActionId, "queue.pause") || Same(audit.Audit.ActionId, "queue.resume");
+        if ((Same(audit.Audit.ActionId, "approval.revoke-exact") || batch || queueControl) != (audit.RequestedAudit is not null)
+            || !batch && !queueControl && (audit.RequestedAudit is null) != (audit.RequestedGrantRevision is null)
             || audit.RequestedGrantRevision is { Value: <= 0 }
             || batch != (audit.RequestedGrants is not null)
             || batch && (audit.RequestedGrantRevision is not null || audit.Audit.ApprovalId is not null
@@ -703,12 +706,26 @@ public sealed partial class WindowsSqliteHostInteractionStore : IHostInteraction
         {
             throw new InvalidDataException("Exact revocation is missing its requested audit and inspected revision.");
         }
+        if (queueControl && (audit.RequestedGrantRevision is not null || audit.RequestedGrants is not null
+            || audit.Audit.ApprovalId is not null || audit.ApprovalId is not null || audit.GrantRevision is not null
+            || audit.Outcome is not null || audit.QuestionId is not null || audit.QuestionRevision is not null
+            || audit.Audit.Outcome != SecurityAuditOutcome.Succeeded
+            || audit.Request.InvocationId is not null || audit.Request.Origin is not (RequestOrigin.LocalUi or RequestOrigin.ActivatedVoice)
+            || audit.Audit.Initiator != (audit.Request.Origin == RequestOrigin.LocalUi
+                ? SecurityAuditInitiator.TypedCommand : SecurityAuditInitiator.VoiceCommand)
+            || audit.Changes.Length != 1 || !Same(audit.Changes[0].Kind, "task")
+            || !Same(audit.Changes[0].Id, Id(audit.Request.TaskId))
+            || audit.IntentRevision.Value == long.MaxValue || audit.Changes[0].Revision != audit.IntentRevision.Value + 1))
+        {
+            throw new InvalidDataException("Queue pause control requires exact original input and a terminal task receipt, never grants or persisted pause authority.");
+        }
         if (audit.RequestedAudit is { } requested && (requested.Outcome != SecurityAuditOutcome.Requested
             || requested.CorrelationId != audit.Audit.CorrelationId || requested.Category != audit.Audit.Category
             || !Same(requested.ActionId, audit.Audit.ActionId) || requested.Initiator != audit.Audit.Initiator
             || !Same(requested.TargetId, audit.Audit.TargetId) || requested.ApprovalId != audit.Audit.ApprovalId
             || audit.Audit.Outcome is not (SecurityAuditOutcome.Succeeded or SecurityAuditOutcome.Denied)
-            || !(Same(requested.ActionId, "approval.revoke-exact") || batch) || audit.Request.Origin != RequestOrigin.LocalUi))
+            || !(Same(requested.ActionId, "approval.revoke-exact") || batch || queueControl)
+            || !queueControl && audit.Request.Origin != RequestOrigin.LocalUi))
         {
             throw new InvalidDataException("The exact-revocation requested and terminal audit pair is invalid.");
         }

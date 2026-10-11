@@ -116,6 +116,16 @@ floor silently. The [technical plan](Local_Inference.md) and
 [LI01-LI07 procedure](../experiments/r02-local-inference-proof/README.md#outstanding-testing-checklist)
 own the details.
 
+## R13 exact current-run queue pause receipt - 2026-10-11
+
+The [fixed local-version increment](Work_Management.md#delivered-exact-current-run-dispatch-pause---2026-10-11) adds exact native/original typed/activated Pause/Resume and observational Work/All work/status.
+Pause shares the physical atomic admission fence, skips only the addressed session and lets committed callbacks drain; Resume never dispatches or replays.
+Captured limits/deadlines/FIFO/fairness, private epochs, Unknown quarantine and meaningful-activity retention remain authoritative.
+Deterministic domain/parser tests and genuine private-SQLite commit/callback races cover this bounded control, not MG1 inference or general workers/providers/leases. The enabled consumer closure is queue admission, Work/All work, local event eligibility and native/exact command routing; question waits, grants, captions, quiet mode, memory and provider/definition authorities are unchanged.
+Applicable MG1 envelope/no-retry/Unknown assertions remain in maintained queue tests; RT1 final-request/all-status controls and RT2 native mediation/loss/quiescence, containment W1-W4, hardware/audio/accessibility and historical storage/recovery evidence are retained.
+No experiment executable or shared consumer is retired: exact runtime/profile/native equivalence has not been established by these deterministic tests.
+Full R13/A3, installed-native qualification and physical-stop evidence remain open under the three-tier policy.
+
 ## R02 Runtime/Provider Follow-Up Gates
 
 | Gate | Current disposition | Next required evidence |

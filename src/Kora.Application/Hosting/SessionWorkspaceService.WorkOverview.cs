@@ -162,7 +162,7 @@ public sealed partial class SessionWorkspaceService
             snapshot.QueueRecords.Count(record => record.Entry.IsCurrent), snapshot.QueueRecords, snapshot.OmittedQueueRecords,
             [.. snapshot.Tasks.Select(task => new SessionWorkOverviewTask(task.Task.Request, task.Generation,
                 task.Task.Revision, task.Task.State, task.CurrentSource))], snapshot.OmittedTasks,
-            snapshot.PendingQuestions, snapshot.OmittedQuestions);
+            snapshot.PendingQuestions, snapshot.OmittedQuestions) { DispatchControl = snapshot.Queue.DispatchControl };
         observation.Complete(HostOperationOutcome.Completed);
         return new(entry, SessionWorkOverviewAvailability.Observed, work);
     }

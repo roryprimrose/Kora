@@ -203,6 +203,12 @@ internal sealed partial class AllWorkViewModel(
             .Append(work.ObservedCurrentFixedReads).Append(" | pending ").Append(work.PendingCount).Append('/').AppendLine(work.PendingCapacity.ToString(CultureInfo.InvariantCulture))
             .Append("Omitted: queue receipts ").Append(work.OmittedQueueRecords).Append(", tasks ").Append(work.OmittedTasks)
             .Append(", pending questions ").AppendLine(work.OmittedQuestions.ToString(CultureInfo.InvariantCulture));
+        if (work.DispatchControl is { } control)
+        {
+            text.Append("Dispatch run ").Append(control.RunId.ToString("D")).Append(" | pause revision ").Append(control.Revision)
+                .Append(" | paused ").Append(control.Paused).Append(" | held ").Append(control.Held)
+                .Append(" | ").AppendLine(control.Reason);
+        }
         foreach (var observation in work.QueueRecords)
         {
             var entry = observation.Entry;

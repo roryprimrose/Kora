@@ -22,6 +22,10 @@ internal sealed partial class SessionsViewModel
             + " | generation " + snapshot.Session.Authority.Generation.Value.ToString(CultureInfo.InvariantCulture)
             + " | authority revision " + snapshot.AuthorityRevision.ToString(CultureInfo.InvariantCulture)
             + " | queue revision " + snapshot.Queue.Revision.ToString(CultureInfo.InvariantCulture)
+            + "\nDispatch " + (snapshot.Queue.DispatchControl is { } control
+                ? "run " + control.RunId.ToString("D") + " | pause revision " + control.Revision.ToString(CultureInfo.InvariantCulture)
+                    + " | paused " + control.Paused + " | held " + control.Held + " | " + control.Reason
+                : "control source unavailable; refresh before changing pause")
             + "\nObserved " + snapshot.ObservedAt.ToString("O", CultureInfo.InvariantCulture)
             + " | pending capacity " + snapshot.PendingCount.ToString(CultureInfo.InvariantCulture) + "/"
             + snapshot.PendingCapacity.ToString(CultureInfo.InvariantCulture)
@@ -33,7 +37,7 @@ internal sealed partial class SessionsViewModel
             + SessionWorkSnapshot.RecentQueueRecords.ToString(CultureInfo.InvariantCulture)
             + ". Use exact history/task status for other retained records. Eligibility is observed, never permission."
         : "Live work unavailable/not yet read; never interpreted as an empty queue. Refresh selected work.";
-    public bool CanRefreshWork => CanRead && selected is not null;
+    public bool CanRefreshWork => (CanRead || dispatchingQueue && !closed && access.CanInspect) && selected is not null;
     public bool CanInspectWork => CanRead && selectedWork is not null;
     public bool CanCancelWork => CanCancelQueueEntry || CanCancelTask;
     public bool CanRemoveQueueEntry => CanCancelQueueEntry;
@@ -62,7 +66,7 @@ internal sealed partial class SessionsViewModel
         var target = RequireSelected();
         var epoch = selectionEpoch;
         var snapshot = await service.ReadWorkAsync(target.Authority.SessionId, lifetime.Token);
-        if (concurrent && (busy || selectionEpoch != epoch || selected?.Authority.SessionId != target.Authority.SessionId)) { return; }
+        if (concurrent && (busy && !dispatchingQueue || selectionEpoch != epoch || selected?.Authority.SessionId != target.Authority.SessionId)) { return; }
         if (selectionEpoch != epoch || selected?.Authority.SessionId != target.Authority.SessionId)
         {
             throw new OperationCanceledException("The selected session changed during observation.");

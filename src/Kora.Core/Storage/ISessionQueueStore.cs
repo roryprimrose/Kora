@@ -7,6 +7,12 @@ public interface ISessionQueueStore
 {
     ValueTask<SessionQueueSnapshot> ReadQueueAsync(HostId<SessionIdentity> session, CancellationToken token);
     ValueTask<SessionQueueEntry?> ReadQueueEntryAsync(HostId<SessionIdentity> session, HostId<TaskIdentity> task, CancellationToken token);
+    /// <summary>Change exact current-run session dispatch admission only; committed work is unaffected.</summary>
+    ValueTask<SessionQueueSnapshot> SetDispatchPausedAsync(HostRequest control, HostRevision generation,
+        long expectedQueueRevision, Guid expectedRunId, long expectedControlRevision, long admissionRevision,
+        bool paused, Func<bool> eligible, CancellationToken token);
+    /// <summary>Hold only a matching committed run receipt whose delivery failed; never release or overwrite newer control.</summary>
+    ValueTask HoldDispatchControlAsync(SessionQueueSnapshot expected, CancellationToken token);
     ValueTask<SessionQueueSnapshot> EnqueueAsync(HostRequest control, HostRequest work, HostRevision generation,
         long expectedRevision, long admissionRevision, HostId<TaskIdentity>? dependency,
         SessionQueueLimits limits, Func<bool> eligible, CancellationToken token);

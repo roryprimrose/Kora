@@ -7,12 +7,16 @@ public sealed partial record SessionCommand
     public long QueueRevision { get; init; }
     public Guid? WorkRequestId { get; init; }
     public Guid? DependencyTaskId { get; init; }
+    public Guid? QueueRunId { get; init; }
+    public long QueueControlRevision { get; init; }
     public const string QueueSyntax =
         "queue help | queue list <session-id> | queue status <session-id> <task-id> | "
         + "queue enqueue <session-id> <generation> <queue-revision> <request-id> <task-id> version [after <task-id>] | "
         + "queue cancel|remove <session-id> <generation> <queue-revision> <task-id> <entry-revision> | "
         + "queue clear <session-id> <generation> <queue-revision> confirm | "
         + "queue dispatch <session-id> <generation> <queue-revision>. "
+        + "queue pause-status <session-id> | queue pause|resume <session-id> <generation> <queue-revision> <run-id> <pause-revision>. "
+        + "Pause blocks new admissions only for that exact current-run session; resume never dispatches or replays work. "
         + "Fixed local-version only; manual fair dispatch of already enqueued current-run work. "
         + "Queue revision may be zero for an empty queue. No effects, workers, providers, model or restart replay.";
 
@@ -28,6 +32,7 @@ public sealed partial record SessionCommand
         if (words.Length < 3 || !ExactId(words[2], out var session)) { return Invalid(); }
         var operation = words[1].ToLowerInvariant();
         if (operation is "list" && words.Length == 3) { return new(SessionCommandOperation.QueueList, session); }
+        if (operation is "pause-status" && words.Length == 3) { return new(SessionCommandOperation.QueuePauseStatus, session); }
         if (operation is "status" && words.Length == 4 && ExactId(words[3], out var statusTask))
         {
             return new(SessionCommandOperation.QueueStatus, session) { TaskId = statusTask };
@@ -37,6 +42,12 @@ public sealed partial record SessionCommand
         if (operation is "dispatch" && words.Length == 5)
         {
             return new(SessionCommandOperation.QueueDispatch, session, generation) { QueueRevision = revision };
+        }
+        if (operation is "pause" or "resume" && words.Length == 7 && ExactId(words[5], out var run)
+            && Revision(words[6], false, out var controlRevision))
+        {
+            return new(operation is "pause" ? SessionCommandOperation.QueuePause : SessionCommandOperation.QueueResume,
+                session, generation) { QueueRevision = revision, QueueRunId = run, QueueControlRevision = controlRevision };
         }
         if (operation is "clear" && words.Length == 6 && words[5].Equals("confirm", StringComparison.OrdinalIgnoreCase))
         {

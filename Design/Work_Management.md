@@ -12,6 +12,17 @@ Related: [Interaction and Sessions](Interaction_And_Sessions.md), [Architecture]
 
 ## Delivered deterministic local-version queue
 
+### Delivered exact current-run dispatch pause - 2026-10-11
+
+Native Sessions and original typed/current-name activated `queue pause`/`queue resume` share `SessionQueueService` and the consolidated host store. `queue pause-status`/Work/All work observe the same host-owned run receipt and domain eligibility reasons, never a view-model readiness heuristic.
+Controls bind the existing exact session ID/generation, queue revision, current run ID, process-memory pause revision and unchanged private control epoch. Fresh runs are unpaused; no preference/schema or stored pause authority is introduced. Requested/terminal typed audit and the original control task receipt precede publication under the same exclusive short lease as physical dispatch COMMIT.
+Pause blocks NEW admissions only: a committed callback drains normally, including its captured active deadline and final receipt. It does not report stop, suspend/cancel work, clear pending entries, consume grants, reprioritize, change clocks, mark Done or extend meaningful activity/retention.
+An ongoing bounded fair manual batch skips the paused session without bypassing its FIFO head or Unknown quarantine; other eligible sessions remain fair candidates. Neither the dispatch batch gate nor running callbacks hold the pause fence.
+Resume withdraws only the current matching explicit pause. Dependencies/current policy are revalidated by normal atomic admission; resume never dispatches automatically, restores private-epoch eligibility or replays previous-run Interrupted/Unknown work.
+Unconfirmed audit/storage/cancellation/outcome state retains an explicit admission hold with truthful recovery, not default-unpaused state or invented rollback certainty. Old generations, runs, origins, closed sources and stale receipts cannot mutate the current control. Pause and routine-notice quiet mode remain independent fixed safety controls, not grants or permission levels.
+
+See [exact commands and native controls](../docs/commands.md#deterministic-local-version-queue) and [maintained real SQLite fence/callback tests](../tests/Kora.Windows.IntegrationTests/Storage/WindowsSqliteSessionQueueTests.Pause.cs). General workers/providers, autoscheduling, current-task cancellation and installed-native qualification remain unavailable/separate.
+
 ### Delivered passive cross-session work observation - 2026-10-11
 
 The [native All work / attention overview](UI_Workspace_And_Windows.md#delivered-bounded-passive-all-work--attention-overview---2026-10-11) consumes existing admitted metadata and per-session atomic work reads, never another authority database or global observer.

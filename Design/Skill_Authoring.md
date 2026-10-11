@@ -83,12 +83,15 @@ Registered profile originals remain read-only in this increment. The native text
 editor works without inference/speech; exact typed/activated controls focus its
 same actions and reviews. Dirty closing/shutdown offers Save/Discard/Cancel.
 Saving holds the new revision; separate review offers explicit selection only.
-Conversational refinement, dictation, forks, rename/restore and broader
+Conversational refinement, dictation, profile forks, rename/restore and broader
 applicability are not delivered. The same native editor also supports immediate
 Kora-owned `.prompt.md` literal saved requests: select Prompt, then use the same
 Save/Delete, conflict and separate exact-use reviews. Prompts are request content,
 not instructions, skill workflows or policy; parameters/substitutions and
 profile prompt writing remain unavailable.
+The native **Save as new copy** increment copies only an inspected supported native v1 owned source/current draft to a different same-kind owned ID.
+Full base/draft/proposal review changes only the declared name, preserves all other draft bytes/BOM/metadata, and creates without replacement.
+The original draft remains open; the separate copy is disabled until independently inspected/reviewed for explicit use. No profile reads/writes, implicit legacy repair, inherited authority or automatic reference retargeting are added.
 
 Saving a standalone instruction does not enable a skill, grant a tool
 permission, approve an effect, activate changed guidance, or make its content

@@ -1,4 +1,4 @@
-using System.Collections.ObjectModel;
+﻿using System.Collections.ObjectModel;
 using System.Security.Cryptography;
 using System.Text;
 
@@ -24,6 +24,46 @@ public sealed class ArtifactFileDocument
     public IReadOnlyDictionary<string, string> Metadata { get; }
     public ArtifactDefinition Definition { get; }
     public byte[] CopyBytes() => bytes.ToArray();
+
+    public ArtifactFileDocument WithOwnedCopyName(string name)
+    {
+        RequireOwnedCopySource();
+        OwnedInstructionNames.WriteName(name);
+        var offset = 3;
+        if (Text[offset] == '\r') { offset++; }
+        if (Text[offset] == '\n') { offset++; }
+        using var reader = new StringReader(Text);
+        reader.ReadLine();
+        while (true)
+        {
+            var line = reader.ReadLine()!;
+            if (string.Equals(line, "---", StringComparison.Ordinal)) { break; }
+            var separator = line.IndexOf(':');
+            if (string.Equals(line[..separator].Trim(), "name", StringComparison.Ordinal))
+            {
+                var start = separator + 1;
+                var end = line.Length;
+                while (char.IsWhiteSpace(line[start])) { start++; }
+                while (char.IsWhiteSpace(line[end - 1])) { end--; }
+                if (end - start >= 2 && line[start] == line[end - 1] && line[start] is '\'' or '"')
+                { start++; end--; }
+                return Parse(Encode(Text[..(offset + start)] + name + Text[(offset + end)..], HasBom),
+                    Definition.Kind, "kora-profile", name);
+            }
+            offset += line.Length;
+            if (Text[offset] == '\r') { offset++; }
+            if (Text[offset] == '\n') { offset++; }
+        }
+        // An instruction without a declared name derives it from the new canonical filename.
+        return Parse(bytes, Definition.Kind, "kora-profile", name);
+    }
+
+    public void RequireOwnedCopySource()
+    {
+        RequireEditableInstruction();
+        if (!Metadata.ContainsKey("kora-format"))
+        { throw new InvalidDataException("Save as new copy requires an existing native v1 owned source; legacy files are not implicitly upgraded."); }
+    }
 
     public ArtifactFileDocument WithNativeInstructionVersion(string name)
     {

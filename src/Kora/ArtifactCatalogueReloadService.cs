@@ -1,4 +1,4 @@
-using Kora.Application.Configuration;
+﻿using Kora.Application.Configuration;
 using Kora.Application.Definitions;
 using Kora.Core.Artifacts;
 using Kora.Core.Configuration;
@@ -122,8 +122,7 @@ internal sealed partial class ArtifactCatalogueReloadService : IDisposable
             var disk = Discovery(settings).Load();
             var embedded = EmbeddedArtifactCatalogue.Load();
             ArtifactDefinition[] candidates = [.. embedded.Artifacts, .. disk];
-            var reconciled = instructionRevisions?.Reconcile(candidates) ?? candidates;
-            catalogue.Publish(promptRevisions?.Reconcile(reconciled) ?? reconciled);
+            PublishReconciled(candidates);
             mcpConfiguration.NotifyChanged();
             ArtifactReloaded(logger, catalogue.Artifacts.Count);
             return true;
@@ -143,6 +142,29 @@ internal sealed partial class ArtifactCatalogueReloadService : IDisposable
     }
 
     private void Reload(object? state) => ReloadNow();
+
+    internal bool ReconcileSavedCopy(OwnedInstructionSnapshot saved)
+    {
+        lock (gate)
+        {
+            if (disposed) { return false; }
+            var definition = saved.Document.Definition;
+            ArtifactDefinition[] candidates = [.. catalogue.Candidates.Where(item =>
+                item.Kind != definition.Kind || !string.Equals(item.OwnedInstructionName, saved.Name, StringComparison.Ordinal)),
+                definition with { OwnedInstructionRevision = saved.Revision, IsUseEnabled = false }];
+            // Verified native readback enters the same revision pipeline without discovering profile originals
+            // or re-reading a newer source in place of the frozen editor base.
+            PublishReconciled(candidates);
+            return true;
+        }
+    }
+
+    private void PublishReconciled(IReadOnlyList<ArtifactDefinition> candidates)
+    {
+        _ = new ArtifactCatalogue(candidates);
+        var reconciled = instructionRevisions?.Reconcile(candidates) ?? candidates;
+        catalogue.Publish(promptRevisions?.Reconcile(reconciled) ?? reconciled);
+    }
 
     private void ConfigureWatchers()
     {

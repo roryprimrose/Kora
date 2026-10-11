@@ -261,7 +261,7 @@ or count as user activity/approval.
 ### Bounded owned instruction and prompt editor
 
 Native tray and exact `instructions` or `prompts` followed by
-`editor/list/create/edit/inspect/save/reload/delete/activate/cancel` control routes share the same admitted actions, native review
+`editor/list/create/edit/inspect/save/copy/reload/delete/activate/cancel` control routes share the same admitted actions, native review
 and writer. Activated controls focus the same native editor; voice-only approval
 and body dictation/refinement are not implemented. No model/network is needed.
 Create and inspect use an explicit bounded ID; mutations target the open original.
@@ -275,8 +275,18 @@ uses scalar `kora-format: 1`, `name`, `description` and optional `attribution`;
 the editor preserves original BOM, source text, line endings and supported
 metadata. Compatible legacy files lacking `kora-format` retain unchanged
 behavior; unsupported scope/metadata cannot be implicitly repaired in place.
-Header editing is bounded to 16 fields/4096 UTF-8 bytes. Fork, rename, restore,
+Header editing is bounded to 16 fields/4096 UTF-8 bytes. Profile fork, rename, restore,
 profile mutation, skill/agent writers, executable content and agent runtime are absent.
+
+**Save as new copy** / exact `instructions copy <new-id>` or `prompts copy <new-id>` is delivered only for an inspected canonical native v1 owned original and its retained current draft.
+It is not an import or profile-original writer. Legacy/unversioned or unsupported originals cannot be implicitly upgraded by copying.
+Review freezes source-qualified identity, canonical filename, base revision/digest, current draft exact bytes/BOM, destination same-kind canonical ID/path and full proposed bytes.
+Only the declared name is changed from the draft to the chosen destination ID; all other supported source formatting/metadata/attribution/body bytes are retained. Filename-derived instruction names need no metadata rewrite.
+Copy reuses the admitted mutation workflow and native store `Write(expected: null)`: final destination absence and atomic create-no-replace are mandatory.
+Occupied, concurrent or case-alias destinations require another ID/cancel, never the ordinary Save overwrite loop. Source disk changes do not select a newer base; current draft/name/kind/selection/input and host/privacy/call/session fences invalidate stale copy approval.
+Success retains the original open draft/source and reports the separate destination identity/digest. Verified readback enters the common revision reconciliation pipeline without new profile discovery.
+The copy is disabled and requires independent exact current-run explicit-use review; it inherits no activation, grants, trust or references. Cancel preserves inventory/draft.
+Uncertain publication/audit/catalogue outcomes hold the destination only, never unchanged enabled original bytes, and claim no rollback.
 
 Prompts require `name` and `description` in the editable subset. Unsupported
 parameter declarations, required substitution syntax such as `${input:...}`,

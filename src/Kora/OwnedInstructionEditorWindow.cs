@@ -1,4 +1,4 @@
-using Avalonia.Controls;
+﻿using Avalonia.Controls;
 using Avalonia.Layout;
 using Avalonia.Media;
 
@@ -15,6 +15,7 @@ internal sealed class OwnedInstructionEditorWindow : Window
         SelectedItem = ArtifactKind.Instruction,
     };
     internal readonly TextBox NameInput = new() { Width = 240, PlaceholderText = "lowercase-owned-id" };
+    internal readonly TextBox CopyNameInput = new() { Width = 240, PlaceholderText = "new-copy-owned-id" };
     internal readonly TextBox Source = new()
     {
         AcceptsReturn = true, TextWrapping = TextWrapping.NoWrap, FontFamily = new("Consolas"),
@@ -34,7 +35,8 @@ internal sealed class OwnedInstructionEditorWindow : Window
         KindInput.SelectionChanged += (_, _) => { if (!selectingKind) { run("Kind"); } };
         controls.Children.Add(Files);
         controls.Children.Add(NameInput);
-        foreach (var action in new[] { "List", "Create", "Inspect", "Save", "Reload", "Delete", "Review use" })
+        controls.Children.Add(CopyNameInput);
+        foreach (var action in new[] { "List", "Create", "Inspect", "Save", "Save as new copy", "Reload", "Delete", "Review use" })
         {
             var button = new Button { Content = action, Margin = new(3) };
             button.Click += (_, _) => run(action);
@@ -46,7 +48,7 @@ internal sealed class OwnedInstructionEditorWindow : Window
         var disclosure = new TextBlock
         {
             Text = "Source: Kora-owned roaming Instructions/*.instructions.md or Prompts/*.prompt.md; select kind explicitly. Profile files and bundled definitions are read-only. "
-                + "Native source editing only; no model, dictation, scripts, rename, restore or fork. "
+                + "Save as new copy retains the original draft and creates a separate disabled same-kind owned file. No profile fork, model, dictation, scripts, rename or restore. "
                 + "Save is not activation. Review permits explicit selection for a new request only. Prompts are literal saved user requests, not system guidance or parameters.",
             TextWrapping = TextWrapping.Wrap, Margin = new(0, 10),
         };
@@ -66,7 +68,7 @@ internal sealed class OwnedInstructionEditorWindow : Window
         finally { selectingKind = false; }
     }
     internal void CancelReview() => activeReview?.Close();
-    internal void ClearPrivateText() { Source.Text = string.Empty; NameInput.Text = string.Empty; Files.ItemsSource = null; status.Text = string.Empty; }
+    internal void ClearPrivateText() { Source.Text = string.Empty; NameInput.Text = string.Empty; CopyNameInput.Text = string.Empty; Files.ItemsSource = null; status.Text = string.Empty; }
 
     internal async Task<int> Choose(string title, string details, string? original, string? proposed,
         string[] choices, CancellationToken token)

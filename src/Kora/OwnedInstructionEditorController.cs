@@ -1,4 +1,4 @@
-using Avalonia.Controls;
+﻿using Avalonia.Controls;
 
 using Kora.Application.Definitions;
 using Kora.Application.ViewModels;
@@ -30,13 +30,20 @@ internal sealed partial class OwnedInstructionEditorController(
     private bool disposed;
     private bool uncertain;
     private long sourceRevision;
+    private long copyInputRevision;
 
     internal void Bind()
     {
         main.OwnedInstructionEditorRequested += OnRequested;
         main.OwnedPromptEditorRequested += OnPromptRequested;
         main.PrivacyClosureRequested += OnPrivacyClosed;
+        main.PropertyChanged += OnMainInputChanged;
         main.BindInstructionEditorShutdown(PrepareClose);
+    }
+
+    private void OnMainInputChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs args)
+    {
+        if (args.PropertyName is nameof(MainViewModel.CommandText)) { Interlocked.Increment(ref copyInputRevision); }
     }
 
     internal void Open(bool load = true)
@@ -51,6 +58,16 @@ internal sealed partial class OwnedInstructionEditorController(
         {
             if (change.Property == TextBox.TextProperty) { Interlocked.Increment(ref sourceRevision); }
         };
+        window.CopyNameInput.PropertyChanged += (_, change) =>
+        {
+            if (change.Property == TextBox.TextProperty) { Interlocked.Increment(ref sourceRevision); }
+        };
+        window.NameInput.PropertyChanged += (_, change) =>
+        {
+            if (change.Property == TextBox.TextProperty) { Interlocked.Increment(ref sourceRevision); }
+        };
+        window.Files.SelectionChanged += (_, _) => Interlocked.Increment(ref sourceRevision);
+        window.KindInput.SelectionChanged += (_, _) => Interlocked.Increment(ref sourceRevision);
         window.SelectKind(kind);
         window.Closing += OnClosing;
         window.Closed += (_, _) => Clear();
@@ -76,8 +93,17 @@ internal sealed partial class OwnedInstructionEditorController(
             if (ownsHost() && main.CaptureInstructionEditorEligibility()()) { window.CancelReview(); }
             return;
         }
-        if (busy || !await SwitchKind(window, requestedKind, lifetime.Token)) { return; }
-        if (name is not null) { window.NameInput.Text = name; window.Files.SelectedItem = name; }
+        if (busy) { return; }
+        if (operation is "Save as new copy")
+        {
+            if (requestedKind != kind) { window.Report("Copy must retain the open original kind. Inspect a supported owned source first."); return; }
+            window.CopyNameInput.Text = name;
+        }
+        else
+        {
+            if (!await SwitchKind(window, requestedKind, lifetime.Token)) { return; }
+            if (name is not null) { window.NameInput.Text = name; window.Files.SelectedItem = name; }
+        }
         await Run(operation);
     }
 
@@ -132,6 +158,9 @@ internal sealed partial class OwnedInstructionEditorController(
                 case "Save":
                     await Save(opened, delete: false, Eligible, token);
                     break;
+                case "Save as new copy":
+                    await SaveCopy(opened, Eligible, token);
+                    break;
                 case "Delete":
                     await Save(opened, delete: true, Eligible, token);
                     break;
@@ -151,8 +180,10 @@ internal sealed partial class OwnedInstructionEditorController(
         }
         catch (OperationCanceledException)
         {
-            uncertain = true;
-            if (ReferenceEquals(window, opened)) { opened.Report("Cancelled. A write may already be durable; Reload/reconcile before more writes or use. Draft retained."); }
+            if (action is not "Save as new copy") { uncertain = true; }
+            if (ReferenceEquals(window, opened)) { opened.Report(action is "Save as new copy"
+                ? "Copy cancelled. Destination may already be durable but remains held. Inspect that ID explicitly or choose another new ID; original draft retained."
+                : "Cancelled. A write may already be durable; Reload/reconcile before more writes or use. Draft retained."); }
         }
         catch (Exception exception) when (exception is not OutOfMemoryException)
         {
@@ -160,10 +191,10 @@ internal sealed partial class OwnedInstructionEditorController(
             if (action is "Save" or "Delete") { uncertain = true; }
             if (ReferenceEquals(window, opened))
             { opened.Report((exception is InstructionPublicationUnconfirmedException
-                    ? "Atomic instruction publication occurred; later completion is unconfirmed. "
+                    ? "Atomic owned publication occurred; later completion is unconfirmed. "
                     : "Unavailable: ")
                 + (exception is InvalidDataException or InvalidOperationException ? exception.Message : exception.GetType().Name)
-                + ". No success or rollback claimed. Keep draft; Reload/reconcile when ready. Profile originals/fork remain unavailable."); }
+                + ". No success or rollback claimed. Draft retained. For a copy, inspect the destination explicitly or choose another new ID; no overwrite. Profile originals remain unavailable."); }
         }
         finally { busy = false; }
     }
@@ -217,6 +248,28 @@ internal sealed partial class OwnedInstructionEditorController(
         return true;
     }
 
+    private async Task SaveCopy(OwnedInstructionEditorWindow opened, Func<bool> eligible, CancellationToken token)
+    {
+        if (baseline is not { } source || selectedName is null || opened.Source.IsReadOnly || uncertain)
+        { throw new InvalidOperationException("Inspect a supported original owned native v1 source before copying. The original draft is retained."); }
+        var destination = opened.CopyNameInput.Text ?? string.Empty;
+        var text = opened.Source.Text ?? string.Empty;
+        var sourceKind = kind;
+        var revision = Interlocked.Read(ref sourceRevision);
+        var inputRevision = Interlocked.Read(ref copyInputRevision);
+        bool CurrentCopy() => eligible() && Interlocked.Read(ref sourceRevision) == revision
+            && Interlocked.Read(ref copyInputRevision) == inputRevision
+            && ReferenceEquals(baseline, source) && kind == sourceKind;
+        var result = await Saves.SaveCopy(destination, source, text,
+            new NativeInstructionMutationReview(opened, Path.Combine(paths.RoamingRoot, OwnedDefinitionKind.DirectoryName(sourceKind)),
+                CurrentCopy, sourceKind), CurrentCopy, token, reload.ReconcileSavedCopy);
+        if (!CurrentCopy()) { return; }
+        if (!result.Published)
+        { opened.Report("Copy review cancelled. Original source and open draft unchanged; no new file created."); return; }
+        opened.Report($"New disabled {sourceKind} copy {destination}; exact digest {result.Current!.Document.Definition.Digest}. "
+            + "Original source and open draft retained. List and explicitly Inspect the new ID, then independently Review use; no references retargeted.");
+    }
+
     private async Task Load(OwnedInstructionEditorWindow opened, string? name, Func<bool> eligible, CancellationToken token)
     {
         if (name is null) { throw new InvalidOperationException("Select the exact owned instruction ID."); }
@@ -261,7 +314,7 @@ internal sealed partial class OwnedInstructionEditorController(
         token.ThrowIfCancellationRequested();
         kind = requestedKind;
         baseline = null; selectedName = null; originalText = string.Empty; uncertain = false;
-        opened.Source.Text = string.Empty; opened.NameInput.Text = string.Empty; opened.Files.ItemsSource = null;
+        opened.Source.Text = string.Empty; opened.NameInput.Text = string.Empty; opened.CopyNameInput.Text = string.Empty; opened.Files.ItemsSource = null;
         opened.SelectKind(kind);
         return true;
     }
@@ -307,6 +360,7 @@ internal sealed partial class OwnedInstructionEditorController(
         main.OwnedInstructionEditorRequested -= OnRequested;
         main.OwnedPromptEditorRequested -= OnPromptRequested;
         main.PrivacyClosureRequested -= OnPrivacyClosed;
+        main.PropertyChanged -= OnMainInputChanged;
         main.BindInstructionEditorShutdown(null);
         OnPrivacyClosed(this, EventArgs.Empty);
         Clear();

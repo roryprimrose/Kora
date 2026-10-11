@@ -1,4 +1,4 @@
-using System.ComponentModel;
+﻿using System.ComponentModel;
 using System.Runtime.InteropServices;
 using System.Security.AccessControl;
 using System.Security.Principal;
@@ -345,6 +345,8 @@ public sealed partial class WindowsOwnedInstructionStore(IApplicationDataPaths p
         token.ThrowIfCancellationRequested();
         var status = NtSetInformationFile(staged, out _, buffer, (uint)buffer.Length, 65);
         if (status == 0xc0000120 && token.IsCancellationRequested) { throw new OperationCanceledException(token); }
+        if (!replace && status == 0xc0000035)
+        { throw new InvalidOperationException("The new owned destination was created concurrently. Choose another new ID or cancel; no overwrite occurred."); }
         if (status != 0) { throw new IOException("Atomic owned publication failed.", new Win32Exception(unchecked((int)status))); }
     }
 

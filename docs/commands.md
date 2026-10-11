@@ -1248,12 +1248,13 @@ to three; start a new request with more details if it reaches that limit.
 Type `instructions editor` or `prompts editor`, or say the same control prefixed
 with the current assistant name. Both focus the same native editor with explicit
 Instruction/Prompt kind selection. `list`, `create <id>`, `edit <id>`,
-`inspect <id>`, `save`, `reload`, `discard`, `delete`, `activate` and `cancel`
-are the exact controls after either plural kind name. Only create/edit/inspect
+`inspect <id>`, `save`, `copy <new-id>`, `reload`, `discard`, `delete`, `activate` and `cancel`
+are the exact controls after either plural kind name. Only create/edit/inspect/copy
 accept one canonical file ID; other controls target the open original.
 No paths or body dictation are accepted. Save/Delete and separate exact-use review
 remain native; detected conflicts offer Reload/Overwrite/Cancel. See
 [native editor and limits](instruction-editor.md).
+`copy <new-id>` reviews a same-kind supported native v1 owned original and its current draft, then creates a separate disabled owned file without overwriting. The original source/draft stay open and untouched; independently inspect/review the destination before explicit use. Profile-original editing and profile forks remain unavailable.
 
 ### Explicitly select a saved revision
 

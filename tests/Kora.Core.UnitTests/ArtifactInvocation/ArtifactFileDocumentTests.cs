@@ -1,4 +1,4 @@
-using System.Text;
+﻿using System.Text;
 
 using AwesomeAssertions;
 
@@ -8,6 +8,57 @@ namespace Kora.Core.UnitTests.Artifacts;
 
 public sealed class ArtifactFileDocumentTests
 {
+    [Theory]
+    [InlineData(ArtifactKind.Instruction, "\n", false, "name: example")]
+    [InlineData(ArtifactKind.Prompt, "\r\n", true, "name: 'example'  ")]
+    [InlineData(ArtifactKind.Instruction, "\r", true, "name : \"example\"")]
+    [InlineData(ArtifactKind.Prompt, "\n", false, "name:example")]
+    [InlineData(ArtifactKind.Instruction, "\r\n", false, "name:  example  ")]
+    [InlineData(ArtifactKind.Instruction, "\n", false, "name: x")]
+    [InlineData(ArtifactKind.Instruction, "\n", false, "name: 'example")]
+    public void OwnedCopyChangesOnlyDeclaredNameAndPreservesEveryOtherByte(ArtifactKind kind, string newline, bool bom, string name)
+    {
+        var text = string.Join(newline, "---", "kora-format: 1", name, "description: Description",
+            "attribution: 'Exact own attribution'", "---", "  Body  ", "", "name: example", "");
+        var original = ArtifactFileDocument.Parse(ArtifactFileDocument.Encode(text, bom), kind, "kora-profile", "example");
+        var copy = original.WithOwnedCopyName("separate");
+        var position = text.IndexOf(name, StringComparison.Ordinal);
+        var replacementName = name.Contains("'example", StringComparison.Ordinal) && !name.EndsWith("'  ", StringComparison.Ordinal)
+            && !name.EndsWith('\'') ? "name: separate" : name.Replace(name.EndsWith('x') ? "x" : "example", "separate", StringComparison.Ordinal);
+        var expected = text[..position] + replacementName + text[(position + name.Length)..];
+        copy.CopyBytes().Should().Equal(ArtifactFileDocument.Encode(expected, bom));
+        copy.Metadata["attribution"].Should().Be(original.Metadata["attribution"]);
+        copy.Definition.Id.Should().NotBe(original.Definition.Id);
+        copy.Definition.OwnedInstructionName.Should().Be("separate");
+        copy.Definition.RequiresInstructionReview.Should().BeTrue();
+        original.CopyBytes().Should().Equal(ArtifactFileDocument.Encode(text, bom));
+    }
+
+    [Fact]
+    public void NativeInstructionWithoutDeclaredNameCopiesByDistinctCanonicalFilenameWithoutMetadataRewrite()
+    {
+        const string text = "---\nkora-format: 1\ndescription: Description\n---\nname: body-is-not-metadata";
+        var original = ArtifactFileDocument.Parse(ArtifactFileDocument.Encode(text, false), ArtifactKind.Instruction, "kora-profile", "example");
+        var copy = original.WithOwnedCopyName("separate");
+        copy.CopyBytes().Should().Equal(original.CopyBytes());
+        copy.Definition.Id.Should().NotBe(original.Definition.Id);
+        copy.Definition.CommandName.Should().Be("separate");
+    }
+
+    [Fact]
+    public void CopyDoesNotUpgradeLegacyMetadataAndEnforcesByteLimitIncludingBom()
+    {
+        var legacy = ArtifactFileDocument.Parse(ArtifactFileDocument.Encode("---\nname: example\ndescription: Test\n---\nBody", false),
+            ArtifactKind.Instruction, "kora-profile", "example");
+        ((Action)(() => legacy.WithOwnedCopyName("separate"))).Should().Throw<InvalidDataException>();
+        ((Action)(() => legacy.WithOwnedCopyName("../other"))).Should().Throw<InvalidDataException>();
+        var header = "---\r\nkora-format: 1\r\nname: example\r\ndescription: Test\r\n---\r\n";
+        var text = header + new string('a', ArtifactDefinition.MaximumContentLength - Encoding.UTF8.GetByteCount(header) - 3);
+        var maximum = ArtifactFileDocument.Parse(ArtifactFileDocument.Encode(text, true), ArtifactKind.Instruction, "kora-profile", "example");
+        maximum.WithOwnedCopyName("shorter").CopyBytes().Should().HaveCount(ArtifactDefinition.MaximumContentLength);
+        ((Action)(() => maximum.WithOwnedCopyName("longer-name"))).Should().Throw<InvalidDataException>();
+    }
+
     [Theory]
     [InlineData(false, "\n", ArtifactKind.Instruction)]
     [InlineData(true, "\r\n", ArtifactKind.Instruction)]

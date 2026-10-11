@@ -1,4 +1,4 @@
-using Avalonia.Controls;
+﻿using Avalonia.Controls;
 using Avalonia.Interactivity;
 using Avalonia.VisualTree;
 
@@ -18,7 +18,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 namespace Kora.Windows.IntegrationTests.ArtifactDiscovery;
 
 [Collection(nameof(HeadlessUiTestGroup))]
-public sealed class OwnedDefinitionEditorWindowTests
+public sealed partial class OwnedDefinitionEditorWindowTests
 {
     [Fact]
     public async Task ActualPromptCommandsReuseOneControllerAndDirtyKindSwitchShutdownAndPrivacyRetireDrafts()

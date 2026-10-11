@@ -32,6 +32,7 @@ releases the microphone; device selection alone does not undo that choice.
 | Preference controls, defaults and limits | [Settings](settings.md) |
 | Exact phrases and parameters | [Voice and typed commands](commands.md) |
 | What actions and skills can do now | [Tools and built-in skills](tools-and-built-in-skills.md) |
+| Single-file owned instruction editing | [Instruction editor](instruction-editor.md) |
 | Sessions, windows and tray recovery | [Windows and tray](windows-and-tray.md) |
 | Consent, grants, retained data and diagnostics | [Privacy, safety, and logs](privacy-safety-and-logs.md) |
 | Future execution design | [Skill and task execution design](skill-and-task-execution-design.md) |

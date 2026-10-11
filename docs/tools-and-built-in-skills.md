@@ -100,6 +100,10 @@ changes require a new eligible UI request, not a later approval click.
 selection, and bounded native shared-profile registration/inspection/recheck/
 withdrawal. See [shared-profile commands](commands.md#inspect-shared-profile-skills-locally).
 
+**Current bounded:** [native owned-instruction editing](instruction-editor.md),
+exact Save/Delete review, Reload/Overwrite/Cancel conflicts and separate reviewed
+explicit use of the saved revision. Profile originals and other kinds remain read-only.
+
 **Planned:** skill enablement/invocation, conversational skill/instruction
 authoring and agent profiles. Saving or loading a definition is not executable
 trust. [Execution design](skill-and-task-execution-design.md) describes the

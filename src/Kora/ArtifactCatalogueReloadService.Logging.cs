@@ -9,10 +9,10 @@ internal sealed partial class ArtifactCatalogueReloadService
     private static partial void ArtifactReloaded(ILogger logger, int artifactCount);
 
     [LoggerMessage(2601, LogLevel.Error,
-        "Artifact catalogue reload failed; the last known valid catalogue remains active")]
-    private static partial void ArtifactReloadFailed(ILogger logger, Exception exception);
+        "Artifact catalogue reload failed; owned instructions are unavailable; failure {FailureType}")]
+    private static partial void ArtifactReloadFailed(ILogger logger, string failureType);
 
     [LoggerMessage(2602, LogLevel.Error,
-        "Artifact source watcher failed; watcher registration and catalogue reload will be retried")]
-    private static partial void ArtifactWatcherFailed(ILogger logger, Exception exception);
+        "Artifact source watcher failed; watcher registration and reload will be retried; failure {FailureType}")]
+    private static partial void ArtifactWatcherFailed(ILogger logger, string failureType);
 }

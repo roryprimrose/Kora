@@ -113,8 +113,9 @@ public sealed class ArtifactCommandRouter(ArtifactCatalogue catalogue)
         return false;
     }
 
-    private static string RemoveActivationPrefix(string input, string assistantName)
+    public static string RemoveActivationPrefix(string input, string assistantName)
     {
+        ArgumentException.ThrowIfNullOrWhiteSpace(input);
         var name = AssistantNameRules.Normalize(assistantName);
         if (!input.StartsWith(name, StringComparison.OrdinalIgnoreCase))
         {

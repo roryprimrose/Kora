@@ -52,7 +52,8 @@ public sealed class SystemTrayController : IDisposable
         Action? chooseMicrophone = null,
         Action? inspectExactGrants = null,
         Func<Task>? returnToCurrentQuestion = null,
-        Action? inspectRetainedAttachments = null)
+        Action? inspectRetainedAttachments = null,
+        Action? editOwnedInstructions = null)
     {
         this.viewModel = viewModel;
         this.logger = logger;
@@ -75,6 +76,12 @@ public sealed class SystemTrayController : IDisposable
         menu.Add(showItem);
         menu.Add(settingsItem);
         menu.Add(documentationItem);
+        if (editOwnedInstructions is not null)
+        {
+            var instructionEditor = new NativeMenuItem("Owned instructions (native editor)");
+            instructionEditor.Click += (_, _) => RunAfterNativeMenuCloses(editOwnedInstructions);
+            menu.Add(instructionEditor);
+        }
         if (inspectExactGrants is not null)
         {
             var exactGrantsItem = new NativeMenuItem("Exact operation grants");

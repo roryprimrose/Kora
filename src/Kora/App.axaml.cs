@@ -33,6 +33,7 @@ public sealed partial class App : Avalonia.Application
     private QuestionWindowController? questionWindow;
     private EvidenceWindowController? evidenceWindow;
     private SkillPackagesWindowController? skillPackagesWindow;
+    private OwnedInstructionEditorController? instructionEditor;
     private SessionsWindowController? sessionsWindow;
     private AllWorkWindowController? allWorkWindow;
     private ClipboardPreviewWindowController? clipboardWindow;
@@ -113,6 +114,26 @@ public sealed partial class App : Avalonia.Application
                 new NativeDetailRenderer(Services.GetRequiredService<ILogger<NativeDetailRenderer>>()),
                 Services.GetRequiredService<Kora.Application.Skills.SharedSkillDiscoveryService>(),
                 Services.GetRequiredService<ILogger<SharedSkillSourcesWindowController>>());
+            instructionEditor = new(viewModel,
+                Services.GetRequiredService<Kora.Application.Definitions.OwnedInstructionEditorActions>(),
+                Services.GetRequiredService<Kora.Application.Definitions.InstructionSaveWorkflow>(),
+                Services.GetRequiredService<ArtifactCatalogueReloadService>(),
+                Services.GetRequiredService<Kora.Core.Dependencies.IApplicationDataPaths>(),
+                () => Services.GetRequiredService<DesktopInstanceOwnershipBridge>().IsReady
+                    && !Services.GetRequiredService<DesktopInstanceOwnershipBridge>().IsHandoffRecoveryRequired,
+                () => Services.GetRequiredService<DesktopInstanceOwnershipBridge>().AdmissionRevision,
+                Services.GetRequiredService<ILogger<OwnedInstructionEditorController>>());
+            instructionEditor.Bind();
+            viewModel.PrivacyClosureRequested += (_, _) =>
+                Services.GetRequiredService<Kora.Application.Definitions.OwnedInstructionEditorActions>().SuspendReviewedUse();
+            viewModel.BindOwnedInstructionFreshness(candidate =>
+            {
+                var ownership = Services.GetRequiredService<DesktopInstanceOwnershipBridge>().AdmissionRevision;
+                var eligible = viewModel.CaptureInstructionEditorEligibility();
+                return Services.GetRequiredService<Kora.Application.Definitions.OwnedInstructionEditorActions>()
+                    .IsCurrent(candidate, () => eligible()
+                        && Services.GetRequiredService<DesktopInstanceOwnershipBridge>().AdmissionRevision == ownership, CancellationToken.None);
+            });
             systemTray = new SystemTrayController(
                 viewModel,
                 Services.GetRequiredService<ILogger<SystemTrayController>>(),
@@ -124,7 +145,8 @@ public sealed partial class App : Avalonia.Application
                 microphoneRecovery.Open,
                 () => exactGrants?.Open(),
                 () => questionWindow.ReturnToCurrentQuestionAsync(window),
-                () => attachmentCatalogue?.Open());
+                () => attachmentCatalogue?.Open(),
+                () => instructionEditor.Open());
             evidenceWindow = new EvidenceWindowController(viewModel,
                 Services.GetRequiredService<Kora.Application.Diagnostics.DurableEvidenceQuery>(),
                 Services.GetRequiredService<Kora.Core.Diagnostics.IEvidenceQueryAccess>(),
@@ -257,6 +279,8 @@ public sealed partial class App : Avalonia.Application
             viewModel = null;
         }
         systemTray?.Dispose();
+        instructionEditor?.Dispose();
+        instructionEditor = null;
         systemTray = null;
         settingsWindow?.Dispose();
         settingsWindow = null;

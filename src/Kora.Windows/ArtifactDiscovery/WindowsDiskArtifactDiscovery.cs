@@ -1,6 +1,3 @@
-using System.Security.Cryptography;
-using System.Text;
-
 using Kora.Core.Artifacts;
 using Kora.Core.Configuration;
 using Kora.Core.Dependencies;
@@ -10,25 +7,30 @@ namespace Kora.Windows.Artifacts;
 public sealed class WindowsDiskArtifactDiscovery
 {
     private const int MaximumFiles = 128;
-    private static readonly UTF8Encoding Utf8 = new(false, true);
     private readonly IReadOnlyList<ArtifactRoot> roots;
+    private readonly WindowsOwnedInstructionStore? ownedInstructions;
 
     public WindowsDiskArtifactDiscovery(
         IApplicationDataPaths paths,
-        ArtifactDirectorySettings? additionalDirectories = null)
+        ArtifactDirectorySettings? additionalDirectories = null,
+        WindowsOwnedInstructionStore? ownedInstructions = null,
+        string? profileRoamingRoot = null)
         : this(CreateRoots(
             paths,
             additionalDirectories ?? ArtifactDirectorySettings.Empty,
-            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData)))
+            profileRoamingRoot ?? Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData)))
     {
+        this.ownedInstructions = ownedInstructions ?? new WindowsOwnedInstructionStore(paths);
     }
 
     internal WindowsDiskArtifactDiscovery(
         IApplicationDataPaths paths,
         ArtifactDirectorySettings additionalDirectories,
-        string profileRoamingRoot)
+        string profileRoamingRoot,
+        WindowsOwnedInstructionStore? ownedInstructions = null)
         : this(CreateRoots(paths, additionalDirectories, profileRoamingRoot))
     {
+        this.ownedInstructions = ownedInstructions;
     }
 
     internal WindowsDiskArtifactDiscovery(IReadOnlyList<ArtifactRoot> roots) =>
@@ -132,132 +134,25 @@ public sealed class WindowsDiskArtifactDiscovery
         }
     }
 
-    private static ArtifactDefinition? Parse(ArtifactRoot root, string path)
+    private ArtifactDefinition? Parse(ArtifactRoot root, string path)
     {
+        if (root.Kind == ArtifactKind.Instruction && root.Source is "kora-profile" && ownedInstructions is not null)
+        {
+            var name = RemoveArtifactSuffix(Path.GetFileName(path), root.Kind);
+            var snapshot = ownedInstructions.ReadVerified(name, CancellationToken.None)
+                ?? throw new IOException("A discovered owned instruction disappeared.");
+            return snapshot.Document.Definition with { OwnedInstructionRevision = snapshot.Revision };
+        }
         var info = new FileInfo(path);
         if (info.Length is 0 or > ArtifactDefinition.MaximumContentLength)
         {
             throw new InvalidDataException($"Artifact file '{path}' is empty or exceeds the byte limit.");
         }
         var bytes = File.ReadAllBytes(path);
-        string text;
-        try
-        {
-            text = Utf8.GetString(bytes);
-        }
-        catch (DecoderFallbackException exception)
-        {
-            throw new InvalidDataException($"Artifact file '{path}' is not strict UTF-8.", exception);
-        }
-        var metadata = ParseFrontmatter(text, path, out var body);
-        if (root.Kind == ArtifactKind.Skill
-            && metadata.TryGetValue("user-invocable", out var userInvocable)
-            && string.Equals(userInvocable, "false", StringComparison.OrdinalIgnoreCase))
-        {
-            return null;
-        }
         var fileCommand = root.Kind == ArtifactKind.Skill
             ? new DirectoryInfo(Path.GetDirectoryName(path)!).Name
             : RemoveArtifactSuffix(Path.GetFileName(path), root.Kind);
-        var command = Slug(metadata.GetValueOrDefault("name") ?? fileCommand);
-        var name = metadata.GetValueOrDefault("name") ?? command;
-        var description = metadata.GetValueOrDefault("description")
-            ?? (root.Kind == ArtifactKind.Prompt
-                ? $"Run the {name} prompt."
-                : throw new InvalidDataException($"Artifact file '{path}' requires a description."));
-        if (root.Kind == ArtifactKind.Skill
-            && !string.Equals(command, fileCommand, StringComparison.OrdinalIgnoreCase))
-        {
-            throw new InvalidDataException($"Skill '{path}' must use a name matching its folder.");
-        }
-        var digest = Convert.ToHexStringLower(SHA256.HashData(bytes));
-        var spokenNames = string.Equals(name, command, StringComparison.OrdinalIgnoreCase)
-            ? [name]
-            : new[] { name, command };
-        return new(
-            $"disk.{root.Source}.{root.Kind.ToString().ToLowerInvariant()}.{command}",
-            root.Kind,
-            name,
-            description,
-            command,
-            spokenNames,
-            root.Source,
-            $"disk-{digest[..12]}",
-            digest,
-            body);
-    }
-
-    private static Dictionary<string, string> ParseFrontmatter(string text, string path, out string body)
-    {
-        using var reader = new StringReader(text);
-        if (!string.Equals(reader.ReadLine(), "---", StringComparison.Ordinal))
-        {
-            throw new InvalidDataException($"Artifact file '{path}' requires YAML frontmatter.");
-        }
-        var metadata = new Dictionary<string, string>(StringComparer.Ordinal);
-        var lines = new List<string>();
-        string? line;
-        var closed = false;
-        while ((line = reader.ReadLine()) is not null)
-        {
-            if (string.Equals(line, "---", StringComparison.Ordinal))
-            {
-                closed = true;
-                break;
-            }
-            var separator = line.IndexOf(':');
-            if (separator <= 0)
-            {
-                throw new InvalidDataException($"Artifact file '{path}' contains unsupported frontmatter.");
-            }
-            var key = line[..separator].Trim();
-            var value = line[(separator + 1)..].Trim();
-            if (!metadata.TryAdd(key, Unquote(value)))
-            {
-                throw new InvalidDataException($"Artifact file '{path}' contains duplicate frontmatter.");
-            }
-        }
-        if (!closed)
-        {
-            throw new InvalidDataException($"Artifact file '{path}' has unterminated frontmatter.");
-        }
-        while ((line = reader.ReadLine()) is not null)
-        {
-            lines.Add(line);
-        }
-        body = string.Join(Environment.NewLine, lines).Trim();
-        if (string.IsNullOrWhiteSpace(body))
-        {
-            throw new InvalidDataException($"Artifact file '{path}' requires instruction content.");
-        }
-        return metadata;
-    }
-
-    private static string Unquote(string value) =>
-        value.Length >= 2 && value[0] == value[^1] && value[0] is '\'' or '"'
-            ? value[1..^1]
-            : value;
-
-    private static string Slug(string value)
-    {
-        var builder = new StringBuilder(value.Length);
-        foreach (var character in value.Trim().ToLowerInvariant())
-        {
-            if (character is >= 'a' and <= 'z' or >= '0' and <= '9')
-            {
-                builder.Append(character);
-            }
-            else if (builder.Length > 0 && builder[^1] != '-')
-            {
-                builder.Append('-');
-            }
-        }
-        var result = builder.ToString().Trim('-');
-        if (string.IsNullOrWhiteSpace(result) || result.Length > 64)
-        {
-            throw new InvalidDataException("Artifact names must produce a bounded lowercase slash command.");
-        }
-        return result;
+        return ArtifactFileDocument.ParseInvocable(bytes, root.Kind, root.Source, fileCommand)?.Definition;
     }
 
     private static string RemoveArtifactSuffix(string fileName, ArtifactKind kind)

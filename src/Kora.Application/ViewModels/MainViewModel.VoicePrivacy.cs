@@ -875,6 +875,7 @@ public sealed partial class MainViewModel
 
     public async Task<bool> TryPrepareHandoffAsync()
     {
+        if (instructionEditorShutdown is not null && !await instructionEditorShutdown()) { return false; }
         if (lifecycleAdmissionClosed || !IsHandoffReviewQuiescent || IsBusy || IsWebPageRetrievalActive
             || !clipboardPreview.IsQuiescent || filePreview?.IsQuiescent == false || sessionFiles?.IsQuiescent == false
             || IsLocalModelSetupActive || IsPowerShellSetupActive || IsSpeechProviderOperationActive

@@ -48,6 +48,7 @@ public sealed class EmbeddedUserDocumentationProviderTests
             "settings",
             "commands",
             "tools-and-built-in-skills",
+            "instruction-editor",
             "windows-and-tray",
             "privacy-safety-and-logs",
             "skill-and-task-execution-design",

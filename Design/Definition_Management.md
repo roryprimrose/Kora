@@ -1,7 +1,8 @@
 # Skills, Prompts, Instructions, and Agent Profile Management
 
-Status: proposed shared lifecycle contract, not delivered editing, live reload,
-agent execution, or expansion of the delivered read-only source registration.
+Status: shared lifecycle contract with a bounded native Kora-owned instruction
+editor and revision-held catalogue reload increment. Other-kind/profile editing,
+agent execution and the full qualification matrix remain unavailable.
 
 This is the authoritative management contract for all four definition kinds.
 [Skill Storage](Skill_Storage.md) retains the delivered R21 read-only source
@@ -166,12 +167,28 @@ Reject traversal, reparse/hard-link/alias escapes, replaced directories,
 protected roots, unexpected package members, and conflicting external writes.
 Retain the existing local-only/network-backed storage restrictions.
 
+For the bounded owned single-file instruction writer, the user has explicitly
+chosen **optimistic content conflict detection**, not content compare-and-swap.
+Immediately before atomic replacement, compare the live original identity and
+exact digest with the reviewed base. A detected changed, missing or replaced
+base invalidates ordinary Save and offers exactly **Reload from disk (abandon
+draft)**, **Overwrite with Kora changes**, or **Cancel (keep draft)**.
+Overwrite requires another exact native mutation review of the observed conflict
+and proposed Kora bytes; another change before the final comparison prompts again.
+An unseen content edit in the narrow final comparison-to-replacement window may
+be overwritten (whole-file last-writer-wins). This accepted content race does
+not relax source/root ownership, privacy, consent, audit, parent identity,
+reparse/hardlink/alias or protected-path checks. Publication is relative to a
+pinned native directory handle, never a followed caller/model destination.
+
 Stage and validate a complete immutable proposal; publish atomically where
 verified. A multi-file package needs complete revision publication/recovery,
 not sequential overwrites presented as an atomic save. If the source cannot
 support safe publication, refuse in-place mutation and offer a Kora-owned fork.
 Temporary/backup destinations obey the same scope and privacy boundaries.
-No silent rollback, partial-success receipt, or overwriting concurrent changes;
+No silent rollback, partial-success receipt, or automatic detected-conflict
+overwrite; only the explicitly accepted optimistic content window above may
+overwrite an unseen concurrent edit.
 uncertain publication closes mutation/activation until explicit reconciliation.
 Record requested and terminal typed audit outcomes for writes, consent, and
 activation changes; surface cancellation/failure and any observed durable effect.
@@ -240,6 +257,43 @@ Passive refresh does not steal focus, speak unsolicited private file contents,
 or count as user activity/approval.
 
 ## Delivery and Verification
+
+### Bounded owned-instruction editor increment
+
+Native tray and exact `instructions editor/list/create/edit/inspect/save/reload/
+delete/activate` control routes share the same admitted actions, native review
+and writer. Activated controls focus the same native editor; voice-only approval
+and body dictation/refinement are not implemented. No model/network is needed.
+Create and inspect use an explicit bounded ID; mutations target the open original.
+The writer admits only immediate canonical lowercase ASCII `*.instructions.md`
+files in `IApplicationDataPaths.RoamingRoot\Instructions` (maximum 128 files).
+Strict UTF-8 and the original 64 KiB file-byte bound apply. Native format v1
+uses scalar `kora-format: 1`, `name`, `description` and optional `attribution`;
+the editor preserves original BOM, source text, line endings and supported
+metadata. Compatible legacy files lacking `kora-format` retain unchanged
+behavior; unsupported scope/metadata cannot be implicitly repaired in place.
+Header editing is bounded to 16 fields/4096 UTF-8 bytes. Fork, rename, restore,
+profile mutation, other kinds, executable content and agent runtime are absent.
+
+Native file/parent identity and exact bytes are rechecked under durable original
+local-input/session admission. Complete private staging is flushed, then renamed
+relative to the pinned source directory. Pre-publication cancellation leaves the
+base intact; uncertain post-publication readback/audit/catalogue outcomes are held
+and explicitly require reconciliation, never rollback. Saved revisions enter
+disabled, source-qualified catalogue candidates; activation separately reviews
+the exact bytes for explicit instruction selection on a new request, not broad
+automatic applicability or trust. Source changes/replaced identity, failures,
+deletion and restored previously revoked bytes do not auto-activate. Pre-use
+native freshness checking complements advisory watchers. Existing unchanged
+legacy and bundled behavior is preserved.
+
+Production parser, admission/conflict workflow, native storage and catalogue
+fixtures are the maintained assertions for this increment only. They are not
+equivalent to installed UI/accessibility, runtime/provider, containment, acoustic
+quality, storage-engine/capacity or physical-interruption evidence. The distinct
+historical witnesses and consumer assessments retained in the
+[historical roadmap](Archive/Implementation_Roadmap_2026-10-11.md#experiment-disposition-inventory)
+remain unchanged; no experiment files or consumers are retired by this increment.
 
 Extend R21 source/reconciliation work and R22 authoring incrementally through
 the common contract; qualify profile mutation separately from read access.

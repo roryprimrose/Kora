@@ -8,8 +8,13 @@ using Kora.Core.Communication;
 namespace Kora.Application.UnitTests.Configuration;
 
 internal class AudioControlTestStore : ISessionWorkspaceStore, IAudioControlSessionStore, IMaintenanceControlSessionStore,
-    IDiagnosticRetentionSessionStore, IAuditRetentionSessionStore, ISharedSkillSessionStore, IManualCallControlStore, IHostTaskStore
+    IDiagnosticRetentionSessionStore, IAuditRetentionSessionStore, ISharedSkillSessionStore, IInstructionControlSessionStore,
+    IManualCallControlStore, IHostTaskStore
 {
+    public ValueTask<WorkSessionAuthorization> CreateInstructionSession(HostRequest request,
+        Func<bool> admitted, CancellationToken token) => CreateAudioControlSessionAsync(request, admitted, token);
+    public ValueTask<T> WithInstructionSession<T>(HostRequest request, HostRevision generation, Func<T> operation,
+        CancellationToken token) => WithAudioControlSessionAsync(request, generation, operation, token);
     public ValueTask<SessionDispositionPreview> PreviewDispositionAsync(HostId<SessionIdentity> session,
         HostRevision expectedGeneration, long expectedMetadataRevision, CancellationToken cancellationToken) => throw new NotSupportedException();
     public ValueTask<SessionDispositionReceipt> DisposeSessionAsync(HostRequest request, SessionDispositionPreview preview,

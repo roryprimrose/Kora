@@ -543,6 +543,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                   && (!IsBusy || IsSetupStatusCommand()
                       || SessionCommand.Parse(CommandText, AssistantName) is not null
                       || MemoryCommand.Parse(CommandText, AssistantName) is not null
+                      || IsInstructionEditorCommand(CommandText)
                       || Kora.Core.Interaction.LocalEventCommand.Parse(CommandText, AssistantName) is not null
                       || ManualCallCommand.Parse(CommandText, AssistantName) is not null));
         PreviewVoiceCommand = CreateCommand(
@@ -2854,6 +2855,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     public async Task ExitAsync(bool fromModelActionDispatch = false)
     {
+        if (instructionEditorShutdown is not null && !await instructionEditorShutdown()) { return; }
         ApplicationLog.Information(logger, "Kora exit was requested");
         hostExitRequested = true;
         lifecycleAdmissionClosed = true;
@@ -3934,6 +3936,17 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             ApplicationLog.Information(logger, "Rejected command input outside the active unlocked host");
             return;
         }
+        if (IsInstructionEditorCommand(spokenText))
+        {
+            if (!isAssistantNameAvailable && commandRouter.IsActivationPrefixed(spokenText, AssistantName))
+            {
+                ReportHostInteractionFailure("Assistant prefix routing is unavailable; no instruction control was dispatched.");
+                return;
+            }
+            await Kora.Application.Hosting.HostRequestRunner.RunAsync(OriginalOrigin(initiator),
+                () => ExecuteInstructionEditorCommand(spokenText));
+            return;
+        }
         if (InCallFeedbackCommand.Parse(spokenText, AssistantName) is { } callFeedbackCommand)
         {
             if (!isAssistantNameAvailable && commandRouter.IsActivationPrefixed(spokenText, AssistantName))
@@ -4282,6 +4295,12 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             if (artifactMatch.Invocation is null)
             {
                 ShowInformation("Artifact command not found.", artifactMatch.Error!);
+                return;
+            }
+            if (artifactMatch.Invocation.Artifact.OwnedInstructionName is not null
+                && (ownedInstructionFreshness is null || !await ownedInstructionFreshness(artifactMatch.Invocation.Artifact)))
+            {
+                ShowInformation("Instruction revision is stale or unavailable.", "Reload and review the exact owned instruction before starting a new request.");
                 return;
             }
             await HandleUnmatchedRequestAsync(

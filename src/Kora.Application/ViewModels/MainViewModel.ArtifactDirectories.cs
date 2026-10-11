@@ -26,7 +26,8 @@ public sealed partial class MainViewModel
         ArtifactCatalogueReloadFailedEventArgs args) =>
         uiDispatcher.Post(() => ShowFailure(
             "Artifact changes could not be loaded.",
-            $"The last valid artifact catalogue remains active. {args.Exception.Message}"));
+            "Owned instructions are withheld until a successful reload and exact revision review. "
+            + "Other historical catalogue entries may remain available; no managed source is claimed current."));
 
     private void OnMcpServerConfigurationChanged(object? sender, EventArgs args) =>
         uiDispatcher.Post(RefreshArtifactDirectories);

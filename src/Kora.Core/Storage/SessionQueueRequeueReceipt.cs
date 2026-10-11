@@ -15,8 +15,15 @@ public sealed record SessionQueueRequeueReceipt(Guid ReviewId, long QueueRevisio
         }
         Original.Validate();
         Fresh.Validate();
-        SessionQueueRequeue.RequireExpired(Original, OriginalTask, Control.RunId, Control.Generation,
-            Fresh.AdmissionRevision, Fresh.EnqueuedAt);
+        try
+        {
+            SessionQueueRequeue.RequireExpired(Original, OriginalTask, Control.RunId, Control.Generation,
+                Fresh.AdmissionRevision, Fresh.EnqueuedAt);
+        }
+        catch (InvalidOperationException exception)
+        {
+            throw new InvalidDataException("The retained expired replacement source is not valid original pending authority.", exception);
+        }
         if (!Fresh.IsPending || Fresh.DispatchOrder != 0 || Fresh.RunId != Original.RunId
             || Fresh.Generation != Original.Generation || Fresh.Request.SessionId != Original.Request.SessionId
             || Fresh.Request.TaskId == Original.Request.TaskId || Fresh.Request.RequestId == Original.Request.RequestId

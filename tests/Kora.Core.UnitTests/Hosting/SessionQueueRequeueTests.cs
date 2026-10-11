@@ -43,6 +43,8 @@ public sealed class SessionQueueRequeueTests
         var receipt = new SessionQueueRequeueReceipt(Guid.NewGuid(), 1, new(original.RunId, new(1), 0, 0, false, false),
             original, task, fresh, 0);
         receipt.Validate();
+        (receipt with { OriginalTask = new(original.Request, new(2), HostTaskState.Cancelled) })
+            .Invoking(value => value.Validate()).Should().Throw<InvalidDataException>();
         var prerequisite = new HostId<TaskIdentity>(Guid.NewGuid());
         (receipt with { Original = original with { Dependency = prerequisite },
             Fresh = fresh with { Dependency = prerequisite } }).Validate();

@@ -5912,6 +5912,44 @@ public sealed partial class MainViewModelTests : IDisposable
     }
 
     [Fact]
+    public async Task Unprefixed_spoken_custom_answer_requires_the_assistant_name()
+    {
+        var fixture = new Fixture();
+        fixture.Probe.Status = new DependencyStatus(
+            "local.inference", "Local model inference (Ollama)", DependencyReadiness.Ready, "Ready.");
+        fixture.Reasoner.Question = new LocalModelQuestion("Which color?", ["Blue", "Green"]);
+        fixture.Voice.Microphones = [new MicrophoneDevice("mic", "Mic")];
+        fixture.Voice.DefaultMicrophoneId = "mic";
+        await fixture.ViewModel.InitializeAsync();
+        await fixture.RunAsync("choose a color");
+        await fixture.ViewModel.ActiveReasoningTask!;
+
+        await fixture.RaiseActivatedTranscriptAsync("use the current theme", 0.9f);
+
+        fixture.ViewModel.IsModelQuestionPending.Should().BeTrue();
+        fixture.ViewModel.ResponseTitle.Should().Be("Say the assistant name to answer.");
+        fixture.Reasoner.Requests.Should().ContainSingle();
+    }
+
+    [Fact]
+    public async Task Built_in_command_supersedes_a_pending_question_instead_of_becoming_custom_feedback()
+    {
+        var fixture = new Fixture();
+        fixture.Probe.Status = new DependencyStatus(
+            "local.inference", "Local model inference (Ollama)", DependencyReadiness.Ready, "Ready.");
+        fixture.Reasoner.Question = new LocalModelQuestion("Which color?", ["Blue", "Green"]);
+        await fixture.ViewModel.InitializeAsync();
+        await fixture.RunAsync("choose a color");
+        await fixture.ViewModel.ActiveReasoningTask!;
+
+        await fixture.RunAsync("Kora, what version are you running");
+
+        fixture.ViewModel.IsModelQuestionPending.Should().BeFalse();
+        fixture.ViewModel.ResponseTitle.Should().Be("Kora version");
+        fixture.Reasoner.Requests.Should().ContainSingle();
+    }
+
+    [Fact]
     public async Task Typed_custom_question_answer_uses_the_same_bounded_continuation()
     {
         var fixture = new Fixture();
@@ -5934,6 +5972,24 @@ public sealed partial class MainViewModelTests : IDisposable
         fixture.Reasoner.Requests.Should().HaveCount(2);
         fixture.Reasoner.Requests[1].Should()
             .Contain("\"CustomAnswer\":\"Use the color from the current theme\"");
+    }
+
+    [Fact]
+    public async Task Oversized_custom_question_answer_is_rejected_without_dismissing_the_question()
+    {
+        var fixture = new Fixture();
+        fixture.Probe.Status = new DependencyStatus(
+            "local.inference", "Local model inference (Ollama)", DependencyReadiness.Ready, "Ready.");
+        fixture.Reasoner.Question = new LocalModelQuestion("Which color?", ["Blue", "Green"]);
+        await fixture.ViewModel.InitializeAsync();
+        await fixture.RunAsync("choose a color");
+        await fixture.ViewModel.ActiveReasoningTask!;
+
+        await fixture.RunAsync(new string('a', LocalModelQuestion.MaximumFreeTextLength + 1));
+
+        fixture.ViewModel.IsModelQuestionPending.Should().BeTrue();
+        fixture.ViewModel.ResponseTitle.Should().Be("Answer or cancel the question.");
+        fixture.Reasoner.Requests.Should().ContainSingle();
     }
 
     [Fact]

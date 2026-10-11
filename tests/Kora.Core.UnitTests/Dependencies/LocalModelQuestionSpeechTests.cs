@@ -90,6 +90,7 @@ public sealed class LocalModelQuestionSpeechTests
     [InlineData("A different answer", "A different answer")]
     [InlineData("Nova, use the kitchen display", "use the kitchen display")]
     [InlineData("Nova: keep both", "keep both")]
+    [InlineData("Novator can answer", "Novator can answer")]
     public void GetFreeTextAnswer_preserves_custom_feedback_and_removes_the_activation_name(
         string transcript, string expected)
     {
@@ -103,6 +104,7 @@ public sealed class LocalModelQuestionSpeechTests
         blank.Should().Throw<ArgumentException>();
         LocalModelQuestionSpeech.GetFreeTextAnswer(
             new string('a', LocalModelQuestion.MaximumFreeTextLength + 1), Assistant).Should().BeNull();
+        LocalModelQuestionSpeech.GetFreeTextAnswer(Assistant, Assistant).Should().BeNull();
     }
 
     [Theory]

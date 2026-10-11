@@ -2700,20 +2700,16 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         }
 
         await SubmitModelQuestionAnswerAsync(
-            question, choice.Text, selectedOption: true, SecurityAuditInitiator.TypedCommand);
+            question, original, choice.Text, selectedOption: true, SecurityAuditInitiator.TypedCommand);
     }
 
     private async Task SubmitModelQuestionAnswerAsync(
         LocalModelQuestion question,
+        string original,
         string answer,
         bool selectedOption,
         SecurityAuditInitiator initiator)
     {
-        if (!ReferenceEquals(pendingModelQuestion, question)
-            || pendingQuestionRequest is not { } original)
-        {
-            return;
-        }
         var artifact = pendingQuestionArtifact;
         var followup = selectedOption
             ? JsonSerializer.Serialize(new
@@ -4095,7 +4091,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                 {
                     Transcript = $"“{spokenText}” · {confidence:P0} confidence";
                     await SubmitModelQuestionAnswerAsync(
-                        question, ModelQuestionChoices[index].Text, selectedOption: true, initiator);
+                        question, pendingQuestionRequest!, ModelQuestionChoices[index].Text,
+                        selectedOption: true, initiator);
                     return;
                 }
                 if (commandRouter.Match(spokenText, AssistantName).Command?.Action == BuiltInAction.CancelTask
@@ -4104,18 +4101,6 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                     await CancelModelQuestionAsync();
                     return;
                 }
-                if (LocalModelQuestionSpeech.GetFreeTextAnswer(spokenText, AssistantName) is { } answer)
-                {
-                    Transcript = $"“{spokenText}” · {confidence:P0} confidence";
-                    await SubmitModelQuestionAnswerAsync(question, answer, selectedOption: false, initiator);
-                    return;
-                }
-            }
-            else if (LocalModelQuestionSpeech.GetFreeTextAnswer(spokenText, AssistantName) is not null)
-            {
-                ShowInformation("Say the assistant name to answer.",
-                    $"{question.Prompt} Say “{AssistantName}, option one”, address me by name with your own answer, or type an answer in the response window.");
-                return;
             }
 
             if (commandRouter.Match(spokenText, AssistantName).IsMatch
@@ -4124,6 +4109,21 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                 || ClipboardCommand.Parse(commandRouter.Match(spokenText, AssistantName).NormalizedTranscript) is not null)
             {
                 await CancelModelQuestionAsync();
+            }
+            else if (canAnswer
+                && LocalModelQuestionSpeech.GetFreeTextAnswer(spokenText, AssistantName) is { } answer)
+            {
+                Transcript = $"“{spokenText}” · {confidence:P0} confidence";
+                await SubmitModelQuestionAnswerAsync(
+                    question, pendingQuestionRequest!, answer, selectedOption: false, initiator);
+                return;
+            }
+            else if (!canAnswer
+                && LocalModelQuestionSpeech.GetFreeTextAnswer(spokenText, AssistantName) is not null)
+            {
+                ShowInformation("Say the assistant name to answer.",
+                    $"{question.Prompt} Say “{AssistantName}, option one”, address me by name with your own answer, or type an answer in the response window.");
+                return;
             }
             else
             {

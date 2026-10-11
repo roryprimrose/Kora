@@ -68,7 +68,50 @@ public sealed class McpServerConfigurationServiceTests : IDisposable
         var server = service.Load().Single();
         preferences.Settings = new([], [], [], [], [file], [server.Id]);
 
-        service.Load().Single().IsIncluded.Should().BeTrue();
+        var included = service.Load().Single();
+        included.IsIncluded.Should().BeTrue();
+        included.Display.Should().EndWith("| included");
+    }
+
+    [Fact]
+    public void Missing_optional_files_are_ignored_and_source_files_are_distinct()
+    {
+        var paths = new Paths(Path.Combine(root, "kora"));
+        var service = new McpServerConfigurationService(
+            paths,
+            new Preferences(ArtifactDirectorySettings.Empty),
+            Path.Combine(root, "profile"));
+        service.NotifyChanged();
+        var changes = 0;
+        service.Changed += (_, _) => changes++;
+
+        service.Load().Should().BeEmpty();
+        service.SourceFiles.Should().HaveCount(4);
+        service.NotifyChanged();
+
+        changes.Should().Be(1);
+    }
+
+    [Fact]
+    public void Public_constructor_exposes_default_sources()
+    {
+        var service = new McpServerConfigurationService(
+            new Paths(Path.Combine(root, "kora")),
+            new Preferences(ArtifactDirectorySettings.Empty));
+
+        service.SourceFiles.Should().HaveCount(4);
+    }
+
+    [Fact]
+    public void Missing_required_file_fails_closed()
+    {
+        var missing = Path.Combine(root, "missing.json");
+        var service = new McpServerConfigurationService(
+            new Paths(Path.Combine(root, "kora")),
+            new Preferences(new([], [], [], [], [missing], [])),
+            Path.Combine(root, "profile"));
+
+        ((Action)(() => service.Load())).Should().Throw<FileNotFoundException>();
     }
 
     [Theory]
@@ -89,6 +132,73 @@ public sealed class McpServerConfigurationServiceTests : IDisposable
 
         ((Action)(() => service.Load())).Should().Throw<InvalidDataException>();
     }
+
+    [Theory]
+    [InlineData("[]")]
+    [InlineData("{\"servers\":[]}")]
+    [InlineData("{\"servers\":{\"bad\":[]}}")]
+    [InlineData("{\"servers\":{\"bad\":{\"command\":1}}}")]
+    [InlineData("{\"servers\":{\"bad\":{\"command\":\" \"}}}")]
+    [InlineData("{\"servers\":{\"bad\":{\"url\":1}}}")]
+    [InlineData("{\"servers\":{\"bad\":{\"url\":\"relative\"}}}")]
+    [InlineData("{\"servers\":{\"bad\":{\"url\":\"ftp://example.test\"}}}")]
+    [InlineData("{\"servers\":{\" \":{\"command\":\"x\"}}}")]
+    public void Invalid_server_shapes_fail_closed(string content) =>
+        Invalid(content);
+
+    [Fact]
+    public void Invalid_encoding_size_json_and_names_fail_closed()
+    {
+        Directory.CreateDirectory(root);
+        var file = Path.Combine(root, "mcp.json");
+        var service = Service(file);
+
+        File.WriteAllBytes(file, []);
+        ((Action)(() => service.Load())).Should().Throw<InvalidDataException>();
+        File.WriteAllBytes(file, Enumerable.Repeat((byte)' ', 256 * 1024 + 1).ToArray());
+        ((Action)(() => service.Load())).Should().Throw<InvalidDataException>();
+        File.WriteAllBytes(file, [0xff]);
+        ((Action)(() => service.Load())).Should().Throw<InvalidDataException>();
+        File.WriteAllText(file, "{");
+        ((Action)(() => service.Load())).Should().Throw<InvalidDataException>();
+        File.WriteAllText(file, "{\"servers\":{\"" + new string('a', 129) + "\":{\"command\":\"x\"}}}");
+        ((Action)(() => service.Load())).Should().Throw<InvalidDataException>();
+    }
+
+    [Fact]
+    public void Server_limit_comments_and_trailing_commas_are_handled()
+    {
+        Directory.CreateDirectory(root);
+        var file = Path.Combine(root, "mcp.json");
+        File.WriteAllText(file, """
+            {
+              // compatible comment
+              "servers": {
+                "one": { "command": "x", },
+              },
+            }
+            """);
+        Service(file).Load().Single().Display.Should().Be("one | stdio | mcp.json | excluded");
+
+        var entries = string.Join(',', Enumerable.Range(0, 129)
+            .Select(index => $"\"server-{index}\":{{\"command\":\"x\"}}"));
+        File.WriteAllText(file, $"{{\"servers\":{{{entries}}}}}");
+
+        ((Action)(() => Service(file).Load())).Should().Throw<InvalidDataException>();
+    }
+
+    private void Invalid(string content)
+    {
+        Directory.CreateDirectory(root);
+        var file = Path.Combine(root, "mcp.json");
+        File.WriteAllText(file, content);
+        ((Action)(() => Service(file).Load())).Should().Throw<InvalidDataException>();
+    }
+
+    private McpServerConfigurationService Service(string file) => new(
+        new Paths(Path.Combine(root, "kora")),
+        new Preferences(new([], [], [], [], [file], [])),
+        Path.Combine(root, "empty-profile"));
 
     public void Dispose()
     {

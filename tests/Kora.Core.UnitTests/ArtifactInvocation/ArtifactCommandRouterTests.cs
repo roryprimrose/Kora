@@ -180,6 +180,36 @@ public sealed class ArtifactCommandRouterTests
     }
 
     [Fact]
+    public void Catalogue_reports_reload_failures_and_ignores_equivalent_publications()
+    {
+        var original = Definition("original", "original");
+        var catalogue = new ArtifactCatalogue([original]);
+        var changes = 0;
+        Exception? reported = null;
+        catalogue.Changed += (_, _) => changes++;
+        catalogue.ReloadFailed += (_, args) => reported = args.Exception;
+
+        catalogue.Publish([original]);
+        var failure = new InvalidDataException("invalid candidate");
+        catalogue.ReportReloadFailure(failure);
+
+        changes.Should().Be(0);
+        reported.Should().BeSameAs(failure);
+        ((Action)(() => catalogue.ReportReloadFailure(null!))).Should().Throw<ArgumentNullException>();
+        ((Action)(() => catalogue.IsCurrent("", original.Digest))).Should().Throw<ArgumentException>();
+        ((Action)(() => catalogue.IsCurrent(original.Id, ""))).Should().Throw<ArgumentException>();
+        ((Action)(() => catalogue.Publish(null!))).Should().Throw<ArgumentNullException>();
+
+        var withoutHandlers = new ArtifactCatalogue([original]);
+        withoutHandlers.Publish([Definition("replacement", "replacement")]);
+        withoutHandlers.ReportReloadFailure(failure);
+        withoutHandlers.Publish([
+            Definition("replacement", "replacement"),
+            Definition("second", "second"),
+        ]);
+    }
+
+    [Fact]
     public void Artifact_catalogue_rejects_invalid_bounds_and_conflicts()
     {
         ((Action)(() => _ = new ArtifactCatalogue([]))).Should().Throw<ArgumentException>();

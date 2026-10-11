@@ -156,6 +156,170 @@ public sealed partial class MainViewModelTests : IDisposable
     }
 
     [Fact]
+    public async Task Artifact_source_controls_add_refresh_and_remove_each_selected_source()
+    {
+        var fixture = new Fixture(enableArtifactConfiguration: true);
+        var directory = Path.Combine(Path.GetTempPath(), "Kora", Guid.NewGuid().ToString("N"));
+
+        fixture.ViewModel.CanChangeArtifactDirectories.Should().BeTrue();
+        fixture.ViewModel.ArtifactDirectoryKinds.Should().Contain(ArtifactSourceKind.McpServerConfiguration);
+        fixture.ViewModel.ArtifactDirectoryStatus.Should().Be("No additional skill directories are configured.");
+        fixture.ViewModel.ArtifactDirectoryInput = " ";
+        fixture.ViewModel.AddArtifactDirectoryCommand.CanExecute(null).Should().BeFalse();
+        fixture.ViewModel.ArtifactDirectoryInput = directory;
+        fixture.ViewModel.AddArtifactDirectoryCommand.CanExecute(null).Should().BeTrue();
+
+        await fixture.ViewModel.AddArtifactDirectoryCommand.ExecuteAsync();
+
+        fixture.ViewModel.AdditionalArtifactDirectories.Should().Equal(directory);
+        fixture.ViewModel.ArtifactDirectoryInput.Should().BeEmpty();
+        fixture.ViewModel.ArtifactDirectoryStatus.Should().StartWith("1 additional skill");
+        fixture.ViewModel.SelectedArtifactDirectory = directory;
+        fixture.ViewModel.SelectedArtifactDirectory = directory;
+        fixture.ViewModel.RemoveArtifactDirectoryCommand.CanExecute(null).Should().BeTrue();
+
+        await fixture.ViewModel.RemoveArtifactDirectoryCommand.ExecuteAsync();
+        await fixture.ViewModel.RefreshArtifactDirectoriesCommand.ExecuteAsync();
+
+        fixture.ViewModel.AdditionalArtifactDirectories.Should().BeEmpty();
+        fixture.ViewModel.SelectedArtifactDirectory.Should().BeNull();
+
+        fixture.ArtifactPreferences.Settings = new(
+            [directory, Path.Combine(directory, "second")],
+            [],
+            [],
+            [],
+            [],
+            []);
+        await fixture.ViewModel.RefreshArtifactDirectoriesCommand.ExecuteAsync();
+        fixture.ViewModel.ArtifactDirectoryStatus.Should().StartWith("2 additional skill directories");
+    }
+
+    [Fact]
+    public async Task Mcp_source_controls_manage_file_sources_and_server_inclusion()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "Kora", Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(root);
+        try
+        {
+            var file = Path.Combine(root, "mcp.json");
+            File.WriteAllText(file, """{"servers":{"review":{"command":"review.exe"}}}""");
+            var fixture = new Fixture(enableArtifactConfiguration: true);
+            fixture.ViewModel.SelectedArtifactDirectoryKind = ArtifactSourceKind.McpServerConfiguration;
+            fixture.ViewModel.SelectedArtifactDirectoryKind = ArtifactSourceKind.McpServerConfiguration;
+            fixture.ViewModel.IsMcpConfigurationSelected.Should().BeTrue();
+            fixture.ViewModel.ArtifactPathKind.Should().Be("file");
+            fixture.ViewModel.ArtifactDirectoryStatus.Should().Be(
+                "No additional mcpserverconfiguration files are configured.");
+            fixture.ViewModel.ArtifactDirectoryInput = file;
+
+            await fixture.ViewModel.AddArtifactDirectoryCommand.ExecuteAsync();
+            await fixture.ViewModel.RefreshArtifactDirectoriesCommand.ExecuteAsync();
+
+            fixture.ViewModel.AdditionalArtifactDirectories.Should().Equal(file);
+            fixture.ViewModel.McpServers.Should().ContainSingle();
+            fixture.ViewModel.SelectedMcpServer = fixture.ViewModel.McpServers.Single();
+            fixture.ViewModel.SelectedMcpServer = fixture.ViewModel.McpServers.Single();
+            fixture.ViewModel.IncludeMcpServerCommand.CanExecute(null).Should().BeTrue();
+
+            await fixture.ViewModel.IncludeMcpServerCommand.ExecuteAsync();
+
+            fixture.ViewModel.SelectedMcpServer!.IsIncluded.Should().BeTrue();
+            fixture.ViewModel.ExcludeMcpServerCommand.CanExecute(null).Should().BeTrue();
+            await fixture.ViewModel.ExcludeMcpServerCommand.ExecuteAsync();
+            fixture.ViewModel.SelectedMcpServer!.IsIncluded.Should().BeFalse();
+
+            fixture.ArtifactPreferences.SaveFailure = new IOException("inclusion failed");
+            await fixture.ViewModel.IncludeMcpServerCommand.ExecuteAsync();
+            fixture.ViewModel.ResponseTitle.Should().Be("MCP server inclusion was not changed.");
+            fixture.ArtifactPreferences.SaveFailure = null;
+
+            fixture.McpServerConfiguration!.NotifyChanged();
+            var secondFile = Path.Combine(root, "second.json");
+            File.WriteAllText(secondFile, """{"servers":{"other":{"command":"other.exe"}}}""");
+            fixture.ViewModel.ArtifactDirectoryInput = secondFile;
+            await fixture.ViewModel.AddArtifactDirectoryCommand.ExecuteAsync();
+            fixture.ViewModel.ArtifactDirectoryStatus.Should().StartWith(
+                "2 additional mcpserverconfiguration files");
+            fixture.ViewModel.SelectedArtifactDirectory = file;
+            fixture.ArtifactPreferences.Settings = ArtifactDirectorySettings.Empty;
+            fixture.McpServerConfiguration.NotifyChanged();
+            fixture.ViewModel.SelectedArtifactDirectory.Should().BeNull();
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Fact]
+    public async Task Artifact_source_controls_surface_supported_read_write_and_reload_failures()
+    {
+        var fixture = new Fixture(enableArtifactConfiguration: true);
+        fixture.ArtifactPreferences.SaveFailure = new IOException("write failed");
+        fixture.ViewModel.ArtifactDirectoryInput =
+            Path.Combine(Path.GetTempPath(), "Kora", Guid.NewGuid().ToString("N"));
+
+        await fixture.ViewModel.AddArtifactDirectoryCommand.ExecuteAsync();
+
+        fixture.ViewModel.State.Should().Be(AssistantState.Failure);
+        fixture.ViewModel.ResponseTitle.Should().Be("Additional artifact and MCP sources were not changed.");
+
+        fixture.ArtifactPreferences.SaveFailure = null;
+        fixture.ArtifactPreferences.LoadFailure = new InvalidDataException("read failed");
+        await fixture.ViewModel.RefreshArtifactDirectoriesCommand.ExecuteAsync();
+        fixture.ViewModel.ResponseTitle.Should().Be("Additional artifact and MCP sources are unavailable.");
+
+        fixture.ArtifactCatalogue.ReportReloadFailure(new InvalidDataException("invalid candidate"));
+        fixture.ViewModel.ResponseTitle.Should().Be("Artifact changes could not be loaded.");
+    }
+
+    [Fact]
+    public async Task Unavailable_or_disposed_artifact_controls_fail_closed()
+    {
+        var unavailable = new Fixture();
+        unavailable.ViewModel.CanChangeArtifactDirectories.Should().BeFalse();
+        unavailable.ViewModel.ArtifactDirectoryStatus.Should()
+            .Be("Additional artifact directory configuration is unavailable.");
+        unavailable.ViewModel.SelectedArtifactDirectoryKind = ArtifactSourceKind.McpServerConfiguration;
+        unavailable.ViewModel.AdditionalArtifactDirectories.Should().BeEmpty();
+
+        var fixture = new Fixture(enableArtifactConfiguration: true);
+        fixture.ViewModel.Dispose();
+        fixture.ViewModel.CanChangeArtifactDirectories.Should().BeFalse();
+        var change = typeof(MainViewModel).GetMethod(
+            "ChangeArtifactDirectory",
+            BindingFlags.NonPublic | BindingFlags.Instance)!;
+        change.Invoke(fixture.ViewModel, [true]);
+        var include = typeof(MainViewModel).GetMethod(
+            "SetSelectedMcpServerIncludedAsync",
+            BindingFlags.NonPublic | BindingFlags.Instance)!;
+        await (Task)include.Invoke(fixture.ViewModel, [true])!;
+    }
+
+    [Fact]
+    public async Task Artifact_controls_work_without_an_mcp_summary_service()
+    {
+        var fixture = new Fixture(
+            enableArtifactConfiguration: true,
+            enableMcpServerConfiguration: false);
+
+        await fixture.ViewModel.RefreshArtifactDirectoriesCommand.ExecuteAsync();
+        fixture.ViewModel.McpServers.Should().BeEmpty();
+        var include = typeof(MainViewModel).GetMethod(
+            "SetSelectedMcpServerIncludedAsync",
+            BindingFlags.NonPublic | BindingFlags.Instance)!;
+        fixture.ViewModel.SelectedMcpServer = new(
+            new string('a', 64),
+            "server",
+            "stdio",
+            "mcp.json",
+            false);
+        await (Task)include.Invoke(fixture.ViewModel, [true])!;
+        fixture.ViewModel.SelectedMcpServer.Should().BeNull();
+    }
+
+    [Fact]
     public async Task RefreshLoadsPreapprovedUrisAndVoiceUsesTheVoiceInitiator()
     {
         var fixture = new Fixture(enablePreapprovedUris: true);
@@ -4791,6 +4955,102 @@ public sealed partial class MainViewModelTests : IDisposable
     }
 
     [Fact]
+    public async Task Catalogue_change_preserves_in_flight_request_when_its_revision_remains_current()
+    {
+        var fixture = new Fixture();
+        fixture.Probe.Status = new DependencyStatus(
+            "local.inference", "Local model inference (Ollama)",
+            DependencyReadiness.Ready, "Inference verified.");
+        fixture.Reasoner.Gate = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        await fixture.ViewModel.InitializeAsync();
+        await fixture.RunAsync("/lock");
+        var reasoning = fixture.ViewModel.ActiveReasoningTask!;
+        var original = fixture.ArtifactCatalogue.Artifacts.Single();
+
+        fixture.ArtifactCatalogue.Publish([original, AdditionalArtifact()]);
+        fixture.Reasoner.Gate.SetResult("still current");
+        await reasoning;
+
+        fixture.ViewModel.ResponseTitle.Should().Be("Local model response");
+        fixture.ViewModel.ResponseBody.Should().Contain("still current");
+    }
+
+    [Fact]
+    public async Task Catalogue_change_preserves_current_pending_question_and_action()
+    {
+        var question = new Fixture();
+        question.Probe.Status = new DependencyStatus(
+            "local.inference", "Local model inference (Ollama)",
+            DependencyReadiness.Ready, "Inference verified.");
+        question.Reasoner.Question = new("Which target?", ["Current", "Other"]);
+        await question.ViewModel.InitializeAsync();
+        await question.RunAsync("/lock");
+        await question.ViewModel.ActiveReasoningTask!;
+        var questionArtifact = question.ArtifactCatalogue.Artifacts.Single();
+
+        question.ArtifactCatalogue.Publish([questionArtifact, AdditionalArtifact()]);
+        question.ViewModel.IsModelQuestionPending.Should().BeTrue();
+
+        var action = await Fixture.CreateInitializedAsync();
+        action.Reasoner.Action = BuiltInAction.LockMachine;
+        action.Probe.Status = new DependencyStatus(
+            "local.inference", "Local model inference (Ollama)",
+            DependencyReadiness.Ready, "Inference verified.");
+        await action.ViewModel.RefreshCommand.ExecuteAsync();
+        await action.RunAsync("/lock");
+        await action.ViewModel.ActiveReasoningTask!;
+        var actionArtifact = action.ArtifactCatalogue.Artifacts.Single();
+
+        action.ArtifactCatalogue.Publish([actionArtifact, AdditionalArtifact()]);
+        action.ViewModel.IsModelActionApprovalPending.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task Catalogue_change_tolerates_missing_active_cancellation_owner()
+    {
+        var fixture = new Fixture();
+        fixture.Probe.Status = new DependencyStatus(
+            "local.inference", "Local model inference (Ollama)",
+            DependencyReadiness.Ready, "Inference verified.");
+        fixture.Reasoner.Gate = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        await fixture.ViewModel.InitializeAsync();
+        await fixture.RunAsync("/lock");
+        var reasoning = fixture.ViewModel.ActiveReasoningTask!;
+        typeof(MainViewModel).GetField(
+            "activeReasoningCancellation",
+            BindingFlags.NonPublic | BindingFlags.Instance)!.SetValue(fixture.ViewModel, null);
+
+        fixture.ArtifactCatalogue.Publish([UpdatedLockArtifact()]);
+        fixture.Reasoner.Gate.SetResult("stale");
+        await reasoning;
+
+        fixture.ViewModel.ResponseTitle.Should().NotBe("Local model response");
+    }
+
+    [Fact]
+    public async Task Post_reasoning_freshness_check_rejects_revision_changed_before_dispatch()
+    {
+        var fixture = new Fixture();
+        fixture.Probe.Status = new DependencyStatus(
+            "local.inference", "Local model inference (Ollama)",
+            DependencyReadiness.Ready, "Inference verified.");
+        fixture.Reasoner.Gate = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        await fixture.ViewModel.InitializeAsync();
+        await fixture.RunAsync("/lock");
+        var reasoning = fixture.ViewModel.ActiveReasoningTask!;
+        fixture.Dispatcher.DeferPosts = true;
+
+        fixture.ArtifactCatalogue.Publish([UpdatedLockArtifact()]);
+        fixture.Reasoner.Gate.SetResult("stale answer");
+        await reasoning;
+        fixture.Dispatcher.FlushPosts();
+
+        fixture.ViewModel.ResponseTitle.Should().NotBe("Local model response");
+        fixture.ViewModel.SetupTasks.Should().Contain(task =>
+            task.Id == "local.reasoning" && task.State == SetupTaskState.Cancelled);
+    }
+
+    [Fact]
     public async Task Artifact_action_requires_single_use_revision_current_approval_despite_reusable_grant()
     {
         var fixture = await Fixture.CreateInitializedAsync();
@@ -4814,6 +5074,30 @@ public sealed partial class MainViewModelTests : IDisposable
         fixture.ArtifactCatalogue.Publish([UpdatedLockArtifact()]);
 
         fixture.ViewModel.IsModelActionApprovalPending.Should().BeFalse();
+        fixture.Session.LockCalls.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task Artifact_action_rejects_reusable_approval_even_while_revision_is_current()
+    {
+        var fixture = await Fixture.CreateInitializedAsync();
+        fixture.Reasoner.Action = BuiltInAction.LockMachine;
+        fixture.Probe.Status = new DependencyStatus(
+            "local.inference", "Local model inference (Ollama)",
+            DependencyReadiness.Ready, "Inference verified.");
+        await fixture.ViewModel.RefreshCommand.ExecuteAsync();
+
+        await fixture.RunAsync("/lock");
+        await fixture.ViewModel.ActiveReasoningTask!;
+        var approve = typeof(MainViewModel).GetMethod(
+            "ApproveModelActionAsync",
+            BindingFlags.NonPublic | BindingFlags.Instance)!;
+        await (Task)approve.Invoke(
+            fixture.ViewModel,
+            [ModelApprovalScope.Session, SecurityAuditInitiator.LocalUser])!;
+
+        fixture.ViewModel.IsModelActionApprovalPending.Should().BeFalse();
+        fixture.ViewModel.ResponseTitle.Should().Be("Fresh single-use approval is required.");
         fixture.Session.LockCalls.Should().Be(0);
     }
 
@@ -4849,6 +5133,18 @@ public sealed partial class MainViewModelTests : IDisposable
         "2.0.0",
         new string('f', 64),
         "Use only the revised lock workflow.");
+
+    private static ArtifactDefinition AdditionalArtifact() => new(
+        "kora.session.explain",
+        ArtifactKind.Prompt,
+        "Explain",
+        "Explain the request.",
+        "explain",
+        ["explain"],
+        "bundled",
+        "1.0.0",
+        new string('2', 64),
+        "Explain the request.");
 
     [Fact]
     public async Task Unknown_slash_command_fails_closed_without_invoking_the_model()
@@ -8196,7 +8492,10 @@ public sealed partial class MainViewModelTests : IDisposable
             Kora.Tools.Network.PreapprovedUriAdd? preapprovedUriAdd = null,
             Kora.Tools.Network.PreapprovedUriRemove? preapprovedUriRemove = null,
             Kora.Tools.Network.PreapprovedUriClear? preapprovedUriClear = null,
-            Kora.Tools.Network.WebPageGet? webPageGet = null)
+            Kora.Tools.Network.WebPageGet? webPageGet = null,
+            bool enableArtifactConfiguration = false,
+            Exception? artifactReadFailure = null,
+            bool enableMcpServerConfiguration = true)
         {
             Catalog = new BuiltInCommandCatalog();
             CaptionPreferences.LoadFailure = captionReadFailure;
@@ -8231,6 +8530,16 @@ public sealed partial class MainViewModelTests : IDisposable
                 Voice.DefaultMicrophoneId, TextToSpeech.DefaultOutputDeviceId));
             Process = new FakeApplicationProcessController(Events);
             Audit ??= new FakeSecurityAuditLog();
+            ArtifactPreferences.LoadFailure = artifactReadFailure;
+            ArtifactDirectoryConfiguration = enableArtifactConfiguration
+                ? new ArtifactDirectoryConfigurationService(ArtifactPreferences, Audit)
+                : null;
+            McpServerConfiguration = enableArtifactConfiguration && enableMcpServerConfiguration
+                ? new McpServerConfigurationService(
+                    new ArtifactPaths(Path.Combine(Path.GetTempPath(), "Kora", Guid.NewGuid().ToString("N"))),
+                    ArtifactPreferences,
+                    Path.Combine(Path.GetTempPath(), "Kora", Guid.NewGuid().ToString("N")))
+                : null;
             FeedbackPreferences.ReadFailure = feedbackReadFailure;
             FeedbackConfiguration = enableInCallFeedback ? new(FeedbackPreferences, OutputAdmission, Audit, TextToSpeech,
                 NullLogger<InCallFeedbackConfigurationService>.Instance) : null;
@@ -8342,7 +8651,9 @@ public sealed partial class MainViewModelTests : IDisposable
                 preapprovedUriAdd ?? (enablePreapprovedUris ? new Kora.Tools.Network.PreapprovedUriAdd(PreapprovedUris) : null),
                 preapprovedUriRemove ?? (enablePreapprovedUris ? new Kora.Tools.Network.PreapprovedUriRemove(PreapprovedUris) : null),
                 preapprovedUriClear ?? (enablePreapprovedUris ? new Kora.Tools.Network.PreapprovedUriClear(PreapprovedUris) : null),
-                webPageGet);
+                webPageGet,
+                ArtifactDirectoryConfiguration,
+                McpServerConfiguration);
             ViewModel.BindCallOwnershipGate(static () => true);
             ViewModel.BindManualCallNativeLifetime(true);
             if (enableWindowsSpeechRate) { ViewModel.BindWindowsSpeechRateNativeLifetime(static () => true); }
@@ -8392,6 +8703,9 @@ public sealed partial class MainViewModelTests : IDisposable
         public FakeAuditRetentionPreferences AuditPreferences { get; } = new();
         public AuditRetentionPolicy AuditPolicy { get; } = new();
         public AuditRetentionConfigurationService? AuditConfiguration { get; }
+        public FakeArtifactPreferences ArtifactPreferences { get; } = new();
+        public ArtifactDirectoryConfigurationService? ArtifactDirectoryConfiguration { get; }
+        public McpServerConfigurationService? McpServerConfiguration { get; }
 
         public ImmediateDispatcher Dispatcher { get; }
 
@@ -8446,6 +8760,30 @@ public sealed partial class MainViewModelTests : IDisposable
         public FakeVoiceConsentPreferences VoiceConsent { get; } = new();
 
         public FakePrivacyObservationService PrivacyObservation { get; }
+
+        private sealed record ArtifactPaths(string LocalRoot) : IApplicationDataPaths
+        {
+            public string RoamingRoot => LocalRoot;
+        }
+
+        public sealed class FakeArtifactPreferences : IArtifactDirectoryPreferences
+        {
+            public ArtifactDirectorySettings Settings { get; set; } = ArtifactDirectorySettings.Empty;
+            public Exception? LoadFailure { get; set; }
+            public Exception? SaveFailure { get; set; }
+
+            public ArtifactDirectorySettings Load() =>
+                LoadFailure is { } failure ? throw failure : Settings;
+
+            public void Save(ArtifactDirectorySettings settings)
+            {
+                if (SaveFailure is { } failure)
+                {
+                    throw failure;
+                }
+                Settings = settings;
+            }
+        }
 
         public sealed class FakePrivacyObservationService(Func<WindowsPrivacySnapshot> read) : IWindowsPrivacyObservationService
         {
@@ -8812,6 +9150,8 @@ public sealed partial class MainViewModelTests : IDisposable
 
     private sealed class ImmediateDispatcher : IUiDispatcher
     {
+        private readonly Queue<Action> deferredPosts = new();
+
         public Task LastInvocation { get; private set; } = Task.CompletedTask;
 
         public InvalidOperationException? InvokeException { get; set; }
@@ -8819,6 +9159,16 @@ public sealed partial class MainViewModelTests : IDisposable
         public Action? BeforeInvoke { get; set; }
 
         public Action? BeforePost { get; set; }
+        public bool DeferPosts { get; set; }
+
+        public void FlushPosts()
+        {
+            DeferPosts = false;
+            while (deferredPosts.TryDequeue(out var action))
+            {
+                action();
+            }
+        }
 
         public Task InvokeAsync(Func<Task> action)
         {
@@ -8836,6 +9186,11 @@ public sealed partial class MainViewModelTests : IDisposable
 
         public void Post(Action action)
         {
+            if (DeferPosts)
+            {
+                deferredPosts.Enqueue(action);
+                return;
+            }
             var callback = BeforePost;
             BeforePost = null;
             callback?.Invoke();

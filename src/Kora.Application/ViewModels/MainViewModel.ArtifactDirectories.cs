@@ -150,8 +150,8 @@ public sealed partial class MainViewModel
         artifactDirectoryConfiguration is null
             ? "Additional artifact directory configuration is unavailable."
             : AdditionalArtifactDirectories.Count == 0
-                    ? $"No additional {SelectedArtifactDirectoryKind.ToString().ToLowerInvariant()} {ArtifactPathKind}s are configured."
-                    : $"{AdditionalArtifactDirectories.Count} additional {SelectedArtifactDirectoryKind.ToString().ToLowerInvariant()} {ArtifactPathKind} or {ArtifactPathKind}s configured.";
+                    ? $"No additional {SelectedArtifactDirectoryKind.ToString().ToLowerInvariant()} {(IsMcpConfigurationSelected ? "files" : "directories")} are configured."
+                    : $"{AdditionalArtifactDirectories.Count} additional {SelectedArtifactDirectoryKind.ToString().ToLowerInvariant()} {(AdditionalArtifactDirectories.Count == 1 ? ArtifactPathKind : IsMcpConfigurationSelected ? "files" : "directories")} configured.";
 
     private Task RefreshArtifactDirectoriesAsync()
     {

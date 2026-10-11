@@ -4307,7 +4307,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             if (artifactMatch.Invocation.Artifact.OwnedInstructionName is not null
                 && (ownedInstructionFreshness is null || !await ownedInstructionFreshness(artifactMatch.Invocation.Artifact)))
             {
-                ShowInformation("Instruction revision is stale or unavailable.", "Reload and review the exact owned instruction before starting a new request.");
+                ShowInformation("Owned definition revision is stale or unavailable.", "Reload and review the exact owned instruction or prompt before starting a new request.");
                 return;
             }
             await HandleUnmatchedRequestAsync(
@@ -4388,7 +4388,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                 artifactInvocation.Artifact.Source,
                 artifactInvocation.Artifact.Version,
                 artifactInvocation.Artifact.Digest,
-                artifactInvocation.Artifact.Content);
+                artifactInvocation.Artifact.Content)
+            {
+                IsLiteralPrompt = artifactInvocation.Artifact.Kind == ArtifactKind.Prompt
+                    && artifactInvocation.Artifact.RequiresInstructionReview,
+            };
         }
 
         if (request.Length > 4096)

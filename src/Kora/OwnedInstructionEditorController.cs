@@ -12,8 +12,14 @@ namespace Kora;
 internal sealed partial class OwnedInstructionEditorController(
     MainViewModel main, OwnedInstructionEditorActions actions, InstructionSaveWorkflow saves, ArtifactCatalogueReloadService reload,
     IApplicationDataPaths paths,
-    Func<bool> ownsHost, Func<long> ownershipRevision, ILogger<OwnedInstructionEditorController> logger) : IDisposable
+    Func<bool> ownsHost, Func<long> ownershipRevision, ILogger<OwnedInstructionEditorController> logger,
+    OwnedInstructionEditorActions? promptActions = null, InstructionSaveWorkflow? promptSaves = null) : IDisposable
 {
+    private ArtifactKind kind = ArtifactKind.Instruction;
+    private OwnedInstructionEditorActions Actions => kind == ArtifactKind.Instruction ? actions
+        : promptActions ?? throw new InvalidOperationException("Prompt editing is unavailable.");
+    private InstructionSaveWorkflow Saves => kind == ArtifactKind.Instruction ? saves
+        : promptSaves ?? throw new InvalidOperationException("Prompt editing is unavailable.");
     private OwnedInstructionEditorWindow? window;
     private OwnedInstructionSnapshot? baseline;
     private string originalText = string.Empty;
@@ -23,10 +29,12 @@ internal sealed partial class OwnedInstructionEditorController(
     private bool closing;
     private bool disposed;
     private bool uncertain;
+    private long sourceRevision;
 
     internal void Bind()
     {
         main.OwnedInstructionEditorRequested += OnRequested;
+        main.OwnedPromptEditorRequested += OnPromptRequested;
         main.PrivacyClosureRequested += OnPrivacyClosed;
         main.BindInstructionEditorShutdown(PrepareClose);
     }
@@ -39,6 +47,11 @@ internal sealed partial class OwnedInstructionEditorController(
         if (window is not null) { window.Activate(); return; }
         lifetime = new();
         window = new(action => _ = Run(action));
+        window.Source.PropertyChanged += (_, change) =>
+        {
+            if (change.Property == TextBox.TextProperty) { Interlocked.Increment(ref sourceRevision); }
+        };
+        window.SelectKind(kind);
         window.Closing += OnClosing;
         window.Closed += (_, _) => Clear();
         window.Show();
@@ -49,21 +62,32 @@ internal sealed partial class OwnedInstructionEditorController(
     private bool Dirty => window is not null && !string.Equals(window.Source.Text ?? string.Empty, originalText, StringComparison.Ordinal);
 
     private async Task OnRequested(string operation, string? name)
+        => await OnRequested(ArtifactKind.Instruction, operation, name);
+
+    private async Task OnPromptRequested(string operation, string? name)
+        => await OnRequested(ArtifactKind.Prompt, operation, name);
+
+    private async Task OnRequested(ArtifactKind requestedKind, string operation, string? name)
     {
         Open(load: false);
-        if (window is null) { return; }
-        if (operation is "Cancel")
+        if (window is null || lifetime is null) { return; }
+        if (operation is "Cancel" && requestedKind == kind)
         {
             if (ownsHost() && main.CaptureInstructionEditorEligibility()()) { window.CancelReview(); }
             return;
         }
+        if (busy || !await SwitchKind(window, requestedKind, lifetime.Token)) { return; }
         if (name is not null) { window.NameInput.Text = name; window.Files.SelectedItem = name; }
         await Run(operation);
     }
 
     private async Task Run(string action)
     {
-        if (busy || disposed || window is not { } opened || lifetime is null) { return; }
+        if (busy || disposed || window is not { } opened || lifetime is null)
+        {
+            if (window is not null) { window.SelectKind(kind); }
+            return;
+        }
         var captured = main.CaptureInstructionEditorEligibility();
         var ownership = ownershipRevision();
         bool Eligible() => !disposed && ownsHost() && ownershipRevision() == ownership
@@ -75,8 +99,12 @@ internal sealed partial class OwnedInstructionEditorController(
         {
             switch (action)
             {
+                case "Kind":
+                    if (!await SwitchKind(opened, opened.KindInput.SelectedItem is ArtifactKind selected ? selected : kind, token))
+                    { break; }
+                    goto case "List";
                 case "List":
-                    var files = await actions.List(Eligible, token);
+                    var files = await Actions.List(Eligible, token);
                     if (!Eligible()) { return; }
                     opened.Files.ItemsSource = files;
                     if (!reload.ReloadNow()) { throw new IOException("The catalogue could not be reconciled."); }
@@ -85,14 +113,15 @@ internal sealed partial class OwnedInstructionEditorController(
                 case "Create":
                     if (!await AbandonDraft(opened, token)) { break; }
                     var name = opened.NameInput.Text ?? string.Empty;
-                    if (await actions.Inspect(name, Eligible, token) is not null)
+                    if (await Actions.Inspect(name, Eligible, token) is not null)
                     { throw new InvalidOperationException("That exact owned ID already exists. Inspect it; no implicit overwrite."); }
                     if (!Eligible()) { return; }
                     selectedName = name;
                     baseline = null;
                     opened.Source.IsReadOnly = false;
                     originalText = string.Empty;
-                    opened.Source.Text = $"---\r\nkora-format: 1\r\nname: {name}\r\ndescription: Describe this instruction.\r\n---\r\nWrite instruction guidance here.\r\n";
+                    opened.Source.Text = $"---\r\nkora-format: 1\r\nname: {name}\r\ndescription: Describe this {kind.ToString().ToLowerInvariant()}.\r\n---\r\n"
+                        + (kind == ArtifactKind.Instruction ? "Write instruction guidance here.\r\n" : "Write the literal saved user request here.\r\n");
                     opened.Report("New in-memory draft. Nothing saved or offered for use.");
                     break;
                 case "Inspect":
@@ -110,7 +139,10 @@ internal sealed partial class OwnedInstructionEditorController(
                     if (Dirty || baseline is null || uncertain)
                     { throw new InvalidOperationException("Save/reload an exact clean revision before reviewing use."); }
                     var reviewed = baseline;
-                    var activated = await actions.Activate(reviewed, admitted => ConfirmUse(opened, reviewed, Eligible, admitted), Eligible, token);
+                    var reviewedSourceRevision = Interlocked.Read(ref sourceRevision);
+                    bool ReviewCurrent() => Eligible() && ReferenceEquals(baseline, reviewed)
+                        && Interlocked.Read(ref sourceRevision) == reviewedSourceRevision;
+                    var activated = await Actions.Activate(reviewed, admitted => ConfirmUse(opened, reviewed, ReviewCurrent, admitted), ReviewCurrent, token);
                     if (!Eligible()) { return; }
                     opened.Report(activated ? "Exact revision reviewed for explicit use in this unlocked host run. No automatic applicability or new permissions."
                         : "Use review cancelled. No new revision applicability granted.");
@@ -142,9 +174,11 @@ internal sealed partial class OwnedInstructionEditorController(
         if (!Avalonia.Threading.Dispatcher.UIThread.CheckAccess())
         { return await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => ConfirmUse(opened, reviewed, eligible, token)); }
         if (!eligible()) { return false; }
-        return await opened.Choose("Review exact instruction use",
+        return await opened.Choose($"Review exact {kind.ToString().ToLowerInvariant()} use",
                             $"Owned ID: {reviewed.Name}; exact digest {reviewed.Document.Definition.Digest}. "
-                            + "This is untrusted guidance, not host policy. Permit explicit selection for new requests only? "
+                            + (kind == ArtifactKind.Instruction ? "This is untrusted guidance, not host policy. "
+                                : "This is a literal saved user request, not instruction/system authority or a workflow. ")
+                            + "Permit explicit selection for new requests only? "
                             + "No new permissions, executable tools, agent runtime, automatic applicability or mid-task context update.",
                             reviewed.Document.Text, reviewed.Document.Text, ["Permit explicit use", "Cancel"], token) == 0
             && eligible() && ReferenceEquals(baseline, reviewed) && !Dirty;
@@ -155,11 +189,13 @@ internal sealed partial class OwnedInstructionEditorController(
         if (selectedName is null || uncertain) { throw new InvalidOperationException("Inspect/create, or explicitly Reload/reconcile first."); }
         var name = selectedName;
         var text = opened.Source.Text ?? string.Empty;
-        var result = await saves.Save(name, baseline, text, delete,
-            new NativeInstructionMutationReview(opened, Path.Combine(paths.RoamingRoot, "Instructions"), () => eligible()
-                && string.Equals(text, opened.Source.Text ?? string.Empty, StringComparison.Ordinal)),
-            eligible, token);
-        if (!eligible()) { return false; }
+        var reviewedSourceRevision = Interlocked.Read(ref sourceRevision);
+        // Admission/publication callbacks run off the UI thread; never read an Avalonia control there.
+        bool CurrentDraft() => eligible() && Interlocked.Read(ref sourceRevision) == reviewedSourceRevision;
+        var result = await Saves.Save(name, baseline, text, delete,
+            new NativeInstructionMutationReview(opened, Path.Combine(paths.RoamingRoot, OwnedDefinitionKind.DirectoryName(kind)), CurrentDraft, kind),
+            CurrentDraft, token);
+        if (!CurrentDraft()) { return false; }
         if (result.Reloaded)
         {
             baseline = result.Current; originalText = baseline?.Document.Text ?? string.Empty;
@@ -184,7 +220,7 @@ internal sealed partial class OwnedInstructionEditorController(
     private async Task Load(OwnedInstructionEditorWindow opened, string? name, Func<bool> eligible, CancellationToken token)
     {
         if (name is null) { throw new InvalidOperationException("Select the exact owned instruction ID."); }
-        var loaded = await actions.Inspect(name, eligible, token);
+        var loaded = await Actions.Inspect(name, eligible, token);
         if (!eligible()) { return; }
         baseline = loaded; selectedName = loaded?.Name ?? name; originalText = loaded?.Document.Text ?? string.Empty;
         opened.Source.Text = originalText;
@@ -194,7 +230,7 @@ internal sealed partial class OwnedInstructionEditorController(
             try
             {
                 OwnedInstructionNames.WriteName(loaded.Name);
-                if (!string.Equals(loaded.CanonicalFileName, loaded.Name + ".instructions.md", StringComparison.Ordinal))
+                if (!string.Equals(loaded.CanonicalFileName, loaded.Name + OwnedDefinitionKind.Extension(kind), StringComparison.Ordinal))
                 { throw new InvalidDataException("This original filename is read-only; external editing is required, rename/fork is not implemented."); }
                 loaded.Document.RequireEditableInstruction();
             }
@@ -215,6 +251,20 @@ internal sealed partial class OwnedInstructionEditorController(
     private async Task<bool> AbandonDraft(OwnedInstructionEditorWindow opened, CancellationToken token) =>
         !Dirty || await opened.Choose("Discard current draft?", "Reload/inspect/create will abandon unsaved changes.",
             originalText, opened.Source.Text, ["Discard draft and continue", "Cancel"], token) == 0;
+
+    private async Task<bool> SwitchKind(OwnedInstructionEditorWindow opened, ArtifactKind requestedKind, CancellationToken token)
+    {
+        _ = OwnedDefinitionKind.DirectoryName(requestedKind);
+        if (kind == requestedKind) { return true; }
+        if (!await AbandonDraft(opened, token))
+        { opened.SelectKind(kind); return false; }
+        token.ThrowIfCancellationRequested();
+        kind = requestedKind;
+        baseline = null; selectedName = null; originalText = string.Empty; uncertain = false;
+        opened.Source.Text = string.Empty; opened.NameInput.Text = string.Empty; opened.Files.ItemsSource = null;
+        opened.SelectKind(kind);
+        return true;
+    }
 
     private void OnClosing(object? sender, WindowClosingEventArgs args)
     {
@@ -255,6 +305,7 @@ internal sealed partial class OwnedInstructionEditorController(
     {
         disposed = true;
         main.OwnedInstructionEditorRequested -= OnRequested;
+        main.OwnedPromptEditorRequested -= OnPromptRequested;
         main.PrivacyClosureRequested -= OnPrivacyClosed;
         main.BindInstructionEditorShutdown(null);
         OnPrivacyClosed(this, EventArgs.Empty);

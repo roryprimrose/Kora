@@ -33,7 +33,7 @@ public sealed class ArtifactFileDocument
             : Text[3] == '\r' ? "\r" : "\n";
         var offset = 3 + newline.Length;
         var upgraded = Text[..offset] + "kora-format: 1" + newline + Text[offset..];
-        var document = Parse(Encode(upgraded, HasBom), ArtifactKind.Instruction, "kora-profile", name);
+        var document = Parse(Encode(upgraded, HasBom), Definition.Kind, "kora-profile", name);
         document.RequireEditableInstruction();
         return document;
     }
@@ -95,8 +95,8 @@ public sealed class ArtifactFileDocument
                 string.Equals(name, command, StringComparison.OrdinalIgnoreCase) ? [name] : [name, command],
                 source, $"disk-{digest[..12]}", digest, content)
             {
-                OwnedInstructionName = kind == ArtifactKind.Instruction && string.Equals(source, "kora-profile", StringComparison.Ordinal) ? fileCommand : null,
-                RequiresInstructionReview = kind == ArtifactKind.Instruction && metadata.ContainsKey("kora-format"),
+                OwnedInstructionName = kind is ArtifactKind.Instruction or ArtifactKind.Prompt && string.Equals(source, "kora-profile", StringComparison.Ordinal) ? fileCommand : null,
+                RequiresInstructionReview = kind is ArtifactKind.Instruction or ArtifactKind.Prompt && metadata.ContainsKey("kora-format"),
             };
             return new(original.ToArray(), text, bom, metadata, definition);
         }
@@ -106,8 +106,9 @@ public sealed class ArtifactFileDocument
 
     public void RequireEditableInstruction()
     {
-        if (Definition.Kind != ArtifactKind.Instruction || !string.Equals(Definition.Source, "kora-profile", StringComparison.Ordinal))
-        { throw new InvalidDataException("Only owned instructions can be edited in this increment."); }
+        _ = OwnedDefinitionKind.DirectoryName(Definition.Kind);
+        if (!string.Equals(Definition.Source, "kora-profile", StringComparison.Ordinal))
+        { throw new InvalidDataException("Only Kora-owned instructions and prompts can be edited."); }
         using var reader = new StringReader(Text);
         var headerBytes = 0;
         var count = 0;
@@ -125,6 +126,10 @@ public sealed class ArtifactFileDocument
         if (Metadata.Keys.Any(key => key is not ("name" or "description" or "kora-format" or "attribution"))
             || Metadata.TryGetValue("kora-format", out var version) && !string.Equals(version, "1", StringComparison.Ordinal))
         { throw new InvalidDataException("Unsupported metadata or reader version. External editing is required; fork is not implemented."); }
+        if (Definition.Kind == ArtifactKind.Prompt
+            && (!Metadata.ContainsKey("name") || !Metadata.ContainsKey("description")
+                || Definition.Content.Contains("${", StringComparison.Ordinal)))
+        { throw new InvalidDataException("Owned prompt editing supports named, described literal saved requests only; parameter or substitution syntax is incompatible."); }
     }
 
     public static byte[] Encode(string text, bool bom)

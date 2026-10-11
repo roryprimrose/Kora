@@ -122,15 +122,23 @@ public sealed partial class App : Avalonia.Application
                 () => Services.GetRequiredService<DesktopInstanceOwnershipBridge>().IsReady
                     && !Services.GetRequiredService<DesktopInstanceOwnershipBridge>().IsHandoffRecoveryRequired,
                 () => Services.GetRequiredService<DesktopInstanceOwnershipBridge>().AdmissionRevision,
-                Services.GetRequiredService<ILogger<OwnedInstructionEditorController>>());
+                Services.GetRequiredService<ILogger<OwnedInstructionEditorController>>(),
+                Services.GetRequiredKeyedService<Kora.Application.Definitions.OwnedInstructionEditorActions>(Kora.Core.Artifacts.ArtifactKind.Prompt),
+                Services.GetRequiredKeyedService<Kora.Application.Definitions.InstructionSaveWorkflow>(Kora.Core.Artifacts.ArtifactKind.Prompt));
             instructionEditor.Bind();
             viewModel.PrivacyClosureRequested += (_, _) =>
                 Services.GetRequiredService<Kora.Application.Definitions.OwnedInstructionEditorActions>().SuspendReviewedUse();
+            viewModel.PrivacyClosureRequested += (_, _) =>
+                Services.GetRequiredKeyedService<Kora.Application.Definitions.OwnedInstructionEditorActions>(Kora.Core.Artifacts.ArtifactKind.Prompt)
+                    .SuspendReviewedUse();
             viewModel.BindOwnedInstructionFreshness(candidate =>
             {
                 var ownership = Services.GetRequiredService<DesktopInstanceOwnershipBridge>().AdmissionRevision;
                 var eligible = viewModel.CaptureInstructionEditorEligibility();
-                return Services.GetRequiredService<Kora.Application.Definitions.OwnedInstructionEditorActions>()
+                var actions = candidate.Kind == Kora.Core.Artifacts.ArtifactKind.Prompt
+                    ? Services.GetRequiredKeyedService<Kora.Application.Definitions.OwnedInstructionEditorActions>(Kora.Core.Artifacts.ArtifactKind.Prompt)
+                    : Services.GetRequiredService<Kora.Application.Definitions.OwnedInstructionEditorActions>();
+                return actions
                     .IsCurrent(candidate, () => eligible()
                         && Services.GetRequiredService<DesktopInstanceOwnershipBridge>().AdmissionRevision == ownership, CancellationToken.None);
             });

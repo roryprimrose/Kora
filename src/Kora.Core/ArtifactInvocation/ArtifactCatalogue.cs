@@ -49,10 +49,16 @@ public sealed class ArtifactCatalogue
         IReadOnlyList<ArtifactDefinition> artifacts)
     {
         ArgumentNullException.ThrowIfNull(artifacts);
-        if (artifacts.Count is 0 or > 128 || artifacts.Any(artifact => artifact is null))
+        if (artifacts.Count is 0 || artifacts.Any(artifact => artifact is null))
         {
             throw new ArgumentException("The artifact catalogue must be nonempty and bounded.", nameof(artifacts));
         }
+        var ownedInstructions = artifacts.Count(artifact => IsOwned(artifact, ArtifactKind.Instruction));
+        var ownedPrompts = artifacts.Count(artifact => IsOwned(artifact, ArtifactKind.Prompt));
+        if (ownedInstructions > OwnedDefinitionKind.MaximumFiles(ArtifactKind.Instruction)
+            || ownedPrompts > OwnedDefinitionKind.MaximumFiles(ArtifactKind.Prompt)
+            || artifacts.Count - ownedInstructions - ownedPrompts > 128)
+        { throw new ArgumentException("The artifact catalogue exceeds its separately bounded owned-kind or existing other-artifact inventory.", nameof(artifacts)); }
         if (artifacts.Select(artifact => artifact.Id).Distinct(StringComparer.Ordinal).Count() != artifacts.Count
             || artifacts.Select(artifact => artifact.CommandName).Distinct(StringComparer.OrdinalIgnoreCase).Count() != artifacts.Count)
         {
@@ -72,6 +78,9 @@ public sealed class ArtifactCatalogue
         }
         return new ReadOnlyCollection<ArtifactDefinition>(artifacts.ToArray());
     }
+
+    private static bool IsOwned(ArtifactDefinition artifact, ArtifactKind kind) =>
+        artifact.Kind == kind && artifact.Source is "kora-profile" && artifact.OwnedInstructionName is not null;
 
     private static bool Equivalent(
         ReadOnlyCollection<ArtifactDefinition> left,

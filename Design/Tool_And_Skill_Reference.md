@@ -118,6 +118,13 @@ prompts, instructions, and agent profiles. The
 owns common `definitions.*` actions and their skill-specific projections;
 this reference does not duplicate their schemas or delivery status.
 
+Current host-only `instructions` / `prompts` editor controls and their native
+exact Save/Delete, Reload/Overwrite/Cancel and separate use review are documented
+in [the native command guide](../docs/commands.md#edit-an-owned-instruction-or-literal-prompt-without-a-model).
+These are not model `definitions.*` tool registrations. The shared closed
+writer supports Kora-owned instructions and literal saved prompts only;
+profile/skill/agent writers, parameters and execution remain unavailable.
+
 ## 9. Content Presentation and Viewing
 
 [Information Display](Information_Display.md) owns inert source/rendered

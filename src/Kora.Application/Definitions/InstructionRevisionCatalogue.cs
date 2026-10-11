@@ -8,7 +8,8 @@ namespace Kora.Application.Definitions;
 
 public sealed class InstructionRevisionCatalogue
 {
-    private const string FileName = "instruction-revisions.json";
+    private readonly string fileName;
+    private readonly ArtifactKind kind;
     private const int MaximumPreferenceBytes = 128 * 1024;
     private static readonly string[] PreferenceProperties = ["Revisions", "Version"];
     private readonly IPreferenceStore store;
@@ -18,8 +19,16 @@ public sealed class InstructionRevisionCatalogue
     private readonly Dictionary<string, string> preparedReviews = new(StringComparer.Ordinal);
     private readonly Dictionary<string, string> enabledForRun = new(StringComparer.Ordinal);
 
-    public InstructionRevisionCatalogue(IApplicationDataPaths paths) : this(new LocalPreferenceStore(paths)) { }
-    internal InstructionRevisionCatalogue(IPreferenceStore store) => this.store = store;
+    public InstructionRevisionCatalogue(IApplicationDataPaths paths, ArtifactKind kind = ArtifactKind.Instruction)
+        : this(new LocalPreferenceStore(paths), kind) { }
+    internal InstructionRevisionCatalogue(IPreferenceStore store, ArtifactKind kind = ArtifactKind.Instruction)
+    {
+        _ = OwnedDefinitionKind.DirectoryName(kind);
+        this.kind = kind;
+        this.store = store;
+        // Keep the instruction v1 state byte/schema contract; the other closed kind has independent state.
+        fileName = kind == ArtifactKind.Instruction ? "instruction-revisions.json" : "prompt-revisions.json";
+    }
 
     public IReadOnlyList<ArtifactDefinition> Reconcile(IReadOnlyList<ArtifactDefinition> discovered)
     {
@@ -28,13 +37,13 @@ public sealed class InstructionRevisionCatalogue
             var before = Load();
             var initial = before is null;
             var state = before ?? new Dictionary<string, string?>(StringComparer.Ordinal);
-            var names = discovered.Where(item => item.OwnedInstructionName is not null)
+            var names = discovered.Where(item => item.Kind == kind && item.OwnedInstructionName is not null)
                 .Select(item => item.OwnedInstructionName!).ToHashSet(StringComparer.Ordinal);
             foreach (var name in state.Keys.Where(name => !names.Contains(name)).ToArray())
             { state.Remove(name); preparedReviews.Remove(name); enabledForRun.Remove(name); }
             var result = discovered.Select(artifact =>
             {
-                if (artifact.OwnedInstructionName is not { } name) { return artifact; }
+                if (artifact.Kind != kind || artifact.OwnedInstructionName is not { } name) { return artifact; }
                 var revision = artifact.OwnedInstructionRevision ?? artifact.Digest;
                 if (!state.TryGetValue(name, out var approved))
                 {
@@ -70,6 +79,7 @@ public sealed class InstructionRevisionCatalogue
 
     public void PrepareActivation(OwnedInstructionSnapshot reviewed)
     {
+        RequireKind(reviewed);
         lock (gate)
         {
             var state = Load() ?? throw new InvalidDataException("Observe the managed catalogue before activation.");
@@ -84,6 +94,7 @@ public sealed class InstructionRevisionCatalogue
 
     public void CompleteActivation(OwnedInstructionSnapshot reviewed)
     {
+        RequireKind(reviewed);
         lock (gate)
         {
             if (unavailable || !string.Equals(preparedReviews.GetValueOrDefault(reviewed.Name), reviewed.Revision, StringComparison.Ordinal))
@@ -106,6 +117,7 @@ public sealed class InstructionRevisionCatalogue
 
     public bool IsEnabled(OwnedInstructionSnapshot snapshot)
         {
+            RequireKind(snapshot);
             lock (gate)
             {
                 if (unavailable) { return false; }
@@ -131,7 +143,7 @@ public sealed class InstructionRevisionCatalogue
 
     private Dictionary<string, string?>? Load()
     {
-        var text = store.ReadText(FileName, MaximumPreferenceBytes);
+        var text = store.ReadText(fileName, MaximumPreferenceBytes);
         if (text is null)
         {
             if (stateObserved) { throw new InvalidDataException("Previously observed instruction revision state is missing; restore verified preferences."); }
@@ -168,11 +180,17 @@ public sealed class InstructionRevisionCatalogue
         {
             if (state.Count > 128 || System.Text.Encoding.UTF8.GetByteCount(text) > MaximumPreferenceBytes)
             { throw new InvalidDataException("The owned instruction revision inventory exceeds its persisted bounds."); }
-            store.WriteText(FileName, text);
-            if (!string.Equals(store.ReadText(FileName, MaximumPreferenceBytes), text, StringComparison.Ordinal))
+            store.WriteText(fileName, text);
+            if (!string.Equals(store.ReadText(fileName, MaximumPreferenceBytes), text, StringComparison.Ordinal))
             { throw new IOException("Instruction revision publication is unconfirmed."); }
             stateObserved = true;
         }
         catch { unavailable = true; throw; }
+    }
+
+    private void RequireKind(OwnedInstructionSnapshot snapshot)
+    {
+        if (snapshot.Document.Definition.Kind != kind)
+        { throw new InvalidDataException("The exact reviewed revision belongs to a different owned kind."); }
     }
 }

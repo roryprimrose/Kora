@@ -288,6 +288,14 @@ file/source lifecycle, kind-specific application, equal UI/voice management,
 editing, and external reload. Prompts remain optional reusable-content support
 for a voice-first product; they do not warrant a parallel capability engine.
 
+The delivered owned instruction/literal prompt editor uses one closed
+Instruction/Prompt writer and admitted save/conflict/review machinery.
+Only host-derived immediate `.instructions.md` / `.prompt.md` targets beneath
+the corresponding Kora data roots are writable. Prompt selection remains
+explicit user-request content through the existing request/provider/approval
+route; it does not register tools, policy or a template engine. See the
+[bounded management increment](Definition_Management.md#bounded-owned-instruction-and-prompt-editor).
+
 The source layout is grouped by content kind, with C# loader/catalogue
 namespaces mirroring their actual folders:
 

@@ -92,7 +92,11 @@ public sealed class EmbeddedUserDocumentationProviderTests
             .Skip(1)
             .ToArray();
 
-        sections.Should().HaveCount(commands.Count + 11);
+        sections.Should().HaveCount(commands.Count + 13);
+        var editor = sections.Single(section => section.StartsWith("Edit an owned instruction or literal prompt without a model", StringComparison.Ordinal));
+        editor.Should().Contain("instructions editor").And.Contain("prompts editor")
+            .And.Contain("same").And.Contain("Reload/Overwrite/Cancel").And.Contain("No paths or body dictation");
+        sections.Should().Contain(section => section.StartsWith("Explicitly select a saved revision", StringComparison.Ordinal));
         var webPage = sections.Single(section => section.StartsWith(
             "Retrieve an explicit web page", StringComparison.Ordinal));
         webPage.Should().Contain("get web page https://example.com/page")

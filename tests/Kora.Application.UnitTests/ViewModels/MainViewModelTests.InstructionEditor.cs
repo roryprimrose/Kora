@@ -20,12 +20,25 @@ public sealed partial class MainViewModelTests
     [InlineData("instructions cancel", "Cancel", null)]
     [InlineData("instructions delete", "Delete", null)]
     [InlineData("instructions activate", "Review use", null)]
+    [InlineData("prompts editor", "List", null)]
+    [InlineData("prompts list", "List", null)]
+    [InlineData("prompts create example", "Create", "example")]
+    [InlineData("Kora, prompts edit example", "Inspect", "example")]
+    [InlineData("prompts inspect example", "Inspect", "example")]
+    [InlineData("prompts save", "Save", null)]
+    [InlineData("prompts reload", "Reload", null)]
+    [InlineData("prompts discard", "Reload", null)]
+    [InlineData("prompts cancel", "Cancel", null)]
+    [InlineData("prompts delete", "Delete", null)]
+    [InlineData("prompts activate", "Review use", null)]
     public async Task InstructionCommandsReachTheSameNativeActionsWithoutInferenceOrContentHistory(string text, string expected, string? name)
     {
         var f = await Fixture.CreateInitializedAsync();
         string? actual = null;
         string? target = null;
         f.ViewModel.OwnedInstructionEditorRequested += (action, selected) =>
+        { actual = action; target = selected; return Task.CompletedTask; };
+        f.ViewModel.OwnedPromptEditorRequested += (action, selected) =>
         { actual = action; target = selected; return Task.CompletedTask; };
         await f.RunAsync(text);
         actual.Should().Be(expected);
@@ -44,6 +57,11 @@ public sealed partial class MainViewModelTests
         await f.RunAsync("instructions create example extra body");
         await f.RunAsync("instructions save example");
         await f.RunAsync("instructions unknown");
+        await f.RunAsync("prompts save");
+        await f.RunAsync("prompts create");
+        await f.RunAsync("prompts create example extra body");
+        await f.RunAsync("prompts save example");
+        await f.RunAsync("prompts unknown");
         f.Reasoner.Requests.Should().BeEmpty();
         var asked = 0;
         f.ViewModel.BindInstructionEditorShutdown(() => { asked++; return Task.FromResult(false); });
@@ -71,24 +89,33 @@ public sealed partial class MainViewModelTests
     }
 
     [Theory]
-    [InlineData("missing")]
-    [InlineData("stale")]
-    [InlineData("current")]
-    public async Task OwnedInstructionLookupRequiresFreshnessBeforeStartingReasoning(string condition)
+    [InlineData("missing", ArtifactKind.Instruction)]
+    [InlineData("stale", ArtifactKind.Instruction)]
+    [InlineData("current", ArtifactKind.Instruction)]
+    [InlineData("missing", ArtifactKind.Prompt)]
+    [InlineData("stale", ArtifactKind.Prompt)]
+    [InlineData("current", ArtifactKind.Prompt)]
+    public async Task OwnedInstructionLookupRequiresFreshnessBeforeStartingReasoning(string condition, ArtifactKind kind)
     {
-        var f = await Fixture.CreateInitializedAsync();
-        var artifact = ArtifactFileDocument.Parse(ArtifactFileDocument.Encode("---\ndescription: Test\n---\nBody", false),
-            ArtifactKind.Instruction, "kora-profile", "example").Definition;
+        var f = new Fixture();
+        f.Probe.Status = new("local.inference", "Local model", DependencyReadiness.Ready, "ready");
+        await f.ViewModel.InitializeAsync();
+        var artifact = ArtifactFileDocument.Parse(ArtifactFileDocument.Encode("---\nkora-format: 1\nname: example\ndescription: Test\n---\nBody", false),
+            kind, "kora-profile", "example").Definition;
         f.ArtifactCatalogue.Publish([artifact]);
         if (condition is not "missing")
         { f.ViewModel.BindOwnedInstructionFreshness(_ => Task.FromResult(condition is "current")); }
-        f.Probe.Status = new("local.inference", "Local model", DependencyReadiness.Ready, "ready");
-        await f.RunAsync("/instruction example request");
+        await f.RunAsync("/" + kind.ToString().ToLowerInvariant() + " example request");
         if (f.ViewModel.ActiveReasoningTask is { } task) { await task; }
         if (condition is not "current")
         {
             f.ViewModel.ResponseTitle.Should().Contain("stale or unavailable");
             f.Reasoner.Requests.Should().BeEmpty();
+        }
+        else
+        {
+            f.Reasoner.LastArtifact.Should().NotBeNull();
+            f.Reasoner.LastArtifact!.IsLiteralPrompt.Should().Be(kind == ArtifactKind.Prompt);
         }
         f.ViewModel.BindOwnedInstructionFreshness(null);
     }

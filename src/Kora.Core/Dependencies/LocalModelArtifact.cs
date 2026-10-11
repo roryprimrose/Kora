@@ -9,4 +9,8 @@ public sealed record LocalModelArtifact(
     string Source,
     string Version,
     string Digest,
-    string Instructions);
+    string Instructions)
+{
+    [System.Text.Json.Serialization.JsonIgnore]
+    public bool IsLiteralPrompt { get; init; }
+}

@@ -2,11 +2,18 @@ using Avalonia.Controls;
 using Avalonia.Layout;
 using Avalonia.Media;
 
+using Kora.Core.Artifacts;
+
 namespace Kora;
 
 internal sealed class OwnedInstructionEditorWindow : Window
 {
     internal readonly ComboBox Files = new() { Width = 240 };
+    internal readonly ComboBox KindInput = new()
+    {
+        Width = 140, ItemsSource = new[] { ArtifactKind.Instruction, ArtifactKind.Prompt },
+        SelectedItem = ArtifactKind.Instruction,
+    };
     internal readonly TextBox NameInput = new() { Width = 240, PlaceholderText = "lowercase-owned-id" };
     internal readonly TextBox Source = new()
     {
@@ -15,13 +22,16 @@ internal sealed class OwnedInstructionEditorWindow : Window
     };
     private readonly TextBlock status = new() { TextWrapping = TextWrapping.Wrap };
     private Window? activeReview;
+    private bool selectingKind;
 
     internal OwnedInstructionEditorWindow(Action<string> run)
     {
-        Title = "Kora-owned instruction editor";
+        Title = "Kora-owned instruction and prompt editor";
         Width = 960;
         Height = 720;
         var controls = new WrapPanel { Orientation = Orientation.Horizontal };
+        controls.Children.Add(KindInput);
+        KindInput.SelectionChanged += (_, _) => { if (!selectingKind) { run("Kind"); } };
         controls.Children.Add(Files);
         controls.Children.Add(NameInput);
         foreach (var action in new[] { "List", "Create", "Inspect", "Save", "Reload", "Delete", "Review use" })
@@ -35,9 +45,9 @@ internal sealed class OwnedInstructionEditorWindow : Window
         panel.Children.Add(controls);
         var disclosure = new TextBlock
         {
-            Text = "Only Kora roaming Instructions/*.instructions.md. Profile files and bundled definitions are read-only. "
+            Text = "Source: Kora-owned roaming Instructions/*.instructions.md or Prompts/*.prompt.md; select kind explicitly. Profile files and bundled definitions are read-only. "
                 + "Native source editing only; no model, dictation, scripts, rename, restore or fork. "
-                + "Save is not activation. Use review permits explicit instruction invocation for a new request only.",
+                + "Save is not activation. Review permits explicit selection for a new request only. Prompts are literal saved user requests, not system guidance or parameters.",
             TextWrapping = TextWrapping.Wrap, Margin = new(0, 10),
         };
         DockPanel.SetDock(disclosure, Dock.Top);
@@ -49,6 +59,12 @@ internal sealed class OwnedInstructionEditorWindow : Window
     }
 
     internal void Report(string text) => status.Text = text;
+    internal void SelectKind(ArtifactKind kind)
+    {
+        selectingKind = true;
+        try { KindInput.SelectedItem = kind; }
+        finally { selectingKind = false; }
+    }
     internal void CancelReview() => activeReview?.Close();
     internal void ClearPrivateText() { Source.Text = string.Empty; NameInput.Text = string.Empty; Files.ItemsSource = null; status.Text = string.Empty; }
 

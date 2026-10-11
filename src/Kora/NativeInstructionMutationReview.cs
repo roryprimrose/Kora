@@ -3,21 +3,22 @@ using Kora.Core.Artifacts;
 
 namespace Kora;
 
-internal sealed class NativeInstructionMutationReview(OwnedInstructionEditorWindow window, string sourceRoot, Func<bool> current) : IInstructionMutationReview
+internal sealed class NativeInstructionMutationReview(OwnedInstructionEditorWindow window, string sourceRoot, Func<bool> current,
+    ArtifactKind kind = ArtifactKind.Instruction) : IInstructionMutationReview
 {
     public async Task<bool> Confirm(string name, OwnedInstructionSnapshot? expected, ArtifactFileDocument? proposed, CancellationToken token)
     {
         if (!Avalonia.Threading.Dispatcher.UIThread.CheckAccess())
         { return await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => Confirm(name, expected, proposed, token)); }
         if (!current()) { return false; }
-        return await window.Choose(proposed is null ? "Delete exact owned instruction" : "Save exact owned instruction",
-            $"Owned ID: {name}\nExact source: {Path.Combine(sourceRoot, expected?.CanonicalFileName ?? name + ".instructions.md")}\nBase revision: {expected?.Revision ?? "(new)"}\n"
+        return await window.Choose(proposed is null ? $"Delete exact owned {kind}" : $"Save exact owned {kind}",
+            $"Owned kind: {kind}; ID: {name}\nExact source: {Path.Combine(sourceRoot, expected?.CanonicalFileName ?? name + OwnedDefinitionKind.Extension(kind))}\nBase revision: {expected?.Revision ?? "(new)"}\n"
             + $"Base digest: {expected?.Document.Definition.Digest ?? "(missing/new)"}\n"
             + $"New digest: {proposed?.Definition.Digest ?? "(delete)"}\n"
             + $"Changed fields: {ChangedFields(expected?.Document, proposed)}\n"
             + "Full original and proposed source shown, including all metadata, body and attribution. "
             + "Final disk comparison is optimistic: an edit after that comparison may be overwritten by complete-byte atomic replacement. "
-            + "Only this host-derived owned file changes. Save does not activate guidance.",
+            + "Only this host-derived owned file changes. Save does not permit use or execution.",
             expected?.Document.Text, proposed?.Text, [proposed is null ? "Confirm delete" : "Confirm save", "Cancel"], token) == 0 && current();
     }
 
@@ -26,7 +27,7 @@ internal sealed class NativeInstructionMutationReview(OwnedInstructionEditorWind
         if (!Avalonia.Threading.Dispatcher.UIThread.CheckAccess())
         { return await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => Conflict(observed, proposed, token)); }
         if (!current()) { return InstructionConflictChoice.Cancel; }
-        return (InstructionConflictChoice)await window.Choose("Instruction conflict",
+        return (InstructionConflictChoice)await window.Choose($"{kind} conflict",
             "Disk changed or the base is missing/replaced. Your draft is preserved.\n"
             + $"Detected disk digest: {observed?.Document.Definition.Digest ?? "(missing)"}\n"
             + "Reload abandons Kora changes; Overwrite explicitly reviews replacement of this detected revision; Cancel keeps the draft. "

@@ -78,7 +78,7 @@ public sealed class SystemTrayController : IDisposable
         menu.Add(documentationItem);
         if (editOwnedInstructions is not null)
         {
-            var instructionEditor = new NativeMenuItem("Owned instructions (native editor)");
+            var instructionEditor = new NativeMenuItem("Owned instructions and prompts (native editor)");
             instructionEditor.Click += (_, _) => RunAfterNativeMenuCloses(editOwnedInstructions);
             menu.Add(instructionEditor);
         }

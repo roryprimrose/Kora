@@ -9,18 +9,21 @@ public sealed class WindowsDiskArtifactDiscovery
     private const int MaximumFiles = 128;
     private readonly IReadOnlyList<ArtifactRoot> roots;
     private readonly WindowsOwnedInstructionStore? ownedInstructions;
+    private readonly WindowsOwnedInstructionStore? ownedPrompts;
 
     public WindowsDiskArtifactDiscovery(
         IApplicationDataPaths paths,
         ArtifactDirectorySettings? additionalDirectories = null,
         WindowsOwnedInstructionStore? ownedInstructions = null,
-        string? profileRoamingRoot = null)
+        string? profileRoamingRoot = null,
+        WindowsOwnedInstructionStore? ownedPrompts = null)
         : this(CreateRoots(
             paths,
             additionalDirectories ?? ArtifactDirectorySettings.Empty,
             profileRoamingRoot ?? Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData)))
     {
         this.ownedInstructions = ownedInstructions ?? new WindowsOwnedInstructionStore(paths);
+        this.ownedPrompts = ownedPrompts ?? new WindowsOwnedInstructionStore(paths, ArtifactKind.Prompt);
     }
 
     internal WindowsDiskArtifactDiscovery(
@@ -42,15 +45,33 @@ public sealed class WindowsDiskArtifactDiscovery
     public IReadOnlyList<ArtifactDefinition> Load()
     {
         var files = new List<(ArtifactRoot Root, string Path)>();
-        foreach (var root in roots.Where(root => Directory.Exists(root.Path)))
+        var managed = new List<ArtifactDefinition>();
+        foreach (var root in roots)
         {
+            var owned = root.Source is "kora-profile" ? root.Kind switch
+            {
+                ArtifactKind.Instruction => ownedInstructions,
+                ArtifactKind.Prompt => ownedPrompts,
+                _ => null,
+            } : null;
+            if (owned is not null)
+            {
+                foreach (var name in owned.ListVerified(CancellationToken.None))
+                {
+                    var snapshot = owned.ReadVerified(name, CancellationToken.None)
+                        ?? throw new IOException("A discovered owned definition disappeared.");
+                    managed.Add(snapshot.Document.Definition with { OwnedInstructionRevision = snapshot.Revision });
+                }
+                continue;
+            }
+            if (!Directory.Exists(root.Path)) { continue; }
             Discover(root, root.Path, 0, files);
         }
         if (files.Count > MaximumFiles)
         {
             throw new InvalidDataException($"Artifact discovery exceeds the {MaximumFiles}-file limit.");
         }
-        return files.Select(item => Parse(item.Root, item.Path)).OfType<ArtifactDefinition>().ToArray();
+        return [.. managed, .. files.Select(item => Parse(item.Root, item.Path)).OfType<ArtifactDefinition>()];
     }
 
     private static ArtifactRoot[] CreateRoots(

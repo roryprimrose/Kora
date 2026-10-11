@@ -1217,6 +1217,20 @@ specific grant already covers that action. Kora limits consecutive questions
 to three; start a new request with more details if it reaches that limit.
 ## Run skills and artifacts
 
+### Edit an owned instruction or literal prompt without a model
+
+Type `instructions editor` or `prompts editor`, or say the same control prefixed
+with the current assistant name. Both focus the same native editor with explicit
+Instruction/Prompt kind selection. `list`, `create <id>`, `edit <id>`,
+`inspect <id>`, `save`, `reload`, `discard`, `delete`, `activate` and `cancel`
+are the exact controls after either plural kind name. Only create/edit/inspect
+accept one canonical file ID; other controls target the open original.
+No paths or body dictation are accepted. Save/Delete and separate exact-use review
+remain native; detected conflicts offer Reload/Overwrite/Cancel. See
+[native editor and limits](instruction-editor.md).
+
+### Explicitly select a saved revision
+
 Kora can apply a bundled or disk-backed skill, instruction, prompt, or agent
 artifact to a local-model request from the command box or activated voice.
 
@@ -1285,8 +1299,12 @@ digest, and catalogue-conflict rules. Skills marked `user-invocable: false` do
 not appear. Conflicting command names, IDs, or spoken names fail closed instead
 of choosing one source silently. Kora watches default and configured locations
 and automatically publishes a complete valid replacement catalogue after
-changes. Invalid or partially written content leaves the last valid catalogue
-active and reports the reload failure; no restart is needed. Loading an agent
+changes. Invalid or partially written content reports reload failure; retained
+historical catalogue data does not keep managed owned instructions/prompts usable.
+New/changed managed revisions require separate current-run exact review and native
+freshness before explicit selection; old bytes do not restore withdrawn use.
+Managed prompts are literal saved user-request content, not system guidance.
+No restart is needed. Loading an agent
 artifact applies its declarative instructions; it does not start an autonomous
 agent runtime.
 

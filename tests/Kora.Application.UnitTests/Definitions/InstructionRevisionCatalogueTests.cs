@@ -1,6 +1,7 @@
 using AwesomeAssertions;
 
 using Kora.Application.Definitions;
+using Kora.Application.Configuration;
 using Kora.Application.UnitTests.Configuration;
 using Kora.Core.Artifacts;
 using Kora.Core.Dependencies;
@@ -9,25 +10,27 @@ namespace Kora.Application.UnitTests.Definitions;
 
 public sealed class InstructionRevisionCatalogueTests
 {
-    private static OwnedInstructionSnapshot Snapshot(bool native = true, string body = "Body") =>
+    private static OwnedInstructionSnapshot Snapshot(bool native = true, string body = "Body", ArtifactKind kind = ArtifactKind.Instruction) =>
         new("example", new string('a', 48), new string('b', 48),
-            ArtifactFileDocument.Parse(ArtifactFileDocument.Encode($"---\n{(native ? "kora-format: 1\n" : "")}description: Test\n---\n{body}", false),
-                ArtifactKind.Instruction, "kora-profile", "example"));
+            ArtifactFileDocument.Parse(ArtifactFileDocument.Encode($"---\n{(native ? "kora-format: 1\n" : "")}name: example\ndescription: Test\n---\n{body}", false),
+                kind, "kora-profile", "example"));
     private static ArtifactDefinition Candidate(OwnedInstructionSnapshot snapshot) =>
         snapshot.Document.Definition with { OwnedInstructionRevision = snapshot.Revision };
 
-    [Fact]
-    public void NativeRevisionsRemainDisabledAcrossReloadRestartChangeDeletionAndRestoration()
+    [Theory]
+    [InlineData(ArtifactKind.Instruction)]
+    [InlineData(ArtifactKind.Prompt)]
+    public void NativeRevisionsRemainDisabledAcrossReloadRestartChangeDeletionAndRestoration(ArtifactKind kind)
     {
         var store = new LocalSharedSkillPreferencesTests.Store();
-        var registry = new InstructionRevisionCatalogue(store);
-        var snapshot = Snapshot();
+        var registry = new InstructionRevisionCatalogue(store, kind);
+        var snapshot = Snapshot(kind: kind);
         registry.Reconcile([Candidate(snapshot)]).Single().IsUseEnabled.Should().BeFalse();
         registry.PrepareActivation(snapshot);
         registry.CompleteActivation(snapshot);
         registry.Reconcile([Candidate(snapshot)]).Single().IsUseEnabled.Should().BeTrue();
-        new InstructionRevisionCatalogue(store).Reconcile([Candidate(snapshot)]).Single().IsUseEnabled.Should().BeFalse();
-        var changed = Snapshot(body: "Changed");
+        new InstructionRevisionCatalogue(store, kind).Reconcile([Candidate(snapshot)]).Single().IsUseEnabled.Should().BeFalse();
+        var changed = Snapshot(body: "Changed", kind: kind);
         registry.Reconcile([Candidate(changed)]).Single().IsUseEnabled.Should().BeFalse();
         registry.Reconcile([Candidate(snapshot)]).Single().IsUseEnabled.Should().BeFalse();
         registry.PrepareActivation(snapshot);
@@ -36,6 +39,46 @@ public sealed class InstructionRevisionCatalogueTests
         registry.Reconcile([Candidate(snapshot)]).Single().IsUseEnabled.Should().BeFalse();
         registry.MarkUnavailable();
         registry.Reconcile([Candidate(snapshot)]).Single().IsUseEnabled.Should().BeFalse();
+    }
+
+    [Fact]
+    public void IdenticalOwnedNamesHaveSeparateKindStateAndInstructionV1BytesAreNotMigrated()
+    {
+        var store = new KindStore();
+        var instructions = new InstructionRevisionCatalogue(store);
+        var prompts = new InstructionRevisionCatalogue(store, ArtifactKind.Prompt);
+        var instruction = Snapshot(native: false);
+        var prompt = Snapshot(kind: ArtifactKind.Prompt);
+        var first = instructions.Reconcile([Candidate(instruction), Candidate(prompt)]);
+        var originalState = store.Text["instruction-revisions.json"];
+        var both = prompts.Reconcile(first);
+        both[0].IsUseEnabled.Should().BeTrue();
+        both[1].IsUseEnabled.Should().BeFalse();
+        store.Text["instruction-revisions.json"].Should().Be(originalState);
+        prompts.PrepareActivation(prompt);
+        prompts.CompleteActivation(prompt);
+        prompts.IsEnabled(prompt).Should().BeTrue();
+        instructions.IsEnabled(instruction).Should().BeTrue();
+        prompts.Hold("example");
+        prompts.IsEnabled(prompt).Should().BeFalse();
+        instructions.IsEnabled(instruction).Should().BeTrue();
+        ((Action)(() => prompts.PrepareActivation(instruction))).Should().Throw<InvalidDataException>();
+        ((Action)(() => prompts.CompleteActivation(instruction))).Should().Throw<InvalidDataException>();
+        ((Action)(() => prompts.IsEnabled(instruction))).Should().Throw<InvalidDataException>();
+        var restarted = new InstructionRevisionCatalogue(store, ArtifactKind.Prompt);
+        restarted.Reconcile(both)[1].IsUseEnabled.Should().BeFalse();
+        store.Text.Remove("prompt-revisions.json");
+        ((Action)(() => restarted.Reconcile(both))).Should().Throw<InvalidDataException>();
+    }
+
+    private sealed class KindStore : IPreferenceStore
+    {
+        internal readonly Dictionary<string, string> Text = new(StringComparer.Ordinal);
+        public string? ReadText(string fileName) => Text.GetValueOrDefault(fileName);
+        public void WriteText(string fileName, string contents) => Text[fileName] = contents;
+        public string[]? ReadLines(string fileName) => throw new NotSupportedException();
+        public void WriteLines(string fileName, IEnumerable<string> contents) => throw new NotSupportedException();
+        public void Delete(string fileName) => throw new NotSupportedException();
     }
 
     [Fact]

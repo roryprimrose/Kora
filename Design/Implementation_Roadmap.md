@@ -70,6 +70,13 @@ Maintained codec/workflow, private native SQLite/audit composition, native edito
 They do not replace unique RT1/RT2/PV1, offline inference, containment, hardware, installed/native accessibility or storage evidence. No experiments are modified or retired.
 Profile-original publication remains explicitly deferred; template/skill/agent runtime, refinement and expanded applicability gates are unchanged.
 
+### R14 optional native prerequisite parity - 2026-10-12
+
+One new fixed-read enqueue can explicitly choose None or an exact same-session prerequisite from the already-observed bounded task metadata list. Four native buttons use the original exact command/application/audited store path and optional real revision guard at COMMIT.
+Refresh/private/source changes refuse stale choices; successful enqueue clears the next decision. No existing dependency editing, cross-session native picker, automatic dispatch or model management is delivered.
+
+Maintained native event/accessibility-label, real SQLite revision/private-boundary and existing queue/profile/order tests cover this consumer parity. No experiments are changed or retired; unique RT1/RT2/MG1/PV1, offline/containment, hardware/storage, installed-native/accessibility and physical-stop gates remain open.
+
 ### R13 selected pending cancellation increment - 2026-10-12
 
 One-session/current-run pending-only subset review and separate atomic confirmation are delivered through native/exact/current-name activated routes.

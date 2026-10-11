@@ -615,6 +615,7 @@ public sealed partial class SessionWorkspaceServiceTests
         internal QueueClock QueueTime { get; } = new();
         internal SessionQueueLimits? LastAdmittedLimits { get; private set; }
         internal Func<SessionQueueLimits, Task>? BeforeEnqueue { get; set; }
+        internal HostRevision? LastExpectedDependencyRevision { get; private set; }
         private SessionQueueDispatchControl? dispatchControl;
         private SessionQueueOrder? explicitOrder;
         internal Action? BeforeMove { get; set; }
@@ -738,8 +739,10 @@ public sealed partial class SessionWorkspaceServiceTests
             ValueTask.FromResult(QueueRows.SingleOrDefault(entry => entry.Request.TaskId == task));
         public async ValueTask<SessionQueueSnapshot> EnqueueAsync(HostRequest control, HostRequest work, HostRevision generation,
             long expectedRevision, long admissionRevision, HostId<TaskIdentity>? dependency, SessionQueueLimits limits,
-            Func<bool> eligible, CancellationToken token, SessionQueueReadProfile profile = SessionQueueReadProfile.Version)
+            Func<bool> eligible, CancellationToken token, SessionQueueReadProfile profile = SessionQueueReadProfile.Version,
+            HostRevision? expectedDependencyRevision = null)
         {
+            LastExpectedDependencyRevision = expectedDependencyRevision;
             QueueCheck("enqueue");
             if (BeforeEnqueue is { } before) { await before(limits); }
             if (!eligible()) { throw new InvalidOperationException("Private admission changed."); }

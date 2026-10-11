@@ -12,6 +12,25 @@ Related: [Interaction and Sessions](Interaction_And_Sessions.md), [Architecture]
 
 ## Delivered deterministic local-version queue
 
+### Delivered optional native enqueue prerequisite - 2026-10-12
+
+Native Sessions now offers explicit **None** or an independent exact prerequisite selection for each of the four fixed-read Enqueue buttons. The picker uses only the existing at-most-50 same-session nonqueue task metadata projection, not task bodies, history, artifacts, providers or another session.
+Each inert row shows immutable task/session IDs, observed generation/state/revision, UTC observation time and host source.
+
+None is the initial unchanged route. Enqueue captures the exact selected ID and real task revision through the same `SessionCommand`, application service and audited SQLite enqueue transaction as typed `[after <task-id>]`.
+The optional native revision guard restricts that observation to the addressed session and is checked again before physical COMMIT; typed arbitrary exact after-task semantics need no new field and remain unchanged.
+
+Selection is independent of Work/question/cancellation selections and is never inferred by name or index. Work/queue refresh, session/source/generation/private/control changes and closure revoke it. Missing/deleted/changed tasks refuse without falling back to None.
+Successful enqueue clears the choice; explicitly choose None or reselect before the next read. Unavailable/stale and empty observations are labelled; no omitted-task scan is performed.
+
+Only exact Succeeded permits normal dispatch. Running/pending/terminal prerequisites may be retained under the existing dependency contract; failed/cancelled/Unknown or pending prerequisites can block the FIFO head. Normal dispatch reevaluates current state, not a frozen success or approval.
+Enqueue never dispatches, grants authority, edits existing dependencies or changes clocks, pause/hold, capacity, order, digests or no-replay recovery.
+
+Maintained [actual native wiring and commit-boundary tests](../tests/Kora.Windows.IntegrationTests/SessionsQueuePrerequisiteTests.cs) and [private SQLite contract tests](../tests/Kora.Windows.IntegrationTests/Storage/WindowsSqliteSessionQueueTests.Prerequisites.cs) cover this bounded parity.
+Existing queue/order/retention and fixed-profile consumers remain authoritative. Cross-session native selection, automatic/model management and existing dependency editing are not delivered.
+
+No experiment is edited or retired. These deterministic consumer checks do not replace unique RT1/RT2/MG1/PV1, local/offline quality, containment, hardware/storage, installed-native/accessibility or physical-stop qualification.
+
 ### Delivered atomic selected pending cancellation - 2026-10-12
 
 Native Sessions has an independent current-run pending-only multi-selection, not the existing task/question selection. Review lists the complete count and exact dispatch-ordered IDs/revisions, profiles and original deadlines. Separate **Cancel these pending entries only** confirms all and only those entries; cancel review keeps the selection and draft without writes.

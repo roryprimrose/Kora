@@ -15,6 +15,26 @@ public sealed partial class SessionWorkspaceServiceTests
     [InlineData(SessionQueueReadProfile.Capabilities)]
     [InlineData(SessionQueueReadProfile.Readiness)]
     [InlineData(SessionQueueReadProfile.Runtimes)]
+    public async Task NativeOptionalGuardForwardsExactDependencyAndRealRevisionThroughOriginalCommandService(SessionQueueReadProfile profile)
+    {
+        using var f = new Fixture();
+        await using var queue = f.QueueService();
+        var dependency = new HostId<TaskIdentity>(Guid.NewGuid());
+        await queue.ExecuteCommandAsync(f.QueueCommand(SessionCommandOperation.QueueEnqueue) with
+        {
+            QueueProfile = profile, DependencyTaskId = dependency.Value, ExpectedDependencyRevision = new(7),
+        }, RequestOrigin.LocalUi, () => true, f.Token);
+        f.QueueRows.Single().Dependency.Should().Be(dependency);
+        f.QueueRows.Single().ReadProfile.Should().Be(profile);
+        f.LastExpectedDependencyRevision.Should().Be(new HostRevision(7));
+        f.QueueActions.Should().Be(0);
+    }
+
+    [Theory]
+    [InlineData(SessionQueueReadProfile.Version)]
+    [InlineData(SessionQueueReadProfile.Capabilities)]
+    [InlineData(SessionQueueReadProfile.Readiness)]
+    [InlineData(SessionQueueReadProfile.Runtimes)]
     public async Task Every_fixed_profile_preserves_original_route_and_truthful_result(SessionQueueReadProfile profile)
     {
         using var f = new Fixture();

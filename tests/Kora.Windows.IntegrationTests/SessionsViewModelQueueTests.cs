@@ -35,8 +35,11 @@ public sealed class SessionsViewModelQueueTests
             await viewer.RefreshAsync();
             await viewer.SelectAsync(viewer.Sessions.Single());
             await viewer.EnqueueVersionAsync();
+            viewer.ChooseNoQueuePrerequisite();
             await viewer.EnqueueCapabilitiesAsync();
+            viewer.ChooseNoQueuePrerequisite();
             await viewer.EnqueueReadinessAsync();
+            viewer.ChooseNoQueuePrerequisite();
             await viewer.EnqueueRuntimesAsync();
             var original = viewer.QueueRecords.ToArray();
             viewer.NameDraft = "unchanged draft";
@@ -104,6 +107,7 @@ public sealed class SessionsViewModelQueueTests
             await viewer.RefreshAsync();
             await viewer.SelectAsync(viewer.Sessions.Single());
             await viewer.EnqueueVersionAsync();
+            viewer.ChooseNoQueuePrerequisite();
             await viewer.EnqueueCapabilitiesAsync();
             var original = viewer.QueueRecords.ToArray();
             viewer.NameDraft = "unchanged draft";
@@ -163,8 +167,11 @@ public sealed class SessionsViewModelQueueTests
             await viewer.RefreshAsync();
             await viewer.SelectAsync(viewer.Sessions.Single());
             await viewer.EnqueueVersionAsync();
+            viewer.ChooseNoQueuePrerequisite();
             await viewer.EnqueueCapabilitiesAsync();
+            viewer.ChooseNoQueuePrerequisite();
             await viewer.EnqueueReadinessAsync();
+            viewer.ChooseNoQueuePrerequisite();
             await viewer.EnqueueRuntimesAsync();
             viewer.QueueRecords.Select(entry => entry.ReadProfile).Should().Equal(Enum.GetValues<SessionQueueReadProfile>());
             viewer.WorkRecords.Should().Contain(row => row.State.Contains(ReadOnlyCapabilityCatalog.RuntimeList, StringComparison.Ordinal));
@@ -204,6 +211,7 @@ public sealed class SessionsViewModelQueueTests
         await viewer.RefreshAsync();
         await viewer.SelectAsync(viewer.Sessions.Single());
         await viewer.EnqueueVersionAsync();
+        viewer.ChooseNoQueuePrerequisite();
         await viewer.EnqueueVersionAsync();
         var pending = viewer.QueueRecords[^1];
         action.BeforeObserve = () =>
@@ -267,14 +275,17 @@ public sealed class SessionsViewModelQueueTests
         viewer.QueueRecords.Should().BeEmpty();
         (await fixture.Store.ReadQueueEntryAsync(first.Request.SessionId, first.Request.TaskId, fixture.Token))!
             .State.Should().Be(SessionQueueState.Cancelled);
+        viewer.ChooseNoQueuePrerequisite();
         await viewer.EnqueueVersionAsync();
         await viewer.ClearQueueAsync();
         viewer.QueueRecords.Should().BeEmpty();
+        viewer.ChooseNoQueuePrerequisite();
         await viewer.EnqueueVersionAsync();
         await viewer.DispatchQueueAsync();
         action.Reads.Should().Be(1);
         viewer.QueueRecords.Should().BeEmpty();
         viewer.Detail.Should().Contain("1.0.0");
+        viewer.ChooseNoQueuePrerequisite();
         await viewer.EnqueueVersionAsync();
         access.ControlRevision++;
         await viewer.DispatchQueueAsync();

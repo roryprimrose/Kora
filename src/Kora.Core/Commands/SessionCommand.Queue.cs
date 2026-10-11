@@ -11,6 +11,7 @@ public sealed partial record SessionCommand
     public long QueueRevision { get; init; }
     public Guid? WorkRequestId { get; init; }
     public Guid? DependencyTaskId { get; init; }
+    public HostRevision? ExpectedDependencyRevision { get; init; }
     public Guid? QueueRunId { get; init; }
     public long QueueControlRevision { get; init; }
     public Guid? QueueNeighborId { get; init; }

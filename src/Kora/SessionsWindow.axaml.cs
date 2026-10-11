@@ -109,6 +109,9 @@ internal sealed partial class SessionsWindow : Window
         ConfirmPendingCancellation.Click += async (_, _) => await model.ConfirmPendingCancellationAsync();
         DiscardPendingCancellation.Click += async (_, _) => await model.DiscardPendingCancellationAsync();
         ReadQueue.Click += async (_, _) => await model.RefreshWorkAsync();
+        NoQueuePrerequisite.Click += (_, _) => model.ChooseNoQueuePrerequisite();
+        QueuePrerequisites.SelectionChanged += (_, _) =>
+            model.SelectQueuePrerequisite(QueuePrerequisites.SelectedItem as QueuePrerequisiteOption);
         EnqueueVersion.Click += async (_, _) => await model.EnqueueVersionAsync();
         EnqueueCapabilities.Click += async (_, _) => await model.EnqueueCapabilitiesAsync();
         EnqueueReadiness.Click += async (_, _) => await model.EnqueueReadinessAsync();

@@ -187,10 +187,14 @@
                   AutomationProperties.Name="Review selected exact pending ID swapping only with its displayed previous pending neighbor" />
           <Button x:Name="MoveQueueDown" Content="Review Move _down" IsEnabled="{Binding CanMoveQueueDown}"
                   AutomationProperties.Name="Review selected exact pending ID swapping only with its displayed next pending neighbor" />
-          <Button x:Name="EnqueueVersion" Content="Enqueue local version" IsEnabled="{Binding CanEnqueueVersion}" />
-          <Button x:Name="EnqueueCapabilities" Content="Enqueue capabilities.list" IsEnabled="{Binding CanEnqueueVersion}" />
-          <Button x:Name="EnqueueReadiness" Content="Enqueue readiness.get" IsEnabled="{Binding CanEnqueueVersion}" />
-          <Button x:Name="EnqueueRuntimes" Content="Enqueue runtime.list" IsEnabled="{Binding CanEnqueueVersion}" />
+          <Button x:Name="EnqueueVersion" Content="Enqueue local version" IsEnabled="{Binding CanEnqueueVersion}"
+                  AutomationProperties.Name="Enqueue version with the explicit optional prerequisite choice; no automatic dispatch" />
+          <Button x:Name="EnqueueCapabilities" Content="Enqueue capabilities.list" IsEnabled="{Binding CanEnqueueVersion}"
+                  AutomationProperties.Name="Enqueue capabilities.list with the explicit optional prerequisite choice; no automatic dispatch" />
+          <Button x:Name="EnqueueReadiness" Content="Enqueue readiness.get" IsEnabled="{Binding CanEnqueueVersion}"
+                  AutomationProperties.Name="Enqueue readiness.get with the explicit optional prerequisite choice; no automatic dispatch" />
+          <Button x:Name="EnqueueRuntimes" Content="Enqueue runtime.list" IsEnabled="{Binding CanEnqueueVersion}"
+                  AutomationProperties.Name="Enqueue runtime.list with the explicit optional prerequisite choice; no automatic dispatch" />
           <Button x:Name="DispatchQueue" Content="Dispatch ready fixed reads fairly" IsEnabled="{Binding CanControlQueue}"
                   AutomationProperties.Name="Explicit manual bounded fair dispatch among already enqueued current-run sessions; no effect or provider execution" />
           <Button x:Name="PauseQueue" Content="Pause this session's new dispatch" IsEnabled="{Binding CanChangeQueuePause}"
@@ -203,6 +207,19 @@
         <ScrollViewer Grid.Row="3" MaxHeight="180" VerticalScrollBarVisibility="Auto"
                       AutomationProperties.Name="Routine notices and pending exact questions; scroll for complete retained cards">
         <StackPanel Spacing="4">
+          <controls:NamedTextBlock Text="{Binding QueuePrerequisiteStatus}" TextWrapping="Wrap"
+                                  AutomationProperties.Name="Optional prerequisite choice and prospective fixed-read consequence; bounded observed metadata only" />
+          <Button x:Name="NoQueuePrerequisite" Content="None: enqueue without a prerequisite" IsEnabled="{Binding CanRead}"
+                  AutomationProperties.Name="Explicitly choose None for the next fixed read; never infer a prerequisite from work selection" />
+          <controls:ScrollableListBox x:Name="QueuePrerequisites" MaxHeight="160"
+                                     ItemsSource="{Binding QueuePrerequisites}"
+                                     SelectedItem="{Binding SelectedQueuePrerequisite, Mode=OneWay}"
+                                     IsEnabled="{Binding CanSelectQueuePrerequisite}"
+                                     AutomationProperties.Name="Optional exact prerequisite task from at most 50 observed same-session metadata rows; IDs, generation, state, revision and UTC source">
+            <ListBox.ItemTemplate>
+              <DataTemplate><TextBlock Text="{Binding Label}" TextWrapping="Wrap" /></DataTemplate>
+            </ListBox.ItemTemplate>
+          </controls:ScrollableListBox>
           <controls:ScrollableListBox x:Name="PendingCancellationEntries" MaxHeight="160"
                                      ItemsSource="{Binding PendingCancellationEntries}" SelectionMode="Multiple,Toggle"
                                      IsEnabled="{Binding CanSelectPendingCancellation}"

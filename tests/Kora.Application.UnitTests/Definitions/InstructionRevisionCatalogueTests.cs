@@ -10,6 +10,30 @@ namespace Kora.Application.UnitTests.Definitions;
 
 public sealed class InstructionRevisionCatalogueTests
 {
+    [Theory]
+    [InlineData(ArtifactKind.Instruction)]
+    [InlineData(ArtifactKind.Prompt)]
+    public void AbsentNativeCopyHoldsCannotConsumeSlotsOrRetireExistingReviewedOriginals(ArtifactKind kind)
+    {
+        var store = new LocalSharedSkillPreferencesTests.Store();
+        var registry = new InstructionRevisionCatalogue(store, kind);
+        var original = Snapshot(kind: kind);
+        registry.Reconcile([Candidate(original)]);
+        registry.PrepareActivation(original);
+        registry.CompleteActivation(original);
+        var bytes = store.Text;
+        for (var index = 0; index < 129; index++) { registry.Hold("new-" + index, existingOnly: true); }
+        store.Text.Should().Be(bytes);
+        registry.IsEnabled(original).Should().BeTrue();
+        registry.Hold(original.Name, existingOnly: true);
+        registry.IsEnabled(original).Should().BeFalse();
+        for (var index = 1; index < 128; index++) { registry.Hold("item-" + index); }
+        bytes = store.Text;
+        registry.Hold("not-in-inventory", existingOnly: true);
+        store.Text.Should().Be(bytes);
+        registry.Reconcile([Candidate(original)]).Single().IsUseEnabled.Should().BeFalse();
+    }
+
     private static OwnedInstructionSnapshot Snapshot(bool native = true, string body = "Body", ArtifactKind kind = ArtifactKind.Instruction) =>
         new("example", new string('a', 48), new string('b', 48),
             ArtifactFileDocument.Parse(ArtifactFileDocument.Encode($"---\n{(native ? "kora-format: 1\n" : "")}name: example\ndescription: Test\n---\n{body}", false),

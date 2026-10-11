@@ -90,7 +90,7 @@ public sealed class OwnedInstructionEditorActions(
             try
             {
                 if (copy is not null) { _ = Validate(name, copy.Proposed.Text, copy.Proposed.HasBom); }
-                if (!unchanged) { HoldRevision(name); }
+                if (!unchanged) { HoldRevision(name, existingOnly: copy is not null); }
                 var result = await store.Write(name, expected, replacement, current,
                     operation => admission.Publish(request, session, current, operation, admitted).AsTask(), admitted).ConfigureAwait(false);
                 publicationObserved = result.Published;
@@ -98,7 +98,7 @@ public sealed class OwnedInstructionEditorActions(
                 if (copy is not null && result.Published && reconcile is not null
                     && !await admission.Publish(request, session, current, () => reconcile(result.Current!), admitted).ConfigureAwait(false))
                 { throw new IOException("The saved copy catalogue is unconfirmed. Inspect the destination; the original draft is retained."); }
-                if (result.Conflict) { HoldRevision(name); }
+                if (result.Conflict) { HoldRevision(name, existingOnly: copy is not null); }
                 auditLog.Write(audit.WithOutcome(result.Conflict ? SecurityAuditOutcome.Failed : SecurityAuditOutcome.Succeeded,
                     result.Conflict ? "base-conflict" : null));
                 return result;
@@ -118,11 +118,11 @@ public sealed class OwnedInstructionEditorActions(
             }
         }, token);
 
-    private void HoldRevision(string name)
+    private void HoldRevision(string name, bool existingOnly = false)
     {
         catalogue.Publish(catalogue.Candidates.Select(item => Matches(item, name)
             ? item with { IsUseEnabled = false } : item).ToArray());
-        revisions.Hold(name);
+        revisions.Hold(name, existingOnly);
     }
 
     public async Task<bool> Activate(OwnedInstructionSnapshot reviewed,

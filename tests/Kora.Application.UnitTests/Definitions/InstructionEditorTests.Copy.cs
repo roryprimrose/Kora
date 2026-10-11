@@ -12,6 +12,29 @@ public sealed partial class InstructionEditorTests
     [Theory]
     [InlineData(ArtifactKind.Instruction)]
     [InlineData(ArtifactKind.Prompt)]
+    public async Task RepeatedFailedCopiesDoNotAccumulateRevisionSlotsOrDisableOriginal(ArtifactKind kind)
+    {
+        await using var f = new Fixture(kind);
+        var source = f.Files.Current!;
+        await f.Actions.Activate(source, _ => Task.FromResult(true), f.Eligible, CancellationToken.None);
+        f.Files.FailWrite = true;
+        for (var index = 0; index < 129; index++)
+        {
+            var name = "separate-" + index;
+            var operation = () => f.Workflow.SaveCopy(name, source, source.Document.Text, new Review(), f.Eligible, CancellationToken.None);
+            await operation.Should().ThrowAsync<IOException>();
+        }
+        f.Files.FailWrite = false;
+        var saved = await f.Workflow.SaveCopy("actual", source, source.Document.Text, new Review(), f.Eligible, CancellationToken.None);
+        saved.Published.Should().BeTrue();
+        f.Revisions.IsEnabled(source).Should().BeTrue();
+        f.Catalogue.Publish(f.Revisions.Reconcile([Candidate(source), Candidate(saved.Current!)]));
+        f.Catalogue.Artifacts.Should().ContainSingle().Which.Id.Should().Be(source.Document.Definition.Id);
+    }
+
+    [Theory]
+    [InlineData(ArtifactKind.Instruction)]
+    [InlineData(ArtifactKind.Prompt)]
     public async Task MaximumOriginalCanProduceShorterDraftCopyAndHeaderGrowthStillUsesAuthoritativeLimits(ArtifactKind kind)
     {
         await using var f = new Fixture(kind);

@@ -64,7 +64,7 @@ public sealed class InstructionRevisionCatalogue
         }
     }
 
-    public void Hold(string name)
+    public void Hold(string name, bool existingOnly = false)
     {
         OwnedInstructionNames.ReadName(name);
         lock (gate)
@@ -72,6 +72,9 @@ public sealed class InstructionRevisionCatalogue
             var state = Load() ?? new Dictionary<string, string?>(StringComparer.Ordinal);
             preparedReviews.Remove(name);
             enabledForRun.Remove(name);
+            // New native copies have no authority to revoke. Failed absent destinations must not
+            // consume persisted slots or make a full unrelated original inventory unavailable.
+            if (existingOnly && !state.ContainsKey(name)) { return; }
             state[name] = null;
             Save(state);
         }

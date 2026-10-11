@@ -14,6 +14,37 @@ namespace Kora.Application.UnitTests.Hosting;
 
 public sealed partial class SessionWorkspaceServiceTests
 {
+    [Theory]
+    [InlineData(LocalFileRetrievalMode.LexicalLines, 2)]
+    [InlineData(LocalFileRetrievalMode.MarkdownStructure, 1)]
+    public async Task RetainedSearchUsesActualValidatedHistoricalSnapshotThroughSharedModeActionWithoutNewReadsOrActivity(
+        LocalFileRetrievalMode mode, int chunks)
+    {
+        using var fixture = new Fixture();
+        const string text = "# Real\n~~~\n# fake\nalpha\n~~~\n";
+        var bytes = Encoding.UTF8.GetBytes(text);
+        fixture.RetainedFile = new(fixture.Request.SessionId, new(1), new(1), new(new(Guid.NewGuid(), Guid.NewGuid(),
+            fixture.Request, new(@"C:\Team\source.md", "exact", bytes.Length, DateTimeOffset.UnixEpoch)), bytes, DateTimeOffset.UnixEpoch));
+        var audit = new FileAudit();
+        await using var service = FileService(fixture, FileAction(new FileCapture(), audit), audit);
+        var writes = fixture.TaskWrites.Count;
+        var exact = fixture.RetainedFile;
+        var result = await service.Search(exact, "Real alpha", mode, fixture.Token);
+        result.MatchingChunks.Should().Be(chunks);
+        result.Citations.Should().OnlyContain(citation => citation.Source == exact.File.Reference
+            && citation.Excerpt == text.Substring(citation.Start, citation.Length));
+        result.PolicyVersion.Should().Be(mode == LocalFileRetrievalMode.LexicalLines ? "lexical-lines-v1" : "markdown-structure-v2");
+        if (mode == LocalFileRetrievalMode.MarkdownStructure)
+        {
+            result.Citations.Single().Heading.Should().Be("# Real");
+            result.Citations.Single().Excerpt.Should().Be(text);
+        }
+        fixture.TaskWrites.Should().HaveCount(writes);
+        fixture.FileReads.Should().Be(2);
+        fixture.RetainedFile.Should().BeSameAs(exact);
+        (await service.Search(exact, "alpha", (LocalFileRetrievalMode)99, fixture.Token)).Outcome.Should().Be(LocalFileSearchOutcome.Denied);
+        audit.Events.Should().Contain(item => item.ActionId == "session.file.search.local" && item.Outcome == SecurityAuditOutcome.Failed);
+    }
     [Fact]
     public async Task ExactNativeCaptureReadSearchAndReviewedRemovalNeverRenewPassiveActivityOrSendModelContent()
     {
@@ -332,7 +363,7 @@ public sealed partial class SessionWorkspaceServiceTests
         using var fixture = new Fixture();
         var audit = new FileAudit();
         await using var service = new SessionFileAttachmentService(fixture.Service, fixture, FileAction(new FileCapture(), audit),
-            new LocalFileLexicalRetrieval(), TimeProvider.System, audit, new EnabledFileLogger());
+            FileSearch(audit), TimeProvider.System, audit, new EnabledFileLogger());
         var revocations = 0;
         service.InspectionRevoked += () => revocations++;
         service.Revoke();
@@ -443,8 +474,12 @@ public sealed partial class SessionWorkspaceServiceTests
         new(capture, audit, TimeProvider.System, NullLogger<LocalFilePreview>.Instance);
 
     private static SessionFileAttachmentService FileService(Fixture fixture, LocalSessionFileAttach action, FileAudit audit,
-        TimeProvider? time = null) => new(fixture.Service, fixture, action, new LocalFileLexicalRetrieval(),
+        TimeProvider? time = null) => new(fixture.Service, fixture, action, FileSearch(audit),
             time ?? TimeProvider.System, audit, NullLogger<SessionFileAttachmentService>.Instance);
+
+    private static LocalFileSearch FileSearch(FileAudit audit, ILocalFileRetrieval? engine = null) =>
+        new(new(new FileCapture(), audit, TimeProvider.System, NullLogger<LocalFilePreview>.Instance),
+            engine ?? new LocalFileLexicalRetrieval(), audit, TimeProvider.System, NullLogger<LocalFileSearch>.Instance);
 
     private static SessionFileAttachment FileRecord(HostRequest request)
     {

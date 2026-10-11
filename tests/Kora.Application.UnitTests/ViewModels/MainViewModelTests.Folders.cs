@@ -31,6 +31,12 @@ public sealed partial class MainViewModelTests
         var result = await fixture.ViewModel.SearchFolderAsync(exact, "private folder marker");
         result.Outcome.Should().Be(LocalFileSearchOutcome.Matched);
         result.Citations.Should().HaveCount(2);
+        var structured = await fixture.ViewModel.SearchFolderAsync(exact, "private folder marker",
+            LocalFileRetrievalMode.MarkdownStructure, TestContext.Current.CancellationToken);
+        structured.PolicyVersion.Should().Be("markdown-structure-v2");
+        structured.Citations.Should().Equal(result.Citations);
+        (await fixture.ViewModel.SearchFolderAsync(exact, "private", (LocalFileRetrievalMode)99,
+            TestContext.Current.CancellationToken)).Outcome.Should().Be(LocalFileSearchOutcome.Denied);
         (await fixture.ViewModel.SearchFolderAsync(exact, "absent")).Outcome.Should().Be(LocalFileSearchOutcome.NoMatch);
         (await fixture.ViewModel.SearchFolderAsync(exact, " ")).Outcome.Should().Be(LocalFileSearchOutcome.InvalidQuery);
         (await fixture.ViewModel.SearchFolderAsync(exact with { RevisionId = Guid.NewGuid() }, "private"))

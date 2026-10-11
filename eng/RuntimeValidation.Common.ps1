@@ -1,7 +1,7 @@
 #requires -Version 7.5
 . (Join-Path $PSScriptRoot 'Distribution.Common.ps1')
 
-$script:RuntimeValidationBase = 'd0a8e82ef34b82c4d888803083050c2e9dff43cd'
+$script:RuntimeValidationBase = '56df1ee136a687d8cd3e2294ca25e38f9eab75dd'
 $script:ReleasedRuntimeLifecycleProfile = 'separately approved released SDK 1.0.16/native 1.0.90 minimal HTTP/stdio; distinct bounded RT2 fixture'
 
 function Read-RuntimeReceipt {

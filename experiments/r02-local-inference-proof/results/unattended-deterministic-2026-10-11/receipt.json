@@ -1,0 +1,98 @@
+{
+  "Schema": "Kora.R02.UnattendedDeterministicReceipt.v1",
+  "RecordedUtc": "2026-10-10T23:18:44.7188640+00:00",
+  "BaseRevisionAtRun": "cf44a5f2bc893a5d19f445b4fc4dd31a204b7d18",
+  "BranchAtRun": "agents/validate-r02-local-inference-proof",
+  "WorkingTreeAtRun": "Clean",
+  "PublicationNote": "This content-minimizing derived receipt was added after the run and is not represented as part of the clean source revision.",
+  "Sdk": "10.0.401",
+  "Restore": {
+    "ExitCode": 0,
+    "Reason": "project.assets.json was absent",
+    "ConfigLocation": "Temporary file outside the repository",
+    "PackageSources": [
+      "https://msazure.pkgs.visualstudio.com/One/_packaging/Networking-AAA/nuget/v3/index.json"
+    ],
+    "NuGetAudit": false,
+    "PublicFeedFallback": false
+  },
+  "Build": {
+    "Configuration": "Release",
+    "NoRestore": true,
+    "ExitCode": 0,
+    "Warnings": 0,
+    "Errors": 0
+  },
+  "SelfTest": {
+    "Mode": "self-test",
+    "ExitCode": 0,
+    "SyntheticChecksPassed": 55,
+    "SyntheticChecksFailed": 0,
+    "RealGenerationsPerformed": false
+  },
+  "SourceEvidence": {
+    "Revision": "cf44a5f2bc893a5d19f445b4fc4dd31a204b7d18",
+    "InputHashCount": 57,
+    "WorkingTreeChangeCount": 0,
+    "CompleteInputHashesRetainedInRawEvidence": true
+  },
+  "MachineEvidence": {
+    "Recorded": true,
+    "RevisionMatchedSourceEvidence": true,
+    "WorkingTreeChangeCount": 0,
+    "InventoryRetainedOnlyInRawEvidence": true
+  },
+  "CommandsNotRun": [
+    "observe",
+    "Run-Validation.ps1",
+    "measure",
+    "qualify",
+    "compare-sampling",
+    "compare-streaming",
+    "observer-control",
+    "Kora"
+  ],
+  "RuntimeOrModelLifecycleActions": false,
+  "ClipboardRead": false,
+  "MicrophoneOrTtsUse": false,
+  "NetworkPolicyChanged": false,
+  "RawArtifactReferences": [
+    {
+      "RelativeEvidencePath": "build.log",
+      "Sha256": "ADB5367967D7965C42185189639957A7DA877A715D3E4834B80E0E4E082FD714"
+    },
+    {
+      "RelativeEvidencePath": "commands.json",
+      "Sha256": "3E7C975DF353872C20479DB400C607E04A7A379E69183B4D6942C4959F75EDF1"
+    },
+    {
+      "RelativeEvidencePath": "machine.json",
+      "Sha256": "AFFFD4E74C47BBDE97704975F17CED860CCC8FC28042AC657AAED2BF659CFE6C"
+    },
+    {
+      "RelativeEvidencePath": "restore.log",
+      "Sha256": "7ABA4E39D545E82E585331D7FCB6F2738316D2FFDF7C7A00B0DA92227F1CE1BF"
+    },
+    {
+      "RelativeEvidencePath": "self-test.json",
+      "Sha256": "4C19703D2ADB1AC581AB9BF058D2535663956BB3F87720EC06F65FB0CBDD4201"
+    },
+    {
+      "RelativeEvidencePath": "self-test.log",
+      "Sha256": "608F78AEB4750FF970C727DFC9839F3C2E7251E3F699A3F0090806977A02217E"
+    },
+    {
+      "RelativeEvidencePath": "source.json",
+      "Sha256": "0D647C153AFAF8E626DB5DC88B9C6064F6E71C479CF5E35DF22891CA5FA7FCE4"
+    }
+  ],
+  "EvidenceRetention": "Raw logs, complete source hashes and content-minimized machine inventory are retained unchanged in the ignored experiment artifacts directory. Absolute paths and machine-specific inventory are omitted from this derived receipt.",
+  "HistoricalEvidenceChanged": false,
+  "Scope": "Deterministic synthetic proof only; not real-model generation, endpoint availability, answer quality, performance, reference-hardware, offline-egress, server-cessation or integrated-host acceptance.",
+  "RemainingGates": [
+    "LI01-LI07",
+    "D-003",
+    "D-007",
+    "A2"
+  ]
+}

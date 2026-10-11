@@ -152,6 +152,7 @@ CRLF pairs. Terms crossing a forced chunk boundary are not indexed as invented
 prefix/suffix words. Headings are bounded context labels (64 characters);
 the exact source remains in the immutable excerpt, not reconstructed Markdown.
 Setext headings, Markdown semantics and byte-offset citations are not claimed.
+This remains the unchanged default. The separate explicit run-only Markdown mode below does not alter `lexical-lines-v1`.
 
 Queries are inert untrusted text, never instructions or authority. Central
 `LocalFileRetrievalPolicy` rejects empty/degenerate/malformed or oversized
@@ -194,6 +195,44 @@ particular R02 inference answer quality, actual resource/offline/cessation,
 RT1/RT2/MG1 and durable storage/enterprise-cache trials remain distinct and
 retained. This slice does not qualify grounded reasoning or installed native
 accessibility acceptance.
+
+## Delivered Opt-In Markdown Structure-Aware Retrieval - 2026-10-11
+
+R26.1g adds **Markdown structure-aware (opt-in, this view only)** in the exact native volatile file/folder preview and retained Session attachment viewer. Each new/replaced/reopened view starts at **Lexical lines (default)** / `lexical-lines-v1`; nothing is saved or changed globally. Choose the second mode, then explicitly Search. Queries remain unmodified native-only text.
+
+The stable selected version is **`markdown-structure-v2`**. It uses the same `ILocalFileRetrieval`, `LocalFileSearch` action and already-admitted exact snapshot, not a new read, path lookup or model route. Retained search still resolves and rechecks the validated historical storage snapshot, owning session/storage revision and native inspection authority; it does not re-read the old original path.
+
+Mode/query generation, exact callback source and result policy metadata remain bound together. Changing mode/query, Cancel local search, replacing/revoking a source or closing the view clears citations and cancels/suppresses late work.
+Unsupported enum values or returned policy versions deny explicitly; there is no fallback to v1. Mode selection/restoration grants no model, transcript, audit or retention authority.
+
+The deterministic scanner operates only on the original exact Unicode projection, without regex evaluation, renderer, parser package, resource loading or execution. `.md` / `.markdown` use this documented **bounded subset**, not full CommonMark:
+
+- Top-level ATX headings: one to six `#`, followed by space/tab or end of line; at most three leading spaces. Labels retain authored source characters, including closing markers, bounded to 64 UTF-16 characters without splitting a scalar.
+- Standalone single-line Setext headings: an eligible text line at a block start followed immediately by a uniform `=` or `-` delimiter with at most three leading spaces and optional trailing space/tab. Multiline Setext, list/quote/indented/table/raw-HTML/inline-code candidates are not promoted to headings.
+- Backtick or tilde fences: at least three identical markers, at most three leading spaces; backtick opening info cannot contain backticks. Closing markers must match, be at least the opening length and have only trailing spaces/tabs. Short, mixed or info-bearing apparent closers stay code text.
+- Heading/delimiter/fence-looking lines inside a fence never create section authority. Unclosed fences stay opaque through EOF. List containers and raw HTML are conservatively opaque until a blank line; unfinished inline backtick spans suppress subsequent heading recognition until the matching run. Nested/container/full inline Markdown semantics are unsupported.
+- Small whole sections, paragraphs and code blocks stay contiguous when within 2,048 UTF-16 characters and 128 physical lines. Larger sections split at authored block boundaries; oversized blocks/long lines are bounded with the original scalar/CRLF-safe cuts. These and incomplete formats are labelled **structural fragments**, never falsely advertised as intact blocks/sections.
+
+Lists, tables, code bodies, links, image references and authored alt text remain exact inert source text and are lexically searchable. There is no rendering/normalization of excerpts, navigation, URL fetch, download, OCR or generated image description.
+Heading context separately cites an actual authored bounded label span/location; excerpt start/length and one-based UTF-16 line/column end-exclusive citations still reference the original projection. BOM bytes remain in the unchanged source digest/reference.
+
+`.txt` explicitly uses the original line chunks under the selected v2 result policy. Other formats remain inadmissible under `LocalFilePolicy`; filenames never bypass strict UTF-8/control/size admission. A folder chooses structural or plain chunks per supported file, with **one global ranking/budget**, not per-file top-eight merging.
+
+There is **no overlap** or duplicate chunk inflation. Existing canonical OR ranking, NFC/invariant terms, ordinal canonical file order/source-offset ties, frequency saturation at 16, 256 UTF-16 / 512 UTF-8 query bytes, 32 unique terms / 64 term characters and eight citations / 16 KiB combined UTF-8 excerpts are unchanged.
+Total matching chunks/truncation and cancellation checks remain explicit. Forced cuts cannot invent matching token prefixes/suffixes.
+
+Source/session/task/privacy/ownership/control/call generations, native release, trusted requested/terminal audit and resource-quiescence fences remain authoritative. No database schema, index, derived body, preferences, provider/egress, clipboard, history, speech or durable knowledge authority is added. Pure lexical citations do not qualify reasoning or full Markdown/managed-source support.
+
+Maintained evidence: [policy and shared ranker](../src/Kora.Core/Context/LocalFileLexicalRetrieval.cs), [bounded scanner](../src/Kora.Core/Context/LocalFileLexicalRetrieval.Markdown.cs), [v1 regression](../tests/Kora.Core.UnitTests/Context/LocalFileRetrievalTests.cs).
+[V2 exact golden/boundary corpus](../tests/Kora.Core.UnitTests/Context/LocalFileMarkdownRetrievalTests.cs) and [shared broker](../tests/Kora.Tools.UnitTests/Files/LocalFileSearchTests.cs) prove the selected algorithm and publication route.
+
+[Run selection and late discard](../tests/Kora.Application.UnitTests/Presentation/LocalFileSearchSelectionTests.cs) and [retained validated workflow](../tests/Kora.Application.UnitTests/Hosting/SessionWorkspaceServiceTests.Attachments.cs) cover the admitted host consumers.
+[Native selector/cancellation/source replacement](../tests/Kora.Windows.IntegrationTests/SessionAttachmentWindowTests.cs) covers the native consumer, not installed OS/accessibility acceptance.
+
+Experiment assessment: this corpus is exact equivalence only for deterministic chunk/rank/citation and admitted native search consumers. No detector or experiment is retired.
+The [local-inference proof](../experiments/r02-local-inference-proof/README.md) consumes the real reasoner/probe, not this retrieval contract; selected synthetic-context answer quality, CPU/context/resource, offline/cessation witnesses remain unique.
+The [runtime proof](../experiments/r02-runtime-proof/README.md) retains actual SDK/provider mediation and failed-hook witnesses. The [RT1 .NET receipts](../experiments/r02-dotnet-control-proof/EVIDENCE.md) retain selected-profile runtime/session-I/O/containment observations and rejected or unexecuted candidate evidence; lexical source scanning is not their equivalent.
+Unique storage/migration/recovery, native/offline/resource, RT2/MG1, quality and historical failure witnesses remain retained. Full R26, model grounding/provider qualification and installed-native gates remain open.
 
 ## Delivered Bounded Folder-Scoped Lexical Retrieval - 2026-10-09
 
@@ -592,6 +631,7 @@ Before advertising the initial file/folder capability:
 | R26.1d - Explicit volatile preview refresh | Delivered: exact host-held original canonical physical file/folder; fresh complete metadata review and separate native confirmation; unchanged bounds and source ID, fresh revision/items/digests; old single-slot preview retired at start | R26.1a/c and original/current host control, session/task, privacy/call/ownership/generation, audit/release boundaries | [Refresh broker](../tests/Kora.Tools.UnitTests/Files/LocalFileRefreshTests.cs), [host](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.FileRefresh.cs), [actual Windows files](../tests/Kora.Windows.IntegrationTests/LocalFileTests.Refresh.cs); no registry/durability/watch/egress, installed UX and broader R26.2 acceptance open |
 | R26.1e - Durable single-file Session attachment | Delivered: one exact-session immutable UTF-8 text/Markdown file, 256 KiB original bytes, sixteen retained profile files, no eviction; separate native persistence/removal consent and restart-safe inert source/citations | Existing verified capture, consolidated private interaction authority, passive inspection, session/source retention, native UX | Exact-byte/BOM/hash, original-user generation/control, private SQLite migration/audit/reopen/corruption, native full source and owned-copy removal tests; no folders/versions/managed knowledge/model/OCR/vector/egress, no full R26 or installed acceptance |
 | R26.1f - Reviewed retained attachment replacement | Delivered: fresh picker and separate exact old/new review; atomic own-slot swap, unchanged limits | R26.1e capture, source revocation, copy inventory and native lifecycle | Native controller, SQLite capacity/CAS/rollback/certification-hold/recovery tests; no versions, watchers or model authority; installed acceptance open |
+| R26.1g - Opt-in Markdown structure-aware retrieval | Delivered: run-only native selector; `lexical-lines-v1` default unchanged, `markdown-structure-v2` bounded inert subset over the same admitted file/folder/retained snapshots | Existing exact preview broker and retained inspection authority; no new format/read/storage/model authority | [Golden scanner/bounds](../tests/Kora.Core.UnitTests/Context/LocalFileMarkdownRetrievalTests.cs), [mode generations](../tests/Kora.Application.UnitTests/Presentation/LocalFileSearchSelectionTests.cs), [actual native consumer](../tests/Kora.Windows.IntegrationTests/SessionAttachmentWindowTests.cs); full CommonMark/model/installed acceptance remains open |
 | R26.0 - Finalize policy and limits | Agree initial formats, numeric limits, storage/retention, citation shape, local-runtime envelope, and hostile-document fixtures | R04 storage semantics, R06 tool/result bounds, R10 configuration registry, R12 session retention | Approved typed contracts and threat/acceptance fixtures; no runtime capability |
 | R26.1 - Native selection and immutable text snapshot | Add picker plus reviewed absolute path proposal, safe Windows enumeration/read, `.txt`/Markdown extraction, source registry, revision identity, native preview and deletion | R03 ownership/privacy, R04 durable storage/recovery, R05 review/questions, R10 settings | Real Windows file/folder/reparse/access/change/cancel/restart tests; no model exposure |
 | R26.2 - Lexical retrieval and citations | Deterministic chunk/index/search/read-excerpt, source selection, context budget, citation presentation, refresh/disable/remove cleanup | R26.1, R06 admitted descriptors, R12 session/artifact lifecycle, R14 source/citation UI | Grounding, hostile-content, cross-session/source isolation, stale/revoked and interrupted-cleanup evidence |

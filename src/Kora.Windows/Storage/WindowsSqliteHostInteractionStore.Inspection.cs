@@ -1,4 +1,4 @@
-using Kora.Core.Diagnostics;
+﻿using Kora.Core.Diagnostics;
 using Kora.Core.Hosting;
 using Kora.Core.Storage;
 
@@ -92,12 +92,7 @@ public sealed partial class WindowsSqliteHostInteractionStore
                     rows.GetString(3), rows.GetString(4));
                 var position = new EvidencePosition(sequence, EvidenceSource.AuthorityAudit, rows.GetString(1), -1, rows.GetString(3));
                 scannedThrough = position;
-                var provenance = new AuthorityAuditProvenance(HostInteractionSchema.Version, "security_audit_events", sequence, rows.GetString(3),
-                    audit.TraceId, audit.SpanId, audit.IntentRevision, audit.SessionGeneration,
-                    audit.Outcome, audit.QuestionId, audit.QuestionRevision, audit.ApprovalId, audit.GrantRevision,
-                    audit.Changes.Select(change => new AuthorityAuditChange(change.Kind, change.Id, change.Revision, change.Digest)).ToArray(),
-                    audit.RequestedAudit, audit.RequestedGrantRevision,
-                    audit.RequestedGrants?.Select(change => new AuthorityAuditChange(change.Kind, change.Id, change.Revision, change.Digest)).ToArray());
+                var provenance = AuditProvenance(audit, sequence, rows.GetString(3));
                 var record = new EvidenceRecord(new(EvidenceSource.AuthorityAudit, new(audit.Audit.CorrelationId)),
                     audit.CommittedAt, audit.DueAt,
                     audit.DueAt <= now ? EvidenceSegmentStatus.ExpiredButPresent : EvidenceSegmentStatus.Present,
@@ -128,8 +123,17 @@ public sealed partial class WindowsSqliteHostInteractionStore
         {
             throw new InvalidDataException("The committed authority is uninitialized or replaced; no replacement is admitted.");
         }
+
         return runId.ToString("D") + ":" + identity;
     }
+
+    private static AuthorityAuditProvenance AuditProvenance(AuthorityAudit audit, long sequence, string digest) =>
+        new(HostInteractionSchema.Version, "security_audit_events", sequence, digest,
+            audit.TraceId, audit.SpanId, audit.IntentRevision, audit.SessionGeneration,
+            audit.Outcome, audit.QuestionId, audit.QuestionRevision, audit.ApprovalId, audit.GrantRevision,
+            audit.Changes.Select(change => new AuthorityAuditChange(change.Kind, change.Id, change.Revision, change.Digest)).ToArray(),
+            audit.RequestedAudit, audit.RequestedGrantRevision,
+            audit.RequestedGrants?.Select(change => new AuthorityAuditChange(change.Kind, change.Id, change.Revision, change.Digest)).ToArray());
 
     private static EvidenceSnapshot ReadAuditSnapshot(SqliteConnection connection, string identity, EvidenceSnapshot? prior)
     {

@@ -39,7 +39,9 @@ public sealed class SessionAttachmentWindowTests
             var capture = new Capture();
             var audit = new Audit();
             var action = new LocalSessionFileAttach(capture, audit, fixture.Time, NullLogger<LocalFilePreview>.Instance);
-            await using var service = new SessionFileAttachmentService(sessions, access, action, new LocalFileLexicalRetrieval(),
+            using var preview = new LocalFilePreview(capture, audit, fixture.Time, NullLogger<LocalFilePreview>.Instance);
+            var search = new LocalFileSearch(preview, new LocalFileLexicalRetrieval(), audit, fixture.Time, NullLogger<LocalFileSearch>.Instance);
+            await using var service = new SessionFileAttachmentService(sessions, access, action, search,
                 fixture.Time, audit, NullLogger<SessionFileAttachmentService>.Instance);
             var target = await fixture.Store.ReadMetadataAsync(fixture.Request.SessionId, fixture.Token);
             (await service.Select(target, new Picker(), () => true, fixture.Token)).Should().Be(LocalFileOutcome.Reviewed);
@@ -66,11 +68,32 @@ public sealed class SessionAttachmentWindowTests
                 capture.Disposals.Should().Be(1);
                 capture.Bytes.Should().OnlyContain(value => value == 0);
                 var retained = (await service.Read(target.Authority.SessionId, fixture.Token))!;
-                window.ShowAttachment(retained, query => service.Search(retained, query, fixture.Token), () => true, () => Task.CompletedTask);
+                window.ShowAttachment(retained, (query, mode, token) => service.Search(retained, query, mode, token), () => true, () => Task.CompletedTask);
                 window.UpdateLayout();
                 var displayed = string.Join("\n", window.GetVisualDescendants().OfType<TextBlock>().Select(block => block.Text));
                 displayed.Should().Contain(Capture.Text).And.Contain(retained.File.Digest)
                     .And.Contain(retained.File.RevisionId.ToString("D"));
+                var selector = window.GetVisualDescendants().OfType<ComboBox>().Single();
+                selector.SelectedIndex.Should().Be(0);
+                selector.SelectedIndex = 1;
+                var query = window.GetVisualDescendants().OfType<TextBox>().Single(box =>
+                    box.PlaceholderText?.StartsWith("Untrusted lexical query", StringComparison.Ordinal) == true);
+                query.Text = "café";
+                await Press(window, "Search selected immutable revision locally");
+                window.UpdateLayout();
+                var citations = string.Join("\n", window.GetVisualDescendants().OfType<TextBlock>().Select(block => block.Text));
+                citations.Should().Contain("Policy: markdown-structure-v2").And.Contain("Authored heading: 1:1")
+                    .And.Contain(retained.File.Reference.RevisionId.ToString("D"));
+                selector.SelectedIndex = 0;
+                citations = string.Join("\n", window.GetVisualDescendants().OfType<TextBlock>().Select(block => block.Text));
+                citations.Should().NotContain("Policy: markdown-structure-v2");
+                await Press(window, "Search selected immutable revision locally");
+                window.UpdateLayout();
+                string.Join("\n", window.GetVisualDescendants().OfType<TextBlock>().Select(block => block.Text))
+                    .Should().Contain("Policy: lexical-lines-v1");
+                query.Text = "different";
+                string.Join("\n", window.GetVisualDescendants().OfType<TextBlock>().Select(block => block.Text))
+                    .Should().NotContain("Policy: lexical-lines-v1");
                 var searched = await service.Search(retained, "café", fixture.Token);
                 searched.Citations.Should().ContainSingle().Which.Excerpt.Should().Be(Capture.Text);
                 var clock = await fixture.Store.ReadRetentionAsync(target.Authority.SessionId, fixture.Token);
@@ -117,9 +140,11 @@ public sealed class SessionAttachmentWindowTests
             try
             {
                 var picker = new ReplacementPicker(firstPath, nextPath);
+                using var preview = new LocalFilePreview(new Capture(), audit, fixture.Time, NullLogger<LocalFilePreview>.Instance);
+                var search = new LocalFileSearch(preview, new LocalFileLexicalRetrieval(), audit, fixture.Time, NullLogger<LocalFileSearch>.Instance);
                 await using var service = new SessionFileAttachmentService(sessions, access,
                     new LocalSessionFileAttach(new WindowsLocalFileInspector(fixture.Paths), audit, fixture.Time, NullLogger<LocalFilePreview>.Instance),
-                    new LocalFileLexicalRetrieval(), fixture.Time, audit, NullLogger<SessionFileAttachmentService>.Instance);
+                    search, fixture.Time, audit, NullLogger<SessionFileAttachmentService>.Instance);
                 var failures = new List<string>();
                 using var controller = new SessionAttachmentWindowController(failures.Add, service, sessions, access, picker);
                 LocalFilePreviewWindow? opened = null;
@@ -191,6 +216,72 @@ public sealed class SessionAttachmentWindowTests
         var button = window.GetVisualDescendants().OfType<Button>().Single(button =>
             string.Equals(button.Content as string, caption, StringComparison.Ordinal));
         return ((AsyncCommand)button.Command!).ExecuteAsync();
+    }
+
+    [Theory]
+    [InlineData("mode")]
+    [InlineData("query")]
+    [InlineData("cancel")]
+    [InlineData("source")]
+    [InlineData("close")]
+    public async Task NativeRunSelectionCancelsAndDiscardsOldModeQueryOrSourceResultsWithoutPersistingSelection(string change)
+    {
+        await HeadlessSession.RunAsync(async () =>
+        {
+            var bytes = Encoding.UTF8.GetBytes("# real\n~~~\n# fake\nalpha\n~~~\n");
+            var file = new LocalFileRevision(new(Guid.NewGuid(), Guid.NewGuid(), HostRequest.Create(RequestOrigin.LocalUi),
+                new(@"C:\Synthetic\source.md", "exact", bytes.Length, DateTimeOffset.UnixEpoch)), bytes, DateTimeOffset.UnixEpoch);
+            var failures = new List<string>();
+            var window = new LocalFilePreviewWindow(failures.Add);
+            var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            CancellationToken captured = default;
+            window.ShowRevision(file, async (query, mode, token) =>
+            {
+                query.Should().Be("alpha");
+                mode.Should().Be(LocalFileRetrievalMode.LexicalLines);
+                captured = token;
+                entered.SetResult();
+                await release.Task;
+                return new LocalFileLexicalRetrieval().Search(file, file.Reference, query, mode, DateTimeOffset.UnixEpoch, CancellationToken.None);
+            }, () => true, () => Task.CompletedTask);
+            window.Show();
+            window.UpdateLayout();
+            try
+            {
+                var selector = window.GetVisualDescendants().OfType<ComboBox>().Single();
+                var query = window.GetVisualDescendants().OfType<TextBox>().Single(box =>
+                    box.PlaceholderText?.StartsWith("Untrusted lexical query", StringComparison.Ordinal) == true);
+                query.Text = "alpha";
+                var pending = Press(window, "Search selected immutable revision locally");
+                await entered.Task;
+                switch (change)
+                {
+                    case "mode": selector.SelectedIndex = 1; break;
+                    case "query": query.Text = "changed"; break;
+                    case "cancel":
+                        window.GetVisualDescendants().OfType<Button>().Single(button =>
+                            string.Equals(button.Content as string, "Cancel local search and clear citations", StringComparison.Ordinal))
+                            .RaiseEvent(new Avalonia.Interactivity.RoutedEventArgs(Button.ClickEvent));
+                        break;
+                    case "close": window.ClearAndClose(); break;
+                    default:
+                        window.ShowRevision(file, (_, mode, _) => Task.FromResult(LocalFileSearchResult.Empty(
+                            LocalFileSearchOutcome.NoMatch, DateTimeOffset.UnixEpoch, mode)), () => true, () => Task.CompletedTask);
+                        window.UpdateLayout();
+                        window.GetVisualDescendants().OfType<ComboBox>().Single().SelectedIndex.Should().Be(0);
+                        break;
+                }
+                captured.IsCancellationRequested.Should().BeTrue();
+                release.SetResult();
+                await pending;
+                window.UpdateLayout();
+                string.Join("\n", window.GetVisualDescendants().OfType<TextBlock>().Select(block => block.Text))
+                    .Should().NotContain("Policy: lexical-lines-v1");
+                failures.Should().BeEmpty();
+            }
+            finally { release.TrySetResult(); window.ClearAndClose(); }
+        });
     }
 
     private sealed class ReplacementPicker(params string[] paths) : IUserFilePicker

@@ -2,37 +2,48 @@ using System.Text;
 
 namespace Kora.Core.Context;
 
-public sealed class LocalFileLexicalRetrieval : ILocalFileRetrieval
+public sealed partial class LocalFileLexicalRetrieval : ILocalFileRetrieval
 {
-    private sealed record Chunk(int Start, int Length, string? Heading);
+    private sealed record Chunk(int Start, int Length, string? Heading,
+        bool Fragment = false, LocalFileHeadingContext? HeadingContext = null);
     private sealed record Match(LocalFileRevision Revision, int FileOrder, Chunk Chunk, int Terms, int Frequency);
 
     public LocalFileSearchResult Search(LocalFileRevision revision, LocalFileReference exactSource,
-        string query, DateTimeOffset observedAt, CancellationToken cancellationToken)
+        string query, DateTimeOffset observedAt, CancellationToken cancellationToken) =>
+        Search(revision, exactSource, query, LocalFileRetrievalMode.LexicalLines, observedAt, cancellationToken);
+
+    public LocalFileSearchResult Search(LocalFileRevision revision, LocalFileReference exactSource,
+        string query, LocalFileRetrievalMode mode, DateTimeOffset observedAt, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(revision);
         ArgumentNullException.ThrowIfNull(exactSource);
         cancellationToken.ThrowIfCancellationRequested();
-        if (revision.Reference != exactSource) { return LocalFileSearchResult.Empty(LocalFileSearchOutcome.Stale, observedAt); }
-        return SearchFiles([revision], query, observedAt, cancellationToken);
+        if (!LocalFileRetrievalPolicy.TryVersion(mode, out _)) { return LocalFileSearchResult.Empty(LocalFileSearchOutcome.Denied, observedAt, mode); }
+        if (revision.Reference != exactSource) { return LocalFileSearchResult.Empty(LocalFileSearchOutcome.Stale, observedAt, mode); }
+        return SearchFiles([revision], query, mode, observedAt, cancellationToken);
     }
 
     public LocalFileSearchResult Search(LocalFolderRevision revision, LocalFolderReference exactSource,
-        string query, DateTimeOffset observedAt, CancellationToken cancellationToken)
+        string query, DateTimeOffset observedAt, CancellationToken cancellationToken) =>
+        Search(revision, exactSource, query, LocalFileRetrievalMode.LexicalLines, observedAt, cancellationToken);
+
+    public LocalFileSearchResult Search(LocalFolderRevision revision, LocalFolderReference exactSource,
+        string query, LocalFileRetrievalMode mode, DateTimeOffset observedAt, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(revision);
         ArgumentNullException.ThrowIfNull(exactSource);
         cancellationToken.ThrowIfCancellationRequested();
-        if (revision.Reference != exactSource) { return LocalFileSearchResult.Empty(LocalFileSearchOutcome.Stale, observedAt); }
-        return SearchFiles(revision.Files, query, observedAt, cancellationToken);
+        if (!LocalFileRetrievalPolicy.TryVersion(mode, out _)) { return LocalFileSearchResult.Empty(LocalFileSearchOutcome.Denied, observedAt, mode); }
+        if (revision.Reference != exactSource) { return LocalFileSearchResult.Empty(LocalFileSearchOutcome.Stale, observedAt, mode); }
+        return SearchFiles(revision.Files, query, mode, observedAt, cancellationToken);
     }
 
     private static LocalFileSearchResult SearchFiles(IReadOnlyList<LocalFileRevision> files,
-        string query, DateTimeOffset observedAt, CancellationToken cancellationToken)
+        string query, LocalFileRetrievalMode mode, DateTimeOffset observedAt, CancellationToken cancellationToken)
     {
         if (!LocalFileRetrievalPolicy.TryQuery(query, out var terms))
         {
-            return LocalFileSearchResult.Empty(LocalFileSearchOutcome.InvalidQuery, observedAt);
+            return LocalFileSearchResult.Empty(LocalFileSearchOutcome.InvalidQuery, observedAt, mode);
         }
         var matches = new List<Match>(LocalFileRetrievalPolicy.MaximumCitations);
         var matchingChunks = 0;
@@ -40,7 +51,10 @@ public sealed class LocalFileLexicalRetrieval : ILocalFileRetrieval
         {
             var revision = files[fileOrder];
             var text = revision.Text;
-            foreach (var chunk in Chunks(text, cancellationToken))
+            var chunks = mode == LocalFileRetrievalMode.MarkdownStructure
+                && LocalFileRetrievalPolicy.IsMarkdown(revision.Review.Metadata.CanonicalPath)
+                ? MarkdownChunks(text, cancellationToken) : Chunks(text, cancellationToken);
+            foreach (var chunk in chunks)
             {
                 var frequencies = new Dictionary<string, int>(StringComparer.Ordinal);
                 foreach (var word in LocalFileRetrievalPolicy.Tokens(TokenText(text, chunk), cancellationToken))
@@ -77,11 +91,17 @@ public sealed class LocalFileLexicalRetrieval : ILocalFileRetrieval
             var start = Location(text, chunk.Start);
             var end = Location(text, chunk.Start + chunk.Length);
             citations.Add(new(revision.Reference, identity, chunk.Start, chunk.Length,
-                start.Line, start.Column, end.Line, end.Column, chunk.Heading, excerpt, match.Terms, match.Frequency));
+                start.Line, start.Column, end.Line, end.Column, chunk.Heading, excerpt, match.Terms, match.Frequency)
+            {
+                IsStructuralFragment = chunk.Fragment,
+                HeadingContext = chunk.HeadingContext,
+            });
         }
         cancellationToken.ThrowIfCancellationRequested();
+        _ = LocalFileRetrievalPolicy.TryVersion(mode, out var version);
         return new(matchingChunks == 0 ? LocalFileSearchOutcome.NoMatch : LocalFileSearchOutcome.Matched,
-            observedAt, citations.AsReadOnly(), matchingChunks, citations.Count < matchingChunks);
+            observedAt, citations.AsReadOnly(), matchingChunks, citations.Count < matchingChunks)
+        { Mode = mode, PolicyVersion = version };
     }
 
     private static int Compare(Match left, Match right)

@@ -107,7 +107,7 @@ internal sealed class LocalFilePreviewWindowController : IUserFilePicker, IUserF
         if (revision is not null)
         {
             var exactSource = revision.Reference;
-            view.ShowRevision(revision, query => host.SearchFileAsync(exactSource, query),
+            view.ShowRevision(revision, (query, mode, token) => host.SearchFileAsync(exactSource, query, mode, token),
                 () => !disposed && host.FileRevision?.Reference == exactSource,
                 () => !disposed && ReferenceEquals(window, view) && host.FileRevision?.Reference == exactSource
                     ? host.RefreshFilePreviewAsync(exactSource)
@@ -116,7 +116,7 @@ internal sealed class LocalFilePreviewWindowController : IUserFilePicker, IUserF
         else if (folderRevision is not null)
         {
             var exactSource = folderRevision.Reference;
-            view.ShowFolderRevision(folderRevision, query => host.SearchFolderAsync(exactSource, query),
+            view.ShowFolderRevision(folderRevision, (query, mode, token) => host.SearchFolderAsync(exactSource, query, mode, token),
                 () => !disposed && host.FolderRevision?.Reference == exactSource,
                 () => !disposed && ReferenceEquals(window, view) && host.FolderRevision?.Reference == exactSource
                     ? host.RefreshFolderPreviewAsync(exactSource)

@@ -58,11 +58,20 @@ public sealed class LocalFolderTests : IDisposable
         var result = await search.ExecuteAsync(admitted.Reference, "private marker", () => true, TestContext.Current.CancellationToken);
         result.Citations.Should().HaveCount(2);
         result.Citations.Select(citation => citation.Source).Should().Equal(admitted.Files.Select(file => file.Reference));
+        var structured = await search.ExecuteAsync(admitted.Reference, "private marker",
+            LocalFileRetrievalMode.MarkdownStructure, () => true, TestContext.Current.CancellationToken);
+        structured.PolicyVersion.Should().Be("markdown-structure-v2");
+        structured.Citations.Should().Equal(result.Citations);
+        var unknown = await search.ExecuteAsync(admitted.Reference, "private", (LocalFileRetrievalMode)99,
+            () => true, TestContext.Current.CancellationToken);
+        unknown.Outcome.Should().Be(LocalFileSearchOutcome.Denied);
+        unknown.PolicyVersion.Should().Be("unsupported");
         inspector.Reads.Should().Be(2);
         inspector.Inspections.Should().Be(1);
         preview.CurrentFolder.Should().BeSameAs(admitted);
         audit.Events.Select(item => item.Outcome).Should().Equal(SecurityAuditOutcome.Requested, SecurityAuditOutcome.Succeeded,
-            SecurityAuditOutcome.Requested, SecurityAuditOutcome.Succeeded, SecurityAuditOutcome.Requested, SecurityAuditOutcome.Succeeded);
+            SecurityAuditOutcome.Requested, SecurityAuditOutcome.Succeeded, SecurityAuditOutcome.Requested, SecurityAuditOutcome.Succeeded,
+            SecurityAuditOutcome.Requested, SecurityAuditOutcome.Succeeded, SecurityAuditOutcome.Requested, SecurityAuditOutcome.Failed);
         string.Join(" ", logger.Messages.Concat(audit.Events.Select(item => item.ActionId + item.TargetId + item.ReasonCode)))
             .Should().NotContain("private marker").And.NotContain("C:\\").And.NotContain("enable hosted models");
         logger.Contexts.Should().OnlyContain(context => context != null && context.Request == host.Request);

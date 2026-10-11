@@ -1506,8 +1506,8 @@ Merging the experiment closes no remaining gate or production acceptance.
 - For offline automation, run
   `.\eng\Prepare-RuntimeValidation.ps1 -OutputDirectory <new-directory-outside-repository>`
   in a linked isolated worktree based on main
-  `d0a8e82ef34b82c4d888803083050c2e9dff43cd` (2026-10-07; CI run
-  `37597127017` succeeded). The runner checks retained historical identities,
+  `56df1ee136a687d8cd3e2294ca25e38f9eab75dd` (2026-10-09; reviewed unattended
+  MG1 evidence in #139). The runner checks retained historical identities,
   runs deterministic preparation/receipt contracts, and emits redacted
   `readiness.json` and unapproved `operator-requests.json`. Optional
   `-SourceBuiltPackagePath`, `-ReleasedPackagePath` and
@@ -1677,6 +1677,16 @@ trace, account operation, live provider call or policy change occurred.
 | Execution PV1 / D-001 / R08 | Not run. After applicable RT2, select the provider/model/region, supported authentication, account tier and terms/organization entitlement; separately approve account use and a defensible enforceable spend ceiling. Observe expiry/revocation/denial/throttling/error paths, allowed destinations/content isolation, quotas/concurrency, no forwarded automatic retries and truthful cancellation. Never put credentials in chat or receipts. |
 | Management PV1 / D-004 | Not run. Additionally prove two actual independent execution conversations plus management under the intended account, quota and cost envelope, complete byte/deadline/rolling-attempt limits, and quarantine while physical/billing termination remains Unknown. Byte bounds, SDK abort acknowledgement and billing alerts are not spending or termination proof. |
 | Integrated lifecycle / D-010 / R04 / R13 | Still open. Fixture sessions and sampled termination do not prove admitted durable host identity/audit, leases, fair scheduling, outside-change revalidation, cancellation/unknown-effect races, recovery or installed composition. Deterministic local management and unrelated capabilities continue through their own gates; only affected runtime/model-assisted capabilities and an RC manifest including them remain blocked by these proofs. |
+
+#### 2026-10-11 Unattended Host-Component Preparation
+
+The first latest-main attempt stopped before receipt creation because the historical guard still used the pre-automation base while later reviewed evidence had changed the guarded directories. The [guard](../eng/RuntimeValidation.Common.ps1) now pins the last reviewed guarded-directory commit, and the [contracts](../eng/Test-RuntimeValidationContracts.ps1) explicitly accept that baseline and reject a subsequent historical-input mutation.
+
+The rerun used no SDK package, released fixture or native-runtime inputs. A temporary external NuGet configuration cleared all other sources and fallback folders, mapped every package to the Networking-AAA feed, and performed the required locked restore without repository package-source changes or public fallback. The [sanitized receipt](../eng/evidence/unattended-20261011/runtime-preparation.json) records **51/51 deterministic contracts**, **2/2 locale contracts** and **22/22 host-component tests** passed with zero failures or skips on SDK 10.0.401/runtime 10.0.12.
+
+Exit **2** remains the expected blocked-admission disposition. The receipt preserves distinct source-built SDK, released SDK, launcher and payload identities as `Blocked` because none was supplied. It records zero native launches, trace sessions, account operations, live provider calls, installs or policy changes; synthetic runtime regression, dedicated-host RT2, both PV1 stages, R08 and model-assisted R13 remain `Blocked`.
+
+Only the sanitized JSON is retained in source control. Raw receipts, the TRX, restored packages, build outputs, the temporary feed configuration and machine-local paths remain outside the repository. The committed receipt includes SHA-256 identities for the raw readiness, operator-request, contract and TRX records without embedding their content or locations.
 
 Maintained production code/tests have no Copilot SDK or equivalent MG1
 envelope consumer to absorb these exact assertions today. The local inference

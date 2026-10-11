@@ -1023,6 +1023,21 @@ their original snapshots. External #81 is runtime-validation preparation only;
 external presence fade #85 is merged, while pointer hide-timer #86 is still open
 at this reconciliation. Neither is coordinator-owned delivery.
 
+### R26.1g opt-in Markdown structure-aware retrieval - 2026-10-11
+
+Delivered native run-only selection over exact already-admitted volatile file/folder and retained Session snapshots. `lexical-lines-v1` remains the unchanged default; `markdown-structure-v2` is selected explicitly in each exact source view, never a saved/global setting. Unknown modes/returned versions deny rather than falling back.
+
+Bounded deterministic ATX/standalone Setext/fence scanning preserves exact inert lists/tables/code/links/authored alt text and original UTF-16 citations/heading locations. Oversized/incomplete structures are fragments, not false intact blocks. `.txt` uses original line chunks.
+No overlap or per-file result-budget inflation; shared OR ranking and all query/chunk/eight-citation/16 KiB bounds remain unchanged.
+
+Same shared `LocalFileSearch` action and admitted broker/retained validated-snapshot workflow; mode/query/source generations and terminal trust/audit/privacy/cancellation fences suppress stale work. No schema/body/index/preference/model/egress or new filesystem scope is added.
+See the [canonical supported subset](File_And_Folder_Ingestion.md#delivered-opt-in-markdown-structure-aware-retrieval---2026-10-11).
+
+[Golden v2/v1 evidence](../tests/Kora.Core.UnitTests/Context/LocalFileMarkdownRetrievalTests.cs), [run-generation tests](../tests/Kora.Application.UnitTests/Presentation/LocalFileSearchSelectionTests.cs) and [shared action tests](../tests/Kora.Tools.UnitTests/Files/LocalFileSearchTests.cs) cover this slice only.
+The [native selector consumer](../tests/Kora.Windows.IntegrationTests/SessionAttachmentWindowTests.cs) does not qualify full CommonMark/rendering, managed sources/model grounding/providers or installed-native acceptance.
+
+Experiment disposition: no detector/experiment/historical receipt is retired. Unique native/runtime/offline/resource, storage/migration/recovery, containment, RT1/RT2/MG1 and quality witnesses are not wholly superseded by pure original-snapshot lexical retrieval.
+
 ### R26.1f reviewed retained attachment replacement - 2026-10-10
 
 The [bounded replacement](File_And_Folder_Ingestion.md#delivered-reviewed-retained-attachment-replacement---2026-10-10) adds a fresh native picker and separate confirmation binding exact old source/storage/inventory to new metadata, original native intent and active session generation/control/lifetime.
@@ -3136,6 +3151,16 @@ The complete serialized preview is capped at 50 records / 64 KiB, without trunca
 Experiment equivalence remains narrow: no production-equivalent exact batch path exists in the retained containment/runtime/native/storage experiments. Their non-superseded lifecycle, containment, hardware, storage and historical receipts remain unchanged; this is no full R05/RC/runtime qualification or implementation of the separately owned action-level permission design. Single-ID revocation and legacy named preferences remain unchanged.
 
 **Batch validation receipt:** based on `7aa16fd79f8df05af9128edac449a3b0f421c77f`, zero-warning/error Release solution build; Core **1573**, Application **4114**, Tools **173**, Definitions **6**, default-parallel Windows **1624** passed with zero failures/skips. Fresh-only portable line/branch coverage passed the unchanged exact **100% / 100%** gate. Owned TRX/coverage receipts remain under `.net-test-artifacts/batch-delivery`; focused actual-native/SQLite tests passed **35** cases.
+
+**Passive one-exact-grant committed history — 2026-10-11.** The separate native window now admits explicit history only after actual exact-record inspection. [Consumer port](../src/Kora.Core/Storage/IExactGrantStore.cs), [private authoritative reader](../src/Kora.Windows/Storage/WindowsSqliteHostInteractionStore.ExactGrantHistory.cs), [passive presenter](../src/Kora.Application/Interaction/ExactGrantsViewModel.History.cs) and [actual SQLite/native tests](../tests/Kora.Windows.IntegrationTests/Storage/WindowsSqliteExactGrantHistoryTests.cs) preserve single/batch revocation and current source/privacy boundaries without new grant authorization.
+
+Typed grant/change/requested batch references establish membership, not names/digests/paths, diagnostic mirrors or a question-valued top-level approval ID. Original source/schema/sequence/hash/request provenance and exact revisions/outcomes remain inert, with requested versus committed classification and counted unrelated-reference omissions. Committed use and stored metadata do not prove execution or exhaustive retained history; unlinked reviews/failed attempts, gaps/retention, applicability and running effects remain unknown/unavailable.
+
+The initialized shared private read lease and read-only connection reuse authoritative audit decoding/hash-prefix validation. Pages enforce 50 envelopes / 64 KiB complete output, 4096 prefix rows / 5 seconds, with progressing zero-match pages and a signed exact-ID/current-native-viewer/store-lifetime/sequence-digest ceiling/predecessor cursor lasting 15 minutes. Restart needs fresh inspection; independent Perpetual history does not require removed-origin-session admission. No migration, audit rewrite, pruning, Perpetual expiry, meaningful-activity renewal, export/replay or new authority is added.
+
+All consumer closure is deliberately narrow: the exact window/store history path is delivered; generic voice/typed/model/export/history consumers, operation applicability and execution receipts remain unavailable. History navigation clears stale revocation review; source/selection/control/privacy/close/cancellation changes suppress late rows. Existing unique containment/runtime/native/device, historical grant/audit-failure and forensic experiments remain necessary and unchanged: no production-equivalent passive exact-ID history contract supersedes their distinct proofs. This is not full R05/A0–A4/RC qualification or adoption of unmerged action-level permission design.
+
+**Exact-history validation receipt:** assignment base `cf44a5f2bc893a5d19f445b4fc4dd31a204b7d18`, rebased onto `70fcefbd53b14d4c6be564242dd714910b32d3ff`. Zero-warning/error Release solution build; Core **1575**, Application **4187**, Tools **173**, Definitions **6**, default-mode Windows **1672** passed, zero failures/skips. Fresh-only exact portable line/branch coverage passed **100% / 100%**. Owned failed and corrected/final receipts remain in `.net-test-artifacts/history-delivery`, `.net-test-artifacts/history-rebased` and ignored `history-*.log`; no live user database/device/runtime proof is claimed.
 
 **Native exact-grant management continuation — 2026-10-10.** A separate tray **Exact operation grants** surface now delivers passive bounded list/current inspection and explicit single approval-ID/revision revocation through the shared private SQLite authority. [Contracts/store](../src/Kora.Core/Storage/IExactGrantStore.cs), [fresh native control admission](../src/Kora.Application/Interaction/ExactGrantControlAdmission.cs), [presenter](../src/Kora.Application/Interaction/ExactGrantsViewModel.cs) and [actual private-store tests](../tests/Kora.Windows.IntegrationTests/Storage/WindowsSqliteExactGrantTests.cs) retain exact state/provenance and reject stale/use/lifecycle/privacy/control races.
 

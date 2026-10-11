@@ -1,0 +1,27 @@
+﻿using System.Collections.Immutable;
+using System.Text.Json;
+
+namespace Kora.Core.Authorization;
+
+/// <summary>A finite passive observation, never exhaustive execution evidence or continuing authority.</summary>
+public sealed record ExactGrantHistoryPage(
+    ExactGrantInspection? Current, ImmutableArray<ExactGrantHistoryEntry> Records, string? Next,
+    DateTimeOffset ObservedAt, long AuditCeiling, string AuditCeilingDigest,
+    long ScannedThrough, int ScannedRows, bool ScanLimitReached)
+{
+    public const int MaximumRecords = 50;
+    public const int MaximumBytes = 64 * 1024;
+    public const int MaximumScannedRows = 4096;
+    public const int RequestSeconds = 5;
+    public const int SnapshotMinutes = 15;
+    public const string Disclosure = "Committed security_audit_events only, with exact typed grant membership. "
+        + "Requested review is not a committed grant change. A committed consume is not proof an action executed. "
+        + "Creation time, last use and count are stored metadata, not missing use rows or exhaustive retained history. "
+        + "Unlinked review/failed attempts and diagnostic mirrors are unavailable in this exact-ID history. "
+        + "Expired-but-present is a retained deadline, not physical removal. Gaps/retention and execution/applicability remain unknown. "
+        + "Observed finite snapshot; not forensic or tamperproof evidence. No replay, export or new authority.";
+
+    public string Limitations => Disclosure;
+
+    public static byte[] Serialize(ExactGrantHistoryPage page) => JsonSerializer.SerializeToUtf8Bytes(page);
+}

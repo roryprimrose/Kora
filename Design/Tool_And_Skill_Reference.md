@@ -325,9 +325,8 @@ not delivered durable session/task/queue override configuration. Manual listenin
 and temporary call state do not persist across restart. Remote/privacy expansion
 requires exact voice/UI confirmation; secure enrollment retains mandatory
 host/OS checks. In-call feedback defaults to UI-only and is separate from
-input eligibility and default-On `calls.ignoreReusableGrants`.
-Protected calls require fresh Once approval instead of Session/Perpetual reuse;
-the reusable records remain unchanged. Voice-originated voice/in-call settings
+input eligibility and proposed default-Off `calls.allowSpokenApprovals`.
+Under the proposed [session permission-level contract](Session_Permission_Levels.md), protected calls restrict spoken approval, not reusable grants, grant duration or the session level; current grant-ignore remains until qualified migration. Voice-originated voice/in-call settings
 changes, reset/undo and speak-once exceptions are rejected, not deferred.
 
 ## 7. Grants and Audit Inspection

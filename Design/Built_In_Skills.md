@@ -478,8 +478,7 @@ reuse the first session's grant; deliberate addressing of the still-Active
 control session permits only its exact approved operation after revalidation.
 Done/deletion ends Session authority, resume never restores it, and an ordinary
 restart preserves only still-applicable Active-session grants without replay.
-Protected calls may require Once instead of reusable scope under their
-independent grant-ignore policy.
+Under the proposed [call policy](Session_Permission_Levels.md#voice-approval-and-protected-calls), calls disable spoken approval by default without forcing Once, ignoring grants or changing the level. Current grant-ignore remains until qualified migration. Every admitted built-in follows its session's [permission level](Session_Permission_Levels.md#levels-and-decision-order).
 
 A failure or missing confirmation produces an explicit failure/unknown result with an action receipt.
 Do not announce success solely on script exit code and do not automatically retry an uncertain lock.

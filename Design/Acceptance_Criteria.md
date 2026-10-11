@@ -176,7 +176,9 @@ not merging the partial research and testing handoff under normal checks/reviews
 
 ## Gate 0: Runtime Integration
 
-The Copilot proof in [Architecture](Architecture.md#copilot-integration-proof) must pass before it is enabled:
+The provider-specific proof in
+[Architecture](Architecture.md#hosted-service-integration-proof) must pass
+before Copilot, Claude, or Codex is enabled:
 
 - Denied tools produce zero side effects.
 - Denied synthetic context markers appear in zero outbound model payloads.
@@ -184,10 +186,33 @@ The Copilot proof in [Architecture](Architecture.md#copilot-integration-proof) m
 - Unmediated built-in tools, collection, and persistence are disabled or proven compliant.
 - Streaming, errors, authentication, and cancellation have explicit observed behaviour.
 - Any limitation produces a disabled capability and an actionable UI explanation.
+- The model picker contains only exact models advertised for the selected
+  service/account/catalogue revision.
+- Reasoning and context controls contain only model-specific advertised
+  choices, or truthfully show provider-managed/read-only state.
+- App defaults, sparse session overrides and one-turn choices resolve in the
+  documented precedence, and every admitted turn captures an immutable
+  effective profile.
+- An unscoped model directive defaults to the addressed session. In a compound
+  model-selection-and-action command, the exact session override and required
+  audit commit before action admission; failed, stale, cancelled or uncertain
+  mutation executes no remainder. One-turn and app-default scopes require
+  explicit language.
+- Mixed voice/UI edits share one revisioned draft, show app/session/effective
+  values, reject ambiguity/staleness and never silently substitute another
+  option or service.
+- Account, entitlement or catalogue changes invalidate affected selections
+  without carrying labels or IDs across accounts/services.
 
 Test the actual pinned SDK, not only a fake adapter.
 Mocks are supplementary for deterministic negative-path coverage.
 An unobservable or uncontrollable outbound path is a failed gate, not an assumption of safety.
+
+Run these checks independently for every supported service. Passing Copilot
+does not enable Claude or Codex. For each service, cover selectable and
+provider-managed reasoning/context behavior, stale catalogue, retired model,
+quota/rate limit, authentication loss, cancellation after possible send,
+concurrent-session isolation and zero-fallback outcomes.
 
 The [R02 evidence and continuation](Runtime_Provider_Feasibility.md) are a
 partial candidate result, not Gate 0 acceptance. Candidate/integrated tests

@@ -16,9 +16,10 @@ Related: [Architecture](Architecture.md),
 
 ## Product Decision
 
-Kora supports both qualified local inference through Ollama and separately
-qualified hosted inference through Copilot. It does not require every user or
-session to use both.
+Kora supports qualified local inference through Ollama and separately
+qualified hosted inference through GitHub Copilot, Anthropic Claude, and
+OpenAI Codex. It does not require every user or session to use local and hosted
+inference, or to configure every hosted service.
 
 Provider choice is explicit and host-owned:
 
@@ -26,7 +27,7 @@ Provider choice is explicit and host-owned:
 |---|---|---|
 | Local only | Qualified Ollama model | Prohibited |
 | Local first | Qualified Ollama model | Kora may offer an exact, reviewed handoff; the user decides |
-| Hosted preferred | Qualified Copilot destination | Used for admitted turns under the configured remote-processing policy |
+| Hosted preferred | Qualified configured Copilot, Claude, or Codex destination | Used for admitted turns under the configured remote-processing policy |
 
 **Local first** is the recommended default after both providers are qualified.
 **Local only** remains a complete supported mode rather than a degraded
@@ -38,10 +39,194 @@ race them, or switch midway through a request. A local-to-hosted transition is
 a new admitted turn with a new context envelope, destination decision, and
 visible provenance.
 
-Provider selection never changes tool authority. Ollama and Copilot receive
-the same admitted tool descriptions and return proposals through the same host
-authorization, approval, execution, result-sanitization, audit, cancellation,
-and session-ownership boundaries.
+Provider selection never changes tool authority. Ollama, Copilot, Claude, and
+Codex receive the same admitted tool descriptions and return proposals through
+the same host authorization, approval, execution, result-sanitization, audit,
+cancellation, and session-ownership boundaries. A service's native agent,
+tool, memory, workspace, shell, file, connector, or subagent features remain
+disabled unless Kora can route them through the corresponding host-owned
+control point.
+
+## Hosted Service, Model, and Compute Profile
+
+Kora treats **Copilot**, **Claude**, and **Codex** as distinct hosted services,
+not as interchangeable names for a model. Each has its own adapter,
+authentication/account state, terms and usage boundary, capability catalogue,
+qualification evidence, and availability. Enabling or signing in to one never
+enables another.
+
+The application-level hosted profile contains:
+
+| Field | Meaning |
+|---|---|
+| Hosted service | Stable service ID: `copilot`, `claude`, or `codex` |
+| Model | Exact provider model ID from that service's current admitted catalogue |
+| Reasoning level | Exact provider-defined reasoning/effort option for that model, when selectable |
+| Context size | Exact provider-supported context-budget option for that model, when selectable |
+
+These are request-shaping choices, not authority. They do not enable hosted
+execution, sign in an account, approve egress, increase a paid quota, grant a
+tool, or override session ownership, privacy, call, lock, or permission policy.
+
+### Provider-advertised capability catalogue
+
+Every adapter publishes a host-normalized, immutable capability snapshot with:
+
+- stable service ID, adapter/runtime version, account reference and region or
+  tenancy classification where the service exposes them;
+- catalogue revision, observation time, expiry/refresh rule, and truthful
+  unavailable or stale state;
+- exact model IDs and display names available to the signed-in account;
+- for each model, the exact selectable reasoning levels and context sizes, or
+  an explicit **provider managed/fixed** value when the service does not expose
+  that control;
+- model retirement/deprecation, modality, tool/streaming, quota and request
+  constraints required for admission; and
+- the provider-native values to send for each normalized choice, retained
+  inside the adapter rather than accepted from UI or model text.
+
+Kora does not maintain a product-wide enum of model names, infer capabilities
+from marketing names, or assume that two services use equivalent reasoning
+levels. A normalized choice therefore has a stable opaque option ID, provider
+display label and optional provider-supplied description. Labels such as
+**Low**, **Medium**, or **High** are shown only when the applicable adapter
+maps them to exact supported provider values for the selected model.
+
+Context size is the maximum model-input budget Kora may assemble for that
+turn, including system instructions, user content, history, evidence and tool
+catalogue overhead. The picker shows exact token counts or provider-defined
+presets. Kora may send less, but never more. Output limits and Kora's own
+smaller security/resource envelope remain independent hard ceilings and cannot
+be raised by selecting a larger provider context.
+
+Catalogue refresh occurs on sign-in/account change, explicit refresh,
+adapter/runtime update, provider expiry guidance, and an availability rejection
+that indicates catalogue drift. Refresh is read-only: it never silently changes
+a saved selection. A missing, retired, no-longer-entitled, stale, partially
+described, or internally inconsistent choice is **Unavailable**. Kora shows the
+saved and effective states and requires a new explicit selection; it does not
+substitute a nearby model, reasoning level, context size, service, or local
+provider.
+
+### Application defaults and per-service selections
+
+Settings exposes one application-level default hosted service and one retained
+selection tuple for each configured service:
+
+- `providers.hosted.default-service`;
+- `providers.hosted.<service-id>.model`;
+- `providers.hosted.<service-id>.reasoning`; and
+- `providers.hosted.<service-id>.context`.
+
+Selecting a service changes which service-specific tuple is edited; it does
+not erase the tuples for the other services. Model selection refreshes the
+available reasoning and context choices. If the existing dependent choice is
+not valid for the newly selected model, Save remains unavailable until the
+user chooses an advertised value or the explicit provider-managed value. UI
+pickers and verbal discovery are populated from the same admitted catalogue
+snapshot and configuration draft.
+
+A confirmed save binds the account reference, catalogue revision and complete
+tuple. Account changes never carry a tuple forward merely because model labels
+match. Credentials and tokens remain in the service's secure sign-in flow and
+are never settings values.
+
+### Session overrides and effective resolution
+
+A Kora work session may store a sparse override of hosted service, model,
+reasoning level, and context size. Each field is either **Inherit app setting**
+or an exact catalogue-backed value. The effective profile for a new hosted turn
+is resolved in this order:
+
+1. explicit admitted turn choice, when the interaction intentionally requests
+   a one-turn change;
+2. the addressed session's override for each field;
+3. the application-level service and that service's saved tuple.
+
+**Session is the default mutation scope.** An unscoped model directive such as
+"Use Claude" or "Use high reasoning and summarize this" updates the addressed
+session. The host validates and commits that session-policy revision before it
+admits the remaining requested action, which is then bound to the resulting
+effective profile. Failure, cancellation, stale authority, or uncertain audit/
+storage outcome while applying the override prevents the action from running.
+
+One-turn scope requires explicit language such as **for this request only** or
+**once**. Application scope requires explicit language such as **make this my
+app default**. A command that does not address an existing eligible session
+cannot silently fall back to application scope; Kora asks the user to select or
+create a session.
+
+An inherited model/reasoning/context value always comes from the effective
+service. Changing only the session service therefore uses that service's saved
+application tuple unless the session also overrides dependent fields. Invalid
+cross-service combinations are rejected; IDs and labels from one catalogue
+cannot be reinterpreted in another.
+
+**Use app defaults for this session** clears the complete session override.
+Clearing one field restores inheritance only for that field. Session overrides
+are durable session policy, visible in session details, included in session
+retention/deletion, and never promoted back to application defaults implicitly.
+Application-setting changes affect inherited fields on later turns but do not
+rewrite session records.
+
+Turn admission captures one immutable effective profile and catalogue revision.
+Changing application defaults or session overrides never mutates, retries,
+reroutes, or cancels an admitted turn. The next turn resolves again. If the
+captured service becomes unavailable before dispatch, that turn fails
+explicitly and requires a new choice; no fallback occurs.
+
+### Voice and UI interaction
+
+The shared configuration workflow provides equivalent UI, exact-command and
+activated-voice operations. Examples include:
+
+- "Use Claude by default."
+- "Which models can I use with Copilot?"
+- "Use `<advertised model label>` with high reasoning and the 128K context."
+- "For this request only, use `<advertised model label>`."
+- "For this session, use Codex."
+- "Use the app model for this session, but set reasoning to low."
+- "Use app defaults for this session."
+- "What model is this session using?"
+
+Natural language may identify a displayed option, but the host resolves it to
+one exact option ID in the current draft catalogue. Ambiguous labels produce a
+question; unavailable values produce an explanation and the currently
+available choices. The model cannot invent or self-select a service, model,
+reasoning level, context size, scope, account, or catalogue revision.
+
+Before confirmation, UI and voice feedback show the scope (**This session** by
+default, **App default**, or explicit **Next turn only**), service, account label safe for
+display, model, reasoning, context, inherited fields, remote-processing effect,
+and catalogue freshness. After a change, Kora reports the saved override and
+the effective profile separately. Session headers and every hosted response
+show service/model provenance; reasoning and context configuration are
+inspectable in turn details without exposing hidden reasoning content.
+
+Remote-enabling changes and account/service changes follow the existing exact
+confirmation and egress rules. Protected-call restrictions may require a fresh
+UI-originated change. Read-only discovery remains available when mutation is
+blocked.
+
+### Adapter and qualification boundary
+
+Copilot, Claude, and Codex adapters implement the same provider-neutral turn
+protocol and catalogue contract, but qualify independently. Each must prove:
+
+- final outbound request/context mediation, host-only tool authorization and
+  sanitized tool-result continuation;
+- no unmediated provider tools, automatic repository/workspace collection,
+  durable provider memory, hidden retries, or cross-session conversation reuse;
+- exact mapping and rejection behavior for model, reasoning and context
+  options, including catalogue drift between review and dispatch;
+- streaming, cancellation, timeout, quota/rate-limit, authentication, cost/
+  usage reporting, diagnostics, storage and endpoint behavior; and
+- isolation across accounts, sessions, concurrent turns and management work.
+
+Failure or missing evidence disables only that adapter or affected capability.
+It never weakens the common host contract or causes another hosted service to
+be selected. Provider-specific SDK/CLI limitations may make reasoning or
+context read-only, provider-managed, or the whole adapter unavailable.
 
 ## Local-First Handoff
 
@@ -497,7 +682,7 @@ parallel model subsystem:
 
 1. **Provider-neutral host controls**: R04-R08 establish durable identity,
    authority, tool/result mediation, context/egress control, qualified Ollama,
-   and qualified Copilot adapters.
+   and independently qualified Copilot, Claude, and Codex adapters.
 2. **Explicit session modes and handoff**: R08/R10/R12 expose Local only,
    Local first, and Hosted preferred with provider provenance and no silent
    fallback.
@@ -507,7 +692,7 @@ parallel model subsystem:
    Markdown/plain-text extraction, lexical retrieval, citations, and qualified
    local reasoning.
 5. **Hosted grounded reasoning**: R26.4 applies exact excerpt/destination
-   review through the admitted Copilot adapter.
+   review through the admitted selected hosted-service adapter.
 6. **Richer retrieval and media**: R26.5 independently qualifies hybrid/vector
    retrieval, additional formats, OCR, and later vision support.
 

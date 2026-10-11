@@ -139,6 +139,7 @@ public sealed partial class SessionWorkspaceServiceTests
     [InlineData("latecancel")]
     [InlineData("settings")]
     [InlineData("saved")]
+    [InlineData("postcommit")]
     public async Task ExpiredNewDecisionCapturesCurrentConfirmedSettingsAndCannotReuseChangedConfiguration(string boundary)
     {
         using var f = new Fixture();
@@ -156,11 +157,18 @@ public sealed partial class SessionWorkspaceServiceTests
         if (boundary is "settings") { await settings.Set("3", Kora.Core.Configuration.SessionQueueOption.PendingLifetimeMinutes); }
         if (boundary is "saved") { f.BeforeMove = () => settings.PreferencesStore.Value = new(pendingLifetimeMinutes: 3); }
         if (boundary is "latecancel") { f.AfterMove = cancel.Cancel; }
+        if (boundary is "postcommit") { f.AfterMove = () => settings.PreferencesStore.Value = new(pendingLifetimeMinutes: 3); }
         var confirm = () => queue.ExecuteCommandAsync(RequeueConfirmCommand(review), RequestOrigin.LocalUi, () => true, cancel.Token);
-        if (boundary is "settings" or "saved")
+        if (boundary is "settings" or "saved" or "postcommit")
         {
             await confirm.Should().ThrowAsync<InvalidOperationException>();
-            f.QueueRows.Should().Equal(old);
+            if (boundary is "postcommit")
+            {
+                f.QueueRows.Single(entry => entry.Request.TaskId == old.Request.TaskId).State.Should().Be(SessionQueueState.Removed);
+                f.TaskWrites.Last().State.Should().Be(HostTaskState.Succeeded, "known physical commit is not relabelled Denied by a failed configuration receipt");
+                (await f.ReadQueueAsync(f.Request.SessionId, f.Token)).DispatchControl!.Held.Should().BeTrue();
+            }
+            else { f.QueueRows.Should().Equal(old); }
         }
         else
         {

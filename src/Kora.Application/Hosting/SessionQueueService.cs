@@ -187,9 +187,14 @@ public sealed partial class SessionQueueService : IAsyncDisposable
                     SessionCommandOperation.QueueCancelSelectedConfirm =>
                         await store.CancelSelectedPendingAsync(request, cancelReview!, Eligible, token).ConfigureAwait(false),
                     SessionCommandOperation.QueueRequeueExpiredConfirm =>
-                        await WithLimitsAsync(current => store.RequeueExpiredAsync(request, requeueReview!, current, ConfigurationRevision,
-                            () => Eligible() && requeueProposal!.Value.Eligible()
-                                && (configuration is null || configuration.IsCurrent(current)), token).AsTask(), token,
+                        await WithLimitsAsync(async current =>
+                        {
+                            var committed = await store.RequeueExpiredAsync(request, requeueReview!, current, ConfigurationRevision,
+                                () => Eligible() && requeueProposal!.Value.Eligible()
+                                    && (configuration is null || configuration.IsCurrent(current)), token).ConfigureAwait(false);
+                            changedControl = committed;
+                            return committed;
+                        }, token,
                             preserveCommittedResult: true).ConfigureAwait(false),
                     _ => throw new InvalidOperationException("The deterministic queue operation is unavailable."),
                 };
@@ -201,7 +206,10 @@ public sealed partial class SessionQueueService : IAsyncDisposable
             }
             catch (InvalidOperationException)
             {
-                await tasks.RecordOutcomeAsync(intent, HostTaskState.Denied, CancellationToken.None).ConfigureAwait(false);
+                if (changedControl is null)
+                {
+                    await tasks.RecordOutcomeAsync(intent, HostTaskState.Denied, CancellationToken.None).ConfigureAwait(false);
+                }
                 throw;
             }
             // Pause controls commit their terminal task and audit before publishing run-only state at the admission fence.

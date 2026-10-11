@@ -1136,9 +1136,21 @@
             <TextBlock Text="{Binding SelectedProviderContext.ProviderManaged, StringFormat='Context is provider managed: {0}'}" />
             <TextBlock Text="{Binding SelectedProviderReasoning.ProviderManaged, StringFormat='Reasoning is provider managed: {0}'}" />
             <Button Content="Save selected app service and exact model/reasoning/context tuple" Command="{Binding SaveProviderProfileCommand}" IsEnabled="{Binding CanSaveProviderProfile}" />
+            <TextBlock Text="Individual app field review preserves the saved complete tuple and app default service. Model review retains exact reasoning/context IDs only if supported; otherwise use the complete tuple draft/save above. No missing field is defaulted."
+                       Classes="settings-description" TextWrapping="Wrap" />
+            <Button Content="Review only model from the model draft above" Command="{Binding ReviewProviderModelCommand}" IsEnabled="{Binding CanReviewProviderModel}" />
+            <ComboBox ItemsSource="{Binding ProviderReasoningFieldChoices}" SelectedItem="{Binding SelectedProviderReasoningField}"
+                      DisplayMemberBinding="{Binding Label}" IsEnabled="{Binding CanChangeProviderProfile}" AutomationProperties.Name="Individual exact reasoning edit for saved model" />
+            <Button Content="Review only reasoning; retain saved model and context" Command="{Binding ReviewProviderReasoningCommand}" IsEnabled="{Binding CanReviewProviderReasoning}" />
+            <ComboBox ItemsSource="{Binding ProviderContextFieldChoices}" SelectedItem="{Binding SelectedProviderContextField}"
+                      DisplayMemberBinding="{Binding Label}" IsEnabled="{Binding CanChangeProviderProfile}" AutomationProperties.Name="Individual exact context edit for saved model" />
+            <Button Content="Review only context; retain saved model and reasoning" Command="{Binding ReviewProviderContextCommand}" IsEnabled="{Binding CanReviewProviderContext}" />
+            <TextBlock Text="{Binding ProviderFieldPreviewStatus}" Classes="settings-description" TextWrapping="Wrap" />
+            <Button Content="Confirm reviewed app field and whole complete tuple" Command="{Binding ConfirmProviderFieldCommand}" IsEnabled="{Binding CanConfirmProviderField}" />
+            <Button Content="Cancel reviewed app field; no write" Command="{Binding CancelProviderFieldCommand}" IsEnabled="{Binding CanConfirmProviderField}" />
             <Button Content="Reset selected service tuple to unresolved; retain other services" Command="{Binding ResetProviderProfileCommand}" IsEnabled="{Binding CanChangeProviderProfile}" />
             <Button Content="Sign in to selected service (Unavailable: no qualified adapter)" Command="{Binding ProviderSignInCommand}" IsEnabled="{Binding CanSignInProvider}" />
-            <TextBlock Text="Hosted selection never signs in or authorizes egress. No machine credentials, authentication, provider network call, model acquisition or generation occurs here. Session overrides and one-turn directives remain unavailable; use explicit app scope."
+            <TextBlock Text="Hosted selection never signs in or authorizes egress. No machine credentials, authentication, provider network call, model acquisition or generation occurs here. Exact session overrides use separate review; one-turn directives remain unavailable. These controls are explicitly app scoped."
                        Classes="settings-description" TextWrapping="Wrap" />
             <TextBlock Text="{Binding ProviderProfileConfigurationStatus}" Classes="settings-description" TextWrapping="Wrap" />
             <Button Content="Review pending exact provider handoff" Click="OnReviewHandoffClicked"

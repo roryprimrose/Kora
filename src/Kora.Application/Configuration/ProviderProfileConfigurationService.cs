@@ -49,8 +49,9 @@ public sealed class ProviderProfileConfigurationService(
     {
         lock (gate)
         {
+            var service = choice.Tuple?.Service ?? choice.Service;
             return !held && issued.Contains(choice) && choice.Revision == revision && choice.RemainsAdmitted()
-                && choice.Service != ProviderService.Unset ? observation!.For(choice.Service) : null;
+                && service != ProviderService.Unset ? observation!.For(service) : null;
         }
     }
 
@@ -160,6 +161,38 @@ public sealed class ProviderProfileConfigurationService(
         }
     }
 
+    public ProviderCatalogueModel? SavedModelFor(ProviderProfileChoice choice)
+    {
+        lock (gate)
+        {
+            var current = CatalogueFor(choice);
+            return current is null || current.Service == ProviderService.Local && observation!.Installation != LocalProviderInstallation.Installed
+                ? null : ProviderProfileRules.Resolve(saved?.For(choice.Service), current, time.GetUtcNow());
+        }
+    }
+
+    public ProviderProfileChoice CreateFieldChoice(ProviderProfileField field, ProviderChoiceId id,
+        ProviderProfileChoice? serviceChoice = null)
+    {
+        lock (gate)
+        {
+            RequireDraft();
+            var selected = serviceChoice ?? choices.Single(item => item.Service == desired!.Service);
+            if (SavedModelFor(selected) is null || !Same(Read(), saved))
+            { throw new InvalidOperationException("An exact current saved complete tuple is required. Use the complete providers.app.profile draft/save to choose all dependent fields."); }
+            var current = observation!.For(selected.Service);
+            var baseTuple = saved!.For(selected.Service)!;
+            var tuple = ProviderProfileRules.ReplaceField(baseTuple, field, id);
+            if (ProviderProfileRules.Resolve(tuple, current, time.GetUtcNow()) is null)
+            { throw new InvalidOperationException("The proposed field and retained reasoning/context IDs are not a supported complete tuple. Use the complete providers.app.profile draft/save; no defaults or substitutes were selected."); }
+            // Editing another service's tuple must not change the desired default service.
+            var choice = new ProviderProfileChoice(desired!.Select(tuple), revision, owner, session!, origin, remainsAdmitted!,
+                tuple, field: field, baseTuple: baseTuple);
+            Issue(choice);
+            return choice;
+        }
+    }
+
     private void RequireDraft()
     {
         // Only completed discovery/confirmation clears held after atomically populating the complete draft.
@@ -196,7 +229,13 @@ public sealed class ProviderProfileConfigurationService(
                     if (choice.ResetInstallation is { } reset && reset != current.Installation)
                     { throw new InvalidOperationException("Installation observation changed since the app-default reset preview."); }
                     var audit = new SecurityAuditEvent(Guid.NewGuid(), SecurityAuditCategory.ConfigurationWrite,
-                        "configuration.provider-profile", SecurityAuditOutcome.Requested,
+                        choice.Field switch
+                        {
+                            ProviderProfileField.Model => "configuration.provider-profile.model",
+                            ProviderProfileField.Reasoning => "configuration.provider-profile.reasoning",
+                            ProviderProfileField.Context => "configuration.provider-profile.context",
+                            _ => "configuration.provider-profile",
+                        }, SecurityAuditOutcome.Requested,
                         request.Origin == RequestOrigin.ActivatedVoice ? SecurityAuditInitiator.VoiceCommand : initiator, "preferences.device-local");
                     auditLog.Write(audit);
                     var denied = policy.CommitVoiceSetting(request.Origin, callRevision,

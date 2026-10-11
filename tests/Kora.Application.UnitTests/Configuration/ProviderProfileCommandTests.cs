@@ -7,6 +7,53 @@ namespace Kora.Application.UnitTests.Configuration;
 public sealed class ProviderProfileCommandTests
 {
     [Theory]
+    [InlineData(ProviderProfileField.Model)]
+    [InlineData(ProviderProfileField.Reasoning)]
+    [InlineData(ProviderProfileField.Context)]
+    public void ExactIndividualFieldInputBindsIdsWithoutInferredScope(ProviderProfileField field)
+    {
+        var option = "providers.app." + field.ToString().ToLowerInvariant();
+        var text = "set " + option + " to Exact/V2 for Account at 42";
+        var command = ProviderProfileCommand.Parse("Mira, " + text, "Mira")!;
+        command.Field.Should().Be(field);
+        command.FieldValue.Should().Be(new ProviderChoiceId("Exact/V2"));
+        command.Account.Should().Be("Account");
+        command.CatalogueRevision.Should().Be(42);
+        command.Model.Should().BeNull();
+        ProviderProfileCommand.Parse("get " + option, "Mira")!.Field.Should().Be(field);
+        ProviderProfileCommand.Parse("status " + option, "Mira")!.Field.Should().Be(field);
+        ProviderProfileCommand.Parse("Kora, " + text, "Mira")!.Operation.Should().Be(AppearanceCommandOperation.Clarify);
+    }
+
+    [Theory]
+    [InlineData("confirm", false)]
+    [InlineData("cancel", true)]
+    public void ConfirmationAndCancellationAcceptOnlyCanonicalHostIds(string verb, bool cancel)
+    {
+        var id = Guid.Parse("aaaaaaaa-1111-2222-3333-444444444444");
+        var command = ProviderProfileCommand.Parse($"{verb} providers.app.profile {id:D}", "Kora")!;
+        command.Confirmation.Should().Be(id);
+        command.Cancel.Should().Be(cancel);
+        foreach (var value in new[] { id.ToString("D").ToUpperInvariant(), id.ToString("N"), Guid.Empty.ToString("D"), "foreign", id + " extra" })
+        { ProviderProfileCommand.Parse($"{verb} providers.app.profile {value}", "Kora")!.Operation.Should().Be(AppearanceCommandOperation.Clarify); }
+    }
+
+    [Theory]
+    [InlineData("reset providers.app.model")]
+    [InlineData("set providers.app.model to model for account at 01")]
+    [InlineData("set providers.app.model to model FOR account at 1")]
+    [InlineData("set providers.app.model to model for account AT 1")]
+    [InlineData("set providers.app.reasoning to é for account at 1")]
+    [InlineData("set providers.app.context to exact for é at 1")]
+    [InlineData("set providers.app.context to exact for account at -1")]
+    [InlineData("set providers.app.context to exact for account at 9223372036854775808")]
+    [InlineData("set providers.app.context to exact for account at 1 and summarize")]
+    public void PartialUnknownAndMultiActionFieldSyntaxNeverWrites(string text)
+    {
+        ProviderProfileCommand.Parse(text, "Kora")!.Operation.Should().Be(AppearanceCommandOperation.Clarify);
+    }
+
+    [Theory]
     [InlineData("list app provider settings", AppearanceCommandOperation.List)]
     [InlineData("get providers.app.profile", AppearanceCommandOperation.Get)]
     [InlineData("status providers.app.profile", AppearanceCommandOperation.Get)]

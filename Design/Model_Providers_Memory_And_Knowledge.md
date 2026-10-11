@@ -113,7 +113,7 @@ provider.
 The initial desired application service is **Local if a supported Ollama installation is observed; otherwise Unset**. Unknown installation is Unset, never Copilot or another hosted service.
 This is independent of the unchanged **LocalOnly** safety-mode default. Installation does not establish runtime/model readiness, generation consent, account identity or egress authorization.
 
-The delivered application default is `providers.app.default-service`: Unset, Local, Copilot, Claude or Codex. Each service retains its own complete desired model/reasoning/context tuple. The aggregate exact `providers.app.profile` route saves or resets the selected service's tuple atomically; separate field setters remain future work.
+The delivered application default is `providers.app.default-service`: Unset, Local, Copilot, Claude or Codex. Each service retains a complete desired model/reasoning/context tuple. The aggregate `providers.app.profile` route saves or resets that tuple atomically. Exact `providers.app.model`, `.reasoning` and `.context` edits review a complete resulting tuple before separate confirmation.
 
 The broader hosted-field catalogue remains the proposed logical layout:
 
@@ -140,6 +140,12 @@ are never settings values.
 [Settings > Providers](../src/Kora/SettingsWindow.axaml) and [exact typed/current-name activated commands](../src/Kora.Application/Configuration/ProviderProfileCommand.cs) use [one audited workflow](../src/Kora.Application/Configuration/ProviderProfileConfigurationService.cs).
 They expose discovery/status, explicit desired-service selection, complete exact tuple save, app-service reset and selected-service tuple reset.
 
+Individual app field edits use the same current saved complete tuple, host-issued preview and audited writer, not a sparse preference or second authority. Exact typed/current-name activated setters bind the ID/account/catalogue; separate `confirm providers.app.profile <host-issued-id>` or native confirmation saves the reviewed whole tuple. Cancel writes nothing; no field-only reset exists.
+
+Native review shows the selected service, saved and proposed complete tuples, field, dependent validity, preference revision and inert catalogue provenance. Reasoning/context edit the saved model; a model edit retains both exact dependent IDs only if still supported. A missing/stale base or incompatible result explicitly requires the existing complete tuple draft/save. Nothing selects a default or substitutes a provider-managed value.
+
+Field edits preserve the desired default service, all other service tuples and session overrides. Native selection changes and current host/privacy/session/generation/call, app preference or account/catalogue/expiry changes reject confirmation. Existing complete-profile, desired-service and selected-service reset routes remain available and compatible.
+
 The [portable immutable catalogue](../src/Kora.Core/Providers/ProviderCapabilityCatalogue.cs) contains typed opaque IDs, exact model-specific reasoning/context choices, explicitly advertised provider-managed values, account/catalogue revisions and validity.
 Bounds are four services, 64 models/service, 16 choices/control, 64 outstanding host previews, 128-character ASCII IDs, 256-byte inert labels, 8,192-byte preferences and complete 64 KiB discovery output. Oversized output fails, never truncates; preview capacity requires explicit refresh without eviction.
 
@@ -163,6 +169,7 @@ Durable exact-session inheritance/overrides are delivered below. Generic unscope
 
 - [Domain/persistence tests](../tests/Kora.Core.UnitTests/Providers/ProviderProfilePreferencesTests.cs) and [audit/failure/tuple matrix](../tests/Kora.Application.UnitTests/Configuration/ProviderProfileConfigurationServiceTests.cs) exercise exact state.
 - [Actual UI routing](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.ProviderProfiles.cs) and [subsequent-turn consumer tests](../tests/Kora.Application.UnitTests/Dependencies/ModelTurnHostTests.ProviderProfiles.cs) exercise admission and immutable capture.
+- [Individual field failures/atomic save](../tests/Kora.Application.UnitTests/Configuration/ProviderProfileFieldConfigurationTests.cs) and [real native/exact/current-name activated review](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.ProviderFields.cs) cover compatible retention, incompatible-base recovery, cancellation, stale confirmation and no provider execution.
 - [Private SQLite/composition tests](../tests/Kora.Windows.IntegrationTests/Storage/WindowsSqliteProviderProfileConfigurationTests.cs) use deterministic installation/catalogue boundaries, not live endpoints/accounts/devices.
 
 Experiment disposition remains **retain**. Exact deterministic catalogue/configuration/host assertions do not equal RT1 SDK-native final bytes, RT2 native lifecycle/egress, PV1 account/terms/quota, local quality/offline/CPU-floor, or installed native/hardware proof.

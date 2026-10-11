@@ -17,6 +17,32 @@ public sealed class ProviderProfileRulesTests
     private static ProviderProfileTuple Tuple() => new(ProviderService.Local, new("account"), new(1), new("exact-model"), new("fixed"), new("fixed"));
 
     [Theory]
+    [InlineData(ProviderProfileField.Model)]
+    [InlineData(ProviderProfileField.Reasoning)]
+    [InlineData(ProviderProfileField.Context)]
+    public void IndividualFieldReplacementPreservesCompleteExactShape(ProviderProfileField field)
+    {
+        var before = Tuple();
+        var id = new ProviderChoiceId("replacement");
+        var after = ProviderProfileRules.ReplaceField(before, field, id);
+        after.Service.Should().Be(before.Service);
+        after.Account.Should().Be(before.Account);
+        after.CatalogueRevision.Should().Be(before.CatalogueRevision);
+        after.Model.Should().Be(field == ProviderProfileField.Model ? id : before.Model);
+        after.Reasoning.Should().Be(field == ProviderProfileField.Reasoning ? id : before.Reasoning);
+        after.Context.Should().Be(field == ProviderProfileField.Context ? id : before.Context);
+        FluentActions.Invoking(() => ProviderProfileRules.ValidateTuple(after)).Should().NotThrow();
+    }
+
+    [Fact]
+    public void IndividualFieldReplacementRejectsMissingOrUnknownValues()
+    {
+        FluentActions.Invoking(() => ProviderProfileRules.ReplaceField(null!, ProviderProfileField.Model, new("exact"))).Should().Throw<InvalidDataException>();
+        FluentActions.Invoking(() => ProviderProfileRules.ReplaceField(Tuple(), ProviderProfileField.Model, null!)).Should().Throw<ArgumentNullException>();
+        FluentActions.Invoking(() => ProviderProfileRules.ReplaceField(Tuple(), (ProviderProfileField)99, new("exact"))).Should().Throw<ArgumentOutOfRangeException>();
+    }
+
+    [Theory]
     [InlineData(null)]
     [InlineData("")]
     [InlineData(" ")]

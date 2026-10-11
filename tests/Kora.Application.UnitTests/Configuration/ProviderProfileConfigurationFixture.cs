@@ -99,6 +99,7 @@ internal sealed class ProviderProfileConfigurationFixture : IAsyncDisposable
         internal Action? AfterObservation { get; set; }
         internal DateTimeOffset Expiry { get; set; } = DateTimeOffset.UnixEpoch.AddMinutes(10);
         internal bool LargeCatalogue { get; set; }
+        internal bool FieldCatalogue { get; set; }
         public async Task<ProviderCatalogueObservation> ObserveAsync(CancellationToken cancellationToken)
         {
             Calls++;
@@ -116,6 +117,17 @@ internal sealed class ProviderProfileConfigurationFixture : IAsyncDisposable
                     } };
                     return new ProviderCapabilityCatalogue(service, Status, Status == ProviderCatalogueStatus.Current ? new(Account) : null,
                         new(Revision), DateTimeOffset.UnixEpoch.AddMinutes(-1), Expiry, Status != ProviderCatalogueStatus.Current ? []
+                            : FieldCatalogue
+                                ? [
+                                    new(new(Model), "Same inert label", selection,
+                                        [new(new(Reasoning), "Same inert label", false), new(new("exact-effort"), "Same inert label", false)],
+                                        [new(new(Context), "Same inert label", false, 4096), new(new("exact-window"), "Same inert label", false, 8192)]),
+                                    new(new("compatible-model"), "Same inert label", selection with { Model = new(Guid.Parse("11111111-1111-1111-1111-111111111111")) },
+                                        [new(new(Reasoning), "Same inert label", false), new(new("exact-effort"), "Same inert label", false)],
+                                        [new(new(Context), "Same inert label", false, 4096), new(new("exact-window"), "Same inert label", false, 8192)]),
+                                    new(new("incompatible-model"), "Same inert label", selection with { Model = new(Guid.Parse("22222222-2222-2222-2222-222222222222")) },
+                                        [new(new("other-effort"), "Same inert label", false)], [new(new("other-window"), "Same inert label", false, 1024)]),
+                                ]
                             : LargeCatalogue
                                 ? Enumerable.Range(0, 64).Select(index => new ProviderCatalogueModel(new(Model + index.ToString(System.Globalization.CultureInfo.InvariantCulture)),
                                     new string('M', 256), selection with { Model = new(new Guid(index + 1, 0, 0, new byte[8])) },

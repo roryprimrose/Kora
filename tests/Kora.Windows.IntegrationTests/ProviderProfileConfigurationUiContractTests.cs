@@ -19,6 +19,8 @@ public sealed class ProviderProfileConfigurationUiContractTests
             ("SelectedProviderProfileModel", "ProviderProfileModels"),
             ("SelectedProviderReasoning", "ProviderReasoningChoices"),
             ("SelectedProviderContext", "ProviderContextChoices"),
+            ("SelectedProviderReasoningField", "ProviderReasoningFieldChoices"),
+            ("SelectedProviderContextField", "ProviderContextFieldChoices"),
         })
         {
             var selector = controls.Single(control => string.Equals(control.Attribute("SelectedItem")?.Value, "{Binding " + selected + "}", StringComparison.Ordinal));
@@ -33,6 +35,11 @@ public sealed class ProviderProfileConfigurationUiContractTests
             ("ResetProviderServiceCommand", "CanChangeProviderProfile"),
             ("ResetProviderProfileCommand", "CanChangeProviderProfile"),
             ("ProviderSignInCommand", "CanSignInProvider"),
+            ("ReviewProviderModelCommand", "CanReviewProviderModel"),
+            ("ReviewProviderReasoningCommand", "CanReviewProviderReasoning"),
+            ("ReviewProviderContextCommand", "CanReviewProviderContext"),
+            ("ConfirmProviderFieldCommand", "CanConfirmProviderField"),
+            ("CancelProviderFieldCommand", "CanConfirmProviderField"),
         })
         {
             controls.Single(control => string.Equals(control.Attribute("Command")?.Value, "{Binding " + command + "}", StringComparison.Ordinal))

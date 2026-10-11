@@ -8,6 +8,60 @@ namespace Kora.Application.UnitTests.Dependencies;
 
 public sealed partial class ModelTurnHostTests
 {
+    [Theory]
+    [InlineData(ProviderProfileField.Model)]
+    [InlineData(ProviderProfileField.Reasoning)]
+    [InlineData(ProviderProfileField.Context)]
+    public async Task RealAppFieldWriterChangesOnlyLaterInheritedTurnsAndPreservesExplicitSessionFields(ProviderProfileField field)
+    {
+        using var f = new Fixture();
+        using var root = f.Root();
+        f.ProfileCatalogue.Status = ProviderCatalogueStatus.Current;
+        f.ProfileCatalogue.FieldCatalogue = true;
+        f.ProfilePreferences.Value = new(ProviderService.Local, [Profile()]);
+        var host = f.ConfiguredProfiles();
+        var captured = await host.AdmitAsync(ModelTurnChoice.Default, f.Context(), null, Token);
+        captured.Turn!.Profile.Should().Be(Profile());
+        using var call = new Kora.Application.Communication.CallCommunicationPolicy(
+            new Kora.Application.UnitTests.Configuration.ProviderProfileConfigurationFixture.ProfileCall());
+        f.ProfileCatalogue.BeforeObservation = () =>
+        {
+            f.ExpectedAuditRequest = HostActivity.RequireCurrent().Request;
+            return System.Threading.Tasks.Task.CompletedTask;
+        };
+        await f.ProfileConfiguration.RefreshAsync(f.Request.Origin, () => f.Current, Token);
+        var replacement = Kora.Application.UnitTests.Configuration.ProviderProfileFieldConfigurationTests.Replacement(field);
+        var preview = f.ProfileConfiguration.CreateFieldChoice(field, new(replacement));
+        await f.ProfileConfiguration.SelectAsync(preview, call.Current.Revision, f.Request.Origin,
+            SecurityAuditInitiator.TypedCommand, call, () => f.Current, Token);
+        f.ProfileCatalogue.BeforeObservation = null;
+        f.ExpectedAuditRequest = null;
+        var updated = ProviderProfileRules.ReplaceField(Profile(), field, new(replacement));
+        f.ProfilePreferences.Value!.For(ProviderService.Local).Should().Be(updated);
+        (await host.RunAsync(captured.Turn, Token)).Outcome.Should().Be(ModelTurnOutcome.Succeeded);
+        f.Adapter.Profile.Should().Be(Profile());
+        var next = await host.AdmitAsync(ModelTurnChoice.Default, f.Context(), null, Token);
+        if (field == ProviderProfileField.Model)
+        {
+            // The test host has no independently qualified registration for the newly advertised model.
+            next.Turn.Should().BeNull();
+        }
+        else { next.Turn!.Profile.Should().Be(updated); }
+        var sessionField = field switch
+        {
+            ProviderProfileField.Model => SessionProviderField.Model,
+            ProviderProfileField.Reasoning => SessionProviderField.Reasoning,
+            _ => SessionProviderField.Context,
+        };
+        f.SessionOverrides = SessionProviderOverrides.Inherit.Select(Profile(), sessionField);
+        var unchangedSession = f.SessionOverrides.Serialize();
+        var overridden = await host.AdmitAsync(ModelTurnChoice.Default, f.Context(), null, Token);
+        overridden.Turn!.Profile.Should().Be(Profile());
+        f.SessionOverrides.Serialize().Should().Be(unchangedSession);
+        f.Adapter.Calls.Should().Be(1);
+        f.ProviderPreferences.Mode.Should().BeNull();
+    }
+
     [Fact]
     public async Task MissingSessionPolicyAuthorityNeverFallsBackToApp()
     {

@@ -22,6 +22,7 @@ namespace Kora.Windows.IntegrationTests;
 [Collection(nameof(HeadlessUiTestGroup))]
 public sealed class SessionsWorkWindowTests
 {
+    private static readonly string[] FixedProfileButtons = ["EnqueueCapabilities", "EnqueueReadiness", "EnqueueRuntimes"];
     [Theory]
     [InlineData(true)]
     [InlineData(false)]
@@ -137,7 +138,7 @@ public sealed class SessionsWorkWindowTests
                 ControlAutomationPeer.CreatePeerForElement(work)!.GetName().Should().Contain("selection is passive");
                 ControlAutomationPeer.CreatePeerForElement(window.FindControl<Button>("RemoveQueueEntry")!)!
                     .GetName().Should().Contain("exact selected pending queue ID");
-                foreach (var name in new[] { "EnqueueCapabilities", "EnqueueReadiness", "EnqueueRuntimes" })
+                foreach (var name in FixedProfileButtons)
                 {
                     ControlAutomationPeer.CreatePeerForElement(window.FindControl<Button>(name)!)!
                         .GetName().Should().StartWith("Enqueue");

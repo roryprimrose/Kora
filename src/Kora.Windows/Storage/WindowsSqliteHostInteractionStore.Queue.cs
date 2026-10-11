@@ -1,6 +1,7 @@
 using Kora.Core.Hosting;
 using Kora.Core.Storage;
 using Kora.Core.Tools;
+using Kora.Core.Auditing;
 
 using Microsoft.Data.Sqlite;
 
@@ -109,22 +110,51 @@ public sealed partial class WindowsSqliteHostInteractionStore
             {
                 throw new InvalidOperationException("The exact pending entry revision conflicts; admitted work is not removable.");
             }
-            var changed = rows.Select(entry => entry with { Revision = new(checked(entry.Revision.Value + 1)), State = outcome }).ToArray();
-            var tasksChanged = rows.Select(entry =>
-                (ReadTask(connection, entry.Request.TaskId) ?? throw new InvalidDataException("Missing queue task."))
-                .Next(HostTaskState.Cancelled)).ToArray();
-            var order = UpdatedQueueOrder(connection, control.SessionId, runId, generation,
-                ids => [.. ids.Where(id => !rows.Any(entry => entry.Request.TaskId == id))]);
-            var sequence = AppendAudit(connection, transaction, intent, RequireSession(connection, control.SessionId).Authority,
-                audit, changes: [.. changed.Select(QueueChange), .. tasksChanged.Select(TaskChange), .. QueueOrderChanges(order)]);
-            for (var index = 0; index < rows.Length; index++)
-            {
-                WindowsSqliteHostTaskStore.WriteTask(connection, transaction, tasksChanged[index]);
-                WriteQueue(connection, transaction, changed[index], sequence);
-            }
-            WriteQueueOrder(connection, transaction, order, sequence);
-            return QueueSnapshot(connection, control.SessionId);
+            return WritePendingRemoval(connection, transaction, intent, audit, rows, outcome);
         }, token, eligible, requireIdle: false);
+
+    private SessionQueueSnapshot WritePendingRemoval(SqliteConnection connection, SqliteTransaction transaction,
+        HostTaskRecord intent, SecurityAuditEvent audit, SessionQueueEntry[] rows, SessionQueueState outcome,
+        HostTaskRecord? terminal = null, SessionQueueCancelReceipt? receipt = null)
+    {
+        var control = intent.Request;
+        var generation = RequireSession(connection, control.SessionId).Authority.Generation;
+        var changed = rows.Select(entry => entry with { Revision = new(checked(entry.Revision.Value + 1)), State = outcome }).ToArray();
+        var tasksChanged = rows.Select(entry =>
+            (ReadTask(connection, entry.Request.TaskId) ?? throw new InvalidDataException("Missing queue task."))
+            .Next(HostTaskState.Cancelled)).ToArray();
+        var order = UpdatedQueueOrder(connection, control.SessionId, runId, generation,
+            ids => [.. ids.Where(id => !rows.Any(entry => entry.Request.TaskId == id))]);
+        var sequence = AppendAudit(connection, transaction, intent, RequireSession(connection, control.SessionId).Authority,
+            audit, changes: [.. changed.Select(QueueChange), .. tasksChanged.Select(TaskChange), .. QueueOrderChanges(order),
+                .. terminal is null ? Array.Empty<AuthorityChange>() : [TaskChange(terminal)]],
+            requestedAudit: receipt is null ? null : audit.WithOutcome(SecurityAuditOutcome.Requested),
+            queueCancelReceipt: receipt);
+        for (var index = 0; index < rows.Length; index++)
+        {
+            WindowsSqliteHostTaskStore.WriteTask(connection, transaction, tasksChanged[index]);
+            WriteQueue(connection, transaction, changed[index], sequence);
+        }
+        WriteQueueOrder(connection, transaction, order, sequence);
+        if (terminal is not null) { WindowsSqliteHostTaskStore.WriteTask(connection, transaction, terminal); }
+        if (receipt is not null)
+        {
+            var readbacks = ReadQueueRows(connection, control.SessionId);
+            for (var index = 0; index < changed.Length; index++)
+            {
+                if (readbacks.Single(entry => entry.Request.TaskId == changed[index].Request.TaskId) != changed[index]
+                    || ReadTask(connection, tasksChanged[index].Request.TaskId) != tasksChanged[index])
+                {
+                    throw new InvalidDataException("The complete selected cancellation readback is unconfirmed; admission remains held.");
+                }
+            }
+            if (ReadTask(connection, control.TaskId) != terminal)
+            {
+                throw new InvalidDataException("The exact cancellation control receipt readback is unconfirmed; admission remains held.");
+            }
+        }
+        return QueueSnapshot(connection, control.SessionId);
+    }
 
     public ValueTask<SessionQueueEntry?> FindReadyAsync(long admissionRevision, SessionQueueLimits limits, CancellationToken token) =>
         new(Task.Run(() =>

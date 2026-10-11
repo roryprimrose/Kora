@@ -89,7 +89,18 @@ internal sealed partial class SessionsViewModel
         var previousSelection = selectedWork;
         workSnapshot = snapshot;
         selected = snapshot.Session;
+        var cancellationSnapshotChanged = queueSnapshot?.SessionId != snapshot.Queue.SessionId
+            || queueSnapshot.Generation != snapshot.Queue.Generation || queueSnapshot.Revision != snapshot.Queue.Revision
+            || queueSnapshot.DispatchControl != snapshot.Queue.DispatchControl
+            || !queueSnapshot.Entries.SequenceEqual(snapshot.Queue.Entries);
         queueSnapshot = snapshot.Queue;
+        if (cancellationSnapshotChanged)
+        {
+            pendingCancellationSelection = [];
+            queueCancelReview = null;
+            pendingCancellationEpoch++;
+            OnPropertyChanged(nameof(PendingCancellationEntries));
+        }
         SessionWorkRow[] observations = [.. snapshot.QueueRecords.Select(record => new SessionWorkRow(record, null, snapshot.ObservedAt)),
             .. snapshot.Tasks.Select(task => new SessionWorkRow(null, task, snapshot.ObservedAt))];
         presentingWork = true;

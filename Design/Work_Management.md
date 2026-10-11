@@ -12,6 +12,24 @@ Related: [Interaction and Sessions](Interaction_And_Sessions.md), [Architecture]
 
 ## Delivered deterministic local-version queue
 
+### Delivered atomic selected pending cancellation - 2026-10-12
+
+Native Sessions has an independent current-run pending-only multi-selection, not the existing task/question selection. Review lists the complete count and exact dispatch-ordered IDs/revisions, profiles and original deadlines. Separate **Cancel these pending entries only** confirms all and only those entries; cancel review keeps the selection and draft without writes.
+
+Exact typed/current-name activated `cancel-selected-review`, `cancel-selected-confirm` and `cancel-selected-discard` share the same host-issued review and audited service/store path. One to the shared maximum ten unique IDs/revisions is allowed, even after configured capacity falls. Input remains 1024 UTF-8 bytes; complete review/receipt projection remains 64 KiB, never silently truncated.
+
+The short existing private SQLite mutation/admission fence validates the entire set, queue revision, exact session generation, current run, pause receipt and private/source admission again at physical commit. One stale/missing/nonpending member or intervening enqueue/admission/removal/reorder refuses all, requiring fresh review; no loop of independently committed single cancels.
+
+Selected rows/tasks become retained Cancelled receipts in the same transaction as requested/terminal typed audit, complete member provenance, existing schema-10 order lineage and terminal control task.
+Original positions, enqueue/expiry/captured clocks, canonical formats/digests and unselected data/order remain unchanged. Dependents remain; cancelled prerequisites block them under existing policy, not an automatic descendant cascade.
+
+Pause/hold is preserved on success. Cancellation never dispatches, changes slots/budgets, renews meaningful activity, terminates running callbacks/effects, deletes history or acquires model/grant authority. Expired pending entries remain exactly cancellable, without renewed eligibility; previous-run Interrupted/Unknown/nonpending work refuses. Running callbacks do not hold the review/commit fence.
+
+Audit/write/readback/cancellation/commit uncertainty holds admission with explicit recovery, not partial success, rollback promises or automatic retry. A known commit remains completed if delivery later fails; restart never replays retained work. Session/selection/private closure invalidates native proposals and late delivery cannot render another session.
+
+Maintained [domain selection](../tests/Kora.Core.UnitTests/Hosting/SessionQueueCancellationTests.cs) and [shared service](../tests/Kora.Application.UnitTests/Hosting/SessionWorkspaceServiceTests.QueueCancellation.cs) checks cover this bounded slice.
+[Actual private SQLite](../tests/Kora.Windows.IntegrationTests/Storage/WindowsSqliteSessionQueueTests.Cancellation.cs) and [native view-model](../tests/Kora.Windows.IntegrationTests/SessionsViewModelQueueTests.cs) checks exercise the production consumers.
+
 ### Delivered reviewed adjacent pending order - 2026-10-12
 
 Native Selected Work offers **Review Move up/down**, exact current/proposed pair order, profiles, immutable task IDs/revisions and original enqueue/expiry times, followed by separate **Confirm exact adjacent move** or **Cancel move review**.

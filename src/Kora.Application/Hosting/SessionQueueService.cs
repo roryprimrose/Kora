@@ -95,6 +95,19 @@ public sealed partial class SessionQueueService : IAsyncDisposable
                 root.Complete(HostOperationOutcome.Completed);
                 return result;
             }
+            if (command.Operation == SessionCommandOperation.QueueCancelSelectedReview)
+            {
+                if (!resolved.Authority.IsActive) { throw new InvalidOperationException("Only an exact active session can review pending cancellation."); }
+                var result = await ReviewCancellationAsync(command, session, revision, origin, Eligible, token).ConfigureAwait(false);
+                root.Complete(HostOperationOutcome.Completed);
+                return result;
+            }
+            if (command.Operation == SessionCommandOperation.QueueCancelSelectedDiscard)
+            {
+                DiscardCancellationReview(command, session, revision, origin);
+                root.Complete(HostOperationOutcome.Completed);
+                return new("cancelled-review", "No pending mutation or receipt write. Selection drafts, original deadlines and queue order remain unchanged.");
+            }
             if (command.Operation is SessionCommandOperation.QueueMoveUp or SessionCommandOperation.QueueMoveDown)
             {
                 if (!resolved.Authority.IsActive) { throw new InvalidOperationException("Only an exact active session can review a pending move."); }
@@ -123,6 +136,8 @@ public sealed partial class SessionQueueService : IAsyncDisposable
             }
             var moveReview = command.Operation == SessionCommandOperation.QueueMoveConfirm
                 ? ConsumeMoveReview(command, session, revision, origin) : null;
+            var cancelReview = command.Operation == SessionCommandOperation.QueueCancelSelectedConfirm
+                ? ConsumeCancellationReview(command, session, revision, origin) : null;
             var intent = await workspace.RecordControlIntentAsync(request, token).ConfigureAwait(false);
             SessionQueueSnapshot snapshot;
             try
@@ -152,9 +167,12 @@ public sealed partial class SessionQueueService : IAsyncDisposable
                     SessionCommandOperation.QueueMoveConfirm =>
                         await WithLimitsAsync(current => store.MovePendingAsync(request, moveReview!,
                             () => Eligible() && (configuration is null || configuration.IsCurrent(current)), token).AsTask(), token).ConfigureAwait(false),
+                    SessionCommandOperation.QueueCancelSelectedConfirm =>
+                        await store.CancelSelectedPendingAsync(request, cancelReview!, Eligible, token).ConfigureAwait(false),
                     _ => throw new InvalidOperationException("The deterministic queue operation is unavailable."),
                 };
-                if (command.Operation is SessionCommandOperation.QueuePause or SessionCommandOperation.QueueResume or SessionCommandOperation.QueueMoveConfirm)
+                if (command.Operation is SessionCommandOperation.QueuePause or SessionCommandOperation.QueueResume or SessionCommandOperation.QueueMoveConfirm
+                    or SessionCommandOperation.QueueCancelSelectedConfirm)
                 {
                     changedControl = snapshot;
                 }
@@ -165,7 +183,8 @@ public sealed partial class SessionQueueService : IAsyncDisposable
                 throw;
             }
             // Pause controls commit their terminal task and audit before publishing run-only state at the admission fence.
-            if (command.Operation is not (SessionCommandOperation.QueuePause or SessionCommandOperation.QueueResume or SessionCommandOperation.QueueMoveConfirm))
+            if (command.Operation is not (SessionCommandOperation.QueuePause or SessionCommandOperation.QueueResume or SessionCommandOperation.QueueMoveConfirm
+                or SessionCommandOperation.QueueCancelSelectedConfirm))
             {
                 await tasks.RecordOutcomeAsync(intent, HostTaskState.Succeeded, CancellationToken.None).ConfigureAwait(false);
             }
@@ -184,7 +203,17 @@ public sealed partial class SessionQueueService : IAsyncDisposable
                     }
                 }
             }
-            var reply = new SessionCommandResult("committed", QueueDisclosure) { Queue = snapshot, QueueMoveReceipt = snapshot.MoveReceipt };
+            if (cancelReview is not null)
+            {
+                lock (causeGate)
+                {
+                    foreach (var entry in cancelReview.Entries) { causes.Remove(entry.Request.TaskId); }
+                }
+            }
+            var reply = new SessionCommandResult("committed", cancelReview is null ? QueueDisclosure :
+                "All reviewed pending entries cancelled atomically; retained Cancelled history/receipts. Unselected entries and dependents remain in order. "
+                + "Cancelled prerequisites block their dependents under existing policy; no global descendant scan or cascade. Pause and deadlines unchanged; no automatic dispatch or running-work termination.")
+            { Queue = snapshot, QueueMoveReceipt = snapshot.MoveReceipt, QueueCancelReceipt = snapshot.CancelReceipt };
             if (command.Operation == SessionCommandOperation.QueueDispatch)
             {
                 reply = reply with { QueueDispatch = await DispatchReadyAsync(revision, Eligible, token).ConfigureAwait(false),
@@ -385,7 +414,7 @@ public sealed partial class SessionQueueService : IAsyncDisposable
         }
         await lifetime.CancelAsync().ConfigureAwait(false);
         await dispatchGate.WaitAsync(CancellationToken.None).ConfigureAwait(false);
-        lock (causeGate) { causes.Clear(); moveReviews.Clear(); }
+        lock (causeGate) { causes.Clear(); moveReviews.Clear(); cancelReviews.Clear(); }
         dispatchGate.Dispose();
         lifetime.Dispose();
     }

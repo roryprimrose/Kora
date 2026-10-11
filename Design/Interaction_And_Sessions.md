@@ -32,6 +32,10 @@ Exact reviewed attachment removal revokes native view/search before atomic body/
 
 ## Current Implementation and Design Gap
 
+The [atomic selected pending cancellation](Work_Management.md#delivered-atomic-selected-pending-cancellation---2026-10-12) is exact one-session/current-run original-user control. Native independent pending selection and typed/current-name activated full-set review/confirmation share host-issued membership and the consolidated audited physical commit fence.
+
+One changed member/queue/run/generation/source/private receipt refuses all. Cancel review preserves selection without writes. Cancellation retains history and dependents, leaves pause/deadlines/relative order unchanged and cannot cancel current work, replay prior runs, retarget voice/questions, delete content or create provider/effect authority.
+
 The bounded [current-run native question recovery](Interaction_Fallback.md#current-run-dismissal-recovery---2026-10-11) keeps the original local-version continuation live after Close/Escape. **Tray > Return to current question** resolves only that host's still-live admitted wait, exact current key/revision and generation.
 
 It restores committed drafts, not unsaved edits, and never creates a task/question/grant or dispatches by reopening.

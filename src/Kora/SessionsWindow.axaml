@@ -203,6 +203,30 @@
         <ScrollViewer Grid.Row="3" MaxHeight="180" VerticalScrollBarVisibility="Auto"
                       AutomationProperties.Name="Routine notices and pending exact questions; scroll for complete retained cards">
         <StackPanel Spacing="4">
+          <controls:ScrollableListBox x:Name="PendingCancellationEntries" MaxHeight="160"
+                                     ItemsSource="{Binding PendingCancellationEntries}" SelectionMode="Multiple,Toggle"
+                                     IsEnabled="{Binding CanSelectPendingCancellation}"
+                                     AutomationProperties.Name="Current-run pending queue only; independently select explicit subset for atomic cancellation">
+            <ListBox.ItemTemplate>
+              <DataTemplate>
+                <StackPanel Spacing="2">
+                  <TextBlock Text="{Binding Request.TaskId.Value}" />
+                  <TextBlock Text="{Binding ReadProfile}" />
+                  <TextBlock Text="{Binding Revision.Value, StringFormat='Entry revision {0}'}" />
+                  <TextBlock Text="{Binding ExpiresAt, StringFormat='Original pending expiry {0:O}'}" />
+                </StackPanel>
+              </DataTemplate>
+            </ListBox.ItemTemplate>
+          </controls:ScrollableListBox>
+          <controls:NamedTextBlock Text="{Binding PendingCancellationStatus}" TextWrapping="Wrap"
+                                  AutomationProperties.Name="Complete selected pending cancellation review, count, exact IDs, order, profiles and original deadlines" />
+          <WrapPanel>
+            <Button x:Name="ReviewPendingCancellation" Content="Review selected pending cancellation" IsEnabled="{Binding CanReviewPendingCancellation}" />
+            <Button x:Name="ConfirmPendingCancellation" Content="Cancel these pending entries only" IsEnabled="{Binding CanConfirmPendingCancellation}"
+                    AutomationProperties.Name="Explicitly confirm atomic cancellation of the complete exact reviewed pending subset only" />
+            <Button x:Name="DiscardPendingCancellation" Content="Cancel cancellation review" IsEnabled="{Binding CanDiscardPendingCancellation}"
+                    AutomationProperties.Name="Cancel review without pending mutation; keep explicit pending selection and input drafts" />
+          </WrapPanel>
           <controls:NamedTextBlock Text="{Binding QueueMoveStatus}" TextWrapping="Wrap"
                                   AutomationProperties.Name="Exact current and proposed adjacent pair order, immutable IDs, profiles and original pending deadlines" />
           <WrapPanel>

@@ -31,6 +31,13 @@ Production supplies no models, so model-dependent save controls are unavailable.
 
 ### Delivered Authoritative Sessions Work Surface - 2026-10-09
 
+The [reviewed selected pending cancellation](Work_Management.md#delivered-atomic-selected-pending-cancellation---2026-10-12) uses an independent, explicitly empty-by-default current-run pending-only multi-selection. It cannot select question waits, running tasks, terminal receipts or another session.
+
+Review displays the complete ordered count/IDs/revisions/profiles/original deadlines; separate **Cancel these pending entries only** confirms one atomic exact set. Cancel review keeps selection and draft.
+Identical passive refresh preserves the draft; changed queue/control/session/selection/private authority requires fresh selection/review, never retargeting. Closure clears held IDs and late completions.
+
+The shared host/store path retains cancelled task/history receipts and unselected order/deadlines/results. Dependents remain blocked by a cancelled prerequisite rather than disappearing. No pause/resume/dispatch, activity extension, effect termination, history deletion or installed-native/accessibility qualification is implied.
+
 The native Sessions window places the bounded All/Active/Done session page
 beside one selected exact session's authoritative work. Selection passively
 reads `SessionWorkSnapshot`: one validated SQLite read transaction captures

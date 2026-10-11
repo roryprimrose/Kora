@@ -18,4 +18,5 @@ public sealed record AuthorityAuditProvenance(
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]     IReadOnlyList<AuthorityAuditChange>? RequestedGrants = null)
 {
     public Kora.Core.Storage.SessionQueueMoveReceipt? QueueMoveReceipt { get; init; }
+    public Kora.Core.Storage.SessionQueueCancelReceipt? QueueCancelReceipt { get; init; }
 }

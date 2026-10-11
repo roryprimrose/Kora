@@ -598,6 +598,10 @@ internal sealed partial class SessionsViewModel(
         queueSnapshot = null;
         selectedQueueEntry = null;
         queueMoveReview = null;
+        queueCancelReview = null;
+        pendingCancellationSelection = [];
+        pendingCancellationEpoch++;
+        OnPropertyChanged(nameof(PendingCancellationEntries));
         dispositionPreview = null;
         selected = null;
         selectedTask = null;

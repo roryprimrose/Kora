@@ -1,146 +1,85 @@
 # Extending Kora
 
-This is a contributor guide to choosing and wiring an extension, not an SDK or
-permission contract. Read [Contributing](CONTRIBUTING.md) for contribution terms
-and development checks, and the [repository instructions](.github/copilot-instructions.md)
-for implementation conventions. The linked design pages remain authoritative
-for policy; a guide, catalogue entry or content file cannot enable a gated feature.
+This contributor guide helps choose and wire an extension. It is not an SDK
+or permission contract. [Contributing](CONTRIBUTING.md) owns repository checks;
+the linked design owners define policy and availability.
 
-## Choose the right extension
+## Choose the Right Extension
 
-| Need | Choose | Contribution surface |
+| Need | Choose | Implementation guide |
 |---|---|---|
-| A new typed operation that observes state or performs an effect | **Tool / host action** | One C# action class in a capability folder; follow the [Tools guide](src/Kora.Tools/README.md). |
-| A repeatable outcome with selection guidance, inputs and a workflow over admitted operations | **Skill** | A versioned definition package; follow the [Definitions guide](src/Kora.Definitions/README.md). A tool does not require a skill wrapper. |
-| Reusable task or response framing with explicit inputs | **Prompt** | A bounded template and real consumer in Definitions when implemented; not a replacement for runtime protocol validation. |
-| Guidance applying to a named task, capability or context scope | **Scoped instructions** | Shared guidance in Definitions when implemented. Instructions belonging only to one skill stay with that skill. |
-| A named task configuration combining guidance, skills, tool subset and runtime constraints | **Agent profile** | A declarative profile in Definitions only when its host/runtime support is qualified; see [Agent profiles](#agent-profiles). |
+| A typed observation or effect | Host action/tool; a skill wrapper is optional | [Tools](src/Kora.Tools/README.md) |
+| A reusable outcome and workflow over admitted operations | Versioned skill definition | [Definitions](src/Kora.Definitions/README.md) |
+| Reusable task/response framing with explicit inputs | Prompt with a real bounded consumer | [Definitions](src/Kora.Definitions/README.md) |
+| Scoped guidance shared by tasks or profiles | Instructions; skill-only guidance stays with the skill | [Definitions](src/Kora.Definitions/README.md) |
+| Named guidance, skill/tool subset and runtime constraints | Declarative agent profile, only after host/runtime qualification | [Agent profiles](#agent-profiles) |
 
-For example, a new authoritative state query is a C# action, not a PowerShell
-skill. A workflow explaining that query's results may be a skill; common
-explanation framing may be a prompt. None of these forms grants tool, approval,
-settings or egress authority.
+Content guides interpretation; it never grants execution, approval, settings,
+session or egress authority.
 
-## What exists today
+## What Exists Today
 
-| Surface | Delivered | Planned or gated |
-|---|---|---|
-| Built-in C# tools | Six R06 read-only actions behind the admitted Application gateway; R07 clipboard capture/reuse/revoke actions behind the shared broker and local host workflow. | Generic model tool/result iteration and qualified adapters remain open. An action implementation or DI registration is not automatic model exposure. |
-| Bundled skills | Fixed catalogue of Lock, Shutdown and Restart packages; 13 immutable embedded resources and passive native inspection. | Every package action is unavailable for invocation. No enabled skill runner exists. |
-| Prompts / shared Instructions | No separate content catalogue or folders for these kinds yet. Existing JSON selector/system framing remains runtime code. | Introduce actual resources, schemas and consumers together; do not create placeholder loaders or empty folders. |
-| Agents | No agent-profile loader or agent runtime is delivered. | Named profiles require qualified host/runtime support, not just content loading. |
-| User/profile definitions | Bundled first-party content is explicitly resolved from its own assembly. | User/profile discovery, revision enablement and authoring are separate proposed work, not features of the bundled catalogue. |
+Consult the [roadmap](Design/Implementation_Roadmap.md#current-delivery) for
+delivery and the [canonical catalogue](Design/Internal_Model_Tools.md) for
+model descriptors. C# actions/DI are not automatic model exposure; bundled
+script resources remain inert. Prompts, shared instruction catalogues and agent
+loaders should be added only with actual schemas, content and consumers.
 
-Check the [current/proposed tool inventory](Design/Internal_Model_Tools.md) and
-[implementation roadmap](Design/Implementation_Roadmap.md) before assigning IDs
-or claiming availability. Readiness observations are not runtime qualification.
-Clipboard preview is not model context selection or transmission consent.
+## Put Code and Content in the Right Layer
 
-The [provider policy/handoff workflow](Design/Model_Providers_Memory_And_Knowledge.md#delivered-provider-policy-and-exact-handoff-workflow---2026-10-09)
-is a composed host seam, not a provider tool or native settings feature.
-Use the [Core policy](src/Kora.Core/Dependencies/ModelProviderPolicy.cs),
-[ModelTurnHost consumer](src/Kora.Application/Dependencies/ModelTurnHost.Policy.cs)
-and [shared-question workflow](src/Kora.Application/Dependencies/ModelProviderHandoffWorkflow.cs)
-rather than a second provider loop or approval manager. Its volatile revisioned
-review capability does not qualify runtime bytes, grant tools or admit egress;
-durable policy/native UI and adapters remain dependent work.
+[Architecture](Design/Architecture.md#platform-boundaries-and-support) owns
+dependency direction. Portable contracts/policy belong in Core, actions in
+Tools, bundled resources in Definitions, orchestration/presentation state in
+Application, native mechanisms in Windows, and DI/desktop controls in Kora.
+Tools and Definitions reference Core, never Application/Windows/desktop.
 
-## Put code and content in the right layer
-
-| Layer | Owns | Dependency direction |
-|---|---|---|
-| [Kora.Core](src/Kora.Core) | Portable contracts, canonical IDs/schemas and authoritative domain validation/policy rules. | No native or presentation dependencies. |
-| [Kora.Tools](src/Kora.Tools/README.md) | Host-owned C# actions in capability folders with matching namespaces, plus cohesive shared brokers. | References Core, never Application, Windows, desktop or provider SDKs. |
-| [Kora.Definitions](src/Kora.Definitions/README.md) | One portable project for bundled content/resources, grouped by implemented content kind. | References Core, not Tools, Application, Windows, desktop or provider SDKs. |
-| [Kora.Application](src/Kora.Application) | Admitted gateways, request orchestration and presentation state. | Currently references Core and Tools; actions do not reference it back. |
-| [Kora.Windows](src/Kora.Windows) | Native mechanisms behind injected portable seams. | Keeps native handles, Windows APIs and OS-specific exceptions out of portable layers. |
-| [Kora desktop](src/Kora) | DI/composition and desktop controls/presentation, including bundled-definition inspection. | Wires portable collaborators to native implementations and host ownership; consumes Definitions explicitly. |
-
-See [Architecture](Design/Architecture.md#platform-boundaries-and-support),
-[tool implementation](Design/Commands_Tools_And_Skills.md#built-in-tool-source-layout-and-implementation)
+Use the [action layout](Design/Commands_Tools_And_Skills.md#built-in-tool-source-layout-and-implementation)
 and [definition organization](Design/Commands_Tools_And_Skills.md#bundled-definitions-and-agent-profiles).
-Legacy command handlers are not all registered tools; migrate only a capability
-whose actual contract and common authority path are in scope.
+Legacy command handlers are not all registered tools; migrate only an actual
+capability and its common authority path.
 
-## Contribution workflow
+## Contribution Workflow
 
-1. **Describe the capability and its status.** Consult the canonical inventory
-   and roadmap. Specify inputs, bounded outputs, effects, caller lanes,
-   dependencies and supported entry points. Assign explicit canonical IDs and
-   schema versions; never derive them from class names, filenames or reflection.
-   Record concrete reasons for unavailable or omitted routes.
-2. **Implement at the real seam.** Use the [Tools checklist](src/Kora.Tools/README.md#contribute-a-new-tool)
-   for executable C# behavior or the
-   [Definitions checklist](src/Kora.Definitions/README.md#contribute-a-new-definition)
-   for content. Reuse Core validation and shared brokers; do not reproduce a
-   policy in each action, template or view model.
-3. **Wire every applicable route.** Exact commands, native UI and admitted model
-   proposals must converge on the same registered action and applicable gateway.
-   Add DI, dispatch, descriptors and presentation deliberately. Model route
-   omissions need a documented qualification/privacy/origin or UX reason, not
-   implementation convenience. The existing JSON action selector is not a
-   generic tool-call API.
-4. **Preserve the host boundary.** Carry host-resolved identity and original
-   origin through authorization, privacy/ownership checks, approval,
-   pre-effect revalidation, cancellation, deadlines and resource release.
-   Unknown state fails closed. Return bounded, content-minimizing facts and
-   truthful outcomes; keep presentation separate. Do not leak source content,
-   clipboard bodies, paths or secrets into logs, traces or provider envelopes.
-   Use the trusted structured audit/correlation path where applicable.
-5. **Test and document the declared behavior.** Prove route convergence,
-   unavailable/denied/error paths, hostile inputs, cancellation and lifecycle
-   invariants with fakes. Check exact byte/record limits and serialized output,
-   not just a convenient proxy. Update the relevant capability inventory,
-   user reference and availability/prerequisite links without advertising
-   unfinished execution support.
+1. Define the explicit capability ID/schema, bounded inputs/results, effects,
+   caller lanes, dependencies, supported routes and unavailable reasons.
+2. Implement at the real seam using the [Tools checklist](src/Kora.Tools/README.md#contribute-a-new-tool)
+   or [Definitions checklist](src/Kora.Definitions/README.md#contribute-a-new-definition).
+   Reuse Core validation and shared brokers.
+3. Wire applicable exact commands, native controls and admitted model proposals
+   through the same action/gateway. Follow the
+   [exposure rule](Design/Commands_Tools_And_Skills.md#action-exposure-is-the-default);
+   document concrete omissions, not implementation convenience.
+4. Preserve host identity/original origin, privacy/ownership, required approval,
+   pre-effect revalidation, audit/correlation, cancellation and resource release
+   under [security policy](Design/Security_Data_Flows.md). Unknown state fails
+   closed; keep content/paths/secrets out of logs, traces and unauthorized envelopes.
+5. Test declared routes, exact bounds, denial/failure/stale/cancellation paths
+   and lifecycle invariants with deterministic fixtures. Update the canonical
+   contract, current user syntax and roadmap row, not every introduction.
 
-The [action exposure rule](Design/Commands_Tools_And_Skills.md#action-exposure-is-the-default),
-[tool gateway](Design/Architecture.md#tool-gateway) and
-[Security and Data Flows](Design/Security_Data_Flows.md) own these requirements.
-Definitions guide interpretation; they never replace enforcement.
+## Agent Profiles
 
-## Agent profiles
+**Proposed, not delivered:** a profile combines bounded guidance, skills,
+admitted tools, typed I/O and runtime/locality/budget constraints. It is not
+a worker, permission system or scheduling lane. Constraints may narrow host
+authority, never expand it.
 
-**Design direction, not delivered:** an agent is a named declarative task profile
-referencing instructions, skills and a bounded subset of admitted tools, with
-typed input/output and runtime, locality and budget constraints. A profile is
-not a running worker, a permission system or a scheduling lane.
+[Profile design](Design/Commands_Tools_And_Skills.md#bundled-definitions-and-agent-profiles)
+owns the definition; [runtime ownership](Design/Architecture.md#runtime-ownership-decision)
+and [provider gates](Design/Implementation_Roadmap.md#r02-runtimeprovider-follow-up-gates)
+own admission. Loading content does not authorize delegation, concurrency,
+provider fallback or extra tools.
 
-The host owns each run's identity, original origin, leases, budgets,
-cancellation, approvals and egress. Loading content does not authorize recursive
-delegation, concurrency, auto-enablement, extra tools or provider fallback.
-Profile constraints can narrow admitted behavior, never expand its authority.
+## Validation and Source Ownership
 
-Start with the [profile design](Design/Commands_Tools_And_Skills.md#bundled-definitions-and-agent-profiles),
-[runtime ownership](Design/Architecture.md#runtime-ownership-decision) and
-[runtime/provider gates](Design/Implementation_Roadmap.md#r02-runtimeprovider-follow-up-gates).
-The [local-inference continuation](Design/Implementation_Roadmap.md#r02-local-inference-continuation)
-and [work-management design](Design/Work_Management.md) are prerequisites where
-iteration or scheduling is involved; loading a profile does not satisfy them.
+Follow [development and documentation checks](CONTRIBUTING.md#development-checks).
+Project guides identify action/broker, domain, gateway and native test locations.
+Content changes also require independent digest vectors and final published
+resource-byte checks for both Windows RIDs; see
+[Definitions validation](src/Kora.Definitions/README.md#validation).
 
-## Validation and source ownership
-
-- Action tests belong in [Kora.Tools.UnitTests](tests/Kora.Tools.UnitTests);
-  catalogue/resource tests in [Kora.Definitions.UnitTests](tests/Kora.Definitions.UnitTests).
-  Core tests cover domain rules; Application tests cover gateway and route
-  admission; Windows tests cover non-destructive native seams.
-- Use xUnit v3 and AwesomeAssertions. Follow the existing deterministic fixtures
-  and nonparallel `Host tracing` collection for process-wide activity listeners.
-- Follow [development checks](CONTRIBUTING.md#development-checks). The
-  [CI workflow](.github/workflows/ci.yml) still requires **100% line and branch
-  coverage across Core, Application, Tools and Definitions**. Moving code or
-  adding a content kind does not relax or exclude that gate.
-- Resource changes also require independent digest vectors and final
-  `Kora.Definitions.dll` PE resource checks for **both `win-x64` and `win-x86`**;
-  see the [Definitions validation guide](src/Kora.Definitions/README.md#validation).
-- Documentation-only changes need link, heading, example and status checks, not
-  a dependency restore, app launch or live trust trial. Code/resource changes
-  require their focused checks and existing CI gates; manual device, execution
-  or model qualification is separate, explicitly authorized evidence.
-
-Bundled definitions are immutable application resources, not writable profile
-packages. Future [profile discovery](Design/Skill_Storage.md#shared-profile-discovery)
-and [declarative authoring](Design/Skill_Authoring.md) require their own admission,
-save and enablement paths. They cannot replace bundled resources or create
-executable trust. Consult [script admission](Design/Built_In_Skills.md#script-admission-and-execution)
-before proposing any runner.
+Bundled resources are immutable, not writable profile packages. Source
+discovery and [declarative authoring](Design/Skill_Authoring.md) need separate
+admission/save/enablement paths and cannot copy bundled executable trust.
+Consult [script admission](Design/Built_In_Skills.md#script-admission-and-execution)
+before proposing a runner.

@@ -11,7 +11,7 @@ The [Implementation Status and Delivery Roadmap](Implementation_Roadmap.md)
 records what the current source actually delivers and the dependency/value-ordered
 work remaining. A documented capability, local readiness proof or native window
 does not establish acceptance of an entire checkpoint.
-The [current merged snapshot](Implementation_Roadmap.md#current-merged-snapshot---2026-10-07)
+The [current merged snapshot](Archive/Implementation_Roadmap_2026-10-11.md#current-merged-snapshot---2026-10-07)
 also includes minimal durable session authority/workspace/names/native empty
 creation and exact-ID typed/activated-voice session commands, explicit local
 clipboard preview, read-only discovery, bounded

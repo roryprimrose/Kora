@@ -77,7 +77,7 @@ skill review, queue/status and diagnostic evidence are reused separately, not
 duplicated or persisted here. Artifact bodies, general finalized-response/
 script/diff routing, conversation composer, model history reasoning,
 Ask Evidence, broad export and installed accessibility/DPI acceptance remain
-gated. See [the roadmap/evidence assessment](Implementation_Roadmap.md#r14-immutable-selected-session-receipt-details---2026-10-09).
+gated. See [the roadmap/evidence assessment](Archive/Implementation_Roadmap_2026-10-11.md#r14-immutable-selected-session-receipt-details---2026-10-09).
 
 ## Delivered Bounded Passive Session History - 2026-10-09
 

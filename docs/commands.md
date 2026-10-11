@@ -23,20 +23,21 @@ Clipboard and file preview/search commands still perform no model submission.
 
 ## Inspect or change the device-local provider mode
 
-Native **Settings > Providers** Inspect/Save/Reset and exact typed/current-name activated commands share the [provider-mode workflow](../src/Kora.Application/Configuration/ProviderModeConfigurationService.cs).
+Native Settings > Providers and exact typed/current-name activated commands:
 
-| Exact syntax | Result |
+| Syntax | Result |
 |---|---|
-| `list provider settings` | Discover the single device-local option, choices, default, revision, timing and recovery |
-| `get providers.default-mode` / `status providers.default-mode` | Confirmed saved/default/unavailable provenance and desired initial mode |
-| `set providers.default-mode to LocalOnly` | Save the privacy-first initial mode |
-| `set providers.default-mode to LocalFirst` | Save local-first semantics for subsequent session initialization |
-| `set providers.default-mode to HostedPreferred` | Save hosted preference only; no adapter or egress permission is enabled |
-| `reset providers.default-mode` | Explicitly save LocalOnly, preserving existing session policies and other preferences |
+| `list provider settings` | Discover `providers.default-mode`, choices/default, provenance and revision |
+| `get providers.default-mode` / `status providers.default-mode` | Inspect saved/default/unavailable initial mode |
+| `set providers.default-mode to LocalOnly` | Privacy-first initial mode |
+| `set providers.default-mode to LocalFirst` | Local-first initial mode |
+| `set providers.default-mode to HostedPreferred` | Hosted preference only, no adapter/egress admission |
+| `reset providers.default-mode` | Save LocalOnly; existing session policies remain unchanged |
 
-Unsaved/default/reset is **LocalOnly**. Only a session's first policy-bound turn consumes this device preference; existing volatile policies and per-turn Default/Local/Hosted choices are unchanged. HostedPreferred remains fail-closed with no composed adapter and no egress authority ([consumer](../src/Kora.Application/Dependencies/ModelTurnHost.Policy.cs), [tests](../tests/Kora.Application.UnitTests/Dependencies/ModelTurnHostTests.ProviderPreference.cs)).
-
-Original user intent, current owning unlocked host, active control session/generation, unchanged choice/call/preference revisions, required audit, atomic readback and completed control receipt precede confirmation. Protected/Unknown original voice writes refuse. Corrupt or unconfirmed storage never becomes a default; inspect saved state and receipts, explicitly repair, then refresh ([workflow](../src/Kora.Application/Configuration/ProviderModeConfigurationService.cs), [storage](../src/Kora.Application/Configuration/LocalModelProviderModePreferences.cs)).
+Only first policy-bound session initialization consumes this preference.
+Protected/Unknown voice writes refuse; corrupt/unconfirmed state is not a
+default. See [Models and provider controls](settings.md#models) and
+[preference recovery](settings.md#preference-changes-and-recovery).
 
 ## Attach one text file to an exact Session (native only)
 
@@ -173,64 +174,32 @@ limit of one or two.
 
 ## Fixed queue settings
 
-Native **Settings > Sessions > Fixed read-only local-version queue** and exact typed/current-name activated commands use the same [admitted configuration workflow](../src/Kora.Application/Configuration/SessionQueueConfigurationService.cs).
+Native Settings > Sessions and exact typed/current-name activated input share
+these future-only controls:
 
-| Exact syntax | Result |
-|---|---|
-| `list queue settings` | All four supported option IDs, ranges/defaults, saved/effective values, minutes units, revisions and unavailable scope; advertised schema 3 |
-| `get queue.pending-per-session` / `status queue.pending-per-session` | Inspect capacity; integer 1-10, default/reset 10 |
-| `get queue.execution-slots` / `status queue.execution-slots` | Inspect fixed synchronous read-only slots; integer 1-2, default/reset 1 |
-| `set queue.pending-per-session to <integer 1-10>` | Audited future pending-admission capacity; existing entries are never evicted |
-| `set queue.execution-slots to <integer 1-2>` | Audited future fixed-read admission limit; existing active reads are not cancelled |
-| `get queue.pending-lifetime-minutes` / `status queue.pending-lifetime-minutes` | Inspect future pending lifetime; canonical integer 1-120 minutes, unsaved/default/reset 30 |
-| `set queue.pending-lifetime-minutes to <integer 1-120>` | Capture only in newly enqueued admitted fixed reads after confirmed activation; all existing deadlines remain exact |
-| `get queue.active-budget-minutes` / `status queue.active-budget-minutes` | Inspect future-admission active budget; canonical integer 1-60 minutes, default/reset 5 |
-| `set queue.active-budget-minutes to <integer 1-60>` | Capture once at future fixed-read admission after confirmation, including old pending entries; never changes existing admitted deadlines |
-| `reset queue.pending-per-session` | Reset only pending capacity; preserve slots and both clocks |
-| `reset queue.execution-slots` | Reset only slots; preserve capacity and both clocks |
-| `reset queue.pending-lifetime-minutes` | Reset only future pending lifetime to 30 minutes; preserve capacity/slots/active budget |
-| `reset queue.active-budget-minutes` | Reset only future-admission active budget to 5 minutes; preserve capacity/slots/pending lifetime |
+| Option | Range | Default/reset | Takes effect |
+|---|---|---|---|
+| `queue.pending-per-session` | Canonical integer 1-10 | 10 | Future enqueues; no eviction |
+| `queue.execution-slots` | Canonical integer 1-2 | 1 | Future fixed synchronous read admissions; no cancellation |
+| `queue.pending-lifetime-minutes` | Canonical integer 1-120 minutes | 30 | New enqueues only; existing deadlines unchanged |
+| `queue.active-budget-minutes` | Canonical integer 1-60 minutes | 5 | Future admissions, including old pending entries; existing active deadlines unchanged |
 
-Integers are canonical: no signs, leading zeroes, fractions, extra words or apply-now.
-Native **Refresh** captures a current admitted draft; each **Save**/**Reset** requires that unchanged revision and visible lifetime, then another Refresh.
-Concurrent native/typed edits and hide/reopen retire the old draft; they cannot overwrite a newer preference ([parser](../src/Kora.Application/Configuration/SessionQueueConfigurationCommand.cs), [native tests](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.QueueConfiguration.cs)).
+Use `list queue settings`, `get <id>`, `status <id>`,
+`set <id> to <integer>` or `reset <id>`. List reports schema 3 and all four
+descriptors. No signs, leading zeros, fractions, extra words or apply-now.
+Native Refresh is required before each unchanged visible draft Save/Reset.
 
-Confirmed limits actually feed enqueue, fair dispatch and native/exact/event observation.
-Reducing capacity never evicts pending work or changes existing entry deadlines; reducing slots never cancels active work or changes its admission budget.
-Pending lifetime defaults to **30 minutes**; its **1-120 integer minutes** option affects future new enqueues only. Active budget defaults to **5 minutes**, **1-60 integer minutes** for future admissions only, including old pending work without changing its pending metadata. No apply-now/current-task extension is available.
-Automatic dispatch, general execution, workers/resource leases, model tools and real two-slot provider/hardware qualification remain unavailable ([queue consumer](../src/Kora.Application/Hosting/SessionQueueService.cs), [deadline tests](../tests/Kora.Windows.IntegrationTests/Storage/WindowsSqliteSessionQueueTests.cs)).
+Protected/Unknown original-voice writes and stale/held preferences refuse.
+Inspect/repair receipts before fresh Refresh; it cannot clear unconfirmed writes.
+See [queue settings and recovery](settings.md#sessions-fixed-read-only-local-version-queue).
 
-Protected Active/Suspected/Unknown original-voice writes deny without downgrade or deferred application.
-Malformed/unconfirmed/inaccessible preferences or failed required audit/readback/control receipts hold new admissions, not fabricated defaults or rollback.
-Inspect saved state and receipts, explicitly repair, then Refresh; ordinary refresh never clears the unconfirmed marker ([recovery contract](../Design/User_Configuration.md#delivered-bounded-fixed-local-version-queue-settings-r10r13)).
-
-Pending eligibility expires at each entry's recorded deadline; an expired head remains visible
-until explicitly removed/cleared, and blocks later work at that position.
-The captured active budget starts at original admission; equal/late monotonic
-results cannot be successful receipts and suppress the version. Work/status retains
-the precise original UTC deadline for admitted/Unknown/terminal records, including
-legacy five-minute admissions. Existing pre-dispatch user questions have their own
-expiry and consume neither slot nor active budget; this fixed profile creates
-no in-task questions. It provides no effect-worker cancellation or forced
-termination. A failed batch stops; make a fresh explicit dispatch decision.
-
-Lock/privacy/ownership or call-policy changes retire eligibility even after
-unlock: inspect, remove and explicitly requeue rather than resuming stale work.
-Unknown outcomes quarantine the addressed session and dependent tasks, while
-unrelated sessions remain eligible. Restart restores status/history only:
-pending work is Interrupted and prior dispatch is Unknown, never replayed.
-Do not blindly retry a failed audit/storage/receipt operation; a commit may
-already exist. Inspect exact durable IDs/revisions before a new decision.
-
-Known preference schema 1 validates and preserves capacity/slots, introducing
-only lifetime default 30 without rewriting on observation; explicit saves use
-schema 2. Legacy queue payloads remain exact fixed-30 with original bytes/digests;
-new format 2 captures integer minutes under committed enqueue authority. Unknown,
-partial, downgraded or unbound payloads refuse without replacing history/authority.
-
-No script, power, write connector, arbitrary resource/effect, hosted provider
-or local-model reasoning descriptor is schedulable. This is a deterministic
-read-only core, not full two-slot worker/provider/hardware acceptance.
+The [queue workflow](#deterministic-local-version-queue) remains manual.
+Expired heads block later work until removed; a failed batch needs a fresh
+dispatch decision. At/equal-to active deadlines, late results cannot be success.
+Pre-dispatch questions consume neither slot nor active budget. Privacy/call/
+ownership retirement requires inspect/remove/requeue; restart yields
+Interrupted/Unknown status, never replay. General workers/effects/resource
+leases and real two-slot provider/hardware qualification remain unavailable.
 
 ## In-call feedback override
 
@@ -269,62 +238,35 @@ See [Settings recovery](settings.md#in-call-feedback-override).
 
 | Exact command | Result |
 |---|---|
-| `preview file` | Open the trusted native picker for one local UTF-8 `.txt`, `.md` or `.markdown` file, then metadata-only review |
-| `clear file preview` | Discard this volatile review/revision; never delete the original |
-| `search file` / `inspect file` | Focus the admitted revision's native lexical search/inspection control; no arguments, path or implicit source selection |
-| `preview folder` | Native picker and complete metadata review of 1–32 immediate UTF-8 text/Markdown files; no subdirectories |
-| `search folder` / `inspect folder` | Focus native lexical search across only the exact complete admitted folder revision |
-| `clear folder preview` | Discard the volatile folder review/revision; never delete originals |
-| `refresh file` / `refresh folder` | Fresh metadata review of only the exact already-admitted physical file/folder; separate new native confirmation required |
+| `preview file` | Native picker then metadata-only review of one local UTF-8 text/Markdown file |
+| `clear file preview` | Discard volatile review/revision, never the original |
+| `search file` / `inspect file` | Focus admitted native query/inspection; no arguments or implicit source |
+| `preview folder` | Native picker and complete immediate-file inventory review |
+| `search folder` / `inspect folder` | Focus exact admitted folder retrieval |
+| `clear folder preview` | Discard volatile folder review/revision |
+| `refresh file` / `refresh folder` | Retire old preview, fresh exact metadata review and separate native confirmation |
 
-The tray's **Preview file (local inspection only)** uses the same host service.
-Current-name activated input can open selection; spoken/typed paths and IDs
-cannot confirm a read. Use **Confirm: read this exact selected file locally**
-in the native review, before its two-minute expiry. The review discloses the
-canonical path, original host session/origin, identity, exact bytes and bounds.
-The immutable plain-text result shows source/revision/item IDs and SHA-256 of
-original bytes (including BOM). There is no automatic refresh.
+Only separate native confirmation authorizes content reads; commands, paths,
+IDs and document instructions cannot confirm. Reviews expire after two minutes.
+Refresh requires the same original physical identity; unsafe/replaced/missing
+sources need the picker again, never silent rebinding.
 
-Native **Refresh this file preview** / **Refresh this folder preview** and exact `refresh file` / `refresh folder` use the same bounded action. No path, ID, extra words or document instruction can authorize refresh or confirmation. The exact original canonical path and physical file/directory identity must still be valid; missing, replaced, aliased or unsafe roots require a fresh native picker selection, never silent rebinding.
+| Limit | Value |
+|---|---|
+| File | Fixed drive; strict UTF-8 `.txt`, `.md`, `.markdown`; 256 KiB original bytes including BOM |
+| Path | 240 characters / 32 components |
+| Folder | 1-32 immediate files, 1 MiB combined; no recursion or partial admission |
+| Native query | 256 UTF-16 characters / 512 UTF-8 bytes; 32 unique terms, 64 characters/term |
+| Results | Eight exact excerpts / 16 KiB UTF-8; each at most 2,048 UTF-16 characters / 128 lines |
 
-Refresh starts by retiring the old immutable preview and citations. It reads **metadata only** into a new review, with a fresh two-minute deadline; confirm that new review separately before content reads. Source identity is preserved but successful revision/item IDs and digests are new, and old exact references become stale. Folder review shows the complete new inventory and added/removed/metadata-changed members; unchanged metadata does not prove unchanged bytes. Failure/cancel leaves no admitted preview: fix the refusal and use the native picker again. Kora never modifies the original files.
-
-Folders have at most 32 immediate files and 1 MiB combined original bytes, with the same 256 KiB per-file limit and supported formats. Empty folders, subdirectories, unsupported/unsafe items and any capture or strict-decoding failure reject the whole candidate; no recursive or partial admission. Separate confirmation covers every reviewed item.
-
-Maximum: one fixed-drive file, 256 KiB source bytes, 240 path characters,
-32 components; strict UTF-8 only. Unsupported, inaccessible, unstable,
-reparse/hard-link, protected, hidden/system and source-control/generated
-inputs fail closed without truncation or silent exclusions. Close, clear,
-Cancel task, lock/privacy/ownership or origin/call-generation changes discard
-the preview. File content never becomes a command or approval.
-
-Enter query text only in the native search control, not in a command or
-conversation. This deliberately keeps queries/excerpts out of transcripts,
-history, speech, models and clipboard. Limits: 256 UTF-16 characters,
-512 UTF-8 bytes, 32 unique terms, 64 characters per term; invalid input is
-rejected, never silently shortened. Ranking is deterministic OR matching:
-distinct normalized terms, frequency capped at 16 per term, then source offset.
-Terms are Unicode letters/numbers with attached combining marks, canonical
-Form C and invariant uppercase; punctuation separates terms. Duplicate terms
-do not boost ranking. Oversized source words are skipped whole.
-Adding arguments to `search file` / `inspect file` is rejected locally rather
-than falling through to inference; it neither selects a path nor performs a search.
-
-At most eight exact excerpts / 16 KiB excerpt UTF-8 are returned. Each is at
-most 2,048 UTF-16 characters / 128 lines. Results display the query observation
-time, source/revision/item IDs, original-byte SHA-256 digest, display filename,
-heading, exact UTF-16 offsets, and 1-based line/column range (exclusive end;
-CRLF is one newline). Truncation is explicit; no match differs from stale,
-cancelled, busy, invalid or unavailable. Search does not re-read the current
-path or refresh the revision. Closing/revoking/replacing/discarding the source,
-Cancel task and privacy/ownership changes invalidate late results. This is a
-volatile local inspection, not a durable workspace session attachment.
-
-**Unavailable:** recursive folders, automatic refresh/watchers, managed source registry, UNC/removable drives, durable folder attachments,
-knowledge sources, persistent/vector indexing, local/hosted reasoning or file-model
-tools. Preview neither submits content nor authorizes egress. It never reads
-or changes the clipboard, executes content, logs content/paths or saves the
-revision. [Privacy details](privacy-safety-and-logs.md#local-file-inspection).
+Queries belong only in native search, not conversation. Results carry exact
+source/revision/item/digest and end-exclusive line/column/range citations.
+Search never rereads the path. Privacy/ownership/call/source/query retirement
+suppresses late results; clear/cancel/close never modifies originals.
+No clipboard, speech/history, model/egress, watcher, vector index or durable
+folder attachment is added. Durable single-file attachments have separate
+consent. See [native file workflow](windows-and-tray.md#native-local-file-inspection)
+and [privacy](privacy-safety-and-logs.md#local-file-inspection).
 
 ## SQLite diagnostic retention
 
@@ -811,21 +753,14 @@ ownership/privacy changes and failed evidence require explicit refresh/recovery.
 - **set speech.playback-volume to 30**
 - **reset speech.playback-volume**
 
-Use one canonical integer 0-100 (no `%`, fraction, sign, padding or leading
-zero). The current assistant-name prefix works; old names are not aliases.
-Native Settings shares the admitted, revisioned atomic/audited workflow.
-Default/reset **100** is original unscaled output; **0** blocks synthesis and
-keeps the complete visual response. Changes stop stale active/queued speech;
-raising/resetting never replays it. Original voice mutations are denied during
-protected/unknown calls. These commands never play a trial, change global/call
-volume, microphone/consent, other options, retention or pending approvals.
-Discovery is metadata only, not a model tool or acoustic test. Input is bounded
-to 1,024 UTF-8 bytes without controls; the complete result is bounded to 64 KiB.
-See [availability and recovery](settings.md#kora-playback-volume).
+Canonical integer 0-100 (no signs, padding, fractions, percent suffix or leading zeros); default/reset 100. Zero prevents synthesis and retains full visual output. Changes never alter global/call volume, test audio, reopen capture or replay output.
+Current-name activated input is supported; protected/Unknown original-voice
+writes refuse. Input is at most 1,024 UTF-8 bytes including the prefix and
+rejects controls; complete result at most 64 KiB.
+See [controls and option-specific recovery](settings.md#kora-playback-volume) and
+[shared preference admission](settings.md#preference-changes-and-recovery).
 
 ### Inspect or change Windows-native speech rate
-
-Exact typed or already **ACTIVATED** input uses the current assistant prefix:
 
 - **list rate settings**
 - **get speech.windows-rate**
@@ -835,23 +770,15 @@ Exact typed or already **ACTIVATED** input uses the current assistant prefix:
 - **set speech.windows-rate to 10**
 - **reset speech.windows-rate**
 
-Canonical integer **-10..10**, normal/default/reset **0**, means Windows
-provider-native engine rate, not percent or words per minute. Signs are accepted
-only for negative nonzero values; padding, plus signs, negative zero, fractions,
-suffixes and leading zeros are refused locally. Discovery/status includes
-provider-qualified support and desired/effective/source/revisions/recovery.
-**Kokoro is unsupported and unchanged**; no common speed scale is applied.
-
-Native Settings uses the same admitted action with explicit draft/save/reset.
-Original-channel audio session/generation, current name/provider/source/call/
-privacy/ownership and native-lifetime conditions remain required. Protected/
-Unknown calls deny voice-originated writes, even if later dispatched through UI.
-Confirmed changes retire active/queued output and reach future eligible Windows
-synthesis only. They never capture, synthesize/autoplay/replay, switch provider,
-alter assets or change global Windows audio settings. Pending exact approvals/
-questions and full interrupted visual responses remain intact. Unconfirmed
-persistence/evidence stays unavailable across restart; inspect and repair before
-fresh refresh. Existing call/output/zero-volume gates and retention rules stay.
+Canonical integer **-10..10**, normal/default/reset **0**. Negative nonzero
+signs only; no plus, negative zero, padding, fractions or suffix. Windows
+provider-native rate, not percentage or words/minute.
+**Kokoro is unsupported and unchanged**; no provider switch, trial or replay.
+Current-name activated input is supported; protected/Unknown original-voice
+writes refuse. Input is at most 1,024 UTF-8 bytes including the prefix and
+rejects controls; complete result at most 64 KiB.
+See [controls and option-specific recovery](settings.md#windows-native-speech-rate) and
+[shared preference admission](settings.md#preference-changes-and-recovery).
 
 ### Inspect or change the device-default response mode
 
@@ -863,19 +790,12 @@ fresh refresh. Existing call/output/zero-volume gates and retention rules stay.
 - **set responses.default-mode to VisualOnly**
 - **reset responses.default-mode**
 
-Only these exact enum names (case-insensitive) are accepted; numbers, lists,
-invented options, fuzzy aliases and extra words clarify locally before inference.
-Typed and explicitly activated voice use the same grammar, optionally prefixed
-with the current assistant name. Input is bounded to 1024 UTF-8 bytes including
-the prefix and rejects controls; complete JSON output is bounded to 64 KiB,
-never truncated into a success-shaped partial result.
-The existing device preference is saved atomically and read back under real
-host/session/generation/original-channel/call admission. Reset saves Hybrid only.
-Protected/Unknown calls reject original voice mutations; a fresh eligible
-typed/native request is separate. Pending exact questions/approvals are not
-answered or replaced. Results remain visual, never autoplay/replay or capture.
-Task/queue precedence and mandatory call/privacy/full-visual recovery remain
-unchanged; no narrower override or model settings tool is added.
+Exact case-insensitive Hybrid / VoiceOnly / VisualOnly; default/reset Hybrid. Save changes only the device default, not queue/task overrides or mandatory call/privacy/full-visual recovery. No autoplay, replay or capture.
+Current-name activated input is supported; protected/Unknown original-voice
+writes refuse. Input is at most 1,024 UTF-8 bytes including the prefix and
+rejects controls; complete result at most 64 KiB.
+See [controls and option-specific recovery](settings.md#device-default) and
+[shared preference admission](settings.md#preference-changes-and-recovery).
 
 ### Inspect or change an installed speech choice
 

@@ -12,6 +12,23 @@ application version as a suffix. Source builds default to version `0.1.0`;
 release builds can override that version during publishing. Changes use the
 same live application state as the presence and response surfaces.
 
+## Preference Changes and Recovery
+
+Admitted exact/native preference workflows show saved/default/unavailable
+provenance, desired/effective values and revisions. Highlighting or opening
+a control is not Save. Writes require current original-user/host/session/
+privacy/call admission, required audit, atomic persistence/readback and
+completed control evidence. Protected/Unknown original-voice mutations need
+a new eligible typed/native request; later UI confirmation cannot relabel them.
+
+Stale choices need fresh inspection. Corrupt/inaccessible/unconfirmed saved
+state is unavailable, not a default. A write can precede failed terminal
+evidence: inspect saved state and receipts, explicitly repair, then refresh.
+Do not retry blindly, claim rollback or use ordinary Refresh to clear an
+unconfirmed marker. Reset affects only the named option. No preference change
+grants consent/approval, replays retired speech or enables a gated capability.
+Legacy process-local overrides are labelled separately below.
+
 ## Routine notice quiet mode is run-only
 
 In the already-open **Sessions** window, select an exact session and use **Quiet routine notices for this run**. This one choice suppresses first Work/Maintenance notices before fatigue accounting and hides their notice rows. **Turn routine quiet off** and **Reset routine quiet to Off** clear it. Default is Off on every Kora restart; there is no saved setting or scheduled duration.
@@ -23,26 +40,23 @@ This does not change speech/listening/captions, call/privacy policy, approval au
 
 ## Per-session retention status and hold
 
-Session file attachments are separate native controls, not a new preference. In **Sessions**, select an exact active session and choose **Attach text file to this exact Session**. Review all native metadata and the durable Kora-copy disclosure, then confirm separately. The fixed limits are one immutable `.txt`/`.md`/`.markdown` file per session, 256 KiB original UTF-8 bytes including BOM, sixteen retained profile files, no eviction.
+These are **Sessions** controls, not global preferences:
 
-**Inspect retained attachment / remove Kora copies** reads that session's exact historical snapshot after restart, including retained Done sessions, without resuming or renewing activity. It shows full inert text and exact lexical citations. Removal requires another exact source/session/revision/copy-inventory review and confirmation; original files remain untouched. Existing Keep/ordinary retention and source-copy holds apply.
+| Control | Scope |
+|---|---|
+| Refresh retention / Read exact ID retention | Recorded activity/due/kept/purged/hold metadata only; never resumes, renews activity or cleans up |
+| Keep this session / Use ordinary retention | Exact ID/generation/date review followed by separate native confirmation; ordinary retention retains original due dates |
+| Attach / inspect / replace / remove retained attachment | One immutable UTF-8 text/Markdown file per session, 256 KiB including BOM, sixteen retained profile files, no eviction |
 
-An Active session's historical viewer also offers **Replace retained attachment**: fresh native picker, exact old/new metadata and inventory review, then separate confirmation. It atomically replaces this slot, even at sixteen retained files, with a new source identity and captured historical revision.
-Old views and citations retire; no automatic old-path read, consent reuse or original-file modification occurs. Pre-commit failure preserves the old durable record. A committed but uncertified swap holds disclosure and offers separately confirmed removal of the held snapshot/copies, never restoration or silent refresh.
-
-No limit/format override, folder/version/knowledge setting, model inclusion, OCR/vector, watcher/refresh, provider upload or export is added. Bodies never enter preferences. See the [complete attachment/storage/removal boundary](../Design/File_And_Folder_Ingestion.md#delivered-durable-single-file-session-attachment---2026-10-10).
-
-Open **Sessions**, select one exact immutable session ID, then expand **Selected-session retention: status and exact review**. The panel shows actual recorded UTC last meaningful activity, archive due and delete due dates, kept/purged state and observed work/control holds.
-Copy inventory and broader maintenance availability are not observed here. **Refresh retention status** never renews inactivity, resumes work or runs cleanup.
-If due-content inspection is held, enter the canonical lowercase immutable ID in the existing exact-ID field and choose **Read exact ID retention**. This reads only retention metadata, not names/history/work, and does not resume or implicitly select a conversation. Unknown IDs refuse; removed/purged tombstones cannot be changed.
-
-Choose **Keep this session** or **Use ordinary retention**, read the exact ID/generation/dates and warning, then use **Confirm exact retention review**. Ordinary retention keeps the original recorded dates: background maintenance may archive/delete soon or already be due. Cancel discards the review.
-This hold only stops automatic session archive/delete; it is not a Perpetual operation grant, consent, memory, recall or execution permission.
-
-Selection, generation, activity/hold revision, ownership/privacy/call or closure changes refuse stale confirmation. If audit/commit/receipt/readback is uncertain, refresh durable state and review again; no rollback or automatic replay is claimed.
-Removed/purged/unknown or malformed state cannot be changed. Due ordinary content without a work hold waits for private background maintenance; browsing itself does not archive/delete.
-
-These are native-only controls, independent of future-only **Settings > Sessions** policy. No typed/voice mutation, model tool, global keep/default, apply-now or forced cleanup is delivered.
+Keep stops automatic archive/delete only, not execution or egress checks.
+Unknown/removed/purged state refuses; stale or uncertain commits need fresh
+inspection/review. Original files are never modified. Attachment replacement
+has a new source identity; uncertified committed copies remain held.
+See [Sessions and lifecycle](windows-and-tray.md#minimal-durable-sessions),
+[attachment commands](commands.md#attach-one-text-file-to-an-exact-session-native-only)
+and [retained metadata](windows-and-tray.md#retained-session-attachments-metadata-only).
+No typed/voice/model attachment capture, global keep, apply-now or forced cleanup
+is delivered.
 
 ## Local speech text
 
@@ -188,53 +202,25 @@ See the [canonical bounded contract](../Design/User_Configuration.md#delivered-b
 
 ## Release maintenance (notify-only)
 
-Use **Settings > Maintenance > Review / check / open canonical release** or
-the Tray **Release maintenance (notify-only)** entry. The existing **Review
-local version (native question)** remains a separate local-only workflow.
-Select Production (stable only) or explicitly choose Preview (published beta
-releases only), then permit **public metadata checks for this run**. Permission
-is off by default and not saved. An initial check is scheduled; subsequent
-checks use six hours plus jitter and explicit failure/rate-limit backoff.
-**Check canonical releases** respects the same deadline, including after
-permission/channel changes.
+Open **Settings > Maintenance** or **Tray > Release maintenance (notify-only)**.
+This is metadata review/browser navigation, not an installer or updater.
 
-Read the exact version, immutable source, architecture, expected application
-ZIP digest, canonical page and unsigned disclosure, then select **Review this
-exact verified release** before **Open reviewed
-canonical release page**. Browser navigation is not download/install approval.
-Any refresh, changed snapshot, expiry or admission closure invalidates this
-review; Open/Snooze require a new explicit native review.
-**Snooze this version (24h)** affects only this run; there is no automatic
-speech, focus or prompt backlog. Lock/disconnect, unknown ownership and
-protected call mode close the review and invalidate pending callbacks.
-Return explicitly after recovery; Kora does not replay a deferred check.
+| Choice/control | Behavior |
+|---|---|
+| Production / Preview | Stable only / explicit published-beta opt-in; no drafts |
+| Public metadata checks for this run | Off by default, unsaved; separate network permission |
+| Check canonical releases | Initial check, then six hours plus jitter and failure/rate-limit backoff; respects the current deadline |
+| Review this exact verified release | Displays version/source/architecture/digest/canonical page and unsigned disclosure |
+| Open reviewed canonical release page | Requires fresh exact review; browser navigation is not download/install approval |
+| Snooze this version (24h) | Current run and exact fresh Available notice only, never safety/approval prompts |
 
-Available/UpToDate require consistent canonical metadata. Unavailable means
-no selected release or HTTP 404, not verified current. RateLimited (403/429)
-shows a retry deadline. Unknown includes transport, timeout, cancellation,
-malformed/oversized/changed metadata and unsupported architecture.
-Last successful verification stays historical after a failed check and is
-stale after six hours; stale/failed results cannot open a release page.
-
-Only release metadata and the bounded JSON manifest are fetched. Kora never
-obtains ZIP/MSI/EXE/source code, stages, executes, elevates, installs or changes
-source. Hashes are not publisher signatures. x86 has an application ZIP but
-no x86 installer/native capability acceptance. Deployment mode is unknown;
-replacement and prerequisite handling remain external/manual.
-
-Exact typed/activated **maintenance status**, **maintenance review** and
-**maintenance snooze** use this same cached native workflow. Status never
-checks or calls missing/failed metadata current; review displays the same
-exact immutable record/source/trust details and opens this native surface,
-not the browser. Snooze targets only the fresh reviewed Available notice
-for 24 hours in the current run, not approvals/security prompts or a saved
-reminder policy. Pending exact questions/approvals remain fully unchanged.
-Commands cannot grant/renew network permission or check/refresh/open/download/
-install/elevate/activate anything. They require current original input, owning
-private host, clear/unavailable call admission, durable session generation and
-exact cache revision/identity; failures require explicit recovery.
-See [exact cached commands and bounds](commands.md#exact-cached-release-maintenance).
-This does not complete the general R18 broker or R17 installed acceptance.
+Failed/expired/changed/private/call-held results retire review and cannot open.
+Unavailable/Unknown/RateLimited are not verified current; a prior success stays
+historical and becomes stale after six hours. Recovery does not replay checks.
+Only bounded metadata/manifest bytes are fetched, not application/source/setup.
+Hashes are not publisher signatures; x86 has no installer qualification.
+See [cached command/status reference](commands.md#exact-cached-release-maintenance).
+Those commands cannot grant network permission or perform Check/Open.
 
 ## Models
 
@@ -441,56 +427,35 @@ timeout values are retained when upgrading.
 
 ### Presence appearance
 
-The presence is the animated group of dots that communicates Kora's current
-state. Under **Settings > Appearance > Presence appearance**, the controls
-apply immediately and are stored on this device:
+Under **Appearance > Presence appearance**:
 
-- **Presence size** - default **360 px**; range **240-600 px**.
-- **Dot size** - default **100%**; range **50-200%**.
-- **Dot density** - default **100%** (150 dots); range **25-200%** (38-300 dots).
-- **Movement speed** - default **100%**; range **25-200%**.
-- **Speech sizing** - on by default; grows and shrinks the presence to follow
-  the rhythm of Kora's actual speaker output.
-- **Speech scale amount** - default **100%**; range **0-200%**. This controls
-  the deviation from normal size: 100% uses 90-112% of normal size, 200% uses
-  80-124%, and 0% holds normal size. The slider is disabled while speech sizing
-  is off, but its value is retained.
+| Setting | Range | Default |
+|---|---|---|
+| Presence size | 240-600 px | 360 px |
+| Dot size | 50-200% | 100% |
+| Dot density | 25-200% (38-300 dots) | 100% (150 dots) |
+| Movement speed | 25-200% | 100% |
+| Speech sizing | On/Off | On |
+| Speech scale amount | 0-200%; retained while sizing is off | 100% |
 
-Changing the overall size keeps the presence anchored to the bottom-right
-of the active display's working area until you move it. Hold **Ctrl**, then
-left-click and drag the visible presence to reposition it. Without Ctrl,
-mouse events pass through to the window underneath. Release the mouse button
-and Ctrl when finished; ongoing gestures keep their original recipient.
-Kora restores its last position when that
-position remains on a connected display and otherwise falls back to the
-bottom-right working area. Dot size changes particle diameter without changing
-the number of particles. Movement speed scales the motion associated with each
-assistant state without changing the state itself.
-Dot density changes only how many dots are shown. Speech sizing does not change
-the state colours, dot motion, speech volume, or playback policy. It follows the
-audio playback envelope rather than microphone input or a simulated pulse, and
-smooths rapid changes without losing the syllable rhythm. It eases back to
-normal size when playback stops or speech sizing is switched off.
+Speech scale 100% spans 90-112% of normal size; 200% spans 80-124%; zero
+holds normal size. It follows actual output, not microphone input, and does
+not change state, volume or playback policy. For movement, Ctrl-drag,
+click-through and saved-position behavior, see [Presence](windows-and-tray.md#koras-presence).
 
 ### Response window
 
-Configure the response window's display behavior under **Appearance > Visual
-feedback**:
+Under **Appearance > Visual feedback**:
 
-- Drag the title area to reposition the window. Kora restores the last position
-  when it remains on a connected display.
-- **Always show** keeps the current response visible until **Dismiss** is
-  selected. Default: off.
-- **Stay on top** controls whether the response remains above other windows.
-  Default: on.
-- **Response timeout** changes only the response window's 1-60 second inactivity
-  interval. Presence uses the separate **Presence timeout** setting.
-- Press **Enter** in the typed-command prompt to run the command.
-- **Cancel task** is visible while local model work or response speech is
-  active. Select it or press **Esc** to stop that work. **Dismiss** only hides
-  the response and does not cancel model work or stop speech.
+| Control | Default / behavior |
+|---|---|
+| Always show | Off; retains the response until Dismiss |
+| Stay on top | On |
+| Response timeout | 1-60 seconds, independent of Presence timeout |
 
-These choices and the window position are stored on this device.
+Position is saved on this device. Enter runs a typed command; Esc/Cancel task
+stops eligible active work, while Dismiss hides only.
+See [response window behavior](responses-and-calls.md#visual-response-window).
 
 ## Speech and audio
 
@@ -535,101 +500,68 @@ profile, learning/enrollment, assets, download or OS/global setting is added.
 
 ### Microphone
 
-The existing input preference is also available as exact `speech.input-device`
-[commands](commands.md#exact-input-device-preference). List/get reports
-desired/effective and saved/default/unavailable provenance; set/reset uses the
-same native audited atomic preference path. Reset selects System only and
-cannot grant consent/permission, enable listening or release a manual/run hold.
+| Choice/control | Behavior |
+|---|---|
+| System | Follow the live Windows multimedia default |
+| Exact endpoint | Pinned device-local override; a missing pin is not replaced by name |
+| Choose microphone (native recovery) / Refresh | Bounded metadata only, including unavailable saved pins and Allowed/Blocked/Unknown Windows access |
+| Save preference only | Save the exact highlighted endpoint; no capture |
+| Enable listening (PTT readiness only) | Separate fresh-gated action over the saved endpoint, not the highlight |
 
-- **Choose microphone (native recovery)** opens the same passive card as the
-  tray entry. Opening/Refresh reads bounded device metadata only. Highlight an
-  exact endpoint, then **Save preference only**; System and unavailable saved
-  pins remain visible, including after restart.
-- Separate **Enable listening (PTT readiness only)** uses the displayed saved
-  endpoint and fresh host gates, not the highlight or an old answer. Consent
-  remains in the existing separate Settings flow. No combined consent/enable,
-  microphone test or durable device-question bridge is available.
-- The card reports whether Windows microphone access for desktop applications
-  is **allowed**, **blocked**, or could not be confirmed.
-- **System** follows the live Windows multimedia-default microphone.
-- A named endpoint creates a pinned local override.
-- Selection does not enable listening.
-
-When access is blocked, select **Open Windows microphone settings** in Kora,
-enable **Microphone access** and **Let desktop apps access your microphone**,
-then refresh readiness.
+The exact option is `speech.input-device`; reset selects System without
+granting consent/permission or clearing a run hold.
+See [input commands](commands.md#exact-input-device-preference) and
+[microphone recovery](voice-and-audio.md#microphone-selection).
+Windows access needs both Microphone access and desktop-app access; open
+Windows microphone settings separately, then refresh.
 
 ### Voice consent and activation
 
-- First launch requires explicit ongoing consent. Saved consent allows safe
-  startup to arm push-to-talk, never ambient command transcription.
-- Production wake is unavailable. Hold **Push to talk** (mouse, Space or Enter),
-  speak one command, then release.
-- The status explains when listening is paused because Windows reports the
-  session as locked, microphone access is blocked, call policy prevents
-  activation, or listening was disabled manually.
-- **Enable listening** re-arms push-to-talk after manual disablement or privacy recovery.
-- **Disable listening** releases it.
-- **Withdraw voice consent** persists the closed choice across restart.
+| Control/state | Behavior |
+|---|---|
+| Ongoing voice consent | Required before voice enablement; saved consent can arm PTT at ordinary startup without capture |
+| Push to talk | Hold mouse/Space/Enter, speak, then release; production wake is unavailable |
+| Disable / Enable listening | Current-run release / explicit fresh-gated re-arm; disablement is not saved |
+| Withdraw voice consent | Persist closed consent across restart |
+| Normal authoritative unlock | Restore only prior enabled readiness after confirmed closure/fresh gates; never resume recording |
+| Resume/reconnect, restored permission/device or intervening failure | Explicit Enable required; selection/refresh does not release the hold |
 
-Manual disablement is not persisted across application restarts; Kora returns
-to fresh-gated push-to-talk enablement on the next ordinary start with saved consent.
-Normal authoritative unlock automatically restores PTT readiness if it was
-enabled before locking, resource closure succeeds and all fresh consent,
-ownership, session, microphone and call-policy checks pass. It never resumes
-recording: use a new PTT press. Manual disablement, withdrawal or intervening
-failures prevent automatic restoration. Resume, restored permission and device
-reconnection require explicit Enable listening; selection or refresh does not
-release those holds. Future qualified always-on wake detection follows the same
-prior-enabled-mode rule; production wake remains unavailable today.
+Status explains privacy, permission, call or manual holds.
+See [consent and PTT workflow](voice-and-audio.md#voice-consent-and-explicit-push-to-talk)
+for the full lifecycle and recovery rules.
 
 ### Speech provider
 
-- **Installed speech provider and voice** selects only ready installed choices.
-  The stable provider IDs are `windows-sapi` and `kokoro`.
-- **Speech provider assets (review only)** is separate. Reviewing a provider
-  never changes the saved selection or working voice.
-- **Windows** is built in, uses installed SAPI voices, and requires no download.
-- **Kokoro** is an optional local neural provider. Kora does not download it
-  automatically.
-- Review Kokoro under provider assets and choose **Download** to retrieve its pinned model and voice
-  assets. The download is approximately 219 MiB.
-- Kora validates both assets by exact size and SHA-256 before installing them.
-- Kokoro becomes available immediately after preparation; Kora does not need to
-  restart.
-- **Remove downloaded model** deletes Kokoro's device-local model and voices
-  without affecting the built-in Windows provider.
+| Provider ID | Preparation |
+|---|---|
+| `windows-sapi` | Built-in Windows provider; installed SAPI voices, no download |
+| `kokoro` | Optional local assets, about 219 MiB; separate reviewed download and exact size/SHA-256 validation |
 
-Provider and voice selections are stored as one atomic device-local choice.
-Completing a download makes choices available; explicitly select the installed
-provider or voice to change output. Missing assets and invalid saved state
-disable speech with a visible recovery message, never silently substitute.
+**Installed speech provider and voice** selects ready choices.
+**Speech provider assets (review only)** never changes selection; completing
+Download makes choices available immediately but does not select one.
+**Remove downloaded model** removes Kokoro assets only.
+See [provider workflow](voice-and-audio.md#speech-providers).
 
 ### Speech voice
 
-- Select an installed voice. The displayed `provider / ID` identifies the exact
-  choice; selecting a voice explicitly selects its provider too.
-- Without an explicit voice, Kora uses that provider's advertised default.
-  If no compatible default exists, select an exact installed voice instead.
-- **Reset speech provider** restores Windows and its advertised default voice.
-  **Reset speech voice** restores only the selected provider's advertised default.
-  Neither reset downloads missing assets or chooses an unrelated voice.
-- Exact typed/activated-voice commands use the same workflow:
-  `list speech settings`, `get speech.provider`, `get speech.voice`,
-  `set speech.provider to windows-sapi`,
-  `set speech.voice to kokoro / af_heart`, and `reset speech.voice`.
-  Use the IDs actually listed on your device. Unqualified voice IDs must be
-  unambiguous. Protected calls reject original voice-channel set/reset;
-  initiate a new eligible Settings/typed request rather than confirming later.
-- **Preview** speaks a short identity phrase with the selected voice and output.
-  No ambient recognition is active.
-- **Stop** cancels active speech.
+Provider and voice are one atomic device-local choice:
+the paired option IDs are `speech.provider` and `speech.voice`.
 
-Status shows desired/effective voice, saved/default provenance, revision and
-recovery. Save failure retains the previous selection. Concurrent or stale
-changes require a fresh inspection/request. This bounded configuration does not
-add rate, call exceptions or model settings tools. Volume is the independent
-bounded preference below.
+| Control | Behavior |
+|---|---|
+| Select `provider / ID` | Exact installed voice; explicitly selects that provider |
+| No explicit voice | That provider's advertised compatible default; otherwise choose an exact voice |
+| Reset speech provider | Windows plus its advertised default |
+| Reset speech voice | Selected provider's advertised default only |
+| Preview / Stop | Explicit local identity phrase / cancel active speech |
+
+Reset never downloads or substitutes an unrelated voice. Invalid saved state
+or missing assets disables speech with recovery, not a silent provider fallback.
+Status reports desired/effective/default/saved/revision; stale/failed saves
+need fresh inspection. See [exact speech commands](commands.md#inspect-or-change-an-installed-speech-choice)
+and [voice workflow](voice-and-audio.md#speech-voice-selection).
+Rate and volume are independent options.
 
 ### Kora playback volume
 
@@ -718,23 +650,18 @@ Push-to-talk stops current speech before opening command capture.
 
 ### Audio output
 
-- **System** follows the live Windows multimedia-default output.
-- An existing saved endpoint remains pinned; a missing pin is not replaced.
+**Refresh output metadata only**, select an exact endpoint, then **Save output
+preference only**. **Reset output to System** removes only Kora's override.
+System follows the live Windows multimedia default; a saved pin remains pinned.
+Draft/highlight changes nothing.
 
-Choose **Refresh output metadata only**, select one exact endpoint choice, then
-**Save output preference only**. The draft alone changes nothing. **Reset output
-to System** removes only Kora's output override. The visible status distinguishes
-desired/saved/default, effective/unavailable route, mute and recovery.
-Metadata discovery has a five-second deadline and cannot accumulate workers.
-Names can duplicate; endpoint IDs, host-held choice, session/generation and
-current ownership/privacy/call/input revisions must match. Stale/foreign choices
-require fresh discovery. Selecting/resetting cancels retired speech but never
-plays a trial, resumes stopped output, changes Windows defaults/volume/mute,
-opens capture, grants consent or changes provider/voice/summary/input settings.
-Failed persistence/audit may leave a committed file; inspect saved status and
-refresh, not automatic retry. Missing/muted/open/playback failures retain full
-visual output regardless of the independently stored legacy muted-fallback option.
-No acoustic or full R10 acceptance is implied.
+Status shows desired/saved/default/effective/unavailable route, mute and recovery.
+Discovery has a five-second deadline; stale/foreign choices require fresh reads.
+Changing/resetting retires speech but never plays a trial, replays output,
+changes global defaults/volume/mute, opens capture or grants consent.
+Missing/muted/failed output retains full visual recovery.
+See [output workflow](voice-and-audio.md#audio-output-selection) and
+[exact output commands](commands.md#inspect-or-change-an-exact-output-choice).
 
 ### Refresh devices and readiness
 
@@ -763,19 +690,13 @@ an unconfirmed marker or reports success after failed apply evidence.
 
 ### Current queue
 
-Existing process-local presentation override, outside the admitted device-default
-registry. It takes precedence over the device default.
-Select **Inherit** in the dropdown to remove the queue override and use the
-device default. This is not a delivered durable session/queue workflow or exact
-configuration command.
+Process-local presentation override, not durable queue authority.
+Choose Inherit to remove it. See [output precedence](responses-and-calls.md#output-precedence).
 
 ### Current task
 
-Existing process-local presentation override with the highest precedence,
-outside the admitted device-default registry.
-Select **Inherit** in the dropdown to remove the task override and use the
-queue override, or the device default when no queue override exists. This does
-not establish durable task-scoped configuration, a scheduler or task execution.
+Process-local presentation override, not task execution/configuration authority.
+Choose Inherit to remove it. See [output precedence](responses-and-calls.md#output-precedence).
 
 ### Muted speaker fallback
 
@@ -801,54 +722,35 @@ is implemented.
 
 ### Manual call mode
 
-**I'm in a call** activates protection for this run. **Clear manual call mode**
-removes only that layer, never an enabled automatic Active/Suspected/Unknown
-observation. Manual state is not persisted across restart. Controls recheck
-original request origin, observed call revision and live ownership/privacy.
-Stale changes are rejected, not queued for call clearance.
-**Reset manual off** clears only this run layer. **Cached call status** is passive:
-it shows the manual flag separately from automatic observation/availability,
-saved flags and effective conservative protection at the current source/policy
-revision. Native controls and [exact typed/activated commands](commands.md#exact-current-run-manual-call-control)
-share genuine committed original-user intent, session generation and required
-audited admission; inspection does not create an intent or approval.
-Questions/approvals keep their full preview and block mutations. Changed manual
-state retires old speech/input/callbacks; off/reset never replay or reopen.
-Failed required evidence/retirement is explicit, with conservative protection
-held and no automatic retry or false rollback. The manual flag is never saved.
+**I'm in a call** enables protection for this run.
+**Clear manual call mode** / **Reset manual off** clear only this layer,
+never enabled automatic Active/Suspected/Unknown evidence.
+**Cached call status** is passive. Manual state is not saved.
+
+Original channel, current host/session/call revisions and required audited
+intent remain mandatory. Stale/failed changes retain conservative protection.
+Off/reset never replays speech or opens capture.
+See [manual call workflow](responses-and-calls.md#manual-call-mode-and-call-settings)
+and [exact commands](commands.md#exact-current-run-manual-call-control).
 
 ### In-call feedback override
 
-**Settings > Calls** provides an independent draft with **Voice / UI / Both /
-Inherit**, plus **Refresh call feedback**, **Save call feedback only**, and
-**Reset call feedback to UI**. Missing confirmed storage uses **UI**; reset
-removes only this saved override. Highlighting a choice does not save it.
-Status shows saved/default/unavailable source, desired/effective selection,
-whether it applies, configuration/call revisions, hard policy and recovery.
-The [exact typed/current-name activated commands](commands.md#in-call-feedback-override)
-use the same host-admitted workflow, not a general model settings tool.
+**Refresh call feedback**, choose **Voice / UI / Both / Inherit**, then
+**Save call feedback only**. **Reset call feedback to UI** removes this
+override; UI is the confirmed missing/default choice. Highlighting is a draft.
 
-Only manual Active or enabled Active/Suspected applies this before ordinary
-response modes. Inherit restores ordinary precedence. Clear/Unavailable retain
-ordinary output; automatic detection remains unavailable in this build.
-Unknown/invalid evidence keeps speech withheld and complete visual recovery,
-not a Voice/Both exception. Voice/Both are preferences, never permission to
-bypass call suppression, lock/privacy, microphone-active, mute/zero or safety
-previews. Input/consent/grants are unchanged.
+Applied only to manual/observed Active or enabled Suspected, ahead of ordinary
+output preferences. Inherit restores ordinary selection; Unknown/invalid
+evidence still withholds speech. Voice/Both never bypass call suppression,
+privacy/lock/capture, mute/zero or mandatory visual previews.
 
-Protected original-voice save/reset is refused, even after a later UI click;
-initiate a fresh UI change. Exact host-held choices, current name/input/call/
-session/configuration revisions and the visible Settings lifetime must remain
-current. Old choices cannot revive after hide/reopen. Writes require typed
-audits, atomic save/readback and durable intent outcome before activation.
-Changing or resetting retires old speech and never replays it.
-
-Corrupt/inaccessible or unconfirmed state stays unavailable across restart:
-full visual recovery remains and speech is held. Inspect the saved file and
-audit/intent receipts, explicitly repair storage, then refresh. Refresh cannot
-clear an unconfirmed marker or claim rollback after a committed file.
-No detector, proactive/temporary exception, consent/grant or speech-policy
-downgrade is added; native/acoustic acceptance remains separate.
+Status shows saved/default/unavailable, desired/effective/applied mode,
+revisions and recovery. Protected original-voice writes refuse even after
+a later UI click; start a fresh UI request. Changes retire output without replay.
+Corrupt/unconfirmed state remains held across restart until explicit repair/
+inspection; Refresh cannot clear the marker.
+See [output precedence](responses-and-calls.md#output-precedence) and
+[exact feedback commands](commands.md#in-call-feedback-override).
 
 ### Call speech suppression (independent of feedback)
 

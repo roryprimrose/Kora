@@ -55,7 +55,7 @@ Cancellation/private-authority loss suppresses late receipts and drains admitted
 Apply-now, current-task extension and the broader 1-50 capacity/general execution contract are not delivered ([actual enforcement and durable tests](../tests/Kora.Windows.IntegrationTests/Storage/WindowsSqliteSessionQueueTests.ActiveDeadline.cs)).
 No worker, automatic dispatch, resource lease, model tool, general execution or real two-slot provider/hardware qualification is added ([bounded workflow](../src/Kora.Application/Configuration/SessionQueueConfigurationService.cs)).
 
-Validation and retained experiment reasons are recorded in the [active-deadline delivery receipt](Implementation_Roadmap.md#r10r13-future-admission-active-deadlines---2026-10-10). Full R10/R13/A3, installed native/accessibility and affected provider/hardware acceptance remain open under the [three-tier qualification policy](Acceptance_Criteria.md#three-tier-qualification-policy).
+Validation and retained experiment reasons are recorded in the [active-deadline delivery receipt](Archive/Implementation_Roadmap_2026-10-11.md#r10r13-future-admission-active-deadlines---2026-10-10). Full R10/R13/A3, installed native/accessibility and affected provider/hardware acceptance remain open under the [three-tier qualification policy](Acceptance_Criteria.md#three-tier-qualification-policy).
 
 ### R18 bounded local event suppression
 
@@ -119,7 +119,7 @@ build with existing locked dependency assets (no restore/feed change needed);
 Core 1,028, Application 2,860, Tools 69, Definitions 6,
 Windows 1,215 passed with zero
 failures/skips; portable line/branch coverage 100%/100%. See the
-[dated evidence receipt](Implementation_Roadmap.md#r12-bounded-session-retention-delivered---2026-10-09).
+[dated evidence receipt](Archive/Implementation_Roadmap_2026-10-11.md#r12-bounded-session-retention-delivered---2026-10-09).
 
 ### Delivered bounded device-local in-call feedback (R10/R15)
 
@@ -173,7 +173,7 @@ This deterministic source/native-seam slice does not close full R10/R15,
 automatic detector/source freshness qualification, native accessibility,
 real-call/acoustic leakage/stop timing, speak-once/downgrade review, proactive
 configuration, general tools or A0-A4 acceptance. See the
-[experiment disposition](Implementation_Roadmap.md#bounded-in-call-feedback-experiment-disposition).
+[experiment disposition](Archive/Implementation_Roadmap_2026-10-11.md#bounded-in-call-feedback-experiment-disposition).
 
 ### Delivered bounded local speech text (R25)
 

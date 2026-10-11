@@ -73,6 +73,13 @@ input, renew cancellation inspection, extend activity, resume or dispatch.
 The runnable bootstrap has one response title/body and latest transcript in `MainViewModel`, displayed by `ResponseWindow`.
 Typed and recognized spoken commands converge on the deterministic built-in command router.
 The updated bootstrap also handles unmatched requests with a verified local model, including clarifying questions and host-validated registered action/grant proposals with once/session/always choices.
+The proposed custom-answer extension treats clarifying-question options as
+suggestions rather than a closed enum: every such question also exposes a bounded
+custom-answer path by default. Mouse choice, typed custom text and activated voice
+dictation converge on the same continuation validation and retain their input
+lineage. A custom answer remains clarification, not approval, permission, or
+execution authority; recognized built-in commands may still explicitly supersede
+the pending question. This contract does not claim the extension is delivered.
 These named model-action preferences are not the future executable/script digest-bound grants; direct exact lock is still ungated while model-suggested lock asks for approval.
 The compact surface has a text field, Run, and Dismiss, with positioning and auto-hide preferences.
 The separate Documentation window renders trusted embedded documentation, not arbitrary session artifacts.
@@ -158,7 +165,7 @@ invalid persistence/migration, interrupted acceptance, bounded fairness,
 queue holds/inventoried deletion, restart no-replay and retained-source
 invalidation of #118's selected-session work surface without losing unrelated
 work or its passive-refresh/question coexistence contracts.
-See the [dated roadmap receipt](Implementation_Roadmap.md#r12-bounded-session-retention-delivered---2026-10-09);
+See the [dated roadmap receipt](Archive/Implementation_Roadmap_2026-10-11.md#r12-bounded-session-retention-delivered---2026-10-09);
 installed/native/RC and full R12/A3 qualification remain open.
 
 ### R12 Native Exact-Session Retention Controls - 2026-10-10
@@ -590,7 +597,7 @@ persisted session preserves it. Pending questions and Once/Session grants
 cannot regain eligibility after resume. Perpetual records are independent
 and have no expiry/retention/eviction field.
 
-The [durable slice handoff](Implementation_Roadmap.md#r04r05-durable-interaction-and-minimal-session-authority---2026-10-06)
+The [durable slice handoff](Archive/Implementation_Roadmap_2026-10-11.md#r04r05-durable-interaction-and-minimal-session-authority---2026-10-06)
 defines schema/lease/audit ownership. The native presenter adds trusted
 local-UI review/input over those services without schema or recovery changes.
 Immediate pre-effect dispatch revalidation, complete source/resource review

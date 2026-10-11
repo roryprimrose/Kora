@@ -85,27 +85,13 @@ The same registry serves local inference and approved remote/agent adapters, but
 
 ## Model-facing coverage rule
 
-Model discovery is a normal entry point for user-visible Kora actions, not a
-special integration added only to complex workflows. Each new action must be
-evaluated for both an exact deterministic command and a typed model-facing
-descriptor, alongside any UI surface. Implement every applicable route over
-the same registered host action and policy gate. This allows common requests
-to work without inference while allowing a model to identify less exact
-natural-language intent and propose the same action.
-
-An advertised descriptor is proposal authority only. The host still validates
-the action and inputs, applies origin/privacy/ownership policy, obtains any
-required approval, revalidates availability, performs the effect, and returns
-a structured result. Models cannot invent actions, handlers, command lines, or
-parameters outside the admitted schema.
-
-The capability inventory must state and justify any missing deterministic or
-model-facing route. Valid exceptions include actions that inherently require
-interactive visual selection, have no safe unambiguous static phrase, are
-unavailable in the current build, or have not passed their security and
-containment gates. Delivery tests verify command/action resolution, shared
-policy behavior, unavailable and unauthorized failures, and rejection of
-unknown model proposals.
+The [action exposure rule](Commands_Tools_And_Skills.md#action-exposure-is-the-default)
+owns route convergence and exception criteria. Evaluate exact commands, native
+controls and model descriptors for each action; implement every applicable
+route over one registered action/gateway. Record why a route is omitted or
+unavailable. A descriptor is proposal authority only, never execution permission.
+Tests must reject unknown, ambiguous, unavailable and unauthorized proposals
+without effects.
 
 ## Implemented Bootstrap Surface
 

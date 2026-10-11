@@ -8,11 +8,12 @@ public static class SessionQueuePolicy
     // Compatibility default for known pre-capture admissions only; new callbacks enforce their committed entry budget.
     public static readonly TimeSpan ActiveDeadline = SessionQueueLimits.ActiveBudget(SessionQueueLimits.DefaultActiveBudgetMinutes);
 
-    /// <summary>Round-robin by last successful admission, FIFO within each session; blocked heads never bypass.</summary>
+    /// <summary>Round-robin by last admission and original arrival tie; explicit pending order never bypasses a blocked head.</summary>
     public static SessionQueueEntry? SelectReady(IReadOnlyList<SessionQueueEntry> entries,
         IReadOnlyDictionary<HostId<TaskIdentity>, HostTaskState> tasks, Guid runId,
         DateTimeOffset now, long admissionRevision, SessionQueueLimits limits,
-        IReadOnlyDictionary<HostId<SessionIdentity>, SessionQueueDispatchControl>? dispatchControls = null)
+        IReadOnlyDictionary<HostId<SessionIdentity>, SessionQueueDispatchControl>? dispatchControls = null,
+        IReadOnlyList<SessionQueueOrder>? orders = null)
     {
         ArgumentNullException.ThrowIfNull(entries);
         ArgumentNullException.ThrowIfNull(tasks);
@@ -25,14 +26,15 @@ public static class SessionQueuePolicy
             .Where(group => !group.Any(entry => entry.IsCurrent || entry.State == SessionQueueState.Unknown))
             .Select(group => new
             {
-                Head = group.Where(entry => entry.IsPending).OrderBy(entry => entry.Position).FirstOrDefault(),
+                Head = SessionQueueOrdering.Head(entries, group.Key, orders),
+                Arrival = group.Where(entry => entry.IsPending).Select(entry => entry.Position).DefaultIfEmpty(long.MaxValue).Min(),
                 Last = group.Max(entry => entry.DispatchOrder),
             })
             .Where(candidate => candidate.Head is { } head && Eligibility(head, entries, tasks,
                 runId, now, admissionRevision, limits,
-                dispatchControl: dispatchControls?.GetValueOrDefault(head.Request.SessionId)) == SessionQueueEligibility.Ready)
+                dispatchControl: dispatchControls?.GetValueOrDefault(head.Request.SessionId), orders: orders) == SessionQueueEligibility.Ready)
             .OrderBy(candidate => candidate.Last)
-            .ThenBy(candidate => candidate.Head!.Position)
+            .ThenBy(candidate => candidate.Arrival)
             .ThenBy(candidate => candidate.Head!.Request.SessionId.Value)
             .Select(candidate => candidate.Head).FirstOrDefault();
     }
@@ -41,7 +43,7 @@ public static class SessionQueuePolicy
         IReadOnlyList<SessionQueueEntry> entries, IReadOnlyDictionary<HostId<TaskIdentity>, HostTaskState> tasks,
         Guid runId, DateTimeOffset now, long admissionRevision, SessionQueueLimits limits,
         bool sessionActive = true, bool unclassifiedWorkOrWait = false, bool unknownWork = false,
-        SessionQueueDispatchControl? dispatchControl = null)
+        SessionQueueDispatchControl? dispatchControl = null, IReadOnlyList<SessionQueueOrder>? orders = null)
     {
         ArgumentNullException.ThrowIfNull(entry);
         ArgumentNullException.ThrowIfNull(entries);
@@ -75,7 +77,7 @@ public static class SessionQueuePolicy
         {
             return SessionQueueEligibility.SessionCurrent;
         }
-        if (entries.Any(other => other.Request.SessionId == entry.Request.SessionId && other.IsPending && other.Position < entry.Position))
+        if (SessionQueueOrdering.Head(entries, entry.Request.SessionId, orders) != entry)
         {
             return SessionQueueEligibility.EarlierPendingEntry;
         }

@@ -30,7 +30,7 @@ public sealed partial class WindowsSqliteHostInteractionStore
     {
         using var command = connection.CreateCommand();
         command.CommandText = "PRAGMA user_version;";
-        if (command.ExecuteScalar() is long version && version is 8 or HostInteractionSchema.Version) { return; }
+        if (command.ExecuteScalar() is long version && version is >= 8 and <= HostInteractionSchema.Version) { return; }
         command.CommandText = """
             SELECT 1 FROM security_audit_events a, json_each(a.envelope,'$.Changes') c
             WHERE json_extract(c.value,'$.Kind')='session-file' LIMIT 1;

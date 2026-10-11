@@ -214,7 +214,8 @@ internal sealed partial class AllWorkViewModel(
             var entry = observation.Entry;
             text.Append("Queue task ").Append(entry.Request.TaskId.Value.ToString("D")).Append(" | entry revision ").Append(entry.Revision.Value)
                 .Append(" | ").Append(entry.State).Append(" | reason ").Append(observation.Eligibility)
-                .Append(" | FIFO ").Append(entry.Position).Append(" | dependency ").Append(entry.Dependency?.Value.ToString("D") ?? "none")
+                .Append(" | original arrival ").Append(entry.Position).Append(" | pending dispatch order ").Append(observation.PendingOrder?.ToString(CultureInfo.InvariantCulture) ?? "not pending")
+                .Append(" | dependency ").Append(entry.Dependency?.Value.ToString("D") ?? "none")
                 .Append(" | pending expiry ").Append(entry.ExpiresAt.ToString("O", CultureInfo.InvariantCulture))
                 .Append(" | active deadline ").AppendLine(observation.ActiveDeadline?.ToString("O", CultureInfo.InvariantCulture) ?? "not admitted");
         }

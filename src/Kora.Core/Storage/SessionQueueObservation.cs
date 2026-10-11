@@ -3,4 +3,7 @@ using Kora.Core.Hosting;
 namespace Kora.Core.Storage;
 
 public sealed record SessionQueueObservation(SessionQueueEntry Entry,
-    SessionQueueEligibility Eligibility, DateTimeOffset? ActiveDeadline);
+    SessionQueueEligibility Eligibility, DateTimeOffset? ActiveDeadline)
+{
+    public int? PendingOrder { get; init; }
+}

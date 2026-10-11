@@ -76,12 +76,14 @@ public sealed partial class WindowsSqliteHostInteractionStore
                 Profile: profile == SessionQueueReadProfile.Version ? null : profile);
             entry.Validate();
             var task = new HostTaskRecord(work, new(1), HostTaskState.IntentRecorded);
+            var order = UpdatedQueueOrder(connection, work.SessionId, runId, generation, ids => ids.Add(work.TaskId));
             var sequence = AppendAudit(connection, transaction, intent, RequireSession(connection, control.SessionId).Authority,
-                audit, changes: [QueueChange(entry), TaskChange(task)]);
+                audit, changes: [QueueChange(entry), TaskChange(task), .. QueueOrderChanges(order)]);
             WindowsSqliteHostTaskStore.WriteTask(connection, transaction, task);
             Execute(connection, transaction, "INSERT INTO host_task_runs VALUES($task,$run);",
                 ("$task", Id(work.TaskId)), ("$run", runId.ToString("D")));
             WriteQueue(connection, transaction, entry, sequence);
+            WriteQueueOrder(connection, transaction, order, sequence);
             if (work.Origin is RequestOrigin.LocalUi or RequestOrigin.ActivatedVoice)
             {
                 TouchActivity(connection, transaction, work.SessionId);
@@ -111,13 +113,16 @@ public sealed partial class WindowsSqliteHostInteractionStore
             var tasksChanged = rows.Select(entry =>
                 (ReadTask(connection, entry.Request.TaskId) ?? throw new InvalidDataException("Missing queue task."))
                 .Next(HostTaskState.Cancelled)).ToArray();
+            var order = UpdatedQueueOrder(connection, control.SessionId, runId, generation,
+                ids => [.. ids.Where(id => !rows.Any(entry => entry.Request.TaskId == id))]);
             var sequence = AppendAudit(connection, transaction, intent, RequireSession(connection, control.SessionId).Authority,
-                audit, changes: [.. changed.Select(QueueChange), .. tasksChanged.Select(TaskChange)]);
+                audit, changes: [.. changed.Select(QueueChange), .. tasksChanged.Select(TaskChange), .. QueueOrderChanges(order)]);
             for (var index = 0; index < rows.Length; index++)
             {
                 WindowsSqliteHostTaskStore.WriteTask(connection, transaction, tasksChanged[index]);
                 WriteQueue(connection, transaction, changed[index], sequence);
             }
+            WriteQueueOrder(connection, transaction, order, sequence);
             return QueueSnapshot(connection, control.SessionId);
         }, token, eligible, requireIdle: false);
 
@@ -150,10 +155,12 @@ public sealed partial class WindowsSqliteHostInteractionStore
             var admitted = expected.Admit(new(checked(expected.Revision.Value + 1)), NextQueuePosition(connection),
                 admittedAt, limits.ActiveBudgetMinutes);
             var dispatched = intent.Next(HostTaskState.DispatchRecorded);
+            var order = UpdatedQueueOrder(connection, expected.Request.SessionId, runId, expected.Generation, ids => ids.Remove(expected.Request.TaskId));
             var sequence = AppendAudit(connection, transaction, intent, session, audit,
-                changes: [QueueChange(admitted), TaskChange(dispatched)], admissionTime: admittedAt);
+                changes: [QueueChange(admitted), TaskChange(dispatched), .. QueueOrderChanges(order)], admissionTime: admittedAt);
             WindowsSqliteHostTaskStore.WriteTask(connection, transaction, dispatched);
             WriteQueue(connection, transaction, admitted, sequence);
+            WriteQueueOrder(connection, transaction, order, sequence);
             TouchActivity(connection, transaction, expected.Request.SessionId);
             return new SessionQueueAdmissionReceipt(admitted, started);
         }, token, eligible, requireIdle: false);
@@ -220,7 +227,8 @@ public sealed partial class WindowsSqliteHostInteractionStore
             .Select(entry => entry.RunId != runId && entry.IsPending ? entry with { State = SessionQueueState.Interrupted } : entry).ToArray(),
             states, runId, time.GetUtcNow(), admissionRevision, limits,
             entries.Select(entry => entry.Request.SessionId).Distinct()
-                .ToDictionary(session => session, session => QueueControl(connection, session, admissionRevision)));
+                .ToDictionary(session => session, session => QueueControl(connection, session, admissionRevision)),
+            ReadQueueOrders(connection));
     }
 
     private SessionQueueSnapshot RequireQueueRevision(SqliteConnection connection, HostRequest control,
@@ -241,13 +249,19 @@ public sealed partial class WindowsSqliteHostInteractionStore
         if (authority.State == 2) { throw new InvalidOperationException("Disposed sessions have no browsable queue."); }
         var rows = ReadQueueRows(connection, session);
         using var command = connection.CreateCommand();
-        command.CommandText = "SELECT COALESCE(MAX(audit_sequence),0) FROM session_queue WHERE session_id=$session;";
+        command.CommandText = """
+            SELECT COALESCE(MAX(audit_sequence),0) FROM (
+                SELECT audit_sequence FROM session_queue WHERE session_id=$session
+                UNION ALL SELECT audit_sequence FROM session_queue_order WHERE session_id=$session);
+            """;
         command.Parameters.AddWithValue("$session", Id(session));
         var revision = (long)command.ExecuteScalar()!;
+        var orders = ReadQueueOrders(connection).Where(order => order.SessionId == session).ToArray();
         return new(session, authority.Authority.Generation, revision,
             rows.Where(entry => entry.IsCurrent || entry.State == SessionQueueState.Unknown || entry.RunId == runId && entry.IsPending)
+                .OrderBy(entry => SessionQueueOrdering.Key(entry, orders)).ThenBy(entry => entry.Position)
                 .Select(entry => ProjectQueue(connection, entry, observedAt)).ToArray())
-            { DispatchControl = QueueControl(connection, session) };
+            { DispatchControl = QueueControl(connection, session), Orders = orders };
     }
 
     private SessionQueueEntry ProjectQueue(SqliteConnection connection, SessionQueueEntry entry, DateTimeOffset? observedAt = null,

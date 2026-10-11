@@ -31,7 +31,7 @@ public sealed partial class WindowsSqliteHostInteractionStore
         var generation = RequireSession(connection, session).Authority.Generation;
         if (!queueControls.TryGetValue(session, out var current) || current.Generation != generation)
         {
-            current = new(runId, generation, 0, admissionRevision ?? 0, false, false);
+            current = new(runId, generation, 0, 0, false, false);
         }
         return admissionRevision is { } revision && current.Revision > 0 && revision != current.ControlRevision
             ? current with { Held = true } : current;

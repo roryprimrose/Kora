@@ -167,6 +167,10 @@
                   AutomationProperties.Name="Cancel only the exact displayed pending queue entry or admitted pre-dispatch question wait at its revisions" />
           <Button x:Name="RemoveQueueEntry" Content="_Remove pending ID" IsEnabled="{Binding CanRemoveQueueEntry}"
                   AutomationProperties.Name="Remove only the exact selected pending queue ID and revision; history retained" />
+          <Button x:Name="MoveQueueUp" Content="Review Move _up" IsEnabled="{Binding CanMoveQueueUp}"
+                  AutomationProperties.Name="Review selected exact pending ID swapping only with its displayed previous pending neighbor" />
+          <Button x:Name="MoveQueueDown" Content="Review Move _down" IsEnabled="{Binding CanMoveQueueDown}"
+                  AutomationProperties.Name="Review selected exact pending ID swapping only with its displayed next pending neighbor" />
           <Button x:Name="EnqueueVersion" Content="Enqueue local version" IsEnabled="{Binding CanEnqueueVersion}" />
           <Button x:Name="EnqueueCapabilities" Content="Enqueue capabilities.list" IsEnabled="{Binding CanEnqueueVersion}" />
           <Button x:Name="EnqueueReadiness" Content="Enqueue readiness.get" IsEnabled="{Binding CanEnqueueVersion}" />
@@ -183,6 +187,14 @@
         <ScrollViewer Grid.Row="3" MaxHeight="180" VerticalScrollBarVisibility="Auto"
                       AutomationProperties.Name="Routine notices and pending exact questions; scroll for complete retained cards">
         <StackPanel Spacing="4">
+          <controls:NamedTextBlock Text="{Binding QueueMoveStatus}" TextWrapping="Wrap"
+                                  AutomationProperties.Name="Exact current and proposed adjacent pair order, immutable IDs, profiles and original pending deadlines" />
+          <WrapPanel>
+            <Button x:Name="ConfirmQueueMove" Content="Confirm exact adjacent move" IsEnabled="{Binding CanConfirmQueueMove}"
+                    AutomationProperties.Name="Confirm only reviewed exact adjacent pair, queue and entry revisions, current run and private control" />
+            <Button x:Name="CancelQueueMove" Content="Cancel move review" IsEnabled="{Binding CanCancelQueueMove}"
+                    AutomationProperties.Name="Cancel exact move review without changing queue order or draft" />
+          </WrapPanel>
           <controls:NamedTextBlock Text="{Binding RoutineQuietStatus}" TextWrapping="Wrap"
                                   AutomationProperties.Name="Run-only routine quiet status; Work and Maintenance only, failures and required questions unchanged" />
           <WrapPanel>

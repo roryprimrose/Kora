@@ -12,6 +12,26 @@ Related: [Interaction and Sessions](Interaction_And_Sessions.md), [Architecture]
 
 ## Delivered deterministic local-version queue
 
+### Delivered reviewed adjacent pending order - 2026-10-12
+
+Native Selected Work offers **Review Move up/down**, exact current/proposed pair order, profiles, immutable task IDs/revisions and original enqueue/expiry times, followed by separate **Confirm exact adjacent move** or **Cancel move review**.
+Original typed/current-name activated commands use the same `SessionQueueService` review and audited store transaction. No name/position targeting, inferred reordering, bulk/cross-session shuffle or dispatch is introduced.
+
+An explicit version-1 order lineage in consolidated schema 10 selects a bounded permutation of the exact same-session/current-run pending set. Default/no lineage remains arrival FIFO.
+Original `Position`, timestamps, IDs, dependencies, profiles/results, absent/2/3/4 canonical queue payloads and their recorded digests are untouched. Removal/admission removes only its exact pending ID; enqueue appends.
+Committed pair receipts and order changes append typed requested/terminal audit, rather than rewriting historical intent.
+
+Confirmation reacquires the short physical mutation/admission fence, revalidating both exact entry revisions, adjacency, queue revision, generation, run, private epoch and current control. A stale pair refuses with refresh/review recovery, never another neighbor.
+Pending prerequisite inversion, expired/retired/previous-run pairs and nonpending targets refuse. Cross-session dependencies still require observed success at the chosen head; Unknown/unclassified quarantine, least-recent-admission fairness and the oldest original pending-arrival tie remain unchanged.
+
+Review/cancel/move neither renews meaningful activity nor extends deadlines, pauses/resumes/dispatches work, waits for running callbacks, changes capacity/slots, or grants execution authority. Explicit pause remains independent.
+Audit/storage/cancellation/delivery uncertainty holds admission with truthful recovery, not optimistic list publication or a rollback promise. Restart retains order as inspectable lineage but previous-run pending work remains Interrupted, never replayed.
+
+Shared domain ordering drives actual admission, Work/All work, native rows, local event eligibility and queue/status results.
+[Deterministic core tests](../tests/Kora.Core.UnitTests/Hosting/SessionQueueOrderingTests.cs) and [shared service tests](../tests/Kora.Application.UnitTests/Hosting/SessionWorkspaceServiceTests.QueueMove.cs) cover portable behavior.
+[Real private SQLite/callback tests](../tests/Kora.Windows.IntegrationTests/Storage/WindowsSqliteSessionQueueTests.Move.cs) and [native tests](../tests/Kora.Windows.IntegrationTests/SessionsViewModelQueueTests.cs) cover this bounded increment.
+Maintained fixed-version native fixtures retain their unique assertions; no experiment is modified or retired. Full R13, model management, providers/workers/resource leases, installed-native/hardware/accessibility, RT2/PV1 and physical-stop qualification remain separate gates.
+
 ### Delivered fixed first-page read profiles - 2026-10-12
 
 The existing version syntax/default is unchanged. Native Sessions offers three
@@ -358,7 +378,7 @@ Task labels, requests, and step descriptions are potentially sensitive content, 
 ## Queue and Dispatch
 
 - Proposed initial capacity: 10 pending entries, configurable. Full means ask the user to remove/defer work; never evict silently.
-- Default order is arrival order. Contextual reordering requires a clear user instruction and acknowledgement.
+- Default order is arrival order. Contextual reordering requires a clear user instruction and acknowledgement; the delivered bounded route is the separately reviewed exact adjacent pending pair above.
 - A task needing clarification keeps its position and blocks dispatch at that position until clarified, removed, or explicitly deferred.
 - Explicit dependencies must succeed before dependent work starts. Failed, cancelled, expired, or unknown prerequisites block dependent dispatch.
 - A queue entry's execution eligibility expires after 30 minutes waiting by default; notify the user and release active context references, retaining its request/expiry as session history. Extending/requeuing requires a new decision and context revalidation. User-configured lifetimes follow [User Configuration](User_Configuration.md).

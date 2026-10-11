@@ -10,6 +10,9 @@ public sealed partial record SessionCommand
     public Guid? DependencyTaskId { get; init; }
     public Guid? QueueRunId { get; init; }
     public long QueueControlRevision { get; init; }
+    public Guid? QueueNeighborId { get; init; }
+    public long QueueNeighborRevision { get; init; }
+    public Guid? QueueMoveReviewId { get; init; }
     public SessionQueueReadProfile QueueProfile { get; init; } = SessionQueueReadProfile.Version;
     public const string QueueSyntax =
         "queue help | queue list <session-id> | queue status <session-id> <task-id> | "
@@ -17,6 +20,10 @@ public sealed partial record SessionCommand
         + "queue cancel|remove <session-id> <generation> <queue-revision> <task-id> <entry-revision> | "
         + "queue clear <session-id> <generation> <queue-revision> confirm | "
         + "queue dispatch <session-id> <generation> <queue-revision>. "
+        + "queue move-up|move-down <session-id> <generation> <queue-revision> <run-id> <pause-revision> <task-id> <entry-revision> <neighbor-id> <neighbor-revision> | "
+        + "queue move-confirm <session-id> <generation> <queue-revision> <run-id> <pause-revision> <task-id> <entry-revision> <neighbor-id> <neighbor-revision> <review-id> confirm. "
+        + "queue move-cancel <session-id> <review-id>. "
+        + "Move requires an exact observed adjacent-pair review and separate confirmation; no automatic dispatch or clock renewal. "
         + "queue pause-status <session-id> | queue pause|resume <session-id> <generation> <queue-revision> <run-id> <pause-revision>. "
         + "Pause blocks new admissions only for that exact current-run session; resume never dispatches or replays work. "
         + "Four fixed no-argument first-page reads only; manual fair dispatch of already enqueued current-run work. "
@@ -33,6 +40,10 @@ public sealed partial record SessionCommand
         }
         if (words.Length < 3 || !ExactId(words[2], out var session)) { return Invalid(); }
         var operation = words[1].ToLowerInvariant();
+        if (operation is "move-cancel" && words.Length == 4 && ExactId(words[3], out var cancelledReview))
+        {
+            return new(SessionCommandOperation.QueueMoveCancel, session) { QueueMoveReviewId = cancelledReview };
+        }
         if (operation is "list" && words.Length == 3) { return new(SessionCommandOperation.QueueList, session); }
         if (operation is "pause-status" && words.Length == 3) { return new(SessionCommandOperation.QueuePauseStatus, session); }
         if (operation is "status" && words.Length == 4 && ExactId(words[3], out var statusTask))
@@ -44,6 +55,31 @@ public sealed partial record SessionCommand
         if (operation is "dispatch" && words.Length == 5)
         {
             return new(SessionCommandOperation.QueueDispatch, session, generation) { QueueRevision = revision };
+        }
+        if (operation is "move-up" or "move-down" or "move-confirm"
+            && words.Length == (operation is "move-confirm" ? 13 : 11)
+            && ExactId(words[5], out var moveRun) && Revision(words[6], false, out var moveControl)
+            && ExactId(words[7], out var moveTask) && Revision(words[8], true, out var moveRevision)
+            && ExactId(words[9], out var neighbor) && neighbor != moveTask
+            && Revision(words[10], true, out var neighborRevision))
+        {
+            Guid? review = null;
+            if (operation is "move-confirm")
+            {
+                if (!ExactId(words[11], out var reviewId) || !words[12].Equals("confirm", StringComparison.OrdinalIgnoreCase)) { return Invalid(); }
+                review = reviewId;
+            }
+            return new(operation switch
+            {
+                "move-up" => SessionCommandOperation.QueueMoveUp,
+                "move-down" => SessionCommandOperation.QueueMoveDown,
+                _ => SessionCommandOperation.QueueMoveConfirm,
+            }, session, generation)
+            {
+                QueueRevision = revision, QueueRunId = moveRun, QueueControlRevision = moveControl,
+                TaskId = moveTask, TaskRevision = moveRevision, QueueNeighborId = neighbor,
+                QueueNeighborRevision = neighborRevision, QueueMoveReviewId = review,
+            };
         }
         if (operation is "pause" or "resume" && words.Length == 7 && ExactId(words[5], out var run)
             && Revision(words[6], false, out var controlRevision))

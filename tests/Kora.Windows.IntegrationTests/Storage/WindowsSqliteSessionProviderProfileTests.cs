@@ -154,7 +154,7 @@ public sealed class WindowsSqliteSessionProviderProfileTests
         using var f = new InteractionStorageFixture();
         await f.InitializeAsync();
         var before = ReadAudit(f);
-        f.Mutate("DROP TABLE session_provider_profile; PRAGMA user_version=8;");
+        f.Mutate("DROP TABLE session_queue_order; DROP TABLE session_provider_profile; PRAGMA user_version=8;");
         f.Reopen();
         await f.Store.InitializeAsync(f.Token);
         ReadAudit(f).Should().Be(before);
@@ -187,7 +187,7 @@ public sealed class WindowsSqliteSessionProviderProfileTests
             "revision" => "UPDATE session_provider_profile SET revision=2;",
             "generation" => "UPDATE session_provider_profile SET generation=2;",
             "missing" => "DELETE FROM session_provider_profile;",
-            _ => "DROP TABLE session_provider_profile; PRAGMA user_version=8;",
+            _ => "DROP TABLE session_queue_order; DROP TABLE session_provider_profile; PRAGMA user_version=8;",
         });
         f.Reopen();
         await f.Store.Invoking(store => store.InitializeAsync(f.Token).AsTask()).Should().ThrowAsync<InvalidDataException>();

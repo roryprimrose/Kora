@@ -26,7 +26,7 @@ Clear permits future new notices only; muted records may return as `RoutineSuppr
 Open **Tray > Sessions**, **open sessions**, or the existing compact keyboard
 shortcut. The bounded All/Active/Done list sits beside selected exact-session
 work: queued/current/waiting/blocked/cancelled/removed/Unknown receipts, stable
-task/request IDs, revisions/generation/FIFO order, observed deadlines, pending
+task/request IDs, revisions/generation, original arrival and explicit pending dispatch order, observed deadlines, pending
 capacity and dispatch eligibility/reasons. Ready is an observation, not
 permission; failures/recovery and omitted records remain explicit. There are
 up to 25 recent queue receipts and 50 nonqueue task/pending-question records

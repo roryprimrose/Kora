@@ -110,8 +110,12 @@ provider.
 
 ### Application defaults and per-service selections
 
-Settings exposes one application-level default hosted service and one retained
-selection tuple for each configured service:
+The initial desired application service is **Local if a supported Ollama installation is observed; otherwise Unset**. Unknown installation is Unset, never Copilot or another hosted service.
+This is independent of the unchanged **LocalOnly** safety-mode default. Installation does not establish runtime/model readiness, generation consent, account identity or egress authorization.
+
+The delivered application default is `providers.app.default-service`: Unset, Local, Copilot, Claude or Codex. Each service retains its own complete desired model/reasoning/context tuple. The aggregate exact `providers.app.profile` route saves or resets the selected service's tuple atomically; separate field setters remain future work.
+
+The broader hosted-field catalogue remains the proposed logical layout:
 
 - `providers.hosted.default-service`;
 - `providers.hosted.<service-id>.model`;
@@ -130,6 +134,39 @@ A confirmed save binds the account reference, catalogue revision and complete
 tuple. Account changes never carry a tuple forward merely because model labels
 match. Credentials and tokens remain in the service's secure sign-in flow and
 are never settings values.
+
+### Delivered bounded app provider-profile configuration
+
+[Settings > Providers](../src/Kora/SettingsWindow.axaml) and [exact typed/current-name activated commands](../src/Kora.Application/Configuration/ProviderProfileCommand.cs) use [one audited workflow](../src/Kora.Application/Configuration/ProviderProfileConfigurationService.cs).
+They expose discovery/status, explicit desired-service selection, complete exact tuple save, app-service reset and selected-service tuple reset.
+
+The [portable immutable catalogue](../src/Kora.Core/Providers/ProviderCapabilityCatalogue.cs) contains typed opaque IDs, exact model-specific reasoning/context choices, explicitly advertised provider-managed values, account/catalogue revisions and validity.
+Bounds are four services, 64 models/service, 16 choices/control, 64 outstanding host previews, 128-character ASCII IDs, 256-byte inert labels, 8,192-byte preferences and complete 64 KiB discovery output. Oversized output fails, never truncates; preview capacity requires explicit refresh without eviction.
+
+The [production catalogue](../src/Kora.Application/Configuration/UnavailableProviderCapabilityCatalogue.cs) honestly supplies **no models** for unavailable services. Hosted sign-in is **Unavailable**: no qualified auth adapter exists.
+Selection neither authenticates nor uses machine credentials. No adapter, authentication, acquisition, network/model call, egress approval, grant, memory or context-budget override is implemented.
+
+The installation-only [Windows observation](../src/Kora.Windows/Dependencies/WindowsOllamaInstallationObservation.cs) reuses the supported per-user executable path from setup but not `InspectAsync`: that existing method queries version/tags and can describe an unknown responding endpoint.
+Regular-file metadata establishes only installation observation; missing, inaccessible or reparse state cannot establish readiness. Settings does not start a server or probe an endpoint.
+
+Saved selections are never silently replaced after installation removal, model retirement, account change, catalogue drift or expiry. A service may persist as desired while unresolved.
+A tuple is effective only when every exact ID matches the current account/revision/catalogue; dependent choices are never substituted. Resetting one service's tuple retains all others; app-service reset re-observes installation and retains all tuples.
+
+Schema-1 `provider-profiles.json` and its unconfirmed-write fence use `IApplicationDataPaths` and the shared atomic store. Malformed, unknown, noncanonical, oversized or unconfirmed saved state throws `InvalidDataException`.
+Original intent, current owning unlocked host, session/generation, privacy, channel/call revision, requested/terminal typed audit, save/readback and completed control receipt precede confirmation. Interrupted outcomes require explicit inspection/repair, not retry or rollback claims.
+
+The [provider-neutral host consumer](../src/Kora.Application/Dependencies/ModelTurnHost.Profile.cs) re-resolves the app tuple on subsequent eligible policy-bound turns, retaining the existing mode gates.
+Admitted turns capture immutable profiles and the original live issuing request, not a completed child activity. App edits do not reroute/cancel/retry them; account/catalogue/installation loss before dispatch fails closed without substitution.
+
+This does not reroute the existing buffered local bootstrap reasoner. No real provider-neutral adapter is composed; qualification and final-request egress gates stay closed, including with resolved fake hosted tuples.
+Session inheritance/overrides, unscoped session directives and explicit one-turn changes remain the future contract below, not app-scope aliases.
+
+- [Domain/persistence tests](../tests/Kora.Core.UnitTests/Providers/ProviderProfilePreferencesTests.cs) and [audit/failure/tuple matrix](../tests/Kora.Application.UnitTests/Configuration/ProviderProfileConfigurationServiceTests.cs) exercise exact state.
+- [Actual UI routing](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.ProviderProfiles.cs) and [subsequent-turn consumer tests](../tests/Kora.Application.UnitTests/Dependencies/ModelTurnHostTests.ProviderProfiles.cs) exercise admission and immutable capture.
+- [Private SQLite/composition tests](../tests/Kora.Windows.IntegrationTests/Storage/WindowsSqliteProviderProfileConfigurationTests.cs) use deterministic installation/catalogue boundaries, not live endpoints/accounts/devices.
+
+Experiment disposition remains **retain**. Exact deterministic catalogue/configuration/host assertions do not equal RT1 SDK-native final bytes, RT2 native lifecycle/egress, PV1 account/terms/quota, local quality/offline/CPU-floor, or installed native/hardware proof.
+`eng/RuntimeValidation.Common.ps1` still consumes retained runtime profiles; no executable, fixture, unique assertion or receipt is removed and no release gate is closed.
 
 ### Session overrides and effective resolution
 

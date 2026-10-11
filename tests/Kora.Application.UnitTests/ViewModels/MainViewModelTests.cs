@@ -4528,6 +4528,7 @@ public sealed partial class MainViewModelTests : IDisposable
             .Concat(Kora.Application.Communication.ManualCallCommand.FixedPhrases)
             .Concat(ResponseModeCommand.FixedPhrases)
             .Concat(ProviderModeCommand.FixedPhrases)
+            .Concat(ProviderProfileCommand.FixedPhrases)
             .Concat(PreapprovedUriCommand.FixedPhrases)
             .Concat(Kora.Application.Network.WebPageCommand.FixedPhrases)
             .Concat(InCallFeedbackCommand.FixedPhrases)
@@ -8495,7 +8496,7 @@ public sealed partial class MainViewModelTests : IDisposable
             Kora.Tools.Network.WebPageGet? webPageGet = null,
             bool enableArtifactConfiguration = false,
             Exception? artifactReadFailure = null,
-            bool enableMcpServerConfiguration = true)
+            bool enableMcpServerConfiguration = true, bool enableProviderProfiles = false)
         {
             Catalog = new BuiltInCommandCatalog();
             CaptionPreferences.LoadFailure = captionReadFailure;
@@ -8653,7 +8654,8 @@ public sealed partial class MainViewModelTests : IDisposable
                 preapprovedUriClear ?? (enablePreapprovedUris ? new Kora.Tools.Network.PreapprovedUriClear(PreapprovedUris) : null),
                 webPageGet,
                 ArtifactDirectoryConfiguration,
-                McpServerConfiguration);
+                McpServerConfiguration,
+                enableProviderProfiles ? new ProviderProfileConfigurationService(ProfilePreferences, ProfileCatalogue, OutputAdmission, Audit, ProfileTime) : null);
             ViewModel.BindCallOwnershipGate(static () => true);
             ViewModel.BindManualCallNativeLifetime(true);
             if (enableWindowsSpeechRate) { ViewModel.BindWindowsSpeechRateNativeLifetime(static () => true); }
@@ -8673,6 +8675,9 @@ public sealed partial class MainViewModelTests : IDisposable
         public BuiltInCommandCatalog Catalog { get; }
         public CaptionPreferences CaptionPreferences { get; } = new();
         public FakeProviderPreferences ProviderPreferences { get; } = new();
+        internal Kora.Application.UnitTests.Configuration.ProviderProfileConfigurationFixture.ProfilePreferences ProfilePreferences { get; } = new();
+        internal Kora.Application.UnitTests.Configuration.ProviderProfileConfigurationFixture.ProfileCatalogue ProfileCatalogue { get; } = new();
+        internal Kora.Application.UnitTests.Configuration.ProviderProfileConfigurationFixture.ProfileTime ProfileTime { get; } = new();
         public FakePreapprovedUriConfiguration PreapprovedUris { get; } = new();
 
         private sealed class CapabilityHostAccess(FakeSessionController session) : Kora.Core.Tools.ICapabilityHostAccess

@@ -4,4 +4,6 @@ public enum ModelProviderIdentity
 {
     Ollama,
     Copilot,
+    Claude,
+    Codex,
 }

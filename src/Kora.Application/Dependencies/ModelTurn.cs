@@ -1,6 +1,7 @@
 using Kora.Core.Dependencies;
 using Kora.Core.Diagnostics;
 using Kora.Core.Hosting;
+using Kora.Core.Providers;
 
 namespace Kora.Application.Dependencies;
 
@@ -26,6 +27,7 @@ public sealed class ModelTurn
     }
 
     public ModelTurnProvenance Provenance { get; }
+    public ProviderProfileTuple? Profile { get; internal set; }
     internal Guid Owner { get; }
     internal HostActivity Issuer { get; }
     internal ModelContextEnvelope Context { get; }

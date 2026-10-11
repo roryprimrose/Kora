@@ -499,6 +499,9 @@ public sealed partial class ModelTurnHostTests : IDisposable
         internal ModelProviderHandoffWorkflow Workflow { get; }
         internal SavedProviderPreferences ProviderPreferences { get; } = new();
         internal ProviderModeConfigurationService ProviderConfiguration { get; }
+        internal Kora.Application.UnitTests.Configuration.ProviderProfileConfigurationFixture.ProfilePreferences ProfilePreferences { get; } = new();
+        internal Kora.Application.UnitTests.Configuration.ProviderProfileConfigurationFixture.ProfileCatalogue ProfileCatalogue { get; } = new();
+        internal ProviderProfileConfigurationService ProfileConfiguration { get; }
         private readonly AudioControlAdmission providerAdmission;
         internal Action<SecurityAuditEvent>? OnAudit { get; set; }
         internal HostRequest? ExpectedAuditRequest { get; set; }
@@ -527,6 +530,7 @@ public sealed partial class ModelTurnHostTests : IDisposable
             var store = new Kora.Application.UnitTests.Configuration.AudioControlTestStore();
             providerAdmission = new(store, store, new HostTaskCoordinator(store));
             ProviderConfiguration = new(ProviderPreferences, providerAdmission, this);
+            ProfileConfiguration = new(ProfilePreferences, ProfileCatalogue, providerAdmission, this, Time);
             registry = new(this, new(), new(), new(this), new(dependencies), new(runtimes), new(runtimes),
                 NullLogger<ReadOnlyCapabilityRegistry>.Instance);
             Host = Qualified(ModelProviderSelection.OllamaCandidate);
@@ -540,7 +544,28 @@ public sealed partial class ModelTurnHostTests : IDisposable
         internal HostActivity Root() => HostActivity.BeginRoot(Request, HostActivityLayer.Application, HostOperation.Request);
         internal ModelTurnHost Production()
         {
-            var host = new ModelTurnHost(this, this, this, registry, this, this, Time, ProviderConfiguration);
+            var host = new ModelTurnHost(this, this, this, registry, this, this, Time,
+                [new(ModelProviderSelection.OllamaCandidate, ModelQualificationGate.None, DateTimeOffset.MinValue, null),
+                    new(ModelProviderSelection.CopilotCandidate, ModelQualificationGate.None, DateTimeOffset.MinValue, null)], ProviderConfiguration);
+            ownedHosts.Add(host);
+            return host;
+        }
+        internal ModelTurnHost ConfiguredProfiles(bool production = false)
+        {
+            var host = production ? new ModelTurnHost(this, this, this, registry, this, this, Time, ProviderConfiguration, ProfileConfiguration)
+                : new ModelTurnHost(this, this, this, registry, this, this, Time,
+                    Enum.GetValues<Kora.Core.Providers.ProviderService>().Where(service => service != Kora.Core.Providers.ProviderService.Unset)
+                        .Select(service =>
+                        {
+                            var selection = ModelProviderSelection.OllamaCandidate with { Provider = service switch
+                            {
+                                Kora.Core.Providers.ProviderService.Local => ModelProviderIdentity.Ollama,
+                                Kora.Core.Providers.ProviderService.Copilot => ModelProviderIdentity.Copilot,
+                                Kora.Core.Providers.ProviderService.Claude => ModelProviderIdentity.Claude,
+                                _ => ModelProviderIdentity.Codex,
+                            } };
+                            return new ModelProviderRegistration(selection, Gates(selection), Time.Now.AddMinutes(5), Adapter);
+                        }).ToArray(), ProviderConfiguration, ProfileConfiguration);
             ownedHosts.Add(host);
             return host;
         }
@@ -620,16 +645,18 @@ public sealed partial class ModelTurnHostTests : IDisposable
         internal int Calls { get; private set; }
         internal byte[]? Wire { get; private set; }
         internal ModelTurnProvenance? Provenance { get; private set; }
+        internal Kora.Core.Providers.ProviderProfileTuple? Profile { get; private set; }
         internal Action? OnRun { get; set; }
         internal Task<ModelProviderReply>? Pending { get; set; }
         internal Func<Func<string, string, CancellationToken, ValueTask<CapabilityReply>>, Task>? OnTool { get; set; }
         internal ModelProviderReply Reply { get; set; } = new(ModelTurnOutcome.Succeeded, ModelProviderSelection.OllamaCandidate, new("answer", null));
-        public async Task<ModelProviderReply> RunAsync(ModelTurnProvenance provenance, ReadOnlyMemory<byte> context,
+        public async Task<ModelProviderReply> RunAsync(ModelTurnProvenance provenance, Kora.Core.Providers.ProviderProfileTuple? profile, ReadOnlyMemory<byte> context,
             Func<string, string, CancellationToken, ValueTask<CapabilityReply>> invokeTool, CancellationToken token)
         {
             Calls++;
             Wire = context.ToArray();
             Provenance = provenance;
+            Profile = profile;
             OnRun?.Invoke();
             if (OnTool is { } tool) { await tool(invokeTool); }
             return Pending is { } pending ? await pending : Reply;

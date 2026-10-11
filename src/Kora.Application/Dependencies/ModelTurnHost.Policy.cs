@@ -101,6 +101,10 @@ public sealed partial class ModelTurnHost
     public async Task<ModelTurnAdmission> AdmitAsync(ModelTurnChoice choice, ModelContextEnvelope context,
         ModelHandoffReview? review, CancellationToken token)
     {
+        if (providerProfileConfiguration is not null)
+        {
+            return await AdmitConfiguredProfileAsync(choice, context, review, token).ConfigureAwait(false);
+        }
         var initialized = await InitializePolicyAsync(token).ConfigureAwait(false);
         return initialized.Policy is { } policy
             ? await AdmitAsync(policy, choice, context, review, token).ConfigureAwait(false)
@@ -180,7 +184,7 @@ public sealed partial class ModelTurnHost
         var selection = policy.Select(choice);
         var reason = selection is null || policy.Session != context.Request.SessionId ? ModelTurnReason.InvalidPolicy
             : !IsCurrentPolicy(policy) ? ModelTurnReason.PolicyChanged : ModelTurnReason.None;
-        if (reason == ModelTurnReason.None && selection!.Provider == ModelProviderIdentity.Copilot
+        if (reason == ModelTurnReason.None && selection!.Provider != ModelProviderIdentity.Ollama
             && policy.Mode == ModelProviderMode.LocalFirst)
         {
             reason = review is null ? ModelTurnReason.HandoffReviewRequired

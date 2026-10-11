@@ -1158,6 +1158,8 @@ Native selected-session status/review/confirmation and exact `providers.session.
 
 Saved desired and effective resolved/unavailable state are distinct. Model-dependent controls remain unavailable with the honest production catalogue; desired service selection authenticates/executes nothing. Requested/terminal typed audit, atomic policy/save/readback/control receipt and durable unresolved-outcome holds precede confirmation; malformed/unknown state requires inspection/repair, not inheritance, retry/reset, fallback or rollback claims.
 
+Single-field model/reasoning/context edits use the current whole effective tuple; only that sparse field becomes explicit. Native options belong to its effective model; exact short setters require session/option/account/catalogue IDs and separate confirmation. Other fields retain null inheritance or explicit originals. Incompatible/missing tuples or dependent rebinding require reset/complete-profile recovery; no defaults or app writes.
+
 Session retention/disposition inventory includes the policy row and committed journal. The actual provider-neutral turn consumer captures immutable effective tuple/catalogue/session-policy revision, preserving admitted turns across later edits; pre-dispatch private authority/account/catalogue/installation loss refuses. Buffered local bootstrap reasoning, LocalOnly/handoff/envelope gates, authentication/providers, generic multi-action and one-turn directives remain untouched/unavailable.
 
 ## 6. Definitions and Local Data

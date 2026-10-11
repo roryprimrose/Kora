@@ -74,12 +74,15 @@ Use **Sessions > Selected-session provider overrides** or exact typed/current-na
 |---|---|
 | `get providers.session.profile for <session-id>` / `status providers.session.profile for <session-id>` | Saved sparse fields, inherited app values, effective resolved/unavailable state and catalogue provenance |
 | `set providers.session.service for <session-id> to Unset|Local|Copilot|Claude|Codex` | Review desired service override; no authentication or execution |
+| `set providers.session.<model|reasoning|context> for <session-id> to <exact-option-id> for <account-id> at <catalogue-revision>` | Review one field from the current effective tuple; only this sparse field becomes explicit |
 | `set providers.session.<model|reasoning|context|profile> for <session-id> to <model-id> <reasoning-id> <context-id> for <account-id> at <catalogue-revision>` | Review one sparse field or all three dependent fields, bound to exact current advertised model/options/account/revision |
 | `reset providers.session.<service|model|reasoning|context> for <session-id>` | Review inheritance for only that field |
 | `reset providers.session.profile for <session-id>` | Review **Use app defaults for this session**, clearing all four overrides |
 | `confirm providers.session.profile <host-issued-confirmation-id>` | Separately confirm only the exact still-current original-input review |
 
 No exact eligible session means select one; no app fallback. Service resolution precedes inherited tuple resolution, so an overridden service uses that service's app tuple. App preferences are never written. Later app/session edits affect subsequent turns only; stale original input, session/generation/policy/app revision or catalogue/account invalidate review.
+
+Short setters retain the other effective choices and their exact null/explicit sparse state. Review shows both whole effective tuples before separate confirmation. Missing/unresolved tuples, incompatible models or rebinding previous explicit dependents require reset or the complete-profile route; no defaults, dependent clearing or successful-but-ineffective save. Existing full-triple syntax and resets remain available.
 
 Production has no qualified catalogue models/auth adapters, so model-dependent selection remains unavailable; desired service may be saved unresolved. No sign-in, model call, generation, network/egress or envelope increase occurs. Generic “Use Claude and summarize”, ambiguous labels and one-turn language remain deferred. Unconfirmed outcomes require inspection of exact saved policy and audit/control receipts, never automatic retry/reset or a rollback claim.
 

@@ -66,6 +66,25 @@ public sealed class SessionProviderProfileCommandTests
     }
 
     [Theory]
+    [InlineData("", "model", SessionProviderField.Model)]
+    [InlineData("Nova, ", "reasoning", SessionProviderField.Reasoning)]
+    [InlineData("Nova ", "context", SessionProviderField.Context)]
+    public void ShortFieldSyntaxCarriesOnlyExactAddressedChoiceAndCatalogue(string prefix, string name, SessionProviderField field)
+    {
+        var command = SessionProviderProfileCommand.Parse(prefix + "set providers.session." + name + " for " + Session
+            + " to exact-choice for account at 17", "Nova")!;
+        command.Operation.Should().Be(AppearanceCommandOperation.Set);
+        command.Field.Should().Be(field);
+        command.Choice.Should().Be("exact-choice");
+        command.Model.Should().BeNull();
+        command.Reasoning.Should().BeNull();
+        command.Context.Should().BeNull();
+        command.Session.Should().Be(Guid.Parse(Session));
+        command.Account.Should().Be("account");
+        command.CatalogueRevision.Should().Be(17);
+    }
+
+    [Theory]
     [InlineData("get providers.session.profile")]
     [InlineData("set providers.session.profile for d7fd283b-5d96-4300-8c93-67a119d564c4")]
     [InlineData("confirm providers.session.profile bad")]
@@ -86,6 +105,14 @@ public sealed class SessionProviderProfileCommandTests
     [InlineData("delete providers.session.profile for d7fd283b-5d96-4300-8c93-67a119d564c4")]
     [InlineData("get providers.session.profile for 00000000-0000-0000-0000-000000000000")]
     [InlineData("get providers.session.profile for D7FD283B-5D96-4300-8C93-67A119D564C4")]
+    [InlineData("set providers.session.model for d7fd283b-5d96-4300-8c93-67a119d564c4 to m FOR a at 1")]
+    [InlineData("set providers.session.reasoning for d7fd283b-5d96-4300-8c93-67a119d564c4 to r for a AT 1")]
+    [InlineData("set providers.session.context for d7fd283b-5d96-4300-8c93-67a119d564c4 to c for a at nope")]
+    [InlineData("set providers.session.context for d7fd283b-5d96-4300-8c93-67a119d564c4 to c for a at 0")]
+    [InlineData("set providers.session.context for d7fd283b-5d96-4300-8c93-67a119d564c4 to c for a at 01")]
+    [InlineData("set providers.session.model for d7fd283b-5d96-4300-8c93-67a119d564c4 to é for a at 1")]
+    [InlineData("set providers.session.reasoning for d7fd283b-5d96-4300-8c93-67a119d564c4 to r for é at 1")]
+    [InlineData("set providers.session.profile for d7fd283b-5d96-4300-8c93-67a119d564c4 to m for a at 1")]
     public void InvalidUnknownPartialOrUnaddressedSyntaxRequiresSelectionNeverAppFallback(string text) =>
         SessionProviderProfileCommand.Parse(text, "Kora")!.Operation.Should().Be(AppearanceCommandOperation.Clarify);
 

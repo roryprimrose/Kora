@@ -4,6 +4,7 @@ using Kora.Application.Configuration;
 using Kora.Application.Diagnostics;
 using Kora.Core.Auditing;
 using Kora.Core.Hosting;
+using Kora.Core.Providers;
 
 namespace Kora.Application.ViewModels;
 
@@ -65,18 +66,27 @@ public sealed partial class MainViewModel
                 var current = draft.Catalogue ?? throw new InvalidOperationException("Effective service is Unset; explicitly select a session service first.");
                 if (!string.Equals(current.Account?.Value, command.Account, StringComparison.Ordinal) || current.Revision.Value != command.CatalogueRevision)
                 { throw new InvalidOperationException("Exact current account/catalogue binding is required."); }
-                var model = current.Models.SingleOrDefault(item => string.Equals(item.Id.Value, command.Model, StringComparison.Ordinal))
-                    ?? throw new InvalidOperationException("No current advertised exact model. No substitute or auth flow.");
-                sessionProviderProposal = service.Select(draft, command.Field, model,
-                    model.Reasoning.SingleOrDefault(item => string.Equals(item.Id.Value, command.Reasoning, StringComparison.Ordinal))
-                        ?? throw new InvalidOperationException("No exact advertised reasoning option."),
-                    model.Context.SingleOrDefault(item => string.Equals(item.Id.Value, command.Context, StringComparison.Ordinal))
-                        ?? throw new InvalidOperationException("No exact advertised context option."));
+                if (command.Choice is { } choice)
+                {
+                    sessionProviderProposal = service.SelectField(draft,
+                        command.Field ?? throw new InvalidOperationException("An exact model/reasoning/context field is required."), new(choice));
+                }
+                else
+                {
+                    var model = current.Models.SingleOrDefault(item => string.Equals(item.Id.Value, command.Model, StringComparison.Ordinal))
+                        ?? throw new InvalidOperationException("No current advertised exact model. No substitute or auth flow.");
+                    sessionProviderProposal = service.Select(draft, command.Field, model,
+                        model.Reasoning.SingleOrDefault(item => string.Equals(item.Id.Value, command.Reasoning, StringComparison.Ordinal))
+                            ?? throw new InvalidOperationException("No exact advertised reasoning option."),
+                        model.Context.SingleOrDefault(item => string.Equals(item.Id.Value, command.Context, StringComparison.Ordinal))
+                            ?? throw new InvalidOperationException("No exact advertised context option."));
+                }
             }
             ShowSessionProviderInformation("Review exact session provider change; nothing saved.", new
             {
                 scope = "This exact session only", session = draft.Saved.Session, revision = draft.Saved.Revision,
                 previous = draft.Saved.Desired, proposed = sessionProviderProposal.Desired, draft.Effective, draft.Status,
+                field = sessionProviderProposal.Field?.ToString(), sessionProviderProposal.PreviousEffective, sessionProviderProposal.ResultingEffective, sessionProviderProposal.AppRevision,
                 catalogue = draft.Catalogue, confirmation = "confirm providers.session.profile " + sessionProviderProposal.ConfirmationId.ToString("D"),
             });
         }

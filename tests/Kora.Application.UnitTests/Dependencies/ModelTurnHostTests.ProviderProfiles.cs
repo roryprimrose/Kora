@@ -9,6 +9,47 @@ namespace Kora.Application.UnitTests.Dependencies;
 public sealed partial class ModelTurnHostTests
 {
     [Theory]
+    [InlineData(SessionProviderField.Model, "exact-model")]
+    [InlineData(SessionProviderField.Reasoning, "exact-effort")]
+    [InlineData(SessionProviderField.Context, "exact-window")]
+    public async Task ConfirmedSessionFieldPolicyFeedsFutureAdmissionsWhileNullsRemainDynamicAndAdmittedTurnImmutable(SessionProviderField field, string id)
+    {
+        using var f = new Fixture();
+        await using var writer = new Kora.Application.UnitTests.Configuration.SessionProviderProfileConfigurationTests.Fixture(current: true);
+        f.ProfileCatalogue.Status = ProviderCatalogueStatus.Current;
+        f.ProfileCatalogue.FieldCatalogue = true;
+        f.ProfilePreferences.Value = new(ProviderService.Local, [Profile()]);
+        writer.Profiles.Catalogue.FieldCatalogue = true;
+        var host = f.ConfiguredProfiles();
+        using var root = f.Root();
+        var admitted = await host.AdmitAsync(ModelTurnChoice.Default, f.Context(), null, Token);
+        admitted.Turn!.Profile.Should().Be(Profile());
+        var draft = await writer.Inspect();
+        var saved = await writer.Service.Confirm(writer.Service.SelectField(draft, field, new(id)),
+            Kora.Core.Hosting.RequestOrigin.LocalUi, () => writer.Eligible, Token);
+        f.SessionOverrides = saved.Desired;
+        f.SessionProfileRevision = saved.Revision;
+        var publishedBytes = f.SessionOverrides.Serialize();
+        var app = field == SessionProviderField.Context ? Profile() with { Reasoning = new("exact-effort") }
+            : Profile() with { Context = new("exact-window") };
+        f.ProfilePreferences.Value = new(ProviderService.Local, [app]);
+        (await host.RunAsync(admitted.Turn, Token)).Outcome.Should().Be(ModelTurnOutcome.Succeeded);
+        f.Adapter.Profile.Should().Be(Profile());
+        var next = await host.AdmitAsync(ModelTurnChoice.Default, f.Context(), null, Token);
+        var expected = field switch
+        {
+            SessionProviderField.Model => app with { Model = new(id) },
+            SessionProviderField.Reasoning => app with { Reasoning = new(id) },
+            _ => app with { Context = new(id) },
+        };
+        next.Turn!.Profile.Should().Be(expected);
+        next.Turn.SessionPolicyRevision.Should().Be(saved.Revision);
+        f.SessionOverrides.Serialize().Should().Be(publishedBytes);
+        f.Adapter.Calls.Should().Be(1);
+        writer.Profiles.Preferences.Writes.Should().Be(0);
+    }
+
+    [Theory]
     [InlineData(ProviderProfileField.Model)]
     [InlineData(ProviderProfileField.Reasoning)]
     [InlineData(ProviderProfileField.Context)]

@@ -14,6 +14,9 @@ internal sealed partial class SessionsViewModel
     private ProviderCatalogueModel? providerModel;
     private ProviderProfileOption? providerReasoning;
     private ProviderProfileOption? providerContext;
+    private ProviderCatalogueModel? providerFieldModel;
+    private ProviderProfileOption? providerFieldReasoning;
+    private ProviderProfileOption? providerFieldContext;
     private string providerStatus = "Select an exact session and Refresh. All four fields initially inherit app settings; no app fallback, authentication or model call.";
     private bool providerSurfaceOpen = true;
     public void SetProviderSurfaceOpen(bool open)
@@ -22,7 +25,7 @@ internal sealed partial class SessionsViewModel
         if (!open) { ClearProviderReview(); }
     }
     public IReadOnlyList<ProviderService> ProviderServices { get; } = Enum.GetValues<ProviderService>();
-    public ProviderService ProviderService { get => providerService; set { providerService = value; OnPropertyChanged(); } }
+    public ProviderService ProviderService { get => providerService; set { providerService = value; InvalidateProviderProposal(); OnPropertyChanged(); } }
     public IReadOnlyList<ProviderCatalogueModel> ProviderModels => providerDraft?.Catalogue?.Models ?? [];
     public ProviderCatalogueModel? ProviderModel
     {
@@ -32,6 +35,7 @@ internal sealed partial class SessionsViewModel
             providerModel = value;
             providerReasoning = null;
             providerContext = null;
+            InvalidateProviderProposal();
             OnPropertyChanged();
             OnPropertyChanged(nameof(ProviderReasonings));
             OnPropertyChanged(nameof(ProviderContexts));
@@ -42,8 +46,18 @@ internal sealed partial class SessionsViewModel
     }
     public IReadOnlyList<ProviderProfileOption> ProviderReasonings => providerModel?.Reasoning ?? [];
     public IReadOnlyList<ProviderProfileOption> ProviderContexts => providerModel?.Context ?? [];
-    public ProviderProfileOption? ProviderReasoning { get => providerReasoning; set { providerReasoning = value; OnPropertyChanged(); OnPropertyChanged(nameof(CanReviewProviderModel)); } }
-    public ProviderProfileOption? ProviderContext { get => providerContext; set { providerContext = value; OnPropertyChanged(); OnPropertyChanged(nameof(CanReviewProviderModel)); } }
+    public ProviderProfileOption? ProviderReasoning { get => providerReasoning; set { providerReasoning = value; InvalidateProviderProposal(); OnPropertyChanged(); OnPropertyChanged(nameof(CanReviewProviderModel)); } }
+    public ProviderProfileOption? ProviderContext { get => providerContext; set { providerContext = value; InvalidateProviderProposal(); OnPropertyChanged(); OnPropertyChanged(nameof(CanReviewProviderModel)); } }
+    public ProviderCatalogueModel? ProviderFieldModel { get => providerFieldModel; set { providerFieldModel = value; InvalidateProviderProposal(); OnPropertyChanged(); OnPropertyChanged(nameof(CanReviewProviderModelField)); } }
+    public ProviderProfileOption? ProviderFieldReasoning { get => providerFieldReasoning; set { providerFieldReasoning = value; InvalidateProviderProposal(); OnPropertyChanged(); OnPropertyChanged(nameof(CanReviewProviderReasoningField)); } }
+    public ProviderProfileOption? ProviderFieldContext { get => providerFieldContext; set { providerFieldContext = value; InvalidateProviderProposal(); OnPropertyChanged(); OnPropertyChanged(nameof(CanReviewProviderContextField)); } }
+    private ProviderCatalogueModel? EffectiveProviderModel => providerDraft?.Catalogue?.Models.SingleOrDefault(model => model.Id == providerDraft.Effective?.Model);
+    public IReadOnlyList<ProviderProfileOption> ProviderFieldReasonings => EffectiveProviderModel?.Reasoning ?? [];
+    public IReadOnlyList<ProviderProfileOption> ProviderFieldContexts => EffectiveProviderModel?.Context ?? [];
+    public bool CanSelectProviderField => CanReviewProviders && providerDraft?.Effective is not null;
+    public bool CanReviewProviderModelField => CanSelectProviderField && ProviderFieldModel is not null;
+    public bool CanReviewProviderReasoningField => CanSelectProviderField && ProviderFieldReasoning is not null;
+    public bool CanReviewProviderContextField => CanSelectProviderField && ProviderFieldContext is not null;
     public bool CanInspectProviders => CanRead && providers is not null && selected is not null;
     public bool CanReviewProviders => CanInspectProviders && access.CanControl && selected?.Authority.IsActive == true
         && providerDraft is { Saved.Held: false } && providerEpoch == selectionEpoch && providerDraft.Saved.Session == selected.Authority;
@@ -86,13 +100,21 @@ internal sealed partial class SessionsViewModel
         { throw new InvalidOperationException("The native selected session, generation or review changed."); }
         providerProposal = reset ? providers!.Reset(draft, field)
             : field == SessionProviderField.Service ? providers!.SelectService(draft, ProviderService)
+            : field is { } selectedField ? providers!.SelectField(draft, selectedField, selectedField switch
+            {
+                SessionProviderField.Model => ProviderFieldModel?.Id,
+                SessionProviderField.Reasoning => ProviderFieldReasoning?.Id,
+                SessionProviderField.Context => ProviderFieldContext?.Id,
+                _ => null,
+            } ?? throw new InvalidOperationException("Choose one exact advertised field. Missing/unavailable effective tuples require complete-profile review."))
             : providers!.Select(draft, field,
                 ProviderModel ?? throw new InvalidOperationException("No current exact model selection. Production has no qualified catalogue."),
                 ProviderReasoning ?? throw new InvalidOperationException("Choose exact advertised reasoning."),
                 ProviderContext ?? throw new InvalidOperationException("Choose exact advertised context."));
         providerStatus = JsonSerializer.Serialize(new { scope = "Review only: this exact session; app preferences never written",
             session = draft.Saved.Session, revision = draft.Saved.Revision, saved = draft.Saved.Desired,
-            proposed = providerProposal.Desired, draft.Effective, draft.Status, catalogue = Provenance(draft) });
+            proposed = providerProposal.Desired, field = providerProposal.Field?.ToString(), providerProposal.PreviousEffective,
+            providerProposal.ResultingEffective, providerProposal.AppRevision, draft.Status, catalogue = Provenance(draft) });
         NotifyProviderReview();
         return Task.CompletedTask;
     });
@@ -117,7 +139,16 @@ internal sealed partial class SessionsViewModel
         providerModel = null;
         providerReasoning = null;
         providerContext = null;
+        providerFieldModel = null;
+        providerFieldReasoning = null;
+        providerFieldContext = null;
         NotifyProviderReview();
+    }
+
+    private void InvalidateProviderProposal()
+    {
+        providerProposal = null;
+        OnPropertyChanged(nameof(CanConfirmProviders));
     }
 
     private void NotifyProviderReview()
@@ -128,6 +159,15 @@ internal sealed partial class SessionsViewModel
         OnPropertyChanged(nameof(CanConfirmProviders));
         OnPropertyChanged(nameof(CanReviewProviderModel));
         OnPropertyChanged(nameof(CanSelectProviderModel));
+        OnPropertyChanged(nameof(ProviderFieldModel));
+        OnPropertyChanged(nameof(ProviderFieldReasoning));
+        OnPropertyChanged(nameof(ProviderFieldContext));
+        OnPropertyChanged(nameof(ProviderFieldReasonings));
+        OnPropertyChanged(nameof(ProviderFieldContexts));
+        OnPropertyChanged(nameof(CanSelectProviderField));
+        OnPropertyChanged(nameof(CanReviewProviderModelField));
+        OnPropertyChanged(nameof(CanReviewProviderReasoningField));
+        OnPropertyChanged(nameof(CanReviewProviderContextField));
     }
     private static ProviderCatalogueProvenance? Provenance(SessionProviderDraft draft) =>
         draft.Catalogue is { } current ? new(current.Service, current.Account, current.Revision,

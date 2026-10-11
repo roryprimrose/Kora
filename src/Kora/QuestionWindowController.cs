@@ -90,7 +90,11 @@ internal sealed partial class QuestionWindowController : IDisposable
             }
             QueryFailure(logger, exception.GetType().FullName);
         }
-        finally { running = false; }
+        finally
+        {
+            running = false;
+            if (window is null) { state = null; }
+        }
     }
 
     internal async Task ReturnToCurrentQuestionAsync(Window owner)
@@ -131,7 +135,11 @@ internal sealed partial class QuestionWindowController : IDisposable
         var opened = window;
         opened.Closed += (_, _) =>
         {
-            if (ReferenceEquals(window, opened)) { window = null; }
+            if (ReferenceEquals(window, opened))
+            {
+                window = null;
+                if (!running) { state = null; }
+            }
         };
         window.Show(owner);
         window.Activate();

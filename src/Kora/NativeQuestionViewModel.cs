@@ -164,7 +164,7 @@ internal sealed partial class NativeQuestionViewModel : ObservableObject
                 if (reviewing)
                 {
                     reviewText = cleared ? string.Empty : JsonSerializer.Serialize(exact, ReviewFormat);
-                    reviewedKey = target;
+                    reviewedKey = cleared ? null : target;
                     displayedReviewKey = null;
                     status = "Exact host record reviewed. Operation source bytes are not supplied by this contract. Review is not approval, use or execution.";
                 }

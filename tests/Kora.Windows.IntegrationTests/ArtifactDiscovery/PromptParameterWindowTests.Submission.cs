@@ -116,7 +116,7 @@ public sealed partial class PromptParameterWindowTests
                 case "native-identity":
                     var path = Path.Combine(f.RoamingRoot, "Prompts", "example.prompt.md");
                     var replacement = Path.Combine(f.RoamingRoot, "Prompts", ".replacement");
-                    File.Copy(path, replacement);
+                    WindowsOwnedInstructionStoreTests.WriteOwnedFile(replacement, File.ReadAllBytes(path));
                     File.Move(replacement, path, overwrite: true);
                     break;
                 case "privacy": f.Main.CloseForObservedPrivacyEvent("Synthetic closure", hidePresentation: true); break;

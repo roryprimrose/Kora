@@ -44,5 +44,6 @@ public static class ConversationText
         {
             throw new InvalidDataException("An empty conversation message cannot be submitted.");
         }
+        ConversationCredentialScreening.RequireAccepted(text);
     }
 }

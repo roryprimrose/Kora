@@ -32,7 +32,7 @@
       <StackPanel Spacing="6">
         <controls:NamedTextBlock Text="{Binding ComposerTarget}" TextWrapping="Wrap"
             AutomationProperties.Name="Composer exact target ID, name, generation, metadata and saved draft revisions, private control epoch" />
-        <TextBlock Text="Submit retains your exact message privately and records a truthful unavailable-provider host outcome. No assistant generation, rejected local runtime fallback, history context, tools or network is enabled. Drafts are memory-only unless you explicitly Save." TextWrapping="Wrap" />
+        <TextBlock Text="Submit retains accepted text exactly and records a truthful unavailable-provider host outcome. Local best-effort structural credential checks reject detected material before Save or Submit; they cannot identify arbitrary passwords or guarantee secret-free text. Correct the memory draft or use supported secure credential flows; no Save anyway or silent redaction. No generation, runtime fallback, history, tools or network. Drafts are memory-only unless explicitly saved." TextWrapping="Wrap" />
         <WrapPanel>
           <Button x:Name="ReadConversation" Content="Read exact conversation / saved revision" IsEnabled="{Binding CanReadConversation}" />
           <Button x:Name="NextConversation" Content="Next bounded conversation page" IsEnabled="{Binding CanNextConversation}" />

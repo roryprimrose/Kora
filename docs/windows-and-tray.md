@@ -52,6 +52,17 @@ message storage quota and no automatic eviction. Read pages have at most
 50 records/64 KiB complete output. These are predictable work/UI bounds,
 not a total database-size or unlimited physical-disk promise.
 
+Save/Submit also perform bounded **local best-effort credential-like checks**:
+private-key PEM blocks/candidates, Authorization Bearer/Basic values, explicit
+password/client_secret/api_key assignments, declared GitHub token shapes and
+JWT-like strings. No model/network/credential verification occurs. Clear
+placeholders and inert parameter references are not evaluated; discussion is
+not rejected just for mentioning passwords/tokens. Arbitrary passwords,
+short values and undeclared formats can be missed; this is not DLP or a
+secret-free guarantee. Detected material is refused without persisting a body
+or reusable body hash. Correct the memory-only draft or use supported secure
+credential flows; there is no Save anyway or silent redaction.
+
 Saved input never auto-submits after restart. Original incomplete intent
 recovers as Interrupted without replay. Existing Keep/ordinary retention and
 exact disposition include these database cells/journal; uninventoried copies

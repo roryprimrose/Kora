@@ -30,6 +30,15 @@ free pages and committed journal with existing Unknown-work and uninventoried
 copy holds. Required audit remains content-minimised and independently
 retained; disk/write/receipt failures cannot become an unaudited success.
 
+The bounded native composer uses shared Core local structural credential-like
+checks, not a model, network call or entropy-based DLP. Detected or malformed
+structured candidates are rejected before body writes/admission; accepted
+Unicode/text stays exact. Required rejection audit is content-free with a fixed
+reason, no candidate/excerpt/body digest. No Save anyway or silent redaction.
+Known placeholders/references are inert; arbitrary secrets and undeclared
+formats may be missed. The general never-credentials-in-history requirement
+and broader product screening/redaction direction are unchanged.
+
 ## Exact-session provider policy boundary
 
 [Sparse durable session overrides](Model_Providers_Memory_And_Knowledge.md#session-overrides-and-effective-resolution) are desired configuration, not authentication, adapter, generation, egress or resource authority. Exact native/typed/current-name activated review requires original local-user input, current private owning host, eligible exact session/generation, policy/app revision and unchanged catalogue/account/model binding.

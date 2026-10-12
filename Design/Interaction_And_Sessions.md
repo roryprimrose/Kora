@@ -44,6 +44,26 @@ submissions are explicit failures, never normalization or truncation. With
 valid Unicode the character bound can be reached before the byte bound;
 neither is a whole-database size guarantee.
 
+The first native composer applies one local deterministic **best-effort,
+reject-only** Core screening rule before draft/message writes or model
+admission. It checks structurally delimited private-key PEM candidates,
+nonplaceholder Authorization Bearer (at least 24 characters) / Basic values
+(bounded Base64 credentials), explicit password/client_secret/api_key
+assignments (at least eight characters), GitHub's declared classic/fine-grained
+token shapes, and JWT-like three-part shapes. Structured malformed candidates
+are refused rather than repaired. Known placeholder examples, parameter/
+environment references and ordinary credential discussion are not expanded,
+evaluated or rejected merely for a word mention.
+
+This is not a model, network verification, entropy classifier or comprehensive
+DLP/secret-free guarantee. Arbitrary passwords/random strings, short values
+and undeclared token formats may not be recognized; false positives remain
+possible. Rejected text stays only in the user's memory draft for correction.
+There is no Save anyway or silent redaction. A required content-free
+requested/denied audit records only host identity and the fixed
+credential-like-content reason, never the candidate, excerpt or body hash.
+Audit/storage failure refuses rather than bypassing the policy.
+
 There is **no retained session-count, aggregate saved-draft or aggregate
 submitted-message quota**. Each exact session admits at most **100 submitted
 user messages** in this initial UX; capacity is an error, not eviction.
@@ -991,6 +1011,12 @@ Host-owned records include:
 Full retained history is the evidence source. Derived summaries/indexes aid discovery, never replace it or silently evict old entries.
 Never store raw ambient/command audio, credentials, tokens, enrollment material, or hidden model reasoning in session history.
 Secret screening is best-effort: redact detected secrets before durable storage and identify omitted/redacted/restricted content.
+The bounded first native composer is an explicit reject-only exception:
+detected credential-like material is refused before draft/message persistence
+or admission, with user correction and secure-flow guidance, never silent
+redaction or a Save anyway bypass. Accepted text stays exact; this does not
+weaken the prohibition on credentials/tokens in retained history or qualify
+comprehensive detection.
 Source/account restrictions can require removal or prevent retention; record an explicit content-unavailable reason rather than promising an unrestricted copy.
 Diagnostics remain content-minimising and separate from intentional session history.
 

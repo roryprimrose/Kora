@@ -72,6 +72,14 @@ the existing atomic authority/copy/deletion domain. Body/page limits and
 No unexpired content/audit eviction, auto-save/replay, provider/bootstrap
 fallback, HTTP/authentication or assistant-output claim is added.
 
+The approved follow-up adds one Core local structural credential-like
+reject-only rule at service/store boundaries, before any body persistence or
+admission. Content-free required rejection audit retains no candidate/hash;
+accepted text remains exact. Known placeholders remain inert, and limitations/
+false positives are disclosed without comprehensive DLP qualification.
+Physical files stay unchanged; canonical IDs/source hashes/clocks and strict
+versioned migrations/copy/journal inventories remain the storage contract.
+
 This substantive host/UI increment follows #217's
 [engineering progression policy](Deferred_Validation.md#engineering-progression-policy).
 Rejected Ollama candidates and the retired manual proof harness are not

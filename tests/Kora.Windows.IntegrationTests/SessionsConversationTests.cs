@@ -171,6 +171,32 @@ public sealed class SessionsConversationTests
     }
 
     [Fact]
+    public async Task DetectedCredentialRefusalKeepsOnlyMemoryDraftForCorrectionAndNoSaveAnywayRoute()
+    {
+        using var f = new InteractionStorageFixture();
+        await f.InitializeAsync();
+        await WindowsSqliteConversationTests.FinishInitial(f);
+        await using var composed = new Composition(f);
+        var model = composed.Model;
+        await model.RefreshAsync();
+        await model.SelectAsync(model.Sessions.Single());
+        await model.ReadConversationAsync();
+        const string candidate = "password=synthetic-native-correction-only";
+        model.ComposerBody = candidate;
+        await model.SaveConversationDraftAsync();
+        model.ComposerBody.AsSpan().SequenceEqual(candidate.AsSpan()).Should().BeTrue();
+        model.CanCompose.Should().BeTrue();
+        f.Count("conversation_drafts").Should().Be(0);
+        await model.SubmitConversationAsync();
+        f.Count("conversation_messages").Should().Be(0);
+        model.ComposerBody.AsSpan().SequenceEqual(candidate.AsSpan()).Should().BeTrue();
+        model.ConversationStatus.Contains(candidate, StringComparison.Ordinal).Should().BeFalse();
+        model.ComposerBody = "corrected ordinary message";
+        await model.SubmitConversationAsync();
+        f.Count("conversation_messages").Should().Be(1);
+    }
+
+    [Fact]
     public async Task SelectedSessionChangeAtPhysicalSubmissionCommitCannotRetargetBodyOrLoseOriginalMemoryBuffer()
     {
         using var f = new InteractionStorageFixture();

@@ -19,6 +19,47 @@ public sealed partial class ModelTurnHostTests
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
+    public async Task DetectedCandidateIsAuditedBeforeAnyDraftMessageOrModelAdmission(bool draft)
+    {
+        using var f = new Fixture();
+        var admission = new TestAdmission(ModelTurnOutcome.Unavailable);
+        var service = f.ConversationService(admission);
+        const string candidate = "password=synthetic-rejection-only";
+        Func<Task> action = draft
+            ? async () => { await service.SaveDraftAsync(new(f.Session, new(f.Session.SessionId, 0, null)), candidate, static () => true, Token); }
+            : async () => { await service.SubmitAsync(new(f.Session, null), candidate, static () => true, Token); };
+        await action.Should().ThrowAsync<ConversationCredentialException>();
+        f.CredentialRejections.Should().Be(1);
+        f.RetainCalls.Should().Be(0);
+        f.Retained.Should().BeNull();
+        admission.Calls.Should().Be(0);
+        f.Messages.Any(message => message.Contains(candidate, StringComparison.Ordinal)).Should().BeFalse();
+    }
+
+    [Theory]
+    [InlineData("private")]
+    [InlineData("generation")]
+    [InlineData("done")]
+    [InlineData("foreign")]
+    [InlineData("audit")]
+    [InlineData("admission")]
+    public async Task CredentialRejectionCannotBypassCurrentAuthorityOrFailedRequiredAudit(string failure)
+    {
+        using var f = new Fixture();
+        var target = new SessionWorkspaceEntry(f.Session, null);
+        if (failure is "private") { f.CanControl = false; }
+        if (failure is "generation") { f.Session = f.Session with { Generation = new(2) }; }
+        if (failure is "done") { f.Session = f.Session with { IsActive = false }; }
+        if (failure is "foreign") { f.Session = f.Session with { SessionId = new(Guid.NewGuid()) }; }
+        if (failure is "audit") { f.CredentialRejectionFailure = new IOException("required audit unavailable"); }
+        var service = f.ConversationService(new TestAdmission(ModelTurnOutcome.Unavailable));
+        await service.Invoking(value => value.SubmitAsync(target, "api_key=synthetic-only-value",
+            () => failure is not "admission", Token)).Should().ThrowAsync<Exception>();
+        f.RetainCalls.Should().Be(0);
+    }
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
     public async Task RealConfiguredConversationConsumerRetainsExactUserRequestAndNeverRunsRejectedCandidateOrFakeQualifiedAdapter(bool qualified)
     {
         using var f = new Fixture();
@@ -217,6 +258,16 @@ public sealed partial class ModelTurnHostTests
 
     private sealed partial class Fixture : ISessionConversationStore, IHostTaskStore, ILogger<SessionConversationService>
     {
+        internal int CredentialRejections { get; private set; }
+        internal Exception? CredentialRejectionFailure { get; set; }
+        public ValueTask<HostTaskRecord> RecordConversationCredentialRejectionAsync(HostRequest request,
+            HostRevision generation, Func<bool> admitted, CancellationToken token)
+        {
+            admitted().Should().BeTrue();
+            if (CredentialRejectionFailure is { } failure) { throw failure; }
+            CredentialRejections++;
+            return ValueTask.FromResult(new HostTaskRecord(request, new(2), HostTaskState.Denied));
+        }
         internal ConversationMessage? Retained { get; set; }
         internal int RetainCalls { get; set; }
         internal Action? AfterRetain { get; set; }

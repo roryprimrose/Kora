@@ -13,6 +13,43 @@ namespace Kora.Windows.Storage;
 
 public sealed partial class WindowsSqliteHostInteractionStore : ISessionConversationStore
 {
+    public ValueTask<HostTaskRecord> RecordConversationCredentialRejectionAsync(HostRequest request,
+        HostRevision generation, Func<bool> admitted, CancellationToken token)
+    {
+        RequireLive(request);
+        return new(Task.Run(() =>
+        {
+            using var lease = database.AcquireReadLease(token);
+            using var connection = Open(created: false, token);
+            var session = RequireSession(connection, request.SessionId);
+            var existing = ReadTask(connection, request.TaskId);
+            if (request.Origin != RequestOrigin.LocalUi || request.InvocationId is not null || session.State != 0
+                || session.Authority.Generation != generation || !admitted()
+                || existing is not null && (existing.Request != request || existing.Revision.Value != 1
+                    || existing.State != HostTaskState.IntentRecorded)
+                || ReadConversationMessage(connection, request.RequestId) is not null)
+            { throw new InvalidOperationException("Credential rejection requires a fresh exact native request, generation and private admission."); }
+            var intent = existing ?? new HostTaskRecord(request, new(1), HostTaskState.IntentRecorded);
+            var terminal = intent.Next(HostTaskState.Denied);
+            var audit = new SecurityAuditEvent(Guid.NewGuid(), SecurityAuditCategory.SecurityApproval,
+                "conversation.credential-rejected", SecurityAuditOutcome.Denied, SecurityAuditInitiator.TypedCommand,
+                Id(request.TaskId), reasonCode: "credential-like-content");
+            using var activity = HostActivity.BeginAudit(request, audit);
+            using var transaction = connection.BeginTransaction();
+            if (existing is null)
+            {
+                WindowsSqliteHostTaskStore.WriteTask(connection, transaction, intent);
+                Execute(connection, transaction, "INSERT INTO host_task_runs VALUES($task,$run);",
+                    ("$task", Id(request.TaskId)), ("$run", runId.ToString("D")));
+            }
+            AppendAudit(connection, transaction, intent, session.Authority, audit,
+                changes: [TaskChange(terminal)], requestedAudit: ConversationRequestedAudit(audit));
+            WindowsSqliteHostTaskStore.WriteTask(connection, transaction, terminal);
+            Commit(transaction, request, token, admitted);
+            activity.Complete(HostOperationOutcome.Completed);
+            return terminal;
+        }, token));
+    }
     private void MigrateConversation(SqliteConnection connection, SqliteTransaction transaction, CancellationToken token)
     {
         ValidateConsolidatedAuthority(connection);
@@ -53,7 +90,15 @@ public sealed partial class WindowsSqliteHostInteractionStore : ISessionConversa
         ConversationDraftSnapshot expected, string? body, Func<bool> admitted, CancellationToken token)
     {
         expected.Draft.Validate();
-        if (body is not null) { ConversationText.Validate(body); }
+        if (body is not null)
+        {
+            try { ConversationText.Validate(body); }
+            catch (ConversationCredentialException)
+            {
+                await RecordConversationCredentialRejectionAsync(control, expected.Session.Generation, admitted, token).ConfigureAwait(false);
+                throw;
+            }
+        }
         var saved = await RunHostMutationAsync(control, body is null ? "conversation.draft.clear" : "conversation.draft.save",
             (connection, transaction, intent, audit) =>
             {
@@ -87,12 +132,17 @@ public sealed partial class WindowsSqliteHostInteractionStore : ISessionConversa
         return saved;
     }
 
-    public ValueTask<ConversationSubmissionReceipt> RetainConversationMessageAsync(HostRequest request,
+    public async ValueTask<ConversationSubmissionReceipt> RetainConversationMessageAsync(HostRequest request,
         HostRevision generation, long expectedMetadataRevision, string body, Func<bool> admitted, CancellationToken token)
     {
-        ConversationText.Validate(body, submission: true);
+        try { ConversationText.Validate(body, submission: true); }
+        catch (ConversationCredentialException)
+        {
+            await RecordConversationCredentialRejectionAsync(request, generation, admitted, token).ConfigureAwait(false);
+            throw;
+        }
         RequireLive(request);
-        return new(Task.Run(() =>
+        return await Task.Run(() =>
         {
             using var lease = database.AcquireReadLease(token);
             using var connection = Open(created: false, token);
@@ -134,7 +184,7 @@ public sealed partial class WindowsSqliteHostInteractionStore : ISessionConversa
             { throw new IOException("Original submission readback is unconfirmed; inspect the exact request without replay."); }
             activity.Complete(HostOperationOutcome.Completed);
             return new ConversationSubmissionReceipt(message, intent);
-        }, token));
+        }, token).ConfigureAwait(false);
     }
 
     public ValueTask<ConversationSubmissionReceipt> CompleteConversationSubmissionAsync(HostRequest request,
@@ -253,7 +303,9 @@ public sealed partial class WindowsSqliteHostInteractionStore : ISessionConversa
         if (!reader.Read()) { return new(session, 0, null); }
         var payload = reader.GetString(1);
         var draft = HostInteractionCodec.Decode<SavedConversationDraft>(payload);
-        draft.Validate();
+        try { draft.Validate(); }
+        catch (ConversationCredentialException exception)
+        { throw new InvalidDataException("Stored draft has credential-like content; explicit storage recovery is required, not empty replacement.", exception); }
         if (draft.SessionId != session || draft.Revision != reader.GetInt64(0) || draft.Revision == 0)
         { throw new InvalidDataException("Saved draft identity or revision conflicts with its exact database cell."); }
         if (!Same(payload, HostInteractionCodec.Encode(draft)))
@@ -274,7 +326,9 @@ public sealed partial class WindowsSqliteHostInteractionStore : ISessionConversa
     private static ConversationMessage DecodeConversationMessage(SqliteConnection connection, string payload, long sequence)
     {
         var message = HostInteractionCodec.Decode<ConversationMessage>(payload);
-        message.Validate();
+        try { message.Validate(); }
+        catch (ConversationCredentialException exception)
+        { throw new InvalidDataException("Stored conversation has credential-like content; explicit storage recovery is required, not empty replacement.", exception); }
         if (!Same(payload, HostInteractionCodec.Encode(message)))
         { throw new InvalidDataException("Conversation source bytes are not canonical."); }
         ValidateRowAuthority(connection, sequence, MessageChange(message));

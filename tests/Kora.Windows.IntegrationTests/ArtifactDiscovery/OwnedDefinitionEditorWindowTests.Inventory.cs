@@ -1,4 +1,7 @@
-﻿using Avalonia.Controls;
+﻿using System.Security.AccessControl;
+using System.Security.Principal;
+
+using Avalonia.Controls;
 using Avalonia.Interactivity;
 using Avalonia.VisualTree;
 
@@ -12,6 +15,7 @@ using Kora.Core.Commands;
 using Kora.Definitions.Artifacts;
 using Kora.NativeUxFixture;
 using Kora.Windows.Artifacts;
+using Kora.Windows.Storage;
 
 using Microsoft.Extensions.Logging.Abstractions;
 
@@ -215,15 +219,24 @@ public sealed partial class OwnedDefinitionEditorWindowTests
             using var f = new NativeUxFixtureSession(parent);
             await f.InitializeAsync();
             var folder = Path.Combine(f.RoamingRoot, OwnedDefinitionKind.DirectoryName(kind));
-            Directory.CreateDirectory(folder);
+            using var identity = WindowsIdentity.GetCurrent();
+            var owner = identity.User ?? throw new InvalidOperationException("The fixture owner is unknown.");
+            if (!Directory.Exists(f.RoamingRoot)) { RestrictedStorageDirectory.CreateRestrictedDirectory(f.RoamingRoot, owner); }
+            RestrictedStorageDirectory.CreateRestrictedDirectory(folder, owner);
             var names = Enumerable.Range(0, OwnedDefinitionKind.MaximumFiles(kind)).Select(index =>
                 index.ToString("D3", System.Globalization.CultureInfo.InvariantCulture) + new string('a', 61)).ToArray();
             foreach (var (name, index) in names.Select((name, index) => (name, index)))
             {
                 var declared = "inventory-" + index.ToString("D3", System.Globalization.CultureInfo.InvariantCulture)
                     + string.Concat(Enumerable.Repeat("\U0001F600", 57));
-                File.WriteAllBytes(Path.Combine(folder, name + OwnedDefinitionKind.Extension(kind)),
+                var path = Path.Combine(folder, name + OwnedDefinitionKind.Extension(kind));
+                File.WriteAllBytes(path,
                     ArtifactFileDocument.Encode($"---\nkora-format: 1\nname: {declared}\ndescription: Private\n---\nPrivate body.", false));
+                var security = new FileSecurity();
+                security.SetOwner(owner);
+                security.SetAccessRuleProtection(isProtected: true, preserveInheritance: false);
+                security.AddAccessRule(new FileSystemAccessRule(owner, FileSystemRights.FullControl, AccessControlType.Allow));
+                new FileInfo(path).SetAccessControl(security);
             }
             await using var admission = new InstructionControlAdmission(f.Interactions, f.Interactions, new HostTaskCoordinator(f.Tasks));
             var instructionStore = new WindowsOwnedInstructionStore(f);

@@ -58,8 +58,9 @@ public sealed partial class OwnedDefinitionEditorWindowTests
             reload.ReloadNow().Should().BeTrue();
             await actions.Activate(saved[0], _ => Task.FromResult(true), () => true, TestContext.Current.CancellationToken);
             var ownership = 1L;
+            var owned = true;
             using var controller = new OwnedInstructionEditorController(f.Main, instructionActions, new(instructionActions), reload, f,
-                () => true, () => ownership, NullLogger<OwnedInstructionEditorController>.Instance, promptActions, new(promptActions));
+                () => owned, () => ownership, NullLogger<OwnedInstructionEditorController>.Instance, promptActions, new(promptActions));
             OwnedInstructionEditorWindow? editor = null;
             Window? dialog = null;
             TaskCompletionSource<Window>? reviewOpened = null;
@@ -152,7 +153,8 @@ public sealed partial class OwnedDefinitionEditorWindowTests
             native.Source.Text.Should().Be(draft);
             native.QueryInput.Text = "private query";
             ownership++;
-            native.QueryInput.Text = "changed after ownership";
+            owned = false;
+            await Run("list");
             native.IsVisible.Should().BeFalse();
             native.QueryInput.Text.Should().BeEmpty();
             native.Source.Text.Should().BeEmpty();

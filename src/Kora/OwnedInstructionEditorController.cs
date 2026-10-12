@@ -55,7 +55,11 @@ internal sealed partial class OwnedInstructionEditorController(
     {
         if (disposed) { return; }
         if (!ownsHost() || !main.CaptureInstructionEditorEligibility()())
-        { main.ReportHostInteractionFailure("Owned instruction editing requires the current unlocked owning host and eligible clear call/privacy state."); return; }
+        {
+            if (window is not null) { OnPrivacyClosed(this, EventArgs.Empty); }
+            main.ReportHostInteractionFailure("Owned instruction editing requires the current unlocked owning host and eligible clear call/privacy state.");
+            return;
+        }
         if (window is not null)
         {
             if (ownershipRevision() != windowOwnershipRevision) { OnPrivacyClosed(this, EventArgs.Empty); return; }

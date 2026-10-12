@@ -16,13 +16,18 @@ public sealed class InstructionControlAdmission(
 
     public Task<T> Run<T>(Func<bool> eligible,
         Func<HostRequest, WorkSessionAuthorization, Func<bool>, CancellationToken, Task<T>> operation, CancellationToken token) =>
+        Run(eligible, operation, static _ => HostTaskState.Succeeded, token);
+
+    internal Task<T> Run<T>(Func<bool> eligible,
+        Func<HostRequest, WorkSessionAuthorization, Func<bool>, CancellationToken, Task<T>> operation,
+        Func<T, HostTaskState> terminal, CancellationToken token) =>
         RunCommittedAsync(RequestOrigin.LocalUi, eligible, async (request, session, current, admittedToken) =>
         {
             await Commit(request, session, current, admittedToken).ConfigureAwait(false);
             var result = await operation(request, session, current, admittedToken).ConfigureAwait(false);
             await Commit(request, session, current, admittedToken).ConfigureAwait(false);
             return result;
-        }, static _ => HostTaskState.Succeeded, token);
+        }, terminal, token);
 
     private ValueTask<bool> Commit(HostRequest request, WorkSessionAuthorization session, Func<bool> eligible, CancellationToken token) =>
         Publish(request, session, eligible, static () => true, token);

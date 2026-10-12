@@ -79,7 +79,7 @@ internal sealed class OwnedInstructionEditorWindow : Window
                 + "Observed catalogue use state; inspect revalidates disk and exact revision. Search/filter is metadata-only, not a freshness, compatibility or integrity guarantee. "
                 + "Save as new copy retains the original draft and creates a separate disabled same-kind owned file. No profile fork, model, dictation, scripts, rename or restore. "
                 + "Save is not activation. Review permits explicit selection for a new request only. Disable reviewed use holds the exact saved revision without changing its source; a fresh review is required to enable it again. "
-                + "Prompts are literal saved user requests, not system guidance or parameters.",
+                + "Prompts are user requests, not system guidance. Native v1 stays literal; v2 supports required ${input:name} text only, with private expanded preview and separate use admission.",
             TextWrapping = TextWrapping.Wrap, Margin = new(0, 10),
         };
         DockPanel.SetDock(disclosure, Dock.Top);

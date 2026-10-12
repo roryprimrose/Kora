@@ -13,6 +13,7 @@ public sealed class OwnedDraftValidation
         ProposedByteCount = proposed?.ByteCount;
         Digest = proposed?.Definition.Digest;
         NativeFormat = proposed?.Metadata.ContainsKey("kora-format");
+        NativeVersion = proposed?.Metadata.GetValueOrDefault("kora-format");
         Failure = failure;
         CatalogueIdentity = candidates;
         FailureRevision = failureRevision;
@@ -25,6 +26,7 @@ public sealed class OwnedDraftValidation
     public int? ProposedByteCount { get; }
     public string? Digest { get; }
     public bool? NativeFormat { get; }
+    public string? NativeVersion { get; }
     public string? Failure { get; }
     public bool SourceUnavailable { get; }
     public bool Supported => Failure is null;
@@ -37,7 +39,7 @@ public sealed class OwnedDraftValidation
         + $"Historical observation only. Owned {Kind}; ID {Name}; source: Kora-owned; "
         + $"model context role: {(Kind == ArtifactKind.Prompt ? "literal user request" : "instruction guidance")}; review state: not approved. "
         + (Supported ? $"Prepared bytes including BOM/header: {ProposedByteCount}; BOM={HasBom}; "
-            + $"format: {(NativeFormat == true ? "native v1" : "unchanged compatible legacy")}; SHA-256: {Digest}. " : string.Empty)
+            + $"format: {(NativeFormat == true ? "native v" + NativeVersion : "unchanged compatible legacy")}; SHA-256: {Digest}. " : string.Empty)
         + "Preparation includes any marker Save would add, not just raw draft bytes. "
         + (SourceUnavailable ? "Source/catalogue unavailable: Reload/reconciliation is still required before Save or use. " : string.Empty)
         + "This is not semantic harmlessness, safe execution, permission, activation or current disk integrity.";

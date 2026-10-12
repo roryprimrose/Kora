@@ -4310,6 +4310,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                 ShowInformation("Owned definition revision is stale or unavailable.", "Reload and review the exact owned instruction or prompt before starting a new request.");
                 return;
             }
+            if (artifactMatch.Invocation.Artifact.PromptTemplate is not null)
+            {
+                await PreparePrompt(artifactMatch.Invocation, spokenText, initiator);
+                return;
+            }
             await HandleUnmatchedRequestAsync(
                 spokenText,
                 initiator,

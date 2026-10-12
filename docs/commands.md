@@ -1269,6 +1269,8 @@ No paths or body dictation are accepted. Save/Delete and separate exact-use revi
 remain native; detected conflicts offer Reload/Overwrite/Cancel. See
 [native editor and limits](instruction-editor.md).
 `copy <new-id>` reviews a same-kind supported native v1 owned original and its current draft, then creates a separate disabled owned file without overwriting. The original source/draft stay open and untouched; independently inspect/review the destination before explicit use. Profile-original editing and profile forks remain unavailable.
+`instructions list` / `prompts list` also exposes the selected kind's owned metadata search and observed-use filters in that same native editor. There is no typed/voice search grammar: use the native query/filter controls after List, or the existing exact `inspect <id>` route.
+Filters/search/page changes are in-memory and preserve the open original/draft. Row inspection refuses stale snapshot/digest/native identity instead of following a same-name replacement. Observed catalogue use state is not current disk freshness; explicit Refresh/reselect is the recovery path. See [inventory limits and controls](instruction-editor.md#search-observed-owned-metadata).
 
 ### Explicitly select a saved revision
 

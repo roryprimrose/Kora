@@ -34,6 +34,25 @@ example`, `prompts edit example`, `prompts save` and `prompts activate`.
 Noncanonical legacy filenames remain visible/inspectable and retain unchanged
 legacy selection behavior, but are read-only rather than silently renamed by Save.
 
+## Search observed owned metadata
+
+**List** / **Refresh** explicitly enumerates the selected kind's existing bounded owned directory and runs the existing source-reconciliation pipeline. That refresh can read source files and reconcile revision preferences; typing a search or changing a use-state filter cannot.
+The inventory contains at most 128 filenames for the explicit Instruction or Prompt kind, in ordinal filename order. Its source is fixed to Kora-owned roaming data. No profile, bundled, skill, agent or additional-directory inventory is added.
+
+Use **Owned metadata search** for a literal, case-insensitive substring of the filename ID, already available display name or source-qualified artifact ID. An exact ID also matches; spaces and punctuation are literal, not wildcards, regex, paths or executable input.
+Queries accept at most 256 UTF-16 units / 512 UTF-8 bytes, with valid single-line Unicode and no control/format characters. Invalid queries show an error and no rows; they are never trimmed or truncated. **Clear search** restores the empty query and **All** filter.
+
+**All**, **UseEnabled**, **ReviewRequired** and **UnavailableOrUnknown** filter only observed catalogue metadata. Held/changed revisions share ReviewRequired; the inventory cannot infer why an approval is absent. Unmapped or unrevisioned files are unknown, never implicitly enabled.
+Rows disclose kind, filename ID, available display name, fixed source, artifact ID, digest, native revision and observed UTC. They contain no body/excerpt, description, attribution or full path.
+The complete visible label/details payload is at most 64 KiB UTF-8. **Next** exposes any omitted complete rows in deterministic pages; query/filter/refresh changes restart the visible page. No row is silently truncated.
+
+**Observed catalogue use state; inspect revalidates disk and exact revision.** This is not disk-current freshness, compatibility or integrity proof. Select a row and explicitly **Inspect**: admission rechecks the original snapshot/kind/file ID/digest/native revision, not a newly looked-up same-name replacement.
+Changed, replaced, disappeared or expired choices refuse with Refresh/reselect recovery. Unknown rows cannot prove an exact match; explicitly enter their current filename ID for the existing admitted compatibility inspection. Exact `instructions inspect <id>` / `prompts inspect <id>` deliberately inspects the current ID, rather than claiming a historical row match.
+
+Search/filter/page changes never open the first result or save/discard/replace the open original or dirty draft. A filtered-out selection is withdrawn with an explanation while the draft stays open. **Reload** still deliberately reloads the open original after its dirty-draft review.
+Catalogue/use/source/call changes invalidate choices. Failed refresh clears availability and labels historical observations unavailable; it does not offer a last-good inventory as current. Privacy/ownership/closure clears query, rows, selection and private editor text, and late callbacks cannot repopulate it.
+Typed/current-name activated `list` focuses this same native filter route; no typed search grammar or voice-only approval is advertised. Filtering creates no index, persistence, model/network call, watcher restart, source write or activation.
+
 ## Edit, review and save
 
 The native source text box edits the complete supported file. Maximum original/replacement size is 64 KiB,

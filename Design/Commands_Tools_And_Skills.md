@@ -72,6 +72,12 @@ single-use approval for that exact current revision; they cannot create
 session or always grants. This prevents changed instructions from inheriting
 authority established for an earlier or unrelated proposal.
 
+### Owned metadata inventory navigation
+
+The delivered owned native editor also provides literal metadata search, observed-use filters and exact stale-safe row inspection for its existing Instruction/Prompt filename inventories only.
+Explicit List/Refresh uses existing admission/reconciliation; filtering remains in-memory and model-free, with no source writes, activation or first-result loading. Typed/current-name activated List/Inspect opens the same native route; no new model tool or typed search grammar is registered.
+Observed catalogue state is not current disk integrity. Unavailable/stale choices require Refresh/reselection while the original/draft stays open. See [owned inventory controls](../docs/instruction-editor.md#search-observed-owned-metadata); profile-original editing and the full definition source matrix stay deferred.
+
 ### Proposed Instruction Authoring
 
 Standalone Kora and compatible profile instructions will use the same

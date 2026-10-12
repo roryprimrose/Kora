@@ -89,6 +89,8 @@ Kora-owned `.prompt.md` literal saved requests: select Prompt, then use the same
 Save/Delete, conflict and separate exact-use reviews. Prompts are request content,
 not instructions, skill workflows or policy; parameters/substitutions and
 profile prompt writing remain unavailable.
+The same per-kind owned editor now has bounded literal metadata search, observed-use filters and exact stale-safe row inspection; see [the native inventory controls](../docs/instruction-editor.md#search-observed-owned-metadata).
+Only explicit List/Refresh reads/reconciles existing sources. Search/filter/page changes are in-memory, preserve the original/draft and never activate or select another file automatically. Unknown metadata stays unavailable; observed catalogue state is not disk freshness. No profile/bundled inventory or authoring scope is added.
 The native **Save as new copy** increment copies only an inspected supported native v1 owned source/current draft to a different same-kind owned ID.
 Full base/draft/proposal review changes only the declared name, preserves all other draft bytes/BOM/metadata, and creates without replacement.
 The original draft remains open; the separate copy is disabled until independently inspected/reviewed for explicit use. No profile reads/writes, implicit legacy repair, inherited authority or automatic reference retargeting are added.

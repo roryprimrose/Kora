@@ -19,6 +19,36 @@ namespace Kora.Windows.IntegrationTests.ArtifactDiscovery;
 [Collection(nameof(HeadlessUiTestGroup))]
 public sealed class PromptParameterWindowTests
 {
+    [Fact]
+    public async Task MaximumNativeInputsAndCompleteExpansionShareOneScrollablePrivateSurface()
+    {
+        await HeadlessSession.RunAsync(async () =>
+        {
+            var body = string.Join("\r\n", Enumerable.Range(0, 8).Select(index => "${input:a" + index + "}"));
+            var source = ArtifactFileDocument.Parse(ArtifactFileDocument.Encode(
+                "---\r\nkora-format: 2\r\nname: example\r\ndescription: Test\r\n---\r\n" + body, true),
+                ArtifactKind.Prompt, "kora-profile", "example").Definition with { OwnedInstructionRevision = "exact-layout-source" };
+            using var draft = new PromptParameterDraft(source, new([source]), () => true);
+            var window = new PromptParameterWindow(draft, draft.SetValue, _ => { });
+            window.Show();
+            try
+            {
+                window.Inputs.Should().HaveCount(8);
+                foreach (var input in window.Inputs.Values) { input.Text = new string('a', 500); }
+                var expanded = await draft.Preview((_, _) => Task.FromResult(true), TestContext.Current.CancellationToken);
+                window.Expanded.Text = expanded.UserRequest;
+                var scroll = window.Content.Should().BeOfType<ScrollViewer>().Subject;
+                var panel = scroll.Content.Should().BeOfType<Avalonia.Controls.StackPanel>().Subject;
+                panel.Children.Should().Contain(window.Expanded);
+                window.Expanded.Text.Should().Be(string.Join("\r\n", Enumerable.Repeat(new string('a', 500), 8)));
+                window.ClearPrivateText();
+                window.Content.Should().BeNull();
+                window.Expanded.Text.Should().BeEmpty();
+            }
+            finally { window.Close(); }
+        });
+    }
+
     [Theory]
     [InlineData("cancel")]
     [InlineData("input")]

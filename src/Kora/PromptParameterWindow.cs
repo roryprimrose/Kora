@@ -19,8 +19,7 @@ internal sealed class PromptParameterWindow : Window
         Title = "Required prompt inputs — private preparation";
         Width = 880;
         Height = 720;
-        var root = new DockPanel { Margin = new(12) };
-        var top = new StackPanel { Spacing = 8 };
+        var top = new StackPanel { Margin = new(12), Spacing = 8 };
         top.Children.Add(new TextBlock
         {
             Text = $"Owned prompt: {draft.Source.Id}\nOriginal digest: {draft.Source.Digest}\nNative revision: {draft.Source.OwnedInstructionRevision}\n"
@@ -50,10 +49,8 @@ internal sealed class PromptParameterWindow : Window
         buttons.Children.Add(cancel);
         top.Children.Add(buttons);
         top.Children.Add(Status);
-        DockPanel.SetDock(top, Dock.Top);
-        root.Children.Add(top);
-        root.Children.Add(new ScrollViewer { Content = Expanded });
-        Content = root;
+        top.Children.Add(Expanded);
+        Content = new ScrollViewer { Content = top };
     }
 
     internal void RetirePreview()

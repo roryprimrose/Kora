@@ -1255,9 +1255,12 @@ to three; start a new request with more details if it reaches that limit.
 Type `instructions editor` or `prompts editor`, or say the same control prefixed
 with the current assistant name. Both focus the same native editor with explicit
 Instruction/Prompt kind selection. `list`, `create <id>`, `edit <id>`,
-`inspect <id>`, `save`, `copy <new-id>`, `reload`, `discard`, `delete`, `activate` and `cancel`
+`inspect <id>`, `save`, `copy <new-id>`, `reload`, `discard`, `delete`, `activate`, `disable`, `stop-use` and `cancel`
 are the exact controls after either plural kind name. Only create/edit/inspect/copy
 accept one canonical file ID; other controls target the open original.
+**Disable reviewed use** / `instructions disable` or `prompts stop-use` separately confirms the clean inspected canonical native v1 owned source/kind/digest/native revision. It durably withdraws new selections without writing/deleting/unregistering the source.
+Disabled files stay inspectable/editable. Dirty drafts remain intact with an explicit Save/Reload prerequisite; current-name activated controls focus the same native confirmation, never voice-only approval.
+Already captured reasoning keeps immutable content; pending unadmitted questions/action choices expire without dispatch or retargeting. Mandatory access/privacy/action/egress checks remain. Reload/restart/restored bytes cannot re-enable use: require fresh exact review. Failed audit/state readback reports held/unavailable recovery, not success or rollback.
 No paths or body dictation are accepted. Save/Delete and separate exact-use review
 remain native; detected conflicts offer Reload/Overwrite/Cancel. See
 [native editor and limits](instruction-editor.md).

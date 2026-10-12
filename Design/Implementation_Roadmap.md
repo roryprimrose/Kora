@@ -50,7 +50,7 @@ descriptors; native delivery does not make a model tool available.
 | Preferences and audio | Admitted native/exact preferences, consented PTT, installed/local speech, visual recovery and run-only manual call protection | Automatic call detectors, call-policy downgrades, temporary speech exceptions and acoustic qualification | [Configuration](User_Configuration.md), [call policy](Call_Aware_Speech.md) |
 | File/clipboard inspection | Explicit immutable previews, folder lexical retrieval, reviewed refresh, one retained file/session, replacement/removal, metadata catalogue, opt-in Markdown structure and exact citation navigation | Managed knowledge sources, model grounding/egress, persistent/vector indexes, screen/OCR/image context | [Ingestion](File_And_Folder_Ingestion.md), [clipboard](Security_Data_Flows.md) |
 | Memory and providers | Original-user memory review/admission and session-only durable storage; host policy/handoff, initial mode, audited app profiles and durable exact-session sparse overrides with native/exact review and subsequent-turn capture | Authentication/qualified hosted adapters, generic/one-turn profile directives, model memory recall or automatic handoff | [Profiles and session resolution](Model_Providers_Memory_And_Knowledge.md#session-overrides-and-effective-resolution) |
-| Definitions | Fixed immutable bundled packages, explicit selection, bounded shared-profile inspection and one native owned instruction/literal prompt editor with optimistic Save conflicts, same-kind native v1 owned copy creation (source draft retained), and separate current-run exact-use review | Profile-original editing/forks, skill/agent/conversational editors, prompt parameters, script execution, agent runtime and full common-management qualification | [Definitions](../src/Kora.Definitions/README.md), [source storage](Skill_Storage.md), [authoring](Skill_Authoring.md), [editor](../docs/instruction-editor.md) |
+| Definitions | Immutable bundles; profile reads; owned instruction/literal prompt Save/conflict/copy/review and exact native v1 Disable, durable new-selection hold | Profile-original editing/forks, broader formats/refinement/applicability, parameters/scripts/runtime and full matrix unqualified | [Management](Definition_Management.md), [editor](../docs/instruction-editor.md) |
 | Captions and local events | Off-default playback-bound captions, run-only pin/display choice; trusted visual notices, cached maintenance and routine quiet mode | Sentence alignment, general rich rendering, proactive speech and broad reminder scheduling | [Display](Information_Display.md), [proactive interaction](Proactive_Interaction.md) |
 | Distribution | MSI/custom Burn packaging, release/source-tool automation and reviewed build-only source workflow | Full installed/protected-byte/runtime qualification and install-capable updater | [Distribution](Distribution_And_Updates.md), [installer](../installer/README.md) |
 
@@ -59,6 +59,14 @@ Session permission levels and expanded skill/instruction authoring are
 Existing exact lock behavior and non-executing power proposals are unchanged.
 
 ## Ordered Outstanding Work
+
+### R22 exact owned reviewed-use disable increment - 2026-10-12
+
+Native/exact/current-name activated **Disable reviewed use** separately confirms the clean inspected canonical native v1 owned instruction/literal prompt revision, without source writes/deletion or source-consent changes.
+Existing admission/native freshness, trusted audit/control receipts, strict independent kind-state holds and consumer publication fencing withdraw new selections durably; no-change reload/restart/restored bytes cannot re-enable use. Repeated exact Disable is idempotent; fresh current-run review is required later.
+Inspection/editing and immutable already captured reasoning remain, while pending unadmitted choices expire without replay/retargeting. Dirty drafts and failed/unconfirmed audit/state publication retain explicit recovery, never silent Save/discard, rollback or restored enablement.
+Maintained deterministic revision/workflow/consumer, private SQLite/native composition and actual controller/window/button tests cover this bounded increment. They do not replace unique RT1/RT2/PV1, offline inference, containment, hardware, installed/accessibility or storage qualification; no experiments are edited/retired.
+Profile-original editing/security qualification remains explicitly deferred. No new grants, tools, model adapters, runtime, templates or broader applicability are delivered.
 
 ### R22 owned draft copy recovery increment - 2026-10-12
 
@@ -114,7 +122,7 @@ of the topic contract or acceptance fixtures.
 | R19 | Manifest-scoped RC qualification and truthful Slice A reporting | Q: included R07-R18 and shared/transitive controls; not an I prerequisite |
 | R20 | Select and admit one read-only MCP connector and bundled integration skill | R06/R10/R11; E: connector profile |
 | R21 | Shared-source enablement/invocation and bounded common reload across all supported definition kinds; reconcile owned/profile files, UI/voice lookup, and dependent revisions without automatically activating changes | R05/R06/R10/R11; E: source/format profile |
-| R22 | Bounded owned instruction/literal prompt native editor and same-kind native v1 owned draft copy recovery delivered through the shared writer/revision pipeline; next: deferred profile originals/forks, skill/agent formats, prompt parameters, conversational/refinement channels and expanded applicability. This does not qualify the full matrix or agent runtime | R05/R10/R12/R14/R20/R21 |
+| R22 | Owned instruction/literal prompt native editing/copy and exact native v1 reviewed-use Disable delivered; source-preserving durable new-selection holds require fresh re-enable review. Next: deferred profile originals/forks, skill/agent formats, prompt parameters, refinement and expanded applicability. Full matrix/runtime unqualified | R05/R10/R12/R14/R20/R21 |
 | R23 | Slice B/C and manifest-scoped release regression | Q: R19 and included R20-R22 scope |
 
 Partial packages may progress in parallel once their consumed I subset exists.

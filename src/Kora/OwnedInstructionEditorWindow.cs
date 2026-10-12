@@ -36,7 +36,7 @@ internal sealed class OwnedInstructionEditorWindow : Window
         controls.Children.Add(Files);
         controls.Children.Add(NameInput);
         controls.Children.Add(CopyNameInput);
-        foreach (var action in new[] { "List", "Create", "Inspect", "Save", "Save as new copy", "Reload", "Delete", "Review use" })
+        foreach (var action in new[] { "List", "Create", "Inspect", "Save", "Save as new copy", "Reload", "Delete", "Review use", "Disable reviewed use" })
         {
             var button = new Button { Content = action, Margin = new(3) };
             button.Click += (_, _) => run(action);
@@ -49,7 +49,8 @@ internal sealed class OwnedInstructionEditorWindow : Window
         {
             Text = "Source: Kora-owned roaming Instructions/*.instructions.md or Prompts/*.prompt.md; select kind explicitly. Profile files and bundled definitions are read-only. "
                 + "Save as new copy retains the original draft and creates a separate disabled same-kind owned file. No profile fork, model, dictation, scripts, rename or restore. "
-                + "Save is not activation. Review permits explicit selection for a new request only. Prompts are literal saved user requests, not system guidance or parameters.",
+                + "Save is not activation. Review permits explicit selection for a new request only. Disable reviewed use holds the exact saved revision without changing its source; a fresh review is required to enable it again. "
+                + "Prompts are literal saved user requests, not system guidance or parameters.",
             TextWrapping = TextWrapping.Wrap, Margin = new(0, 10),
         };
         DockPanel.SetDock(disclosure, Dock.Top);

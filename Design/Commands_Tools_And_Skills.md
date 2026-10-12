@@ -292,6 +292,9 @@ The delivered owned instruction/literal prompt editor uses one closed
 Instruction/Prompt writer and admitted save/conflict/review machinery.
 Exact `instructions copy <new-id>` / `prompts copy <new-id>` and native **Save as new copy** review the current supported native v1 owned draft, create a distinct disabled same-kind owned file without replacement, and retain the original draft.
 Separate inspection/use review is mandatory; no profile fork, inherited authority, model route or reference retargeting is added.
+Native **Disable reviewed use** and exact `instructions disable` / `instructions stop-use` (with matching `prompts` controls and current-name activation) use the same admitted revision/audit workflow, not the file writer or a new tool/grant authority.
+Confirmation binds the clean inspected native v1 owned source/kind/digest/native revision. Durable per-kind holds exclude new selections/descriptors but retain inspectable source bytes and already captured immutable reasoning; pending unadmitted choices retire without retargeting.
+Dirty drafts and failed/unconfirmed revocation retain explicit recovery; reload/restart/restored bytes never re-enable use, and a fresh exact current-run review is required. Profile-original editing and runtime gates remain unchanged.
 Only host-derived immediate `.instructions.md` / `.prompt.md` targets beneath
 the corresponding Kora data roots are writable. Prompt selection remains
 explicit user-request content through the existing request/provider/approval

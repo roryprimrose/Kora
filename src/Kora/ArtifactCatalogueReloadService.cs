@@ -162,8 +162,13 @@ internal sealed partial class ArtifactCatalogueReloadService : IDisposable
     private void PublishReconciled(IReadOnlyList<ArtifactDefinition> candidates)
     {
         _ = new ArtifactCatalogue(candidates);
-        var reconciled = instructionRevisions?.Reconcile(candidates) ?? candidates;
-        catalogue.Publish(promptRevisions?.Reconcile(reconciled) ?? reconciled);
+        void PublishPrompts(IReadOnlyList<ArtifactDefinition> instructions)
+        {
+            if (promptRevisions is null) { catalogue.Publish(instructions); }
+            else { promptRevisions.PublishReconciled(instructions, catalogue.Publish); }
+        }
+        if (instructionRevisions is null) { PublishPrompts(candidates); }
+        else { instructionRevisions.PublishReconciled(candidates, PublishPrompts); }
     }
 
     private void ConfigureWatchers()

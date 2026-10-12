@@ -6,6 +6,7 @@ namespace Kora.Core.Artifacts;
 
 public sealed class ArtifactCatalogue
 {
+    private readonly Lock gate = new();
     private ReadOnlyCollection<ArtifactDefinition> artifacts;
 
     public ArtifactCatalogue(IReadOnlyList<ArtifactDefinition> artifacts)
@@ -29,10 +30,29 @@ public sealed class ArtifactCatalogue
             && string.Equals(artifact.Digest, digest, StringComparison.Ordinal));
     }
 
+    public bool IsCapturedRevisionCurrent(string id, string digest) =>
+        Candidates.Any(artifact => (artifact.IsUseEnabled || artifact.PreservesCapturedUse)
+            && string.Equals(artifact.Id, id, StringComparison.Ordinal)
+            && string.Equals(artifact.Digest, digest, StringComparison.Ordinal));
+
     public void Publish(IReadOnlyList<ArtifactDefinition> updatedArtifacts)
     {
-        var validated = Validate(updatedArtifacts);
-        var previous = Interlocked.Exchange(ref artifacts, validated);
+        Replace(_ => updatedArtifacts);
+    }
+
+    public void Update(Func<IReadOnlyList<ArtifactDefinition>, IReadOnlyList<ArtifactDefinition>> update) =>
+        Replace(update);
+
+    private void Replace(Func<IReadOnlyList<ArtifactDefinition>, IReadOnlyList<ArtifactDefinition>> update)
+    {
+        ReadOnlyCollection<ArtifactDefinition> previous;
+        ReadOnlyCollection<ArtifactDefinition> validated;
+        lock (gate)
+        {
+            previous = artifacts;
+            validated = Validate(update(previous));
+            Volatile.Write(ref artifacts, validated);
+        }
         if (!Equivalent(previous, validated))
         {
             Changed?.Invoke(this, EventArgs.Empty);
@@ -89,5 +109,6 @@ public sealed class ArtifactCatalogue
         && left.Zip(right).All(pair =>
             string.Equals(pair.First.Id, pair.Second.Id, StringComparison.Ordinal)
             && string.Equals(pair.First.Digest, pair.Second.Digest, StringComparison.Ordinal)
+            && pair.First.PreservesCapturedUse == pair.Second.PreservesCapturedUse
             && pair.First.IsUseEnabled == pair.Second.IsUseEnabled);
 }

@@ -376,6 +376,7 @@ public sealed partial class InstructionEditorTests : IDisposable
         internal readonly Audit Audit = new();
         internal readonly InstructionRevisionCatalogue Revisions;
         internal readonly ArtifactCatalogue Catalogue;
+        internal readonly LocalSharedSkillPreferencesTests.Store State = new();
         internal readonly InstructionControlAdmission Admission;
         internal readonly OwnedInstructionEditorActions Actions;
         internal readonly InstructionSaveWorkflow Workflow;
@@ -384,7 +385,7 @@ public sealed partial class InstructionEditorTests : IDisposable
         internal Fixture(ArtifactKind kind = ArtifactKind.Instruction)
         {
             Files.Current = Snapshot(kind: kind);
-            Revisions = new(new LocalSharedSkillPreferencesTests.Store(), kind);
+            Revisions = new(State, kind);
             Catalogue = new(Revisions.Reconcile([Candidate(Files.Current!)]));
             Admission = new(Control, Control, new HostTaskCoordinator(Control));
             Actions = new(Files, Admission, Revisions, Catalogue, Audit, new BuiltInCommandRouter(new BuiltInCommandCatalog()), kind);

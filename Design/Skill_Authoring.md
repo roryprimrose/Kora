@@ -92,6 +92,9 @@ profile prompt writing remain unavailable.
 The native **Save as new copy** increment copies only an inspected supported native v1 owned source/current draft to a different same-kind owned ID.
 Full base/draft/proposal review changes only the declared name, preserves all other draft bytes/BOM/metadata, and creates without replacement.
 The original draft remains open; the separate copy is disabled until independently inspected/reviewed for explicit use. No profile reads/writes, implicit legacy repair, inherited authority or automatic reference retargeting are added.
+**Disable reviewed use** / `instructions disable` or `prompts disable` (also `stop-use`, including current-name activated controls) separately confirms the exact clean inspected native v1 owned baseline and durably holds new selections without writing/deleting/unregistering its source.
+Disabled files remain inspectable/editable; dirty drafts are retained with an explicit Save/Reload prerequisite. Old reviews cannot retarget replacements, and reload/restart/restored bytes cannot re-enable a held revision; a fresh exact current-run use review is required.
+Already admitted reasoning keeps immutable captured content, while pending unadmitted choices expire and source/access/privacy/action/egress guards remain mandatory. Failed audit/state readback reports held/unavailable recovery, not success or rollback. Profile-original editing stays deferred.
 
 Saving a standalone instruction does not enable a skill, grant a tool
 permission, approve an effect, activate changed guidance, or make its content

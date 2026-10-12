@@ -176,10 +176,19 @@ internal sealed partial class OwnedInstructionEditorController(
                     opened.Report(activated ? "Exact revision reviewed for explicit use in this unlocked host run. No automatic applicability or new permissions."
                         : "Use review cancelled. No new revision applicability granted.");
                     break;
+                case "Disable reviewed use":
+                    await DisableUse(opened, Eligible, token);
+                    break;
             }
         }
         catch (OperationCanceledException)
         {
+            if (action is "Disable reviewed use")
+            {
+                if (ReferenceEquals(window, opened))
+                { opened.Report("Disable cancelled before confirmed revocation. No source write or draft discard. Inspect current use state before another review."); }
+                return;
+            }
             if (action is not "Save as new copy") { uncertain = true; }
             if (ReferenceEquals(window, opened)) { opened.Report(action is "Save as new copy"
                 ? "Copy cancelled. Destination may already be durable but remains held. Inspect that ID explicitly or choose another new ID; original draft retained."
@@ -188,15 +197,50 @@ internal sealed partial class OwnedInstructionEditorController(
         catch (Exception exception) when (exception is not OutOfMemoryException)
         {
             EditorFailed(logger, exception.GetType().Name);
-            if (action is "Save" or "Delete") { uncertain = true; }
+            if (action is "Save" or "Delete"
+                || exception is InstructionUseRevocationUnconfirmedException) { uncertain = true; }
             if (ReferenceEquals(window, opened))
             { opened.Report((exception is InstructionPublicationUnconfirmedException
                     ? "Atomic owned publication occurred; later completion is unconfirmed. "
+                    : exception is InstructionUseRevocationUnconfirmedException revocation
+                        ? $"Reviewed use is held or unavailable; completion unconfirmed. Control receipt {revocation.ControlReceipt}. Reload/read back revision preferences before fresh use review. Source and draft retained. "
                     : "Unavailable: ")
                 + (exception is InvalidDataException or InvalidOperationException ? exception.Message : exception.GetType().Name)
                 + ". No success or rollback claimed. Draft retained. For a copy, inspect the destination explicitly or choose another new ID; no overwrite. Profile originals remain unavailable."); }
         }
         finally { busy = false; }
+    }
+
+    private async Task DisableUse(OwnedInstructionEditorWindow opened, Func<bool> eligible, CancellationToken token)
+    {
+        if (Dirty || baseline is not { } reviewed || uncertain
+            || !string.Equals(selectedName, reviewed.Name, StringComparison.Ordinal)
+            || !string.Equals(opened.NameInput.Text, reviewed.Name, StringComparison.Ordinal)
+            || opened.Files.SelectedItem is string selection && !string.Equals(selection, reviewed.Name, StringComparison.Ordinal))
+        { throw new InvalidOperationException("Disable requires the exact clean inspected saved baseline. Unsaved draft retained; explicitly Save or Reload first, then review Disable separately."); }
+        var sourceEpoch = Interlocked.Read(ref sourceRevision);
+        var inputEpoch = Interlocked.Read(ref copyInputRevision);
+        var reviewedKind = kind;
+        bool CurrentReview() => eligible() && ReferenceEquals(baseline, reviewed) && kind == reviewedKind
+            && Interlocked.Read(ref sourceRevision) == sourceEpoch
+            && Interlocked.Read(ref copyInputRevision) == inputEpoch;
+        var result = await Actions.Disable(reviewed, async admitted =>
+        {
+            if (!CurrentReview()) { return false; }
+            var enabled = Actions.IsReviewedUseEnabled(reviewed);
+            var choice = await opened.Choose($"Disable exact {reviewedKind.ToString().ToLowerInvariant()} reviewed use",
+                $"Owned kind: {reviewedKind}; source: Kora-owned {OwnedDefinitionKind.DirectoryName(reviewedKind)}; file: {reviewed.CanonicalFileName}; "
+                + $"digest: {reviewed.Document.Definition.Digest}; exact native source revision: {reviewed.Revision}. "
+                + (enabled ? "Currently reviewed/enabled. " : "Currently disabled/held; no enablement is being invented. ")
+                + "Disable explicit selection for NEW requests only. Source bytes, metadata, file permissions and the draft are unchanged. "
+                + "Already captured guidance is not rewritten or rerouted; pending unadmitted choices expire. A fresh exact use review is required later.",
+                reviewed.Document.Text, reviewed.Document.Text, ["Confirm disable reviewed use", "Cancel"], admitted);
+            return choice == 0 && CurrentReview();
+        }, CurrentReview, token);
+        if (!CurrentReview()) { return; }
+        opened.Report(result.Cancelled ? "Disable review cancelled. Saved source, draft and reviewed-use state unchanged."
+            : $"Exact {reviewedKind} revision {reviewed.Revision}: {(result.WasEnabled ? "disabled/held" : "already disabled/held")}. "
+                + $"Control receipt {result.ControlReceipt}. Source unchanged and inspectable; new selections unavailable until fresh exact review.");
     }
 
     private async Task<bool> ConfirmUse(OwnedInstructionEditorWindow opened, OwnedInstructionSnapshot reviewed,
@@ -297,8 +341,10 @@ internal sealed partial class OwnedInstructionEditorController(
         }
         uncertain = !reload.ReloadNow();
         opened.Report(loaded is null ? "The owned original is missing; no file was written."
-            : $"Owned ID {name}; original digest {loaded.Document.Definition.Digest}; BOM={loaded.Document.HasBom}. "
-                + "Exact original source loaded. Save and use review are separate.");
+            : $"Owned kind {kind}; ID {name}; exact source revision {loaded.Revision}; digest {loaded.Document.Definition.Digest}; BOM={loaded.Document.HasBom}. "
+                + (uncertain ? "Use state unavailable; explicit Reload/recovery required."
+                    : Actions.IsReviewedUseEnabled(loaded) ? "Currently reviewed/enabled for new explicit selections."
+                    : "Disabled/held; fresh exact Review use required. Source remains inspectable/editable."));
     }
 
     private async Task<bool> AbandonDraft(OwnedInstructionEditorWindow opened, CancellationToken token) =>

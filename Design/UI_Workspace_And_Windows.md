@@ -498,6 +498,9 @@ same native actions. Review only permits exact current-run selection for a new
 request; prompts are user-request content, not system guidance, parameters or
 execution authority. Profile/skill/agent editing and the full Definitions
 surface remain separately gated. See [native editor](../docs/instruction-editor.md).
+**Disable reviewed use** and exact `instructions` / `prompts` `disable` or `stop-use` focus one separate native confirmation for the clean inspected native v1 owned source/kind/digest/revision.
+The durable hold withdraws all new selections without writing/deleting the source, preserves inspection/editing and already captured reasoning, and retires pending unadmitted choices without replay. Dirty drafts remain intact with an explicit Save/Reload prerequisite.
+Cancellation/stale review and failed audit/preference readback never invent completion or restore enablement. No-change reload/restart/restored bytes cannot re-enable use; fresh exact review is required. Profile-original editing and installed/accessibility qualification stay open.
 
 The Skills surface lists source-qualified skills and revisions without reading
 arbitrary profile paths. Selecting a revision shows host-resolved identity,

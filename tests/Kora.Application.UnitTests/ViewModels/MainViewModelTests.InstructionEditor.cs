@@ -3,6 +3,7 @@
 using Kora.Core.Communication;
 using Kora.Core.Artifacts;
 using Kora.Core.Dependencies;
+using Kora.Core.Commands;
 
 namespace Kora.Application.UnitTests.ViewModels;
 
@@ -22,6 +23,8 @@ public sealed partial class MainViewModelTests
     [InlineData("instructions cancel", "Cancel", null)]
     [InlineData("instructions delete", "Delete", null)]
     [InlineData("instructions activate", "Review use", null)]
+    [InlineData("instructions disable", "Disable reviewed use", null)]
+    [InlineData("Kora, instructions stop-use", "Disable reviewed use", null)]
     [InlineData("prompts editor", "List", null)]
     [InlineData("prompts list", "List", null)]
     [InlineData("prompts create example", "Create", "example")]
@@ -35,6 +38,8 @@ public sealed partial class MainViewModelTests
     [InlineData("prompts cancel", "Cancel", null)]
     [InlineData("prompts delete", "Delete", null)]
     [InlineData("prompts activate", "Review use", null)]
+    [InlineData("prompts disable", "Disable reviewed use", null)]
+    [InlineData("Kora, prompts stop-use", "Disable reviewed use", null)]
     public async Task InstructionCommandsReachTheSameNativeActionsWithoutInferenceOrContentHistory(string text, string expected, string? name)
     {
         var f = await Fixture.CreateInitializedAsync();
@@ -61,11 +66,15 @@ public sealed partial class MainViewModelTests
         await f.RunAsync("instructions create example extra body");
         await f.RunAsync("instructions save example");
         await f.RunAsync("instructions unknown");
+        await f.RunAsync("instructions disable example");
+        await f.RunAsync("instructions stop-use extra");
         await f.RunAsync("prompts save");
         await f.RunAsync("prompts create");
         await f.RunAsync("prompts create example extra body");
         await f.RunAsync("prompts save example");
         await f.RunAsync("prompts unknown");
+        await f.RunAsync("prompts disable example");
+        await f.RunAsync("prompts stop-use extra");
         f.Reasoner.Requests.Should().BeEmpty();
         var asked = 0;
         f.ViewModel.BindInstructionEditorShutdown(() => { asked++; return Task.FromResult(false); });
@@ -76,6 +85,73 @@ public sealed partial class MainViewModelTests
         f.ViewModel.BindOwnedInstructionFreshness(null);
         await f.ViewModel.ExitAsync();
         f.ViewModel.BindInstructionEditorShutdown(null);
+    }
+
+    [Theory]
+    [InlineData(ArtifactKind.Instruction)]
+    [InlineData(ArtifactKind.Prompt)]
+    public async Task ExplicitUseDisablePreservesCapturedReasoningButRetiresNewCommandsAndPendingQuestions(ArtifactKind kind)
+    {
+        var f = new Fixture();
+        f.Probe.Status = new("local.inference", "Local model", DependencyReadiness.Ready, "ready");
+        f.Reasoner.Gate = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        await f.ViewModel.InitializeAsync();
+        var artifact = ArtifactFileDocument.Parse(ArtifactFileDocument.Encode(
+            "---\nkora-format: 1\nname: example\ndescription: Test\n---\nCaptured immutable content", false),
+            kind, "kora-profile", "example").Definition;
+        f.ArtifactCatalogue.Publish([artifact]);
+        f.ViewModel.BindOwnedInstructionFreshness(_ => Task.FromResult(true));
+        await f.RunAsync("/" + kind.ToString().ToLowerInvariant() + " example");
+        var reasoning = f.ViewModel.ActiveReasoningTask!;
+        f.Reasoner.LastArtifact!.Instructions.Should().Be(artifact.Content);
+        f.ArtifactCatalogue.Update(items => items.Select(item =>
+            item with { IsUseEnabled = false, PreservesCapturedUse = true }).ToArray());
+        f.ViewModel.CommandText = "/";
+        f.ViewModel.ArtifactCommandOptions.Should().BeEmpty();
+        f.Reasoner.Gate.SetResult("Finished with captured content");
+        await reasoning;
+        f.ViewModel.ResponseBody.Should().Contain("Finished with captured content");
+        f.Reasoner.Requests.Should().ContainSingle();
+        await f.RunAsync("/" + kind.ToString().ToLowerInvariant() + " example");
+        f.Reasoner.Requests.Should().ContainSingle();
+        f.ArtifactCatalogue.Publish([artifact]);
+        f.Reasoner.Gate = null;
+        f.Reasoner.Question = new("Which target?", ["One", "Two"]);
+        await f.RunAsync("/" + kind.ToString().ToLowerInvariant() + " example");
+        await f.ViewModel.ActiveReasoningTask!;
+        var choice = f.ViewModel.ModelQuestionChoices[0];
+        f.ArtifactCatalogue.Publish([artifact with { IsUseEnabled = false, PreservesCapturedUse = true }]);
+        f.ViewModel.IsModelQuestionPending.Should().BeFalse();
+        await f.ViewModel.SelectModelQuestionChoiceAsync(choice);
+        f.Reasoner.Requests.Should().HaveCount(2);
+    }
+
+    [Theory]
+    [InlineData("question")]
+    [InlineData("action")]
+    public async Task DisableWhileReasoningCannotPublishANewUnadmittedChoice(string response)
+    {
+        var f = new Fixture();
+        f.Probe.Status = new("local.inference", "Local model", DependencyReadiness.Ready, "ready");
+        f.Reasoner.DecisionGate = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        if (response is "question") { f.Reasoner.Question = new("Which target?", ["One", "Two"]); }
+        else { f.Reasoner.Action = BuiltInAction.LockMachine; }
+        await f.ViewModel.InitializeAsync();
+        var artifact = ArtifactFileDocument.Parse(ArtifactFileDocument.Encode(
+            "---\nkora-format: 1\nname: example\ndescription: Test\n---\nCaptured content", false),
+            ArtifactKind.Instruction, "kora-profile", "example").Definition;
+        f.ArtifactCatalogue.Publish([artifact]);
+        f.ViewModel.BindOwnedInstructionFreshness(_ => Task.FromResult(true));
+        await f.RunAsync("/instruction example");
+        var reasoning = f.ViewModel.ActiveReasoningTask!;
+        f.ArtifactCatalogue.Publish([artifact with { IsUseEnabled = false, PreservesCapturedUse = true }]);
+        f.Reasoner.DecisionGate.SetResult();
+        await reasoning;
+        f.ViewModel.IsModelQuestionPending.Should().BeFalse();
+        f.ViewModel.IsModelActionApprovalPending.Should().BeFalse();
+        f.ViewModel.ResponseTitle.Should().Be("Artifact use disabled.");
+        f.Session.LockCalls.Should().Be(0);
+        f.Reasoner.Requests.Should().ContainSingle();
     }
 
     [Fact]

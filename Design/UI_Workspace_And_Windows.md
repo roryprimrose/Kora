@@ -19,6 +19,10 @@ Security controls constrain these workflows; they are not a substitute for desig
 Voice-only, UI-only, and mixed operation use the same services and retained state, subject to explicit call-origin/secure-workflow exceptions.
 Every session/task/question/artifact control names its actual target; ambient animation, window focus, and selected session never supply execution authority.
 
+The shared local-file inspection window provides native-only [current-source literal Find](File_And_Folder_Ingestion.md#delivered-native-current-source-literal-find---2026-10-12). First/Next/Previous focus one inert exact match in that private window, never activate another window or retarget session/work/question/voice authority.
+
+Captured-folder selection and citation navigation clear the old Find subject/query. Retained Done files stay historical and passively revalidated.
+
 ### Exact selected-session provider review
 
 **Sessions > Selected-session provider overrides** exposes saved sparse service/model/reasoning/context, inherited app fields and separately effective resolved/unavailable state with current catalogue/account provenance. Refresh/review and separate confirmation bind the exact selected session ID, generation/policy revision, private control and selection epoch; stale/hide/close changes never save or retarget.

@@ -384,6 +384,10 @@ folder attachment is added. Durable single-file attachments have separate
 consent. See [native file workflow](windows-and-tray.md#native-local-file-inspection)
 and [privacy](privacy-safety-and-logs.md#local-file-inspection).
 
+**Literal Find is native-only**, not a typed/PTT command or model tool. In the inspected original file use **Find first / Find next / Find previous / Clear literal Find**. Exact case/spaces/punctuation, nonoverlapping steps and no wrap apply; only one match is disclosed. Existing inspect/search phrases still focus ranked inspection, without accepting a query or selecting a new file.
+
+See [native Find](windows-and-tray.md#find-a-literal-in-the-currently-inspected-original-file). Shared 256 UTF-16 / 512 strict UTF-8 bounds apply without lexical token rules; unsafe controls, malformed Unicode or empty input reject. Retained Find revalidates the stored original, never its filesystem path. Queries remain native-only, not transcripts/history/model/log/clipboard data.
+
 ## SQLite diagnostic retention
 
 Native **Settings > Logging** and exact typed/current-name ACTIVATED commands

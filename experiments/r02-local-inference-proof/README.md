@@ -690,6 +690,20 @@ history without explicit approval.
 
 ## Outstanding Testing Checklist
 
+### Candidate Disposition and Future Qualification
+
+The evaluated Ollama 0.35.1/qwen3:1.7b candidate is **rejected by automated
+quality gates**. The Ollama 0.40.2 comparison is also rejected. Human scoring,
+reference-floor timing, offline capture and integrated repetition cannot turn
+either failed candidate into an accepted one and are not remaining work.
+This experiment is signed off for its decision purpose: do not enable either
+candidate.
+
+The material below is retained as a reusable qualification plan only for a
+materially changed runtime/model/profile that is actually proposed for
+enablement. It does not block provider-neutral contracts, UI, orchestration,
+replacement-candidate work or unrelated feature development.
+
 The [shared deferred-validation register](../../Design/Deferred_Validation.md)
 is the entry point when the operator returns to an interactive session.
 The rows below implement the [R02-L1-L6 handoff](../../Design/Implementation_Roadmap.md#r02-local-inference-continuation);
@@ -762,17 +776,17 @@ if ($LASTEXITCODE -ne 0) { throw 'Deterministic proof checks failed.' }
   shortcut. LI07 needs the later instrumented host and R03/R09 privacy controls;
   no standalone result substitutes for UI-open/voice acceptance.
 
-### Deferred Inference Trials
+### Future-Candidate Inference Trials
 
 | ID / gate | Current status | Required procedure and completion evidence |
 |---|---|---|
-| LI01 - Environment, floor and budgets / R02-L1, D-007 | Not selected/approved; development inventory is not qualification | Name supported reference and isolation environments and operators. Record exact CPU/8-logical-core/16-GiB/SSD floor, power/OS, contention and CPU-only verification plan; agree numerical latency/resource/cancellation budgets. A faster development host or constrained VM alone is not physical-floor proof. Obtain the row's provisioning/residency/isolation approvals, not blanket consent for every proof. |
-| LI02 - Installed baseline and storage/licences / R02-L2 | Partial: production setup installed and reinstalled exact Ollama 0.35.1 / pinned qwen3:1.7b and verified its digest; installer, storage-volume/staging and full notice evidence remain open | Under separate provisioning consent, reuse or acquire only exact Ollama 0.35.1 / pinned qwen3:1.7b. Verify installed executable/weight identities, licence/native notices, actual runtime/model locations, transfer and expanded/peak staging/free-space requirements per volume. `Record-Machine.ps1`, endpoint metadata and separately approved storage observations supply receipts; published hashes and the 2 GB model guard alone do not pass. |
-| LI03 - Actual CPU-floor answer quality/performance / R02-L3, D-003/D-007 | Partial integrated feasibility: simple and long real answers passed after disabling hidden thinking; no reference-floor rubric or budgets were measured | With LI01/LI02 satisfied and exclusive-runtime approval, run the [measurement command](#provisioned-exclusive-cpu-only-performance-run) into new evidence with at least 30 cold + 30 paired warm trials. Retain CPU-only residency, raw timings/counters/process resources and separate production-default results. Human-score every answer against fixed fixtures/rubric; compare individual failures and p50/p95/max to pre-agreed budgets. Label standalone/UI contention limits; LI07 owns integrated acceptance. |
-| LI04 - Effective context and output budgets / R02-L3 | Partial: a long request exposed hidden-thinking output exhaustion and production now uses `think: false`; advertised context and full prompt/output budgets remain unproven | Inspect current context/overflow trials and extend bounded instrumentation where needed to count the full prompt/system/catalogue/output/thinking envelope and detect truncation. Prove selected-context retention and explicit oversize behavior at the production boundary; capture options, token counts, marker results and output limits. A successful large standalone request does not increase the production cap or prove the entire advertised window. |
-| LI05 - Cancellation, timeout, races and recovery / R02-L3 | Partial: visible production cancellation stopped active model/speech work, rejected stale completion and preserved responsiveness; repeated race timing and server computation cessation remain uninstrumented | Use scheduled streaming/production cancellation and recovery as a starting fixture, then prepare repeated completion/cancel race and actual-timeout tests with server/runner observations. Record cancellation timing, computation cessation or bounded residual work, rejected late outputs, recovery quality and explicit terminal states. The single bounded UI cancellation, residency metadata or simulated internal timeout alone does not pass. Stop only owned test resources; never kill unrelated Ollama instances. |
-| LI06 - Independent offline success and unavailable behavior / R02-L4 | Blocked: no approved isolation/capture or successful real answer | Follow the [approved offline procedure](#approved-network-blocked-proof-procedure). Keep whole-environment IPv4/IPv6/proxy/NAT denial active for successful synthetic answering, cancellation/recovery and missing/unhealthy/missing-model/changed-digest/timeout fixtures. Retain controls, interval and independent process-correlated egress evidence for proof/host and Ollama/runner, plus positive controls for working loopback/local inference. Unload/stop only owned resources; prepare an owned bounded fault fixture where needed. No asset acquisition, metadata fetch or remote fallback during the interval. |
-| LI07 - Disposition and integrated-host repeat / R02-L5/L6, R06/R07/R08/R10/R19 | Partial production-host repeat: setup, readiness, simple/long answers and visible cancellation passed; qualification, offline, clipboard/tool and complete instrumented host acceptance remain blocked | After applicable LI01-LI06 pass, record owner-reviewed candidate/compatibility/context/resource/hardware disposition and reconsideration triggers. Carry it into R06/R07/R08/R10, then repeat relevant synthetic workflow/privacy/oversize/streaming/cancellation/offline trials on the actual admitted host with safe UI/service contention and R03/R09 controls. Clipboard/voice/UI acceptance needs later separately consented instrumentation; do not modify this harness to read the clipboard or dispatch tools. Close D-003/D-007/A2 only on the required reviewed evidence, not the experiment's merge. |
+| LI01 - Environment, floor and budgets / R02-L1, D-007 | Closed for rejected candidates; define only for a future enablement candidate | Name supported reference and isolation environments and operators. Record exact CPU/8-logical-core/16-GiB/SSD floor, power/OS, contention and CPU-only verification plan; agree numerical latency/resource/cancellation budgets. |
+| LI02 - Installed baseline and storage/licences / R02-L2 | Closed for rejected candidates; production pins remain historical inputs, not qualification work | For a future candidate, verify installed executable/weight identities, licence/native notices, actual runtime/model locations and staging/free-space requirements per volume. |
+| LI03 - Actual CPU-floor answer quality/performance / R02-L3, D-003/D-007 | Rejected: automated quality gates failed; no human review required | A future candidate must run at least 30 cold + 30 paired warm trials and pass automated gates before human semantic qualification is requested. |
+| LI04 - Effective context and output budgets / R02-L3 | Production request/response boundaries are maintained; wider runtime context is not applicable to rejected candidates | For a future candidate, prove selected-context retention and explicit oversize behavior at the production boundary; capture options, token counts, marker results and output limits. |
+| LI05 - Cancellation, timeout, races and recovery / R02-L3 | Production cancellation/timeout boundaries are maintained; physical server cessation is future enablement evidence | For a future candidate, repeat completion/cancel races with server observations and record bounded residual work, rejected late outputs, recovery quality and terminal states. |
+| LI06 - Independent offline success and unavailable behavior / R02-L4 | Not applicable to rejected candidates; required only before an offline profile is enabled | For a future candidate, follow the [approved offline procedure](#approved-network-blocked-proof-procedure) with independent process-correlated egress evidence and positive loopback controls. |
+| LI07 - Disposition and integrated-host repeat / R02-L5/L6, R06/R07/R08/R10/R19 | Complete for current candidates: rejected and unavailable | For a future candidate that passes LI01-LI06, record owner-reviewed disposition and repeat only the applicable integrated trials before enablement. |
 
 ### Evidence and Completion
 

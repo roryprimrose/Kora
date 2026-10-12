@@ -10,41 +10,27 @@ that case. The harness records observations; it does not supply missing
 instrumentation, consent, ownership, isolation, privilege, or production-host
 behavior.
 
-## Prepared cases
+## Active cases
 
-| ID | Proof area | Why it can run outside Kora |
-|---|---|---|
-| LI03 | Local-inference quality | The harness generates guarded standalone evidence and human semantic review remains required by the acceptance rubric. |
-| STX86 | x86 SQLCipher loading | The harness verifies and invokes the exact retained x86 native asset in the installed 32-bit Windows host; no Kora process or production data is used. |
+There are no active manual proof cases. The evaluated local-inference
+candidates are rejected, the x86 SQLCipher load was a one-time historical
+diagnostic, and the remaining environment observations are release/profile
+qualification rather than a manual development queue. Persisted historical
+attempts and evidence remain readable.
 
 ## Automation boundary
 
-Every active case automatically records the source revision, OS, framework,
-process architecture and processor count. LI03 verifies the approved official
-Ollama 0.35.1 portable archive, extracts it without installation, verifies and
-hard-links the production-pinned model blobs into an isolated model store, and
-starts an owned runtime on `127.0.0.1:11435`. The shared runtime on port 11434
-is checked before and after the run and is never selected for model residency
-changes. The harness records the isolated PID and creation time, builds without
-restore, runs deterministic checks, generates 30 cold/warm trials plus
-cancellation/recovery evidence, verifies selected-model cleanup, stops only the
-owned isolated process, and verifies that port 11435 closes. It then runs
-offline factual assessment, deduplicates byte-identical answers and opens a
-local HTML review sheet. Timing and resource distributions are observations;
-the harness does not invent product budgets.
+Historic cases recorded the source revision, OS, framework, process architecture
+and processor count. LI03 verified the approved official Ollama 0.35.1 portable
+archive, ran an owned isolated runtime on `127.0.0.1:11435`, generated
+cold/warm and cancellation/recovery evidence, verified cleanup, and retained
+automated dispositions. Timing and resource distributions were observations;
+the harness did not invent product budgets.
 
 If automated quality, state or CPU-only checks fail, the harness writes an
 automated rejection disposition and stops. Human scoring is unnecessary to
 reject that run. The HTML semantic review is generated only after all automated
 gates pass; it remains necessary to qualify, not to reject, a candidate.
-
-STX86 is automation-only. It revalidates the retained asset receipt, SHA-256
-and x86 PE machine, runs the exact DLL in 32-bit Windows PowerShell, confirms
-the loaded module path and process bitness, and requires successful SQLite
-open, SQLCipher key, schema/data statement and close calls. It records pre/post
-asset hashes and a machine-readable receipt. This closes native-load evidence
-for that asset on the current machine only; it does not establish full x86 Kora
-startup, installer or clean-machine readiness.
 
 The earlier UX01 result remains in the persistent result file as historical
 evidence, but UX01 is retired from the active catalog because generic framework
@@ -53,6 +39,10 @@ machine-verifiable. SP01/SP02 are removed until a reviewed standalone live-audio
 host exists. PK01 is removed until an exact installer artifact, disposable lab,
 scope and rollback plan are nominated. These cases must not ask for operator
 time while they are blocked, vague or automatable.
+
+LI03 is retired because the pinned and comparison candidates failed automated
+gates; no human scoring is needed. STX86 is retired because repeating native
+loader/toolchain behavior does not reduce a current Kora implementation risk.
 
 ## Excluded production-only gates
 

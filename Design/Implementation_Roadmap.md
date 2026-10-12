@@ -277,18 +277,21 @@ Exact-session single-field model/reasoning/context UX now derives and reviews th
 App profiles now support bounded individual exact model/reasoning/context review with separate native/typed/current-name activated confirmation through the same complete-tuple writer. Missing/incompatible dependents require complete draft/save; app default, other services and session overrides are retained. Production catalogues remain unavailable and hosted authentication/adapter/egress qualification gates stay closed.
 Deterministic exact tuple/configuration and subsequent-turn tests are not assertion-equivalent to SDK-native RT1 bytes, RT2 lifecycle/egress, PV1 account, local-quality/offline or native/hardware procedures. Runtime preparation consumers and all unique proof/receipt assets remain retained; no experiment or release qualification is removed.
 
-Experiments are opt-in evidence, not default-CI suites or production contracts.
+Experiments are opt-in evidence, not production contracts or open-ended
+implementation prerequisites. Deterministic self-tests may run in CI, but
+physical/lab qualification runs only when a materially changed capability is
+being considered for enablement.
 This documentation consolidation archives narratives only; **no experiment
 executable or historical evidence is deleted, modified or relabelled**.
 
 | Harness | Disposition | Rerun or retirement boundary |
 |---|---|---|
-| [Local inference](../experiments/r02-local-inference-proof/README.md) | Retain actual quality, CPU-floor/context/resources, server cessation and independent offline trials | Offered or materially changed inference profiles; migrate reusable deterministic cases, not unique physical/offline proof |
-| [Containment](../experiments/r02-containment-proof/README.md) | Retain actual token/ACL/child/network/lifetime enforcement | Enabled/changed worker profiles with separate lab approval; timeouts are not denial |
+| [Local inference](../experiments/r02-local-inference-proof/README.md) | Current pinned and comparison candidates rejected; retain evidence and deterministic boundary tests | Reopen physical/offline qualification only for a materially changed candidate intended for enablement |
+| [Containment](../experiments/r02-containment-proof/README.md) | ACL/no-child/unrestricted-script approaches rejected; retain evidence to constrain the typed broker/admitted-worker replacement | Implement the replacement now; reopen lab qualification only before exposing its consequential worker profile |
 | [Speech](../experiments/r02-speech-proof/README.md) | Retain physical acoustics, playback rejection and packaged capture/privacy timing | Affected speech/wake/provider/device profiles, not unrelated preferences |
 | [Node runtime](../experiments/r02-runtime-proof/README.md) | Migrate all-status mediation, denial/cancellation/serialization assertions; retain rejected hook-only witnesses | Archive executable only after exact maintained equivalence and explicit candidate disposition; Node never qualifies .NET |
 | [RT2 lifecycle](../experiments/r02-runtime-lifecycle-proof/README.md) | Migrate lifecycle/loss/quiescence cases; retain native procedures and observer limitations | Required native coverage must be maintained or unsupported profile explicitly excluded |
-| [Storage](../experiments/r02-storage-proof/README.md) | Migrate applicable standard-SQLite recovery/migration/capacity/retention/copy cases | Partial equivalence does not retire shared crypto/native consumers; superseded crypto is historical unless R30 is pursued |
+| [Storage](../experiments/r02-storage-proof/README.md) | Maintained standard-SQLite recovery/retention tests own current development; superseded SQLCipher/x86 work is historical | Reopen native/encryption qualification only if R30 is pursued; installed/durability evidence gates release claims, not R04/R12 implementation |
 | [RT1 control](../experiments/r02-dotnet-control-proof/README.md) | Migrate exact-profile final-request, all-status, denial and cancellation cases | Exact production equivalents and failure witnesses required; changed bytes/mechanisms repeat affected evidence |
 | [MG1 management](../experiments/r02-dotnet-management-proof/README.md) | Migrate envelope, independent admission, no-retry and Unknown/quarantine cases | Exact equivalents required; account/cost/native gaps remain E/Q, not local-core dependencies |
 | [Distribution](../experiments/r02-distribution-proof/README.md) | Retain historical receipts; superseded executables already retired | Reopen only on mechanism changes; old NSIS evidence never qualifies WiX |

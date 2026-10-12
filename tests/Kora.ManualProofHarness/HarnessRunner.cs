@@ -14,6 +14,12 @@ internal sealed class HarnessRunner(
         output.WriteLine("This is not the Kora application. Safe case setup is automated after START; consent-bound actions remain manual.");
         output.WriteLine($"Results are saved after every response to: {store.Path}");
 
+        if (cases.Count == 0)
+        {
+            output.WriteLine("No active manual proof cases remain. Historical results are retained.");
+            return;
+        }
+
         if (!string.IsNullOrWhiteSpace(automateProofId))
         {
             var proof = cases.SingleOrDefault(item =>

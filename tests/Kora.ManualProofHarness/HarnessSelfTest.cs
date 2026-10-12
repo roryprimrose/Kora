@@ -11,7 +11,6 @@ internal static class HarnessSelfTest
             var store = new ResultStore(path);
             var results = store.Load();
             Assert(results.Attempts.Count == 0, "A missing result file must load as an empty document.");
-            Assert(ProofCatalog.Cases.Count > 0, "The proof catalog must not be empty.");
             Assert(ProofCatalog.Cases.Select(item => item.Id).Distinct(StringComparer.Ordinal).Count() == ProofCatalog.Cases.Count,
                 "Proof IDs must be unique.");
             Assert(ProofCatalog.Cases.Where(item => !item.AutomationOnly)
@@ -25,7 +24,7 @@ internal static class HarnessSelfTest
             results.Attempts.Add(new()
             {
                 AttemptId = Guid.NewGuid(),
-                ProofId = ProofCatalog.Cases[0].Id,
+                ProofId = "HISTORICAL",
                 StartedAt = now,
                 UpdatedAt = now,
                 Outcome = AttemptOutcome.InProgress,

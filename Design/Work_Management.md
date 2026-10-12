@@ -490,6 +490,8 @@ Task action approvals are obtained at the relevant execution point and are never
 
 ## Interaction and Recovery
 
+Native question terminal state and completion now share a [private publication boundary](Interaction_Fallback.md#synchronized-native-terminal-publication---2026-10-12). Concurrent original/external committed-cancellation channels retain the actual Cancelled receipt; an earlier genuine withdrawal or failure still wins. Later privacy/source closure clears presentation without relabelling committed work or granting dispatch authority.
+
 Management status uses the same visual/TTS presenter but has its own response identity.
 An explicit status question takes speech priority; task execution continues and its visual progress remains visible.
 Call-aware policy still gates that speech; priority does not bypass suppression or a separate prompt's approval identity.

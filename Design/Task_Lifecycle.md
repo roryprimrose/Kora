@@ -117,6 +117,8 @@ certify termination. Restart recovers incomplete work without replay or
 reactivating previous-run waits. No general queue, worker termination,
 task deletion or runtime management follows from this exception.
 
+The [native terminal publication boundary](Interaction_Fallback.md#synchronized-native-terminal-publication---2026-10-12) synchronizes closed state with its receipt across cancellation, decisions, denial and failure. An original continuation cannot report Denied after committed cancellation won publication; earlier withdrawal remains fail-closed. Later clearing still invalidates answer dispatch eligibility and never establishes physical termination.
+
 ## Wake Listening and Command Capture
 
 Voice states are Muted, Wake Listening, Awaiting Conversational Reply,

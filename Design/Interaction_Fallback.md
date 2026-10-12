@@ -36,6 +36,16 @@ An owned finite deadline and passive current-wait monitor survive absence of a w
 
 After restart or original completion, recovery is **Unavailable**: inspect retained read-only status and start a fresh request. Intent-only unfinished work recovers as Interrupted; a dispatched uncertain outcome remains Unknown. No old task is replayed, Done resumed or historical question promoted to controls. General questions, exact approvals, provider handoff, forms and prefix-free voice remain separate and unqualified by this increment.
 
+### Synchronized native terminal publication - 2026-10-12
+
+The [native view model](../src/Kora/NativeQuestionViewModel.cs) publishes terminal state and its completion receipt under one private synchronization boundary. The external committed-cancellation relay and the original Cancel continuation cannot expose closed state with an undecided receipt, then replace actual atomic cancellation with presentation denial.
+
+The first terminal publication remains authoritative for that original await. Earlier privacy/source/ownership closure remains Denied; an earlier failure preserves its exception. Later closure still withdraws and clears private controls, unsaved answers and review even after Answered or Cancelled. The host's actual pre-dispatch answer/source/privacy checks are unchanged; a completed answer never exempts it from withdrawal.
+
+No gate, database I/O, logger or notification callback runs under that boundary. Late draft/review/restore results cannot restore cleared private text after terminal withdrawal; dismissal during a pending restore also invalidates that presentation result. The store remains the only task/question/audit authority. No deadline, registration, approval, replay or cancellation permission is added.
+
+[Maintained recovery regressions](../tests/Kora.Windows.IntegrationTests/NativeQuestionRecoveryTests.cs) coordinate the real private-SQLite cancellation notification and original continuation while an existing PropertyChanged callback is blocked. They check the Cancelled store/receipt/original-query outcome, no dispatch, one control receipt/audit, notification-off-lock withdrawal, close/failure-first precedence, foreign revision/generation refusal and stale restore dismissal. These are deterministic contract tests, not installed-native, physical-storage or worker-stop qualification.
+
 The host creates one Active durable session for the existing harmless query,
 publishes a fresh ordinary-question policy snapshot with no exact proposal and
 mandatory-effect gates closed, and presents a five-minute question under the

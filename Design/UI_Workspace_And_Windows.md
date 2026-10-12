@@ -228,6 +228,8 @@ The original five-minute expiry continues without a window; return extends neith
 
 After restart, retained metadata is read-only **Unavailable** recovery with a fresh-request instruction, never old-task rehydration. No general question/approval composer or installed-native qualification is claimed.
 
+The [synchronized terminal boundary](Interaction_Fallback.md#synchronized-native-terminal-publication---2026-10-12) keeps committed cancellation and original completion coherent without holding notifications under a lock. Later withdrawal still clears private controls after a receipt; late restore cannot undo withdrawal or a newer dismissal. Existing five-minute expiry, exact approval review and pre-dispatch privacy/source checks are unchanged.
+
 Tray **Review local version (native question)** opens one owned, non-topmost
 window for the original durable local-version request. Opening another while
 it is pending activates that same target, not the foreground session. The

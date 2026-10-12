@@ -23,6 +23,8 @@ internal sealed partial class NativeQuestionViewModel : ObservableObject
     private readonly ActivityLink[] links;
     private readonly Func<HostQuestionKey, Task<HostInteractionDecision>>? cancel;
     private readonly bool dismissible;
+    // Terminal state and its receipt share one boundary. No I/O, gates or notifications run under it.
+    private readonly Lock stateGate = new();
     private readonly TaskCompletionSource<HostInteractionDecision> completion = new(TaskCreationOptions.RunContinuationsAsynchronously);
     private HostQuestionRecord question;
     private HostQuestionKey? reviewedKey;
@@ -31,6 +33,7 @@ internal sealed partial class NativeQuestionViewModel : ObservableObject
     private bool closed;
     private bool cleared;
     private bool withdrawn;
+    private long presentationRevision;
     private string status = "Choose an answer. Editing is local; Save draft and Submit are explicit.";
     private string reviewText = string.Empty;
     private QuestionAnswer answer;
@@ -53,20 +56,44 @@ internal sealed partial class NativeQuestionViewModel : ObservableObject
         answer = question.Draft ?? EmptyAnswer();
     }
 
-    internal HostQuestionRecord Question => question;
-    internal HostQuestionKey Key => question.Key;
-    internal QuestionAnswer Answer => answer;
-    internal string Status => status;
-    internal string ReviewText => reviewText;
-    internal bool HasPresentation => !cleared;
-    internal bool HasPendingOperation => busy;
-    internal bool IsWithdrawn => withdrawn;
-    internal bool IsApproval => question.Proposal is not null;
-    internal bool IsEditable => !closed && !cleared && !busy && question.Status == QuestionStatus.Pending
-        && question.ExpiresAt > time.GetUtcNow() && canInteract();
-    internal bool CanSubmit => IsEditable && question.Spec.Accepts(answer, submitting: true)
-        && (!IsApproval || (reviewedKey == Key && displayedReviewKey == Key));
-    internal bool CanSaveDraft => IsEditable && question.Spec.Accepts(answer, submitting: false);
+    internal HostQuestionRecord Question { get { lock (stateGate) { return question; } } }
+    internal HostQuestionKey Key { get { lock (stateGate) { return question.Key; } } }
+    internal QuestionAnswer Answer { get { lock (stateGate) { return answer; } } }
+    internal string Status { get { lock (stateGate) { return status; } } }
+    internal string ReviewText { get { lock (stateGate) { return reviewText; } } }
+    internal bool HasPresentation { get { lock (stateGate) { return !cleared; } } }
+    internal bool HasPendingOperation { get { lock (stateGate) { return busy; } } }
+    internal bool IsWithdrawn { get { lock (stateGate) { return withdrawn; } } }
+    internal bool IsApproval { get { lock (stateGate) { return question.Proposal is not null; } } }
+    internal bool IsEditable
+    {
+        get
+        {
+            var eligible = canInteract();
+            var now = time.GetUtcNow();
+            lock (stateGate) { return eligible && IsEditableAt(now); }
+        }
+    }
+    internal bool CanSubmit
+    {
+        get
+        {
+            if (!IsEditable) { return false; }
+            lock (stateGate)
+            {
+                return !closed && !cleared && !busy && question.Spec.Accepts(answer, submitting: true)
+                    && (question.Proposal is null || (reviewedKey == question.Key && displayedReviewKey == question.Key));
+            }
+        }
+    }
+    internal bool CanSaveDraft
+    {
+        get
+        {
+            if (!IsEditable) { return false; }
+            lock (stateGate) { return !closed && !cleared && !busy && question.Spec.Accepts(answer, submitting: false); }
+        }
+    }
     internal Task<HostInteractionDecision> Completion => completion.Task;
 
     internal void Edit(QuestionAnswer value)
@@ -76,59 +103,98 @@ internal sealed partial class NativeQuestionViewModel : ObservableObject
             RefreshEligibility();
             return;
         }
-        answer = value;
-        status = question.Spec.Accepts(value, submitting: false)
-            ? "Unsubmitted local edit. Save draft or Submit explicitly."
-            : "Invalid answer: use the displayed choice and text bounds; nothing was shortened or saved.";
+        lock (stateGate)
+        {
+            if (closed || cleared || busy) { return; }
+            answer = value;
+            status = question.Spec.Accepts(value, submitting: false)
+                ? "Unsubmitted local edit. Save draft or Submit explicitly."
+                : "Invalid answer: use the displayed choice and text bounds; nothing was shortened or saved.";
+        }
         Notify();
     }
 
-    internal Task SaveDraftAsync() => DecideAsync(Key, () =>
-        questions.DraftAsync(Key, answer, RequestOrigin.LocalUi, CancellationToken.None));
+    internal Task SaveDraftAsync()
+    {
+        HostQuestionKey target;
+        QuestionAnswer value;
+        lock (stateGate) { target = question.Key; value = answer; }
+        return DecideAsync(target, () => questions.DraftAsync(target, value, RequestOrigin.LocalUi, CancellationToken.None));
+    }
 
     internal Task SubmitAsync()
     {
-        if (IsApproval && (reviewedKey != Key || displayedReviewKey != Key))
+        HostQuestionKey target;
+        QuestionAnswer value;
+        bool approval;
+        bool needsReview;
+        lock (stateGate)
         {
-            status = "Review the exact current operation before approval. Reading does not approve or use it.";
+            if (closed || cleared) { return Task.CompletedTask; }
+            target = question.Key;
+            value = answer;
+            approval = question.Proposal is not null;
+            needsReview = approval && (reviewedKey != target || displayedReviewKey != target);
+            if (needsReview) { status = "Review the exact current operation before approval. Reading does not approve or use it."; }
+        }
+        if (needsReview)
+        {
             Notify();
             return Task.CompletedTask;
         }
-        return DecideAsync(Key, () => IsApproval
-            ? authorization.ApproveAsync(Key, answer, RequestOrigin.LocalUi, CancellationToken.None)
-            : questions.SubmitAsync(Key, answer, RequestOrigin.LocalUi, CancellationToken.None));
+        return DecideAsync(target, () => approval
+            ? authorization.ApproveAsync(target, value, RequestOrigin.LocalUi, CancellationToken.None)
+            : questions.SubmitAsync(target, value, RequestOrigin.LocalUi, CancellationToken.None));
     }
 
-    internal Task CancelAsync() => DecideAsync(Key, () => cancel is null
-        ? questions.CancelAsync(Key, CancellationToken.None) : new(cancel(Key)));
+    internal Task CancelAsync()
+    {
+        var target = Key;
+        return DecideAsync(target, () => cancel is null
+            ? questions.CancelAsync(target, CancellationToken.None) : new(cancel(target)));
+    }
 
     internal void AcceptCommittedCancellation(HostTaskObservation observation)
     {
-        if (closed || !canInteract() || observation.Task.Request != Key.Request
-            || observation.Task.State != HostTaskState.Cancelled || observation.Question is not { } cancelled
-            || cancelled.Key.QuestionId != Key.QuestionId || cancelled.Status != QuestionStatus.Cancelled)
+        if (!canInteract()) { return; }
+        lock (stateGate)
         {
-            return;
+            if (closed || observation.Task.Request != question.Key.Request
+                || observation.Task.State != HostTaskState.Cancelled || observation.Question is not { } cancelled
+                || cancelled.Key != question.Key.Next() || cancelled.Status != QuestionStatus.Cancelled
+                || observation.Generation != question.SessionGeneration || cancelled.SessionGeneration != question.SessionGeneration)
+            {
+                return;
+            }
+            question = cancelled;
+            closed = true;
+            ClearAnswer();
+            status = "Exact task and question cancelled atomically before dispatch.";
+            completion.TrySetResult(new(HostInteractionOutcome.Cancelled, "pre-dispatch-work-cancelled", cancelled));
         }
-        question = cancelled;
-        closed = true;
-        answer = EmptyAnswer();
-        reviewText = string.Empty;
-        status = "Exact task and question cancelled atomically before dispatch.";
-        completion.TrySetResult(new(HostInteractionOutcome.Cancelled, "pre-dispatch-work-cancelled", cancelled));
         Notify();
     }
 
-    internal Task ReviewAsync() => DecideAsync(Key, () => reviews.ReviewAsync(Key, CancellationToken.None), reviewing: true);
+    internal Task ReviewAsync()
+    {
+        var target = Key;
+        return DecideAsync(target, () => reviews.ReviewAsync(target, CancellationToken.None), reviewing: true);
+    }
 
-    internal Task RefreshTargetAsync() =>
-        DecideAsync(Key, () => reviews.ReviewAsync(Key, CancellationToken.None), checking: true);
+    internal Task RefreshTargetAsync()
+    {
+        var target = Key;
+        return DecideAsync(target, () => reviews.ReviewAsync(target, CancellationToken.None), checking: true);
+    }
 
     internal void ReportOutcome(string message)
     {
         RefreshEligibility();
-        if (cleared) { return; }
-        status = message;
+        lock (stateGate)
+        {
+            if (cleared) { return; }
+            status = message;
+        }
         Notify();
     }
 
@@ -136,7 +202,11 @@ internal sealed partial class NativeQuestionViewModel : ObservableObject
         bool reviewing = false, bool checking = false)
     {
         if (!IsEditable) { RefreshEligibility(); return; }
-        busy = true;
+        lock (stateGate)
+        {
+            if (closed || cleared || busy || question.Key != target) { return; }
+            busy = true;
+        }
         Notify();
         using var activity = HostActivity.BeginRoot(target.Request, HostActivityLayer.Desktop, HostOperation.Presentation, links);
         try
@@ -147,40 +217,52 @@ internal sealed partial class NativeQuestionViewModel : ObservableObject
             {
                 throw new InvalidDataException("The host returned a foreign question; no presentation was retargeted.");
             }
-            if (!canInteract() || closed)
+            var eligible = canInteract();
+            var review = reviewing && decision.Outcome == HostInteractionOutcome.Presented
+                ? JsonSerializer.Serialize(decision.Question, ReviewFormat) : string.Empty;
+            bool interrupted;
+            lock (stateGate)
             {
-                Close("Interaction closed during the commit. No late result is presented or dispatched.");
+                interrupted = !eligible || closed;
+                if (interrupted)
+                {
+                    CloseState("Interaction closed during the commit. No late result is presented or dispatched.");
+                }
+                else
+                {
+                    status = decision.Reason;
+                    if ((reviewing || checking) && decision.Outcome == HostInteractionOutcome.Presented)
+                    {
+                        var exact = decision.Question ?? throw new InvalidDataException("The exact review has no question.");
+                        if (exact.Key != target || exact.Proposal != question.Proposal)
+                        {
+                            throw new InvalidDataException("The review no longer matches the immutable displayed target.");
+                        }
+                        if (reviewing)
+                        {
+                            reviewText = cleared ? string.Empty : review;
+                            reviewedKey = cleared ? null : target;
+                            displayedReviewKey = null;
+                            status = "Exact host record reviewed. Operation source bytes are not supplied by this contract. Review is not approval, use or execution.";
+                        }
+                    }
+                    else if (decision.Outcome == HostInteractionOutcome.Drafted)
+                    {
+                        question = decision.Question!;
+                        ClearAnswer();
+                        answer = cleared ? EmptyAnswer() : question.Draft!;
+                    }
+                    else
+                    {
+                        closed = true;
+                        completion.TrySetResult(decision);
+                    }
+                }
+            }
+            if (interrupted)
+            {
                 activity.Complete(HostOperationOutcome.Cancelled);
                 return;
-            }
-            status = decision.Reason;
-            if ((reviewing || checking) && decision.Outcome == HostInteractionOutcome.Presented)
-            {
-                var exact = decision.Question ?? throw new InvalidDataException("The exact review has no question.");
-                if (exact.Key != target || exact.Proposal != question.Proposal)
-                {
-                    throw new InvalidDataException("The review no longer matches the immutable displayed target.");
-                }
-                if (reviewing)
-                {
-                    reviewText = cleared ? string.Empty : JsonSerializer.Serialize(exact, ReviewFormat);
-                    reviewedKey = cleared ? null : target;
-                    displayedReviewKey = null;
-                    status = "Exact host record reviewed. Operation source bytes are not supplied by this contract. Review is not approval, use or execution.";
-                }
-            }
-            else if (decision.Outcome == HostInteractionOutcome.Drafted)
-            {
-                question = decision.Question!;
-                reviewedKey = null;
-                displayedReviewKey = null;
-                reviewText = string.Empty;
-                answer = cleared ? EmptyAnswer() : question.Draft!;
-            }
-            else
-            {
-                closed = true;
-                completion.TrySetResult(decision);
             }
             activity.Complete(decision.Outcome is HostInteractionOutcome.Denied or HostInteractionOutcome.Conflict or HostInteractionOutcome.Expired
                 ? HostOperationOutcome.Failed : HostOperationOutcome.Completed);
@@ -192,90 +274,117 @@ internal sealed partial class NativeQuestionViewModel : ObservableObject
         }
         finally
         {
-            busy = false;
+            lock (stateGate) { busy = false; }
             Notify();
         }
     }
 
     internal void RefreshEligibility()
     {
-        if (!canInteract() || (!closed && question.ExpiresAt <= time.GetUtcNow()))
+        var eligible = canInteract();
+        var now = time.GetUtcNow();
+        lock (stateGate)
         {
-            Close("Expired or privacy/ownership unavailable. Start a fresh host interaction; this target cannot be answered.");
+            if (!eligible || (!closed && question.ExpiresAt <= now))
+            {
+                CloseState("Expired or privacy/ownership unavailable. Start a fresh host interaction; this target cannot be answered.");
+            }
         }
-        else { Notify(); }
+        Notify();
     }
 
     internal void CompleteReviewPresentation(string exactDisplayedText)
     {
-        if (reviewedKey != Key || reviewText.Length == 0 || closed) { return; }
-        if (!string.Equals(exactDisplayedText, reviewText, StringComparison.Ordinal))
+        lock (stateGate)
         {
-            displayedReviewKey = null;
-            status = "Exact review could not be displayed completely. Approval remains disabled; no missing content is authorized.";
-            Notify();
+            if (reviewedKey != question.Key || reviewText.Length == 0 || closed) { return; }
+            if (!string.Equals(exactDisplayedText, reviewText, StringComparison.Ordinal))
+            {
+                displayedReviewKey = null;
+                status = "Exact review could not be displayed completely. Approval remains disabled; no missing content is authorized.";
+            }
+            else if (displayedReviewKey != question.Key) { displayedReviewKey = question.Key; }
+            else { return; }
         }
-        else if (displayedReviewKey != Key)
-        {
-            displayedReviewKey = Key;
-            Notify();
-        }
+        Notify();
     }
 
     internal void Close(string reason)
     {
+        lock (stateGate) { CloseState(reason); }
+        Notify();
+    }
+
+    private void CloseState(string reason)
+    {
+        // Withdrawal must still clear private presentation after an earlier terminal receipt.
         withdrawn = true;
         closed = true;
         cleared = true;
-        answer = EmptyAnswer();
-        reviewText = string.Empty;
-        reviewedKey = null;
-        displayedReviewKey = null;
+        presentationRevision++;
+        ClearAnswer();
         status = reason;
         completion.TrySetResult(new(HostInteractionOutcome.Denied, "native-presentation-closed"));
-        Notify();
     }
 
     internal void Dismiss()
     {
-        if (!dismissible || completion.Task.IsCompleted)
+        lock (stateGate)
         {
-            Close("Native presentation closed. No answer, approval or execution is implied by window closure.");
-            return;
+            if (!dismissible || closed)
+            {
+                CloseState("Native presentation closed. No answer, approval or execution is implied by window closure.");
+            }
+            else
+            {
+                cleared = true;
+                presentationRevision++;
+                ClearAnswer();
+                status = "Presentation dismissed. Return to the current question before its original expiry, or explicitly cancel it.";
+            }
         }
-        cleared = true;
-        answer = EmptyAnswer();
-        reviewText = string.Empty;
-        reviewedKey = null;
-        displayedReviewKey = null;
-        status = "Presentation dismissed. Return to the current question before its original expiry, or explicitly cancel it.";
         Notify();
     }
 
     internal async Task RestorePresentationAsync()
     {
-        if (!dismissible || closed || busy || !cleared) { return; }
         RefreshEligibility();
-        if (closed) { return; }
-        busy = true;
-        using var activity = HostActivity.BeginRoot(Key.Request, HostActivityLayer.Desktop, HostOperation.Presentation, links);
+        HostQuestionRecord target;
+        long revision;
+        lock (stateGate)
+        {
+            if (!dismissible || closed || busy || !cleared) { return; }
+            target = question;
+            revision = presentationRevision;
+            busy = true;
+        }
+        using var activity = HostActivity.BeginRoot(target.Key.Request, HostActivityLayer.Desktop, HostOperation.Presentation, links);
         try
         {
-            var decision = await reviews.ReviewAsync(Key, CancellationToken.None);
-            if (decision.Outcome != HostInteractionOutcome.Presented || decision.Question is not { } current
-                || current.Key != Key || current.SessionGeneration != question.SessionGeneration
-                || current.ExpiresAt != question.ExpiresAt || current.Proposal is not null
-                || completion.Task.IsCompleted || !canInteract() || current.ExpiresAt <= time.GetUtcNow())
+            var decision = await reviews.ReviewAsync(target.Key, CancellationToken.None);
+            var eligible = canInteract();
+            var now = time.GetUtcNow();
+            bool restored;
+            lock (stateGate)
             {
-                Close("Current question unavailable. Inspect retained status and start a fresh request; nothing was replayed.");
-                activity.Complete(HostOperationOutcome.Cancelled);
-                return;
+                restored = false;
+                if (decision.Outcome != HostInteractionOutcome.Presented || decision.Question is not { } current
+                    || current.Key != target.Key || current.SessionGeneration != target.SessionGeneration
+                    || current.ExpiresAt != target.ExpiresAt || current.Proposal is not null
+                    || closed || !eligible || current.ExpiresAt <= now)
+                {
+                    CloseState("Current question unavailable. Inspect retained status and start a fresh request; nothing was replayed.");
+                }
+                else if (revision == presentationRevision)
+                {
+                    question = current;
+                    answer = current.Draft ?? EmptyAnswer();
+                    cleared = false;
+                    status = "Original current-run question restored. Only a committed draft is restored; Submit and Cancel remain explicit.";
+                    restored = true;
+                }
             }
-            question = current;
-            answer = current.Draft ?? EmptyAnswer();
-            cleared = false;
-            status = "Original current-run question restored. Only a committed draft is restored; Submit and Cancel remain explicit.";
-            activity.Complete(HostOperationOutcome.Completed);
+            activity.Complete(restored ? HostOperationOutcome.Completed : HostOperationOutcome.Cancelled);
         }
         catch (Exception exception) when (exception is not OutOfMemoryException)
         {
@@ -284,20 +393,38 @@ internal sealed partial class NativeQuestionViewModel : ObservableObject
         }
         finally
         {
-            busy = false;
+            lock (stateGate) { busy = false; }
             Notify();
         }
     }
 
     internal void Fail(Exception exception)
     {
-        completion.TrySetException(exception);
-        Close("Interaction/storage/audit failed. No successful answer, approval or use is claimed. Inspect retained status and start a fresh request; uncertain work is not replayed.");
-        try { QuestionFailure(logger, Key.QuestionId.Value, Key.Revision.Value, exception.GetType().FullName); }
+        HostQuestionKey target;
+        lock (stateGate)
+        {
+            target = question.Key;
+            completion.TrySetException(exception);
+            CloseState("Interaction/storage/audit failed. No successful answer, approval or use is claimed. Inspect retained status and start a fresh request; uncertain work is not replayed.");
+        }
+        Notify();
+        try { QuestionFailure(logger, target.QuestionId.Value, target.Revision.Value, exception.GetType().FullName); }
         catch (Exception evidenceFailure) when (evidenceFailure is IOException or InvalidOperationException)
         {
-            status += " Diagnostic evidence is also unavailable.";
+            lock (stateGate) { status += " Diagnostic evidence is also unavailable."; }
+            Notify();
         }
+    }
+
+    private bool IsEditableAt(DateTimeOffset now) => !closed && !cleared && !busy
+        && question.Status == QuestionStatus.Pending && question.ExpiresAt > now;
+
+    private void ClearAnswer()
+    {
+        answer = EmptyAnswer();
+        reviewText = string.Empty;
+        reviewedKey = null;
+        displayedReviewKey = null;
     }
 
     private QuestionAnswer EmptyAnswer() => new([], question.Spec.Kind == QuestionKind.Text ? string.Empty : null);

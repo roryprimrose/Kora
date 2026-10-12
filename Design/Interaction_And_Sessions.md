@@ -426,6 +426,8 @@ foreign, expired or previous-run targets refuse. Late/disposed input cannot
 resume or dispatch. A possible committed outcome followed by receipt failure
 requires inspection, never a rollback claim or automatic retry.
 
+The [native presenter](Interaction_Fallback.md#synchronized-native-terminal-publication---2026-10-12) now publishes terminal state and completion together. The original and external cancellation channels retain the same committed receipt without overriding an earlier denial/failure. Private clearing remains mandatory after completion; session/task/question/revision/generation admission and the durable atomic cancellation/audit contract remain unchanged.
+
 Schema v3 consolidates the existing ordered task ledger into the private
 interaction partition, preserving identities/events, session generations,
 metadata, questions/grants and exact audit bytes. The fully validated legacy

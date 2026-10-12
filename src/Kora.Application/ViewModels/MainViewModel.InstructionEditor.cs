@@ -7,10 +7,13 @@ public sealed partial class MainViewModel
     public event Func<string, string?, Task>? OwnedInstructionEditorRequested;
     public event Func<string, string?, Task>? OwnedPromptEditorRequested;
     private Func<Task<bool>>? instructionEditorShutdown;
-    private Func<Kora.Core.Artifacts.ArtifactDefinition, Task<bool>>? ownedInstructionFreshness;
+    private Func<Kora.Core.Artifacts.ArtifactDefinition, CancellationToken, Task<bool>>? ownedInstructionFreshness;
 
     public void BindInstructionEditorShutdown(Func<Task<bool>>? shutdown) => instructionEditorShutdown = shutdown;
     public void BindOwnedInstructionFreshness(Func<Kora.Core.Artifacts.ArtifactDefinition, Task<bool>>? validator) =>
+        ownedInstructionFreshness = validator is null ? null : (candidate, _) => validator(candidate);
+    public void BindOwnedInstructionFreshnessWithCancellation(
+        Func<Kora.Core.Artifacts.ArtifactDefinition, CancellationToken, Task<bool>>? validator) =>
         ownedInstructionFreshness = validator;
 
     public Func<bool> CaptureInstructionEditorEligibility()

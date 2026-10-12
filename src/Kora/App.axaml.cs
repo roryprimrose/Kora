@@ -139,7 +139,7 @@ public sealed partial class App : Avalonia.Application
             viewModel.PrivacyClosureRequested += (_, _) =>
                 Services.GetRequiredKeyedService<Kora.Application.Definitions.OwnedInstructionEditorActions>(Kora.Core.Artifacts.ArtifactKind.Prompt)
                     .SuspendReviewedUse();
-            viewModel.BindOwnedInstructionFreshness(candidate =>
+            viewModel.BindOwnedInstructionFreshnessWithCancellation((candidate, token) =>
             {
                 var ownership = Services.GetRequiredService<DesktopInstanceOwnershipBridge>().AdmissionRevision;
                 var eligible = viewModel.CaptureInstructionEditorEligibility();
@@ -148,7 +148,7 @@ public sealed partial class App : Avalonia.Application
                     : Services.GetRequiredService<Kora.Application.Definitions.OwnedInstructionEditorActions>();
                 return actions
                     .IsCurrent(candidate, () => eligible()
-                        && Services.GetRequiredService<DesktopInstanceOwnershipBridge>().AdmissionRevision == ownership, CancellationToken.None);
+                        && Services.GetRequiredService<DesktopInstanceOwnershipBridge>().AdmissionRevision == ownership, token);
             });
             systemTray = new SystemTrayController(
                 viewModel,

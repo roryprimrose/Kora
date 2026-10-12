@@ -44,7 +44,8 @@ public sealed class PromptParameterWindowTests
             var actions = new OwnedInstructionEditorActions(store, admission, revisions, f.ArtifactCatalogue, f.Audit,
                 new(new()), ArtifactKind.Prompt);
             (await actions.Activate(saved, _ => Task.FromResult(true), () => true, f.Token)).Should().BeTrue();
-            f.Main.BindOwnedInstructionFreshness(candidate => actions.IsCurrent(candidate, f.Main.CaptureInstructionEditorEligibility(), f.Token));
+            f.Main.BindOwnedInstructionFreshnessWithCancellation((candidate, token) =>
+                actions.IsCurrent(candidate, f.Main.CaptureInstructionEditorEligibility(), token));
             using var bootstrapper = new DependencyBootstrapper([], NullLogger<DependencyBootstrapper>.Instance);
             var runtime = new Kora.Tools.Runtime.RecordedRuntimeObservation(bootstrapper);
             var registry = new ReadOnlyCapabilityRegistry(f.Access, new(), new(), new(new Kora.Application.AssemblyApplicationInfo()),
@@ -54,7 +55,7 @@ public sealed class PromptParameterWindowTests
             await using var models = new ModelTurnHost(f.Interactions, f.Access, f.Access, registry, f.Audit,
                 NullLogger<ModelTurnHost>.Instance, TimeProvider.System,
                 [new(ModelProviderSelection.OllamaCandidate, ModelQualificationGate.None, DateTimeOffset.MinValue, null)], policy);
-            using var controller = new PromptParameterController(f.Main, f.ArtifactCatalogue,
+            await using var controller = new PromptParameterController(f.Main, f.ArtifactCatalogue,
                 new(admission, actions, models, f.Audit, TimeProvider.System), () => true, () => 1,
                 NullLogger<PromptParameterController>.Instance);
             PromptParameterWindow? opened = null;
@@ -101,6 +102,7 @@ public sealed class PromptParameterWindowTests
                     break;
             }
             await closed.Task.WaitAsync(TestContext.Current.CancellationToken);
+            await controller.CloseAndWait();
             native.Inputs["topic"].Text.Should().BeEmpty();
             native.Expanded.Text.Should().BeEmpty();
             native.Content.Should().BeNull();

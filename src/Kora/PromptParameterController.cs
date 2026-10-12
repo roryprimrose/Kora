@@ -9,7 +9,7 @@ namespace Kora;
 
 internal sealed partial class PromptParameterController(
     MainViewModel main, ArtifactCatalogue catalogue, PromptRequestConsumer consumer,
-    Func<bool> ownsHost, Func<long> ownershipRevision, ILogger<PromptParameterController> logger) : IDisposable
+    Func<bool> ownsHost, Func<long> ownershipRevision, ILogger<PromptParameterController> logger) : IDisposable, IAsyncDisposable
 {
     private PromptParameterWindow? window;
     private PromptParameterDraft? draft;
@@ -17,20 +17,24 @@ internal sealed partial class PromptParameterController(
     private long ownership;
     private bool busy;
     private bool disposed;
+    private bool closing;
+    private Task activeOperation = Task.CompletedTask;
 
     internal void Bind()
     {
         main.PromptPreparationRequested += Open;
+        main.PromptPreparationSuperseded += OnPrivacyClosed;
         main.PrivacyClosureRequested += OnPrivacyClosed;
         main.PropertyChanged += OnInputChanged;
         catalogue.Changed += OnCatalogueChanged;
         catalogue.ReloadFailed += OnReloadFailed;
+        main.BindPromptPreparationShutdown(CloseAndWait);
     }
 
     private Task Open(PromptParameterDraft proposed)
     {
         Close();
-        if (disposed || !ownsHost() || !proposed.IsCurrent)
+        if (disposed || closing || !ownsHost() || !proposed.IsCurrent)
         {
             proposed.Dispose();
             main.ReportHostInteractionFailure("Prompt preparation requires current private ownership and exact enabled source.");
@@ -39,7 +43,10 @@ internal sealed partial class PromptParameterController(
         ownership = ownershipRevision();
         draft = proposed;
         lifetime = new();
-        window = new(proposed, Edit, action => _ = Run(action));
+        window = new(proposed, Edit, action =>
+        {
+            if (!busy) { activeOperation = Run(action); }
+        });
         var opened = window;
         window.Closed += (_, _) => { if (ReferenceEquals(window, opened)) { Clear(); } };
         window.Show();
@@ -122,26 +129,49 @@ internal sealed partial class PromptParameterController(
         opened?.Close();
     }
 
+    internal async Task CloseAndWait()
+    {
+        closing = true;
+        try
+        {
+            if (Dispatcher.UIThread.CheckAccess()) { Close(); }
+            else { await Dispatcher.UIThread.InvokeAsync(Close); }
+#pragma warning disable VSTHRD003 // Join only this controller's cancelled callback; asynchronous awaiting leaves its Avalonia dispatcher free.
+            await activeOperation;
+#pragma warning restore VSTHRD003
+        }
+        finally { activeOperation = Task.CompletedTask; closing = false; }
+    }
+
     private void Clear()
     {
-        lifetime?.Cancel();
-        lifetime?.Dispose();
+        var cancellation = lifetime;
         lifetime = null;
         draft?.Dispose();
         draft = null;
         var opened = window;
         window = null;
         opened?.ClearPrivateText();
+        try { cancellation?.Cancel(); }
+        finally { cancellation?.Dispose(); }
     }
 
     public void Dispose()
     {
         disposed = true;
         main.PromptPreparationRequested -= Open;
+        main.PromptPreparationSuperseded -= OnPrivacyClosed;
         main.PrivacyClosureRequested -= OnPrivacyClosed;
         main.PropertyChanged -= OnInputChanged;
         catalogue.Changed -= OnCatalogueChanged;
         catalogue.ReloadFailed -= OnReloadFailed;
+        main.BindPromptPreparationShutdown(null);
         Close();
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        Dispose();
+        await CloseAndWait();
     }
 }

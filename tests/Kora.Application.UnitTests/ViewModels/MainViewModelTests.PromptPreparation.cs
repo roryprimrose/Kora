@@ -43,6 +43,7 @@ public sealed partial class MainViewModelTests
     [InlineData("inline")]
     [InlineData("source")]
     [InlineData("host-after-freshness")]
+    [InlineData("input-after-freshness")]
     public async Task NativeParameterSelectionFailsClosedWithoutRawTemplateFallback(string failure)
     {
         var f = await Fixture.CreateInitializedAsync();
@@ -53,6 +54,7 @@ public sealed partial class MainViewModelTests
         f.ViewModel.BindOwnedInstructionFreshness(_ =>
         {
             if (failure is "host-after-freshness") { f.Session.IsUnlocked = false; }
+            if (failure is "input-after-freshness") { f.ViewModel.CommandText = "changed during source read"; }
             return Task.FromResult(failure is not "source");
         });
         if (string.Equals(failure, "inline", StringComparison.Ordinal))
@@ -86,5 +88,64 @@ public sealed partial class MainViewModelTests
         using var cancel = new CancellationTokenSource();
         f.ViewModel.BindOwnedInstructionFreshness(_ => { cancel.Cancel(); return Task.FromResult(true); });
         (await f.ViewModel.IsPromptSourceCurrent(source, cancel.Token)).Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task AnotherActivatedRequestRetiresOldPreviewEvenWhenTypedCommandTextIsUnchanged()
+    {
+        var f = await Fixture.CreateInitializedAsync();
+        var source = ArtifactFileDocument.Parse(ArtifactFileDocument.Encode(
+            "---\nkora-format: 2\nname: example\ndescription: Test\n---\nRequest ${input:topic}", false),
+            ArtifactKind.Prompt, "kora-profile", "example").Definition with { OwnedInstructionRevision = "exact-native-revision" };
+        f.ArtifactCatalogue.Publish([source]);
+        f.ViewModel.BindOwnedInstructionFreshness(_ => Task.FromResult(true));
+        PromptParameterDraft? draft = null;
+        var retired = 0;
+        f.ViewModel.PromptPreparationSuperseded += (_, _) => retired++;
+        f.ViewModel.PromptPreparationRequested += proposed => { draft = proposed; return Task.CompletedTask; };
+        await f.RunAsync("/example");
+        using (draft)
+        {
+            draft!.SetValue("topic", "old");
+            await draft.Preview(f.ViewModel.IsPromptSourceCurrent, TestContext.Current.CancellationToken);
+            var input = f.ViewModel.CommandText;
+            await f.RaiseActivatedTranscriptAsync("Kora, what version are you running", 0.91f);
+            f.ViewModel.CommandText.Should().Be(input);
+            retired.Should().Be(2);
+            draft.CanUse.Should().BeFalse();
+            draft.PreviewText.Should().BeNull();
+        }
+        f.Reasoner.Requests.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task NativeSourceFreshnessPassesViewCancellationToTheAdmittedReaderWithoutAnotherScope()
+    {
+        var f = await Fixture.CreateInitializedAsync();
+        var source = ArtifactFileDocument.Parse(ArtifactFileDocument.Encode(
+            "---\nkora-format: 2\nname: example\ndescription: Test\n---\nRequest ${input:topic}", false),
+            ArtifactKind.Prompt, "kora-profile", "example").Definition with { OwnedInstructionRevision = "exact-native-revision" };
+        using var cancel = new CancellationTokenSource();
+        f.ViewModel.BindOwnedInstructionFreshnessWithCancellation((candidate, token) =>
+        {
+            candidate.Should().BeSameAs(source);
+            token.Should().Be(cancel.Token);
+            return Task.FromResult(true);
+        });
+        (await f.ViewModel.IsPromptSourceCurrent(source, cancel.Token)).Should().BeTrue();
+        f.ViewModel.BindOwnedInstructionFreshnessWithCancellation(null);
+        (await f.ViewModel.IsPromptSourceCurrent(source, cancel.Token)).Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task PromptShutdownIsJoinedBeforeHandoffAndExitCanReleaseOwningResources()
+    {
+        var f = await Fixture.CreateInitializedAsync();
+        var calls = 0;
+        f.ViewModel.BindPromptPreparationShutdown(() => { calls++; return Task.CompletedTask; });
+        await f.ViewModel.TryPrepareHandoffAsync();
+        await f.ViewModel.ExitAsync();
+        calls.Should().Be(2);
+        f.ViewModel.BindPromptPreparationShutdown(null);
     }
 }

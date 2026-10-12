@@ -30,15 +30,21 @@ public sealed partial class WindowsSqliteSessionQueueTests
         snapshot.QueueRecords[0].Eligibility.Should().Be(SessionQueueEligibility.Ready);
         snapshot.QueueRecords[1].Eligibility.Should().Be(SessionQueueEligibility.EarlierPendingEntry);
         snapshot.Tasks.Should().NotContain(task => task.Task.Request.TaskId == first.Request.TaskId);
+        snapshot.QueueRecords[0].TaskMetadata.Should().Be(new HostTaskMetadata(first.Request.TaskId, first.Request.SessionId,
+            first.Generation, new(1), HostTaskState.IntentRecorded, "unclassified", false));
         var running = await AdmitAsync(fixture, first);
         snapshot = await fixture.Store.ReadWorkAsync(first.Request.SessionId, 1, new(), fixture.Token);
         snapshot.QueueRecords[0].ActiveDeadline.Should().Be(fixture.Time.Now.Add(SessionQueuePolicy.ActiveDeadline));
+        snapshot.QueueRecords[0].TaskMetadata!.State.Should().Be(HostTaskState.DispatchRecorded);
+        snapshot.QueueRecords[0].TaskMetadata!.Revision.Value.Should().Be(2);
         snapshot.QueueRecords[1].Eligibility.Should().Be(SessionQueueEligibility.SessionCurrent);
         await CompleteAsync(fixture, running);
         await RemoveAsync(fixture, second, (await fixture.Store.ReadQueueAsync(second.Request.SessionId, fixture.Token)).Revision);
         snapshot = await fixture.Store.ReadWorkAsync(first.Request.SessionId, 1, new(), fixture.Token);
         snapshot.Queue.Entries.Should().BeEmpty();
         snapshot.QueueRecords.Select(row => row.Entry.State).Should().Equal(SessionQueueState.Succeeded, SessionQueueState.Cancelled);
+        snapshot.QueueRecords.Select(row => row.TaskMetadata!.State).Should().Equal(HostTaskState.Succeeded, HostTaskState.Cancelled);
+        snapshot.QueueRecords.Select(row => row.TaskMetadata!.Revision.Value).Should().Equal(3, 2);
         var history = await fixture.Store.ReadHistoryAsync(first.Request.SessionId, null, 50, fixture.Token);
         history.Records.Should().Contain(row => row.TaskId == second.Request.TaskId.Value && row.TaskState == HostTaskState.Cancelled);
         var clockChanged = snapshot with { ObservedAt = snapshot.ObservedAt.AddDays(1) };
@@ -129,6 +135,7 @@ public sealed partial class WindowsSqliteSessionQueueTests
         snapshot.OmittedTasks.Should().BeGreaterThan(0);
         snapshot.Queue.Entries.Should().BeEmpty();
         snapshot.QueueRecords.Should().OnlyContain(row => row.Entry.State == SessionQueueState.Cancelled);
+        snapshot.QueueRecords.Should().OnlyContain(row => row.TaskMetadata != null && row.TaskMetadata.State == HostTaskState.Cancelled);
         (await fixture.Store.ReadQueueEntryAsync(first!.Request.SessionId, first.Request.TaskId, fixture.Token))!
             .State.Should().Be(SessionQueueState.Cancelled);
     }
@@ -149,12 +156,16 @@ public sealed partial class WindowsSqliteSessionQueueTests
             var row = snapshot.QueueRecords.Single();
             if (row.Entry.State == SessionQueueState.Pending)
             {
+                row.TaskMetadata!.State.Should().Be(HostTaskState.IntentRecorded);
+                row.TaskMetadata.Revision.Value.Should().Be(1);
                 snapshot.PendingCount.Should().Be(1);
                 snapshot.Queue.Revision.Should().Be(queue.Revision);
                 snapshot.Queue.Entries.Should().ContainSingle().Which.Revision.Should().Be(row.Entry.Revision);
             }
             else
             {
+                row.TaskMetadata!.State.Should().Be(HostTaskState.Cancelled);
+                row.TaskMetadata.Revision.Value.Should().Be(2);
                 row.Entry.State.Should().Be(SessionQueueState.Cancelled);
                 snapshot.PendingCount.Should().Be(0);
                 snapshot.Queue.Entries.Should().BeEmpty();

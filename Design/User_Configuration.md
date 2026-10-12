@@ -24,6 +24,7 @@ No format/limit override, folder attachment, managed source, extra version, mode
 
 The [optional native prerequisite](Work_Management.md#delivered-optional-native-enqueue-prerequisite---2026-10-12) is a volatile explicit decision for one new fixed read, not a device preference or policy edit. Initial None preserves the original route; after enqueue choose None or an exact observed same-session task again.
 Refresh/private/session changes revoke selection. Pending capacity, slots and captured pending/active lifetimes below remain unchanged.
+Already-observed queued pending/running/recent terminal tasks now join the bounded native picker using actual host task state/revision from the same atomic work observation. Queue-entry revisions are never prerequisite revisions. No saved preference, history scan, new dependency policy or automatic dispatch is introduced; unavailable metadata requires explicit recovery/choice, not silent None.
 
 The [two closed targeted queue reads](Work_Management.md#delivered-closed-targeted-metadata-reads---2026-10-12) add no preference or authority store. One volatile explicit descriptor choice controls `capabilities.get`; it resets after enqueue/staleness. `runtime.get_status` has only fixed recorded `local.inference`. All six reads inherit the same prerequisite, configuration and admission fences.
 

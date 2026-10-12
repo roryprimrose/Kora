@@ -228,7 +228,7 @@
                                      ItemsSource="{Binding QueuePrerequisites}"
                                      SelectedItem="{Binding SelectedQueuePrerequisite, Mode=OneWay}"
                                      IsEnabled="{Binding CanSelectQueuePrerequisite}"
-                                     AutomationProperties.Name="Optional exact prerequisite task from at most 50 observed same-session metadata rows; IDs, generation, state, revision and UTC source">
+                                     AutomationProperties.Name="Optional exact prerequisite task from at most 50 nonqueue and 50 already-observed queued same-session host metadata rows; IDs, generation, real host task state/revision and UTC source; no history scan">
             <ListBox.ItemTemplate>
               <DataTemplate><TextBlock Text="{Binding Label}" TextWrapping="Wrap" /></DataTemplate>
             </ListBox.ItemTemplate>

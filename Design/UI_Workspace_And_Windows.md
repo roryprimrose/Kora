@@ -40,6 +40,10 @@ Question focus, selected work, existing receipt history, provider policy and
 voice routing stay independent. Headless tests are not installed Narrator/DPI,
 runtime, hardware or full R14/A4 qualification.
 
+## Delivered explicit expanded-prompt submission — 2026-10-13
+The existing native required-input prompt window now also offers a distinct exact-session retention review. Refresh/Next navigates admitted bounded metadata, with no default selection. Separate native confirmation shows full expanded USER text and exact target/source observations; only that confirmed body enters the existing conversation authority.
+This does not switch the Sessions window, voice focus, attention target or current composer, nor save/clear any existing draft. Review loses validity on edits, source/use/private/owner/target changes or focus loss. Known receipt retires the form; unconfirmed submission is held for conversation/task inspection, never retry. Preview and old Use remain ephemeral and generation stays unavailable.
+
 ## Product Goal and Ownership
 
 Kora is a concurrent work-session application with voice, mouse, and keyboard interaction, not a single linear conversation with a transient answer popup.

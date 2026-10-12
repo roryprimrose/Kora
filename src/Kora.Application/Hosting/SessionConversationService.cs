@@ -1,3 +1,5 @@
+﻿using System.Diagnostics;
+
 using Kora.Application.Dependencies;
 using Kora.Core.Conversation;
 using Kora.Core.Dependencies;
@@ -42,10 +44,12 @@ public sealed partial class SessionConversationService(
     }
 
     public async Task<ConversationSubmissionReceipt> SubmitAsync(SessionWorkspaceEntry target, string body,
-        Func<bool> admitted, CancellationToken token)
+        Func<bool> admitted, CancellationToken token, Func<CancellationToken, Task>? beforeRetain = null,
+        IEnumerable<ActivityLink>? links = null)
     {
         if (HostActivity.Current is { Request.Origin: not RequestOrigin.LocalUi })
         { throw new InvalidOperationException("Conversation submission cannot relabel model or voice input as native intent."); }
+        if (beforeRetain is not null) { await beforeRetain(token).ConfigureAwait(false); }
         try { ConversationText.Validate(body, submission: true); }
         catch (ConversationCredentialException)
         {
@@ -59,8 +63,11 @@ public sealed partial class SessionConversationService(
         var actual = await store.ReadMetadataAsync(target.Authority.SessionId, token).ConfigureAwait(false);
         if (actual != target || !actual.Authority.IsActive || !Live())
         { throw new InvalidOperationException("Refresh the exact Active session, generation and metadata revision before submitting."); }
+        // Asynchronous native-source validation precedes the issuing root; the store's Live fence still runs at physical COMMIT.
+        if (beforeRetain is not null) { await beforeRetain(token).ConfigureAwait(false); }
+        if (!Live()) { throw new InvalidOperationException("Submission admission changed during source validation."); }
         var request = new HostRequest(new(Guid.NewGuid()), actual.Authority.SessionId, new(Guid.NewGuid()), RequestOrigin.LocalUi);
-        using var activity = HostActivity.BeginRoot(request, HostActivityLayer.Application, HostOperation.Request);
+        using var activity = HostActivity.BeginRoot(request, HostActivityLayer.Application, HostOperation.Request, links);
         try
         {
             // Body + original task intent + requested audit have one physical commit. Saved drafts stay independent data.

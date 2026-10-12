@@ -1287,6 +1287,8 @@ Filters/search/page changes are in-memory and preserve the open original/draft. 
 
 ### Explicitly select a saved revision
 
+Enabled native owned-v2 prompts open the existing private required-input form through exact typed/current-name activated selection. Parameter values and retention consent are native-only, never inline command/PTT text. Preview and old Use remain ephemeral; separate exact Active-session review/confirmation can retain the whole expanded USER body through the real conversation service, with unavailable generation. See [explicit prompt submission](instruction-editor.md#submit-an-expanded-request-to-one-exact-session).
+
 Kora can apply a bundled or disk-backed skill, instruction, prompt, or agent
 artifact to a local-model request from the command box or activated voice.
 

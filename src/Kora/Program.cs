@@ -1,4 +1,4 @@
-using System.Runtime.ExceptionServices;
+﻿using System.Runtime.ExceptionServices;
 
 using Avalonia;
 
@@ -432,6 +432,7 @@ internal static class Program
         services.AddSingleton<ModelTurnHost>();
         services.AddSingleton<IModelTurnAdmission>(provider => provider.GetRequiredService<ModelTurnHost>());
         services.AddSingleton<SessionConversationService>();
+        services.AddSingleton<Kora.Application.Definitions.PromptConversationSubmission>();
         services.AddSingleton<ModelProviderHandoffWorkflow>();
         services.AddSingleton<ModelHandoffPresentation>();
         services.AddSingleton<ILocalModelSetup, WindowsOllamaSetupService>();

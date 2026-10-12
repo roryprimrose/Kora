@@ -1,4 +1,4 @@
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using System.Text.Json;
 using AwesomeAssertions;
 using Kora.Application.Dependencies;
@@ -649,7 +649,13 @@ public sealed partial class ModelTurnHostTests : IDisposable
             return ValueTask.FromResult(Task.Task);
         }
         public ValueTask<SessionPage<WorkSessionAuthorization>> ReadSessionsAsync(Guid? after, int limit, CancellationToken token) => throw new NotSupportedException();
-        public ValueTask<SessionPage<SessionWorkspaceEntry>> ReadMetadataPageAsync(Guid? after, int limit, CancellationToken token) => throw new NotSupportedException();
+        internal SessionPage<SessionWorkspaceEntry>? MetadataPage { get; set; }
+        public ValueTask<SessionPage<SessionWorkspaceEntry>> ReadMetadataPageAsync(Guid? after, int limit, CancellationToken token)
+        {
+            limit.Should().Be(25);
+            OnRead?.Invoke();
+            return ValueTask.FromResult(MetadataPage ?? throw new NotSupportedException());
+        }
         public ValueTask<HostTaskObservation> CancelWaitingTaskAsync(HostRequest control, HostTaskCancellationTarget target, Func<bool> eligible, CancellationToken token) => throw new NotSupportedException();
         public ValueTask<SessionWorkspaceEntry> CreateNamedSessionAsync(HostRequest request, SessionName name, Func<bool> eligible, CancellationToken token) => throw new NotSupportedException();
         public ValueTask<SessionWorkspaceEntry> RenameSessionAsync(HostRequest request, HostRevision generation, long revision, SessionName name, Func<bool> eligible, CancellationToken token) => throw new NotSupportedException();

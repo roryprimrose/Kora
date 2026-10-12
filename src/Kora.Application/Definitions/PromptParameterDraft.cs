@@ -14,6 +14,7 @@ public sealed class PromptParameterDraft : IDisposable
     private long valueRevision;
     private bool disposed;
     private ExpandedPromptRequest? preview;
+    private ExpandedPromptRequest? conversationAttempt;
 
     public PromptParameterDraft(ArtifactDefinition source, ArtifactCatalogue catalogue, Func<bool> eligible)
     {
@@ -101,6 +102,16 @@ public sealed class PromptParameterDraft : IDisposable
     public bool IsUseCurrent(ExpandedPromptRequest request)
     { lock (gate) { return PreviewCurrent() && ReferenceEquals(preview, request); } }
 
+    internal bool ClaimConversationUse(ExpandedPromptRequest request)
+    {
+        lock (gate)
+        {
+            if (ReferenceEquals(conversationAttempt, request)) { return false; }
+            conversationAttempt = request;
+            return true;
+        }
+    }
+
     private void RequireCurrent(CancellationToken token)
     {
         token.ThrowIfCancellationRequested();
@@ -114,6 +125,7 @@ public sealed class PromptParameterDraft : IDisposable
         {
             disposed = true;
             preview = null;
+            conversationAttempt = null;
             values.Clear();
         }
     }

@@ -1,3 +1,4 @@
+﻿using System.Diagnostics;
 using System.Text.Json;
 
 using AwesomeAssertions;
@@ -349,11 +350,17 @@ public sealed partial class ModelTurnHostTests
     {
         public bool IsQuiescent { get; set; } = true;
         internal int Calls { get; private set; }
+        internal ModelContextEnvelope? Context { get; private set; }
+        internal ActivityLink[] Links { get; private set; } = [];
+        internal ActivityContext IssuingContext { get; private set; }
         internal ModelTurnResult Result { get; set; } = new(outcome, ModelTurnReason.ProviderOutcome);
         public Task<Kora.Application.Dependencies.ModelTurnAdmission> AdmitAsync(ModelTurnChoice choice,
             ModelContextEnvelope context, Kora.Application.Dependencies.ModelHandoffReview? review, CancellationToken token)
         {
             Calls++;
+            Context = context;
+            Links = Activity.Current!.Links.ToArray();
+            IssuingContext = Activity.Current.Context;
             return System.Threading.Tasks.Task.FromResult(new Kora.Application.Dependencies.ModelTurnAdmission(Result));
         }
     }

@@ -89,7 +89,19 @@ Editing any field clears the old preview and disables Use until another explicit
 **Use reviewed request (separate admission)** sends only the captured full `UserRequest` to a fresh host model-admission check. Original source bytes/digest/native revision remain separate from the expansion digest; no body is replaced in the catalogue.
 Generation is currently unavailable: the existing artifact control task has no qualified model-task source classification (`Denied / HostAdmissionClosed`), and there is no qualified production adapter/model. Neither the rejected Ollama 0.35.1/qwen3 nor 0.40.2 is a recovery path. Use reports actual admission without HTTP/inference, installation, authentication fallback or action execution.
 Cancel/window close/private closure clears fields and expansion immediately; pending admitted source work is cancelled and joined before handoff/exit releases owned resources. Original-input fencing includes a new activated request even when typed command text is unchanged, and captures before awaited disk validation.
-Values are never autofilled, logged, audited as content, stored in preferences/history/templates or automatically copied/exported/spoken. Existing v1 literal prompt selection remains on its existing route.
+Values are never autofilled, logged, audited as content, separately stored as form values, saved into preferences/templates or automatically copied/exported/spoken. Preview and Use write no body. Only the separate explicit conversation confirmation below retains the approved expanded text. Existing v1 literal prompt selection remains on its existing route.
+
+## Submit an expanded request to one exact session
+
+1. Select an enabled exact owned-v2 prompt, enter native fields and **Preview complete expanded USER REQUEST**.
+1. **Refresh session metadata** and explicitly select one existing Active session. There is no default target, name/focus/voice routing, implicit Resume or new-session fallback. **Next metadata page** reads another bounded page: 25 rows, complete 64 KiB, metadata only.
+1. **Review submission to exact Active session** displays the entire expanded USER text and immutable target ID/name/generation/metadata revision. Original source ID/kind/native revision/digest and independent expanded digest are volatile observations, not authority.
+1. Separately confirm **Submit this expanded request to exact session** only if you want that exact body persisted as one USER conversation message in the chosen session's private readable SQLite authority. This is not an encryption claim. Existing retention and local best-effort reject-only credential screening apply; arbitrary secrets may be missed.
+
+Cancel retention review writes no conversation message and keeps eligible memory input. Input, template/native identity/digest/use/catalogue, private/call/ownership, target/revision or focus-lifetime changes withdraw review; refresh/reselect/review rather than retargeting silently.
+Submission repeats native source freshness and uses the existing conversation service once, not old Use as well. Only approved expanded body is retained: no hidden field record, original template/path or durable template provenance. No source bytes are overwritten and no existing saved draft or unrelated Sessions composer buffer is saved/cleared.
+Known completion says **Message retained; model generation unavailable**, with exact message sequence/request/task IDs for **Sessions > Read conversation** and task inspection. An unconfirmed attempt may already be retained: inspect those exact receipts, never automatically retry or infer rollback. The submitted form is retired after a known receipt.
+No assistant answer, generation, model/network/authentication/tool execution or rejected-local runtime fallback is enabled. Source checking and SQLite publication are not a global filesystem/database transaction.
 
 **Save** (or `instructions save`) shows full original/proposed source and both exact digests.
 Confirm only after reviewing metadata, body and attribution. **Delete** / `instructions delete`

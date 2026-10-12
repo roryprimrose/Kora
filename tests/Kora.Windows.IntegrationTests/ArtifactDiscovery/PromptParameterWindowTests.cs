@@ -17,7 +17,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 namespace Kora.Windows.IntegrationTests.ArtifactDiscovery;
 
 [Collection(nameof(HeadlessUiTestGroup))]
-public sealed class PromptParameterWindowTests
+public sealed partial class PromptParameterWindowTests
 {
     [Fact]
     public async Task MaximumNativeInputsAndCompleteExpansionShareOneScrollablePrivateSurface()
@@ -86,7 +86,9 @@ public sealed class PromptParameterWindowTests
                 NullLogger<ModelTurnHost>.Instance, TimeProvider.System,
                 [new(ModelProviderSelection.OllamaCandidate, ModelQualificationGate.None, DateTimeOffset.MinValue, null)], policy);
             await using var controller = new PromptParameterController(f.Main, f.ArtifactCatalogue,
-                new(admission, actions, models, f.Audit, TimeProvider.System), () => true, () => 1,
+                new(admission, actions, models, f.Audit, TimeProvider.System),
+                new(f.Sessions, new(f.Interactions, f.Interactions, f.Sessions, f.Access, models, TimeProvider.System,
+                    NullLogger<SessionConversationService>.Instance)), () => true, () => 1,
                 NullLogger<PromptParameterController>.Instance);
             PromptParameterWindow? opened = null;
             using var windows = Window.WindowOpenedEvent.AddClassHandler<Window>((window, _) =>

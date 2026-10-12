@@ -142,6 +142,10 @@ scaffolding or rejected runtimes. Generic conversation generation, global/
 voice routing, model history assembly, execution, hardware/native accessibility,
 provider/authentication and full R12/R14/RC acceptance remain separately gated.
 
+## Delivered explicit expanded-prompt submission — 2026-10-13
+The native owned-v2 prompt form can independently review an exact existing Active target and explicitly retain its current expanded USER text through the same `SessionConversationService`, screening, atomic message/task/audit and provider-neutral admission. Preview and old Use remain nonpersisting. No new schema, separate form-value storage, source-authority inheritance or draft import is introduced.
+The final confirmation names immutable target identity/revisions and displays the entire body, with private readable SQLite/retention and unavailable-generation disclosure. Source provenance is volatile only. Cancel writes no message; stale target/source/private admission refuses, and uncertain COMMIT requires exact receipt inspection without replay. See [prompt controls](../docs/instruction-editor.md#submit-an-expanded-request-to-one-exact-session).
+
 ## Exact-session provider policy
 
 The [durable sparse provider override](Model_Providers_Memory_And_Knowledge.md#session-overrides-and-effective-resolution) belongs to one exact existing eligible session. Schema 9 adds only its audited private policy table; legacy sessions inherit without fabricated choices and old immutable history/audit bytes remain unchanged.

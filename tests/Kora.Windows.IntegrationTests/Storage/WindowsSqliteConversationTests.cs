@@ -1,4 +1,4 @@
-using System.Text;
+﻿using System.Text;
 
 using AwesomeAssertions;
 using Kora.Core.Conversation;
@@ -323,7 +323,7 @@ public sealed partial class WindowsSqliteConversationTests
             ModelTurnOutcome.Unavailable, ModelTurnReason.UnregisteredModel, static () => true, f.Token);
     }
 
-    private static string AuditText(InteractionStorageFixture f)
+    internal static string AuditText(InteractionStorageFixture f)
     {
         using var connection = f.OpenRaw();
         using var command = connection.CreateCommand();

@@ -39,6 +39,10 @@ Known placeholders/references are inert; arbitrary secrets and undeclared
 formats may be missed. The general never-credentials-in-history requirement
 and broader product screening/redaction direction are unchanged.
 
+## Explicit expanded-prompt retention boundary
+An owned-v2 parameter preview may be retained only after a separate original native exact-session confirmation. Preview/nonpersisting Use are not retention consent. The whole current expansion enters the existing conversation screening/store/admission path once as USER text, without hidden template/value/source-path persistence, prompt-source task authority or double admission.
+Exact target/source/private/preview epochs remain eligible at physical COMMIT after repeated native source validation; this is not global filesystem/SQLite atomicity. Unknown completion is held for exact receipt inspection, with no replay or rollback claims. Existing reject-only credential limitations, independent saved drafts, retention/migration/copy gates and unavailable provider/egress boundaries remain unchanged.
+
 ## Exact-session provider policy boundary
 
 [Sparse durable session overrides](Model_Providers_Memory_And_Knowledge.md#session-overrides-and-effective-resolution) are desired configuration, not authentication, adapter, generation, egress or resource authority. Exact native/typed/current-name activated review requires original local-user input, current private owning host, eligible exact session/generation, policy/app revision and unchanged catalogue/account/model binding.

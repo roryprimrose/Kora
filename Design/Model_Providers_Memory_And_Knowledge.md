@@ -30,6 +30,9 @@ without executing a provider. No authentication, egress, live provider,
 rejected Ollama candidate, send-once override or provider-output parser is
 enabled. Installed-local desired initial service is not inference consent.
 
+Separately confirmed owned-v2 expanded prompts now enter this same conversation consumer as exact USER bodies for one explicitly selected existing Active session. They do not invoke old prompt Use as well, introduce system/instruction/evidence wrappers, inherit source authority or assemble saved history/drafts. Source/expansion digests remain distinct and volatile provenance does not become provider selection or durable template storage.
+The actual production outcome remains HOST Unavailable; test-only qualified/fake admission proves exact immutable input without enabling generation, authentication, HTTP, egress or either rejected Ollama candidate.
+
 ## Product Decision
 
 Kora supports qualified local inference through Ollama and separately

@@ -152,7 +152,15 @@ public sealed partial class OwnedDefinitionEditorWindowTests
             editor.Source.Text.Should().Be(draft);
             var shouldHold = condition is "confirmed" or "disk";
             actions.IsReviewedUseEnabled(source).Should().Be(!shouldHold);
-            if (condition is "disk") { return; }
+            if (condition is "disk")
+            {
+                reviewOpened = new(TaskCreationOptions.RunContinuationsAsynchronously);
+                var activation = Run(prefix + " activate");
+                (await Task.WhenAny(activation, reviewOpened.Task)).Should().BeSameAs(activation,
+                    "an unconfirmed revocation requires explicit reload/readback before another use review");
+                await activation;
+                return;
+            }
             File.ReadAllBytes(path).Should().Equal(originalBytes);
             var unchanged = new FileInfo(path);
             unchanged.GetAccessControl().GetSecurityDescriptorSddlForm(AccessControlSections.All).Should().Be(originalAccess);

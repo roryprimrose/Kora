@@ -197,7 +197,8 @@ internal sealed partial class OwnedInstructionEditorController(
         catch (Exception exception) when (exception is not OutOfMemoryException)
         {
             EditorFailed(logger, exception.GetType().Name);
-            if (action is "Save" or "Delete") { uncertain = true; }
+            if (action is "Save" or "Delete"
+                || exception is InstructionUseRevocationUnconfirmedException) { uncertain = true; }
             if (ReferenceEquals(window, opened))
             { opened.Report((exception is InstructionPublicationUnconfirmedException
                     ? "Atomic owned publication occurred; later completion is unconfirmed. "

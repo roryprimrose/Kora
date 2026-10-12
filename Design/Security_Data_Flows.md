@@ -1374,6 +1374,21 @@ Source revocation may remove restricted content before normal session expiry. Ma
 Independent content-minimising security/diagnostic events retain their disclosed lifetimes and do not reconstruct deleted chats; perpetual grant records are excluded from retention/eviction, and local deletion cannot erase user exports or provider copies.
 Approval/audit records are writable only through the host security service, denied to models/skills/tools/workers, and use append-only sequencing or equivalent tamper evidence so deletion/rewrite is detectable within the supported non-administrator threat model.
 Audit retention is independent of diagnostic, daily-file and session retention.
+Retain every required audit record throughout its captured retention window,
+regardless of the number of stored sessions or audit records. Stored sessions
+have no retained-count cap. Query pages, maintenance batches, validation caches,
+in-flight admission and individual content envelopes may be bounded; those
+bounds never authorize eviction, sampling or dropping required in-window audit
+records, or deleting sessions to keep only the newest N.
+This guarantee applies across all admitted partitions of the logical audit
+store. Separate type-specific files do not imply a permanent single-file
+layout; future hot/warm/cold partitions must preserve the same retention and
+required commit fences. Audit sharding/rotation is not implemented by this rule.
+Finite disk capacity is not an infinite-storage guarantee. An unconfirmed
+required write must report failure and fail consequential operations closed;
+neither a surviving secondary copy nor a successful diagnostic write can stand
+in for a missing required audit commit. Recovery must restore healthy storage,
+not evict unexpired audit records or claim complete recording while unavailable.
 Deleting a session does not delete its content-minimising audit rows, extend
 their lifetime or retain deleted session content inside them. Perpetual grant
 records and their minimal provenance remain governed by the separate grant
@@ -1382,14 +1397,23 @@ Browsing, searching, exporting or reasoning over audit records never refreshes
 their retention clock.
 Each audit row receives its effective `retention_due_utc` transactionally when
 committed. The 90-day default may be configured only from 30 through 365 days.
-Shortening the policy previews the affected count/range and requires explicit
-apply-now confirmation before existing due dates are reduced; otherwise it
-applies to new records. Extending retention does not resurrect purged rows.
+The delivered audit setting applies only to future commits; changing it cannot
+shorten already captured deadlines. Invalid or unknown policy fails closed,
+without a default-policy success fallback. A future apply-now mechanism would
+need an affected count/range preview and separate explicit confirmation before
+reducing existing due dates. Extending retention does not resurrect purged rows.
 Expected audit-retention pruning must emit a verifiable continuation/checkpoint
 under the selected tamper-evidence scheme so expiry is distinguishable from
 removal inside the retained window. Preserve the latest minimal chain anchor
 outside ordinary audit-event expiry; it contains no action/content payload and
 cannot reconstruct expired records.
+Audit pruning and its continuation/anchor mechanism are not implemented.
+Ordinary diagnostic pruning never removes audit rows; expired audits may
+therefore remain present beyond their due dates. The independent daily JSON
+stream contains secondary `TypedAuditCopy` records, not committed authority
+receipts. Its existing 30-day/30-calendar-file policy is separate from the
+default 90-day audit window. Daily files have no size cutoff or size-based roll
+family; file I/O failures still trip sticky health and required delivery failure.
 Crash reports and diagnostics omit raw context, speech, tool arguments, credentials, and answer content by default.
 Normal diagnostic events, audit records and permitted session evidence are
 viewed through one host-owned evidence query service with bounded time, source,

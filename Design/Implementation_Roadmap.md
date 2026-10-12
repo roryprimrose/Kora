@@ -45,7 +45,7 @@ descriptors; native delivery does not make a model tool available.
 | Local reasoning | Consented pinned Ollama/model setup, verified loopback bootstrap, bounded answers/questions/action proposals | Generic tool/result iteration, CPU-floor/context/offline qualification and physical server-stop proof | [Local inference](Local_Inference.md), [model inventory](Internal_Model_Tools.md#implemented-bootstrap-surface) |
 | Discovery and actions | Six-ID read-only registry; shared C# clipboard/file/network actions and bounded exact/native workflows | Qualified generic model adapter; parameterized web model route | [Tools](../src/Kora.Tools/README.md), [catalogue](Internal_Model_Tools.md) |
 | Authority and storage | Private standard SQLite, typed task/question/grant/audit transactions, no-replay recovery, exact native grant inspection/revocation | General worker/effect admission, audit anchors/pruning/whole-store rollback and managed-copy/installed qualification | [Security](Security_Data_Flows.md), [grant controls](User_Configuration.md) |
-| Sessions and work | Durable IDs/names, exact create/rename/lifecycle/task controls, ordered bounded host history, retention/Keep review, four fixed no-argument metadata queue profiles with retained page results, exact current-run pause and question recovery | Full conversation execution, arbitrary queues/effects, resource-leased concurrent workers and model session tools | [Sessions](Interaction_And_Sessions.md), [workspace](UI_Workspace_And_Windows.md), [work](Work_Management.md) |
+| Sessions and work | Durable identity/lifecycle/history/retention, six closed metadata queue profiles with retained snapshots, current-run pause and question recovery | Full conversation execution, arbitrary queues/effects, concurrent workers and model tools | [Sessions](Interaction_And_Sessions.md), [workspace](UI_Workspace_And_Windows.md), [work](Work_Management.md) |
 | Native workspace and evidence | Selected work and passive cross-session attention overview, metadata/history search, bounded SQLite/DailyLog/CombinedLog/AuthorityAudit inspection and native filters | General Ask Evidence/model retrieval/export; full screen-reader/readability/physical-DPI acceptance | [Workspace](UI_Workspace_And_Windows.md), [display](Information_Display.md) |
 | Preferences and audio | Admitted native/exact preferences, consented PTT, installed/local speech, visual recovery and run-only manual call protection | Automatic call detectors, call-policy downgrades, temporary speech exceptions and acoustic qualification | [Configuration](User_Configuration.md), [call policy](Call_Aware_Speech.md) |
 | File/clipboard inspection | Explicit immutable previews, folder lexical retrieval, reviewed refresh, one retained file/session, replacement/removal, metadata catalogue, opt-in Markdown structure and exact citation navigation | Managed knowledge sources, model grounding/egress, persistent/vector indexes, screen/OCR/image context | [Ingestion](File_And_Folder_Ingestion.md), [clipboard](Security_Data_Flows.md) |
@@ -80,10 +80,16 @@ Profile-original publication remains explicitly deferred; template/skill/agent r
 
 ### R14 optional native prerequisite parity - 2026-10-12
 
-One new fixed-read enqueue can explicitly choose None or an exact same-session prerequisite from the already-observed bounded task metadata list. Four native buttons use the original exact command/application/audited store path and optional real revision guard at COMMIT.
+One new fixed-read enqueue can explicitly choose None or an exact same-session prerequisite from the already-observed bounded task metadata list. All six native buttons use the original exact command/application/audited store path and optional real revision guard at COMMIT.
 Refresh/private/source changes refuse stale choices; successful enqueue clears the next decision. No existing dependency editing, cross-session native picker, automatic dispatch or model management is delivered.
 
 Maintained native event/accessibility-label, real SQLite revision/private-boundary and existing queue/profile/order tests cover this consumer parity. No experiments are changed or retired; unique RT1/RT2/MG1/PV1, offline/containment, hardware/storage, installed-native/accessibility and physical-stop gates remain open.
+
+### R13 closed targeted metadata increment - 2026-10-12
+
+The [targeted queue increment](Work_Management.md#delivered-closed-targeted-metadata-reads---2026-10-12) completes queued access to the existing six registry reads: one exact current descriptor and fixed recorded local runtime join four unchanged profiles.
+Actual registry/native/private SQLite consumers validate target/result binding and explicit version-5 compatibility. This is not arbitrary tool arguments, model management, live qualification or broader R13 completion.
+Maintained consumer tests do not retire or replace unique RT1/RT2/MG1/PV1, offline CPU/inference, containment, hardware, installed-native/accessibility or physical protected-storage/STOP gates. No experiment is edited.
 
 ### R13 selected pending cancellation increment - 2026-10-12
 

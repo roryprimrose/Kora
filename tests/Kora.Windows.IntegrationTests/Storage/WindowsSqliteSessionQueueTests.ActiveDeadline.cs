@@ -275,7 +275,7 @@ public sealed partial class WindowsSqliteSessionQueueTests
 
     private sealed class DeadlineAction(Action observation) : IDeterministicVersionQueueAction
     {
-        public CapabilityReply Observe(SessionQueueReadProfile profile, CancellationToken token)
+        public CapabilityReply Observe(SessionQueueReadProfile profile, CancellationToken token, SessionQueueCapabilityTarget? target = null)
         {
             observation();
             return new(CapabilityOutcome.Succeeded, "Observed", Version: new("7.8.9", "Fixed local read."));

@@ -22,6 +22,93 @@ namespace Kora.Windows.IntegrationTests;
 [Collection(nameof(HeadlessUiTestGroup))]
 public sealed class SessionsQueuePrerequisiteTests
 {
+    [WindowsFact]
+    public async Task ActualClosedTargetPickerResetsEveryChoiceAndAllSixDescriptorsAndFixedRuntimeReachRetainedStatus()
+    {
+        await HeadlessSession.RunAsync(async () =>
+        {
+            using var f = new InteractionStorageFixture();
+            await f.InitializeAsync();
+            await WindowsSqliteSessionWorkspaceTests.FinishAsync(f, HostTaskState.Succeeded);
+            using var registry = new WindowsSqliteSessionQueueTests.FixedRegistryFixture(f.Time);
+            var access = new WindowsSqliteSessionWorkspaceTests.Access();
+            await using var queue = new SessionQueueService(f.Store, f.Store, new(f.Tasks), access,
+                new DeterministicVersionQueueAction(registry.Registry), new(), NullLogger<SessionQueueService>.Instance, f.Time);
+            var model = Model(f, access, queue);
+            var window = new SessionsWindow(model);
+            window.Show();
+            try
+            {
+                await model.RefreshAsync();
+                await model.SelectAsync(model.Sessions.Single());
+                var picker = window.FindControl<ComboBox>("QueueCapabilities")!;
+                var button = window.FindControl<Button>("EnqueueCapability")!;
+                picker.SelectedItem.Should().BeNull();
+                model.CanEnqueueCapability.Should().BeFalse();
+                await model.EnqueueCapabilityAsync();
+                (await f.Store.ReadQueueAsync(f.Request.SessionId, f.Token)).Entries.Should().BeEmpty();
+                model.Status.Should().Contain("explicit exact descriptor target");
+                await model.RefreshAsync();
+                await model.SelectAsync(model.Sessions.Single());
+                foreach (var option in model.QueueCapabilities)
+                {
+                    model.ChooseNoQueuePrerequisite();
+                    model.CanSelectQueueCapability.Should().BeTrue();
+                    picker.SelectedItem = option;
+                    model.SelectedQueueCapability.Should().BeSameAs(option);
+                    option.Label.Should().Contain(option.Descriptor.Id).And.Contain("schema 1")
+                        .And.Contain(option.Descriptor.Input.ToString()).And.Contain(option.Descriptor.Output.ToString())
+                        .And.Contain("Available").And.Contain("not live qualification");
+                    model.CanEnqueueCapability.Should().BeTrue();
+                    button.IsEnabled.Should().BeTrue();
+                    await model.EnqueueCapabilityAsync();
+                    model.QueueRecords[^1].Target.Should().Be(new SessionQueueCapabilityTarget(option.Descriptor.Id));
+                    model.WorkRecords.Single(row => row.TaskId == model.QueueRecords[^1].Request.TaskId.Value)
+                        .State.Should().Contain("capabilities.get").And.Contain(option.Descriptor.Id);
+                    model.SelectedQueueCapability.Should().BeNull();
+                    picker.SelectedItem.Should().BeNull();
+                    model.CanEnqueueCapability.Should().BeFalse();
+                    model.CanEnqueueVersion.Should().BeFalse();
+                }
+                model.ChooseNoQueuePrerequisite();
+                await model.EnqueueRuntimeStatusAsync();
+                var entries = model.QueueRecords.ToArray();
+                entries.Should().HaveCount(7);
+                entries[^1].Target.Should().BeNull();
+                model.WorkRecords.Single(row => row.TaskId == entries[^1].Request.TaskId.Value)
+                    .State.Should().Contain("runtime.get_status").And.Contain("local.inference");
+                await model.PauseQueueAsync();
+                await model.DispatchQueueAsync();
+                model.QueueRecords.Should().HaveCount(7);
+                await model.ResumeQueueAsync();
+                await model.DispatchQueueAsync();
+                model.QueueRecords.Should().BeEmpty();
+                foreach (var entry in entries)
+                {
+                    model.SelectWorkRecord(model.WorkRecords.Single(row => row.TaskId == entry.Request.TaskId.Value));
+                    await model.InspectWorkAsync();
+                    model.Detail.Should().Contain("Succeeded").And.Contain(entry.Profile!.Value.ToString());
+                    var retained = (await f.Store.ReadQueueEntryAsync(f.Request.SessionId, entry.Request.TaskId, f.Token))!;
+                    SessionQueueReadProfiles.Accepts(retained.ReadProfile, retained.Result!, retained.Target).Should().BeTrue();
+                    if (entry.Target is { } target) { model.Detail.Should().Contain(target.Id); }
+                    else { model.Detail.Should().Contain("local.inference").And.Contain("NotObserved").And.Contain("\"toolLoopQualified\":false"); }
+                }
+                model.ChooseNoQueuePrerequisite();
+                picker.SelectedItem = model.QueueCapabilities[0];
+                await model.RefreshWorkAsync();
+                model.SelectedQueueCapability.Should().BeNull();
+                picker.SelectedItem = model.QueueCapabilities[0];
+                access.ControlRevision++;
+                model.CanEnqueueCapability.Should().BeFalse();
+                await model.EnqueueCapabilityAsync();
+                (await f.Store.ReadQueueAsync(f.Request.SessionId, f.Token)).Entries.Should().BeEmpty();
+                registry.Probe.Calls.Should().Be(0);
+            }
+            finally { window.Close(); model.Close(); }
+            model.SelectedQueueCapability.Should().BeNull();
+        });
+    }
+
     [Theory]
     [InlineData("empty")]
     [InlineData("oversized")]
@@ -114,6 +201,8 @@ public sealed class SessionsQueuePrerequisiteTests
     [InlineData("EnqueueCapabilities", SessionQueueReadProfile.Capabilities)]
     [InlineData("EnqueueReadiness", SessionQueueReadProfile.Readiness)]
     [InlineData("EnqueueRuntimes", SessionQueueReadProfile.Runtimes)]
+    [InlineData("EnqueueCapability", SessionQueueReadProfile.Capability)]
+    [InlineData("EnqueueRuntimeStatus", SessionQueueReadProfile.RuntimeStatus)]
     public async Task ActualNativeButtonsForwardExactIndependentPrerequisiteAndClearNextDecision(string button, SessionQueueReadProfile profile)
     {
         await HeadlessSession.RunAsync(async () =>
@@ -153,6 +242,11 @@ public sealed class SessionsQueuePrerequisiteTests
                 model.CanEnqueueVersion.Should().BeFalse();
                 choice = model.QueuePrerequisites.Single(row => row.TaskId == f.Request.TaskId);
                 picker.SelectedItem = choice;
+                if (profile == SessionQueueReadProfile.Capability)
+                {
+                    model.SelectQueueCapability(model.QueueCapabilities.Single(row =>
+                        string.Equals(row.Descriptor.Id, ReadOnlyCapabilityCatalog.Version, StringComparison.Ordinal)));
+                }
                 model.SelectedQueuePrerequisite.Should().BeSameAs(choice);
                 choice.Label.Should().Contain(f.Request.TaskId.Value.ToString("D"))
                     .And.Contain(f.Request.SessionId.Value.ToString("D")).And.Contain("Succeeded")
@@ -169,6 +263,8 @@ public sealed class SessionsQueuePrerequisiteTests
                 var received = model.QueueRecords[^1];
                 received.Dependency.Should().Be(f.Request.TaskId);
                 received.ReadProfile.Should().Be(profile);
+                received.Target.Should().Be(profile == SessionQueueReadProfile.Capability ? new SessionQueueCapabilityTarget(ReadOnlyCapabilityCatalog.Version) : null);
+                model.SelectedQueueCapability.Should().BeNull();
                 received.Request.TaskId.Should().NotBe(choice.TaskId).And.NotBe(none.Request.TaskId);
                 received.Request.RequestId.Should().NotBe(none.Request.RequestId);
                 received.PendingLifetimeMinutes.Should().Be(30);
@@ -243,15 +339,25 @@ public sealed class SessionsQueuePrerequisiteTests
         model.Close();
     }
 
+    public static TheoryData<string, SessionQueueReadProfile> PhysicalGuardCases
+    {
+        get
+        {
+            var cases = new TheoryData<string, SessionQueueReadProfile>();
+            foreach (var boundary in new[] { "choice", "refresh", "privacy", "owner", "close", "missing", "revision" })
+            {
+                foreach (var profile in new[] { SessionQueueReadProfile.Version, SessionQueueReadProfile.Capability, SessionQueueReadProfile.RuntimeStatus })
+                {
+                    cases.Add(boundary, profile);
+                }
+            }
+            return cases;
+        }
+    }
+
     [Theory]
-    [InlineData("choice")]
-    [InlineData("refresh")]
-    [InlineData("privacy")]
-    [InlineData("owner")]
-    [InlineData("close")]
-    [InlineData("missing")]
-    [InlineData("revision")]
-    public async Task RealPhysicalEnqueueCommitRechecksCapturedChoicePrivateSourceAndTaskRevision(string boundary)
+    [MemberData(nameof(PhysicalGuardCases))]
+    public async Task RealPhysicalEnqueueCommitRechecksCapturedChoicePrivateSourceAndTaskRevision(string boundary, SessionQueueReadProfile profile)
     {
         using var f = new InteractionStorageFixture();
         await f.InitializeAsync();
@@ -266,6 +372,7 @@ public sealed class SessionsQueuePrerequisiteTests
         await model.RefreshAsync();
         await model.SelectAsync(model.Sessions.Single());
         model.SelectQueuePrerequisite(model.QueuePrerequisites.Single(row => row.TaskId == f.Request.TaskId));
+        if (profile == SessionQueueReadProfile.Capability) { model.SelectQueueCapability(model.QueueCapabilities[0]); }
         var audit = f.Count("security_audit_events");
         var crossed = false;
         checkpoint.Commit = (connection, transaction) =>
@@ -291,7 +398,12 @@ public sealed class SessionsQueuePrerequisiteTests
                 command.ExecuteNonQuery();
             }
         };
-        await model.EnqueueVersionAsync();
+        await (profile switch
+        {
+            SessionQueueReadProfile.Capability => model.EnqueueCapabilityAsync(),
+            SessionQueueReadProfile.RuntimeStatus => model.EnqueueRuntimeStatusAsync(),
+            _ => model.EnqueueVersionAsync(),
+        });
         crossed.Should().BeTrue();
         checkpoint.Commit = null;
         (await f.Store.ReadQueueAsync(f.Request.SessionId, f.Token)).Entries.Should().BeEmpty();
@@ -316,7 +428,7 @@ public sealed class SessionsQueuePrerequisiteTests
     private sealed class NeverAction : IDeterministicVersionQueueAction
     {
         internal int Reads { get; private set; }
-        public CapabilityReply Observe(SessionQueueReadProfile profile, CancellationToken token)
+        public CapabilityReply Observe(SessionQueueReadProfile profile, CancellationToken token, SessionQueueCapabilityTarget? target = null)
         {
             Reads++;
             throw new InvalidOperationException("Native selection and enqueue must never dispatch.");
@@ -350,8 +462,8 @@ public sealed class SessionsQueuePrerequisiteTests
         public ValueTask<SessionQueueSnapshot> EnqueueAsync(HostRequest control, HostRequest work, HostRevision generation,
             long revision, long admission, HostId<TaskIdentity>? dependency, SessionQueueLimits limits,
             Func<bool> eligible, CancellationToken token, SessionQueueReadProfile profile = SessionQueueReadProfile.Version,
-            HostRevision? expectedDependencyRevision = null) =>
-            store.EnqueueAsync(control, work, generation, revision, admission, dependency, limits, eligible, token, profile, expectedDependencyRevision);
+            HostRevision? expectedDependencyRevision = null, SessionQueueCapabilityTarget? target = null) =>
+            store.EnqueueAsync(control, work, generation, revision, admission, dependency, limits, eligible, token, profile, expectedDependencyRevision, target);
         public ValueTask<SessionQueueSnapshot> RemovePendingAsync(HostRequest control, HostRevision generation, long revision,
             HostId<TaskIdentity>? task, HostRevision? entryRevision, SessionQueueState outcome, Func<bool> eligible, CancellationToken token) =>
             store.RemovePendingAsync(control, generation, revision, task, entryRevision, outcome, eligible, token);

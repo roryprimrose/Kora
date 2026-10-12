@@ -93,7 +93,9 @@ public sealed class AuthorityLocalEventSource(
             events.Add(new LocalEvent(LocalEvent.Identity(LocalEventSource.LocalVersionQueue, session.SessionId.Value, entry.Request.TaskId.Value),
                 1, LocalEventSource.LocalVersionQueue, type.Value, session.SessionId, entry.Request.TaskId,
                 entry.Request.TaskId.Value, session.Generation.Value, entry.Revision.Value, 0, entry.Request.Origin,
-                row.Eligibility, now, deadline) with { RelatedRevision = snapshot.Queue.DispatchControl?.Revision ?? 0 });
+                row.Eligibility, now, deadline) with { RelatedRevision = snapshot.Queue.DispatchControl?.Revision ?? 0,
+                    QueueProfile = entry.RecordVersion == SessionQueueEntry.TargetedReadRecordVersion ? entry.Profile : null,
+                    QueueTarget = entry.Target });
         }
         foreach (var question in snapshot.PendingQuestions)
         {

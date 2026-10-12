@@ -64,6 +64,7 @@ internal sealed partial class SessionsViewModel
 
     private void InvalidateQueuePrerequisite(bool clearSource = false, bool requireDecision = false)
     {
+        InvalidateQueueCapability();
         queuePrerequisiteDecisionRequired |= queuePrerequisite is not null || requireDecision;
         queuePrerequisite = null;
         queuePrerequisiteEpoch++;
@@ -101,5 +102,6 @@ internal sealed partial class SessionsViewModel
             OnPropertyChanged(nameof(CanEnqueueVersion));
         }
         finally { presentingQueuePrerequisites = false; }
+        NotifyQueueCapability();
     }
 }

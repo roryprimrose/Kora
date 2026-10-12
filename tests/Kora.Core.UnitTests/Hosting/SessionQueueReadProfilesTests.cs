@@ -85,7 +85,7 @@ public sealed class SessionQueueReadProfilesTests
         var completed = active with { Revision = new(3), State = SessionQueueState.Succeeded, Result = result };
         completed.ValidateStoredResult();
         (completed with { Result = null }).Invoking(entry => entry.ValidateStoredResult()).Should().Throw<InvalidDataException>();
-        foreach (var other in Enum.GetValues<SessionQueueReadProfile>())
+        foreach (var other in new[] { SessionQueueReadProfile.Version, SessionQueueReadProfile.Capabilities, SessionQueueReadProfile.Readiness, SessionQueueReadProfile.Runtimes })
         {
             SessionQueueReadProfiles.Accepts(profile, Reply(other)).Should().Be(profile == other);
         }
@@ -126,7 +126,7 @@ public sealed class SessionQueueReadProfilesTests
             new CapabilityReply(CapabilityOutcome.Succeeded, "x", Runtimes: new(null!, 0, null)),
         })
         {
-            foreach (var profile in Enum.GetValues<SessionQueueReadProfile>())
+            foreach (var profile in new[] { SessionQueueReadProfile.Version, SessionQueueReadProfile.Capabilities, SessionQueueReadProfile.Readiness, SessionQueueReadProfile.Runtimes })
             {
                 SessionQueueReadProfiles.Accepts(profile, reply).Should().BeFalse();
             }

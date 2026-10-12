@@ -31,7 +31,7 @@ internal sealed partial class SessionsViewModel
             + "\nMove down: " + (QueueMoveRefusal(false) ?? "exact adjacent review available");
 
     private static string Pair(SessionQueueEntry first, SessionQueueEntry second) => Describe(first) + " then " + Describe(second);
-    private static string Describe(SessionQueueEntry entry) => SessionQueueReadProfiles.CapabilityId(entry.ReadProfile)
+    private static string Describe(SessionQueueEntry entry) => SessionQueueReadProfiles.Describe(entry.ReadProfile, entry.Target)
         + " task " + entry.Request.TaskId.Value.ToString("D") + " revision " + entry.Revision.Value.ToString(CultureInfo.InvariantCulture)
         + " original arrival " + entry.Position.ToString(CultureInfo.InvariantCulture)
         + " enqueued " + entry.EnqueuedAt.ToString("O", CultureInfo.InvariantCulture)

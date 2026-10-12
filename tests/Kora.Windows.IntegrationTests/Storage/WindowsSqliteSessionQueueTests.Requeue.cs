@@ -19,12 +19,14 @@ public sealed partial class WindowsSqliteSessionQueueTests
     [InlineData(SessionQueueReadProfile.Capabilities)]
     [InlineData(SessionQueueReadProfile.Readiness)]
     [InlineData(SessionQueueReadProfile.Runtimes)]
+    [InlineData(SessionQueueReadProfile.Capability)]
+    [InlineData(SessionQueueReadProfile.RuntimeStatus)]
     public async Task ExpiredCurrentRunReplacementIsOneReviewedNewTailDecisionWithUnchangedOldEvidenceAndNoDispatch(SessionQueueReadProfile profile)
     {
         using var f = new InteractionStorageFixture();
         await f.InitializeAsync();
         await WindowsSqliteSessionWorkspaceTests.FinishAsync(f, HostTaskState.Succeeded);
-        var old = await EnqueueAsync(f, f.Request.SessionId, minutes: 1, profile: profile);
+        var old = await EnqueueAsync(f, f.Request.SessionId, minutes: 1, profile: profile, target: ProfileTarget(profile));
         var prerequisite = await EnqueueAsync(f, f.Request.SessionId);
         var dependent = await EnqueueAsync(f, f.Request.SessionId, dependency: old.Request.TaskId);
         using var registry = new FixedRegistryFixture(f.Time);
@@ -52,6 +54,7 @@ public sealed partial class WindowsSqliteSessionQueueTests
         fresh.Request.TaskId.Should().NotBe(old.Request.TaskId);
         fresh.Request.RequestId.Should().NotBe(old.Request.RequestId);
         fresh.ReadProfile.Should().Be(profile);
+        fresh.Target.Should().Be(old.Target);
         fresh.State.Should().Be(SessionQueueState.Pending);
         fresh.ActiveBudgetMinutes.Should().BeNull();
         fresh.ActiveDeadlineAt.Should().BeNull();

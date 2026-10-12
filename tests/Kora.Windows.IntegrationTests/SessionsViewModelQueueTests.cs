@@ -173,6 +173,11 @@ public sealed class SessionsViewModelQueueTests
             await viewer.EnqueueReadinessAsync();
             viewer.ChooseNoQueuePrerequisite();
             await viewer.EnqueueRuntimesAsync();
+            viewer.ChooseNoQueuePrerequisite();
+            viewer.SelectQueueCapability(viewer.QueueCapabilities[0]);
+            await viewer.EnqueueCapabilityAsync();
+            viewer.ChooseNoQueuePrerequisite();
+            await viewer.EnqueueRuntimeStatusAsync();
             viewer.QueueRecords.Select(entry => entry.ReadProfile).Should().Equal(Enum.GetValues<SessionQueueReadProfile>());
             viewer.WorkRecords.Should().Contain(row => row.State.Contains(ReadOnlyCapabilityCatalog.RuntimeList, StringComparison.Ordinal));
             actions.Probe.Calls.Should().Be(0);
@@ -300,7 +305,7 @@ public sealed class SessionsViewModelQueueTests
     {
         internal Action? BeforeObserve { get; set; }
         internal int Reads { get; private set; }
-        public CapabilityReply Observe(SessionQueueReadProfile profile, CancellationToken token)
+        public CapabilityReply Observe(SessionQueueReadProfile profile, CancellationToken token, SessionQueueCapabilityTarget? target = null)
         {
             Reads++;
             BeforeObserve?.Invoke();

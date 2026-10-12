@@ -195,6 +195,10 @@
                   AutomationProperties.Name="Enqueue readiness.get with the explicit optional prerequisite choice; no automatic dispatch" />
           <Button x:Name="EnqueueRuntimes" Content="Enqueue runtime.list" IsEnabled="{Binding CanEnqueueVersion}"
                   AutomationProperties.Name="Enqueue runtime.list with the explicit optional prerequisite choice; no automatic dispatch" />
+          <Button x:Name="EnqueueCapability" Content="Enqueue selected capabilities.get" IsEnabled="{Binding CanEnqueueCapability}"
+                  AutomationProperties.Name="Enqueue only the explicitly selected exact current descriptor with the same optional prerequisite; no automatic dispatch" />
+          <Button x:Name="EnqueueRuntimeStatus" Content="Enqueue recorded local runtime status" IsEnabled="{Binding CanEnqueueVersion}"
+                  AutomationProperties.Name="Enqueue runtime.get_status for fixed recorded local.inference only with the optional prerequisite; no automatic dispatch, probe or inference" />
           <Button x:Name="DispatchQueue" Content="Dispatch ready fixed reads fairly" IsEnabled="{Binding CanControlQueue}"
                   AutomationProperties.Name="Explicit manual bounded fair dispatch among already enqueued current-run sessions; no effect or provider execution" />
           <Button x:Name="PauseQueue" Content="Pause this session's new dispatch" IsEnabled="{Binding CanChangeQueuePause}"
@@ -207,6 +211,15 @@
         <ScrollViewer Grid.Row="3" MaxHeight="180" VerticalScrollBarVisibility="Auto"
                       AutomationProperties.Name="Routine notices and pending exact questions; scroll for complete retained cards">
         <StackPanel Spacing="4">
+          <controls:NamedTextBlock Text="{Binding QueueCapabilityStatus}" TextWrapping="Wrap"
+                                  AutomationProperties.Name="Closed descriptor target choice and recorded local runtime boundary" />
+          <ComboBox x:Name="QueueCapabilities" ItemsSource="{Binding QueueCapabilities}"
+                    SelectedItem="{Binding SelectedQueueCapability, Mode=OneWay}" IsEnabled="{Binding CanSelectQueueCapability}"
+                    AutomationProperties.Name="Explicit exact descriptor target from the current six read-only catalogue records; no default selection">
+            <ComboBox.ItemTemplate>
+              <DataTemplate><TextBlock Text="{Binding Label}" TextWrapping="Wrap" /></DataTemplate>
+            </ComboBox.ItemTemplate>
+          </ComboBox>
           <controls:NamedTextBlock Text="{Binding QueuePrerequisiteStatus}" TextWrapping="Wrap"
                                   AutomationProperties.Name="Optional prerequisite choice and prospective fixed-read consequence; bounded observed metadata only" />
           <Button x:Name="NoQueuePrerequisite" Content="None: enqueue without a prerequisite" IsEnabled="{Binding CanRead}"

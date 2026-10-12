@@ -6,6 +6,9 @@ namespace Kora.Application.Hosting;
 
 internal sealed class DeterministicVersionQueueAction(ReadOnlyCapabilityRegistry registry) : IDeterministicVersionQueueAction
 {
-    public CapabilityReply Observe(SessionQueueReadProfile profile, CancellationToken token) =>
-        registry.Invoke(registry.Admit(CapabilityLane.Native), SessionQueueReadProfiles.CapabilityId(profile), "{}", token);
+    public CapabilityReply Observe(SessionQueueReadProfile profile, CancellationToken token, SessionQueueCapabilityTarget? target = null)
+    {
+        var input = SessionQueueReadProfiles.Input(profile, target);
+        return registry.Invoke(registry.Admit(CapabilityLane.Native), SessionQueueReadProfiles.CapabilityId(profile), input, token);
+    }
 }

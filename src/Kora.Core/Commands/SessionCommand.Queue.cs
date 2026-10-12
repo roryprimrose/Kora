@@ -23,9 +23,11 @@ public sealed partial record SessionCommand
     public Guid? FreshTaskId { get; init; }
     public ImmutableArray<SessionQueueSelection> QueueSelection { get; init; } = [];
     public SessionQueueReadProfile QueueProfile { get; init; } = SessionQueueReadProfile.Version;
+    public SessionQueueCapabilityTarget? QueueTarget { get; init; }
     public const string QueueSyntax =
         "queue help | queue list <session-id> | queue status <session-id> <task-id> | "
-        + "queue enqueue <session-id> <generation> <queue-revision> <request-id> <task-id> version|capabilities.list|readiness.get|runtime.list [after <task-id>] | "
+        + "queue enqueue <session-id> <generation> <queue-revision> <request-id> <task-id> version|capabilities.list|readiness.get|runtime.list|runtime.get_status [after <task-id>] | "
+        + "queue enqueue <session-id> <generation> <queue-revision> <request-id> <task-id> capabilities.get <exact-current-descriptor-id> [after <task-id>] | "
         + "queue cancel|remove <session-id> <generation> <queue-revision> <task-id> <entry-revision> | "
         + "queue clear <session-id> <generation> <queue-revision> confirm | "
         + "queue dispatch <session-id> <generation> <queue-revision>. "
@@ -43,7 +45,7 @@ public sealed partial record SessionCommand
         + "Move requires an exact observed adjacent-pair review and separate confirmation; no automatic dispatch or clock renewal. "
         + "queue pause-status <session-id> | queue pause|resume <session-id> <generation> <queue-revision> <run-id> <pause-revision>. "
         + "Pause blocks new admissions only for that exact current-run session; resume never dispatches or replays work. "
-        + "Four fixed no-argument first-page reads only; manual fair dispatch of already enqueued current-run work. "
+        + "Six closed reads: original four unchanged no-argument first pages, one exact current catalogue descriptor, or fixed recorded local.inference status. No arbitrary JSON or runtime ID; manual fair dispatch of already enqueued current-run work. "
         + "Queue revision may be zero for an empty queue. No effects, workers, providers, model or restart replay.";
 
     private static SessionCommand ParseQueue(string text, string input)
@@ -179,17 +181,26 @@ public sealed partial record SessionCommand
             return new(operation is "cancel" ? SessionCommandOperation.QueueCancel : SessionCommandOperation.QueueRemove,
                 session, generation) { QueueRevision = revision, TaskId = task, TaskRevision = entryRevision };
         }
-        if (operation is "enqueue" && words.Length is 8 or 10 && ExactId(words[5], out var request)
+        if (operation is "enqueue" && words.Length is >= 8 and <= 11 && ExactId(words[5], out var request)
             && ExactId(words[6], out var queuedTask) && SessionQueueReadProfiles.Parse(words[7]) is { } profile)
         {
-            Guid? dependency = null;
-            if (words.Length == 10)
+            var end = 8;
+            SessionQueueCapabilityTarget? target = null;
+            if (profile == SessionQueueReadProfile.Capability)
             {
-                if (!words[8].Equals("after", StringComparison.OrdinalIgnoreCase) || !ExactId(words[9], out var after)) { return Invalid(); }
+                if (words.Length < 9 || Kora.Core.Tools.ReadOnlyCapabilityCatalog.FindExact(words[8]) is null) { return Invalid(); }
+                target = new(words[8]);
+                end++;
+            }
+            Guid? dependency = null;
+            if (words.Length == end + 2)
+            {
+                if (!words[end].Equals("after", StringComparison.OrdinalIgnoreCase) || !ExactId(words[end + 1], out var after)) { return Invalid(); }
                 dependency = after;
             }
+            else if (words.Length != end) { return Invalid(); }
             return new(SessionCommandOperation.QueueEnqueue, session, generation)
-            { QueueRevision = revision, WorkRequestId = request, TaskId = queuedTask, DependencyTaskId = dependency, QueueProfile = profile };
+            { QueueRevision = revision, WorkRequestId = request, TaskId = queuedTask, DependencyTaskId = dependency, QueueProfile = profile, QueueTarget = target };
         }
         return Invalid();
     }

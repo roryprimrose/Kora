@@ -27,7 +27,7 @@ public sealed record SessionQueueRequeueReceipt(Guid ReviewId, long QueueRevisio
         if (!Fresh.IsPending || Fresh.DispatchOrder != 0 || Fresh.RunId != Original.RunId
             || Fresh.Generation != Original.Generation || Fresh.Request.SessionId != Original.Request.SessionId
             || Fresh.Request.TaskId == Original.Request.TaskId || Fresh.Request.RequestId == Original.Request.RequestId
-            || Fresh.Dependency != Original.Dependency || Fresh.ReadProfile != Original.ReadProfile
+            || Fresh.Dependency != Original.Dependency || Fresh.ReadProfile != Original.ReadProfile || Fresh.Target != Original.Target
             || Fresh.EnqueuedAt.Offset != TimeSpan.Zero || Fresh.ExpiresAt.Offset != TimeSpan.Zero
             || Fresh.Position <= Original.Position || Fresh.Revision.Value != 1 || Control.Held)
         {

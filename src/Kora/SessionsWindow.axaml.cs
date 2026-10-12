@@ -116,6 +116,10 @@ internal sealed partial class SessionsWindow : Window
         EnqueueCapabilities.Click += async (_, _) => await model.EnqueueCapabilitiesAsync();
         EnqueueReadiness.Click += async (_, _) => await model.EnqueueReadinessAsync();
         EnqueueRuntimes.Click += async (_, _) => await model.EnqueueRuntimesAsync();
+        QueueCapabilities.SelectionChanged += (_, _) =>
+            model.SelectQueueCapability(QueueCapabilities.SelectedItem as QueueCapabilityOption);
+        EnqueueCapability.Click += async (_, _) => await model.EnqueueCapabilityAsync();
+        EnqueueRuntimeStatus.Click += async (_, _) => await model.EnqueueRuntimeStatusAsync();
         DispatchQueue.Click += async (_, _) => await model.DispatchQueueAsync();
         PauseQueue.Click += async (_, _) => await model.PauseQueueAsync();
         ResumeQueue.Click += async (_, _) => await model.ResumeQueueAsync();

@@ -31,7 +31,8 @@ public interface ISessionQueueStore
     ValueTask<SessionQueueSnapshot> EnqueueAsync(HostRequest control, HostRequest work, HostRevision generation,
         long expectedRevision, long admissionRevision, HostId<TaskIdentity>? dependency,
         SessionQueueLimits limits, Func<bool> eligible, CancellationToken token,
-        SessionQueueReadProfile profile = SessionQueueReadProfile.Version, HostRevision? expectedDependencyRevision = null);
+        SessionQueueReadProfile profile = SessionQueueReadProfile.Version, HostRevision? expectedDependencyRevision = null,
+        SessionQueueCapabilityTarget? target = null);
     ValueTask<SessionQueueSnapshot> RemovePendingAsync(HostRequest control, HostRevision generation, long expectedRevision,
         HostId<TaskIdentity>? task, HostRevision? entryRevision, SessionQueueState outcome,
         Func<bool> eligible, CancellationToken token);

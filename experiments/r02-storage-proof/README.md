@@ -225,8 +225,11 @@ superseded encrypted-native selection or blanket retention until R30 exists.
 ## Licensing, native assets and Windows-only scope
 
 See [the native/licensing assessment](NATIVE-ASSETS.md). RID publication for
-win-x64 and win-x86 is exercised on Windows. Published x86 binaries are not
-execution evidence. The runner does not publish Linux assets; neither Linux
+win-x64 and win-x86 is exercised on Windows. The standalone manual-proof
+harness can produce machine-local supplemental evidence that the exact retained
+x86 SQLCipher DLL loads and executes basic entry points in the installed
+32-bit Windows host. That is not full x86 Kora execution, installer or
+clean-machine evidence. The runner does not publish Linux assets; neither Linux
 execution nor Linux-host builds are requirements for this proof.
 
 ## Remaining gates / D-009 boundary

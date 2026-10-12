@@ -32,6 +32,53 @@ internal static class SelfTests
             results.Add(new { name, passed = true });
         }
 
+        await Test("experiment-endpoint-validation", () =>
+        {
+            Require(Measurements.ValidateEndpoint("http://127.0.0.1:11435").Port == 11435,
+                "A dedicated loopback experiment port was rejected.");
+            foreach (var blocked in new[]
+            {
+                "https://127.0.0.1:11435",
+                "http://localhost:11435",
+                "http://127.0.0.1:80",
+                "http://127.0.0.1:11435/api",
+                "http://user@127.0.0.1:11435",
+                "http://127.0.0.1:11435?changed=true",
+                "http://127.0.0.1:11435#fragment",
+            })
+            {
+                try
+                {
+                    Measurements.ValidateEndpoint(blocked);
+                    throw new InvalidOperationException($"Unsafe endpoint was accepted: {blocked}");
+                }
+                catch (ArgumentException)
+                {
+                }
+            }
+
+            return Task.CompletedTask;
+        });
+        await Test("production-origin-experiment-rewrite", async () =>
+        {
+            try
+            {
+                Measurements.ConfigureEndpoint("http://127.0.0.1:11435");
+                using var transport = new LocalTransport(new StubHandler((request, _) =>
+                {
+                    Require(request.RequestUri?.Port == 11435, "The production origin was not rewritten to the admitted experiment port.");
+                    return Task.FromResult(StubHandler.Json(Tags));
+                }));
+                using var client = new HttpClient(transport);
+                using var response = await client.GetAsync("http://127.0.0.1:11434/api/tags");
+                response.EnsureSuccessStatusCode();
+            }
+            finally
+            {
+                Measurements.ConfigureEndpoint(Measurements.DefaultEndpoint);
+            }
+        });
+
         foreach (var fixture in fixtures)
         {
             await Test("rubric-positive-" + fixture.Id, () =>

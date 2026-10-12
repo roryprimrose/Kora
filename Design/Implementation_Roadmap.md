@@ -179,19 +179,15 @@ scope, and profile editing never becomes a generic filesystem/tool permission.
 
 ### R02 Local-Inference Continuation
 
-| Step | Remaining action |
-|---|---|
-| L1 | Approve operator, reference CPU/8-logical-core/16-GiB/SSD floor, isolation and numerical budgets |
-| L2 | Separately consent to pinned provisioning and record exact licence/digest/staging-volume facts |
-| L3 | Run at least 30 cold and 30 paired warm trials, human quality review, context/resource/cancellation/recovery measurements |
-| L4 | Independently enforce and observe remote-egress denial with loopback retained; may run beside L3 after L2 |
-| L5 | Record candidate/hardware disposition and D-003/D-007 evidence after L3/L4 |
-| L6 | Apply the qualified envelope to dependent host workflows and repeat integrated evidence |
+The Ollama 0.35.1/qwen3:1.7b and Ollama 0.40.2 candidates are rejected. Do not
+repeat hardware, offline or human trials for them. Continue provider-neutral
+host, UI and orchestration development with explicit unavailable behavior.
 
-Retain the pinned candidate for trials; do not substitute cloud or lower the
-floor silently. The [technical plan](Local_Inference.md) and
-[LI01-LI07 procedure](../experiments/r02-local-inference-proof/README.md#outstanding-testing-checklist)
-own the details.
+If a materially changed candidate is proposed, apply the
+[future candidate gate](Local_Inference.md#future-candidate-gate): automated
+quality and authority first, then approved identity/licence, reference hardware,
+context/cancellation, offline/egress and integrated-host qualification. That
+work gates only the candidate's enablement and associated release claims.
 
 ## R13 exact current-run queue pause receipt - 2026-10-11
 

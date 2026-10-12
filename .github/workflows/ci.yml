@@ -320,32 +320,8 @@ jobs:
       - name: Restore locked dependencies
         run: dotnet restore tests/Kora.Windows.IntegrationTests/Kora.Windows.IntegrationTests.csproj --locked-mode
 
-      - name: Restore deterministic proof tools
-        shell: pwsh
-        run: |
-          dotnet restore experiments/r02-local-inference-proof/Proof.csproj --locked-mode
-          if ($LASTEXITCODE -ne 0) { throw 'Local-inference proof restore failed.' }
-          dotnet restore tests/Kora.ManualProofHarness/Kora.ManualProofHarness.csproj --locked-mode
-          if ($LASTEXITCODE -ne 0) { throw 'Manual-proof harness restore failed.' }
-
       - name: Build Windows integration tests
         run: dotnet build tests/Kora.Windows.IntegrationTests/Kora.Windows.IntegrationTests.csproj --configuration Release --no-restore
-
-      - name: Build deterministic proof tools
-        shell: pwsh
-        run: |
-          dotnet build experiments/r02-local-inference-proof/Proof.csproj --configuration Release --no-restore
-          if ($LASTEXITCODE -ne 0) { throw 'Local-inference proof build failed.' }
-          dotnet build tests/Kora.ManualProofHarness/Kora.ManualProofHarness.csproj --configuration Release --no-restore
-          if ($LASTEXITCODE -ne 0) { throw 'Manual-proof harness build failed.' }
-
-      - name: Run deterministic proof self-tests
-        shell: pwsh
-        run: |
-          dotnet run --project experiments/r02-local-inference-proof/Proof.csproj --configuration Release --no-build -- self-test --output (Join-Path $env:RUNNER_TEMP 'local-inference-proof-self-test.json')
-          if ($LASTEXITCODE -ne 0) { throw 'Local-inference proof self-test failed.' }
-          dotnet run --project tests/Kora.ManualProofHarness/Kora.ManualProofHarness.csproj --configuration Release --no-build -- --self-test
-          if ($LASTEXITCODE -ne 0) { throw 'Manual-proof harness self-test failed.' }
 
       - name: Test payload rejection before packaging
         shell: pwsh

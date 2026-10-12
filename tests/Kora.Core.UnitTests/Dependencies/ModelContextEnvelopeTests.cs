@@ -11,6 +11,18 @@ public sealed class ModelContextEnvelopeTests
     private static readonly DateTimeOffset Now = DateTimeOffset.UnixEpoch;
 
     [Fact]
+    public void CompleteSerializedInputLimitIncludesActualFramingAndToolsAtExactBoundary()
+    {
+        var empty = new ModelContextEnvelope(Request, "", "", [], Now, Now.AddMinutes(1));
+        var overhead = empty.Serialize().Length;
+        var exact = new ModelContextEnvelope(Request, "", new string('x', 32768 - overhead), [], Now, Now.AddMinutes(1));
+        exact.Serialize().Length.Should().Be(32768);
+        exact.RequireCompleteInputLimit();
+        var overflow = new ModelContextEnvelope(Request, "", new string('x', 32769 - overhead), [], Now, Now.AddMinutes(1));
+        overflow.Invoking(envelope => envelope.RequireCompleteInputLimit()).Should().Throw<InvalidDataException>();
+    }
+
+    [Fact]
     public void Evidence_is_frozen_and_structurally_separate_from_policy_and_user_intent()
     {
         var evidence = new List<ModelContextEvidence> { Item() };

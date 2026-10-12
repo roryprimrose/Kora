@@ -60,6 +60,25 @@ Existing exact lock behavior and non-executing power proposals are unchanged.
 
 ## Ordered Outstanding Work
 
+### R12/R14 exact-session conversation/composer foundation — 2026-10-12
+
+The [native composer and private authority](Interaction_And_Sessions.md#delivered-exact-session-conversationcomposer-foundation--2026-10-12)
+deliver memory-only editing, explicit revision-bound saved draft operations,
+immutable submitted original user messages and truthful unavailable HOST/task
+terminals through the real configured provider-neutral admission consumer.
+Schema 10→11 preserves old task/history/queue/provider/audit bytes and uses
+the existing atomic authority/copy/deletion domain. Body/page limits and
+100 messages/session do not cap retained sessions or aggregate drafts/messages.
+No unexpired content/audit eviction, auto-save/replay, provider/bootstrap
+fallback, HTTP/authentication or assistant-output claim is added.
+
+This substantive host/UI increment follows #217's
+[engineering progression policy](Deferred_Validation.md#engineering-progression-policy).
+Rejected Ollama candidates and the retired manual proof harness are not
+prerequisites or restored validation. Full generated conversation, history
+context assembly, global/voice routing, general execution, provider/hardware,
+installed-native/accessibility and R12/R14/RC qualification remain gated.
+
 ### R14 native question terminal-publication correctness - 2026-10-12
 
 The [native terminal publication fix](Interaction_Fallback.md#synchronized-native-terminal-publication---2026-10-12) synchronizes closed state and its original-await receipt across committed cancellation, decision, denial and failure. Deterministic private-SQLite/native recovery regressions preserve cancellation without bypassing earlier withdrawal; later clearing and exact pre-dispatch checks remain mandatory.

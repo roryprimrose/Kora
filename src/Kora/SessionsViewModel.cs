@@ -24,7 +24,8 @@ internal sealed partial class SessionsViewModel(
     Action<HostId<SessionIdentity>>? revokeHistoryDetails = null,
     Kora.Application.Memory.MemoryManagementService? memories = null,
     SessionAttachmentWindowController? attachments = null,
-    Kora.Application.Configuration.SessionProviderProfileConfigurationService? providers = null) : ObservableObject
+    Kora.Application.Configuration.SessionProviderProfileConfigurationService? providers = null,
+    SessionConversationService? conversation = null) : ObservableObject
 {
     private readonly HostRequest viewer = HostRequest.Create(RequestOrigin.LocalUi);
     private readonly CancellationTokenSource lifetime = new();
@@ -68,6 +69,13 @@ internal sealed partial class SessionsViewModel(
         set
         {
             if (!CanRead || !Enum.IsDefined(value)) { return; }
+            if (ComposerDirty)
+            {
+                status = "Save or explicitly discard the memory-only composer draft before changing the session filter.";
+                OnPropertyChanged(nameof(Status));
+                OnPropertyChanged();
+                return;
+            }
             var searching = listSearchMode;
             InvalidateListSearch();
             sessionFilter = value;
@@ -233,6 +241,7 @@ internal sealed partial class SessionsViewModel(
 
     public Task PreviewDispositionAsync() => RunAsync(async () =>
     {
+        if (!await ProtectComposerAsync()) { return; }
         dispositionPreview = null;
         var target = RequireSelected();
         var preview = await service.PreviewDispositionAsync(target.Authority.SessionId, target.Authority.Generation,
@@ -253,6 +262,7 @@ internal sealed partial class SessionsViewModel(
 
     public Task ConfirmDispositionAsync() => RunAsync(async () =>
     {
+        if (!await ProtectComposerAsync()) { return; }
         var preview = dispositionPreview ?? throw new InvalidOperationException("Preview the exact session first.");
         dispositionPreview = null;
         revokeHistoryDetails?.Invoke(preview.Session.Authority.SessionId);
@@ -275,13 +285,14 @@ internal sealed partial class SessionsViewModel(
         {
             await RefreshSelectedWorkAsync();
         }
-        else { ClearSelection(); }
+        else if (await ProtectComposerAsync()) { ClearSelection(); }
         status = "Active/Done minimal authority: " + sessions.Records.Length.ToString(CultureInfo.InvariantCulture)
             + " records on this page. " + (sessions.Next is null ? "End of current list." : "More pages available.");
     });
 
     public Task NextAsync() => RunAsync(async () =>
     {
+        if (!await ProtectComposerAsync()) { return; }
         if (listSearchMode) { throw new InvalidOperationException("Use Next metadata search or Refresh the ordinary list."); }
         sessions = await service.ReadMetadataAsync(sessions?.Next
             ?? throw new InvalidOperationException("Refresh before requesting a next page."), 25, lifetime.Token);
@@ -303,6 +314,7 @@ internal sealed partial class SessionsViewModel(
             {
                 throw new InvalidOperationException("Select an existing record from this page.");
             }
+            if (record?.Authority.SessionId != selected?.Authority.SessionId && !await ProtectComposerAsync()) { return; }
             await ReadSelectedAsync(record);
         });
     }
@@ -312,6 +324,7 @@ internal sealed partial class SessionsViewModel(
         {
             using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(lifetime.Token, token);
             if (!admitted()) { throw new OperationCanceledException("The overview source changed."); }
+            if (!await ProtectComposerAsync()) { return; }
             var page = await service.SearchListAsync(SessionListSearchKind.ExactId, SessionListFilter.All,
                 session.Value.ToString("D"), null, 1, cancellation.Token);
             var record = page.Records.Single();
@@ -385,6 +398,7 @@ internal sealed partial class SessionsViewModel(
 
     public Task ChangeLifecycleAsync(bool active) => RunAsync(async () =>
     {
+        if (!await ProtectComposerAsync()) { return; }
         var target = RequireSelected();
         var changed = await service.ChangeLifecycleAsync(target.Authority.SessionId, target.Authority.Generation, active,
             RequestOrigin.LocalUi, lifetime.Token);
@@ -400,6 +414,7 @@ internal sealed partial class SessionsViewModel(
 
     public Task CreateAsync() => RunAsync(async () =>
     {
+        if (!await ProtectComposerAsync()) { return; }
         var created = await service.CreateAsync(new(nameDraft), RequestOrigin.LocalUi, lifetime.Token);
         sessions = null;
         ClearSelection();
@@ -585,6 +600,7 @@ internal sealed partial class SessionsViewModel(
 
     private void ClearSelection()
     {
+        ClearConversation();
         InvalidateQueuePrerequisite(clearSource: true);
         ClearProviderReview();
         attachments?.Close();
@@ -639,6 +655,7 @@ internal sealed partial class SessionsViewModel(
         try
         {
             NotifyWork();
+            NotifyConversation();
             NotifyProviderReview();
             NotifyRetention();
             NotifyMemories();

@@ -186,7 +186,8 @@ public sealed partial class App : Avalonia.Application
                 Services.GetRequiredService<ILogger<SessionsViewModel>>(),
                 Services.GetRequiredService<Kora.Application.Interaction.LocalEventBroker>(), detailWindow,
                 Services.GetRequiredService<Kora.Application.Memory.MemoryManagementService>(), attachmentWindow,
-                Services.GetRequiredService<Kora.Application.Configuration.SessionProviderProfileConfigurationService>());
+                Services.GetRequiredService<Kora.Application.Configuration.SessionProviderProfileConfigurationService>(),
+                Services.GetRequiredService<SessionConversationService>());
             sessionsWindow.Bind();
             allWorkWindow = new AllWorkWindowController(viewModel,
                 Services.GetRequiredService<SessionWorkspaceService>(),

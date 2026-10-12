@@ -335,6 +335,15 @@ Local-only mode does not call a remote management model.
 
 ## Management Operating Envelope and Degraded Mode
 
+The [bounded native conversation consumer](Interaction_And_Sessions.md#delivered-exact-session-conversationcomposer-foundation--2026-10-12)
+is not a fixed-read queue profile or a provider execution slot. It creates
+fresh exact-session original-user task/content intent atomically, refuses
+other live/Unknown/question work and invokes current configured turn admission.
+No model exists in the production catalogue; retained user content receives a
+truthful unavailable task/HOST status. There is no adapter execution, bootstrap
+fallback, aggregate session quota, automatic retry or retained-history context.
+Queue counts/settings/readiness do not grant provider/resource permission.
+
 The management lane is optional inference around a mandatory deterministic host core.
 The delivered bounded session core now accepts exact typed/activated-voice
 `session list/status/inspect/create/rename/done/resume`, with `session help`,

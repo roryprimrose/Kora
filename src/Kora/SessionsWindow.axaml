@@ -28,6 +28,46 @@
     <ScrollViewer Grid.Row="3" MaxHeight="260" VerticalScrollBarVisibility="Auto"
                   AutomationProperties.Name="Selected-session controls and provider policy review; scroll for complete controls">
     <StackPanel Spacing="6">
+    <Expander Header="Exact-session conversation and composer — generation unavailable" IsExpanded="True">
+      <StackPanel Spacing="6">
+        <controls:NamedTextBlock Text="{Binding ComposerTarget}" TextWrapping="Wrap"
+            AutomationProperties.Name="Composer exact target ID, name, generation, metadata and saved draft revisions, private control epoch" />
+        <TextBlock Text="Submit retains your exact message privately and records a truthful unavailable-provider host outcome. No assistant generation, rejected local runtime fallback, history context, tools or network is enabled. Drafts are memory-only unless you explicitly Save." TextWrapping="Wrap" />
+        <WrapPanel>
+          <Button x:Name="ReadConversation" Content="Read exact conversation / saved revision" IsEnabled="{Binding CanReadConversation}" />
+          <Button x:Name="NextConversation" Content="Next bounded conversation page" IsEnabled="{Binding CanNextConversation}" />
+        </WrapPanel>
+        <controls:ScrollableListBox ItemsSource="{Binding ConversationMessages}" MaxHeight="160"
+            AutomationProperties.Name="Chronological immutable original user messages and separate host statuses; inert native text, not model answers or replay controls">
+          <ListBox.ItemTemplate><DataTemplate>
+            <StackPanel Spacing="4">
+              <TextBlock Text="{Binding Sequence, StringFormat='USER message sequence {0}'}" />
+              <TextBlock Text="{Binding Request.RequestId.Value, StringFormat='Original request {0}'}" TextWrapping="Wrap" />
+              <TextBlock Text="{Binding SubmittedAt, StringFormat='Submitted UTC {0:O}'}" />
+              <TextBlock Text="{Binding Body}" TextWrapping="Wrap" />
+              <TextBlock Text="{Binding Outcome, TargetNullValue='Pending / inspect task recovery', StringFormat='HOST status: {0}'}" />
+              <TextBlock Text="{Binding Reason, StringFormat='HOST reason: {0}'}" />
+            </StackPanel>
+          </DataTemplate></ListBox.ItemTemplate>
+        </controls:ScrollableListBox>
+        <TextBox x:Name="ConversationComposer" Text="{Binding ComposerBody, Mode=TwoWay}" AcceptsReturn="True"
+            Height="90" TextWrapping="Wrap" IsEnabled="{Binding CanCompose}"
+            PlaceholderText="Original message: up to 4096 UTF-16 characters and 16384 UTF-8 bytes; invalid or oversized text is rejected, not truncated"
+            AutomationProperties.Name="Memory-only exact-session conversation draft; not a question answer or approval" />
+        <WrapPanel>
+          <Button x:Name="SaveConversationDraft" Content="Explicitly Save draft" IsEnabled="{Binding CanSaveConversationDraft}" />
+          <Button x:Name="ReloadConversationDraft" Content="Reload saved draft" IsEnabled="{Binding CanReloadConversationDraft}" />
+          <Button x:Name="DiscardComposer" Content="Discard memory buffer only" IsEnabled="{Binding CanReadConversation}" />
+          <Button x:Name="ReviewClearConversationDraft" Content="Review Clear saved draft" IsEnabled="{Binding CanReviewClearConversationDraft}" />
+          <Button x:Name="ClearConversationDraft" Content="Confirm exact saved draft Clear" IsEnabled="{Binding CanClearConversationDraft}" />
+          <Button x:Name="SubmitConversation" Content="Submit exact message — unavailable provider" IsEnabled="{Binding CanSubmitConversation}" />
+        </WrapPanel>
+        <TextBlock Text="{Binding SavedConversationDraftReview}" TextWrapping="Wrap"
+            AutomationProperties.Name="Complete exact saved draft body under clear review; content is inert and not current instructions" />
+        <controls:NamedTextBlock Text="{Binding ConversationStatus}" TextWrapping="Wrap"
+            AutomationProperties.Name="Conversation actual save, submission, unavailable or recovery status" />
+      </StackPanel>
+    </Expander>
     <WrapPanel>
       <Button x:Name="AttachFile" Content="Attach text file to this exact Session" IsEnabled="{Binding CanAttachFile}"
               AutomationProperties.Name="Native picker then metadata and durable-copy review; one file, 256 KiB original UTF-8 bytes, sixteen retained profile files, no eviction" />

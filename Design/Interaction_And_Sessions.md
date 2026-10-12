@@ -6,13 +6,121 @@ authority with bounded ordered interaction history and inventoried configurable
 session retention implemented. The deterministic
 local-version queue and its exact pending cancellation are delivered; cancellation
 of the separate genuine current-run local-version pre-dispatch question wait
-remains gateway-bound. Full conversation, effect and model-assisted routing
+remains gateway-bound. Native exact-session composer, explicit saved drafts and
+immutable submitted user messages with truthful unavailable host outcomes are
+delivered below. Full conversation generation, effect and model-assisted routing
 integration remains proposed.
 
 Related: [Architecture](Architecture.md), [Work Management](Work_Management.md), [Information Display](Information_Display.md), [Security](Security_Data_Flows.md), [User Configuration](User_Configuration.md), [Acceptance Criteria](Acceptance_Criteria.md).
 
 This is the canonical interaction/session contract. It replaces the former single-conversation, single-executor, memory-only-history direction.
 Windows login sessions, voice capture generations, provider/SDK conversations, and Kora work sessions are different identities; none substitutes for another.
+
+## Delivered exact-session conversation/composer foundation — 2026-10-12
+
+**Sessions > Exact-session conversation and composer** is a real native
+consumer of the private authority and configured provider-neutral
+[turn admission](../src/Kora.Application/Hosting/SessionConversationService.cs),
+not a fixed-read queue entry, question answer, model-facing tool or bootstrap
+request. It always names the exact selected ID, name label, authorization
+generation, metadata revision, saved-draft revision and private control epoch.
+Only a fresh explicit native submission to that existing Active session is
+admitted; Done is readable and requires explicit Resume before new work.
+
+Drafts are memory-only until **Explicitly Save draft**. Read observes the saved
+revision; **Reload saved draft** explicitly restores its data without replay.
+One saved draft belongs to each exact session. Overwrite requires the complete
+unchanged saved snapshot; **Review Clear saved draft** shows its exact body
+and revision before separate confirmation. Clear removes only that saved
+body, not the current memory buffer or submitted messages. Switching/closing
+dirty input uses Save/Discard/Cancel; privacy, owner/control/source retirement
+clears private presentation and callbacks without an implicit save.
+
+One authoritative [content policy](../src/Kora.Core/Conversation/ConversationText.cs)
+checks **4096 UTF-16 characters and 16384 UTF-8 bytes** independently, preserving
+valid Unicode, combining characters, spaces, tabs and exact CR/LF/newlines.
+Malformed Unicode, binary/control content, oversized bodies and empty
+submissions are explicit failures, never normalization or truncation. With
+valid Unicode the character bound can be reached before the byte bound;
+neither is a whole-database size guarantee.
+
+There is **no retained session-count, aggregate saved-draft or aggregate
+submitted-message quota**. Each exact session admits at most **100 submitted
+user messages** in this initial UX; capacity is an error, not eviction.
+Active and retained Done messages consume that session's allowance. Explicit
+session disposition/deletion removes its content and ends its non-reusable
+identity; it never recycles sequence IDs within a live session. Clearing a
+saved draft leaves a revision tombstone and frees only that body's retention.
+Pages/transactions may be bounded without limiting how many small sessions
+are stored. Finite disk/required-audit failure remains explicit and fail-closed.
+
+Schema **10→11** adds conversation tables to the existing private consolidated
+session/task/audit transaction domain. It preserves old immutable queue,
+history, task, grant, attachment, provider-policy and audit bytes/digests.
+Missing legacy draft means none; missing audited, unknown, malformed,
+noncanonical or mismatched source is `InvalidDataException` recovery, not
+default empty. Exact content/source digests bind typed required requested and
+terminal audit; raw bodies never enter audit envelopes, logs, activity tags,
+baggage, preferences, Work/AllWork or diagnostic history.
+
+Submit atomically commits the exact frozen body, fresh original host request
+and task intent, current-run source binding and correlated typed requested/
+retention receipt. It then builds one bounded envelope from the trusted
+versioned host policy and **this original body only**, with no conversation
+history, attachments, memories, evidence or tool results. Actual complete
+serialization must fit 32768 UTF-8 bytes; the independent output budget stays
+4096. Existing registered read-only descriptors are host framing, not new tool
+execution permission. It reads fresh exact-session/app policy and qualification
+through `ModelTurnHost` while the issuing activity is still live.
+
+Production advertises no qualified models/adapters. The exact message remains
+retained with **HOST Unavailable / UnregisteredModel** and a terminal
+**Unavailable task**, not an invented assistant answer. Other admission
+denials keep their actual reason/task outcome. A future qualified admission is
+still **Unavailable / GenerationNotEnabled**: this increment does not run an
+adapter, parse raw provider JSON, authenticate, send HTTP, or enable arbitrary
+generation/tools. Rejected Ollama 0.35.1/qwen3:1.7b and 0.40.2 are never a
+fallback; installed-local initial desired service is not inference consent.
+Saved drafts stay independent after Submit; only the unchanged memory buffer
+clears after a known terminal/readback receipt.
+
+Read uses chronological per-session host sequence, at most **50 records /
+64 KiB complete serialized page**, with an exact generation/cursor, original
+sequence ceiling and observed head revision. A byte-deferred row remains for
+Next; no body is truncated and a maximum body fits one complete page.
+Later submissions cannot expand an existing ceiling. A terminal update within
+that ceiling invalidates its captured head revision and requires Refresh
+rather than mixing snapshots. Terminal status is a separate host observation,
+not model content. Native retained bodies
+are inert plain text with no new copy/export/HTML/Markdown-link action.
+The existing `SessionHistoryEvent` remains its original receipt projection,
+not a fabricated conversation or source for these bodies.
+
+Passive reads never renew meaningful activity, resume Done, run cleanup or
+create provider/question/grant authority. Submission is substantive original
+input; saving/reloading/clearing drafts is not. Failed/cancelled or uncertain
+commit/readback is held for explicit inspection, never duplicate Submit,
+rollback/success inference or automatic retry. Duplicate request IDs cannot
+append another row. Startup recovery preserves the original content and
+records Interrupted for undispatched intent (Unknown for actual dispatch
+uncertainty); it never submits a restored draft or replays a request.
+
+Disposition previews/hash inventory include actual conversation/draft cells.
+Logical disposition and retention deletion use the existing source-revocation,
+live/Unknown/question holds, secure-delete/free-page, committed-journal and
+copy-inventory checks. Uninventoried copies hold completion. Unrelated/kept
+sessions, independent Perpetual grants and content-minimized required audit
+remain. No forensic/media, export/provider-copy or unlimited-disk claim is made.
+
+Maintained [strict content tests](../tests/Kora.Core.UnitTests/Conversation/ConversationTextTests.cs),
+[real admission consumer tests](../tests/Kora.Application.UnitTests/Dependencies/ModelTurnHostTests.Conversation.cs),
+[private SQLite migration/recovery/copy tests](../tests/Kora.Windows.IntegrationTests/Storage/WindowsSqliteConversationTests.cs)
+and [native event binding/dirty/privacy tests](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.cs)
+qualify this foundation only. [Engineering progression](Deferred_Validation.md#engineering-progression-policy)
+allows these host contracts/orchestration/UI without reviving retired proof
+scaffolding or rejected runtimes. Generic conversation generation, global/
+voice routing, model history assembly, execution, hardware/native accessibility,
+provider/authentication and full R12/R14/RC acceptance remain separately gated.
 
 ## Exact-session provider policy
 

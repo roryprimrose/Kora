@@ -15,7 +15,8 @@ internal sealed class SessionsWindowController(
     ISessionWorkspaceAccess access, ILogger<SessionsViewModel> logger, LocalEventBroker? localEvents = null,
     DetailWindowController? details = null, Kora.Application.Memory.MemoryManagementService? memories = null,
     SessionAttachmentWindowController? attachments = null,
-    Kora.Application.Configuration.SessionProviderProfileConfigurationService? providers = null) : IDisposable
+    Kora.Application.Configuration.SessionProviderProfileConfigurationService? providers = null,
+    SessionConversationService? conversation = null) : IDisposable
 {
     private SessionsWindow? window;
     private bool disposed;
@@ -42,7 +43,7 @@ internal sealed class SessionsWindowController(
             var opened = new SessionsWindow(new(service, evidence, access, logger, localEvents,
                 content => details?.OpenHistoryDetail(content, window)
                     ?? "History details unavailable: the native viewer is not composed.",
-                session => details?.RevokeSession(session), memories, attachments, providers));
+                session => details?.RevokeSession(session), memories, attachments, providers, conversation));
             opened.AllWorkRequested += (_, _) => OpenAllWork?.Invoke();
             opened.Closed += (_, _) => { if (ReferenceEquals(window, opened)) { window = null; } };
             window = opened;
@@ -79,13 +80,13 @@ internal sealed class SessionsWindowController(
         if (disposed) { return; }
         if (window?.DataContext is SessionsViewModel state)
         {
-            if (state.ReferencesSession(session)) { window.Close(); }
+            if (state.ReferencesSession(session)) { window.ClosePrivate(); }
             else { state.RevokeSessionList(); }
         }
     }
 
     private void OnOpen(object? sender, EventArgs args) => Open();
-    private void OnPrivacyClosure(object? sender, EventArgs args) => window?.Close();
+    private void OnPrivacyClosure(object? sender, EventArgs args) => window?.ClosePrivate();
 
     public void Dispose()
     {
@@ -96,7 +97,7 @@ internal sealed class SessionsWindowController(
         main.PrivacyClosureRequested -= OnPrivacyClosure;
         service.SessionLifecycleChanged -= RevokeSession;
         service.SessionRetired -= RevokeSession;
-        window?.Close();
+        window?.ClosePrivate();
         window = null;
     }
 }

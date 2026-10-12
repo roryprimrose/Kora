@@ -28,4 +28,5 @@ public enum ModelTurnReason
     HandoffReviewStale,
     LocalEvidenceNotDisclosable,
     GenerationNotEnabled,
+    HostInterrupted,
 }

@@ -41,7 +41,8 @@ internal sealed partial class SessionsViewModel
         }
     }
 
-    public bool CanEditListSearch => !closed && access.CanInspect && (!busy || listSearching);
+    public bool CanEditListSearch => !closed && access.CanInspect && (!busy || listSearching)
+        && (!listSearchMode || !ComposerDirty);
     public bool CanSearchList => CanRead && !refreshingWork
         && SessionListSearch.IsValid(listSearchKind, sessionFilter, listQuery);
     public bool CanNextListSearch => CanSearchList && sessions is not null && listSearch?.Next is not null;
@@ -81,6 +82,7 @@ internal sealed partial class SessionsViewModel
 
     private async Task ReadListSearchAsync(bool next)
     {
+        if (!await ProtectComposerAsync()) { return; }
         var cursor = next ? listSearch?.Next
             ?? throw new InvalidOperationException("No list continuation. Start a fresh Search.") : null;
         var epoch = listSearchEpoch;

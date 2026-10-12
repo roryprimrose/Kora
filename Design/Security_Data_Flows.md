@@ -7,6 +7,29 @@ List/Refresh retains existing native source/session/host admission and reconcili
 Selected rows bind original kind/canonical filename/source-qualified artifact ID/digest/native revision plus catalogue and private ownership epoch. Actual Inspect repeats admission and native exact readback, refusing stale/changed/replaced/disappeared choices without showing a newer same-name revision.
 Unknown/unmapped/unrevisioned state is never enabled by inference. Reload failure removes availability and labels historical observations unavailable; private closure clears metadata and text and fences late callbacks. Dirty drafts are not implicitly discarded by metadata changes. This is no profile/bundled-as-owned reader, writer or model-tool extension.
 
+## Exact-session conversation retention boundary
+
+The [native conversation foundation](Interaction_And_Sessions.md#delivered-exact-session-conversationcomposer-foundation--2026-10-12)
+stores exact explicitly submitted user content and explicitly saved drafts
+only in the private session authority. One saved draft per exact session and
+100 submitted messages/session are initial UX bounds, **not aggregate stored
+session/draft/message quotas**. Nothing evicts unexpired content or required
+audit to meet capacity.
+
+Frozen body/source and fresh task intent share one physical COMMIT with typed
+requested/terminal audit and content digests; raw bodies are not audit/log/tag/
+baggage/preference/Work/AllWork fields. Explicit native input, exact generation/
+revision, ownership/privacy/call/control and final commit fences fail closed.
+The configured provider-neutral admission consumer preserves unavailable
+outcomes without fallback, HTTP, authentication, egress or execution.
+
+Saved data is never replay/approval/source-use authority. Passive read/Done
+inspection does not renew activity or trigger cleanup; private/source closure
+revokes draft/page callbacks. Disposition/retention inventory actual cells,
+free pages and committed journal with existing Unknown-work and uninventoried
+copy holds. Required audit remains content-minimised and independently
+retained; disk/write/receipt failures cannot become an unaudited success.
+
 ## Exact-session provider policy boundary
 
 [Sparse durable session overrides](Model_Providers_Memory_And_Knowledge.md#session-overrides-and-effective-resolution) are desired configuration, not authentication, adapter, generation, egress or resource authority. Exact native/typed/current-name activated review requires original local-user input, current private owning host, eligible exact session/generation, policy/app revision and unchanged catalogue/account/model binding.

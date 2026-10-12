@@ -68,7 +68,8 @@ public sealed partial class WindowsSqliteHostInteractionStore : IHostInteraction
             attachmentMigration: new(7, 8, HostInteractionSchema.MemoryTables, MigrateAttachments),
             migrationAdmission: ValidateAttachmentMigrationAdmission,
             providerProfileMigration: new(8, 9, HostInteractionSchema.AttachmentTables, MigrateProviderProfiles),
-            queueOrderMigration: new(9, HostInteractionSchema.Version, HostInteractionSchema.ProviderProfileTables, MigrateQueueOrder));
+            queueOrderMigration: new(9, 10, HostInteractionSchema.ProviderProfileTables, MigrateQueueOrder),
+            conversationMigration: new(10, HostInteractionSchema.Version, HostInteractionSchema.QueueOrderTables, MigrateConversation));
     }
 
     public ValueTask InitializeAsync(CancellationToken cancellationToken) =>
@@ -506,6 +507,7 @@ public sealed partial class WindowsSqliteHostInteractionStore : IHostInteraction
         ValidateMemory(connection);
         ValidateAttachments(connection);
         ValidateProviderProfiles(connection);
+        ValidateConversation(connection);
     }
 
     private static void ValidateConsolidatedAuthority(SqliteConnection connection)
@@ -699,7 +701,7 @@ public sealed partial class WindowsSqliteHostInteractionStore : IHostInteraction
             || audit.Audit.Category != SecurityAuditCategory.SecurityApproval
             || !Same(audit.Audit.TargetId, Id(audit.Request.TaskId))
             || audit.Changes.Any(change => change.Digest is null || !IsHex(change.Digest, 64) || change.Revision <= 0
-                || change.Kind is not ("session" or "observation" or "question" or "grant" or "metadata" or "task" or "wait" or "queue" or "queue-order" or "retention" or "memory" or "session-file" or "session-provider-profile")
+                || change.Kind is not ("session" or "observation" or "question" or "grant" or "metadata" or "task" or "wait" or "queue" or "queue-order" or "retention" or "memory" or "session-file" or "session-provider-profile" or "conversation-draft" or "conversation-message")
                 || !Guid.TryParseExact(change.Id, "D", out var id) || id == Guid.Empty
                 || !Same(change.Id, id.ToString("D"))))
         {
@@ -724,6 +726,8 @@ public sealed partial class WindowsSqliteHostInteractionStore : IHostInteraction
         var queueCancel = Same(audit.Audit.ActionId, "queue.cancel-selected");
         var queueRequeue = Same(audit.Audit.ActionId, "queue.requeue-expired");
         var queueControl = Same(audit.Audit.ActionId, "queue.pause") || Same(audit.Audit.ActionId, "queue.resume") || queueMove || queueCancel || queueRequeue;
+        var conversationControl = audit.Audit.ActionId is "conversation.submit" or "conversation.terminal"
+            or "conversation.draft.save" or "conversation.draft.clear";
         if (queueRequeue != (audit.QueueRequeueReceipt is not null))
         {
             throw new InvalidDataException("Expired replacement requires exact typed original and fresh lineage.");
@@ -779,8 +783,8 @@ public sealed partial class WindowsSqliteHostInteractionStore : IHostInteraction
                 throw new InvalidDataException("Queue move receipt crosses exact session authority or requested direction.");
             }
         }
-        if ((Same(audit.Audit.ActionId, "approval.revoke-exact") || batch || queueControl) != (audit.RequestedAudit is not null)
-            || !batch && !queueControl && (audit.RequestedAudit is null) != (audit.RequestedGrantRevision is null)
+        if ((Same(audit.Audit.ActionId, "approval.revoke-exact") || batch || queueControl || conversationControl) != (audit.RequestedAudit is not null)
+            || !batch && !queueControl && !conversationControl && (audit.RequestedAudit is null) != (audit.RequestedGrantRevision is null)
             || audit.RequestedGrantRevision is { Value: <= 0 }
             || batch != (audit.RequestedGrants is not null)
             || batch && (audit.RequestedGrantRevision is not null || audit.Audit.ApprovalId is not null
@@ -821,11 +825,23 @@ public sealed partial class WindowsSqliteHostInteractionStore : IHostInteraction
             || !Same(requested.ActionId, audit.Audit.ActionId) || requested.Initiator != audit.Audit.Initiator
             || !Same(requested.TargetId, audit.Audit.TargetId) || requested.ApprovalId != audit.Audit.ApprovalId
             || audit.Audit.Outcome is not (SecurityAuditOutcome.Succeeded or SecurityAuditOutcome.Denied)
-            || !(Same(requested.ActionId, "approval.revoke-exact") || batch || queueControl)
+                && !(conversationControl && audit.Audit.Outcome is SecurityAuditOutcome.Cancelled or SecurityAuditOutcome.Unknown)
+            || !(Same(requested.ActionId, "approval.revoke-exact") || batch || queueControl || conversationControl)
             || !queueControl && audit.Request.Origin != RequestOrigin.LocalUi))
         {
             throw new InvalidDataException("The exact-revocation requested and terminal audit pair is invalid.");
         }
+        if (conversationControl && (audit.Request.Origin != RequestOrigin.LocalUi || audit.Request.InvocationId is not null
+            || audit.RequestedGrantRevision is not null || audit.RequestedGrants is not null || audit.Audit.ApprovalId is not null
+            || audit.Outcome is not null || audit.QuestionId is not null || audit.ApprovalId is not null
+            || audit.Audit.Initiator != SecurityAuditInitiator.TypedCommand || audit.Changes.Length != 2
+            || !audit.Changes.Any(change => Same(change.Kind, "task") && Same(change.Id, Id(audit.Request.TaskId)))
+            || !audit.Changes.Any(change =>
+                Same(change.Kind, audit.Audit.ActionId.StartsWith("conversation.draft.", StringComparison.Ordinal)
+                    ? "conversation-draft" : "conversation-message")
+                && Same(change.Id, audit.Audit.ActionId.StartsWith("conversation.draft.", StringComparison.Ordinal)
+                    ? Id(audit.Request.SessionId) : Id(audit.Request.RequestId)))))
+        { throw new InvalidDataException("Conversation requires exact original native input, requested/terminal audit and task lineage without grants."); }
         return audit;
     }
 

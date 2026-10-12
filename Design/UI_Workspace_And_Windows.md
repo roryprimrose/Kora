@@ -3,9 +3,42 @@
 Status: agreed window structure; bounded native-text-v1 document details
 implemented, with a bounded durable native question/review window; coordinated
 authoritative per-session work and bounded ordered history delivered as below.
-The full conversation/composer and general concurrent execution layouts remain proposed.
+The native exact-session composer/submitted-user-message foundation is delivered
+below; full generated conversations and general concurrent execution remain proposed.
 
 Related: [Interaction and Sessions](Interaction_And_Sessions.md), [Work Management](Work_Management.md), [Information Display](Information_Display.md), [Shared Questions and Recovery](Interaction_Fallback.md), [User Configuration](User_Configuration.md), [Internal Model Tools](Internal_Model_Tools.md).
+
+## Delivered exact-session native composer — 2026-10-12
+
+**Sessions > Exact-session conversation and composer** shows the original
+immutable user messages and separately labelled **HOST** status. It names the
+selected immutable session ID/name/generation/metadata and saved-draft revision,
+plus private control epoch. Read/Next are bounded passive pages, including
+retained Done content without Resume or activity renewal.
+
+The multiline composer is not global activation, a question answer, approval,
+queue payload or model tool. **Submit exact message — unavailable provider**
+discloses private retention and unavailable generation before the gesture.
+Only the exact existing Active target can accept new work. The original body
+and host request/task are durably retained through the real configured turn
+admission path; production produces a truthful unavailable terminal, no
+assistant/model answer and no rejected-local bootstrap fallback.
+
+Draft editing writes nothing. Read observes saved revision; explicit Save,
+Reload, reviewed exact Clear and memory-buffer-only Discard are distinct.
+One saved draft per exact session is retained across restart without automatic
+Submit. Unsaved switching/closing offers Save/Discard/Cancel; private/source/
+owner loss clears presentation and late callbacks without saving. Known
+submission receipt clears only its unchanged buffer; uncertainty retains/holds
+it with exact conversation/task inspection guidance.
+
+The [canonical conversation contract](Interaction_And_Sessions.md#delivered-exact-session-conversationcomposer-foundation--2026-10-12)
+owns body/session/page limits, no aggregate session/draft/message quota,
+audit/migration, no-replay and copy/deletion semantics. Plain native historical
+text adds no clipboard/export/rich rendering or arbitrary response parser.
+Question focus, selected work, existing receipt history, provider policy and
+voice routing stay independent. Headless tests are not installed Narrator/DPI,
+runtime, hardware or full R14/A4 qualification.
 
 ## Product Goal and Ownership
 

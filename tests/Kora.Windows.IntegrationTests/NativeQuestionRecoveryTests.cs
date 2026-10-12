@@ -627,6 +627,252 @@ public sealed class NativeQuestionRecoveryTests
         (await host.ReturnToCurrentQuestionAsync(f.Token)).Should().BeNull();
     }
 
+    [Theory]
+    [InlineData("presented")]
+    [InlineData("dismissed")]
+    [InlineData("restored")]
+    public async Task CommittedCancellationPublishesItsReceiptBeforeConcurrentOriginalContinuationAndWithdrawal(string presentation)
+    {
+        using var f = new InteractionStorageFixture();
+        await f.InitializeAsync();
+        var clock = new RecoveryClock(f.Time);
+        using var host = CreateHost(f, clock);
+        var controls = WindowsSqliteSessionWorkspaceTests.Service(f, new());
+        host.BindWorkspace(controls);
+        using var logs = LoggerFactory.Create(_ => { });
+        var shown = new TaskCompletionSource<NativeQuestionViewModel>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var dispatches = 0;
+        var run = CreateQuery(f, logs).RunAsync(RequestOrigin.LocalUi, () =>
+        {
+            dispatches++;
+            return Task.CompletedTask;
+        }, f.Token, _ => host.AskVersionAsync(model =>
+        {
+            shown.SetResult(model);
+            return Task.CompletedTask;
+        }, f.Token));
+        var model = await shown.Task;
+        if (!string.Equals(presentation, "presented", StringComparison.Ordinal))
+        {
+            model.Edit(new(["show"]));
+            model.Dismiss();
+            if (string.Equals(presentation, "restored", StringComparison.Ordinal))
+            {
+                (await host.ReturnToCurrentQuestionAsync(f.Token)).Should().BeSameAs(model);
+                model.Answer.Choices.Should().BeEmpty();
+            }
+        }
+        var key = model.Key;
+        using var relayPublished = new ManualResetEventSlim();
+        using var releaseRelay = new ManualResetEventSlim();
+        var blocked = 0;
+        void Changed(object? sender, PropertyChangedEventArgs args)
+        {
+            if (!model.Completion.IsCompleted || model.Question.Status != QuestionStatus.Cancelled
+                || Interlocked.Exchange(ref blocked, 1) != 0) { return; }
+            relayPublished.Set();
+            if (!releaseRelay.Wait(TimeSpan.FromSeconds(5), f.Token))
+            {
+                throw new TimeoutException("Committed cancellation notification was not released.");
+            }
+        }
+        void Committed(HostTaskObservation observation)
+        {
+            if (observation.Task.Request != key.Request) { return; }
+            // The existing host subscriber has queued the external relay. Hold the original
+            // CancelAsync receipt until that relay publishes, then race its continuation with withdrawal.
+            if (!relayPublished.Wait(TimeSpan.FromSeconds(5), f.Token))
+            {
+                throw new TimeoutException("The external cancellation relay did not publish.");
+            }
+        }
+        model.PropertyChanged += Changed;
+        controls.WaitingTaskCancelled += Committed;
+        try
+        {
+            var operation = string.Equals(presentation, "dismissed", StringComparison.Ordinal)
+                ? controls.CancelTaskAsync(new(key.Request.SessionId, key.Request.TaskId, new(1),
+                    model.Question.SessionGeneration, key.QuestionId, key.Revision), RequestOrigin.LocalUi, () => true, f.Token)
+                : model.CancelAsync();
+            await operation.WaitAsync(TimeSpan.FromSeconds(5), f.Token);
+            relayPublished.IsSet.Should().BeTrue();
+            (await model.Completion).Outcome.Should().Be(HostInteractionOutcome.Cancelled);
+            // A different thread must be able to clear presentation while Notify is blocked.
+            await Task.Run(() => model.Close("Private presentation withdrawn after the committed receipt."), f.Token)
+                .WaitAsync(TimeSpan.FromSeconds(5), f.Token);
+            model.Fail(new IOException("Late continuation failure cannot replace the committed receipt."));
+            (await model.Completion).Outcome.Should().Be(HostInteractionOutcome.Cancelled);
+            model.IsWithdrawn.Should().BeTrue();
+            model.HasPresentation.Should().BeFalse();
+            model.Answer.Choices.Should().BeEmpty();
+            model.ReviewText.Should().BeEmpty();
+            var stored = (await f.Store.ReadTaskAsync(key.Request.SessionId, key.Request.TaskId, f.Token))!;
+            stored.Task.State.Should().Be(HostTaskState.Cancelled);
+            stored.Task.Revision.Value.Should().Be(2);
+            stored.Question!.Status.Should().Be(QuestionStatus.Cancelled);
+            stored.Question.Key.Should().Be(key.Next());
+            using var inspection = HostActivity.BeginRoot(key.Request, HostActivityLayer.Application, HostOperation.Request);
+            var receipts = await controls.ReadTasksAsync(key.Request.SessionId, null, 25, f.Token);
+            receipts.Records.Should().HaveCount(2);
+            receipts.Records.Should().ContainSingle(task => task.Request == key.Request);
+            receipts.Records.Should().ContainSingle(task => task.Request != key.Request && task.State == HostTaskState.Succeeded);
+            using var authority = f.OpenRaw();
+            using var evidence = authority.CreateCommand();
+            evidence.CommandText = "SELECT count(*) FROM host_observations WHERE request_id=$request;";
+            evidence.Parameters.AddWithValue("$request", key.Request.RequestId.Value.ToString("D"));
+            evidence.ExecuteScalar().Should().Be(0L);
+            evidence.CommandText = "SELECT count(*) FROM security_audit_events WHERE json_extract(envelope,'$.Audit.ActionId')='task.cancel.wait';";
+            evidence.ExecuteScalar().Should().Be(1L);
+        }
+        finally
+        {
+            releaseRelay.Set();
+            model.PropertyChanged -= Changed;
+            controls.WaitingTaskCancelled -= Committed;
+            await run.WaitAsync(TimeSpan.FromSeconds(5), f.Token);
+        }
+        (await run.WaitAsync(TimeSpan.FromSeconds(5), f.Token)).State.Should().Be(HostTaskState.Cancelled);
+        dispatches.Should().Be(0);
+        (await host.ReturnToCurrentQuestionAsync(f.Token)).Should().BeNull();
+        clock.Timers.Should().OnlyContain(timer => timer.IsDisposed);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task EarlierWithdrawalOrFailureCannotBeRelabelledByACommittedCancellation(bool fail)
+    {
+        using var f = new InteractionStorageFixture();
+        await f.InitializeAsync();
+        var question = await WindowsSqliteTaskControlTests.WaitAsync(f);
+        using var host = CreateHost(f, new RecoveryClock(f.Time));
+        var controls = WindowsSqliteSessionWorkspaceTests.Service(f, new());
+        var published = new TaskCompletionSource<HostTaskObservation>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var model = host.CreateState(question, async key =>
+        {
+            var cancelled = await controls.CancelTaskAsync(new(key.Request.SessionId, key.Request.TaskId,
+                new(1), question.SessionGeneration, key.QuestionId, key.Revision), RequestOrigin.LocalUi, () => true, f.Token);
+            published.SetResult(cancelled);
+            await release.Task;
+            return new(HostInteractionOutcome.Cancelled, "pre-dispatch-work-cancelled", cancelled.Question);
+        });
+        var operation = model.CancelAsync();
+        var committed = await published.Task.WaitAsync(TimeSpan.FromSeconds(5), f.Token);
+        var failure = new IOException("Original authoritative failure");
+        try
+        {
+            if (fail) { model.Fail(failure); }
+            else { model.Close("Privacy/source/ownership withdrawn before terminal publication."); }
+            model.AcceptCommittedCancellation(committed);
+        }
+        finally { release.SetResult(); }
+        await operation;
+        if (fail)
+        {
+            var finish = () => model.Completion;
+            (await finish.Should().ThrowAsync<IOException>()).Which.Should().BeSameAs(failure);
+        }
+        else { (await model.Completion).Outcome.Should().Be(HostInteractionOutcome.Denied); }
+        (await f.Store.ReadTaskAsync(question.Key.Request.SessionId, question.Key.Request.TaskId, f.Token))!
+            .Task.State.Should().Be(HostTaskState.Cancelled);
+        model.IsWithdrawn.Should().BeTrue();
+        model.HasPresentation.Should().BeFalse();
+        model.Answer.Choices.Should().BeEmpty();
+        await model.RestorePresentationAsync();
+        model.HasPresentation.Should().BeFalse();
+    }
+
+    [Theory]
+    [InlineData("request")]
+    [InlineData("question")]
+    [InlineData("revision")]
+    [InlineData("generation")]
+    [InlineData("question-generation")]
+    [InlineData("status")]
+    [InlineData("privacy")]
+    public async Task ForeignOrIneligibleCancellationCannotAcquireTerminalPublication(string change)
+    {
+        using var f = new InteractionStorageFixture();
+        await f.InitializeAsync();
+        var question = await WindowsSqliteTaskControlTests.WaitAsync(f);
+        var eligible = true;
+        using var host = CreateHost(f, new RecoveryClock(f.Time), () => eligible);
+        var model = host.CreateState(question);
+        var controls = WindowsSqliteSessionWorkspaceTests.Service(f, new());
+        var committed = await controls.CancelTaskAsync(new(question.Key.Request.SessionId, question.Key.Request.TaskId,
+            new(1), question.SessionGeneration, question.Key.QuestionId, question.Key.Revision),
+            RequestOrigin.LocalUi, () => true, f.Token);
+        var cancelled = committed.Question!;
+        var invalid = change switch
+        {
+            "request" => committed with { Task = new(HostRequest.Create(RequestOrigin.LocalUi), committed.Task.Revision, committed.Task.State) },
+            "question" => committed with { Question = cancelled with { Key = new(cancelled.Key.Request, new(Guid.NewGuid()), cancelled.Key.Revision) } },
+            "revision" => committed with { Question = cancelled with { Key = question.Key } },
+            "generation" => committed with { Generation = new(2) },
+            "question-generation" => committed with { Question = cancelled with { SessionGeneration = new(2) } },
+            "status" => committed with { Question = cancelled with { Status = QuestionStatus.Answered } },
+            _ => committed,
+        };
+        if (string.Equals(change, "privacy", StringComparison.Ordinal)) { eligible = false; }
+        model.AcceptCommittedCancellation(invalid);
+        model.Completion.IsCompleted.Should().BeFalse();
+        model.Question.Should().Be(question);
+        model.Close("End the refused presentation without dispatch.");
+        model.AcceptCommittedCancellation(committed);
+        (await model.Completion).Outcome.Should().Be(HostInteractionOutcome.Denied);
+    }
+
+    [WindowsFact]
+    public async Task DismissalDuringRestoreCannotRepublishSavedPrivateControls()
+    {
+        using var f = new InteractionStorageFixture();
+        await f.InitializeAsync();
+        var checkpoint = new InteractionTransactionCheckpoint();
+        f.Reopen(checkpoint);
+        await f.Store.InitializeAsync(f.Token);
+        using var host = CreateHost(f, new RecoveryClock(f.Time));
+        using var logs = LoggerFactory.Create(_ => { });
+        var shown = new TaskCompletionSource<NativeQuestionViewModel>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var run = CreateQuery(f, logs).RunAsync(RequestOrigin.LocalUi, () => throw new InvalidOperationException("Must not dispatch"),
+            f.Token, _ => host.AskVersionAsync(model =>
+            {
+                shown.SetResult(model);
+                return Task.CompletedTask;
+            }, f.Token));
+        var model = await shown.Task;
+        model.Edit(new(["show"]));
+        await model.SaveDraftAsync();
+        model.Dismiss();
+        var reviewing = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        using var release = new ManualResetEventSlim();
+        checkpoint.Commit = (_, _) =>
+        {
+            reviewing.TrySetResult();
+            if (!release.Wait(TimeSpan.FromSeconds(5), f.Token)) { throw new TimeoutException("Restore was not released."); }
+        };
+        var restoring = model.RestorePresentationAsync();
+        try
+        {
+            await reviewing.Task.WaitAsync(TimeSpan.FromSeconds(5), f.Token);
+            model.Dismiss();
+        }
+        finally
+        {
+            checkpoint.Commit = null;
+            release.Set();
+        }
+        await restoring;
+        model.HasPresentation.Should().BeFalse();
+        model.Answer.Choices.Should().BeEmpty();
+        model.ReviewText.Should().BeEmpty();
+        model.Completion.IsCompleted.Should().BeFalse();
+        (await host.ReturnToCurrentQuestionAsync(f.Token)).Should().BeSameAs(model);
+        model.Answer.Choices.Should().Equal("show");
+        await model.CancelAsync();
+        (await run).State.Should().Be(HostTaskState.Cancelled);
+    }
+
     private static NativeQuestionHost CreateHost(InteractionStorageFixture f, TimeProvider time, Func<bool>? gate = null)
     {
         var host = new NativeQuestionHost(f.Store, time, NullLogger<NativeQuestionViewModel>.Instance);

@@ -20,7 +20,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 namespace Kora.Windows.IntegrationTests;
 
 [Collection(nameof(HeadlessUiTestGroup))]
-public sealed class SessionsQueuePrerequisiteTests
+public sealed partial class SessionsQueuePrerequisiteTests
 {
     [WindowsFact]
     public async Task ActualClosedTargetPickerResetsEveryChoiceAndAllSixDescriptorsAndFixedRuntimeReachRetainedStatus()
@@ -339,16 +339,17 @@ public sealed class SessionsQueuePrerequisiteTests
         model.Close();
     }
 
-    public static TheoryData<string, SessionQueueReadProfile> PhysicalGuardCases
+    public static TheoryData<string, SessionQueueReadProfile, bool> PhysicalGuardCases
     {
         get
         {
-            var cases = new TheoryData<string, SessionQueueReadProfile>();
+            var cases = new TheoryData<string, SessionQueueReadProfile, bool>();
             foreach (var boundary in new[] { "choice", "refresh", "privacy", "owner", "close", "missing", "revision" })
             {
                 foreach (var profile in new[] { SessionQueueReadProfile.Version, SessionQueueReadProfile.Capability, SessionQueueReadProfile.RuntimeStatus })
                 {
-                    cases.Add(boundary, profile);
+                    cases.Add(boundary, profile, false);
+                    cases.Add(boundary, profile, true);
                 }
             }
             return cases;
@@ -357,7 +358,7 @@ public sealed class SessionsQueuePrerequisiteTests
 
     [Theory]
     [MemberData(nameof(PhysicalGuardCases))]
-    public async Task RealPhysicalEnqueueCommitRechecksCapturedChoicePrivateSourceAndTaskRevision(string boundary, SessionQueueReadProfile profile)
+    public async Task RealPhysicalEnqueueCommitRechecksCapturedChoicePrivateSourceAndTaskRevision(string boundary, SessionQueueReadProfile profile, bool queued)
     {
         using var f = new InteractionStorageFixture();
         await f.InitializeAsync();
@@ -371,7 +372,10 @@ public sealed class SessionsQueuePrerequisiteTests
         var model = Model(f, access, queue);
         await model.RefreshAsync();
         await model.SelectAsync(model.Sessions.Single());
-        model.SelectQueuePrerequisite(model.QueuePrerequisites.Single(row => row.TaskId == f.Request.TaskId));
+        if (queued) { await model.EnqueueVersionAsync(); }
+        var originalQueue = (await f.Store.ReadQueueAsync(f.Request.SessionId, f.Token)).Entries;
+        var sourceId = queued ? originalQueue.Single().Request.TaskId : f.Request.TaskId;
+        model.SelectQueuePrerequisite(model.QueuePrerequisites.Single(row => row.TaskId == sourceId));
         if (profile == SessionQueueReadProfile.Capability) { model.SelectQueueCapability(model.QueueCapabilities[0]); }
         var audit = f.Count("security_audit_events");
         var crossed = false;
@@ -394,7 +398,7 @@ public sealed class SessionsQueuePrerequisiteTests
                 command.Transaction = transaction;
                 command.CommandText = boundary is "missing" ? "DELETE FROM host_tasks WHERE task_id=$task;"
                     : "UPDATE host_tasks SET revision=revision+1 WHERE task_id=$task;";
-                command.Parameters.AddWithValue("$task", f.Request.TaskId.Value.ToString("D"));
+                command.Parameters.AddWithValue("$task", sourceId.Value.ToString("D"));
                 command.ExecuteNonQuery();
             }
         };
@@ -406,9 +410,9 @@ public sealed class SessionsQueuePrerequisiteTests
         });
         crossed.Should().BeTrue();
         checkpoint.Commit = null;
-        (await f.Store.ReadQueueAsync(f.Request.SessionId, f.Token)).Entries.Should().BeEmpty();
+        (await f.Store.ReadQueueAsync(f.Request.SessionId, f.Token)).Entries.Should().Equal(originalQueue);
         f.Count("security_audit_events").Should().Be(audit);
-        (await f.Tasks.ReadTaskAsync(f.Request.TaskId, f.Token))!.Revision.Value.Should().Be(2);
+        (await f.Tasks.ReadTaskAsync(sourceId, f.Token))!.Revision.Value.Should().Be(queued ? 1 : 2);
         action.Reads.Should().Be(0);
         model.Close();
     }

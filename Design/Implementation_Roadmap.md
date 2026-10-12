@@ -90,6 +90,7 @@ Profile-original publication remains explicitly deferred; template/skill/agent r
 
 One new fixed-read enqueue can explicitly choose None or an exact same-session prerequisite from the already-observed bounded task metadata list. All six native buttons use the original exact command/application/audited store path and optional real revision guard at COMMIT.
 Refresh/private/source changes refuse stale choices; successful enqueue clears the next decision. No existing dependency editing, cross-session native picker, automatic dispatch or model management is delivered.
+The bounded list now includes already-observed queued pending/running/recent terminal tasks alongside nonqueue tasks. Optional task metadata comes from actual host task rows in the same atomic work read; restart-divergent host task revisions/states are not guessed from queue-entry authority. Missing/conflicting metadata is unavailable, never a fabricated prerequisite or silent None. Existing work bounds, 64 KiB disclosure and stored digests remain unchanged.
 
 Maintained native event/accessibility-label, real SQLite revision/private-boundary and existing queue/profile/order tests cover this consumer parity. No experiments are changed or retired; unique RT1/RT2/MG1/PV1, offline/containment, hardware/storage, installed-native/accessibility and physical-stop gates remain open.
 

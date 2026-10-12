@@ -31,10 +31,11 @@ Production supplies no models, so model-dependent save controls are unavailable.
 
 ### Delivered Authoritative Sessions Work Surface - 2026-10-09
 
-**Optional prerequisite** is a separate same-session task metadata picker for the four Enqueue buttons, with an explicit **None** button and initial None default. Rows show immutable IDs, observed generation/state/revision and UTC host source, from the existing at-most-50 nonqueue task projection. Work/question selection cannot choose a prerequisite.
+**Optional prerequisite** is a separate same-session task metadata picker for all six Enqueue buttons, with an explicit **None** button and initial None default. It combines at most 50 nonqueue tasks and 50 already-observed queued tasks (current plus existing recent rows). Rows show immutable IDs, observed generation, real host task state/revision and UTC host source, never guessed queue-entry revisions. Work/question selection cannot choose a prerequisite.
 
 The prospective consequence states that only exact Succeeded permits dispatch and other states can block FIFO; no automatic run is promised. Refresh/source/session/private changes revoke selection, and successful enqueue requires a new explicit choice for the next read.
 Stale/missing revisions fail at the same audited enqueue COMMIT, not into None. See [bounded parity and qualification](Work_Management.md#delivered-optional-native-enqueue-prerequisite---2026-10-12).
+Optional queued task metadata is projected in the same atomic work read, not a history scan or new source list. Missing/conflicting/foreign-generation metadata makes the picker unavailable and revokes exact choice; explicit None retains the original route. Work omissions and the complete 64 KiB failure remain truthful, without invented rows.
 
 **Sessions > selected expired queue entry > Review expired removal and NEW tail task** shows the original retained history/UTC deadline and separate host-issued fresh IDs, same bounded profile/exact prerequisite and future pending lifetime/deadline.
 Separate confirmation commits one atomic removal/new tail decision; cancel changes nothing. Stale selection/private closure clears the draft and late callbacks never retarget another session.

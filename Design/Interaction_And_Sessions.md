@@ -32,7 +32,7 @@ Exact reviewed attachment removal revokes native view/search before atomic body/
 
 ## Current Implementation and Design Gap
 
-The [optional native enqueue prerequisite](Work_Management.md#delivered-optional-native-enqueue-prerequisite---2026-10-12) adds same-session bounded metadata-only choice to the four existing fixed profiles. None is the initial default; exact selected ID/revision flows through the original command/service/store with final stale-source refusal.
+The [optional native enqueue prerequisite](Work_Management.md#delivered-optional-native-enqueue-prerequisite---2026-10-12) adds same-session bounded metadata-only choice to all six fixed profiles. It combines nonqueue tasks with already-observed queued pending/running/recent terminal tasks using actual host task metadata from the same atomic work read, never queue-entry revisions or history scans. None is the initial default; exact selected ID/revision flows through the original command/service/store with final stale-source refusal.
 Choice clears after enqueue and never aliases question/work selection. Typed `[after <task-id>]`, normal Succeeded dependency policy, private admission, clocks and no-replay behavior remain unchanged.
 
 The [reviewed expired current-run fixed-read replacement](Work_Management.md#delivered-reviewed-expired-pending-removal-and-fresh-tail-decision---2026-10-12) uses the same native/exact/current-name activated service: review old removal with retained history plus separate host-issued fresh IDs/profile/prerequisite/lifetime/deadline, then confirm exactly.

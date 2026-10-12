@@ -1,3 +1,6 @@
+using System.Globalization;
+
+using Kora.Core.Authorization;
 using Kora.Core.Commands;
 using Kora.Core.Hosting;
 using Kora.Core.Interaction;
@@ -42,7 +45,9 @@ public sealed partial class WindowsSqliteHostInteractionStore
         var quarantined = unknown.ExecuteScalar() is not null;
         var dispatchControl = QueueControl(connection, session, admissionRevision);
         var pending = SessionQueueOrdering.Pending(allQueue, session, orders);
-        var queueRecords = active.Concat(recent).OrderBy(entry => SessionQueueOrdering.Key(entry, orders)).ThenBy(entry => entry.Position).Select(entry =>
+        var observedQueue = active.Concat(recent).OrderBy(entry => SessionQueueOrdering.Key(entry, orders)).ThenBy(entry => entry.Position).ToArray();
+        var queueTasks = ReadObservedQueueTasks(connection, observedQueue, authority.Authority);
+        var queueRecords = observedQueue.Select(entry =>
         {
             var projected = ProjectQueue(connection, entry, now);
             return new SessionQueueObservation(projected, SessionQueuePolicy.Eligibility(projected,
@@ -50,7 +55,10 @@ public sealed partial class WindowsSqliteHostInteractionStore
                 dispatchControl, orders),
                 entry.ActiveDeadlineAt ?? (entry.DispatchOrder > 0
                     ? SessionQueueLimits.ActiveDeadlineAt(ReadAdmissionTime(connection, entry), SessionQueueLimits.DefaultActiveBudgetMinutes) : null))
-                { PendingOrder = entry.IsPending ? pending.ToList().IndexOf(entry) + 1 : null };
+                {
+                    PendingOrder = entry.IsPending ? pending.ToList().IndexOf(entry) + 1 : null,
+                    TaskMetadata = queueTasks.GetValueOrDefault(entry.Request.TaskId),
+                };
         }).ToArray();
         var taskRecords = ReadWorkTasks(connection, session);
         var questions = ReadQuestions(connection, session).Where(question => question.Status == QuestionStatus.Pending)
@@ -73,6 +81,41 @@ public sealed partial class WindowsSqliteHostInteractionStore
         database.VerifyFiles();
         return result;
     }, token));
+
+    private Dictionary<HostId<TaskIdentity>, HostTaskMetadata> ReadObservedQueueTasks(SqliteConnection connection,
+        SessionQueueEntry[] entries, WorkSessionAuthorization authority)
+    {
+        var metadata = new Dictionary<HostId<TaskIdentity>, HostTaskMetadata>();
+        // An unavailable optional projection never drops rows from the authoritative work observation.
+        if (entries.Length == 0 || entries.Length > SessionWorkSnapshot.MaximumRecords) { return metadata; }
+        using var command = connection.CreateCommand();
+        var parameters = entries.Select((entry, index) =>
+        {
+            var name = "$task" + index.ToString(CultureInfo.InvariantCulture);
+            command.Parameters.AddWithValue(name, Id(entry.Request.TaskId));
+            return name;
+        }).ToArray();
+        command.CommandText = "SELECT task_id,request_id,session_id,origin,invocation_id,revision,state FROM host_tasks WHERE task_id IN ("
+            + string.Join(',', parameters) + ");";
+        using var reader = command.ExecuteReader();
+        while (reader.Read())
+        {
+            var task = WindowsSqliteHostTaskStore.Decode(reader);
+            var entry = entries.Single(row => row.Request.TaskId == task.Request.TaskId);
+            if (task.Request != entry.Request || task.Request.SessionId != authority.SessionId)
+            {
+                throw new InvalidDataException("Observed queue task metadata does not match its authoritative request.");
+            }
+            var observed = Observe(connection, task, authority);
+            metadata.Add(task.Request.TaskId, new(task.Request.TaskId, task.Request.SessionId, observed.Generation,
+                task.Revision, task.State, observed.Source, observed.CurrentSource));
+        }
+        if (metadata.Count != entries.Length)
+        {
+            throw new InvalidDataException("Observed queue task metadata is missing from task authority.");
+        }
+        return metadata;
+    }
 
     private static (List<HostTaskRecord> Records, int Omitted) ReadWorkTasks(SqliteConnection connection, HostId<SessionIdentity> session)
     {

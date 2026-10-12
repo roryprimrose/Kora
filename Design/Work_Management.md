@@ -35,8 +35,11 @@ No experiment is modified or retired. Unique RT1/RT2/MG1/PV1, offline CPU/infere
 
 ### Delivered optional native enqueue prerequisite - 2026-10-12
 
-Native Sessions now offers explicit **None** or an independent exact prerequisite selection for each of the six fixed-read Enqueue buttons. The picker uses only the existing at-most-50 same-session nonqueue task metadata projection, not task bodies, history, artifacts, providers or another session.
-Each inert row shows immutable task/session IDs, observed generation/state/revision, UTC observation time and host source.
+Native Sessions offers explicit **None** or an independent exact prerequisite selection for each of the six fixed-read Enqueue buttons. The picker combines at most 50 nonqueue tasks with at most 50 already-observed same-session queued tasks, including pending/running and the existing recent terminal/recovery rows. It reads no task bodies, history, artifacts, providers or another session.
+Each inert row shows immutable task/session IDs, observed generation, actual host task state/revision, UTC observation time and host source. Queue-entry revision/state is a separate authority and is never substituted for host task metadata.
+
+The existing atomic SQLite work observation projects optional typed task metadata only for its already-selected queue IDs, in one bounded parameterized task query using the shared task decoder/observer and the same read lease/transaction. Current queue rows and the recent-25 bound remain unchanged. Metadata does not alter stored queue formats, canonical bytes or audit digests.
+Missing/mismatched/duplicate task metadata or an over-50 queued projection makes the picker explicitly unavailable, without dropping work rows or scanning omitted history. Initial/explicit None remains available under the original admission rules; losing an active exact choice requires a new explicit decision. The complete work projection still fails explicitly above 64 KiB before disclosure.
 
 None is the initial unchanged route. Enqueue captures the exact selected ID and real task revision through the same `SessionCommand`, application service and audited SQLite enqueue transaction as typed `[after <task-id>]`.
 The optional native revision guard restricts that observation to the addressed session and is checked again before physical COMMIT; typed arbitrary exact after-task semantics need no new field and remain unchanged.
@@ -47,7 +50,7 @@ Successful enqueue clears the choice; explicitly choose None or reselect before 
 Only exact Succeeded permits normal dispatch. Running/pending/terminal prerequisites may be retained under the existing dependency contract; failed/cancelled/Unknown or pending prerequisites can block the FIFO head. Normal dispatch reevaluates current state, not a frozen success or approval.
 Enqueue never dispatches, grants authority, edits existing dependencies or changes clocks, pause/hold, capacity, order, digests or no-replay recovery.
 
-Maintained [actual native wiring and commit-boundary tests](../tests/Kora.Windows.IntegrationTests/SessionsQueuePrerequisiteTests.cs) and [private SQLite contract tests](../tests/Kora.Windows.IntegrationTests/Storage/WindowsSqliteSessionQueueTests.Prerequisites.cs) cover this bounded parity.
+Maintained [actual native wiring and commit-boundary tests](../tests/Kora.Windows.IntegrationTests/SessionsQueuePrerequisiteTests.cs), [queued native consumers](../tests/Kora.Windows.IntegrationTests/SessionsQueuePrerequisiteTests.Queued.cs), [atomic work projections](../tests/Kora.Windows.IntegrationTests/Storage/WindowsSqliteSessionQueueTests.Work.cs) and [private SQLite contract tests](../tests/Kora.Windows.IntegrationTests/Storage/WindowsSqliteSessionQueueTests.Prerequisites.cs) cover this bounded parity.
 Existing queue/order/retention and fixed-profile consumers remain authoritative. Cross-session native selection, automatic/model management and existing dependency editing are not delivered.
 
 No experiment is edited or retired. These deterministic consumer checks do not replace unique RT1/RT2/MG1/PV1, local/offline quality, containment, hardware/storage, installed-native/accessibility or physical-stop qualification.

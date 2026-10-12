@@ -5,7 +5,7 @@ namespace Kora;
 
 internal sealed partial class SessionsViewModel
 {
-    private IReadOnlyList<QueuePrerequisiteOption> queuePrerequisites = [];
+    private QueuePrerequisiteOption[] queuePrerequisites = [];
     private QueuePrerequisiteOption? queuePrerequisite;
     private bool queuePrerequisiteDecisionRequired;
     private long queuePrerequisiteEpoch;
@@ -27,13 +27,13 @@ internal sealed partial class SessionsViewModel
         {
             if (!QueuePrerequisiteSourceCurrent)
             {
-                return "Prerequisite metadata unavailable/stale. "
+                return "Prerequisite metadata unavailable/stale (including missing/conflicting queued host metadata or its 50-row bound). "
                     + (queuePrerequisiteDecisionRequired || queuePrerequisite is not null
                         ? "Refresh selected work and explicitly choose None or reselect an exact task; no dependency is inferred."
                         : "None (explicit no prerequisite). Refresh selected work before selecting an exact task.");
             }
-            var source = queuePrerequisites.Count == 0 ? "No task metadata rows in this bounded observation."
-                : "At most 50 already-observed same-session task metadata rows; omitted tasks are not scanned.";
+            var source = queuePrerequisites.Length == 0 ? "No task metadata rows in this bounded observation."
+                : "At most 50 nonqueue and 50 already-observed queued same-session host task metadata rows; omitted tasks/queue history are not scanned.";
             var choice = queuePrerequisiteDecisionRequired ? "Explicit choice required: None or select an exact task."
                 : queuePrerequisite is { } option ? "Selected prerequisite: " + option.Label
                 : "None (explicit no prerequisite; initial default).";
@@ -76,12 +76,22 @@ internal sealed partial class SessionsViewModel
         InvalidateQueuePrerequisite(clearSource: true);
         queuePrerequisiteAdmission = observedAdmission;
         if (snapshot.Tasks.IsDefault || snapshot.Tasks.Length > SessionWorkSnapshot.MaximumRecords
+            || snapshot.QueueRecords.IsDefault || snapshot.QueueRecords.Length > SessionWorkSnapshot.MaximumRecords
             || snapshot.Tasks.Any(task => task.Task.Request.SessionId != snapshot.Session.Authority.SessionId
-                || task.Generation != snapshot.Session.Authority.Generation)) { return; }
+                || task.Generation != snapshot.Session.Authority.Generation)
+            || snapshot.QueueRecords.Any(row => row.TaskMetadata is not { } task
+                || task.TaskId != row.Entry.Request.TaskId || task.SessionId != row.Entry.Request.SessionId
+                || task.SessionId != snapshot.Session.Authority.SessionId
+                || task.Generation != snapshot.Session.Authority.Generation || row.Entry.Generation != task.Generation
+                || task.Revision.Value <= 0 || !Enum.IsDefined(task.State) || string.IsNullOrWhiteSpace(task.Source))) { return; }
+        var options = snapshot.Tasks.Select(task => new QueuePrerequisiteOption(
+            task.Task.Request.TaskId, task.Task.Request.SessionId, task.Generation, task.Task.Revision,
+            task.Task.State, snapshot.ObservedAt, task.Source)).Concat(snapshot.QueueRecords.Select(row =>
+            new QueuePrerequisiteOption(row.TaskMetadata!.TaskId, row.TaskMetadata.SessionId, row.TaskMetadata.Generation,
+                row.TaskMetadata.Revision, row.TaskMetadata.State, snapshot.ObservedAt, row.TaskMetadata.Source))).ToArray();
+        if (options.Select(option => option.TaskId).Distinct().Count() != options.Length) { return; }
         queuePrerequisiteMetadataAvailable = true;
-        queuePrerequisites = [.. snapshot.Tasks.Select(task => new QueuePrerequisiteOption(
-                task.Task.Request.TaskId, task.Task.Request.SessionId, task.Generation, task.Task.Revision,
-                task.Task.State, snapshot.ObservedAt, task.Source))];
+        queuePrerequisites = options;
     }
 
     private bool QueuePrerequisiteStillCurrent(QueuePrerequisiteOption? option, long epoch) =>

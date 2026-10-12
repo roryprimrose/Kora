@@ -134,6 +134,9 @@ public sealed partial class WindowsSqliteSessionQueueTests
         { QueueProfile = profile, QueueTarget = targetId is null ? null : new(targetId), WorkRequestId = Guid.NewGuid(), TaskId = Guid.NewGuid() };
         var enqueued = await workspace.ExecuteCommandAsync(command, origin, () => true, f.Token);
         var pending = enqueued.Queue!.Entries.Single();
+        var pendingWork = await f.Store.ReadWorkAsync(f.Request.SessionId, 1, new(), f.Token);
+        pendingWork.QueueRecords.Single().TaskMetadata.Should().Be(new HostTaskMetadata(pending.Request.TaskId,
+            pending.Request.SessionId, pending.Generation, new(1), HostTaskState.IntentRecorded, "unclassified", false));
         var pendingPayload = QueuePayload(f, pending);
         var originalAudits = AuditPayloads(f);
         actions.Probe.Calls.Should().Be(0);
@@ -186,6 +189,9 @@ public sealed partial class WindowsSqliteSessionQueueTests
         }
         var work = await f.Store.ReadWorkAsync(f.Request.SessionId, 1, new(), f.Token);
         work.QueueRecords.Single().Entry.Result.Should().BeNull();
+        work.QueueRecords.Single().Entry.Target.Should().Be(command.QueueTarget);
+        work.QueueRecords.Single().TaskMetadata.Should().Be(new HostTaskMetadata(pending.Request.TaskId,
+            pending.Request.SessionId, pending.Generation, new(3), HostTaskState.Succeeded, "unclassified", false));
         using (var root = HostActivity.BeginRoot(f.Request, HostActivityLayer.Application, HostOperation.Request))
         {
             var all = await workspace.ReadWorkOverviewAsync(SessionListFilter.All, false, null, f.Token);

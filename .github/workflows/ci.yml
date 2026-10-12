@@ -297,7 +297,8 @@ jobs:
   windows-integration:
     name: Windows integration tests
     runs-on: windows-latest
-    timeout-minutes: 15
+    # Covers setup/build and the full isolated suite; product and test deadlines are unchanged.
+    timeout-minutes: 30
     needs: version
     if: needs.version.outputs.already-published != 'true'
     env:

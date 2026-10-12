@@ -154,6 +154,7 @@ public sealed class WindowsSqliteSessionProviderProfileTests
         using var f = new InteractionStorageFixture();
         await f.InitializeAsync();
         var before = ReadAudit(f);
+        f.DropEmptyConversationSchemaForLegacy();
         f.Mutate("DROP TABLE session_queue_order; DROP TABLE session_provider_profile; PRAGMA user_version=8;");
         f.Reopen();
         await f.Store.InitializeAsync(f.Token);

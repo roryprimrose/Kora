@@ -19,6 +19,57 @@ See [native editor commands, bounds and recovery](instruction-editor.md).
 
 ## Authoritative Sessions work
 
+### Exact-session conversation and composer
+
+Open **Sessions**, select the exact session and use **Exact-session conversation
+and composer**. Its header names the immutable ID, name label, generation,
+metadata/saved-draft revision and private control epoch. Read/Next show bounded
+chronological **USER** messages and separate **HOST** statuses; no model answer
+is invented. Done history stays readable, but new work requires explicit Resume.
+
+Typing writes nothing. **Read exact conversation / saved revision** observes
+the stored revision. **Explicitly Save draft** retains one draft for this
+session; **Reload saved draft** restores only data. **Review Clear saved draft**
+shows the exact saved body/revision; its separate confirmation removes that
+copy only. **Discard memory buffer only** leaves saved draft/messages unchanged.
+Switching/closing unsaved text offers Save/Discard/Cancel. Lock/privacy/owner
+closure clears private text and callbacks without silently saving.
+
+**Submit exact message — unavailable provider** retains your original exact
+text and fresh request/task receipt privately. Today the configured production
+catalogue has no qualified model: you receive truthful **HOST Unavailable /
+UnregisteredModel** and a terminal **Unavailable task**, not an AI answer.
+No rejected-local-runtime fallback, HTTP/provider/authentication, automatic
+retry, history context or tools run. Only a known receipt clears its unchanged
+memory buffer; saved drafts remain independently stored. Failure/uncertainty
+holds the buffer and requires exact conversation/task inspection, not retry.
+
+Bodies must fit 4096 UTF-16 characters **and** 16384 UTF-8 bytes, with exact
+valid Unicode/whitespace/newlines. Invalid, empty or oversized submissions are
+rejected, never normalized/truncated. Each session admits 100 submitted user
+messages; there is no aggregate retained-session, draft-bearing-session or
+message storage quota and no automatic eviction. Read pages have at most
+50 records/64 KiB complete output. These are predictable work/UI bounds,
+not a total database-size or unlimited physical-disk promise.
+
+Save/Submit also perform bounded **local best-effort credential-like checks**:
+private-key PEM blocks/candidates, Authorization Bearer/Basic values, explicit
+password/client_secret/api_key assignments, declared GitHub token shapes and
+JWT-like strings. No model/network/credential verification occurs. Clear
+placeholders and inert parameter references are not evaluated; discussion is
+not rejected just for mentioning passwords/tokens. Arbitrary passwords,
+short values and undeclared formats can be missed; this is not DLP or a
+secret-free guarantee. Detected material is refused without persisting a body
+or reusable body hash. Correct the memory-only draft or use supported secure
+credential flows; there is no Save anyway or silent redaction.
+
+Saved input never auto-submits after restart. Original incomplete intent
+recovers as Interrupted without replay. Existing Keep/ordinary retention and
+exact disposition include these database cells/journal; uninventoried copies
+and Unknown/live work still hold deletion. No new export/clipboard/rich content
+action or forensic-erasure claim is supplied. Full generation/global routing
+and installed/native/provider qualification remain separate.
+
 The already-open selected work surface also has a **trusted local events**
 status list. Only fixed authoritative local-version work/question facts and
 fresh cached maintenance can create a row. Fixed summaries have no titles or

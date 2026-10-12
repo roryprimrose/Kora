@@ -241,6 +241,7 @@ public sealed partial class WindowsSqliteSessionQueueTests
         await fixture.InitializeAsync();
         await WindowsSqliteSessionWorkspaceTests.FinishAsync(fixture, HostTaskState.Succeeded);
         var before = await fixture.Store.ReadHistoryAsync(fixture.Request.SessionId, null, 50, fixture.Token);
+        fixture.DropEmptyConversationSchemaForLegacy();
         fixture.Mutate("DROP TABLE session_queue_order; DROP TABLE session_provider_profile; DROP TABLE session_file; DROP TABLE reviewed_memory; DROP TABLE memory_profile; DROP TABLE session_retention; DROP TABLE session_queue; PRAGMA user_version=4;");
         fixture.Reopen(new InteractionTransactionCheckpoint { Commit = (_, _) => throw new IOException("Migration interrupted") });
         var interrupted = () => fixture.Store.InitializeAsync(fixture.Token).AsTask();
@@ -249,6 +250,7 @@ public sealed partial class WindowsSqliteSessionQueueTests
         await fixture.Store.InitializeAsync(fixture.Token);
         (await fixture.Store.ReadHistoryAsync(fixture.Request.SessionId, null, 50, fixture.Token)).Should().BeEquivalentTo(before);
         var entry = await EnqueueAsync(fixture, fixture.Request.SessionId);
+        fixture.DropEmptyConversationSchemaForLegacy();
         fixture.Mutate("DROP TABLE session_queue_order; DROP TABLE session_provider_profile; DROP TABLE session_file; DROP TABLE reviewed_memory; DROP TABLE memory_profile; DROP TABLE session_retention; DROP TABLE session_queue; PRAGMA user_version=4;");
         fixture.Reopen();
         var missing = () => fixture.Store.InitializeAsync(fixture.Token).AsTask();

@@ -21,6 +21,12 @@ hosted inference is not enabled by this host-only foundation.
 Device-local initial provider mode settings are delivered separately below.
 Clipboard and file preview/search commands still perform no model submission.
 
+The separate native [exact-session composer](windows-and-tray.md#exact-session-conversation-and-composer)
+retains deliberately submitted original user messages and unavailable HOST/task
+outcomes through configured provider-neutral admission. It is not a new typed/
+voice command, question reply, approval, fixed-read queue profile, model tool or
+bootstrap fallback. Draft saves are explicit; reading/restoring never submits.
+
 ## Inspect or change the device-local provider mode
 
 Native Settings > Providers and exact typed/current-name activated commands:

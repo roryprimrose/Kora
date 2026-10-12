@@ -14,6 +14,22 @@ Related: [Architecture](Architecture.md),
 [Security and Data Flows](Security_Data_Flows.md), and
 [Implementation Roadmap](Implementation_Roadmap.md).
 
+## Native conversation admission consumer — 2026-10-12
+
+The [exact-session composer](Interaction_And_Sessions.md#delivered-exact-session-conversationcomposer-foundation--2026-10-12)
+now consumes configured `ModelTurnHost` admission with fresh session/app policy,
+qualification and immutable tuple capture, never the buffered bootstrap
+reasoner. Only the newly frozen original user body plus trusted versioned host
+policy enters a complete ≤32768-byte envelope; no retained conversation,
+memory, attachment, evidence or tool-result assembly is implied.
+
+Production no-model/no-qualified-adapter resolution retains original input
+with a separate truthful HOST Unavailable terminal and matching task receipt.
+Even a controlled future qualified admission reports GenerationNotEnabled
+without executing a provider. No authentication, egress, live provider,
+rejected Ollama candidate, send-once override or provider-output parser is
+enabled. Installed-local desired initial service is not inference consent.
+
 ## Product Decision
 
 Kora supports qualified local inference through Ollama and separately

@@ -306,6 +306,7 @@ internal static class Program
         services.AddSingleton<Kora.Application.Interaction.HostAuthorizationService>();
         services.AddSingleton<Kora.Application.Interaction.ExactGrantControlAdmission>();
         services.AddSingleton<ISessionWorkspaceStore>(interactions);
+        services.AddSingleton<ISessionConversationStore>(interactions);
         services.AddSingleton<ISessionRetentionStore>(interactions);
         services.AddSingleton<SessionRetentionService>();
         services.AddSingleton<ISharedSkillSessionStore>(interactions);
@@ -429,6 +430,8 @@ internal static class Program
         services.AddSingleton<Kora.Tools.Runtime.RuntimeGetStatus>();
         services.AddSingleton<Kora.Application.Tools.ReadOnlyCapabilityRegistry>();
         services.AddSingleton<ModelTurnHost>();
+        services.AddSingleton<IModelTurnAdmission>(provider => provider.GetRequiredService<ModelTurnHost>());
+        services.AddSingleton<SessionConversationService>();
         services.AddSingleton<ModelProviderHandoffWorkflow>();
         services.AddSingleton<ModelHandoffPresentation>();
         services.AddSingleton<ILocalModelSetup, WindowsOllamaSetupService>();

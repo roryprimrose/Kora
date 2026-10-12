@@ -12,7 +12,7 @@ using Microsoft.Extensions.Logging;
 namespace Kora.Application.Dependencies;
 
 /// <summary>R04-R08 host boundary. Production profiles remain unavailable; no adapter is composed.</summary>
-public sealed partial class ModelTurnHost : IAsyncDisposable
+public sealed partial class ModelTurnHost : IAsyncDisposable, IModelTurnAdmission
 {
     private readonly Guid owner = Guid.NewGuid();
     private readonly ISessionWorkspaceStore workspace;

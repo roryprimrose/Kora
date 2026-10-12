@@ -276,6 +276,30 @@ Evidence: [exact/forged Unicode/BOM/range/heading policy](../tests/Kora.Core.Uni
 
 Experiment equivalence is limited to deterministic exact citation resolution and these native passive consumers. No experiment or historical receipt is retired: native/runtime/offline/resource, privacy/storage/migration/recovery, containment, RT1/RT2/MG1 and model-quality proofs remain unique. Full CommonMark/rendering, managed sources, model grounding/providers, installed/OS-accessibility acceptance and broader R26 qualification remain separate and open.
 
+## Delivered Native Current-Source Literal Find - 2026-10-12
+
+**Find first / Find next / Find previous / Clear literal Find** navigate only the currently displayed exact immutable text file: volatile single-file preview, the current captured-folder selector item, or an exact retained Session attachment. This native presentation control is separate from ranked lexical/Markdown retrieval and citations. Typing does not scan, change files or move focus.
+
+The one-line literal uses case-sensitive `StringComparison.Ordinal`, without trimming, normalization, token OR, regex, wildcard, fuzzy or semantic interpretation. Spaces and metacharacters are preserved. Shared 256 UTF-16 / 512 strict UTF-8 bounds apply; malformed Unicode, control/format characters and line/paragraph separators reject explicitly. No query enters typed/PTT transcripts.
+
+First scans from zero. Next starts after the selected match's exclusive end; Previous finds the last match ending at or before its start. Matches are nonoverlapping relative to that cursor and never wrap. Next/Previous require a match; exhaustion retains the cursor but clears the span and says **End of direction**, not global NoMatch. First alone can report no match in the exact file.
+
+One span is selected per action, with the unchanged query's UTF-16 length. No all-occurrence collection, index or count is built. The existing inert `NamedTextBlock` panel shows literal labels, original end-exclusive UTF-16 offsets and exact source/revision/item/original-byte digest, not a ranked citation or heading. Complete original source remains unchanged and non-selectable below.
+
+The shared handler captures source instance, exact query, cursor and view generation before work. Each action reuses citation navigation's authoritative resolver and current-admission predicate before disclosure and in-window focus. Retained actions revalidate only the private SQLite original-body/session/storage/source snapshot, never the original filesystem path, capture, attach or replace.
+
+Folder selection and citation navigation switch the actual Find subject and clear the old query/cursor. Query edits, ranked query/mode/search/cancel, citation selection, source/review recomposition, Clear and close retire pending Find.
+
+Existing ownership/call/session/retention/replacement/removal shutdown clears content and query. Late callbacks cannot retarget identical bytes or a newer view. Stale/unavailable/invalid inputs disclose no match or fallback.
+
+No new command/model-tool descriptor, data-read authority, publication, activity renewal, clipboard/drag/export, HTML/link/browser/image execution, speech/history, preferences, cache, model context or egress is added. Existing inspect/search commands still focus ranked native inspection; literal navigation is native-only.
+
+Original 256 KiB file bounds, sixteen retained bodies, storage schema/format, citation ranking/eight-result/16 KiB limits and private audit fences are unchanged.
+
+Evidence: [portable span/query tests](../tests/Kora.Core.UnitTests/Context/LocalFileLiteralFindTests.cs), [native surfaces, selection, cancellation and focus](../tests/Kora.Windows.IntegrationTests/LocalFileLiteralFindWindowTests.cs), and [retained Done/private SQLite after original deletion](../tests/Kora.Windows.IntegrationTests/SessionAttachmentWindowTests.Find.cs).
+
+These fixtures qualify only this bounded native presentation path. No experiment, historical failure receipt or RT1/RT2/MG1/PV1, offline CPU/inference, containment, hardware, installed-native/accessibility, physical-storage or physical STOP proof is retired. Broader R26/managed knowledge/model answers remain unqualified; profile-original editing remains security-boundary deferred.
+
 ## Delivered Bounded Folder-Scoped Lexical Retrieval - 2026-10-09
 
 R26.1c extends the volatile R26.1a/b foundation, not the durable R26.2 lifecycle. **Tray > Preview folder (immediate files, local lexical search)** and exact `preview folder` use the trusted native single-folder picker. Typed/voice paths do not authorize reads ([native selection](../src/Kora/LocalFilePreviewWindowController.cs), [commands](../src/Kora.Core/Context/LocalFileCommand.cs)).

@@ -112,6 +112,18 @@ Use native **Refresh this file preview** / **Refresh this folder preview**, or e
 There is no automatic refresh, watcher, recursion, registry, durable attachment, knowledge/persistent-index/reasoning authority. Same privacy/ownership/call/control/lifetime and native release fences apply; unverified release blocks clean handoff/exit until recovery.
 See [commands and limits](commands.md#explicit-local-file-preview).
 
+### Find a literal in the currently inspected original file
+
+In an admitted file preview, selected captured-folder file or retained Session attachment, enter a one-line literal in **Literal Find** and explicitly choose **Find first**. This searches only the displayed immutable original, not every folder file, the current filesystem, a provider or a conversation.
+
+Matching is **case-sensitive**, preserves spaces and punctuation exactly, and treats regex/wildcard-looking text literally. Limits are 256 UTF-16 characters / 512 strict UTF-8 bytes; empty, malformed or unsafe control-bearing input is unavailable. Nothing happens on keystrokes.
+
+**Find next** starts after the selected match's exclusive end. **Find previous** finds the last match ending before or at its start. There is no overlapping cursor step or wrap. End-of-direction is not a claim that the whole file has no match. **Clear literal Find** cancels work and clears its query, cursor and span.
+
+The focused match is inert, non-selectable text with exact source/revision/item/digest and original UTF-16 `[start, end)` metadata; it is not a ranked citation. Full original source remains below. Folder selection/citation navigation clear the old query and cursor; query/mode/search/cancel/source/private/window changes suppress late Find results.
+
+Retained Find validates the exact private historical Session/storage source after original-file removal, without rereading that path or renewing session activity. No clipboard, export, links, speech, history, query persistence, model or new read permission is added. Native-only Find is separate from existing inspect/search focus routes and unchanged ranked lexical/Markdown search.
+
 ### Opt-in Markdown search in an exact file view
 
 In an admitted file/folder preview or **Inspect retained attachment**, choose **Markdown structure-aware (opt-in, this view only)**, then **Search selected immutable revision locally**. New/reopened/replaced views always start at **Lexical lines (default)** / `lexical-lines-v1`; no preference/global mode is saved.

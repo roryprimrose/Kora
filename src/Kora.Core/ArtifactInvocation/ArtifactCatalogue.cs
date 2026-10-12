@@ -8,6 +8,8 @@ public sealed class ArtifactCatalogue
 {
     private readonly Lock gate = new();
     private ReadOnlyCollection<ArtifactDefinition> artifacts;
+    private long reloadFailureRevision;
+    private int reloadUnavailable;
 
     public ArtifactCatalogue(IReadOnlyList<ArtifactDefinition> artifacts)
     {
@@ -18,6 +20,8 @@ public sealed class ArtifactCatalogue
     public event EventHandler<ArtifactCatalogueReloadFailedEventArgs>? ReloadFailed;
 
     public ReadOnlyCollection<ArtifactDefinition> Candidates => Volatile.Read(ref artifacts);
+    public long ReloadFailureRevision => Interlocked.Read(ref reloadFailureRevision);
+    public bool IsReloadUnavailable => Volatile.Read(ref reloadUnavailable) != 0;
     public ReadOnlyCollection<ArtifactDefinition> Artifacts =>
         new(Candidates.Where(artifact => artifact.IsUseEnabled).ToArray());
 
@@ -37,13 +41,13 @@ public sealed class ArtifactCatalogue
 
     public void Publish(IReadOnlyList<ArtifactDefinition> updatedArtifacts)
     {
-        Replace(_ => updatedArtifacts);
+        Replace(_ => updatedArtifacts, recovered: true);
     }
 
     public void Update(Func<IReadOnlyList<ArtifactDefinition>, IReadOnlyList<ArtifactDefinition>> update) =>
         Replace(update);
 
-    private void Replace(Func<IReadOnlyList<ArtifactDefinition>, IReadOnlyList<ArtifactDefinition>> update)
+    private void Replace(Func<IReadOnlyList<ArtifactDefinition>, IReadOnlyList<ArtifactDefinition>> update, bool recovered = false)
     {
         ReadOnlyCollection<ArtifactDefinition> previous;
         ReadOnlyCollection<ArtifactDefinition> validated;
@@ -52,6 +56,7 @@ public sealed class ArtifactCatalogue
             previous = artifacts;
             validated = Validate(update(previous));
             Volatile.Write(ref artifacts, validated);
+            if (recovered) { Volatile.Write(ref reloadUnavailable, 0); }
         }
         if (!Equivalent(previous, validated))
         {
@@ -62,6 +67,11 @@ public sealed class ArtifactCatalogue
     public void ReportReloadFailure(Exception exception)
     {
         ArgumentNullException.ThrowIfNull(exception);
+        lock (gate)
+        {
+            Volatile.Write(ref reloadUnavailable, 1);
+            Interlocked.Increment(ref reloadFailureRevision);
+        }
         ReloadFailed?.Invoke(this, new(exception));
     }
 

@@ -275,6 +275,11 @@ selection and save/enable state, and Permissions owns grant validation and
 mutation. Rendered Markdown/HTML can explain those records but cannot provide
 their authoritative buttons, forms, selection, or dirty state.
 
+The delivered owned Instruction/Prompt editor adds per-kind metadata search and observed-use filters beside its existing native controls, not a new window or the planned full source/file-tree surface.
+List/Refresh reconciles the existing bounded source pipeline; query/filter/Next only projects its admitted immutable owned metadata snapshot. Complete labels/details are bounded to 64 KiB UTF-8 with explicit omissions and Next when needed.
+Selection alone never opens another file, grants use or retargets an unsaved draft. Inspect revalidates the original kind/filename/digest/native revision and catalogue/private epoch. Stale choices require Refresh/reselection; failed reload clears availability, while the original/draft remains subject to existing privacy guards.
+Private closure clears query/rows/selection/editor text and suppresses late publication. Keyboard-native controls and current exact List/Inspect commands share the editor; broader profile editing, source filters and accessibility/installed qualification remain deferred. See [owned inventory controls](../docs/instruction-editor.md#search-observed-owned-metadata).
+
 ## Compact Session Interaction
 
 Illustrative layout, not pixel dimensions or final styling:

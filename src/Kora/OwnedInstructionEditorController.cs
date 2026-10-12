@@ -31,6 +31,7 @@ internal sealed partial class OwnedInstructionEditorController(
     private bool uncertain;
     private long sourceRevision;
     private long copyInputRevision;
+    private long windowOwnershipRevision;
 
     internal void Bind()
     {
@@ -38,12 +39,16 @@ internal sealed partial class OwnedInstructionEditorController(
         main.OwnedPromptEditorRequested += OnPromptRequested;
         main.PrivacyClosureRequested += OnPrivacyClosed;
         main.PropertyChanged += OnMainInputChanged;
+        actions.InventoryChanged += OnInventoryChanged;
+        actions.InventoryReloadFailed += OnInventoryReloadFailed;
         main.BindInstructionEditorShutdown(PrepareClose);
     }
 
     private void OnMainInputChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs args)
     {
         if (args.PropertyName is nameof(MainViewModel.CommandText)) { Interlocked.Increment(ref copyInputRevision); }
+        if (args.PropertyName is nameof(MainViewModel.CallPolicyRevision))
+        { RetireInventory("Call/runtime admission changed. Refresh and reselect after recovery; the open draft is retained."); }
     }
 
     internal void Open(bool load = true)
@@ -51,9 +56,18 @@ internal sealed partial class OwnedInstructionEditorController(
         if (disposed) { return; }
         if (!ownsHost() || !main.CaptureInstructionEditorEligibility()())
         { main.ReportHostInteractionFailure("Owned instruction editing requires the current unlocked owning host and eligible clear call/privacy state."); return; }
-        if (window is not null) { window.Activate(); return; }
+        if (window is not null)
+        {
+            if (ownershipRevision() != windowOwnershipRevision) { OnPrivacyClosed(this, EventArgs.Empty); return; }
+            window.Activate(); return;
+        }
+        windowOwnershipRevision = ownershipRevision();
         lifetime = new();
-        window = new(action => _ = Run(action));
+        window = new(action =>
+        {
+            if (action is "Filter" or "Next") { FilterInventory(action is "Next"); }
+            else { _ = Run(action); }
+        });
         window.Source.PropertyChanged += (_, change) =>
         {
             if (change.Property == TextBox.TextProperty) { Interlocked.Increment(ref sourceRevision); }
@@ -64,7 +78,7 @@ internal sealed partial class OwnedInstructionEditorController(
         };
         window.NameInput.PropertyChanged += (_, change) =>
         {
-            if (change.Property == TextBox.TextProperty) { Interlocked.Increment(ref sourceRevision); }
+            if (change.Property == TextBox.TextProperty) { Interlocked.Increment(ref sourceRevision); inventoryChoiceWithdrawn = false; }
         };
         window.Files.SelectionChanged += (_, _) => Interlocked.Increment(ref sourceRevision);
         window.KindInput.SelectionChanged += (_, _) => Interlocked.Increment(ref sourceRevision);
@@ -102,12 +116,12 @@ internal sealed partial class OwnedInstructionEditorController(
         else
         {
             if (!await SwitchKind(window, requestedKind, lifetime.Token)) { return; }
-            if (name is not null) { window.NameInput.Text = name; window.Files.SelectedItem = name; }
+            if (name is not null) { window.NameInput.Text = name; window.Files.SelectedItem = null; inventoryChoiceWithdrawn = false; }
         }
-        await Run(operation);
+        await Run(operation, name);
     }
 
-    private async Task Run(string action)
+    private async Task Run(string action, string? exactName = null)
     {
         if (busy || disposed || window is not { } opened || lifetime is null)
         {
@@ -119,7 +133,7 @@ internal sealed partial class OwnedInstructionEditorController(
         bool Eligible() => !disposed && ownsHost() && ownershipRevision() == ownership
             && ReferenceEquals(window, opened) && captured();
         var token = lifetime.Token;
-        if (!Eligible()) { return; }
+        if (!Eligible() || ownership != windowOwnershipRevision) { OnPrivacyClosed(this, EventArgs.Empty); return; }
         busy = true;
         try
         {
@@ -130,10 +144,9 @@ internal sealed partial class OwnedInstructionEditorController(
                     { break; }
                     goto case "List";
                 case "List":
-                    var files = await Actions.List(Eligible, token);
-                    if (!Eligible()) { return; }
-                    opened.Files.ItemsSource = files;
-                    if (!reload.ReloadNow()) { throw new IOException("The catalogue could not be reconciled."); }
+                case "Refresh":
+                    await RefreshInventory(opened, Eligible, token);
+                    if (!Eligible() || inventory is null || !Actions.IsInventoryCurrent(inventory)) { break; }
                     opened.Report("Owned file inventory refreshed. Disabled revisions remain inspectable. Select an ID and Inspect.");
                     break;
                 case "Create":
@@ -152,8 +165,7 @@ internal sealed partial class OwnedInstructionEditorController(
                     break;
                 case "Inspect":
                 case "Reload":
-                    if (!await AbandonDraft(opened, token)) { break; }
-                    await Load(opened, opened.Files.SelectedItem as string ?? opened.NameInput.Text, Eligible, token);
+                    await InspectChoice(opened, action is "Reload", exactName, Eligible, token);
                     break;
                 case "Save":
                     await Save(opened, delete: false, Eligible, token);
@@ -197,6 +209,7 @@ internal sealed partial class OwnedInstructionEditorController(
         catch (Exception exception) when (exception is not OutOfMemoryException)
         {
             EditorFailed(logger, exception.GetType().Name);
+            if (action is "List" or "Refresh") { InvalidateInventory("Inventory unavailable; historical observations are not current. Explicit Refresh required."); }
             if (action is "Save" or "Delete"
                 || exception is InstructionUseRevocationUnconfirmedException) { uncertain = true; }
             if (ReferenceEquals(window, opened))
@@ -216,7 +229,7 @@ internal sealed partial class OwnedInstructionEditorController(
         if (Dirty || baseline is not { } reviewed || uncertain
             || !string.Equals(selectedName, reviewed.Name, StringComparison.Ordinal)
             || !string.Equals(opened.NameInput.Text, reviewed.Name, StringComparison.Ordinal)
-            || opened.Files.SelectedItem is string selection && !string.Equals(selection, reviewed.Name, StringComparison.Ordinal))
+            || opened.Files.SelectedItem is OwnedDefinitionInventoryRow selection && !string.Equals(selection.Name, reviewed.Name, StringComparison.Ordinal))
         { throw new InvalidOperationException("Disable requires the exact clean inspected saved baseline. Unsaved draft retained; explicitly Save or Reload first, then review Disable separately."); }
         var sourceEpoch = Interlocked.Read(ref sourceRevision);
         var inputEpoch = Interlocked.Read(ref copyInputRevision);
@@ -314,12 +327,18 @@ internal sealed partial class OwnedInstructionEditorController(
             + "Original source and open draft retained. List and explicitly Inspect the new ID, then independently Review use; no references retargeted.");
     }
 
-    private async Task Load(OwnedInstructionEditorWindow opened, string? name, Func<bool> eligible, CancellationToken token)
+    private async Task Load(OwnedInstructionEditorWindow opened, string? name, Func<bool> eligible, CancellationToken token,
+        OwnedDefinitionInventory? observed = null, OwnedDefinitionInventoryRow? row = null)
     {
         if (name is null) { throw new InvalidOperationException("Select the exact owned instruction ID."); }
-        var loaded = await Actions.Inspect(name, eligible, token);
+        var loaded = observed is not null && row is not null
+            ? await Actions.InspectInventory(observed, row, eligible, token)
+            : await Actions.Inspect(name, eligible, token);
         if (!eligible()) { return; }
+        if (observed is not null && !Actions.IsInventoryCurrent(observed))
+        { throw new InvalidOperationException("The observed catalogue changed before inspection delivery. Refresh and reselect; draft retained."); }
         baseline = loaded; selectedName = loaded?.Name ?? name; originalText = loaded?.Document.Text ?? string.Empty;
+        opened.NameInput.Text = selectedName;
         opened.Source.Text = originalText;
         opened.Source.IsReadOnly = false;
         if (loaded is not null)
@@ -359,8 +378,10 @@ internal sealed partial class OwnedInstructionEditorController(
         { opened.SelectKind(kind); return false; }
         token.ThrowIfCancellationRequested();
         kind = requestedKind;
+        InvalidateInventory("Kind changed; explicit List/Refresh required.");
         baseline = null; selectedName = null; originalText = string.Empty; uncertain = false;
-        opened.Source.Text = string.Empty; opened.NameInput.Text = string.Empty; opened.CopyNameInput.Text = string.Empty; opened.Files.ItemsSource = null;
+        opened.Source.Text = string.Empty; opened.NameInput.Text = string.Empty; opened.CopyNameInput.Text = string.Empty; opened.ClearInventory();
+        opened.QueryInput.Text = string.Empty; opened.UseStateInput.SelectedItem = OwnedDefinitionUseFilter.All;
         opened.SelectKind(kind);
         return true;
     }
@@ -397,6 +418,7 @@ internal sealed partial class OwnedInstructionEditorController(
     private void Clear()
     {
         lifetime?.Cancel(); lifetime?.Dispose(); lifetime = null;
+        inventory = null; inventoryPage = null; inventoryEligibility = null; inventoryChoiceWithdrawn = false;
         window?.ClearPrivateText(); window = null; baseline = null; selectedName = null; originalText = string.Empty; uncertain = false;
     }
 
@@ -407,6 +429,8 @@ internal sealed partial class OwnedInstructionEditorController(
         main.OwnedPromptEditorRequested -= OnPromptRequested;
         main.PrivacyClosureRequested -= OnPrivacyClosed;
         main.PropertyChanged -= OnMainInputChanged;
+        actions.InventoryChanged -= OnInventoryChanged;
+        actions.InventoryReloadFailed -= OnInventoryReloadFailed;
         main.BindInstructionEditorShutdown(null);
         OnPrivacyClosed(this, EventArgs.Empty);
         Clear();

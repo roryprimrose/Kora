@@ -50,7 +50,7 @@ descriptors; native delivery does not make a model tool available.
 | Preferences and audio | Admitted native/exact preferences, consented PTT, installed/local speech, visual recovery and run-only manual call protection | Automatic call detectors, call-policy downgrades, temporary speech exceptions and acoustic qualification | [Configuration](User_Configuration.md), [call policy](Call_Aware_Speech.md) |
 | File/clipboard inspection | Explicit immutable previews, folder lexical retrieval, reviewed refresh, one retained file/session, replacement/removal, metadata catalogue, opt-in Markdown structure and exact citation navigation | Managed knowledge sources, model grounding/egress, persistent/vector indexes, screen/OCR/image context | [Ingestion](File_And_Folder_Ingestion.md), [clipboard](Security_Data_Flows.md) |
 | Memory and providers | Original-user memory review/admission and session-only durable storage; host policy/handoff, initial mode, audited app profiles and durable exact-session sparse overrides with native/exact review and subsequent-turn capture | Authentication/qualified hosted adapters, generic/one-turn profile directives, model memory recall or automatic handoff | [Profiles and session resolution](Model_Providers_Memory_And_Knowledge.md#session-overrides-and-effective-resolution) |
-| Definitions | Immutable bundles; profile reads; owned instruction/literal prompt Save/conflict/copy/review and exact native v1 Disable, durable new-selection hold | Profile-original editing/forks, broader formats/refinement/applicability, parameters/scripts/runtime and full matrix unqualified | [Management](Definition_Management.md), [editor](../docs/instruction-editor.md) |
+| Definitions | Bundles/profile reads; owned instruction/prompt Save/copy/Disable, observed-use search/filter and exact stale-safe inspection | Profile-original writers/forks, broader formats/refinement/applicability, parameters/runtime and full matrix unqualified | [Management](Definition_Management.md), [editor](../docs/instruction-editor.md) |
 | Captions and local events | Off-default playback-bound captions, run-only pin/display choice; trusted visual notices, cached maintenance and routine quiet mode | Sentence alignment, general rich rendering, proactive speech and broad reminder scheduling | [Display](Information_Display.md), [proactive interaction](Proactive_Interaction.md) |
 | Distribution | MSI/custom Burn packaging, release/source-tool automation and reviewed build-only source workflow | Full installed/protected-byte/runtime qualification and install-capable updater | [Distribution](Distribution_And_Updates.md), [installer](../installer/README.md) |
 
@@ -59,6 +59,14 @@ Session permission levels and expanded skill/instruction authoring are
 Existing exact lock behavior and non-executing power proposals are unchanged.
 
 ## Ordered Outstanding Work
+
+### R22 owned metadata inventory navigation increment - 2026-10-12
+
+The existing native editor exposes only its two existing separately bounded 128-file owned inventories. Explicit admitted List/Refresh enumerates and reconciles; literal metadata query/use filters and deterministic ≤64 KiB complete-label/details pages are in-memory, without body reads, new roots/indexes, writes, activation or first-result loading.
+Observed catalogue use state is disclosed as an observation, not current disk integrity. Exact row Inspect binds original kind/filename/source-qualified ID/digest/native revision/catalogue/private epoch and revalidates native readback. Stale/replaced/unknown rows cannot silently retarget a current-name replacement; failures require Refresh/reselection.
+Dirty originals/drafts and existing Save/copy/Disable/review/conflict/close flows remain explicit. Source/use/call changes retire choices; failed refresh removes availability; privacy/ownership/closure clears private controls and suppresses late callbacks. Native filter controls are the search route, not a new model tool or fabricated typed grammar.
+Focused deterministic portable and actual headless controller/native/private SQLite checks cover these consumed contracts. They do not replace unique RT1/RT2/PV1, offline-inference/CPU-floor, worker containment, hardware, native installed/accessibility or physical-storage proofs; no maintained experiments are edited or retired.
+Profile-original editing remains security-boundary deferred, and the full source/reader/writer/runtime matrix is still unqualified. This increment changes no executable/runtime or broader source authority.
 
 ### R22 exact owned reviewed-use disable increment - 2026-10-12
 

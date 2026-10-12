@@ -403,9 +403,14 @@ public sealed partial class InstructionEditorTests : IDisposable
         internal bool FailRead;
         internal bool Unconfirmed;
         internal Action? AfterWrite;
+        internal Action? BeforeRead;
+        internal int Reads;
         public Task<IReadOnlyList<string>> List(CancellationToken token) => Task.FromResult<IReadOnlyList<string>>(["example"]);
-        public Task<OwnedInstructionSnapshot?> Read(string name, CancellationToken token) =>
-            FailRead ? throw new IOException("Reader unavailable") : Task.FromResult(name is "example" ? Current : Copies.GetValueOrDefault(name));
+        public Task<OwnedInstructionSnapshot?> Read(string name, CancellationToken token)
+        {
+            Reads++; BeforeRead?.Invoke();
+            return FailRead ? throw new IOException("Reader unavailable") : Task.FromResult(name is "example" ? Current : Copies.GetValueOrDefault(name));
+        }
         public Task<InstructionWriteResult> Write(string name, OwnedInstructionSnapshot? expected, ArtifactFileDocument? replacement,
             Func<bool> eligible, Func<Func<InstructionWriteResult>, Task<InstructionWriteResult>> commit, CancellationToken token) =>
             commit(() =>

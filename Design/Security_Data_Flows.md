@@ -1,5 +1,12 @@
 # Security and Data Flows
 
+## Owned definition metadata navigation boundary
+
+The [owned editor inventory](../docs/instruction-editor.md#search-observed-owned-metadata) projects only admitted existing per-kind bounded filenames and coherent catalogue metadata. Names/queries are private user metadata, never content-free audit labels, paths or authority.
+List/Refresh retains existing native source/session/host admission and reconciliation; search/filter/page operations perform no source I/O, activation, preference write, model/network call or watcher restart. Body/description/attribution/full paths never enter the row projection, logs, Activity tags or Baggage.
+Selected rows bind original kind/canonical filename/source-qualified artifact ID/digest/native revision plus catalogue and private ownership epoch. Actual Inspect repeats admission and native exact readback, refusing stale/changed/replaced/disappeared choices without showing a newer same-name revision.
+Unknown/unmapped/unrevisioned state is never enabled by inference. Reload failure removes availability and labels historical observations unavailable; private closure clears metadata and text and fences late callbacks. Dirty drafts are not implicitly discarded by metadata changes. This is no profile/bundled-as-owned reader, writer or model-tool extension.
+
 ## Exact-session provider policy boundary
 
 [Sparse durable session overrides](Model_Providers_Memory_And_Knowledge.md#session-overrides-and-effective-resolution) are desired configuration, not authentication, adapter, generation, egress or resource authority. Exact native/typed/current-name activated review requires original local-user input, current private owning host, eligible exact session/generation, policy/app revision and unchanged catalogue/account/model binding.

@@ -9,7 +9,7 @@ No AI model, hosted account or network is involved in editing.
 
 | Kind/source/channel | This increment |
 |---|---|
-| Kora-owned instructions | Native single-file create/list/inspect/edit/Save/Save as new copy/reload/Delete, separate explicit-use review and exact native v1 Disable reviewed use |
+| Kora-owned instructions | Native single-file create/list/inspect/edit/Validate/Save/Save as new copy/reload/Delete, separate explicit-use review and exact native v1 Disable reviewed use |
 | Kora-owned prompts | The same editor and reviews for literal saved user requests; no parameters/substitutions or instruction/system authority |
 | Registered profile instructions | Existing read/selection only; no original writer or fork |
 | Skills and agents | Existing bounded readers only; authoring is a separate follow-on |
@@ -71,6 +71,18 @@ not full Copilot prompt-format support. Original unchanged legacy reader behavio
 Confirm only after reviewing metadata, body and attribution. **Delete** / `instructions delete`
 has its own destructive exact-original review; source removal is not deletion.
 No rename, restore, profile fork, script, agent-execution or generic file-editor controls are offered.
+
+## Validate the open draft without saving
+
+**Validate**, `instructions validate` or `prompts validate` (also with the current assistant-name prefix) observes only the currently open same-kind owned draft. Explicitly Inspect a supported canonical original or Create a new draft first. Validation never opens a named file, switches kind or follows text in the ID box to another path.
+
+Validation uses the exact ordinary Save preparation: original BOM, complete source/newlines/attribution, strict Unicode/UTF-8, supported scalar metadata, literal prompt rules and current observed command/spoken-name collisions. Unchanged compatible legacy source stays legacy; changed/new legacy proposals include the native v1 marker. The 65536-byte and 16-field/4096-byte header limits therefore apply to the prepared proposal, including marker/BOM overhead, not merely the raw text box.
+
+The bounded text-only summary reports structural compatibility, fixed owned ID/kind/source, intended model-context role, unapproved review state and, when supported, exact prepared byte count/digest/BOM/format. Errors contain a local reason, never body excerpts. No Markdown/HTML rendering, expression execution, substitutions, reference/dependency reads, model or network is involved.
+
+This is a historical structural observation, not semantic harmlessness, safe execution, permission, current disk integrity or activation. Input/baseline/kind/catalogue/call/private-ownership changes clear or retire it; late callbacks cannot restore a closed/private result. Save independently prepares the current proposal and requires its own exact confirmation; the summary is not an approval token.
+
+Validation makes no owned-store List/Read/Write, source reload, revision-preference write/hold, source mutation or use-state change. Ordinary nonmutating host control intent/terminal receipts and correlated diagnostics remain. Original bytes, draft/dirty state, inventory/search/selection and existing enablement or uncertain-publication holds are retained. Source-unavailable observations disclose that Reload/reconciliation is still required before Save or use. Profile-original editing remains unavailable.
 
 ## Save an owned draft as a new copy
 

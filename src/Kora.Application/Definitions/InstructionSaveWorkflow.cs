@@ -19,10 +19,7 @@ public sealed class InstructionSaveWorkflow(OwnedInstructionEditorActions action
     public async Task<InstructionSaveOutcome> Save(string name, OwnedInstructionSnapshot? original,
         string draft, bool delete, IInstructionMutationReview review, Func<bool> eligible, CancellationToken token)
     {
-        if (!delete) { original?.Document.RequireEditableInstruction(); }
-        var proposed = delete ? null : actions.Validate(name, draft, original?.Document.HasBom ?? false);
-        if (proposed is not null && (original is null || !string.Equals(original.Document.Text, draft, StringComparison.Ordinal)))
-        { proposed = proposed.WithNativeInstructionVersion(name); }
+        var proposed = delete ? null : actions.PrepareSave(name, original, draft);
         var expected = original;
         while (true)
         {

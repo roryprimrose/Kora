@@ -90,6 +90,8 @@ Save/Delete, conflict and separate exact-use reviews. Prompts are request conten
 not instructions, skill workflows or policy; parameters/substitutions and
 profile prompt writing remain unavailable.
 The same per-kind owned editor now has bounded literal metadata search, observed-use filters and exact stale-safe row inspection; see [the native inventory controls](../docs/instruction-editor.md#search-observed-owned-metadata).
+The native **Validate** button and exact `instructions validate` / `prompts validate` observe the open supported owned draft through the same Save preparation, counting BOM/native-marker overhead and checking existing structural/literal/namespace rules.
+Bounded body-free findings are historical observations, not approval, semantic harmlessness or enablement. No source I/O/reload, revision preference write/hold or model/reference execution occurs; drafts and existing held/enabled state remain unchanged. Save separately re-prepares and confirms. See [draft validation](../docs/instruction-editor.md#validate-the-open-draft-without-saving); profile-original editing stays deferred.
 Only explicit List/Refresh reads/reconciles existing sources. Search/filter/page changes are in-memory, preserve the original/draft and never activate or select another file automatically. Unknown metadata stays unavailable; observed catalogue state is not disk freshness. No profile/bundled inventory or authoring scope is added.
 The native **Save as new copy** increment copies only an inspected supported native v1 owned source/current draft to a different same-kind owned ID.
 Full base/draft/proposal review changes only the declared name, preserves all other draft bytes/BOM/metadata, and creates without replacement.

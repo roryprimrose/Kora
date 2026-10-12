@@ -31,6 +31,7 @@ internal sealed class OwnedInstructionEditorWindow : Window
         HorizontalAlignment = HorizontalAlignment.Stretch, VerticalAlignment = VerticalAlignment.Stretch,
     };
     private readonly TextBlock status = new() { TextWrapping = TextWrapping.Wrap };
+    private readonly TextBlock validationStatus = new() { TextWrapping = TextWrapping.Wrap };
     private Window? activeReview;
     private bool selectingKind;
 
@@ -45,7 +46,7 @@ internal sealed class OwnedInstructionEditorWindow : Window
         controls.Children.Add(Files);
         controls.Children.Add(NameInput);
         controls.Children.Add(CopyNameInput);
-        foreach (var action in new[] { "List", "Refresh", "Create", "Inspect", "Save", "Save as new copy", "Reload", "Delete", "Review use", "Disable reviewed use" })
+        foreach (var action in new[] { "List", "Refresh", "Create", "Inspect", "Validate", "Save", "Save as new copy", "Reload", "Delete", "Review use", "Disable reviewed use" })
         {
             var button = new Button { Content = action, Margin = new(3) };
             button.Click += (_, _) => run(action);
@@ -83,6 +84,8 @@ internal sealed class OwnedInstructionEditorWindow : Window
         };
         DockPanel.SetDock(disclosure, Dock.Top);
         panel.Children.Add(disclosure);
+        DockPanel.SetDock(validationStatus, Dock.Bottom);
+        panel.Children.Add(validationStatus);
         DockPanel.SetDock(status, Dock.Bottom);
         panel.Children.Add(status);
         panel.Children.Add(Source);
@@ -90,6 +93,8 @@ internal sealed class OwnedInstructionEditorWindow : Window
     }
 
     internal void Report(string text) => status.Text = text;
+    internal void ReportValidation(string text) => validationStatus.Text = text;
+    internal void ClearValidation() => validationStatus.Text = string.Empty;
     internal void ReportInventory(string text) => inventoryStatus.Text = text;
     internal void ShowInventory(OwnedDefinitionInventoryPage page)
     {
@@ -117,6 +122,7 @@ internal sealed class OwnedInstructionEditorWindow : Window
         ClearInventory(); QueryInput.Text = string.Empty; UseStateInput.SelectedItem = OwnedDefinitionUseFilter.All;
         Source.Text = string.Empty; NameInput.Text = string.Empty; CopyNameInput.Text = string.Empty;
         status.Text = string.Empty; inventoryStatus.Text = string.Empty;
+        ClearValidation();
     }
 
     internal async Task<int> Choose(string title, string details, string? original, string? proposed,

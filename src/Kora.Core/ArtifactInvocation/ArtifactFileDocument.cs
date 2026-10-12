@@ -21,9 +21,29 @@ public sealed class ArtifactFileDocument
 
     public string Text { get; }
     public bool HasBom { get; }
+    public int ByteCount => bytes.Length;
     public IReadOnlyDictionary<string, string> Metadata { get; }
     public ArtifactDefinition Definition { get; }
     public byte[] CopyBytes() => bytes.ToArray();
+
+    public static ArtifactFileDocument PrepareOwnedSave(ArtifactKind kind, string name,
+        OwnedInstructionSnapshot? original, string draft)
+    {
+        _ = OwnedDefinitionKind.DirectoryName(kind);
+        OwnedInstructionNames.WriteName(name);
+        if (original is not null)
+        {
+            original.Document.RequireEditableInstruction();
+            if (original.Document.Definition.Kind != kind
+                || !string.Equals(original.Name, name, StringComparison.Ordinal)
+                || !string.Equals(original.CanonicalFileName, name + OwnedDefinitionKind.Extension(kind), StringComparison.Ordinal))
+            { throw new InvalidDataException("The saved baseline must be the exact canonical owned ID and kind."); }
+        }
+        var proposed = Parse(Encode(draft, original?.Document.HasBom ?? false), kind, "kora-profile", name);
+        proposed.RequireEditableInstruction();
+        return original is null || !string.Equals(original.Document.Text, draft, StringComparison.Ordinal)
+            ? proposed.WithNativeInstructionVersion(name) : proposed;
+    }
 
     public ArtifactFileDocument WithOwnedCopyName(string name)
     {

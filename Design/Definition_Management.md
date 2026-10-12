@@ -261,7 +261,7 @@ or count as user activity/approval.
 ### Bounded owned instruction and prompt editor
 
 Native tray and exact `instructions` or `prompts` followed by
-`editor/list/create/edit/inspect/save/copy/reload/delete/activate/disable/stop-use/cancel` control routes share the same admitted actions, native review
+`editor/list/create/edit/inspect/validate/save/copy/reload/delete/activate/disable/stop-use/cancel` control routes share the same admitted actions, native review
 and writer. Activated controls focus the same native editor; voice-only approval
 and body dictation/refinement are not implemented. No model/network is needed.
 Create and inspect use an explicit bounded ID; mutations target the open original.
@@ -284,6 +284,11 @@ No body, excerpt, description, attribution or full path is projected. Kind, file
 Rows are observations, not disk-current integrity or use authority: native Inspect compares the original row against current admitted catalogue identity and native readback. Missing/unmapped metadata cannot prove a match. Stale/replaced/changed/withdrawn choices require Refresh/reselection instead of silently showing a newer same-name file.
 Search/filter/page changes preserve the open original and dirty draft, never auto-select/load the first result or activate/save/discard. Failed reload removes current availability with historical/unavailable disclosure. Source/use/call changes invalidate choices; private ownership/closure clears private controls and fences late callbacks.
 Exact typed/current-name activated List/Inspect still targets the same native controls; there is no new search command grammar, model tool, reader/root permission, profile/bundled-as-owned inventory or writer. Profile-original editing remains explicitly deferred behind its existing security qualification.
+
+**Validate open owned draft** / exact `instructions validate` or `prompts validate` observes the captured same-kind canonical original or explicitly created draft without opening sources or switching targets. It reuses ordinary Save preparation, including original BOM and any native v1 marker added for changed/new proposals; unchanged supported legacy bytes stay legacy.
+Existing strict Unicode/UTF-8, complete-byte/header/metadata/literal-prompt and observed catalogue namespace rules apply to prepared Save bytes, not just raw draft text. Bounded text-only findings expose proposal byte count/digest/format and unapproved kind/source/model-context role, never body/excerpts or executable preview.
+The result is historical structural compatibility only, not harmlessness, safe execution, disk freshness, approval or enablement. Source/name/kind/baseline/catalogue and private/call/input epochs fence publication and retire findings; Save independently re-prepares and confirms current bytes.
+No owned-store enumeration/read/write, source reload/reconciliation, preference hold/write, activation, model/network or reference/dependency access occurs. Normal observational control receipts/traces remain; existing drafts, inventory/selection and enabled or uncertain held source state are unchanged. Unavailable sources retain explicit Reload/reconciliation recovery. Profile-original editing and broader format/writer/runtime qualification remain deferred.
 
 **Save as new copy** / exact `instructions copy <new-id>` or `prompts copy <new-id>` is delivered only for an inspected canonical native v1 owned original and its retained current draft.
 It is not an import or profile-original writer. Legacy/unversioned or unsupported originals cannot be implicitly upgraded by copying.

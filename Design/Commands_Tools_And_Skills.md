@@ -80,6 +80,9 @@ Observed catalogue state is not current disk integrity. Unavailable/stale choice
 
 ### Proposed Instruction Authoring
 
+The existing native owned Instruction/literal Prompt editor delivers only [open-draft structural Validate](../docs/instruction-editor.md#validate-the-open-draft-without-saving), through its button and exact plural-kind `validate` controls. It shares Save proposal preparation, not a model tool or conversational authoring engine.
+Validation observes captured bytes and existing catalogue metadata without store I/O, reload, preference/use mutation or network/model activity. Findings grant no approval or execution authority; Save independently confirms the current prepared bytes. Profile-original and broader authoring remain deferred.
+
 Standalone Kora and compatible profile instructions will use the same
 conversational proposal, rendered preview, exact source/diff, validation,
 conflict and native Save-confirmation experience as declarative skill

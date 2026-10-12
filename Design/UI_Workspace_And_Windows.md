@@ -506,6 +506,8 @@ same native actions. Review only permits exact current-run selection for a new
 request; prompts are user-request content, not system guidance, parameters or
 execution authority. Profile/skill/agent editing and the full Definitions
 surface remain separately gated. See [native editor](../docs/instruction-editor.md).
+**Validate** / exact `instructions validate` or `prompts validate` observes only the open same-kind supported owned draft, using the ordinary Save preparation including BOM/marker/header limits. It does not open/switch/discard another source.
+The text-only body-free summary is historical structural compatibility, never approval, harmlessness or enablement. Source/name/kind/baseline/catalogue/private/input changes retire findings and suppress late results. Validation retains draft/dirty/inventory/use/uncertain-hold state without source I/O, reload or preference writes; Save separately re-prepares and exactly confirms.
 **Disable reviewed use** and exact `instructions` / `prompts` `disable` or `stop-use` focus one separate native confirmation for the clean inspected native v1 owned source/kind/digest/revision.
 The durable hold withdraws all new selections without writing/deleting the source, preserves inspection/editing and already captured reasoning, and retires pending unadmitted choices without replay. Dirty drafts remain intact with an explicit Save/Reload prerequisite.
 Cancellation/stale review and failed audit/preference readback never invent completion or restore enablement. No-change reload/restart/restored bytes cannot re-enable use; fresh exact review is required. Profile-original editing and installed/accessibility qualification stay open.

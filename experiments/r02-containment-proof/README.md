@@ -537,12 +537,27 @@ was not trialled. None is replaced by a mock, application path check or warning.
 
 ## Outstanding Testing Checklist
 
+### Architecture Disposition and Future Qualification
+
+This feasibility proof is signed off for its engineering decision. ACL
+projection and no-child policies do not provide exact dependency enforcement,
+undeclared managed/script/module code remains executable, and network denial
+was not attributable on the observed host. Do not repeat those unchanged
+approaches as a prerequisite for feature development.
+
+The path forward is an explicit typed broker/admitted-worker architecture, or
+an unavailable consequential worker profile. Building that replacement and
+its deterministic tests is unblocked. The checklist below applies only when a
+selected replacement is ready to be exposed or an installed profile is being
+qualified.
+
 Use this checklist when the operator returns to an interactive session; it is
 a deferred-validation handoff, not permission to run disruptive or privileged
 tests. The [shared register](../../Design/Deferred_Validation.md) links the
 independent speech and distribution proofs without consuming their unmerged
-implementations. All rows below are currently outstanding; existing fixed
-scratch trials prove only the narrower [recorded observations](evidence/README.md).
+implementations. Existing fixed scratch trials prove the narrower
+[recorded observations](evidence/README.md); they are not a recurring work
+queue.
 
 ### Safe Existing Checks
 
@@ -585,17 +600,17 @@ not an acceptable research result.
   secrets, private content or existing installation ACLs. Do not change global
   firewall/security policy. Keep unrelated speech/deployment approvals separate.
 
-### Deferred Containment and Deployment Trials
+### Replacement Profile Qualification Trials
 
 | ID / gate | Status | Required procedure and closure evidence |
 |---|---|---|
-| C01 - Supported reference repeat / W1-W3 | Not run on the supported reference matrix | Rerun the fixed owned-scratch proof on the selected supported Windows release with exact servicing revision and actual host/AppContainer/descendant token observations. Retain allowed-data/Job-only positive controls, protected before/after identities, native errors and cleanup. The original build 26300 snapshot does not certify the support matrix. |
-| C02 - Attributable network denial / W1 | Blocked: current connections timed out | Prepare owned working endpoints and observe actual access-denied or an independent OS block attributable to the worker boundary, token/process and endpoint. Cover applicable loopback/non-loopback, IPv4/IPv6, TCP/UDP/DNS and descendants. A generic unrelated firewall block or timeout is insufficient. Privileged WFP diagnostics require approval; no global policy changes. |
-| C03 - Dependency and fixed-action mechanism / W2 | Blocked: no enforced executable/module allowlist | Prepare a bounded fixture testing denied undeclared executable/module/script loads versus admitted dependencies under the actual worker. Ordinary child identity and breakaway tests are not an allowlist. Establish fixed-action feasibility or obtain an explicit typed-adapter/broker versus unavailable decision; do not silently replace the embedded-script contract or broaden ambient authority. |
-| C04 - Protected roots, identities and aliases / W3, R17 | Blocked: no independently owned installed fixture | After separate scoped elevation/installation approval, use a distinct disposable versioned payload with independent owner/activation authority. Test the actual medium non-elevated application and contained worker tokens, payload/parent/dependency effective ACLs including delete-child/ownership/DACL rights, selected runtime/native resolution, hard links/reparse/alternate paths and target/parent-swap races. Preserve allowed-data controls and denied mutation evidence; do not modify an existing Kora installation. Follow [the security checklist](../../Design/Security_Data_Flows.md#protected-deployment-identity-and-validation) and distribution's separate runtime-only acceptance plan. |
-| C05 - Bundled helper and admission integration / W4, R11 | Blocked: production catalogue/runspace/gateway absent | Prepare immutable separate resource blocks and declared helper initialization/calls/typed parameters under the selected admitted worker. Test denial of undeclared file/module/process resolution, no extraction, common direct/model/skill grants, malformed/oversized/missing/uncorrelated receipts and no duplicate/replayed effects. Fixed encoded input is not evidence for this full contract. |
-| C06 - Real approved computer controls / R11, R16 | Not run; requires separately approved disruptive trial | With the instrumented gated implementation and a present operator, test only the exact registered lock/power effect separately approved for that trial, including durable session/grant binding, fresh power confirmation/countdown, safe-work handling, cancellation and observed OS receipts. Do not lock/shutdown/restart to validate this checklist now; desktop-handle denial is not an effect trial. |
-| C07 - Host-death and effect/cancellation races / W4 | Blocked: no prepared abrupt-host-death fixture | Terminate only the owned test host by a stable recorded identity and verify all contained descendants stop, no breakaway/handle transfer keeps the job alive, and effect-before-receipt loss remains Unknown without retry. Race cancellation, stale/uncorrelated output and partial effects. Job close was measured; host death/reboot was not. Any reboot requires separate disruptive approval and must not be inferred from host-death results. |
+| C01 - Supported reference repeat / W1-W3 | Closed for rejected scratch profiles; repeat only for a selected replacement | On a supported Windows release, retain positive controls, exact token observations, native errors and cleanup for the replacement profile. |
+| C02 - Attributable network denial / W1 | Unproven on the observed host; not a development blocker | Before exposing a replacement worker that claims network denial, use owned working endpoints and independent attribution for applicable IPv4/IPv6, TCP/UDP/DNS and descendants. |
+| C03 - Dependency and fixed-action mechanism / W2 | Complete architectural result: existing mechanisms rejected | Implement a typed broker/admitted worker or keep the capability unavailable. Test the replacement's declared inputs/dependencies; do not broaden ambient script authority. |
+| C04 - Protected roots, identities and aliases / W3, R17 | Installed-profile qualification only; not a replacement implementation blocker | Before shipping an installed worker profile, use a disposable versioned payload with independent owner/activation authority and test effective ACLs, aliases and swap races. |
+| C05 - Bundled helper and admission integration / W4, R11 | Not applicable until the replacement production gateway exists | Implement immutable typed inputs and admission first, then test denial, correlation, malformed/oversized receipts and no duplicate/replayed effects before exposure. |
+| C06 - Real approved computer controls / R11, R16 | Enablement-only disruptive acceptance | After the gated implementation exists, test only the exact registered effect with durable authority, fresh confirmation, safe-work handling, cancellation and observed OS receipts. |
+| C07 - Host-death and effect/cancellation races / W4 | Required before exposing the replacement worker, not before implementing it | Terminate only the owned test host by stable identity and verify descendants stop, no breakaway survives, effect-before-receipt loss remains Unknown without retry, and stale/uncorrelated output is rejected. |
 
 ### Evidence and Completion
 

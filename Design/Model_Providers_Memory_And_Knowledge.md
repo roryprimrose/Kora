@@ -172,8 +172,10 @@ Durable exact-session inheritance/overrides are delivered below. Generic unscope
 - [Individual field failures/atomic save](../tests/Kora.Application.UnitTests/Configuration/ProviderProfileFieldConfigurationTests.cs) and [real native/exact/current-name activated review](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.ProviderFields.cs) cover compatible retention, incompatible-base recovery, cancellation, stale confirmation and no provider execution.
 - [Private SQLite/composition tests](../tests/Kora.Windows.IntegrationTests/Storage/WindowsSqliteProviderProfileConfigurationTests.cs) use deterministic installation/catalogue boundaries, not live endpoints/accounts/devices.
 
-Experiment disposition remains **retain**. Exact deterministic catalogue/configuration/host assertions do not equal RT1 SDK-native final bytes, RT2 native lifecycle/egress, PV1 account/terms/quota, local quality/offline/CPU-floor, or installed native/hardware proof.
-`eng/RuntimeValidation.Common.ps1` still consumes retained runtime profiles; no executable, fixture, unique assertion or receipt is removed and no release gate is closed.
+Runtime/provider experiment disposition remains **retain** because
+`eng/RuntimeValidation.Common.ps1` consumes its profiles and RT1/RT2/PV1 retain
+unique native/account evidence. This does not retain the retired manual-proof
+harness or require more trials for rejected local-inference candidates.
 
 ### Session overrides and effective resolution
 

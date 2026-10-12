@@ -224,15 +224,20 @@ superseded encrypted-native selection or blanket retention until R30 exists.
 
 ## Licensing, native assets and Windows-only scope
 
-See [the native/licensing assessment](NATIVE-ASSETS.md). RID publication for
-win-x64 and win-x86 is exercised on Windows. The standalone manual-proof
-harness can produce machine-local supplemental evidence that the exact retained
-x86 SQLCipher DLL loads and executes basic entry points in the installed
-32-bit Windows host. That is not full x86 Kora execution, installer or
-clean-machine evidence. The runner does not publish Linux assets; neither Linux
-execution nor Linux-host builds are requirements for this proof.
+See [the native/licensing assessment](NATIVE-ASSETS.md). Historical RID
+publication and x86 loader observations are retained as research, not current
+production support or an implementation prerequisite. The runner does not
+publish Linux assets; neither Linux execution nor Linux-host builds are
+requirements for this proof.
 
-## Remaining gates / D-009 boundary
+## Signed-Off Research and Production Boundary
+
+The storage experiment is signed off for the current engineering direction.
+Maintained production standard-SQLite tests own R04/R12 development. Historical
+SQLCipher, x86 loading and alternative-envelope results remain research
+evidence; they are not prerequisites unless optional encryption R30 is reopened.
+Installed servicing and physical-durability observations gate only the release
+claims that include them.
 
 | Gate | Status |
 |---|---|
@@ -240,9 +245,9 @@ execution nor Linux-host builds are requirements for this proof.
 | Actual current-user DPAPI/ACL and same-user process restart | Measured on Windows x64 |
 | Application-controlled key scope and actual scratch/key-file ACLs | Measured; CurrentUser argument, directory/key-file rules and same-user recovery checked; production profile-path/copy integration remains R04 work |
 | Actual different-user DPAPI/ACL denial | Not performed; optional Windows-boundary corroboration for profile-local storage, not a routine application or PR-merge gate |
-| Maintained native engine, provenance/notices, installed Windows x86/x64 clean-machine load | Open; this package is not production-admitted |
+| Historical SQLCipher/x86 native package | Closed research; not production-admitted and not an R04/R12 prerequisite |
 | Power cut/fsync hardware guarantees, rekey/wrapper crash recovery, ephemeral-file observation, large-scale artifacts/indexing | Not proven by these bounded experiments |
-| Final identities/schema, source/account revocation, lifecycle timer/startup/access, apply-now retention, live/unknown work holds, append-versus-delete coordination, grants and dispatch recovery | Deferred to R04/R05/R12; D-009 is not closed |
+| Final identities/schema, source/account revocation, lifecycle timer/startup/access, apply-now retention, live/unknown work holds, append-versus-delete coordination, grants and dispatch recovery | Active R04/R05/R12 implementation work under maintained tests, not deferred experiment proof |
 
 The canonical defaults remain 24-hour archive and 30-day deletion from the
 same meaningful-activity clock, with configurable durations and no browsing

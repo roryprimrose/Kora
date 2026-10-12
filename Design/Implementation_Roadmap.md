@@ -179,19 +179,15 @@ scope, and profile editing never becomes a generic filesystem/tool permission.
 
 ### R02 Local-Inference Continuation
 
-| Step | Remaining action |
-|---|---|
-| L1 | Approve operator, reference CPU/8-logical-core/16-GiB/SSD floor, isolation and numerical budgets |
-| L2 | Separately consent to pinned provisioning and record exact licence/digest/staging-volume facts |
-| L3 | Run at least 30 cold and 30 paired warm trials, human quality review, context/resource/cancellation/recovery measurements |
-| L4 | Independently enforce and observe remote-egress denial with loopback retained; may run beside L3 after L2 |
-| L5 | Record candidate/hardware disposition and D-003/D-007 evidence after L3/L4 |
-| L6 | Apply the qualified envelope to dependent host workflows and repeat integrated evidence |
+The Ollama 0.35.1/qwen3:1.7b and Ollama 0.40.2 candidates are rejected. Do not
+repeat hardware, offline or human trials for them. Continue provider-neutral
+host, UI and orchestration development with explicit unavailable behavior.
 
-Retain the pinned candidate for trials; do not substitute cloud or lower the
-floor silently. The [technical plan](Local_Inference.md) and
-[LI01-LI07 procedure](../experiments/r02-local-inference-proof/README.md#outstanding-testing-checklist)
-own the details.
+If a materially changed candidate is proposed, apply the
+[future candidate gate](Local_Inference.md#future-candidate-gate): automated
+quality and authority first, then approved identity/licence, reference hardware,
+context/cancellation, offline/egress and integrated-host qualification. That
+work gates only the candidate's enablement and associated release claims.
 
 ## R13 exact current-run queue pause receipt - 2026-10-11
 
@@ -277,18 +273,21 @@ Exact-session single-field model/reasoning/context UX now derives and reviews th
 App profiles now support bounded individual exact model/reasoning/context review with separate native/typed/current-name activated confirmation through the same complete-tuple writer. Missing/incompatible dependents require complete draft/save; app default, other services and session overrides are retained. Production catalogues remain unavailable and hosted authentication/adapter/egress qualification gates stay closed.
 Deterministic exact tuple/configuration and subsequent-turn tests are not assertion-equivalent to SDK-native RT1 bytes, RT2 lifecycle/egress, PV1 account, local-quality/offline or native/hardware procedures. Runtime preparation consumers and all unique proof/receipt assets remain retained; no experiment or release qualification is removed.
 
-Experiments are opt-in evidence, not default-CI suites or production contracts.
+Experiments are opt-in evidence, not production contracts or open-ended
+implementation prerequisites. Deterministic self-tests may run in CI, but
+physical/lab qualification runs only when a materially changed capability is
+being considered for enablement.
 This documentation consolidation archives narratives only; **no experiment
 executable or historical evidence is deleted, modified or relabelled**.
 
 | Harness | Disposition | Rerun or retirement boundary |
 |---|---|---|
-| [Local inference](../experiments/r02-local-inference-proof/README.md) | Retain actual quality, CPU-floor/context/resources, server cessation and independent offline trials | Offered or materially changed inference profiles; migrate reusable deterministic cases, not unique physical/offline proof |
-| [Containment](../experiments/r02-containment-proof/README.md) | Retain actual token/ACL/child/network/lifetime enforcement | Enabled/changed worker profiles with separate lab approval; timeouts are not denial |
+| [Local inference](../experiments/r02-local-inference-proof/README.md) | Current pinned and comparison candidates rejected; retain evidence and deterministic boundary tests | Reopen physical/offline qualification only for a materially changed candidate intended for enablement |
+| [Containment](../experiments/r02-containment-proof/README.md) | ACL/no-child/unrestricted-script approaches rejected; retain evidence to constrain the typed broker/admitted-worker replacement | Implement the replacement now; reopen lab qualification only before exposing its consequential worker profile |
 | [Speech](../experiments/r02-speech-proof/README.md) | Retain physical acoustics, playback rejection and packaged capture/privacy timing | Affected speech/wake/provider/device profiles, not unrelated preferences |
 | [Node runtime](../experiments/r02-runtime-proof/README.md) | Migrate all-status mediation, denial/cancellation/serialization assertions; retain rejected hook-only witnesses | Archive executable only after exact maintained equivalence and explicit candidate disposition; Node never qualifies .NET |
 | [RT2 lifecycle](../experiments/r02-runtime-lifecycle-proof/README.md) | Migrate lifecycle/loss/quiescence cases; retain native procedures and observer limitations | Required native coverage must be maintained or unsupported profile explicitly excluded |
-| [Storage](../experiments/r02-storage-proof/README.md) | Migrate applicable standard-SQLite recovery/migration/capacity/retention/copy cases | Partial equivalence does not retire shared crypto/native consumers; superseded crypto is historical unless R30 is pursued |
+| [Storage](../experiments/r02-storage-proof/README.md) | Maintained standard-SQLite recovery/retention tests own current development; superseded SQLCipher/x86 work is historical | Reopen native/encryption qualification only if R30 is pursued; installed/durability evidence gates release claims, not R04/R12 implementation |
 | [RT1 control](../experiments/r02-dotnet-control-proof/README.md) | Migrate exact-profile final-request, all-status, denial and cancellation cases | Exact production equivalents and failure witnesses required; changed bytes/mechanisms repeat affected evidence |
 | [MG1 management](../experiments/r02-dotnet-management-proof/README.md) | Migrate envelope, independent admission, no-retry and Unknown/quarantine cases | Exact equivalents required; account/cost/native gaps remain E/Q, not local-core dependencies |
 | [Distribution](../experiments/r02-distribution-proof/README.md) | Retain historical receipts; superseded executables already retired | Reopen only on mechanism changes; old NSIS evidence never qualifies WiX |

@@ -2863,6 +2863,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     public async Task ExitAsync(bool fromModelActionDispatch = false)
     {
         if (instructionEditorShutdown is not null && !await instructionEditorShutdown()) { return; }
+        await ClosePromptPreparation();
         ApplicationLog.Information(logger, "Kora exit was requested");
         hostExitRequested = true;
         lifecycleAdmissionClosed = true;
@@ -3943,6 +3944,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             ApplicationLog.Information(logger, "Rejected command input outside the active unlocked host");
             return;
         }
+        RetirePromptPreparationForNewInput();
         if (IsInstructionEditorCommand(spokenText))
         {
             if (!isAssistantNameAvailable && commandRouter.IsActivationPrefixed(spokenText, AssistantName))
@@ -4304,10 +4306,16 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                 ShowInformation("Artifact command not found.", artifactMatch.Error!);
                 return;
             }
+            var promptEligibility = artifactMatch.Invocation.Artifact.PromptTemplate is null ? null : CapturePromptSelection();
             if (artifactMatch.Invocation.Artifact.OwnedInstructionName is not null
-                && (ownedInstructionFreshness is null || !await ownedInstructionFreshness(artifactMatch.Invocation.Artifact)))
+                && (ownedInstructionFreshness is null || !await ownedInstructionFreshness(artifactMatch.Invocation.Artifact, CancellationToken.None)))
             {
                 ShowInformation("Owned definition revision is stale or unavailable.", "Reload and review the exact owned instruction or prompt before starting a new request.");
+                return;
+            }
+            if (artifactMatch.Invocation.Artifact.PromptTemplate is not null)
+            {
+                await PreparePrompt(artifactMatch.Invocation, spokenText, initiator, promptEligibility!);
                 return;
             }
             await HandleUnmatchedRequestAsync(

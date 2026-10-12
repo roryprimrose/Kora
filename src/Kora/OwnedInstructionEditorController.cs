@@ -179,8 +179,8 @@ internal sealed partial class OwnedInstructionEditorController(
                     newDraft = true;
                     opened.Source.IsReadOnly = false;
                     originalText = string.Empty;
-                    opened.Source.Text = $"---\r\nkora-format: 1\r\nname: {name}\r\ndescription: Describe this {kind.ToString().ToLowerInvariant()}.\r\n---\r\n"
-                        + (kind == ArtifactKind.Instruction ? "Write instruction guidance here.\r\n" : "Write the literal saved user request here.\r\n");
+                    opened.Source.Text = $"---\r\nkora-format: {(kind == ArtifactKind.Instruction ? "1" : "2")}\r\nname: {name}\r\ndescription: Describe this {kind.ToString().ToLowerInvariant()}.\r\n---\r\n"
+                        + (kind == ArtifactKind.Instruction ? "Write instruction guidance here.\r\n" : "Write the literal saved user request here. Required input example: ${input:topic}\r\n");
                     opened.Report("New in-memory draft. Nothing saved or offered for use.");
                     break;
                 case "Inspect":
@@ -317,7 +317,7 @@ internal sealed partial class OwnedInstructionEditorController(
         return await opened.Choose($"Review exact {kind.ToString().ToLowerInvariant()} use",
                             $"Owned ID: {reviewed.Name}; exact digest {reviewed.Document.Definition.Digest}. "
                             + (kind == ArtifactKind.Instruction ? "This is untrusted guidance, not host policy. "
-                                : "This is a literal saved user request, not instruction/system authority or a workflow. ")
+                                : "This is a saved user request, not instruction/system authority or a workflow. Native v2 required inputs need a separate complete expanded preview and fresh request admission. ")
                             + "Permit explicit selection for new requests only? "
                             + "No new permissions, executable tools, agent runtime, automatic applicability or mid-task context update.",
                             reviewed.Document.Text, reviewed.Document.Text, ["Permit explicit use", "Cancel"], token) == 0
@@ -361,7 +361,7 @@ internal sealed partial class OwnedInstructionEditorController(
     private async Task SaveCopy(OwnedInstructionEditorWindow opened, Func<bool> eligible, CancellationToken token)
     {
         if (baseline is not { } source || selectedName is null || opened.Source.IsReadOnly || uncertain || Actions.IsSourceUnavailable)
-        { throw new InvalidOperationException("Inspect a supported original owned native v1 source before copying. The original draft is retained."); }
+        { throw new InvalidOperationException("Inspect a supported original native owned source before copying. The original draft is retained."); }
         var destination = opened.CopyNameInput.Text ?? string.Empty;
         var text = opened.Source.Text ?? string.Empty;
         var sourceKind = kind;

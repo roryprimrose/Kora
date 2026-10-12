@@ -10,7 +10,7 @@ No AI model, hosted account or network is involved in editing.
 | Kind/source/channel | This increment |
 |---|---|
 | Kora-owned instructions | Native single-file create/list/inspect/edit/Validate/Save/Save as new copy/reload/Delete, separate explicit-use review and exact native v1 Disable reviewed use |
-| Kora-owned prompts | The same editor and reviews for literal saved user requests; no parameters/substitutions or instruction/system authority |
+| Kora-owned prompts | The same editor/reviews; v1 literal requests and v2 bounded required `${input:name}` text with private expanded preview and separate request admission; no instruction/system authority |
 | Registered profile instructions | Existing read/selection only; no original writer or fork |
 | Skills and agents | Existing bounded readers only; authoring is a separate follow-on |
 | Bundled resources | Immutable; no overwrite, extraction-to-execution or inherited writer authority |
@@ -57,15 +57,39 @@ Typed/current-name activated `list` focuses this same native filter route; no ty
 
 The native source text box edits the complete supported file. Maximum original/replacement size is 64 KiB,
 strict UTF-8. Original UTF-8 BOM and source line endings are retained. The supported scalar header has
-at most 16 fields/4096 UTF-8 bytes: `kora-format: 1`, `name`, `description`, optional `attribution`.
+at most 16 fields/4096 UTF-8 bytes: `kora-format: 1` (instructions/literal prompts) or `kora-format: 2` (owned prompts only), `name`, `description`, optional `attribution`.
 Compatible legacy headers without the version marker can round-trip unchanged.
 A changed Save explicitly includes the v1 marker in the reviewed proposed source, retaining unrelated metadata/BOM/line endings.
 Unknown metadata, scopes or
 unsupported formats are not silently removed; use an external editor. Copying an unsupported source is unavailable.
-The editable prompt subset requires `name` and `description` and a literal body.
-Parameter declarations, `${...}` substitutions, tools/model/agent references and
-other unsupported metadata are incompatible, not silently interpreted. This is
+The editable prompt subset requires `name` and `description`. New prompt drafts explicitly use native v2; existing v1 bodies and readers are not silently changed.
+Native v2 supports only required `${input:name}` literal markers in the body; unsupported markers/declarations/defaults, tools/model/agent references and other metadata remain incompatible. This is
 not full Copilot prompt-format support. Original unchanged legacy reader behavior is retained.
+
+## Prepare required native prompt inputs
+
+Create/edit a Prompt with `kora-format: 2`, for example this source:
+
+```text
+---
+kora-format: 2
+name: compare
+description: Compare two explicit topics.
+---
+Compare ${input:first} with ${input:second}.
+Return to ${input:first}.
+```
+
+Save exactly reviewed source, then separately **Review use** (`prompts activate`). Saving or copying never enables the new revision.
+Explicit `/prompt compare`, `/compare` or `Kora, use compare` selects that exact enabled owned revision and opens the private native required-input form. Typed/voice inline parameters are refused; selection does not generate an answer.
+Names are lowercase ASCII letters/digits/hyphens, start with a letter, and have at most 64 characters. At most eight distinct required inputs appear in first-occurrence order; repeated markers share one field. Blank/whitespace-only input requires correction.
+Fields preserve exact native text/newlines/case/Unicode, bounded to 512 UTF-16 units / 2048 UTF-8 bytes each. **Preview complete expanded USER REQUEST** displays the entire expansion, bounded to 4096 UTF-16 / 16384 UTF-8 bytes. Oversize/invalid values are rejected, not normalized; no defaults or hidden reads exist.
+Values containing `${input:name}` remain literal. No expression/environment/file/secret/clipboard/network/function evaluation or recursive expansion occurs. The preview is inert plain text, not Markdown evaluation, system instructions, command dispatch, model qualification or approval.
+Editing any field clears the old preview and disables Use until another explicit preview. Source/review/catalogue/native identity/input/call/private ownership changes retire the form; missed watcher changes are checked again immediately before preview and use.
+**Use reviewed request (separate admission)** sends only the captured full `UserRequest` to a fresh host model-admission check. Original source bytes/digest/native revision remain separate from the expansion digest; no body is replaced in the catalogue.
+Generation is currently unavailable: the existing artifact control task has no qualified model-task source classification (`Denied / HostAdmissionClosed`), and there is no qualified production adapter/model. Neither the rejected Ollama 0.35.1/qwen3 nor 0.40.2 is a recovery path. Use reports actual admission without HTTP/inference, installation, authentication fallback or action execution.
+Cancel/window close/private closure clears fields and expansion immediately; pending admitted source work is cancelled and joined before handoff/exit releases owned resources. Original-input fencing includes a new activated request even when typed command text is unchanged, and captures before awaited disk validation.
+Values are never autofilled, logged, audited as content, stored in preferences/history/templates or automatically copied/exported/spoken. Existing v1 literal prompt selection remains on its existing route.
 
 **Save** (or `instructions save`) shows full original/proposed source and both exact digests.
 Confirm only after reviewing metadata, body and attribution. **Delete** / `instructions delete`
@@ -86,7 +110,7 @@ Validation makes no owned-store List/Read/Write, source reload, revision-prefere
 
 ## Save an owned draft as a new copy
 
-Inspect a supported canonical **native v1 owned** source. Edit its draft, enter a different canonical ID in **new-copy-owned-id**, then choose **Save as new copy**.
+Inspect a supported canonical **native owned** source (instruction v1; prompt v1/v2). Edit its draft, enter a different canonical ID in **new-copy-owned-id**, then choose **Save as new copy**.
 `instructions copy new-id` and `prompts copy new-id` (also prefixed with the current assistant name) open the same native review. The command kind must match the open original; it never switches/discards the draft.
 Review the exact source ID/path/base revision and digest, frozen current draft, destination ID/path, BOM and complete proposed bytes.
 Only the draft's declared `name` is replaced with the chosen new ID; supported metadata, attribution, body, BOM and line endings are retained. Missing instruction names remain filename-derived. No attribution or provenance is invented.
@@ -129,7 +153,7 @@ deletion or failed reload withholds managed use; restoring old bytes does not re
 
 ## Disable reviewed use without editing the source
 
-Inspect the exact canonical native v1 owned instruction or literal prompt, then choose **Disable reviewed use**, `instructions disable` / `instructions stop-use`, or the corresponding `prompts` control.
+Inspect the exact canonical supported native owned instruction (v1) or prompt (v1/v2), then choose **Disable reviewed use**, `instructions disable` / `instructions stop-use`, or the corresponding `prompts` control.
 Current-assistant-name activated controls focus the same native confirmation; they do not accept body approval, a name-based replacement target or an arbitrary path. No model/network is required.
 The open inspected baseline must be clean: a dirty draft is retained with an explicit Save/Reload requirement, never silently saved or discarded.
 
@@ -151,4 +175,4 @@ For a prompt, use `/prompt <declared-command>` or the same activated explicit
 content, never system instructions. Creation/review/save do not start a request;
 actual use retains ordinary provider readiness, context/mode and action-approval checks.
 Names cannot shadow other catalogue entries or reserved editor controls. Broader automatic instruction scopes,
-profile/skill/agent editing, prompt parameters and model dictation are future increments, not current features.
+profile/skill/agent editing, broader prompt formats and model dictation remain future increments. Native v2 required literal input preparation is delivered above; generation remains unavailable.

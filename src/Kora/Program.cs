@@ -278,6 +278,11 @@ internal static class Program
         services.AddKeyedSingleton<WindowsOwnedInstructionStore>(ArtifactKind.Prompt, (provider, _) => new(paths, ArtifactKind.Prompt));
         services.AddSingleton<IOwnedInstructionStore>(provider => provider.GetRequiredService<WindowsOwnedInstructionStore>());
         services.AddSingleton<Kora.Application.Definitions.InstructionControlAdmission>();
+        services.AddSingleton(provider => new Kora.Application.Definitions.PromptRequestConsumer(
+            provider.GetRequiredService<Kora.Application.Definitions.InstructionControlAdmission>(),
+            provider.GetRequiredKeyedService<Kora.Application.Definitions.OwnedInstructionEditorActions>(ArtifactKind.Prompt),
+            provider.GetRequiredService<ModelTurnHost>(), provider.GetRequiredService<ISecurityAuditLog>(),
+            provider.GetRequiredService<TimeProvider>()));
         services.AddSingleton<Kora.Application.Definitions.OwnedInstructionEditorActions>();
         services.AddSingleton<Kora.Application.Definitions.InstructionSaveWorkflow>();
         services.AddKeyedSingleton<Kora.Application.Definitions.OwnedInstructionEditorActions>(ArtifactKind.Prompt, (provider, _) => new(

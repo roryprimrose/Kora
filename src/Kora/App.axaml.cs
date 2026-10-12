@@ -34,6 +34,7 @@ public sealed partial class App : Avalonia.Application
     private EvidenceWindowController? evidenceWindow;
     private SkillPackagesWindowController? skillPackagesWindow;
     private OwnedInstructionEditorController? instructionEditor;
+    private PromptParameterController? promptParameters;
     private SessionsWindowController? sessionsWindow;
     private AllWorkWindowController? allWorkWindow;
     private ClipboardPreviewWindowController? clipboardWindow;
@@ -126,12 +127,19 @@ public sealed partial class App : Avalonia.Application
                 Services.GetRequiredKeyedService<Kora.Application.Definitions.OwnedInstructionEditorActions>(Kora.Core.Artifacts.ArtifactKind.Prompt),
                 Services.GetRequiredKeyedService<Kora.Application.Definitions.InstructionSaveWorkflow>(Kora.Core.Artifacts.ArtifactKind.Prompt));
             instructionEditor.Bind();
+            promptParameters = new(viewModel, Services.GetRequiredService<Kora.Core.Artifacts.ArtifactCatalogue>(),
+                Services.GetRequiredService<Kora.Application.Definitions.PromptRequestConsumer>(),
+                () => Services.GetRequiredService<DesktopInstanceOwnershipBridge>().IsReady
+                    && !Services.GetRequiredService<DesktopInstanceOwnershipBridge>().IsHandoffRecoveryRequired,
+                () => Services.GetRequiredService<DesktopInstanceOwnershipBridge>().AdmissionRevision,
+                Services.GetRequiredService<ILogger<PromptParameterController>>());
+            promptParameters.Bind();
             viewModel.PrivacyClosureRequested += (_, _) =>
                 Services.GetRequiredService<Kora.Application.Definitions.OwnedInstructionEditorActions>().SuspendReviewedUse();
             viewModel.PrivacyClosureRequested += (_, _) =>
                 Services.GetRequiredKeyedService<Kora.Application.Definitions.OwnedInstructionEditorActions>(Kora.Core.Artifacts.ArtifactKind.Prompt)
                     .SuspendReviewedUse();
-            viewModel.BindOwnedInstructionFreshness(candidate =>
+            viewModel.BindOwnedInstructionFreshnessWithCancellation((candidate, token) =>
             {
                 var ownership = Services.GetRequiredService<DesktopInstanceOwnershipBridge>().AdmissionRevision;
                 var eligible = viewModel.CaptureInstructionEditorEligibility();
@@ -140,7 +148,7 @@ public sealed partial class App : Avalonia.Application
                     : Services.GetRequiredService<Kora.Application.Definitions.OwnedInstructionEditorActions>();
                 return actions
                     .IsCurrent(candidate, () => eligible()
-                        && Services.GetRequiredService<DesktopInstanceOwnershipBridge>().AdmissionRevision == ownership, CancellationToken.None);
+                        && Services.GetRequiredService<DesktopInstanceOwnershipBridge>().AdmissionRevision == ownership, token);
             });
             systemTray = new SystemTrayController(
                 viewModel,
@@ -289,6 +297,8 @@ public sealed partial class App : Avalonia.Application
         systemTray?.Dispose();
         instructionEditor?.Dispose();
         instructionEditor = null;
+        promptParameters?.Dispose();
+        promptParameters = null;
         systemTray = null;
         settingsWindow?.Dispose();
         settingsWindow = null;

@@ -201,12 +201,47 @@ public sealed partial class OwnedInstructionEditorActions(
 
     public async Task<bool> IsCurrent(ArtifactDefinition candidate, Func<bool> eligible, CancellationToken token)
     {
+        try
+        {
+            return await admission.Run(eligible, async (request, _, current, admitted) =>
+            {
+                if (candidate.PromptTemplate is null)
+                { return await IsCurrentAdmitted(candidate, current, admitted).ConfigureAwait(false); }
+                var requested = new SecurityAuditEvent(request.RequestId.Value, SecurityAuditCategory.ProtectedOperation,
+                    "definition.prompt.prepare", SecurityAuditOutcome.Requested, SecurityAuditInitiator.LocalUser, "definition.owned-prompt");
+                auditLog.Write(requested);
+                try
+                {
+                    var result = await IsCurrentAdmitted(candidate, current, admitted).ConfigureAwait(false);
+                    auditLog.Write(requested.WithOutcome(result ? SecurityAuditOutcome.Succeeded : SecurityAuditOutcome.Denied,
+                        result ? "exact-template-current" : "template-unavailable"));
+                    return result;
+                }
+                catch
+                {
+                    auditLog.Write(requested.WithOutcome(SecurityAuditOutcome.Failed, "preparation-unconfirmed"));
+                    throw;
+                }
+            }, token).ConfigureAwait(false);
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException
+            or InvalidDataException or InvalidOperationException or OperationCanceledException)
+        {
+            revisions.HoldCandidate(candidate, catalogue);
+            return false;
+        }
+    }
+
+    internal async Task<bool> IsCurrentAdmitted(ArtifactDefinition candidate, Func<bool> eligible, CancellationToken token)
+    {
         if (candidate.OwnedInstructionName is null) { return true; }
         if (candidate.Kind != Kind) { return false; }
         OwnedInstructionSnapshot? live;
         try
         {
-            live = await Inspect(candidate.OwnedInstructionName, eligible, token).ConfigureAwait(false);
+            if (!eligible()) { return false; }
+            live = await store.Read(candidate.OwnedInstructionName, token).ConfigureAwait(false);
+            if (!eligible()) { return false; }
             if (live is not null && string.Equals(candidate.OwnedInstructionRevision, live.Revision, StringComparison.Ordinal)
                 && catalogue.Candidates.Any(item => Matches(item, live.Name)
                     && string.Equals(item.OwnedInstructionRevision, live.Revision, StringComparison.Ordinal)))

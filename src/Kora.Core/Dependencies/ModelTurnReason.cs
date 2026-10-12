@@ -27,4 +27,5 @@ public enum ModelTurnReason
     HandoffReviewRequired,
     HandoffReviewStale,
     LocalEvidenceNotDisclosable,
+    GenerationNotEnabled,
 }

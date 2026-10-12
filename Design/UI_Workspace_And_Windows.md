@@ -71,14 +71,16 @@ slot/active clock; their cards remain visible while history/evidence is read.
 Answer/review remains in the original separately owned Questions window.
 
 Native Inspect, eligible Cancel, Remove pending ID, confirmed pending Clear,
-four fixed no-argument profile Enqueue buttons and manual fair Dispatch use the already admitted exact
+six closed profile Enqueue buttons and manual fair Dispatch use the already admitted exact
 command/host workflows. Displayed IDs/generations/revisions and the captured
 selection epoch bind controls; stale records and session/selection/privacy
 changes refuse. Admitted work cannot be cancelled by pretending its effect
 terminated. Done/disposition/redacted citations and independent Perpetual
 grants retain their existing gates.
 
-Queue rows identify their fixed capability profile. Successful first-page data
+The descriptor combo exposes only the current six catalogue IDs and exact schema/input/output/availability metadata. `capabilities.get` has no implicit target and clears its choice after enqueue or staleness; the recorded `local.inference` status button has no runtime-ID input. Both inherit the native prerequisite revision guard. Catalogue availability is not live provider/inference qualification.
+
+Queue rows and targeted notices identify their fixed capability profile and closed target. Successful first-page/single-record data
 is excluded from passive Work/AllWork/events; **Inspect selected work** reads
 the exact private retained result without rerunning it. The
 [fixed-profile contract](Work_Management.md#delivered-fixed-first-page-read-profiles---2026-10-12)

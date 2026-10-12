@@ -30,6 +30,9 @@ public sealed partial class WindowsSqliteSessionQueueTests
         var a2 = await EnqueueAsync(f, f.Request.SessionId, profile: SessionQueueReadProfile.Capabilities);
         var b1 = await EnqueueAsync(f, other, profile: SessionQueueReadProfile.Readiness);
         var b2 = await EnqueueAsync(f, other, profile: SessionQueueReadProfile.Runtimes, dependency: a2.Request.TaskId);
+        var a3 = await EnqueueAsync(f, f.Request.SessionId, profile: SessionQueueReadProfile.Capability,
+            target: new(ReadOnlyCapabilityCatalog.RuntimeStatus));
+        var b3 = await EnqueueAsync(f, other, profile: SessionQueueReadProfile.RuntimeStatus);
         using var actions = new FixedRegistryFixture(f.Time);
         await using var queue = new SessionQueueService(f.Store, f.Store, new(f.Tasks), new WindowsSqliteSessionWorkspaceTests.Access(),
             new DeterministicVersionQueueAction(actions.Registry), new(), NullLogger<SessionQueueService>.Instance, f.Time);
@@ -38,12 +41,13 @@ public sealed partial class WindowsSqliteSessionQueueTests
         var first = await queue.ExecuteCommandAsync(new(SessionCommandOperation.QueueDispatch, f.Request.SessionId.Value, 1)
             { QueueRevision = before.Revision }, RequestOrigin.LocalUi, () => true, f.Token);
         first.QueueDispatch!.Select(receipt => receipt.Entry.Request.TaskId).Should().Equal(b1.Request.TaskId);
-        (await f.Store.ReadQueueAsync(f.Request.SessionId, f.Token)).Entries.Should().Equal(a1, a2);
+        (await f.Store.ReadQueueAsync(f.Request.SessionId, f.Token)).Entries.Should().Equal(a1, a2, a3);
         await queue.ExecuteCommandAsync(PauseCommand(paused.Queue!, false), RequestOrigin.LocalUi, () => true, f.Token);
         (await f.Store.ReadQueueEntryAsync(other, b2.Request.TaskId, f.Token))!.State.Should().Be(SessionQueueState.Pending);
         var next = await queue.ExecuteCommandAsync(new(SessionCommandOperation.QueueDispatch, f.Request.SessionId.Value, 1)
             { QueueRevision = before.Revision }, RequestOrigin.LocalUi, () => true, f.Token);
-        next.QueueDispatch!.Select(receipt => receipt.Entry.Request.TaskId).Should().Equal(a1.Request.TaskId, a2.Request.TaskId, b2.Request.TaskId);
+        next.QueueDispatch!.Select(receipt => receipt.Entry.Request.TaskId).Should().Equal(a1.Request.TaskId, a2.Request.TaskId,
+            b2.Request.TaskId, a3.Request.TaskId, b3.Request.TaskId);
         next.QueueDispatch.Should().OnlyContain(receipt => receipt.Entry.State == SessionQueueState.Succeeded);
         actions.Probe.Calls.Should().Be(0);
     }
@@ -53,6 +57,8 @@ public sealed partial class WindowsSqliteSessionQueueTests
     [InlineData(SessionQueueReadProfile.Capabilities)]
     [InlineData(SessionQueueReadProfile.Readiness)]
     [InlineData(SessionQueueReadProfile.Runtimes)]
+    [InlineData(SessionQueueReadProfile.Capability)]
+    [InlineData(SessionQueueReadProfile.RuntimeStatus)]
     public async Task All_actual_profiles_suppress_cancelled_private_retired_and_equal_deadline_data(SessionQueueReadProfile profile)
     {
         foreach (var boundary in new[] { "cancel", "private", "late", "commit-late" })
@@ -70,7 +76,7 @@ public sealed partial class WindowsSqliteSessionQueueTests
             });
             await f.InitializeAsync();
             await WindowsSqliteSessionWorkspaceTests.FinishAsync(f, HostTaskState.Succeeded);
-            var pending = await EnqueueAsync(f, f.Request.SessionId, profile: profile);
+            var pending = await EnqueueAsync(f, f.Request.SessionId, profile: profile, target: ProfileTarget(profile));
             using var actions = new FixedRegistryFixture(f.Time);
             var access = new WindowsSqliteSessionWorkspaceTests.Access();
             var action = new InterceptedFixedRead(new DeterministicVersionQueueAction(actions.Registry), () =>
@@ -102,12 +108,19 @@ public sealed partial class WindowsSqliteSessionQueueTests
     }
 
     [Theory]
-    [InlineData(SessionQueueReadProfile.Version, RequestOrigin.LocalUi)]
-    [InlineData(SessionQueueReadProfile.Capabilities, RequestOrigin.LocalUi)]
-    [InlineData(SessionQueueReadProfile.Readiness, RequestOrigin.ActivatedVoice)]
-    [InlineData(SessionQueueReadProfile.Runtimes, RequestOrigin.ActivatedVoice)]
+    [InlineData(SessionQueueReadProfile.Version, RequestOrigin.LocalUi, null)]
+    [InlineData(SessionQueueReadProfile.Capabilities, RequestOrigin.LocalUi, null)]
+    [InlineData(SessionQueueReadProfile.Readiness, RequestOrigin.ActivatedVoice, null)]
+    [InlineData(SessionQueueReadProfile.Runtimes, RequestOrigin.ActivatedVoice, null)]
+    [InlineData(SessionQueueReadProfile.RuntimeStatus, RequestOrigin.ActivatedVoice, null)]
+    [InlineData(SessionQueueReadProfile.Capability, RequestOrigin.LocalUi, ReadOnlyCapabilityCatalog.List)]
+    [InlineData(SessionQueueReadProfile.Capability, RequestOrigin.ActivatedVoice, ReadOnlyCapabilityCatalog.Get)]
+    [InlineData(SessionQueueReadProfile.Capability, RequestOrigin.LocalUi, ReadOnlyCapabilityCatalog.Version)]
+    [InlineData(SessionQueueReadProfile.Capability, RequestOrigin.ActivatedVoice, ReadOnlyCapabilityCatalog.Readiness)]
+    [InlineData(SessionQueueReadProfile.Capability, RequestOrigin.LocalUi, ReadOnlyCapabilityCatalog.RuntimeList)]
+    [InlineData(SessionQueueReadProfile.Capability, RequestOrigin.ActivatedVoice, ReadOnlyCapabilityCatalog.RuntimeStatus)]
     public async Task Actual_registry_dispatch_commits_bounded_typed_results_and_exact_private_status_without_probes(
-        SessionQueueReadProfile profile, RequestOrigin origin)
+        SessionQueueReadProfile profile, RequestOrigin origin, string? targetId)
     {
         using var f = new InteractionStorageFixture();
         await f.InitializeAsync();
@@ -118,7 +131,7 @@ public sealed partial class WindowsSqliteSessionQueueTests
             new DeterministicVersionQueueAction(actions.Registry), new(), NullLogger<SessionQueueService>.Instance, f.Time);
         var workspace = new SessionWorkspaceService(f.Store, new(f.Tasks), access, NullLogger<SessionWorkspaceService>.Instance, queue);
         var command = new SessionCommand(SessionCommandOperation.QueueEnqueue, f.Request.SessionId.Value, 1)
-        { QueueProfile = profile, WorkRequestId = Guid.NewGuid(), TaskId = Guid.NewGuid() };
+        { QueueProfile = profile, QueueTarget = targetId is null ? null : new(targetId), WorkRequestId = Guid.NewGuid(), TaskId = Guid.NewGuid() };
         var enqueued = await workspace.ExecuteCommandAsync(command, origin, () => true, f.Token);
         var pending = enqueued.Queue!.Entries.Single();
         var pendingPayload = QueuePayload(f, pending);
@@ -147,11 +160,19 @@ public sealed partial class WindowsSqliteSessionQueueTests
         }
         else
         {
-            stored.RecordVersion.Should().Be(4);
+            stored.RecordVersion.Should().Be(profile is SessionQueueReadProfile.Capability or SessionQueueReadProfile.RuntimeStatus ? 5 : 4);
             CapabilityReplyWire.Serialize(stored.Result!).Should().Equal(CapabilityReplyWire.Serialize(receipt.Result!));
             CapabilityReplyWire.Serialize(stored.Result!).Length.Should().BeLessThanOrEqualTo(4096);
             Encoding.UTF8.GetString(CapabilityReplyWire.Serialize(stored.Result!)).Should().NotContain("private detail");
-            SessionQueueReadProfiles.Accepts(profile, stored.Result!).Should().BeTrue();
+            SessionQueueReadProfiles.Accepts(profile, stored.Result!, command.QueueTarget).Should().BeTrue();
+        }
+        stored.Target.Should().Be(command.QueueTarget);
+        if (targetId is not null) { stored.Result!.Descriptor!.Id.Should().Be(targetId); }
+        if (profile == SessionQueueReadProfile.RuntimeStatus)
+        {
+            stored.Result!.Runtime!.Id.Should().Be(ReadOnlyCapabilityCatalog.LocalRuntimeId);
+            stored.Result.Runtime.ObservedAt.Should().Be(recorded.Single().ObservedAt);
+            stored.Result.Runtime.ToolLoopQualified.Should().BeFalse();
         }
         if (profile == SessionQueueReadProfile.Capabilities) { receipt.Result!.Capabilities!.Records.Should().HaveCount(6); }
         if (profile == SessionQueueReadProfile.Readiness)
@@ -217,13 +238,15 @@ public sealed partial class WindowsSqliteSessionQueueTests
     [InlineData(SessionQueueReadProfile.Capabilities)]
     [InlineData(SessionQueueReadProfile.Readiness)]
     [InlineData(SessionQueueReadProfile.Runtimes)]
+    [InlineData(SessionQueueReadProfile.Capability)]
+    [InlineData(SessionQueueReadProfile.RuntimeStatus)]
     public async Task Restart_pending_and_dispatched_profiles_project_interrupted_unknown_without_replay(SessionQueueReadProfile profile)
     {
         using var f = new InteractionStorageFixture();
         await f.InitializeAsync();
         await WindowsSqliteSessionWorkspaceTests.FinishAsync(f, HostTaskState.Succeeded);
-        var first = await EnqueueAsync(f, f.Request.SessionId, profile: profile);
-        var later = await EnqueueAsync(f, f.Request.SessionId, profile: profile);
+        var first = await EnqueueAsync(f, f.Request.SessionId, profile: profile, target: ProfileTarget(profile));
+        var later = await EnqueueAsync(f, f.Request.SessionId, profile: profile, target: ProfileTarget(profile));
         var running = await AdmitAsync(f, first);
         var payload = QueuePayload(f, running);
         f.Reopen();
@@ -262,13 +285,15 @@ public sealed partial class WindowsSqliteSessionQueueTests
     }
     private sealed class InterceptedFixedRead(IDeterministicVersionQueueAction action, Action afterRead) : IDeterministicVersionQueueAction
     {
-        public CapabilityReply Observe(SessionQueueReadProfile profile, CancellationToken token)
+        public CapabilityReply Observe(SessionQueueReadProfile profile, CancellationToken token, SessionQueueCapabilityTarget? target = null)
         {
-            var reply = action.Observe(profile, token);
+            var reply = action.Observe(profile, token, target);
             afterRead();
             return reply;
         }
     }
     private sealed class FixedHost : ICapabilityHostAccess { public bool IsCurrentHost => true; }
     private sealed class FixedInfo : IApplicationInfo { public string Version => "4.5.6"; }
+    private static SessionQueueCapabilityTarget? ProfileTarget(SessionQueueReadProfile profile) =>
+        profile == SessionQueueReadProfile.Capability ? new(ReadOnlyCapabilityCatalog.Version) : null;
 }

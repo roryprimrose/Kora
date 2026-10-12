@@ -54,7 +54,7 @@ Audit provenance retains each exact original member, not parsed rendered message
 
 One stale member or concurrent mutation refuses all without skipping. Required write/audit/readback/commit uncertainty holds admission; known commit is not undone after failed delivery. No automatic retry, rollback claim, history deletion, provider/worker termination, grant consumption or new persistence authority is introduced.
 
-The [four fixed no-argument profiles](Work_Management.md#delivered-fixed-first-page-read-profiles---2026-10-12)
+The original [four fixed no-argument profiles](Work_Management.md#delivered-fixed-first-page-read-profiles---2026-10-12)
 share the original queue admission fence and freshly admitted Native registry
 caller. New page rows retain only bounded typed catalogue/recorded-readiness/
 runtime metadata, with terminal digest/profile binding. Raw probe details,
@@ -63,6 +63,9 @@ are excluded. Exact private status retrieves the saved observation; Work/AllWork
 and local events exclude result data. Format 4 is explicit; legacy version
 bytes/digests/clocks stay unchanged. No grants, permission levels, egress,
 automatic dispatch or replay are introduced.
+
+The [two targeted profiles](Work_Management.md#delivered-closed-targeted-metadata-reads---2026-10-12) use the same fences and actual actions: one exact current-catalogue descriptor selection or host-fixed recorded `local.inference` status. Explicit format 5 alone carries the new closed metadata; runtime targets cannot be overridden.
+Matching single-record wire validation is shared with the registry. No arbitrary request/JSON/parameters, egress, probe, inference or new authority is admitted.
 
 The [bounded queue preferences](User_Configuration.md#delivered-bounded-fixed-local-version-queue-settings-r10r13) preserve original-input admission through the existing independent configuration-control session.
 Host-held option/configuration/call revisions and native visible-lifetime identity bind proposals.

@@ -167,7 +167,7 @@ public sealed partial class SessionQueueService : IAsyncDisposable
                             session, RequireTask(command), origin),
                         generation, command.QueueRevision, revision, command.DependencyTaskId is { } dependency ? new(dependency) : null,
                         current, () => Eligible() && (configuration is null || configuration.IsCurrent(current)), token,
-                        command.QueueProfile, command.ExpectedDependencyRevision).AsTask(), token).ConfigureAwait(false),
+                        command.QueueProfile, command.ExpectedDependencyRevision, command.QueueTarget).AsTask(), token).ConfigureAwait(false),
                     SessionCommandOperation.QueueCancel or SessionCommandOperation.QueueRemove =>
                         await store.RemovePendingAsync(request, generation, command.QueueRevision, RequireTask(command),
                             new(command.TaskRevision), command.Operation == SessionCommandOperation.QueueCancel
@@ -331,7 +331,7 @@ public sealed partial class SessionQueueService : IAsyncDisposable
                             var admitted = await store.AdmitAsync(ready, admissionRevision, current,
                                 () => eligible() && (configuration is null || configuration.IsCurrent(current)), linked.Token).ConfigureAwait(false);
                             admitted.Entry.Validate();
-                            if (admitted.Entry.RecordVersion is not (SessionQueueEntry.CapturedActiveRecordVersion or SessionQueueEntry.FixedReadRecordVersion)
+                            if (admitted.Entry.RecordVersion is not (SessionQueueEntry.CapturedActiveRecordVersion or SessionQueueEntry.FixedReadRecordVersion or SessionQueueEntry.TargetedReadRecordVersion)
                                 || admitted.Entry.ActiveBudgetMinutes != current.ActiveBudgetMinutes)
                             {
                                 throw new InvalidDataException("The committed active budget is missing or differs from its admitted configuration.");
@@ -386,11 +386,11 @@ public sealed partial class SessionQueueService : IAsyncDisposable
             RequireEligible(eligible);
             token.ThrowIfCancellationRequested();
             var result = time.GetElapsedTime(started) < SessionQueueLimits.ActiveBudget(admitted.ActiveBudgetMinutes!.Value)
-                ? action.Observe(admitted.ReadProfile, token)
+                ? action.Observe(admitted.ReadProfile, token, admitted.Target)
                 : new CapabilityReply(CapabilityOutcome.Failed, "active-budget-expired");
             RequireEligible(eligible);
             token.ThrowIfCancellationRequested();
-            var outcome = SessionQueueReadProfiles.Accepts(admitted.ReadProfile, result)
+            var outcome = SessionQueueReadProfiles.Accepts(admitted.ReadProfile, result, admitted.Target)
                 && time.GetElapsedTime(started) < SessionQueueLimits.ActiveBudget(admitted.ActiveBudgetMinutes!.Value)
                 ? SessionQueueState.Succeeded : SessionQueueState.Failed;
             var completed = await store.CompleteAsync(admitted, outcome,

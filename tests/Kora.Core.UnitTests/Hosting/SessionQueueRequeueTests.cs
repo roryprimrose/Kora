@@ -10,6 +10,20 @@ public sealed class SessionQueueRequeueTests
     private static readonly DateTimeOffset Now = new(2026, 10, 12, 0, 0, 0, TimeSpan.Zero);
 
     [Fact]
+    public void FreshTargetCannotRetargetTheReviewedOriginalDescriptor()
+    {
+        var original = Entry() with { Profile = SessionQueueReadProfile.Capability, RecordVersion = 5,
+            PendingLifetimeMinutes = 30, Target = new(Kora.Core.Tools.ReadOnlyCapabilityCatalog.Version) };
+        var fresh = original with { Request = new(new(Guid.NewGuid()), original.Request.SessionId, new(Guid.NewGuid()), RequestOrigin.LocalUi),
+            Position = 3, EnqueuedAt = Now, ExpiresAt = Now.AddMinutes(30) };
+        var receipt = new SessionQueueRequeueReceipt(Guid.NewGuid(), 1, new(original.RunId, new(1), 0, 0, false, false),
+            original, new(original.Request, new(1), HostTaskState.IntentRecorded), fresh, 0);
+        receipt.Validate();
+        (receipt with { Fresh = fresh with { Target = new(Kora.Core.Tools.ReadOnlyCapabilityCatalog.List) } })
+            .Invoking(value => value.Validate()).Should().Throw<InvalidDataException>();
+    }
+
+    [Fact]
     public void ExpiryIsExactStoredBoundaryAndEveryFreshReceiptFieldIsBound()
     {
         var original = Entry();

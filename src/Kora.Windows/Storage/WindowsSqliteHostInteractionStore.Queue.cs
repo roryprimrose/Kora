@@ -52,8 +52,10 @@ public sealed partial class WindowsSqliteHostInteractionStore
     public ValueTask<SessionQueueSnapshot> EnqueueAsync(HostRequest control, HostRequest work,
         HostRevision generation, long expectedRevision, long admissionRevision, HostId<TaskIdentity>? dependency,
         SessionQueueLimits limits, Func<bool> eligible, CancellationToken token,
-        SessionQueueReadProfile profile = SessionQueueReadProfile.Version, HostRevision? expectedDependencyRevision = null)
+        SessionQueueReadProfile profile = SessionQueueReadProfile.Version, HostRevision? expectedDependencyRevision = null,
+        SessionQueueCapabilityTarget? target = null)
     {
+        SessionQueueReadProfiles.Validate(profile, target);
         Func<bool>? dependencyCurrent = null;
         return RunHostMutationAsync(control, QueueAction("enqueue", profile), (connection, transaction, intent, audit) =>
         {
@@ -71,7 +73,7 @@ public sealed partial class WindowsSqliteHostInteractionStore
             // Recheck after the transaction checkpoint and before COMMIT, never freeze dispatch eligibility.
             dependencyCurrent = MatchesDependency;
             var now = time.GetUtcNow();
-            var entry = NewQueueEntry(connection, work, generation, admissionRevision, dependency, limits, profile, now);
+            var entry = NewQueueEntry(connection, work, generation, admissionRevision, dependency, limits, profile, now, target);
             var task = new HostTaskRecord(work, new(1), HostTaskState.IntentRecorded);
             var order = UpdatedQueueOrder(connection, work.SessionId, runId, generation, ids => ids.Add(work.TaskId));
             var sequence = AppendAudit(connection, transaction, intent, RequireSession(connection, control.SessionId).Authority,
@@ -343,7 +345,7 @@ public sealed partial class WindowsSqliteHostInteractionStore
             }
             ValidateRowAuthority(connection, reader.GetInt64(4),
                 Change("queue", Id(entry.Request.TaskId), entry.Revision.Value, payload));
-            if (entry.RecordVersion is SessionQueueEntry.CapturedActiveRecordVersion or SessionQueueEntry.FixedReadRecordVersion
+            if (entry.RecordVersion is SessionQueueEntry.CapturedActiveRecordVersion or SessionQueueEntry.FixedReadRecordVersion or SessionQueueEntry.TargetedReadRecordVersion
                 && entry.DispatchOrder > 0)
             {
                 // Terminal updates must retain the original admitted budget/time, not merely acquire a new digest.

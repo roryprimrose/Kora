@@ -37,6 +37,9 @@ deployment mode. Runtime health is not permission or R02 qualification;
 ToolLoopQualified remains false. No settings/evidence/session/side-effect entries
 are added, and existing exact lock/power behavior is unchanged.
 
+All six actions also have [closed queued Native reads](Work_Management.md#delivered-closed-targeted-metadata-reads---2026-10-12), not model autoexecution. The original four retain `{}`/default first pages. Queued `capabilities.get` requires one exact current descriptor ID; queued `runtime.get_status` supplies only host-fixed recorded `local.inference`.
+Catalogue Available is registry metadata, not live provider/worker/tool-loop qualification or authorization.
+
 R26 selected-source lexical search is **host/native-only**. The six-ID schema
 has no unavailable model-only content-operation descriptor or admitted
 source/citation result shape. It is not extended to pretend retrieval is

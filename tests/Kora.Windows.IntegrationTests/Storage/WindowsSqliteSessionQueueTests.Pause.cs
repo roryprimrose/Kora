@@ -291,7 +291,7 @@ public sealed partial class WindowsSqliteSessionQueueTests
         internal TaskCompletionSource Entered { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         internal ManualResetEventSlim Release { get; } = new();
         private int reads;
-        public CapabilityReply Observe(SessionQueueReadProfile profile, CancellationToken cancellation)
+        public CapabilityReply Observe(SessionQueueReadProfile profile, CancellationToken cancellation, SessionQueueCapabilityTarget? target = null)
         {
             if (Interlocked.Increment(ref reads) == 1)
             {

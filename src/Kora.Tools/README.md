@@ -52,6 +52,9 @@ See [presentation wiring](../Kora.Application/ViewModels/MainViewModel.Capabilit
 and [exact commands](../../docs/commands.md#read-only-host-discovery).
 This is not a public callable SDK.
 
+The [closed queue profiles](../../Design/Work_Management.md#delivered-closed-targeted-metadata-reads---2026-10-12) invoke these same actions through freshly admitted Native registry callers. Four inputs remain `{}`; one exact current descriptor target or fixed recorded `local.inference` uses typed `CapabilityIdInput`.
+Single-record results share the registry wire/shape validation. No probe, inference, arbitrary parameters or model tool-loop qualification is added.
+
 ### R07 clipboard actions
 
 The three actions delegate to [ClipboardSnapshotBroker](Clipboard/ClipboardSnapshotBroker.cs).

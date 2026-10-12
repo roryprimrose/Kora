@@ -12,9 +12,30 @@ Related: [Interaction and Sessions](Interaction_And_Sessions.md), [Architecture]
 
 ## Delivered deterministic local-version queue
 
+### Delivered closed targeted metadata reads - 2026-10-12
+
+All six existing read-only registry actions now have bounded queued routes. `capabilities.get` takes one explicitly selected exact descriptor ID from the current six-record catalogue. `runtime.get_status` has only the host-fixed `local.inference` target. These are metadata selections, not arbitrary tool requests, parameters, resources or effect authority.
+
+Native Sessions displays exact catalogue ID/schema/input/output/availability metadata with no default target. Enqueue requires an explicit choice, cleared after success or stale source/private/session changes. The fixed runtime button has no runtime-ID input. All six buttons inherit the existing explicit None/exact-task prerequisite and real task-revision guard.
+
+The application builds typed `CapabilityIdInput` through the shared serializer, freshly admits the Native caller for the queued host request and invokes the existing `CapabilitiesGet` or `RuntimeGetStatus` action. The original four inputs stay exactly `{}` with first-page/default count six. Reads never probe, run inference/setup, query provider health or grant model execution.
+
+New targeted entries alone use explicit payload version 5: the capability profile carries one typed exact catalogue target; runtime status cannot carry or override a stored target. Absent/2/3/4 canonical bytes, original admission digests and captured clocks remain unchanged. Unknown/partial/future/mismatched formats or targets fail closed.
+
+Success retains exactly one matching typed Descriptor or fixed Local Runtime observation, within the unchanged complete 4096 UTF-8-byte registry envelope. Shared registry/queue wire validation rejects wrong IDs/shapes, additional result fields and runtime tool-loop qualification claims.
+Denied/failed/cancelled/late/private-retired results cannot become successful data; existing monotonic deadlines, receipt/audit fencing and Unknown quarantine remain authoritative.
+
+Work/AllWork, cancellation/move/requeue reviews and targeted local notices expose only closed profile/target metadata, not retained result bodies. Exact private status/Inspect reads the already-saved snapshot without rerunning it. Original notice suppression formats are unchanged; new targeted notice metadata is inert. The complete work projection stays 64 KiB.
+
+Pause, FIFO/order lineage, fair manual batches, captured budgets, selected atomic cancellation, retention and no-replay recovery are unchanged. Reviewed expired replacement preserves the exact profile and descriptor target under separate fresh request/task IDs; it cannot retarget dependents or extend the old deadline.
+
+Maintained [portable contract tests](../tests/Kora.Core.UnitTests/Hosting/SessionQueueTargetedReadTests.cs) and [actual registry tests](../tests/Kora.Application.UnitTests/Tools/ReadOnlyCapabilityRegistryTests.cs) cover closed input/result binding.
+[Private SQLite consumers](../tests/Kora.Windows.IntegrationTests/Storage/WindowsSqliteSessionQueueTests.TargetedReads.cs) and [native wiring](../tests/Kora.Windows.IntegrationTests/SessionsQueuePrerequisiteTests.cs) cover the production paths.
+No experiment is modified or retired. Unique RT1/RT2/MG1/PV1, offline CPU/inference, containment, hardware, installed-native/accessibility and physical protected-storage/STOP gates remain independent; catalogue Available and retained observations do not qualify live providers/workers or inference. Profile-section security editing remains deferred.
+
 ### Delivered optional native enqueue prerequisite - 2026-10-12
 
-Native Sessions now offers explicit **None** or an independent exact prerequisite selection for each of the four fixed-read Enqueue buttons. The picker uses only the existing at-most-50 same-session nonqueue task metadata projection, not task bodies, history, artifacts, providers or another session.
+Native Sessions now offers explicit **None** or an independent exact prerequisite selection for each of the six fixed-read Enqueue buttons. The picker uses only the existing at-most-50 same-session nonqueue task metadata projection, not task bodies, history, artifacts, providers or another session.
 Each inert row shows immutable task/session IDs, observed generation/state/revision, UTC observation time and host source.
 
 None is the initial unchanged route. Enqueue captures the exact selected ID and real task revision through the same `SessionCommand`, application service and audited SQLite enqueue transaction as typed `[after <task-id>]`.
@@ -75,7 +96,7 @@ The existing version syntax/default is unchanged. Native Sessions offers three
 additional explicit enqueue buttons; typed/current-name activated enqueue accepts
 the exact `capabilities.list`, `readiness.get` or `runtime.list` profile token.
 All four invoke the same registry and existing C# actions, not another dispatcher.
-No capability ID argument, JSON, count, offset, refresh, provider/model selection,
+These original four accept no capability ID argument, JSON, count, offset, refresh, provider/model selection,
 grant or execution descriptor is accepted.
 
 New page entries use explicit payload format 4 with a closed typed profile and
@@ -145,13 +166,13 @@ least-recent-admission session fairness. A continuously ready session gets a
 turn within one admission per other continuously ready session; blocked heads
 never gain priority or bypass an earlier pending entry.
 
-The fixed work profiles are `application.get_version`, `capabilities.list`,
-`readiness.get` and `runtime.list` through the existing read-only registry with a
+The original fixed work profiles are `application.get_version`, `capabilities.list`,
+`readiness.get` and `runtime.list`, now joined by the closed targeted reads above, through the existing read-only registry with a
 freshly admitted Native caller bound to the actual queued request/session. The
 three page reads always supply host-owned `{}` (first page, default count six).
 Readiness/runtime return only already-recorded bootstrap observations, never
 a new probe, setup or inference. There are no
-user-provided arguments, content snapshots, model calls, execution tokens,
+arbitrary user-provided arguments, content snapshots, model calls, execution tokens,
 arbitrary resources or effect descriptors. IDs/revisions/dependencies are
 metadata, not executable proposals or grants.
 
@@ -403,7 +424,7 @@ The [shared store transaction](../src/Kora.Windows/Storage/WindowsSqliteHostInte
 One freed slot is used in that same transaction; lowered capacity below the resulting total refuses without eviction.
 Typed REQUESTED/terminal audit, exact original/fresh association and readback precede publication; uncertain commit/delivery retains an explicit admission hold.
 
-All four fixed no-argument profiles use their existing formats and normal manual dispatch policy. The original payload format, UTC deadlines, IDs and historical digests remain evidence; only truthful removal/terminal revisions change.
+All six fixed profiles retain their existing formats and exact closed target under normal manual dispatch policy. The original payload format, UTC deadlines, IDs and historical digests remain evidence; only truthful removal/terminal revisions change.
 Active budget is captured only at later normal dispatch. Cancel review admits no fresh IDs and changes nothing; stale proposals refuse wholly, without retry or target substitution.
 
 The original prerequisite ID is retained and revalidated, never silently retargeted. Current same-session pending prerequisites before the new tail or exact durable Succeeded prerequisites are admitted; missing, invalid or cyclic lineage refuses.

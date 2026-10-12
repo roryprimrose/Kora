@@ -185,7 +185,7 @@ the queue cannot open a microphone or speak a response.
 
 In native **Sessions**, use **Optional prerequisite**: keep initial **None**, or explicitly select an exact same-session task from at most 50 already-observed metadata rows. Rows show task/session IDs, observed generation/state/revision and UTC host source; no task body or history is read. Work/question selection never supplies a prerequisite.
 
-Each of the four **Enqueue** buttons applies that one choice through the same route as `[after <task-id>]`. Only exact Succeeded permits later dispatch; pending, failed, cancelled or Unknown can block the FIFO head. Enqueue never runs automatically.
+Each of the six **Enqueue** buttons applies that one choice through the same route as `[after <task-id>]`. Only exact Succeeded permits later dispatch; pending, failed, cancelled or Unknown can block the FIFO head. Enqueue never runs automatically.
 After enqueue, explicitly choose **None** or select a task again. Refresh/session/private/source changes revoke a choice; stale/missing task revisions require refresh/reselection, never silent None fallback.
 
 Typed syntax and arbitrary exact after-task semantics below are unchanged; no revision token is added to typed enqueue. The native picker is a bounded same-session subset, not cross-session search or existing dependency editing.
@@ -199,6 +199,8 @@ Typed syntax and arbitrary exact after-task semantics below are unchanged; no re
 | `queue enqueue <session-id> <generation> <queue-revision> <request-id> <task-id> capabilities.list [after <task-id>]` | Add the fixed capability-metadata first-page read |
 | `queue enqueue <session-id> <generation> <queue-revision> <request-id> <task-id> readiness.get [after <task-id>]` | Add the first page of already-recorded dependency observations, not a fresh check |
 | `queue enqueue <session-id> <generation> <queue-revision> <request-id> <task-id> runtime.list [after <task-id>]` | Add the first page of recorded runtime metadata; no probe, inference or setup |
+| `queue enqueue <session-id> <generation> <queue-revision> <request-id> <task-id> capabilities.get <exact-current-descriptor-id> [after <task-id>]` | Add exactly one current catalogue descriptor read; exact case-sensitive ID required, no arbitrary JSON |
+| `queue enqueue <session-id> <generation> <queue-revision> <request-id> <task-id> runtime.get_status [after <task-id>]` | Add fixed recorded `local.inference` status; no runtime-ID input, probe, inference or setup |
 | `queue cancel <session-id> <generation> <queue-revision> <task-id> <entry-revision>` | Cancel only that pending entry, not an admitted worker/effect |
 | `queue remove <session-id> <generation> <queue-revision> <task-id> <entry-revision>` | Remove only that pending entry from dispatch, retaining history |
 | `queue clear <session-id> <generation> <queue-revision> confirm` | Explicitly confirm clear of this exact pending snapshot; current work/history remain |
@@ -221,7 +223,7 @@ Typed syntax and arbitrary exact after-task semantics below are unchanged; no re
 New selected-set syntax uses canonical lowercase D GUIDs and canonical decimal revisions. Repeat the full ordered member list and every displayed authority revision plus the host-issued review ID when confirming.
 Empty/duplicate/over-bound/unlisted/stale members, changed source/private epochs or queue mutations refuse the entire set; refresh and review again. Existing `cancel`, `remove` and `clear` syntax is unchanged.
 
-Input remains 1024 UTF-8 bytes; complete review/result is bounded to 64 KiB, with explicit refusal rather than partial projection. All four fixed profiles and exactly expired pending rows are supported. Lowering configured capacity does not reduce the maximum existing selectable set or evict entries. Cancel review keeps selection and draft, without mutation or deadline/activity renewal.
+Input remains 1024 UTF-8 bytes; complete review/result is bounded to 64 KiB, with explicit refusal rather than partial projection. All six fixed profiles and exactly expired pending rows are supported. Lowering configured capacity does not reduce the maximum existing selectable set or evict entries. Cancel review keeps selection and draft, without mutation or deadline/activity renewal.
 
 Only selected rows/tasks become retained Cancelled history. Unselected relative dispatch order and original metadata/results remain unchanged. Dependents are retained and block if their prerequisite was cancelled; no descendant scan/cascade is claimed. Pause/hold, slots and current callbacks remain unchanged; no automatic dispatch/resume, worker/effect termination or deletion authority is added.
 
@@ -230,19 +232,21 @@ Required requested/terminal typed audit, exact member receipt and readback prece
 Use canonical nonempty D GUIDs and the exact displayed positive session/entry
 revisions. Queue revision is the displayed committed snapshot revision; zero
 is valid only before the first queue mutation. For typed enqueue, supply fresh
-request/task GUIDs; the four explicit native **Enqueue** buttons generate them. Duplicate
+request/task GUIDs; the six explicit native **Enqueue** buttons generate them. Duplicate
 IDs, names, unknown/stale revisions, Done/disposed sessions and full queues
 fail closed. The selected session's ID is visible and never inferred from a
 name, model response or window title.
 
-Only those four profiles are accepted. The three page reads use host-owned `{}`,
-first page/default count six; no JSON, arguments, IDs, count/offset or refresh
-controls are accepted. Each result is limited to six records and 4096 serialized
+Only these six closed profiles are accepted. The original four inputs remain host-owned `{}`,
+first page/default count six. `capabilities.get` requires one exact current catalogue descriptor ID;
+native selection has no implicit target and resets after success/stale selection. `runtime.get_status`
+always selects recorded `local.inference`; supplying any runtime ID is invalid. No arbitrary JSON,
+parameters, count/offset or refresh controls are accepted. Each result is limited to six records and 4096 serialized
 UTF-8 bytes. **Inspect selected work** or exact `queue status` shows a retained
 successful page snapshot, not current health. Large manual batches may omit page
 data with `resultAvailableByExactStatus: true`; inspect that exact task instead.
 Work/All work remain metadata-only. Failures, denial, cancellation, stale private
-admission or expired active budgets never deliver successful data.
+admission or expired active budgets never deliver successful data. The two targeted reads return only one exact matching descriptor or local recorded runtime, never live qualification. Requeue preserves that exact target with fresh IDs, not replay or retargeting.
 
 Enqueue does not start work. Selecting an exact session passively reads work;
 **Refresh selected work** refreshes that observation. Choose **Inspect selected

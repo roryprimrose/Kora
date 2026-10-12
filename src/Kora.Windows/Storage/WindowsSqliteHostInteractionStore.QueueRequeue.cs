@@ -27,13 +27,15 @@ public sealed partial class WindowsSqliteHostInteractionStore
 
     private SessionQueueEntry NewQueueEntry(SqliteConnection connection, HostRequest work, HostRevision generation,
         long admissionRevision, HostId<TaskIdentity>? dependency, SessionQueueLimits limits, SessionQueueReadProfile profile,
-        DateTimeOffset enqueuedAt)
+        DateTimeOffset enqueuedAt, SessionQueueCapabilityTarget? target = null)
     {
         var entry = new SessionQueueEntry(work, generation, new(1), NextQueuePosition(connection), SessionQueueState.Pending,
             runId, admissionRevision, enqueuedAt, enqueuedAt.AddMinutes(limits.PendingLifetimeMinutes), dependency,
             RecordVersion: profile == SessionQueueReadProfile.Version ? SessionQueueEntry.CapturedLifetimeRecordVersion
-                : SessionQueueEntry.FixedReadRecordVersion, PendingLifetimeMinutes: limits.PendingLifetimeMinutes,
-            Profile: profile == SessionQueueReadProfile.Version ? null : profile);
+                : profile is SessionQueueReadProfile.Capability or SessionQueueReadProfile.RuntimeStatus
+                    ? SessionQueueEntry.TargetedReadRecordVersion : SessionQueueEntry.FixedReadRecordVersion,
+            PendingLifetimeMinutes: limits.PendingLifetimeMinutes,
+            Profile: profile == SessionQueueReadProfile.Version ? null : profile, Target: target);
         entry.Validate();
         return entry;
     }
@@ -102,7 +104,7 @@ public sealed partial class WindowsSqliteHostInteractionStore
             RequireNewQueueWork(connection, control, review.FreshRequest, original.Dependency, limits, freedSlots: 1);
             ValidateRequeueDependency(connection, original, review.FreshRequest.TaskId);
             var fresh = NewQueueEntry(connection, review.FreshRequest, expected.Generation, review.AdmissionRevision,
-                original.Dependency, limits, original.ReadProfile, review.EnqueuedAt);
+                original.Dependency, limits, original.ReadProfile, review.EnqueuedAt, original.Target);
             var removed = RemovedQueueEntry(original, SessionQueueState.Removed);
             var cancelled = review.OriginalTask.Next(HostTaskState.Cancelled);
             var freshTask = new HostTaskRecord(fresh.Request, new(1), HostTaskState.IntentRecorded);

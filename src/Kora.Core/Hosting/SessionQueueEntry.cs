@@ -14,11 +14,13 @@ public sealed record SessionQueueEntry(
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] DateTimeOffset? AdmittedAt = null,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] DateTimeOffset? ActiveDeadlineAt = null,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] SessionQueueReadProfile? Profile = null,
-    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] CapabilityReply? Result = null)
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] CapabilityReply? Result = null,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] SessionQueueCapabilityTarget? Target = null)
 {
     public const int CapturedLifetimeRecordVersion = 2;
     public const int CapturedActiveRecordVersion = 3;
     public const int FixedReadRecordVersion = 4;
+    public const int TargetedReadRecordVersion = 5;
     [JsonIgnore] public SessionQueueReadProfile ReadProfile => Profile ?? SessionQueueReadProfile.Version;
     public bool IsPending => State == SessionQueueState.Pending;
     public bool IsCurrent => State == SessionQueueState.Running;
@@ -30,21 +32,25 @@ public sealed record SessionQueueEntry(
         Request.TaskId.Validate();
         Request.RequestId.Validate();
         Dependency?.Validate();
-        if (RecordVersion == FixedReadRecordVersion)
+        if (RecordVersion is FixedReadRecordVersion or TargetedReadRecordVersion)
         {
             if (Profile is not { } profile) { throw new InvalidDataException("The fixed read profile is missing."); }
-            _ = SessionQueueReadProfiles.CapabilityId(profile);
+            SessionQueueReadProfiles.Validate(profile, Target);
+            if ((RecordVersion == TargetedReadRecordVersion) != (profile is SessionQueueReadProfile.Capability or SessionQueueReadProfile.RuntimeStatus))
+            {
+                throw new InvalidDataException("The queue profile does not match its explicit record version.");
+            }
             if (DispatchOrder == 0 && State is not (SessionQueueState.Pending or SessionQueueState.Cancelled
                 or SessionQueueState.Removed or SessionQueueState.Expired or SessionQueueState.Interrupted))
             {
                 throw new InvalidDataException("The fixed read has no captured active admission.");
             }
-            if (Result is not null && (State != SessionQueueState.Succeeded || !SessionQueueReadProfiles.Accepts(profile, Result)))
+            if (Result is not null && (State != SessionQueueState.Succeeded || !SessionQueueReadProfiles.Accepts(profile, Result, Target)))
             {
                 throw new InvalidDataException("The fixed read result is not a bounded matching success.");
             }
         }
-        else if (Profile is not null || Result is not null)
+        else if (Profile is not null || Result is not null || Target is not null)
         {
             throw new InvalidDataException("A fixed read profile/result requires its explicit record version.");
         }
@@ -53,7 +59,7 @@ public sealed record SessionQueueEntry(
         var minutes = SessionQueueLimits.DefaultPendingLifetimeMinutes;
         if (RecordVersion is not null || PendingLifetimeMinutes is not null)
         {
-            if (RecordVersion is not (CapturedLifetimeRecordVersion or CapturedActiveRecordVersion or FixedReadRecordVersion)
+            if (RecordVersion is not (CapturedLifetimeRecordVersion or CapturedActiveRecordVersion or FixedReadRecordVersion or TargetedReadRecordVersion)
                 || PendingLifetimeMinutes is not { } captured)
             {
                 throw new InvalidDataException("The queue lifetime record version or captured value is unknown.");
@@ -65,7 +71,7 @@ public sealed record SessionQueueEntry(
             }
             minutes = captured;
         }
-        if (RecordVersion == CapturedActiveRecordVersion || RecordVersion == FixedReadRecordVersion && DispatchOrder > 0)
+        if (RecordVersion == CapturedActiveRecordVersion || RecordVersion is FixedReadRecordVersion or TargetedReadRecordVersion && DispatchOrder > 0)
         {
             if (ActiveBudgetMinutes is not { } budget || AdmittedAt is not { } admitted
                 || ActiveDeadlineAt is not { } deadline || admitted.Offset != TimeSpan.Zero
@@ -109,7 +115,7 @@ public sealed record SessionQueueEntry(
         var admitted = this with
         {
             Revision = revision, State = SessionQueueState.Running, DispatchOrder = dispatchOrder,
-            RecordVersion = Profile is null ? CapturedActiveRecordVersion : FixedReadRecordVersion,
+            RecordVersion = Profile is null ? CapturedActiveRecordVersion : RecordVersion,
             PendingLifetimeMinutes = PendingLifetimeMinutes ?? SessionQueueLimits.DefaultPendingLifetimeMinutes,
             ActiveBudgetMinutes = activeBudgetMinutes, AdmittedAt = admittedAt,
             ActiveDeadlineAt = SessionQueueLimits.ActiveDeadlineAt(admittedAt, activeBudgetMinutes),
@@ -121,7 +127,7 @@ public sealed record SessionQueueEntry(
     public void ValidateStoredResult()
     {
         Validate();
-        if (RecordVersion == FixedReadRecordVersion && State == SessionQueueState.Succeeded && Result is null)
+        if (RecordVersion is FixedReadRecordVersion or TargetedReadRecordVersion && State == SessionQueueState.Succeeded && Result is null)
         {
             throw new InvalidDataException("The committed fixed read success has no typed result.");
         }

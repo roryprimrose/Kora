@@ -740,8 +740,9 @@ public sealed partial class SessionWorkspaceServiceTests
         public async ValueTask<SessionQueueSnapshot> EnqueueAsync(HostRequest control, HostRequest work, HostRevision generation,
             long expectedRevision, long admissionRevision, HostId<TaskIdentity>? dependency, SessionQueueLimits limits,
             Func<bool> eligible, CancellationToken token, SessionQueueReadProfile profile = SessionQueueReadProfile.Version,
-            HostRevision? expectedDependencyRevision = null)
+            HostRevision? expectedDependencyRevision = null, SessionQueueCapabilityTarget? target = null)
         {
+            SessionQueueReadProfiles.Validate(profile, target);
             LastExpectedDependencyRevision = expectedDependencyRevision;
             QueueCheck("enqueue");
             if (BeforeEnqueue is { } before) { await before(limits); }
@@ -751,8 +752,10 @@ public sealed partial class SessionWorkspaceServiceTests
             var now = QueueTime.GetUtcNow();
             QueueRows.Add(new(work, generation, new(1), ++QueueRevision, SessionQueueState.Pending, queueRun,
                 admissionRevision, now, now.AddMinutes(limits.PendingLifetimeMinutes), dependency,
-                RecordVersion: profile == SessionQueueReadProfile.Version ? SessionQueueEntry.CapturedLifetimeRecordVersion : SessionQueueEntry.FixedReadRecordVersion,
-                PendingLifetimeMinutes: limits.PendingLifetimeMinutes, Profile: profile == SessionQueueReadProfile.Version ? null : profile));
+                RecordVersion: profile == SessionQueueReadProfile.Version ? SessionQueueEntry.CapturedLifetimeRecordVersion
+                    : profile is SessionQueueReadProfile.Capability or SessionQueueReadProfile.RuntimeStatus
+                        ? SessionQueueEntry.TargetedReadRecordVersion : SessionQueueEntry.FixedReadRecordVersion,
+                PendingLifetimeMinutes: limits.PendingLifetimeMinutes, Profile: profile == SessionQueueReadProfile.Version ? null : profile, Target: target));
             return QueueSnapshot(control.SessionId);
         }
         public ValueTask<SessionQueueSnapshot> RemovePendingAsync(HostRequest control, HostRevision generation,
@@ -798,8 +801,9 @@ public sealed partial class SessionWorkspaceServiceTests
             AfterComplete?.Invoke();
             return ValueTask.FromResult(next);
         }
-        public CapabilityReply Observe(SessionQueueReadProfile profile, CancellationToken token)
+        public CapabilityReply Observe(SessionQueueReadProfile profile, CancellationToken token, SessionQueueCapabilityTarget? target = null)
         {
+            LastObservedTarget = target;
             QueueCheck("action");
             QueueActions++;
             ActionRequests.Add(HostActivity.RequireCurrent().Request);
@@ -810,6 +814,7 @@ public sealed partial class SessionWorkspaceServiceTests
                 ? new("1.0.0", "Not a provider receipt.") : null);
         }
         internal CapabilityReply? QueueReply { get; set; }
+        internal SessionQueueCapabilityTarget? LastObservedTarget { get; private set; }
         private sealed class QueueLogger(Fixture fixture) : ILogger<SessionQueueService>
         {
             public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;

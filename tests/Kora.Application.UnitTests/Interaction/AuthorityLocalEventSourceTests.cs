@@ -11,6 +11,7 @@ using Kora.Core.Hosting;
 using Kora.Core.Interaction;
 using Kora.Core.Maintenance;
 using Kora.Core.Storage;
+using Kora.Core.Tools;
 
 using Microsoft.Extensions.Logging.Abstractions;
 
@@ -19,6 +20,26 @@ namespace Kora.Application.UnitTests.Interaction;
 [Collection("Host tracing")]
 public sealed class AuthorityLocalEventSourceTests
 {
+    [Theory]
+    [InlineData(SessionQueueReadProfile.Capability)]
+    [InlineData(SessionQueueReadProfile.RuntimeStatus)]
+    public void TargetedEventsKeepOnlyExactClosedMetadataAndOriginalSourceClocks(SessionQueueReadProfile profile)
+    {
+        using var f = new Fixture();
+        var snapshot = f.Snapshot();
+        var row = snapshot.QueueRecords[0];
+        var entry = row.Entry with { RecordVersion = 5, PendingLifetimeMinutes = 30, Profile = profile,
+            Target = profile == SessionQueueReadProfile.Capability ? new(ReadOnlyCapabilityCatalog.Version) : null };
+        snapshot = snapshot with { QueueRecords = [row with { Entry = entry }] };
+        var item = AuthorityLocalEventSource.FromWork(snapshot, f.Time.Now).Single();
+        item.QueueProfile.Should().Be(profile);
+        item.QueueTarget.Should().Be(entry.Target);
+        item.Summary.Should().Contain(SessionQueueReadProfiles.CapabilityId(profile));
+        item.Summary.Should().Contain(entry.Target?.Id ?? ReadOnlyCapabilityCatalog.LocalRuntimeId);
+        item.SourceRevision.Should().Be(entry.Revision.Value);
+        item.ExpiresAt.Should().Be(entry.ExpiresAt);
+        item.Validate();
+    }
     [Fact]
     public void QueueControlRevisionRetiresOldEventReceiptsWithoutChangingIndependentDeadlines()
     {

@@ -25,6 +25,42 @@ public sealed partial class MainViewModelTests
         return fixture;
     }
 
+    [Fact]
+    public async Task Push_to_talk_is_exposed_for_one_shot_capture_when_listening_is_disabled()
+    {
+        var fixture = CreateVoicePrivacyFixture();
+        await fixture.ViewModel.InitializeAsync();
+
+        fixture.ViewModel.IsPushToTalkVisible.Should().BeFalse();
+
+        await fixture.ViewModel.ToggleListeningCommand.ExecuteAsync();
+
+        fixture.ViewModel.IsVoiceEnabled.Should().BeFalse();
+        fixture.ViewModel.IsPushToTalkVisible.Should().BeTrue();
+        fixture.ViewModel.CanPushToTalk.Should().BeTrue();
+        fixture.ViewModel.BeginPushToTalkCommand.CanExecute(null).Should().BeTrue();
+
+        await fixture.ViewModel.BeginPushToTalkCommand.ExecuteAsync();
+
+        fixture.Voice.StartCalls.Should().Be(1);
+        fixture.ViewModel.IsListening.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task Push_to_talk_remains_visible_but_disabled_without_a_microphone()
+    {
+        var fixture = new Fixture();
+        fixture.Voice.Microphones = [];
+        fixture.Voice.DefaultMicrophoneId = null;
+
+        await fixture.ViewModel.InitializeAsync();
+
+        fixture.ViewModel.IsVoiceEnabled.Should().BeFalse();
+        fixture.ViewModel.IsPushToTalkVisible.Should().BeTrue();
+        fixture.ViewModel.CanPushToTalk.Should().BeFalse();
+        fixture.ViewModel.BeginPushToTalkCommand.CanExecute(null).Should().BeFalse();
+    }
+
     private static void PublishVoiceSession(Fixture fixture, WindowsSessionState state)
     {
         var previous = fixture.PrivacyObservation.Current;
@@ -267,7 +303,7 @@ public sealed partial class MainViewModelTests
     }
 
     [Fact]
-    public async Task Manual_disable_refresh_selection_and_reinitialize_cannot_release_a_run_hold()
+    public async Task Manual_disable_refresh_selection_and_reinitialize_preserves_one_shot_PTT()
     {
         var fixture = CreateVoicePrivacyFixture();
         await fixture.ViewModel.InitializeAsync();
@@ -279,11 +315,11 @@ public sealed partial class MainViewModelTests
 
         fixture.VoiceConsent.Consent.Should().BeTrue();
         fixture.ViewModel.IsVoiceEnabled.Should().BeFalse();
-        fixture.Voice.StartCalls.Should().Be(0);
+        fixture.Voice.StartCalls.Should().Be(1);
 
         await fixture.ViewModel.ToggleListeningCommand.ExecuteAsync();
         fixture.ViewModel.IsVoiceEnabled.Should().BeTrue();
-        fixture.Voice.StartCalls.Should().Be(0);
+        fixture.Voice.StartCalls.Should().Be(1);
     }
 
     [Fact]

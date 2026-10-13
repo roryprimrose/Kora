@@ -18,6 +18,23 @@ internal sealed partial class CompactSessionWindow : Window
         NewRequest.Click += (_, _) => NewRequestRequested?.Invoke(this, EventArgs.Empty);
         ReadConversation.Click += async (_, _) => await (ConversationOperation = model.ReadConversationAsync());
         NextConversation.Click += async (_, _) => await (ConversationOperation = model.ReadConversationAsync(next: true));
+        SearchConversation.Click += async (_, _) => await (ConversationOperation = model.SearchConversationAsync());
+        NextConversationSearch.Click += async (_, _) => await (ConversationOperation = model.SearchConversationAsync(next: true));
+        CancelConversationSearch.Click += (_, _) => model.ClearConversationSearch();
+        ClearConversationSearch.Click += (_, _) => model.ClearConversationSearch();
+        ConversationQuery.KeyDown += async (_, args) =>
+        {
+            if (args.Key == Key.Enter && model.CanSearchConversation)
+            {
+                args.Handled = true;
+                await (ConversationOperation = model.SearchConversationAsync());
+            }
+            else if (args.Key == Key.Escape)
+            {
+                args.Handled = true;
+                model.ClearConversationSearch();
+            }
+        };
         RefreshWork.Click += async (_, _) => await (ConversationOperation = model.RefreshWorkAsync());
         SaveConversationDraft.Click += async (_, _) => await (ConversationOperation = model.SaveConversationDraftAsync());
         ReloadConversationDraft.Click += async (_, _) => await (ConversationOperation = model.ReloadConversationDraftAsync());
@@ -28,7 +45,7 @@ internal sealed partial class CompactSessionWindow : Window
         CloseView.Click += (_, _) => Close();
         KeyDown += (_, args) =>
         {
-            if (args.Key == Key.Escape) { Close(); args.Handled = true; }
+            if (args.Key == Key.Escape && !args.Handled) { Close(); args.Handled = true; }
         };
     }
 }

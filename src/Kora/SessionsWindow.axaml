@@ -60,7 +60,7 @@
         </WrapPanel>
         <controls:NamedTextBlock Text="{Binding ConversationSearchStatus}" TextWrapping="Wrap"
             AutomationProperties.Name="Conversation search counters, exact snapshot continuation and explicit failures; no model context" />
-        <controls:ScrollableListBox ItemsSource="{Binding ConversationSearchMessages}" MaxHeight="160"
+        <controls:ScrollableListBox x:Name="ConversationSearchResults" ItemsSource="{Binding ConversationSearchMessages}" MaxHeight="160"
             ItemTemplate="{StaticResource ConversationMessageTemplate}"
             AutomationProperties.Name="Exact immutable USER messages matching lexical words or typed HOST status; inert native text, chronological, no export or actions" />
         <TextBox x:Name="ConversationComposer" Text="{Binding ComposerBody, Mode=TwoWay}" AcceptsReturn="True"

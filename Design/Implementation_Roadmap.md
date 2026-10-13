@@ -84,6 +84,7 @@ Private metadata/SQL/headless checks do not qualify generated conversation, prov
 
 The [passive selected-conversation search](Interaction_And_Sessions.md#delivered-passive-exact-conversation-lexical-search--2026-10-13) now searches actual retained USER words and typed HOST status in one explicitly selected Active or retained Done session.
 Shared lexical policy, bounded complete chronological results and exact query/generation/ceiling/head continuation reuse admitted conversation pages.
+The [compact projection](UI_Workspace_And_Windows.md#delivered-selected-conversation-lexical-search--2026-10-13) now exposes the same authoritative private Search/Next/Cancel/Clear state as Sessions, with no automatic reads, second composer baseline, provider/runtime enablement or installed/physical qualification.
 
 Native Search/Next/Cancel/Clear preserve composer drafts, saved revisions, question/voice focus and meaningful-activity/retention authority. Final source/private validation fences late publication; query/result text is not persisted, logged or sent as model context.
 This is not older receipt `HistorySearch`, global body search, an index, retrieval upload, runtime/inference or full R12/R14/installed-native/physical-storage qualification.

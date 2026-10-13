@@ -194,7 +194,7 @@ internal sealed partial class SessionsWindow : Window
         };
         KeyDown += (_, args) =>
         {
-            if (args.Key == Key.Escape) { Close(); args.Handled = true; }
+            if (args.Key == Key.Escape && !args.Handled) { Close(); args.Handled = true; }
         };
     }
 

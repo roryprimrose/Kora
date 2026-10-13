@@ -8,6 +8,75 @@ namespace Kora.Core.UnitTests.Storage;
 
 public sealed class SessionAttachmentQueryTests
 {
+    [Fact]
+    public void MalformedInMemoryFilterIsRejectedEvenOnAnEmptyPage()
+    {
+        var query = new SessionAttachmentQuery(true);
+        typeof(SessionAttachmentQuery).GetProperty(nameof(SessionAttachmentQuery.Filter))!
+            .SetValue(query, (SessionAttachmentFilter)99);
+        query.Invoking(value => value.Matches(SessionAttachmentSummaryTests.Summary()))
+            .Should().Throw<InvalidDataException>();
+        var page = new SessionAttachmentPage(query, [], null, DateTimeOffset.UnixEpoch, 1, new string('a', 64), 0, false);
+        page.Invoking(value => value.Validate()).Should().Throw<InvalidDataException>();
+    }
+
+    [Theory]
+    [InlineData(SessionAttachmentFilter.Active)]
+    [InlineData(SessionAttachmentFilter.Done)]
+    [InlineData(SessionAttachmentFilter.Removed)]
+    public void LifecycleBrowseAllowsEmptyScansWithRemovedSlotsAndContinuation(SessionAttachmentFilter filter)
+    {
+        var query = new SessionAttachmentQuery(true, filter: filter);
+        var cursor = "YQ==." + new string('a', 64);
+        var page = new SessionAttachmentPage(query, [], cursor, DateTimeOffset.UnixEpoch, 1, new string('a', 64), 64, true);
+        page.Validate();
+        (page with { Query = new(true) }).Invoking(value => value.Validate()).Should().Throw<InvalidDataException>();
+    }
+
+    [Theory]
+    [InlineData(SessionAttachmentFilter.All)]
+    [InlineData(SessionAttachmentFilter.Active)]
+    [InlineData(SessionAttachmentFilter.Done)]
+    [InlineData(SessionAttachmentFilter.Removed)]
+    public void LifecycleFilterRoundTripsAndCombinesIndependentlyWithExactIdAndRemovedSlots(SessionAttachmentFilter filter)
+    {
+        var original = SessionAttachmentSummaryTests.Summary();
+        foreach (var state in Enum.GetValues<AttachmentSessionState>())
+        foreach (var includeRemoved in new[] { false, true })
+        foreach (var removedSlot in new[] { false, true })
+        {
+            if (state == AttachmentSessionState.Removed && !removedSlot) { continue; }
+            var row = original with { SessionState = state, CopyStatus = removedSlot
+                ? AttachmentCopyStatus.Unavailable : AttachmentCopyStatus.Confirmed, StoredBytes = removedSlot ? 0 : original.StoredBytes };
+            row.Validate();
+            var query = new SessionAttachmentQuery(includeRemoved, row.Session.Value.ToString("D"), filter);
+            JsonSerializer.Deserialize<SessionAttachmentQuery>(JsonSerializer.Serialize(query)).Should().Be(query);
+            var matchesState = filter == SessionAttachmentFilter.All
+                || string.Equals(filter.ToString(), state.ToString(), StringComparison.Ordinal);
+            query.Matches(row).Should().Be(matchesState && (includeRemoved || !removedSlot));
+            query.Matches(row with { Session = new(Guid.NewGuid()) }).Should().BeFalse();
+            var page = new SessionAttachmentPage(query, [], null, DateTimeOffset.UnixEpoch, 1, new string('a', 64), 64, false);
+            page.Validate();
+            if (!query.Matches(row))
+            {
+                (page with { Records = [row] }).Invoking(value => value.Validate()).Should().Throw<InvalidDataException>();
+            }
+        }
+    }
+
+    [Theory]
+    [InlineData(-1)]
+    [InlineData(4)]
+    [InlineData(int.MaxValue)]
+    public void UnknownLifecycleFilterFailsWithoutDefaultFallback(int filter)
+    {
+        ((Action)(() => _ = new SessionAttachmentQuery(filter: (SessionAttachmentFilter)filter)))
+            .Should().Throw<InvalidDataException>();
+        ((Action)(() => JsonSerializer.Deserialize<SessionAttachmentQuery>(
+            "{\"IncludeRemoved\":false,\"ExactSessionId\":null,\"Filter\":" + filter + "}")))
+            .Should().Throw<InvalidDataException>();
+    }
+
     [Theory]
     [InlineData("")]
     [InlineData("00000000-0000-0000-0000-000000000000")]

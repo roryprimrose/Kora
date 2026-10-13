@@ -117,6 +117,8 @@ This bounded correctness change adds no runtime, permission, privacy fallback, r
 
 ### R26 retained attachment catalogue exact-ID query increment - 2026-10-13
 
+The [stored lifecycle filtering increment](File_And_Folder_Ingestion.md#delivered-retained-attachment-metadata-catalogue---2026-10-11) adds native All/Active/Done/Removed over validated current metadata, independently of exact ID and removed attachment slots. Removed sessions expose only tombstones with Include removed slots. Bounds, corruption admission, authenticated continuations and exact navigation are unchanged; no broader R26, search, storage, model, experiment or qualification boundary is advanced.
+
 The [retained attachment metadata catalogue](File_And_Folder_Ingestion.md#delivered-retained-attachment-metadata-catalogue---2026-10-11) delivers native Browse/default and canonical ExactId Search/Enter, Next/Cancel/Clear with volatile private query state.
 Fully validated fixed scans and bounded audit-prefix admission remain mandatory, including irrelevant records and empty nonmatching pages. Query/removal flag/source/profile/viewer/authority bindings refuse stale or malformed continuations; selection/navigation remains separately explicit and full-byte verified.
 No name/title/path/body/digest search, new metadata reads, schema/index/cache/layout/copy mutation, count cap, activity renewal, model/tool/speech route or saved query is added. Storage optimizations and profile-original/hidden-import work remain deferred.

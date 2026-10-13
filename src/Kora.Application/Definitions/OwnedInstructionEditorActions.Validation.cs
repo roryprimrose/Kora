@@ -9,9 +9,21 @@ public sealed partial class OwnedInstructionEditorActions
     public bool IsSourceUnavailable => catalogue.IsReloadUnavailable;
 
     public Task<OwnedDraftValidation> ValidateDraft(string name, OwnedInstructionSnapshot? original, string draft,
-        ILogger diagnosticLogger, Func<bool> eligible, CancellationToken token)
+        ILogger diagnosticLogger, Func<bool> eligible, CancellationToken token) =>
+        ObserveDraft(name, original, draft, diagnosticLogger, eligible, static validation => validation, token);
+
+    public Task<OwnedDraftComparison> CompareDraft(string name, OwnedInstructionSnapshot? original, string draft,
+        ILogger diagnosticLogger, Func<bool> eligible, CancellationToken token) =>
+        ObserveDraft(name, original, draft, diagnosticLogger, eligible, validation => new OwnedDraftComparison(original, draft, validation), token);
+
+    private Task<T> ObserveDraft<T>(string name, OwnedInstructionSnapshot? original, string draft,
+        ILogger diagnosticLogger, Func<bool> eligible, Func<OwnedDraftValidation, T> observe, CancellationToken token)
     {
         OwnedInstructionNames.WriteName(name);
+        if (original is not null && (original.Document.Definition.Kind != Kind
+            || !string.Equals(original.Name, name, StringComparison.Ordinal)
+            || !string.Equals(original.CanonicalFileName, name + OwnedDefinitionKind.Extension(Kind), StringComparison.Ordinal)))
+        { throw new InvalidDataException("Observation requires the exact canonical owned baseline ID and kind."); }
         var candidates = catalogue.Candidates;
         var failureRevision = catalogue.ReloadFailureRevision;
         var unavailable = catalogue.IsReloadUnavailable;
@@ -34,8 +46,8 @@ public sealed partial class OwnedInstructionEditorActions
                     failure = "The proposal collides with observed artifact IDs, slash commands or spoken names, or the bounded catalogue is full.";
                     DraftRejected(diagnosticLogger, "catalogue-collision");
                 }
-                return new OwnedDraftValidation(name, Kind, original?.Document.HasBom ?? false,
-                    proposed, failure, candidates, failureRevision, unavailable);
+                return observe(new OwnedDraftValidation(name, Kind, original?.Document.HasBom ?? false,
+                    proposed, failure, candidates, failureRevision, unavailable));
             }, admitted).ConfigureAwait(false), token);
     }
 

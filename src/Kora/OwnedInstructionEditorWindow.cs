@@ -33,6 +33,7 @@ internal sealed class OwnedInstructionEditorWindow : Window
     private readonly TextBlock status = new() { TextWrapping = TextWrapping.Wrap };
     private readonly TextBlock validationStatus = new() { TextWrapping = TextWrapping.Wrap };
     private Window? activeReview;
+    private Window? activeComparison;
     private bool selectingKind;
 
     internal OwnedInstructionEditorWindow(Action<string> run)
@@ -46,7 +47,7 @@ internal sealed class OwnedInstructionEditorWindow : Window
         controls.Children.Add(Files);
         controls.Children.Add(NameInput);
         controls.Children.Add(CopyNameInput);
-        foreach (var action in new[] { "List", "Refresh", "Create", "Inspect", "Validate", "Save", "Save as new copy", "Reload", "Delete", "Review use", "Disable reviewed use" })
+        foreach (var action in new[] { "List", "Refresh", "Create", "Inspect", "Validate", "Compare", "Save", "Save as new copy", "Reload", "Delete", "Review use", "Disable reviewed use" })
         {
             var button = new Button { Content = action, Margin = new(3) };
             button.Click += (_, _) => run(action);
@@ -94,7 +95,11 @@ internal sealed class OwnedInstructionEditorWindow : Window
 
     internal void Report(string text) => status.Text = text;
     internal void ReportValidation(string text) => validationStatus.Text = text;
-    internal void ClearValidation() => validationStatus.Text = string.Empty;
+    internal void ClearValidation()
+    {
+        validationStatus.Text = string.Empty;
+        activeComparison?.Close();
+    }
     internal void ReportInventory(string text) => inventoryStatus.Text = text;
     internal void ShowInventory(OwnedDefinitionInventoryPage page)
     {
@@ -123,6 +128,71 @@ internal sealed class OwnedInstructionEditorWindow : Window
         Source.Text = string.Empty; NameInput.Text = string.Empty; CopyNameInput.Text = string.Empty;
         status.Text = string.Empty; inventoryStatus.Text = string.Empty;
         ClearValidation();
+    }
+
+    internal void ShowComparison(OwnedDraftComparison comparison, Func<bool> current)
+    {
+        if (!IsVisible || !current()) { return; }
+        activeComparison?.Close();
+        var dialog = new Window { Title = $"Passive owned {comparison.Validation.Kind} comparison", Width = 1000, Height = 720 };
+        var root = new DockPanel { Margin = new(12) };
+        var explanation = new TextBlock { Text = comparison.Summary, TextWrapping = TextWrapping.Wrap };
+        var disclosure = new ScrollViewer { Content = explanation, MaxHeight = 260 };
+        DockPanel.SetDock(disclosure, Dock.Top);
+        root.Children.Add(disclosure);
+        var close = new Button { Content = "Close", Margin = new(0, 10) };
+        close.Click += (_, _) => dialog.Close();
+        DockPanel.SetDock(close, Dock.Bottom);
+        root.Children.Add(close);
+        var sources = new Grid { ColumnDefinitions = new("*,*") };
+        var before = ComparisonPane("Frozen inspected baseline", comparison.Original?.Document.Text ?? "(missing/new baseline)", out var original);
+        var after = ComparisonPane("Exact raw memory draft (not prepared Save bytes)", comparison.Draft, out var draft);
+        Grid.SetColumn(after, 1);
+        sources.Children.Add(before); sources.Children.Add(after);
+        root.Children.Add(sources);
+        dialog.Content = root;
+        activeComparison = dialog;
+        var timer = new Avalonia.Threading.DispatcherTimer { Interval = TimeSpan.FromMilliseconds(250) };
+        Func<bool>? eligibility = current;
+        EventHandler tick = (_, _) => { if (eligibility?.Invoke() != true) { dialog.Close(); } };
+        timer.Tick += tick;
+        dialog.Closed += (_, _) =>
+        {
+            timer.Stop();
+            timer.Tick -= tick;
+            eligibility = null;
+            original.Text = string.Empty; draft.Text = string.Empty; explanation.Text = string.Empty;
+            dialog.Content = null;
+            if (ReferenceEquals(activeComparison, dialog)) { activeComparison = null; }
+        };
+        dialog.Show(this);
+        timer.Start();
+    }
+
+    private static DockPanel ComparisonPane(string label, string text, out TextBox source)
+    {
+        var panel = new DockPanel { Margin = new(4) };
+        var heading = new TextBlock { Text = label, TextWrapping = TextWrapping.Wrap };
+        DockPanel.SetDock(heading, Dock.Top);
+        panel.Children.Add(heading);
+        source = new TextBox
+        {
+            Text = text, IsReadOnly = true, AcceptsReturn = true, TextWrapping = TextWrapping.NoWrap,
+            FontFamily = new("Consolas"), ContextMenu = null,
+        };
+        source.CopyingToClipboard += (_, args) => args.Handled = true;
+        source.CuttingToClipboard += (_, args) => args.Handled = true;
+        source.PastingFromClipboard += (_, args) => args.Handled = true;
+        source.AddHandler(ContextRequestedEvent, (_, args) => args.Handled = true, Avalonia.Interactivity.RoutingStrategies.Tunnel);
+        // Read-only selection is not clipboard/export authority.
+        source.AddHandler(KeyDownEvent, (_, key) =>
+        {
+            if ((key.KeyModifiers & (Avalonia.Input.KeyModifiers.Control | Avalonia.Input.KeyModifiers.Meta)) != Avalonia.Input.KeyModifiers.None
+                && key.Key is Avalonia.Input.Key.C or Avalonia.Input.Key.X or Avalonia.Input.Key.V or Avalonia.Input.Key.Insert)
+            { key.Handled = true; }
+        }, Avalonia.Interactivity.RoutingStrategies.Tunnel);
+        panel.Children.Add(source);
+        return panel;
     }
 
     internal async Task<int> Choose(string title, string details, string? original, string? proposed,

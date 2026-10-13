@@ -43,7 +43,7 @@ internal sealed partial class SessionsViewModel
             + " | generation " + target.Authority.Generation.Value.ToString(CultureInfo.InvariantCulture)
             + " | metadata revision " + (target.Metadata?.Revision.Value ?? 0).ToString(CultureInfo.InvariantCulture)
             + " | private control epoch " + access.ControlRevision.ToString(CultureInfo.InvariantCulture)
-            + " | saved draft revision " + (savedConversationDraft?.Draft.Revision ?? 0).ToString(CultureInfo.InvariantCulture)
+            + " | saved draft revision " + (savedConversationDraft?.Draft.Revision ?? catalogueDraft?.DraftRevision ?? 0).ToString(CultureInfo.InvariantCulture)
         : "Select an exact session; no global or question-reply target.";
     public IReadOnlyList<ConversationMessage> ConversationMessages => conversationPage?.Messages ?? [];
     public bool CanReadConversation => CanRead && !conversationBusy && selected is not null && conversation is not null;
@@ -51,7 +51,8 @@ internal sealed partial class SessionsViewModel
     public bool CanCompose => CanReadConversation && access.CanControl && selected?.Authority.IsActive == true
         && !conversationHeld && !conversationSourceHeld;
     public bool CanSaveConversationDraft => CanCompose && savedConversationDraft is not null;
-    public bool CanReloadConversationDraft => CanReadConversation && savedConversationDraft?.Draft.Body is not null;
+    public bool CanReloadConversationDraft => CanReadConversation
+        && (savedConversationDraft?.Draft.Body is not null || catalogueDraft is not null);
     public bool CanReviewClearConversationDraft => CanSaveConversationDraft && savedConversationDraft?.Draft.Body is not null;
     public bool CanClearConversationDraft => CanReviewClearConversationDraft && clearDraftReviewed;
     public bool CanSubmitConversation => CanCompose && !string.IsNullOrWhiteSpace(composerBody);
@@ -75,6 +76,7 @@ internal sealed partial class SessionsViewModel
         { throw new OperationCanceledException("Conversation source or exact selected generation changed."); }
         conversationPage = page;
         savedConversationDraft = draft;
+        catalogueDraft = null;
         conversationSourceHeld = false;
         clearDraftReviewed = false;
         conversationStatus = "Observed " + page.Messages.Length.ToString(CultureInfo.InvariantCulture)
@@ -102,7 +104,11 @@ internal sealed partial class SessionsViewModel
     {
         if (ComposerDirty && !await ProtectComposerAsync())
         { return; }
+        await VerifyCatalogueReload(live, lifetime.Token);
         var saved = await conversation!.ReadDraftAsync(target.Authority.SessionId, lifetime.Token);
+        if (catalogueDraft is { } exact && (saved.Draft.Revision != exact.DraftRevision || saved.Draft.Body is null))
+        { throw new InvalidOperationException("The catalogue saved revision changed. Refresh; no newer body imported."); }
+        await VerifyCatalogueReload(live, lifetime.Token);
         if (!live() || saved.Session != target.Authority) { throw new OperationCanceledException("The draft target changed."); }
         savedConversationDraft = saved;
         conversationSourceHeld = false;
@@ -234,6 +240,7 @@ internal sealed partial class SessionsViewModel
 
     private void ClearConversation()
     {
+        catalogueDraft = null;
         composerBody = string.Empty;
         composerBaseline = string.Empty;
         savedConversationDraft = null;

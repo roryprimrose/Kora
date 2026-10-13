@@ -17,8 +17,11 @@ public sealed partial class SessionWorkspaceService
         ReadAsync(() => Conversations.ReadConversationPageAsync(session, cursor, limit, token), token);
 
     internal Task<ConversationDraftSnapshot> CommitConversationDraftAsync(ConversationDraftSnapshot expected,
-        string? body, Func<bool> admitted, CancellationToken token) =>
-        ControlAsync(expected.Session.SessionId, RequestOrigin.LocalUi,
+        string? body, Func<bool> admitted, CancellationToken token)
+    {
+        InvalidateWorkOverview(expected.Session.SessionId);
+        return ControlAsync(expected.Session.SessionId, RequestOrigin.LocalUi,
             (request, live) => Conversations.CommitConversationDraftAsync(request, expected, body, live, token),
             token, admitted, existingSubject: true, resolveTerminalReceipt: true);
+    }
 }

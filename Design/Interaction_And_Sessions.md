@@ -18,6 +18,26 @@ Windows login sessions, voice capture generations, provider/SDK conversations, a
 
 ## Delivered exact-session conversation/composer foundation — 2026-10-12
 
+### Saved conversation draft catalogue — 2026-10-13
+
+**Tray > Saved conversation drafts (metadata only)** opens without reading. Explicit Refresh/Next/Cancel observes only saved nonempty composer draft metadata across retained private sessions.
+All (default), Active and Done filters show exact immutable session ID, current stored state/generation, optional inert private name/metadata revision, saved revision and SQL UTF-8 byte/Unicode scalar lengths. No body, excerpt, body digest or invented saved timestamp is projected.
+
+Each click consumes at most 50 candidate draft slots and returns at most 25 complete rows / 64 KiB. Cleared/null/empty slots consume scan positions but are not saved-content results; never-saved sessions and question/parameter drafts are not sources.
+Empty pages can have Next. End is an observation, not a global count or immutable inventory. Canonical-UUID keyset pages are mutable; changes behind the cursor require Refresh.
+
+Private signed continuation binds the store/profile/current run, native viewer, private control revision, state filter and last consumed exact ID. Complete typed audit-chain validation precedes disclosure in bounded existing 4096-commit segments; pending pages contain no draft rows.
+Any committed authority change invalidates continuation. Existing consolidated whole-store SQL provenance/retention checks remain costs, not per-click body decoding or a performance qualification.
+
+Metadata observes saved revision, body presence/length and current lifecycle; it does **not** verify body integrity or admit Reload/Submit. Exact navigation re-resolves the original metadata, generation, saved revision/presence and private source authority.
+Changed/cleared/retired/held sources refuse with Refresh, never follow newer bodies or names. Navigation selects only the existing Sessions metadata target; Done stays Done, without automatic body import, Resume, work/question/voice retarget or activity renewal.
+
+The same Sessions owner protects its existing dirty buffer with Save/Discard/Cancel. Cancel leaves its target unchanged. An explicitly chosen Save can change the conservative authority head; then Refresh is required before catalogue navigation.
+After selection, **Reload saved draft** is a separate explicit body read under exact revalidation; Save, reviewed Clear and Submit remain distinct. Catalogue close/revocation clears its private rows/continuation/selection without closing unrelated Sessions content.
+
+No schema/layout/index/file-copy change or aggregate session/draft quota is added. Existing private admission, credential rejection, required audit, retention/copy inventory, migration IDs and restart no-replay rules remain authoritative.
+Native-only metadata delivery is not model retrieval, generated conversation/history assembly, provider qualification or installed accessibility acceptance.
+
 **Sessions > Exact-session conversation and composer** is a real native
 consumer of the private authority and configured provider-neutral
 [turn admission](../src/Kora.Application/Hosting/SessionConversationService.cs),

@@ -358,6 +358,7 @@ public sealed partial class MainViewModel
             var captureClosure = voiceRecognition.StopAsync();
             var outputClosure = textToSpeech.StopAsync();
             await Task.WhenAll(captureClosure, outputClosure);
+            await ClosePromptPreparation();
         }
         catch (Exception exception) when (exception is not OutOfMemoryException)
         {
@@ -382,6 +383,8 @@ public sealed partial class MainViewModel
     {
         OnPropertyChanged(nameof(TrayInputStatus));
         OnPropertyChanged(nameof(IsVoiceEnabled));
+        OnPropertyChanged(nameof(IsPushToTalkVisible));
+        OnPropertyChanged(nameof(CanPushToTalk));
         OnPropertyChanged(nameof(ListeningButtonText));
         OnPropertyChanged(nameof(ListeningStatus));
         OnPropertyChanged(nameof(CanChangeAudioOutputDevice));
@@ -536,11 +539,16 @@ public sealed partial class MainViewModel
 
     public async Task BeginPushToTalkAsync()
     {
-        if (!IsVoiceEnabled || lifecycleAdmissionClosed || IsBusy && !IsSpeaking
-            || !sessionController.IsCurrentSessionUnlocked())
+        if (lifecycleAdmissionClosed || IsBusy && !IsSpeaking
+            || !IsHostInputEligible || !RefreshVoiceReadiness())
         {
-            ApplicationLog.Information(logger, "Denied push-to-talk without explicit eligible listening enablement");
-            ShowInformation("Push-to-talk is unavailable.", "Review voice consent/readiness and use Enable listening first.");
+            if (IsVoiceEnabled)
+            {
+                HoldVoiceInput("Microphone closed · push-to-talk readiness checks failed");
+            }
+            ApplicationLog.Information(logger, "Denied push-to-talk without eligible one-shot capture readiness");
+            ShowInformation("Push-to-talk is unavailable.",
+                "Review voice consent, microphone availability and Windows privacy, then try again.");
             return;
         }
         if (Interlocked.Exchange(ref pushToTalkHeld, 1) != 0)
@@ -573,7 +581,8 @@ public sealed partial class MainViewModel
             IsSpeaking = false;
             activeSpokenText = null;
             await voiceRecognition.BeginPushToTalkAsync(SelectedMicrophone!, GetRecognitionPhrases(), AssistantName, opening.Token);
-            if (revision != Interlocked.Read(ref voiceRecoveryRevision) || !IsVoiceEnabled
+            if (revision != Interlocked.Read(ref voiceRecoveryRevision)
+                || !IsVoiceReadinessEligible(privacyObservation.Current)
                 || Volatile.Read(ref pushToTalkHeld) == 0 || !sessionController.IsCurrentSessionUnlocked())
             {
                 voiceRecognition.InvalidateCapture();
@@ -634,7 +643,7 @@ public sealed partial class MainViewModel
             if (await TryStopFailedCaptureAsync("Closing a retired push-to-talk activation"))
             {
                 ShowInformation("Command activation is no longer current.",
-                    "No buffered command was accepted. Use Enable listening and activate push-to-talk again.");
+                    "No buffered command was accepted. Review microphone readiness and activate push-to-talk again.");
             }
         }
     }
@@ -876,6 +885,7 @@ public sealed partial class MainViewModel
     public async Task<bool> TryPrepareHandoffAsync()
     {
         if (instructionEditorShutdown is not null && !await instructionEditorShutdown()) { return false; }
+        await ClosePromptPreparation();
         if (lifecycleAdmissionClosed || !IsHandoffReviewQuiescent || IsBusy || IsWebPageRetrievalActive
             || !clipboardPreview.IsQuiescent || filePreview?.IsQuiescent == false || sessionFiles?.IsQuiescent == false
             || IsLocalModelSetupActive || IsPowerShellSetupActive || IsSpeechProviderOperationActive

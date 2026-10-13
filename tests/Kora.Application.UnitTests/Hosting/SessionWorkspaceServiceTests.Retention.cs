@@ -222,7 +222,7 @@ public sealed partial class SessionWorkspaceServiceTests
         }
     }
 
-    private sealed partial class Fixture
+    private partial class Fixture
     {
         private SessionRetentionObservation? savedRetention;
         internal long PassiveRevision { get; set; }

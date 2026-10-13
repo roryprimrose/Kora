@@ -141,11 +141,13 @@ public sealed partial class WindowsSqliteSessionAttachmentTests
     {
         using var fixture = await Initialize();
         var hashes = ReadString(fixture, "SELECT group_concat(hash) FROM security_audit_events;");
+        fixture.DropEmptyConversationSchemaForLegacy();
         fixture.Mutate("DROP TABLE session_queue_order; DROP TABLE session_provider_profile; DROP TABLE session_file; PRAGMA user_version=7;");
         fixture.Reopen();
         await fixture.Store.InitializeAsync(fixture.Token);
         ReadString(fixture, "SELECT group_concat(hash) FROM security_audit_events;").Should().Be(hashes);
         await Attach(fixture, Encoding.UTF8.GetBytes("admitted"));
+        fixture.DropEmptyConversationSchemaForLegacy();
         fixture.Mutate("DROP TABLE session_queue_order; DROP TABLE session_provider_profile; DROP TABLE session_file; PRAGMA user_version=7;");
         fixture.Reopen();
         var initialize = () => fixture.Store.InitializeAsync(fixture.Token).AsTask();
@@ -351,9 +353,9 @@ public sealed partial class WindowsSqliteSessionAttachmentTests
         await fixture.RunAsync(async () => await fixture.Store.RecordControlIntentAsync(fixture.Request, fixture.Token));
     }
 
-    private static async Task NewSession(InteractionStorageFixture fixture)
+    private static async Task NewSession(InteractionStorageFixture fixture, HostId<SessionIdentity>? session = null)
     {
-        fixture.Request = Request();
+        fixture.Request = Request(session);
         await fixture.RunAsync(async () =>
         {
             await fixture.Store.RecordControlIntentAsync(fixture.Request, fixture.Token);

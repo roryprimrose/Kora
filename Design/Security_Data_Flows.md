@@ -7,6 +7,42 @@ List/Refresh retains existing native source/session/host admission and reconcili
 Selected rows bind original kind/canonical filename/source-qualified artifact ID/digest/native revision plus catalogue and private ownership epoch. Actual Inspect repeats admission and native exact readback, refusing stale/changed/replaced/disappeared choices without showing a newer same-name revision.
 Unknown/unmapped/unrevisioned state is never enabled by inference. Reload failure removes availability and labels historical observations unavailable; private closure clears metadata and text and fences late callbacks. Dirty drafts are not implicitly discarded by metadata changes. This is no profile/bundled-as-owned reader, writer or model-tool extension.
 
+## Exact-session conversation retention boundary
+
+The [native conversation foundation](Interaction_And_Sessions.md#delivered-exact-session-conversationcomposer-foundation--2026-10-12)
+stores exact explicitly submitted user content and explicitly saved drafts
+only in the private session authority. One saved draft per exact session and
+100 submitted messages/session are initial UX bounds, **not aggregate stored
+session/draft/message quotas**. Nothing evicts unexpired content or required
+audit to meet capacity.
+
+Frozen body/source and fresh task intent share one physical COMMIT with typed
+requested/terminal audit and content digests; raw bodies are not audit/log/tag/
+baggage/preference/Work/AllWork fields. Explicit native input, exact generation/
+revision, ownership/privacy/call/control and final commit fences fail closed.
+The configured provider-neutral admission consumer preserves unavailable
+outcomes without fallback, HTTP, authentication, egress or execution.
+
+Saved data is never replay/approval/source-use authority. Passive read/Done
+inspection does not renew activity or trigger cleanup; private/source closure
+revokes draft/page callbacks. Disposition/retention inventory actual cells,
+free pages and committed journal with existing Unknown-work and uninventoried
+copy holds. Required audit remains content-minimised and independently
+retained; disk/write/receipt failures cannot become an unaudited success.
+
+The bounded native composer uses shared Core local structural credential-like
+checks, not a model, network call or entropy-based DLP. Detected or malformed
+structured candidates are rejected before body writes/admission; accepted
+Unicode/text stays exact. Required rejection audit is content-free with a fixed
+reason, no candidate/excerpt/body digest. No Save anyway or silent redaction.
+Known placeholders/references are inert; arbitrary secrets and undeclared
+formats may be missed. The general never-credentials-in-history requirement
+and broader product screening/redaction direction are unchanged.
+
+## Explicit expanded-prompt retention boundary
+An owned-v2 parameter preview may be retained only after a separate original native exact-session confirmation. Preview/nonpersisting Use are not retention consent. The whole current expansion enters the existing conversation screening/store/admission path once as USER text, without hidden template/value/source-path persistence, prompt-source task authority or double admission.
+Exact target/source/private/preview epochs remain eligible at physical COMMIT after repeated native source validation; this is not global filesystem/SQLite atomicity. Unknown completion is held for exact receipt inspection, with no replay or rollback claims. Existing reject-only credential limitations, independent saved drafts, retention/migration/copy gates and unavailable provider/egress boundaries remain unchanged.
+
 ## Exact-session provider policy boundary
 
 [Sparse durable session overrides](Model_Providers_Memory_And_Knowledge.md#session-overrides-and-effective-resolution) are desired configuration, not authentication, adapter, generation, egress or resource authority. Exact native/typed/current-name activated review requires original local-user input, current private owning host, eligible exact session/generation, policy/app revision and unchanged catalogue/account/model binding.
@@ -1374,6 +1410,21 @@ Source revocation may remove restricted content before normal session expiry. Ma
 Independent content-minimising security/diagnostic events retain their disclosed lifetimes and do not reconstruct deleted chats; perpetual grant records are excluded from retention/eviction, and local deletion cannot erase user exports or provider copies.
 Approval/audit records are writable only through the host security service, denied to models/skills/tools/workers, and use append-only sequencing or equivalent tamper evidence so deletion/rewrite is detectable within the supported non-administrator threat model.
 Audit retention is independent of diagnostic, daily-file and session retention.
+Retain every required audit record throughout its captured retention window,
+regardless of the number of stored sessions or audit records. Stored sessions
+have no retained-count cap. Query pages, maintenance batches, validation caches,
+in-flight admission and individual content envelopes may be bounded; those
+bounds never authorize eviction, sampling or dropping required in-window audit
+records, or deleting sessions to keep only the newest N.
+This guarantee applies across all admitted partitions of the logical audit
+store. Separate type-specific files do not imply a permanent single-file
+layout; future hot/warm/cold partitions must preserve the same retention and
+required commit fences. Audit sharding/rotation is not implemented by this rule.
+Finite disk capacity is not an infinite-storage guarantee. An unconfirmed
+required write must report failure and fail consequential operations closed;
+neither a surviving secondary copy nor a successful diagnostic write can stand
+in for a missing required audit commit. Recovery must restore healthy storage,
+not evict unexpired audit records or claim complete recording while unavailable.
 Deleting a session does not delete its content-minimising audit rows, extend
 their lifetime or retain deleted session content inside them. Perpetual grant
 records and their minimal provenance remain governed by the separate grant
@@ -1382,14 +1433,23 @@ Browsing, searching, exporting or reasoning over audit records never refreshes
 their retention clock.
 Each audit row receives its effective `retention_due_utc` transactionally when
 committed. The 90-day default may be configured only from 30 through 365 days.
-Shortening the policy previews the affected count/range and requires explicit
-apply-now confirmation before existing due dates are reduced; otherwise it
-applies to new records. Extending retention does not resurrect purged rows.
+The delivered audit setting applies only to future commits; changing it cannot
+shorten already captured deadlines. Invalid or unknown policy fails closed,
+without a default-policy success fallback. A future apply-now mechanism would
+need an affected count/range preview and separate explicit confirmation before
+reducing existing due dates. Extending retention does not resurrect purged rows.
 Expected audit-retention pruning must emit a verifiable continuation/checkpoint
 under the selected tamper-evidence scheme so expiry is distinguishable from
 removal inside the retained window. Preserve the latest minimal chain anchor
 outside ordinary audit-event expiry; it contains no action/content payload and
 cannot reconstruct expired records.
+Audit pruning and its continuation/anchor mechanism are not implemented.
+Ordinary diagnostic pruning never removes audit rows; expired audits may
+therefore remain present beyond their due dates. The independent daily JSON
+stream contains secondary `TypedAuditCopy` records, not committed authority
+receipts. Its existing 30-day/30-calendar-file policy is separate from the
+default 90-day audit window. Daily files have no size cutoff or size-based roll
+family; file I/O failures still trip sticky health and required delivery failure.
 Crash reports and diagnostics omit raw context, speech, tool arguments, credentials, and answer content by default.
 Normal diagnostic events, audit records and permitted session evidence are
 viewed through one host-owned evidence query service with bounded time, source,

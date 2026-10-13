@@ -1,6 +1,5 @@
-using Avalonia.Controls;
+﻿using Avalonia.Controls;
 using Avalonia.Input;
-using Avalonia.Threading;
 
 using Kora.Core.Storage;
 
@@ -8,11 +7,47 @@ namespace Kora;
 
 internal sealed partial class SessionsWindow : Window
 {
-    internal event EventHandler? AllWorkRequested;
-    internal SessionsWindow(SessionsViewModel model)
+    private readonly SessionsPresentationOwner owner;
+    internal Task ConversationOperation { get; private set; } = Task.CompletedTask;
+    internal void ClosePrivate()
     {
+        owner.Revoke();
+    }
+    internal event EventHandler? AllWorkRequested;
+    internal event EventHandler? NewRequestRequested;
+    internal event EventHandler? CompactConversationRequested;
+    internal SessionsWindow(SessionsViewModel model, SessionsPresentationOwner? owner = null)
+    {
+        this.owner = owner ?? new(model);
         InitializeComponent();
         DataContext = model;
+        this.owner.Attach(this);
+        CompactConversation.Click += (_, _) => CompactConversationRequested?.Invoke(this, EventArgs.Empty);
+        ReadConversation.Click += async (_, _) => await (ConversationOperation = model.ReadConversationAsync());
+        NextConversation.Click += async (_, _) => await (ConversationOperation = model.ReadConversationAsync(next: true));
+        SearchConversation.Click += async (_, _) => await (ConversationOperation = model.SearchConversationAsync());
+        NextConversationSearch.Click += async (_, _) => await (ConversationOperation = model.SearchConversationAsync(next: true));
+        CancelConversationSearch.Click += (_, _) => model.ClearConversationSearch();
+        ClearConversationSearch.Click += (_, _) => model.ClearConversationSearch();
+        ConversationQuery.KeyDown += async (_, args) =>
+        {
+            if (args.Key == Key.Enter && model.CanSearchConversation)
+            {
+                args.Handled = true;
+                await (ConversationOperation = model.SearchConversationAsync());
+            }
+            else if (args.Key == Key.Escape)
+            {
+                args.Handled = true;
+                model.ClearConversationSearch();
+            }
+        };
+        SaveConversationDraft.Click += async (_, _) => await (ConversationOperation = model.SaveConversationDraftAsync());
+        ReloadConversationDraft.Click += async (_, _) => await (ConversationOperation = model.ReloadConversationDraftAsync());
+        DiscardComposer.Click += (_, _) => model.DiscardComposerBuffer();
+        ReviewClearConversationDraft.Click += (_, _) => model.ReviewClearConversationDraft();
+        ClearConversationDraft.Click += async (_, _) => await (ConversationOperation = model.ClearSavedConversationDraftAsync());
+        SubmitConversation.Click += async (_, _) => await (ConversationOperation = model.SubmitConversationAsync());
         PropertyChanged += (_, args) =>
         {
             if (args.Property == IsVisibleProperty)
@@ -24,6 +59,7 @@ internal sealed partial class SessionsWindow : Window
         Refresh.Click += async (_, _) => await model.RefreshAsync();
         Next.Click += async (_, _) => await model.NextAsync();
         AllWork.Click += (_, _) => AllWorkRequested?.Invoke(this, EventArgs.Empty);
+        NewRequest.Click += (_, _) => NewRequestRequested?.Invoke(this, EventArgs.Empty);
         SearchList.Click += async (_, _) => await model.SearchListAsync();
         NextListSearch.Click += async (_, _) => await model.SearchListAsync(next: true);
         CancelListSearch.Click += (_, _) => model.CancelListSearch();
@@ -151,22 +187,15 @@ internal sealed partial class SessionsWindow : Window
         DisableMemory.Click += async (_, _) => await model.DisableMemoryAsync();
         ForgetMemory.Click += async (_, _) => await model.ForgetMemoryAsync();
         CloseView.Click += (_, _) => Close();
-        var refresh = new DispatcherTimer { Interval = TimeSpan.FromSeconds(5) };
-        async void OnRefreshTick(object? sender, EventArgs args)
-        {
-            if (model.CanRefreshWork) { await model.RefreshWorkAsync(); }
-        }
-        refresh.Tick += OnRefreshTick;
-        Opened += (_, _) => refresh.Start();
         Closed += (_, _) =>
         {
-            refresh.Stop();
-            refresh.Tick -= OnRefreshTick;
-            model.Close();
+            model.SetRoutineQuietSurfaceOpen(false);
+            model.SetProviderSurfaceOpen(false);
         };
         KeyDown += (_, args) =>
         {
             if (args.Key == Key.Escape) { Close(); args.Handled = true; }
         };
     }
+
 }

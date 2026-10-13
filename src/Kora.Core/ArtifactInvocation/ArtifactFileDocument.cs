@@ -21,9 +21,29 @@ public sealed class ArtifactFileDocument
 
     public string Text { get; }
     public bool HasBom { get; }
+    public int ByteCount => bytes.Length;
     public IReadOnlyDictionary<string, string> Metadata { get; }
     public ArtifactDefinition Definition { get; }
     public byte[] CopyBytes() => bytes.ToArray();
+
+    public static ArtifactFileDocument PrepareOwnedSave(ArtifactKind kind, string name,
+        OwnedInstructionSnapshot? original, string draft)
+    {
+        _ = OwnedDefinitionKind.DirectoryName(kind);
+        OwnedInstructionNames.WriteName(name);
+        if (original is not null)
+        {
+            original.Document.RequireEditableInstruction();
+            if (original.Document.Definition.Kind != kind
+                || !string.Equals(original.Name, name, StringComparison.Ordinal)
+                || !string.Equals(original.CanonicalFileName, name + OwnedDefinitionKind.Extension(kind), StringComparison.Ordinal))
+            { throw new InvalidDataException("The saved baseline must be the exact canonical owned ID and kind."); }
+        }
+        var proposed = Parse(Encode(draft, original?.Document.HasBom ?? false), kind, "kora-profile", name);
+        proposed.RequireEditableInstruction();
+        return original is null || !string.Equals(original.Document.Text, draft, StringComparison.Ordinal)
+            ? proposed.WithNativeInstructionVersion(name) : proposed;
+    }
 
     public ArtifactFileDocument WithOwnedCopyName(string name)
     {
@@ -62,7 +82,7 @@ public sealed class ArtifactFileDocument
     {
         RequireEditableInstruction();
         if (!Metadata.ContainsKey("kora-format"))
-        { throw new InvalidDataException("Save as new copy requires an existing native v1 owned source; legacy files are not implicitly upgraded."); }
+        { throw new InvalidDataException("Save as new copy requires an existing supported native owned source; legacy files are not implicitly upgraded."); }
     }
 
     public ArtifactFileDocument WithNativeInstructionVersion(string name)
@@ -97,10 +117,12 @@ public sealed class ArtifactFileDocument
         using var reader = new StringReader(text);
         if (!string.Equals(reader.ReadLine(), "---", StringComparison.Ordinal))
         { throw new InvalidDataException("The definition requires scalar frontmatter."); }
+        var bodyOffset = NextLine(text, 0);
         var metadata = new Dictionary<string, string>(StringComparer.Ordinal);
         var closed = false;
         while (reader.ReadLine() is { } line)
         {
+            bodyOffset = NextLine(text, bodyOffset);
             if (string.Equals(line, "---", StringComparison.Ordinal)) { closed = true; break; }
             var separator = line.IndexOf(':');
             if (separator <= 0) { throw new InvalidDataException("Unsupported definition frontmatter."); }
@@ -114,7 +136,9 @@ public sealed class ArtifactFileDocument
         if (!closed) { throw new InvalidDataException("Unterminated definition frontmatter."); }
         var body = new List<string>();
         while (reader.ReadLine() is { } line) { body.Add(line); }
-        var content = string.Join(Environment.NewLine, body).Trim();
+        var nativeParameters = kind == ArtifactKind.Prompt && string.Equals(source, "kora-profile", StringComparison.Ordinal)
+            && string.Equals(metadata.GetValueOrDefault("kora-format"), "2", StringComparison.Ordinal);
+        var content = nativeParameters ? text[bodyOffset..] : string.Join(Environment.NewLine, body).Trim();
         if (string.IsNullOrWhiteSpace(content)) { throw new InvalidDataException("The definition requires instruction content."); }
         if (invocableOnly && kind == ArtifactKind.Skill
             && string.Equals(metadata.GetValueOrDefault("user-invocable"), "false", StringComparison.OrdinalIgnoreCase))
@@ -137,8 +161,14 @@ public sealed class ArtifactFileDocument
             {
                 OwnedInstructionName = kind is ArtifactKind.Instruction or ArtifactKind.Prompt && string.Equals(source, "kora-profile", StringComparison.Ordinal) ? fileCommand : null,
                 RequiresInstructionReview = kind is ArtifactKind.Instruction or ArtifactKind.Prompt && metadata.ContainsKey("kora-format"),
+                PromptTemplate = nativeParameters ? OwnedPromptTemplate.Parse(content) : null,
             };
-            return new(original.ToArray(), text, bom, metadata, definition);
+            var document = new ArtifactFileDocument(original.ToArray(), text, bom, metadata, definition);
+            if (nativeParameters)
+            {
+                document.RequireEditableInstruction();
+            }
+            return document;
         }
         catch (ArgumentException exception)
         { throw new InvalidDataException("The definition metadata or content is invalid.", exception); }
@@ -164,11 +194,14 @@ public sealed class ArtifactFileDocument
             { throw new InvalidDataException("The original header cannot round-trip the supported editor format. External editing is required; fork is not implemented."); }
         }
         if (Metadata.Keys.Any(key => key is not ("name" or "description" or "kora-format" or "attribution"))
-            || Metadata.TryGetValue("kora-format", out var version) && !string.Equals(version, "1", StringComparison.Ordinal))
+            || Metadata.TryGetValue("kora-format", out var version)
+                && !(string.Equals(version, "1", StringComparison.Ordinal)
+                    || string.Equals(version, "2", StringComparison.Ordinal) && Definition.Kind == ArtifactKind.Prompt))
         { throw new InvalidDataException("Unsupported metadata or reader version. External editing is required; fork is not implemented."); }
         if (Definition.Kind == ArtifactKind.Prompt
             && (!Metadata.ContainsKey("name") || !Metadata.ContainsKey("description")
-                || Definition.Content.Contains("${", StringComparison.Ordinal)))
+                || !string.Equals(Metadata.GetValueOrDefault("kora-format"), "2", StringComparison.Ordinal)
+                    && Definition.Content.Contains("${", StringComparison.Ordinal)))
         { throw new InvalidDataException("Owned prompt editing supports named, described literal saved requests only; parameter or substitution syntax is incompatible."); }
     }
 
@@ -196,5 +229,12 @@ public sealed class ArtifactFileDocument
         if (string.IsNullOrWhiteSpace(result) || result.Length > 64)
         { throw new InvalidDataException("The name must produce a bounded ASCII command."); }
         return result;
+    }
+
+    private static int NextLine(string text, int offset)
+    {
+        while (offset < text.Length && text[offset] is not ('\r' or '\n')) { offset++; }
+        if (offset < text.Length && text[offset++] == '\r' && offset < text.Length && text[offset] == '\n') { offset++; }
+        return offset;
     }
 }

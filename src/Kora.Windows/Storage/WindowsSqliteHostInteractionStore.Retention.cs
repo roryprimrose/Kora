@@ -63,6 +63,7 @@ public sealed partial class WindowsSqliteHostInteractionStore
     private void ObserveTaskActivity(SqliteConnection connection, SqliteTransaction transaction, HostTaskRecord record,
         bool substantiveIntent)
     {
+        ObserveConversationRecovery(connection, transaction, record);
         if (substantiveIntent)
         {
             TouchActivity(connection, transaction, record.Request.SessionId);
@@ -79,6 +80,7 @@ public sealed partial class WindowsSqliteHostInteractionStore
                 AND (json_extract(envelope,'$.Audit.ActionId') LIKE 'session.%'
                     OR json_extract(envelope,'$.Audit.ActionId') LIKE 'configuration.%'
                     OR json_extract(envelope,'$.Audit.ActionId') LIKE 'queue.%'
+                    OR json_extract(envelope,'$.Audit.ActionId') LIKE 'conversation.draft.%'
                     OR json_extract(envelope,'$.Audit.ActionId') LIKE 'host.task.recovery%') LIMIT 1;
             """;
         command.Parameters.AddWithValue("$task", Id(record.Request.TaskId));
@@ -378,6 +380,7 @@ public sealed partial class WindowsSqliteHostInteractionStore
         Execute(connection, transaction, "DELETE FROM host_observations WHERE session_id=$id;", ("$id", Id(id)));
         if (deleting)
         {
+            RemoveConversation(connection, transaction, id);
             Execute(connection, transaction, """
                 DELETE FROM host_task_waits WHERE task_id IN (SELECT task_id FROM host_tasks WHERE session_id=$id);
                 DELETE FROM session_queue_order WHERE session_id=$id;

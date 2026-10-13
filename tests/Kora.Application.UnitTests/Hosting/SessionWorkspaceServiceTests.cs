@@ -16,6 +16,17 @@ namespace Kora.Application.UnitTests.Hosting;
 public sealed partial class SessionWorkspaceServiceTests
 {
     [Fact]
+    public async Task MissingConsolidatedConversationAuthorityNeverReturnsAnEmptyDraftOrPage()
+    {
+        using var f = new Fixture();
+        using var root = HostActivity.BeginRoot(f.Request, HostActivityLayer.Application, HostOperation.Request);
+        await f.Service.Invoking(service => service.ReadConversationDraftAsync(f.Session.SessionId, f.Token))
+            .Should().ThrowAsync<InvalidOperationException>().WithMessage("*conversation authority*");
+        await f.Service.Invoking(service => service.ReadConversationPageAsync(f.Session.SessionId, null, 25, f.Token))
+            .Should().ThrowAsync<InvalidOperationException>().WithMessage("*conversation authority*");
+        f.TaskWrites.Should().BeEmpty();
+    }
+    [Fact]
     public async Task Metadata_controls_use_fresh_exact_subjects_and_passive_descriptors_never_write_intent()
     {
         using var fixture = new Fixture();
@@ -154,7 +165,7 @@ public sealed partial class SessionWorkspaceServiceTests
         fixture.Logger.Messages.Should().ContainSingle().Which.Should().Be("Sessions workspace failed; exception type IOException.");
     }
 
-    private sealed partial class Fixture : ISessionWorkspaceAccess, ISessionWorkspaceStore, ISessionHistoryStore, IHostTaskStore, ISessionRetentionControlStore, IDisposable
+    private partial class Fixture : ISessionWorkspaceAccess, ISessionWorkspaceStore, ISessionHistoryStore, IHostTaskStore, ISessionRetentionControlStore, IDisposable
     {
         internal Action? AfterPreview { get; set; }
         internal bool RevokeDuringDispositionResolution { get; init; }

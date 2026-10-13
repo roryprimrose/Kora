@@ -67,6 +67,12 @@ public sealed class ModelContextEnvelope
         MaximumOutputUtf8Bytes,
     });
 
+    public void RequireCompleteInputLimit()
+    {
+        if (Serialize().Length > MaximumInputUtf8Bytes)
+        { throw new InvalidDataException("The complete serialized context exceeds 32768 UTF-8 bytes; nothing was dropped."); }
+    }
+
     private static void ValidateText(string text)
     {
         ArgumentNullException.ThrowIfNull(text);

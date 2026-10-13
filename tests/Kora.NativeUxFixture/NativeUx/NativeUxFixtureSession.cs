@@ -124,6 +124,7 @@ internal sealed partial class NativeUxFixtureSession : IApplicationDataPaths, ID
     internal WorkSessionAuthorization? LifecycleTarget { get; private set; }
     internal HostQuestionRecord? RevisionQuestion { get; private set; }
     internal MainViewModel Main => main ?? throw new InvalidOperationException("The native fixture has not initialized its presentation state.");
+    internal ArtifactCatalogue ArtifactCatalogue { get; private set; } = null!;
     internal IUserDocumentationProvider Documents { get; } = new EmbeddedUserDocumentationProvider();
 
     internal Task InitializeAsync() => InitializeAsync(null);
@@ -150,6 +151,7 @@ internal sealed partial class NativeUxFixtureSession : IApplicationDataPaths, ID
                     "Non-executable synthetic list overflow fixture.", $"overflow-{index:00}", [$"synthetic overflow {index:00}"], "synthetic", "1.0.0",
                     new string('0', 64), "No script, provider or effect is admitted.")) : [],
         ]);
+        ArtifactCatalogue = catalogue;
         var commands = new BuiltInCommandCatalog();
         var runtime = new RecordedRuntimeObservation(bootstrapper);
         var capabilities = new ReadOnlyCapabilityRegistry(Access, new(), new(), new(new AssemblyApplicationInfo()),

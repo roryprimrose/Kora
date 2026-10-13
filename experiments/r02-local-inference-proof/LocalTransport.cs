@@ -30,7 +30,23 @@ internal sealed class LocalTransport : DelegatingHandler
         HttpRequestMessage request, CancellationToken cancellationToken)
     {
         var uri = request.RequestUri ?? throw new InvalidOperationException("Missing destination.");
-        if (uri.Scheme != "http" || uri.Host != "127.0.0.1" || uri.Port != 11434
+        if (!string.Equals(Measurements.Endpoint, Measurements.DefaultEndpoint, StringComparison.Ordinal)
+            && string.Equals(uri.Scheme, Uri.UriSchemeHttp, StringComparison.Ordinal)
+            && string.Equals(uri.Host, "127.0.0.1", StringComparison.Ordinal)
+            && uri.Port == 11434
+            && string.IsNullOrEmpty(uri.UserInfo)
+            && string.IsNullOrEmpty(uri.Query)
+            && string.IsNullOrEmpty(uri.Fragment)
+            && uri.AbsolutePath is "/api/tags" or "/api/generate")
+        {
+            // Exercise the unchanged production reasoner's fixed origin through the admitted experiment endpoint.
+            uri = new Uri(Measurements.Endpoint + uri.AbsolutePath);
+            request.RequestUri = uri;
+        }
+
+        if (!string.Equals(uri.Scheme, Measurements.EndpointUri.Scheme, StringComparison.Ordinal)
+            || !string.Equals(uri.Host, Measurements.EndpointUri.Host, StringComparison.Ordinal)
+            || uri.Port != Measurements.EndpointUri.Port
             || !string.IsNullOrEmpty(uri.UserInfo) || !string.IsNullOrEmpty(uri.Query)
             || uri.AbsolutePath is not ("/api/version" or "/api/tags" or "/api/show" or "/api/ps" or "/api/generate"))
         {

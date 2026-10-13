@@ -21,7 +21,8 @@ public sealed partial class SessionsViewModelTests
         var code = Read("SessionsWindow.axaml.cs");
         code.Should().Contain("model.RefreshRetentionAsync()").And.Contain("model.ReadExactRetentionAsync()")
             .And.Contain("model.PreviewRetention(keep: true)").And.Contain("model.PreviewRetention(keep: false)")
-            .And.Contain("model.ConfirmRetentionAsync()").And.Contain("model.CancelRetentionReview()")
-            .And.Contain("model.Close()");
+            .And.Contain("model.ConfirmRetentionAsync()").And.Contain("model.CancelRetentionReview()");
+        code.Should().Contain("owner.Revoke()");
+        Read("SessionsPresentationOwner.cs").Should().Contain("model.Close()");
     }
 }

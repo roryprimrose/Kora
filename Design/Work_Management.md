@@ -10,6 +10,12 @@ management/execution lanes below are shipped.
 
 Related: [Interaction and Sessions](Interaction_And_Sessions.md), [Architecture](Architecture.md), [Task Lifecycle](Task_Lifecycle.md), [Security and Data Flows](Security_Data_Flows.md), [Acceptance Criteria](Acceptance_Criteria.md).
 
+## Passive selected-conversation search - 2026-10-13
+
+The [exact-conversation search](Interaction_And_Sessions.md#delivered-passive-exact-conversation-lexical-search--2026-10-13) reads original retained USER messages and typed HOST observations only. Work/AllWork/task/question summaries remain body-free authoritative projections; old receipt history is not retroactively populated with composer messages.
+
+Search, Next, Cancel and Clear issue no control intent, renew no meaningful activity, run no cleanup and change no queue/task/approval/provider/retention authority. Done remains readable without Resume. Query edits and result closure leave memory composer/dirty-draft decisions and current foreground question/voice target independent.
+
 ## Delivered deterministic local-version queue
 
 ### Delivered closed targeted metadata reads - 2026-10-12
@@ -335,6 +341,15 @@ Local-only mode does not call a remote management model.
 
 ## Management Operating Envelope and Degraded Mode
 
+The [bounded native conversation consumer](Interaction_And_Sessions.md#delivered-exact-session-conversationcomposer-foundation--2026-10-12)
+is not a fixed-read queue profile or a provider execution slot. It creates
+fresh exact-session original-user task/content intent atomically, refuses
+other live/Unknown/question work and invokes current configured turn admission.
+No model exists in the production catalogue; retained user content receives a
+truthful unavailable task/HOST status. There is no adapter execution, bootstrap
+fallback, aggregate session quota, automatic retry or retained-history context.
+Queue counts/settings/readiness do not grant provider/resource permission.
+
 The management lane is optional inference around a mandatory deterministic host core.
 The delivered bounded session core now accepts exact typed/activated-voice
 `session list/status/inspect/create/rename/done/resume`, with `session help`,
@@ -489,6 +504,8 @@ Approval to add/reorder a task is not approval to transmit its content, execute 
 Task action approvals are obtained at the relevant execution point and are never shared with another queued task.
 
 ## Interaction and Recovery
+
+Native question terminal state and completion now share a [private publication boundary](Interaction_Fallback.md#synchronized-native-terminal-publication---2026-10-12). Concurrent original/external committed-cancellation channels retain the actual Cancelled receipt; an earlier genuine withdrawal or failure still wins. Later privacy/source closure clears presentation without relabelling committed work or granting dispatch authority.
 
 Management status uses the same visual/TTS presenter but has its own response identity.
 An explicit status question takes speech priority; task execution continues and its visual progress remains visible.

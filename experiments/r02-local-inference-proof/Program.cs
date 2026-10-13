@@ -27,7 +27,7 @@ internal static class Program
                 return await RequestEnvelope.RunAsync(args[1..]);
             if (args.Length < 3 || args[1] != "--output"
                 || args[0] is not ("self-test" or "observe" or "measure" or "qualify" or "compare-sampling" or "compare-streaming" or "observer-control"))
-                throw new ArgumentException("Usage: self-test|observe|measure|qualify|compare-sampling|compare-streaming|observer-control --output FILE [--server-pid PID --server-started-ticks TICKS --exclusive-runtime --trials 30]; live generation requires --server-pid; qualification/comparison/control modes require --budgets FILE [--runtime-version VERSION --comparison-runtime].");
+                throw new ArgumentException("Usage: self-test|observe|measure|qualify|compare-sampling|compare-streaming|observer-control --output FILE [--server-pid PID --server-started-ticks TICKS --exclusive-runtime --trials 30 --endpoint http://127.0.0.1:PORT]; live generation requires --server-pid; qualification/comparison/control modes require --budgets FILE [--runtime-version VERSION --comparison-runtime].");
             var mode = args[0];
             var qualificationMode = mode is "qualify" or "compare-sampling" or "compare-streaming" or "observer-control";
             var output = Path.GetFullPath(args[2]);
@@ -36,6 +36,7 @@ internal static class Program
             var exclusive = false;
             var runtimeVersion = WindowsOllamaSetupService.PackageVersion;
             var comparisonRuntime = false;
+            var endpoint = Measurements.DefaultEndpoint;
             int? serverProcessId = null;
             long? serverStartedTicks = null;
             string? budgetPath = null;
@@ -47,8 +48,11 @@ internal static class Program
                 else if (mode != "self-test" && args[i] == "--server-started-ticks" && ++i < args.Length
                     && long.TryParse(args[i], out var ticks) && ticks > 0 && ticks <= DateTime.MaxValue.Ticks)
                     serverStartedTicks = ticks;
-                else if (qualificationMode && args[i] == "--comparison-runtime") comparisonRuntime = true;
-                else if (qualificationMode && args[i] == "--runtime-version" && ++i < args.Length) runtimeVersion = args[i];
+                else if (mode is "measure" or "qualify" or "compare-sampling" or "compare-streaming" or "observer-control"
+                    && args[i] == "--comparison-runtime") comparisonRuntime = true;
+                else if (mode is "measure" or "qualify" or "compare-sampling" or "compare-streaming" or "observer-control"
+                    && args[i] == "--runtime-version" && ++i < args.Length) runtimeVersion = args[i];
+                else if (mode != "self-test" && args[i] == "--endpoint" && ++i < args.Length) endpoint = args[i];
                 else if (qualificationMode && args[i] == "--budgets" && ++i < args.Length) budgetPath = args[i];
                 else if (mode != "observer-control" && args[i] == "--trials" && ++i < args.Length
                     && int.TryParse(args[i], out var count) && count is >= 30 and <= 1000) trials = count;
@@ -60,6 +64,14 @@ internal static class Program
                 throw new ArgumentException("Live measurement requires an explicitly selected --server-pid.");
             if (serverStartedTicks is not null && serverProcessId is null)
                 throw new ArgumentException("--server-started-ticks requires --server-pid.");
+            Measurements.ConfigureEndpoint(endpoint);
+            if (mode == "measure")
+            {
+                if (!Version.TryParse(runtimeVersion, out _) || runtimeVersion != runtimeVersion.Trim())
+                    throw new ArgumentException("An exact numerical runtime version is required.");
+                if (comparisonRuntime != (runtimeVersion != WindowsOllamaSetupService.PackageVersion))
+                    throw new ArgumentException("A changed runtime requires --comparison-runtime; the pinned runtime is not a comparison.");
+            }
             QualificationOptions? qualification = null;
             if (qualificationMode)
             {
@@ -74,7 +86,9 @@ internal static class Program
             SelfTests.Require(fixtures.Length >= 6 && fixtures.Select(f => f.Id).Distinct().Count() == fixtures.Length,
                 "Invalid fixture inventory.");
             SelfTests.Require(fixtures.All(f => f.Prompt.Length <= 4096), "Fixture exceeds production request bound.");
-            var observer = serverProcessId is { } selectedPid ? ProcessTreeObserver.Admit(selectedPid) : null;
+            var observer = serverProcessId is { } selectedPid
+                ? ProcessTreeObserver.Admit(selectedPid, Measurements.EndpointUri.Port)
+                : null;
             if (serverStartedTicks is { } expectedTicks && observer?.Root.StartedUtcTicks != expectedTicks)
                 throw new InvalidOperationException("Selected server creation time differs from the operator's preflight; no request is admitted.");
             var report = new JsonObject
@@ -93,7 +107,7 @@ internal static class Program
                 ["candidate"] = JsonSerializer.SerializeToNode(new
                 {
                     runtime = "Ollama",
-                    version = WindowsOllamaSetupService.PackageVersion,
+                    version = runtimeVersion,
                     model = WindowsOllamaSetupService.Model,
                     modelDigest = WindowsOllamaSetupService.ModelDigest,
                     bootstrapDownloadEstimate = WindowsOllamaSetupService.ModelDownloadSize,
@@ -132,7 +146,9 @@ internal static class Program
                         compareStreaming: mode == "compare-streaming", observer: observer);
                 else
                     code = await MeasureAsync(report, fixtures, trials, qualification: qualification,
-                        checkpoint: () => SaveReportAsync(output, report), cancellationToken: stop.Token, observer: observer);
+                        checkpoint: () => SaveReportAsync(output, report), cancellationToken: stop.Token, observer: observer,
+                        cleanupSelectedModel: exclusive, runtimeVersion: runtimeVersion,
+                        comparisonRuntime: comparisonRuntime);
             }
             catch (Exception exception) when (exception is IOException or JsonException
                 or InvalidOperationException or HttpRequestException or TimeoutException or OperationCanceledException)
@@ -267,15 +283,24 @@ internal static class Program
 
     internal static async Task<int> MeasureAsync(JsonObject report, Fixture[] fixtures, int trials,
         LocalTransport? transportOverride = null, QualificationOptions? qualification = null,
-        Func<Task>? checkpoint = null, CancellationToken cancellationToken = default, ProcessTreeObserver? observer = null)
+        Func<Task>? checkpoint = null, CancellationToken cancellationToken = default, ProcessTreeObserver? observer = null,
+        bool cleanupSelectedModel = false, string? runtimeVersion = null, bool comparisonRuntime = false)
     {
         qualification?.Validate();
+        var selectedRuntimeVersion = qualification?.RuntimeVersion
+            ?? runtimeVersion
+            ?? WindowsOllamaSetupService.PackageVersion;
+        var selectedComparisonRuntime = qualification?.ComparisonRuntime ?? comparisonRuntime;
+        if (!Version.TryParse(selectedRuntimeVersion, out _) || selectedRuntimeVersion != selectedRuntimeVersion.Trim())
+            throw new ArgumentException("An exact numerical runtime version is required.", nameof(runtimeVersion));
+        if (selectedComparisonRuntime != (selectedRuntimeVersion != WindowsOllamaSetupService.PackageVersion))
+            throw new ArgumentException("A changed runtime requires comparison labeling.", nameof(comparisonRuntime));
         using var transport = transportOverride ?? LocalTransport.Real(observer);
         using var client = new HttpClient(transport) { Timeout = TimeSpan.FromMinutes(2) };
         report["testedProfile"] = JsonSerializer.SerializeToNode(new
         {
-            runtimeVersion = qualification?.RuntimeVersion ?? WindowsOllamaSetupService.PackageVersion,
-            comparisonRuntime = qualification?.ComparisonRuntime ?? false,
+            runtimeVersion = selectedRuntimeVersion,
+            comparisonRuntime = selectedComparisonRuntime,
             productionPinsChanged = false,
             resourceBudgets = "Not approved; no resource qualification claimed.",
         });
@@ -284,7 +309,7 @@ internal static class Program
         try
         {
             var identity = await VerifyProfileAsync(client,
-                qualification?.RuntimeVersion ?? WindowsOllamaSetupService.PackageVersion, cancellationToken);
+                selectedRuntimeVersion, cancellationToken);
             report["runtimeMetadata"] = identity.Version;
             report["modelCatalogue"] = identity.Catalogue;
             report["modelMetadata"] = await Measurements.ShowAsync(client, cancellationToken);
@@ -505,12 +530,14 @@ internal static class Program
         {
             try
             {
-                if (qualification is not null)
+                if (qualification is not null || cleanupSelectedModel)
                 {
                     try
                     {
                         using var cleanupTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(15));
-                        await VerifyProfileAsync(client, qualification.RuntimeVersion, cleanupTimeout.Token);
+                        await VerifyProfileAsync(client,
+                            selectedRuntimeVersion,
+                            cleanupTimeout.Token);
                         report["finalLoadedModels"] = await Measurements.UnloadAsync(client, cleanupTimeout.Token);
                         report["cleanup"] = "Selected test model confirmed unloaded; pre-existing server and assets retained.";
                     }

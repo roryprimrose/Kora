@@ -1,4 +1,4 @@
-using System.ComponentModel;
+﻿using System.ComponentModel;
 
 using Avalonia.Controls;
 using Avalonia.Input;
@@ -53,7 +53,10 @@ public sealed class SystemTrayController : IDisposable
         Action? inspectExactGrants = null,
         Func<Task>? returnToCurrentQuestion = null,
         Action? inspectRetainedAttachments = null,
-        Action? editOwnedInstructions = null)
+        Action? editOwnedInstructions = null,
+        Action? inspectSavedDrafts = null,
+        Action? newRequest = null,
+        Action? compactConversation = null)
     {
         this.viewModel = viewModel;
         this.logger = logger;
@@ -76,6 +79,18 @@ public sealed class SystemTrayController : IDisposable
         menu.Add(showItem);
         menu.Add(settingsItem);
         menu.Add(documentationItem);
+        if (newRequest is not null)
+        {
+            var newRequestItem = new NativeMenuItem("New request (fresh session only)");
+            newRequestItem.Click += (_, _) => RunAfterNativeMenuCloses(newRequest);
+            menu.Add(newRequestItem);
+        }
+        if (inspectSavedDrafts is not null)
+        {
+            var draftsItem = new NativeMenuItem("Saved conversation drafts (metadata only)");
+            draftsItem.Click += (_, _) => RunAfterNativeMenuCloses(inspectSavedDrafts);
+            menu.Add(draftsItem);
+        }
         if (editOwnedInstructions is not null)
         {
             var instructionEditor = new NativeMenuItem("Owned instructions and prompts (native editor)");
@@ -99,6 +114,12 @@ public sealed class SystemTrayController : IDisposable
             var sessionsItem = new NativeMenuItem("Sessions");
             sessionsItem.Click += (_, _) => RunAfterNativeMenuCloses(inspectSessions);
             menu.Add(sessionsItem);
+        }
+        if (compactConversation is not null)
+        {
+            var compactItem = new NativeMenuItem("Compact selected-session conversation");
+            compactItem.Click += (_, _) => RunAfterNativeMenuCloses(compactConversation);
+            menu.Add(compactItem);
         }
         if (inspectRetainedAttachments is not null)
         {

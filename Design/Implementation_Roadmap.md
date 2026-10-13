@@ -46,11 +46,11 @@ descriptors; native delivery does not make a model tool available.
 | Discovery and actions | Six-ID read-only registry; shared C# clipboard/file/network actions and bounded exact/native workflows | Qualified generic model adapter; parameterized web model route | [Tools](../src/Kora.Tools/README.md), [catalogue](Internal_Model_Tools.md) |
 | Authority and storage | Private standard SQLite, typed task/question/grant/audit transactions, no-replay recovery, exact native grant inspection/revocation | General worker/effect admission, audit anchors/pruning/whole-store rollback and managed-copy/installed qualification | [Security](Security_Data_Flows.md), [grant controls](User_Configuration.md) |
 | Sessions and work | Durable identity/lifecycle/history/retention, six closed metadata queue profiles with retained snapshots, current-run pause and question recovery | Full conversation execution, arbitrary queues/effects, concurrent workers and model tools | [Sessions](Interaction_And_Sessions.md), [workspace](UI_Workspace_And_Windows.md), [work](Work_Management.md) |
-| Native workspace and evidence | Selected work and passive cross-session attention overview, metadata/history search, bounded SQLite/DailyLog/CombinedLog/AuthorityAudit inspection and native filters | General Ask Evidence/model retrieval/export; full screen-reader/readability/physical-DPI acceptance | [Workspace](UI_Workspace_And_Windows.md), [display](Information_Display.md) |
+| Native workspace and evidence | Selected work and passive cross-session attention overview, metadata/history search, saved-composer catalogue with native name/exact-ID metadata queries, bounded SQLite/DailyLog/CombinedLog/AuthorityAudit inspection and native filters | General Ask Evidence/model retrieval/export; full screen-reader/readability/physical-DPI acceptance | [Workspace](UI_Workspace_And_Windows.md), [display](Information_Display.md) |
 | Preferences and audio | Admitted native/exact preferences, consented PTT, installed/local speech, visual recovery and run-only manual call protection | Automatic call detectors, call-policy downgrades, temporary speech exceptions and acoustic qualification | [Configuration](User_Configuration.md), [call policy](Call_Aware_Speech.md) |
-| File/clipboard inspection | Explicit immutable previews, folder lexical retrieval, reviewed refresh, one retained file/session, replacement/removal, metadata catalogue, opt-in Markdown structure and exact citation navigation | Managed knowledge sources, model grounding/egress, persistent/vector indexes, screen/OCR/image context | [Ingestion](File_And_Folder_Ingestion.md), [clipboard](Security_Data_Flows.md) |
+| File/clipboard inspection | Immutable previews, folder lexical retrieval, reviewed refresh, one retained file/session, replacement/removal, metadata catalogue, opt-in Markdown, exact citations and native current-file literal Find | Managed sources, model grounding/egress, indexes, screen/OCR context | [Ingestion](File_And_Folder_Ingestion.md), [clipboard](Security_Data_Flows.md) |
 | Memory and providers | Original-user memory review/admission and session-only durable storage; host policy/handoff, initial mode, audited app profiles and durable exact-session sparse overrides with native/exact review and subsequent-turn capture | Authentication/qualified hosted adapters, generic/one-turn profile directives, model memory recall or automatic handoff | [Profiles and session resolution](Model_Providers_Memory_And_Knowledge.md#session-overrides-and-effective-resolution) |
-| Definitions | Bundles/profile reads; owned instruction/prompt Save/copy/Disable, observed-use search/filter and exact stale-safe inspection | Profile-original writers/forks, broader formats/refinement/applicability, parameters/runtime and full matrix unqualified | [Management](Definition_Management.md), [editor](../docs/instruction-editor.md) |
+| Definitions | Bundles/profile reads; owned instruction/prompt Validate/Save/copy/Disable/search; native v2 required literal prompt inputs, whole expanded preview and separate fresh admission | Profile-original writers/forks, broader formats/refinement/applicability/runtime and full matrix unqualified; generation unavailable | [Management](Definition_Management.md), [editor](../docs/instruction-editor.md) |
 | Captions and local events | Off-default playback-bound captions, run-only pin/display choice; trusted visual notices, cached maintenance and routine quiet mode | Sentence alignment, general rich rendering, proactive speech and broad reminder scheduling | [Display](Information_Display.md), [proactive interaction](Proactive_Interaction.md) |
 | Distribution | MSI/custom Burn packaging, release/source-tool automation and reviewed build-only source workflow | Full installed/protected-byte/runtime qualification and install-capable updater | [Distribution](Distribution_And_Updates.md), [installer](../installer/README.md) |
 
@@ -59,6 +59,97 @@ Session permission levels and expanded skill/instruction authoring are
 Existing exact lock behavior and non-executing power proposals are unchanged.
 
 ## Ordered Outstanding Work
+
+### R12/R14 exact-session conversation/composer foundation — 2026-10-12
+
+The [compact selected-session projection](UI_Workspace_And_Windows.md#delivered-compact-selected-session-projection) adds explicit tray/workspace single-instance access to the same selection, memory draft and canonical conversation actions.
+Shared lifetime, dirty decisions, source revocation and truthful USER/HOST/work observations preserve the workspace and standalone question/voice presenters. This is not generation, routing or full R14/installed qualification.
+
+The [native untargeted New request fallback](Interaction_And_Sessions.md#delivered-native-new-request-fresh-session-fallback--2026-10-13) is delivered from tray and Sessions with single-instance activation and an isolated memory draft. Unavailable relatedness inference offers only explicit fresh generic **New conversation**; no selected/Done/named/recent reuse or body-derived title.
+Audited exact-target creation is acknowledged before a separate frozen-body review/Submit through the canonical conversation admission service. Physical COMMIT fences, one-shot review, private close, dirty-buffer protection and exact passive inspection preserve truthful partial success without retry/rollback/Done/delete or body transfer. Production generation, relatedness/voice/compact routing, installed qualification and the paused storage/profile scopes remain unavailable.
+
+The same confirmed created Active target now supports a distinct explicit revision-reviewed draft Save through canonical draft authority. Complete old/new body and confirmed-baseline review, exact metadata/revision COMMIT fencing and separately confirmed eligible close Save/Discard/Cancel preserve named-window concurrency and all unknown holds. No target is created just to save or close.
+Saving is not submission, provider admission, conversation execution, approval or meaningful activity. Saved-draft discovery and explicit Sessions Reload stay unchanged. Portable/private SQLite/headless tests are implementation evidence, not installed accessibility, comprehensive credential detection, physical-storage, profile-original or full R12/R14 qualification.
+
+The native [saved composer draft catalogue](Interaction_And_Sessions.md#saved-conversation-draft-catalogue--2026-10-13) delivers explicit bounded metadata-only discovery across uncapped retained sessions and stale-refusing exact Sessions navigation.
+No automatic body load/save/overwrite/Submit, global count/quota, schema/index/file-copy change or body authority duplication is added. Reload remains a separate existing Sessions action.
+Private metadata/SQL/headless checks do not qualify generated conversation, provider/hardware/installed accessibility, profile-original editing, hidden import, physical storage or STOP. Existing required audit, retention, source privacy and deferred capability gates remain unchanged.
+
+The [passive selected-conversation search](Interaction_And_Sessions.md#delivered-passive-exact-conversation-lexical-search--2026-10-13) now searches actual retained USER words and typed HOST status in one explicitly selected Active or retained Done session.
+Shared lexical policy, bounded complete chronological results and exact query/generation/ceiling/head continuation reuse admitted conversation pages.
+
+Native Search/Next/Cancel/Clear preserve composer drafts, saved revisions, question/voice focus and meaningful-activity/retention authority. Final source/private validation fences late publication; query/result text is not persisted, logged or sent as model context.
+This is not older receipt `HistorySearch`, global body search, an index, retrieval upload, runtime/inference or full R12/R14/installed-native/physical-storage qualification.
+
+The next bounded integration is delivered: a reviewed native owned-v2 expansion can be separately confirmed as exact USER text for one explicitly selected existing Active session, through the same conversation screening/store/task/audit/admission service. Preview and old Use still do not retain form bodies. There is no auto-routing, draft overwrite, template mutation or generation/auth/network/egress enablement.
+Headless/native private-store tests cover exact body, changed source/target/privacy, credential rejection, one-shot admission and uncertain COMMIT inspection. They do not qualify installed accessibility, hardware, inference or the remaining RT1/RT2/MG1/PV1/physical-storage/STOP gates. See [prompt delivery](Definition_Management.md#bounded-owned-instruction-and-prompt-editor).
+
+The [native composer and private authority](Interaction_And_Sessions.md#delivered-exact-session-conversationcomposer-foundation--2026-10-12)
+deliver memory-only editing, explicit revision-bound saved draft operations,
+immutable submitted original user messages and truthful unavailable HOST/task
+terminals through the real configured provider-neutral admission consumer.
+Schema 10→11 preserves old task/history/queue/provider/audit bytes and uses
+the existing atomic authority/copy/deletion domain. Body/page limits and
+100 messages/session do not cap retained sessions or aggregate drafts/messages.
+No unexpired content/audit eviction, auto-save/replay, provider/bootstrap
+fallback, HTTP/authentication or assistant-output claim is added.
+
+The approved follow-up adds one Core local structural credential-like
+reject-only rule at service/store boundaries, before any body persistence or
+admission. Content-free required rejection audit retains no candidate/hash;
+accepted text remains exact. Known placeholders remain inert, and limitations/
+false positives are disclosed without comprehensive DLP qualification.
+Physical files stay unchanged; canonical IDs/source hashes/clocks and strict
+versioned migrations/copy/journal inventories remain the storage contract.
+
+This substantive host/UI increment follows #217's
+[engineering progression policy](Deferred_Validation.md#engineering-progression-policy).
+Rejected Ollama candidates and the retired manual proof harness are not
+prerequisites or restored validation. Full generated conversation, history
+context assembly, global/voice routing, general execution, provider/hardware,
+installed-native/accessibility and R12/R14/RC qualification remain gated.
+
+### R14 native question terminal-publication correctness - 2026-10-12
+
+The [native terminal publication fix](Interaction_Fallback.md#synchronized-native-terminal-publication---2026-10-12) synchronizes closed state and its original-await receipt across committed cancellation, decision, denial and failure. Deterministic private-SQLite/native recovery regressions preserve cancellation without bypassing earlier withdrawal; later clearing and exact pre-dispatch checks remain mandatory.
+
+This bounded correctness change adds no runtime, permission, privacy fallback, replay or physical cessation claim. Installed-native/accessibility, physical storage, containment and retained inference/runtime qualification gates remain open.
+
+### R26 retained attachment catalogue exact-ID query increment - 2026-10-13
+
+The [retained attachment metadata catalogue](File_And_Folder_Ingestion.md#delivered-retained-attachment-metadata-catalogue---2026-10-11) delivers native Browse/default and canonical ExactId Search/Enter, Next/Cancel/Clear with volatile private query state.
+Fully validated fixed scans and bounded audit-prefix admission remain mandatory, including irrelevant records and empty nonmatching pages. Query/removal flag/source/profile/viewer/authority bindings refuse stale or malformed continuations; selection/navigation remains separately explicit and full-byte verified.
+No name/title/path/body/digest search, new metadata reads, schema/index/cache/layout/copy mutation, count cap, activity renewal, model/tool/speech route or saved query is added. Storage optimizations and profile-original/hidden-import work remain deferred.
+Focused Core/Application/private SQLite/native checks qualify this consumer only, not broader R26, provider/hardware, installed screen-reader/DPI, physical protected-storage/deletion or STOP. Existing audit/retention/deadline and enablement/RC gates are unchanged; no experiment is edited.
+
+### R26 native current-source literal Find increment - 2026-10-12
+
+The shared private original-file viewer delivers native First/Next/Previous/Clear for one exact case-sensitive literal span in the currently inspected immutable single file, captured-folder selector item or revalidated retained Session attachment. Query spaces/case stay exact; nonoverlapping cursor steps never wrap or build all-occurrence indexes/counts.
+
+Existing inert source/span controls, source/view/query generation and citation admission are reused. Retained Find reads only the validated private historical original/session/storage reference, without original-path access, capture or activity renewal.
+
+Ranked lexical/Markdown retrieval/citation policies and limits are unchanged. No typed/PTT query, model tool, export, clipboard, speech or persistence is added.
+
+Maintained [portable](../tests/Kora.Core.UnitTests/Context/LocalFileLiteralFindTests.cs), [native](../tests/Kora.Windows.IntegrationTests/LocalFileLiteralFindWindowTests.cs) and [retained Done/private SQLite after original deletion](../tests/Kora.Windows.IntegrationTests/SessionAttachmentWindowTests.Find.cs) evidence covers this consumer only.
+
+No experiments/receipts or RT1/RT2/MG1/PV1, CPU-floor/offline inference, containment, hardware, installed/accessibility, physical-storage or physical STOP proofs are retired.
+
+See the [canonical Find contract](File_And_Folder_Ingestion.md#delivered-native-current-source-literal-find---2026-10-12). Broader source/grounded reasoning and UI/voice parity remain proposed; profile-original editing remains security-boundary deferred.
+
+### R22 required owned prompt input preparation increment - 2026-10-12
+
+Owned prompt native v2 supports only required `${input:name}` literal text: eight distinct canonical names, native fields bounded to 512 UTF-16 / 2048 UTF-8 each, and complete expanded USER REQUEST bounded to 4096 UTF-16 / 16384 UTF-8. Shared source/parser rules preserve exact bytes/BOM/digest and v1 semantics; no expressions/defaults/reads/recursive substitution.
+Exact artifact routes open a private ephemeral native form with explicit whole-request Preview and separately admitted Use. Editing/source/review/native identity/input/call/private changes retire previews; Cancel/close clears values without persistence, clipboard/export or speech.
+Use rechecks original template freshness and fresh model context/request admission, with actual serialized 32768-byte envelope enforcement. No source digest is fabricated from expansion; values remain user data, not commands/system/tool authority.
+Production generation remains unavailable and both evaluated Ollama candidates remain rejected. This is useful model-free preparation, not provider qualification, profile enablement or an inference fallback. Profile-original editing and existing installed/accessibility/storage/runtime STOP gates remain unchanged.
+
+### R22 open owned draft structural validation increment - 2026-10-12
+
+Native/exact/current-name activated Validate observes only the currently open supported same-kind owned Instruction/literal Prompt original or explicitly created draft. The shared ordinary Save preparation counts BOM/native-marker overhead and retains exact metadata/source/newlines; unchanged compatible legacy bytes remain legacy.
+Bounded body-free findings report prepared byte count/digest/format/source/model-context role and unapproved state, not semantic harmlessness, disk integrity, approval or enablement. Source/name/kind/baseline/catalogue/private/input fences retire findings; Save independently prepares and exactly confirms.
+No owned-store List/Read/Write, reload/reconciliation, revision-preference hold/write, use mutation, model/network or reference execution is added. Normal observational control receipts/traces remain. Draft/dirty/inventory/selection, original enabled state and uncertain source/publication holds are retained with explicit recovery.
+Maintained codec/preparation/application/router and actual native headless/private SQLite consumers cover this bounded production path. No maintained experiment is edited or retired; unique RT1/RT2/MG1/PV1, offline CPU/inference, containment, hardware, installed-native/accessibility, physical storage and physical STOP proof gates remain open.
+Profile-original editing remains explicitly security-boundary deferred. Broader formats, templates, skill/agent authoring/runtime and conversational refinement are not delivered.
 
 ### R22 owned metadata inventory navigation increment - 2026-10-12
 
@@ -137,7 +228,7 @@ of the topic contract or acceptance fixtures.
 | R19 | Manifest-scoped RC qualification and truthful Slice A reporting | Q: included R07-R18 and shared/transitive controls; not an I prerequisite |
 | R20 | Select and admit one read-only MCP connector and bundled integration skill | R06/R10/R11; E: connector profile |
 | R21 | Shared-source enablement/invocation and bounded common reload across all supported definition kinds; reconcile owned/profile files, UI/voice lookup, and dependent revisions without automatically activating changes | R05/R06/R10/R11; E: source/format profile |
-| R22 | Owned instruction/literal prompt native editing/copy and exact native v1 reviewed-use Disable delivered; source-preserving durable new-selection holds require fresh re-enable review. Next: deferred profile originals/forks, skill/agent formats, prompt parameters, refinement and expanded applicability. Full matrix/runtime unqualified | R05/R10/R12/R14/R20/R21 |
+| R22 | Owned editing/copy/Disable/Validate/search and prompt v2 required literal native fields/complete expanded preview/separate fresh admission delivered. Generation unavailable; source-preserving holds require fresh review. Next: deferred profile originals/forks, skill/agent formats, refinement and expanded applicability. Full matrix/runtime unqualified | R05/R10/R12/R14/R20/R21 |
 | R23 | Slice B/C and manifest-scoped release regression | Q: R19 and included R20-R22 scope |
 
 Partial packages may progress in parallel once their consumed I subset exists.
@@ -151,19 +242,15 @@ scope, and profile editing never becomes a generic filesystem/tool permission.
 
 ### R02 Local-Inference Continuation
 
-| Step | Remaining action |
-|---|---|
-| L1 | Approve operator, reference CPU/8-logical-core/16-GiB/SSD floor, isolation and numerical budgets |
-| L2 | Separately consent to pinned provisioning and record exact licence/digest/staging-volume facts |
-| L3 | Run at least 30 cold and 30 paired warm trials, human quality review, context/resource/cancellation/recovery measurements |
-| L4 | Independently enforce and observe remote-egress denial with loopback retained; may run beside L3 after L2 |
-| L5 | Record candidate/hardware disposition and D-003/D-007 evidence after L3/L4 |
-| L6 | Apply the qualified envelope to dependent host workflows and repeat integrated evidence |
+The Ollama 0.35.1/qwen3:1.7b and Ollama 0.40.2 candidates are rejected. Do not
+repeat hardware, offline or human trials for them. Continue provider-neutral
+host, UI and orchestration development with explicit unavailable behavior.
 
-Retain the pinned candidate for trials; do not substitute cloud or lower the
-floor silently. The [technical plan](Local_Inference.md) and
-[LI01-LI07 procedure](../experiments/r02-local-inference-proof/README.md#outstanding-testing-checklist)
-own the details.
+If a materially changed candidate is proposed, apply the
+[future candidate gate](Local_Inference.md#future-candidate-gate): automated
+quality and authority first, then approved identity/licence, reference hardware,
+context/cancellation, offline/egress and integrated-host qualification. That
+work gates only the candidate's enablement and associated release claims.
 
 ## R13 exact current-run queue pause receipt - 2026-10-11
 
@@ -249,18 +336,21 @@ Exact-session single-field model/reasoning/context UX now derives and reviews th
 App profiles now support bounded individual exact model/reasoning/context review with separate native/typed/current-name activated confirmation through the same complete-tuple writer. Missing/incompatible dependents require complete draft/save; app default, other services and session overrides are retained. Production catalogues remain unavailable and hosted authentication/adapter/egress qualification gates stay closed.
 Deterministic exact tuple/configuration and subsequent-turn tests are not assertion-equivalent to SDK-native RT1 bytes, RT2 lifecycle/egress, PV1 account, local-quality/offline or native/hardware procedures. Runtime preparation consumers and all unique proof/receipt assets remain retained; no experiment or release qualification is removed.
 
-Experiments are opt-in evidence, not default-CI suites or production contracts.
+Experiments are opt-in evidence, not production contracts or open-ended
+implementation prerequisites. Deterministic self-tests may run in CI, but
+physical/lab qualification runs only when a materially changed capability is
+being considered for enablement.
 This documentation consolidation archives narratives only; **no experiment
 executable or historical evidence is deleted, modified or relabelled**.
 
 | Harness | Disposition | Rerun or retirement boundary |
 |---|---|---|
-| [Local inference](../experiments/r02-local-inference-proof/README.md) | Retain actual quality, CPU-floor/context/resources, server cessation and independent offline trials | Offered or materially changed inference profiles; migrate reusable deterministic cases, not unique physical/offline proof |
-| [Containment](../experiments/r02-containment-proof/README.md) | Retain actual token/ACL/child/network/lifetime enforcement | Enabled/changed worker profiles with separate lab approval; timeouts are not denial |
+| [Local inference](../experiments/r02-local-inference-proof/README.md) | Current pinned and comparison candidates rejected; retain evidence and deterministic boundary tests | Reopen physical/offline qualification only for a materially changed candidate intended for enablement |
+| [Containment](../experiments/r02-containment-proof/README.md) | ACL/no-child/unrestricted-script approaches rejected; retain evidence to constrain the typed broker/admitted-worker replacement | Implement the replacement now; reopen lab qualification only before exposing its consequential worker profile |
 | [Speech](../experiments/r02-speech-proof/README.md) | Retain physical acoustics, playback rejection and packaged capture/privacy timing | Affected speech/wake/provider/device profiles, not unrelated preferences |
 | [Node runtime](../experiments/r02-runtime-proof/README.md) | Migrate all-status mediation, denial/cancellation/serialization assertions; retain rejected hook-only witnesses | Archive executable only after exact maintained equivalence and explicit candidate disposition; Node never qualifies .NET |
 | [RT2 lifecycle](../experiments/r02-runtime-lifecycle-proof/README.md) | Migrate lifecycle/loss/quiescence cases; retain native procedures and observer limitations | Required native coverage must be maintained or unsupported profile explicitly excluded |
-| [Storage](../experiments/r02-storage-proof/README.md) | Migrate applicable standard-SQLite recovery/migration/capacity/retention/copy cases | Partial equivalence does not retire shared crypto/native consumers; superseded crypto is historical unless R30 is pursued |
+| [Storage](../experiments/r02-storage-proof/README.md) | Maintained standard-SQLite recovery/retention tests own current development; superseded SQLCipher/x86 work is historical | Reopen native/encryption qualification only if R30 is pursued; installed/durability evidence gates release claims, not R04/R12 implementation |
 | [RT1 control](../experiments/r02-dotnet-control-proof/README.md) | Migrate exact-profile final-request, all-status, denial and cancellation cases | Exact production equivalents and failure witnesses required; changed bytes/mechanisms repeat affected evidence |
 | [MG1 management](../experiments/r02-dotnet-management-proof/README.md) | Migrate envelope, independent admission, no-retry and Unknown/quarantine cases | Exact equivalents required; account/cost/native gaps remain E/Q, not local-core dependencies |
 | [Distribution](../experiments/r02-distribution-proof/README.md) | Retain historical receipts; superseded executables already retired | Reopen only on mechanism changes; old NSIS evidence never qualifies WiX |

@@ -172,6 +172,7 @@ public sealed partial class WindowsSqliteSessionQueueTests
         var audits = f.Count("security_audit_events");
         var tasks = f.Count("host_task_events");
         var history = f.Count("session_history");
+        f.DropEmptyConversationSchemaForLegacy();
         f.Mutate("DROP TABLE session_queue_order; PRAGMA user_version=9;");
         f.Reopen();
         await f.Store.InitializeAsync(f.Token);

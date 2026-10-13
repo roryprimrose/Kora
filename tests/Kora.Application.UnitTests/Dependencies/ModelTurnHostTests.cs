@@ -1,4 +1,4 @@
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using System.Text.Json;
 using AwesomeAssertions;
 using Kora.Application.Dependencies;
@@ -485,11 +485,12 @@ public sealed partial class ModelTurnHostTests : IDisposable
         fixture.Messages.Should().NotContain(m => m.Contains("request-secret", StringComparison.Ordinal));
     }
 
-    private sealed class Fixture : ISessionWorkspaceStore, ISessionWorkspaceAccess, ICapabilityHostAccess, ISessionProviderProfileStore,
+    private sealed partial class Fixture : ISessionWorkspaceStore, ISessionWorkspaceAccess, ICapabilityHostAccess, ISessionProviderProfileStore,
         ISecurityAuditLog, IApplicationInfo, ILogger<ModelTurnHost>, ILogger<ModelProviderHandoffWorkflow>, IDisposable
     {
         internal HostRequest Request { get; set; }
         internal WorkSessionAuthorization Session { get; set; }
+        internal SessionMetadata? Metadata { get; set; }
         internal HostTaskObservation? Task { get; set; }
         internal ManualTime Time { get; } = new();
         internal Adapter Adapter { get; } = new();
@@ -603,7 +604,7 @@ public sealed partial class ModelTurnHostTests : IDisposable
         {
             OnRead?.Invoke();
             if (BeforeRead is { } before) { await before().ConfigureAwait(false); }
-            return new SessionWorkspaceEntry(Session, null);
+            return new SessionWorkspaceEntry(Session, Metadata);
         }
         public ValueTask<HostTaskObservation?> ReadTaskAsync(HostId<SessionIdentity> session, HostId<TaskIdentity> task, CancellationToken token) =>
             ValueTask.FromResult(Task);
@@ -641,9 +642,20 @@ public sealed partial class ModelTurnHostTests : IDisposable
         }
         public ValueTask<SessionDispositionPreview> PreviewDispositionAsync(HostId<SessionIdentity> session, HostRevision generation, long revision, CancellationToken token) => throw new NotSupportedException();
         public ValueTask<SessionDispositionReceipt> DisposeSessionAsync(HostRequest request, SessionDispositionPreview preview, Func<bool> eligible, CancellationToken token) => throw new NotSupportedException();
-        public ValueTask<HostTaskRecord> RecordControlIntentAsync(HostRequest request, CancellationToken token) => throw new NotSupportedException();
+        public ValueTask<HostTaskRecord> RecordControlIntentAsync(HostRequest request, CancellationToken token)
+        {
+            Request = request;
+            Task = new(new(request, new(1), HostTaskState.IntentRecorded), Session.Generation, "host", true, null);
+            return ValueTask.FromResult(Task.Task);
+        }
         public ValueTask<SessionPage<WorkSessionAuthorization>> ReadSessionsAsync(Guid? after, int limit, CancellationToken token) => throw new NotSupportedException();
-        public ValueTask<SessionPage<SessionWorkspaceEntry>> ReadMetadataPageAsync(Guid? after, int limit, CancellationToken token) => throw new NotSupportedException();
+        internal SessionPage<SessionWorkspaceEntry>? MetadataPage { get; set; }
+        public ValueTask<SessionPage<SessionWorkspaceEntry>> ReadMetadataPageAsync(Guid? after, int limit, CancellationToken token)
+        {
+            limit.Should().Be(25);
+            OnRead?.Invoke();
+            return ValueTask.FromResult(MetadataPage ?? throw new NotSupportedException());
+        }
         public ValueTask<HostTaskObservation> CancelWaitingTaskAsync(HostRequest control, HostTaskCancellationTarget target, Func<bool> eligible, CancellationToken token) => throw new NotSupportedException();
         public ValueTask<SessionWorkspaceEntry> CreateNamedSessionAsync(HostRequest request, SessionName name, Func<bool> eligible, CancellationToken token) => throw new NotSupportedException();
         public ValueTask<SessionWorkspaceEntry> RenameSessionAsync(HostRequest request, HostRevision generation, long revision, SessionName name, Func<bool> eligible, CancellationToken token) => throw new NotSupportedException();

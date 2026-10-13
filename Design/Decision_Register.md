@@ -168,28 +168,20 @@ tests a completed inference response on loopback. This is a bootstrap/readiness
 candidate, not reference-hardware performance, answer-quality, cancellation,
 licence, or network-blocked offline acceptance evidence. Keep D-003 open.
 
-The 2026-10-05 R02 experiment adds verified public candidate identity/licence
-metadata, download-size evidence, 31 passing deterministic proof tests and a
-real missing-endpoint/unavailable response without fallback. It produced no
-real model answers, floor measurements or network-blocked success. Runtime
-absence is a provisioning blocker, not rejection of the candidate.
+Subsequent isolated evaluation produced real model answers. The pinned
+Ollama 0.35.1/qwen3:1.7b profile and an Ollama 0.40.2 comparison both failed
+automated quality gates and are rejected. They require no hardware, offline or
+human trials and must remain unavailable.
 
-[Local Inference Qualification and Technical Plan](Local_Inference.md) records
-the outcomes' design consequences: separate total provisioning from the model
-storage guard, test runtime compatibility rather than infer it from readiness,
-budget the full context envelope rather than characters alone, distinguish
-buffered production from experimental streaming, and verify cancellation and
-egress at actual boundaries. Retain the pinned candidate for the first
-consented trial; final selection and numeric UX/resource budgets are unresolved.
-Follow [R02-L1-L5](Implementation_Roadmap.md#r02-local-inference-continuation)
-before qualifying the local runtime; L6 carries evidence into integration.
-Close D-003 only with owner-reviewed applicable proofs, not this document or
-the harness PR.
+[Local Inference Disposition and Future Qualification](Local_Inference.md)
+owns the consequences and replacement gate. Close D-003 only after a materially
+changed candidate passes applicable automated quality/authority, identity,
+licence, reference-hardware, context/cancellation, offline/egress and integrated
+evidence. This remains a capability/release gate, not a general development
+blocker.
 
-Future interactive inference trials are recorded in the
-[shared deferred-validation register](Deferred_Validation.md) and
-[LI01-LI07 checklist](../experiments/r02-local-inference-proof/README.md#deferred-inference-trials).
-Publication of partial evidence is separate from those qualification gates.
+Future candidate trials use the [shared deferred-validation register](Deferred_Validation.md)
+and retained [experiment procedure](../experiments/r02-local-inference-proof/README.md#outstanding-testing-checklist).
 Speech/storage/containment/distribution approvals and observations are not inference
 consent or evidence; their outstanding decisions remain independent.
 

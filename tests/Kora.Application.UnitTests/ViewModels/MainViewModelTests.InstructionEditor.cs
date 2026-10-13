@@ -16,6 +16,8 @@ public sealed partial class MainViewModelTests
     [InlineData("Kora, instructions edit example", "Inspect", "example")]
     [InlineData("instructions inspect example", "Inspect", "example")]
     [InlineData("instructions save", "Save", null)]
+    [InlineData("instructions validate", "Validate", null)]
+    [InlineData("Kora, instructions validate", "Validate", null)]
     [InlineData("instructions copy new-copy", "Save as new copy", "new-copy")]
     [InlineData("Kora, instructions copy new-copy", "Save as new copy", "new-copy")]
     [InlineData("instructions reload", "Reload", null)]
@@ -31,6 +33,8 @@ public sealed partial class MainViewModelTests
     [InlineData("Kora, prompts edit example", "Inspect", "example")]
     [InlineData("prompts inspect example", "Inspect", "example")]
     [InlineData("prompts save", "Save", null)]
+    [InlineData("prompts validate", "Validate", null)]
+    [InlineData("Kora, prompts validate", "Validate", null)]
     [InlineData("prompts copy new-copy", "Save as new copy", "new-copy")]
     [InlineData("Kora, prompts copy new-copy", "Save as new copy", "new-copy")]
     [InlineData("prompts reload", "Reload", null)]
@@ -65,6 +69,7 @@ public sealed partial class MainViewModelTests
         await f.RunAsync("instructions create");
         await f.RunAsync("instructions create example extra body");
         await f.RunAsync("instructions save example");
+        await f.RunAsync("instructions validate example");
         await f.RunAsync("instructions unknown");
         await f.RunAsync("instructions disable example");
         await f.RunAsync("instructions stop-use extra");
@@ -72,6 +77,7 @@ public sealed partial class MainViewModelTests
         await f.RunAsync("prompts create");
         await f.RunAsync("prompts create example extra body");
         await f.RunAsync("prompts save example");
+        await f.RunAsync("prompts validate body");
         await f.RunAsync("prompts unknown");
         await f.RunAsync("prompts disable example");
         await f.RunAsync("prompts stop-use extra");

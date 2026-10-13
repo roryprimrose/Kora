@@ -2,6 +2,7 @@
 using Avalonia.Controls;
 using Avalonia.Layout;
 using Avalonia.Media;
+
 using Kora.Application.Presentation;
 using Kora.Controls;
 using Kora.Core.Context;
@@ -55,6 +56,7 @@ internal sealed partial class LocalFilePreviewWindow
             generation = navigationGeneration;
             // Folder selection clears the previous target; this explicit action alone reveals and focuses the new span.
             content.Text = span.File.Text;
+            SetFindSource(span.File);
             citedLocation!.Text = DescribeItem(span.File) + "\n"
                 + $"Original source span: lines {citation.StartLine}:{citation.StartColumn}–{citation.EndLine}:{citation.EndColumn}; "
                 + $"UTF-16 [{citation.Start}, {citation.Start + citation.Length}) of {span.File.Text.Length}. "
@@ -82,6 +84,7 @@ internal sealed partial class LocalFilePreviewWindow
 
     private void ClearNavigation()
     {
+        ClearFind();
         navigationGeneration++;
         navigation?.Cancel();
         if (citedSpan is not null) { citedSpan.Text = null; AutomationProperties.SetName(citedSpan, null); }

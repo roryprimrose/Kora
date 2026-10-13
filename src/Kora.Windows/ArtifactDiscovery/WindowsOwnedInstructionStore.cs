@@ -70,7 +70,7 @@ public sealed partial class WindowsOwnedInstructionStore(IApplicationDataPaths p
                 && string.Equals(replacement.Definition.Digest, current.Document.Definition.Digest, StringComparison.Ordinal))
             { return new InstructionWriteResult(false, false, false, current, Unchanged: true); }
             if (replacement is not null && !replacement.Metadata.ContainsKey("kora-format"))
-            { throw new InvalidDataException("New or changed owned instructions require the reviewed native v1 marker."); }
+            { throw new InvalidDataException("New or changed owned definitions require a reviewed supported native format marker."); }
             if (current is null && replacement is not null
                 && Directory.EnumerateFiles(directory, "*" + extension, SearchOption.TopDirectoryOnly).Take(maximumFiles).Count() >= maximumFiles)
             { throw new InvalidDataException("The owned instruction inventory is full; no new file was created."); }

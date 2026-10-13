@@ -19,6 +19,10 @@ Related: [Architecture](Architecture.md), [Security and Data Flows](Security_Dat
 
 **Tray > Retained session attachments** opens a separate native, content-free catalogue. Opening performs no read; explicit Refresh/Next/Cancel observes already retained private Session slots. It never opens a picker, reopens an original path, reads new file data, captures, replaces, removes, exports or ingests model context.
 
+The native **Browse / ExactId** query increment reuses `SessionListSearch` as the sole nonempty canonical lowercase D-GUID policy. ExactId filters only fully validated slots; it never selects session authority or skips irrelevant/corrupt records or audit-prefix admission.
+The exact ID and removal flag are bound together in authenticated source/profile/viewer/authority continuations. Nonmatching scans may return empty pages with Next; changed ID/mode/flag retires rows, selection and pending work. Clear returns to Browse without I/O; no automatic selection/navigation or saved query exists.
+See [native query interaction and recovery](../docs/windows-and-tray.md#retained-session-attachments-metadata-only). Names, paths, bodies, excerpts and digests are not searched, and no session-name join/read, persisted schema/index/layout/copy/cache or timeout change is introduced.
+
 - Each page returns at most **sixteen summaries / 64 KiB**, scanning at most **sixty-four slots**. Retained-only is the default; **Include removed slots** shows content-free removal provenance. Historical slots are not the sixteen-live-body cap. A retained-only page can have zero matches and a valid Next.
 - Complete typed audit authority is checked in bounded **4,096-commit segments**, before attachment rows are disclosed. Pending-authority pages are explicitly labelled and contain no attachment summaries; Next continues validation. The existing five-second private lease/SQLite progress budget and five-second cancellation deadline remain finite.
 - Authenticated, run/store/profile/query-bound continuations expire after **two minutes**. Any committed authority-head change rejects Next and requires Refresh; this conservative rule includes unrelated authority changes. No global count, whole-inventory atomicity, physical-deletion or forensic claim is made.
@@ -34,6 +38,8 @@ Retained Done inspection does not resume, renew meaningful activity, dispatch, r
 Schema **8**, attachment format **1**, one-file-per-session / **262,144 original UTF-8 bytes / sixteen retained profile bodies / no eviction**, capture/copy-certification/removal rules and existing exact citations are unchanged. There is no second database, index, preference file, copy cache, managed knowledge source, extra format, modelling or installed/accessibility qualification.
 
 Evidence: [strict summary/page bounds](../tests/Kora.Core.UnitTests/Storage/SessionAttachmentPageTests.cs), [passive host/exact navigation](../tests/Kora.Application.UnitTests/Hosting/SessionWorkspaceServiceTests.AttachmentCatalogue.cs), [actual SQLite SELECT projection, tombstones/cursors/corruption/held status](../tests/Kora.Windows.IntegrationTests/Storage/WindowsSqliteSessionAttachmentTests.Catalogue.cs), and [headless native lifecycle/source navigation](../tests/Kora.Windows.IntegrationTests/AttachmentCatalogueWindowTests.cs).
+
+Exact-ID evidence: [shared query policy and page admission](../tests/Kora.Core.UnitTests/Storage/SessionAttachmentQueryTests.cs) and [private SQLite match beyond a full scan, removed slots, query/source/profile/cursor denial and malformed irrelevant-row refusal](../tests/Kora.Windows.IntegrationTests/Storage/WindowsSqliteSessionAttachmentTests.ExactCatalogue.cs).
 
 Experiment assessment: these assertions qualify only the metadata/exact retained-source consumer. Unique native/runtime, encrypted-storage/rekey/backup, legacy migration, privacy/resource and historical failure receipts, RT1/RT2/MG1 and containment proofs remain retained. No experiment or proof gate is retired or weakened; full R26 and managed/model-grounded knowledge remain open.
 
@@ -275,6 +281,30 @@ Navigation adds no filesystem read/picker/refresh, source attachment mutation, e
 Evidence: [exact/forged Unicode/BOM/range/heading policy](../tests/Kora.Core.UnitTests/Context/LocalFileCitationTests.cs), [generation and row-reference admission](../tests/Kora.Application.UnitTests/Presentation/LocalFileCitationSelectionTests.cs), [actual native single/folder span, viewport, focus/accessibility and stale callback proof](../tests/Kora.Windows.IntegrationTests/LocalFileCitationWindowTests.cs), and [retained real-store/native span with no recapture](../tests/Kora.Windows.IntegrationTests/SessionAttachmentWindowTests.cs).
 
 Experiment equivalence is limited to deterministic exact citation resolution and these native passive consumers. No experiment or historical receipt is retired: native/runtime/offline/resource, privacy/storage/migration/recovery, containment, RT1/RT2/MG1 and model-quality proofs remain unique. Full CommonMark/rendering, managed sources, model grounding/providers, installed/OS-accessibility acceptance and broader R26 qualification remain separate and open.
+
+## Delivered Native Current-Source Literal Find - 2026-10-12
+
+**Find first / Find next / Find previous / Clear literal Find** navigate only the currently displayed exact immutable text file: volatile single-file preview, the current captured-folder selector item, or an exact retained Session attachment. This native presentation control is separate from ranked lexical/Markdown retrieval and citations. Typing does not scan, change files or move focus.
+
+The one-line literal uses case-sensitive `StringComparison.Ordinal`, without trimming, normalization, token OR, regex, wildcard, fuzzy or semantic interpretation. Spaces and metacharacters are preserved. Shared 256 UTF-16 / 512 strict UTF-8 bounds apply; malformed Unicode, control/format characters and line/paragraph separators reject explicitly. No query enters typed/PTT transcripts.
+
+First scans from zero. Next starts after the selected match's exclusive end; Previous finds the last match ending at or before its start. Matches are nonoverlapping relative to that cursor and never wrap. Next/Previous require a match; exhaustion retains the cursor but clears the span and says **End of direction**, not global NoMatch. First alone can report no match in the exact file.
+
+One span is selected per action, with the unchanged query's UTF-16 length. No all-occurrence collection, index or count is built. The existing inert `NamedTextBlock` panel shows literal labels, original end-exclusive UTF-16 offsets and exact source/revision/item/original-byte digest, not a ranked citation or heading. Complete original source remains unchanged and non-selectable below.
+
+The shared handler captures source instance, exact query, cursor and view generation before work. Each action reuses citation navigation's authoritative resolver and current-admission predicate before disclosure and in-window focus. Retained actions revalidate only the private SQLite original-body/session/storage/source snapshot, never the original filesystem path, capture, attach or replace.
+
+Folder selection and citation navigation switch the actual Find subject and clear the old query/cursor. Query edits, ranked query/mode/search/cancel, citation selection, source/review recomposition, Clear and close retire pending Find.
+
+Existing ownership/call/session/retention/replacement/removal shutdown clears content and query. Late callbacks cannot retarget identical bytes or a newer view. Stale/unavailable/invalid inputs disclose no match or fallback.
+
+No new command/model-tool descriptor, data-read authority, publication, activity renewal, clipboard/drag/export, HTML/link/browser/image execution, speech/history, preferences, cache, model context or egress is added. Existing inspect/search commands still focus ranked native inspection; literal navigation is native-only.
+
+Original 256 KiB file bounds, sixteen retained bodies, storage schema/format, citation ranking/eight-result/16 KiB limits and private audit fences are unchanged.
+
+Evidence: [portable span/query tests](../tests/Kora.Core.UnitTests/Context/LocalFileLiteralFindTests.cs), [native surfaces, selection, cancellation and focus](../tests/Kora.Windows.IntegrationTests/LocalFileLiteralFindWindowTests.cs), and [retained Done/private SQLite after original deletion](../tests/Kora.Windows.IntegrationTests/SessionAttachmentWindowTests.Find.cs).
+
+These fixtures qualify only this bounded native presentation path. No experiment, historical failure receipt or RT1/RT2/MG1/PV1, offline CPU/inference, containment, hardware, installed-native/accessibility, physical-storage or physical STOP proof is retired. Broader R26/managed knowledge/model answers remain unqualified; profile-original editing remains security-boundary deferred.
 
 ## Delivered Bounded Folder-Scoped Lexical Retrieval - 2026-10-09
 

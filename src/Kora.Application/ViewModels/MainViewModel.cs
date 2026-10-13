@@ -1971,18 +1971,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     public bool IsPushToTalkVisible => !IsVoiceEnabled;
 
     public bool CanPushToTalk =>
-        HasVoiceConsent
-        && EffectiveMicrophone is not null
-        && MicrophoneAccessStatus.State == MicrophoneAccessState.Allowed
-        && IsVoiceActivationAvailable
-        && microphoneCatalogCurrent
+        IsVoiceReadinessEligible(privacyObservation.Current)
         && IsHostInputEligible
-        && SelectedMicrophone is { } microphone
-        && privacyObservation.Current.CanCaptureFrom(microphone)
+        && microphoneCatalogCurrent
         && !IsListening
-        && (!IsBusy || IsSpeaking)
-        && !disposed
-        && !lifecycleAdmissionClosed;
+        && (!IsBusy || IsSpeaking);
 
     public long MicrophoneTopologyRevision => Interlocked.Read(ref microphoneTopologyRevision);
 

@@ -44,6 +44,7 @@ public sealed partial class MainViewModelTests
 
         fixture.Voice.StartCalls.Should().Be(1);
         fixture.ViewModel.IsListening.Should().BeTrue();
+        fixture.ViewModel.CanPushToTalk.Should().BeFalse();
     }
 
     [Fact]
@@ -59,6 +60,32 @@ public sealed partial class MainViewModelTests
         fixture.ViewModel.IsPushToTalkVisible.Should().BeTrue();
         fixture.ViewModel.CanPushToTalk.Should().BeFalse();
         fixture.ViewModel.BeginPushToTalkCommand.CanExecute(null).Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task Push_to_talk_eligibility_rechecks_host_catalog_and_busy_state()
+    {
+        var fixture = CreateVoicePrivacyFixture();
+        await fixture.ViewModel.InitializeAsync();
+        await fixture.ViewModel.ToggleListeningCommand.ExecuteAsync();
+        fixture.ViewModel.CanPushToTalk.Should().BeTrue();
+
+        fixture.Session.IsUnlocked = false;
+        fixture.ViewModel.CanPushToTalk.Should().BeFalse();
+        fixture.Session.IsUnlocked = true;
+
+        var catalogCurrent = typeof(MainViewModel).GetField(
+            "microphoneCatalogCurrent",
+            BindingFlags.Instance | BindingFlags.NonPublic)!;
+        catalogCurrent.SetValue(fixture.ViewModel, false);
+        fixture.ViewModel.CanPushToTalk.Should().BeFalse();
+        catalogCurrent.SetValue(fixture.ViewModel, true);
+
+        fixture.Voice.StartGate = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        var capture = fixture.ViewModel.BeginPushToTalkCommand.ExecuteAsync();
+        fixture.ViewModel.CanPushToTalk.Should().BeFalse();
+        fixture.Voice.StartGate.SetResult();
+        await capture;
     }
 
     private static void PublishVoiceSession(Fixture fixture, WindowsSessionState state)

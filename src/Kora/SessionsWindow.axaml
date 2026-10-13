@@ -7,18 +7,11 @@
     Background="{DynamicResource KoraWindowBackgroundBrush}"
     Foreground="{DynamicResource KoraForegroundBrush}" WindowStartupLocation="CenterScreen">
   <Window.Resources>
-    <DataTemplate x:Key="ConversationMessageTemplate">
-      <StackPanel Spacing="4">
-        <TextBlock Text="{Binding Sequence, StringFormat='USER message sequence {0}'}" />
-        <TextBlock Text="{Binding Request.RequestId.Value, StringFormat='Original request {0}'}" TextWrapping="Wrap" />
-        <TextBlock Text="{Binding Request.TaskId.Value, StringFormat='Original task {0}'}" TextWrapping="Wrap" />
-        <TextBlock Text="{Binding SubmittedAt, StringFormat='Submitted UTC {0:O}'}" />
-        <TextBlock Text="{Binding Body}" TextWrapping="Wrap" />
-        <TextBlock Text="{Binding Outcome, TargetNullValue='Pending / inspect task recovery', StringFormat='HOST status: {0}'}" />
-        <TextBlock Text="{Binding Reason, StringFormat='HOST reason: {0}'}" />
-        <TextBlock Text="{Binding ExpectedTaskState, StringFormat='HOST task status: {0}'}" />
-      </StackPanel>
-    </DataTemplate>
+    <ResourceDictionary>
+      <ResourceDictionary.MergedDictionaries>
+        <ResourceInclude Source="/ConversationPresentation.axaml" />
+      </ResourceDictionary.MergedDictionaries>
+    </ResourceDictionary>
   </Window.Resources>
   <Grid Margin="24" RowDefinitions="Auto,Auto,Auto,Auto,*,Auto" RowSpacing="12">
     <StackPanel Orientation="Horizontal" Spacing="10">
@@ -47,6 +40,7 @@
       <StackPanel Spacing="6">
         <controls:NamedTextBlock Text="{Binding ComposerTarget}" TextWrapping="Wrap"
             AutomationProperties.Name="Composer exact target ID, name, generation, metadata and saved draft revisions, private control epoch" />
+        <Button x:Name="CompactConversation" Content="Open / activate compact selected conversation" HorizontalAlignment="Left" />
         <TextBlock Text="Submit retains accepted text exactly and records a truthful unavailable-provider host outcome. Local best-effort structural credential checks reject detected material before Save or Submit; they cannot identify arbitrary passwords or guarantee secret-free text. Correct the memory draft or use supported secure credential flows; no Save anyway or silent redaction. No generation, runtime fallback, history, tools or network. Drafts are memory-only unless explicitly saved." TextWrapping="Wrap" />
         <WrapPanel>
           <Button x:Name="ReadConversation" Content="Read exact conversation / saved revision" IsEnabled="{Binding CanReadConversation}" />

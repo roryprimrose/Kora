@@ -19,6 +19,23 @@ See [native editor commands, bounds and recovery](instruction-editor.md).
 
 ## Authoritative Sessions work
 
+### Compact selected-session conversation
+
+Open **Tray > Compact selected-session conversation** or **Sessions > Compact conversation**.
+Reopening activates the same compact window. It shares the exact selected session and memory composer with the workspace, not a copied buffer or an inferred recent target ([native surface](../src/Kora/CompactSessionWindow.axaml)).
+
+With no selected target, open **Sessions / explicit selection**. Selecting metadata does not automatically read conversation bodies or reload a saved draft.
+Use **Read exact conversation / saved revision**, bounded Next, and **Refresh observed work** explicitly. USER text and separate HOST status are observations, not generated assistant answers ([shared actions](../src/Kora/CompactSessionWindow.axaml.cs)).
+
+Save, explicit Reload, reviewed Clear and Submit use the existing exact-session services. Both windows display edits to the same buffer.
+New request remains a separate fresh-target workflow; opening it never transfers the shared text ([shared controller](../src/Kora/SessionsWindowController.cs)).
+
+Closing one view leaves the other view and draft intact. Closing the last dirty view offers Save/Discard/Cancel; failed or stale Save keeps the recoverable original target open.
+Privacy, ownership or session retirement revokes both views without saving or stopping unrelated work ([presentation owner](../src/Kora/SessionsPresentationOwner.cs)).
+
+Questions, approvals, voice focus and legacy response presentation remain in their existing surfaces. This selected-session projection adds no generation, relatedness, voice routing, model context, clipboard or export authority.
+Installed accessibility, physical storage and provider qualification remain separate ([delivery boundary](../Design/UI_Workspace_And_Windows.md#delivered-compact-selected-session-projection)).
+
 ### New request with a fresh session
 
 Open **Tray > New request (fresh session only)** or **Sessions > New request (fresh target)**. Reopening activates the same window and preserves its isolated memory draft. Relatedness inference is unavailable: this entry never continues the selected, named, recent or Done session and never changes question/approval/voice focus.

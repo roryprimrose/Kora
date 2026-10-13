@@ -7,6 +7,9 @@ source-revision: 2f33199
 
 ## What you can use today
 
+**Compact selected-session conversation:** open it from tray or Sessions to use the same selected target and memory composer in a lightweight view.
+Closing one view preserves the other; the last dirty view protects Save/Discard/Cancel. Conversation reads and Submit are explicit, with truthful USER/HOST outcomes and no generation or new question/voice authority. See the [compact guide](docs/windows-and-tray.md#compact-selected-session-conversation).
+
 **Saved conversation drafts:** use the tray's metadata-only catalogue to discover explicitly saved nonempty composer drafts across retained sessions. Refresh/Next is bounded and passive; selecting a row opens its exact session only after stale-source checks.
 Browse all retained drafts by default, or explicitly search literal case-sensitive session names / canonical exact session IDs. Typing reads nothing; query/filter edits clear stale catalogue selections, not the current composer. Clear returns to Browse. No draft-body search or new storage/index/quota is added.
 It never automatically reloads, saves, submits or resumes. Use the separate **Reload saved draft** in Sessions. See the [catalogue contract](Design/Interaction_And_Sessions.md#saved-conversation-draft-catalogue--2026-10-13).

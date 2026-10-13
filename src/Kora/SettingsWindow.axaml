@@ -433,7 +433,7 @@
                   <Button
                       x:Name="PushToTalkButton"
                       Content="Push to talk (hold)"
-                      IsEnabled="{Binding IsVoiceEnabled}"
+                      IsEnabled="{Binding CanPushToTalk}"
                       PointerCaptureLost="OnPushToTalkCaptureLost"
                       LostFocus="OnPushToTalkFocusLost" />
                 </StackPanel>

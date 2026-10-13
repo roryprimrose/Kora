@@ -15,11 +15,13 @@ internal sealed partial class SessionsViewModel
     private bool conversationHeld;
     private bool conversationSourceHeld;
     private bool conversationBusy;
+    private bool protectingComposer;
     private bool clearDraftReviewed;
     private string conversationStatus = "Select an exact session. Drafts stay in memory unless explicitly saved.";
     internal Func<Task<ComposerDraftDecision>>? DecideComposerDraft { get; set; }
-    internal void ReportComposerCloseFailure()
+    internal void ReportComposerCloseFailure(Exception exception)
     {
+        Failure(logger, exception.GetType().Name);
         conversationStatus = "Draft save/close is unconfirmed; the memory buffer remains open. Inspect saved revision before another decision.";
         NotifyConversation();
     }
@@ -29,7 +31,7 @@ internal sealed partial class SessionsViewModel
         get => composerBody;
         set
         {
-            if (closed || !access.CanInspect || conversationBusy) { return; }
+            if (closed || !access.CanInspect || conversationBusy || protectingComposer) { return; }
             composerBody = value;
             clearDraftReviewed = false;
             NotifyConversation();
@@ -156,22 +158,37 @@ internal sealed partial class SessionsViewModel
 
     internal async Task<bool> ProtectComposerAsync()
     {
+        if (protectingComposer) { return false; }
         if (!ComposerDirty) { return true; }
-        var decision = DecideComposerDraft is null ? ComposerDraftDecision.Cancel : await DecideComposerDraft();
-        if (closed || !access.CanInspect) { return false; }
-        if (decision == ComposerDraftDecision.Cancel) { Notify(); return false; }
-        if (decision == ComposerDraftDecision.Discard)
-        { composerBody = string.Empty; composerBaseline = string.Empty; NotifyConversation(); return true; }
         var target = RequireSelected();
+        var epoch = selectionEpoch;
         var revision = access.ControlRevision;
         var body = composerBody;
-        var draft = savedConversationDraft ?? await conversation!.ReadDraftAsync(target.Authority.SessionId, lifetime.Token);
-        var saved = await conversation!.SaveDraftAsync(draft, body,
-            () => !closed && access.CanControl && access.ControlRevision == revision && selected == target, lifetime.Token);
-        savedConversationDraft = saved;
-        composerBaseline = body;
-        NotifyConversation();
-        return true;
+        bool Live() => !closed && access.CanInspect && access.ControlRevision == revision
+            && selectionEpoch == epoch && selected == target && string.Equals(composerBody, body, StringComparison.Ordinal);
+        protectingComposer = true;
+        Notify();
+        try
+        {
+            var decision = DecideComposerDraft is null ? ComposerDraftDecision.Cancel : await DecideComposerDraft();
+            if (!Live() || decision == ComposerDraftDecision.Cancel) { return false; }
+            if (decision == ComposerDraftDecision.Discard)
+            { composerBody = string.Empty; composerBaseline = string.Empty; return true; }
+            var draft = savedConversationDraft ?? await conversation!.ReadDraftAsync(target.Authority.SessionId, lifetime.Token);
+            var saved = await conversation!.SaveDraftAsync(draft, body,
+                () => Live() && access.CanControl, lifetime.Token);
+            if (!Live() || saved.Session != target.Authority || !string.Equals(saved.Draft.Body, body, StringComparison.Ordinal))
+            { throw new IOException("Saved draft receipt is unconfirmed; inspect exact durable revision."); }
+            savedConversationDraft = saved;
+            composerBaseline = body;
+            return true;
+        }
+        finally
+        {
+            protectingComposer = false;
+            Notify();
+            if (closed && !busy && !refreshingWork && !changingRoutineQuiet && !changingQueueControl) { lifetime.Dispose(); }
+        }
     }
 
     private async Task RunConversationAsync(Func<Kora.Core.Storage.SessionWorkspaceEntry, Func<bool>, Task> operation,

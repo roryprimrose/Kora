@@ -55,7 +55,8 @@ public sealed class SystemTrayController : IDisposable
         Action? inspectRetainedAttachments = null,
         Action? editOwnedInstructions = null,
         Action? inspectSavedDrafts = null,
-        Action? newRequest = null)
+        Action? newRequest = null,
+        Action? compactConversation = null)
     {
         this.viewModel = viewModel;
         this.logger = logger;
@@ -113,6 +114,12 @@ public sealed class SystemTrayController : IDisposable
             var sessionsItem = new NativeMenuItem("Sessions");
             sessionsItem.Click += (_, _) => RunAfterNativeMenuCloses(inspectSessions);
             menu.Add(sessionsItem);
+        }
+        if (compactConversation is not null)
+        {
+            var compactItem = new NativeMenuItem("Compact selected-session conversation");
+            compactItem.Click += (_, _) => RunAfterNativeMenuCloses(compactConversation);
+            menu.Add(compactItem);
         }
         if (inspectRetainedAttachments is not null)
         {

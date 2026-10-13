@@ -7,19 +7,26 @@ namespace Kora;
 
 internal sealed partial class AttachmentCatalogueWindow : Window
 {
+    internal Task Operation { get; private set; } = Task.CompletedTask;
     internal AttachmentCatalogueWindow(AttachmentCatalogueViewModel model)
     {
         InitializeComponent();
         DataContext = model;
-        RefreshPage.Click += async (_, _) => await model.Refresh();
-        NextPage.Click += async (_, _) => await model.Refresh(next: true);
+        RefreshPage.Click += async (_, _) => await (Operation = model.Refresh());
+        NextPage.Click += async (_, _) => await (Operation = model.Refresh(next: true));
         CancelRead.Click += (_, _) => model.Cancel();
+        ClearQuery.Click += (_, _) => model.ClearQuery();
         SlotRecords.SelectionChanged += (_, _) => model.Select(SlotRecords.SelectedItem as SessionAttachmentSummary);
-        OpenExact.Click += async (_, _) => await model.Navigate();
+        OpenExact.Click += async (_, _) => await (Operation = model.Navigate());
         CloseView.Click += (_, _) => Close();
         Closed += (_, _) => model.Dispose();
         KeyDown += (_, args) =>
         {
+            if (args.Key == Key.Enter && AttachmentQueryText.IsFocused && model.CanSearch)
+            {
+                Operation = model.Refresh();
+                args.Handled = true;
+            }
             if (args.Key == Key.Escape) { Close(); args.Handled = true; }
         };
     }

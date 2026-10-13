@@ -88,14 +88,16 @@ internal sealed class ProcessTreeObserver
         lineage = new(root);
     }
 
-    public static ProcessTreeObserver Admit(int serverProcessId)
+    public static ProcessTreeObserver Admit(int serverProcessId, int port = 11434)
     {
         if (!OperatingSystem.IsWindows()) throw new PlatformNotSupportedException("Native process observation requires Windows.");
+        if (port is <= 1024 or > 65535)
+            throw new ArgumentOutOfRangeException(nameof(port), "A non-privileged TCP port is required.");
         using var process = Process.GetProcessById(serverProcessId);
         if (!string.Equals(process.ProcessName, "ollama", StringComparison.OrdinalIgnoreCase))
             throw new InvalidOperationException("The explicitly selected server PID is not an Ollama process.");
         var root = new ProcessIdentity(serverProcessId, process.StartTime.ToUniversalTime().Ticks);
-        var observer = new ProcessTreeObserver(root, new WindowsProcessResourceSource());
+        var observer = new ProcessTreeObserver(root, new WindowsProcessResourceSource(port));
         observer.VerifyListener();
         return observer;
     }
@@ -111,7 +113,7 @@ internal sealed class ProcessTreeObserver
     }
 }
 
-internal sealed class WindowsProcessResourceSource : IProcessResourceSource
+internal sealed class WindowsProcessResourceSource(int port = 11434) : IProcessResourceSource
 {
     public void VerifyListener(ProcessIdentity root)
     {
@@ -120,7 +122,7 @@ internal sealed class WindowsProcessResourceSource : IProcessResourceSource
             using var process = Process.GetProcessById(root.Id);
             if (process.StartTime.ToUniversalTime().Ticks != root.StartedUtcTicks || process.HasExited)
                 throw new InvalidOperationException("The admitted server process exited or its PID was reused; no request may be forwarded.");
-            ValidateListeners(root, NativeSnapshot.Sockets(), Environment.ProcessId);
+            ValidateListeners(root, NativeSnapshot.Sockets(), Environment.ProcessId, port);
             if (process.HasExited)
                 throw new InvalidOperationException("The admitted server exited during listener verification; no request may be forwarded.");
         }
@@ -130,14 +132,18 @@ internal sealed class WindowsProcessResourceSource : IProcessResourceSource
         }
     }
 
-    internal static void ValidateListeners(ProcessIdentity root, IEnumerable<SocketRow> sockets, int clientProcessId)
+    internal static void ValidateListeners(
+        ProcessIdentity root,
+        IEnumerable<SocketRow> sockets,
+        int clientProcessId,
+        int port = 11434)
     {
         var snapshot = sockets.ToArray();
-        var listeners = snapshot.Where(s => s.Protocol == "TCP" && s.LocalPort == 11434 && s.State == 2).ToArray();
+        var listeners = snapshot.Where(s => s.Protocol == "TCP" && s.LocalPort == port && s.State == 2).ToArray();
         if (listeners.Length == 0 || listeners.Any(s => s.ProcessId != root.Id
             || !IPAddress.IsLoopback(IPAddress.Parse(s.LocalAddress))))
             throw new InvalidOperationException("The loopback listener is missing, changed, shared or non-loopback; no request may be forwarded.");
-        if (snapshot.Any(s => s.Protocol == "TCP" && s.RemotePort == 11434
+        if (snapshot.Any(s => s.Protocol == "TCP" && s.RemotePort == port
             && s.State is 3 or 4 or 5 or 8 && s.ProcessId != clientProcessId))
             throw new InvalidOperationException("Another active TCP client was observed; exclusive use is not established. No request may be forwarded.");
     }

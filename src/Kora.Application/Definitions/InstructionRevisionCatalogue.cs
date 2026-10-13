@@ -72,7 +72,7 @@ public sealed class InstructionRevisionCatalogue
                 { observedRevisions[name] = (revision, Guid.NewGuid()); }
                 if (!state.TryGetValue(name, out var approved))
                 {
-                    // One-time unchanged legacy compatibility; native v1 saves are always new disabled candidates.
+                    // One-time unchanged legacy compatibility; native saves are always new disabled candidates.
                     approved = initial && !unavailable && !artifact.RequiresInstructionReview
                         ? revision : null;
                     state[name] = approved;

@@ -14,6 +14,25 @@ Related: [Architecture](Architecture.md),
 [Security and Data Flows](Security_Data_Flows.md), and
 [Implementation Roadmap](Implementation_Roadmap.md).
 
+## Native conversation admission consumer — 2026-10-12
+
+The [exact-session composer](Interaction_And_Sessions.md#delivered-exact-session-conversationcomposer-foundation--2026-10-12)
+now consumes configured `ModelTurnHost` admission with fresh session/app policy,
+qualification and immutable tuple capture, never the buffered bootstrap
+reasoner. Only the newly frozen original user body plus trusted versioned host
+policy enters a complete ≤32768-byte envelope; no retained conversation,
+memory, attachment, evidence or tool-result assembly is implied.
+
+Production no-model/no-qualified-adapter resolution retains original input
+with a separate truthful HOST Unavailable terminal and matching task receipt.
+Even a controlled future qualified admission reports GenerationNotEnabled
+without executing a provider. No authentication, egress, live provider,
+rejected Ollama candidate, send-once override or provider-output parser is
+enabled. Installed-local desired initial service is not inference consent.
+
+Separately confirmed owned-v2 expanded prompts now enter this same conversation consumer as exact USER bodies for one explicitly selected existing Active session. They do not invoke old prompt Use as well, introduce system/instruction/evidence wrappers, inherit source authority or assemble saved history/drafts. Source/expansion digests remain distinct and volatile provenance does not become provider selection or durable template storage.
+The actual production outcome remains HOST Unavailable; test-only qualified/fake admission proves exact immutable input without enabling generation, authentication, HTTP, egress or either rejected Ollama candidate.
+
 ## Product Decision
 
 Kora supports qualified local inference through Ollama and separately
@@ -172,8 +191,10 @@ Durable exact-session inheritance/overrides are delivered below. Generic unscope
 - [Individual field failures/atomic save](../tests/Kora.Application.UnitTests/Configuration/ProviderProfileFieldConfigurationTests.cs) and [real native/exact/current-name activated review](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.ProviderFields.cs) cover compatible retention, incompatible-base recovery, cancellation, stale confirmation and no provider execution.
 - [Private SQLite/composition tests](../tests/Kora.Windows.IntegrationTests/Storage/WindowsSqliteProviderProfileConfigurationTests.cs) use deterministic installation/catalogue boundaries, not live endpoints/accounts/devices.
 
-Experiment disposition remains **retain**. Exact deterministic catalogue/configuration/host assertions do not equal RT1 SDK-native final bytes, RT2 native lifecycle/egress, PV1 account/terms/quota, local quality/offline/CPU-floor, or installed native/hardware proof.
-`eng/RuntimeValidation.Common.ps1` still consumes retained runtime profiles; no executable, fixture, unique assertion or receipt is removed and no release gate is closed.
+Runtime/provider experiment disposition remains **retain** because
+`eng/RuntimeValidation.Common.ps1` consumes its profiles and RT1/RT2/PV1 retain
+unique native/account evidence. This does not retain the retired manual-proof
+harness or require more trials for rejected local-inference candidates.
 
 ### Session overrides and effective resolution
 

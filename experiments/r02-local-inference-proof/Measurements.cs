@@ -15,7 +15,36 @@ internal sealed record GenerationResult(
 
 internal static class Measurements
 {
-    public const string Endpoint = "http://127.0.0.1:11434";
+    public const string DefaultEndpoint = "http://127.0.0.1:11434";
+
+    public static string Endpoint { get; private set; } = DefaultEndpoint;
+
+    public static Uri EndpointUri { get; private set; } = new(DefaultEndpoint);
+
+    public static Uri ValidateEndpoint(string value)
+    {
+        if (!Uri.TryCreate(value, UriKind.Absolute, out var endpoint)
+            || !string.Equals(endpoint.Scheme, Uri.UriSchemeHttp, StringComparison.Ordinal)
+            || !string.Equals(endpoint.Host, "127.0.0.1", StringComparison.Ordinal)
+            || endpoint.Port is <= 1024 or > 65535
+            || !string.IsNullOrEmpty(endpoint.UserInfo)
+            || endpoint.AbsolutePath != "/"
+            || !string.IsNullOrEmpty(endpoint.Query)
+            || !string.IsNullOrEmpty(endpoint.Fragment))
+        {
+            throw new ArgumentException(
+                "The experiment endpoint must be an HTTP 127.0.0.1 origin with a non-privileged port and no credentials, path, query, or fragment.",
+                nameof(value));
+        }
+
+        return endpoint;
+    }
+
+    public static void ConfigureEndpoint(string value)
+    {
+        EndpointUri = ValidateEndpoint(value);
+        Endpoint = EndpointUri.GetLeftPart(UriPartial.Authority);
+    }
 
     public static async Task<JsonNode> GetAsync(HttpClient client, string path, CancellationToken cancellationToken = default)
     {

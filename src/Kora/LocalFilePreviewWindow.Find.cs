@@ -1,0 +1,173 @@
+﻿using Avalonia.Automation;
+using Avalonia.Controls;
+using Avalonia.Layout;
+
+using Kora.Application.Infrastructure;
+using Kora.Controls;
+using Kora.Core.Context;
+
+namespace Kora;
+
+internal sealed partial class LocalFilePreviewWindow
+{
+    private LocalFileRevision? findSource;
+    private TextBox? findQuery;
+    private NamedTextBlock? findStatus;
+    private Button? findNext;
+    private Button? findPrevious;
+    private LocalFileLiteralMatch? findMatch;
+    private CancellationTokenSource? finding;
+    private long findGeneration;
+    private bool literalSpanVisible;
+
+    private void SetFindSource(LocalFileRevision? file)
+    {
+        ClearFind(clearQuery: true);
+        findSource = file;
+    }
+
+    private void ShowFind(DockPanel body, Func<bool> current,
+        Func<CancellationToken, Task<IReadOnlyList<LocalFileRevision>>> resolveSource)
+    {
+        var query = new TextBox
+        {
+            AcceptsReturn = false,
+            PlaceholderText = $"Literal Find: {LocalFileRetrievalPolicy.MaximumQueryCharacters} UTF-16 characters / "
+                + $"{LocalFileRetrievalPolicy.MaximumQueryUtf8Bytes} UTF-8 bytes maximum",
+        };
+        findQuery = query;
+        AutomationProperties.SetName(query, "Case-sensitive literal Find in the currently displayed exact original file only");
+        query.PropertyChanged += (_, args) =>
+        {
+            if (args.Property == TextBox.TextProperty) { ClearFind(); }
+        };
+        var status = new NamedTextBlock { TextWrapping = Avalonia.Media.TextWrapping.Wrap };
+        findStatus = status;
+        AutomationProperties.SetName(status, "Literal Find outcome, not ranked retrieval");
+        Button Action(string caption, LocalFileFindDirection direction)
+        {
+            var button = new Button { Content = caption };
+            AutomationProperties.SetName(button, caption + " case-sensitive literal in current original file; no wrap");
+            button.Command = new AsyncCommand(() => FindLiteral(direction, query, current, resolveSource), exception =>
+            {
+                if (!ReferenceEquals(findQuery, query)) { return; }
+                ClearFind();
+                status.Text = "Literal Find unavailable; no match or focus claimed.";
+                reportFailure("Literal Find unavailable; inspect the exact current source and enter a bounded one-line literal. Failure type: "
+                    + exception.GetType().Name);
+            });
+            return button;
+        }
+        var actions = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
+        actions.Children.Add(Action("Find first", LocalFileFindDirection.First));
+        findNext = Action("Find next", LocalFileFindDirection.Next);
+        findPrevious = Action("Find previous", LocalFileFindDirection.Previous);
+        findNext.IsEnabled = false;
+        findPrevious.IsEnabled = false;
+        actions.Children.Add(findNext);
+        actions.Children.Add(findPrevious);
+        var clear = new Button { Content = "Clear literal Find" };
+        clear.Click += (_, _) => ClearFind(clearQuery: true);
+        actions.Children.Add(clear);
+        var panel = new StackPanel { Spacing = 4 };
+        panel.Children.Add(new NamedTextBlock
+        {
+            Text = "Literal Find: case-sensitive, unchanged spaces, nonoverlapping, no wrap. First starts at zero; "
+                + "Next starts after the match end; Previous finds the last match ending before or at its start. "
+                + "One exact match only, no occurrence count. Native only; ranked search below is unchanged.",
+            TextWrapping = Avalonia.Media.TextWrapping.Wrap,
+        });
+        panel.Children.Add(query);
+        panel.Children.Add(actions);
+        panel.Children.Add(status);
+        DockPanel.SetDock(panel, Dock.Top);
+        body.Children.Insert(1, panel);
+    }
+
+    private async Task FindLiteral(LocalFileFindDirection direction, TextBox queryBox, Func<bool> current,
+        Func<CancellationToken, Task<IReadOnlyList<LocalFileRevision>>> resolveSource)
+    {
+        var file = findSource ?? throw new InvalidOperationException("No exact displayed file is available.");
+        var query = queryBox.Text ?? string.Empty;
+        var selected = findMatch;
+        ClearNavigation();
+        var generation = findGeneration;
+        bool Current() => generation == findGeneration && ReferenceEquals(findQuery, queryBox)
+            && ReferenceEquals(findSource, file) && string.Equals(queryBox.Text, query, StringComparison.Ordinal)
+            && string.Equals(content.Text, file.Text, StringComparison.Ordinal) && current();
+        void MarkStale()
+        {
+            if (generation != findGeneration || !ReferenceEquals(findQuery, queryBox)) { return; }
+            ClearFind();
+            findStatus!.Text = "Literal Find stale or unavailable; inspect the exact source again. No match or focus claimed.";
+        }
+        if (!Current()) { throw new InvalidOperationException("The displayed exact source is stale."); }
+        // Validate before any retained read. This scan allocates at most one bounded identity/span, never an index.
+        var match = LocalFileLiteralFind.Find(file, query, direction, selected);
+        using var cancellation = new CancellationTokenSource();
+        finding = cancellation;
+        try
+        {
+            var files = await resolveSource(cancellation.Token);
+            if (cancellation.IsCancellationRequested) { return; }
+            if (!Current()) { MarkStale(); return; }
+            var resolved = files.SingleOrDefault(candidate => candidate.Reference == file.Reference)
+                ?? throw new InvalidOperationException("The exact displayed source is unavailable.");
+            if (!string.Equals(resolved.Text, file.Text, StringComparison.Ordinal))
+            {
+                throw new InvalidDataException("The validated original source differs from the displayed immutable source.");
+            }
+            if (!Current()) { MarkStale(); return; }
+            findMatch = match ?? (direction == LocalFileFindDirection.First ? null : selected);
+            findNext!.IsEnabled = findMatch is not null;
+            findPrevious!.IsEnabled = findMatch is not null;
+            findStatus!.Text = match is null
+                ? direction == LocalFileFindDirection.First ? "No literal match in this exact original file."
+                    : direction == LocalFileFindDirection.Next ? "End of forward direction; no wrap. Earlier matches may remain."
+                        : "End of backward direction; no wrap. Later matches may remain."
+                : "One exact case-sensitive literal match; nonoverlapping; no wrap.";
+            if (match is null) { return; }
+            citedLocation!.Text = DescribeItem(file) + "\n"
+                + $"Literal match: UTF-16 [{match.Start}, {match.Start + match.Length}) of {file.Text.Length}; end exclusive. "
+                + "Historical admission, not a current filesystem observation or ranked citation. Complete original source remains below.";
+            citedSpan!.Text = file.Text.Substring(match.Start, match.Length);
+            AutomationProperties.SetName(citedSpan, $"Exact literal original source match; item {file.ItemId:D}; "
+                + $"UTF-16 [{match.Start}, {match.Start + match.Length})");
+            literalSpanVisible = true;
+            exactSpanPanel!.IsVisible = true;
+            UpdateLayout();
+            if (!Current())
+            {
+                MarkStale();
+                return;
+            }
+            citedSpan.BringIntoView();
+            if (!Current()) { MarkStale(); return; }
+            if (!citedSpan.Focus()) { throw new InvalidOperationException("Literal source match focus is unavailable."); }
+        }
+        catch (OperationCanceledException) when (cancellation.IsCancellationRequested) { }
+        catch (Exception) when (cancellation.IsCancellationRequested || !Current()) { MarkStale(); }
+        finally
+        {
+            if (ReferenceEquals(finding, cancellation)) { finding = null; }
+        }
+    }
+
+    private void ClearFind(bool clearQuery = false)
+    {
+        findGeneration++;
+        finding?.Cancel();
+        findMatch = null;
+        if (findNext is not null) { findNext.IsEnabled = false; }
+        if (findPrevious is not null) { findPrevious.IsEnabled = false; }
+        if (findStatus is not null) { findStatus.Text = null; }
+        if (literalSpanVisible)
+        {
+            literalSpanVisible = false;
+            if (citedSpan is not null) { citedSpan.Text = null; AutomationProperties.SetName(citedSpan, null); }
+            if (citedLocation is not null) { citedLocation.Text = null; }
+            if (exactSpanPanel is not null) { exactSpanPanel.IsVisible = false; }
+        }
+        if (clearQuery && findQuery is not null) { findQuery.Text = null; }
+    }
+}

@@ -208,9 +208,7 @@ public sealed partial class MainViewModelTests
         fixture.ViewModel.ResponseBody.Should().Be(response);
         fixture.ViewModel.IsVoiceEnabled.Should().BeFalse();
         await fixture.ViewModel.BeginPushToTalkAsync();
-        fixture.Voice.StartCalls.Should().Be(1);
-        await fixture.ViewModel.ToggleListeningCommand.ExecuteAsync();
-        await fixture.ViewModel.BeginPushToTalkAsync();
+        fixture.Voice.StartCalls.Should().Be(2);
         fixture.Voice.StartedPhrases.Should().Contain("Nova get assistant name")
             .And.Contain("Nova session help").And.NotContain("Kora session help");
     }

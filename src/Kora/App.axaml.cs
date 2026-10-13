@@ -34,12 +34,15 @@ public sealed partial class App : Avalonia.Application
     private EvidenceWindowController? evidenceWindow;
     private SkillPackagesWindowController? skillPackagesWindow;
     private OwnedInstructionEditorController? instructionEditor;
+    private PromptParameterController? promptParameters;
     private SessionsWindowController? sessionsWindow;
+    private NewRequestWindowController? newRequestWindow;
     private AllWorkWindowController? allWorkWindow;
     private ClipboardPreviewWindowController? clipboardWindow;
     private LocalFilePreviewWindowController? fileWindow;
     private SessionAttachmentWindowController? attachmentWindow;
     private AttachmentCatalogueWindowController? attachmentCatalogue;
+    private SavedDraftCatalogueWindowController? savedDraftCatalogue;
     private MaintenanceWindowController? maintenanceWindow;
     private MainViewModel? viewModel;
     private ILogger<App>? logger;
@@ -126,12 +129,20 @@ public sealed partial class App : Avalonia.Application
                 Services.GetRequiredKeyedService<Kora.Application.Definitions.OwnedInstructionEditorActions>(Kora.Core.Artifacts.ArtifactKind.Prompt),
                 Services.GetRequiredKeyedService<Kora.Application.Definitions.InstructionSaveWorkflow>(Kora.Core.Artifacts.ArtifactKind.Prompt));
             instructionEditor.Bind();
+            promptParameters = new(viewModel, Services.GetRequiredService<Kora.Core.Artifacts.ArtifactCatalogue>(),
+                Services.GetRequiredService<Kora.Application.Definitions.PromptRequestConsumer>(),
+                Services.GetRequiredService<Kora.Application.Definitions.PromptConversationSubmission>(),
+                () => Services.GetRequiredService<DesktopInstanceOwnershipBridge>().IsReady
+                    && !Services.GetRequiredService<DesktopInstanceOwnershipBridge>().IsHandoffRecoveryRequired,
+                () => Services.GetRequiredService<DesktopInstanceOwnershipBridge>().AdmissionRevision,
+                Services.GetRequiredService<ILogger<PromptParameterController>>());
+            promptParameters.Bind();
             viewModel.PrivacyClosureRequested += (_, _) =>
                 Services.GetRequiredService<Kora.Application.Definitions.OwnedInstructionEditorActions>().SuspendReviewedUse();
             viewModel.PrivacyClosureRequested += (_, _) =>
                 Services.GetRequiredKeyedService<Kora.Application.Definitions.OwnedInstructionEditorActions>(Kora.Core.Artifacts.ArtifactKind.Prompt)
                     .SuspendReviewedUse();
-            viewModel.BindOwnedInstructionFreshness(candidate =>
+            viewModel.BindOwnedInstructionFreshnessWithCancellation((candidate, token) =>
             {
                 var ownership = Services.GetRequiredService<DesktopInstanceOwnershipBridge>().AdmissionRevision;
                 var eligible = viewModel.CaptureInstructionEditorEligibility();
@@ -140,7 +151,7 @@ public sealed partial class App : Avalonia.Application
                     : Services.GetRequiredService<Kora.Application.Definitions.OwnedInstructionEditorActions>();
                 return actions
                     .IsCurrent(candidate, () => eligible()
-                        && Services.GetRequiredService<DesktopInstanceOwnershipBridge>().AdmissionRevision == ownership, CancellationToken.None);
+                        && Services.GetRequiredService<DesktopInstanceOwnershipBridge>().AdmissionRevision == ownership, token);
             });
             systemTray = new SystemTrayController(
                 viewModel,
@@ -154,7 +165,10 @@ public sealed partial class App : Avalonia.Application
                 () => exactGrants?.Open(),
                 () => questionWindow.ReturnToCurrentQuestionAsync(window),
                 () => attachmentCatalogue?.Open(),
-                () => instructionEditor.Open());
+                () => instructionEditor.Open(),
+                () => savedDraftCatalogue?.Open(),
+                () => newRequestWindow?.Open(),
+                () => sessionsWindow?.OpenCompact());
             evidenceWindow = new EvidenceWindowController(viewModel,
                 Services.GetRequiredService<Kora.Application.Diagnostics.DurableEvidenceQuery>(),
                 Services.GetRequiredService<Kora.Core.Diagnostics.IEvidenceQueryAccess>(),
@@ -178,8 +192,17 @@ public sealed partial class App : Avalonia.Application
                 Services.GetRequiredService<ILogger<SessionsViewModel>>(),
                 Services.GetRequiredService<Kora.Application.Interaction.LocalEventBroker>(), detailWindow,
                 Services.GetRequiredService<Kora.Application.Memory.MemoryManagementService>(), attachmentWindow,
-                Services.GetRequiredService<Kora.Application.Configuration.SessionProviderProfileConfigurationService>());
+                Services.GetRequiredService<Kora.Application.Configuration.SessionProviderProfileConfigurationService>(),
+                Services.GetRequiredService<SessionConversationService>());
             sessionsWindow.Bind();
+            newRequestWindow = new(viewModel, Services.GetRequiredService<SessionWorkspaceService>(),
+                Services.GetRequiredService<Kora.Core.Storage.ISessionWorkspaceAccess>(),
+                () => Services.GetRequiredService<NewRequestComposer>(), sessionsWindow);
+            newRequestWindow.Bind();
+            sessionsWindow.OpenNewRequest = newRequestWindow.Open;
+            savedDraftCatalogue = new(viewModel, Services.GetRequiredService<SessionWorkspaceService>(), sessionsWindow,
+                Services.GetRequiredService<Kora.Core.Storage.ISessionWorkspaceAccess>(),
+                Services.GetRequiredService<ILogger<SavedDraftCatalogueViewModel>>());
             allWorkWindow = new AllWorkWindowController(viewModel,
                 Services.GetRequiredService<SessionWorkspaceService>(),
                 Services.GetRequiredService<Kora.Core.Storage.ISessionWorkspaceAccess>(),
@@ -192,6 +215,7 @@ public sealed partial class App : Avalonia.Application
             var sessionRetention = Services.GetRequiredService<SessionRetentionService>();
             Services.GetRequiredService<SessionWorkspaceService>().BindRetention(sessionRetention);
             sessionRetention.Revoking += sessionsWindow.RevokeSession;
+            sessionRetention.Revoking += newRequestWindow.RevokeSession;
             sessionRetention.Revoking += detailWindow.RevokeSession;
             sessionRetention.Revoking += viewModel.RevokeSessionPresentation;
             sessionRetention.Revoking += session => attachmentWindow?.RevokeSession(session);
@@ -289,6 +313,8 @@ public sealed partial class App : Avalonia.Application
         systemTray?.Dispose();
         instructionEditor?.Dispose();
         instructionEditor = null;
+        promptParameters?.Dispose();
+        promptParameters = null;
         systemTray = null;
         settingsWindow?.Dispose();
         settingsWindow = null;
@@ -316,8 +342,12 @@ public sealed partial class App : Avalonia.Application
         allWorkWindow = null;
         sessionsWindow?.Dispose();
         sessionsWindow = null;
+        newRequestWindow?.Dispose();
+        newRequestWindow = null;
         attachmentCatalogue?.Dispose();
         attachmentCatalogue = null;
+        savedDraftCatalogue?.Dispose();
+        savedDraftCatalogue = null;
         attachmentWindow?.Dispose();
         attachmentWindow = null;
         clipboardWindow?.Dispose();

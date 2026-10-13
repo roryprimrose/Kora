@@ -33,14 +33,26 @@ public sealed partial class OwnedInstructionEditorActions(
         var document = ArtifactFileDocument.Parse(ArtifactFileDocument.Encode(text, bom),
             Kind, "kora-profile", name);
         document.RequireEditableInstruction();
+        ValidateProposal(document, name, catalogue.Candidates);
+        return document;
+    }
+
+    public ArtifactFileDocument PrepareSave(string name, OwnedInstructionSnapshot? original, string draft)
+    {
+        var document = ArtifactFileDocument.PrepareOwnedSave(Kind, name, original, draft);
+        ValidateProposal(document, name, catalogue.Candidates);
+        return document;
+    }
+
+    private void ValidateProposal(ArtifactFileDocument document, string name, IReadOnlyList<ArtifactDefinition> candidates)
+    {
         var proposed = document.Definition;
         if (proposed.CommandName is "skill" or "skills" or "instruction" or "instructions" or "prompt"
             or "prompts" or "agent" or "agents" or "definitions" or "help" or "exit" or "settings")
         { throw new InvalidDataException("The instruction cannot shadow a reserved control."); }
         if (proposed.SpokenNames.Any(name => new[] { "use " + name, "run " + name }.Any(phrase => controls.Match(phrase).IsMatch)))
         { throw new InvalidDataException("The declared instruction name would shadow a registered built-in command."); }
-        _ = new ArtifactCatalogue([.. catalogue.Candidates.Where(item => !Matches(item, name)), proposed]);
-        return document;
+        _ = new ArtifactCatalogue([.. candidates.Where(item => !Matches(item, name)), proposed]);
     }
 
     public OwnedDefinitionCopy PrepareCopy(string destinationName, OwnedInstructionSnapshot source, string draft)
@@ -189,12 +201,47 @@ public sealed partial class OwnedInstructionEditorActions(
 
     public async Task<bool> IsCurrent(ArtifactDefinition candidate, Func<bool> eligible, CancellationToken token)
     {
+        try
+        {
+            return await admission.Run(eligible, async (request, _, current, admitted) =>
+            {
+                if (candidate.PromptTemplate is null)
+                { return await IsCurrentAdmitted(candidate, current, admitted).ConfigureAwait(false); }
+                var requested = new SecurityAuditEvent(request.RequestId.Value, SecurityAuditCategory.ProtectedOperation,
+                    "definition.prompt.prepare", SecurityAuditOutcome.Requested, SecurityAuditInitiator.LocalUser, "definition.owned-prompt");
+                auditLog.Write(requested);
+                try
+                {
+                    var result = await IsCurrentAdmitted(candidate, current, admitted).ConfigureAwait(false);
+                    auditLog.Write(requested.WithOutcome(result ? SecurityAuditOutcome.Succeeded : SecurityAuditOutcome.Denied,
+                        result ? "exact-template-current" : "template-unavailable"));
+                    return result;
+                }
+                catch
+                {
+                    auditLog.Write(requested.WithOutcome(SecurityAuditOutcome.Failed, "preparation-unconfirmed"));
+                    throw;
+                }
+            }, token).ConfigureAwait(false);
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException
+            or InvalidDataException or InvalidOperationException or OperationCanceledException)
+        {
+            revisions.HoldCandidate(candidate, catalogue);
+            return false;
+        }
+    }
+
+    internal async Task<bool> IsCurrentAdmitted(ArtifactDefinition candidate, Func<bool> eligible, CancellationToken token)
+    {
         if (candidate.OwnedInstructionName is null) { return true; }
         if (candidate.Kind != Kind) { return false; }
         OwnedInstructionSnapshot? live;
         try
         {
-            live = await Inspect(candidate.OwnedInstructionName, eligible, token).ConfigureAwait(false);
+            if (!eligible()) { return false; }
+            live = await store.Read(candidate.OwnedInstructionName, token).ConfigureAwait(false);
+            if (!eligible()) { return false; }
             if (live is not null && string.Equals(candidate.OwnedInstructionRevision, live.Revision, StringComparison.Ordinal)
                 && catalogue.Candidates.Any(item => Matches(item, live.Name)
                     && string.Equals(item.OwnedInstructionRevision, live.Revision, StringComparison.Ordinal)))

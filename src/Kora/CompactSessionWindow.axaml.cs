@@ -1,0 +1,34 @@
+using Avalonia.Controls;
+using Avalonia.Input;
+
+namespace Kora;
+
+internal sealed partial class CompactSessionWindow : Window
+{
+    internal event EventHandler? SessionsRequested;
+    internal event EventHandler? NewRequestRequested;
+    internal Task ConversationOperation { get; private set; } = Task.CompletedTask;
+
+    internal CompactSessionWindow(SessionsViewModel model, SessionsPresentationOwner owner)
+    {
+        InitializeComponent();
+        DataContext = model;
+        owner.Attach(this);
+        Sessions.Click += (_, _) => SessionsRequested?.Invoke(this, EventArgs.Empty);
+        NewRequest.Click += (_, _) => NewRequestRequested?.Invoke(this, EventArgs.Empty);
+        ReadConversation.Click += async (_, _) => await (ConversationOperation = model.ReadConversationAsync());
+        NextConversation.Click += async (_, _) => await (ConversationOperation = model.ReadConversationAsync(next: true));
+        RefreshWork.Click += async (_, _) => await (ConversationOperation = model.RefreshWorkAsync());
+        SaveConversationDraft.Click += async (_, _) => await (ConversationOperation = model.SaveConversationDraftAsync());
+        ReloadConversationDraft.Click += async (_, _) => await (ConversationOperation = model.ReloadConversationDraftAsync());
+        DiscardComposer.Click += (_, _) => model.DiscardComposerBuffer();
+        ReviewClearConversationDraft.Click += (_, _) => model.ReviewClearConversationDraft();
+        ClearConversationDraft.Click += async (_, _) => await (ConversationOperation = model.ClearSavedConversationDraftAsync());
+        SubmitConversation.Click += async (_, _) => await (ConversationOperation = model.SubmitConversationAsync());
+        CloseView.Click += (_, _) => Close();
+        KeyDown += (_, args) =>
+        {
+            if (args.Key == Key.Escape) { Close(); args.Handled = true; }
+        };
+    }
+}

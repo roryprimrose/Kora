@@ -137,7 +137,11 @@ public sealed partial class SessionsViewModelTests
         document.Descendants().Should().NotContain(element =>
             element.Name.LocalName == "WebView" || element.Name.LocalName == "SelectableTextBlock");
         document.Descendants().Where(element => string.Equals(element.Name.LocalName, "TextBox", StringComparison.Ordinal))
-            .Should().HaveCount(5, "only name, exact history ID, metadata/history queries and memory drafts are editable; no conversation composer exists");
+            .Should().HaveCount(7, "name, exact history ID, metadata/history/conversation queries, memory drafts and the exact-session memory-only composer are independent native inputs");
+        var conversationQuery = document.Descendants().Single(element => element.Name.LocalName is "TextBox"
+            && element.Attribute("Text")?.Value.Contains("ConversationQuery", StringComparison.Ordinal) == true);
+        conversationQuery.Attribute("MaxLength").Should().BeNull("shared lexical validation rejects invalid queries instead of UI truncation");
+        conversationQuery.Attribute("IsEnabled")!.Value.Should().Be("{Binding CanReadConversation}");
         source.Should().Contain("MemoryDraft, Mode=TwoWay").And.Contain("CanEditMemory")
             .And.Contain("selection is passive").And.Contain("Review exact content: accept")
             .And.Contain("Admit reviewed revision").And.Contain("not forensic erasure");
@@ -154,7 +158,7 @@ public sealed partial class SessionsViewModelTests
         code.Should().Contain("model.SelectAsync").And.Contain("Key.Escape").And.NotContain("SubmitAsync")
             .And.NotContain("ApproveAsync").And.NotContain("Clipboard").And.NotContain("Reasoner");
         Read("SessionsWindowController.cs").Should().Contain("PrivacyClosureRequested +=")
-            .And.Contain("window?.Close()").And.Contain("SessionsRequested -=");
+            .And.Contain("presentation?.Revoke()").And.Contain("SessionsRequested -=");
         Read("ResponseWindow.axaml.cs").Should().Contain("KeyModifiers.Control | KeyModifiers.Shift")
             .And.Contain("viewModel.ShowSessions()");
         Read("Program.cs").Should().Contain("ISessionWorkspaceStore>(interactions)");
@@ -165,8 +169,9 @@ public sealed partial class SessionsViewModelTests
         Read("DesktopSessionWorkspaceAccess.cs").Should().Contain("OnPrivacyClosure").And.Contain("AdmissionRevision");
         source.Should().Contain("Enqueue local version").And.Contain("Confirm clear displayed pending queue");
         code.Should().Contain("model.RefreshWorkAsync").And.Contain("model.DispatchQueueAsync")
-            .And.Contain("refresh.Stop()").And.Contain("refresh.Tick -= OnRefreshTick")
             .And.Contain("ClearHistorySearch.Click += (_, _) => { model.HistoryQuery = string.Empty; HistoryQuery.Focus(); }");
+        Read("SessionsPresentationOwner.cs").Should().Contain("model.Close()")
+            .And.Contain("surface.Close()").And.Contain("refresh.Stop()").And.Contain("refresh.Tick -= Refresh");
         source.Should().Contain("WorkStatus").And.Contain("PendingQuestions").And.Contain("CanRemoveQueueEntry")
             .And.Contain("Authoritative queued, current, waiting, blocked, cancelled and unknown work");
     }

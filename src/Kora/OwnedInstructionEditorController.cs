@@ -29,6 +29,7 @@ internal sealed partial class OwnedInstructionEditorController(
     private bool closing;
     private bool disposed;
     private bool uncertain;
+    private bool newDraft;
     private long sourceRevision;
     private long copyInputRevision;
     private long windowOwnershipRevision;
@@ -46,7 +47,13 @@ internal sealed partial class OwnedInstructionEditorController(
 
     private void OnMainInputChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs args)
     {
-        if (args.PropertyName is nameof(MainViewModel.CommandText)) { Interlocked.Increment(ref copyInputRevision); }
+        if (args.PropertyName is nameof(MainViewModel.CommandText))
+        {
+            Interlocked.Increment(ref copyInputRevision);
+            var opened = window;
+            if (Avalonia.Threading.Dispatcher.UIThread.CheckAccess()) { opened?.ClearValidation(); }
+            else { Avalonia.Threading.Dispatcher.UIThread.Post(() => { if (ReferenceEquals(window, opened)) { opened?.ClearValidation(); } }); }
+        }
         if (args.PropertyName is nameof(MainViewModel.CallPolicyRevision))
         { RetireInventory("Call/runtime admission changed. Refresh and reselect after recovery; the open draft is retained."); }
     }
@@ -74,7 +81,7 @@ internal sealed partial class OwnedInstructionEditorController(
         });
         window.Source.PropertyChanged += (_, change) =>
         {
-            if (change.Property == TextBox.TextProperty) { Interlocked.Increment(ref sourceRevision); }
+            if (change.Property == TextBox.TextProperty) { Interlocked.Increment(ref sourceRevision); window?.ClearValidation(); }
         };
         window.CopyNameInput.PropertyChanged += (_, change) =>
         {
@@ -82,15 +89,15 @@ internal sealed partial class OwnedInstructionEditorController(
         };
         window.NameInput.PropertyChanged += (_, change) =>
         {
-            if (change.Property == TextBox.TextProperty) { Interlocked.Increment(ref sourceRevision); inventoryChoiceWithdrawn = false; }
+            if (change.Property == TextBox.TextProperty) { Interlocked.Increment(ref sourceRevision); inventoryChoiceWithdrawn = false; window?.ClearValidation(); }
         };
-        window.Files.SelectionChanged += (_, _) => Interlocked.Increment(ref sourceRevision);
-        window.KindInput.SelectionChanged += (_, _) => Interlocked.Increment(ref sourceRevision);
+        window.Files.SelectionChanged += (_, _) => { Interlocked.Increment(ref sourceRevision); window?.ClearValidation(); };
+        window.KindInput.SelectionChanged += (_, _) => { Interlocked.Increment(ref sourceRevision); window?.ClearValidation(); };
         window.SelectKind(kind);
         window.Closing += OnClosing;
         window.Closed += (_, _) => Clear();
         window.Show();
-        window.Activate();
+        Open(load: false);
         if (load) { _ = Run("List"); }
     }
 
@@ -104,6 +111,14 @@ internal sealed partial class OwnedInstructionEditorController(
 
     private async Task OnRequested(ArtifactKind requestedKind, string operation, string? name)
     {
+        if (operation is "Validate")
+        {
+            if (window is null || lifetime is null || requestedKind != kind)
+            { main.ReportHostInteractionFailure("Validate requires the currently open same-kind owned draft. Inspect or Create explicitly; no source is opened by validation."); return; }
+            window.Activate();
+            await Run(operation);
+            return;
+        }
         Open(load: false);
         if (window is null || lifetime is null) { return; }
         if (operation is "Cancel" && requestedKind == kind)
@@ -161,10 +176,11 @@ internal sealed partial class OwnedInstructionEditorController(
                     if (!Eligible()) { return; }
                     selectedName = name;
                     baseline = null;
+                    newDraft = true;
                     opened.Source.IsReadOnly = false;
                     originalText = string.Empty;
-                    opened.Source.Text = $"---\r\nkora-format: 1\r\nname: {name}\r\ndescription: Describe this {kind.ToString().ToLowerInvariant()}.\r\n---\r\n"
-                        + (kind == ArtifactKind.Instruction ? "Write instruction guidance here.\r\n" : "Write the literal saved user request here.\r\n");
+                    opened.Source.Text = $"---\r\nkora-format: {(kind == ArtifactKind.Instruction ? "1" : "2")}\r\nname: {name}\r\ndescription: Describe this {kind.ToString().ToLowerInvariant()}.\r\n---\r\n"
+                        + (kind == ArtifactKind.Instruction ? "Write instruction guidance here.\r\n" : "Write the literal saved user request here. Required input example: ${input:topic}\r\n");
                     opened.Report("New in-memory draft. Nothing saved or offered for use.");
                     break;
                 case "Inspect":
@@ -174,6 +190,9 @@ internal sealed partial class OwnedInstructionEditorController(
                 case "Save":
                     await Save(opened, delete: false, Eligible, token);
                     break;
+                case "Validate":
+                    await ValidateDraft(opened, Eligible, token);
+                    break;
                 case "Save as new copy":
                     await SaveCopy(opened, Eligible, token);
                     break;
@@ -181,7 +200,7 @@ internal sealed partial class OwnedInstructionEditorController(
                     await Save(opened, delete: true, Eligible, token);
                     break;
                 case "Review use":
-                    if (Dirty || baseline is null || uncertain)
+                    if (Dirty || baseline is null || uncertain || Actions.IsSourceUnavailable)
                     { throw new InvalidOperationException("Save/reload an exact clean revision before reviewing use."); }
                     var reviewed = baseline;
                     var reviewedSourceRevision = Interlocked.Read(ref sourceRevision);
@@ -199,6 +218,12 @@ internal sealed partial class OwnedInstructionEditorController(
         }
         catch (OperationCanceledException)
         {
+            if (action is "Validate")
+            {
+                if (ReferenceEquals(window, opened))
+                { opened.ClearValidation(); opened.Report("Validation cancelled. Nothing saved/enabled; draft and existing source/use holds retained."); }
+                return;
+            }
             if (action is "Disable reviewed use")
             {
                 if (ReferenceEquals(window, opened))
@@ -226,6 +251,29 @@ internal sealed partial class OwnedInstructionEditorController(
                 + ". No success or rollback claimed. Draft retained. For a copy, inspect the destination explicitly or choose another new ID; no overwrite. Profile originals remain unavailable."); }
         }
         finally { busy = false; }
+    }
+
+    private async Task ValidateDraft(OwnedInstructionEditorWindow opened, Func<bool> eligible, CancellationToken token)
+    {
+        opened.ClearValidation();
+        if (!opened.IsVisible || opened.Source.IsReadOnly || selectedName is not { } name || baseline is null && !newDraft
+            || !string.Equals(opened.NameInput.Text, name, StringComparison.Ordinal)
+            || opened.KindInput.SelectedItem is not ArtifactKind selectedKind || selectedKind != kind
+            || opened.Files.SelectedItem is OwnedDefinitionInventoryRow row && !string.Equals(row.Name, name, StringComparison.Ordinal))
+        { throw new InvalidOperationException("Validate requires the exact open supported owned baseline or explicitly created draft and unchanged chosen ID/kind. Inspect/Create explicitly; no file is read or created."); }
+        var original = baseline;
+        var draft = opened.Source.Text ?? string.Empty;
+        var revision = Interlocked.Read(ref sourceRevision);
+        var inputEpoch = Interlocked.Read(ref copyInputRevision);
+        var epoch = Interlocked.Read(ref inventoryEpoch);
+        var observedKind = kind;
+        bool Current() => eligible() && ReferenceEquals(baseline, original) && kind == observedKind
+            && revision == Interlocked.Read(ref sourceRevision) && epoch == Interlocked.Read(ref inventoryEpoch)
+            && inputEpoch == Interlocked.Read(ref copyInputRevision);
+        var observation = await Actions.ValidateDraft(name, original, draft, logger, Current, token);
+        if (!Current() || !Actions.IsDraftValidationCurrent(observation)) { return; }
+        opened.ReportValidation(observation.Summary
+            + (uncertain ? " Existing uncertain publication/source hold is unchanged; Reload/reconcile before Saving or use." : string.Empty));
     }
 
     private async Task DisableUse(OwnedInstructionEditorWindow opened, Func<bool> eligible, CancellationToken token)
@@ -269,7 +317,7 @@ internal sealed partial class OwnedInstructionEditorController(
         return await opened.Choose($"Review exact {kind.ToString().ToLowerInvariant()} use",
                             $"Owned ID: {reviewed.Name}; exact digest {reviewed.Document.Definition.Digest}. "
                             + (kind == ArtifactKind.Instruction ? "This is untrusted guidance, not host policy. "
-                                : "This is a literal saved user request, not instruction/system authority or a workflow. ")
+                                : "This is a saved user request, not instruction/system authority or a workflow. Native v2 required inputs need a separate complete expanded preview and fresh request admission. ")
                             + "Permit explicit selection for new requests only? "
                             + "No new permissions, executable tools, agent runtime, automatic applicability or mid-task context update.",
                             reviewed.Document.Text, reviewed.Document.Text, ["Permit explicit use", "Cancel"], token) == 0
@@ -278,7 +326,7 @@ internal sealed partial class OwnedInstructionEditorController(
 
     private async Task<bool> Save(OwnedInstructionEditorWindow opened, bool delete, Func<bool> eligible, CancellationToken token)
     {
-        if (selectedName is null || uncertain) { throw new InvalidOperationException("Inspect/create, or explicitly Reload/reconcile first."); }
+        if (selectedName is null || uncertain || Actions.IsSourceUnavailable) { throw new InvalidOperationException("Inspect/create, or explicitly Reload/reconcile first."); }
         var name = selectedName;
         var text = opened.Source.Text ?? string.Empty;
         var reviewedSourceRevision = Interlocked.Read(ref sourceRevision);
@@ -299,6 +347,7 @@ internal sealed partial class OwnedInstructionEditorController(
         if (!result.Saved) { return false; }
         if (!reload.ReloadNow()) { uncertain = true; throw new IOException("Write may be durable; catalogue publication is unconfirmed."); }
         baseline = result.Current;
+        newDraft = false;
         originalText = baseline?.Document.Text ?? string.Empty;
         opened.Source.Text = originalText;
         if (result.Deleted) { selectedName = null; }
@@ -311,8 +360,8 @@ internal sealed partial class OwnedInstructionEditorController(
 
     private async Task SaveCopy(OwnedInstructionEditorWindow opened, Func<bool> eligible, CancellationToken token)
     {
-        if (baseline is not { } source || selectedName is null || opened.Source.IsReadOnly || uncertain)
-        { throw new InvalidOperationException("Inspect a supported original owned native v1 source before copying. The original draft is retained."); }
+        if (baseline is not { } source || selectedName is null || opened.Source.IsReadOnly || uncertain || Actions.IsSourceUnavailable)
+        { throw new InvalidOperationException("Inspect a supported original native owned source before copying. The original draft is retained."); }
         var destination = opened.CopyNameInput.Text ?? string.Empty;
         var text = opened.Source.Text ?? string.Empty;
         var sourceKind = kind;
@@ -342,6 +391,7 @@ internal sealed partial class OwnedInstructionEditorController(
         if (observed is not null && !Actions.IsInventoryCurrent(observed))
         { throw new InvalidOperationException("The observed catalogue changed before inspection delivery. Refresh and reselect; draft retained."); }
         baseline = loaded; selectedName = loaded?.Name ?? name; originalText = loaded?.Document.Text ?? string.Empty;
+        newDraft = false;
         opened.NameInput.Text = selectedName;
         opened.Source.Text = originalText;
         opened.Source.IsReadOnly = false;
@@ -384,6 +434,7 @@ internal sealed partial class OwnedInstructionEditorController(
         kind = requestedKind;
         InvalidateInventory("Kind changed; explicit List/Refresh required.");
         baseline = null; selectedName = null; originalText = string.Empty; uncertain = false;
+        newDraft = false;
         opened.Source.Text = string.Empty; opened.NameInput.Text = string.Empty; opened.CopyNameInput.Text = string.Empty; opened.ClearInventory();
         opened.QueryInput.Text = string.Empty; opened.UseStateInput.SelectedItem = OwnedDefinitionUseFilter.All;
         opened.SelectKind(kind);
@@ -424,6 +475,7 @@ internal sealed partial class OwnedInstructionEditorController(
         lifetime?.Cancel(); lifetime?.Dispose(); lifetime = null;
         inventory = null; inventoryPage = null; inventoryEligibility = null; inventoryChoiceWithdrawn = false;
         window?.ClearPrivateText(); window = null; baseline = null; selectedName = null; originalText = string.Empty; uncertain = false;
+        newDraft = false;
     }
 
     public void Dispose()

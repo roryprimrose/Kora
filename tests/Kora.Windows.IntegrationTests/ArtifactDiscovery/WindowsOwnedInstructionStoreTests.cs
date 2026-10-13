@@ -324,7 +324,7 @@ public sealed partial class WindowsOwnedInstructionStoreTests : IDisposable
         if (Directory.Exists(root)) { Directory.Delete(root, recursive: true); }
     }
 
-    private static void WriteOwnedFile(string path, byte[] bytes)
+    internal static void WriteOwnedFile(string path, byte[] bytes)
     {
         using var identity = WindowsIdentity.GetCurrent();
         var owner = identity.User ?? throw new InvalidOperationException("The private fixture owner is unavailable.");

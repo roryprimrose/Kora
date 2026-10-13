@@ -1,7 +1,7 @@
 # Skills, Prompts, Instructions, and Agent Profile Management
 
 Status: shared lifecycle contract with a bounded native Kora-owned instruction
-and literal prompt editor and revision-held catalogue reload increment. Skill/agent/profile editing,
+and versioned literal/required-parameter prompt editor and revision-held catalogue reload increment. Skill/agent/profile editing,
 agent execution and the full qualification matrix remain unavailable.
 
 This is the authoritative management contract for all four definition kinds.
@@ -16,7 +16,7 @@ deliveries, not evidence that this full contract is implemented.
 | Kind | Value and application |
 |---|---|
 | Skill | Primary reusable capability: selection guidance, inputs, workflow, and references to admitted tools or resources. Explicit voice/UI invocation and qualified model selection resolve the same enabled immutable revision. |
-| Prompt | Optional saved request, explicitly selected for one new request. The delivered owned editor supports literal request bodies only, not parameter expansion, a workflow engine, policy or actions. |
+| Prompt | Optional saved request, explicitly selected for one new request. Owned native v1 remains literal; native v2 supports bounded required `${input:name}` text, complete private expanded USER REQUEST preview, and separate fresh request admission. No expressions, workflow engine, policy or actions. |
 | Instruction | Reusable guidance with an explicit reviewed applicability scope. The host resolves applicable enabled revisions when admitting a request; file discovery alone never inserts guidance into model context. |
 | Agent profile | Declarative specialised role referencing instructions, skills, and a bounded admitted tool subset, with input/output, locality, runtime, and budget constraints. Creating or editing the profile does not qualify an executor or start an agent. |
 
@@ -261,7 +261,7 @@ or count as user activity/approval.
 ### Bounded owned instruction and prompt editor
 
 Native tray and exact `instructions` or `prompts` followed by
-`editor/list/create/edit/inspect/save/copy/reload/delete/activate/disable/stop-use/cancel` control routes share the same admitted actions, native review
+`editor/list/create/edit/inspect/validate/save/copy/reload/delete/activate/disable/stop-use/cancel` control routes share the same admitted actions, native review
 and writer. Activated controls focus the same native editor; voice-only approval
 and body dictation/refinement are not implemented. No model/network is needed.
 Create and inspect use an explicit bounded ID; mutations target the open original.
@@ -278,6 +278,25 @@ behavior; unsupported scope/metadata cannot be implicitly repaired in place.
 Header editing is bounded to 16 fields/4096 UTF-8 bytes. Profile fork, rename, restore,
 profile mutation, skill/agent writers, executable content and agent runtime are absent.
 
+**Owned native v2 required literal prompt inputs** extend only the Prompt kind, never instruction v1 or bundled/profile reader semantics.
+Use scalar `kora-format: 2` with the same `name`, `description`, optional `attribution` header. Required fields are derived from original-body `${input:name}` markers: 1–64 lowercase ASCII letters/digits/hyphens starting with a letter, at most eight distinct names in first-occurrence order. Repeated names use one value.
+No declarations/defaults/optional fields, expressions, environment/files/secrets/clipboard/network/functions or nested/escaped expansion are supported. Malformed or unsupported `${...}` is visibly incompatible. This is not general Copilot prompt-format support.
+The shared parser preserves every original literal/body newline/BOM/source byte and original digest. Expansion scans original markers once; marker-looking text in a value stays literal, never commands, tool arguments or system guidance.
+Each required native field is nonblank, well-formed Unicode without NUL, at most 512 UTF-16 units / 2048 UTF-8 bytes. The whole expanded request is at most 4096 UTF-16 / 16384 UTF-8 bytes; over-limit text is rejected, never normalized or shortened. The actual serialized model envelope, including host policy/tools overhead, remains separately bounded to 32768 UTF-8 bytes.
+Explicit `/prompt <id>`, `/<command>` and current-name activated selection of an enabled exact v2 owned revision focus one private native parameter form; inline/voice parameter values are not accepted. All new/saved/copied native revisions remain disabled until separate current-run exact-template use review.
+**Preview complete expanded USER REQUEST** shows the whole bounded expansion as inert user-data text, with an independent expansion digest. It does not replace catalogue/source bytes or original digest and is not tool approval, provider qualification or egress authority.
+Any input/template/native file identity/review/catalogue/host/call/privacy change retires the preview and pending Use; native pre-preview and pre-use source checks cover missed watcher events. No same-name or restored-byte retargeting/replay is allowed.
+**Use reviewed request** separately checks a fresh admitted request with `ModelTurnHost`, preserving original source/revision and exact preview/value identity. Expanded text occupies only `UserRequest`, not `SystemPolicy` or evidence. No typed-command reparse occurs.
+**Review submission to exact Active session** is a separate retention workflow, not a change to Preview or nonpersisting Use. Explicit Refresh/Next reads at most 25 metadata rows per page with a complete 64 KiB bound; no target is selected by default or inferred from name, window focus, voice or form values.
+Separate **Submit this expanded request to exact session** confirmation shows the entire frozen expanded USER text, immutable target ID/name/generation/metadata revision and volatile original-source/revision/digest plus independent expansion digest. It discloses private readable SQLite, existing retention, best-effort reject-only screening and unavailable generation; Cancel retains only eligible memory input.
+The application [prompt submission workflow](../src/Kora.Application/Definitions/PromptConversationSubmission.cs) repeats actual native `CaptureUse` freshness before review and admission, then calls the existing conversation service once. Its final physical COMMIT callback requires the same private controller/preview/target epoch. Source validation and SQLite COMMIT are not a global filesystem/database transaction.
+Only the exact approved expansion is retained as one immutable USER conversation message, with a fresh conversation request/task and required audit. No template, hidden field record, source path or durable source provenance is added; no old Use admission is also invoked. Original template bytes/digest remain unchanged; prior schema/IDs/copies are preserved.
+Input/source/native identity/use/catalogue/privacy/ownership/target changes and loss of window focus withdraw pending review. Stale/Done/Removed targets require refresh and explicit reselection, never implicit Resume or a new session. Confirmed receipt clears the form; an unconfirmed attempt is held for exact conversation/task inspection without retry or rollback claims. Saved drafts and unrelated Sessions composer buffers are never imported, overwritten or cleared.
+Production adapters/catalogues remain unqualified/unavailable; Ollama 0.35.1/qwen3 and 0.40.2 remain rejected. Use reports the admission outcome without generating, invoking the legacy reasoner, installing/authenticating or falling back. Even controlled qualified admission does not enable production generation in this increment.
+Fields and expanded preview buffers exist only for this view lifetime: Cancel/close/private closure clears controls and references immediately, with no autofill/preferences/source autosave/logging/audit text/clipboard export/speech readback. Only separate explicit conversation confirmation retains the approved expansion; Preview and Use write no form body.
+Source checks consume view cancellation, and handoff/exit joins pending work before releasing owned resources. A new accepted typed/activated request retires the original preparation even when typed text is unchanged; original input is captured before awaited native source validation.
+Already captured immutable requests are not mutated by later source edits; ordinary source/privacy/approval boundaries still apply.
+
 **Owned metadata inventory/search** extends this same native editor, not the future full Definitions source matrix. Explicit List/Refresh reuses admitted per-kind filename enumeration and existing reconciliation; an immutable projection includes only those owned filenames and coherent observed catalogue metadata.
 Literal filename/display-name/source-qualified-ID search uses the existing 256 UTF-16 / 512 UTF-8 query ceilings without lexical tokenization, regex or path resolution. Invalid controls/Unicode/oversize input requires correction, never trimming. All/UseEnabled/ReviewRequired/UnavailableOrUnknown reflects only actually known observed use state.
 No body, excerpt, description, attribution or full path is projected. Kind, filename ID, available display name, fixed owned source, artifact ID, exact digest/native revision and observed UTC are retained. Complete native label/details payloads fit 64 KiB UTF-8 using deterministic explicit Next pages when necessary; no partial-success truncation or durable index is introduced.
@@ -285,7 +304,12 @@ Rows are observations, not disk-current integrity or use authority: native Inspe
 Search/filter/page changes preserve the open original and dirty draft, never auto-select/load the first result or activate/save/discard. Failed reload removes current availability with historical/unavailable disclosure. Source/use/call changes invalidate choices; private ownership/closure clears private controls and fences late callbacks.
 Exact typed/current-name activated List/Inspect still targets the same native controls; there is no new search command grammar, model tool, reader/root permission, profile/bundled-as-owned inventory or writer. Profile-original editing remains explicitly deferred behind its existing security qualification.
 
-**Save as new copy** / exact `instructions copy <new-id>` or `prompts copy <new-id>` is delivered only for an inspected canonical native v1 owned original and its retained current draft.
+**Validate open owned draft** / exact `instructions validate` or `prompts validate` observes the captured same-kind canonical original or explicitly created draft without opening sources or switching targets. It reuses ordinary Save preparation, including original BOM and any native v1 marker added for changed/new proposals; unchanged supported legacy bytes stay legacy.
+Existing strict Unicode/UTF-8, complete-byte/header/metadata/versioned-prompt and observed catalogue namespace rules apply to prepared Save bytes, not just raw draft text. Bounded text-only findings expose proposal byte count/digest/actual native version and unapproved kind/source/model-context role, never body/excerpts or executable preview.
+The result is historical structural compatibility only, not harmlessness, safe execution, disk freshness, approval or enablement. Source/name/kind/baseline/catalogue and private/call/input epochs fence publication and retire findings; Save independently re-prepares and confirms current bytes.
+No owned-store enumeration/read/write, source reload/reconciliation, preference hold/write, activation, model/network or reference/dependency access occurs. Normal observational control receipts/traces remain; existing drafts, inventory/selection and enabled or uncertain held source state are unchanged. Unavailable sources retain explicit Reload/reconciliation recovery. Profile-original editing and broader format/writer/runtime qualification remain deferred.
+
+**Save as new copy** / exact `instructions copy <new-id>` or `prompts copy <new-id>` is delivered only for an inspected canonical supported native owned original (instruction v1; prompt v1/v2) and its retained current draft.
 It is not an import or profile-original writer. Legacy/unversioned or unsupported originals cannot be implicitly upgraded by copying.
 Review freezes source-qualified identity, canonical filename, base revision/digest, current draft exact bytes/BOM, destination same-kind canonical ID/path and full proposed bytes.
 Only the declared name is changed from the draft to the chosen destination ID; all other supported source formatting/metadata/attribution/body bytes are retained. Filename-derived instruction names need no metadata rewrite.
@@ -321,7 +345,7 @@ deletion and restored previously revoked bytes do not auto-activate. Pre-use
 native freshness checking complements advisory watchers. Existing unchanged
 legacy and bundled behavior is preserved.
 
-**Disable reviewed use** / exact `instructions disable` or `instructions stop-use` (and matching `prompts` controls) is delivered for the clean inspected canonical native v1 owned baseline only.
+**Disable reviewed use** / exact `instructions disable` or `instructions stop-use` (and matching `prompts` controls) is delivered for the clean inspected canonical supported native owned baseline (instruction v1; prompt v1/v2).
 Separate native confirmation binds kind, source, filename, digest, native identity-qualified revision and current original-input/ownership/privacy/call/session epoch; dirty drafts remain intact with an explicit Save/Reload prerequisite.
 Native source freshness is rechecked before revocation under the existing short admission gate. Old reviews cannot target a replacement, and retired activation preparation/completion or stale reload publication cannot re-enable the held revision.
 Requested/terminal trusted typed audit and the control receipt precede visible completion. Strict per-kind v1 preference hold/readback is durable; cancellation, mandatory audit/storage/readback or terminal failure exposes any held/unavailable outcome without rollback, retry or previous-enable restoration.

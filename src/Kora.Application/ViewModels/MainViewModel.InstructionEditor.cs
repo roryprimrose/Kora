@@ -7,10 +7,13 @@ public sealed partial class MainViewModel
     public event Func<string, string?, Task>? OwnedInstructionEditorRequested;
     public event Func<string, string?, Task>? OwnedPromptEditorRequested;
     private Func<Task<bool>>? instructionEditorShutdown;
-    private Func<Kora.Core.Artifacts.ArtifactDefinition, Task<bool>>? ownedInstructionFreshness;
+    private Func<Kora.Core.Artifacts.ArtifactDefinition, CancellationToken, Task<bool>>? ownedInstructionFreshness;
 
     public void BindInstructionEditorShutdown(Func<Task<bool>>? shutdown) => instructionEditorShutdown = shutdown;
     public void BindOwnedInstructionFreshness(Func<Kora.Core.Artifacts.ArtifactDefinition, Task<bool>>? validator) =>
+        ownedInstructionFreshness = validator is null ? null : (candidate, _) => validator(candidate);
+    public void BindOwnedInstructionFreshnessWithCancellation(
+        Func<Kora.Core.Artifacts.ArtifactDefinition, CancellationToken, Task<bool>>? validator) =>
         ownedInstructionFreshness = validator;
 
     public Func<bool> CaptureInstructionEditorEligibility()
@@ -39,11 +42,12 @@ public sealed partial class MainViewModel
             "save" => "Save", "reload" or "discard" => "Reload", "delete" => "Delete", "activate" => "Review use",
             "cancel" => "Cancel",
             "copy" => "Save as new copy",
+            "validate" => "Validate",
             "disable" or "stop-use" => "Disable reviewed use",
             _ => null,
         };
         if (operation is null)
-        { ReportHostInteractionFailure("Use instructions/prompts editor/list/create/edit/inspect/save/copy/reload/delete/activate/disable/stop-use/cancel. Body text and paths are not editor commands."); return; }
+        { ReportHostInteractionFailure("Use instructions/prompts editor/list/create/edit/inspect/validate/save/copy/reload/delete/activate/disable/stop-use/cancel. Body text and paths are not editor commands."); return; }
         if (operation is "Create" or "Inspect" or "Save as new copy" ? words.Length != 3 : words.Length != 2)
         { ReportHostInteractionFailure("Use an exact bounded owned ID; editor commands do not accept body text or paths."); return; }
         if ((prompt ? OwnedPromptEditorRequested : OwnedInstructionEditorRequested) is { } handler)

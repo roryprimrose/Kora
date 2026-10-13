@@ -61,6 +61,7 @@ public sealed record ArtifactDefinition
     public bool PreservesCapturedUse { get; init; }
     public bool RequiresInstructionReview { get; init; }
     public string? OwnedInstructionRevision { get; init; }
+    public OwnedPromptTemplate? PromptTemplate { get; init; }
 
     private static string ValidateIdentifier(string value, string parameterName, int maximum)
     {

@@ -32,6 +32,7 @@ internal sealed partial class OwnedInstructionEditorController
         Interlocked.Increment(ref inventoryEpoch);
         inventory = null; inventoryPage = null; inventoryEligibility = null; inventoryChoiceWithdrawn = true;
         window?.ClearInventory();
+        window?.ClearValidation();
         window?.ReportInventory(reason);
     }
 

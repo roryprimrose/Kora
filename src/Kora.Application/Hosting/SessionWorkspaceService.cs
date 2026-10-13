@@ -1,4 +1,4 @@
-using System.Text;
+﻿using System.Text;
 
 using Kora.Core.Authorization;
 using Kora.Core.Commands;
@@ -170,7 +170,7 @@ public sealed partial class SessionWorkspaceService(
         Func<HostRequest, Func<bool>, ValueTask<T>> mutation, CancellationToken token,
         Func<bool>? additionalAdmission = null, bool inspection = false, bool existingSubject = false,
         bool terminalCommitted = false, Func<T, HostTaskState>? terminalState = null,
-        bool resolveTerminalReceipt = false, HostId<TaskIdentity>? originalTask = null)
+        bool resolveTerminalReceipt = false, HostId<TaskIdentity>? originalTask = null, HostRequest? originalRequest = null)
     {
         if (origin is not (RequestOrigin.LocalUi or RequestOrigin.ActivatedVoice))
         {
@@ -190,7 +190,7 @@ public sealed partial class SessionWorkspaceService(
             token.ThrowIfCancellationRequested();
             if (!Eligible()) { throw new InvalidOperationException("Task session admission changed during resolution."); }
         }
-        var request = new HostRequest(new(Guid.NewGuid()), session, originalTask ?? new(Guid.NewGuid()), origin);
+        var request = originalRequest ?? new HostRequest(new(Guid.NewGuid()), session, originalTask ?? new(Guid.NewGuid()), origin);
         using var activity = HostActivity.BeginRoot(request, HostActivityLayer.Application, HostOperation.Request);
         try
         {

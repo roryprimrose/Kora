@@ -21,7 +21,7 @@ public sealed partial class OwnedInstructionEditorActions
         OwnedInstructionNames.WriteName(reviewed.Name);
         if (!reviewed.Document.Definition.RequiresInstructionReview || reviewed.Document.Definition.Kind != Kind
             || !string.Equals(reviewed.CanonicalFileName, reviewed.Name + OwnedDefinitionKind.Extension(Kind), StringComparison.Ordinal))
-        { throw new InvalidDataException("Disable requires the exact canonical owned native v1 source of the selected kind."); }
+        { throw new InvalidDataException("Disable requires the exact canonical supported native owned source of the selected kind."); }
         var epoch = revisions.CaptureReviewEpoch(reviewed);
         var attempted = false;
         var observed = false;

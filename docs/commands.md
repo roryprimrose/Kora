@@ -1,5 +1,15 @@
 # Voice and typed commands
 
+## Native saved conversation draft catalogue
+
+**Tray > Saved conversation drafts (metadata only)** is native-only; it has no typed/voice/model body query. Opening reads nothing. Explicit Refresh/Next/Cancel shows bounded saved composer metadata across retained All/Active/Done sessions, never a body preview or global count.
+Cleared/empty/never-saved and question/parameter drafts are not saved-content results.
+Its **Browse / NameSubstring / ExactId** modes search session metadata only. Name matching is literal, ordinal case-sensitive under the session-name bounds; exact IDs require canonical lowercase D format. ID-shaped names are not targets. Invalid/empty queries never become All.
+Typing performs no read. Query/mode/filter edits cancel pending pages and invalidate the catalogue selection without changing the current composer. Use **Search / refresh metadata**, Next, Cancel, or **Clear query (Browse)** explicitly. A zero-match bounded page may still have Next; there is no global inventory count.
+
+Select one row and **Open exact session (no body load)**. Changed source/revision/privacy refuses with Refresh. The existing Sessions dirty-buffer Save/Discard/Cancel protection remains; an explicit Save that changes authority requires fresh catalogue observation.
+**Reload saved draft**, Save and Submit are separate Sessions gestures. Done remains Done. See the [canonical scope and limitations](../Design/Interaction_And_Sessions.md#saved-conversation-draft-catalogue--2026-10-13).
+
 Voice and typed input use the same exact built-in phrases, which always take
 precedence. Voice input may use the configured assistant name as a prefix.
 Punctuation and capitalization do not matter for built-in phrases. Once the
@@ -20,6 +30,12 @@ Existing bootstrap reasoning and unavailable messages remain unchanged;
 hosted inference is not enabled by this host-only foundation.
 Device-local initial provider mode settings are delivered separately below.
 Clipboard and file preview/search commands still perform no model submission.
+
+The separate native [exact-session composer](windows-and-tray.md#exact-session-conversation-and-composer)
+retains deliberately submitted original user messages and unavailable HOST/task
+outcomes through configured provider-neutral admission. It is not a new typed/
+voice command, question reply, approval, fixed-read queue profile, model tool or
+bootstrap fallback. Draft saves are explicit; reading/restoring never submits.
 
 ## Inspect or change the device-local provider mode
 
@@ -88,7 +104,8 @@ Production has no qualified catalogue models/auth adapters, so model-dependent s
 
 ## Attach one text file to an exact Session (native only)
 
-For a content-free overview of existing retained slots, use **Tray > Retained session attachments > Refresh metadata**. Opening/listing never reads an original path or body. [Catalogue limits and exact navigation](windows-and-tray.md#retained-session-attachments-metadata-only) explain bounded pages, removed/held status, stale continuation and separate full-byte inspection. This adds no typed/voice/model capture command.
+For a content-free overview, use **Tray > Retained session attachments > Search / refresh metadata**. Default Browse or volatile ExactId observes retained slots, never original paths or bodies.
+[Catalogue query rules and exact navigation](windows-and-tray.md#retained-session-attachments-metadata-only) cover canonical IDs, explicit Enter/Clear/Next, bounded empty pages and separate full-byte inspection. No typed/voice/model search or capture command is added.
 
 Open **Sessions**, select the exact Active session, then **Attach text file to this exact Session**. A trusted native picker opens only metadata; review canonical path/native identity, source and host session, bytes/time, fixed limits and local durable retention/copy disclosure. **Confirm: capture and retain this exact file for this Session** is separate persistence consent, not the existing volatile preview confirmation.
 
@@ -383,6 +400,10 @@ No clipboard, speech/history, model/egress, watcher, vector index or durable
 folder attachment is added. Durable single-file attachments have separate
 consent. See [native file workflow](windows-and-tray.md#native-local-file-inspection)
 and [privacy](privacy-safety-and-logs.md#local-file-inspection).
+
+**Literal Find is native-only**, not a typed/PTT command or model tool. In the inspected original file use **Find first / Find next / Find previous / Clear literal Find**. Exact case/spaces/punctuation, nonoverlapping steps and no wrap apply; only one match is disclosed. Existing inspect/search phrases still focus ranked inspection, without accepting a query or selecting a new file.
+
+See [native Find](windows-and-tray.md#find-a-literal-in-the-currently-inspected-original-file). Shared 256 UTF-16 / 512 strict UTF-8 bounds apply without lexical token rules; unsafe controls, malformed Unicode or empty input reject. Retained Find revalidates the stored original, never its filesystem path. Queries remain native-only, not transcripts/history/model/log/clipboard data.
 
 ## SQLite diagnostic retention
 
@@ -730,11 +751,13 @@ metadata and task-state receipts. Gaps/current migration baselines, metadata-onl
 over-budget unavailable content and disposition-redacted events are explicit.
 Bootstrap user/model messages and response bodies are unavailable, not recovered
 from logs. A task success is not proof of an external effect. Done histories
-are readable; an exact Removed ID returns redacted citations only. There is no
-composer, model history reasoning, Ask Evidence, broad export, attachment,
+are readable; an exact Removed ID returns redacted citations only. This receipt
+lane has no composer, model history reasoning, Ask Evidence, broad export, attachment,
 queue, scheduler, automatic resume or playback. History does not import volatile
 file previews/shared skills or reconstruct captions. See the
 [native workflow](windows-and-tray.md#bounded-passive-interaction-history).
+
+The separate native [selected-conversation search](windows-and-tray.md#search-one-exact-retained-conversation) searches actual retained USER bodies and typed HOST outcomes in the selected exact session. This older `session search` command remains Question/Answer/task receipt `HistorySearch`; it is not implicitly remapped to body search. Conversation query content stays native and adds no typed/voice/model descriptor or transcript entry.
 
 Search uses the [shared lexical query rules](../src/Kora.Core/Context/LocalFileRetrievalPolicy.cs): 1-256 UTF-16 characters, at most 512 strict UTF-8 bytes, 1-32 distinct words of at most 64 characters, NFC/invariant case and literal whole-word OR matching. Punctuation separates words, not operators, wildcards or regular expressions. Quotes inside the final quoted query are doubled.
 
@@ -1260,9 +1283,11 @@ to three; start a new request with more details if it reaches that limit.
 Type `instructions editor` or `prompts editor`, or say the same control prefixed
 with the current assistant name. Both focus the same native editor with explicit
 Instruction/Prompt kind selection. `list`, `create <id>`, `edit <id>`,
-`inspect <id>`, `save`, `copy <new-id>`, `reload`, `discard`, `delete`, `activate`, `disable`, `stop-use` and `cancel`
+`inspect <id>`, `validate`, `save`, `copy <new-id>`, `reload`, `discard`, `delete`, `activate`, `disable`, `stop-use` and `cancel`
 are the exact controls after either plural kind name. Only create/edit/inspect/copy
 accept one canonical file ID; other controls target the open original.
+`instructions validate` / `prompts validate` observes the currently open same-kind supported owned draft/new draft using exact Save preparation, including BOM/native-marker overhead and observed structural/namespace checks. It never opens/switches sources, saves or enables.
+The bounded body-free result is historical structural compatibility, not harmlessness, current disk integrity or approval. Source/private/input changes retire it; Save separately revalidates and exactly confirms. No store I/O/reload, revision-preference write/hold, model/network or reference execution is added. See [draft validation](instruction-editor.md#validate-the-open-draft-without-saving).
 **Disable reviewed use** / `instructions disable` or `prompts stop-use` separately confirms the clean inspected canonical native v1 owned source/kind/digest/native revision. It durably withdraws new selections without writing/deleting/unregistering the source.
 Disabled files stay inspectable/editable. Dirty drafts remain intact with an explicit Save/Reload prerequisite; current-name activated controls focus the same native confirmation, never voice-only approval.
 Already captured reasoning keeps immutable content; pending unadmitted questions/action choices expire without dispatch or retargeting. Mandatory access/privacy/action/egress checks remain. Reload/restart/restored bytes cannot re-enable use: require fresh exact review. Failed audit/state readback reports held/unavailable recovery, not success or rollback.
@@ -1274,6 +1299,8 @@ remain native; detected conflicts offer Reload/Overwrite/Cancel. See
 Filters/search/page changes are in-memory and preserve the open original/draft. Row inspection refuses stale snapshot/digest/native identity instead of following a same-name replacement. Observed catalogue use state is not current disk freshness; explicit Refresh/reselect is the recovery path. See [inventory limits and controls](instruction-editor.md#search-observed-owned-metadata).
 
 ### Explicitly select a saved revision
+
+Enabled native owned-v2 prompts open the existing private required-input form through exact typed/current-name activated selection. Parameter values and retention consent are native-only, never inline command/PTT text. Preview and old Use remain ephemeral; separate exact Active-session review/confirmation can retain the whole expanded USER body through the real conversation service, with unavailable generation. See [explicit prompt submission](instruction-editor.md#submit-an-expanded-request-to-one-exact-session).
 
 Kora can apply a bundled or disk-backed skill, instruction, prompt, or agent
 artifact to a local-model request from the command box or activated voice.

@@ -18,6 +18,8 @@ public sealed partial class MainViewModel
         if (SetProperty(ref selectedMicrophone, value))
         {
             ToggleListeningCommand.NotifyCanExecuteChanged();
+            OnPropertyChanged(nameof(CanPushToTalk));
+            BeginPushToTalkCommand.NotifyCanExecuteChanged();
             UpdateMicrophoneAvailability(selectedMicrophoneUnavailable: false);
         }
     }

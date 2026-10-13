@@ -38,14 +38,8 @@ public static class LocalFileRetrievalPolicy
 
     public static bool TryQuery(string query, out IReadOnlySet<string> terms)
     {
-        ArgumentNullException.ThrowIfNull(query);
         terms = new HashSet<string>(StringComparer.Ordinal);
-        if (query.Length is 0 or > MaximumQueryCharacters) { return false; }
-        try
-        {
-            if (Utf8.GetByteCount(query) > MaximumQueryUtf8Bytes) { return false; }
-        }
-        catch (EncoderFallbackException) { return false; }
+        if (!IsBoundedQuery(query)) { return false; }
         var unique = new HashSet<string>(StringComparer.Ordinal);
         foreach (var token in Tokens(query, CancellationToken.None))
         {
@@ -55,6 +49,14 @@ public static class LocalFileRetrievalPolicy
         }
         terms = unique;
         return unique.Count != 0;
+    }
+
+    internal static bool IsBoundedQuery(string query)
+    {
+        ArgumentNullException.ThrowIfNull(query);
+        if (query.Length is 0 or > MaximumQueryCharacters) { return false; }
+        try { return Utf8.GetByteCount(query) <= MaximumQueryUtf8Bytes; }
+        catch (EncoderFallbackException) { return false; }
     }
 
     // Oversized source words are skipped whole, never indexed as a matching prefix/suffix.

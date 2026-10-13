@@ -484,13 +484,12 @@ Automatic provider switching is excluded from the MVP. Changing runtime starts a
 
 ### Local Inference Qualification
 
-The [R02 technical outcomes and plan](Local_Inference.md) are the qualification
+The [R02 disposition and future gate](Local_Inference.md) are qualification
 input for the local adapter, not an implementation of this runtime protocol.
-The pinned Ollama/qwen candidate has public identity/licence/download metadata
-and observed missing-runtime/unavailable behavior; actual answer quality,
-CPU-floor resources, effective context, server cancellation and no-egress
-success remain unproved. Preserve explicit unavailable states and no remote
-fallback while those gates are open.
+The pinned Ollama/qwen profile and its 0.40.2 comparison are rejected after
+automated quality failures. Preserve explicit unavailable states and no remote
+fallback. A materially changed candidate must pass automated quality and
+authority before CPU-floor, effective-context, cancellation and no-egress work.
 
 The bootstrap identifies a responding Ollama version and pins the model digest;
 the experiment additionally requires exact runtime `0.35.1`. R06/R10 must

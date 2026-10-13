@@ -1,6 +1,7 @@
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
+using Avalonia.LogicalTree;
 using Avalonia.VisualTree;
 
 using AwesomeAssertions;
@@ -44,7 +45,7 @@ public sealed partial class OwnedDefinitionEditorWindowTests
             await f.Run("Kora, " + f.Prefix + " compare");
             comparison.Should().NotBeNull();
             var panes = comparison!.GetVisualDescendants().OfType<TextBox>().ToArray();
-            panes.Should().HaveCount(2).And.OnlyContain(pane => pane.IsReadOnly && pane.AcceptsReturn);
+            panes.Should().HaveCount(2).And.OnlyContain(pane => pane.IsReadOnly && pane.AcceptsReturn && !pane.IsUndoEnabled);
             panes[0].Text.Should().Be(f.Source?.Document.Text ?? "(missing/new baseline)");
             panes[1].Text.Should().Be(draft);
             var summary = comparison.GetVisualDescendants().OfType<TextBlock>().First().Text;
@@ -167,6 +168,33 @@ public sealed partial class OwnedDefinitionEditorWindowTests
             await f.Run(failure is "different-kind" ? "prompts compare" : "instructions compare");
             opened.Should().BeFalse();
             editor.Source.Text.Should().Be(draft);
+            f.Store.Reads.Should().Be(0); f.Store.Lists.Should().Be(0); f.Store.Writes.Should().Be(0);
+        });
+    }
+
+    [Fact]
+    public async Task PrivateRevocationDuringViewerOpeningClearsPanesAndCannotRestartObservation()
+    {
+        await HeadlessSession.RunAsync(async () =>
+        {
+            await using var f = await DraftValidationFixture.Create(ArtifactKind.Instruction, false);
+            Window? comparison = null;
+            TextBox[]? panes = null;
+            using var subscription = Window.WindowOpenedEvent.AddClassHandler<Window>((window, _) =>
+            {
+                if (window.Title?.StartsWith("Passive owned", StringComparison.Ordinal) != true) { return; }
+                comparison = window;
+                panes = window.GetLogicalDescendants().OfType<TextBox>().ToArray();
+                f.Session.Main.CloseForObservedPrivacyEvent("Synthetic opening revocation", hidePresentation: true);
+            });
+            f.Store.DenyAccess = true;
+            await f.Run("instructions compare");
+            await f.Session.Main.PrivacyClosureTask;
+            await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => { }, Avalonia.Threading.DispatcherPriority.Background);
+            comparison.Should().NotBeNull();
+            comparison!.IsVisible.Should().BeFalse();
+            panes!.Should().HaveCount(2).And.OnlyContain(pane => pane.Text == string.Empty && !pane.IsUndoEnabled);
+            f.Editor!.Source.Text.Should().BeEmpty();
             f.Store.Reads.Should().Be(0); f.Store.Lists.Should().Be(0); f.Store.Writes.Should().Be(0);
         });
     }

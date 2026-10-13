@@ -166,7 +166,13 @@ internal sealed class OwnedInstructionEditorWindow : Window
             if (ReferenceEquals(activeComparison, dialog)) { activeComparison = null; }
         };
         dialog.Show(this);
-        timer.Start();
+        if (!current())
+        {
+            // Opening events can revoke the owner before Avalonia finishes setting visibility.
+            dialog.Hide();
+            dialog.Close();
+        }
+        else if (dialog.IsVisible) { timer.Start(); }
     }
 
     private static DockPanel ComparisonPane(string label, string text, out TextBox source)
@@ -178,7 +184,7 @@ internal sealed class OwnedInstructionEditorWindow : Window
         source = new TextBox
         {
             Text = text, IsReadOnly = true, AcceptsReturn = true, TextWrapping = TextWrapping.NoWrap,
-            FontFamily = new("Consolas"), ContextMenu = null,
+            FontFamily = new("Consolas"), ContextMenu = null, IsUndoEnabled = false,
         };
         source.CopyingToClipboard += (_, args) => args.Handled = true;
         source.CuttingToClipboard += (_, args) => args.Handled = true;

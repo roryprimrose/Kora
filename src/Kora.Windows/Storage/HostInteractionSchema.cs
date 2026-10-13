@@ -5,7 +5,7 @@ internal static class HostInteractionSchema
     internal const string Partition = "InteractionStorageV1";
     internal const string FileName = "interaction.db";
     internal const int ApplicationId = 1263489587;
-    internal const int Version = 10;
+    internal const int Version = 11;
     internal static readonly string[] Tables =
     [
         """
@@ -171,5 +171,26 @@ internal static class HostInteractionSchema
             audit_sequence INTEGER NOT NULL REFERENCES security_audit_events(sequence),
             UNIQUE(session_id,run_id,generation)) STRICT
         """;
-    internal static readonly string[] CurrentTables = [.. ProviderProfileTables, QueueOrderTable];
+    internal static readonly string[] QueueOrderTables = [.. ProviderProfileTables, QueueOrderTable];
+    internal static readonly string[] ConversationSchema =
+    [
+        """
+        CREATE TABLE conversation_drafts(
+            session_id TEXT PRIMARY KEY NOT NULL REFERENCES work_sessions(session_id),
+            revision INTEGER NOT NULL CHECK(revision>0),
+            payload TEXT NOT NULL CHECK(length(CAST(payload AS BLOB)) BETWEEN 1 AND 32768),
+            audit_sequence INTEGER NOT NULL REFERENCES security_audit_events(sequence)) STRICT
+        """,
+        """
+        CREATE TABLE conversation_messages(
+            request_id TEXT PRIMARY KEY NOT NULL,
+            session_id TEXT NOT NULL REFERENCES work_sessions(session_id),
+            sequence INTEGER NOT NULL CHECK(sequence BETWEEN 1 AND 100),
+            revision INTEGER NOT NULL CHECK(revision BETWEEN 1 AND 2),
+            payload TEXT NOT NULL CHECK(length(CAST(payload AS BLOB)) BETWEEN 1 AND 32768),
+            audit_sequence INTEGER NOT NULL REFERENCES security_audit_events(sequence),
+            UNIQUE(session_id,sequence)) STRICT
+        """,
+    ];
+    internal static readonly string[] CurrentTables = [.. QueueOrderTables, .. ConversationSchema];
 }

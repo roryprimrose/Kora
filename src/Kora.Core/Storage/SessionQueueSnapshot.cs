@@ -9,5 +9,6 @@ public sealed record SessionQueueSnapshot(HostId<SessionIdentity> SessionId, Hos
     public IReadOnlyList<SessionQueueOrder> Orders { get; init; } = [];
     public SessionQueueMoveReceipt? MoveReceipt { get; init; }
     public SessionQueueCancelReceipt? CancelReceipt { get; init; }
+    public SessionQueueRequeueReceipt? RequeueReceipt { get; init; }
     public int OmittedOrders { get; init; }
 }

@@ -1,4 +1,4 @@
-using Kora.Application.Definitions;
+﻿using Kora.Application.Definitions;
 using Kora.Core.Artifacts;
 
 namespace Kora;
@@ -6,6 +6,26 @@ namespace Kora;
 internal sealed class NativeInstructionMutationReview(OwnedInstructionEditorWindow window, string sourceRoot, Func<bool> current,
     ArtifactKind kind = ArtifactKind.Instruction) : IInstructionMutationReview
 {
+    public async Task<bool> ConfirmCopy(OwnedDefinitionCopy copy, CancellationToken token)
+    {
+        if (!Avalonia.Threading.Dispatcher.UIThread.CheckAccess())
+        { return await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => ConfirmCopy(copy, token)); }
+        if (!current()) { return false; }
+        var source = copy.Source;
+        return await window.Choose($"Save as new owned {kind} copy",
+            $"Owned kind: {kind}; source ID: {source.Name}; source identity: {source.Document.Definition.Id}\n"
+            + $"Exact source: {Path.Combine(sourceRoot, source.CanonicalFileName)}\nBase revision: {source.Revision}\n"
+            + $"Base digest: {source.Document.Definition.Digest}; BOM={source.Document.HasBom}\n"
+            + $"Frozen draft digest: {copy.Draft.Definition.Digest}\nDestination ID: {copy.DestinationName}\n"
+            + $"Exact new path: {Path.Combine(sourceRoot, copy.DestinationName + OwnedDefinitionKind.Extension(kind))}\n"
+            + $"Proposed digest: {copy.Proposed.Definition.Digest}; BOM={copy.Proposed.HasBom}\n"
+            + "Left: exact frozen base followed by exact current draft. Right: complete proposed copy, with only the declared name changed from the draft. "
+            + "Source and open draft stay untouched. Destination must be absent; no overwrite, source reload, inherited use, grants or reference retargeting. "
+            + "The copy remains disabled until separately inspected and reviewed for explicit use.",
+            source.Document.Text + "\n\n----- FROZEN CURRENT DRAFT -----\n\n" + copy.Draft.Text,
+            copy.Proposed.Text, ["Confirm new copy", "Cancel"], token) == 0 && current();
+    }
+
     public async Task<bool> Confirm(string name, OwnedInstructionSnapshot? expected, ArtifactFileDocument? proposed, CancellationToken token)
     {
         if (!Avalonia.Threading.Dispatcher.UIThread.CheckAccess())

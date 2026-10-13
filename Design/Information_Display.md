@@ -10,6 +10,21 @@ The bounded native shared-question slice additionally reuses this passive
 plain-text renderer for complete immutable host-record review, separate from
 native answer/approval controls.
 
+## Delivered passive exact-conversation search - 2026-10-13
+
+The selected Sessions conversation pane now separately searches original retained USER bodies and typed HOST outcomes/reasons/task states. It shares the chronological native inert row template; full exact body and original request/task/sequence remain data, not model answers, generated summaries, ranked citations, rich links or execution controls.
+
+Queries/results are volatile private presentation. Existing admitted conversation pages, exact query-bound snapshot continuations and final source/private revalidation own disclosure. No clipboard/export/speech/egress, logs-as-body source, hidden model history or cross-session content search is introduced.
+The older Question/Answer receipt `HistorySearch` and diagnostic evidence remain separate. See the [canonical search contract](Interaction_And_Sessions.md#delivered-passive-exact-conversation-lexical-search--2026-10-13).
+
+## Delivered Native Current-File Literal Find - 2026-10-12
+
+The shared exact local-file viewer adds explicit **Find first / Find next / Find previous / Clear literal Find** for its currently displayed immutable file, captured-folder item or revalidated retained Session attachment. This is case-sensitive, unchanged one-line literal navigation, nonoverlapping and without wrap, not ranked retrieval or a model query.
+
+Only one exact bounded match is focused in the existing inert `NamedTextBlock` panel, with distinct literal identity/end-exclusive UTF-16 location. Complete original text is unchanged; no selectable source `TextBox`, clipboard, export, link, speech or external rendering path is introduced. Query/source/view retirement suppresses late disclosure and private closure clears native text.
+
+See [semantics, private source admission and maintained evidence](File_And_Folder_Ingestion.md#delivered-native-current-source-literal-find---2026-10-12). Existing lexical/Markdown retrieval and citation limits are unchanged; native fixtures do not qualify installed/accessibility, model grounding or broader display/source authority.
+
 ## Delivered Immutable Volatile Web-Result Details - 2026-10-10
 
 An actual successful original-user `get web page <URI>` result now offers **Open exact web-result details** in the compact response. It opens or activates the same immutable host-issued item/revision in the existing native-text-v1 viewer.

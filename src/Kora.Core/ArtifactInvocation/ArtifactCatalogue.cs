@@ -6,7 +6,10 @@ namespace Kora.Core.Artifacts;
 
 public sealed class ArtifactCatalogue
 {
+    private readonly Lock gate = new();
     private ReadOnlyCollection<ArtifactDefinition> artifacts;
+    private long reloadFailureRevision;
+    private int reloadUnavailable;
 
     public ArtifactCatalogue(IReadOnlyList<ArtifactDefinition> artifacts)
     {
@@ -17,6 +20,8 @@ public sealed class ArtifactCatalogue
     public event EventHandler<ArtifactCatalogueReloadFailedEventArgs>? ReloadFailed;
 
     public ReadOnlyCollection<ArtifactDefinition> Candidates => Volatile.Read(ref artifacts);
+    public long ReloadFailureRevision => Interlocked.Read(ref reloadFailureRevision);
+    public bool IsReloadUnavailable => Volatile.Read(ref reloadUnavailable) != 0;
     public ReadOnlyCollection<ArtifactDefinition> Artifacts =>
         new(Candidates.Where(artifact => artifact.IsUseEnabled).ToArray());
 
@@ -29,10 +34,30 @@ public sealed class ArtifactCatalogue
             && string.Equals(artifact.Digest, digest, StringComparison.Ordinal));
     }
 
+    public bool IsCapturedRevisionCurrent(string id, string digest) =>
+        Candidates.Any(artifact => (artifact.IsUseEnabled || artifact.PreservesCapturedUse)
+            && string.Equals(artifact.Id, id, StringComparison.Ordinal)
+            && string.Equals(artifact.Digest, digest, StringComparison.Ordinal));
+
     public void Publish(IReadOnlyList<ArtifactDefinition> updatedArtifacts)
     {
-        var validated = Validate(updatedArtifacts);
-        var previous = Interlocked.Exchange(ref artifacts, validated);
+        Replace(_ => updatedArtifacts, recovered: true);
+    }
+
+    public void Update(Func<IReadOnlyList<ArtifactDefinition>, IReadOnlyList<ArtifactDefinition>> update) =>
+        Replace(update);
+
+    private void Replace(Func<IReadOnlyList<ArtifactDefinition>, IReadOnlyList<ArtifactDefinition>> update, bool recovered = false)
+    {
+        ReadOnlyCollection<ArtifactDefinition> previous;
+        ReadOnlyCollection<ArtifactDefinition> validated;
+        lock (gate)
+        {
+            previous = artifacts;
+            validated = Validate(update(previous));
+            Volatile.Write(ref artifacts, validated);
+            if (recovered) { Volatile.Write(ref reloadUnavailable, 0); }
+        }
         if (!Equivalent(previous, validated))
         {
             Changed?.Invoke(this, EventArgs.Empty);
@@ -42,6 +67,11 @@ public sealed class ArtifactCatalogue
     public void ReportReloadFailure(Exception exception)
     {
         ArgumentNullException.ThrowIfNull(exception);
+        lock (gate)
+        {
+            Volatile.Write(ref reloadUnavailable, 1);
+            Interlocked.Increment(ref reloadFailureRevision);
+        }
         ReloadFailed?.Invoke(this, new(exception));
     }
 
@@ -89,5 +119,6 @@ public sealed class ArtifactCatalogue
         && left.Zip(right).All(pair =>
             string.Equals(pair.First.Id, pair.Second.Id, StringComparison.Ordinal)
             && string.Equals(pair.First.Digest, pair.Second.Digest, StringComparison.Ordinal)
+            && pair.First.PreservesCapturedUse == pair.Second.PreservesCapturedUse
             && pair.First.IsUseEnabled == pair.Second.IsUseEnabled);
 }

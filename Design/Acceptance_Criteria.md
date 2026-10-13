@@ -117,51 +117,22 @@ that includes it, not unrelated feature development or a manifest explicitly
 omitting it. Safe preparation and partial research may merge without claiming
 that any unperformed gate passed.
 
-The [R02 local-inference outcomes](Local_Inference.md) are partial evidence,
-not a waiver of these gates. Public candidate metadata, 31 deterministic proof
-tests and a real missing-endpoint/unavailable response establish neither
-successful answering nor CPU-floor/offline acceptance.
+The evaluated Ollama 0.35.1/qwen3:1.7b profile and its Ollama 0.40.2
+comparison are rejected after automated quality failures. They require no
+further human, CPU-floor or offline testing and must remain unavailable.
 
-Before D-003/local-inference D-007 qualification, follow
-[R02-L1-L5](Implementation_Roadmap.md#r02-local-inference-continuation):
+A materially changed candidate follows the
+[future candidate gate](Local_Inference.md#future-candidate-gate). Automated
+quality and authority gates run first. Only a passing candidate proceeds to
+approved reference-hardware, context, cancellation, offline/egress and human
+semantic evaluation. R06/R07/R08/R10 then apply the tested envelope and R19
+compiles integrated host, request-triggered clipboard, voice/UI and streaming
+evidence. Changed runtime/model/options/context repeat the affected gates.
 
-- Name/approve the supported Windows/reference CPU and isolated environment;
-  test the proposed 8-logical-core/16-GiB/SSD floor with verified CPU-only
-  inference, recorded power profile and UI/local-service contention. A faster
-  development host or a constrained VM alone does not qualify the floor.
-- Agree numeric local-answer latency/resource/cancellation budgets before
-  trials. Record exact installed runtime/model identities, compatibility,
-  licence/notice review, transfer, expanded/peak storage and per-volume needs.
-- Measure at least 30 unloaded-model cold and 30 paired warm trials; retain
-  individual outputs/failures, first generated versus response token and
-  completion timing, p50/p95/max, process memory/CPU and runtime counters.
-  Buffered production and experimental streaming results stay separate.
-- Use expected-answer fixtures plus the
-  [automated/human rubric](../experiments/r02-local-inference-proof/README.md#answer-quality-rubric).
-  Human review must verify meaning, grounding/uncertainty and safety, not just
-  matching keywords. Every critical fixture passes; aggregate scores cannot
-  hide quoted-content authority, invented execution or remote-fallback failures.
-- Verify the effective full-envelope context limit and explicit oversize
-  behavior; advertised model tokens and the 4,096-character bootstrap cap are
-  different bounds. Observe repeated cancellation/completion races, actual
-  timeout, late-output rejection, server cessation/residual work and recovery.
-- Under approved whole-environment remote-network denial with loopback
-  retained, prove successful answering, cancellation/recovery and
-  missing/unhealthy unavailable behavior. Retain independent effective-control
-  and process-correlated egress evidence covering Kora and Ollama/runner;
-  loopback code, connection refusal and client mocks alone are insufficient.
-
-R02 candidate qualification still does not accept A2. R06/R07/R08/R10 apply
-the tested envelope and R19 compiles integrated host, request-triggered
-clipboard, voice/UI and streaming evidence under R02-L6. Changed runtime/model,
-options, context or compatibility claims repeat affected proofs.
-
-Use the [shared deferred-validation register](Deferred_Validation.md) and
-[LI01-LI07](../experiments/r02-local-inference-proof/README.md#deferred-inference-trials)
-when preparing a later separately approved interactive inference session.
-They distinguish runnable synthetic commands from missing server/egress/host
-instrumentation. Unperformed trials block qualification and A2 local-inference acceptance,
-not merging the partial research and testing handoff under normal checks/reviews.
+Use the [shared deferred-validation register](Deferred_Validation.md) and the
+retained [experiment procedure](../experiments/r02-local-inference-proof/README.md#outstanding-testing-checklist)
+only for such a replacement candidate. Missing qualification blocks that
+candidate's enablement and A2 acceptance, not unrelated implementation.
 
 ## Platform Boundary Gate
 
@@ -808,6 +779,8 @@ Verify:
 - Executable trust disclosures match actual OS rights.
 - Disabling an extension blocks new invocations.
 - Audit metadata defaults to 90-day retention and accepts only configured values from 30 through 365 days. Diagnostic database retention defaults to 30 days under its independent bounded setting; the daily file sink always enforces both 30-file and 30-day limits.
+- Retain all required audit IDs and request/terminal outcomes within their captured windows, independent of stored session/record counts, diagnostic pruning, session disposition, query pagination and restart. Page/batch/cache/admission bounds are not retained-row quotas; stored sessions have no count cap. No unexpired required audit eviction, sampling, overflow drop or success fallback is permitted.
+- The production daily-file configuration explicitly disables Serilog's default 1 GiB cutoff without size-based rolling; its secondary audit copies retain the separate 30-day/30-calendar-file policy. Required file/database failures remain visible and fail consequential operations closed; finite disk capacity is not a promise of unlimited physical storage.
 - Every permitted `ILogger` event is independently delivered to daily structured JSON under `%LOCALAPPDATA%\Kora\Logs` and private local SQLite. Ordinary records use `application_log_events`; trusted typed audit records use `security_audit_events` and are not mixed into the ordinary table. Each database row receives the due time from its own effective policy; lookalike properties confer no authority.
 - For both tables, emit fixtures containing named/numeric event IDs, categories, levels, message templates, null/Boolean/integer/real/string/GUID/timestamp properties and nested scopes. Verify the original template and value kinds round-trip independently of rendered text and current culture; no supported property is silently flattened to a string or lost.
 - Verify admitted W3C trace/span/parent, activity source/name/kind, correlation/session/task/invocation/approval fields are captured at the log call and promoted/indexed from trusted structured state, while bounded residual properties remain queryable through the schema-versioned typed property representation. Unsupported or oversized values fail/report their safe projection rather than invoking arbitrary `ToString()` or storing an unbounded object graph.

@@ -32,6 +32,7 @@ public sealed class SessionQueueCommandTests
             command.WorkRequestId.Should().Be(Guid.Parse(Request));
             command.TaskId.Should().Be(Guid.Parse(TaskId));
             command.DependencyTaskId.Should().Be(input.Contains(" after ", StringComparison.Ordinal) ? Guid.Parse(Request) : null);
+            command.ExpectedDependencyRevision.Should().BeNull("typed after-task semantics do not require a native observation guard");
         }
         if (operation is SessionCommandOperation.QueuePause or SessionCommandOperation.QueueResume)
         {
@@ -73,6 +74,17 @@ public sealed class SessionQueueCommandTests
     public void Oversized_queue_input_is_not_truncated_into_a_committed_request() =>
         SessionCommand.Parse("queue " + new string('x', SessionCommand.MaximumInputBytes), "Kora")!.Operation
             .Should().Be(SessionCommandOperation.Invalid);
+
+    [Fact]
+    public void OptionalNativeGuardCarriesARealRevisionWithoutChangingTypedGrammar()
+    {
+        var parsed = SessionCommand.Parse("queue enqueue " + Session + " 1 0 " + Request + " " + TaskId
+            + " version after " + Request, "Kora")!;
+        var native = parsed with { ExpectedDependencyRevision = new(5) };
+        native.ExpectedDependencyRevision!.Value.Value.Should().Be(5);
+        parsed.ExpectedDependencyRevision.Should().BeNull();
+        native.DependencyTaskId.Should().Be(parsed.DependencyTaskId);
+    }
 
     [Fact]
     public void Assistant_prefix_requires_a_complete_current_name_and_explicit_boundary()

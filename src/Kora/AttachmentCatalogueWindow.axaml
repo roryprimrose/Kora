@@ -6,17 +6,27 @@
     Width="1100" Height="720" MinWidth="850" MinHeight="580"
     Background="{DynamicResource KoraWindowBackgroundBrush}"
     Foreground="{DynamicResource KoraForegroundBrush}" WindowStartupLocation="CenterScreen">
-  <Grid Margin="24" RowDefinitions="Auto,Auto,*,Auto" RowSpacing="12">
+  <Grid Margin="24" RowDefinitions="Auto,Auto,Auto,*,Auto" RowSpacing="12">
     <WrapPanel>
-      <Button x:Name="RefreshPage" Content="_Refresh metadata" IsEnabled="{Binding CanRead}" />
+      <Button x:Name="RefreshPage" Content="_Search / refresh metadata" IsEnabled="{Binding CanSearch}" />
       <Button x:Name="NextPage" Content="_Next bounded page" IsEnabled="{Binding CanNext}" />
       <Button x:Name="CancelRead" Content="_Cancel read" IsEnabled="{Binding CanCancel}" />
       <CheckBox Content="Include _removed slots (provenance only)" IsChecked="{Binding IncludeRemoved, Mode=TwoWay}"
                 IsEnabled="{Binding CanEdit}" />
+      <Button x:Name="ClearQuery" Content="Clear _query (Browse)" IsEnabled="{Binding CanEdit}" />
     </WrapPanel>
-    <controls:NamedTextBlock Grid.Row="1" Text="{Binding Status}" TextWrapping="Wrap"
+    <StackPanel Grid.Row="1" Spacing="6">
+      <WrapPanel>
+        <ComboBox x:Name="AttachmentQueryMode" ItemsSource="{Binding Modes}" SelectedItem="{Binding Mode, Mode=TwoWay}"
+                  IsEnabled="{Binding CanEdit}" AutomationProperties.Name="Attachment metadata query mode: Browse or ExactId" />
+        <TextBox x:Name="AttachmentQueryText" Text="{Binding QueryText, Mode=TwoWay}" Width="540"
+                 IsEnabled="{Binding CanEditId}" AutomationProperties.Name="Private volatile exact session ID query; typing performs no read" />
+      </WrapPanel>
+      <controls:NamedTextBlock Text="{Binding QueryHint}" TextWrapping="Wrap" />
+    </StackPanel>
+    <controls:NamedTextBlock Grid.Row="2" Text="{Binding Status}" TextWrapping="Wrap"
                             AutomationProperties.Name="Content-free metadata scope and finite scan limitations; not full body verification" />
-    <Grid Grid.Row="2" ColumnDefinitions="430,*" ColumnSpacing="12">
+    <Grid Grid.Row="3" ColumnDefinitions="430,*" ColumnSpacing="12">
       <controls:ScrollableListBox x:Name="SlotRecords" ItemsSource="{Binding Records}"
           SelectedItem="{Binding SelectedRecord, Mode=OneWay}"
           AutomationProperties.Name="Exact retained private session slots; no filenames, original paths or source body">
@@ -40,7 +50,7 @@
           AutomationProperties.Name="Selected exact session generation, storage revision, source, revision, item and digest headers; no body integrity claim" />
       </ScrollViewer>
     </Grid>
-    <WrapPanel Grid.Row="3">
+    <WrapPanel Grid.Row="4">
       <Button x:Name="OpenExact" Content="Open exact _session/attachment" IsEnabled="{Binding CanNavigate}"
               AutomationProperties.Name="Re-resolve original exact session and attachment; no resume, replacement retarget or new consent" />
       <Button x:Name="CloseView" Content="_Close" />

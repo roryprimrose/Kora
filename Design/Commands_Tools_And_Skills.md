@@ -72,7 +72,16 @@ single-use approval for that exact current revision; they cannot create
 session or always grants. This prevents changed instructions from inheriting
 authority established for an earlier or unrelated proposal.
 
+### Owned metadata inventory navigation
+
+The delivered owned native editor also provides literal metadata search, observed-use filters and exact stale-safe row inspection for its existing Instruction/Prompt filename inventories only.
+Explicit List/Refresh uses existing admission/reconciliation; filtering remains in-memory and model-free, with no source writes, activation or first-result loading. Typed/current-name activated List/Inspect opens the same native route; no new model tool or typed search grammar is registered.
+Observed catalogue state is not current disk integrity. Unavailable/stale choices require Refresh/reselection while the original/draft stays open. See [owned inventory controls](../docs/instruction-editor.md#search-observed-owned-metadata); profile-original editing and the full definition source matrix stay deferred.
+
 ### Proposed Instruction Authoring
+
+The existing native owned Instruction/literal Prompt editor delivers only [open-draft structural Validate](../docs/instruction-editor.md#validate-the-open-draft-without-saving), through its button and exact plural-kind `validate` controls. It shares Save proposal preparation, not a model tool or conversational authoring engine.
+Validation observes captured bytes and existing catalogue metadata without store I/O, reload, preference/use mutation or network/model activity. Findings grant no approval or execution authority; Save independently confirms the current prepared bytes. Profile-original and broader authoring remain deferred.
 
 Standalone Kora and compatible profile instructions will use the same
 conversational proposal, rendered preview, exact source/diff, validation,
@@ -288,12 +297,18 @@ file/source lifecycle, kind-specific application, equal UI/voice management,
 editing, and external reload. Prompts remain optional reusable-content support
 for a voice-first product; they do not warrant a parallel capability engine.
 
-The delivered owned instruction/literal prompt editor uses one closed
+The delivered owned instruction/versioned prompt editor uses one closed
 Instruction/Prompt writer and admitted save/conflict/review machinery.
+Exact `instructions copy <new-id>` / `prompts copy <new-id>` and native **Save as new copy** review the current supported native owned draft (instruction v1; prompt v1/v2), create a distinct disabled same-kind owned file without replacement, and retain the original draft.
+Separate inspection/use review is mandatory; no profile fork, inherited authority, model route or reference retargeting is added.
+Native **Disable reviewed use** and exact `instructions disable` / `instructions stop-use` (with matching `prompts` controls and current-name activation) use the same admitted revision/audit workflow, not the file writer or a new tool/grant authority.
+Confirmation binds the clean inspected supported native owned source/kind/digest/native revision (instruction v1; prompt v1/v2). Durable per-kind holds exclude new selections/descriptors but retain inspectable source bytes and already captured immutable reasoning; pending unadmitted choices retire without retargeting.
+Dirty drafts and failed/unconfirmed revocation retain explicit recovery; reload/restart/restored bytes never re-enable use, and a fresh exact current-run review is required. Profile-original editing and runtime gates remain unchanged.
 Only host-derived immediate `.instructions.md` / `.prompt.md` targets beneath
 the corresponding Kora data roots are writable. Prompt selection remains
 explicit user-request content through the existing request/provider/approval
-route; it does not register tools, policy or a template engine. See the
+route; it does not register tools or policy. Owned native v2 alone supports required literal `${input:name}` parameters through a private bounded native field form, complete expanded USER REQUEST preview and separate fresh `ModelTurnHost` admission. Values are never commands/system instructions, recursively expanded or persisted.
+V1 reader semantics remain unchanged. Provider qualification, authentication and egress are independent: production generation remains unavailable, without a rejected-runtime fallback. See the
 [bounded management increment](Definition_Management.md#bounded-owned-instruction-and-prompt-editor).
 
 The source layout is grouped by content kind, with C# loader/catalogue

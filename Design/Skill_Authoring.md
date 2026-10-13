@@ -83,12 +83,22 @@ Registered profile originals remain read-only in this increment. The native text
 editor works without inference/speech; exact typed/activated controls focus its
 same actions and reviews. Dirty closing/shutdown offers Save/Discard/Cancel.
 Saving holds the new revision; separate review offers explicit selection only.
-Conversational refinement, dictation, forks, rename/restore and broader
+Conversational refinement, dictation, profile forks, rename/restore and broader
 applicability are not delivered. The same native editor also supports immediate
-Kora-owned `.prompt.md` literal saved requests: select Prompt, then use the same
+Kora-owned `.prompt.md` versioned saved requests: select Prompt, then use the same
 Save/Delete, conflict and separate exact-use reviews. Prompts are request content,
-not instructions, skill workflows or policy; parameters/substitutions and
-profile prompt writing remain unavailable.
+not instructions, skill workflows or policy. Native v1 stays literal; owned native v2 supports required `${input:name}` text only, with a private native field form, complete expanded user-request preview and separately admitted Use. No defaults/expressions/reads/recursive substitution; profile prompt writing remains unavailable.
+Production generation remains unavailable and rejected local candidates are not fallback providers. See [required native inputs](../docs/instruction-editor.md#prepare-required-native-prompt-inputs).
+The same per-kind owned editor now has bounded literal metadata search, observed-use filters and exact stale-safe row inspection; see [the native inventory controls](../docs/instruction-editor.md#search-observed-owned-metadata).
+The native **Validate** button and exact `instructions validate` / `prompts validate` observe the open supported owned draft through the same Save preparation, counting BOM/native-marker overhead and checking existing structural/literal/namespace rules.
+Bounded body-free findings are historical observations, not approval, semantic harmlessness or enablement. No source I/O/reload, revision preference write/hold or model/reference execution occurs; drafts and existing held/enabled state remain unchanged. Save separately re-prepares and confirms. See [draft validation](../docs/instruction-editor.md#validate-the-open-draft-without-saving); profile-original editing stays deferred.
+Only explicit List/Refresh reads/reconciles existing sources. Search/filter/page changes are in-memory, preserve the original/draft and never activate or select another file automatically. Unknown metadata stays unavailable; observed catalogue state is not disk freshness. No profile/bundled inventory or authoring scope is added.
+The native **Save as new copy** increment copies only an inspected supported native owned source/current draft (instruction v1; prompt v1/v2) to a different same-kind owned ID.
+Full base/draft/proposal review changes only the declared name, preserves all other draft bytes/BOM/metadata, and creates without replacement.
+The original draft remains open; the separate copy is disabled until independently inspected/reviewed for explicit use. No profile reads/writes, implicit legacy repair, inherited authority or automatic reference retargeting are added.
+**Disable reviewed use** / `instructions disable` or `prompts disable` (also `stop-use`, including current-name activated controls) separately confirms the exact clean inspected supported native owned baseline (instruction v1; prompt v1/v2) and durably holds new selections without writing/deleting/unregistering its source.
+Disabled files remain inspectable/editable; dirty drafts are retained with an explicit Save/Reload prerequisite. Old reviews cannot retarget replacements, and reload/restart/restored bytes cannot re-enable a held revision; a fresh exact current-run use review is required.
+Already admitted reasoning keeps immutable captured content, while pending unadmitted choices expire and source/access/privacy/action/egress guards remain mandatory. Failed audit/state readback reports held/unavailable recovery, not success or rollback. Profile-original editing stays deferred.
 
 Saving a standalone instruction does not enable a skill, grant a tool
 permission, approve an effect, activate changed guidance, or make its content

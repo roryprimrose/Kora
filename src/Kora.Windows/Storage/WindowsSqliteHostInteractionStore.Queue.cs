@@ -52,30 +52,28 @@ public sealed partial class WindowsSqliteHostInteractionStore
     public ValueTask<SessionQueueSnapshot> EnqueueAsync(HostRequest control, HostRequest work,
         HostRevision generation, long expectedRevision, long admissionRevision, HostId<TaskIdentity>? dependency,
         SessionQueueLimits limits, Func<bool> eligible, CancellationToken token,
-        SessionQueueReadProfile profile = SessionQueueReadProfile.Version) =>
-        RunHostMutationAsync(control, QueueAction("enqueue", profile), (connection, transaction, intent, audit) =>
+        SessionQueueReadProfile profile = SessionQueueReadProfile.Version, HostRevision? expectedDependencyRevision = null,
+        SessionQueueCapabilityTarget? target = null)
+    {
+        SessionQueueReadProfiles.Validate(profile, target);
+        Func<bool>? dependencyCurrent = null;
+        return RunHostMutationAsync(control, QueueAction("enqueue", profile), (connection, transaction, intent, audit) =>
         {
             RequireFreshMetadataIntent(intent);
             _ = RequireQueueRevision(connection, control, generation, expectedRevision);
-            if (work.SessionId != control.SessionId || work.TaskId == control.TaskId
-                || work.RequestId == control.RequestId || work.Origin != control.Origin || work.InvocationId is not null
-                || ReadTask(connection, work.TaskId) is not null || QueueRequestExists(connection, work.RequestId)
-                || ReadQueueRows(connection, control.SessionId).Count(entry => entry.IsPending && entry.RunId == runId) >= limits.PendingPerSession)
+            RequireNewQueueWork(connection, control, work, dependency, limits);
+            bool MatchesDependency() => dependency is { } id
+                ? ReadTask(connection, id) is { } source && (expectedDependencyRevision is null
+                    || source.Request.SessionId == control.SessionId && source.Revision == expectedDependencyRevision)
+                : expectedDependencyRevision is null;
+            if (!MatchesDependency())
             {
-                throw new InvalidOperationException("The exact work identity conflicts or the pending queue is full.");
+                throw new InvalidOperationException("The exact prerequisite observation changed. Refresh work and explicitly reselect.");
             }
-            if (dependency is { } prerequisite && (prerequisite == work.TaskId || ReadTask(connection, prerequisite) is null))
-            {
-                throw new InvalidOperationException("An existing exact prerequisite task is required.");
-            }
+            // Recheck after the transaction checkpoint and before COMMIT, never freeze dispatch eligibility.
+            dependencyCurrent = MatchesDependency;
             var now = time.GetUtcNow();
-            var entry = new SessionQueueEntry(work, generation, new(1),
-                NextQueuePosition(connection), SessionQueueState.Pending, runId, admissionRevision,
-                now, now.AddMinutes(limits.PendingLifetimeMinutes), dependency,
-                RecordVersion: profile == SessionQueueReadProfile.Version ? SessionQueueEntry.CapturedLifetimeRecordVersion
-                    : SessionQueueEntry.FixedReadRecordVersion, PendingLifetimeMinutes: limits.PendingLifetimeMinutes,
-                Profile: profile == SessionQueueReadProfile.Version ? null : profile);
-            entry.Validate();
+            var entry = NewQueueEntry(connection, work, generation, admissionRevision, dependency, limits, profile, now, target);
             var task = new HostTaskRecord(work, new(1), HostTaskState.IntentRecorded);
             var order = UpdatedQueueOrder(connection, work.SessionId, runId, generation, ids => ids.Add(work.TaskId));
             var sequence = AppendAudit(connection, transaction, intent, RequireSession(connection, control.SessionId).Authority,
@@ -90,7 +88,8 @@ public sealed partial class WindowsSqliteHostInteractionStore
                 TouchActivity(connection, transaction, work.SessionId);
             }
             return QueueSnapshot(connection, control.SessionId);
-        }, token, eligible, requireIdle: false);
+        }, token, () => eligible() && dependencyCurrent?.Invoke() == true, requireIdle: false);
+    }
 
     public ValueTask<SessionQueueSnapshot> RemovePendingAsync(HostRequest control, HostRevision generation,
         long expectedRevision, HostId<TaskIdentity>? task, HostRevision? entryRevision, SessionQueueState outcome,
@@ -119,7 +118,7 @@ public sealed partial class WindowsSqliteHostInteractionStore
     {
         var control = intent.Request;
         var generation = RequireSession(connection, control.SessionId).Authority.Generation;
-        var changed = rows.Select(entry => entry with { Revision = new(checked(entry.Revision.Value + 1)), State = outcome }).ToArray();
+        var changed = rows.Select(entry => RemovedQueueEntry(entry, outcome)).ToArray();
         var tasksChanged = rows.Select(entry =>
             (ReadTask(connection, entry.Request.TaskId) ?? throw new InvalidDataException("Missing queue task."))
             .Next(HostTaskState.Cancelled)).ToArray();
@@ -346,7 +345,7 @@ public sealed partial class WindowsSqliteHostInteractionStore
             }
             ValidateRowAuthority(connection, reader.GetInt64(4),
                 Change("queue", Id(entry.Request.TaskId), entry.Revision.Value, payload));
-            if (entry.RecordVersion is SessionQueueEntry.CapturedActiveRecordVersion or SessionQueueEntry.FixedReadRecordVersion
+            if (entry.RecordVersion is SessionQueueEntry.CapturedActiveRecordVersion or SessionQueueEntry.FixedReadRecordVersion or SessionQueueEntry.TargetedReadRecordVersion
                 && entry.DispatchOrder > 0)
             {
                 // Terminal updates must retain the original admitted budget/time, not merely acquire a new digest.

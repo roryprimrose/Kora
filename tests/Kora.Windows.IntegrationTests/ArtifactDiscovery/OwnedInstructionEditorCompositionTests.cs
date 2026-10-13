@@ -1,4 +1,4 @@
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using System.Security.Principal;
 
 using AwesomeAssertions;
@@ -90,6 +90,35 @@ public sealed class OwnedInstructionEditorCompositionTests : IDisposable
             .Should().BeTrue();
         router.Match(command, "Kora").Invocation!.Artifact.Digest.Should().Be(saved.Current!.Document.Definition.Digest);
         (await actions.IsCurrent(router.Match(command, "Kora").Invocation!.Artifact, () => true, TestContext.Current.CancellationToken)).Should().BeTrue();
+        var originalBytes = saved.Current!.Document.CopyBytes();
+        var draft = text + "Unsaved changes retained in a separate draft.";
+        var copyReview = new CopyReview(saved.Current, draft);
+        var copied = await workflow.SaveCopy("separate", saved.Current, draft, copyReview, () => true,
+            TestContext.Current.CancellationToken, reload.ReconcileSavedCopy);
+        copyReview.Reviews.Should().Be(1);
+        copied.Published.Should().BeTrue();
+        copied.Current!.FileIdentity.Should().NotBe(saved.Current.FileIdentity);
+        copied.Current.DirectoryIdentity.Should().Be(saved.Current.DirectoryIdentity);
+        router.Match(command, "Kora").Invocation.Should().NotBeNull();
+        router.Match("/" + kind.ToString().ToLowerInvariant() + " separate", "Kora").Invocation.Should().BeNull();
+        File.ReadAllBytes(Path.Combine(paths.RoamingRoot, OwnedDefinitionKind.DirectoryName(kind), "example" + OwnedDefinitionKind.Extension(kind)))
+            .Should().Equal(originalBytes);
+        audit.Events.Last().ActionId.Should().Be("definition." + kind.ToString().ToLowerInvariant() + ".copy");
+        audit.Events.Last().TargetId.Should().StartWith("definition.owned-copy.");
+        reload.ReloadNow().Should().BeTrue();
+        router.Match(command, "Kora").Invocation.Should().NotBeNull();
+        (await actions.Activate(copied.Current, _ => Task.FromResult(true), () => true, TestContext.Current.CancellationToken)).Should().BeTrue();
+        var disabled = await actions.Disable(saved.Current, _ => Task.FromResult(true), () => true, TestContext.Current.CancellationToken);
+        disabled.WasEnabled.Should().BeTrue();
+        router.Match(command, "Kora").Invocation.Should().BeNull();
+        router.Match("/" + kind.ToString().ToLowerInvariant() + " separate", "Kora").Invocation.Should().NotBeNull();
+        catalogue.Candidates.Should().Contain(item => item.Kind == kind && item.OwnedInstructionName == "example" && !item.IsUseEnabled);
+        reload.ReloadNow().Should().BeTrue();
+        router.Match(command, "Kora").Invocation.Should().BeNull();
+        router.Match("/" + kind.ToString().ToLowerInvariant() + " separate", "Kora").Invocation.Should().NotBeNull();
+        new InstructionRevisionCatalogue(paths, kind).Reconcile(catalogue.Candidates)
+            .Where(item => item.Kind == kind && item.OwnedInstructionName != null).Should().OnlyContain(item => !item.IsUseEnabled);
+        (await store.Read("example", TestContext.Current.CancellationToken))!.Document.CopyBytes().Should().Equal(originalBytes);
         actions.SuspendReviewedUse();
         router.Match(command, "Kora").Invocation.Should().BeNull();
         (await actions.Activate(saved.Current!, _ => Task.FromResult(true), () => true, TestContext.Current.CancellationToken)).Should().BeTrue();
@@ -128,6 +157,7 @@ public sealed class OwnedInstructionEditorCompositionTests : IDisposable
     }
     private sealed class Review(string expected) : IInstructionMutationReview
     {
+        public Task<bool> ConfirmCopy(OwnedDefinitionCopy copy, CancellationToken token) => throw new NotSupportedException();
         internal int Reviews;
         public Task<bool> Confirm(string name, OwnedInstructionSnapshot? original, ArtifactFileDocument? proposed, CancellationToken token)
         {
@@ -138,5 +168,22 @@ public sealed class OwnedInstructionEditorCompositionTests : IDisposable
         }
         public Task<InstructionConflictChoice> Conflict(OwnedInstructionSnapshot? current, ArtifactFileDocument? proposed, CancellationToken token) =>
             throw new InvalidOperationException("No conflict expected.");
+    }
+
+    private sealed class CopyReview(OwnedInstructionSnapshot source, string draft) : IInstructionMutationReview
+    {
+        internal int Reviews;
+        public Task<bool> ConfirmCopy(OwnedDefinitionCopy copy, CancellationToken token)
+        {
+            copy.Source.Should().BeSameAs(source);
+            copy.Draft.Text.Should().Be(draft);
+            copy.Proposed.Text.Should().Be(draft.Replace("name: example", "name: separate", StringComparison.Ordinal));
+            Reviews++;
+            return Task.FromResult(true);
+        }
+        public Task<bool> Confirm(string name, OwnedInstructionSnapshot? expected, ArtifactFileDocument? proposed, CancellationToken token) =>
+            throw new NotSupportedException();
+        public Task<InstructionConflictChoice> Conflict(OwnedInstructionSnapshot? current, ArtifactFileDocument? proposed, CancellationToken token) =>
+            throw new NotSupportedException();
     }
 }

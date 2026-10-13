@@ -26,6 +26,88 @@ public sealed class ReadOnlyCapabilityRegistryTests : IDisposable
     public ReadOnlyCapabilityRegistryTests() => ActivitySource.AddActivityListener(listener);
     public void Dispose() => listener.Dispose();
 
+    public static TheoryData<string> QueueTargets => new(ReadOnlyCapabilityCatalog.Descriptors.Select(descriptor => descriptor.Id));
+
+    [Theory]
+    [MemberData(nameof(QueueTargets))]
+    public void QueuedDescriptorUsesActualActionAndExactlySelectedCatalogueMetadata(string id)
+    {
+        using var fixture = new Fixture();
+        var stopped = new List<Activity>();
+        listener.ActivityStopped = activity => stopped.Add(activity);
+        using var root = Root();
+        var target = new SessionQueueCapabilityTarget(id);
+        var reply = new Kora.Application.Hosting.DeterministicVersionQueueAction(fixture.Registry)
+            .Observe(SessionQueueReadProfile.Capability, TestContext.Current.CancellationToken, target);
+        reply.Descriptor.Should().BeSameAs(target.Descriptor);
+        SessionQueueReadProfiles.Accepts(SessionQueueReadProfile.Capability, reply, target).Should().BeTrue();
+        stopped.Single().ParentSpanId.Should().Be(root.Activity!.SpanId);
+        stopped.Single().Status.Should().Be(ActivityStatusCode.Ok);
+        stopped.Single().Baggage.Should().BeEmpty();
+        stopped.Single().Tags.Should().NotContain(tag => tag.Value == id, "selected IDs do not establish trace authority");
+        fixture.Dependencies.Observations.Should().BeEmpty();
+        foreach (var invalid in new[] { "unknown", id.ToUpperInvariant(), "{\"id\":\"" + id + "\"}" })
+        {
+            var invoke = () => new Kora.Application.Hosting.DeterministicVersionQueueAction(fixture.Registry)
+                .Observe(SessionQueueReadProfile.Capability, TestContext.Current.CancellationToken, new(invalid));
+            invoke.Should().Throw<InvalidDataException>();
+        }
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData(DependencyReadiness.Ready)]
+    [InlineData(DependencyReadiness.Missing)]
+    [InlineData(DependencyReadiness.NeedsConfiguration)]
+    [InlineData(DependencyReadiness.Incompatible)]
+    [InlineData(DependencyReadiness.Blocked)]
+    [InlineData(DependencyReadiness.Failed)]
+    public void QueuedLocalRuntimeUsesOnlyAlreadyRecordedTruthWithoutVersionOrSetup(DependencyReadiness? readiness)
+    {
+        using var fixture = new Fixture();
+        fixture.Info.OnRead = () => throw new InvalidOperationException("Runtime status must not query version.");
+        if (readiness is { } value)
+        {
+            fixture.Dependencies.RecordObservation(new(ReadOnlyCapabilityCatalog.LocalRuntimeId, "recorded", value, "private probe detail"));
+        }
+        var observations = fixture.Dependencies.Observations;
+        using var root = Root();
+        var action = new Kora.Application.Hosting.DeterministicVersionQueueAction(fixture.Registry);
+        var reply = action.Observe(SessionQueueReadProfile.RuntimeStatus, TestContext.Current.CancellationToken);
+        SessionQueueReadProfiles.Accepts(SessionQueueReadProfile.RuntimeStatus, reply).Should().BeTrue();
+        reply.Runtime!.Id.Should().Be(ReadOnlyCapabilityCatalog.LocalRuntimeId);
+        reply.Runtime.Locality.Should().Be(RuntimeLocality.Local);
+        reply.Runtime.Readiness.Should().Be(readiness);
+        reply.Runtime.ToolLoopQualified.Should().BeFalse();
+        reply.Runtime.ObservedAt.Should().Be(observations.Count == 0 ? null : observations[0].ObservedAt);
+        fixture.Dependencies.Observations.Should().BeSameAs(observations);
+        Encoding.UTF8.GetString(CapabilityReplyWire.Serialize(reply)).Should().NotContain("private probe detail");
+        var overridden = () => action.Observe(SessionQueueReadProfile.RuntimeStatus, TestContext.Current.CancellationToken,
+            new(ReadOnlyCapabilityCatalog.Version));
+        overridden.Should().Throw<InvalidDataException>();
+    }
+
+    [Fact]
+    public void RegistryAndPersistentQueueShareTheSameSingleRecordWireValidation()
+    {
+        var descriptor = ReadOnlyCapabilityCatalog.Descriptors[0];
+        var baseline = new CapabilityReply(CapabilityOutcome.Succeeded, "admitted-read-only", Descriptor: descriptor);
+        foreach (var invalid in new[]
+        {
+            baseline with { Descriptor = descriptor with { Id = "unknown" } },
+            baseline with { Descriptor = descriptor with { SchemaVersion = 2 } },
+            baseline with { Version = new("1.0.0", "other") },
+            new CapabilityReply(CapabilityOutcome.Succeeded, "recorded-observation",
+                Runtime: new("other", RuntimeLocality.Local, CapabilityAvailability.NotObserved, null, "not observed", null, false)),
+        })
+        {
+            ReadOnlyCapabilityRegistry.BoundReply(invalid).Outcome.Should().Be(CapabilityOutcome.Failed);
+            ReadOnlyCapabilityRegistry.BoundReply(invalid).Reason.Should().Be("invalid-recorded-result");
+        }
+        ReadOnlyCapabilityRegistry.BoundReply(baseline).Should().Be(baseline);
+        ReadOnlyCapabilityRegistry.BoundReply(baseline with { Outcome = CapabilityOutcome.Denied }).Outcome.Should().Be(CapabilityOutcome.Denied);
+    }
+
     [Theory]
     [InlineData(SessionQueueReadProfile.Version)]
     [InlineData(SessionQueueReadProfile.Capabilities)]

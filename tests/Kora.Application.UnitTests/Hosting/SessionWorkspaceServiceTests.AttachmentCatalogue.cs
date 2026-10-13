@@ -12,6 +12,31 @@ public sealed partial class SessionWorkspaceServiceTests
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
+    public async Task ExactAttachmentQueryIsForwardedByActualConsumerAndRemainsMetadataOnly(bool includeRemoved)
+    {
+        using var fixture = new Fixture();
+        using var root = HostActivity.BeginRoot(fixture.Request, HostActivityLayer.Application, HostOperation.Request);
+        var summary = CatalogueSummary(fixture);
+        var query = new SessionAttachmentQuery(includeRemoved, summary.Session.Value.ToString("D"));
+        fixture.CataloguePage = new(query, [summary], null, DateTimeOffset.UnixEpoch, 1, new string('a', 64), 2, false);
+        var audit = new FileAudit();
+        await using var files = FileService(fixture, FileAction(new FileCapture(), audit), audit);
+        var service = new SessionAttachmentCatalogueService(fixture.Service, files);
+        (await service.Read(query, null, () => true, fixture.Token)).Query.Should().Be(query);
+        fixture.ObservedAttachmentQuery.Should().BeSameAs(query);
+        fixture.FileReads.Should().Be(0);
+        fixture.ControlCalls.Should().Be(0);
+        fixture.PassiveInspectionCalls.Should().Be(0);
+        fixture.TaskWrites.Should().BeEmpty();
+        audit.Events.Should().BeEmpty();
+        fixture.CataloguePage = fixture.CataloguePage with { Query = new(includeRemoved, Guid.NewGuid().ToString("D")), Records = [] };
+        var mismatched = () => service.Read(query, null, () => true, fixture.Token);
+        await mismatched.Should().ThrowAsync<InvalidDataException>();
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
     public async Task CatalogueIsMetadataOnlyAndExactNavigationUsesCurrentPrivateBodyPathWithoutResume(bool done)
     {
         using var fixture = new Fixture();
@@ -154,18 +179,20 @@ public sealed partial class SessionWorkspaceServiceTests
             attachment.File.Review.Metadata.ByteLength, "text/markdown", attachment.File.AdmittedAt, AttachmentCopyStatus.Confirmed);
     }
 
-    private sealed partial class Fixture : ISessionAttachmentCatalogueStore
+    private partial class Fixture : ISessionAttachmentCatalogueStore
     {
         internal SessionAttachmentPage CataloguePage { get; set; } = new(new(), [], null, DateTimeOffset.UnixEpoch, 0, new string('0', 64), 0, false);
         internal Action? BeforeCatalogueRead { get; set; }
         internal Action? BeforeCatalogueVerify { get; set; }
         internal int CatalogueReads { get; private set; }
         internal int CatalogueVerifications { get; private set; }
+        internal SessionAttachmentQuery? ObservedAttachmentQuery { get; private set; }
 
         public ValueTask<SessionAttachmentPage> ReadAttachmentPage(SessionAttachmentQuery query, string? cursor,
             Func<bool> admitted, CancellationToken token)
         {
             CatalogueReads++;
+            ObservedAttachmentQuery = query;
             BeforeCatalogueRead?.Invoke();
             return ValueTask.FromResult(CataloguePage);
         }

@@ -1,4 +1,4 @@
-using System.ComponentModel;
+﻿using System.ComponentModel;
 using System.Runtime.InteropServices;
 using System.Security.AccessControl;
 using System.Security.Principal;
@@ -70,7 +70,7 @@ public sealed partial class WindowsOwnedInstructionStore(IApplicationDataPaths p
                 && string.Equals(replacement.Definition.Digest, current.Document.Definition.Digest, StringComparison.Ordinal))
             { return new InstructionWriteResult(false, false, false, current, Unchanged: true); }
             if (replacement is not null && !replacement.Metadata.ContainsKey("kora-format"))
-            { throw new InvalidDataException("New or changed owned instructions require the reviewed native v1 marker."); }
+            { throw new InvalidDataException("New or changed owned definitions require a reviewed supported native format marker."); }
             if (current is null && replacement is not null
                 && Directory.EnumerateFiles(directory, "*" + extension, SearchOption.TopDirectoryOnly).Take(maximumFiles).Count() >= maximumFiles)
             { throw new InvalidDataException("The owned instruction inventory is full; no new file was created."); }
@@ -345,6 +345,8 @@ public sealed partial class WindowsOwnedInstructionStore(IApplicationDataPaths p
         token.ThrowIfCancellationRequested();
         var status = NtSetInformationFile(staged, out _, buffer, (uint)buffer.Length, 65);
         if (status == 0xc0000120 && token.IsCancellationRequested) { throw new OperationCanceledException(token); }
+        if (!replace && status == 0xc0000035)
+        { throw new InvalidOperationException("The new owned destination was created concurrently. Choose another new ID or cancel; no overwrite occurred."); }
         if (status != 0) { throw new IOException("Atomic owned publication failed.", new Win32Exception(unchecked((int)status))); }
     }
 

@@ -15,12 +15,36 @@ public sealed partial class SessionWorkspaceServiceTests
     [InlineData(SessionQueueReadProfile.Capabilities)]
     [InlineData(SessionQueueReadProfile.Readiness)]
     [InlineData(SessionQueueReadProfile.Runtimes)]
+    [InlineData(SessionQueueReadProfile.Capability)]
+    [InlineData(SessionQueueReadProfile.RuntimeStatus)]
+    public async Task NativeOptionalGuardForwardsExactDependencyAndRealRevisionThroughOriginalCommandService(SessionQueueReadProfile profile)
+    {
+        using var f = new Fixture();
+        await using var queue = f.QueueService();
+        var dependency = new HostId<TaskIdentity>(Guid.NewGuid());
+        await queue.ExecuteCommandAsync(f.QueueCommand(SessionCommandOperation.QueueEnqueue) with
+        {
+            QueueProfile = profile, QueueTarget = FixedTarget(profile), DependencyTaskId = dependency.Value, ExpectedDependencyRevision = new(7),
+        }, RequestOrigin.LocalUi, () => true, f.Token);
+        f.QueueRows.Single().Dependency.Should().Be(dependency);
+        f.QueueRows.Single().ReadProfile.Should().Be(profile);
+        f.LastExpectedDependencyRevision.Should().Be(new HostRevision(7));
+        f.QueueActions.Should().Be(0);
+    }
+
+    [Theory]
+    [InlineData(SessionQueueReadProfile.Version)]
+    [InlineData(SessionQueueReadProfile.Capabilities)]
+    [InlineData(SessionQueueReadProfile.Readiness)]
+    [InlineData(SessionQueueReadProfile.Runtimes)]
+    [InlineData(SessionQueueReadProfile.Capability)]
+    [InlineData(SessionQueueReadProfile.RuntimeStatus)]
     public async Task Every_fixed_profile_preserves_original_route_and_truthful_result(SessionQueueReadProfile profile)
     {
         using var f = new Fixture();
         await using var queue = f.QueueService();
         f.QueueReply = FixedReply(profile);
-        await queue.ExecuteCommandAsync(f.QueueCommand(SessionCommandOperation.QueueEnqueue) with { QueueProfile = profile },
+        await queue.ExecuteCommandAsync(f.QueueCommand(SessionCommandOperation.QueueEnqueue) with { QueueProfile = profile, QueueTarget = FixedTarget(profile) },
             RequestOrigin.ActivatedVoice, () => true, f.Token);
         f.QueueRows.Single().ReadProfile.Should().Be(profile);
         f.QueueActions.Should().Be(0);
@@ -32,6 +56,7 @@ public sealed partial class SessionWorkspaceServiceTests
         if (profile == SessionQueueReadProfile.Version) { receipt.Version.Should().Be(f.QueueReply.Version); receipt.Result.Should().BeNull(); }
         else { receipt.Version.Should().BeNull(); receipt.Result.Should().Be(f.QueueReply); f.QueueRows.Single().Result.Should().Be(f.QueueReply); }
         f.ActionRequests.Single().Should().Be(f.QueueRows.Single().Request);
+        f.LastObservedTarget.Should().Be(FixedTarget(profile));
     }
 
     [Theory]
@@ -39,6 +64,8 @@ public sealed partial class SessionWorkspaceServiceTests
     [InlineData(SessionQueueReadProfile.Capabilities)]
     [InlineData(SessionQueueReadProfile.Readiness)]
     [InlineData(SessionQueueReadProfile.Runtimes)]
+    [InlineData(SessionQueueReadProfile.Capability)]
+    [InlineData(SessionQueueReadProfile.RuntimeStatus)]
     public async Task Denial_failure_wrong_shape_oversize_and_equal_deadline_never_publish_success(SessionQueueReadProfile profile)
     {
         foreach (var failure in new[] { "denied", "failed", "wrong-shape", "oversize", "late" })
@@ -54,7 +81,7 @@ public sealed partial class SessionWorkspaceServiceTests
                 _ => FixedReply(profile),
             };
             if (string.Equals(failure, "late", StringComparison.Ordinal)) { f.OnObserve = () => f.QueueTime.Ticks += TimeSpan.FromMinutes(5).Ticks; }
-            await queue.ExecuteCommandAsync(f.QueueCommand(SessionCommandOperation.QueueEnqueue) with { QueueProfile = profile },
+            await queue.ExecuteCommandAsync(f.QueueCommand(SessionCommandOperation.QueueEnqueue) with { QueueProfile = profile, QueueTarget = FixedTarget(profile) },
                 RequestOrigin.LocalUi, () => true, f.Token);
             var reply = await queue.ExecuteCommandAsync(f.QueueCommand(SessionCommandOperation.QueueDispatch) with { QueueRevision = 1 },
                 RequestOrigin.LocalUi, () => true, f.Token);
@@ -124,6 +151,11 @@ public sealed partial class SessionWorkspaceServiceTests
         SessionQueueReadProfile.Version => new(CapabilityOutcome.Succeeded, "observed", Version: new("1.0.0", "fixed")),
         SessionQueueReadProfile.Capabilities => new(CapabilityOutcome.Succeeded, "catalogue", Capabilities: new(ReadOnlyCapabilityCatalog.Descriptors, 6, null)),
         SessionQueueReadProfile.Readiness => new(CapabilityOutcome.Succeeded, "recorded-observations", Readiness: new([], 0, null)),
+        SessionQueueReadProfile.Capability => new(CapabilityOutcome.Succeeded, "admitted-read-only", Descriptor: FixedTarget(profile)!.Descriptor),
+        SessionQueueReadProfile.RuntimeStatus => new(CapabilityOutcome.Succeeded, "recorded-observation",
+            Runtime: new(ReadOnlyCapabilityCatalog.LocalRuntimeId, RuntimeLocality.Local, CapabilityAvailability.NotObserved, null, "not observed", null, false)),
         _ => new(CapabilityOutcome.Succeeded, "recorded-observation", Runtimes: new([], 0, null)),
     };
+    private static SessionQueueCapabilityTarget? FixedTarget(SessionQueueReadProfile profile) =>
+        profile == SessionQueueReadProfile.Capability ? new(ReadOnlyCapabilityCatalog.Version) : null;
 }

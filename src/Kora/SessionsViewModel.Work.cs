@@ -43,7 +43,8 @@ internal sealed partial class SessionsViewModel
     public bool CanCancelWork => CanCancelQueueEntry || CanCancelTask;
     public bool CanRemoveQueueEntry => CanCancelQueueEntry;
     public bool CanClearQueue => CanControlQueue && queueSnapshot!.Entries.Any(entry => entry.State is SessionQueueState.Pending or SessionQueueState.Expired);
-    public bool CanEnqueueVersion => CanControlQueue && workSnapshot is { } snapshot && snapshot.PendingCount < snapshot.PendingCapacity;
+    public bool CanEnqueueVersion => CanControlQueue && HasQueuePrerequisiteDecision
+        && workSnapshot is { } snapshot && snapshot.PendingCount < snapshot.PendingCapacity;
 
     public void SelectWorkRecord(SessionWorkRow? row)
     {
@@ -64,19 +65,22 @@ internal sealed partial class SessionsViewModel
 
     private async Task RefreshSelectedWorkAsync(bool concurrent = false)
     {
+        InvalidateQueuePrerequisite(clearSource: true);
+        NotifyQueuePrerequisite();
         var target = RequireSelected();
         var epoch = selectionEpoch;
+        var observedAdmission = access.ControlRevision;
         var snapshot = await service.ReadWorkAsync(target.Authority.SessionId, lifetime.Token);
         if (concurrent && (busy && !dispatchingQueue || selectionEpoch != epoch || selected?.Authority.SessionId != target.Authority.SessionId)) { return; }
         if (selectionEpoch != epoch || selected?.Authority.SessionId != target.Authority.SessionId)
         {
             throw new OperationCanceledException("The selected session changed during observation.");
         }
-        ApplyWork(snapshot);
+        ApplyWork(snapshot, observedAdmission);
         await RefreshLocalEventsAsync(target.Authority.SessionId, epoch);
     }
 
-    private void ApplyWork(SessionWorkSnapshot? snapshot)
+    private void ApplyWork(SessionWorkSnapshot? snapshot, long observedAdmission)
     {
         if (snapshot is null) { throw new InvalidOperationException("The authoritative work snapshot service is unavailable."); }
         if (listSearchMode && sessions?.Records.Contains(snapshot.Session) != true)
@@ -94,6 +98,7 @@ internal sealed partial class SessionsViewModel
             || queueSnapshot.DispatchControl != snapshot.Queue.DispatchControl
             || !queueSnapshot.Entries.SequenceEqual(snapshot.Queue.Entries);
         queueSnapshot = snapshot.Queue;
+        ObserveQueuePrerequisites(snapshot, observedAdmission);
         if (cancellationSnapshotChanged)
         {
             pendingCancellationSelection = [];

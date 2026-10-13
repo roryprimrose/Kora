@@ -11,6 +11,7 @@ public static class ReadOnlyCapabilityCatalog
     public const string Readiness = "readiness.get";
     public const string RuntimeList = "runtime.list";
     public const string RuntimeStatus = "runtime.get_status";
+    public const string LocalRuntimeId = "local.inference";
     public const int MaximumRecords = 6;
     public static CapabilityLimits Limits { get; } = new(1024, MaximumRecords, 4096);
 
@@ -35,6 +36,9 @@ public static class ReadOnlyCapabilityCatalog
             ["show local runtime status"] = RuntimeStatus,
         });
 
+    public static CapabilityDescriptor? FindExact(string id) => Descriptors.FirstOrDefault(item =>
+        string.Equals(item.Id, id, StringComparison.Ordinal));
+
     public static CapabilityCommand? MatchCommand(string normalizedTranscript)
     {
         var id = Descriptors.FirstOrDefault(item =>
@@ -42,7 +46,7 @@ public static class ReadOnlyCapabilityCatalog
         id ??= ExactCommands.GetValueOrDefault(normalizedTranscript);
         if (id is not null)
         {
-            return new(id, string.Equals(id, RuntimeStatus, StringComparison.Ordinal) ? "local.inference" : null);
+            return new(id, string.Equals(id, RuntimeStatus, StringComparison.Ordinal) ? LocalRuntimeId : null);
         }
         foreach (var prefix in new[] { "describe capability ", "capabilities get " })
         {

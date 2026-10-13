@@ -349,7 +349,7 @@ public sealed class LocalEventBrokerWindowTests
     }
     private sealed class NoExecution : IDeterministicVersionQueueAction
     {
-        public Kora.Core.Tools.CapabilityReply Observe(SessionQueueReadProfile profile, CancellationToken token) => throw new InvalidOperationException("Broker cannot dispatch.");
+        public Kora.Core.Tools.CapabilityReply Observe(SessionQueueReadProfile profile, CancellationToken token, SessionQueueCapabilityTarget? target = null) => throw new InvalidOperationException("Broker cannot dispatch.");
     }
 
     private sealed class PausedSource(ILocalEventSource source) : ILocalEventSource

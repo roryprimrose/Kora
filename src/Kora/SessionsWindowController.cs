@@ -1,4 +1,4 @@
-using Avalonia.Threading;
+﻿using Avalonia.Threading;
 
 using Kora.Application.Diagnostics;
 using Kora.Application.Hosting;
@@ -15,11 +15,13 @@ internal sealed class SessionsWindowController(
     ISessionWorkspaceAccess access, ILogger<SessionsViewModel> logger, LocalEventBroker? localEvents = null,
     DetailWindowController? details = null, Kora.Application.Memory.MemoryManagementService? memories = null,
     SessionAttachmentWindowController? attachments = null,
-    Kora.Application.Configuration.SessionProviderProfileConfigurationService? providers = null) : IDisposable
+    Kora.Application.Configuration.SessionProviderProfileConfigurationService? providers = null,
+    SessionConversationService? conversation = null) : IDisposable
 {
     private SessionsWindow? window;
     private bool disposed;
     internal Action? OpenAllWork { get; set; }
+    internal Action? OpenNewRequest { get; set; }
 
     internal void Bind()
     {
@@ -42,8 +44,9 @@ internal sealed class SessionsWindowController(
             var opened = new SessionsWindow(new(service, evidence, access, logger, localEvents,
                 content => details?.OpenHistoryDetail(content, window)
                     ?? "History details unavailable: the native viewer is not composed.",
-                session => details?.RevokeSession(session), memories, attachments, providers));
+                session => details?.RevokeSession(session), memories, attachments, providers, conversation));
             opened.AllWorkRequested += (_, _) => OpenAllWork?.Invoke();
+            opened.NewRequestRequested += (_, _) => OpenNewRequest?.Invoke();
             opened.Closed += (_, _) => { if (ReferenceEquals(window, opened)) { window = null; } };
             window = opened;
             opened.Show();
@@ -76,27 +79,40 @@ internal sealed class SessionsWindowController(
             Dispatcher.UIThread.Invoke(() => RevokeSession(session));
             return;
         }
+
         if (disposed) { return; }
         if (window?.DataContext is SessionsViewModel state)
         {
-            if (state.ReferencesSession(session)) { window.Close(); }
+            if (state.ReferencesSession(session)) { window.ClosePrivate(); }
             else { state.RevokeSessionList(); }
         }
     }
 
+    internal async Task<bool> NavigateSavedDraftAsync(SavedDraftSummary exact, Func<bool> admitted, CancellationToken token)
+    {
+        token.ThrowIfCancellationRequested();
+        if (disposed || !access.CanInspect || !main.CanRevealPrivatePresentation || !admitted())
+        { throw new OperationCanceledException("Original saved draft navigation was revoked."); }
+        Open();
+        if (window?.DataContext is not SessionsViewModel model)
+        { throw new InvalidOperationException("The native Sessions window is unavailable."); }
+        return await model.SelectSavedDraftAsync(exact, admitted, token);
+    }
+
     private void OnOpen(object? sender, EventArgs args) => Open();
-    private void OnPrivacyClosure(object? sender, EventArgs args) => window?.Close();
+    private void OnPrivacyClosure(object? sender, EventArgs args) => window?.ClosePrivate();
 
     public void Dispose()
     {
         if (disposed) { return; }
         disposed = true;
         OpenAllWork = null;
+        OpenNewRequest = null;
         main.SessionsRequested -= OnOpen;
         main.PrivacyClosureRequested -= OnPrivacyClosure;
         service.SessionLifecycleChanged -= RevokeSession;
         service.SessionRetired -= RevokeSession;
-        window?.Close();
+        window?.ClosePrivate();
         window = null;
     }
 }

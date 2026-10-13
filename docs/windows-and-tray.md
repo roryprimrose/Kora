@@ -19,6 +19,89 @@ See [native editor commands, bounds and recovery](instruction-editor.md).
 
 ## Authoritative Sessions work
 
+### New request with a fresh session
+
+Open **Tray > New request (fresh session only)** or **Sessions > New request (fresh target)**. Reopening activates the same window and preserves its isolated memory draft. Relatedness inference is unavailable: this entry never continues the selected, named, recent or Done session and never changes question/approval/voice focus.
+
+1. Type the original request; typing saves nothing.
+2. Choose **Create new empty target**. Inspect the accepted **New conversation** ID, name, generation and metadata revision. This commits only an empty Active session, not the body.
+3. Choose **Review frozen body for this target**, inspect the exact body/target, then separately **Submit reviewed exact body**. Edits or Cancel retire that review, even if the edited bytes later match.
+
+Submit uses the same body bounds, best-effort credential rejection and exact USER retention as the [named-session composer](#exact-session-conversation-and-composer). Current production generation is unavailable: HOST/task status is not an assistant answer. No inference, provider setup, network, fallback or implicit routing is performed.
+
+To retain a draft instead, choose **Review exact saved revision and new body** after confirmed creation. Inspect the saved revision, confirmed memory baseline and complete old/new bodies, then separately **Confirm Save reviewed draft only**. Saving leaves the body in memory; it does not submit, run a model, renew activity or grant approval. Submit always needs its own fresh review and leaves saved data independent.
+
+Save is only available for that same confirmed created Active target under its original generation, metadata and private control epoch. A concurrent saved change fails stale; Kora never silently follows/overwrites it. Failed/uncertain saving retains the buffer with inspection guidance, not retry. The saved-draft catalogue can discover it; **Reload saved draft** remains an explicit Sessions gesture.
+
+Creation, Save and Submit are separate durable operations, not an atomic transaction. Cancel or close leaves the disclosed session and saved data; no automatic Done/delete. Eligible dirty close offers Save/Discard/Cancel and a separate exact Save review. Save closes only after a confirmed receipt with no newer edits/revocation. Before confirmed creation or while held, only Discard/Cancel is offered.
+
+Dirty means the current body differs exactly from its last confirmed saved memory baseline, including an empty replacement for a nonempty saved body. Edits, even same-byte reassignment, retire reviews. Privacy closure clears the buffer without saving. This window has no autosave/Reload or automatic transfer to named buffers.
+
+**Open this exact session** is explicit navigation only and protects an unsaved named composer with its existing Save/Discard/Cancel decision. It does not transfer this New request body.
+**Inspect exact attempt (no retry)** reads the disclosed original session/request/task identity without renewing activity. Storage/audit/admission uncertainty keeps the recoverable draft and exact hold; do not blindly create another target or resubmit.
+
+### Search one exact retained conversation
+
+Select an exact session in **Sessions**, then use **Search this conversation** in its conversation pane. Search matches whole lexical words in original retained **USER** messages or separate typed **HOST** outcome/reason/task-state fields. It never searches other sessions, saved draft bodies, Question/Answer receipts, logs, attachments, memories or accounts.
+
+Queries use 1–256 UTF-16 characters / 512 UTF-8 bytes and 1–32 distinct terms of at most 64 characters. NFC/invariant case and whole-word OR apply; punctuation separates words rather than becoming regex/wildcard/instruction syntax. Blank or invalid queries explicitly fail, never show every message. Typing alone does not search or save the query.
+
+Results are chronological exact messages, not generated answers, summaries or relevance ranking. Each read scans at most the existing 100-message session bound; default 25 / maximum 50 complete results, counters and cursor fit 64 KiB. **Next conversation matches** stays on the original generation/sequence ceiling/head; later append is excluded and changed terminal status requires fresh Search.
+
+Enter searches. **Cancel conversation search**, **Clear private conversation search** and Escape clear only private query/results/cursor, leaving the memory composer, saved drafts and current question/voice focus untouched. Private/owner/session/source changes revoke results and late callbacks.
+Reading retained Done never resumes or renews activity, creates task authority, runs cleanup or sends context to a model. No new copy/export/speech/network action is offered.
+
+### Exact-session conversation and composer
+
+Open **Sessions**, select the exact session and use **Exact-session conversation
+and composer**. Its header names the immutable ID, name label, generation,
+metadata/saved-draft revision and private control epoch. Read/Next show bounded
+chronological **USER** messages and separate **HOST** statuses; no model answer
+is invented. Done history stays readable, but new work requires explicit Resume.
+
+Typing writes nothing. **Read exact conversation / saved revision** observes
+the stored revision. **Explicitly Save draft** retains one draft for this
+session; **Reload saved draft** restores only data. **Review Clear saved draft**
+shows the exact saved body/revision; its separate confirmation removes that
+copy only. **Discard memory buffer only** leaves saved draft/messages unchanged.
+Switching/closing unsaved text offers Save/Discard/Cancel. Lock/privacy/owner
+closure clears private text and callbacks without silently saving.
+
+**Submit exact message — unavailable provider** retains your original exact
+text and fresh request/task receipt privately. Today the configured production
+catalogue has no qualified model: you receive truthful **HOST Unavailable /
+UnregisteredModel** and a terminal **Unavailable task**, not an AI answer.
+No rejected-local-runtime fallback, HTTP/provider/authentication, automatic
+retry, history context or tools run. Only a known receipt clears its unchanged
+memory buffer; saved drafts remain independently stored. Failure/uncertainty
+holds the buffer and requires exact conversation/task inspection, not retry.
+
+Bodies must fit 4096 UTF-16 characters **and** 16384 UTF-8 bytes, with exact
+valid Unicode/whitespace/newlines. Invalid, empty or oversized submissions are
+rejected, never normalized/truncated. Each session admits 100 submitted user
+messages; there is no aggregate retained-session, draft-bearing-session or
+message storage quota and no automatic eviction. Read pages have at most
+50 records/64 KiB complete output. These are predictable work/UI bounds,
+not a total database-size or unlimited physical-disk promise.
+
+Save/Submit also perform bounded **local best-effort credential-like checks**:
+private-key PEM blocks/candidates, Authorization Bearer/Basic values, explicit
+password/client_secret/api_key assignments, declared GitHub token shapes and
+JWT-like strings. No model/network/credential verification occurs. Clear
+placeholders and inert parameter references are not evaluated; discussion is
+not rejected just for mentioning passwords/tokens. Arbitrary passwords,
+short values and undeclared formats can be missed; this is not DLP or a
+secret-free guarantee. Detected material is refused without persisting a body
+or reusable body hash. Correct the memory-only draft or use supported secure
+credential flows; there is no Save anyway or silent redaction.
+
+Saved input never auto-submits after restart. Original incomplete intent
+recovers as Interrupted without replay. Existing Keep/ordinary retention and
+exact disposition include these database cells/journal; uninventoried copies
+and Unknown/live work still hold deletion. No new export/clipboard/rich content
+action or forensic-erasure claim is supplied. Full generation/global routing
+and installed/native/provider qualification remain separate.
+
 The already-open selected work surface also has a **trusted local events**
 status list. Only fixed authoritative local-version work/question facts and
 fresh cached maintenance can create a row. Fixed summaries have no titles or
@@ -112,6 +195,18 @@ Use native **Refresh this file preview** / **Refresh this folder preview**, or e
 There is no automatic refresh, watcher, recursion, registry, durable attachment, knowledge/persistent-index/reasoning authority. Same privacy/ownership/call/control/lifetime and native release fences apply; unverified release blocks clean handoff/exit until recovery.
 See [commands and limits](commands.md#explicit-local-file-preview).
 
+### Find a literal in the currently inspected original file
+
+In an admitted file preview, selected captured-folder file or retained Session attachment, enter a one-line literal in **Literal Find** and explicitly choose **Find first**. This searches only the displayed immutable original, not every folder file, the current filesystem, a provider or a conversation.
+
+Matching is **case-sensitive**, preserves spaces and punctuation exactly, and treats regex/wildcard-looking text literally. Limits are 256 UTF-16 characters / 512 strict UTF-8 bytes; empty, malformed or unsafe control-bearing input is unavailable. Nothing happens on keystrokes.
+
+**Find next** starts after the selected match's exclusive end. **Find previous** finds the last match ending before or at its start. There is no overlapping cursor step or wrap. End-of-direction is not a claim that the whole file has no match. **Clear literal Find** cancels work and clears its query, cursor and span.
+
+The focused match is inert, non-selectable text with exact source/revision/item/digest and original UTF-16 `[start, end)` metadata; it is not a ranked citation. Full original source remains below. Folder selection/citation navigation clear the old query and cursor; query/mode/search/cancel/source/private/window changes suppress late Find results.
+
+Retained Find validates the exact private historical Session/storage source after original-file removal, without rereading that path or renewing session activity. No clipboard, export, links, speech, history, query persistence, model or new read permission is added. Native-only Find is separate from existing inspect/search focus routes and unchanged ranked lexical/Markdown search.
+
 ### Opt-in Markdown search in an exact file view
 
 In an admitted file/folder preview or **Inspect retained attachment**, choose **Markdown structure-aware (opt-in, this view only)**, then **Search selected immutable revision locally**. New/reopened/replaced views always start at **Lexical lines (default)** / `lexical-lines-v1`; no preference/global mode is saved.
@@ -195,9 +290,13 @@ the response window visible; idle presence still uses its own timeout.
 
 ## Retained session attachments (metadata only)
 
-Open **Tray > Retained session attachments**, then choose **Refresh metadata**. Opening alone reads nothing; listing never opens a picker, original file path or attachment body. It shows only already retained private Session slots.
+Open **Tray > Retained session attachments**, then choose **Search / refresh metadata**. Opening alone reads nothing; listing never opens a picker, original file path or attachment body. It shows only already retained private Session slots.
 
-- Each page has at most **16 rows / 64 KiB** and scans at most **64 slots**. **Next bounded page** may continue after zero retained matches. **Include removed slots** shows content-free removal provenance; historical removed slots do not count toward the sixteen-live-file cap.
+Default **Browse** preserves the removal filter. For one session, choose **ExactId**, enter its nonempty canonical lowercase D-format UUID, then explicitly Search or press Enter in the query field. Uppercase, empty, noncanonical, control-containing or oversized input is invalid, never Browse. No session names, filenames, original paths, bodies, excerpts or digests are searched.
+
+Typing performs no I/O. Mode, ID and **Include removed slots** edits retire results, selection and continuation and cancel pending work; use Search again. **Clear query (Browse)** clears the volatile ID without reading or changing the removal filter. Search never auto-selects or opens a match. Escape closes and clears private state. Source/privacy/ownership/lifecycle revocation clears the query too.
+
+- Each page has at most **16 rows / 64 KiB** and scans at most **64 slots**. **Next bounded page** may continue after zero matches; ExactId does not jump over unvalidated slots. **Include removed slots** shows content-free removal provenance; historical removed slots do not count toward the sixteen-live-file cap.
 - Typed authority is validated in bounded segments before rows are shown. **Authority validation pending** pages contain no attachments; use Next to continue. Reads have a five-second budget. Continuations expire after two minutes; any committed authority, storage/profile or query change requires Refresh.
 - Rows show exact Session ID, current Active/Done/Removed lifecycle, generations, storage revision, source/revision/item/digest headers, byte count/type/captured UTC and copy certification. No filename, path, excerpt or original source metadata appears.
 - **Confirmed** is stored copy certification, not a body-integrity check or current file access. **Held** means replacement disclosure is not certified. **Unavailable** means the slot is removed. Held/removed slots cannot open a body here; use existing exact-session copy recovery where allowed.

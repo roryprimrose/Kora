@@ -9026,6 +9026,7 @@ public sealed partial class MainViewModelTests : IDisposable
             public List<string> Requests { get; } = [];
 
             public TaskCompletionSource<string>? Gate { get; set; }
+            public TaskCompletionSource? DecisionGate { get; set; }
 
             public BuiltInAction? Action { get; set; }
             public GrantChange? GrantChange { get; set; }
@@ -9051,6 +9052,8 @@ public sealed partial class MainViewModelTests : IDisposable
                 {
                     throw Failure;
                 }
+                if (DecisionGate is not null)
+                { await DecisionGate.Task.WaitAsync(cancellationToken); }
 
                 if (Response is not null)
                 {

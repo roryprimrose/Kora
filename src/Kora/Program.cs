@@ -1,4 +1,4 @@
-using System.Runtime.ExceptionServices;
+﻿using System.Runtime.ExceptionServices;
 
 using Avalonia;
 
@@ -42,7 +42,6 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
 using Serilog;
-using Serilog.Formatting.Json;
 
 namespace Kora;
 
@@ -88,7 +87,7 @@ internal static class Program
                     {
                         var paths = new ApplicationDataPaths(coordinator.BuildIdentity.IsDebug);
                         var fileHealth = new FileEvidenceHealth();
-                        var fileLogger = CreateFileLogger(paths, fileHealth);
+                        var fileLogger = DailyFileLoggerFactory.Create(paths, fileHealth);
                         Log.Logger = fileLogger;
                         var services = new ServiceCollection();
                         ConfigureServices(services, paths, fileLogger, fileHealth, ownershipBridge, coordinator);
@@ -279,6 +278,11 @@ internal static class Program
         services.AddKeyedSingleton<WindowsOwnedInstructionStore>(ArtifactKind.Prompt, (provider, _) => new(paths, ArtifactKind.Prompt));
         services.AddSingleton<IOwnedInstructionStore>(provider => provider.GetRequiredService<WindowsOwnedInstructionStore>());
         services.AddSingleton<Kora.Application.Definitions.InstructionControlAdmission>();
+        services.AddSingleton(provider => new Kora.Application.Definitions.PromptRequestConsumer(
+            provider.GetRequiredService<Kora.Application.Definitions.InstructionControlAdmission>(),
+            provider.GetRequiredKeyedService<Kora.Application.Definitions.OwnedInstructionEditorActions>(ArtifactKind.Prompt),
+            provider.GetRequiredService<ModelTurnHost>(), provider.GetRequiredService<ISecurityAuditLog>(),
+            provider.GetRequiredService<TimeProvider>()));
         services.AddSingleton<Kora.Application.Definitions.OwnedInstructionEditorActions>();
         services.AddSingleton<Kora.Application.Definitions.InstructionSaveWorkflow>();
         services.AddKeyedSingleton<Kora.Application.Definitions.OwnedInstructionEditorActions>(ArtifactKind.Prompt, (provider, _) => new(
@@ -302,6 +306,7 @@ internal static class Program
         services.AddSingleton<Kora.Application.Interaction.HostAuthorizationService>();
         services.AddSingleton<Kora.Application.Interaction.ExactGrantControlAdmission>();
         services.AddSingleton<ISessionWorkspaceStore>(interactions);
+        services.AddSingleton<ISessionConversationStore>(interactions);
         services.AddSingleton<ISessionRetentionStore>(interactions);
         services.AddSingleton<SessionRetentionService>();
         services.AddSingleton<ISharedSkillSessionStore>(interactions);
@@ -425,6 +430,10 @@ internal static class Program
         services.AddSingleton<Kora.Tools.Runtime.RuntimeGetStatus>();
         services.AddSingleton<Kora.Application.Tools.ReadOnlyCapabilityRegistry>();
         services.AddSingleton<ModelTurnHost>();
+        services.AddSingleton<IModelTurnAdmission>(provider => provider.GetRequiredService<ModelTurnHost>());
+        services.AddSingleton<SessionConversationService>();
+        services.AddTransient<NewRequestComposer>();
+        services.AddSingleton<Kora.Application.Definitions.PromptConversationSubmission>();
         services.AddSingleton<ModelProviderHandoffWorkflow>();
         services.AddSingleton<ModelHandoffPresentation>();
         services.AddSingleton<ILocalModelSetup, WindowsOllamaSetupService>();
@@ -540,30 +549,5 @@ internal static class Program
         services.AddSingleton<Kora.Tools.Files.LocalFileRefresh>();
         services.AddSingleton<Kora.Core.Context.ILocalFileRetrieval, Kora.Core.Context.LocalFileLexicalRetrieval>();
         services.AddSingleton<MainViewModel>();
-    }
-
-    private static Serilog.Core.Logger CreateFileLogger(ApplicationDataPaths paths, FileEvidenceHealth health)
-    {
-        var logDirectory = Path.Combine(paths.LocalRoot, DailyLogFilePolicy.DirectoryName);
-        Directory.CreateDirectory(logDirectory);
-
-        // Serilog normally self-reports file errors instead of throwing. A sticky admission
-        // latch makes those failures observable without recursively invoking the failed sink.
-        Serilog.Debugging.SelfLog.Enable(_ => health.Fail());
-        var logger = new LoggerConfiguration()
-            .MinimumLevel.Debug()
-            .MinimumLevel.Override("Microsoft", Serilog.Events.LogEventLevel.Warning)
-            .Enrich.FromLogContext()
-            .WriteTo.File(
-                new JsonFormatter(renderMessage: true),
-                Path.Combine(logDirectory, DailyLogFilePolicy.RollingName),
-                rollingInterval: RollingInterval.Day,
-                retainedFileCountLimit: 30,
-                retainedFileTimeLimit: TimeSpan.FromDays(30),
-                rollOnFileSizeLimit: false,
-                shared: false)
-            .CreateLogger();
-        health.RequireHealthy();
-        return logger;
     }
 }

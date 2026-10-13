@@ -358,6 +358,7 @@ public sealed partial class MainViewModel
             var captureClosure = voiceRecognition.StopAsync();
             var outputClosure = textToSpeech.StopAsync();
             await Task.WhenAll(captureClosure, outputClosure);
+            await ClosePromptPreparation();
         }
         catch (Exception exception) when (exception is not OutOfMemoryException)
         {
@@ -876,6 +877,7 @@ public sealed partial class MainViewModel
     public async Task<bool> TryPrepareHandoffAsync()
     {
         if (instructionEditorShutdown is not null && !await instructionEditorShutdown()) { return false; }
+        await ClosePromptPreparation();
         if (lifecycleAdmissionClosed || !IsHandoffReviewQuiescent || IsBusy || IsWebPageRetrievalActive
             || !clipboardPreview.IsQuiescent || filePreview?.IsQuiescent == false || sessionFiles?.IsQuiescent == false
             || IsLocalModelSetupActive || IsPowerShellSetupActive || IsSpeechProviderOperationActive

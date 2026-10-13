@@ -20,10 +20,19 @@ public interface ISessionQueueStore
     /// <summary>Cancel all and only the exact reviewed pending subset in one authoritative transaction.</summary>
     ValueTask<SessionQueueSnapshot> CancelSelectedPendingAsync(HostRequest control, SessionQueueCancelReview review,
         Func<bool> eligible, CancellationToken token);
+    /// <summary>Review the exact stored expired source and separate host-issued fresh IDs without mutation.</summary>
+    ValueTask<SessionQueueRequeueReview> ReviewExpiredAsync(SessionQueueSnapshot expected, HostId<TaskIdentity> task,
+        HostRevision entryRevision, HostRequest fresh, long admissionRevision, SessionQueueLimits limits,
+        long configurationRevision, Func<bool> eligible, CancellationToken token);
+    /// <summary>Remove the reviewed expired source and enqueue its fresh decision at the tail in one transaction.</summary>
+    ValueTask<SessionQueueSnapshot> RequeueExpiredAsync(HostRequest control, SessionQueueRequeueReview review,
+        SessionQueueLimits limits, long configurationRevision, Func<bool> eligible, CancellationToken token);
+    /// <summary>Enqueue one fixed read; an optional real task revision guard restricts native observations to the addressed session at commit.</summary>
     ValueTask<SessionQueueSnapshot> EnqueueAsync(HostRequest control, HostRequest work, HostRevision generation,
         long expectedRevision, long admissionRevision, HostId<TaskIdentity>? dependency,
         SessionQueueLimits limits, Func<bool> eligible, CancellationToken token,
-        SessionQueueReadProfile profile = SessionQueueReadProfile.Version);
+        SessionQueueReadProfile profile = SessionQueueReadProfile.Version, HostRevision? expectedDependencyRevision = null,
+        SessionQueueCapabilityTarget? target = null);
     ValueTask<SessionQueueSnapshot> RemovePendingAsync(HostRequest control, HostRevision generation, long expectedRevision,
         HostId<TaskIdentity>? task, HostRevision? entryRevision, SessionQueueState outcome,
         Func<bool> eligible, CancellationToken token);

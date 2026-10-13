@@ -11,10 +11,27 @@ Related: [Architecture](Architecture.md), [Security and Data Flows](Security_Dat
 
 ## State Model
 
+The [native exact-session conversation foundation](Interaction_And_Sessions.md#delivered-exact-session-conversationcomposer-foundation--2026-10-12)
+atomically retains the fresh original user body and task IntentRecorded with
+required typed audit before configured provider-neutral admission. Its current
+no-qualified-model outcome is a terminal **Unavailable** task and separate
+HOST Unavailable conversation status, never Succeeded execution or an invented
+assistant answer. Generation stays unavailable even for future qualified
+admission; no adapter/effect dispatch is composed.
+
+Saved conversation drafts are data, not pending execution. Save/clear controls
+have administrative exact receipts but do not renew meaningful activity.
+Restart recovers an incomplete original submission as Interrupted (or Unknown
+only for actual dispatch uncertainty), retaining its content without retry,
+draft auto-submit or request replay. Uncertain commit/receipt remains held and
+visible; no new worker/queue/cancellation authority is inferred.
+
 The delivered fixed read-only queue records Pending, Running (admitted
 dispatch, not independent proof of an effect), Succeeded/Failed, exact
 pre-admission Cancelled/Removed and restart Interrupted/Unknown projections.
 Expiry is a visible non-dispatchable pending projection, not a silent deletion.
+The [reviewed current-run replacement](Work_Management.md#delivered-reviewed-expired-pending-removal-and-fresh-tail-decision---2026-10-12) removes one exact expired stored Pending entry, retaining Removed queue history and a Cancelled old task.
+A separate fresh request/task becomes IntentRecorded/Pending at session tail with current confirmed future pending lifetime. Original IDs/deadlines/prerequisites remain unchanged; existing dependents stay blocked on the old task. No expiry extension, replay, automatic dispatch or previous-run recovery is added.
 Queued identities and revisioned task transitions share the atomic required
 authority audit. A lost or rejected receipt remains unverified, never an
 inferred success, cancellation or automatic retry.
@@ -114,6 +131,8 @@ unavailable for cancellation; ordinary callbacks/SDK acknowledgements never
 certify termination. Restart recovers incomplete work without replay or
 reactivating previous-run waits. No general queue, worker termination,
 task deletion or runtime management follows from this exception.
+
+The [native terminal publication boundary](Interaction_Fallback.md#synchronized-native-terminal-publication---2026-10-12) synchronizes closed state with its receipt across cancellation, decisions, denial and failure. An original continuation cannot report Denied after committed cancellation won publication; earlier withdrawal remains fail-closed. Later clearing still invalidates answer dispatch eligibility and never establishes physical termination.
 
 ## Wake Listening and Command Capture
 

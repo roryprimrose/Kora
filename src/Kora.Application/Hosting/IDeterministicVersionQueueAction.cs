@@ -5,5 +5,5 @@ namespace Kora.Application.Hosting;
 
 internal interface IDeterministicVersionQueueAction
 {
-    CapabilityReply Observe(SessionQueueReadProfile profile, CancellationToken token);
+    CapabilityReply Observe(SessionQueueReadProfile profile, CancellationToken token, SessionQueueCapabilityTarget? target = null);
 }

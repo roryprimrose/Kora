@@ -194,6 +194,7 @@ public sealed partial class WindowsSqliteMemoryTests
         await fixture.InitializeAsync();
         var grants = await fixture.GrantAsync("perpetual");
         var audits = fixture.Count("security_audit_events");
+        fixture.DropEmptyConversationSchemaForLegacy();
         fixture.Mutate("DROP TABLE session_queue_order; DROP TABLE session_provider_profile; DROP TABLE session_file; DROP TABLE reviewed_memory; DROP TABLE memory_profile; PRAGMA user_version=6;");
         fixture.Reopen();
         await fixture.Store.InitializeAsync(fixture.Token);
@@ -201,6 +202,7 @@ public sealed partial class WindowsSqliteMemoryTests
         (await fixture.Store.ReadGrantsAsync(fixture.Token)).Should().ContainSingle().Which.Should().Be(grants);
         using var service = Service(fixture);
         await Admit(fixture, service);
+        fixture.DropEmptyConversationSchemaForLegacy();
         fixture.Mutate("DROP TABLE session_queue_order; DROP TABLE session_provider_profile; DROP TABLE session_file; DROP TABLE reviewed_memory; DROP TABLE memory_profile; PRAGMA user_version=6;");
         fixture.Reopen();
         var action = () => fixture.Store.InitializeAsync(fixture.Token).AsTask();

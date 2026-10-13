@@ -52,7 +52,8 @@ public sealed partial class WindowsSqliteHostInteractionStore
             var completed = intent.Next(HostTaskState.Succeeded);
             var memories = MemoryInvalidations(connection, request.SessionId);
             var attachments = AttachmentInvalidation(connection, request.SessionId);
-            if (attachments.Length != 0 || CountDispositionRows(connection, "session_provider_profile", request.SessionId) != 0)
+            if (attachments.Length != 0 || CountDispositionRows(connection, "session_provider_profile", request.SessionId) != 0
+                || preview.ConversationMessages != 0 || preview.SavedConversationDrafts != 0)
             {
                 database.RequireEmptyArtifactInventory();
                 Execute(connection, transaction, "PRAGMA secure_delete=ON; PRAGMA journal_size_limit=0;");
@@ -64,6 +65,7 @@ public sealed partial class WindowsSqliteHostInteractionStore
             foreach (var memory in memories) { WriteMemory(connection, transaction, memory, sequence); }
             WindowsSqliteHostTaskStore.WriteTask(connection, transaction, completed);
             SessionHistoryPersistence.Redact(connection, transaction, request.SessionId);
+            RemoveConversation(connection, transaction, request.SessionId);
             Execute(connection, transaction, """
                 DELETE FROM host_task_waits WHERE task_id IN (SELECT task_id FROM host_tasks WHERE session_id=$id);
                 DELETE FROM host_observations WHERE session_id=$id;
@@ -74,7 +76,8 @@ public sealed partial class WindowsSqliteHostInteractionStore
                 """, ("$id", Id(request.SessionId)));
             return new SessionDispositionReceipt(request.SessionId, removed.Generation, preview);
         }, cancellationToken, canControl).ConfigureAwait(false);
-        if (receipt.Removed.Attachments != 0 || receipt.Removed.ProviderProfiles != 0)
+        if (receipt.Removed.Attachments != 0 || receipt.Removed.ProviderProfiles != 0
+            || receipt.Removed.ConversationMessages != 0 || receipt.Removed.SavedConversationDrafts != 0)
         {
             using var lease = database.AcquireReadLease(CancellationToken.None);
             database.ClearCommittedJournal();
@@ -93,6 +96,8 @@ public sealed partial class WindowsSqliteHostInteractionStore
         {
             Attachments = ReadAttachmentRow(connection, session)?.Attachment is null ? 0 : 1,
             ProviderProfiles = CountDispositionRows(connection, "session_provider_profile", session),
+            ConversationMessages = CountDispositionRows(connection, "conversation_messages", session),
+            SavedConversationDrafts = CountDispositionRows(connection, "conversation_drafts", session),
         };
     }
 
@@ -152,6 +157,8 @@ public sealed partial class WindowsSqliteHostInteractionStore
             "SELECT * FROM reviewed_memory WHERE session_id=$id ORDER BY memory_id;",
             "SELECT * FROM session_file WHERE session_id=$id ORDER BY session_id;",
             "SELECT * FROM session_provider_profile WHERE session_id=$id ORDER BY session_id;",
+            "SELECT * FROM conversation_drafts WHERE session_id=$id ORDER BY session_id;",
+            "SELECT * FROM conversation_messages WHERE session_id=$id ORDER BY sequence;",
             "SELECT * FROM session_queue WHERE session_id=$id ORDER BY task_id;",
             "SELECT * FROM session_queue_order WHERE session_id=$id ORDER BY order_id;",
             "SELECT * FROM host_tasks WHERE session_id=$id AND task_id<>$control ORDER BY task_id;",

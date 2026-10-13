@@ -3,6 +3,7 @@ using Avalonia.Controls;
 using Avalonia.Controls.Templates;
 using Avalonia.Layout;
 using Avalonia.Media;
+
 using Kora.Application.Infrastructure;
 using Kora.Application.Presentation;
 using Kora.Controls;
@@ -71,13 +72,16 @@ internal sealed partial class LocalFilePreviewWindow(Action<string> reportFailur
         files.SelectionChanged += (_, _) =>
         {
             ClearNavigation();
+            SetFindSource(null);
             if (isCurrent() && files.SelectedItem is LocalFileRevision file && revision.Files.Contains(file))
             {
                 content.Text = file.Text;
+                SetFindSource(file);
             }
         };
         DockPanel.SetDock(files, Dock.Top);
         body.Children.Insert(1, files);
+        SetFindSource(revision.Files[0]);
         ShowSearch(body, search, isCurrent, folder: true,
             _ => Task.FromResult(revision.Files), file => files.SelectedItem = file);
         ShowRefresh(body, refresh, folder: true);
@@ -91,6 +95,7 @@ internal sealed partial class LocalFilePreviewWindow(Action<string> reportFailur
         var body = Compose(Describe(revision.Review) + $"\nRevision: {revision.RevisionId:D} / item: {revision.ItemId:D}\n"
             + $"SHA-256 (exact source bytes): {revision.Digest}\nAdmitted: {revision.AdmittedAt:O}",
             null, revision.Text);
+        SetFindSource(revision);
         ShowSearch(body, search, isCurrent, folder: false,
             _ => Task.FromResult<IReadOnlyList<LocalFileRevision>>([revision]), _ => { });
         ShowRefresh(body, refresh, folder: false);
@@ -244,6 +249,7 @@ internal sealed partial class LocalFilePreviewWindow(Action<string> reportFailur
         panel.Children.Add(navigate);
         DockPanel.SetDock(panel, Dock.Bottom);
         body.Children.Insert(1, panel);
+        ShowFind(body, Current, resolveSource);
     }
 
     internal void FocusSearch()
@@ -291,6 +297,7 @@ internal sealed partial class LocalFilePreviewWindow(Action<string> reportFailur
             + $"Original session generation: {attachment.Generation.Value} / captured: {file.AdmittedAt:O}\n"
             + $"Revision: {file.RevisionId:D} / item: {file.ItemId:D}\nSHA-256 of original bytes: {file.Digest}",
             null, file.Text, AttachmentDisclosure);
+        SetFindSource(file);
         ShowSearch(body, search, isCurrent, folder: false, async token =>
         {
             if (resolveCurrent is null)
@@ -411,6 +418,11 @@ internal sealed partial class LocalFilePreviewWindow(Action<string> reportFailur
     private void ClearContent()
     {
         ClearNavigation();
+        SetFindSource(null);
+        findQuery = null;
+        findStatus = null;
+        findNext = null;
+        findPrevious = null;
         searchSelection?.Dispose();
         searchSelection = null;
         content.Text = null;

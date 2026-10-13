@@ -14,6 +14,12 @@ public sealed record LocalEvent(
     long Generation, long SourceRevision, long RelatedRevision, RequestOrigin Origin,
     SessionQueueEligibility? QueueReason, DateTimeOffset ObservedAt, DateTimeOffset ExpiresAt)
 {
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public SessionQueueReadProfile? QueueProfile { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public SessionQueueCapabilityTarget? QueueTarget { get; init; }
+    [JsonIgnore]
+    private string ReadName => QueueProfile is { } profile ? "fixed " + SessionQueueReadProfiles.Describe(profile, QueueTarget) : "fixed local-version";
     [JsonIgnore]
     public LocalEventCategory Category => Type switch
     {
@@ -33,12 +39,12 @@ public sealed record LocalEvent(
     [JsonIgnore]
     public string Summary => Type switch
     {
-        LocalEventType.Queued => "A fixed local-version read is queued; manual dispatch remains separate.",
-        LocalEventType.Current => "A fixed local-version read is currently admitted.",
-        LocalEventType.Completed => "The fixed local-version read has a successful durable receipt.",
-        LocalEventType.Failed => "The fixed local-version read has a failed durable receipt.",
-        LocalEventType.Blocked => "The fixed local-version queue head is blocked; observed eligibility is not authority.",
-        LocalEventType.Unknown => "The fixed local-version outcome is Unknown; no replay or retry is authorised.",
+        LocalEventType.Queued => "A " + ReadName + " read is queued; manual dispatch remains separate.",
+        LocalEventType.Current => "A " + ReadName + " read is currently admitted.",
+        LocalEventType.Completed => "The " + ReadName + " read has a successful durable receipt.",
+        LocalEventType.Failed => "The " + ReadName + " read has a failed durable receipt.",
+        LocalEventType.Blocked => "The " + ReadName + " queue head is blocked; observed eligibility is not authority.",
+        LocalEventType.Unknown => "The " + ReadName + " outcome is Unknown; no replay or retry is authorised.",
         LocalEventType.UserAttention => "An exact pending local-version question needs user attention in its separate Questions window.",
         _ => "Cached verified release availability exists; native maintenance Check/Open remain separate actions.",
     };
@@ -54,10 +60,17 @@ public sealed record LocalEvent(
         && Type == other.Type && SessionId == other.SessionId && TaskId == other.TaskId
         && SubjectId == other.SubjectId && Generation == other.Generation
         && SourceRevision == other.SourceRevision && RelatedRevision == other.RelatedRevision
-        && Origin == other.Origin && QueueReason == other.QueueReason && ExpiresAt == other.ExpiresAt;
+        && Origin == other.Origin && QueueReason == other.QueueReason && ExpiresAt == other.ExpiresAt
+        && QueueProfile == other.QueueProfile && QueueTarget == other.QueueTarget;
 
     public void Validate()
     {
+        if (QueueProfile is { } profile)
+        {
+            if (Source != LocalEventSource.LocalVersionQueue) { throw new InvalidDataException("Only queue observations carry fixed read metadata."); }
+            SessionQueueReadProfiles.Validate(profile, QueueTarget);
+        }
+        else if (QueueTarget is not null) { throw new InvalidDataException("An event target requires its exact queue profile."); }
         SessionId.Validate();
         TaskId?.Validate();
         if (!Enum.IsDefined(Source) || !Enum.IsDefined(Type) || !Enum.IsDefined(Origin)

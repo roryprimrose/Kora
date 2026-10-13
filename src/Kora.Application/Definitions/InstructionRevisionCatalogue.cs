@@ -16,8 +16,30 @@ public sealed class InstructionRevisionCatalogue
     private readonly Lock gate = new();
     private bool unavailable;
     private bool stateObserved;
-    private readonly Dictionary<string, string> preparedReviews = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, (string Revision, Guid Receipt)> preparedReviews = new(StringComparer.Ordinal);
     private readonly Dictionary<string, string> enabledForRun = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, (string Revision, Guid Epoch)> observedRevisions = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, string> explicitHolds = new(StringComparer.Ordinal);
+
+    public void PublishReconciled(IReadOnlyList<ArtifactDefinition> discovered,
+        Action<IReadOnlyList<ArtifactDefinition>> publish)
+    {
+        // Revision state and its consumer publication share this short gate. A reload cannot
+        // publish an enabled snapshot calculated before an exact hold.
+        lock (gate) { publish(Reconcile(discovered)); }
+    }
+
+    public Guid CaptureReviewEpoch(OwnedInstructionSnapshot reviewed)
+    {
+        RequireKind(reviewed);
+        lock (gate)
+        {
+            if (!observedRevisions.TryGetValue(reviewed.Name, out var observed)
+                || !string.Equals(observed.Revision, reviewed.Revision, StringComparison.Ordinal))
+            { throw new InvalidOperationException("The exact owned revision is stale. Reload and review again."); }
+            return observed.Epoch;
+        }
+    }
 
     public InstructionRevisionCatalogue(IApplicationDataPaths paths, ArtifactKind kind = ArtifactKind.Instruction)
         : this(new LocalPreferenceStore(paths), kind) { }
@@ -40,23 +62,28 @@ public sealed class InstructionRevisionCatalogue
             var names = discovered.Where(item => item.Kind == kind && item.OwnedInstructionName is not null)
                 .Select(item => item.OwnedInstructionName!).ToHashSet(StringComparer.Ordinal);
             foreach (var name in state.Keys.Where(name => !names.Contains(name)).ToArray())
-            { state.Remove(name); preparedReviews.Remove(name); enabledForRun.Remove(name); }
+            { state.Remove(name); preparedReviews.Remove(name); enabledForRun.Remove(name); observedRevisions.Remove(name); explicitHolds.Remove(name); }
             var result = discovered.Select(artifact =>
             {
                 if (artifact.Kind != kind || artifact.OwnedInstructionName is not { } name) { return artifact; }
                 var revision = artifact.OwnedInstructionRevision ?? artifact.Digest;
+                if (!observedRevisions.TryGetValue(name, out var observed)
+                    || !string.Equals(observed.Revision, revision, StringComparison.Ordinal))
+                { observedRevisions[name] = (revision, Guid.NewGuid()); }
                 if (!state.TryGetValue(name, out var approved))
                 {
-                    // One-time unchanged legacy compatibility; native v1 saves are always new disabled candidates.
+                    // One-time unchanged legacy compatibility; native saves are always new disabled candidates.
                     approved = initial && !unavailable && !artifact.RequiresInstructionReview
                         ? revision : null;
                     state[name] = approved;
                 }
                 if (unavailable || !string.Equals(approved, revision, StringComparison.Ordinal)) { state[name] = null; }
-                if (!string.Equals(preparedReviews.GetValueOrDefault(name), revision, StringComparison.Ordinal)) { preparedReviews.Remove(name); }
+                if (!string.Equals(preparedReviews.GetValueOrDefault(name).Revision, revision, StringComparison.Ordinal)) { preparedReviews.Remove(name); }
                 if (!string.Equals(enabledForRun.GetValueOrDefault(name), revision, StringComparison.Ordinal)) { enabledForRun.Remove(name); }
+                if (!string.Equals(explicitHolds.GetValueOrDefault(name), revision, StringComparison.Ordinal)) { explicitHolds.Remove(name); }
                 return artifact with { IsUseEnabled = !unavailable && (string.Equals(state[name], revision, StringComparison.Ordinal)
-                    || string.Equals(enabledForRun.GetValueOrDefault(name), revision, StringComparison.Ordinal)) };
+                    || string.Equals(enabledForRun.GetValueOrDefault(name), revision, StringComparison.Ordinal)),
+                    PreservesCapturedUse = !unavailable && string.Equals(explicitHolds.GetValueOrDefault(name), revision, StringComparison.Ordinal) };
             }).ToArray();
             Save(state);
             unavailable = false;
@@ -64,20 +91,93 @@ public sealed class InstructionRevisionCatalogue
         }
     }
 
-    public void Hold(string name)
+    public void Hold(string name, bool existingOnly = false, Action? publish = null)
     {
         OwnedInstructionNames.ReadName(name);
         lock (gate)
         {
-            var state = Load() ?? new Dictionary<string, string?>(StringComparer.Ordinal);
             preparedReviews.Remove(name);
             enabledForRun.Remove(name);
-            state[name] = null;
-            Save(state);
+            explicitHolds.Remove(name);
+            RetireEpoch(name);
+            try
+            {
+                var state = Load() ?? new Dictionary<string, string?>(StringComparer.Ordinal);
+                // Failed absent copies must not consume inventory slots or revoke an original.
+                if (existingOnly && !state.ContainsKey(name)) { return; }
+                state[name] = null;
+                Save(state);
+            }
+            catch { unavailable = true; throw; }
+            finally { publish?.Invoke(); }
         }
     }
 
-    public void PrepareActivation(OwnedInstructionSnapshot reviewed)
+    public void HoldExact(OwnedInstructionSnapshot reviewed, ArtifactCatalogue catalogue)
+    {
+        RequireKind(reviewed);
+        lock (gate)
+        {
+            RequireExactCandidate(reviewed, catalogue);
+            Hold(reviewed.Name, publish: () => PublishUse(reviewed, catalogue, enabled: false));
+        }
+    }
+
+    public bool DisableExact(OwnedInstructionSnapshot reviewed, ArtifactCatalogue catalogue)
+    {
+        RequireKind(reviewed);
+        lock (gate)
+        {
+            RequireExactCandidate(reviewed, catalogue);
+            var enabled = IsEnabled(reviewed);
+            Hold(reviewed.Name, publish: () =>
+            {
+                explicitHolds[reviewed.Name] = reviewed.Revision;
+                PublishUse(reviewed, catalogue, enabled: false, preservesCapturedUse: true);
+            });
+            return enabled;
+        }
+    }
+
+    public void HoldCandidate(ArtifactDefinition expected, ArtifactCatalogue catalogue)
+    {
+        lock (gate)
+        {
+            if (expected.Kind != kind || expected.OwnedInstructionName is not { } name
+                || !catalogue.Candidates.Any(candidate => MatchesRevision(candidate, expected)))
+            { return; }
+            Hold(name, publish: () => catalogue.Update(items => items.Select(candidate => MatchesRevision(candidate, expected)
+                ? candidate with { IsUseEnabled = false, PreservesCapturedUse = false } : candidate).ToArray()));
+        }
+    }
+
+    private void RequireExactCandidate(OwnedInstructionSnapshot reviewed, ArtifactCatalogue catalogue)
+    {
+        if (!catalogue.Candidates.Any(candidate => MatchesRevision(candidate, reviewed)))
+        { throw new InvalidOperationException("The exact owned revision is no longer current. Reload; no replacement was selected."); }
+    }
+
+    private bool MatchesRevision(ArtifactDefinition candidate, OwnedInstructionSnapshot reviewed) =>
+        MatchesRevision(candidate, reviewed.Document.Definition with { OwnedInstructionRevision = reviewed.Revision });
+
+    private bool MatchesRevision(ArtifactDefinition candidate, ArtifactDefinition expected) =>
+        candidate.Kind == kind && candidate.Source is "kora-profile"
+        && string.Equals(candidate.Id, expected.Id, StringComparison.Ordinal)
+        && string.Equals(candidate.OwnedInstructionName, expected.OwnedInstructionName, StringComparison.Ordinal)
+        && string.Equals(candidate.Digest, expected.Digest, StringComparison.Ordinal)
+        && string.Equals(candidate.OwnedInstructionRevision, expected.OwnedInstructionRevision, StringComparison.Ordinal);
+
+    private void PublishUse(OwnedInstructionSnapshot reviewed, ArtifactCatalogue catalogue, bool enabled, bool preservesCapturedUse = false) =>
+        catalogue.Update(items => items.Select(candidate => MatchesRevision(candidate, reviewed)
+            ? candidate with { IsUseEnabled = enabled, PreservesCapturedUse = preservesCapturedUse } : candidate).ToArray());
+
+    private void RetireEpoch(string name)
+    {
+        if (observedRevisions.TryGetValue(name, out var observed))
+        { observedRevisions[name] = (observed.Revision, Guid.NewGuid()); }
+    }
+
+    public Guid PrepareActivation(OwnedInstructionSnapshot reviewed, Guid? expectedEpoch = null)
     {
         RequireKind(reviewed);
         lock (gate)
@@ -85,32 +185,45 @@ public sealed class InstructionRevisionCatalogue
             var state = Load() ?? throw new InvalidDataException("Observe the managed catalogue before activation.");
             if (unavailable || !state.ContainsKey(reviewed.Name))
             { throw new InvalidOperationException("The owned instruction catalogue is unavailable."); }
+            if (expectedEpoch is { } epoch && CaptureReviewEpoch(reviewed) != epoch)
+            { throw new InvalidOperationException("The reviewed use was retired. Begin a fresh exact review."); }
             enabledForRun.Remove(reviewed.Name);
+            explicitHolds.Remove(reviewed.Name);
             state[reviewed.Name] = null;
             Save(state);
-            preparedReviews[reviewed.Name] = reviewed.Revision;
+            var receipt = Guid.NewGuid();
+            preparedReviews[reviewed.Name] = (reviewed.Revision, receipt);
+            return receipt;
         }
     }
 
-    public void CompleteActivation(OwnedInstructionSnapshot reviewed)
+    public void CompleteActivation(OwnedInstructionSnapshot reviewed, Guid receipt, ArtifactCatalogue? catalogue = null)
     {
         RequireKind(reviewed);
         lock (gate)
         {
-            if (unavailable || !string.Equals(preparedReviews.GetValueOrDefault(reviewed.Name), reviewed.Revision, StringComparison.Ordinal))
+            var prepared = preparedReviews.GetValueOrDefault(reviewed.Name);
+            if (unavailable || !string.Equals(prepared.Revision, reviewed.Revision, StringComparison.Ordinal)
+                || prepared.Receipt != receipt)
             { throw new InvalidOperationException("The exact reviewed instruction activation was retired."); }
+            if (catalogue is not null) { RequireExactCandidate(reviewed, catalogue); }
             preparedReviews.Remove(reviewed.Name);
             enabledForRun[reviewed.Name] = reviewed.Revision;
+            if (catalogue is not null) { PublishUse(reviewed, catalogue, enabled: true); }
         }
     }
 
-    public IReadOnlyList<string> SuspendReviewedUse()
+    public IReadOnlyList<string> SuspendReviewedUse(Action<IReadOnlyList<string>>? publish = null)
     {
         lock (gate)
         {
-            var names = preparedReviews.Keys.Union(enabledForRun.Keys, StringComparer.Ordinal).ToArray();
+            var names = preparedReviews.Keys.Union(enabledForRun.Keys, StringComparer.Ordinal)
+                .Union(explicitHolds.Keys, StringComparer.Ordinal).ToArray();
+            foreach (var name in observedRevisions.Keys) { RetireEpoch(name); }
             preparedReviews.Clear();
             enabledForRun.Clear();
+            explicitHolds.Clear();
+            publish?.Invoke(names);
             return names;
         }
     }
@@ -132,8 +245,10 @@ public sealed class InstructionRevisionCatalogue
         lock (gate)
         {
             unavailable = true;
+            foreach (var name in observedRevisions.Keys) { RetireEpoch(name); }
             preparedReviews.Clear();
             enabledForRun.Clear();
+            explicitHolds.Clear();
             var state = Load();
             if (state is null) { return; }
             foreach (var name in state.Keys.ToArray()) { state[name] = null; }
@@ -142,6 +257,20 @@ public sealed class InstructionRevisionCatalogue
     }
 
     private Dictionary<string, string?>? Load()
+    {
+        try { return LoadCore(); }
+        catch (Exception exception) when (exception is not OutOfMemoryException)
+        {
+            unavailable = true;
+            preparedReviews.Clear();
+            enabledForRun.Clear();
+            explicitHolds.Clear();
+            foreach (var name in observedRevisions.Keys) { RetireEpoch(name); }
+            throw;
+        }
+    }
+
+    private Dictionary<string, string?>? LoadCore()
     {
         var text = store.ReadText(fileName, MaximumPreferenceBytes);
         if (text is null)

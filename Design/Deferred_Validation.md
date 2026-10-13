@@ -11,22 +11,55 @@ capability/profile and RC inclusion. The
 [roadmap disposition inventory](Implementation_Roadmap.md#experiment-disposition-inventory)
 owns experiment retention and migration.
 
-## Proof Checklists
+## Engineering Progression Policy
 
-| Area | Outstanding evidence | Preparation / procedure | Blocks |
+Deferred environment evidence is not an implementation backlog. Feature work
+continues behind fail-closed unavailable routes, feature flags or excluded
+profiles. A proof may block progress only when continuing would:
+
+1. expose a consequential capability without its security/authority boundary;
+2. write or migrate durable customer data without defined recovery semantics;
+3. claim or ship a profile whose required runtime, privacy or installation
+   behavior is unqualified; or
+4. rely on a candidate already rejected by measured evidence.
+
+Missing physical, perceptual, clean-machine or reference-hardware evidence
+does not block contracts, orchestration, UI, deterministic tests or replacement
+candidate work. It blocks only enabling or claiming the affected profile.
+Do not repeat toolchain/framework demonstrations, rejected candidates or
+unchanged environment observations to make a checklist appear complete.
+
+Current dispositions:
+
+- Ollama 0.35.1/qwen3:1.7b and the 0.40.2 comparison are rejected. No further
+  LI01-LI07 work is required for those candidates. Reopen qualification only
+  for a materially changed candidate intended for enablement.
+- ACL projection, no-child and unrestricted script approaches are rejected as
+  dependency containment. This result directs implementation toward a typed
+  broker/admitted worker; it does not block building that replacement.
+- Current standard-SQLite production tests own storage implementation
+  confidence. Historical SQLCipher/x86 trials are closed research, not a
+  prerequisite for R04/R12 work.
+- Native UX, speech, distribution and hardware observations are release/profile
+  qualification. They do not block unrelated deterministic feature merges.
+
+## Profile Qualification Checklists
+
+| Area | Evidence retained for future included profiles | Preparation / procedure | Blocks |
 |---|---|---|---|
-| Native accessibility | Actual Narrator announcements, rendered readability at approved text scales and physical mixed-DPI observations, followed by operator sign-off | [Maintained UX fixture](../tests/Kora.NativeUxFixture/README.md); [focus-free preparation](#focus-free-preparation-for-interactive-native-accessibility) | Affected native UX qualification, not deterministic feature merges |
-| Local inference | CPU-floor/resource budgets, complete context/overflow envelope, human quality, physical server cessation, licence/staging inventory, independently blocked egress and integrated repeat | [L1-L6](Implementation_Roadmap.md#r02-local-inference-continuation); [LI01-LI07](../experiments/r02-local-inference-proof/README.md#outstanding-testing-checklist) | D-003/inference D-007, offered inference profile and A2/R19 |
+| Native accessibility | Actual Narrator announcements, rendered readability at approved text scales and physical mixed-DPI observations, followed by operator sign-off | [Maintained UX fixture](../tests/Kora.NativeUxFixture/README.md); [focus-free preparation](#focus-free-preparation-for-interactive-native-accessibility) | Inclusion of the affected native UX profile, not implementation or deterministic feature merges |
+| Local inference | A future non-rejected candidate's CPU-floor/resource budgets, context envelope, human quality, server cessation, licence/staging inventory, independently blocked egress and integrated repeat | [L1-L6](Implementation_Roadmap.md#r02-local-inference-continuation); [LI01-LI07](../experiments/r02-local-inference-proof/README.md#outstanding-testing-checklist) | Enabling that candidate; current rejected candidates require no more proof |
 | Runtime/provider | Exact-profile reproduction/control coverage, attributable all-path RT2 mediation/loss controls and approved live PV1 account/cost evidence | [Runtime plan](Runtime_Provider_Feasibility.md); [runtime register](#runtimeprovider-follow-up) | Affected adapter/R08 and model-assisted R13 |
-| Worker containment | Applicable W1-W4 token/ACL/child/network/dependency and fixed-action/quiescence evidence; rejected strict profiles remain rejected | [Containment proof](../experiments/r02-containment-proof/README.md); [W2 receipts](../experiments/r02-w2-dependency-proof/README.md) | Worker/deployment profile exposure and R11 execution |
-| Storage | Installed loading/protection, power-loss, managed artifacts/backups/deletion, audit anchors/pruning/rollback and full lifecycle/copy inventory | [Storage register](#storage-admission-follow-up); [retained storage proof](../experiments/r02-storage-proof/README.md) | Affected R04/R12 storage/lifecycle and RC claims |
+| Worker containment | Applicable W1-W4 token/ACL/child/network/dependency and fixed-action/quiescence evidence for the selected replacement architecture | [Containment proof](../experiments/r02-containment-proof/README.md); [W2 receipts](../experiments/r02-w2-dependency-proof/README.md) | Exposing consequential worker execution; typed broker/worker implementation and tests proceed now |
+| Storage | Installed protection, power-loss, managed artifacts/backups/deletion, audit anchors/pruning/rollback and full lifecycle/copy inventory | [Storage register](#storage-admission-follow-up); [retained storage proof](../experiments/r02-storage-proof/README.md) | Shipping affected persistence claims; R04/R12 implementation proceeds under maintained tests |
 | Ownership/audio privacy | Complete A01-A07 native matrix and per-trial timing, including active lock/disconnect/suspend, device/permission changes, handoff and crash recovery | [R03 register](#r03-windows-ownership-and-audio-privacy) | Full R03/affected A0/A1/audio profile |
 | Speech/wake | Physical headset and speaker/microphone acoustic quality, playback rejection, reference latency and packaged lifecycle | [Speech proof](../experiments/r02-speech-proof/README.md); [speech criteria](Acceptance_Criteria.md#gate-1-voice-and-clipboard-vertical-slice) | Offered speech/wake/provider/device profile; production wake remains unavailable |
 | Distribution | Current final installed bytes, runtime-only prerequisites, lifecycle/protection/native loading and supported architecture/profile observations | [Distribution contract](Distribution_And_Updates.md); [installer guide](../installer/README.md) | D-005 and included installed release profile, not static source/build publication |
 
 Passing mechanical/synthetic/native-seam checks does not fill operator-only
-rows. The archive distinguishes successful bounded trials from failed, blocked
-and unperformed attempts; new evidence must not rewrite those dispositions.
+rows, but those rows are not general development blockers. The archive
+distinguishes successful bounded trials from failed, blocked and unperformed
+attempts; new evidence must not rewrite those dispositions.
 
 ### Focus-free Preparation for Interactive Native Accessibility
 

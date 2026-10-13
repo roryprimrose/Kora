@@ -241,6 +241,7 @@ public sealed partial class WindowsSqliteSessionQueueTests
         await fixture.InitializeAsync();
         await WindowsSqliteSessionWorkspaceTests.FinishAsync(fixture, HostTaskState.Succeeded);
         var before = await fixture.Store.ReadHistoryAsync(fixture.Request.SessionId, null, 50, fixture.Token);
+        fixture.DropEmptyConversationSchemaForLegacy();
         fixture.Mutate("DROP TABLE session_queue_order; DROP TABLE session_provider_profile; DROP TABLE session_file; DROP TABLE reviewed_memory; DROP TABLE memory_profile; DROP TABLE session_retention; DROP TABLE session_queue; PRAGMA user_version=4;");
         fixture.Reopen(new InteractionTransactionCheckpoint { Commit = (_, _) => throw new IOException("Migration interrupted") });
         var interrupted = () => fixture.Store.InitializeAsync(fixture.Token).AsTask();
@@ -249,6 +250,7 @@ public sealed partial class WindowsSqliteSessionQueueTests
         await fixture.Store.InitializeAsync(fixture.Token);
         (await fixture.Store.ReadHistoryAsync(fixture.Request.SessionId, null, 50, fixture.Token)).Should().BeEquivalentTo(before);
         var entry = await EnqueueAsync(fixture, fixture.Request.SessionId);
+        fixture.DropEmptyConversationSchemaForLegacy();
         fixture.Mutate("DROP TABLE session_queue_order; DROP TABLE session_provider_profile; DROP TABLE session_file; DROP TABLE reviewed_memory; DROP TABLE memory_profile; DROP TABLE session_retention; DROP TABLE session_queue; PRAGMA user_version=4;");
         fixture.Reopen();
         var missing = () => fixture.Store.InitializeAsync(fixture.Token).AsTask();
@@ -285,14 +287,15 @@ public sealed partial class WindowsSqliteSessionQueueTests
 
     private static async Task<SessionQueueEntry> EnqueueAsync(InteractionStorageFixture fixture, HostId<SessionIdentity> session,
         int pending = 10, HostRequest? work = null, long? expected = null, HostId<TaskIdentity>? dependency = null, bool fail = false,
-        int minutes = SessionQueueLimits.DefaultPendingLifetimeMinutes, SessionQueueReadProfile profile = SessionQueueReadProfile.Version)
+        int minutes = SessionQueueLimits.DefaultPendingLifetimeMinutes, SessionQueueReadProfile profile = SessionQueueReadProfile.Version,
+        SessionQueueCapabilityTarget? target = null)
     {
         var snapshot = await fixture.Store.ReadQueueAsync(session, fixture.Token);
         var queued = work ?? new HostRequest(new(Guid.NewGuid()), session, new(Guid.NewGuid()), RequestOrigin.LocalUi);
         try
         {
             var accepted = await ControlAsync(fixture, session, control => fixture.Store.EnqueueAsync(control, queued,
-                new(1), expected ?? snapshot.Revision, 1, dependency, new(pending, pendingLifetimeMinutes: minutes), () => true, fixture.Token, profile));
+                new(1), expected ?? snapshot.Revision, 1, dependency, new(pending, pendingLifetimeMinutes: minutes), () => true, fixture.Token, profile, target: target));
             return accepted.Entries.Single(entry => entry.Request.TaskId == queued.TaskId);
         }
         catch (IOException) when (fail) { return null!; }

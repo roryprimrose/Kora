@@ -590,7 +590,7 @@ public sealed partial class SessionWorkspaceServiceTests
         fixture.QueueRows.Should().NotContain(entry => entry.State == SessionQueueState.Succeeded);
     }
 
-    private sealed partial class Fixture : ISessionQueueStore, IDeterministicVersionQueueAction
+    private partial class Fixture : ISessionQueueStore, IDeterministicVersionQueueAction
     {
         internal List<SessionQueueEntry> QueueRows { get; } = [];
         internal long QueueRevision { get; private set; }
@@ -615,6 +615,7 @@ public sealed partial class SessionWorkspaceServiceTests
         internal QueueClock QueueTime { get; } = new();
         internal SessionQueueLimits? LastAdmittedLimits { get; private set; }
         internal Func<SessionQueueLimits, Task>? BeforeEnqueue { get; set; }
+        internal HostRevision? LastExpectedDependencyRevision { get; private set; }
         private SessionQueueDispatchControl? dispatchControl;
         private SessionQueueOrder? explicitOrder;
         internal Action? BeforeMove { get; set; }
@@ -665,6 +666,42 @@ public sealed partial class SessionWorkspaceServiceTests
             AfterMove?.Invoke();
             return ValueTask.FromResult(QueueSnapshot(control.SessionId) with { MoveReceipt = SessionQueueMoveReceipt.FromReview(review) });
         }
+        public ValueTask<SessionQueueRequeueReview> ReviewExpiredAsync(SessionQueueSnapshot expected, HostId<TaskIdentity> task,
+            HostRevision entryRevision, HostRequest fresh, long admissionRevision, SessionQueueLimits limits,
+            long configurationRevision, Func<bool> eligible, CancellationToken token)
+        {
+            var original = QueueRows.Single(entry => entry.Request.TaskId == task);
+            var originalTask = new HostTaskRecord(original.Request, new(1), HostTaskState.IntentRecorded);
+            SessionQueueRequeue.RequireExpired(original, originalTask, queueRun, expected.Generation, admissionRevision, QueueTime.GetUtcNow());
+            if (!eligible() || original.Revision != entryRevision) { throw new InvalidOperationException("Stale expiry review."); }
+            return ValueTask.FromResult(new SessionQueueRequeueReview(Guid.NewGuid(), expected, original, originalTask,
+                fresh, admissionRevision, limits, configurationRevision, QueueTime.GetUtcNow(), QueueTime.GetUtcNow().AddMinutes(limits.PendingLifetimeMinutes)));
+        }
+        public ValueTask<SessionQueueSnapshot> RequeueExpiredAsync(HostRequest control, SessionQueueRequeueReview review,
+            SessionQueueLimits limits, long configurationRevision, Func<bool> eligible, CancellationToken token)
+        {
+            BeforeMove?.Invoke();
+            if (!eligible() || review.Queue.Revision != QueueRevision || review.Limits != limits
+                || review.ConfigurationRevision != configurationRevision) { throw new InvalidOperationException("Stale expiry confirmation."); }
+            QueueCheck("requeue");
+            var index = QueueRows.IndexOf(review.Original);
+            QueueRows[index] = review.Original with { State = SessionQueueState.Removed, Revision = new(2) };
+            var fresh = review.Original with { Request = review.FreshRequest, Position = QueueRevision + 100,
+                EnqueuedAt = review.EnqueuedAt, ExpiresAt = review.ExpiresAt, RecordVersion = 2,
+                PendingLifetimeMinutes = limits.PendingLifetimeMinutes };
+            QueueRows.Add(fresh);
+            explicitOrder = new(1, Guid.NewGuid(), control.SessionId, new(1), queueRun, 1,
+                [.. QueueRows.Where(entry => entry.IsPending).Select(entry => entry.Request.TaskId)]);
+            QueueRevision++;
+            dispatchControl = review.Queue.DispatchControl;
+            TaskWrites.Add(new(control, new(2), HostTaskState.Succeeded));
+            AfterMove?.Invoke();
+            return ValueTask.FromResult(QueueSnapshot(control.SessionId) with
+            {
+                RequeueReceipt = new(review.Id, review.Queue.Revision, review.Queue.DispatchControl!, review.Original,
+                    review.OriginalTask, fresh, configurationRevision),
+            });
+        }
         public ValueTask<SessionQueueSnapshot> CancelSelectedPendingAsync(HostRequest control, SessionQueueCancelReview review,
             Func<bool> eligible, CancellationToken token)
         {
@@ -702,8 +739,11 @@ public sealed partial class SessionWorkspaceServiceTests
             ValueTask.FromResult(QueueRows.SingleOrDefault(entry => entry.Request.TaskId == task));
         public async ValueTask<SessionQueueSnapshot> EnqueueAsync(HostRequest control, HostRequest work, HostRevision generation,
             long expectedRevision, long admissionRevision, HostId<TaskIdentity>? dependency, SessionQueueLimits limits,
-            Func<bool> eligible, CancellationToken token, SessionQueueReadProfile profile = SessionQueueReadProfile.Version)
+            Func<bool> eligible, CancellationToken token, SessionQueueReadProfile profile = SessionQueueReadProfile.Version,
+            HostRevision? expectedDependencyRevision = null, SessionQueueCapabilityTarget? target = null)
         {
+            SessionQueueReadProfiles.Validate(profile, target);
+            LastExpectedDependencyRevision = expectedDependencyRevision;
             QueueCheck("enqueue");
             if (BeforeEnqueue is { } before) { await before(limits); }
             if (!eligible()) { throw new InvalidOperationException("Private admission changed."); }
@@ -712,8 +752,10 @@ public sealed partial class SessionWorkspaceServiceTests
             var now = QueueTime.GetUtcNow();
             QueueRows.Add(new(work, generation, new(1), ++QueueRevision, SessionQueueState.Pending, queueRun,
                 admissionRevision, now, now.AddMinutes(limits.PendingLifetimeMinutes), dependency,
-                RecordVersion: profile == SessionQueueReadProfile.Version ? SessionQueueEntry.CapturedLifetimeRecordVersion : SessionQueueEntry.FixedReadRecordVersion,
-                PendingLifetimeMinutes: limits.PendingLifetimeMinutes, Profile: profile == SessionQueueReadProfile.Version ? null : profile));
+                RecordVersion: profile == SessionQueueReadProfile.Version ? SessionQueueEntry.CapturedLifetimeRecordVersion
+                    : profile is SessionQueueReadProfile.Capability or SessionQueueReadProfile.RuntimeStatus
+                        ? SessionQueueEntry.TargetedReadRecordVersion : SessionQueueEntry.FixedReadRecordVersion,
+                PendingLifetimeMinutes: limits.PendingLifetimeMinutes, Profile: profile == SessionQueueReadProfile.Version ? null : profile, Target: target));
             return QueueSnapshot(control.SessionId);
         }
         public ValueTask<SessionQueueSnapshot> RemovePendingAsync(HostRequest control, HostRevision generation,
@@ -759,8 +801,9 @@ public sealed partial class SessionWorkspaceServiceTests
             AfterComplete?.Invoke();
             return ValueTask.FromResult(next);
         }
-        public CapabilityReply Observe(SessionQueueReadProfile profile, CancellationToken token)
+        public CapabilityReply Observe(SessionQueueReadProfile profile, CancellationToken token, SessionQueueCapabilityTarget? target = null)
         {
+            LastObservedTarget = target;
             QueueCheck("action");
             QueueActions++;
             ActionRequests.Add(HostActivity.RequireCurrent().Request);
@@ -771,6 +814,7 @@ public sealed partial class SessionWorkspaceServiceTests
                 ? new("1.0.0", "Not a provider receipt.") : null);
         }
         internal CapabilityReply? QueueReply { get; set; }
+        internal SessionQueueCapabilityTarget? LastObservedTarget { get; private set; }
         private sealed class QueueLogger(Fixture fixture) : ILogger<SessionQueueService>
         {
             public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;

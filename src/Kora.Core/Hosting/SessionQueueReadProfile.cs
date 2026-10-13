@@ -6,4 +6,6 @@ public enum SessionQueueReadProfile
     Capabilities,
     Readiness,
     Runtimes,
+    Capability,
+    RuntimeStatus,
 }

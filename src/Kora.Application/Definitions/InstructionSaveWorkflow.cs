@@ -1,16 +1,25 @@
-using Kora.Core.Artifacts;
+﻿using Kora.Core.Artifacts;
 
 namespace Kora.Application.Definitions;
 
 public sealed class InstructionSaveWorkflow(OwnedInstructionEditorActions actions)
 {
+    public async Task<InstructionWriteResult> SaveCopy(string destinationName, OwnedInstructionSnapshot source,
+        string draft, IInstructionMutationReview review, Func<bool> eligible, CancellationToken token,
+        Func<OwnedInstructionSnapshot, bool>? reconcile = null)
+    {
+        var copy = actions.PrepareCopy(destinationName, source, draft);
+        var result = await actions.Save(destinationName, null, copy.Proposed,
+            admitted => review.ConfirmCopy(copy, admitted), eligible, token, copy, reconcile).ConfigureAwait(false);
+        if (result.Conflict)
+        { throw new InvalidOperationException("The copy destination is occupied. Choose another new owned ID or cancel; copying never overwrites."); }
+        return result;
+    }
+
     public async Task<InstructionSaveOutcome> Save(string name, OwnedInstructionSnapshot? original,
         string draft, bool delete, IInstructionMutationReview review, Func<bool> eligible, CancellationToken token)
     {
-        if (!delete) { original?.Document.RequireEditableInstruction(); }
-        var proposed = delete ? null : actions.Validate(name, draft, original?.Document.HasBom ?? false);
-        if (proposed is not null && (original is null || !string.Equals(original.Document.Text, draft, StringComparison.Ordinal)))
-        { proposed = proposed.WithNativeInstructionVersion(name); }
+        var proposed = delete ? null : actions.PrepareSave(name, original, draft);
         var expected = original;
         while (true)
         {

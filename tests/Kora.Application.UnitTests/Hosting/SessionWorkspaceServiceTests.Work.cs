@@ -68,7 +68,7 @@ public sealed partial class SessionWorkspaceServiceTests
         await list.Should().ThrowAsync<InvalidOperationException>().WithMessage("*snapshot service is unavailable*");
     }
 
-    private sealed partial class Fixture : ISessionWorkStore
+    private partial class Fixture : ISessionWorkStore
     {
         internal Func<HostId<SessionIdentity>, CancellationToken, Task<SessionWorkSnapshot>>? OverviewReader { get; set; }
         internal bool ForeignWork { get; set; }

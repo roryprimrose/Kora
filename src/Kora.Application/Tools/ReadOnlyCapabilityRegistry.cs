@@ -39,8 +39,7 @@ public sealed class ReadOnlyCapabilityRegistry(
         ArgumentNullException.ThrowIfNull(caller);
         ArgumentNullException.ThrowIfNull(input);
         cancellationToken.ThrowIfCancellationRequested();
-        var descriptor = ReadOnlyCapabilityCatalog.Descriptors.FirstOrDefault(item =>
-            string.Equals(item.Id, id, StringComparison.Ordinal));
+        var descriptor = ReadOnlyCapabilityCatalog.FindExact(id);
         if (!IsAdmitted(caller) || !ReferenceEquals(HostActivity.Current, caller.Activity))
         {
             return Finish("unadmitted", new(CapabilityOutcome.Denied, "current-host-context-required"));
@@ -78,10 +77,17 @@ public sealed class ReadOnlyCapabilityRegistry(
 
     internal static CapabilityReply BoundReply(CapabilityReply reply)
     {
-        if (CapabilityReplyWire.GetSerializedSize(reply)
-            > ReadOnlyCapabilityCatalog.Limits.MaximumOutputUtf8Bytes)
+        if (!CapabilityReplyWire.IsWithinLimit(reply))
         {
             return new(CapabilityOutcome.Failed, "output-limit-exceeded");
+        }
+        if (reply.Outcome == CapabilityOutcome.Succeeded
+            && (reply.Descriptor is { } descriptor
+                && (ReadOnlyCapabilityCatalog.FindExact(descriptor.Id) is not { } expected
+                    || !CapabilityReplyWire.IsSingleDescriptor(reply, expected))
+                || reply.Runtime is not null && !CapabilityReplyWire.IsSingleRecordedRuntime(reply)))
+        {
+            return new(CapabilityOutcome.Failed, "invalid-recorded-result");
         }
         return reply;
     }

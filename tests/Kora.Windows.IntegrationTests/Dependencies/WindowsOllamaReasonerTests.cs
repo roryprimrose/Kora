@@ -246,6 +246,142 @@ public sealed class WindowsOllamaReasonerTests
     }
 
     [Fact]
+    public async Task ReasonAsync_accepts_the_exact_request_limit_without_truncation()
+    {
+        var request = new string('a', 4096);
+        string? observedPrompt = null;
+        using var client = new HttpClient(new StubHandler(async (message, token) =>
+        {
+            if (string.Equals(message.RequestUri!.AbsolutePath, "/api/tags", StringComparison.Ordinal))
+            {
+                return Json($$"""{"models":[{"name":"qwen3:1.7b","digest":"{{WindowsOllamaSetupService.ModelDigest}}"}]}""");
+            }
+
+            using var body = JsonDocument.Parse(await message.Content!.ReadAsStringAsync(token));
+            observedPrompt = body.RootElement.GetProperty("prompt").GetString();
+            return Decision("""{"answer":"bounded"}""");
+        }));
+
+        var result = await new WindowsOllamaReasoner(client, new BuiltInCommandCatalog())
+            .ReasonAsync(request, Context, null, TestContext.Current.CancellationToken);
+
+        result.Answer.Should().Be("bounded");
+        observedPrompt.Should().Be(request);
+    }
+
+    [Fact]
+    public async Task ReasonAsync_rejects_an_oversized_model_catalogue_before_generation()
+    {
+        var calls = new List<string>();
+        using var client = new HttpClient(new StubHandler((message, _) =>
+        {
+            calls.Add(message.RequestUri!.AbsolutePath);
+            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new ByteArrayContent(new byte[(128 * 1024) + 1]),
+            });
+        }));
+
+        var action = () => new WindowsOllamaReasoner(client, new BuiltInCommandCatalog())
+            .ReasonAsync("question", Context, null, TestContext.Current.CancellationToken);
+
+        await action.Should().ThrowAsync<HttpRequestException>();
+        calls.Should().Equal("/api/tags");
+    }
+
+    [Fact]
+    public async Task ReasonAsync_rejects_an_oversized_generation_response()
+    {
+        using var client = new HttpClient(new StubHandler((message, _) =>
+            Task.FromResult(string.Equals(message.RequestUri!.AbsolutePath, "/api/tags", StringComparison.Ordinal)
+                ? Json($$"""{"models":[{"name":"qwen3:1.7b","digest":"{{WindowsOllamaSetupService.ModelDigest}}"}]}""")
+                : new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new ByteArrayContent(new byte[(64 * 1024) + 1]),
+                })));
+
+        var action = () => new WindowsOllamaReasoner(client, new BuiltInCommandCatalog())
+            .ReasonAsync("question", Context, null, TestContext.Current.CancellationToken);
+
+        await action.Should().ThrowAsync<HttpRequestException>();
+    }
+
+    [Fact]
+    public async Task ReasonAsync_propagates_cancellation_during_model_verification_without_generation()
+    {
+        using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(
+            TestContext.Current.CancellationToken);
+        var calls = new List<string>();
+        using var client = new HttpClient(new StubHandler((message, token) =>
+        {
+            calls.Add(message.RequestUri!.AbsolutePath);
+            cancellation.Cancel();
+            return Task.FromCanceled<HttpResponseMessage>(token);
+        }));
+
+        var action = () => new WindowsOllamaReasoner(client, new BuiltInCommandCatalog())
+            .ReasonAsync("question", Context, null, cancellation.Token);
+
+        await action.Should().ThrowAsync<OperationCanceledException>();
+        calls.Should().Equal("/api/tags");
+    }
+
+    [Fact]
+    public async Task ReasonAsync_propagates_cancellation_during_generation()
+    {
+        using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(
+            TestContext.Current.CancellationToken);
+        using var client = new HttpClient(new StubHandler((message, token) =>
+        {
+            if (string.Equals(message.RequestUri!.AbsolutePath, "/api/tags", StringComparison.Ordinal))
+            {
+                return Task.FromResult(Json(
+                    $$"""{"models":[{"name":"qwen3:1.7b","digest":"{{WindowsOllamaSetupService.ModelDigest}}"}]}"""));
+            }
+
+            cancellation.Cancel();
+            return Task.FromCanceled<HttpResponseMessage>(token);
+        }));
+
+        var action = () => new WindowsOllamaReasoner(client, new BuiltInCommandCatalog())
+            .ReasonAsync("question", Context, null, cancellation.Token);
+
+        await action.Should().ThrowAsync<OperationCanceledException>();
+    }
+
+    [Fact]
+    public async Task ReasonAsync_classifies_transport_cancellation_as_timeout_when_the_caller_is_active()
+    {
+        using var client = new HttpClient(new StubHandler((message, _) =>
+            string.Equals(message.RequestUri!.AbsolutePath, "/api/tags", StringComparison.Ordinal)
+                ? Task.FromResult(Json(
+                    $$"""{"models":[{"name":"qwen3:1.7b","digest":"{{WindowsOllamaSetupService.ModelDigest}}"}]}"""))
+                : Task.FromException<HttpResponseMessage>(
+                    new OperationCanceledException("Synthetic internal timeout."))));
+
+        var action = () => new WindowsOllamaReasoner(client, new BuiltInCommandCatalog())
+            .ReasonAsync("question", Context, null, TestContext.Current.CancellationToken);
+
+        (await action.Should().ThrowAsync<TimeoutException>())
+            .WithMessage("*two minutes*");
+    }
+
+    [Fact]
+    public async Task ReasonAsync_rejects_trailing_content_after_a_structured_response()
+    {
+        using var client = new HttpClient(new StubHandler((message, _) =>
+            Task.FromResult(string.Equals(message.RequestUri!.AbsolutePath, "/api/tags", StringComparison.Ordinal)
+                ? Json($$"""{"models":[{"name":"qwen3:1.7b","digest":"{{WindowsOllamaSetupService.ModelDigest}}"}]}""")
+                : Json(
+                    """{"model":"qwen3:1.7b","done":true,"response":"{\"answer\":\"first\"} {\"answer\":\"second\"}"}"""))));
+
+        var action = () => new WindowsOllamaReasoner(client, new BuiltInCommandCatalog())
+            .ReasonAsync("question", Context, null, TestContext.Current.CancellationToken);
+
+        await action.Should().ThrowAsync<InvalidDataException>();
+    }
+
+    [Fact]
     public async Task ReasonAsync_honors_cancellation_without_sending_a_request()
     {
         using var cancellation = new CancellationTokenSource();

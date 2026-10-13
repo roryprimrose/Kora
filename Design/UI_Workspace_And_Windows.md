@@ -3,9 +3,66 @@
 Status: agreed window structure; bounded native-text-v1 document details
 implemented, with a bounded durable native question/review window; coordinated
 authoritative per-session work and bounded ordered history delivered as below.
-The full conversation/composer and general concurrent execution layouts remain proposed.
+The native exact-session composer/submitted-user-message foundation is delivered
+below; full generated conversations and general concurrent execution remain proposed.
 
 Related: [Interaction and Sessions](Interaction_And_Sessions.md), [Work Management](Work_Management.md), [Information Display](Information_Display.md), [Shared Questions and Recovery](Interaction_Fallback.md), [User Configuration](User_Configuration.md), [Internal Model Tools](Internal_Model_Tools.md).
+
+## Delivered selected-conversation lexical search — 2026-10-13
+
+The existing private selected-session conversation pane has distinct **Search this conversation**, **Next conversation matches**, **Cancel conversation search** and **Clear private conversation search** controls.
+Enter searches; Escape clears only search state without closing, moving question/voice focus or touching composer drafts. Editing the query revokes prior results but performs no automatic read.
+
+Results use the same inert native original USER/separate HOST row template as chronological pages. Their request/task IDs and exact bodies are not reinterpreted as answers or executable actions. No result navigation to another session or automatic saved-draft reload occurs. Active and retained Done use the same admitted exact-session reader, snapshot continuation and final source validation.
+
+The [canonical search contract](Interaction_And_Sessions.md#delivered-passive-exact-conversation-lexical-search--2026-10-13) owns lexical/work/output bounds, counters and invalidation. Session/source/private changes clear query, rows and cursor and fence in-flight publication.
+Native-only query entry adds no activated/model descriptor or generic-global-search retarget. Headless binding tests do not qualify installed keyboard/accessibility/DPI or full R12/R14 runtime acceptance.
+
+## Delivered exact-session native composer — 2026-10-12
+
+### Separate saved draft catalogue — 2026-10-13
+
+Use **Tray > Saved conversation drafts (metadata only)**, then explicit Refresh. All retained saved-content rows are the default; Active/Done filters and Next consume bounded mutable metadata pages, not bodies.
+Choose **Browse**, literal case-sensitive **NameSubstring**, or canonical lowercase **ExactId**, then **Search / refresh metadata**. The private volatile field performs no read on typing; invalid/empty queries never fall back to All. **Clear query (Browse)** resets without reading.
+Query/mode/filter edits cancel pending callbacks and clear the observed page/cursor/selection immediately, leaving the existing Sessions composer/target untouched. Exact IDs remain distinct from ID-shaped names; empty scanned pages can still have Next. No result is automatically selected.
+Select one immutable row and **Open exact session (no body load)**. Exact private source/revision revalidation precedes selection in the existing Sessions owner; no second composer or body authority exists.
+
+Saved revision/length readiness is visible, not body-integrity certification. **Reload saved draft** remains a separate Sessions gesture; dirty-buffer Save/Discard/Cancel remains authoritative.
+Catalogue privacy/source/control/lifecycle/draft/close revokes its own query/IDs/names/continuation before late callbacks, without cancelling unrelated windows. Done browsing never resumes work. See the [canonical catalogue contract](Interaction_And_Sessions.md#saved-conversation-draft-catalogue--2026-10-13).
+
+**Sessions > Exact-session conversation and composer** shows the original
+immutable user messages and separately labelled **HOST** status. It names the
+selected immutable session ID/name/generation/metadata and saved-draft revision,
+plus private control epoch. Read/Next are bounded passive pages, including
+retained Done content without Resume or activity renewal.
+
+The multiline composer is not global activation, a question answer, approval,
+queue payload or model tool. **Submit exact message — unavailable provider**
+discloses private retention and unavailable generation before the gesture.
+Only the exact existing Active target can accept new work. The original body
+and host request/task are durably retained through the real configured turn
+admission path; production produces a truthful unavailable terminal, no
+assistant/model answer and no rejected-local bootstrap fallback.
+
+Draft editing writes nothing. Read observes saved revision; explicit Save,
+Reload, reviewed exact Clear and memory-buffer-only Discard are distinct.
+One saved draft per exact session is retained across restart without automatic
+Submit. Unsaved switching/closing offers Save/Discard/Cancel; private/source/
+owner loss clears presentation and late callbacks without saving. Known
+submission receipt clears only its unchanged buffer; uncertainty retains/holds
+it with exact conversation/task inspection guidance.
+
+The [canonical conversation contract](Interaction_And_Sessions.md#delivered-exact-session-conversationcomposer-foundation--2026-10-12)
+owns body/session/page limits, no aggregate session/draft/message quota,
+audit/migration, no-replay and copy/deletion semantics. Plain native historical
+text adds no clipboard/export/rich rendering or arbitrary response parser.
+Question focus, selected work, existing receipt history, provider policy and
+voice routing stay independent. Headless tests are not installed Narrator/DPI,
+runtime, hardware or full R14/A4 qualification.
+
+## Delivered explicit expanded-prompt submission — 2026-10-13
+The existing native required-input prompt window now also offers a distinct exact-session retention review. Refresh/Next navigates admitted bounded metadata, with no default selection. Separate native confirmation shows full expanded USER text and exact target/source observations; only that confirmed body enters the existing conversation authority.
+This does not switch the Sessions window, voice focus, attention target or current composer, nor save/clear any existing draft. Review loses validity on edits, source/use/private/owner/target changes or focus loss. Known receipt retires the form; unconfirmed submission is held for conversation/task inspection, never retry. Preview and old Use remain ephemeral and generation stays unavailable.
 
 ## Product Goal and Ownership
 
@@ -19,6 +76,10 @@ Security controls constrain these workflows; they are not a substitute for desig
 Voice-only, UI-only, and mixed operation use the same services and retained state, subject to explicit call-origin/secure-workflow exceptions.
 Every session/task/question/artifact control names its actual target; ambient animation, window focus, and selected session never supply execution authority.
 
+The shared local-file inspection window provides native-only [current-source literal Find](File_And_Folder_Ingestion.md#delivered-native-current-source-literal-find---2026-10-12). First/Next/Previous focus one inert exact match in that private window, never activate another window or retarget session/work/question/voice authority.
+
+Captured-folder selection and citation navigation clear the old Find subject/query. Retained Done files stay historical and passively revalidated.
+
 ### Exact selected-session provider review
 
 **Sessions > Selected-session provider overrides** exposes saved sparse service/model/reasoning/context, inherited app fields and separately effective resolved/unavailable state with current catalogue/account provenance. Refresh/review and separate confirmation bind the exact selected session ID, generation/policy revision, private control and selection epoch; stale/hide/close changes never save or retarget.
@@ -30,6 +91,16 @@ The independent model/reasoning/context pickers change only one sparse field fro
 Production supplies no models, so model-dependent save controls are unavailable. Desired service selection remains unresolved and cannot authenticate, dispatch, increase an envelope or reroute the buffered local reasoner. Headless controls/private-store assertions do not qualify native hardware/accessibility/provider installation.
 
 ### Delivered Authoritative Sessions Work Surface - 2026-10-09
+
+**Optional prerequisite** is a separate same-session task metadata picker for all six Enqueue buttons, with an explicit **None** button and initial None default. It combines at most 50 nonqueue tasks and 50 already-observed queued tasks (current plus existing recent rows). Rows show immutable IDs, observed generation, real host task state/revision and UTC host source, never guessed queue-entry revisions. Work/question selection cannot choose a prerequisite.
+
+The prospective consequence states that only exact Succeeded permits dispatch and other states can block FIFO; no automatic run is promised. Refresh/source/session/private changes revoke selection, and successful enqueue requires a new explicit choice for the next read.
+Stale/missing revisions fail at the same audited enqueue COMMIT, not into None. See [bounded parity and qualification](Work_Management.md#delivered-optional-native-enqueue-prerequisite---2026-10-12).
+Optional queued task metadata is projected in the same atomic work read, not a history scan or new source list. Missing/conflicting/foreign-generation metadata makes the picker unavailable and revokes exact choice; explicit None retains the original route. Work omissions and the complete 64 KiB failure remain truthful, without invented rows.
+
+**Sessions > selected expired queue entry > Review expired removal and NEW tail task** shows the original retained history/UTC deadline and separate host-issued fresh IDs, same bounded profile/exact prerequisite and future pending lifetime/deadline.
+Separate confirmation commits one atomic removal/new tail decision; cancel changes nothing. Stale selection/private closure clears the draft and late callbacks never retarget another session.
+No replay, dependency retarget, auto-resume/dispatch or installed-native qualification is implied ([contract](Work_Management.md#delivered-reviewed-expired-pending-removal-and-fresh-tail-decision---2026-10-12)).
 
 The [reviewed selected pending cancellation](Work_Management.md#delivered-atomic-selected-pending-cancellation---2026-10-12) uses an independent, explicitly empty-by-default current-run pending-only multi-selection. It cannot select question waits, running tasks, terminal receipts or another session.
 
@@ -62,14 +133,16 @@ slot/active clock; their cards remain visible while history/evidence is read.
 Answer/review remains in the original separately owned Questions window.
 
 Native Inspect, eligible Cancel, Remove pending ID, confirmed pending Clear,
-four fixed no-argument profile Enqueue buttons and manual fair Dispatch use the already admitted exact
+six closed profile Enqueue buttons and manual fair Dispatch use the already admitted exact
 command/host workflows. Displayed IDs/generations/revisions and the captured
 selection epoch bind controls; stale records and session/selection/privacy
 changes refuse. Admitted work cannot be cancelled by pretending its effect
 terminated. Done/disposition/redacted citations and independent Perpetual
 grants retain their existing gates.
 
-Queue rows identify their fixed capability profile. Successful first-page data
+The descriptor combo exposes only the current six catalogue IDs and exact schema/input/output/availability metadata. `capabilities.get` has no implicit target and clears its choice after enqueue or staleness; the recorded `local.inference` status button has no runtime-ID input. Both inherit the native prerequisite revision guard. Catalogue availability is not live provider/inference qualification.
+
+Queue rows and targeted notices identify their fixed capability profile and closed target. Successful first-page/single-record data
 is excluded from passive Work/AllWork/events; **Inspect selected work** reads
 the exact private retained result without rerunning it. The
 [fixed-profile contract](Work_Management.md#delivered-fixed-first-page-read-profiles---2026-10-12)
@@ -93,6 +166,9 @@ headless focus/accessible-name checks are not installed screen-reader/DPI proof.
 ### Delivered Retained Session Attachment Catalogue - 2026-10-11
 
 **Tray > Retained session attachments** is a separate native metadata-only window, not the current-question recovery surface, All Work overview, model context or a conversation. Opening reads nothing. Refresh/Next/Cancel returns at most sixteen content-free summaries / 64 KiB, scanning sixty-four slots; optional removal provenance is independent of the sixteen retained-body cap.
+
+Native default Browse and explicit canonical **ExactId** share the same bounded validator/scan, with Search/Enter, Next/Cancel and memory-only Clear. ID/mode/removal-filter edits retire selection, results, continuation and pending work; private/source closure erases the volatile query and fences late disclosure.
+No keystroke reads, auto-selection/navigation, name/path/body search or query persistence exists. [Canonical interaction and recovery](../docs/windows-and-tray.md#retained-session-attachments-metadata-only) owns the user instructions; filtering grants no session authority or activity renewal.
 
 Exact IDs, current stored lifecycle, capture/storage generations, source/revision/item/digest headers, byte count/type/captured UTC and copy-certification status are displayed without filenames, original paths or source text. Confirmed certification is not cheap body-integrity verification. Pending authority validation and empty filtered continuation remain explicit; changed authority/store/profile/query and two-minute expiry require Refresh.
 
@@ -212,6 +288,8 @@ The original five-minute expiry continues without a window; return extends neith
 
 After restart, retained metadata is read-only **Unavailable** recovery with a fresh-request instruction, never old-task rehydration. No general question/approval composer or installed-native qualification is claimed.
 
+The [synchronized terminal boundary](Interaction_Fallback.md#synchronized-native-terminal-publication---2026-10-12) keeps committed cancellation and original completion coherent without holding notifications under a lock. Later withdrawal still clears private controls after a receipt; late restore cannot undo withdrawal or a newer dismissal. Existing five-minute expiry, exact approval review and pre-dispatch privacy/source checks are unchanged.
+
 Tray **Review local version (native question)** opens one owned, non-topmost
 window for the original durable local-version request. Opening another while
 it is pending activates that same target, not the foreground session. The
@@ -264,6 +342,11 @@ selection and save/enable state, and Permissions owns grant validation and
 mutation. Rendered Markdown/HTML can explain those records but cannot provide
 their authoritative buttons, forms, selection, or dirty state.
 
+The delivered owned Instruction/Prompt editor adds per-kind metadata search and observed-use filters beside its existing native controls, not a new window or the planned full source/file-tree surface.
+List/Refresh reconciles the existing bounded source pipeline; query/filter/Next only projects its admitted immutable owned metadata snapshot. Complete labels/details are bounded to 64 KiB UTF-8 with explicit omissions and Next when needed.
+Selection alone never opens another file, grants use or retargets an unsaved draft. Inspect revalidates the original kind/filename/digest/native revision and catalogue/private epoch. Stale choices require Refresh/reselection; failed reload clears availability, while the original/draft remains subject to existing privacy guards.
+Private closure clears query/rows/selection/editor text and suppresses late publication. Keyboard-native controls and current exact List/Inspect commands share the editor; broader profile editing, source filters and accessibility/installed qualification remain deferred. See [owned inventory controls](../docs/instruction-editor.md#search-observed-owned-metadata).
+
 ## Compact Session Interaction
 
 Illustrative layout, not pixel dimensions or final styling:
@@ -302,7 +385,12 @@ No presented approval or edited question disappears under the ordinary feedback 
 Unanswered/unseen items remain accessible through the workspace/attention entry even if the user explicitly hides the compact window.
 The composer always names its session; New session is separate from sending to the selected session.
 An explicit New request entry from tray/compact/workspace offers an untargeted composer labeled Auto-route; show the accepted new/related destination before presenting it as a session message.
-Its draft is isolated from named-session drafts. Explicit New session bypasses relatedness matching; a named-session composer never silently auto-routes elsewhere.
+The delivered [native New request fallback](Interaction_And_Sessions.md#delivered-native-new-request-fresh-session-fallback--2026-10-13) is narrower: tray and Sessions open/activate one isolated memory composer, explicitly disclose unavailable relatedness inference and offer only fresh **New conversation**.
+Audited empty-target creation is acknowledged with its exact ID/name/generation/metadata revision before separately reviewing/submitting the frozen original body; these are not an atomic transaction.
+The same confirmed created Active target permits a distinct revision-reviewed draft Save: show exact saved revision, confirmed memory baseline and complete old/new bodies in inert native text, then explicitly confirm the frozen proposal. Save and Submit reviews cannot authorize each other. Concurrent named-window revision/metadata changes fail stale rather than follow/overwrite newer data.
+Eligible dirty close offers Save/Discard/Cancel and a separate frozen Save confirmation; only an exact receipt without newer edits/revocation permits closing. Before confirmed creation or while held, only Discard/Cancel is offered. No autosave/Reload or implicit text transfer is added. Privacy closes without saving. Cancel leaves the disclosed session and saved data; uncertainty retains exact holds without retry.
+Explicit exact-ID navigation protects the existing named buffer; saved-draft catalogue discovery and explicit Sessions Reload reuse their existing authority. Memory buffers remain isolated even when viewing the same saved target. Compact/voice Auto-route, relatedness matching and production generation remain unavailable.
+Explicit New session bypasses relatedness matching; a named-session composer never silently auto-routes elsewhere.
 Unsent text and answer drafts belong to their session/question, not one global text box; switching away preserves them and switching back restores them.
 Clear the composer only after the host has durably accepted the input; persistence/admission failure leaves the draft recoverable with an error.
 Permitted non-secret drafts use the private-profile session/draft store; draft saving is not submission, approval, queue dispatch or a synthetic retention heartbeat. Copies outside that boundary are readable.
@@ -481,14 +569,19 @@ editing, applicability, and reload contract is
 every supported native action has a typed/activated-voice equivalent over the
 same host service. Unqualified agent Run controls disclose unavailability.
 
-The bounded delivered surface is one native Kora-owned instruction/literal
+The bounded delivered surface is one native Kora-owned instruction/versioned
 prompt editor with an explicit kind selector, exact source/diff review,
 Save/Delete, Reload/Overwrite/Cancel and dirty closing/shutdown Save/Discard/Cancel.
 Typed/current-name activated `instructions` and `prompts` controls focus the
 same native actions. Review only permits exact current-run selection for a new
-request; prompts are user-request content, not system guidance, parameters or
-execution authority. Profile/skill/agent editing and the full Definitions
+request; prompts are user-request content, not system guidance or execution authority. Owned prompt v2 adds only bounded required literal `${input:name}` native fields and whole expanded USER REQUEST preview, followed by separate fresh Use admission.
+Editing a field or source/review/input/call/private change retires old previews; close/cancel clears ephemeral values without history/autofill/export/speech or template autosave. Production generation remains unavailable; no rejected-provider fallback is used. Native v1 remains literal. Profile/skill/agent editing and the full Definitions
 surface remain separately gated. See [native editor](../docs/instruction-editor.md).
+**Validate** / exact `instructions validate` or `prompts validate` observes only the open same-kind supported owned draft, using the ordinary Save preparation including BOM/marker/header limits. It does not open/switch/discard another source.
+The text-only body-free summary is historical structural compatibility, never approval, harmlessness or enablement. Source/name/kind/baseline/catalogue/private/input changes retire findings and suppress late results. Validation retains draft/dirty/inventory/use/uncertain-hold state without source I/O, reload or preference writes; Save separately re-prepares and exactly confirms.
+**Disable reviewed use** and exact `instructions` / `prompts` `disable` or `stop-use` focus one separate native confirmation for the clean inspected supported native owned source/kind/digest/revision (instruction v1; prompt v1/v2).
+The durable hold withdraws all new selections without writing/deleting the source, preserves inspection/editing and already captured reasoning, and retires pending unadmitted choices without replay. Dirty drafts remain intact with an explicit Save/Reload prerequisite.
+Cancellation/stale review and failed audit/preference readback never invent completion or restore enablement. No-change reload/restart/restored bytes cannot re-enable use; fresh exact review is required. Profile-original editing and installed/accessibility qualification stay open.
 
 The Skills surface lists source-qualified skills and revisions without reading
 arbitrary profile paths. Selecting a revision shows host-resolved identity,

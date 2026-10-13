@@ -37,7 +37,7 @@ public sealed partial class MainViewModel
         RefreshArtifactCommandOptions();
         var retiredInteraction = false;
         if (activeReasoningArtifact is { } running
-            && !artifactCatalogue.IsCurrent(running.Id, running.Digest))
+            && !artifactCatalogue.IsCapturedRevisionCurrent(running.Id, running.Digest))
         {
             activeReasoningCancellation?.Cancel();
             retiredInteraction = true;

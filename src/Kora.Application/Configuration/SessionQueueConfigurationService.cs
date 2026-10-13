@@ -66,7 +66,8 @@ public sealed class SessionQueueConfigurationService(
     // Only short admission/observation transactions hold this gate, never an admitted callback or dispatch batch.
     // Each enqueue/admission captures one confirmed set of limits, including its future-only clocks.
     // Preference edits never cancel, extend or reinterpret existing work.
-    internal async Task<T> WithLimitsAsync<T>(Func<SessionQueueLimits, Task<T>> operation, CancellationToken token)
+    internal async Task<T> WithLimitsAsync<T>(Func<SessionQueueLimits, Task<T>> operation, CancellationToken token,
+        bool preserveCommittedResult = false)
     {
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(token, lifetime.Token);
         await commits.WaitAsync(linked.Token).ConfigureAwait(false);
@@ -84,7 +85,8 @@ public sealed class SessionQueueConfigurationService(
             var result = await operation(limits).ConfigureAwait(false);
             lock (gate)
             {
-                linked.Token.ThrowIfCancellationRequested();
+                // A known physical COMMIT cannot be relabelled rollback/cancellation by late caller cancellation.
+                if (!preserveCommittedResult) { linked.Token.ThrowIfCancellationRequested(); }
                 if (state.Revision != revision) { throw new InvalidOperationException("Queue settings changed during observation/admission."); }
                 RequireConfirmed();
             }

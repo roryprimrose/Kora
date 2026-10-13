@@ -1,4 +1,4 @@
-using System.Diagnostics;
+﻿using System.Diagnostics;
 
 using AwesomeAssertions;
 
@@ -14,7 +14,7 @@ using Kora.Core.Commands;
 namespace Kora.Application.UnitTests.Definitions;
 
 [Collection("Host tracing")]
-public sealed class InstructionEditorTests : IDisposable
+public sealed partial class InstructionEditorTests : IDisposable
 {
     private readonly ActivityListener listener = new()
     {
@@ -376,6 +376,7 @@ public sealed class InstructionEditorTests : IDisposable
         internal readonly Audit Audit = new();
         internal readonly InstructionRevisionCatalogue Revisions;
         internal readonly ArtifactCatalogue Catalogue;
+        internal readonly LocalSharedSkillPreferencesTests.Store State = new();
         internal readonly InstructionControlAdmission Admission;
         internal readonly OwnedInstructionEditorActions Actions;
         internal readonly InstructionSaveWorkflow Workflow;
@@ -384,7 +385,7 @@ public sealed class InstructionEditorTests : IDisposable
         internal Fixture(ArtifactKind kind = ArtifactKind.Instruction)
         {
             Files.Current = Snapshot(kind: kind);
-            Revisions = new(new LocalSharedSkillPreferencesTests.Store(), kind);
+            Revisions = new(State, kind);
             Catalogue = new(Revisions.Reconcile([Candidate(Files.Current!)]));
             Admission = new(Control, Control, new HostTaskCoordinator(Control));
             Actions = new(Files, Admission, Revisions, Catalogue, Audit, new BuiltInCommandRouter(new BuiltInCommandCatalog()), kind);
@@ -396,14 +397,20 @@ public sealed class InstructionEditorTests : IDisposable
     private sealed class Files : IOwnedInstructionStore
     {
         internal OwnedInstructionSnapshot? Current = Snapshot();
+        internal readonly Dictionary<string, OwnedInstructionSnapshot> Copies = new(StringComparer.Ordinal);
         internal int Writes;
         internal bool FailWrite;
         internal bool FailRead;
         internal bool Unconfirmed;
         internal Action? AfterWrite;
+        internal Action? BeforeRead;
+        internal int Reads;
         public Task<IReadOnlyList<string>> List(CancellationToken token) => Task.FromResult<IReadOnlyList<string>>(["example"]);
-        public Task<OwnedInstructionSnapshot?> Read(string name, CancellationToken token) =>
-            FailRead ? throw new IOException("Reader unavailable") : Task.FromResult(Current);
+        public Task<OwnedInstructionSnapshot?> Read(string name, CancellationToken token)
+        {
+            Reads++; BeforeRead?.Invoke();
+            return FailRead ? throw new IOException("Reader unavailable") : Task.FromResult(name is "example" ? Current : Copies.GetValueOrDefault(name));
+        }
         public Task<InstructionWriteResult> Write(string name, OwnedInstructionSnapshot? expected, ArtifactFileDocument? replacement,
             Func<bool> eligible, Func<Func<InstructionWriteResult>, Task<InstructionWriteResult>> commit, CancellationToken token) =>
             commit(() =>
@@ -411,16 +418,19 @@ public sealed class InstructionEditorTests : IDisposable
             token.ThrowIfCancellationRequested();
             if (!eligible()) { throw new InvalidOperationException("Host closed."); }
             if (FailWrite) { throw new IOException("Failed native storage"); }
-            if (!string.Equals(expected?.Revision, Current?.Revision, StringComparison.Ordinal))
-            { return new InstructionWriteResult(false, false, true, Current); }
-            if (replacement is not null && Current is not null
-                && string.Equals(replacement.Definition.Digest, Current.Document.Definition.Digest, StringComparison.Ordinal))
-            { return new InstructionWriteResult(false, false, false, Current, Unchanged: true); }
+            var current = name is "example" ? Current : Copies.GetValueOrDefault(name);
+            if (!string.Equals(expected?.Revision, current?.Revision, StringComparison.Ordinal))
+            { return new InstructionWriteResult(false, false, true, current); }
+            if (replacement is not null && current is not null
+                && string.Equals(replacement.Definition.Digest, current.Document.Definition.Digest, StringComparison.Ordinal))
+            { return new InstructionWriteResult(false, false, false, current, Unchanged: true); }
             Writes++;
-            Current = replacement is null ? null : new(name, new string('a', 48), new string('c', 48), replacement);
+            var saved = replacement is null ? null : new OwnedInstructionSnapshot(name, new string('a', 48), new string('c', 48), replacement);
+            if (name is "example") { Current = saved; }
+            else if (saved is not null) { Copies[name] = saved; }
             AfterWrite?.Invoke();
             if (Unconfirmed) { throw new InstructionPublicationUnconfirmedException(false, new IOException("Readback unconfirmed")); }
-            return new InstructionWriteResult(true, replacement is null, false, Current);
+            return new InstructionWriteResult(true, replacement is null, false, saved);
         });
     }
 
@@ -439,6 +449,8 @@ public sealed class InstructionEditorTests : IDisposable
         internal InstructionConflictChoice Choice = InstructionConflictChoice.Cancel;
         internal Action<int>? BeforeConfirm;
         internal Action? BeforeConflict;
+        public Task<bool> ConfirmCopy(OwnedDefinitionCopy copy, CancellationToken token)
+        { Confirmations++; BeforeConfirm?.Invoke(Confirmations); return Task.FromResult(Confirmed); }
         public Task<bool> Confirm(string name, OwnedInstructionSnapshot? expected, ArtifactFileDocument? proposed, CancellationToken token)
         { Confirmations++; BeforeConfirm?.Invoke(Confirmations); return Task.FromResult(Confirmed); }
         public Task<InstructionConflictChoice> Conflict(OwnedInstructionSnapshot? current, ArtifactFileDocument? proposed, CancellationToken token)

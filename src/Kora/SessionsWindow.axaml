@@ -6,9 +6,24 @@
     Width="1180" Height="900" MinWidth="900" MinHeight="700"
     Background="{DynamicResource KoraWindowBackgroundBrush}"
     Foreground="{DynamicResource KoraForegroundBrush}" WindowStartupLocation="CenterScreen">
+  <Window.Resources>
+    <DataTemplate x:Key="ConversationMessageTemplate">
+      <StackPanel Spacing="4">
+        <TextBlock Text="{Binding Sequence, StringFormat='USER message sequence {0}'}" />
+        <TextBlock Text="{Binding Request.RequestId.Value, StringFormat='Original request {0}'}" TextWrapping="Wrap" />
+        <TextBlock Text="{Binding Request.TaskId.Value, StringFormat='Original task {0}'}" TextWrapping="Wrap" />
+        <TextBlock Text="{Binding SubmittedAt, StringFormat='Submitted UTC {0:O}'}" />
+        <TextBlock Text="{Binding Body}" TextWrapping="Wrap" />
+        <TextBlock Text="{Binding Outcome, TargetNullValue='Pending / inspect task recovery', StringFormat='HOST status: {0}'}" />
+        <TextBlock Text="{Binding Reason, StringFormat='HOST reason: {0}'}" />
+        <TextBlock Text="{Binding ExpectedTaskState, StringFormat='HOST task status: {0}'}" />
+      </StackPanel>
+    </DataTemplate>
+  </Window.Resources>
   <Grid Margin="24" RowDefinitions="Auto,Auto,Auto,Auto,*,Auto" RowSpacing="12">
     <StackPanel Orientation="Horizontal" Spacing="10">
       <TextBlock Text="Sessions (Active / Done)" FontSize="20" FontWeight="SemiBold" />
+      <Button x:Name="NewRequest" Content="_New request (fresh target)" IsEnabled="{Binding CanRead}" />
       <Button x:Name="Refresh" Content="_Refresh" IsEnabled="{Binding CanRead}" />
       <Button x:Name="Next" Content="Next session page" IsEnabled="{Binding CanNext}" />
       <Button x:Name="AllWork" Content="_All work / attention overview" IsEnabled="{Binding CanRead}"
@@ -28,6 +43,50 @@
     <ScrollViewer Grid.Row="3" MaxHeight="260" VerticalScrollBarVisibility="Auto"
                   AutomationProperties.Name="Selected-session controls and provider policy review; scroll for complete controls">
     <StackPanel Spacing="6">
+    <Expander Header="Exact-session conversation and composer — generation unavailable" IsExpanded="True">
+      <StackPanel Spacing="6">
+        <controls:NamedTextBlock Text="{Binding ComposerTarget}" TextWrapping="Wrap"
+            AutomationProperties.Name="Composer exact target ID, name, generation, metadata and saved draft revisions, private control epoch" />
+        <TextBlock Text="Submit retains accepted text exactly and records a truthful unavailable-provider host outcome. Local best-effort structural credential checks reject detected material before Save or Submit; they cannot identify arbitrary passwords or guarantee secret-free text. Correct the memory draft or use supported secure credential flows; no Save anyway or silent redaction. No generation, runtime fallback, history, tools or network. Drafts are memory-only unless explicitly saved." TextWrapping="Wrap" />
+        <WrapPanel>
+          <Button x:Name="ReadConversation" Content="Read exact conversation / saved revision" IsEnabled="{Binding CanReadConversation}" />
+          <Button x:Name="NextConversation" Content="Next bounded conversation page" IsEnabled="{Binding CanNextConversation}" />
+        </WrapPanel>
+        <controls:ScrollableListBox ItemsSource="{Binding ConversationMessages}" MaxHeight="160"
+            ItemTemplate="{StaticResource ConversationMessageTemplate}"
+            AutomationProperties.Name="Chronological immutable original user messages and separate host statuses; inert native text, not model answers or replay controls" />
+        <TextBox x:Name="ConversationQuery" Text="{Binding ConversationQuery, Mode=TwoWay}" IsEnabled="{Binding CanReadConversation}"
+            PlaceholderText="Search retained USER words or typed HOST outcome/reason/task state in only this exact selected session"
+            AutomationProperties.Name="Private exact-session conversation lexical query; memory-only, not composer input, a model instruction or global search" />
+        <WrapPanel>
+          <Button x:Name="SearchConversation" Content="Search this conversation" IsEnabled="{Binding CanSearchConversation}" />
+          <Button x:Name="NextConversationSearch" Content="Next conversation matches" IsEnabled="{Binding CanNextConversationSearch}" />
+          <Button x:Name="CancelConversationSearch" Content="Cancel conversation search" IsEnabled="{Binding CanCancelConversationSearch}" />
+          <Button x:Name="ClearConversationSearch" Content="Clear private conversation search" />
+        </WrapPanel>
+        <controls:NamedTextBlock Text="{Binding ConversationSearchStatus}" TextWrapping="Wrap"
+            AutomationProperties.Name="Conversation search counters, exact snapshot continuation and explicit failures; no model context" />
+        <controls:ScrollableListBox ItemsSource="{Binding ConversationSearchMessages}" MaxHeight="160"
+            ItemTemplate="{StaticResource ConversationMessageTemplate}"
+            AutomationProperties.Name="Exact immutable USER messages matching lexical words or typed HOST status; inert native text, chronological, no export or actions" />
+        <TextBox x:Name="ConversationComposer" Text="{Binding ComposerBody, Mode=TwoWay}" AcceptsReturn="True"
+            Height="90" TextWrapping="Wrap" IsEnabled="{Binding CanCompose}"
+            PlaceholderText="Original message: up to 4096 UTF-16 characters and 16384 UTF-8 bytes; invalid or oversized text is rejected, not truncated"
+            AutomationProperties.Name="Memory-only exact-session conversation draft; not a question answer or approval" />
+        <WrapPanel>
+          <Button x:Name="SaveConversationDraft" Content="Explicitly Save draft" IsEnabled="{Binding CanSaveConversationDraft}" />
+          <Button x:Name="ReloadConversationDraft" Content="Reload saved draft" IsEnabled="{Binding CanReloadConversationDraft}" />
+          <Button x:Name="DiscardComposer" Content="Discard memory buffer only" IsEnabled="{Binding CanReadConversation}" />
+          <Button x:Name="ReviewClearConversationDraft" Content="Review Clear saved draft" IsEnabled="{Binding CanReviewClearConversationDraft}" />
+          <Button x:Name="ClearConversationDraft" Content="Confirm exact saved draft Clear" IsEnabled="{Binding CanClearConversationDraft}" />
+          <Button x:Name="SubmitConversation" Content="Submit exact message — unavailable provider" IsEnabled="{Binding CanSubmitConversation}" />
+        </WrapPanel>
+        <TextBlock Text="{Binding SavedConversationDraftReview}" TextWrapping="Wrap"
+            AutomationProperties.Name="Complete exact saved draft body under clear review; content is inert and not current instructions" />
+        <controls:NamedTextBlock Text="{Binding ConversationStatus}" TextWrapping="Wrap"
+            AutomationProperties.Name="Conversation actual save, submission, unavailable or recovery status" />
+      </StackPanel>
+    </Expander>
     <WrapPanel>
       <Button x:Name="AttachFile" Content="Attach text file to this exact Session" IsEnabled="{Binding CanAttachFile}"
               AutomationProperties.Name="Native picker then metadata and durable-copy review; one file, 256 KiB original UTF-8 bytes, sixteen retained profile files, no eviction" />
@@ -187,10 +246,18 @@
                   AutomationProperties.Name="Review selected exact pending ID swapping only with its displayed previous pending neighbor" />
           <Button x:Name="MoveQueueDown" Content="Review Move _down" IsEnabled="{Binding CanMoveQueueDown}"
                   AutomationProperties.Name="Review selected exact pending ID swapping only with its displayed next pending neighbor" />
-          <Button x:Name="EnqueueVersion" Content="Enqueue local version" IsEnabled="{Binding CanEnqueueVersion}" />
-          <Button x:Name="EnqueueCapabilities" Content="Enqueue capabilities.list" IsEnabled="{Binding CanEnqueueVersion}" />
-          <Button x:Name="EnqueueReadiness" Content="Enqueue readiness.get" IsEnabled="{Binding CanEnqueueVersion}" />
-          <Button x:Name="EnqueueRuntimes" Content="Enqueue runtime.list" IsEnabled="{Binding CanEnqueueVersion}" />
+          <Button x:Name="EnqueueVersion" Content="Enqueue local version" IsEnabled="{Binding CanEnqueueVersion}"
+                  AutomationProperties.Name="Enqueue version with the explicit optional prerequisite choice; no automatic dispatch" />
+          <Button x:Name="EnqueueCapabilities" Content="Enqueue capabilities.list" IsEnabled="{Binding CanEnqueueVersion}"
+                  AutomationProperties.Name="Enqueue capabilities.list with the explicit optional prerequisite choice; no automatic dispatch" />
+          <Button x:Name="EnqueueReadiness" Content="Enqueue readiness.get" IsEnabled="{Binding CanEnqueueVersion}"
+                  AutomationProperties.Name="Enqueue readiness.get with the explicit optional prerequisite choice; no automatic dispatch" />
+          <Button x:Name="EnqueueRuntimes" Content="Enqueue runtime.list" IsEnabled="{Binding CanEnqueueVersion}"
+                  AutomationProperties.Name="Enqueue runtime.list with the explicit optional prerequisite choice; no automatic dispatch" />
+          <Button x:Name="EnqueueCapability" Content="Enqueue selected capabilities.get" IsEnabled="{Binding CanEnqueueCapability}"
+                  AutomationProperties.Name="Enqueue only the explicitly selected exact current descriptor with the same optional prerequisite; no automatic dispatch" />
+          <Button x:Name="EnqueueRuntimeStatus" Content="Enqueue recorded local runtime status" IsEnabled="{Binding CanEnqueueVersion}"
+                  AutomationProperties.Name="Enqueue runtime.get_status for fixed recorded local.inference only with the optional prerequisite; no automatic dispatch, probe or inference" />
           <Button x:Name="DispatchQueue" Content="Dispatch ready fixed reads fairly" IsEnabled="{Binding CanControlQueue}"
                   AutomationProperties.Name="Explicit manual bounded fair dispatch among already enqueued current-run sessions; no effect or provider execution" />
           <Button x:Name="PauseQueue" Content="Pause this session's new dispatch" IsEnabled="{Binding CanChangeQueuePause}"
@@ -203,6 +270,28 @@
         <ScrollViewer Grid.Row="3" MaxHeight="180" VerticalScrollBarVisibility="Auto"
                       AutomationProperties.Name="Routine notices and pending exact questions; scroll for complete retained cards">
         <StackPanel Spacing="4">
+          <controls:NamedTextBlock Text="{Binding QueueCapabilityStatus}" TextWrapping="Wrap"
+                                  AutomationProperties.Name="Closed descriptor target choice and recorded local runtime boundary" />
+          <ComboBox x:Name="QueueCapabilities" ItemsSource="{Binding QueueCapabilities}"
+                    SelectedItem="{Binding SelectedQueueCapability, Mode=OneWay}" IsEnabled="{Binding CanSelectQueueCapability}"
+                    AutomationProperties.Name="Explicit exact descriptor target from the current six read-only catalogue records; no default selection">
+            <ComboBox.ItemTemplate>
+              <DataTemplate><TextBlock Text="{Binding Label}" TextWrapping="Wrap" /></DataTemplate>
+            </ComboBox.ItemTemplate>
+          </ComboBox>
+          <controls:NamedTextBlock Text="{Binding QueuePrerequisiteStatus}" TextWrapping="Wrap"
+                                  AutomationProperties.Name="Optional prerequisite choice and prospective fixed-read consequence; bounded observed metadata only" />
+          <Button x:Name="NoQueuePrerequisite" Content="None: enqueue without a prerequisite" IsEnabled="{Binding CanRead}"
+                  AutomationProperties.Name="Explicitly choose None for the next fixed read; never infer a prerequisite from work selection" />
+          <controls:ScrollableListBox x:Name="QueuePrerequisites" MaxHeight="160"
+                                     ItemsSource="{Binding QueuePrerequisites}"
+                                     SelectedItem="{Binding SelectedQueuePrerequisite, Mode=OneWay}"
+                                     IsEnabled="{Binding CanSelectQueuePrerequisite}"
+                                     AutomationProperties.Name="Optional exact prerequisite task from at most 50 nonqueue and 50 already-observed queued same-session host metadata rows; IDs, generation, real host task state/revision and UTC source; no history scan">
+            <ListBox.ItemTemplate>
+              <DataTemplate><TextBlock Text="{Binding Label}" TextWrapping="Wrap" /></DataTemplate>
+            </ListBox.ItemTemplate>
+          </controls:ScrollableListBox>
           <controls:ScrollableListBox x:Name="PendingCancellationEntries" MaxHeight="160"
                                      ItemsSource="{Binding PendingCancellationEntries}" SelectionMode="Multiple,Toggle"
                                      IsEnabled="{Binding CanSelectPendingCancellation}"
@@ -229,6 +318,15 @@
           </WrapPanel>
           <controls:NamedTextBlock Text="{Binding QueueMoveStatus}" TextWrapping="Wrap"
                                   AutomationProperties.Name="Exact current and proposed adjacent pair order, immutable IDs, profiles and original pending deadlines" />
+          <controls:NamedTextBlock Text="{Binding ExpiredRequeueStatus}" TextWrapping="Wrap"
+                                  AutomationProperties.Name="Review old expired removal with retained history and separate fresh IDs, original prerequisite, fresh lifetime and deadline at queue tail; no replay or dispatch" />
+          <WrapPanel>
+            <Button x:Name="ReviewExpiredRequeue" Content="Review expired removal and NEW tail task" IsEnabled="{Binding CanReviewExpiredRequeue}" />
+            <Button x:Name="ConfirmExpiredRequeue" Content="Confirm exact old removal and NEW tail task" IsEnabled="{Binding CanConfirmExpiredRequeue}"
+                    AutomationProperties.Name="Confirm atomic removal of exact reviewed expired source and admission of separate fresh same-profile decision at tail only" />
+            <Button x:Name="DiscardExpiredRequeue" Content="Cancel replacement review" IsEnabled="{Binding CanDiscardExpiredRequeue}"
+                    AutomationProperties.Name="Cancel expired replacement review without queue mutation or admission of fresh IDs; drafts unchanged" />
+          </WrapPanel>
           <WrapPanel>
             <Button x:Name="ConfirmQueueMove" Content="Confirm exact adjacent move" IsEnabled="{Binding CanConfirmQueueMove}"
                     AutomationProperties.Name="Confirm only reviewed exact adjacent pair, queue and entry revisions, current run and private control" />

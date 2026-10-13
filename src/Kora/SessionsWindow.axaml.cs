@@ -1,4 +1,4 @@
-using Avalonia.Controls;
+﻿using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Threading;
 
@@ -8,11 +8,65 @@ namespace Kora;
 
 internal sealed partial class SessionsWindow : Window
 {
+    private bool privateClose;
+    private bool choosingDraft;
+    private Window? draftDialog;
+    private readonly SessionsViewModel model;
+    internal Task ConversationOperation { get; private set; } = Task.CompletedTask;
+    internal void ClosePrivate()
+    {
+        privateClose = true;
+        draftDialog?.Close();
+        model.Close();
+        Close();
+    }
     internal event EventHandler? AllWorkRequested;
+    internal event EventHandler? NewRequestRequested;
     internal SessionsWindow(SessionsViewModel model)
     {
+        this.model = model;
         InitializeComponent();
         DataContext = model;
+        model.DecideComposerDraft = ChooseDraft;
+        ReadConversation.Click += async (_, _) => await (ConversationOperation = model.ReadConversationAsync());
+        NextConversation.Click += async (_, _) => await (ConversationOperation = model.ReadConversationAsync(next: true));
+        SearchConversation.Click += async (_, _) => await (ConversationOperation = model.SearchConversationAsync());
+        NextConversationSearch.Click += async (_, _) => await (ConversationOperation = model.SearchConversationAsync(next: true));
+        CancelConversationSearch.Click += (_, _) => model.ClearConversationSearch();
+        ClearConversationSearch.Click += (_, _) => model.ClearConversationSearch();
+        ConversationQuery.KeyDown += async (_, args) =>
+        {
+            if (args.Key == Key.Enter && model.CanSearchConversation)
+            {
+                args.Handled = true;
+                await (ConversationOperation = model.SearchConversationAsync());
+            }
+            else if (args.Key == Key.Escape)
+            {
+                args.Handled = true;
+                model.ClearConversationSearch();
+            }
+        };
+        SaveConversationDraft.Click += async (_, _) => await (ConversationOperation = model.SaveConversationDraftAsync());
+        ReloadConversationDraft.Click += async (_, _) => await (ConversationOperation = model.ReloadConversationDraftAsync());
+        DiscardComposer.Click += (_, _) => model.DiscardComposerBuffer();
+        ReviewClearConversationDraft.Click += (_, _) => model.ReviewClearConversationDraft();
+        ClearConversationDraft.Click += async (_, _) => await (ConversationOperation = model.ClearSavedConversationDraftAsync());
+        SubmitConversation.Click += async (_, _) => await (ConversationOperation = model.SubmitConversationAsync());
+        Closing += async (_, args) =>
+        {
+            if (privateClose || !model.ComposerDirty) { return; }
+            args.Cancel = true;
+            if (choosingDraft || !model.CanRead) { return; }
+            choosingDraft = true;
+            try
+            {
+                if (await model.ProtectComposerAsync()) { privateClose = true; Close(); }
+            }
+            catch (Exception exception) when (exception is not OutOfMemoryException)
+            { model.ReportComposerCloseFailure(); }
+            finally { choosingDraft = false; }
+        };
         PropertyChanged += (_, args) =>
         {
             if (args.Property == IsVisibleProperty)
@@ -24,6 +78,7 @@ internal sealed partial class SessionsWindow : Window
         Refresh.Click += async (_, _) => await model.RefreshAsync();
         Next.Click += async (_, _) => await model.NextAsync();
         AllWork.Click += (_, _) => AllWorkRequested?.Invoke(this, EventArgs.Empty);
+        NewRequest.Click += (_, _) => NewRequestRequested?.Invoke(this, EventArgs.Empty);
         SearchList.Click += async (_, _) => await model.SearchListAsync();
         NextListSearch.Click += async (_, _) => await model.SearchListAsync(next: true);
         CancelListSearch.Click += (_, _) => model.CancelListSearch();
@@ -100,16 +155,26 @@ internal sealed partial class SessionsWindow : Window
         MoveQueueDown.Click += async (_, _) => await model.ReviewQueueMoveDownAsync();
         ConfirmQueueMove.Click += async (_, _) => await model.ConfirmQueueMoveAsync();
         CancelQueueMove.Click += async (_, _) => await model.CancelQueueMoveAsync();
+        ReviewExpiredRequeue.Click += async (_, _) => await model.ReviewExpiredRequeueAsync();
+        ConfirmExpiredRequeue.Click += async (_, _) => await model.ConfirmExpiredRequeueAsync();
+        DiscardExpiredRequeue.Click += async (_, _) => await model.DiscardExpiredRequeueAsync();
         PendingCancellationEntries.SelectionChanged += (_, _) =>
             model.SelectPendingCancellationEntries(PendingCancellationEntries.SelectedItems?.OfType<Kora.Core.Hosting.SessionQueueEntry>().ToArray() ?? []);
         ReviewPendingCancellation.Click += async (_, _) => await model.ReviewPendingCancellationAsync();
         ConfirmPendingCancellation.Click += async (_, _) => await model.ConfirmPendingCancellationAsync();
         DiscardPendingCancellation.Click += async (_, _) => await model.DiscardPendingCancellationAsync();
         ReadQueue.Click += async (_, _) => await model.RefreshWorkAsync();
+        NoQueuePrerequisite.Click += (_, _) => model.ChooseNoQueuePrerequisite();
+        QueuePrerequisites.SelectionChanged += (_, _) =>
+            model.SelectQueuePrerequisite(QueuePrerequisites.SelectedItem as QueuePrerequisiteOption);
         EnqueueVersion.Click += async (_, _) => await model.EnqueueVersionAsync();
         EnqueueCapabilities.Click += async (_, _) => await model.EnqueueCapabilitiesAsync();
         EnqueueReadiness.Click += async (_, _) => await model.EnqueueReadinessAsync();
         EnqueueRuntimes.Click += async (_, _) => await model.EnqueueRuntimesAsync();
+        QueueCapabilities.SelectionChanged += (_, _) =>
+            model.SelectQueueCapability(QueueCapabilities.SelectedItem as QueueCapabilityOption);
+        EnqueueCapability.Click += async (_, _) => await model.EnqueueCapabilityAsync();
+        EnqueueRuntimeStatus.Click += async (_, _) => await model.EnqueueRuntimeStatusAsync();
         DispatchQueue.Click += async (_, _) => await model.DispatchQueueAsync();
         PauseQueue.Click += async (_, _) => await model.PauseQueueAsync();
         ResumeQueue.Click += async (_, _) => await model.ResumeQueueAsync();
@@ -153,10 +218,40 @@ internal sealed partial class SessionsWindow : Window
             refresh.Stop();
             refresh.Tick -= OnRefreshTick;
             model.Close();
+            model.DecideComposerDraft = null;
+            draftDialog?.Close();
         };
         KeyDown += (_, args) =>
         {
             if (args.Key == Key.Escape) { Close(); args.Handled = true; }
         };
+    }
+
+    private async Task<ComposerDraftDecision> ChooseDraft()
+    {
+        if (!IsVisible || draftDialog is not null) { return ComposerDraftDecision.Cancel; }
+        var dialog = new Window { Title = "Unsaved exact-session conversation draft", Width = 680, Height = 230 };
+        var content = new StackPanel { Margin = new(18), Spacing = 14 };
+        content.Children.Add(new TextBlock
+        {
+            Text = model.ComposerTarget + "\nSave explicitly, discard the memory-only buffer, or cancel switching/closing. Nothing submits a message.",
+            TextWrapping = Avalonia.Media.TextWrapping.Wrap,
+        });
+        var buttons = new StackPanel { Orientation = Avalonia.Layout.Orientation.Horizontal, Spacing = 12 };
+        foreach (var decision in Enum.GetValues<ComposerDraftDecision>())
+        {
+            var button = new Button { Content = decision.ToString() };
+            button.Click += (_, _) => dialog.Close(decision);
+            buttons.Children.Add(button);
+        }
+        content.Children.Add(buttons);
+        dialog.Content = content;
+        draftDialog = dialog;
+        try { return await dialog.ShowDialog<ComposerDraftDecision?>(this) ?? ComposerDraftDecision.Cancel; }
+        finally
+        {
+            content.Children.Clear();
+            if (ReferenceEquals(draftDialog, dialog)) { draftDialog = null; }
+        }
     }
 }

@@ -20,6 +20,8 @@ internal sealed partial class AttachmentCatalogueViewModel(
     private SessionAttachmentSummary? selected;
     private CancellationTokenSource? operation;
     private bool includeRemoved;
+    private AttachmentCatalogueMode mode;
+    private string queryText = string.Empty;
     private bool disposed;
     private long epoch;
     private long controlRevision = access.ControlRevision;
@@ -31,19 +33,49 @@ internal sealed partial class AttachmentCatalogueViewModel(
     public string SelectedDetails => selected is null ? string.Empty : JsonSerializer.Serialize(selected);
     public string Status => status;
     public bool CanEdit => !disposed && access.CanInspect && admitted();
+    public bool CanEditId => CanEdit && mode == AttachmentCatalogueMode.ExactId;
     public bool CanRead => CanEdit && operation is null;
-    public bool CanNext => CanRead && page?.Next is not null;
+    public bool CanSearch => CanRead && (mode == AttachmentCatalogueMode.Browse
+        || SessionListSearch.IsValid(SessionListSearchKind.ExactId, SessionListFilter.All, queryText));
+    public bool CanNext => CanSearch && page?.Next is not null;
     public bool CanCancel => !disposed && operation is not null;
     public bool CanNavigate => CanRead && selected?.CopyStatus == AttachmentCopyStatus.Confirmed;
+    public IReadOnlyList<AttachmentCatalogueMode> Modes { get; } = Enum.GetValues<AttachmentCatalogueMode>();
+    public AttachmentCatalogueMode Mode
+    {
+        get => mode;
+        set
+        {
+            if (!CanEdit || !Enum.IsDefined(value) || mode == value) { return; }
+            InvalidateQuery();
+            mode = value;
+            Notify();
+        }
+    }
+    public string QueryText
+    {
+        get => queryText;
+        set
+        {
+            if (!CanEdit || string.Equals(queryText, value, StringComparison.Ordinal)) { return; }
+            InvalidateQuery();
+            queryText = value;
+            Notify();
+        }
+    }
+    public string QueryHint => mode == AttachmentCatalogueMode.Browse
+        ? "Browse retained slots. Clear returns to Browse; typing performs no read."
+        : !SessionListSearch.IsValid(SessionListSearchKind.ExactId, SessionListFilter.All, queryText)
+            ? "Invalid exact session ID. Enter a nonempty canonical lowercase D-format UUID; no Browse fallback. No names, paths, bodies or digest search."
+            : "Exact session ID: nonempty canonical lowercase D-format UUID. No names, paths, bodies or digest search; never permission.";
     public bool IncludeRemoved
     {
         get => includeRemoved;
         set
         {
             if (!CanEdit || includeRemoved == value) { return; }
-            Revoke();
+            InvalidateQuery();
             includeRemoved = value;
-            status = "Query changed. Refresh starts a fresh bounded observation.";
             Notify();
         }
     }
@@ -59,18 +91,23 @@ internal sealed partial class AttachmentCatalogueViewModel(
 
     public Task Refresh(bool next = false) => Run(async (current, token) =>
     {
+        var query = new SessionAttachmentQuery(includeRemoved,
+            mode == AttachmentCatalogueMode.Browse ? null : queryText);
         var cursor = next ? page?.Next ?? throw new InvalidOperationException("Refresh before Next.") : null;
         Clear();
-        var result = await read(new(includeRemoved), cursor, current, token);
+        var result = await read(query, cursor, current, token);
         result.Validate();
+        if (result.Query != query) { throw new InvalidDataException("The attachment page does not match the original native query."); }
         if (!current()) { throw new OperationCanceledException("Private metadata observation was revoked."); }
         page = result;
         status = "This page: " + result.Records.Length.ToString(CultureInfo.InvariantCulture) + " rows; "
             + result.ScannedRows.ToString(CultureInfo.InvariantCulture) + " slots scanned; "
             + result.AuditScannedRows.ToString(CultureInfo.InvariantCulture) + " authority commits validated. "
             + (result.AuthorityValidationPending ? "Authority validation pending; Next continues before any attachment row is disclosed. "
-                : result.Next is not null ? "More slots remain. Next may follow an empty retained-only page. "
-                    : "End of this observation, not a global total. ")
+                : result.Next is not null ? "More slots remain. Next may follow an empty nonmatching page. "
+                    : result.Records.IsEmpty && query.ExactId is not null
+                        ? "Exact attachment slot not found under this filter at this observation; no fallback to Browse. "
+                        : "End of this observation, not a global total. ")
             + SessionAttachmentPage.Scope;
     });
 
@@ -103,13 +140,13 @@ internal sealed partial class AttachmentCatalogueViewModel(
         catch (OperationCanceledException)
         {
             Clear();
-            if (!disposed) { status = "Cancelled or revoked. No late page or navigation remains current. Refresh."; }
+            if (!disposed && epoch == originalEpoch) { status = "Cancelled or revoked. No late page or navigation remains current. Refresh."; }
             activity.Complete(HostOperationOutcome.Cancelled);
         }
         catch (Exception exception) when (exception is not OutOfMemoryException)
         {
             Clear();
-            if (!disposed) { status = "Attachment catalogue unavailable: " + exception.GetType().Name + ". No empty success; refresh under private admission."; }
+            if (!disposed && epoch == originalEpoch) { status = "Attachment catalogue unavailable: " + exception.GetType().Name + ". No empty success; correct the canonical ID or refresh under private admission."; }
             Failure(logger, exception.GetType().Name);
             activity.Complete(HostOperationOutcome.Failed);
         }
@@ -121,6 +158,23 @@ internal sealed partial class AttachmentCatalogueViewModel(
     }
 
     public void Cancel() => Revoke();
+
+    public void ClearQuery()
+    {
+        if (!CanEdit) { return; }
+        InvalidateQuery();
+        mode = AttachmentCatalogueMode.Browse;
+        queryText = string.Empty;
+        Notify();
+    }
+
+    private void InvalidateQuery()
+    {
+        epoch++;
+        operation?.Cancel();
+        Clear();
+        status = "Query/mode/removal filter edited. Page, continuation and selection cleared; explicit Search/Refresh required.";
+    }
 
     internal void SynchronizeAuthority()
     {
@@ -135,6 +189,8 @@ internal sealed partial class AttachmentCatalogueViewModel(
         epoch++;
         operation?.Cancel();
         Clear();
+        mode = AttachmentCatalogueMode.Browse;
+        queryText = string.Empty;
         status = "Private source, lifecycle, retention or attachment changed. Page and selection cleared; refresh.";
         Notify();
     }
@@ -156,6 +212,8 @@ internal sealed partial class AttachmentCatalogueViewModel(
         Clear();
         status = string.Empty;
         includeRemoved = false;
+        mode = AttachmentCatalogueMode.Browse;
+        queryText = string.Empty;
         Notify();
     }
 
@@ -166,10 +224,15 @@ internal sealed partial class AttachmentCatalogueViewModel(
         OnPropertyChanged(nameof(SelectedDetails));
         OnPropertyChanged(nameof(Status));
         OnPropertyChanged(nameof(CanEdit));
+        OnPropertyChanged(nameof(CanEditId));
         OnPropertyChanged(nameof(CanRead));
+        OnPropertyChanged(nameof(CanSearch));
         OnPropertyChanged(nameof(CanNext));
         OnPropertyChanged(nameof(CanCancel));
         OnPropertyChanged(nameof(CanNavigate));
         OnPropertyChanged(nameof(IncludeRemoved));
+        OnPropertyChanged(nameof(Mode));
+        OnPropertyChanged(nameof(QueryText));
+        OnPropertyChanged(nameof(QueryHint));
     }
 }

@@ -19,4 +19,5 @@ public sealed record AuthorityAuditProvenance(
 {
     public Kora.Core.Storage.SessionQueueMoveReceipt? QueueMoveReceipt { get; init; }
     public Kora.Core.Storage.SessionQueueCancelReceipt? QueueCancelReceipt { get; init; }
+    public Kora.Core.Storage.SessionQueueRequeueReceipt? QueueRequeueReceipt { get; init; }
 }

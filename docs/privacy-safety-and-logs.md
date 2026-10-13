@@ -28,6 +28,9 @@ See the [authoritative proposal boundary](../Design/Model_Providers_Memory_And_K
 
 ## Trusted local event privacy
 
+The [owned draft Validate](instruction-editor.md#validate-the-open-draft-without-saving) control is model-free structural observation of the already open same-kind draft, not a source reader, writer, approval or use action. It retains original/draft/dirty/inventory and held/enabled state, with no owned-store I/O, reload, preference mutation or activation.
+Normal observational control receipts/traces remain. Source-generated rejection logs contain fixed reason codes under admitted host context, not definition body, metadata values, paths or excerpts. Bounded text-only findings cannot execute content or authorize Save; input/private/source changes retire findings and Save independently confirms current prepared bytes.
+
 The native run-only routine quiet choice starts Off and applies only to Work/Maintenance first deliveries and notice rows. It lasts until explicitly cleared/reset or restart; the flag is never persisted.
 The same bounded suppression history now admits canonical known schema 2 routine-only `RoutineSuppressed` receipts while preserving schema 1 reads and existing expiry/revision/watermark/budget/retention rules. No new preference file or database migration is introduced.
 
@@ -467,6 +470,9 @@ Logs support diagnostics and future local reasoning, but intentionally omit:
 Configuration writes, application and script execution categories, approvals,
 protected operations, and their outcomes use typed audit events without raw
 sensitive content.
+Owned instruction/literal-prompt **Save as new copy** is a native-reviewed same-kind create-no-replace operation, not a profile-original writer.
+Typed requested/terminal copy audits bind the host request and a bounded hash of source-qualified base/draft/destination/proposal identity; no raw content enters tags or baggage.
+Source/draft remain intact, destination is disabled, and uncertain post-publication outcomes hold only the destination without claiming rollback or inherited authority.
 
 The current host writes both ordinary diagnostics and typed audit events
 to those files and independent private-profile SQLite projections. Required

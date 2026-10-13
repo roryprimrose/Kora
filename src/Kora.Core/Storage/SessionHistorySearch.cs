@@ -28,8 +28,11 @@ public sealed class SessionHistorySearch
         {
             return false;
         }
-        return Fields(record).Any(field => LocalFileRetrievalPolicy.Tokens(field, token).Any(terms.Contains));
+        return Fields(record).Any(field => MatchesText(field, token));
     }
+
+    public bool MatchesText(string text, CancellationToken token) =>
+        LocalFileRetrievalPolicy.Tokens(text, token).Any(terms.Contains);
 
     private static IEnumerable<string> Fields(SessionHistoryEvent record)
     {

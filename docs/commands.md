@@ -1,5 +1,15 @@
 # Voice and typed commands
 
+## Native saved conversation draft catalogue
+
+**Tray > Saved conversation drafts (metadata only)** is native-only; it has no typed/voice/model body query. Opening reads nothing. Explicit Refresh/Next/Cancel shows bounded saved composer metadata across retained All/Active/Done sessions, never a body preview or global count.
+Cleared/empty/never-saved and question/parameter drafts are not saved-content results.
+Its **Browse / NameSubstring / ExactId** modes search session metadata only. Name matching is literal, ordinal case-sensitive under the session-name bounds; exact IDs require canonical lowercase D format. ID-shaped names are not targets. Invalid/empty queries never become All.
+Typing performs no read. Query/mode/filter edits cancel pending pages and invalidate the catalogue selection without changing the current composer. Use **Search / refresh metadata**, Next, Cancel, or **Clear query (Browse)** explicitly. A zero-match bounded page may still have Next; there is no global inventory count.
+
+Select one row and **Open exact session (no body load)**. Changed source/revision/privacy refuses with Refresh. The existing Sessions dirty-buffer Save/Discard/Cancel protection remains; an explicit Save that changes authority requires fresh catalogue observation.
+**Reload saved draft**, Save and Submit are separate Sessions gestures. Done remains Done. See the [canonical scope and limitations](../Design/Interaction_And_Sessions.md#saved-conversation-draft-catalogue--2026-10-13).
+
 Voice and typed input use the same exact built-in phrases, which always take
 precedence. Voice input may use the configured assistant name as a prefix.
 Punctuation and capitalization do not matter for built-in phrases. Once the
@@ -20,6 +30,12 @@ Existing bootstrap reasoning and unavailable messages remain unchanged;
 hosted inference is not enabled by this host-only foundation.
 Device-local initial provider mode settings are delivered separately below.
 Clipboard and file preview/search commands still perform no model submission.
+
+The separate native [exact-session composer](windows-and-tray.md#exact-session-conversation-and-composer)
+retains deliberately submitted original user messages and unavailable HOST/task
+outcomes through configured provider-neutral admission. It is not a new typed/
+voice command, question reply, approval, fixed-read queue profile, model tool or
+bootstrap fallback. Draft saves are explicit; reading/restoring never submits.
 
 ## Inspect or change the device-local provider mode
 
@@ -88,7 +104,8 @@ Production has no qualified catalogue models/auth adapters, so model-dependent s
 
 ## Attach one text file to an exact Session (native only)
 
-For a content-free overview of existing retained slots, use **Tray > Retained session attachments > Refresh metadata**. Opening/listing never reads an original path or body. [Catalogue limits and exact navigation](windows-and-tray.md#retained-session-attachments-metadata-only) explain bounded pages, removed/held status, stale continuation and separate full-byte inspection. This adds no typed/voice/model capture command.
+For a content-free overview, use **Tray > Retained session attachments > Search / refresh metadata**. Default Browse or volatile ExactId observes retained slots, never original paths or bodies.
+[Catalogue query rules and exact navigation](windows-and-tray.md#retained-session-attachments-metadata-only) cover canonical IDs, explicit Enter/Clear/Next, bounded empty pages and separate full-byte inspection. No typed/voice/model search or capture command is added.
 
 Open **Sessions**, select the exact Active session, then **Attach text file to this exact Session**. A trusted native picker opens only metadata; review canonical path/native identity, source and host session, bytes/time, fixed limits and local durable retention/copy disclosure. **Confirm: capture and retain this exact file for this Session** is separate persistence consent, not the existing volatile preview confirmation.
 
@@ -183,6 +200,14 @@ share one host service. No model, network or audio is required for management
 or the fixed read. Voice commands still require normal activation/consent;
 the queue cannot open a microphone or speak a response.
 
+In native **Sessions**, use **Optional prerequisite**: keep initial **None**, or explicitly select an exact same-session task from at most 50 nonqueue plus 50 already-observed queued metadata rows (pending/running/recent terminal). Rows show task/session IDs, observed generation, actual host task state/revision and UTC host source; queue-entry revision is never substituted. No task body or history is read. Work/question selection never supplies a prerequisite.
+
+Each of the six **Enqueue** buttons applies that one choice through the same route as `[after <task-id>]`. Only exact Succeeded permits later dispatch; pending, failed, cancelled or Unknown can block the FIFO head. Enqueue never runs automatically.
+After enqueue, explicitly choose **None** or select a task again. Refresh/session/private/source changes revoke a choice; stale/missing task revisions require refresh/reselection, never silent None fallback.
+Queued task metadata is optional on the work wire and comes from the same atomic private SQLite read, without changing stored payloads/digests. Missing/conflicting/over-bound metadata makes exact selection unavailable; explicit None uses the original route. The full result still fails explicitly above 64 KiB, without trimming source rows.
+
+Typed syntax and arbitrary exact after-task semantics below are unchanged; no revision token is added to typed enqueue. The native picker is a bounded same-session subset, not cross-session search or existing dependency editing.
+
 | Exact syntax | Result |
 |---|---|
 | `queue help` | Bounded syntax and unavailable scope |
@@ -192,6 +217,8 @@ the queue cannot open a microphone or speak a response.
 | `queue enqueue <session-id> <generation> <queue-revision> <request-id> <task-id> capabilities.list [after <task-id>]` | Add the fixed capability-metadata first-page read |
 | `queue enqueue <session-id> <generation> <queue-revision> <request-id> <task-id> readiness.get [after <task-id>]` | Add the first page of already-recorded dependency observations, not a fresh check |
 | `queue enqueue <session-id> <generation> <queue-revision> <request-id> <task-id> runtime.list [after <task-id>]` | Add the first page of recorded runtime metadata; no probe, inference or setup |
+| `queue enqueue <session-id> <generation> <queue-revision> <request-id> <task-id> capabilities.get <exact-current-descriptor-id> [after <task-id>]` | Add exactly one current catalogue descriptor read; exact case-sensitive ID required, no arbitrary JSON |
+| `queue enqueue <session-id> <generation> <queue-revision> <request-id> <task-id> runtime.get_status [after <task-id>]` | Add fixed recorded `local.inference` status; no runtime-ID input, probe, inference or setup |
 | `queue cancel <session-id> <generation> <queue-revision> <task-id> <entry-revision>` | Cancel only that pending entry, not an admitted worker/effect |
 | `queue remove <session-id> <generation> <queue-revision> <task-id> <entry-revision>` | Remove only that pending entry from dispatch, retaining history |
 | `queue clear <session-id> <generation> <queue-revision> confirm` | Explicitly confirm clear of this exact pending snapshot; current work/history remain |
@@ -202,6 +229,9 @@ the queue cannot open a microphone or speak a response.
 | `queue move-up\|move-down <session-id> <generation> <queue-revision> <run-id> <pause-revision> <task-id> <entry-revision> <neighbor-id> <neighbor-revision>` | Review exactly one displayed adjacent pending pair; no mutation yet |
 | `queue move-confirm <session-id> <generation> <queue-revision> <run-id> <pause-revision> <task-id> <entry-revision> <neighbor-id> <neighbor-revision> <review-id> confirm` | Separately confirm that exact current review through the audited atomic queue service |
 | `queue move-cancel <session-id> <review-id>` | Revoke only the exact review; order and draft unchanged |
+| `queue requeue-expired-review <session-id> <generation> <queue-revision> <run-id> <pause-revision> <task-id> <entry-revision>` | Review removal of one exact expired current-run pending source and a separately host-issued fresh same-profile tail decision |
+| `queue requeue-expired-confirm <session-id> <generation> <queue-revision> <run-id> <pause-revision> <task-id> <entry-revision> <fresh-request-id> <fresh-task-id> <review-id> confirm` | Confirm all and only the complete host-held proposal atomically; fresh IDs must match the review |
+| `queue requeue-expired-discard <session-id> <review-id>` | Revoke the review and unadmitted fresh IDs without queue mutation |
 | `queue cancel-selected-review <session-id> <generation> <queue-revision> <run-id> <pause-revision> <task-id>:<entry-revision>[,<task-id>:<entry-revision>...]` | Review the complete exact pending subset, in displayed dispatch order |
 | `queue cancel-selected-confirm <session-id> <generation> <queue-revision> <run-id> <pause-revision> <task-id>:<entry-revision>[,...] <review-id> confirm` | Cancel all and only that host-reviewed exact pending subset atomically |
 | `queue cancel-selected-discard <session-id> <review-id>` | Revoke review without writes; pending selection and draft unchanged |
@@ -211,7 +241,7 @@ the queue cannot open a microphone or speak a response.
 New selected-set syntax uses canonical lowercase D GUIDs and canonical decimal revisions. Repeat the full ordered member list and every displayed authority revision plus the host-issued review ID when confirming.
 Empty/duplicate/over-bound/unlisted/stale members, changed source/private epochs or queue mutations refuse the entire set; refresh and review again. Existing `cancel`, `remove` and `clear` syntax is unchanged.
 
-Input remains 1024 UTF-8 bytes; complete review/result is bounded to 64 KiB, with explicit refusal rather than partial projection. All four fixed profiles and exactly expired pending rows are supported. Lowering configured capacity does not reduce the maximum existing selectable set or evict entries. Cancel review keeps selection and draft, without mutation or deadline/activity renewal.
+Input remains 1024 UTF-8 bytes; complete review/result is bounded to 64 KiB, with explicit refusal rather than partial projection. All six fixed profiles and exactly expired pending rows are supported. Lowering configured capacity does not reduce the maximum existing selectable set or evict entries. Cancel review keeps selection and draft, without mutation or deadline/activity renewal.
 
 Only selected rows/tasks become retained Cancelled history. Unselected relative dispatch order and original metadata/results remain unchanged. Dependents are retained and block if their prerequisite was cancelled; no descendant scan/cascade is claimed. Pause/hold, slots and current callbacks remain unchanged; no automatic dispatch/resume, worker/effect termination or deletion authority is added.
 
@@ -220,19 +250,21 @@ Required requested/terminal typed audit, exact member receipt and readback prece
 Use canonical nonempty D GUIDs and the exact displayed positive session/entry
 revisions. Queue revision is the displayed committed snapshot revision; zero
 is valid only before the first queue mutation. For typed enqueue, supply fresh
-request/task GUIDs; the four explicit native **Enqueue** buttons generate them. Duplicate
+request/task GUIDs; the six explicit native **Enqueue** buttons generate them. Duplicate
 IDs, names, unknown/stale revisions, Done/disposed sessions and full queues
 fail closed. The selected session's ID is visible and never inferred from a
 name, model response or window title.
 
-Only those four profiles are accepted. The three page reads use host-owned `{}`,
-first page/default count six; no JSON, arguments, IDs, count/offset or refresh
-controls are accepted. Each result is limited to six records and 4096 serialized
+Only these six closed profiles are accepted. The original four inputs remain host-owned `{}`,
+first page/default count six. `capabilities.get` requires one exact current catalogue descriptor ID;
+native selection has no implicit target and resets after success/stale selection. `runtime.get_status`
+always selects recorded `local.inference`; supplying any runtime ID is invalid. No arbitrary JSON,
+parameters, count/offset or refresh controls are accepted. Each result is limited to six records and 4096 serialized
 UTF-8 bytes. **Inspect selected work** or exact `queue status` shows a retained
 successful page snapshot, not current health. Large manual batches may omit page
 data with `resultAvailableByExactStatus: true`; inspect that exact task instead.
 Work/All work remain metadata-only. Failures, denial, cancellation, stale private
-admission or expired active budgets never deliver successful data.
+admission or expired active budgets never deliver successful data. The two targeted reads return only one exact matching descriptor or local recorded runtime, never live qualification. Requeue preserves that exact target with fresh IDs, not replay or retargeting.
 
 Enqueue does not start work. Selecting an exact session passively reads work;
 **Refresh selected work** refreshes that observation. Choose **Inspect selected
@@ -268,6 +300,12 @@ Running callbacks remain independent; previous-run Interrupted/Unknown work neve
 Queue snapshots include at most two latest order lineages with `omittedOrders`; older exact move receipts remain in authoritative audit/history, not fabricated current ordering.
 
 ## Fixed queue settings
+
+Expired replacement is available in native Sessions as **Review expired removal and NEW tail task**, followed by separate exact confirmation or cancellation. The review shows original IDs/profile/dependency/deadlines and fresh host-issued IDs, captured pending lifetime and deadline. No arguments, name inference, automatic dispatch or probes are accepted.
+
+Only expired stored Pending entries with no dispatch order in this active session/current run and unchanged original private admission qualify. Stale queue/order/pause/settings/source/entry/session revisions reject the whole proposal. One replacement frees one slot atomically, never evicts, and cannot exceed lowered capacity. Original history/deadlines remain; old task is Cancelled with Removed queue outcome, new task is IntentRecorded/Pending at tail.
+
+Prerequisite IDs are preserved and revalidated; dependents on the removed task remain blocked, without cascade or retarget. Cancel admits nothing. Unknown commit/delivery holds admission and requires exact inspection, not retry. Restart never replays either entry; new active budget is captured only at normal later manual dispatch. See [bounded replacement contract](../Design/Work_Management.md#delivered-reviewed-expired-pending-removal-and-fresh-tail-decision---2026-10-12).
 
 Native Settings > Sessions and exact typed/current-name activated input share
 these future-only controls:
@@ -362,6 +400,10 @@ No clipboard, speech/history, model/egress, watcher, vector index or durable
 folder attachment is added. Durable single-file attachments have separate
 consent. See [native file workflow](windows-and-tray.md#native-local-file-inspection)
 and [privacy](privacy-safety-and-logs.md#local-file-inspection).
+
+**Literal Find is native-only**, not a typed/PTT command or model tool. In the inspected original file use **Find first / Find next / Find previous / Clear literal Find**. Exact case/spaces/punctuation, nonoverlapping steps and no wrap apply; only one match is disclosed. Existing inspect/search phrases still focus ranked inspection, without accepting a query or selecting a new file.
+
+See [native Find](windows-and-tray.md#find-a-literal-in-the-currently-inspected-original-file). Shared 256 UTF-16 / 512 strict UTF-8 bounds apply without lexical token rules; unsafe controls, malformed Unicode or empty input reject. Retained Find revalidates the stored original, never its filesystem path. Queries remain native-only, not transcripts/history/model/log/clipboard data.
 
 ## SQLite diagnostic retention
 
@@ -709,11 +751,13 @@ metadata and task-state receipts. Gaps/current migration baselines, metadata-onl
 over-budget unavailable content and disposition-redacted events are explicit.
 Bootstrap user/model messages and response bodies are unavailable, not recovered
 from logs. A task success is not proof of an external effect. Done histories
-are readable; an exact Removed ID returns redacted citations only. There is no
-composer, model history reasoning, Ask Evidence, broad export, attachment,
+are readable; an exact Removed ID returns redacted citations only. This receipt
+lane has no composer, model history reasoning, Ask Evidence, broad export, attachment,
 queue, scheduler, automatic resume or playback. History does not import volatile
 file previews/shared skills or reconstruct captions. See the
 [native workflow](windows-and-tray.md#bounded-passive-interaction-history).
+
+The separate native [selected-conversation search](windows-and-tray.md#search-one-exact-retained-conversation) searches actual retained USER bodies and typed HOST outcomes in the selected exact session. This older `session search` command remains Question/Answer/task receipt `HistorySearch`; it is not implicitly remapped to body search. Conversation query content stays native and adds no typed/voice/model descriptor or transcript entry.
 
 Search uses the [shared lexical query rules](../src/Kora.Core/Context/LocalFileRetrievalPolicy.cs): 1-256 UTF-16 characters, at most 512 strict UTF-8 bytes, 1-32 distinct words of at most 64 characters, NFC/invariant case and literal whole-word OR matching. Punctuation separates words, not operators, wildcards or regular expressions. Quotes inside the final quoted query are doubled.
 
@@ -1239,14 +1283,24 @@ to three; start a new request with more details if it reaches that limit.
 Type `instructions editor` or `prompts editor`, or say the same control prefixed
 with the current assistant name. Both focus the same native editor with explicit
 Instruction/Prompt kind selection. `list`, `create <id>`, `edit <id>`,
-`inspect <id>`, `save`, `reload`, `discard`, `delete`, `activate` and `cancel`
-are the exact controls after either plural kind name. Only create/edit/inspect
+`inspect <id>`, `validate`, `save`, `copy <new-id>`, `reload`, `discard`, `delete`, `activate`, `disable`, `stop-use` and `cancel`
+are the exact controls after either plural kind name. Only create/edit/inspect/copy
 accept one canonical file ID; other controls target the open original.
+`instructions validate` / `prompts validate` observes the currently open same-kind supported owned draft/new draft using exact Save preparation, including BOM/native-marker overhead and observed structural/namespace checks. It never opens/switches sources, saves or enables.
+The bounded body-free result is historical structural compatibility, not harmlessness, current disk integrity or approval. Source/private/input changes retire it; Save separately revalidates and exactly confirms. No store I/O/reload, revision-preference write/hold, model/network or reference execution is added. See [draft validation](instruction-editor.md#validate-the-open-draft-without-saving).
+**Disable reviewed use** / `instructions disable` or `prompts stop-use` separately confirms the clean inspected canonical native v1 owned source/kind/digest/native revision. It durably withdraws new selections without writing/deleting/unregistering the source.
+Disabled files stay inspectable/editable. Dirty drafts remain intact with an explicit Save/Reload prerequisite; current-name activated controls focus the same native confirmation, never voice-only approval.
+Already captured reasoning keeps immutable content; pending unadmitted questions/action choices expire without dispatch or retargeting. Mandatory access/privacy/action/egress checks remain. Reload/restart/restored bytes cannot re-enable use: require fresh exact review. Failed audit/state readback reports held/unavailable recovery, not success or rollback.
 No paths or body dictation are accepted. Save/Delete and separate exact-use review
 remain native; detected conflicts offer Reload/Overwrite/Cancel. See
 [native editor and limits](instruction-editor.md).
+`copy <new-id>` reviews a same-kind supported native v1 owned original and its current draft, then creates a separate disabled owned file without overwriting. The original source/draft stay open and untouched; independently inspect/review the destination before explicit use. Profile-original editing and profile forks remain unavailable.
+`instructions list` / `prompts list` also exposes the selected kind's owned metadata search and observed-use filters in that same native editor. There is no typed/voice search grammar: use the native query/filter controls after List, or the existing exact `inspect <id>` route.
+Filters/search/page changes are in-memory and preserve the open original/draft. Row inspection refuses stale snapshot/digest/native identity instead of following a same-name replacement. Observed catalogue use state is not current disk freshness; explicit Refresh/reselect is the recovery path. See [inventory limits and controls](instruction-editor.md#search-observed-owned-metadata).
 
 ### Explicitly select a saved revision
+
+Enabled native owned-v2 prompts open the existing private required-input form through exact typed/current-name activated selection. Parameter values and retention consent are native-only, never inline command/PTT text. Preview and old Use remain ephemeral; separate exact Active-session review/confirmation can retain the whole expanded USER body through the real conversation service, with unavailable generation. See [explicit prompt submission](instruction-editor.md#submit-an-expanded-request-to-one-exact-session).
 
 Kora can apply a bundled or disk-backed skill, instruction, prompt, or agent
 artifact to a local-model request from the command box or activated voice.

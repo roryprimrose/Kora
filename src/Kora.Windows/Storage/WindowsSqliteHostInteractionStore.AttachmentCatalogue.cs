@@ -80,7 +80,8 @@ public sealed partial class WindowsSqliteHostInteractionStore : ISessionAttachme
             throw new InvalidDataException("Attachment catalogue authority changed. Refresh; no stale continuation is admitted.");
         }
         var expires = continuation?.ExpiresAt ?? now.AddMinutes(SessionAttachmentPage.SnapshotMinutes);
-        var audit = ValidateCatalogueAuditSegment(connection, snapshot, continuation, token);
+        var audit = ValidateCatalogueAuditSegment(connection, snapshot, continuation?.AuditedThrough ?? 0,
+            continuation?.AuditedHash ?? EmptyHash, token);
         if (audit.Through < snapshot.AuthorityCeiling)
         {
             var pending = new SessionAttachmentPage(query, [], EncodeAttachmentCursor(new(query, identity, expires,
@@ -110,7 +111,7 @@ public sealed partial class WindowsSqliteHostInteractionStore : ISessionAttachme
             var summary = DecodeCatalogueRow(connection, rows, admitted, token);
             scanned++;
             after = summary.Session.Value;
-            if (query.IncludeRemoved || summary.CopyStatus != AttachmentCopyStatus.Unavailable) { records.Add(summary); }
+            if (query.Matches(summary)) { records.Add(summary); }
         }
         // Lookahead is content-free. It determines only whether a slot remains; it never skips an unvalidated slot.
         using var remaining = connection.CreateCommand();
@@ -296,10 +297,8 @@ public sealed partial class WindowsSqliteHostInteractionStore : ISessionAttachme
     }
 
     private static (long Through, string Hash, int Scanned) ValidateCatalogueAuditSegment(SqliteConnection connection,
-        EvidenceSnapshot snapshot, AttachmentCursor? cursor, CancellationToken token)
+        EvidenceSnapshot snapshot, long sequence, string hash, CancellationToken token)
     {
-        var sequence = cursor?.AuditedThrough ?? 0;
-        var hash = cursor?.AuditedHash ?? EmptyHash;
         if (sequence < 0 || sequence > snapshot.AuthorityCeiling)
         {
             throw new InvalidDataException("The attachment authority continuation is invalid.");

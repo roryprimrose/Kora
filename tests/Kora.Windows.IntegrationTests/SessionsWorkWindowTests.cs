@@ -303,7 +303,7 @@ public sealed class SessionsWorkWindowTests
 
     private sealed class NoExecution : IDeterministicVersionQueueAction
     {
-        public Kora.Core.Tools.CapabilityReply Observe(SessionQueueReadProfile profile, CancellationToken token) =>
+        public Kora.Core.Tools.CapabilityReply Observe(SessionQueueReadProfile profile, CancellationToken token, SessionQueueCapabilityTarget? target = null) =>
             throw new InvalidOperationException("Browsing and stale controls must never execute.");
     }
 }

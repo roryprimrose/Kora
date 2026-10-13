@@ -22,6 +22,12 @@ No format/limit override, folder attachment, managed source, extra version, mode
 
 ### Delivered bounded fixed local-version queue settings (R10/R13)
 
+The [optional native prerequisite](Work_Management.md#delivered-optional-native-enqueue-prerequisite---2026-10-12) is a volatile explicit decision for one new fixed read, not a device preference or policy edit. Initial None preserves the original route; after enqueue choose None or an exact observed same-session task again.
+Refresh/private/session changes revoke selection. Pending capacity, slots and captured pending/active lifetimes below remain unchanged.
+Already-observed queued pending/running/recent terminal tasks now join the bounded native picker using actual host task state/revision from the same atomic work observation. Queue-entry revisions are never prerequisite revisions. No saved preference, history scan, new dependency policy or automatic dispatch is introduced; unavailable metadata requires explicit recovery/choice, not silent None.
+
+The [two closed targeted queue reads](Work_Management.md#delivered-closed-targeted-metadata-reads---2026-10-12) add no preference or authority store. One volatile explicit descriptor choice controls `capabilities.get`; it resets after enqueue/staleness. `runtime.get_status` has only fixed recorded `local.inference`. All six reads inherit the same prerequisite, configuration and admission fences.
+
 Native **Settings > Sessions > Fixed read-only local-version queue** and exact typed/current-name activated input share the [queue configuration service](../src/Kora.Application/Configuration/SessionQueueConfigurationService.cs).
 Device-local options are `queue.pending-per-session` (**1-10**, default/reset **10**), `queue.execution-slots` (**1-2**, default/reset **1**), `queue.pending-lifetime-minutes` (**1-120 minutes**, default/reset **30**) and `queue.active-budget-minutes` (**1-60 minutes**, default/reset **5**); all values are canonical integers.
 Each option resets independently, preserving the other three; resetting all four removes only this override file ([domain validation](../src/Kora.Core/Configuration/SessionQueuePreferences.cs), [atomic preferences](../src/Kora.Application/Configuration/LocalSessionQueuePreferences.cs)).
@@ -41,11 +47,13 @@ Inspect saved state and audit/control receipts, explicitly repair, then refresh;
 Confirmed limits feed enqueue/fair dispatch ([queue consumer](../src/Kora.Application/Hosting/SessionQueueService.cs)), native/exact work snapshots ([work consumer](../src/Kora.Application/Hosting/SessionWorkspaceService.cs)) and trusted local events ([event consumer](../src/Kora.Application/Interaction/AuthorityLocalEventSource.cs)).
 Short admission/observation transactions serialize with edits and revalidate saved state/revisions at consequential boundaries; the gate is not held through an active read or the dispatch batch.
 Lowering pending capacity never evicts or reclassifies existing entries; enqueue holds until capacity is available.
+The [reviewed expired removal/new-decision transaction](Work_Management.md#delivered-reviewed-expired-pending-removal-and-fresh-tail-decision---2026-10-12) captures current confirmed future pending lifetime and rejects stale settings at confirmation.
+Replacing one existing pending source frees exactly one slot in the same transaction; the resulting pending total must fit the current limit, even when lowered below existing total. Old deadlines and future-dispatch active budgets are never renewed by preview or replacement.
 The [reviewed selected pending cancellation](Work_Management.md#delivered-atomic-selected-pending-cancellation---2026-10-12) still accepts up to the shared maximum ten existing pending entries after capacity falls.
 It is explicit one-session/current-run management, not a configurable policy: no eviction, expiry renewal, pause/resume/dispatch, current-task cancellation or meaningful activity extension.
 Lowering slots never cancels or reinterprets active admissions; subsequent fair admission uses the current limit ([race/capacity tests](../tests/Kora.Application.UnitTests/Hosting/SessionWorkspaceServiceTests.Queue.cs)).
 
-This is only the existing synchronous read-only `application.get_version` profile.
+These settings apply only to the six closed synchronous read-only metadata profiles, not general tool parameters or workers.
 Manual dispatch, FIFO/fairness, one active task per session and no replay remain unchanged.
 The [exact current-run session queue pause](Work_Management.md#delivered-exact-current-run-dispatch-pause---2026-10-11) is a separate fixed safety control, not a saved queue setting or permission tier.
 Native/typed/activated Pause blocks only new admissions; Resume withdraws only the matched run/generation pause and never dispatches. Work/All work/status show the authoritative pause/hold reason and run receipt. Fresh runs start unpaused while previous pending work remains Interrupted; privacy retirement, audit/storage uncertainty and stale controls never restore queued eligibility.

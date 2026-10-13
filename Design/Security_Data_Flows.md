@@ -1,5 +1,48 @@
 # Security and Data Flows
 
+## Owned definition metadata navigation boundary
+
+The [owned editor inventory](../docs/instruction-editor.md#search-observed-owned-metadata) projects only admitted existing per-kind bounded filenames and coherent catalogue metadata. Names/queries are private user metadata, never content-free audit labels, paths or authority.
+List/Refresh retains existing native source/session/host admission and reconciliation; search/filter/page operations perform no source I/O, activation, preference write, model/network call or watcher restart. Body/description/attribution/full paths never enter the row projection, logs, Activity tags or Baggage.
+Selected rows bind original kind/canonical filename/source-qualified artifact ID/digest/native revision plus catalogue and private ownership epoch. Actual Inspect repeats admission and native exact readback, refusing stale/changed/replaced/disappeared choices without showing a newer same-name revision.
+Unknown/unmapped/unrevisioned state is never enabled by inference. Reload failure removes availability and labels historical observations unavailable; private closure clears metadata and text and fences late callbacks. Dirty drafts are not implicitly discarded by metadata changes. This is no profile/bundled-as-owned reader, writer or model-tool extension.
+
+## Exact-session conversation retention boundary
+
+The [native conversation foundation](Interaction_And_Sessions.md#delivered-exact-session-conversationcomposer-foundation--2026-10-12)
+stores exact explicitly submitted user content and explicitly saved drafts
+only in the private session authority. One saved draft per exact session and
+100 submitted messages/session are initial UX bounds, **not aggregate stored
+session/draft/message quotas**. Nothing evicts unexpired content or required
+audit to meet capacity.
+
+Frozen body/source and fresh task intent share one physical COMMIT with typed
+requested/terminal audit and content digests; raw bodies are not audit/log/tag/
+baggage/preference/Work/AllWork fields. Explicit native input, exact generation/
+revision, ownership/privacy/call/control and final commit fences fail closed.
+The configured provider-neutral admission consumer preserves unavailable
+outcomes without fallback, HTTP, authentication, egress or execution.
+
+Saved data is never replay/approval/source-use authority. Passive read/Done
+inspection does not renew activity or trigger cleanup; private/source closure
+revokes draft/page callbacks. Disposition/retention inventory actual cells,
+free pages and committed journal with existing Unknown-work and uninventoried
+copy holds. Required audit remains content-minimised and independently
+retained; disk/write/receipt failures cannot become an unaudited success.
+
+The bounded native composer uses shared Core local structural credential-like
+checks, not a model, network call or entropy-based DLP. Detected or malformed
+structured candidates are rejected before body writes/admission; accepted
+Unicode/text stays exact. Required rejection audit is content-free with a fixed
+reason, no candidate/excerpt/body digest. No Save anyway or silent redaction.
+Known placeholders/references are inert; arbitrary secrets and undeclared
+formats may be missed. The general never-credentials-in-history requirement
+and broader product screening/redaction direction are unchanged.
+
+## Explicit expanded-prompt retention boundary
+An owned-v2 parameter preview may be retained only after a separate original native exact-session confirmation. Preview/nonpersisting Use are not retention consent. The whole current expansion enters the existing conversation screening/store/admission path once as USER text, without hidden template/value/source-path persistence, prompt-source task authority or double admission.
+Exact target/source/private/preview epochs remain eligible at physical COMMIT after repeated native source validation; this is not global filesystem/SQLite atomicity. Unknown completion is held for exact receipt inspection, with no replay or rollback claims. Existing reject-only credential limitations, independent saved drafts, retention/migration/copy gates and unavailable provider/egress boundaries remain unchanged.
+
 ## Exact-session provider policy boundary
 
 [Sparse durable session overrides](Model_Providers_Memory_And_Knowledge.md#session-overrides-and-effective-resolution) are desired configuration, not authentication, adapter, generation, egress or resource authority. Exact native/typed/current-name activated review requires original local-user input, current private owning host, eligible exact session/generation, policy/app revision and unchanged catalogue/account/model binding.
@@ -40,6 +83,12 @@ remain intact; cached maintenance Check/Open stays separately native.
 
 ## Deterministic fixed local-version queue boundary
 
+The [native optional prerequisite](Work_Management.md#delivered-optional-native-enqueue-prerequisite---2026-10-12) captures only exact same-session immutable ID and real revision from existing bounded host task metadata. It adds an optional optimistic enqueue guard, not durable policy/schema or authority.
+The original audited transaction rechecks task existence/session/revision and private source eligibility before COMMIT; missing/changed source refuses without None fallback. Typed after-task remains unchanged, and normal dispatch reevaluates Succeeded independently of the original observation.
+
+The [expired current-run removal/new-decision transaction](Work_Management.md#delivered-reviewed-expired-pending-removal-and-fresh-tail-decision---2026-10-12) binds the exact stored Pending source/task/run/private epoch and host-issued fresh same-profile request/task IDs to a separate user confirmation.
+Queue/order/pause/settings/source revisions and actual original UTC expiry are checked under the same short private SQLite admission fence. Typed original/fresh audit lineage and old Removed/Cancelled plus new Pending/IntentRecorded changes commit all-or-none, without new grants, replay, dependency retarget or side-file authority. Unknown commit/delivery holds admission.
+
 The [selected pending cancellation](Work_Management.md#delivered-atomic-selected-pending-cancellation---2026-10-12) admits only a complete host-reviewed same-session current-run set of at most the shared ten pending IDs/revisions. No arbitrary payload/path/model selection enters it.
 Original native/typed/activated input, private epoch, generation, queue/run/control and full ordered membership bind review and physical commit.
 
@@ -48,7 +97,7 @@ Audit provenance retains each exact original member, not parsed rendered message
 
 One stale member or concurrent mutation refuses all without skipping. Required write/audit/readback/commit uncertainty holds admission; known commit is not undone after failed delivery. No automatic retry, rollback claim, history deletion, provider/worker termination, grant consumption or new persistence authority is introduced.
 
-The [four fixed no-argument profiles](Work_Management.md#delivered-fixed-first-page-read-profiles---2026-10-12)
+The original [four fixed no-argument profiles](Work_Management.md#delivered-fixed-first-page-read-profiles---2026-10-12)
 share the original queue admission fence and freshly admitted Native registry
 caller. New page rows retain only bounded typed catalogue/recorded-readiness/
 runtime metadata, with terminal digest/profile binding. Raw probe details,
@@ -57,6 +106,9 @@ are excluded. Exact private status retrieves the saved observation; Work/AllWork
 and local events exclude result data. Format 4 is explicit; legacy version
 bytes/digests/clocks stay unchanged. No grants, permission levels, egress,
 automatic dispatch or replay are introduced.
+
+The [two targeted profiles](Work_Management.md#delivered-closed-targeted-metadata-reads---2026-10-12) use the same fences and actual actions: one exact current-catalogue descriptor selection or host-fixed recorded `local.inference` status. Explicit format 5 alone carries the new closed metadata; runtime targets cannot be overridden.
+Matching single-record wire validation is shared with the registry. No arbitrary request/JSON/parameters, egress, probe, inference or new authority is admitted.
 
 The [bounded queue preferences](User_Configuration.md#delivered-bounded-fixed-local-version-queue-settings-r10r13) preserve original-input admission through the existing independent configuration-control session.
 Host-held option/configuration/call revisions and native visible-lifetime identity bind proposals.
@@ -891,6 +943,9 @@ host-derived destination under the dedicated Kora store or an explicitly
 registered compatible personal profile scope, not arbitrary filesystem
 arguments. Profile editing is a proposed qualified extension, not an authority
 of delivered R21 local-read registration.
+The delivered native v1 owned **Disable reviewed use** is an exact source-qualified revision hold, not source-consent withdrawal or file-write/delete authority.
+It uses existing original-input, private owning-host/call/session admission, fresh native read, separate confirmation and trusted requested/terminal audit. Same-kind strict v1 preference publication/readback and atomic consumer publication fence stale activation/reload.
+Only new selections are withdrawn; inspectable source bytes/permissions remain unchanged and captured reasoning is not rewritten. Pending unadmitted decisions retire; source/access/privacy/action/egress checks remain independently mandatory. Unknown audit/state outcomes stay held/unavailable without restoring previous enablement or retargeting an old receipt.
 Resolve target identity and reject traversal, link/reparse-point/hard-link aliases, renamed/replaced targets, and writes through protected ancestors.
 Revalidate at application time using race-resistant filesystem operations; string-prefix path checks are insufficient.
 Do not permit overwrite/delete/rename of protected resources or staging/backups within protected locations.
@@ -1355,6 +1410,21 @@ Source revocation may remove restricted content before normal session expiry. Ma
 Independent content-minimising security/diagnostic events retain their disclosed lifetimes and do not reconstruct deleted chats; perpetual grant records are excluded from retention/eviction, and local deletion cannot erase user exports or provider copies.
 Approval/audit records are writable only through the host security service, denied to models/skills/tools/workers, and use append-only sequencing or equivalent tamper evidence so deletion/rewrite is detectable within the supported non-administrator threat model.
 Audit retention is independent of diagnostic, daily-file and session retention.
+Retain every required audit record throughout its captured retention window,
+regardless of the number of stored sessions or audit records. Stored sessions
+have no retained-count cap. Query pages, maintenance batches, validation caches,
+in-flight admission and individual content envelopes may be bounded; those
+bounds never authorize eviction, sampling or dropping required in-window audit
+records, or deleting sessions to keep only the newest N.
+This guarantee applies across all admitted partitions of the logical audit
+store. Separate type-specific files do not imply a permanent single-file
+layout; future hot/warm/cold partitions must preserve the same retention and
+required commit fences. Audit sharding/rotation is not implemented by this rule.
+Finite disk capacity is not an infinite-storage guarantee. An unconfirmed
+required write must report failure and fail consequential operations closed;
+neither a surviving secondary copy nor a successful diagnostic write can stand
+in for a missing required audit commit. Recovery must restore healthy storage,
+not evict unexpired audit records or claim complete recording while unavailable.
 Deleting a session does not delete its content-minimising audit rows, extend
 their lifetime or retain deleted session content inside them. Perpetual grant
 records and their minimal provenance remain governed by the separate grant
@@ -1363,14 +1433,23 @@ Browsing, searching, exporting or reasoning over audit records never refreshes
 their retention clock.
 Each audit row receives its effective `retention_due_utc` transactionally when
 committed. The 90-day default may be configured only from 30 through 365 days.
-Shortening the policy previews the affected count/range and requires explicit
-apply-now confirmation before existing due dates are reduced; otherwise it
-applies to new records. Extending retention does not resurrect purged rows.
+The delivered audit setting applies only to future commits; changing it cannot
+shorten already captured deadlines. Invalid or unknown policy fails closed,
+without a default-policy success fallback. A future apply-now mechanism would
+need an affected count/range preview and separate explicit confirmation before
+reducing existing due dates. Extending retention does not resurrect purged rows.
 Expected audit-retention pruning must emit a verifiable continuation/checkpoint
 under the selected tamper-evidence scheme so expiry is distinguishable from
 removal inside the retained window. Preserve the latest minimal chain anchor
 outside ordinary audit-event expiry; it contains no action/content payload and
 cannot reconstruct expired records.
+Audit pruning and its continuation/anchor mechanism are not implemented.
+Ordinary diagnostic pruning never removes audit rows; expired audits may
+therefore remain present beyond their due dates. The independent daily JSON
+stream contains secondary `TypedAuditCopy` records, not committed authority
+receipts. Its existing 30-day/30-calendar-file policy is separate from the
+default 90-day audit window. Daily files have no size cutoff or size-based roll
+family; file I/O failures still trip sticky health and required delivery failure.
 Crash reports and diagnostics omit raw context, speech, tool arguments, credentials, and answer content by default.
 Normal diagnostic events, audit records and permitted session evidence are
 viewed through one host-owned evidence query service with bounded time, source,

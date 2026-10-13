@@ -24,7 +24,7 @@ using Kora.Windows.Storage;
 namespace Kora.Windows.IntegrationTests;
 
 [Collection(nameof(DurableStorageCompositionTestGroup))]
-public sealed class SessionAttachmentWindowTests
+public sealed partial class SessionAttachmentWindowTests
 {
     [WindowsFact]
     public async Task NativeMetadataAndSeparatePersistenceConfirmationCaptureToRealStoreAndRenderExactInertSource()

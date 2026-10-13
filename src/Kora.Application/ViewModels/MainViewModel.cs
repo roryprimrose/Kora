@@ -533,7 +533,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                       && IsVoiceActivationAvailable && !IsMicrophoneAccessDenied)));
         BeginPushToTalkCommand = CreateCommand(
             BeginPushToTalkAsync,
-            () => IsVoiceEnabled && !IsListening && (!IsBusy || IsSpeaking) && !lifecycleAdmissionClosed);
+            () => CanPushToTalk);
         EndPushToTalkCommand = CreateCommand(EndPushToTalkAsync);
         WithdrawVoiceConsentCommand = CreateCommand(() => SetVoiceConsentAsync(false));
         EnableVoiceConsentCommand = CreateCommand(() => SetVoiceConsentAsync(true));
@@ -656,7 +656,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                 OnPropertyChanged(nameof(MicrophoneAccessMessage));
                 OnPropertyChanged(nameof(IsMicrophoneAccessDenied));
                 OnPropertyChanged(nameof(ListeningStatus));
+                OnPropertyChanged(nameof(CanPushToTalk));
                 ToggleListeningCommand.NotifyCanExecuteChanged();
+                BeginPushToTalkCommand.NotifyCanExecuteChanged();
             }
         }
     }
@@ -1682,7 +1684,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                 OnPropertyChanged(nameof(IsVoiceActivationAvailable));
                 OnPropertyChanged(nameof(CallStateStatus));
                 OnPropertyChanged(nameof(ListeningStatus));
+                OnPropertyChanged(nameof(CanPushToTalk));
                 ToggleListeningCommand.NotifyCanExecuteChanged();
+                BeginPushToTalkCommand.NotifyCanExecuteChanged();
                 NotifyOutputPolicyChanged();
             }
         }
@@ -1717,7 +1721,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                 OnPropertyChanged(nameof(CallVoiceActivationButtonText));
                 OnPropertyChanged(nameof(CallVoiceActivationStatus));
                 OnPropertyChanged(nameof(ListeningStatus));
+                OnPropertyChanged(nameof(CanPushToTalk));
                 ToggleListeningCommand.NotifyCanExecuteChanged();
+                BeginPushToTalkCommand.NotifyCanExecuteChanged();
             }
         }
     }
@@ -1905,6 +1911,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             {
                 OnPropertyChanged(nameof(ListeningButtonText));
                 OnPropertyChanged(nameof(ListeningStatus));
+                OnPropertyChanged(nameof(CanPushToTalk));
+                BeginPushToTalkCommand.NotifyCanExecuteChanged();
                 PreviewVoiceCommand.NotifyCanExecuteChanged();
                 OnPropertyChanged(nameof(IsSpeechOutputAvailable));
                 NotifyOutputPolicyChanged();
@@ -1939,6 +1947,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             if (SetProperty(ref isBusy, value))
             {
                 ToggleListeningCommand.NotifyCanExecuteChanged();
+                OnPropertyChanged(nameof(CanPushToTalk));
+                BeginPushToTalkCommand.NotifyCanExecuteChanged();
                 RefreshCommand.NotifyCanExecuteChanged();
                 RunTypedCommand.NotifyCanExecuteChanged();
                 OnPropertyChanged(nameof(CanInstallLocalModel));
@@ -1957,6 +1967,15 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     public bool NeedsVoiceConsent => voiceConsent is null;
 
     public bool IsVoiceEnabled => Volatile.Read(ref voiceEnabled) != 0;
+
+    public bool IsPushToTalkVisible => !IsVoiceEnabled;
+
+    public bool CanPushToTalk =>
+        IsVoiceReadinessEligible(privacyObservation.Current)
+        && IsHostInputEligible
+        && microphoneCatalogCurrent
+        && !IsListening
+        && (!IsBusy || IsSpeaking);
 
     public long MicrophoneTopologyRevision => Interlocked.Read(ref microphoneTopologyRevision);
 

@@ -376,6 +376,14 @@ public sealed partial class DetailWindowController : IDisposable
 
     private void OnPrivacyClosureRequested(object? sender, EventArgs eventArgs) => ClearForPrivacy();
 
+    internal void RevokeConversationSession(HostId<SessionIdentity> session)
+    {
+        sourceEpoch++;
+        foreach (var source in conversationSources.Where(pair =>
+            pair.Value.Content.ConversationMessage?.Request.SessionId == session).ToArray())
+        { RevokeReference(source.Key); }
+    }
+
     internal void RevokeSession(HostId<SessionIdentity> session)
     {
         sourceEpoch++;

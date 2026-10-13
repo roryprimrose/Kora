@@ -289,7 +289,7 @@ internal sealed partial class SessionsViewModel
 
     private void ClearConversation()
     {
-        if (selected is { } target) { revokeHistoryDetails?.Invoke(target.Authority.SessionId); }
+        if (selected is { } target) { revokeConversationDetails?.Invoke(target.Authority.SessionId); }
         catalogueDraft = null;
         ClearConversationSearch();
         composerBody = string.Empty;

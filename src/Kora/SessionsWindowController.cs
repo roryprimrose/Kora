@@ -93,7 +93,8 @@ internal sealed class SessionsWindowController(
             session => details?.RevokeSession(session), memories, attachments, providers, conversation,
             (content, admitted, resolve, token) => details?.OpenConversationDetailAsync(content,
                 window ?? (Avalonia.Controls.Window?)compact, admitted, resolve, token)
-                ?? Task.FromResult("Conversation details unavailable: the native viewer is not composed."));
+                ?? Task.FromResult("Conversation details unavailable: the native viewer is not composed."),
+            session => details?.RevokeConversationSession(session));
         presentation = new(model);
     }
 

@@ -12,6 +12,27 @@ namespace Kora.Windows.IntegrationTests;
 
 public sealed partial class DetailWindowControllerTests
 {
+    [Fact]
+    public async Task ConversationSelectionRevocationLeavesIndependentHistoryReceiptViewerOpen()
+    {
+        using var f = new Fixture();
+        var conversation = ConversationContent();
+        var session = conversation.ConversationMessage!.Request.SessionId;
+        var history = new AdmittedDetailContent(new(new(Guid.NewGuid()), 1), DetailContentKind.PlainText,
+            DetailContentOrigin.SessionHistory, DetailSensitivity.DisclosureConfirmationRequired,
+            "History receipt", "Retained receipt", "independent exact receipt", historySession: session);
+        f.Controller.BindHistoryAccess(() => true);
+        f.Controller.OpenHistoryDetail(history, null);
+        await f.Controller.OpenConversationDetailAsync(conversation, null, () => true,
+            _ => Task.FromResult(conversation), CancellationToken.None);
+        f.Controller.RevokeConversationSession(session);
+        f.Views[0].Cleared.Should().BeFalse();
+        f.Views[0].State.Content.Should().Be(history);
+        f.Views[1].Cleared.Should().BeTrue();
+        f.Controller.RevokeSession(session);
+        f.Views[0].Cleared.Should().BeTrue();
+    }
+
     [WindowsFact]
     public async Task ActualRetainedConversationRevokesBeforeDueRetentionDeletionAndCannotReopenPurgedSource()
     {
@@ -90,7 +111,7 @@ public sealed partial class DetailWindowControllerTests
             _ => Task.FromResult(overflow), CancellationToken.None)).Should().Contain("close a viewer");
         (await f.Controller.OpenConversationDetailAsync(content, null, () => true, Resolve, CancellationToken.None))
             .Should().Contain("Activated");
-        f.Controller.RevokeSession(content.ConversationMessage!.Request.SessionId);
+        f.Controller.RevokeConversationSession(content.ConversationMessage!.Request.SessionId);
         view.State.Content.Should().BeNull();
         view.State.SearchQuery.Should().BeEmpty();
         view.Cleared.Should().BeTrue();

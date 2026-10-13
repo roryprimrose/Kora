@@ -85,6 +85,9 @@ public sealed partial class ModelTurnHostTests
         f.LogRequests.Should().OnlyContain(request => request == f.Retained.Request);
         (await service.ReadDraftAsync(target.Authority.SessionId, Token)).Draft.Revision.Should().Be(0);
         (await service.ReadPageAsync(target.Authority.SessionId, null, 25, Token)).Messages.Single().Body.Should().Be(body);
+        var details = await service.ReadDetailAsync(target, receipt.Message, static () => true, Token);
+        details.Source.Should().Be(body);
+        details.ConversationMessage.Should().Be(receipt.Message);
         var searched = await service.SearchAsync(target.Authority.SessionId, "original", null, 25, Token);
         searched.Messages.Single().Should().Be(receipt.Message);
         f.Adapter.Calls.Should().Be(0);
@@ -338,6 +341,8 @@ public sealed partial class ModelTurnHostTests
             if (CompletionFault is "wrong-reason") { receipt = receipt with { Message = Retained with { Reason = ModelTurnReason.InvalidPolicy } }; }
             return ValueTask.FromResult(receipt);
         }
+        public ValueTask<ConversationMessage> ReadConversationMessageAsync(HostId<SessionIdentity> session,
+            HostId<RequestIdentity> request, CancellationToken token) => ValueTask.FromResult(Retained!);
         public ValueTask<ConversationPage> ReadConversationPageAsync(HostId<SessionIdentity> session, ConversationCursor? cursor,
             int limit, CancellationToken token) => ValueTask.FromResult(new ConversationPage(Session, 2, Retained is null ? 0 : 1,
                 Retained is null ? [] : [Retained], null));

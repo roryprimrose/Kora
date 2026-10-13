@@ -5,6 +5,7 @@ using Kora.Core.Conversation;
 using Kora.Core.Dependencies;
 using Kora.Core.Diagnostics;
 using Kora.Core.Hosting;
+using Kora.Core.Presentation;
 using Kora.Core.Storage;
 
 using Microsoft.Extensions.Logging;
@@ -29,6 +30,10 @@ public sealed partial class SessionConversationService(
     public Task<ConversationSearchPage> SearchAsync(HostId<SessionIdentity> session, string query,
         ConversationSearchCursor? cursor, int limit, CancellationToken token) =>
         workspace.SearchConversationAsync(session, query, cursor, limit, token);
+
+    public Task<AdmittedDetailContent> ReadDetailAsync(SessionWorkspaceEntry target, ConversationMessage expected,
+        Func<bool> admitted, CancellationToken token) =>
+        workspace.ReadConversationDetailAsync(target, expected, admitted, token);
 
     public async Task<ConversationDraftSnapshot> SaveDraftAsync(ConversationDraftSnapshot expected, string? body,
         Func<bool> admitted, CancellationToken token)

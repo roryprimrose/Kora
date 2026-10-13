@@ -36,6 +36,16 @@ Privacy, ownership or session retirement revokes both views without saving or st
 Questions, approvals, voice focus and legacy response presentation remain in their existing surfaces. This selected-session projection adds no generation, relatedness, voice routing, model context, clipboard or export authority.
 Installed accessibility, physical storage and provider qualification remain separate ([delivery boundary](../Design/UI_Workspace_And_Windows.md#delivered-compact-selected-session-projection)).
 
+### Exact retained original message Details
+
+After **Read exact conversation** or explicit conversation Search, choose **Details - exact original USER / separate HOST** on one row. The shared row uses the same action in Sessions and compact projections; selecting a session or opening either window does not read/open Details automatically ([shared action](../src/Kora/ConversationPresentation.axaml)).
+
+The separate native window shows the complete unchanged **USER** body as inert plain text. Original session/request/task/sequence, revision, generation/time and SHA-256 identify that exact retained record. **HOST** outcome, reason and task state are separate observations, not an assistant answer or permission to execute anything ([native chrome](../src/Kora/DetailWindow.axaml.cs)).
+
+Find and exact-source viewing stay passive. Reopening the same unchanged record activates its viewer; eight viewers are allowed. Stale selection/body/source refuses with Refresh rather than opening a newer message. Done reading does not Resume or renew activity. Privacy, owner/source/selection loss, deletion, retention or closure clears private viewer state ([controller](../src/Kora/DetailWindowController.cs)).
+
+These conversation Details grant **no clipboard/export disclosure authority**. Copy exact source, selection, Ctrl+C and automatic copy remain blocked, even after disclosure confirmation; other admitted viewer origins retain their existing policy. There is no generated content, provider call, model tool or network operation ([copy policy](../src/Kora.Application/Presentation/DetailViewerState.cs)).
+
 ### New request with a fresh session
 
 Open **Tray > New request (fresh session only)** or **Sessions > New request (fresh target)**. Reopening activates the same window and preserves its isolated memory draft. Relatedness inference is unavailable: this entry never continues the selected, named, recent or Done session and never changes question/approval/voice focus.

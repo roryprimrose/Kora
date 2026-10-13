@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Security.Cryptography;
 using System.Text;
+using Kora.Core.Conversation;
 using Kora.Core.Hosting;
 
 namespace Kora.Core.Presentation;
@@ -22,7 +23,8 @@ public sealed class AdmittedDetailContent
         string source,
         DetailSessionSource? sessionSource = null,
         HostId<SessionIdentity>? historySession = null,
-        WebResultSnapshot? webResult = null)
+        WebResultSnapshot? webResult = null,
+        ConversationMessage? conversationMessage = null)
     {
         using var admission = ActivitySource.StartActivity("presentation.admit");
         admission?.SetStatus(ActivityStatusCode.Error);
@@ -64,6 +66,21 @@ public sealed class AdmittedDetailContent
         {
             throw new InvalidDataException("Web-result source, reference and inert disclosure classification cannot change.");
         }
+        if ((origin == DetailContentOrigin.RetainedConversation) != (conversationMessage is not null))
+        {
+            throw new InvalidDataException("Conversation details require their exact retained original USER record and typed HOST observation.");
+        }
+        if (conversationMessage is not null)
+        {
+            conversationMessage.Validate();
+            if (kind != DetailContentKind.PlainText || sensitivity != DetailSensitivity.DisclosureConfirmationRequired
+                || reference.ItemId.Value != conversationMessage.Request.RequestId.Value
+                || reference.Revision != conversationMessage.Revision
+                || !string.Equals(source, conversationMessage.Body, StringComparison.Ordinal))
+            {
+                throw new InvalidDataException("Conversation details cannot change the original body, record reference, revision or inert private classification.");
+            }
+        }
         Reference = reference;
         Kind = kind;
         Origin = origin;
@@ -74,6 +91,7 @@ public sealed class AdmittedDetailContent
         SessionSource = sessionSource;
         HistorySession = historySession;
         WebResult = webResult;
+        ConversationMessage = conversationMessage;
         Utf8Bytes = byteCount;
         Digest = Convert.ToHexString(SHA256.HashData(encoding.GetBytes(source)));
         admission?.SetTag("kora.item.id", reference.ItemId.Value);
@@ -94,6 +112,7 @@ public sealed class AdmittedDetailContent
     public DetailSessionSource? SessionSource { get; }
     public HostId<SessionIdentity>? HistorySession { get; }
     public WebResultSnapshot? WebResult { get; }
+    public ConversationMessage? ConversationMessage { get; }
     public int Utf8Bytes { get; }
     public string Digest { get; }
 
@@ -106,6 +125,7 @@ public sealed class AdmittedDetailContent
             && string.Equals(Provenance, other.Provenance, StringComparison.Ordinal)
             && string.Equals(Source, other.Source, StringComparison.Ordinal)
             && SessionSource == other.SessionSource && Nullable.Equals(HistorySession, other.HistorySession)
-            && ReferenceEquals(WebResult, other.WebResult);
+            && ReferenceEquals(WebResult, other.WebResult)
+            && ConversationMessage == other.ConversationMessage;
     }
 }

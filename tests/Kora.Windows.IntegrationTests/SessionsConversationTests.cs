@@ -240,7 +240,9 @@ public sealed partial class SessionsConversationTests
         internal SessionConversationService Conversation { get; }
         internal NewRequestComposer NewComposer() => new(Workspace, Conversation, Access, NullLogger<NewRequestComposer>.Instance);
 
-        internal Composition(InteractionStorageFixture f)
+        internal Composition(InteractionStorageFixture f,
+            Func<Kora.Core.Presentation.AdmittedDetailContent, Func<bool>,
+                Func<CancellationToken, Task<Kora.Core.Presentation.AdmittedDetailContent>>, CancellationToken, Task<string>>? openDetail = null)
         {
             var workspace = WindowsSqliteSessionWorkspaceTests.Service(f, Access);
             Workspace = workspace;
@@ -262,7 +264,8 @@ public sealed partial class SessionsConversationTests
             var sink = new WindowsSqliteEvidenceSink(f.Paths);
             sink.Initialize();
             Model = new(workspace, new DurableEvidenceQuery(new WindowsSqliteEvidenceReader(sink), Access, f.Time,
-                NullLogger<DurableEvidenceQuery>.Instance), Access, NullLogger<SessionsViewModel>.Instance, conversation: conversation);
+                NullLogger<DurableEvidenceQuery>.Instance), Access, NullLogger<SessionsViewModel>.Instance,
+                conversation: conversation, openConversationDetail: openDetail);
         }
         public async ValueTask DisposeAsync()
         {

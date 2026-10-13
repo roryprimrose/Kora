@@ -50,6 +50,38 @@ internal sealed partial class SessionsViewModel
     public IReadOnlyList<ConversationMessage> ConversationMessages => conversationPage?.Messages ?? [];
     public bool CanReadConversation => CanRead && !conversationBusy && selected is not null && conversation is not null;
     public bool CanNextConversation => CanReadConversation && conversationPage?.Next is not null;
+    public bool CanOpenConversationDetails => CanReadConversation && openConversationDetail is not null;
+    public Task OpenConversationDetailAsync(ConversationMessage message) => RunConversationAsync(async (target, live) =>
+    {
+        if (!ConversationMessages.Concat(ConversationSearchMessages).Any(record => ReferenceEquals(record, message)))
+        { throw new InvalidOperationException("Select an actual record from the currently observed exact conversation page."); }
+        var content = await conversation!.ReadDetailAsync(target, message, live, lifetime.Token);
+        if (!live()) { throw new OperationCanceledException("The original conversation selection changed."); }
+        var beginValidation = HostActivity.CaptureContinuation(HostActivityLayer.Desktop, HostOperation.Storage);
+        async Task<Kora.Core.Presentation.AdmittedDetailContent> Resolve(CancellationToken token)
+        {
+            using var validation = beginValidation();
+            try
+            {
+                var exact = await conversation.ReadDetailAsync(target, message, live, token);
+                validation.Complete(HostOperationOutcome.Completed);
+                return exact;
+            }
+            catch (OperationCanceledException)
+            {
+                validation.Complete(HostOperationOutcome.Cancelled);
+                throw;
+            }
+            catch
+            {
+                validation.Complete(HostOperationOutcome.Failed);
+                throw;
+            }
+        }
+        conversationStatus = await (openConversationDetail
+            ?? throw new InvalidOperationException("The native conversation detail viewer is unavailable."))(
+                content, live, Resolve, lifetime.Token);
+    }, sourceRead: true);
     public bool CanCompose => CanReadConversation && access.CanControl && selected?.Authority.IsActive == true
         && !conversationHeld && !conversationSourceHeld;
     public bool CanSaveConversationDraft => CanCompose && savedConversationDraft is not null;
@@ -257,6 +289,7 @@ internal sealed partial class SessionsViewModel
 
     private void ClearConversation()
     {
+        if (selected is { } target) { revokeConversationDetails?.Invoke(target.Authority.SessionId); }
         catalogueDraft = null;
         ClearConversationSearch();
         composerBody = string.Empty;
@@ -274,7 +307,7 @@ internal sealed partial class SessionsViewModel
         NotifyConversationSearch();
         foreach (var name in new[] { nameof(ComposerBody), nameof(ComposerDirty), nameof(ComposerTarget),
             nameof(ConversationMessages), nameof(ConversationStatus), nameof(SavedConversationDraftReview), nameof(CanReadConversation), nameof(CanNextConversation),
-            nameof(CanCompose), nameof(CanSaveConversationDraft), nameof(CanReloadConversationDraft),
+            nameof(CanOpenConversationDetails), nameof(CanCompose), nameof(CanSaveConversationDraft), nameof(CanReloadConversationDraft),
             nameof(CanReviewClearConversationDraft), nameof(CanClearConversationDraft), nameof(CanSubmitConversation) })
         { OnPropertyChanged(name); }
     }

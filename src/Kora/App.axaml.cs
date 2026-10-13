@@ -216,7 +216,7 @@ public sealed partial class App : Avalonia.Application
             Services.GetRequiredService<SessionWorkspaceService>().BindRetention(sessionRetention);
             sessionRetention.Revoking += sessionsWindow.RevokeSession;
             sessionRetention.Revoking += newRequestWindow.RevokeSession;
-            sessionRetention.Revoking += detailWindow.RevokeSession;
+            sessionRetention.Revoking += session => Avalonia.Threading.Dispatcher.UIThread.Invoke(() => detailWindow.RevokeSession(session));
             sessionRetention.Revoking += viewModel.RevokeSessionPresentation;
             sessionRetention.Revoking += session => attachmentWindow?.RevokeSession(session);
             var memories = Services.GetRequiredService<Kora.Application.Memory.MemoryManagementService>();

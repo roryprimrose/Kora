@@ -211,7 +211,7 @@ public sealed partial class SessionWorkspaceServiceTests
         }
 
         internal HostRequest Request { get; } = HostRequest.Create(RequestOrigin.LocalUi);
-        internal WorkSessionAuthorization Session { get; }
+        internal WorkSessionAuthorization Session { get; set; }
         internal HostTaskRecord Task { get; }
         internal HostQuestionRecord Question { get; }
         internal SessionWorkspaceService Service { get; }

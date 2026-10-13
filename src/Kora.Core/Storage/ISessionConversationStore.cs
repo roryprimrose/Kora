@@ -18,4 +18,7 @@ public interface ISessionConversationStore
         ModelTurnOutcome outcome, ModelTurnReason reason, Func<bool> admitted, CancellationToken token);
     ValueTask<ConversationPage> ReadConversationPageAsync(HostId<SessionIdentity> session,
         ConversationCursor? cursor, int limit, CancellationToken token);
+    /// <summary>Reads one actually retained original record from the exact session, without lifecycle or activity changes.</summary>
+    ValueTask<ConversationMessage> ReadConversationMessageAsync(HostId<SessionIdentity> session,
+        HostId<RequestIdentity> request, CancellationToken token);
 }

@@ -23,6 +23,7 @@
   <Grid Margin="24" RowDefinitions="Auto,Auto,Auto,Auto,*,Auto" RowSpacing="12">
     <StackPanel Orientation="Horizontal" Spacing="10">
       <TextBlock Text="Sessions (Active / Done)" FontSize="20" FontWeight="SemiBold" />
+      <Button x:Name="NewRequest" Content="_New request (fresh target)" IsEnabled="{Binding CanRead}" />
       <Button x:Name="Refresh" Content="_Refresh" IsEnabled="{Binding CanRead}" />
       <Button x:Name="Next" Content="Next session page" IsEnabled="{Binding CanNext}" />
       <Button x:Name="AllWork" Content="_All work / attention overview" IsEnabled="{Binding CanRead}"

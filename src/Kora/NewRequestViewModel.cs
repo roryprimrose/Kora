@@ -1,0 +1,54 @@
+﻿using System.ComponentModel;
+using System.Globalization;
+
+using Kora.Application.Hosting;
+using Kora.Application.Infrastructure;
+
+namespace Kora;
+
+internal sealed class NewRequestViewModel : ObservableObject, IDisposable
+{
+    internal NewRequestComposer Composer { get; }
+
+    internal NewRequestViewModel(NewRequestComposer composer)
+    {
+        Composer = composer;
+        composer.PropertyChanged += Changed;
+    }
+
+    public string Body { get => Composer.Body; set => Composer.Body = value; }
+    public string ReviewedBody => Composer.ReviewedBody;
+    public string Status => Composer.Status;
+    public bool CanEdit => Composer.CanEdit;
+    public bool CanCreate => Composer.CanCreate;
+    public bool CanReview => Composer.CanReview;
+    public bool CanSubmit => Composer.CanSubmit;
+    public bool CanInspect => Composer.CanInspectAttempt;
+    public string TargetLabel => Composer.Target is { } target
+        ? "Exact created / observed target: " + target.Authority.SessionId.Value.ToString("D")
+            + " | name: " + (target.Metadata?.Name.Value ?? "Unnamed")
+            + " | generation " + target.Authority.Generation.Value.ToString(CultureInfo.InvariantCulture)
+            + " | metadata revision " + (target.Metadata?.Revision.Value ?? 0).ToString(CultureInfo.InvariantCulture)
+            + " | " + (target.Authority.IsActive ? "Active" : "Done")
+        : "No accepted target. Create commits only a new empty session; it never submits or saves this body.";
+    public string AttemptLabel => Composer.Creation is { } creation
+        ? "Original creation session " + creation.Request.SessionId.Value.ToString("D")
+            + " | request " + creation.Request.RequestId.Value.ToString("D")
+            + " | task " + creation.Request.TaskId.Value.ToString("D")
+            + (Composer.Submission is { } submitted ? "\nSubmission request " + submitted.RequestId.Value.ToString("D")
+                + " | task " + submitted.TaskId.Value.ToString("D") : string.Empty)
+        : "No creation attempt. This memory draft is isolated from saved drafts, questions, approval and voice.";
+
+    private void Changed(object? sender, PropertyChangedEventArgs args)
+    {
+        foreach (var name in new[] { nameof(Body), nameof(ReviewedBody), nameof(Status), nameof(CanEdit),
+            nameof(CanCreate), nameof(CanReview), nameof(CanSubmit), nameof(CanInspect), nameof(TargetLabel), nameof(AttemptLabel) })
+        { OnPropertyChanged(name); }
+    }
+
+    public void Dispose()
+    {
+        Composer.Dispose();
+        Composer.PropertyChanged -= Changed;
+    }
+}

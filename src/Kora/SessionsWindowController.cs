@@ -1,4 +1,4 @@
-using Avalonia.Threading;
+﻿using Avalonia.Threading;
 
 using Kora.Application.Diagnostics;
 using Kora.Application.Hosting;
@@ -21,6 +21,7 @@ internal sealed class SessionsWindowController(
     private SessionsWindow? window;
     private bool disposed;
     internal Action? OpenAllWork { get; set; }
+    internal Action? OpenNewRequest { get; set; }
 
     internal void Bind()
     {
@@ -45,6 +46,7 @@ internal sealed class SessionsWindowController(
                     ?? "History details unavailable: the native viewer is not composed.",
                 session => details?.RevokeSession(session), memories, attachments, providers, conversation));
             opened.AllWorkRequested += (_, _) => OpenAllWork?.Invoke();
+            opened.NewRequestRequested += (_, _) => OpenNewRequest?.Invoke();
             opened.Closed += (_, _) => { if (ReferenceEquals(window, opened)) { window = null; } };
             window = opened;
             opened.Show();
@@ -105,6 +107,7 @@ internal sealed class SessionsWindowController(
         if (disposed) { return; }
         disposed = true;
         OpenAllWork = null;
+        OpenNewRequest = null;
         main.SessionsRequested -= OnOpen;
         main.PrivacyClosureRequested -= OnPrivacyClosure;
         service.SessionLifecycleChanged -= RevokeSession;

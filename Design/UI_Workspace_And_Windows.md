@@ -385,6 +385,9 @@ No presented approval or edited question disappears under the ordinary feedback 
 Unanswered/unseen items remain accessible through the workspace/attention entry even if the user explicitly hides the compact window.
 The composer always names its session; New session is separate from sending to the selected session.
 An explicit New request entry from tray/compact/workspace offers an untargeted composer labeled Auto-route; show the accepted new/related destination before presenting it as a session message.
+The delivered [native New request fallback](Interaction_And_Sessions.md#delivered-native-new-request-fresh-session-fallback--2026-10-13) is narrower: tray and Sessions open/activate one isolated memory composer, explicitly disclose unavailable relatedness inference and offer only fresh **New conversation**.
+Audited empty-target creation is acknowledged with its exact ID/name/generation/metadata revision before separately reviewing/submitting the frozen original body; these are not an atomic transaction.
+Dirty close offers Discard/Cancel, not Save/Reload or implicit text transfer. Cancel after creation leaves its empty session; unconfirmed writes retain exact inspection holds without retry. Explicit exact-ID navigation protects the existing named buffer. Compact/voice Auto-route, relatedness matching and production generation remain unavailable.
 Its draft is isolated from named-session drafts. Explicit New session bypasses relatedness matching; a named-session composer never silently auto-routes elsewhere.
 Unsent text and answer drafts belong to their session/question, not one global text box; switching away preserves them and switching back restores them.
 Clear the composer only after the host has durably accepted the input; persistence/admission failure leaves the draft recoverable with an error.

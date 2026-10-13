@@ -1,0 +1,39 @@
+<Window x:Class="Kora.NewRequestWindow"
+    xmlns="https://github.com/avaloniaui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    Title="New request — fresh session only" Icon="/Assets/Kora.ico"
+    Width="840" Height="760" MinWidth="660" MinHeight="580"
+    Background="{DynamicResource KoraWindowBackgroundBrush}"
+    Foreground="{DynamicResource KoraForegroundBrush}" WindowStartupLocation="CenterScreen">
+  <ScrollViewer VerticalScrollBarVisibility="Auto">
+    <StackPanel Margin="24" Spacing="12">
+      <TextBlock Text="New request" FontSize="22" FontWeight="SemiBold" />
+      <TextBlock Text="Relatedness inference is unavailable. Create a fresh New conversation explicitly; never continue the selected, named, recent or Done session. This is native text, not a question answer or approval. Production generation is unavailable." TextWrapping="Wrap" />
+      <TextBox x:Name="NewRequestBody" Text="{Binding Body, Mode=TwoWay}" AcceptsReturn="True"
+          Height="150" TextWrapping="Wrap" IsEnabled="{Binding CanEdit}"
+          PlaceholderText="Memory only: 4096 UTF-16 / 16384 UTF-8 body bounds. No autosave or automatic transfer."
+          AutomationProperties.Name="Isolated native New request memory draft; never a named saved draft, question reply, approval or voice input" />
+      <TextBlock Text="Best-effort structural credential checks reject detected material before body retention; they cannot identify arbitrary passwords or guarantee secret-free text. No save-anyway, redaction, provider setup or fallback." TextWrapping="Wrap" />
+      <Button x:Name="CreateTarget" Content="_Create new empty target" IsEnabled="{Binding CanCreate}"
+          AutomationProperties.Name="Explicitly commit one fresh empty New conversation; separate from body submission" />
+      <TextBlock Text="{Binding TargetLabel}" TextWrapping="Wrap"
+          AutomationProperties.Name="Exact accepted or observed session ID, name, generation and metadata revision" />
+      <TextBlock Text="{Binding AttemptLabel}" TextWrapping="Wrap"
+          AutomationProperties.Name="Exact original creation and submission request and task identities for inspection without retry" />
+      <WrapPanel>
+        <Button x:Name="ReviewNewRequest" Content="_Review frozen body for this target" IsEnabled="{Binding CanReview}" />
+        <Button x:Name="SubmitNewRequest" Content="_Submit reviewed exact body" IsEnabled="{Binding CanSubmit}" />
+        <Button x:Name="CancelNewRequest" Content="Cancel review / pending operation" />
+      </WrapPanel>
+      <TextBlock Text="{Binding ReviewedBody}" TextWrapping="Wrap"
+          AutomationProperties.Name="Frozen original native body; editing or cancelling retires this review permanently" />
+      <WrapPanel>
+        <Button x:Name="InspectNewRequest" Content="Inspect exact attempt (no retry)" IsEnabled="{Binding CanInspect}" />
+        <Button x:Name="OpenNewRequestSession" Content="Open this exact session" IsEnabled="{Binding CanInspect}"
+            AutomationProperties.Name="Explicit exact-ID navigation only; never transfers this body and protects dirty named-session buffers" />
+      </WrapPanel>
+      <TextBlock Text="{Binding Status}" TextWrapping="Wrap" AutomationProperties.Name="New request truthful partial success or recovery hold" />
+      <TextBlock Text="Creation and Submit are two separate durable operations, not an atomic transaction. Cancel or close after creation leaves the disclosed empty session; no automatic Done/delete. Close offers Discard or Cancel, never an implicit Save. Opening the same New request activates this window." TextWrapping="Wrap" />
+    </StackPanel>
+  </ScrollViewer>
+</Window>

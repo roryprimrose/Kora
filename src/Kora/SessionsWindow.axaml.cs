@@ -1,4 +1,4 @@
-using Avalonia.Controls;
+﻿using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Threading;
 
@@ -21,6 +21,7 @@ internal sealed partial class SessionsWindow : Window
         Close();
     }
     internal event EventHandler? AllWorkRequested;
+    internal event EventHandler? NewRequestRequested;
     internal SessionsWindow(SessionsViewModel model)
     {
         this.model = model;
@@ -77,6 +78,7 @@ internal sealed partial class SessionsWindow : Window
         Refresh.Click += async (_, _) => await model.RefreshAsync();
         Next.Click += async (_, _) => await model.NextAsync();
         AllWork.Click += (_, _) => AllWorkRequested?.Invoke(this, EventArgs.Empty);
+        NewRequest.Click += (_, _) => NewRequestRequested?.Invoke(this, EventArgs.Empty);
         SearchList.Click += async (_, _) => await model.SearchListAsync();
         NextListSearch.Click += async (_, _) => await model.SearchListAsync(next: true);
         CancelListSearch.Click += (_, _) => model.CancelListSearch();

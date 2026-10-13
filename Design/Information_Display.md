@@ -10,6 +10,13 @@ The bounded native shared-question slice additionally reuses this passive
 plain-text renderer for complete immutable host-record review, separate from
 native answer/approval controls.
 
+## Delivered passive exact-conversation search - 2026-10-13
+
+The selected Sessions conversation pane now separately searches original retained USER bodies and typed HOST outcomes/reasons/task states. It shares the chronological native inert row template; full exact body and original request/task/sequence remain data, not model answers, generated summaries, ranked citations, rich links or execution controls.
+
+Queries/results are volatile private presentation. Existing admitted conversation pages, exact query-bound snapshot continuations and final source/private revalidation own disclosure. No clipboard/export/speech/egress, logs-as-body source, hidden model history or cross-session content search is introduced.
+The older Question/Answer receipt `HistorySearch` and diagnostic evidence remain separate. See the [canonical search contract](Interaction_And_Sessions.md#delivered-passive-exact-conversation-lexical-search--2026-10-13).
+
 ## Delivered Native Current-File Literal Find - 2026-10-12
 
 The shared exact local-file viewer adds explicit **Find first / Find next / Find previous / Clear literal Find** for its currently displayed immutable file, captured-folder item or revalidated retained Session attachment. This is case-sensitive, unchanged one-line literal navigation, nonoverlapping and without wrap, not ranked retrieval or a model query.

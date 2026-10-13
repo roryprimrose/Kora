@@ -26,6 +26,10 @@ public sealed partial class SessionConversationService(
     public Task<ConversationPage> ReadPageAsync(HostId<SessionIdentity> session, ConversationCursor? cursor,
         int limit, CancellationToken token) => workspace.ReadConversationPageAsync(session, cursor, limit, token);
 
+    public Task<ConversationSearchPage> SearchAsync(HostId<SessionIdentity> session, string query,
+        ConversationSearchCursor? cursor, int limit, CancellationToken token) =>
+        workspace.SearchConversationAsync(session, query, cursor, limit, token);
+
     public async Task<ConversationDraftSnapshot> SaveDraftAsync(ConversationDraftSnapshot expected, string? body,
         Func<bool> admitted, CancellationToken token)
     {

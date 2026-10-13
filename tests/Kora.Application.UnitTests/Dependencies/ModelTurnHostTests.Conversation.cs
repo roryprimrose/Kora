@@ -85,6 +85,9 @@ public sealed partial class ModelTurnHostTests
         f.LogRequests.Should().OnlyContain(request => request == f.Retained.Request);
         (await service.ReadDraftAsync(target.Authority.SessionId, Token)).Draft.Revision.Should().Be(0);
         (await service.ReadPageAsync(target.Authority.SessionId, null, 25, Token)).Messages.Single().Body.Should().Be(body);
+        var searched = await service.SearchAsync(target.Authority.SessionId, "original", null, 25, Token);
+        searched.Messages.Single().Should().Be(receipt.Message);
+        f.Adapter.Calls.Should().Be(0);
     }
 
     [Fact]

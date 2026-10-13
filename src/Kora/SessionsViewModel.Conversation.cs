@@ -241,6 +241,7 @@ internal sealed partial class SessionsViewModel
     private void ClearConversation()
     {
         catalogueDraft = null;
+        ClearConversationSearch();
         composerBody = string.Empty;
         composerBaseline = string.Empty;
         savedConversationDraft = null;
@@ -253,6 +254,7 @@ internal sealed partial class SessionsViewModel
 
     private void NotifyConversation()
     {
+        NotifyConversationSearch();
         foreach (var name in new[] { nameof(ComposerBody), nameof(ComposerDirty), nameof(ComposerTarget),
             nameof(ConversationMessages), nameof(ConversationStatus), nameof(SavedConversationDraftReview), nameof(CanReadConversation), nameof(CanNextConversation),
             nameof(CanCompose), nameof(CanSaveConversationDraft), nameof(CanReloadConversationDraft),

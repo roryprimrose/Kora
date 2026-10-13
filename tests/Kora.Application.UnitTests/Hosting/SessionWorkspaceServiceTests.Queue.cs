@@ -590,7 +590,7 @@ public sealed partial class SessionWorkspaceServiceTests
         fixture.QueueRows.Should().NotContain(entry => entry.State == SessionQueueState.Succeeded);
     }
 
-    private sealed partial class Fixture : ISessionQueueStore, IDeterministicVersionQueueAction
+    private partial class Fixture : ISessionQueueStore, IDeterministicVersionQueueAction
     {
         internal List<SessionQueueEntry> QueueRows { get; } = [];
         internal long QueueRevision { get; private set; }

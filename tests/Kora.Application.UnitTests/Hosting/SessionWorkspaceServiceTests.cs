@@ -165,7 +165,7 @@ public sealed partial class SessionWorkspaceServiceTests
         fixture.Logger.Messages.Should().ContainSingle().Which.Should().Be("Sessions workspace failed; exception type IOException.");
     }
 
-    private sealed partial class Fixture : ISessionWorkspaceAccess, ISessionWorkspaceStore, ISessionHistoryStore, IHostTaskStore, ISessionRetentionControlStore, IDisposable
+    private partial class Fixture : ISessionWorkspaceAccess, ISessionWorkspaceStore, ISessionHistoryStore, IHostTaskStore, ISessionRetentionControlStore, IDisposable
     {
         internal Action? AfterPreview { get; set; }
         internal bool RevokeDuringDispositionResolution { get; init; }

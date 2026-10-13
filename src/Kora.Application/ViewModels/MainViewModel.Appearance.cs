@@ -3,6 +3,7 @@ using Kora.Application.Infrastructure;
 using Kora.Application.Diagnostics;
 using Kora.Core.Auditing;
 using Kora.Core.Configuration;
+using Kora.Core.Hosting;
 
 namespace Kora.Application.ViewModels;
 
@@ -11,6 +12,47 @@ public sealed partial class MainViewModel
     private readonly AppearanceConfigurationService appearanceConfiguration;
     private string appearanceSettingStatus = AppearanceCommand.Syntax;
     private AppearanceOptionDescriptor selectedAppearanceOption = AppearanceOptionRegistry.Options[0];
+    private int readerTextScalePercent = ReaderTextScaleSettings.DefaultPercent;
+
+    public int ReaderTextScalePercent
+    {
+        get => readerTextScalePercent;
+        set
+        {
+            try
+            {
+                ApplyAppearance(AppearanceOption.ReaderTextScale, new AppearanceValue.Number(value),
+                    SecurityAuditInitiator.LocalUser, nameof(ReaderTextScalePercent));
+            }
+            catch (Exception exception) when (exception is IOException or InvalidDataException or UnauthorizedAccessException
+                or InvalidOperationException or ArgumentOutOfRangeException)
+            {
+                ApplicationLog.Error(logger, exception, "Native reader text scale preference");
+                AppearanceSettingStatus = "Native reader text scale was not confirmed. Inspect saved preference evidence before explicit repair.";
+                ShowFailure("Native reader text scale is unavailable.", AppearanceSettingStatus);
+                OnPropertyChanged(nameof(ReaderTextScalePercent));
+            }
+        }
+    }
+
+    public void EnsureReaderTypographyAvailable()
+    {
+        try
+        {
+            var confirmed = appearanceConfiguration.Get(AppearanceOption.ReaderTextScale).Value.GetNumber();
+            SetProperty(ref readerTextScalePercent, confirmed, nameof(ReaderTextScalePercent));
+        }
+        catch (Exception exception) when (exception is IOException or InvalidDataException or UnauthorizedAccessException)
+        {
+            ApplicationLog.Error(logger, exception, "Native reader typography admission");
+            throw new InvalidOperationException(
+                "Native reader text scale is unavailable. Inspect saved preference evidence and audit receipts before explicit repair.",
+                exception);
+        }
+    }
+
+    public int ReaderTextScaleMinimum => ReaderTextScaleSettings.MinimumPercent;
+    public int ReaderTextScaleMaximum => ReaderTextScaleSettings.MaximumPercent;
 
     public IReadOnlyList<AppearanceOptionDescriptor> AppearanceOptions => AppearanceOptionRegistry.Options;
     public AsyncCommand ResetAppearanceOptionCommand { get; }
@@ -39,6 +81,8 @@ public sealed partial class MainViewModel
         {
             switch (descriptor.Option, appearanceConfiguration.Get(descriptor.Option).Value)
             {
+                case (AppearanceOption.ReaderTextScale, AppearanceValue.Number integer):
+                    SetProperty(ref readerTextScalePercent, integer.Value, nameof(ReaderTextScalePercent)); break;
                 case (AppearanceOption.Theme, AppearanceValue.Theme theme):
                     SetProperty(ref themeMode, theme.Value, nameof(ThemeMode)); break;
                 case (AppearanceOption.PresenceDisplay, AppearanceValue.Toggle boolean):
@@ -86,7 +130,8 @@ public sealed partial class MainViewModel
             return false;
         }
         var optionState = appearanceConfiguration.Get(option);
-        var proposal = appearanceConfiguration.Propose(option, value, optionState.Revision, initiator);
+        var proposal = appearanceConfiguration.Propose(option, value, optionState.Revision, initiator,
+            OriginalOrigin(initiator), () => IsHostInputEligible);
         var result = appearanceConfiguration.Apply(proposal);
         SynchronizeAppearance();
         if (!result.Succeeded)
@@ -106,7 +151,8 @@ public sealed partial class MainViewModel
         }
         var optionState = appearanceConfiguration.Get(SelectedAppearanceOption.Option);
         await ApplyAppearanceProposalAsync(appearanceConfiguration.ProposeReset(
-            optionState.Descriptor.Option, optionState.Revision, SecurityAuditInitiator.LocalUser));
+            optionState.Descriptor.Option, optionState.Revision, SecurityAuditInitiator.LocalUser,
+            RequestOrigin.LocalUi, () => IsHostInputEligible));
     }
 
     internal async Task ExecuteAppearanceCommandAsync(AppearanceCommand command, SecurityAuditInitiator initiator)
@@ -138,9 +184,11 @@ public sealed partial class MainViewModel
             return;
         }
         var proposal = command.Operation == AppearanceCommandOperation.Reset
-            ? appearanceConfiguration.ProposeReset(descriptor.Option, optionState.Revision, initiator)
+            ? appearanceConfiguration.ProposeReset(descriptor.Option, optionState.Revision, initiator,
+                OriginalOrigin(initiator), () => IsHostInputEligible)
             : appearanceConfiguration.Propose(descriptor.Option,
-                command.Value ?? throw new InvalidOperationException("An appearance value is required."), optionState.Revision, initiator);
+                command.Value ?? throw new InvalidOperationException("An appearance value is required."), optionState.Revision, initiator,
+                OriginalOrigin(initiator), () => IsHostInputEligible);
         await ApplyAppearanceProposalAsync(proposal);
     }
 

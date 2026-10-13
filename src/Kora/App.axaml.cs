@@ -180,7 +180,7 @@ public sealed partial class App : Avalonia.Application
             viewModel.BindSessionAttachments(sessionFiles);
             attachmentWindow = new SessionAttachmentWindowController(viewModel.ReportHostInteractionFailure, sessionFiles,
                 Services.GetRequiredService<SessionWorkspaceService>(),
-                Services.GetRequiredService<Kora.Core.Storage.ISessionWorkspaceAccess>(), fileWindow);
+                Services.GetRequiredService<Kora.Core.Storage.ISessionWorkspaceAccess>(), fileWindow, viewModel);
             attachmentCatalogue = new(viewModel, Services.GetRequiredService<SessionWorkspaceService>(), sessionFiles,
                 attachmentWindow, Services.GetRequiredService<Kora.Core.Storage.ISessionWorkspaceAccess>(),
                 Services.GetRequiredService<ILogger<AttachmentCatalogueViewModel>>(),

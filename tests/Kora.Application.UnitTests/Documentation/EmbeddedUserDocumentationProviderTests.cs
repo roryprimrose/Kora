@@ -118,6 +118,7 @@ public sealed class EmbeddedUserDocumentationProviderTests
             RegexOptions.Multiline, TimeSpan.FromSeconds(1))
             .Select(match => match.Groups["phrase"].Value).ToArray();
         appearancePhrases.Should().Equal("list appearance settings", "get appearance.theme",
+            "status appearance.reader-text-scale", "set appearance.reader-text-scale to 200",
             "set appearance.theme to dark", "reset appearance.theme");
         appearancePhrases.Should().OnlyContain(phrase => AppearanceCommand.Parse(phrase, "Kora") != null);
         var output = sections.Single(section => section.StartsWith(

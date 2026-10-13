@@ -6,6 +6,7 @@ using Avalonia.Interactivity;
 using Avalonia.Markup.Xaml;
 
 using Kora.Application.Presentation;
+using Kora.Application.ViewModels;
 using Kora.Core.Presentation;
 
 namespace Kora;
@@ -26,10 +27,12 @@ public sealed partial class DetailWindow : Window, IDetailView
     // XAML tooling requires a public default constructor. It cannot admit or open content.
     public DetailWindow() => throw new InvalidOperationException("Use the explicit host-owned native detail route.");
 
-    internal DetailWindow(DetailViewerState state, NativeDocumentResult result, Func<bool, int?, int, Task> copySource)
+    internal DetailWindow(DetailViewerState state, NativeDocumentResult result, Func<bool, int?, int, Task> copySource,
+        MainViewModel? typographyHost = null)
     {
         this.state = state;
         this.copySource = copySource;
+        typographyHost?.EnsureReaderTypographyAvailable();
         AvaloniaXamlLoader.Load(this);
         reader = Required<TextBox>("ContentReader");
         search = Required<TextBox>("SearchInput");
@@ -38,10 +41,17 @@ public sealed partial class DetailWindow : Window, IDetailView
         disclosure = Required<CheckBox>("DisclosureConfirmation");
         renderedDocument = Required<StackPanel>("RenderedDocument");
         renderedViewport = Required<ScrollViewer>("RenderedViewport");
-        foreach (var control in MarkdownDocumentRenderer.CreateControls(result, selectable: false))
+        var renderedControls = MarkdownDocumentRenderer.CreateControls(result, selectable: false);
+        foreach (var control in renderedControls)
         {
+            if (typographyHost is not null && control is TextBlock text
+                && (!result.IsFallback || !ReferenceEquals(control, renderedControls[0])))
+            {
+                NativeReaderTypography.Bind(text, typographyHost);
+            }
             renderedDocument.Children.Add(control);
         }
+        if (typographyHost is not null) { NativeReaderTypography.Bind(reader, typographyHost); }
         var content = state.Content ?? throw new InvalidOperationException("The detail revision is closed.");
         Title = $"{content.Title} — details — revision {content.Reference.Revision}";
         Required<TextBlock>("DetailTitle").Text = content.Title;

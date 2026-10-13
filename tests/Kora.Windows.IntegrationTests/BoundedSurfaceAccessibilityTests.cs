@@ -136,7 +136,7 @@ public sealed class BoundedSurfaceAccessibilityTests
                 var cycle = ReadCycle(window, first, reverse);
                 cycle.Select(control => ControlAutomationPeer.CreatePeerForElement(control)!.GetName())
                     .Should().BeEquivalentTo(
-                        "Appearance", "Select an appearance option to inspect or change",
+                        "Appearance", "Native reader text scale percentage", "Select an appearance option to inspect or change",
                         "Reset the selected appearance option to its default", "Show animated presence", "Application theme",
                         "Always show", "Stay on top", "Response timeout in seconds", "Presence timeout in seconds",
                         "Presence size in pixels", "Dot size percent", "Dot density percent", "Movement speed percent",

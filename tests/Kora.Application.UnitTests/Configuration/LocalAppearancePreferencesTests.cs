@@ -687,6 +687,22 @@ public sealed class LocalAppearancePreferencesTests : IDisposable
             new TestPaths(root, Path.Combine(root, "Roaming")),
             NullLogger<LocalAppearancePreferences>.Instance);
 
+    [Fact]
+    public void ReaderScalePublicStoreUsesSuppliedPathsAndPreservesExistingPreferences()
+    {
+        var paths = new TestPaths(root, Path.Combine(root, "Roaming"));
+        var preferences = new LocalReaderTextScalePreferences(paths);
+        CreatePreferences().SaveThemeMode(ApplicationThemeMode.Dark);
+        preferences.LoadReaderTextScalePercent().Should().BeNull();
+        preferences.BeginReaderTextScaleWrite();
+        preferences.SaveReaderTextScalePercent(75);
+        preferences.ReadBackReaderTextScalePercent().Should().Be(75);
+        preferences.ConfirmReaderTextScaleWrite();
+        new LocalReaderTextScalePreferences(paths).LoadReaderTextScalePercent().Should().Be(75);
+        CreatePreferences().LoadThemeMode().Should().Be(ApplicationThemeMode.Dark);
+        Directory.GetFiles(Path.Combine(root, "Preferences"), "*.tmp").Should().BeEmpty();
+    }
+
     private sealed record TestPaths(string LocalRoot, string RoamingRoot) : IApplicationDataPaths;
 
     public enum PresenceSetting

@@ -572,12 +572,12 @@ settings, consent/privacy downgrade, general registry or full R10/R09 acceptance
 
 ### Delivered bounded appearance subset (R10)
 
-Ten independently persisted options are admitted:
+Eleven independently persisted options are admitted:
 `appearance.theme`, `appearance.presence-display`, `appearance.presence-timeout`,
 `appearance.response-timeout`, `appearance.presence-size`,
 `appearance.dot-size`, `appearance.dot-density`,
 `appearance.movement-speed`, `appearance.speech-scaling` and
-`appearance.speech-scale-amount`. The [end-user reference](../docs/settings.md#appearance)
+`appearance.speech-scale-amount`, plus `appearance.reader-text-scale`. The [end-user reference](../docs/settings.md#appearance)
 lists their exact types, units, defaults and bounds. Each descriptor declares
 device-local scope, appearance-only effect, local-host availability,
 immediate-after-save timing and per-option reset. Animation driven by playback
@@ -606,6 +606,8 @@ and presence placement remain direct UX outside the registry.
 Other voice/audio/call/manual state, grants, models, retention, dependencies and
 startup are not registered. No model tools or broader execution authority
 are exposed by the appearance slice.
+
+The reader option is the separately bounded native [source/detail typography contract](Information_Display.md#bounded-native-reader-text-scale): absolute integer percent, default 100, inclusive 75–200. Its original input/host eligibility is rechecked at commit; atomic pending evidence stays held until exact readback and successful audit. A failed terminal receipt does not claim disk rollback and new readers reject unconfirmed evidence. Existing option formats and migrations are preserved ([workflow](../src/Kora.Application/Configuration/AppearanceConfigurationService.cs), [store](../src/Kora.Application/Configuration/LocalReaderTextScalePreferences.cs)).
 
 ### Delivered bounded installed speech choices (R10)
 

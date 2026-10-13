@@ -12,4 +12,5 @@ public enum AppearanceOption
     MovementSpeed,
     SpeechScaling,
     SpeechScaleAmount,
+    ReaderTextScale,
 }

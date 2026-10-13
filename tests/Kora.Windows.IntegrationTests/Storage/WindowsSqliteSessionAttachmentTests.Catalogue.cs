@@ -15,8 +15,10 @@ namespace Kora.Windows.IntegrationTests.Storage;
 
 public sealed partial class WindowsSqliteSessionAttachmentTests
 {
-    [WindowsFact]
-    public async Task CatalogueUsesActualMetadataOnlySelectAndDoesNotClaimCorruptBodyIntegrityOrReadOriginalPath()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task CatalogueUsesActualMetadataOnlySelectAndDoesNotClaimCorruptBodyIntegrityOrReadOriginalPath(bool exact)
     {
         using var fixture = await Initialize();
         using var root = HostActivity.BeginRoot(fixture.Request, HostActivityLayer.Application, HostOperation.Request);
@@ -40,7 +42,7 @@ public sealed partial class WindowsSqliteSessionAttachmentTests
         var tasks = fixture.Count("host_tasks");
         var authority = fixture.Count("security_audit_events");
         fixture.Mutate("UPDATE session_file SET body=zeroblob(length(body));");
-        var page = await fixture.Store.ReadAttachmentPage(new(), null, () => true, fixture.Token);
+        var page = await fixture.Store.ReadAttachmentPage(new(false, exact ? retained.Session.Value.ToString("D") : null), null, () => true, fixture.Token);
         selects.Should().Be(1);
         page.Validate();
         var summary = page.Records.Should().ContainSingle().Subject;
@@ -277,8 +279,10 @@ public sealed partial class WindowsSqliteSessionAttachmentTests
         await changed.Should().ThrowAsync<InvalidDataException>();
     }
 
-    [WindowsFact]
-    public async Task CatalogueValidatesFiniteAuthoritySegmentsBeforeExecutingAnyAttachmentMetadataSelect()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task CatalogueValidatesFiniteAuthoritySegmentsBeforeExecutingAnyAttachmentMetadataSelect(bool exact)
     {
         using var fixture = await Initialize();
         using var root = HostActivity.BeginRoot(fixture.Request, HostActivityLayer.Application, HostOperation.Request);
@@ -289,14 +293,17 @@ public sealed partial class WindowsSqliteSessionAttachmentTests
         AppendCatalogueAuditReceipts(fixture, SessionAttachmentPage.MaximumAuditRows + 1);
         var reads = 0;
         checkpoint.Metadata = _ => reads++;
-        var first = await fixture.Store.ReadAttachmentPage(new(), null, () => true, fixture.Token);
+        var query = new SessionAttachmentQuery(false, exact ? retained.Session.Value.ToString("D") : null);
+        var first = await fixture.Store.ReadAttachmentPage(query, null, () => true, fixture.Token);
         first.AuthorityValidationPending.Should().BeTrue();
         first.AuditScannedRows.Should().Be(4096);
         first.ScannedRows.Should().Be(0);
         first.Records.Should().BeEmpty();
         first.Next.Should().NotBeNull();
         reads.Should().Be(0, "no attachment descriptor SELECT is executed before complete bounded typed authority validation");
-        var second = await fixture.Store.ReadAttachmentPage(new(), first.Next, () => true, fixture.Token);
+        var wrongQuery = () => fixture.Store.ReadAttachmentPage(new(false, Guid.NewGuid().ToString("D")), first.Next, () => true, fixture.Token).AsTask();
+        await wrongQuery.Should().ThrowAsync<InvalidDataException>();
+        var second = await fixture.Store.ReadAttachmentPage(query, first.Next, () => true, fixture.Token);
         second.AuthorityValidationPending.Should().BeFalse();
         second.Records.Single().File.Should().Be(retained.File.Reference);
         second.Next.Should().BeNull();

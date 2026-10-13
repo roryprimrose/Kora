@@ -269,9 +269,13 @@ the response window visible; idle presence still uses its own timeout.
 
 ## Retained session attachments (metadata only)
 
-Open **Tray > Retained session attachments**, then choose **Refresh metadata**. Opening alone reads nothing; listing never opens a picker, original file path or attachment body. It shows only already retained private Session slots.
+Open **Tray > Retained session attachments**, then choose **Search / refresh metadata**. Opening alone reads nothing; listing never opens a picker, original file path or attachment body. It shows only already retained private Session slots.
 
-- Each page has at most **16 rows / 64 KiB** and scans at most **64 slots**. **Next bounded page** may continue after zero retained matches. **Include removed slots** shows content-free removal provenance; historical removed slots do not count toward the sixteen-live-file cap.
+Default **Browse** preserves the removal filter. For one session, choose **ExactId**, enter its nonempty canonical lowercase D-format UUID, then explicitly Search or press Enter in the query field. Uppercase, empty, noncanonical, control-containing or oversized input is invalid, never Browse. No session names, filenames, original paths, bodies, excerpts or digests are searched.
+
+Typing performs no I/O. Mode, ID and **Include removed slots** edits retire results, selection and continuation and cancel pending work; use Search again. **Clear query (Browse)** clears the volatile ID without reading or changing the removal filter. Search never auto-selects or opens a match. Escape closes and clears private state. Source/privacy/ownership/lifecycle revocation clears the query too.
+
+- Each page has at most **16 rows / 64 KiB** and scans at most **64 slots**. **Next bounded page** may continue after zero matches; ExactId does not jump over unvalidated slots. **Include removed slots** shows content-free removal provenance; historical removed slots do not count toward the sixteen-live-file cap.
 - Typed authority is validated in bounded segments before rows are shown. **Authority validation pending** pages contain no attachments; use Next to continue. Reads have a five-second budget. Continuations expire after two minutes; any committed authority, storage/profile or query change requires Refresh.
 - Rows show exact Session ID, current Active/Done/Removed lifecycle, generations, storage revision, source/revision/item/digest headers, byte count/type/captured UTC and copy certification. No filename, path, excerpt or original source metadata appears.
 - **Confirmed** is stored copy certification, not a body-integrity check or current file access. **Held** means replacement disclosure is not certified. **Unavailable** means the slot is removed. Held/removed slots cannot open a body here; use existing exact-session copy recovery where allowed.

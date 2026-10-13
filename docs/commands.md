@@ -104,7 +104,8 @@ Production has no qualified catalogue models/auth adapters, so model-dependent s
 
 ## Attach one text file to an exact Session (native only)
 
-For a content-free overview of existing retained slots, use **Tray > Retained session attachments > Refresh metadata**. Opening/listing never reads an original path or body. [Catalogue limits and exact navigation](windows-and-tray.md#retained-session-attachments-metadata-only) explain bounded pages, removed/held status, stale continuation and separate full-byte inspection. This adds no typed/voice/model capture command.
+For a content-free overview, use **Tray > Retained session attachments > Search / refresh metadata**. Default Browse or volatile ExactId observes retained slots, never original paths or bodies.
+[Catalogue query rules and exact navigation](windows-and-tray.md#retained-session-attachments-metadata-only) cover canonical IDs, explicit Enter/Clear/Next, bounded empty pages and separate full-byte inspection. No typed/voice/model search or capture command is added.
 
 Open **Sessions**, select the exact Active session, then **Attach text file to this exact Session**. A trusted native picker opens only metadata; review canonical path/native identity, source and host session, bytes/time, fixed limits and local durable retention/copy disclosure. **Confirm: capture and retain this exact file for this Session** is separate persistence consent, not the existing volatile preview confirmation.
 

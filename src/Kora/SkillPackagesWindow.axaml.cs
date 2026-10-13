@@ -3,6 +3,7 @@ using Avalonia.Markup.Xaml;
 using Avalonia.Media;
 
 using Kora.Controls;
+using Kora.Application.Skills;
 using Kora.Core.Presentation;
 using Kora.Core.Skills;
 
@@ -12,6 +13,9 @@ public sealed partial class SkillPackagesWindow : Window
 {
     private readonly SkillPackageCatalogue catalogue;
     private readonly NativeDetailRenderer renderer;
+    private IReadOnlyList<SkillPackageSnapshot> results = [];
+    private bool updatingResults;
+    private bool closed;
 
     public SkillPackagesWindow() => throw new InvalidOperationException("Use the host-owned immutable skill inspection route.");
 
@@ -23,21 +27,97 @@ public sealed partial class SkillPackagesWindow : Window
         this.FindControl<Button>("SharedSources")!.Click += (_, _) => sharedSources?.Invoke();
         this.FindControl<Button>("SharedSources")!.IsEnabled = sharedSources is not null;
         var selector = this.FindControl<ComboBox>("PackageSelector")!;
-        selector.ItemsSource = catalogue.Packages.Select(package =>
-            $"{package.Manifest.Name} ({package.Manifest.Id}) - unavailable").ToArray();
+        var filter = this.FindControl<ComboBox>("PackageFilter")!;
+        filter.ItemsSource = new[] { "All", "Runtime unavailable", "Runtime available" };
+        filter.SelectedIndex = 0;
+        this.FindControl<Button>("SearchPackages")!.Click += (_, _) => Search();
+        this.FindControl<Button>("ClearPackageSearch")!.Click += (_, _) =>
+        {
+            this.FindControl<TextBox>("PackageQuery")!.Text = string.Empty;
+            filter.SelectedIndex = 0;
+            Search();
+        };
         selector.SelectionChanged += (_, _) =>
         {
-            if (selector.SelectedIndex >= 0)
-            {
-                ShowPackage(selector.SelectedIndex);
-            }
+            if (!updatingResults) { ShowPackage(); }
         };
+        Closed += (_, _) =>
+        {
+            closed = true;
+            results = [];
+            selector.ItemsSource = Array.Empty<string>();
+            this.FindControl<TextBox>("PackageQuery")!.Text = string.Empty;
+            filter.SelectedIndex = 0;
+            this.FindControl<TextBlock>("PackageSearchStatus")!.Text = string.Empty;
+            ClearSelection();
+        };
+        Search();
         selector.SelectedIndex = 0;
     }
 
-    private void ShowPackage(int index)
+    internal SkillPackageSnapshot? SelectedPackage
     {
-        var package = catalogue.Packages[index];
+        get
+        {
+            var index = this.FindControl<ComboBox>("PackageSelector")!.SelectedIndex;
+            return index >= 0 && index < results.Count ? results[index] : null;
+        }
+    }
+
+    private void Search()
+    {
+        if (closed) { return; }
+        var selected = SelectedPackage;
+        try
+        {
+            var matching = SkillCatalogueSearch.Bundled(catalogue,
+                this.FindControl<TextBox>("PackageQuery")!.Text ?? string.Empty,
+                (SkillInvocationFilter)this.FindControl<ComboBox>("PackageFilter")!.SelectedIndex);
+            SetResults(matching, selected);
+            this.FindControl<TextBlock>("PackageSearchStatus")!.Text =
+                $"{results.Count} of {catalogue.Packages.Count} admitted bundled snapshots. Invocation remains unavailable."
+                + (selected is not null && SelectedPackage is null ? " Selection excluded; private source panes cleared. Select a result explicitly." : string.Empty);
+        }
+        catch (Exception exception) when (exception is InvalidDataException or ArgumentOutOfRangeException)
+        {
+            SetResults([], null);
+            this.FindControl<TextBlock>("PackageSearchStatus")!.Text = $"Search rejected: {exception.Message} No results or selection published.";
+        }
+    }
+
+    private void SetResults(IReadOnlyList<SkillPackageSnapshot> matching, SkillPackageSnapshot? selected)
+    {
+        updatingResults = true;
+        try
+        {
+            results = matching;
+            var selector = this.FindControl<ComboBox>("PackageSelector")!;
+            selector.ItemsSource = results.Select(package =>
+                $"{package.Manifest.Name} ({package.Manifest.Id}) - runtime unavailable").ToArray();
+            selector.SelectedIndex = results.ToList().FindIndex(package => ReferenceEquals(package, selected));
+        }
+        finally { updatingResults = false; }
+        if (SelectedPackage is null) { ClearSelection(); }
+    }
+
+    private void ClearSelection()
+    {
+        this.FindControl<TextBlock>("PackageIdentity")!.Text = string.Empty;
+        var tabs = this.FindControl<TabControl>("SourceTabs")!;
+        foreach (var tab in tabs.Items.OfType<TabItem>())
+        {
+            if (tab.Content is not DockPanel panel) { continue; }
+            foreach (var reader in panel.Children.OfType<TextBox>()) { reader.Text = string.Empty; }
+            foreach (var identity in panel.Children.OfType<TextBlock>()) { identity.Text = string.Empty; }
+            tab.Content = null;
+        }
+        tabs.ItemsSource = Array.Empty<TabItem>();
+    }
+
+    private void ShowPackage()
+    {
+        ClearSelection();
+        if (SelectedPackage is not { } package) { return; }
         this.FindControl<TextBlock>("PackageIdentity")!.Text =
             $"Bundled first-party source | {package.Manifest.Id} | {package.Manifest.Version}\n"
             + $"Action: {package.Manifest.Action}; entry: {package.Manifest.EntryPoint}; parameter contract: {package.Manifest.ParameterContract}\n"

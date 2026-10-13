@@ -124,6 +124,10 @@ additional-entry disclosure and compatibility without replacing the old
 snapshot. A stale snapshot is labelled stale; failures clear the view rather
 than silently showing it as current. No content-bearing snapshot is persisted.
 
+**Search/Clear** and the instruction-only compatibility filter navigate only the already admitted catalogue for the exact selected registered source (at most 32 snapshots); they do not read the filesystem, reparse headers, scan on typing or call Recheck/Discover. **All** includes incompatible/unavailable entries, and compatible does not mean invocable ([snapshot query](../src/Kora.Application/Skills/SkillCatalogueSearch.cs)).
+
+Search is a literal ordinal-ignore-case substring over admitted declared name, metadata-qualified identity when name exists, and valid declared description, not bodies, path-fallback identities, files or roots. Queries share strict bounded validation; search exclusion clears private panes and requires explicit reselection, never opening the next row. Refresh/failure/source replacement/withdrawal/private close reset volatile navigation and fence late reads ([native controls](../src/Kora/SharedSkillSourcesWindow.axaml.cs), [controller](../src/Kora/SharedSkillSourcesWindowController.cs)); see [management search semantics](Definition_Management.md#delivered-native-skill-metadata-navigation).
+
 Registration is a validated versioned JSON preference under device-local
 `IApplicationDataPaths`, published only through the shared atomic preference
 store with bounded strict-UTF-8 read, serialized-byte validation before

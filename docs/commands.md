@@ -1410,6 +1410,16 @@ freshly discovered and admitted capability descriptions to the selected
 model; every proposed call will still require the ordinary host permission,
 approval, egress, audit, cancellation, and provenance checks.
 
+### Search admitted skill package metadata
+
+In **Tray > Skill packages**, type a native metadata query, choose **All / Runtime unavailable / Runtime available**, then click **Search**. Search covers bundled declared names, IDs and descriptions only, across the admitted catalogue (at most eight packages). Runtime availability is not instruction compatibility; every current bundled package remains invocation-unavailable ([bundled controls](../src/Kora/SkillPackagesWindow.axaml.cs), [bounded catalogue](../src/Kora.Core/Skills/SkillPackageCatalogue.cs)).
+
+In **Shared profile sources (read only)**, first explicitly **List selected source**, then use **Search** with **All / Instruction-compatible / Instruction-incompatible**. Matching covers admitted declared name, metadata-qualified source ID/name/version identity when the name is valid, and valid declared description, across at most 32 snapshots from that exact source. Missing metadata is not guessed; files/roots, path-fallback IDs, SKILL.md bodies, manifests and helpers are not searched ([query policy](../src/Kora.Application/Skills/SkillCatalogueSearch.cs)).
+
+Queries are literal ordinal-ignore-case substrings: spaces are significant, with no trimming, wildcards, ranges or Unicode normalization. The bound is 256 UTF-16 units / 512 strict UTF-8 bytes; malformed Unicode, controls, directional/format characters and line/paragraph separators are explicitly rejected. Rejection empties results/selection rather than falling back to All. Typing or changing the filter only edits the draft; click Search to apply it. **Clear** restores empty/All without opening another result ([shared query validation](../src/Kora.Core/Context/LiteralMetadataQuery.cs), [native search](../src/Kora/SharedSkillSourcesWindow.axaml.cs)).
+
+All includes incompatible/unavailable rows. Shared compatibility is structural instruction-only, not harmlessness, trust, runtime qualification or invocation availability. Search/filter never performs a read, recheck, registration change or withdrawal. An exact surviving selection can remain open; exclusion clears private source/identity panes with an explanation and requires explicit result selection. Initial open/list still selects the first package; refresh/source replacement/withdrawal/failure/privacy/ownership/call change/close clears navigation and retires late callbacks. Queries are not saved or indexed, and no model/tool/typed/voice search route is added ([controllers](../src/Kora/SharedSkillSourcesWindowController.cs), [native behavior tests](../tests/Kora.Windows.IntegrationTests/SkillMetadataSearchWindowTests.cs)).
+
 ### Inspect shared profile skills locally
 
 Open the tray **Skill packages**, then **Shared profile sources (read only)**.

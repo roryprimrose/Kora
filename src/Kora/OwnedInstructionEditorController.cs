@@ -111,10 +111,10 @@ internal sealed partial class OwnedInstructionEditorController(
 
     private async Task OnRequested(ArtifactKind requestedKind, string operation, string? name)
     {
-        if (operation is "Validate")
+        if (operation is "Validate" or "Compare")
         {
             if (window is null || lifetime is null || requestedKind != kind)
-            { main.ReportHostInteractionFailure("Validate requires the currently open same-kind owned draft. Inspect or Create explicitly; no source is opened by validation."); return; }
+            { main.ReportHostInteractionFailure("Validate/Compare requires the currently open same-kind owned draft. Inspect or Create explicitly; no source is opened by observation."); return; }
             window.Activate();
             await Run(operation);
             return;
@@ -191,7 +191,8 @@ internal sealed partial class OwnedInstructionEditorController(
                     await Save(opened, delete: false, Eligible, token);
                     break;
                 case "Validate":
-                    await ValidateDraft(opened, Eligible, token);
+                case "Compare":
+                    await ValidateDraft(opened, Eligible, token, action is "Compare");
                     break;
                 case "Save as new copy":
                     await SaveCopy(opened, Eligible, token);
@@ -218,10 +219,10 @@ internal sealed partial class OwnedInstructionEditorController(
         }
         catch (OperationCanceledException)
         {
-            if (action is "Validate")
+            if (action is "Validate" or "Compare")
             {
                 if (ReferenceEquals(window, opened))
-                { opened.ClearValidation(); opened.Report("Validation cancelled. Nothing saved/enabled; draft and existing source/use holds retained."); }
+                { opened.ClearValidation(); opened.Report("Observation cancelled. Nothing saved/enabled; draft and existing source/use holds retained."); }
                 return;
             }
             if (action is "Disable reviewed use")
@@ -253,27 +254,33 @@ internal sealed partial class OwnedInstructionEditorController(
         finally { busy = false; }
     }
 
-    private async Task ValidateDraft(OwnedInstructionEditorWindow opened, Func<bool> eligible, CancellationToken token)
+    private async Task ValidateDraft(OwnedInstructionEditorWindow opened, Func<bool> eligible, CancellationToken token, bool compare = false)
     {
         opened.ClearValidation();
         if (!opened.IsVisible || opened.Source.IsReadOnly || selectedName is not { } name || baseline is null && !newDraft
             || !string.Equals(opened.NameInput.Text, name, StringComparison.Ordinal)
             || opened.KindInput.SelectedItem is not ArtifactKind selectedKind || selectedKind != kind
             || opened.Files.SelectedItem is OwnedDefinitionInventoryRow row && !string.Equals(row.Name, name, StringComparison.Ordinal))
-        { throw new InvalidOperationException("Validate requires the exact open supported owned baseline or explicitly created draft and unchanged chosen ID/kind. Inspect/Create explicitly; no file is read or created."); }
+        { throw new InvalidOperationException("Validate/Compare requires the exact open supported owned baseline or explicitly created draft and unchanged chosen ID/kind. Inspect/Create explicitly; no file is read or created."); }
         var original = baseline;
         var draft = opened.Source.Text ?? string.Empty;
         var revision = Interlocked.Read(ref sourceRevision);
         var inputEpoch = Interlocked.Read(ref copyInputRevision);
         var epoch = Interlocked.Read(ref inventoryEpoch);
         var observedKind = kind;
-        bool Current() => eligible() && ReferenceEquals(baseline, original) && kind == observedKind
+        var inputCurrent = main.CaptureDefinitionObservationEligibility();
+        bool Current() => eligible() && inputCurrent() && ReferenceEquals(baseline, original) && kind == observedKind
             && revision == Interlocked.Read(ref sourceRevision) && epoch == Interlocked.Read(ref inventoryEpoch)
             && inputEpoch == Interlocked.Read(ref copyInputRevision);
-        var observation = await Actions.ValidateDraft(name, original, draft, logger, Current, token);
+        OwnedDraftComparison? comparison = null;
+        var observation = compare
+            ? (comparison = await Actions.CompareDraft(name, original, draft, logger, Current, token)).Validation
+            : await Actions.ValidateDraft(name, original, draft, logger, Current, token);
         if (!Current() || !Actions.IsDraftValidationCurrent(observation)) { return; }
         opened.ReportValidation(observation.Summary
             + (uncertain ? " Existing uncertain publication/source hold is unchanged; Reload/reconcile before Saving or use." : string.Empty));
+        if (comparison is not null)
+        { opened.ShowComparison(comparison, () => Current() && Actions.IsDraftValidationCurrent(observation)); }
     }
 
     private async Task DisableUse(OwnedInstructionEditorWindow opened, Func<bool> eligible, CancellationToken token)

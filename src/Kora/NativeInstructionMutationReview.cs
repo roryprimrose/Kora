@@ -35,7 +35,7 @@ internal sealed class NativeInstructionMutationReview(OwnedInstructionEditorWind
             $"Owned kind: {kind}; ID: {name}\nExact source: {Path.Combine(sourceRoot, expected?.CanonicalFileName ?? name + OwnedDefinitionKind.Extension(kind))}\nBase revision: {expected?.Revision ?? "(new)"}\n"
             + $"Base digest: {expected?.Document.Definition.Digest ?? "(missing/new)"}\n"
             + $"New digest: {proposed?.Definition.Digest ?? "(delete)"}\n"
-            + $"Changed fields: {ChangedFields(expected?.Document, proposed)}\n"
+            + $"Changed fields: {ArtifactSourceComparison.ChangedFields(expected?.Document, proposed)}\n"
             + "Full original and proposed source shown, including all metadata, body and attribution. "
             + "Final disk comparison is optimistic: an edit after that comparison may be overwritten by complete-byte atomic replacement. "
             + "Only this host-derived owned file changes. Save does not permit use or execution.",
@@ -56,14 +56,4 @@ internal sealed class NativeInstructionMutationReview(OwnedInstructionEditorWind
             ["Reload from disk (abandon changes)", "Overwrite with Kora changes", "Cancel (keep draft)"], token);
     }
 
-    private static string ChangedFields(ArtifactFileDocument? original, ArtifactFileDocument? proposed)
-    {
-        if (original is null) { return "new file (all fields and body)"; }
-        if (proposed is null) { return "delete entire original"; }
-        var changed = original.Metadata.Keys.Union(proposed.Metadata.Keys, StringComparer.Ordinal)
-            .Where(key => !string.Equals(original.Metadata.GetValueOrDefault(key), proposed.Metadata.GetValueOrDefault(key), StringComparison.Ordinal)).ToList();
-        if (!string.Equals(original.Definition.Content, proposed.Definition.Content, StringComparison.Ordinal)) { changed.Add("body"); }
-        if (!string.Equals(original.Definition.Digest, proposed.Definition.Digest, StringComparison.Ordinal)) { changed.Add("exact source bytes/formatting"); }
-        return changed.Count == 0 ? "(unchanged bytes)" : string.Join(", ", changed);
-    }
 }

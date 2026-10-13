@@ -120,6 +120,20 @@ This is a historical structural observation, not semantic harmlessness, safe exe
 
 Validation makes no owned-store List/Read/Write, source reload, revision-preference write/hold, source mutation or use-state change. Ordinary nonmutating host control intent/terminal receipts and correlated diagnostics remain. Original bytes, draft/dirty state, inventory/search/selection and existing enablement or uncertain-publication holds are retained. Source-unavailable observations disclose that Reload/reconciliation is still required before Save or use. Profile-original editing remains unavailable.
 
+## Compare the open draft without saving
+
+**Compare**, `instructions compare` or `prompts compare` (including the current assistant-name prefix) uses only the open same-kind inspected owned baseline and current memory draft, or an explicitly created new draft. No named argument, source opening, kind switch, draft discard, disk reload or conflict flow is supported.
+
+The [passive comparison](../src/Kora/OwnedInstructionEditorWindow.cs) shows the whole frozen historical original on the left and exact raw memory draft on the right in inert read-only native source panes. Missing/new baselines are labelled explicitly. BOM is separate metadata, not a visible inserted character; all original metadata, attribution, whitespace and newlines remain in the panes.
+
+The [shared comparison rules](../src/Kora.Core/ArtifactInvocation/ArtifactSourceComparison.cs) report exact UTF-8 digest/byte equality and changed parsed fields, not a line diff or patch. The raw draft uses the baseline's inherited BOM policy. Each complete pane is bounded to 65536 UTF-8 bytes including BOM. Invalid Unicode and over-budget drafts are rejected without shortening or replacing the editor buffer.
+
+Raw text is **not prepared Save bytes**. A separately labelled structural summary uses [the same Validate/PrepareSave policy](../src/Kora.Application/Definitions/OwnedInstructionEditorActions.Validation.cs), including any legacy native marker. Structurally invalid bounded text remains visible verbatim with an explicit preparation error; unavailable parsed fields are not presented as successful comparison or Save validation.
+
+Close is the only viewer action. No save/copy/delete/activation, clipboard/export, model/egress, approval, use token, source/preferences/catalogue mutation or meaningful activity renewal occurs. This is historical memory observation, not current disk integrity, compatibility or semantic safety. Save and conflict handling remain independently admitted and reviewed.
+
+Input, draft, baseline, ID/kind/selection, catalogue/source/call and private ownership changes retire the display and fence late callbacks. Close/private closure clears comparison panes and references. [Focused native tests](../tests/Kora.Windows.IntegrationTests/ArtifactDiscovery/OwnedDefinitionEditorWindowTests.Comparison.cs) cover this bounded control; profile-original editing, model generation, algorithmic diff and full matrix/installed/hardware/accessibility qualification remain unavailable.
+
 ## Save an owned draft as a new copy
 
 Inspect a supported canonical **native owned** source (instruction v1; prompt v1/v2). Edit its draft, enter a different canonical ID in **new-copy-owned-id**, then choose **Save as new copy**.

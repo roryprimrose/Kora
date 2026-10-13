@@ -354,6 +354,9 @@ them without reading. Any filter edit retires results/selection/Next and
 requires a fresh search. [Formats, source support and time semantics](privacy-safety-and-logs.md#logs)
 are enforced without broadening authority, copying or export.
 
+The same area exposes exact **Event ID**, **Category** and **Audit action ID**; empty-only unset, canonical signed integer parsing, case-sensitive text and source-specific support are described in [Evidence formats and source semantics](privacy-safety-and-logs.md#logs).
+Unsupported sources require explicit recovery rather than an empty-success result; edits, Clear advanced and private closure use the existing retirement lifecycle ([native filters](../src/Kora/EvidenceViewModel.Filters.cs), [viewer lifecycle](../src/Kora/EvidenceViewModel.cs)).
+
 Kora keeps a notification-area icon while running.
 Windows may initially place it under **Show hidden icons**. You can drag or pin
 the Kora icon into the always-visible notification area using normal Windows

@@ -234,6 +234,15 @@ and [native/real-reader tests](../tests/Kora.Windows.IntegrationTests/EvidenceAd
 are the maintained evidence for this deterministic filtering slice, not
 installed/native accessibility, model reasoning or release qualification.
 
+The native form also consumes the existing `EvidenceQuery.EventId`, `Category` and `ActionId`, not new storage or result-text predicates. Empty text alone unsets these fields; whitespace-only/surrounding whitespace, controls, malformed Unicode, over-limit text and noncanonical/overflow integers fail.
+Event ID uses canonical invariant signed Int32 decimal with zero/negative/boundary values; Category/ActionId retain 256/128-character limits and exact ordinal text, without domain action-name constraints
+([query contract](../src/Kora.Core/Diagnostics/EvidenceQuery.cs), [parser](../src/Kora/EvidenceViewModel.Filters.cs), [admission](../src/Kora.Application/Diagnostics/DurableEvidenceQuery.cs)).
+
+Category projects diagnostic category on Log/Audit/DailyLog, activity source on Span/Link, and typed audit-category name on AuthorityAudit. Event ID supports All/Log/Audit/DailyLog/CombinedLog; ActionId supports All/Audit/AuthorityAudit.
+All remains SQLite-only; CombinedLog rejects ActionId because DailyLog cannot match it. Category rejects unavailable Session/Conversation; a citation under All narrows support to that source. Unsupported combinations fail before reading via existing native recovery
+([SQLite](../src/Kora.Windows/Storage/WindowsSqliteEvidenceReader.cs), [Daily](../src/Kora.Windows/Storage/WindowsDailyEvidenceReader.cs), [Combined](../src/Kora.Windows/Storage/WindowsEvidenceReader.cs),
+[AuthorityAudit](../src/Kora.Windows/Storage/WindowsSqliteHostInteractionStore.Inspection.cs), [source-admission tests](../tests/Kora.Application.UnitTests/Diagnostics/DurableEvidenceQueryTests.cs)).
+
 The complete compact serialized page, including correlation, typed values,
 stable citations and disclosure, is limited to 50 records / 64 KiB UTF-8.
 Over-budget individual content is explicitly marked `ContentOmitted`, not

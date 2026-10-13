@@ -465,6 +465,11 @@ public sealed class DurableEvidenceQueryTests
             original with { UntilUtc = DateTimeOffset.UnixEpoch },
             original with { Severity = EvidenceSeverity.Warning },
             original with { AuditOutcome = SecurityAuditOutcome.Succeeded },
+            original with { EventId = 0 },
+            original with { EventId = int.MinValue },
+            original with { EventId = int.MaxValue },
+            original with { Category = "Exact.Category" },
+            original with { ActionId = "Exact Action / correlation" },
         ];
         foreach (var query in changed)
         {
@@ -472,6 +477,63 @@ public sealed class DurableEvidenceQueryTests
             await refused.Should().ThrowAsync<InvalidDataException>();
         }
         fixture.Reader.Calls.Should().Be(1);
+    }
+
+    [Theory]
+    [InlineData(nameof(EvidenceQuery.EventId))]
+    [InlineData(nameof(EvidenceQuery.Category))]
+    [InlineData(nameof(EvidenceQuery.ActionId))]
+    public async Task ExactFieldSourceSupportIsAdmittedBeforeReadingForEverySourceAndCitation(string field)
+    {
+        using var listener = Listen();
+        using var host = Root();
+        foreach (var source in Enum.GetValues<EvidenceSource>())
+        {
+            foreach (var cited in new[] { false, true })
+            {
+                if (cited && source is EvidenceSource.All or EvidenceSource.Session
+                    or EvidenceSource.Conversation or EvidenceSource.CombinedLog) { continue; }
+                var fixture = new Fixture();
+                var query = new EvidenceQuery
+                {
+                    Source = cited && source != EvidenceSource.AuthorityAudit ? EvidenceSource.All : source,
+                    Record = cited ? new(source, new(Guid.NewGuid()), source == EvidenceSource.Link ? 0 : null) : null,
+                    EventId = field is nameof(EvidenceQuery.EventId) ? int.MinValue : null,
+                    Category = field is nameof(EvidenceQuery.Category) ? "Exact.Category" : null,
+                    ActionId = field is nameof(EvidenceQuery.ActionId) ? "Exact Action / correlation" : null,
+                };
+                var supported = field switch
+                {
+                    nameof(EvidenceQuery.EventId) => source is EvidenceSource.All or EvidenceSource.Log
+                        or EvidenceSource.Audit or EvidenceSource.DailyLog or EvidenceSource.CombinedLog,
+                    nameof(EvidenceQuery.ActionId) => source is EvidenceSource.All or EvidenceSource.Audit or EvidenceSource.AuthorityAudit,
+                    _ => source is not (EvidenceSource.Session or EvidenceSource.Conversation),
+                };
+                var read = () => fixture.Service.QueryAsync(query, null, TestContext.Current.CancellationToken).AsTask();
+                if (supported)
+                {
+                    await read();
+                    fixture.Reader.Calls.Should().Be(1);
+                }
+                else
+                {
+                    await read.Should().ThrowAsync<NotSupportedException>();
+                    fixture.Reader.Calls.Should().Be(0);
+                }
+            }
+        }
+    }
+
+    [Theory]
+    [InlineData(int.MinValue)]
+    [InlineData(-1)]
+    [InlineData(0)]
+    [InlineData(int.MaxValue)]
+    public void ExistingExactQueryTextAndIntegerBoundsRemainCompatible(int eventId)
+    {
+        DurableEvidenceQuery.Validate(new() { EventId = eventId, Category = "", ActionId = " " });
+        DurableEvidenceQuery.Validate(new() { EventId = eventId, Category = new string('x', 256), ActionId = new string('x', 128) });
+        DurableEvidenceQuery.Validate(new() { Category = "Plain Unicode \u00e9 / correlation", ActionId = "Not a domain action name / \u00e9" });
     }
 
     [Theory]
@@ -502,13 +564,15 @@ public sealed class DurableEvidenceQueryTests
             Severity = EvidenceSeverity.Information, EventId = 1, Category = "test", ActionId = "test.read",
             AuditOutcome = SecurityAuditOutcome.Succeeded,
             Property = new("Count", new(EvidenceValueKind.WholeNumber, "1")), Text = "'; SELECT * \U0001f642",
-            Record = new(EvidenceSource.Link, new(Guid.NewGuid()), 31),
+            Record = new(EvidenceSource.Audit, new(Guid.NewGuid())),
         };
         DurableEvidenceQuery.Validate(query);
-        DurableEvidenceQuery.Validate(query with { Record = new(EvidenceSource.Log, new(Guid.NewGuid())), Property = new("Null", new(EvidenceValueKind.Null, null)) });
+        DurableEvidenceQuery.Validate(query with { Record = new(EvidenceSource.Log, new(Guid.NewGuid())), ActionId = null, Property = new("Null", new(EvidenceValueKind.Null, null)) });
         var bytes = JsonSerializer.SerializeToUtf8Bytes(query);
         Encoding.UTF8.GetString(bytes).Should().Contain("SessionId");
-        query.Record.Citation.Should().EndWith(":31");
+        var link = query with { Record = new(EvidenceSource.Link, new(Guid.NewGuid()), 31), EventId = null, ActionId = null };
+        DurableEvidenceQuery.Validate(link);
+        link.Record!.Citation.Should().EndWith(":31");
     }
 
     public static TheoryData<EvidenceQuery> InvalidFilters => new()

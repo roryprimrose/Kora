@@ -20,6 +20,9 @@ internal sealed partial class EvidenceViewModel
     private string correlationFilter = string.Empty;
     private string fromFilter = string.Empty;
     private string untilFilter = string.Empty;
+    private string eventIdFilter = string.Empty;
+    private string categoryFilter = string.Empty;
+    private string actionIdFilter = string.Empty;
     private EvidenceSeverity? severity;
     private SecurityAuditOutcome? auditOutcome;
 
@@ -37,6 +40,9 @@ internal sealed partial class EvidenceViewModel
     public string CorrelationFilter { get => correlationFilter; set => ChangeFilter(ref correlationFilter, value); }
     public string FromFilter { get => fromFilter; set => ChangeFilter(ref fromFilter, value); }
     public string UntilFilter { get => untilFilter; set => ChangeFilter(ref untilFilter, value); }
+    public string EventIdFilter { get => eventIdFilter; set => ChangeFilter(ref eventIdFilter, value); }
+    public string CategoryFilter { get => categoryFilter; set => ChangeFilter(ref categoryFilter, value); }
+    public string ActionIdFilter { get => actionIdFilter; set => ChangeFilter(ref actionIdFilter, value); }
     public EvidenceSeverity? Severity { get => severity; set => ChangeFilter(ref severity, value); }
     public SecurityAuditOutcome? AuditOutcome { get => auditOutcome; set => ChangeFilter(ref auditOutcome, value); }
 
@@ -48,6 +54,9 @@ internal sealed partial class EvidenceViewModel
         CorrelationFilter = string.Empty;
         FromFilter = string.Empty;
         UntilFilter = string.Empty;
+        EventIdFilter = string.Empty;
+        CategoryFilter = string.Empty;
+        ActionIdFilter = string.Empty;
         Severity = null;
         AuditOutcome = null;
     }
@@ -80,7 +89,31 @@ internal sealed partial class EvidenceViewModel
         UntilUtc = Timestamp(UntilFilter),
         Severity = Severity,
         AuditOutcome = AuditOutcome,
+        EventId = EventIdentifier(EventIdFilter),
+        Category = ExactText(CategoryFilter),
+        ActionId = ExactText(ActionIdFilter),
     };
+
+    private static int? EventIdentifier(string value)
+    {
+        if (string.IsNullOrEmpty(value)) { return null; }
+        if (!int.TryParse(value, NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture, out var id)
+            || !string.Equals(value, id.ToString(CultureInfo.InvariantCulture), StringComparison.Ordinal))
+        {
+            throw new FormatException("Event ID requires a canonical invariant signed 32-bit integer.");
+        }
+        return id;
+    }
+
+    private static string? ExactText(string value)
+    {
+        if (string.IsNullOrEmpty(value)) { return null; }
+        if (char.IsWhiteSpace(value[0]) || char.IsWhiteSpace(value[^1]))
+        {
+            throw new FormatException("Exact evidence text filters cannot contain surrounding whitespace.");
+        }
+        return value;
+    }
 
     private static HostId<T>? Identity<T>(string value) =>
         Identifier(value) is { } id ? new HostId<T>(id) : null;

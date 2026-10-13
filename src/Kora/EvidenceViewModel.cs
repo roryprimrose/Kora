@@ -108,7 +108,10 @@ internal sealed partial class EvidenceViewModel(
         }
         catch (NotSupportedException)
         {
-            Clear("Unsupported filter for this source. Severity requires All, Log, Audit, DailyLog or CombinedLog; audit outcome requires All, Audit or AuthorityAudit. Clear the unsupported filter or select its source, then search again.");
+            if (closed || revision == filterRevision)
+            {
+                Clear("Unsupported filter for this source. Event ID and severity require All, Log, Audit, DailyLog or CombinedLog; action ID and audit outcome require All, Audit or AuthorityAudit. Category requires a retained evidence source. Clear the unsupported filter or select its source, then search again.");
+            }
             Failure(logger, nameof(NotSupportedException));
             activity.Complete(HostOperationOutcome.Failed);
         }
@@ -117,7 +120,7 @@ internal sealed partial class EvidenceViewModel(
             if (closed || revision == filterRevision)
             {
                 Clear("Evidence query failed: " + exception.GetType().Name
-                    + ". Use nonempty hyphenated GUIDs and ISO timestamps with Z or an explicit offset; verify range, typed choices and private storage access, then start a fresh search. No empty success or replacement database is claimed.");
+                    + ". Use nonempty hyphenated GUIDs, ISO timestamps with Z or an explicit offset, canonical signed 32-bit event IDs, and exact bounded category/action text without surrounding whitespace; verify range, typed choices and private storage access, then start a fresh search. No empty success or replacement database is claimed.");
             }
             Failure(logger, exception.GetType().Name);
             activity.Complete(HostOperationOutcome.Failed);

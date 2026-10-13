@@ -21,7 +21,7 @@ internal sealed class ClipboardPreviewWindowController : IDisposable
     public ClipboardPreviewWindowController(MainViewModel host)
         : this(() => host.ClipboardPreview, host.ReuseClipboardAsync, host.ClearClipboardPreview, host.RevokeClipboardAsync,
             () => new ClipboardPreviewWindow(exception => host.ReportHostInteractionFailure(
-                "Native clipboard preview failed. No success is claimed. Failure type: " + exception.GetType().Name)),
+                "Native clipboard preview failed. No success is claimed. Failure type: " + exception.GetType().Name), host),
             host.ReportHostInteractionFailure)
     {
         this.host = host;

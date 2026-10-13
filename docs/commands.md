@@ -850,10 +850,12 @@ Windows.
 
 - **list appearance settings**
 - **get appearance.theme**
+- **status appearance.reader-text-scale**
+- **set appearance.reader-text-scale to 200**
 - **set appearance.theme to dark**
 - **reset appearance.theme**
 
-Substitute one of the nine exact IDs in [Appearance settings](settings.md#appearance).
+Substitute one of the eleven exact IDs in [Appearance settings](settings.md#appearance).
 The configured assistant-name prefix is supported for typed input and activated
 voice. Exact spoken names also work: replace dots/hyphens in the ID with
 spaces, for example **"Kora, set appearance theme to dark"**.

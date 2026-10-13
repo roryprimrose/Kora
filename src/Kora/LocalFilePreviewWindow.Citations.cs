@@ -21,6 +21,7 @@ internal sealed partial class LocalFilePreviewWindow
     {
         citedLocation = new NamedTextBlock { TextWrapping = TextWrapping.Wrap };
         citedSpan = new NamedTextBlock { FontFamily = new FontFamily("Consolas"), Focusable = true };
+        if (typographyHost is not null) { NativeReaderTypography.Bind(citedSpan, typographyHost); }
         AutomationProperties.SetName(citedLocation, "Exact original source identity and end-exclusive location");
         exactSpanPanel = new StackPanel { IsVisible = false, Spacing = 4 };
         exactSpanPanel.Children.Add(citedLocation);

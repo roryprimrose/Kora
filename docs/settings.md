@@ -378,7 +378,7 @@ required queued setup task.
 
 The existing controls and exact typed/activated-voice commands share one
 host-owned, typed appearance service. No model or network is needed. Enter
-**list appearance settings** to inspect the ten admitted options, units,
+**list appearance settings** to inspect the eleven admitted options, units,
 defaults, bounds, scope and application timing.
 
 | ID | Default | Values / units |
@@ -393,6 +393,7 @@ defaults, bounds, scope and application timing.
 | `appearance.movement-speed` | `100` | 25-200 percent |
 | `appearance.speech-scaling` | `true` | `true`, `false` (visual sizing only) |
 | `appearance.speech-scale-amount` | `100` | 0-200 percent |
+| `appearance.reader-text-scale` | `100` | 75-200 integer percent; native source/detail bodies only ([domain](../src/Kora.Core/Configuration/ReaderTextScaleSettings.cs)) |
 
 Use **get appearance.theme**, **set appearance.theme to dark**, or
 **reset appearance.theme**; substitute another listed ID and its typed value.
@@ -419,6 +420,14 @@ the previous saved/effective value and revision and shows the error.
 Get distinguishes a saved preference from an unsaved domain default.
 Successful changes update all open visual surfaces without reopening them.
 Speech scaling changes only animation, not audio output or call policy.
+
+**Native reader text scale** in Settings > Appearance applies an absolute integer percentage immediately; select its exact ID for **Reset selected option** (100). Exact commands include `get/status appearance.reader-text-scale`, `set appearance.reader-text-scale to 75` (or 100/200), and `reset appearance.reader-text-scale`. Relative changes and number words are not inferred ([registry](../src/Kora.Core/Configuration/AppearanceOptionRegistry.cs), [parser](../src/Kora.Application/Configuration/AppearanceCommand.cs), [editor](../src/Kora/SettingsWindow.axaml)).
+
+It scales only shared native DetailWindow Rendered/Source/continuous text, file/folder/retained attachment source bodies and exact cited/literal-match spans, and the native clipboard snapshot source body. Trusted chrome, search inputs/results, identity/location labels, consent/approval/question/error controls and captions remain independently readable. Strings, bytes, digests and offsets are unchanged; the preference grants no content access/copy/export or persistence consent ([detail](../src/Kora/DetailWindow.axaml.cs), [file](../src/Kora/LocalFilePreviewWindow.cs), [span](../src/Kora/LocalFilePreviewWindow.Citations.cs), [clipboard](../src/Kora/ClipboardPreviewWindow.cs)).
+
+Unlike the older appearance options, reader-scale writes retain an unconfirmed marker until exact readback and the success audit complete. Invalid or unconfirmed state blocks new scaled readers with an explicit error; inspect saved evidence and audit receipts before repair, never blindly retry. The prior confirmed UI value is not evidence of successful persistence ([workflow](../src/Kora.Application/Configuration/AppearanceConfigurationService.cs), [store](../src/Kora.Application/Configuration/LocalReaderTextScalePreferences.cs)).
+
+This is not global text scaling: inline guide/grant previews, compact responses/conversations, evidence/search/catalogues, captions and browser/HTML/diagram/image/PDF readers are excluded. Full accessibility, hardware and Windows DPI acceptance remain open; see the [bounded contract](../Design/Information_Display.md#bounded-native-reader-text-scale).
 
 Response pinning, topmost behavior and window placement retain their existing
 direct controls but are not registered: their shared-file writes are outside

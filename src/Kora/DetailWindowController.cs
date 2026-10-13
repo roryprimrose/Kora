@@ -52,7 +52,7 @@ public sealed partial class DetailWindowController : IDisposable
         ILogger<DetailWindowController> logger, ILogger<NativeDetailRenderer> rendererLogger)
         : this(documentation, () => viewModel.CanRevealPrivatePresentation,
             new NativeDetailRenderer(rendererLogger), new NativeDetailClipboard(),
-            (state, result, copy) => new DetailWindow(state, result, copy), logger)
+            (state, result, copy) => new DetailWindow(state, result, copy, viewModel), logger)
     {
         this.viewModel = viewModel;
         viewModel.PrivacyClosureRequested += OnPrivacyClosureRequested;
@@ -254,7 +254,7 @@ public sealed partial class DetailWindowController : IDisposable
         catch (InvalidOperationException)
         {
             registry.Close(reference);
-            return "Native detail controls unavailable; no viewer or private render state was retained.";
+            return "Native detail controls or confirmed reader text scale unavailable; inspect preference evidence. No viewer or private render state was retained.";
         }
         if (!CanAccess(content) || state.Generation != generation || state.Content is null)
         {

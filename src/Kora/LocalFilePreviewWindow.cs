@@ -6,6 +6,7 @@ using Avalonia.Media;
 
 using Kora.Application.Infrastructure;
 using Kora.Application.Presentation;
+using Kora.Application.ViewModels;
 using Kora.Controls;
 using Kora.Core.Context;
 using Kora.Core.Storage;
@@ -13,7 +14,7 @@ using Kora.Core.Hosting;
 
 namespace Kora;
 
-internal sealed partial class LocalFilePreviewWindow(Action<string> reportFailure) : Window
+internal sealed partial class LocalFilePreviewWindow(Action<string> reportFailure, MainViewModel? typographyHost = null) : Window
 {
     private NamedTextBlock content = CreateContent();
     private TextBox? queryBox;
@@ -383,7 +384,9 @@ internal sealed partial class LocalFilePreviewWindow(Action<string> reportFailur
     private DockPanel Compose(string metadata, Button? confirm, string? text, string disclosureText = Disclosure)
     {
         ClearContent();
+        typographyHost?.EnsureReaderTypographyAvailable();
         content = CreateContent();
+        if (typographyHost is not null) { NativeReaderTypography.Bind(content, typographyHost); }
         Width = 800;
         Height = 640;
         var body = new DockPanel { Margin = new Avalonia.Thickness(16) };

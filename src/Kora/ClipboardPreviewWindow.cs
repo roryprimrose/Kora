@@ -4,21 +4,24 @@ using Avalonia.Layout;
 using Avalonia.Media;
 
 using Kora.Application.Infrastructure;
+using Kora.Application.ViewModels;
 using Kora.Controls;
 using Kora.Core.Context;
 
 namespace Kora;
 
-internal sealed class ClipboardPreviewWindow(Action<Exception> reportFailure) : Window, IClipboardPreviewView
+internal sealed class ClipboardPreviewWindow(Action<Exception> reportFailure, MainViewModel? typographyHost = null) : Window, IClipboardPreviewView
 {
     private readonly NamedTextBlock source = new() { FontFamily = new FontFamily("Consolas") };
 
     public void Show(ClipboardSnapshot snapshot, Func<Task> reuse, Func<Task> revoke)
     {
+        typographyHost?.EnsureReaderTypographyAvailable();
         Title = "Local clipboard snapshot (untrusted plain text)";
         Width = 760;
         Height = 600;
         source.Text = snapshot.Text;
+        if (typographyHost is not null) { NativeReaderTypography.Bind(source, typographyHost); }
         AutomationProperties.SetName(source, "Clipboard snapshot plain text content");
         var reuseButton = new Button { Content = "Reuse this exact snapshot ID" };
         AutomationProperties.SetName(reuseButton, "Reuse this exact clipboard snapshot ID");

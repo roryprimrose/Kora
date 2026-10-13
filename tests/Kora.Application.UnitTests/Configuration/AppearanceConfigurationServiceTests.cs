@@ -10,7 +10,7 @@ using Microsoft.Extensions.Logging;
 
 namespace Kora.Application.UnitTests.Configuration;
 
-public sealed class AppearanceConfigurationServiceTests
+public sealed partial class AppearanceConfigurationServiceTests
 {
     [Fact]
     public void Every_option_round_trips_resets_only_itself_and_keeps_existing_formats()
@@ -24,7 +24,8 @@ public sealed class AppearanceConfigurationServiceTests
             before.Value.Should().Be(descriptor.Default);
             before.IsSaved.Should().BeFalse();
             var changedValue = Alternative(descriptor);
-            var proposal = fixture.Service.Propose(descriptor.Option, changedValue, before.Revision, SecurityAuditInitiator.LocalUser);
+            var proposal = fixture.Service.Propose(descriptor.Option, changedValue, before.Revision, SecurityAuditInitiator.LocalUser,
+                RequestOrigin.LocalUi, () => true);
             proposal.Option.Should().Be(descriptor.Option);
             proposal.Value.Should().Be(changedValue);
             proposal.Revision.Should().Be(before.Revision);
@@ -38,16 +39,16 @@ public sealed class AppearanceConfigurationServiceTests
             fixture.CreateService().Get(descriptor.Option).Value.Should().Be(changedValue);
             var writes = fixture.Store.Writes;
             fixture.Service.Apply(fixture.Service.Propose(descriptor.Option, changedValue,
-                result.State.Revision, SecurityAuditInitiator.LocalUser), TestContext.Current.CancellationToken).Outcome.Should().Be(AppearanceApplyOutcome.Unchanged);
+                result.State.Revision, SecurityAuditInitiator.LocalUser, RequestOrigin.LocalUi, () => true), TestContext.Current.CancellationToken).Outcome.Should().Be(AppearanceApplyOutcome.Unchanged);
             fixture.Store.Writes.Should().Be(writes);
             var reset = fixture.Service.Apply(fixture.Service.ProposeReset(descriptor.Option,
-                result.State.Revision, SecurityAuditInitiator.TypedCommand), TestContext.Current.CancellationToken);
+                result.State.Revision, SecurityAuditInitiator.TypedCommand, RequestOrigin.LocalUi, () => true), TestContext.Current.CancellationToken);
             reset.State.Value.Should().Be(descriptor.Default);
             foreach (var other in AppearanceOptionRegistry.Options)
                 fixture.Service.Get(other.Option).Value.Should().Be(other.Default);
         }
-        notifications.Should().Be(20);
-        fixture.Audit.Events.Should().HaveCount(40);
+        notifications.Should().Be(22);
+        fixture.Audit.Events.Should().HaveCount(44);
         fixture.Store.Text["appearance-theme.txt"].Should().Be("System");
         fixture.Store.Text["presence-display-enabled.txt"].Should().Be("True");
         fixture.Store.Text["presence-speech-scaling-enabled.txt"].Should().Be("True");
@@ -284,27 +285,35 @@ public sealed class AppearanceConfigurationServiceTests
         public int Writes { get; private set; }
         public Exception? Failure { get; set; }
         public Action? BeforeWrite { get; set; }
+        public bool SuppressWrite { get; set; }
+        public Exception? DeleteFailure { get; set; }
         public string? ReadText(string fileName) => Text.GetValueOrDefault(fileName);
         public string[]? ReadLines(string fileName) => null;
         public void WriteText(string fileName, string contents)
         {
             BeforeWrite?.Invoke();
             if (Failure is not null) throw Failure;
-            Text[fileName] = contents;
+            if (!SuppressWrite) { Text[fileName] = contents; }
             Writes++;
         }
         public void WriteLines(string fileName, IEnumerable<string> contents) => throw new NotSupportedException();
-        public void Delete(string fileName) => throw new NotSupportedException();
+        public void Delete(string fileName)
+        {
+            if (DeleteFailure is not null) { throw DeleteFailure; }
+            Text.Remove(fileName);
+        }
     }
 
     private sealed class Audit : ISecurityAuditLog
     {
         public List<SecurityAuditEvent> Events { get; } = [];
         public Action? BeforeRequested { get; set; }
+        public Action? BeforeSuccess { get; set; }
         public void Write(SecurityAuditEvent auditEvent)
         {
             Events.Add(auditEvent);
             if (auditEvent.Outcome == SecurityAuditOutcome.Requested) BeforeRequested?.Invoke();
+            if (auditEvent.Outcome == SecurityAuditOutcome.Succeeded) BeforeSuccess?.Invoke();
         }
     }
 

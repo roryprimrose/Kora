@@ -2,6 +2,8 @@ using System.Text;
 
 using Avalonia.Automation.Peers;
 using Avalonia.Controls;
+using Avalonia.Input;
+using Avalonia.Interactivity;
 using Avalonia.VisualTree;
 
 using AwesomeAssertions;
@@ -25,6 +27,108 @@ namespace Kora.Windows.IntegrationTests;
 [Collection(nameof(DurableStorageCompositionTestGroup))]
 public sealed class AttachmentCatalogueWindowTests
 {
+    [WindowsFact]
+    public async Task NativeExactIdSearchIsExplicitVolatileAndCanonicalWithEnterClearAndEscape()
+    {
+        await HeadlessSession.RunAsync(async () =>
+        {
+            using var fixture = new InteractionStorageFixture();
+            await fixture.InitializeAsync();
+            var access = new WindowsSqliteSessionWorkspaceTests.Access();
+            var summary = Summary(fixture.Request);
+            var calls = 0;
+            var revocations = 0;
+            var seen = new List<(SessionAttachmentQuery Query, string? Cursor)>();
+            var cursor = "YQ==." + new string('a', 64);
+            using var model = new AttachmentCatalogueViewModel((query, next, _, _) =>
+            {
+                calls++;
+                seen.Add((query, next));
+                var matches = query.Matches(summary);
+                return Task.FromResult(new SessionAttachmentPage(query, matches ? [summary] : [],
+                    next is null && matches ? cursor : null, DateTimeOffset.UnixEpoch, 1, new string('a', 64), 1, false));
+            }, (_, _, _) => throw new InvalidOperationException("Search must not navigate."),
+                access, () => true, NullLogger<AttachmentCatalogueViewModel>.Instance);
+            model.SelectionRevoked += _ => revocations++;
+            var window = new AttachmentCatalogueWindow(model);
+            window.Show();
+            try
+            {
+                var mode = window.FindControl<ComboBox>("AttachmentQueryMode")!;
+                var field = window.FindControl<TextBox>("AttachmentQueryText")!;
+                var search = window.FindControl<Button>("RefreshPage")!;
+                model.Mode.Should().Be(AttachmentCatalogueMode.Browse);
+                field.IsEnabled.Should().BeFalse();
+                calls.Should().Be(0);
+                mode.SelectedItem = AttachmentCatalogueMode.ExactId;
+                model.CanSearch.Should().BeFalse();
+                foreach (var invalid in new[] { "", " ", Guid.Empty.ToString("D"),
+                    summary.Session.Value.ToString("D").ToUpperInvariant(), summary.Session.Value.ToString("N"),
+                    summary.Session.Value.ToString("D") + "\n", "\u0000", new string('a', 4097) })
+                {
+                    field.Text = invalid;
+                    model.QueryText.Should().Be(invalid);
+                    search.IsEnabled.Should().BeFalse();
+                    model.QueryHint.Should().Contain("Invalid exact session ID");
+                    field.Focus();
+                    field.RaiseEvent(new KeyEventArgs { RoutedEvent = InputElement.KeyDownEvent, Key = Key.Enter });
+                    calls.Should().Be(0);
+                }
+                await model.Refresh();
+                model.Status.Should().Contain("InvalidDataException").And.Contain("canonical ID");
+                calls.Should().Be(0);
+                field.Text = summary.Session.Value.ToString("D");
+                field.Focus();
+                field.RaiseEvent(new KeyEventArgs { RoutedEvent = InputElement.KeyDownEvent, Key = Key.Enter });
+                await window.Operation;
+                model.Records.Should().ContainSingle();
+                model.SelectedRecord.Should().BeNull("search never selects or navigates automatically");
+                seen.Single().Query.ExactId.Should().Be(summary.Session.Value);
+                model.Select(summary);
+                model.IncludeRemoved = true;
+                model.QueryText.Should().Be(summary.Session.Value.ToString("D"));
+                model.Mode.Should().Be(AttachmentCatalogueMode.ExactId);
+                model.Records.Should().BeEmpty();
+                model.SelectedRecord.Should().BeNull();
+                revocations.Should().Be(1);
+                calls.Should().Be(1);
+                search.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                await window.Operation;
+                model.CanNext.Should().BeTrue();
+                window.FindControl<Button>("NextPage")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                await window.Operation;
+                seen.Last().Cursor.Should().Be(cursor);
+                seen.Last().Query.Should().Be(new SessionAttachmentQuery(true, field.Text));
+                field.Text = Guid.NewGuid().ToString("D");
+                model.CanNext.Should().BeFalse();
+                model.Records.Should().BeEmpty();
+                search.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                await window.Operation;
+                model.Status.Should().Contain("not found").And.Contain("no fallback");
+                window.FindControl<Button>("ClearQuery")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                model.Mode.Should().Be(AttachmentCatalogueMode.Browse);
+                model.QueryText.Should().BeEmpty();
+                model.IncludeRemoved.Should().BeTrue();
+                calls.Should().Be(4, "Clear and all edits are memory-only");
+                search.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                await window.Operation;
+                seen.Last().Query.Should().Be(new SessionAttachmentQuery(true));
+                seen.Last().Cursor.Should().BeNull();
+                model.Mode = AttachmentCatalogueMode.ExactId;
+                field.Text = summary.Session.Value.ToString("D");
+                field.RaiseEvent(new KeyEventArgs { RoutedEvent = InputElement.KeyDownEvent, Key = Key.Escape });
+                window.IsVisible.Should().BeFalse();
+                model.QueryText.Should().BeEmpty();
+                model.Status.Should().BeEmpty();
+                model.Records.Should().BeEmpty();
+                model.CanEdit.Should().BeFalse();
+                model.Mode.Should().Be(AttachmentCatalogueMode.Browse);
+                model.IncludeRemoved.Should().BeFalse();
+            }
+            finally { window.Close(); }
+        });
+    }
+
     [WindowsFact]
     public async Task CatalogueNativeMetadataWindowIsContentFreeAndDoneNavigationUsesExistingExactValidatedSourceWithoutPathReads()
     {
@@ -76,6 +180,8 @@ public sealed class AttachmentCatalogueWindowTests
             try
             {
                 model.Records.Should().BeEmpty("opening does not enumerate, capture or read a body");
+                model.Mode = AttachmentCatalogueMode.ExactId;
+                model.QueryText = fixture.Request.SessionId.Value.ToString("D");
                 await model.Refresh();
                 window.UpdateLayout();
                 var slot = model.Records.Single();
@@ -154,16 +260,22 @@ public sealed class AttachmentCatalogueWindowTests
                     controller.Open();
                     var model = (AttachmentCatalogueViewModel)window!.DataContext!;
                     model.Records.Should().BeEmpty();
+                    model.Mode = AttachmentCatalogueMode.ExactId;
+                    model.QueryText = owner.SessionId.Value.ToString("D");
                     await model.Refresh();
                     model.Status.Should().NotContain("unavailable");
                     model.Records.Should().ContainSingle();
                     await Task.Run(fixture.AdvanceLifecycleTargetAsync);
                     model.Records.Should().BeEmpty();
                     model.SelectedDetails.Should().BeEmpty();
+                    model.QueryText.Should().BeEmpty();
+                    model.Mode.Should().Be(AttachmentCatalogueMode.Browse);
                     await model.Refresh();
                     files.Revoke();
                     model.Records.Should().BeEmpty();
                     await model.Refresh();
+                    model.Mode = AttachmentCatalogueMode.ExactId;
+                    model.QueryText = owner.SessionId.Value.ToString("D");
                     var closed = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
                     window.Closed += (_, _) => closed.TrySetResult();
                     fixture.Main.CloseForObservedPrivacyEvent("Synthetic privacy closure", hidePresentation: true);
@@ -172,6 +284,7 @@ public sealed class AttachmentCatalogueWindowTests
                     window.IsVisible.Should().BeFalse();
                     model.Records.Should().BeEmpty();
                     model.Status.Should().BeEmpty();
+                    model.QueryText.Should().BeEmpty();
                     inspector.Calls.Should().Be(0);
                     controller.Dispose();
                     controller.Open();
@@ -181,6 +294,9 @@ public sealed class AttachmentCatalogueWindowTests
 
     [Theory]
     [InlineData("query")]
+    [InlineData("id")]
+    [InlineData("mode")]
+    [InlineData("clear")]
     [InlineData("control")]
     [InlineData("private")]
     [InlineData("cancel")]
@@ -196,12 +312,14 @@ public sealed class AttachmentCatalogueWindowTests
         var summary = Summary(fixture.Request);
         var page = new SessionAttachmentPage(new(), [summary], null, DateTimeOffset.UnixEpoch, 1, new string('a', 64), 1, false);
         var calls = 0;
-        using var model = new AttachmentCatalogueViewModel(async (_, _, _, token) =>
+        using var model = new AttachmentCatalogueViewModel(async (query, _, _, token) =>
         {
             if (++calls != 1) { entered.SetResult(); await release.Task.WaitAsync(fixture.Token); }
-            return page;
+            return page with { Query = query };
         }, (_, _, _) => throw new InvalidOperationException("No body navigation admitted."),
             access, () => true, NullLogger<AttachmentCatalogueViewModel>.Instance);
+        model.Mode = AttachmentCatalogueMode.ExactId;
+        model.QueryText = summary.Session.Value.ToString("D");
         await model.Refresh();
         model.Select(summary);
         model.CanNavigate.Should().BeTrue();
@@ -209,6 +327,9 @@ public sealed class AttachmentCatalogueWindowTests
         await entered.Task.WaitAsync(fixture.Token);
         model.Records.Should().BeEmpty();
         if (boundary is "query") { model.IncludeRemoved = true; }
+        if (boundary is "id") { model.QueryText = Guid.NewGuid().ToString("D"); }
+        if (boundary is "mode") { model.Mode = AttachmentCatalogueMode.Browse; }
+        if (boundary is "clear") { model.ClearQuery(); }
         if (boundary is "control") { access.ControlRevision++; model.SynchronizeAuthority(); }
         if (boundary is "private") { access.CanInspect = false; model.SynchronizeAuthority(); }
         if (boundary is "cancel") { model.Cancel(); }
@@ -220,6 +341,11 @@ public sealed class AttachmentCatalogueWindowTests
         model.SelectedDetails.Should().BeEmpty();
         model.CanNext.Should().BeFalse();
         model.CanNavigate.Should().BeFalse();
+        if (boundary is "control" or "private" or "cancel" or "revoke" or "dispose")
+        {
+            model.QueryText.Should().BeEmpty();
+            model.Mode.Should().Be(AttachmentCatalogueMode.Browse);
+        }
         model.Dispose();
         model.Status.Should().BeEmpty();
     }

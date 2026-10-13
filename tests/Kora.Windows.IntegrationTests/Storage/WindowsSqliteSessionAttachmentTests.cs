@@ -353,9 +353,9 @@ public sealed partial class WindowsSqliteSessionAttachmentTests
         await fixture.RunAsync(async () => await fixture.Store.RecordControlIntentAsync(fixture.Request, fixture.Token));
     }
 
-    private static async Task NewSession(InteractionStorageFixture fixture)
+    private static async Task NewSession(InteractionStorageFixture fixture, HostId<SessionIdentity>? session = null)
     {
-        fixture.Request = Request();
+        fixture.Request = Request(session);
         await fixture.RunAsync(async () =>
         {
             await fixture.Store.RecordControlIntentAsync(fixture.Request, fixture.Token);

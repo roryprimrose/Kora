@@ -167,6 +167,9 @@ headless focus/accessible-name checks are not installed screen-reader/DPI proof.
 
 **Tray > Retained session attachments** is a separate native metadata-only window, not the current-question recovery surface, All Work overview, model context or a conversation. Opening reads nothing. Refresh/Next/Cancel returns at most sixteen content-free summaries / 64 KiB, scanning sixty-four slots; optional removal provenance is independent of the sixteen retained-body cap.
 
+Native default Browse and explicit canonical **ExactId** share the same bounded validator/scan, with Search/Enter, Next/Cancel and memory-only Clear. ID/mode/removal-filter edits retire selection, results, continuation and pending work; private/source closure erases the volatile query and fences late disclosure.
+No keystroke reads, auto-selection/navigation, name/path/body search or query persistence exists. [Canonical interaction and recovery](../docs/windows-and-tray.md#retained-session-attachments-metadata-only) owns the user instructions; filtering grants no session authority or activity renewal.
+
 Exact IDs, current stored lifecycle, capture/storage generations, source/revision/item/digest headers, byte count/type/captured UTC and copy-certification status are displayed without filenames, original paths or source text. Confirmed certification is not cheap body-integrity verification. Pending authority validation and empty filtered continuation remain explicit; changed authority/store/profile/query and two-minute expiry require Refresh.
 
 Selecting metadata grants nothing. **Open exact session/attachment** uses fresh existing private workspace and full stored-byte inspection, refusing stale/replaced/removed/held references rather than opening newer content. Current Done inspection stays Done and never resumes, dispatches, renews meaningful activity, triggers cleanup or retargets a current question.

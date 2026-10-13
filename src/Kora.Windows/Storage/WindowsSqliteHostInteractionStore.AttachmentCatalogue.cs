@@ -111,7 +111,7 @@ public sealed partial class WindowsSqliteHostInteractionStore : ISessionAttachme
             var summary = DecodeCatalogueRow(connection, rows, admitted, token);
             scanned++;
             after = summary.Session.Value;
-            if (query.IncludeRemoved || summary.CopyStatus != AttachmentCopyStatus.Unavailable) { records.Add(summary); }
+            if (query.Matches(summary)) { records.Add(summary); }
         }
         // Lookahead is content-free. It determines only whether a slot remains; it never skips an unvalidated slot.
         using var remaining = connection.CreateCommand();

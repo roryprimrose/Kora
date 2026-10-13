@@ -16,7 +16,7 @@ public sealed record SessionAttachmentPage(
     public const int SnapshotMinutes = 2;
     public const string Scope = "Metadata of retained private Session slots only. No original path or file is read. "
         + "Confirmed is stored copy certification, not body integrity verification. Exact inspection separately validates original bytes, hash and provenance. "
-        + "Pages scan at most 64 slots and return at most 16 rows / 64 KiB; excluded removal slots can yield an empty page with continuation. "
+        + "Pages scan at most 64 slots and return at most 16 rows / 64 KiB; excluded or nonmatching slots can yield an empty page with continuation. "
         + "Typed authority is validated in at most 4096-commit segments; pending validation pages contain no attachment rows. "
         + "Continuations expire after two minutes and reject any committed authority change. No global total, whole-inventory atomicity, physical deletion or forensic claim. "
         + "No resume, source consent, model ingestion, export or new authority.";
@@ -25,7 +25,7 @@ public sealed record SessionAttachmentPage(
     {
         if (Query is null || Records.IsDefault || Records.Length > MaximumRecords
             || ScannedRows < Records.Length || ScannedRows > MaximumScannedRows
-            || Query.IncludeRemoved && ScannedRows != Records.Length
+            || Query.IncludeRemoved && Query.ExactId is null && ScannedRows != Records.Length
             || ObservedAt.Offset != TimeSpan.Zero || AuthorityCeiling < 0
             || AuthorityDigest is null || AuthorityDigest.Length != 64
             || AuthorityDigest.Any(c => c is not (>= '0' and <= '9' or >= 'a' and <= 'f'))
@@ -47,9 +47,9 @@ public sealed record SessionAttachmentPage(
             {
                 throw new InvalidDataException("An attachment page cannot mix private profile or storage observation identities.");
             }
-            if (!Query.IncludeRemoved && row.CopyStatus == AttachmentCopyStatus.Unavailable)
+            if (!Query.Matches(row))
             {
-                throw new InvalidDataException("A removed slot cannot appear in a retained-only page.");
+                throw new InvalidDataException("An attachment row does not match the original metadata query.");
             }
         }
         if (Next is not null) { ValidateCursor(Next); }

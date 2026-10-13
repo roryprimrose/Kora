@@ -29,7 +29,13 @@ Open **Tray > New request (fresh session only)** or **Sessions > New request (fr
 
 Submit uses the same body bounds, best-effort credential rejection and exact USER retention as the [named-session composer](#exact-session-conversation-and-composer). Current production generation is unavailable: HOST/task status is not an assistant answer. No inference, provider setup, network, fallback or implicit routing is performed.
 
-Creation and Submit are two separate durable operations, not an atomic transaction. Cancel or close after creation leaves the disclosed empty session; Kora does not automatically mark it Done/delete it. Dirty close asks Discard/Cancel, never Save or Submit. Privacy closure clears the memory draft without saving. This window has no autosave/Reload or automatic transfer to named drafts.
+To retain a draft instead, choose **Review exact saved revision and new body** after confirmed creation. Inspect the saved revision, confirmed memory baseline and complete old/new bodies, then separately **Confirm Save reviewed draft only**. Saving leaves the body in memory; it does not submit, run a model, renew activity or grant approval. Submit always needs its own fresh review and leaves saved data independent.
+
+Save is only available for that same confirmed created Active target under its original generation, metadata and private control epoch. A concurrent saved change fails stale; Kora never silently follows/overwrites it. Failed/uncertain saving retains the buffer with inspection guidance, not retry. The saved-draft catalogue can discover it; **Reload saved draft** remains an explicit Sessions gesture.
+
+Creation, Save and Submit are separate durable operations, not an atomic transaction. Cancel or close leaves the disclosed session and saved data; no automatic Done/delete. Eligible dirty close offers Save/Discard/Cancel and a separate exact Save review. Save closes only after a confirmed receipt with no newer edits/revocation. Before confirmed creation or while held, only Discard/Cancel is offered.
+
+Dirty means the current body differs exactly from its last confirmed saved memory baseline, including an empty replacement for a nonempty saved body. Edits, even same-byte reassignment, retire reviews. Privacy closure clears the buffer without saving. This window has no autosave/Reload or automatic transfer to named buffers.
 
 **Open this exact session** is explicit navigation only and protects an unsaved named composer with its existing Save/Discard/Cancel decision. It does not transfer this New request body.
 **Inspect exact attempt (no retry)** reads the disclosed original session/request/task identity without renewing activity. Storage/audit/admission uncertainty keeps the recoverable draft and exact hold; do not blindly create another target or resubmit.

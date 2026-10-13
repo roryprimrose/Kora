@@ -17,7 +17,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 namespace Kora.Application.UnitTests.Hosting;
 
 [Collection("Host tracing")]
-public sealed class NewRequestComposerTests : IDisposable
+public sealed partial class NewRequestComposerTests : IDisposable
 {
     private readonly ActivityListener listener = new()
     {
@@ -409,6 +409,13 @@ public sealed class NewRequestComposerTests : IDisposable
         internal Func<Task>? RetainWait { get; set; }
         internal string? ReadFault { get; set; }
         internal List<string> Messages { get; } = [];
+        internal ConversationDraftSnapshot? Draft { get; set; }
+        internal int Saves { get; private set; }
+        internal Action? OnDraftRead { get; set; }
+        internal Action? BeforeSave { get; set; }
+        internal Action? AfterSave { get; set; }
+        internal Func<Task>? SaveWait { get; set; }
+        internal string? SaveFault { get; set; }
 
         internal Fixture(bool enabledLogger = false)
         {
@@ -517,8 +524,35 @@ public sealed class NewRequestComposerTests : IDisposable
         public ValueTask<SessionPage<Kora.Core.Interaction.HostQuestionRecord>> ReadQuestionPageAsync(HostId<SessionIdentity> session, Guid? after, int limit, CancellationToken token) => throw new NotSupportedException();
         public ValueTask<SessionPage<HostTaskRecord>> ReadTaskPageAsync(HostId<SessionIdentity> session, Guid? after, int limit, CancellationToken token) => throw new NotSupportedException();
         public ValueTask<WorkSessionAuthorization> ChangeIdleLifecycleAsync(HostRequest request, HostRevision generation, bool active, Func<bool> admitted, CancellationToken token) => throw new NotSupportedException();
-        public ValueTask<ConversationDraftSnapshot> ReadConversationDraftAsync(HostId<SessionIdentity> session, CancellationToken token) => throw new NotSupportedException();
-        public ValueTask<ConversationDraftSnapshot> CommitConversationDraftAsync(HostRequest request, ConversationDraftSnapshot expected, string? body, Func<bool> admitted, CancellationToken token) => throw new NotSupportedException();
+        public ValueTask<ConversationDraftSnapshot> ReadConversationDraftAsync(HostId<SessionIdentity> session, CancellationToken token)
+        {
+            OnDraftRead?.Invoke();
+            Draft ??= new(Entry!.Authority, new(session, 0, null));
+            return ValueTask.FromResult(Draft);
+        }
+        public async ValueTask<ConversationDraftSnapshot> CommitConversationDraftAsync(HostRequest request, ConversationDraftSnapshot expected, string? body, Func<bool> admitted, CancellationToken token)
+        {
+            Saves++;
+            if (SaveWait is { } wait) { await wait(); }
+            BeforeSave?.Invoke();
+            if (!admitted() || Draft?.Draft != expected.Draft || Entry != expected.ExpectedTarget)
+            { throw new InvalidOperationException("Exact Save admission revoked"); }
+            if (SaveFault is "audit") { throw new IOException("mandatory save audit unavailable"); }
+            Draft = new(Entry!.Authority, new(request.SessionId, checked(expected.Draft.Revision + 1), body));
+            Records[request.TaskId] = Records[request.TaskId].Next(HostTaskState.Succeeded);
+            AfterSave?.Invoke();
+            if (SaveFault is "readback") { throw new IOException("physical commit readback unconfirmed"); }
+            var receipt = Draft with { ExpectedTarget = expected.ExpectedTarget };
+            return SaveFault switch
+            {
+                "session" => receipt with { Session = receipt.Session with { Generation = new(2) } },
+                "target" => receipt with { ExpectedTarget = null },
+                "draft-session" => receipt with { Draft = receipt.Draft with { SessionId = new(Guid.NewGuid()) } },
+                "revision" => receipt with { Draft = receipt.Draft with { Revision = receipt.Draft.Revision + 1 } },
+                "body" => receipt with { Draft = receipt.Draft with { Body = "wrong receipt" } },
+                _ => receipt,
+            };
+        }
         public ValueTask<ConversationPage> ReadConversationPageAsync(HostId<SessionIdentity> session, ConversationCursor? cursor, int limit, CancellationToken token) => throw new NotSupportedException();
     }
 

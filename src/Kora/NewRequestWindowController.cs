@@ -33,7 +33,7 @@ internal sealed class NewRequestWindowController(
         {
             var state = create();
             var opened = new NewRequestWindow(new(state), () => Navigate(state),
-                exception => main.ReportHostInteractionFailure("Exact New request navigation failed; no body transfer or implicit selection. Failure type: " + exception.GetType().Name));
+                exception => main.ReportHostInteractionFailure("New request native navigation/closing failed; memory edits remain recoverable unless privacy revoked. No implicit Save or selection. Failure type: " + exception.GetType().Name));
             opened.Closed += (_, _) =>
             {
                 if (ReferenceEquals(window, opened)) { window = null; composer = null; }

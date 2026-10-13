@@ -1954,6 +1954,23 @@ public sealed partial class MainViewModelTests
     }
 
     [Fact]
+    public async Task Capture_open_rechecks_permission_after_initial_one_shot_eligibility()
+    {
+        var fixture = CreateVoicePrivacyFixture();
+        await fixture.ViewModel.InitializeAsync();
+        fixture.PrivacyObservation.BeforeRefresh = () =>
+            fixture.PrivacyObservation.BeforeRefresh = () =>
+                fixture.MicrophoneAccess.Status =
+                    new MicrophoneAccessStatus(MicrophoneAccessState.Denied, "Denied");
+
+        await fixture.ViewModel.BeginPushToTalkAsync();
+
+        fixture.ViewModel.ResponseTitle.Should().Be("Windows speech recognition is unavailable.");
+        fixture.ViewModel.IsListening.Should().BeFalse();
+        fixture.Voice.StartCalls.Should().Be(0);
+    }
+
+    [Fact]
     public async Task Repeated_push_to_talk_hold_does_not_open_a_second_capture()
     {
         var fixture = CreateVoicePrivacyFixture();

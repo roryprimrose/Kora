@@ -1,4 +1,4 @@
-using Avalonia.Controls;
+﻿using Avalonia.Controls;
 using Avalonia.Interactivity;
 
 using AwesomeAssertions;
@@ -236,10 +236,14 @@ public sealed partial class SessionsConversationTests
         internal WindowsSqliteSessionWorkspaceTests.Access Access { get; } = new();
         internal AuditLog Audit { get; } = new();
         internal SessionsViewModel Model { get; }
+        internal SessionWorkspaceService Workspace { get; }
+        internal SessionConversationService Conversation { get; }
+        internal NewRequestComposer NewComposer() => new(Workspace, Conversation, Access, NullLogger<NewRequestComposer>.Instance);
 
         internal Composition(InteractionStorageFixture f)
         {
             var workspace = WindowsSqliteSessionWorkspaceTests.Service(f, Access);
+            Workspace = workspace;
             admission = new(f.Store, f.Store, new(f.Tasks));
             var mode = new ProviderModeConfigurationService(new LocalModelProviderModePreferences(f.Paths), admission, Audit);
             mode.Observe();
@@ -254,6 +258,7 @@ public sealed partial class SessionsConversationTests
                 f.Time, mode, profiles, f.Store);
             var conversation = new SessionConversationService(f.Store, f.Store, workspace, Access, turns, f.Time,
                 NullLogger<SessionConversationService>.Instance);
+            Conversation = conversation;
             var sink = new WindowsSqliteEvidenceSink(f.Paths);
             sink.Initialize();
             Model = new(workspace, new DurableEvidenceQuery(new WindowsSqliteEvidenceReader(sink), Access, f.Time,

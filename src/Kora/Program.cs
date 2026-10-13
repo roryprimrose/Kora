@@ -432,6 +432,7 @@ internal static class Program
         services.AddSingleton<ModelTurnHost>();
         services.AddSingleton<IModelTurnAdmission>(provider => provider.GetRequiredService<ModelTurnHost>());
         services.AddSingleton<SessionConversationService>();
+        services.AddTransient<NewRequestComposer>();
         services.AddSingleton<Kora.Application.Definitions.PromptConversationSubmission>();
         services.AddSingleton<ModelProviderHandoffWorkflow>();
         services.AddSingleton<ModelHandoffPresentation>();

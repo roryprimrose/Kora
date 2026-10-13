@@ -1073,6 +1073,25 @@ Diagnostics remain content-minimising and separate from intentional session hist
 
 ## New Requests and Routing
 
+### Delivered native New request fresh-session fallback — 2026-10-13
+
+**Tray > New request (fresh session only)** and **Sessions > New request (fresh target)** activate one native memory-only composer. Relatedness inference remains unavailable: this bounded route offers only an explicit fresh **New conversation**, never the selected, named, recent or Done session.
+The generic host label is not inferred from the candidate body, model or background content.
+
+**Create new empty target** owns one exact original native creation attempt and commits through the audited workspace creation seam. Acknowledge the actual ID/name/generation/metadata revision before separate **Review frozen body** and **Submit reviewed exact body**.
+Creation and body retention are separate authority operations, not atomic or rollback-capable; cancellation after creation leaves the disclosed empty session Active.
+
+Submission reuses `SessionConversationService`: reject-only credential screening before any body write, exact immutable USER text, retained original task/request and separate truthful HOST outcome through configured provider-neutral admission. Current production generation stays unavailable.
+No model answer, automatic routing, context assembly, adapter/bootstrap fallback, network/auth/setup or legacy typed/voice expansion is delivered.
+
+Edits, including same-byte reassignment, cancel and control/private/source changes retire review authority. The original attempt and epoch fence physical COMMIT. Dirty close explicitly offers Discard/Cancel; this scope does not Save/Reload/autosave or transfer text. Privacy closure clears private text without saving. **Open this exact session** uses existing explicit navigation and dirty named-buffer protection, never transfers the New request body.
+
+Unknown creation, retention, terminal or receipt outcomes hold the exact attempt without a second target or submission retry. **Inspect exact attempt** reads its retained target/task under current private/retention authority, changes no meaningful activity and grants no submission authority. A changed observed target remains held. Known or possible partial success stays disclosed; no automatic Done/delete is claimed.
+
+Private SQLite and headless native tests are implementation evidence, not installed accessibility, hardware, provider/inference, profile-original, physical-storage or full R12/R14 qualification. Those gates and the storage/profile deferrals remain unchanged.
+
+### Proposed relatedness routing
+
 Explicit targeting wins: input in a session composer continues that session; "new session" starts one; naming a session targets it.
 An untargeted general voice/global-composer request starts a new session unless clearly related to an Active session.
 Model-assisted matching uses bounded, permitted session descriptors/summaries and the current request, not every transcript or tool result.

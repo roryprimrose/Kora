@@ -19,6 +19,21 @@ See [native editor commands, bounds and recovery](instruction-editor.md).
 
 ## Authoritative Sessions work
 
+### New request with a fresh session
+
+Open **Tray > New request (fresh session only)** or **Sessions > New request (fresh target)**. Reopening activates the same window and preserves its isolated memory draft. Relatedness inference is unavailable: this entry never continues the selected, named, recent or Done session and never changes question/approval/voice focus.
+
+1. Type the original request; typing saves nothing.
+2. Choose **Create new empty target**. Inspect the accepted **New conversation** ID, name, generation and metadata revision. This commits only an empty Active session, not the body.
+3. Choose **Review frozen body for this target**, inspect the exact body/target, then separately **Submit reviewed exact body**. Edits or Cancel retire that review, even if the edited bytes later match.
+
+Submit uses the same body bounds, best-effort credential rejection and exact USER retention as the [named-session composer](#exact-session-conversation-and-composer). Current production generation is unavailable: HOST/task status is not an assistant answer. No inference, provider setup, network, fallback or implicit routing is performed.
+
+Creation and Submit are two separate durable operations, not an atomic transaction. Cancel or close after creation leaves the disclosed empty session; Kora does not automatically mark it Done/delete it. Dirty close asks Discard/Cancel, never Save or Submit. Privacy closure clears the memory draft without saving. This window has no autosave/Reload or automatic transfer to named drafts.
+
+**Open this exact session** is explicit navigation only and protects an unsaved named composer with its existing Save/Discard/Cancel decision. It does not transfer this New request body.
+**Inspect exact attempt (no retry)** reads the disclosed original session/request/task identity without renewing activity. Storage/audit/admission uncertainty keeps the recoverable draft and exact hold; do not blindly create another target or resubmit.
+
 ### Search one exact retained conversation
 
 Select an exact session in **Sessions**, then use **Search this conversation** in its conversation pane. Search matches whole lexical words in original retained **USER** messages or separate typed **HOST** outcome/reason/task-state fields. It never searches other sessions, saved draft bodies, Question/Answer receipts, logs, attachments, memories or accounts.

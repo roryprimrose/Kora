@@ -36,6 +36,7 @@ public sealed partial class App : Avalonia.Application
     private OwnedInstructionEditorController? instructionEditor;
     private PromptParameterController? promptParameters;
     private SessionsWindowController? sessionsWindow;
+    private NewRequestWindowController? newRequestWindow;
     private AllWorkWindowController? allWorkWindow;
     private ClipboardPreviewWindowController? clipboardWindow;
     private LocalFilePreviewWindowController? fileWindow;
@@ -165,7 +166,8 @@ public sealed partial class App : Avalonia.Application
                 () => questionWindow.ReturnToCurrentQuestionAsync(window),
                 () => attachmentCatalogue?.Open(),
                 () => instructionEditor.Open(),
-                () => savedDraftCatalogue?.Open());
+                () => savedDraftCatalogue?.Open(),
+                () => newRequestWindow?.Open());
             evidenceWindow = new EvidenceWindowController(viewModel,
                 Services.GetRequiredService<Kora.Application.Diagnostics.DurableEvidenceQuery>(),
                 Services.GetRequiredService<Kora.Core.Diagnostics.IEvidenceQueryAccess>(),
@@ -192,6 +194,11 @@ public sealed partial class App : Avalonia.Application
                 Services.GetRequiredService<Kora.Application.Configuration.SessionProviderProfileConfigurationService>(),
                 Services.GetRequiredService<SessionConversationService>());
             sessionsWindow.Bind();
+            newRequestWindow = new(viewModel, Services.GetRequiredService<SessionWorkspaceService>(),
+                Services.GetRequiredService<Kora.Core.Storage.ISessionWorkspaceAccess>(),
+                () => Services.GetRequiredService<NewRequestComposer>(), sessionsWindow);
+            newRequestWindow.Bind();
+            sessionsWindow.OpenNewRequest = newRequestWindow.Open;
             savedDraftCatalogue = new(viewModel, Services.GetRequiredService<SessionWorkspaceService>(), sessionsWindow,
                 Services.GetRequiredService<Kora.Core.Storage.ISessionWorkspaceAccess>(),
                 Services.GetRequiredService<ILogger<SavedDraftCatalogueViewModel>>());
@@ -207,6 +214,7 @@ public sealed partial class App : Avalonia.Application
             var sessionRetention = Services.GetRequiredService<SessionRetentionService>();
             Services.GetRequiredService<SessionWorkspaceService>().BindRetention(sessionRetention);
             sessionRetention.Revoking += sessionsWindow.RevokeSession;
+            sessionRetention.Revoking += newRequestWindow.RevokeSession;
             sessionRetention.Revoking += detailWindow.RevokeSession;
             sessionRetention.Revoking += viewModel.RevokeSessionPresentation;
             sessionRetention.Revoking += session => attachmentWindow?.RevokeSession(session);
@@ -333,6 +341,8 @@ public sealed partial class App : Avalonia.Application
         allWorkWindow = null;
         sessionsWindow?.Dispose();
         sessionsWindow = null;
+        newRequestWindow?.Dispose();
+        newRequestWindow = null;
         attachmentCatalogue?.Dispose();
         attachmentCatalogue = null;
         savedDraftCatalogue?.Dispose();

@@ -62,6 +62,9 @@ Existing exact lock behavior and non-executing power proposals are unchanged.
 
 ### R12/R14 exact-session conversation/composer foundation — 2026-10-12
 
+The [native untargeted New request fallback](Interaction_And_Sessions.md#delivered-native-new-request-fresh-session-fallback--2026-10-13) is delivered from tray and Sessions with single-instance activation and an isolated memory draft. Unavailable relatedness inference offers only explicit fresh generic **New conversation**; no selected/Done/named/recent reuse or body-derived title.
+Audited exact-target creation is acknowledged before a separate frozen-body review/Submit through the canonical conversation admission service. Physical COMMIT fences, one-shot review, private close, dirty-buffer protection and exact passive inspection preserve truthful partial success without retry/rollback/Done/delete or body transfer. Production generation, relatedness/voice/compact routing, installed qualification and the paused storage/profile scopes remain unavailable.
+
 The native [saved composer draft catalogue](Interaction_And_Sessions.md#saved-conversation-draft-catalogue--2026-10-13) delivers explicit bounded metadata-only discovery across uncapped retained sessions and stale-refusing exact Sessions navigation.
 No automatic body load/save/overwrite/Submit, global count/quota, schema/index/file-copy change or body authority duplication is added. Reload remains a separate existing Sessions action.
 Private metadata/SQL/headless checks do not qualify generated conversation, provider/hardware/installed accessibility, profile-original editing, hidden import, physical storage or STOP. Existing required audit, retention, source privacy and deferred capability gates remain unchanged.

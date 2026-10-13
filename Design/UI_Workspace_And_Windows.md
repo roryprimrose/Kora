@@ -23,10 +23,12 @@ Native-only query entry adds no activated/model descriptor or generic-global-sea
 ### Separate saved draft catalogue — 2026-10-13
 
 Use **Tray > Saved conversation drafts (metadata only)**, then explicit Refresh. All retained saved-content rows are the default; Active/Done filters and Next consume bounded mutable metadata pages, not bodies.
+Choose **Browse**, literal case-sensitive **NameSubstring**, or canonical lowercase **ExactId**, then **Search / refresh metadata**. The private volatile field performs no read on typing; invalid/empty queries never fall back to All. **Clear query (Browse)** resets without reading.
+Query/mode/filter edits cancel pending callbacks and clear the observed page/cursor/selection immediately, leaving the existing Sessions composer/target untouched. Exact IDs remain distinct from ID-shaped names; empty scanned pages can still have Next. No result is automatically selected.
 Select one immutable row and **Open exact session (no body load)**. Exact private source/revision revalidation precedes selection in the existing Sessions owner; no second composer or body authority exists.
 
 Saved revision/length readiness is visible, not body-integrity certification. **Reload saved draft** remains a separate Sessions gesture; dirty-buffer Save/Discard/Cancel remains authoritative.
-Catalogue privacy/source/lifecycle/close revokes its own IDs/names/continuation before late callbacks, without cancelling unrelated windows. Done browsing never resumes work. See the [canonical catalogue contract](Interaction_And_Sessions.md#saved-conversation-draft-catalogue--2026-10-13).
+Catalogue privacy/source/control/lifecycle/draft/close revokes its own query/IDs/names/continuation before late callbacks, without cancelling unrelated windows. Done browsing never resumes work. See the [canonical catalogue contract](Interaction_And_Sessions.md#saved-conversation-draft-catalogue--2026-10-13).
 
 **Sessions > Exact-session conversation and composer** shows the original
 immutable user messages and separately labelled **HOST** status. It names the

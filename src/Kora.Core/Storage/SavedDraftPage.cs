@@ -5,7 +5,8 @@ namespace Kora.Core.Storage;
 
 /// <summary>A bounded mutable observation of explicitly saved, nonempty composer drafts.</summary>
 public sealed record SavedDraftPage(SessionListFilter Filter, ImmutableArray<SavedDraftSummary> Records,
-    string? Next, int Scanned, int AuditScanned, bool AuthorityPending)
+    string? Next, int Scanned, int AuditScanned, bool AuthorityPending,
+    SessionListSearchKind? QueryKind = null, string? QueryDigest = null)
 {
     public const int MaximumRecords = 25;
     public const int MaximumScanned = SessionListSearchPage.MaximumScannedRecords;
@@ -14,6 +15,8 @@ public sealed record SavedDraftPage(SessionListFilter Filter, ImmutableArray<Sav
         + "At most 25 rows / 64 KiB complete projection and 50 candidate slots per click. "
         + "Empty pages can have Next; end is not a global total. Mutable canonical-ID keyset, not an atomic inventory. "
         + "Changes behind the cursor require Refresh; any committed authority change invalidates continuation. "
+        + "Name search is ordinal case-sensitive metadata only; exact canonical ID is a separate mode. "
+        + "Query edits invalidate observations without reading; Search/Refresh explicitly starts again. "
         + "Opening an exact session never reloads, saves, submits, resumes or renews activity.";
 
     public static int Size(SavedDraftPage page) => JsonSerializer.SerializeToUtf8Bytes(page).Length;
@@ -25,6 +28,10 @@ public sealed record SavedDraftPage(SessionListFilter Filter, ImmutableArray<Sav
             || AuthorityPending && (Next is null || Scanned != 0)
             || Next is not null && Scanned == 0 && !AuthorityPending)
         { throw new InvalidDataException("Saved draft catalogue has an invalid bounded page."); }
+        if (QueryKind is { } kind && !Enum.IsDefined(kind)
+            || (QueryKind is null) != (QueryDigest is null)
+            || QueryDigest is { } digest && (digest.Length != 64 || digest.Any(character => !char.IsAsciiHexDigitLower(character))))
+        { throw new InvalidDataException("Saved draft catalogue has an invalid metadata query scope."); }
         var previous = string.Empty;
         foreach (var row in Records)
         {

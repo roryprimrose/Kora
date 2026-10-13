@@ -2,6 +2,7 @@ using AwesomeAssertions;
 using Kora.Core.Conversation;
 using Kora.Core.Diagnostics;
 using Kora.Core.Hosting;
+using Kora.Core.Storage;
 
 namespace Kora.Windows.IntegrationTests.Storage;
 
@@ -30,6 +31,17 @@ public sealed partial class WindowsSqliteConversationTests
         await FinishInitial(f);
         var additional = await f.Store.ReadConversationDraftAsync(f.Request.SessionId, f.Token);
         await Save(f, additional, "another explicitly saved draft");
+        var service = WindowsSqliteSessionWorkspaceTests.Service(f, new());
+        var ordered = (await f.Store.ReadSessionsAsync(null, 50, f.Token)).Records
+            .Select(row => row.SessionId).ToList();
+        var secondSessions = await f.Store.ReadSessionsAsync(ordered.Last().Value, 50, f.Token);
+        ordered.AddRange(secondSessions.Records.Select(row => row.SessionId));
+        ordered.Sort((left, right) => string.CompareOrdinal(left.Value.ToString("D"), right.Value.ToString("D")));
+        const string name = "Private café 🙂 100%_";
+        foreach (var target in ordered.TakeLast(2))
+        {
+            await service.RenameAsync(target, new(1), 0, new(name), RequestOrigin.LocalUi, f.Token);
+        }
         using (var viewer = HostActivity.BeginRoot(Fresh(f.Request.SessionId), HostActivityLayer.Desktop, HostOperation.Request))
         {
             var audits = f.Count("security_audit_events");
@@ -61,7 +73,39 @@ public sealed partial class WindowsSqliteConversationTests
                 }
             } while (cursor is not null);
             discovered.Should().HaveCount(71, "catalogue continuation is not the removed 64-session profile quota");
+            var query = new SessionListSearch(SessionListSearchKind.NameSubstring, SessionListFilter.All, "café 🙂 100%_");
+            var noMatch = await f.Store.ReadSavedDraftPage(SessionListFilter.All, null, 1, () => true, f.Token, query);
+            noMatch.Records.Should().BeEmpty();
+            noMatch.Scanned.Should().Be(50);
+            noMatch.Next.Should().NotBeNull("bounded nonmatches advance; this is not search exhaustion");
+            var matched = await f.Store.ReadSavedDraftPage(SessionListFilter.All, noMatch.Next, 1, () => true, f.Token, query);
+            matched.Records.Select(row => row.Session.SessionId).Should().Equal(ordered.TakeLast(2));
+            matched.Scanned.Should().Be(21);
+            matched.Next.Should().BeNull();
+            SavedDraftPage.Size(matched).Should().BeLessThanOrEqualTo(SavedDraftPage.MaximumBytes);
+            foreach (var alternate in new SessionListSearch?[]
+            {
+                null,
+                new(SessionListSearchKind.NameSubstring, SessionListFilter.All, "Private"),
+                new(SessionListSearchKind.ExactId, SessionListFilter.All, ordered[^1].Value.ToString("D")),
+            })
+            {
+                var switched = () => f.Store.ReadSavedDraftPage(SessionListFilter.All, noMatch.Next, 1, () => true, f.Token, alternate).AsTask();
+                await switched.Should().ThrowAsync<InvalidDataException>("a query change cannot reuse a cursor, even with the same matches");
+            }
+            var exactQuery = new SessionListSearch(SessionListSearchKind.ExactId, SessionListFilter.All, ordered[^1].Value.ToString("D"));
+            var exactPage = await f.Store.ReadSavedDraftPage(SessionListFilter.All, null, 1, () => true, f.Token, exactQuery);
+            exactPage.Records.Should().ContainSingle().Which.Session.SessionId.Should().Be(ordered[^1]);
+            exactPage.Scanned.Should().Be(1, "the admitted exact metadata candidate uses the existing primary key seek");
+            exactPage.Next.Should().BeNull();
+            var mismatch = () => f.Store.ReadSavedDraftPage(SessionListFilter.Done, null, 1, () => true, f.Token, query).AsTask();
+            await mismatch.Should().ThrowAsync<InvalidDataException>();
             f.Count("security_audit_events").Should().Be(audits);
+            await service.RenameAsync(ordered[0], new(1), 0, new(name), RequestOrigin.LocalUi, f.Token);
+            var stale = () => f.Store.ReadSavedDraftPage(SessionListFilter.All, noMatch.Next, 1, () => true, f.Token, query).AsTask();
+            await stale.Should().ThrowAsync<InvalidDataException>("even a rename behind the cursor changes the conservative authority head");
+            var refreshed = await f.Store.ReadSavedDraftPage(SessionListFilter.All, null, 1, () => true, f.Token, query);
+            refreshed.Records.Should().ContainSingle().Which.Session.SessionId.Should().Be(ordered[0]);
         }
         (await f.Store.ReadConversationDraftAsync(first!.Session.SessionId, f.Token)).Draft.Body.Should().Be("draft-0");
         await Save(f, first, "exact revision overwrite");

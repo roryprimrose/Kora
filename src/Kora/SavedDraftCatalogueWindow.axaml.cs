@@ -15,6 +15,7 @@ internal sealed partial class SavedDraftCatalogueWindow : Window
         RefreshPage.Click += async (_, _) => await (Operation = model.Refresh());
         NextPage.Click += async (_, _) => await (Operation = model.Refresh(next: true));
         CancelRead.Click += (_, _) => model.Cancel();
+        ClearQuery.Click += (_, _) => model.ClearQuery();
         DraftRecords.SelectionChanged += (_, _) => model.Select(DraftRecords.SelectedItem as SavedDraftSummary);
         OpenExact.Click += async (_, _) => await (Operation = model.Navigate());
         CloseView.Click += (_, _) => Close();

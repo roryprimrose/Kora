@@ -43,19 +43,25 @@ Raw logs, attachments, memories, templates, accounts and credential-rejected bod
 **Tray > Saved conversation drafts (metadata only)** opens without reading. Explicit Refresh/Next/Cancel observes only saved nonempty composer draft metadata across retained private sessions.
 All (default), Active and Done filters show exact immutable session ID, current stored state/generation, optional inert private name/metadata revision, saved revision and SQL UTF-8 byte/Unicode scalar lengths. No body, excerpt, body digest or invented saved timestamp is projected.
 
+Browse remains the default. **NameSubstring** and **ExactId** reuse the authoritative [session metadata policy](../src/Kora.Core/Storage/SessionListSearch.cs): ordinal case-sensitive literal name matching, NFC/no-control/format/no-surrounding-whitespace, 120 scalars / 480 UTF-8 bytes; or a separate nonempty canonical lowercase D-format ID.
+An ID-shaped name is only a name. Unnamed sessions cannot match names but can match exact IDs. Invalid/empty queries never trim, normalize or fall back to Browse; **Clear query (Browse)** resets explicitly without reading.
+Typing, query mode and lifecycle filter edits immediately invalidate the catalogue page/cursor/selection and cancel pending callbacks without I/O or changing the current Sessions target/composer. **Search / refresh metadata** explicitly observes the new query; no first match is automatically selected.
+Exact ID seeks the existing draft-row primary key after the same mandatory private source/authority validation. Missing/cleared/unretained/Removed/nonmatching targets end without falling back to a list; unavailable or broken authority remains a recovery failure, not a healthy empty inventory.
+
 Each click consumes at most 50 candidate draft slots and returns at most 25 complete rows / 64 KiB. Cleared/null/empty slots consume scan positions but are not saved-content results; never-saved sessions and question/parameter drafts are not sources.
 Empty pages can have Next. End is an observation, not a global count or immutable inventory. Canonical-UUID keyset pages are mutable; changes behind the cursor require Refresh.
 
-Private signed continuation binds the store/profile/current run, native viewer, private control revision, state filter and last consumed exact ID. Complete typed audit-chain validation precedes disclosure in bounded existing 4096-commit segments; pending pages contain no draft rows.
+Private signed continuation binds the store/profile/current run, native viewer, private control revision, query kind/digest (or Browse), state filter and last consumed exact ID. Complete typed audit-chain validation precedes disclosure in bounded existing 4096-commit segments; pending pages contain no draft rows.
 Any committed authority change invalidates continuation. Existing consolidated whole-store SQL provenance/retention checks remain costs, not per-click body decoding or a performance qualification.
 
 Metadata observes saved revision, body presence/length and current lifecycle; it does **not** verify body integrity or admit Reload/Submit. Exact navigation re-resolves the original metadata, generation, saved revision/presence and private source authority.
 Changed/cleared/retired/held sources refuse with Refresh, never follow newer bodies or names. Navigation selects only the existing Sessions metadata target; Done stays Done, without automatic body import, Resume, work/question/voice retarget or activity renewal.
 
 The same Sessions owner protects its existing dirty buffer with Save/Discard/Cancel. Cancel leaves its target unchanged. An explicitly chosen Save can change the conservative authority head; then Refresh is required before catalogue navigation.
-After selection, **Reload saved draft** is a separate explicit body read under exact revalidation; Save, reviewed Clear and Submit remain distinct. Catalogue close/revocation clears its private rows/continuation/selection without closing unrelated Sessions content.
+After selection, **Reload saved draft** is a separate explicit body read under exact revalidation; Save, reviewed Clear and Submit remain distinct. Catalogue close/source/control/privacy/lifecycle/draft revocation clears its volatile private query/rows/continuation/selection without closing unrelated Sessions content.
 
 No schema/layout/index/file-copy change or aggregate session/draft quota is added. Existing private admission, credential rejection, required audit, retention/copy inventory, migration IDs and restart no-replay rules remain authoritative.
+Names and query text/digests grant no authority; queries are never saved to preferences/history or sent to models, speech, clipboard or logs/activity tags. This metadata query is distinct from selected-session submitted-message body search and ordered interaction-receipt history search.
 Native-only metadata delivery is not model retrieval, generated conversation/history assembly, provider qualification or installed accessibility acceptance.
 
 **Sessions > Exact-session conversation and composer** is a real native
@@ -448,6 +454,7 @@ claimed replaced by this increment.
 ### Delivered Passive Session-List Name and Exact-ID Search - 2026-10-10
 
 The [metadata-only policy](../src/Kora.Core/Storage/SessionListSearch.cs) and [Application read path](../src/Kora.Application/Hosting/SessionWorkspaceService.ListSearch.cs) navigate names or an explicitly selected exact immutable ID.
+The separate [saved composer catalogue](#saved-conversation-draft-catalogue--2026-10-13) reuses this policy on authoritative saved-draft session metadata, not body content; it retains its stricter committed-head continuation invalidation and mandatory audit-prefix validation.
 They reuse the persisted private metadata reader, authoritative name/audit validation and unchanged admission revision, without task intent, activity renewal, grants, model calls, memory use or new storage/index authority.
 
 Names use literal ordinal case-sensitive substring matching, including punctuation as ordinary characters. Queries reuse SessionName's NFC, single-line, no-control/format, no-surrounding-whitespace, 120-scalar/480-UTF-8-byte validation. Invalid text is rejected, never normalized, trimmed, truncated or reinterpreted as All.

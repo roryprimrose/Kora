@@ -51,8 +51,23 @@ public sealed partial class DetailWindow : Window, IDetailView
             $"Item: {content.Reference.ItemId.Value:D} · Revision: {content.Reference.Revision} · Not session authority"
             + (content.HistorySession is { } session ? $" · Retained session: {session.Value:D}" : string.Empty);
         Required<TextBlock>("DigestLabel").Text = $"SHA-256: {content.Digest} · UTF-8 bytes: {content.Utf8Bytes}";
+        if (content.ConversationMessage is { } message)
+        {
+            Required<TextBlock>("ReferenceLabel").Text +=
+                $" · Retained session: {message.Request.SessionId.Value:D} · Original request: {message.Request.RequestId.Value:D}"
+                + $" · Original task: {message.Request.TaskId.Value:D} · Sequence: {message.Sequence}"
+                + $" · Submitted UTC: {message.SubmittedAt:O} · Original generation: {message.Generation.Value}";
+            var host = Required<TextBlock>("ConversationHostLabel");
+            host.IsVisible = true;
+            host.Text = $"Separate HOST observation: {message.Outcome?.ToString() ?? "Pending / inspect task recovery"}"
+                + $" · Reason: {message.Reason?.ToString() ?? "None recorded"} · Task status: {message.ExpectedTaskState}"
+                + " · Not an assistant answer or execution permission.";
+            Required<TextBlock>("CopyPolicyLabel").Text = "Passive retained conversation Details grant no clipboard/export disclosure authority. Exact-source and selection copy are blocked.";
+            Required<Button>("CopySource").IsEnabled = false;
+            Required<Button>("CopySelection").IsEnabled = false;
+        }
         Required<TextBlock>("RendererStatus").Text = state.Status;
-        disclosure.IsVisible = content.Sensitivity == DetailSensitivity.DisclosureConfirmationRequired;
+        disclosure.IsVisible = content.ConversationMessage is null && content.Sensitivity == DetailSensitivity.DisclosureConfirmationRequired;
         source.IsCheckedChanged += (_, _) => state.SetSource(source.IsChecked == true);
         readingText.IsCheckedChanged += (_, _) => Refresh();
         Required<Button>("PreviousMatch").Click += (_, _) => Find(backwards: true);
@@ -208,7 +223,7 @@ public sealed partial class DetailWindow : Window, IDetailView
         renderedDocument.Children.Clear();
         search.Text = string.Empty;
         disclosure.IsChecked = false;
-        foreach (var name in new[] { "DetailTitle", "ProvenanceLabel", "ReferenceLabel", "DigestLabel", "RendererStatus", "RenderStatus" })
+        foreach (var name in new[] { "DetailTitle", "ProvenanceLabel", "ReferenceLabel", "DigestLabel", "ConversationHostLabel", "RendererStatus", "RenderStatus" })
         {
             Required<TextBlock>(name).Text = string.Empty;
         }

@@ -25,7 +25,8 @@ internal sealed partial class SessionsViewModel(
     Kora.Application.Memory.MemoryManagementService? memories = null,
     SessionAttachmentWindowController? attachments = null,
     Kora.Application.Configuration.SessionProviderProfileConfigurationService? providers = null,
-    SessionConversationService? conversation = null) : ObservableObject
+    SessionConversationService? conversation = null,
+    Func<AdmittedDetailContent, Func<bool>, Func<CancellationToken, Task<AdmittedDetailContent>>, CancellationToken, Task<string>>? openConversationDetail = null) : ObservableObject
 {
     private readonly HostRequest viewer = HostRequest.Create(RequestOrigin.LocalUi);
     private readonly CancellationTokenSource lifetime = new();

@@ -162,6 +162,10 @@ are inert plain text with no new copy/export/HTML/Markdown-link action.
 The existing `SessionHistoryEvent` remains its original receipt projection,
 not a fabricated conversation or source for these bodies.
 
+Explicit [retained original USER / typed HOST Details](Information_Display.md#delivered-retained-original-user--typed-host-details---2026-10-14) now resolves one actual observed record through the same passive conversation authority. Exact request/revision/body and selected session metadata are revalidated before publication; stale rows refuse without following newer bodies. HOST status stays typed chrome, not USER-body rewriting or assistant output.
+
+Details does not add copy/export disclosure authority, generated history, model context or new work. Only explicitly opened records undergo bounded passive source checks; private/control/owner, selection/source, deletion/retention and disposal revoke their viewers and delayed callbacks. Existing body/page/storage/audit/retention semantics remain authoritative.
+
 Passive reads never renew meaningful activity, resume Done, run cleanup or
 create provider/question/grant authority. Submission is substantive original
 input; saving/reloading/clearing drafts is not. Failed/cancelled or uncertain

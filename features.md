@@ -7,6 +7,8 @@ source-revision: 2f33199
 
 ## What you can use today
 
+**Exact retained message Details:** explicitly open one original USER record and separately typed HOST status from the shared Sessions/compact conversation row. Source/revision checks refuse stale content; Done remains passive. This is not generated assistant output or clipboard/export permission. See the [Details guide](docs/windows-and-tray.md#exact-retained-original-message-details).
+
 **Compact selected-session conversation:** open it from tray or Sessions to use the same selected target and memory composer in a lightweight view.
 Closing one view preserves the other; the last dirty view protects Save/Discard/Cancel. Conversation reads and Submit are explicit, with truthful USER/HOST outcomes and no generation or new question/voice authority. See the [compact guide](docs/windows-and-tray.md#compact-selected-session-conversation).
 

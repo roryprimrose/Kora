@@ -10,6 +10,18 @@ The bounded native shared-question slice additionally reuses this passive
 plain-text renderer for complete immutable host-record review, separate from
 native answer/approval controls.
 
+## Delivered retained original USER / typed HOST Details - 2026-10-14
+
+After an explicit conversation Read or Search, the [shared native row](../src/Kora/ConversationPresentation.axaml) offers **Details - exact original USER / separate HOST** in Sessions and compact wherever that row is projected. Opening either surface or selecting session metadata reads/opens no Details automatically.
+
+The [canonical resolver](../src/Kora.Application/Hosting/SessionWorkspaceService.Conversation.cs) admits only the actual exact-session retained record: immutable request/task/sequence, record revision, original generation/time and byte-exact USER body. [RetainedConversation](../src/Kora.Core/Presentation/AdmittedDetailContent.cs) is a distinct typed origin, not `FinalizedResponse`, history receipts or model authority.
+
+The existing [viewer controller](../src/Kora/DetailWindowController.cs) renders inert plain text, with the separate typed HOST outcome/reason/task state in [native chrome](../src/Kora/DetailWindow.axaml.cs). The body SHA-256 and reference/revision stay immutable. Reopening deduplicates the same snapshot under native-text-v1's existing eight-viewer/source/search limits; conflicts never follow newer content.
+
+Exact storage/session/source/private/control/owner checks run at resolution and final publication. Only explicitly opened records receive bounded passive source revalidation. Selection/source loss, session disposition/retention, privacy and disposal revoke content/search and fence delayed publication. Retained Done stays Done without Resume or meaningful activity renewal.
+
+This route grants no clipboard/export authority: exact-source, selection and automatic copy remain blocked by [viewer state policy](../src/Kora.Application/Presentation/DetailViewerState.cs), including keyboard/programmatic paths. Existing document/history/web copy policy is unchanged. No model, tool, provider, egress, generated content, auto-offer or broader runtime/hardware/accessibility qualification is delivered.
+
 ## Delivered passive exact-conversation search - 2026-10-13
 
 The selected Sessions conversation pane now separately searches original retained USER bodies and typed HOST outcomes/reasons/task states. It shares the chronological native inert row template; full exact body and original request/task/sequence remain data, not model answers, generated summaries, ranked citations, rich links or execution controls.

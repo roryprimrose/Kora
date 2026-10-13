@@ -62,6 +62,8 @@ Existing exact lock behavior and non-executing power proposals are unchanged.
 
 ### R12/R14 exact-session conversation/composer foundation — 2026-10-12
 
+The bounded [R04/R05 retained original USER / typed HOST detail handoff](Information_Display.md#delivered-retained-original-user--typed-host-details---2026-10-14) is delivered through canonical exact-record admission and the existing native viewer. Explicit shared-row actions preserve body bytes, typed provenance, immutable reference/revision/digest, private/source revocation and passive Done. No generated response, new copy/export authority, provider/egress or full R12/R14/runtime/hardware/accessibility qualification is claimed.
+
 The [compact selected-session projection](UI_Workspace_And_Windows.md#delivered-compact-selected-session-projection) adds explicit tray/workspace single-instance access to the same selection, memory draft and canonical conversation actions.
 Shared lifetime, dirty decisions, source revocation and truthful USER/HOST/work observations preserve the workspace and standalone question/voice presenters. This is not generation, routing or full R14/installed qualification.
 

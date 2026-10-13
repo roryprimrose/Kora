@@ -139,7 +139,6 @@ public sealed class NativeReaderTextScaleTests
                 var fileReader = Text(fileWindow, "Untrusted local file plain text content");
                 var clipboardReader = Text(clipboardWindow, "Clipboard snapshot plain text content");
                 var identity = Text(fileWindow, "Local file review identity and bounds");
-                var location = Text(fileWindow, "Exact original source identity and end-exclusive location");
                 var baseline = fileReader.FontSize;
                 var chromeFont = identity.FontSize;
                 var find = fileWindow.GetVisualDescendants().OfType<TextBox>().Single(control =>
@@ -149,6 +148,7 @@ public sealed class NativeReaderTextScaleTests
                     string.Equals(control.Content as string, "Find first", StringComparison.Ordinal));
                 await ((Kora.Application.Infrastructure.AsyncCommand)findButton.Command!).ExecuteAsync();
                 fileWindow.UpdateLayout();
+                var location = Text(fileWindow, "Exact original source identity and end-exclusive location");
                 var span = fileWindow.GetVisualDescendants().OfType<NamedTextBlock>().Single(control =>
                     AutomationProperties.GetName(control)?.StartsWith("Exact literal original source match", StringComparison.Ordinal) == true);
                 var exactLocation = location.Text;

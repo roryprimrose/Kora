@@ -1,5 +1,7 @@
 ﻿using Avalonia.Automation;
 using Avalonia.Controls;
+using Avalonia.Data;
+using Avalonia.Data.Converters;
 using Avalonia.Layout;
 using Avalonia.Media;
 
@@ -11,28 +13,40 @@ namespace Kora;
 
 internal sealed partial class LocalFilePreviewWindow
 {
-    private StackPanel? exactSpanPanel;
+    private Grid? exactSpanPanel;
     private NamedTextBlock? citedSpan;
     private NamedTextBlock? citedLocation;
     private CancellationTokenSource? navigation;
     private long navigationGeneration;
 
-    private void AddCitationSpan(DockPanel source)
+    private void AddCitationSpan(Grid source)
     {
         citedLocation = new NamedTextBlock { TextWrapping = TextWrapping.Wrap };
         citedSpan = new NamedTextBlock { FontFamily = new FontFamily("Consolas"), Focusable = true };
         if (typographyHost is not null) { NativeReaderTypography.Bind(citedSpan, typographyHost); }
         AutomationProperties.SetName(citedLocation, "Exact original source identity and end-exclusive location");
-        exactSpanPanel = new StackPanel { IsVisible = false, Spacing = 4 };
-        exactSpanPanel.Children.Add(citedLocation);
+        exactSpanPanel = new Grid { IsVisible = false, RowDefinitions = new RowDefinitions("Auto,*"), RowSpacing = 4 };
         exactSpanPanel.Children.Add(new ScrollViewer
+        {
+            Content = citedLocation,
+            MaxHeight = 64,
+            VerticalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Auto,
+        });
+        var spanViewport = new ScrollViewer
         {
             Content = citedSpan,
             MaxHeight = 140,
             HorizontalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Auto,
             VerticalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Auto,
+        };
+        Grid.SetRow(spanViewport, 1);
+        exactSpanPanel.Children.Add(spanViewport);
+        // Exact-span navigation cannot consume the complete original source viewport.
+        exactSpanPanel.Bind(MaxHeightProperty, new Binding("Bounds.Height")
+        {
+            Source = source,
+            Converter = new FuncValueConverter<double, double>(height => height * 0.4),
         });
-        DockPanel.SetDock(exactSpanPanel, Dock.Top);
         source.Children.Add(exactSpanPanel);
     }
 

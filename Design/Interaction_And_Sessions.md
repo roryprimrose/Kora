@@ -1084,7 +1084,20 @@ Creation and body retention are separate authority operations, not atomic or rol
 Submission reuses `SessionConversationService`: reject-only credential screening before any body write, exact immutable USER text, retained original task/request and separate truthful HOST outcome through configured provider-neutral admission. Current production generation stays unavailable.
 No model answer, automatic routing, context assembly, adapter/bootstrap fallback, network/auth/setup or legacy typed/voice expansion is delivered.
 
-Edits, including same-byte reassignment, cancel and control/private/source changes retire review authority. The original attempt and epoch fence physical COMMIT. Dirty close explicitly offers Discard/Cancel; this scope does not Save/Reload/autosave or transfer text. Privacy closure clears private text without saving. **Open this exact session** uses existing explicit navigation and dirty named-buffer protection, never transfers the New request body.
+Edits, including same-byte reassignment, cancel and control/private/source changes retire both review authorities. The original attempt and epoch fence physical COMMIT. **Open this exact session** uses existing explicit navigation and dirty named-buffer protection, never transfers the New request body.
+
+**Review exact saved revision and new body** is available only for the same confirmed created Active target under its original exact generation, metadata and private control epoch, with no creation/submission/save uncertainty.
+The [draft workflow](../src/Kora.Application/Hosting/NewRequestComposer.Drafts.cs) observes the canonical snapshot and displays its revision, the confirmed memory baseline and complete old/new bodies. Separate **Confirm Save reviewed draft only** consumes that frozen proposal.
+
+Saving reuses `SaveDraftAsync` and the canonical `ConversationDraftSnapshot`; an optional exact reviewed target is checked inside the existing [private draft transaction](../src/Kora.Windows/Storage/WindowsSqliteHostInteractionStore.Conversation.cs).
+A known snapshot is never silently updated to follow a concurrent named-window change. Stale target/revision, failed audit, COMMIT or readback uncertainty holds the unchanged memory buffer without retry; observation never restores Save or Submit authority.
+
+Save uses the existing reject-only screening and required content-free draft audit. It retains accepted bytes exactly without clearing the current body, submitting USER data, invoking admission, executing a conversation task, renewing meaningful activity or changing provider/approval authority. Legitimate native control receipts remain distinct from conversation outcomes. Submit requires its own new review and leaves the saved draft independent.
+
+Dirty means exact body inequality against the last confirmed saved memory baseline, not merely nonempty text. The [native close workflow](../src/Kora/NewRequestWindow.axaml.cs) offers eligible **Save/Discard/Cancel** and a separate frozen revision/body confirmation.
+It closes only after an exact acknowledged receipt with no newer edits/revocation. Before confirmed creation or while held, only Discard/Cancel is offered. Failed/cancelled Save keeps the recoverable window; private/owner/call/lifecycle/source closure clears private text and fences callbacks without saving.
+
+The existing saved-draft catalogue discovers these records through its unchanged metadata source. Reload is still a separate explicit Sessions action. No autosave, New request Reload, implicit target creation, profile-global draft, body transfer, serializer/schema/layout/index or aggregate quota is added.
 
 Unknown creation, retention, terminal or receipt outcomes hold the exact attempt without a second target or submission retry. **Inspect exact attempt** reads its retained target/task under current private/retention authority, changes no meaningful activity and grants no submission authority. A changed observed target remains held. Known or possible partial success stays disclosed; no automatic Done/delete is claimed.
 

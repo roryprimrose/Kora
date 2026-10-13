@@ -107,6 +107,8 @@ public sealed partial class WindowsSqliteHostInteractionStore : ISessionConversa
                 var previous = ReadConversationDraft(connection, control.SessionId);
                 if (control.Origin != RequestOrigin.LocalUi || control.InvocationId is not null || session.State != 0
                     || session.Authority != expected.Session || previous != expected.Draft
+                    || expected.ExpectedTarget is { } target
+                        && target != new SessionWorkspaceEntry(session.Authority, ReadMetadata(connection, control.SessionId))
                     || expected.Draft.SessionId != control.SessionId || body is null && previous.Body is null)
                 { throw new InvalidOperationException("Review the exact Active session, saved draft body and revision before saving or clearing."); }
                 database.RequireEmptyArtifactInventory();
@@ -121,7 +123,7 @@ public sealed partial class WindowsSqliteHostInteractionStore : ISessionConversa
                     """, ("$id", Id(control.SessionId)), ("$revision", draft.Revision),
                     ("$payload", HostInteractionCodec.Encode(draft)), ("$audit", sequence));
                 WindowsSqliteHostTaskStore.WriteTask(connection, transaction, completed);
-                return new ConversationDraftSnapshot(session.Authority, draft);
+                return new ConversationDraftSnapshot(session.Authority, draft) { ExpectedTarget = expected.ExpectedTarget };
             }, token, admitted, requireIdle: false).ConfigureAwait(false);
         using var lease = database.AcquireReadLease(CancellationToken.None);
         database.ClearCommittedJournal();

@@ -254,7 +254,7 @@ public sealed partial class DetailWindowController : IDisposable
         catch (InvalidOperationException)
         {
             registry.Close(reference);
-            return "Native detail controls or confirmed reader text scale unavailable; inspect preference evidence. No viewer or private render state was retained.";
+            return "Native detail controls unavailable or reader text scale unconfirmed; inspect preference evidence. No viewer or private render state was retained.";
         }
         if (!CanAccess(content) || state.Generation != generation || state.Content is null)
         {

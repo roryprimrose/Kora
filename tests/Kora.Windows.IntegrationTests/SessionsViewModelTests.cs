@@ -158,7 +158,7 @@ public sealed partial class SessionsViewModelTests
         code.Should().Contain("model.SelectAsync").And.Contain("Key.Escape").And.NotContain("SubmitAsync")
             .And.NotContain("ApproveAsync").And.NotContain("Clipboard").And.NotContain("Reasoner");
         Read("SessionsWindowController.cs").Should().Contain("PrivacyClosureRequested +=")
-            .And.Contain("window?.ClosePrivate()").And.Contain("SessionsRequested -=");
+            .And.Contain("presentation?.Revoke()").And.Contain("SessionsRequested -=");
         Read("ResponseWindow.axaml.cs").Should().Contain("KeyModifiers.Control | KeyModifiers.Shift")
             .And.Contain("viewModel.ShowSessions()");
         Read("Program.cs").Should().Contain("ISessionWorkspaceStore>(interactions)");
@@ -169,8 +169,9 @@ public sealed partial class SessionsViewModelTests
         Read("DesktopSessionWorkspaceAccess.cs").Should().Contain("OnPrivacyClosure").And.Contain("AdmissionRevision");
         source.Should().Contain("Enqueue local version").And.Contain("Confirm clear displayed pending queue");
         code.Should().Contain("model.RefreshWorkAsync").And.Contain("model.DispatchQueueAsync")
-            .And.Contain("refresh.Stop()").And.Contain("refresh.Tick -= OnRefreshTick")
             .And.Contain("ClearHistorySearch.Click += (_, _) => { model.HistoryQuery = string.Empty; HistoryQuery.Focus(); }");
+        Read("SessionsPresentationOwner.cs").Should().Contain("model.Close()")
+            .And.Contain("surface.Close()").And.Contain("refresh.Stop()").And.Contain("refresh.Tick -= Refresh");
         source.Should().Contain("WorkStatus").And.Contain("PendingQuestions").And.Contain("CanRemoveQueueEntry")
             .And.Contain("Authoritative queued, current, waiting, blocked, cancelled and unknown work");
     }

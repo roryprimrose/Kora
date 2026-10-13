@@ -62,6 +62,9 @@ Existing exact lock behavior and non-executing power proposals are unchanged.
 
 ### R12/R14 exact-session conversation/composer foundation — 2026-10-12
 
+The [compact selected-session projection](UI_Workspace_And_Windows.md#delivered-compact-selected-session-projection) adds explicit tray/workspace single-instance access to the same selection, memory draft and canonical conversation actions.
+Shared lifetime, dirty decisions, source revocation and truthful USER/HOST/work observations preserve the workspace and standalone question/voice presenters. This is not generation, routing or full R14/installed qualification.
+
 The [native untargeted New request fallback](Interaction_And_Sessions.md#delivered-native-new-request-fresh-session-fallback--2026-10-13) is delivered from tray and Sessions with single-instance activation and an isolated memory draft. Unavailable relatedness inference offers only explicit fresh generic **New conversation**; no selected/Done/named/recent reuse or body-derived title.
 Audited exact-target creation is acknowledged before a separate frozen-body review/Submit through the canonical conversation admission service. Physical COMMIT fences, one-shot review, private close, dirty-buffer protection and exact passive inspection preserve truthful partial success without retry/rollback/Done/delete or body transfer. Production generation, relatedness/voice/compact routing, installed qualification and the paused storage/profile scopes remain unavailable.
 

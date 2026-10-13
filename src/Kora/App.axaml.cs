@@ -167,7 +167,8 @@ public sealed partial class App : Avalonia.Application
                 () => attachmentCatalogue?.Open(),
                 () => instructionEditor.Open(),
                 () => savedDraftCatalogue?.Open(),
-                () => newRequestWindow?.Open());
+                () => newRequestWindow?.Open(),
+                () => sessionsWindow?.OpenCompact());
             evidenceWindow = new EvidenceWindowController(viewModel,
                 Services.GetRequiredService<Kora.Application.Diagnostics.DurableEvidenceQuery>(),
                 Services.GetRequiredService<Kora.Core.Diagnostics.IEvidenceQueryAccess>(),

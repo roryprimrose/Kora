@@ -19,6 +19,9 @@ internal sealed class SessionsWindowController(
     SessionConversationService? conversation = null) : IDisposable
 {
     private SessionsWindow? window;
+    private CompactSessionWindow? compact;
+    private SessionsViewModel? model;
+    private SessionsPresentationOwner? presentation;
     private bool disposed;
     internal Action? OpenAllWork { get; set; }
     internal Action? OpenNewRequest { get; set; }
@@ -41,17 +44,61 @@ internal sealed class SessionsWindowController(
 
         if (window is null)
         {
-            var opened = new SessionsWindow(new(service, evidence, access, logger, localEvents,
-                content => details?.OpenHistoryDetail(content, window)
-                    ?? "History details unavailable: the native viewer is not composed.",
-                session => details?.RevokeSession(session), memories, attachments, providers, conversation));
+            EnsurePresentation();
+            var opened = new SessionsWindow(model!, presentation);
             opened.AllWorkRequested += (_, _) => OpenAllWork?.Invoke();
             opened.NewRequestRequested += (_, _) => OpenNewRequest?.Invoke();
-            opened.Closed += (_, _) => { if (ReferenceEquals(window, opened)) { window = null; } };
+            opened.CompactConversationRequested += (_, _) => OpenCompact();
+            opened.Closed += (_, _) =>
+            {
+                if (ReferenceEquals(window, opened)) { window = null; }
+                ReleaseUnusedPresentation();
+            };
             window = opened;
             opened.Show();
         }
         window.Activate();
+    }
+
+    internal void OpenCompact()
+    {
+        if (disposed || !access.CanInspect)
+        {
+            main.ReportHostInteractionFailure("Compact conversation unavailable: live private desktop ownership is required.");
+            return;
+        }
+        if (compact is null)
+        {
+            EnsurePresentation();
+            var opened = new CompactSessionWindow(model!, presentation!);
+            opened.SessionsRequested += (_, _) => Open();
+            opened.NewRequestRequested += (_, _) => OpenNewRequest?.Invoke();
+            opened.Closed += (_, _) =>
+            {
+                if (ReferenceEquals(compact, opened)) { compact = null; }
+                ReleaseUnusedPresentation();
+            };
+            compact = opened;
+            opened.Show();
+        }
+        compact.Activate();
+    }
+
+    private void EnsurePresentation()
+    {
+        if (presentation is not null) { return; }
+        model = new(service, evidence, access, logger, localEvents,
+            content => details?.OpenHistoryDetail(content, window)
+                ?? "History details unavailable: the native viewer is not composed.",
+            session => details?.RevokeSession(session), memories, attachments, providers, conversation);
+        presentation = new(model);
+    }
+
+    private void ReleaseUnusedPresentation()
+    {
+        if (window is not null || compact is not null) { return; }
+        model = null;
+        presentation = null;
     }
 
     internal async Task NavigateAsync(Kora.Core.Hosting.HostId<Kora.Core.Hosting.SessionIdentity> session,
@@ -81,9 +128,9 @@ internal sealed class SessionsWindowController(
         }
 
         if (disposed) { return; }
-        if (window?.DataContext is SessionsViewModel state)
+        if (model is { } state)
         {
-            if (state.ReferencesSession(session)) { window.ClosePrivate(); }
+            if (state.ReferencesSession(session)) { presentation?.Revoke(); }
             else { state.RevokeSessionList(); }
         }
     }
@@ -100,7 +147,7 @@ internal sealed class SessionsWindowController(
     }
 
     private void OnOpen(object? sender, EventArgs args) => Open();
-    private void OnPrivacyClosure(object? sender, EventArgs args) => window?.ClosePrivate();
+    private void OnPrivacyClosure(object? sender, EventArgs args) => presentation?.Revoke();
 
     public void Dispose()
     {
@@ -112,7 +159,10 @@ internal sealed class SessionsWindowController(
         main.PrivacyClosureRequested -= OnPrivacyClosure;
         service.SessionLifecycleChanged -= RevokeSession;
         service.SessionRetired -= RevokeSession;
-        window?.ClosePrivate();
+        presentation?.Revoke();
         window = null;
+        compact = null;
+        model = null;
+        presentation = null;
     }
 }

@@ -1,13 +1,97 @@
+using System.Collections.Immutable;
+
 using AwesomeAssertions;
 
 using Kora.Core.Diagnostics;
 using Kora.Core.Hosting;
+using Kora.Core.Memory;
 using Kora.Core.Storage;
 
 namespace Kora.Application.UnitTests.Hosting;
 
 public sealed partial class SessionWorkspaceServiceTests
 {
+    [Fact]
+    public async Task SavedDraftQueryConsumesMoreThanOneThousandFakeRetainedSessionsWithoutInventingAProfileQuota()
+    {
+        using var f = new Fixture();
+        using var root = HostActivity.BeginRoot(f.Request, HostActivityLayer.Application, HostOperation.Request);
+        var query = new SessionListSearch(SessionListSearchKind.NameSubstring, SessionListFilter.All, "needle");
+        var source = Guid.NewGuid();
+        var profile = new HostId<DeviceProfileIdentity>(Guid.NewGuid());
+        var found = new HashSet<HostId<SessionIdentity>>();
+        string? cursor = null;
+        for (var offset = 0; offset < 1003; offset += SavedDraftPage.MaximumRecords)
+        {
+            var rows = Enumerable.Range(offset + 1, Math.Min(SavedDraftPage.MaximumRecords, 1003 - offset))
+                .Select(index =>
+                {
+                    var session = f.Session with { SessionId = new(Guid.Parse(
+                        "30000000-0000-0000-0000-" + index.ToString("D12", System.Globalization.CultureInfo.InvariantCulture))) };
+                    return new SavedDraftSummary(source, profile, session, new(session.SessionId, new(1), new("needle")),
+                        1, 4, 1, f.ControlRevision, 1, new string('a', 64));
+                }).ToImmutableArray();
+            var next = offset + rows.Length < 1003
+                ? Convert.ToBase64String(BitConverter.GetBytes(offset)) + "." + new string('a', 64) : null;
+            f.DraftPage = new(SessionListFilter.All, rows, next, rows.Length, 0, false, query.Kind, query.Digest);
+            var page = await f.Service.ReadSavedDraftCatalogue(SessionListFilter.All, cursor, () => true, f.Token, query);
+            f.ObservedDraftCursor.Should().Be(cursor);
+            foreach (var row in page.Records) { found.Add(row.Session.SessionId).Should().BeTrue(); }
+            cursor = page.Next;
+        }
+        found.Should().HaveCount(1003);
+        cursor.Should().BeNull();
+        f.TaskWrites.Should().BeEmpty();
+        f.ControlCalls.Should().Be(0);
+    }
+
+    [Theory]
+    [InlineData("valid-name")]
+    [InlineData("valid-id")]
+    [InlineData("filter")]
+    [InlineData("kind")]
+    [InlineData("digest")]
+    [InlineData("nonmatch")]
+    [InlineData("unnamed")]
+    [InlineData("late")]
+    [InlineData("browse")]
+    public async Task SavedDraftMetadataQueryIsForwardedAndObservedScopeCannotBeSubstituted(string boundary)
+    {
+        using var f = new Fixture();
+        using var root = HostActivity.BeginRoot(f.Request, HostActivityLayer.Application, HostOperation.Request);
+        var row = new SavedDraftSummary(Guid.NewGuid(), new(Guid.NewGuid()), f.Session,
+            new(f.Session.SessionId, new(1), new("café 🙂 100%_")), 1, 4, 1, f.ControlRevision, 1, new string('a', 64));
+        var query = boundary is "valid-id"
+            ? new SessionListSearch(SessionListSearchKind.ExactId, SessionListFilter.All, f.Session.SessionId.Value.ToString("D"))
+            : new SessionListSearch(SessionListSearchKind.NameSubstring,
+                boundary is "filter" ? SessionListFilter.Done : SessionListFilter.All, "café 🙂 100%_");
+        f.DraftPage = new(SessionListFilter.All, [row], null, 1, 1, false, query.Kind, query.Digest);
+        var admitted = true;
+        f.BeforeDraftRead = () =>
+        {
+            f.DraftPage = boundary switch
+            {
+                "kind" => f.DraftPage with { QueryKind = SessionListSearchKind.ExactId },
+                "digest" => f.DraftPage with { QueryDigest = new string('b', 64) },
+                "nonmatch" => f.DraftPage with { Records = [row with { Metadata = new(f.Session.SessionId, new(1), new("different")) }] },
+                "unnamed" => f.DraftPage with { Records = [row with { Metadata = null }] },
+                _ => f.DraftPage,
+            };
+            if (boundary is "late") { admitted = false; }
+        };
+        var read = () => f.Service.ReadSavedDraftCatalogue(SessionListFilter.All, null, () => admitted, f.Token,
+            boundary is "browse" ? null : query);
+        if (boundary.StartsWith("valid", StringComparison.Ordinal))
+        {
+            (await read()).Records.Should().Equal(row);
+            f.ObservedDraftQuery.Should().BeSameAs(query);
+        }
+        else { await read.Should().ThrowAsync<Exception>(); }
+        f.TaskWrites.Should().BeEmpty();
+        f.ControlCalls.Should().Be(0);
+        f.PassiveInspectionCalls.Should().Be(0);
+    }
+
     [Theory]
     [InlineData("read")]
     [InlineData("resolve")]
@@ -78,9 +162,13 @@ public sealed partial class SessionWorkspaceServiceTests
         internal SessionWorkspaceEntry? DraftTarget { get; set; }
         internal Action? BeforeDraftRead { get; set; }
         internal Action? BeforeDraftResolve { get; set; }
+        internal SessionListSearch? ObservedDraftQuery { get; private set; }
+        internal string? ObservedDraftCursor { get; private set; }
         public ValueTask<SavedDraftPage> ReadSavedDraftPage(SessionListFilter filter, string? cursor,
-            long controlRevision, Func<bool> admitted, CancellationToken token)
+            long controlRevision, Func<bool> admitted, CancellationToken token, SessionListSearch? query = null)
         {
+            ObservedDraftQuery = query;
+            ObservedDraftCursor = cursor;
             BeforeDraftRead?.Invoke();
             return ValueTask.FromResult(DraftPage);
         }

@@ -15,6 +15,61 @@ namespace Kora.Windows.IntegrationTests.Storage;
 public sealed partial class WindowsSqliteConversationTests
 {
     [Fact]
+    public async Task SavedDraftSearchUsesOnlyCurrentNameOrSeparateExactIdentityNeverBodyOrImplicitRetargeting()
+    {
+        using var f = new InteractionStorageFixture();
+        await f.InitializeAsync();
+        await FinishInitial(f);
+        var first = await Save(f, await f.Store.ReadConversationDraftAsync(f.Request.SessionId, f.Token), "PRIVATE_BODY_NEEDLE_88231");
+        f.Request = InteractionStorageFixture.NewRequest();
+        await f.AdmitAsync(newSession: true);
+        await FinishInitial(f);
+        var second = await Save(f, await f.Store.ReadConversationDraftAsync(f.Request.SessionId, f.Token), "second saved body");
+        var service = WindowsSqliteSessionWorkspaceTests.Service(f, new());
+        await service.RenameAsync(first.Session.SessionId, new(1), 0, new(second.Session.SessionId.Value.ToString("D")),
+            RequestOrigin.LocalUi, f.Token);
+        using var viewer = HostActivity.BeginRoot(Fresh(first.Session.SessionId), HostActivityLayer.Desktop, HostOperation.Request);
+        async Task<SavedDraftPage> Read(SessionListSearchKind kind, string text, SessionListFilter filter = SessionListFilter.All) =>
+            await f.Store.ReadSavedDraftPage(filter, null, 1, () => true, f.Token, new(kind, filter, text));
+        (await Read(SessionListSearchKind.NameSubstring, second.Session.SessionId.Value.ToString("D")))
+            .Records.Should().ContainSingle().Which.Session.SessionId.Should().Be(first.Session.SessionId);
+        var exact = await Read(SessionListSearchKind.ExactId, second.Session.SessionId.Value.ToString("D"));
+        exact.Records.Should().ContainSingle().Which.Session.SessionId.Should().Be(second.Session.SessionId,
+            "an ID-shaped name never establishes identity and an unnamed session remains exactly searchable");
+        exact.Scanned.Should().Be(1);
+        (await Read(SessionListSearchKind.NameSubstring, "PRIVATE_BODY_NEEDLE_88231")).Records.Should().BeEmpty();
+        var unknown = await Read(SessionListSearchKind.ExactId, Guid.NewGuid().ToString("D"));
+        unknown.Records.Should().BeEmpty();
+        unknown.Next.Should().BeNull();
+        unknown.Scanned.Should().Be(0);
+        await service.RenameAsync(first.Session.SessionId, new(1), 1, new("Private café 🙂 100%_"),
+            RequestOrigin.LocalUi, f.Token);
+        var audits = f.Count("security_audit_events");
+        var tasks = f.Count("host_tasks");
+        var clock = await f.Store.ReadRetentionAsync(first.Session.SessionId, f.Token);
+        var match = await Read(SessionListSearchKind.NameSubstring, "café 🙂 100%_");
+        match.Records.Should().ContainSingle().Which.Session.SessionId.Should().Be(first.Session.SessionId);
+        (await Read(SessionListSearchKind.NameSubstring, "Café")).Records.Should().BeEmpty();
+        (await Read(SessionListSearchKind.NameSubstring, "café", SessionListFilter.Done)).Records.Should().BeEmpty();
+        (await Read(SessionListSearchKind.ExactId, first.Session.SessionId.Value.ToString("D"), SessionListFilter.Active))
+            .Records.Should().ContainSingle();
+        JsonSerializer.Serialize(match).Should().NotContain("PRIVATE_BODY").And.NotContain("\"Body\"")
+            .And.NotContain("\"QueryText\"", "only query kind/digest, not a query object, is transported");
+        f.Count("security_audit_events").Should().Be(audits);
+        f.Count("host_tasks").Should().Be(tasks);
+        (await f.Store.ReadRetentionAsync(first.Session.SessionId, f.Token)).Should().Be(clock);
+        await Save(f, second, null);
+        var cleared = await Read(SessionListSearchKind.ExactId, second.Session.SessionId.Value.ToString("D"));
+        cleared.Records.Should().BeEmpty();
+        cleared.Next.Should().BeNull();
+        cleared.Scanned.Should().Be(1);
+        var changed = () => f.Store.ResolveSavedDraft(match.Records.Single(), () => true, f.Token).AsTask();
+        await changed.Should().ThrowAsync<InvalidOperationException>();
+        f.Count("conversation_messages").Should().Be(0);
+        AuditText(f).Should().NotContain("PRIVATE_BODY_NEEDLE_88231");
+    }
+
+    [Fact]
     public async Task SavedDraftCatalogueProjectsOnlyBoundedSqlMetadataAndExactNavigationDoesNotReadBodyOrRenewDone()
     {
         using var f = new InteractionStorageFixture();
@@ -139,6 +194,9 @@ public sealed partial class WindowsSqliteConversationTests
         using var viewer = HostActivity.BeginRoot(Fresh(f.Request.SessionId), HostActivityLayer.Desktop, HostOperation.Request);
         var read = () => f.Store.ReadSavedDraftPage(SessionListFilter.All, null, 1, () => true, f.Token).AsTask();
         await read.Should().ThrowAsync<Exception>();
+        var queryRead = () => f.Store.ReadSavedDraftPage(SessionListFilter.All, null, 1, () => true, f.Token,
+            new(SessionListSearchKind.ExactId, SessionListFilter.All, f.Request.SessionId.Value.ToString("D"))).AsTask();
+        await queryRead.Should().ThrowAsync<Exception>("metadata queries retain every original source/provenance check");
     }
 
     [Fact]

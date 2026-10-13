@@ -63,6 +63,11 @@ public sealed class SavedDraftCatalogueTests
     [InlineData("control")]
     [InlineData("ceiling")]
     [InlineData("digest")]
+    [InlineData("query-kind")]
+    [InlineData("query-missing-digest")]
+    [InlineData("query-missing-kind")]
+    [InlineData("query-digest-length")]
+    [InlineData("query-digest-shape")]
     public void PageRejectsInvalidOrMixedScope(string boundary)
     {
         var first = Row(1);
@@ -88,6 +93,11 @@ public sealed class SavedDraftCatalogueTests
             "profile" => page with { Records = [first, second with { Profile = new(Guid.NewGuid()) }] },
             "control" => page with { Records = [first, second with { ControlRevision = 2 }] },
             "ceiling" => page with { Records = [first, second with { AuthorityCeiling = 2 }] },
+            "query-kind" => page with { QueryKind = (SessionListSearchKind)99, QueryDigest = new string('a', 64) },
+            "query-missing-digest" => page with { QueryKind = SessionListSearchKind.NameSubstring },
+            "query-missing-kind" => page with { QueryDigest = new string('a', 64) },
+            "query-digest-length" => page with { QueryKind = SessionListSearchKind.ExactId, QueryDigest = "a" },
+            "query-digest-shape" => page with { QueryKind = SessionListSearchKind.ExactId, QueryDigest = new string('A', 64) },
             _ => page with { Records = [first, second with { AuthorityDigest = new string('b', 64) }] },
         };
         page.Invoking(value => value.Validate()).Should().Throw<InvalidDataException>();
@@ -104,7 +114,8 @@ public sealed class SavedDraftCatalogueTests
                 Session = row.Session with { Generation = new(long.MaxValue) }, DraftRevision = long.MaxValue,
                 Utf8Bytes = 16384, UnicodeScalars = 4096, ControlRevision = long.MaxValue, AuthorityCeiling = long.MaxValue };
         }).ToImmutableArray();
-        var page = new SavedDraftPage(SessionListFilter.Active, rows, Cursor(3000), 50, 4096, false);
+        var query = new SessionListSearch(SessionListSearchKind.NameSubstring, SessionListFilter.Active, "🙂");
+        var page = new SavedDraftPage(SessionListFilter.Active, rows, Cursor(3000), 50, 4096, false, query.Kind, query.Digest);
         page.Validate();
         SavedDraftPage.Size(page).Should().BeLessThanOrEqualTo(SavedDraftPage.MaximumBytes);
         page.Records.Should().HaveCount(25);

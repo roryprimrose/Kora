@@ -8,16 +8,21 @@ public sealed partial class SessionWorkspaceService
         ?? throw new InvalidOperationException("The private saved composer metadata source is unavailable.");
 
     public Task<SavedDraftPage> ReadSavedDraftCatalogue(SessionListFilter filter, string? cursor,
-        Func<bool> admitted, CancellationToken token)
+        Func<bool> admitted, CancellationToken token, SessionListSearch? query = null)
     {
         RequireNativeFileInput();
+        if (query is not null && query.Filter != filter)
+        { throw new InvalidDataException("Saved draft query and lifecycle filter differ."); }
         return ReadAsync(async () =>
         {
             var result = await SavedDraftCatalogue.ReadSavedDraftPage(filter, cursor, access.ControlRevision,
-                admitted, token).ConfigureAwait(false);
+                admitted, token, query).ConfigureAwait(false);
             result.Validate();
             token.ThrowIfCancellationRequested();
-            if (result.Filter != filter || !admitted())
+            if (result.Filter != filter || result.QueryKind != query?.Kind
+                || !string.Equals(result.QueryDigest, query?.Digest, StringComparison.Ordinal)
+                || query is not null && result.Records.Any(row => !query.Matches(new(row.Session, row.Metadata)))
+                || !admitted())
             { throw new InvalidOperationException("Saved draft metadata admission or filter changed. Refresh."); }
             return result;
         }, token, retentionStatusOnly: true);

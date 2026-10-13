@@ -304,6 +304,33 @@ public sealed partial class WindowsSqliteSessionAttachmentTests
         reads.Should().Be(1);
     }
 
+    [WindowsFact]
+    public async Task SavedDraftQueryCompletesBoundedAuthorityPrefixBeforeDisclosingEvenAnExactIdMatch()
+    {
+        using var fixture = await Initialize();
+        using var root = HostActivity.BeginRoot(fixture.Request, HostActivityLayer.Application, HostOperation.Request);
+        var saved = await WindowsSqliteConversationTests.Save(fixture,
+            await fixture.Store.ReadConversationDraftAsync(fixture.Request.SessionId, fixture.Token), "PRIVATE_PENDING_DRAFT");
+        await Attach(fixture, Encoding.UTF8.GetBytes("authority segment fixture"));
+        AppendCatalogueAuditReceipts(fixture, SessionAttachmentPage.MaximumAuditRows + 1);
+        var query = new SessionListSearch(SessionListSearchKind.ExactId, SessionListFilter.All, saved.Session.SessionId.Value.ToString("D"));
+        var first = await fixture.Store.ReadSavedDraftPage(SessionListFilter.All, null, 1, () => true, fixture.Token, query);
+        first.AuthorityPending.Should().BeTrue();
+        first.AuditScanned.Should().Be(4096);
+        first.Scanned.Should().Be(0);
+        first.Records.Should().BeEmpty();
+        first.Next.Should().NotBeNull();
+        var changed = () => fixture.Store.ReadSavedDraftPage(SessionListFilter.All, first.Next, 1, () => true, fixture.Token,
+            new(SessionListSearchKind.NameSubstring, SessionListFilter.All, "unmatched")).AsTask();
+        await changed.Should().ThrowAsync<InvalidDataException>("validation progress also belongs to the original query");
+        var second = await fixture.Store.ReadSavedDraftPage(SessionListFilter.All, first.Next, 1, () => true, fixture.Token, query);
+        second.AuthorityPending.Should().BeFalse();
+        second.Records.Should().ContainSingle().Which.Session.SessionId.Should().Be(saved.Session.SessionId);
+        second.Scanned.Should().Be(1);
+        second.Next.Should().BeNull();
+        second.AuditScanned.Should().BeLessThan(4096);
+    }
+
     private static void AppendCatalogueAuditReceipts(InteractionStorageFixture fixture, int count)
     {
         using var connection = fixture.OpenRaw();

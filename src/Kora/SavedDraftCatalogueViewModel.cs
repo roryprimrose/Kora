@@ -20,6 +20,8 @@ internal sealed partial class SavedDraftCatalogueViewModel(
     private SavedDraftSummary? selected;
     private CancellationTokenSource? operation;
     private SessionListFilter filter;
+    private SavedDraftCatalogueMode mode;
+    private string queryText = string.Empty;
     private bool disposed;
     private long epoch;
     private long controlRevision = access.ControlRevision;
@@ -33,12 +35,45 @@ internal sealed partial class SavedDraftCatalogueViewModel(
         get => filter;
         set
         {
-            if (!CanRead || !Enum.IsDefined(value) || filter == value) { return; }
-            Revoke();
+            if (!CanEditQuery || !Enum.IsDefined(value) || filter == value) { return; }
+            InvalidateQuery();
             filter = value;
             Notify();
         }
     }
+    public IReadOnlyList<SavedDraftCatalogueMode> Modes { get; } = Enum.GetValues<SavedDraftCatalogueMode>();
+    public SavedDraftCatalogueMode Mode
+    {
+        get => mode;
+        set
+        {
+            if (!CanEditQuery || !Enum.IsDefined(value) || mode == value) { return; }
+            InvalidateQuery();
+            mode = value;
+            Notify();
+        }
+    }
+    public string QueryText
+    {
+        get => queryText;
+        set
+        {
+            if (!CanEditQuery || string.Equals(queryText, value, StringComparison.Ordinal)) { return; }
+            InvalidateQuery();
+            queryText = value;
+            Notify();
+        }
+    }
+    private SessionListSearchKind QueryKind => mode == SavedDraftCatalogueMode.NameSubstring
+        ? SessionListSearchKind.NameSubstring : SessionListSearchKind.ExactId;
+    public bool CanEditQuery => !disposed && access.CanInspect && admitted();
+    public bool CanSearch => CanRead && (mode == SavedDraftCatalogueMode.Browse
+        || SessionListSearch.IsValid(QueryKind, filter, queryText));
+    public string QueryHint => mode == SavedDraftCatalogueMode.Browse
+        ? "Browse retained saved drafts. Clear explicitly returns to Browse; typing never reads."
+        : mode == SavedDraftCatalogueMode.NameSubstring
+            ? "Name substring: nonempty NFC, no surrounding whitespace, controls or formats; 120 scalars / 480 UTF-8 bytes. Ordinal case-sensitive; not body search."
+            : "Exact ID: nonempty canonical lowercase D-format session UUID; never interpreted as a name or permission.";
     public string SelectedDetails => selected is null ? string.Empty
         : "Exact session " + selected.Session.SessionId.Value.ToString("D")
             + " | stored " + (selected.Session.IsActive ? "Active" : "Done")
@@ -49,7 +84,7 @@ internal sealed partial class SavedDraftCatalogueViewModel(
             + " | UTF-8 bytes " + selected.Utf8Bytes.ToString(CultureInfo.InvariantCulture)
             + " | SQL Unicode scalar length " + selected.UnicodeScalars.ToString(CultureInfo.InvariantCulture);
     public bool CanRead => !disposed && access.CanInspect && admitted() && operation is null;
-    public bool CanNext => CanRead && page?.Next is not null;
+    public bool CanNext => CanSearch && page?.Next is not null;
     public bool CanNavigate => CanRead && selected is not null;
     public bool CanCancel => !disposed && operation is not null;
 
@@ -62,9 +97,10 @@ internal sealed partial class SavedDraftCatalogueViewModel(
 
     public Task Refresh(bool next = false) => Run(async (current, token) =>
     {
+        var query = mode == SavedDraftCatalogueMode.Browse ? null : new SessionListSearch(QueryKind, filter, queryText);
         var cursor = next ? page?.Next ?? throw new InvalidOperationException("Refresh before Next.") : null;
         Clear();
-        var result = await service.ReadSavedDraftCatalogue(filter, cursor, current, token);
+        var result = await service.ReadSavedDraftCatalogue(filter, cursor, current, token, query);
         if (!current()) { throw new OperationCanceledException("Private catalogue observation revoked."); }
         page = result;
         status = "This page: " + result.Records.Length.ToString(CultureInfo.InvariantCulture) + " saved drafts; "
@@ -72,7 +108,9 @@ internal sealed partial class SavedDraftCatalogueViewModel(
             + result.AuditScanned.ToString(CultureInfo.InvariantCulture) + " authority commits validated. "
             + (result.AuthorityPending ? "Authority validation pending; Next continues before disclosing rows. "
                 : result.Next is not null ? "More candidates remain, even if this page is empty. "
-                    : "End at this observation, not a global inventory or total. ") + SavedDraftPage.Scope;
+                    : result.Records.IsEmpty && query?.Kind == SessionListSearchKind.ExactId
+                        ? "Exact saved draft not found under this filter at this observation; no fallback to Browse. "
+                        : "End at this observation, not a global inventory or total. ") + SavedDraftPage.Scope;
     });
 
     public Task Navigate() => Run(async (current, token) =>
@@ -106,13 +144,13 @@ internal sealed partial class SavedDraftCatalogueViewModel(
         catch (OperationCanceledException)
         {
             Clear();
-            if (!disposed) { status = "Cancelled/revoked; no late catalogue page or selection remains current. Refresh."; }
+            if (!disposed && epoch == originalEpoch) { status = "Cancelled/revoked; no late catalogue page or selection remains current. Refresh."; }
             activity.Complete(HostOperationOutcome.Cancelled);
         }
         catch (Exception exception) when (exception is not OutOfMemoryException)
         {
             Clear();
-            if (!disposed) { status = "Saved draft catalogue unavailable: " + exception.GetType().Name + ". Refresh; no empty success or newer source followed."; }
+            if (!disposed && epoch == originalEpoch) { status = "Saved draft catalogue unavailable: " + exception.GetType().Name + ". Refresh; no empty success or newer source followed."; }
             Failure(logger, exception.GetType().Name);
             activity.Complete(HostOperationOutcome.Failed);
         }
@@ -120,6 +158,21 @@ internal sealed partial class SavedDraftCatalogueViewModel(
     }
 
     public void Cancel() => Revoke();
+    public void ClearQuery()
+    {
+        if (!CanEditQuery) { return; }
+        InvalidateQuery();
+        mode = SavedDraftCatalogueMode.Browse;
+        queryText = string.Empty;
+        Notify();
+    }
+    private void InvalidateQuery()
+    {
+        epoch++;
+        operation?.Cancel();
+        Clear();
+        status = "Query/mode/filter edited. Page, continuation and selection invalidated; explicit Search/Refresh required.";
+    }
     internal void SynchronizeAuthority()
     {
         if (controlRevision == access.ControlRevision && access.CanInspect && admitted()) { return; }
@@ -132,6 +185,8 @@ internal sealed partial class SavedDraftCatalogueViewModel(
         epoch++;
         operation?.Cancel();
         Clear();
+        mode = SavedDraftCatalogueMode.Browse;
+        queryText = string.Empty;
         status = "Private source/lifecycle/draft changed. Page, continuation and selection cleared; Refresh.";
         Notify();
     }
@@ -143,13 +198,16 @@ internal sealed partial class SavedDraftCatalogueViewModel(
         epoch++;
         operation?.Cancel();
         Clear();
+        mode = SavedDraftCatalogueMode.Browse;
+        queryText = string.Empty;
         status = string.Empty;
         Notify();
     }
     private void Notify()
     {
         foreach (var name in new[] { nameof(Records), nameof(SelectedRecord), nameof(SelectedDetails), nameof(Status),
-            nameof(Filter), nameof(CanRead), nameof(CanNext), nameof(CanNavigate), nameof(CanCancel) })
+            nameof(Filter), nameof(Mode), nameof(QueryText), nameof(QueryHint), nameof(CanEditQuery),
+            nameof(CanSearch), nameof(CanRead), nameof(CanNext), nameof(CanNavigate), nameof(CanCancel) })
         { OnPropertyChanged(name); }
     }
 }

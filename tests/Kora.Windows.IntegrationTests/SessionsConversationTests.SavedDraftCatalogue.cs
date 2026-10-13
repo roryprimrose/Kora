@@ -19,6 +19,198 @@ namespace Kora.Windows.IntegrationTests;
 
 public sealed partial class SessionsConversationTests
 {
+    [Fact]
+    public async Task ActualNativeDraftQueryControlsReuseMetadataPolicyWithoutTypingReadsOrComposerChanges()
+    {
+        await HeadlessSession.RunAsync(async () =>
+        {
+            using var f = new InteractionStorageFixture();
+            await f.InitializeAsync();
+            await WindowsSqliteConversationTests.FinishInitial(f);
+            var original = f.Request.SessionId;
+            await WindowsSqliteSessionWorkspaceTests.Service(f, new()).RenameAsync(original, new(1), 0,
+                new("Private café 🙂 100%_"), Kora.Core.Hosting.RequestOrigin.LocalUi, f.Token);
+            await WindowsSqliteConversationTests.Save(f,
+                await f.Store.ReadConversationDraftAsync(original, f.Token), "PRIVATE_NOT_A_QUERY_RESULT");
+            var checkpoint = new CatalogueCheckpoint();
+            var reads = 0;
+            checkpoint.Read = () => reads++;
+            f.Reopen(checkpoint);
+            await f.Store.InitializeAsync(f.Token);
+            await using var composed = new Composition(f);
+            await composed.Model.RefreshAsync();
+            await composed.Model.SelectAsync(composed.Model.Sessions.Single());
+            await composed.Model.ReadConversationAsync();
+            composed.Model.ComposerBody = "original unsaved composer";
+            var target = composed.Model.SelectedSessionRecord;
+            using var model = new SavedDraftCatalogueViewModel(
+                WindowsSqliteSessionWorkspaceTests.Service(f, composed.Access), composed.Model.SelectSavedDraftAsync,
+                composed.Access, () => true, NullLogger<SavedDraftCatalogueViewModel>.Instance);
+            var window = new SavedDraftCatalogueWindow(model);
+            window.Show();
+            try
+            {
+                var mode = window.FindControl<ComboBox>("DraftQueryMode")!;
+                var query = window.FindControl<TextBox>("DraftQueryText")!;
+                var search = window.FindControl<Button>("RefreshPage")!;
+                mode.SelectedItem = SavedDraftCatalogueMode.NameSubstring;
+                foreach (var invalid in new[]
+                {
+                    "", " ", " café", "café ", "cafe\u0301", "bad\nquery", "bad\u200Dquery",
+                    "\uD800", new string('x', 121), string.Concat(Enumerable.Repeat("🙂", 121)),
+                })
+                {
+                    query.Text = invalid;
+                    model.QueryText.Should().Be(invalid);
+                    model.CanSearch.Should().BeFalse();
+                    search.IsEnabled.Should().BeFalse();
+                    model.Records.Should().BeEmpty();
+                }
+                await model.Refresh();
+                model.Status.Should().Contain("InvalidDataException");
+                reads.Should().Be(0, "neither invalid input nor keystrokes perform I/O");
+                query.Text = "café 🙂 100%_";
+                search.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                await window.Operation;
+                var row = model.Records.Should().ContainSingle().Which;
+                model.SelectedRecord.Should().BeNull("search never selects the first match");
+                window.FindControl<ScrollableListBox>("DraftRecords")!.SelectedItem = row;
+                model.CanNavigate.Should().BeTrue();
+                query.Text = "Café";
+                model.Records.Should().BeEmpty();
+                model.SelectedRecord.Should().BeNull();
+                model.CanNavigate.Should().BeFalse();
+                reads.Should().Be(1);
+                search.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                await window.Operation;
+                model.Records.Should().BeEmpty("name policy is ordinal case-sensitive");
+                mode.SelectedItem = SavedDraftCatalogueMode.ExactId;
+                foreach (var invalid in new[] { "", original.Value.ToString("D").ToUpperInvariant(),
+                    " " + original.Value.ToString("D"), Guid.Empty.ToString("D"), original.Value.ToString("N") })
+                {
+                    query.Text = invalid;
+                    model.CanSearch.Should().BeFalse();
+                }
+                query.Text = original.Value.ToString("D");
+                search.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                await window.Operation;
+                model.Records.Should().ContainSingle().Which.Session.SessionId.Should().Be(original);
+                model.Status.Should().NotContain("PRIVATE_NOT_A_QUERY_RESULT");
+                window.FindControl<ComboBox>("DraftFilter")!.SelectedItem = SessionListFilter.Done;
+                model.Records.Should().BeEmpty();
+                model.SelectedRecord.Should().BeNull();
+                search.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                await window.Operation;
+                model.Status.Should().Contain("not found").And.Contain("no fallback");
+                composed.Model.ComposerBody.Should().Be("original unsaved composer");
+                composed.Model.SelectedSessionRecord.Should().BeSameAs(target);
+                window.FindControl<Button>("ClearQuery")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                model.Mode.Should().Be(SavedDraftCatalogueMode.Browse);
+                model.QueryText.Should().BeEmpty();
+                model.Filter.Should().Be(SessionListFilter.Done);
+                model.Records.Should().BeEmpty("Clear is not an implicit read");
+                model.Mode = SavedDraftCatalogueMode.NameSubstring;
+                model.QueryText = "private volatile query";
+                window.Close();
+                model.QueryText.Should().BeEmpty();
+                model.Status.Should().BeEmpty();
+                model.Records.Should().BeEmpty();
+                model.CanEditQuery.Should().BeFalse();
+                composed.Model.ComposerBody.Should().Be("original unsaved composer");
+                f.Count("conversation_messages").Should().Be(0);
+            }
+            finally { window.Close(); }
+        });
+    }
+
+    [Theory]
+    [InlineData("query")]
+    [InlineData("mode")]
+    [InlineData("filter")]
+    public async Task QueryEpochRevocationDuringExactDraftNavigationPreservesTheCurrentDirtyComposer(string boundary)
+    {
+        using var f = new InteractionStorageFixture();
+        await f.InitializeAsync();
+        await WindowsSqliteConversationTests.FinishInitial(f);
+        await WindowsSqliteConversationTests.Save(f,
+            await f.Store.ReadConversationDraftAsync(f.Request.SessionId, f.Token), "private target body");
+        var checkpoint = new CatalogueCheckpoint();
+        f.Reopen(checkpoint);
+        await f.Store.InitializeAsync(f.Token);
+        await using var composed = new Composition(f);
+        await composed.Model.RefreshAsync();
+        await composed.Model.SelectAsync(composed.Model.Sessions.Single());
+        await composed.Model.ReadConversationAsync();
+        composed.Model.ComposerBody = "unchanged private dirty body";
+        var original = composed.Model.SelectedSessionRecord;
+        using var model = new SavedDraftCatalogueViewModel(WindowsSqliteSessionWorkspaceTests.Service(f, composed.Access),
+            composed.Model.SelectSavedDraftAsync, composed.Access, () => true, NullLogger<SavedDraftCatalogueViewModel>.Instance);
+        model.Mode = SavedDraftCatalogueMode.ExactId;
+        model.QueryText = f.Request.SessionId.Value.ToString("D");
+        await model.Refresh();
+        model.Select(model.Records.Single());
+        checkpoint.Read = () =>
+        {
+            checkpoint.Read = null;
+            if (boundary is "query") { model.QueryText = Guid.NewGuid().ToString("D"); }
+            else if (boundary is "mode") { model.Mode = SavedDraftCatalogueMode.NameSubstring; }
+            else { model.Filter = SessionListFilter.Done; }
+        };
+        await model.Navigate();
+        model.Records.Should().BeEmpty();
+        model.SelectedRecord.Should().BeNull();
+        composed.Model.SelectedSessionRecord.Should().BeSameAs(original);
+        composed.Model.ComposerBody.Should().Be("unchanged private dirty body");
+        f.Count("conversation_messages").Should().Be(0);
+    }
+
+    [Theory]
+    [InlineData("query")]
+    [InlineData("mode")]
+    [InlineData("filter")]
+    [InlineData("source")]
+    [InlineData("control")]
+    [InlineData("cancel")]
+    [InlineData("close")]
+    public async Task DraftQueryChangesRevokePendingPagesAndKeepLateCallbacksFromRestoringPrivateResults(string boundary)
+    {
+        using var f = new InteractionStorageFixture();
+        await f.InitializeAsync();
+        await WindowsSqliteConversationTests.FinishInitial(f);
+        await WindowsSqliteConversationTests.Save(f,
+            await f.Store.ReadConversationDraftAsync(f.Request.SessionId, f.Token), "saved body");
+        var checkpoint = new CatalogueCheckpoint();
+        f.Reopen(checkpoint);
+        await f.Store.InitializeAsync(f.Token);
+        var access = new WindowsSqliteSessionWorkspaceTests.Access();
+        using var model = new SavedDraftCatalogueViewModel(WindowsSqliteSessionWorkspaceTests.Service(f, access),
+            (_, _, _) => Task.FromResult(false), access, () => true, NullLogger<SavedDraftCatalogueViewModel>.Instance);
+        model.Mode = SavedDraftCatalogueMode.ExactId;
+        model.QueryText = f.Request.SessionId.Value.ToString("D");
+        checkpoint.Read = () =>
+        {
+            checkpoint.Read = null;
+            switch (boundary)
+            {
+                case "query": model.QueryText = Guid.NewGuid().ToString("D"); break;
+                case "mode": model.Mode = SavedDraftCatalogueMode.NameSubstring; break;
+                case "filter": model.Filter = SessionListFilter.Done; break;
+                case "source": model.Revoke(); break;
+                case "control": access.ControlRevision++; model.SynchronizeAuthority(); break;
+                case "cancel": model.Cancel(); break;
+                default: model.Dispose(); break;
+            }
+        };
+        await model.Refresh();
+        model.Records.Should().BeEmpty();
+        model.SelectedRecord.Should().BeNull();
+        model.CanNext.Should().BeFalse();
+        model.CanNavigate.Should().BeFalse();
+        if (boundary is "source" or "control" or "cancel" or "close") { model.QueryText.Should().BeEmpty(); }
+        if (boundary is "close") { model.Status.Should().BeEmpty(); }
+        f.Count("conversation_messages").Should().Be(0);
+    }
+
     [Theory]
     [InlineData("private")]
     [InlineData("control")]

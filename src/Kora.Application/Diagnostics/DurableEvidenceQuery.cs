@@ -189,6 +189,17 @@ public sealed partial class DurableEvidenceQuery(
         Text(query.Text, 256);
         Text(query.Category, 256);
         Text(query.ActionId, 128);
+        // All is the existing heterogeneous SQLite search; an exact citation narrows its source.
+        var filterSource = query.Source == EvidenceSource.All ? query.Record?.Source ?? query.Source : query.Source;
+        if (query.EventId is not null && filterSource is EvidenceSource.Span or EvidenceSource.Link
+                or EvidenceSource.AuthorityAudit or EvidenceSource.Session or EvidenceSource.Conversation
+            || query.ActionId is not null && filterSource is EvidenceSource.Log or EvidenceSource.Span
+                or EvidenceSource.Link or EvidenceSource.DailyLog or EvidenceSource.CombinedLog
+                or EvidenceSource.Session or EvidenceSource.Conversation
+            || query.Category is not null && filterSource is EvidenceSource.Session or EvidenceSource.Conversation)
+        {
+            throw new NotSupportedException("This evidence source does not provide the selected event ID, category or typed audit action ID.");
+        }
         if (query.Record is { } record)
         {
             record.Id.Validate();

@@ -540,6 +540,17 @@ results cannot return. Next continues the exact immutable query. These rules
 are exercised by [native typed-filter and real-reader tests](../tests/Kora.Windows.IntegrationTests/EvidenceAdvancedFilterTests.cs)
 and [signed-cursor tests](../tests/Kora.Application.UnitTests/Diagnostics/DurableEvidenceQueryTests.cs).
 
+The same [native parser](../src/Kora/EvidenceViewModel.Filters.cs) also exposes **Event ID**, **Category** and **Audit action ID**. Only empty text unsets these three fields; whitespace-only/surrounding whitespace, controls, invalid Unicode and over-limit values fail without a read.
+Event ID is canonical invariant signed 32-bit decimal, including zero, negatives and both integer bounds; no `+`, leading zeros, rounding or overflow fallback.
+
+Category (maximum 256 characters) and action ID (maximum 128) compare exact ordinal, case-sensitive text, not rendered results. Category means diagnostic category for Log/Audit/DailyLog/CombinedLog, activity source for Span/Link, and typed audit-category name for AuthorityAudit.
+Action ID is audit correlation, not identity, permission or audit authority, and imposes no domain action-name syntax on query text
+([SQLite projection/matching](../src/Kora.Windows/Storage/WindowsSqliteEvidenceReader.cs), [Daily matching](../src/Kora.Windows/Storage/WindowsDailyEvidenceReader.cs), [authority projection](../src/Kora.Windows/Storage/WindowsSqliteHostInteractionStore.Inspection.cs)).
+
+Event ID supports All/Log/Audit/DailyLog/CombinedLog; action ID supports All/Audit/AuthorityAudit. All remains heterogeneous SQLite-only filtering; CombinedLog cannot accept action ID because DailyLog has none. Category cannot target unavailable Session/Conversation sources. An exact citation under All narrows field support to its cited source.
+Unsupported combinations use explicit recovery before reading; unchanged direct query text rules, scan budgets and 50-record/64-KiB bounds remain enforced
+([query admission](../src/Kora.Application/Diagnostics/DurableEvidenceQuery.cs), [compatibility/cursor tests](../tests/Kora.Application.UnitTests/Diagnostics/DurableEvidenceQueryTests.cs), [native/real-reader tests](../tests/Kora.Windows.IntegrationTests/EvidenceAdvancedFilterTests.cs)).
+
 Select a record to inspect parent/link status; **Read selected trace** shows
 its retained correlated records and **Open selected segment** follows an
 available cited span. Session/task IDs and traces are filters, not permission.

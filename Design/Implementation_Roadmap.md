@@ -60,6 +60,11 @@ Existing exact lock behavior and non-executing power proposals are unchanged.
 
 ## Ordered Outstanding Work
 
+### Bounded native Evidence exact-field filters — 2026-10-14
+
+The [Evidence contract](Information_Display.md#delivered-bounded-native-evidence-inspection) exposes existing EventId, Category and ActionId through optional exact native filters with source-specific unsupported recovery and the existing snapshot/cursor/private-closure lifecycle ([native and real-reader tests](../tests/Kora.Windows.IntegrationTests/EvidenceAdvancedFilterTests.cs)).
+No schema/index, authority, execution, egress, scan-budget or qualification boundary changes; general Ask Evidence/export and installed/accessibility qualification remain unavailable.
+
 ### R12/R14 exact-session conversation/composer foundation — 2026-10-12
 
 The bounded [R04/R05 retained original USER / typed HOST detail handoff](Information_Display.md#delivered-retained-original-user--typed-host-details---2026-10-14) is delivered through canonical exact-record admission and the existing native viewer. Explicit shared-row actions preserve body bytes, typed provenance, immutable reference/revision/digest, private/source revocation and passive Done. No generated response, new copy/export authority, provider/egress or full R12/R14/runtime/hardware/accessibility qualification is claimed.

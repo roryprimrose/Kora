@@ -137,7 +137,11 @@ public sealed partial class SessionsViewModelTests
         document.Descendants().Should().NotContain(element =>
             element.Name.LocalName == "WebView" || element.Name.LocalName == "SelectableTextBlock");
         document.Descendants().Where(element => string.Equals(element.Name.LocalName, "TextBox", StringComparison.Ordinal))
-            .Should().HaveCount(6, "name, exact history ID, metadata/history queries, memory drafts and the exact-session memory-only composer are independent native inputs");
+            .Should().HaveCount(7, "name, exact history ID, metadata/history/conversation queries, memory drafts and the exact-session memory-only composer are independent native inputs");
+        var conversationQuery = document.Descendants().Single(element => element.Name.LocalName is "TextBox"
+            && element.Attribute("Text")?.Value.Contains("ConversationQuery", StringComparison.Ordinal) == true);
+        conversationQuery.Attribute("MaxLength").Should().BeNull("shared lexical validation rejects invalid queries instead of UI truncation");
+        conversationQuery.Attribute("IsEnabled")!.Value.Should().Be("{Binding CanReadConversation}");
         source.Should().Contain("MemoryDraft, Mode=TwoWay").And.Contain("CanEditMemory")
             .And.Contain("selection is passive").And.Contain("Review exact content: accept")
             .And.Contain("Admit reviewed revision").And.Contain("not forensic erasure");

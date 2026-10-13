@@ -6,6 +6,20 @@
     Width="1180" Height="900" MinWidth="900" MinHeight="700"
     Background="{DynamicResource KoraWindowBackgroundBrush}"
     Foreground="{DynamicResource KoraForegroundBrush}" WindowStartupLocation="CenterScreen">
+  <Window.Resources>
+    <DataTemplate x:Key="ConversationMessageTemplate">
+      <StackPanel Spacing="4">
+        <TextBlock Text="{Binding Sequence, StringFormat='USER message sequence {0}'}" />
+        <TextBlock Text="{Binding Request.RequestId.Value, StringFormat='Original request {0}'}" TextWrapping="Wrap" />
+        <TextBlock Text="{Binding Request.TaskId.Value, StringFormat='Original task {0}'}" TextWrapping="Wrap" />
+        <TextBlock Text="{Binding SubmittedAt, StringFormat='Submitted UTC {0:O}'}" />
+        <TextBlock Text="{Binding Body}" TextWrapping="Wrap" />
+        <TextBlock Text="{Binding Outcome, TargetNullValue='Pending / inspect task recovery', StringFormat='HOST status: {0}'}" />
+        <TextBlock Text="{Binding Reason, StringFormat='HOST reason: {0}'}" />
+        <TextBlock Text="{Binding ExpectedTaskState, StringFormat='HOST task status: {0}'}" />
+      </StackPanel>
+    </DataTemplate>
+  </Window.Resources>
   <Grid Margin="24" RowDefinitions="Auto,Auto,Auto,Auto,*,Auto" RowSpacing="12">
     <StackPanel Orientation="Horizontal" Spacing="10">
       <TextBlock Text="Sessions (Active / Done)" FontSize="20" FontWeight="SemiBold" />
@@ -38,18 +52,22 @@
           <Button x:Name="NextConversation" Content="Next bounded conversation page" IsEnabled="{Binding CanNextConversation}" />
         </WrapPanel>
         <controls:ScrollableListBox ItemsSource="{Binding ConversationMessages}" MaxHeight="160"
-            AutomationProperties.Name="Chronological immutable original user messages and separate host statuses; inert native text, not model answers or replay controls">
-          <ListBox.ItemTemplate><DataTemplate>
-            <StackPanel Spacing="4">
-              <TextBlock Text="{Binding Sequence, StringFormat='USER message sequence {0}'}" />
-              <TextBlock Text="{Binding Request.RequestId.Value, StringFormat='Original request {0}'}" TextWrapping="Wrap" />
-              <TextBlock Text="{Binding SubmittedAt, StringFormat='Submitted UTC {0:O}'}" />
-              <TextBlock Text="{Binding Body}" TextWrapping="Wrap" />
-              <TextBlock Text="{Binding Outcome, TargetNullValue='Pending / inspect task recovery', StringFormat='HOST status: {0}'}" />
-              <TextBlock Text="{Binding Reason, StringFormat='HOST reason: {0}'}" />
-            </StackPanel>
-          </DataTemplate></ListBox.ItemTemplate>
-        </controls:ScrollableListBox>
+            ItemTemplate="{StaticResource ConversationMessageTemplate}"
+            AutomationProperties.Name="Chronological immutable original user messages and separate host statuses; inert native text, not model answers or replay controls" />
+        <TextBox x:Name="ConversationQuery" Text="{Binding ConversationQuery, Mode=TwoWay}" IsEnabled="{Binding CanReadConversation}"
+            PlaceholderText="Search retained USER words or typed HOST outcome/reason/task state in only this exact selected session"
+            AutomationProperties.Name="Private exact-session conversation lexical query; memory-only, not composer input, a model instruction or global search" />
+        <WrapPanel>
+          <Button x:Name="SearchConversation" Content="Search this conversation" IsEnabled="{Binding CanSearchConversation}" />
+          <Button x:Name="NextConversationSearch" Content="Next conversation matches" IsEnabled="{Binding CanNextConversationSearch}" />
+          <Button x:Name="CancelConversationSearch" Content="Cancel conversation search" IsEnabled="{Binding CanCancelConversationSearch}" />
+          <Button x:Name="ClearConversationSearch" Content="Clear private conversation search" />
+        </WrapPanel>
+        <controls:NamedTextBlock Text="{Binding ConversationSearchStatus}" TextWrapping="Wrap"
+            AutomationProperties.Name="Conversation search counters, exact snapshot continuation and explicit failures; no model context" />
+        <controls:ScrollableListBox ItemsSource="{Binding ConversationSearchMessages}" MaxHeight="160"
+            ItemTemplate="{StaticResource ConversationMessageTemplate}"
+            AutomationProperties.Name="Exact immutable USER messages matching lexical words or typed HOST status; inert native text, chronological, no export or actions" />
         <TextBox x:Name="ConversationComposer" Text="{Binding ComposerBody, Mode=TwoWay}" AcceptsReturn="True"
             Height="90" TextWrapping="Wrap" IsEnabled="{Binding CanCompose}"
             PlaceholderText="Original message: up to 4096 UTF-16 characters and 16384 UTF-8 bytes; invalid or oversized text is rejected, not truncated"

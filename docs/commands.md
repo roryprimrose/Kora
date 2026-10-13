@@ -748,11 +748,13 @@ metadata and task-state receipts. Gaps/current migration baselines, metadata-onl
 over-budget unavailable content and disposition-redacted events are explicit.
 Bootstrap user/model messages and response bodies are unavailable, not recovered
 from logs. A task success is not proof of an external effect. Done histories
-are readable; an exact Removed ID returns redacted citations only. There is no
-composer, model history reasoning, Ask Evidence, broad export, attachment,
+are readable; an exact Removed ID returns redacted citations only. This receipt
+lane has no composer, model history reasoning, Ask Evidence, broad export, attachment,
 queue, scheduler, automatic resume or playback. History does not import volatile
 file previews/shared skills or reconstruct captions. See the
 [native workflow](windows-and-tray.md#bounded-passive-interaction-history).
+
+The separate native [selected-conversation search](windows-and-tray.md#search-one-exact-retained-conversation) searches actual retained USER bodies and typed HOST outcomes in the selected exact session. This older `session search` command remains Question/Answer/task receipt `HistorySearch`; it is not implicitly remapped to body search. Conversation query content stays native and adds no typed/voice/model descriptor or transcript entry.
 
 Search uses the [shared lexical query rules](../src/Kora.Core/Context/LocalFileRetrievalPolicy.cs): 1-256 UTF-16 characters, at most 512 strict UTF-8 bytes, 1-32 distinct words of at most 64 characters, NFC/invariant case and literal whole-word OR matching. Punctuation separates words, not operators, wildcards or regular expressions. Quotes inside the final quoted query are doubled.
 

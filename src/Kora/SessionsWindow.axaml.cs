@@ -29,6 +29,23 @@ internal sealed partial class SessionsWindow : Window
         model.DecideComposerDraft = ChooseDraft;
         ReadConversation.Click += async (_, _) => await (ConversationOperation = model.ReadConversationAsync());
         NextConversation.Click += async (_, _) => await (ConversationOperation = model.ReadConversationAsync(next: true));
+        SearchConversation.Click += async (_, _) => await (ConversationOperation = model.SearchConversationAsync());
+        NextConversationSearch.Click += async (_, _) => await (ConversationOperation = model.SearchConversationAsync(next: true));
+        CancelConversationSearch.Click += (_, _) => model.ClearConversationSearch();
+        ClearConversationSearch.Click += (_, _) => model.ClearConversationSearch();
+        ConversationQuery.KeyDown += async (_, args) =>
+        {
+            if (args.Key == Key.Enter && model.CanSearchConversation)
+            {
+                args.Handled = true;
+                await (ConversationOperation = model.SearchConversationAsync());
+            }
+            else if (args.Key == Key.Escape)
+            {
+                args.Handled = true;
+                model.ClearConversationSearch();
+            }
+        };
         SaveConversationDraft.Click += async (_, _) => await (ConversationOperation = model.SaveConversationDraftAsync());
         ReloadConversationDraft.Click += async (_, _) => await (ConversationOperation = model.ReloadConversationDraftAsync());
         DiscardComposer.Click += (_, _) => model.DiscardComposerBuffer();

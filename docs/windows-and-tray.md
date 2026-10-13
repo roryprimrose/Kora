@@ -19,6 +19,17 @@ See [native editor commands, bounds and recovery](instruction-editor.md).
 
 ## Authoritative Sessions work
 
+### Search one exact retained conversation
+
+Select an exact session in **Sessions**, then use **Search this conversation** in its conversation pane. Search matches whole lexical words in original retained **USER** messages or separate typed **HOST** outcome/reason/task-state fields. It never searches other sessions, saved draft bodies, Question/Answer receipts, logs, attachments, memories or accounts.
+
+Queries use 1–256 UTF-16 characters / 512 UTF-8 bytes and 1–32 distinct terms of at most 64 characters. NFC/invariant case and whole-word OR apply; punctuation separates words rather than becoming regex/wildcard/instruction syntax. Blank or invalid queries explicitly fail, never show every message. Typing alone does not search or save the query.
+
+Results are chronological exact messages, not generated answers, summaries or relevance ranking. Each read scans at most the existing 100-message session bound; default 25 / maximum 50 complete results, counters and cursor fit 64 KiB. **Next conversation matches** stays on the original generation/sequence ceiling/head; later append is excluded and changed terminal status requires fresh Search.
+
+Enter searches. **Cancel conversation search**, **Clear private conversation search** and Escape clear only private query/results/cursor, leaving the memory composer, saved drafts and current question/voice focus untouched. Private/owner/session/source changes revoke results and late callbacks.
+Reading retained Done never resumes or renews activity, creates task authority, runs cleanup or sends context to a model. No new copy/export/speech/network action is offered.
+
 ### Exact-session conversation and composer
 
 Open **Sessions**, select the exact session and use **Exact-session conversation

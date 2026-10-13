@@ -72,7 +72,7 @@ public sealed partial class SessionWorkspaceServiceTests
         f.PassiveInspectionCalls.Should().Be(0);
     }
 
-    private sealed partial class Fixture : ISavedDraftCatalogueStore
+    private partial class Fixture : ISavedDraftCatalogueStore
     {
         internal SavedDraftPage DraftPage { get; set; } = new(SessionListFilter.All, [], null, 0, 0, false);
         internal SessionWorkspaceEntry? DraftTarget { get; set; }

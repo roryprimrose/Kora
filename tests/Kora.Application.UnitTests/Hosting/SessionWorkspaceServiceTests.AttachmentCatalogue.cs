@@ -154,7 +154,7 @@ public sealed partial class SessionWorkspaceServiceTests
             attachment.File.Review.Metadata.ByteLength, "text/markdown", attachment.File.AdmittedAt, AttachmentCopyStatus.Confirmed);
     }
 
-    private sealed partial class Fixture : ISessionAttachmentCatalogueStore
+    private partial class Fixture : ISessionAttachmentCatalogueStore
     {
         internal SessionAttachmentPage CataloguePage { get; set; } = new(new(), [], null, DateTimeOffset.UnixEpoch, 0, new string('0', 64), 0, false);
         internal Action? BeforeCatalogueRead { get; set; }

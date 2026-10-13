@@ -489,7 +489,7 @@ public sealed partial class SessionWorkspaceServiceTests
             bytes, DateTimeOffset.UnixEpoch));
     }
 
-    private sealed partial class Fixture : ISessionFileStore
+    private partial class Fixture : ISessionFileStore
     {
         internal bool FileReceipts { get; init; }
         internal SessionFileAttachment? RetainedFile { get; set; }

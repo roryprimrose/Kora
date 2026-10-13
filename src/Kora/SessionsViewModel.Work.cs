@@ -142,6 +142,7 @@ internal sealed partial class SessionsViewModel
 
     private void NotifyWork()
     {
+        NotifyConversationSearch();
         presentingWork = true;
         try
         {

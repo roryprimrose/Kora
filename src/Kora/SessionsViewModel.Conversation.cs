@@ -247,6 +247,7 @@ internal sealed partial class SessionsViewModel
         {
             if (sourceRead && exception is ConversationSnapshotChangedException && Live())
             {
+                ClearConversationSearch();
                 conversationPage = null;
                 clearDraftReviewed = false;
                 conversationStatus = "Terminal snapshot changed; Refresh conversation. Memory draft retained; no retry or submission.";

@@ -69,13 +69,14 @@ Dirty means the current body differs exactly from its last confirmed saved memor
 
 ### Search one exact retained conversation
 
-Select an exact session in **Sessions**, then use **Search this conversation** in its conversation pane. Search matches whole lexical words in original retained **USER** messages or separate typed **HOST** outcome/reason/task-state fields. It never searches other sessions, saved draft bodies, Question/Answer receipts, logs, attachments, memories or accounts.
+Select an exact session in **Sessions**, then use **Search this conversation** in its conversation pane or **Compact selected-session conversation**. Both views share one private query, result page, continuation and cancellation state; edits and actions in either are reflected in the other ([shared search state](../src/Kora/SessionsViewModel.ConversationSearch.cs), [compact controls](../src/Kora/CompactSessionWindow.axaml)). Search matches whole lexical words in original retained **USER** messages or separate typed **HOST** outcome/reason/task-state fields.
+It never searches other sessions, saved draft bodies, Question/Answer receipts, logs, attachments, memories or accounts ([admitted reader](../src/Kora.Application/Hosting/SessionWorkspaceService.ConversationSearch.cs)).
 
 Queries use 1–256 UTF-16 characters / 512 UTF-8 bytes and 1–32 distinct terms of at most 64 characters. NFC/invariant case and whole-word OR apply; punctuation separates words rather than becoming regex/wildcard/instruction syntax. Blank or invalid queries explicitly fail, never show every message. Typing alone does not search or save the query.
 
 Results are chronological exact messages, not generated answers, summaries or relevance ranking. Each read scans at most the existing 100-message session bound; default 25 / maximum 50 complete results, counters and cursor fit 64 KiB. **Next conversation matches** stays on the original generation/sequence ceiling/head; later append is excluded and changed terminal status requires fresh Search.
 
-Enter searches. **Cancel conversation search**, **Clear private conversation search** and Escape clear only private query/results/cursor, leaving the memory composer, saved drafts and current question/voice focus untouched. Private/owner/session/source changes revoke results and late callbacks.
+Enter in the query searches. **Cancel conversation search**, **Clear private conversation search** and Escape in the query clear only shared private query/results/cursor, leaving both views open and the memory composer, saved baseline and current question/voice focus untouched. Opening or activating a view performs no search; closing one view preserves the surviving view's shared search. Exact selection, lifecycle/source, private control epoch or last-owner loss clears query/results and fences late callbacks ([shared-search tests](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.CompactSearch.cs)).
 Reading retained Done never resumes or renews activity, creates task authority, runs cleanup or sends context to a model. No new copy/export/speech/network action is offered.
 
 ### Exact-session conversation and composer

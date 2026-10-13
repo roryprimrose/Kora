@@ -50,6 +50,7 @@ internal sealed partial class ClipboardPreviewWindow
         findStatus = new NamedTextBlock { TextWrapping = TextWrapping.Wrap };
         AutomationProperties.SetName(findStatus, "Clipboard literal Find outcome and exact UTF-16 location");
         findSpan = new NamedTextBlock { Focusable = true, FontFamily = source.FontFamily, IsVisible = false };
+        if (typographyHost is not null) { NativeReaderTypography.Bind(findSpan, typographyHost); }
         AutomationProperties.SetName(findSpan, "Exact inert clipboard literal match");
         Button Action(string caption, SnapshotFindDirection direction)
         {

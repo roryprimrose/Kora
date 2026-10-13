@@ -5,6 +5,6 @@ namespace Kora;
 internal interface IClipboardPreviewView
 {
     event EventHandler? Closed;
-    void Show(ClipboardSnapshot snapshot, Func<Task> reuse, Func<Task> revoke);
+    void Show(ClipboardSnapshot snapshot, Func<Task> reuse, Func<Task> revoke, Func<bool> isCurrent);
     void ClearAndClose();
 }

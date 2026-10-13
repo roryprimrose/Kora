@@ -630,8 +630,14 @@ and approvals are preserved and must be resolved explicitly.
 
 The separate [clipboard preview](commands.md#explicit-local-clipboard-preview)
 uses inert native plain text, not Markdown/HTML parsing or the document viewer's
-copy controls. It has exact-ID reuse and revoke/clear only. Closing it revokes
+copy controls. It has exact-ID reuse, revoke/clear and native literal Find. Closing it revokes
 the selected snapshot. It does not authorize explanation or model transmission.
+
+Enter an unchanged one-line query and choose **Find first** (or Enter in the query). **Find next** (F3) starts at the selected span's exclusive end; **Find previous** (Shift+F3) finds the last span ending at or before its start.
+Ctrl+F focuses the query without retargeting questions or voice. Case/spaces/punctuation remain exact; limits are 256 UTF-16 characters / 512 strict UTF-8 bytes, with visible rejection rather than truncation.
+Only one inert exact span is focused, alongside original end-exclusive UTF-16 offsets and the unchanged snapshot identity/source/version. No wrap or occurrence count is offered; end-of-direction is not global absence. Editing retires the match without I/O; **Clear literal Find** releases the query/cursor/span, not the snapshot or Windows clipboard.
+Cut/copy/paste/context routes are blocked, including query shortcuts. Private/owner/call loss, replacement, revoke, close and disposal clear volatile state and fence callbacks. Find never rereads the clipboard or invokes reuse/revoke, inference, persistence, history, activity renewal or a new timer.
+See the [canonical contract and automated evidence](../Design/Security_Data_Flows.md#delivered-r07-local-clipboard-preview---2026-10-07); installed-native accessibility/privacy qualification remains separate.
 
 The separate **Review local version (native question)** tray entry opens one
 owned native card bound to the original durable host question, not whichever

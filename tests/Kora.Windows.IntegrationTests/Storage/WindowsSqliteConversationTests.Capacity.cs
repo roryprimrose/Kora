@@ -30,6 +30,39 @@ public sealed partial class WindowsSqliteConversationTests
         await FinishInitial(f);
         var additional = await f.Store.ReadConversationDraftAsync(f.Request.SessionId, f.Token);
         await Save(f, additional, "another explicitly saved draft");
+        using (var viewer = HostActivity.BeginRoot(Fresh(f.Request.SessionId), HostActivityLayer.Desktop, HostOperation.Request))
+        {
+            var audits = f.Count("security_audit_events");
+            var excluded = await f.Store.ReadSavedDraftPage(Kora.Core.Storage.SessionListFilter.Done, null, 1, () => true, f.Token);
+            excluded.Records.Should().BeEmpty();
+            excluded.Scanned.Should().Be(50);
+            excluded.Next.Should().NotBeNull("filtered nonmatches consume bounded slots, not a false empty inventory");
+            var excludedTail = await f.Store.ReadSavedDraftPage(Kora.Core.Storage.SessionListFilter.Done, excluded.Next, 1, () => true, f.Token);
+            excludedTail.Records.Should().BeEmpty();
+            excludedTail.Scanned.Should().Be(21);
+            excludedTail.Next.Should().BeNull();
+            string? cursor = null;
+            var discovered = new HashSet<HostId<SessionIdentity>>();
+            do
+            {
+                var catalogue = await f.Store.ReadSavedDraftPage(Kora.Core.Storage.SessionListFilter.All, cursor, 1, () => true, f.Token);
+                catalogue.Records.Length.Should().BeLessThanOrEqualTo(25);
+                catalogue.Scanned.Should().BeLessThanOrEqualTo(50);
+                foreach (var row in catalogue.Records) { discovered.Add(row.Session.SessionId).Should().BeTrue(); }
+                cursor = catalogue.Next;
+                if (discovered.Count == 25 && cursor is not null)
+                {
+                    var wrongControl = () => f.Store.ReadSavedDraftPage(Kora.Core.Storage.SessionListFilter.All, cursor, 2, () => true, f.Token).AsTask();
+                    await wrongControl.Should().ThrowAsync<InvalidDataException>();
+                    var wrongFilter = () => f.Store.ReadSavedDraftPage(Kora.Core.Storage.SessionListFilter.Done, cursor, 1, () => true, f.Token).AsTask();
+                    await wrongFilter.Should().ThrowAsync<InvalidDataException>();
+                    var tampered = () => f.Store.ReadSavedDraftPage(Kora.Core.Storage.SessionListFilter.All, cursor[..^1] + "x", 1, () => true, f.Token).AsTask();
+                    await tampered.Should().ThrowAsync<InvalidDataException>();
+                }
+            } while (cursor is not null);
+            discovered.Should().HaveCount(71, "catalogue continuation is not the removed 64-session profile quota");
+            f.Count("security_audit_events").Should().Be(audits);
+        }
         (await f.Store.ReadConversationDraftAsync(first!.Session.SessionId, f.Token)).Draft.Body.Should().Be("draft-0");
         await Save(f, first, "exact revision overwrite");
         var current = await f.Store.ReadConversationDraftAsync(first.Session.SessionId, f.Token);

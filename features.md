@@ -7,6 +7,9 @@ source-revision: 2f33199
 
 ## What you can use today
 
+**Saved conversation drafts:** use the tray's metadata-only catalogue to discover explicitly saved nonempty composer drafts across retained sessions. Refresh/Next is bounded and passive; selecting a row opens its exact session only after stale-source checks.
+It never automatically reloads, saves, submits or resumes. Use the separate **Reload saved draft** in Sessions. See the [catalogue contract](Design/Interaction_And_Sessions.md#saved-conversation-draft-catalogue--2026-10-13).
+
 Kora is a Windows desktop assistant with typed commands, push-to-talk voice input, local spoken responses, and optional local AI answers. Many built-in commands need no AI model or internet connection. See [Getting started](docs/getting-started.md#requirements) and [Voice and typed commands](docs/commands.md).
 
 This guide describes the implementation reviewed on **10 October 2026**, starting from `origin/main` at `2f33199`. It separates working features from the larger product design. Delivered does **not** mean the complete product has passed every real-device or release check; see the [delivery and qualification policy](Design/Acceptance_Criteria.md#three-tier-qualification-policy).

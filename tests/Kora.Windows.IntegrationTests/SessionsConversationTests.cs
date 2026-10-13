@@ -22,7 +22,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 namespace Kora.Windows.IntegrationTests;
 
 [Collection(nameof(HeadlessUiTestGroup))]
-public sealed class SessionsConversationTests
+public sealed partial class SessionsConversationTests
 {
     [Fact]
     public async Task NativeComposerActualProductionHostRetainsExactMessageAndReportsUnavailableWithoutLegacyRuntimeFallback()

@@ -53,7 +53,8 @@ public sealed class SystemTrayController : IDisposable
         Action? inspectExactGrants = null,
         Func<Task>? returnToCurrentQuestion = null,
         Action? inspectRetainedAttachments = null,
-        Action? editOwnedInstructions = null)
+        Action? editOwnedInstructions = null,
+        Action? inspectSavedDrafts = null)
     {
         this.viewModel = viewModel;
         this.logger = logger;
@@ -76,6 +77,12 @@ public sealed class SystemTrayController : IDisposable
         menu.Add(showItem);
         menu.Add(settingsItem);
         menu.Add(documentationItem);
+        if (inspectSavedDrafts is not null)
+        {
+            var draftsItem = new NativeMenuItem("Saved conversation drafts (metadata only)");
+            draftsItem.Click += (_, _) => RunAfterNativeMenuCloses(inspectSavedDrafts);
+            menu.Add(draftsItem);
+        }
         if (editOwnedInstructions is not null)
         {
             var instructionEditor = new NativeMenuItem("Owned instructions and prompts (native editor)");

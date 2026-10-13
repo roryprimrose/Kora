@@ -41,6 +41,7 @@ public sealed partial class App : Avalonia.Application
     private LocalFilePreviewWindowController? fileWindow;
     private SessionAttachmentWindowController? attachmentWindow;
     private AttachmentCatalogueWindowController? attachmentCatalogue;
+    private SavedDraftCatalogueWindowController? savedDraftCatalogue;
     private MaintenanceWindowController? maintenanceWindow;
     private MainViewModel? viewModel;
     private ILogger<App>? logger;
@@ -163,7 +164,8 @@ public sealed partial class App : Avalonia.Application
                 () => exactGrants?.Open(),
                 () => questionWindow.ReturnToCurrentQuestionAsync(window),
                 () => attachmentCatalogue?.Open(),
-                () => instructionEditor.Open());
+                () => instructionEditor.Open(),
+                () => savedDraftCatalogue?.Open());
             evidenceWindow = new EvidenceWindowController(viewModel,
                 Services.GetRequiredService<Kora.Application.Diagnostics.DurableEvidenceQuery>(),
                 Services.GetRequiredService<Kora.Core.Diagnostics.IEvidenceQueryAccess>(),
@@ -190,6 +192,9 @@ public sealed partial class App : Avalonia.Application
                 Services.GetRequiredService<Kora.Application.Configuration.SessionProviderProfileConfigurationService>(),
                 Services.GetRequiredService<SessionConversationService>());
             sessionsWindow.Bind();
+            savedDraftCatalogue = new(viewModel, Services.GetRequiredService<SessionWorkspaceService>(), sessionsWindow,
+                Services.GetRequiredService<Kora.Core.Storage.ISessionWorkspaceAccess>(),
+                Services.GetRequiredService<ILogger<SavedDraftCatalogueViewModel>>());
             allWorkWindow = new AllWorkWindowController(viewModel,
                 Services.GetRequiredService<SessionWorkspaceService>(),
                 Services.GetRequiredService<Kora.Core.Storage.ISessionWorkspaceAccess>(),
@@ -330,6 +335,8 @@ public sealed partial class App : Avalonia.Application
         sessionsWindow = null;
         attachmentCatalogue?.Dispose();
         attachmentCatalogue = null;
+        savedDraftCatalogue?.Dispose();
+        savedDraftCatalogue = null;
         attachmentWindow?.Dispose();
         attachmentWindow = null;
         clipboardWindow?.Dispose();

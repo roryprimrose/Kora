@@ -10,6 +10,14 @@ Related: [Interaction and Sessions](Interaction_And_Sessions.md), [Work Manageme
 
 ## Delivered exact-session native composer — 2026-10-12
 
+### Separate saved draft catalogue — 2026-10-13
+
+Use **Tray > Saved conversation drafts (metadata only)**, then explicit Refresh. All retained saved-content rows are the default; Active/Done filters and Next consume bounded mutable metadata pages, not bodies.
+Select one immutable row and **Open exact session (no body load)**. Exact private source/revision revalidation precedes selection in the existing Sessions owner; no second composer or body authority exists.
+
+Saved revision/length readiness is visible, not body-integrity certification. **Reload saved draft** remains a separate Sessions gesture; dirty-buffer Save/Discard/Cancel remains authoritative.
+Catalogue privacy/source/lifecycle/close revokes its own IDs/names/continuation before late callbacks, without cancelling unrelated windows. Done browsing never resumes work. See the [canonical catalogue contract](Interaction_And_Sessions.md#saved-conversation-draft-catalogue--2026-10-13).
+
 **Sessions > Exact-session conversation and composer** shows the original
 immutable user messages and separately labelled **HOST** status. It names the
 selected immutable session ID/name/generation/metadata and saved-draft revision,

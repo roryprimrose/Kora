@@ -25,7 +25,9 @@ public sealed record SessionAttachmentPage(
     {
         if (Query is null || Records.IsDefault || Records.Length > MaximumRecords
             || ScannedRows < Records.Length || ScannedRows > MaximumScannedRows
-            || Query.IncludeRemoved && Query.ExactId is null && ScannedRows != Records.Length
+            || !Enum.IsDefined(Query.Filter)
+            || Query.IncludeRemoved && Query.ExactId is null && Query.Filter == SessionAttachmentFilter.All
+                && ScannedRows != Records.Length
             || ObservedAt.Offset != TimeSpan.Zero || AuthorityCeiling < 0
             || AuthorityDigest is null || AuthorityDigest.Length != 64
             || AuthorityDigest.Any(c => c is not (>= '0' and <= '9' or >= 'a' and <= 'f'))

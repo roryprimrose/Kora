@@ -28,6 +28,69 @@ namespace Kora.Windows.IntegrationTests;
 public sealed class AttachmentCatalogueWindowTests
 {
     [WindowsFact]
+    public async Task NativeLifecycleFilterIsExplicitIndependentAndEmptyPagesKeepNextWithoutSelection()
+    {
+        await HeadlessSession.RunAsync(async () =>
+        {
+            using var fixture = new InteractionStorageFixture();
+            await fixture.InitializeAsync();
+            var access = new WindowsSqliteSessionWorkspaceTests.Access();
+            var summary = Summary(fixture.Request);
+            var seen = new List<(SessionAttachmentQuery Query, string? Cursor)>();
+            var cursor = "YQ==." + new string('a', 64);
+            using var model = new AttachmentCatalogueViewModel((query, next, _, _) =>
+            {
+                seen.Add((query, next));
+                return Task.FromResult(new SessionAttachmentPage(query, query.Matches(summary) ? [summary] : [],
+                    next is null ? cursor : null, DateTimeOffset.UnixEpoch, 1, new string('a', 64), 64, next is null));
+            }, (_, _, _) => throw new InvalidOperationException("No implicit navigation."),
+                access, () => true, NullLogger<AttachmentCatalogueViewModel>.Instance);
+            var window = new AttachmentCatalogueWindow(model);
+            window.Show();
+            try
+            {
+                var filter = window.FindControl<ComboBox>("AttachmentSessionFilter")!;
+                model.Filter.Should().Be(SessionAttachmentFilter.All);
+                model.Filters.Should().Equal(Enum.GetValues<SessionAttachmentFilter>());
+                seen.Should().BeEmpty();
+                foreach (var value in model.Filters)
+                {
+                    filter.SelectedItem = value;
+                    model.Filter.Should().Be(value);
+                    var calls = seen.Count;
+                    model.IncludeRemoved = false;
+                    await model.Refresh();
+                    model.SelectedRecord.Should().BeNull();
+                    model.CanNext.Should().BeTrue();
+                    await model.Refresh(next: true);
+                    seen.Last().Cursor.Should().Be(cursor);
+                    seen.Last().Query.Filter.Should().Be(value);
+                    seen.Count.Should().Be(calls + 2);
+                    if (value is SessionAttachmentFilter.Done or SessionAttachmentFilter.Removed) { model.Records.Should().BeEmpty(); }
+                    model.Mode = AttachmentCatalogueMode.ExactId;
+                    model.QueryText = summary.Session.Value.ToString("D");
+                    model.IncludeRemoved = true;
+                    model.Filter.Should().Be(value);
+                    model.ClearQuery();
+                    model.Filter.Should().Be(value);
+                    model.IncludeRemoved.Should().BeTrue();
+                    model.Records.Should().BeEmpty();
+                    model.CanNext.Should().BeFalse();
+                    seen.Count.Should().Be(calls + 2, "all edits and Clear are memory-only");
+                }
+                model.Filter = (SessionAttachmentFilter)99;
+                model.CanSearch.Should().BeFalse();
+                model.QueryHint.Should().Contain("Invalid stored session lifecycle");
+                var before = seen.Count;
+                await model.Refresh();
+                model.Status.Should().Contain("InvalidDataException");
+                seen.Count.Should().Be(before);
+            }
+            finally { window.Close(); }
+        });
+    }
+
+    [WindowsFact]
     public async Task NativeExactIdSearchIsExplicitVolatileAndCanonicalWithEnterClearAndEscape()
     {
         await HeadlessSession.RunAsync(async () =>
@@ -294,6 +357,8 @@ public sealed class AttachmentCatalogueWindowTests
 
     [Theory]
     [InlineData("query")]
+    [InlineData("filter")]
+    [InlineData("invalid-filter")]
     [InlineData("id")]
     [InlineData("mode")]
     [InlineData("clear")]
@@ -327,6 +392,8 @@ public sealed class AttachmentCatalogueWindowTests
         await entered.Task.WaitAsync(fixture.Token);
         model.Records.Should().BeEmpty();
         if (boundary is "query") { model.IncludeRemoved = true; }
+        if (boundary is "filter") { model.Filter = SessionAttachmentFilter.Done; }
+        if (boundary is "invalid-filter") { model.Filter = (SessionAttachmentFilter)99; }
         if (boundary is "id") { model.QueryText = Guid.NewGuid().ToString("D"); }
         if (boundary is "mode") { model.Mode = AttachmentCatalogueMode.Browse; }
         if (boundary is "clear") { model.ClearQuery(); }
@@ -347,11 +414,14 @@ public sealed class AttachmentCatalogueWindowTests
             model.Mode.Should().Be(AttachmentCatalogueMode.Browse);
         }
         model.Dispose();
+        model.Filter.Should().Be(SessionAttachmentFilter.All);
         model.Status.Should().BeEmpty();
     }
 
-    [WindowsFact]
-    public async Task CatalogueLateNavigationNeverDisclosesAfterOriginalSelectionIsRevoked()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task CatalogueLateNavigationNeverDisclosesAfterOriginalSelectionIsRevoked(bool lifecycle)
     {
         using var fixture = new InteractionStorageFixture();
         await fixture.InitializeAsync();
@@ -373,7 +443,8 @@ public sealed class AttachmentCatalogueWindowTests
         model.Select(summary);
         var navigation = model.Navigate();
         await entered.Task.WaitAsync(fixture.Token);
-        model.IncludeRemoved = true;
+        if (lifecycle) { model.Filter = SessionAttachmentFilter.Done; }
+        else { model.IncludeRemoved = true; }
         release.SetResult();
         await navigation;
         disclosed.Should().BeFalse();

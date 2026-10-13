@@ -349,6 +349,19 @@ Private closure clears query/rows/selection/editor text and suppresses late publ
 
 ## Compact Session Interaction
 
+### Delivered compact selected-session projection
+
+The explicit [native compact surface](../src/Kora/CompactSessionWindow.axaml) shares one selected session and memory composer with Sessions.
+No target is chosen on open. Explicit Read/Next uses admitted conversation pages; stored USER text and typed HOST outcomes never become assistant output. Metadata catalogue navigation still imports no body.
+
+The [shared presentation owner](../src/Kora/SessionsPresentationOwner.cs) preserves the surviving view, serializes dirty decisions, and releases timers/events only when the presentation is revoked or its last view closes.
+Last dirty close and explicit switching use Save/Discard/Cancel with the original target and frozen buffer; stale or failed Save cannot close successfully. Private/source retirement clears both views and fences late callbacks.
+
+The [shared controller](../src/Kora/SessionsWindowController.cs) keeps single-instance activation and exact navigation. Workspace provider/routine-quiet visibility remains workspace-owned.
+Standalone question/approval/voice and legacy response presenters are unchanged. No per-task automatic popup, generation, relatedness, global/voice auto-routing, model context or new storage representation is added.
+
+Maintained [shared-view tests](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.Compact.cs) and [controller tests](../tests/Kora.Windows.IntegrationTests/CompactSessionControllerTests.cs) cover this bounded projection, not full coordinated R14, installed accessibility, provider/hardware, physical-storage or STOP qualification.
+
 Illustrative layout, not pixel dimensions or final styling:
 
 ```text

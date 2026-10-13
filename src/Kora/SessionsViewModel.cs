@@ -226,7 +226,7 @@ internal sealed partial class SessionsViewModel(
         status = "Passive ordered history for exact ID " + id.ToString("D")
             + (history.Disposed ? ". Disposed: content redacted; immutable citations retained." : ". No session activity, reply, focus or voice target changed.");
     }, passive: true);
-    public bool CanRead => !busy && !closed && access.CanInspect;
+    public bool CanRead => !busy && !protectingComposer && !closed && access.CanInspect;
     public bool CanNext => CanRead && !listSearchMode && sessions?.Next is not null;
     public bool CanNextQuestions => CanRead && questions?.Next is not null;
     public bool CanNextTasks => CanRead && tasks?.Next is not null;
@@ -303,6 +303,8 @@ internal sealed partial class SessionsViewModel(
     public Task SelectAsync(SessionWorkspaceEntry? record)
     {
         if (notifying) { return Task.CompletedTask; }
+        if (protectingComposer) { Notify(); return Task.CompletedTask; }
+        if (record == selected) { return Task.CompletedTask; }
         if (busy)
         {
             if (record is not null && record.Authority.SessionId != selected?.Authority.SessionId) { selectionEpoch++; }
@@ -314,7 +316,7 @@ internal sealed partial class SessionsViewModel(
             {
                 throw new InvalidOperationException("Select an existing record from this page.");
             }
-            if (record?.Authority.SessionId != selected?.Authority.SessionId && !await ProtectComposerAsync()) { return; }
+            if (!await ProtectComposerAsync()) { return; }
             await ReadSelectedAsync(record);
         });
     }
@@ -643,7 +645,7 @@ internal sealed partial class SessionsViewModel(
         InvalidateListSearch();
         listQuery = string.Empty;
         lifetime.Cancel();
-        if (!busy && !refreshingWork && !changingRoutineQuiet && !changingQueueControl) { lifetime.Dispose(); }
+        if (!busy && !protectingComposer && !refreshingWork && !changingRoutineQuiet && !changingQueueControl) { lifetime.Dispose(); }
         sessions = null;
         ClearSelection();
         Notify();

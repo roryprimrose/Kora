@@ -1,6 +1,5 @@
 ﻿using Avalonia.Controls;
 using Avalonia.Input;
-using Avalonia.Threading;
 
 using Kora.Core.Storage;
 
@@ -8,26 +7,22 @@ namespace Kora;
 
 internal sealed partial class SessionsWindow : Window
 {
-    private bool privateClose;
-    private bool choosingDraft;
-    private Window? draftDialog;
-    private readonly SessionsViewModel model;
+    private readonly SessionsPresentationOwner owner;
     internal Task ConversationOperation { get; private set; } = Task.CompletedTask;
     internal void ClosePrivate()
     {
-        privateClose = true;
-        draftDialog?.Close();
-        model.Close();
-        Close();
+        owner.Revoke();
     }
     internal event EventHandler? AllWorkRequested;
     internal event EventHandler? NewRequestRequested;
-    internal SessionsWindow(SessionsViewModel model)
+    internal event EventHandler? CompactConversationRequested;
+    internal SessionsWindow(SessionsViewModel model, SessionsPresentationOwner? owner = null)
     {
-        this.model = model;
+        this.owner = owner ?? new(model);
         InitializeComponent();
         DataContext = model;
-        model.DecideComposerDraft = ChooseDraft;
+        this.owner.Attach(this);
+        CompactConversation.Click += (_, _) => CompactConversationRequested?.Invoke(this, EventArgs.Empty);
         ReadConversation.Click += async (_, _) => await (ConversationOperation = model.ReadConversationAsync());
         NextConversation.Click += async (_, _) => await (ConversationOperation = model.ReadConversationAsync(next: true));
         SearchConversation.Click += async (_, _) => await (ConversationOperation = model.SearchConversationAsync());
@@ -53,20 +48,6 @@ internal sealed partial class SessionsWindow : Window
         ReviewClearConversationDraft.Click += (_, _) => model.ReviewClearConversationDraft();
         ClearConversationDraft.Click += async (_, _) => await (ConversationOperation = model.ClearSavedConversationDraftAsync());
         SubmitConversation.Click += async (_, _) => await (ConversationOperation = model.SubmitConversationAsync());
-        Closing += async (_, args) =>
-        {
-            if (privateClose || !model.ComposerDirty) { return; }
-            args.Cancel = true;
-            if (choosingDraft || !model.CanRead) { return; }
-            choosingDraft = true;
-            try
-            {
-                if (await model.ProtectComposerAsync()) { privateClose = true; Close(); }
-            }
-            catch (Exception exception) when (exception is not OutOfMemoryException)
-            { model.ReportComposerCloseFailure(); }
-            finally { choosingDraft = false; }
-        };
         PropertyChanged += (_, args) =>
         {
             if (args.Property == IsVisibleProperty)
@@ -206,20 +187,10 @@ internal sealed partial class SessionsWindow : Window
         DisableMemory.Click += async (_, _) => await model.DisableMemoryAsync();
         ForgetMemory.Click += async (_, _) => await model.ForgetMemoryAsync();
         CloseView.Click += (_, _) => Close();
-        var refresh = new DispatcherTimer { Interval = TimeSpan.FromSeconds(5) };
-        async void OnRefreshTick(object? sender, EventArgs args)
-        {
-            if (model.CanRefreshWork) { await model.RefreshWorkAsync(); }
-        }
-        refresh.Tick += OnRefreshTick;
-        Opened += (_, _) => refresh.Start();
         Closed += (_, _) =>
         {
-            refresh.Stop();
-            refresh.Tick -= OnRefreshTick;
-            model.Close();
-            model.DecideComposerDraft = null;
-            draftDialog?.Close();
+            model.SetRoutineQuietSurfaceOpen(false);
+            model.SetProviderSurfaceOpen(false);
         };
         KeyDown += (_, args) =>
         {
@@ -227,31 +198,4 @@ internal sealed partial class SessionsWindow : Window
         };
     }
 
-    private async Task<ComposerDraftDecision> ChooseDraft()
-    {
-        if (!IsVisible || draftDialog is not null) { return ComposerDraftDecision.Cancel; }
-        var dialog = new Window { Title = "Unsaved exact-session conversation draft", Width = 680, Height = 230 };
-        var content = new StackPanel { Margin = new(18), Spacing = 14 };
-        content.Children.Add(new TextBlock
-        {
-            Text = model.ComposerTarget + "\nSave explicitly, discard the memory-only buffer, or cancel switching/closing. Nothing submits a message.",
-            TextWrapping = Avalonia.Media.TextWrapping.Wrap,
-        });
-        var buttons = new StackPanel { Orientation = Avalonia.Layout.Orientation.Horizontal, Spacing = 12 };
-        foreach (var decision in Enum.GetValues<ComposerDraftDecision>())
-        {
-            var button = new Button { Content = decision.ToString() };
-            button.Click += (_, _) => dialog.Close(decision);
-            buttons.Children.Add(button);
-        }
-        content.Children.Add(buttons);
-        dialog.Content = content;
-        draftDialog = dialog;
-        try { return await dialog.ShowDialog<ComposerDraftDecision?>(this) ?? ComposerDraftDecision.Cancel; }
-        finally
-        {
-            content.Children.Clear();
-            if (ReferenceEquals(draftDialog, dialog)) { draftDialog = null; }
-        }
-    }
 }

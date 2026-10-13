@@ -937,6 +937,9 @@ and active Capturing Reply.
 
 ## Three Connected UI Surfaces
 
+The delivered [compact selected-session projection](UI_Workspace_And_Windows.md#delivered-compact-selected-session-projection) shares one authoritative presentation selection and memory draft with the Sessions workspace.
+Explicit reading and canonical draft/submission actions remain separate from passive navigation, New request and standalone question/approval/voice authority.
+
 1. **Compact session interaction:** evolve the response window into the latest interaction for the selected session, with its name, actual work state, concise answer/progress, structured question or approval, Details/History, and typed composer.
 2. **Sessions workspace:** reachable from tray, keyboard, compact UI, and verbal commands; Active/Done list and search beside the selected session's full conversation/history, pending cards, and work/queue. A bounded Evidence mode searches and correlates permitted session, diagnostic and audit records without making diagnostics part of the conversation. Shows unread/attention, meaningful activity/due dates, and actual work state, with rename/Done/resume/delete and All work/evidence views.
 3. **Detail/artifact viewer:** expands immutable Markdown, static HTML, plain text, diffs, `.ps1` source and task evidence without losing the workspace conversation/current question. Explicitly opened items retain their own session/artifact identity when selection changes; viewing is not execution.

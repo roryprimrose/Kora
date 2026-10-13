@@ -15,12 +15,13 @@ using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Kora.Windows.IntegrationTests;
 
+[Collection(nameof(HeadlessUiTestGroup))]
 public sealed class NativeDetailRendererTests
 {
     private static NativeDetailRenderer Renderer => new(NullLogger<NativeDetailRenderer>.Instance);
 
     [Fact]
-    public void CommonMarkSubsetPreservesNestedTextAndDisplaysInertDestinations()
+    public Task CommonMarkSubsetPreservesNestedTextAndDisplaysInertDestinations() => HeadlessSession.RunAsync(() =>
     {
         const string source = "# Heading\n\nParagraph *one* **two** `three`.\n\n> quote\n>\n> - nested\n\n"
             + "3. first\n4. second\n\n[link](javascript:alert)\n\n<https://example.invalid/resource>\n\n"
@@ -35,7 +36,7 @@ public sealed class NativeDetailRendererTests
         var controls = MarkdownDocumentRenderer.CreateControls(result);
         controls.Should().HaveCount(result.Sections.Count);
         controls.Should().OnlyContain(control => control is SelectableTextBlock);
-    }
+    });
 
     [Theory]
     [InlineData("<script src=\"https://example.invalid/x.js\">alert(1)</script>", "HTML")]
@@ -50,7 +51,7 @@ public sealed class NativeDetailRendererTests
     [InlineData("~~struck~~", "extension/table")]
     [InlineData("- [ ] task", "extension/table")]
     [InlineData("[^footnote]: text", "extension/table")]
-    public void UnsupportedContentHasVisibleLabelAndOneExactBoundedSourceReader(string source, string label)
+    public Task UnsupportedContentHasVisibleLabelAndOneExactBoundedSourceReader(string source, string label) => HeadlessSession.RunAsync(() =>
     {
         var result = Renderer.Render(source);
         result.IsFallback.Should().BeTrue();
@@ -61,24 +62,24 @@ public sealed class NativeDetailRendererTests
         controls.Should().HaveCount(2);
         ((SelectableTextBlock)controls[0]).Text.Should().Be(result.Status);
         ((SelectableTextBlock)controls[1]).Text.Should().Be(source);
-    }
+    });
 
     [Theory]
     [InlineData("file:///C:/private.txt")]
     [InlineData("javascript:alert")]
     [InlineData("data:text/html,secret")]
     [InlineData("https://example.invalid/resource")]
-    public void LinkDestinationsAreOnlyLiteralNativeText(string destination)
+    public Task LinkDestinationsAreOnlyLiteralNativeText(string destination) => HeadlessSession.RunAsync(() =>
     {
         var result = Renderer.Render($"[label]({destination})");
         result.IsFallback.Should().BeFalse();
         result.SemanticText.Should().Be($"label (destination: {destination})");
         MarkdownDocumentRenderer.CreateControls(result).Should()
             .OnlyContain(control => control is SelectableTextBlock);
-    }
+    });
 
     [Fact]
-    public void ByteAdmissionUsesExactUtf8NotCharacterCount()
+    public Task ByteAdmissionUsesExactUtf8NotCharacterCount() => HeadlessSession.RunAsync(() =>
     {
         var source = string.Concat(Enumerable.Repeat("😀", NativeDetailProfile.MaximumUtf8Bytes / 4));
         Encoding.UTF8.GetByteCount(source).Should().Be(NativeDetailProfile.MaximumUtf8Bytes);
@@ -92,7 +93,7 @@ public sealed class NativeDetailRendererTests
         // This unadmitted input cannot create an oversized native control.
         exceeded.Source.Should().BeEmpty();
         MarkdownDocumentRenderer.CreateControls(exceeded).Should().HaveCount(2);
-    }
+    });
 
     [Fact]
     public void InvalidUnicodeIsRefusedBeforeParse()
@@ -104,7 +105,7 @@ public sealed class NativeDetailRendererTests
     }
 
     [Fact]
-    public void PlainTextNeverInvokesMarkdownOrResourceInterpretation()
+    public Task PlainTextNeverInvokesMarkdownOrResourceInterpretation() => HeadlessSession.RunAsync(() =>
     {
         const string source = "<script src='https://example.invalid'>secret</script>\n![file](file:///private)";
         var result = Renderer.Render(source, DetailContentKind.PlainText);
@@ -113,7 +114,7 @@ public sealed class NativeDetailRendererTests
         result.SemanticText.Should().Be(source);
         result.BlockCount.Should().Be(0);
         MarkdownDocumentRenderer.CreateControls(result).Should().ContainSingle();
-    }
+    });
 
     [Fact]
     public void SemanticProjectionIsUtf8BoundedAndEmptyRenderingIsNotReportedAsSuccess()
@@ -145,7 +146,7 @@ public sealed class NativeDetailRendererTests
     }
 
     [Fact]
-    public void DetailStructuredControlsUseNativeHeadingAndCodeStylesWithoutAutomaticCopyControls()
+    public Task DetailStructuredControlsUseNativeHeadingAndCodeStylesWithoutAutomaticCopyControls() => HeadlessSession.RunAsync(() =>
     {
         var result = Renderer.Render("# Heading\n\n```text\ncode\n```");
         var controls = MarkdownDocumentRenderer.CreateControls(result, selectable: false);
@@ -154,7 +155,7 @@ public sealed class NativeDetailRendererTests
         ((TextBlock)controls[0]).FontSize.Should().Be(32);
         ((TextBlock)controls[1]).FontSize.Should().Be(13);
         ((TextBlock)controls[1]).Text.Should().Contain("code");
-    }
+    });
 
     [Fact]
     public void ExactAndExceededBlockBoundsCountEveryBlockIncludingNestedContainers()
@@ -224,7 +225,7 @@ public sealed class NativeDetailRendererTests
     [InlineData("> ")]
     [InlineData("[")]
     [InlineData("(")]
-    public void DeepHostileSourceIsRejectedBeforeVisualConstruction(string marker)
+    public Task DeepHostileSourceIsRejectedBeforeVisualConstruction(string marker) => HeadlessSession.RunAsync(() =>
     {
         var source = string.Concat(Enumerable.Repeat(marker, 10000)) + "deep";
         var result = Renderer.Render(source);
@@ -234,10 +235,10 @@ public sealed class NativeDetailRendererTests
         result.NodeCount.Should().Be(0);
         result.Source.Should().Be(source);
         MarkdownDocumentRenderer.CreateControls(result).Should().HaveCount(2);
-    }
+    });
 
     [Fact]
-    public void ParsedSiblingInlineNodeBombIsBoundedWithoutDroppingSource()
+    public Task ParsedSiblingInlineNodeBombIsBoundedWithoutDroppingSource() => HeadlessSession.RunAsync(() =>
     {
         var source = string.Concat(Enumerable.Repeat("a *b* ", 1600));
         var result = Renderer.Render(source);
@@ -245,7 +246,7 @@ public sealed class NativeDetailRendererTests
         result.Status.Should().Contain("4096 nodes");
         result.Source.Should().Be(source);
         MarkdownDocumentRenderer.CreateControls(result).Should().HaveCount(2);
-    }
+    });
 
     [Fact]
     public void ParsedNestingIsCheckedAlongWithTheParserNestingCap()
@@ -262,7 +263,7 @@ public sealed class NativeDetailRendererTests
     }
 
     [Fact]
-    public void MissingRendererRetainsTheEntireMaximumByteSourceWithoutTruncation()
+    public Task MissingRendererRetainsTheEntireMaximumByteSourceWithoutTruncation() => HeadlessSession.RunAsync(() =>
     {
         var source = string.Concat(Enumerable.Repeat("😀", NativeDetailProfile.MaximumUtf8Bytes / 4));
         var result = new NativeDetailRenderer(NullLogger<NativeDetailRenderer>.Instance, available: false).Render(source);
@@ -270,7 +271,7 @@ public sealed class NativeDetailRendererTests
         result.Source.Should().Be(source);
         result.SemanticText.Should().Be(source);
         MarkdownDocumentRenderer.CreateControls(result).Should().HaveCount(2);
-    }
+    });
 
     [Fact]
     public void UnknownAstNodeIsNotSilentlyDiscarded()
@@ -280,7 +281,7 @@ public sealed class NativeDetailRendererTests
     }
 
     [Fact]
-    public void MissingRendererKeepsFullUnicodeSourceAndExplicitFallback()
+    public Task MissingRendererKeepsFullUnicodeSourceAndExplicitFallback() => HeadlessSession.RunAsync(() =>
     {
         var source = "<script>private Unicode 😀 é \r\n</script>";
         var result = new NativeDetailRenderer(NullLogger<NativeDetailRenderer>.Instance, available: false).Render(source);
@@ -289,7 +290,7 @@ public sealed class NativeDetailRendererTests
         result.Source.Should().Be(source);
         result.SemanticText.Should().Be(source);
         ((SelectableTextBlock)MarkdownDocumentRenderer.CreateControls(result)[1]).Text.Should().Be(source);
-    }
+    });
 
     [Fact]
     public void FailureLogsHaveFixedTemplatesAndNoContentOrExceptionPayload()

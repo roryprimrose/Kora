@@ -4,12 +4,13 @@ using Kora.Core.Voice;
 
 namespace Kora.Windows.IntegrationTests;
 
+[Collection(nameof(HeadlessUiTestGroup))]
 public sealed class TrayRecoveryTests
 {
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
-    public void Native_microphone_selection_mark_does_not_claim_capture_or_reveal_endpoint_ID(bool selected)
+    public Task Native_microphone_selection_mark_does_not_claim_capture_or_reveal_endpoint_ID(bool selected) => HeadlessSession.RunAsync(() =>
     {
         var item = SystemTrayController.CreateMicrophoneItem(
             new("private-endpoint-id", "Headset"), selected, "available");
@@ -18,10 +19,10 @@ public sealed class TrayRecoveryTests
         item.IsEnabled.Should().BeTrue();
         item.Header.Should().NotContain("private-endpoint-id");
         if (selected) { item.Header.Should().Contain("selected preference, not capture"); }
-    }
+    });
 
     [Fact]
-    public void Native_System_and_unavailable_pinned_endpoint_remain_distinct_without_launching_the_app()
+    public Task Native_System_and_unavailable_pinned_endpoint_remain_distinct_without_launching_the_app() => HeadlessSession.RunAsync(() =>
     {
         var system = SystemTrayController.CreateMicrophoneItem(
             SystemAudioDevices.Microphone, selected: false, "Windows default; unavailable");
@@ -36,7 +37,7 @@ public sealed class TrayRecoveryTests
         pinned.IsEnabled.Should().BeFalse();
         pinned.IsChecked.Should().BeTrue();
         pinned.Header.Should().Contain("unavailable; preference retained").And.NotContain("private-endpoint");
-    }
+    });
 
     [Fact]
     public void Tray_and_Settings_reach_the_same_passive_card_with_exact_native_click_binding()

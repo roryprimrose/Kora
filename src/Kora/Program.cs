@@ -389,6 +389,7 @@ internal static class Program
             provider.GetRequiredService<IUiDispatcher>(), provider.GetRequiredService<ISecurityAuditLog>(),
             provider.GetRequiredService<ILogger<MaintenanceViewModel>>()));
         services.AddSingleton<Kora.Application.Interaction.HostQuestionService>();
+        services.AddSingleton<Kora.Application.Interaction.HostQuestionReviewService>();
         services.AddSingleton<Kora.Application.Interaction.HostAuthorizationService>();
         services.AddSingleton<HostTaskCoordinator>();
         services.AddSingleton<DurableVersionQuery>();

@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using Kora.Application.Infrastructure;
 using Kora.Application.Voice;
 using Kora.Core.Diagnostics;
@@ -85,7 +86,7 @@ public sealed partial class HostQuestionVoiceReplyService : IAsyncDisposable
             return;
         }
         Publish();
-        using var activity = HostActivity.BeginRoot(question.Key.Request, HostActivityLayer.Application, HostOperation.Presentation);
+        using var activity = BeginQuestionActivity(question.Key.Request, HostOperation.Presentation);
         opened.Cancellation.Token.Register(() => Retire(opened, "Reply cancelled. Microphone closed; native question remains answerable."));
         try
         {
@@ -98,7 +99,12 @@ public sealed partial class HostQuestionVoiceReplyService : IAsyncDisposable
                 activity.Complete(HostOperationOutcome.Failed);
                 return;
             }
-            opened.Question = canonical;
+            var presentationContext = HostActivity.RequireCurrent().Activity!.Context;
+            lock (gate)
+            {
+                opened.Question = canonical;
+                opened.PresentationContext = presentationContext;
+            }
             opened.Expiry = time.CreateTimer(_ => Retire(opened, "Question expired. Microphone closed; start a fresh question."),
                 null, canonical.ExpiresAt - time.GetUtcNow(), Timeout.InfiniteTimeSpan);
             opened.Cancellation.Token.Register(opened.Expiry.Dispose);
@@ -214,7 +220,7 @@ public sealed partial class HostQuestionVoiceReplyService : IAsyncDisposable
 
     private async Task CloseAsync(Turn previous, Task earlier)
     {
-        using var activity = HostActivity.BeginRoot(previous.Question.Key.Request, HostActivityLayer.Application, HostOperation.Recovery);
+        using var activity = BeginQuestionActivity(previous.Question.Key.Request, HostOperation.Recovery, previous);
         Exception? failure = null;
         try
         {
@@ -323,7 +329,7 @@ public sealed partial class HostQuestionVoiceReplyService : IAsyncDisposable
 
     private async Task DeliverAsync(Turn current, QuestionAnswer answer)
     {
-        using var activity = HostActivity.BeginRoot(current.Question.Key.Request, HostActivityLayer.Application, HostOperation.Request);
+        using var activity = BeginQuestionActivity(current.Question.Key.Request, HostOperation.Request, current);
         try
         {
             await dispatcher.InvokeAsync(async () =>
@@ -348,6 +354,22 @@ public sealed partial class HostQuestionVoiceReplyService : IAsyncDisposable
             Retire(current, "Reply commit or cleanup failed. No successful answer claimed; inspect the native question before recovery.");
         }
         finally { current.Delivered.TrySetResult(); }
+    }
+
+    private HostActivity BeginQuestionActivity(HostRequest request, HostOperation operation, Turn? candidate = null)
+    {
+        var current = HostActivity.Current;
+        if (operation == HostOperation.Presentation && current?.Request == request)
+        {
+            return HostActivity.BeginChild(HostActivityLayer.Application, operation);
+        }
+        ActivityContext? presentationContext;
+        lock (gate) { presentationContext = candidate?.PresentationContext; }
+        // Deferred causes remain links; incoming correlation cannot choose the question's request.
+        List<ActivityLink> causes = [];
+        if (presentationContext is { } presented) { causes.Add(new(presented)); }
+        if (current?.Activity is { } cause && cause.Context != presentationContext) { causes.Add(new(cause.Context)); }
+        return HostActivity.BeginRoot(request, HostActivityLayer.Application, operation, causes);
     }
 
     private void OnTargetChanging(HostQuestionKey? key)
@@ -402,6 +424,7 @@ public sealed partial class HostQuestionVoiceReplyService : IAsyncDisposable
         Func<bool> presented, Action<HostInteractionDecision> accepted, CancellationToken cancellation)
     {
         public HostQuestionRecord Question { get; set; } = question;
+        public ActivityContext? PresentationContext { get; set; }
         public QuestionVoiceAdmission Admission { get; } = admission;
         public Func<bool> Presented { get; } = presented;
         public Action<HostInteractionDecision> Accepted { get; } = accepted;

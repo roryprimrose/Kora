@@ -907,6 +907,9 @@ effects, wake integration or during-TTS capture is added. Accepted structured
 answers retain the existing question persistence/audit policy. Maintained
 deterministic production-path tests validate this implementation independently
 of later hardware/acoustic/installed qualification.
+Host-resolved traces preserve same-request presentation parentage and link
+deferred reply/recovery causes; incoming correlation never selects the question
+or session and carries no transcript content.
 
 ### Broader target behavior
 

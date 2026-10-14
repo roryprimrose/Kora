@@ -1,4 +1,7 @@
+using System.Collections.Concurrent;
+using System.Diagnostics;
 using AwesomeAssertions;
+using Kora.Core.Diagnostics;
 using Kora.Core.Hosting;
 using Kora.Core.Interaction;
 
@@ -7,6 +10,54 @@ namespace Kora.Application.UnitTests.Interaction;
 [Collection("Host tracing")]
 public sealed class HostQuestionVoiceReplyServiceTests
 {
+    [Theory]
+    [InlineData("incoming")]
+    [InlineData("foreign")]
+    [InlineData("exact")]
+    public async Task Reply_traces_preserve_admitted_parentage_link_deferred_work_and_never_select_an_ambient_session(string context)
+    {
+        await using var f = new QuestionReplyFixture();
+        var question = await f.Host.QuestionAsync();
+        var stopped = new ConcurrentQueue<Activity>();
+        using var listener = new ActivityListener
+        {
+            ShouldListenTo = source => source.Name.StartsWith("Kora.", StringComparison.Ordinal),
+            Sample = (ref ActivityCreationOptions<ActivityContext> _) => ActivitySamplingResult.AllData,
+            ActivityStopped = stopped.Enqueue,
+        };
+        ActivitySource.AddActivityListener(listener);
+        var incoming = Is(context, "incoming");
+        var exact = Is(context, "exact");
+        using var host = incoming ? null : HostActivity.BeginRoot(
+            exact ? question.Key.Request : HostRequest.Create(RequestOrigin.LocalUi),
+            HostActivityLayer.Application, HostOperation.Request);
+        using var untrusted = incoming ? new Activity("untrusted incoming correlation").SetIdFormat(ActivityIdFormat.W3C).Start() : null;
+        var parent = Activity.Current!.Context;
+        Activity? opened = null;
+        f.Capture.BeforeOpen = () => opened = Activity.Current;
+        await f.OpenAsync(question);
+        opened.Should().NotBeNull();
+        var presentation = opened ?? throw new InvalidOperationException("Expected an admitted presentation activity.");
+        presentation.GetTagItem("kora.session.id").Should().Be(question.Key.Request.SessionId.Value);
+        if (exact)
+        {
+            presentation.ParentSpanId.Should().Be(parent.SpanId);
+            presentation.Links.Should().BeEmpty();
+        }
+        else
+        {
+            presentation.ParentId.Should().BeNull();
+            presentation.Links.Select(link => link.Context).Should().Equal(incoming ? [] : [parent]);
+        }
+        presentation.Status.Should().Be(ActivityStatusCode.Ok);
+        stopped.Should().Contain(presentation);
+        f.Capture.Transcript("First");
+        await f.Replies.Quiescence;
+        f.Accepted!.Question!.Key.Request.SessionId.Should().Be(question.Key.Request.SessionId);
+        stopped.Should().Contain(activity => activity.Links.Any(link => link.Context == presentation.Context));
+        stopped.SelectMany(activity => activity.TagObjects).Select(tag => tag.Value).Should().NotContain("First");
+    }
+
     [Fact]
     public async Task Cancellation_is_denied_before_retirement_callback_and_stale_native_predicates_fail_closed()
     {

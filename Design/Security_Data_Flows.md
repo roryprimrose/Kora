@@ -5,6 +5,8 @@
 The [retained-slot catalogue](File_And_Folder_Ingestion.md#delivered-retained-attachment-metadata-catalogue---2026-10-11) permits native bounded literal search only over already exposed Session/source/revision/item IDs, digest and media type. It does not search hidden descriptor filenames/paths or removed-slot metadata. The shared strict literal policy preserves exact case/spaces and fails closed on malformed/oversized input.
 The query remains volatile and excluded from query/page serialization, audit/logging, tags/Baggage, persistence, export, transcripts and model/network context. Run-local authenticated continuations contain only a keyed query fingerprint; source/profile/viewer/authority/expiry bounds and full validation of irrelevant records remain mandatory. No content read, original-path access, index, permission, consent, activity renewal or authority expansion is added. Query/source/private changes and cancellation/close fence late results and exact navigation; unknown/corrupt/unsupported state is not empty success.
 
+Native attachment revocation is nonblocking and bound to the originating inspection lifetime; body invalidation additionally binds its exact view revision. Delayed notifications cannot cancel a newly admitted explicit inspection or close its new retained/recovery view. Current-lifetime session/private revocation still clears all its views and pending work; changing views alone does not supersede that revocation.
+
 ## All work private metadata query boundary
 
 The [bounded All work overview](Work_Management.md#delivered-passive-cross-session-work-observation---2026-10-11) reuses the authoritative Sessions/saved-draft metadata query policy, never content search. Literal saved-name substrings and canonical exact GUIDs are private navigation data, not intent, identity or authority. Typing performs no read; explicit Search/Refresh/Next uses existing private metadata admission and independently admitted per-session work observations. Ten-session scans, fifty task/question records per session, complete 64 KiB projection, canonical-ID ordering, timeout/cancellation and explicit unavailable/nonmatch/omission counts remain unchanged.
@@ -1371,6 +1373,16 @@ Existing bytes/hashes/relationships/citations/deadlines and every grant record/
 validity/scope remain. Lost evidence or corrupt/unconfirmed preference holds
 new required audit/authority commits and refuses startup writes, never defaults
 to 90. Explicit saved-state/receipt inspection and repair precede refresh.
+The native [read-only shortening preview](User_Configuration.md#read-only-audit-shortening-impact-preview)
+observes newly due committed rows at one fixed cutoff without a durable intent,
+activity renewal or audit/approval authority. Required authority and independently
+typed diagnostic audit projections remain distinct. Only bounded counts and
+committed/proposed-due ranges leave the reader; no audit content or identity is
+returned. Private query-only snapshots, saved/readback/policy and host/control
+revisions fence publication. Source limits are Incomplete without partial counts;
+corrupt/unknown sources are Unavailable, not zero. Edits, refresh, store/preference,
+privacy/owner/desktop/call changes, cancellation/failure/close/timeout retire the
+result and fence late callbacks. Notifications never start a scan.
 No apply-now, audit pruning, session/history/approval/task/question deletion,
 ordinary/file policy or cleanup-schedule change is authorized by this option.
 Store history, artifacts and indexes under verified private LocalApplicationData permissions; deletion covers caches, indexes, blobs, journals/recoverable copies and outstanding dispatch authority, not independently stored perpetual grants.

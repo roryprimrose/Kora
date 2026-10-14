@@ -2,6 +2,7 @@
 
 using Avalonia.Automation.Peers;
 using Avalonia.Controls;
+using Avalonia.Threading;
 using Avalonia.VisualTree;
 
 using AwesomeAssertions;
@@ -121,6 +122,75 @@ public sealed partial class SessionAttachmentWindowTests
                 failures.Should().BeEmpty();
             }
             finally { window.ClearAndClose(); }
+        });
+    }
+
+    [Theory]
+    [InlineData("inspection")]
+    [InlineData("attachment")]
+    [InlineData("session")]
+    public async Task QueuedOldRevocationCannotCloseFreshExplicitInspectionButCurrentRevocationStillCloses(string boundary)
+    {
+        await HeadlessSession.RunAsync(async () =>
+        {
+            using var fixture = new InteractionStorageFixture();
+            await fixture.InitializeAsync();
+            await WindowsSqliteSessionWorkspaceTests.FinishAsync(fixture, HostTaskState.Succeeded);
+            var access = new WindowsSqliteSessionWorkspaceTests.Access();
+            var sessions = WindowsSqliteSessionWorkspaceTests.Service(fixture, access);
+            var audit = new Audit();
+            var capture = new Capture();
+            using var preview = new LocalFilePreview(capture, audit, fixture.Time, NullLogger<LocalFilePreview>.Instance);
+            var search = new LocalFileSearch(preview, new LocalFileLexicalRetrieval(), audit, fixture.Time, NullLogger<LocalFileSearch>.Instance);
+            await using var service = new SessionFileAttachmentService(sessions, access,
+                new LocalSessionFileAttach(capture, audit, fixture.Time, NullLogger<LocalFilePreview>.Instance),
+                search, fixture.Time, audit, NullLogger<SessionFileAttachmentService>.Instance);
+            using var controller = new SessionAttachmentWindowController(_ => { }, service, sessions, access, new Picker());
+            LocalFilePreviewWindow? opened = null;
+            using var windows = Window.WindowOpenedEvent.AddClassHandler<LocalFilePreviewWindow>((window, _) => opened = window);
+            var target = await fixture.Store.ReadMetadataAsync(fixture.Request.SessionId, fixture.Token);
+            await controller.Open(target, attach: true, () => true, fixture.Token);
+            await Press(opened!, "Confirm: capture and retain this exact file for this Session");
+            var retained = (await service.Read(target.Authority.SessionId, fixture.Token))!;
+            var original = opened!;
+
+            async Task Notify()
+            {
+                if (string.Equals(boundary, "session", StringComparison.Ordinal)) { controller.RevokeSession(retained.Session); }
+                else if (string.Equals(boundary, "inspection", StringComparison.Ordinal)) { service.Revoke(); }
+                else
+                {
+                    var stale = retained with { StorageRevision = new(99) };
+                    var inspect = () => service.Search(stale, "source", fixture.Token);
+                    await inspect.Should().ThrowAsync<InvalidOperationException>();
+                }
+            }
+
+            using var queued = new ManualResetEventSlim();
+            var notification = Task.Run(async () =>
+            {
+                try { await Notify(); }
+                finally { queued.Set(); }
+            }, fixture.Token);
+            // Hold the dispatcher until the old-view callback is queued, then explicitly reopen before draining it.
+            queued.Wait(TimeSpan.FromSeconds(30), fixture.Token).Should().BeTrue();
+            await controller.Open(target, attach: false, () => true, fixture.Token);
+            await notification;
+            await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Background);
+            var fresh = opened!;
+            fresh.Should().NotBeSameAs(original);
+            original.Content.Should().BeNull();
+            fresh.IsVisible.Should().BeTrue();
+            fresh.Content.Should().NotBeNull();
+            fresh.UpdateLayout();
+            string.Join("\n", fresh.GetVisualDescendants().OfType<TextBlock>().Select(block => block.Text))
+                .Should().Contain(Capture.Text);
+            capture.Reads.Should().Be(1);
+
+            await Task.Run(Notify, fixture.Token);
+            await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Background);
+            fresh.Content.Should().BeNull();
+            fresh.IsVisible.Should().BeFalse();
         });
     }
 

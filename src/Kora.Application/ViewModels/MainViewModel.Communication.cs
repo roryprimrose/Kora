@@ -70,7 +70,14 @@ public sealed partial class MainViewModel
         + "Reusable grants are ignored during protected calls. New speech/activation protection downgrades, "
         + "temporary exceptions and speak-once call exceptions are unavailable: exact trusted review is not implemented.";
 
-    public void BindCallOwnershipGate(Func<bool> gate) => callOwnershipEligible = gate;
+    public void BindCallOwnershipGate(Func<bool> gate, Func<long>? revision = null)
+    {
+        callOwnershipEligible = gate;
+        auditImpactControlRevision = checked(auditImpactControlRevision + 1);
+        auditImpactOwnerRevision = revision ?? (static () => 0);
+        auditImpactPreview?.Retire("Owner binding changed; preview retired.");
+        NotifyAuditImpactPreview();
+    }
 
     internal Task CallClosureTask => callClosureTask;
 
@@ -204,6 +211,7 @@ public sealed partial class MainViewModel
 
     private async void OnCommunicationPolicyChanged(object? sender, EventArgs args)
     {
+        auditImpactPreview?.Retire("Call revision changed; preview retired.");
         RetireQuestionVoiceReply();
         try
         {

@@ -248,7 +248,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         Kora.Tools.Network.WebPageGet? webPageGet = null,
         ArtifactDirectoryConfigurationService? artifactDirectoryConfiguration = null,
         McpServerConfigurationService? mcpServerConfiguration = null,
-        ProviderProfileConfigurationService? providerProfileConfiguration = null)
+        ProviderProfileConfigurationService? providerProfileConfiguration = null,
+        AuditImpactPreviewService? auditImpactPreview = null)
     {
         this.commandCatalog = commandCatalog;
         this.commandRouter = commandRouter;
@@ -363,6 +364,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         }
         this.sessionRetentionConfiguration = sessionRetentionConfiguration;
         this.auditRetentionConfiguration = auditRetentionConfiguration;
+        this.auditImpactPreview = auditImpactPreview;
+        if (auditImpactPreview is not null) { auditImpactPreview.Changed += OnAuditImpactPreviewChanged; }
         if (auditRetentionConfiguration is not null)
         {
             try { auditRetentionConfiguration.Observe(); }
@@ -456,6 +459,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         SaveAuditRetentionCommand = CreateCommand(() => ExecuteAuditRetentionCommandAsync(new(AppearanceCommandOperation.Set,
             SelectedAuditRetentionDays.ToString(System.Globalization.CultureInfo.InvariantCulture)), SecurityAuditInitiator.LocalUser));
         ResetAuditRetentionCommand = CreateCommand(() => ExecuteAuditRetentionCommandAsync(new(AppearanceCommandOperation.Reset), SecurityAuditInitiator.LocalUser));
+        PreviewAuditImpactCommand = new(PreviewAuditImpactAsync, exception =>
+            ApplicationLog.Error(logger, exception, "Observing audit-retention impact"), () => CanPreviewAuditImpact);
         RefreshResponseModeCommand = CreateCommand(() => RunNativeResponseModeAsync(AppearanceCommandOperation.Get));
         SaveResponseModeCommand = CreateCommand(() => RunNativeResponseModeAsync(AppearanceCommandOperation.Set));
         ResetResponseModeCommand = CreateCommand(() => RunNativeResponseModeAsync(AppearanceCommandOperation.Reset));
@@ -5666,6 +5671,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         OnPropertyChanged(nameof(CanChangeAuditRetention));
         OnPropertyChanged(nameof(CanChangeAuditRetentionNative));
         OnPropertyChanged(nameof(AuditRetentionStatus));
+        RetireIneligibleAuditImpact();
         OnPropertyChanged(nameof(CanChangeResponseMode));
         OnPropertyChanged(nameof(ResponseModeConfigurationStatus));
         OnPropertyChanged(nameof(CanChangeProviderMode));

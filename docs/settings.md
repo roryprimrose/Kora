@@ -29,6 +29,26 @@ unconfirmed marker. Reset affects only the named option. No preference change
 grants consent/approval, replays retired speech or enables a gated capability.
 Legacy process-local overrides are labelled separately below.
 
+## Read-only audit shortening preview
+
+In **Settings > Logging**, explicitly select **Proposed audit retention days for
+read-only preview**, then **Preview audit shortening impact only**. The value
+must be 30–365 days and shorter than the current confirmed saved/default value.
+Selecting or previewing does not Save or change existing records.
+
+The result separately reports required-authority audit and diagnostic-audit
+projection status, newly-due count and affected committed/proposed-due UTC
+ranges. Newly due means the proposed deadline is at or before the fixed preview
+cutoff while the original deadline is still later. Already-due records are not
+counted again. A complete zero has no range. Incomplete or Unavailable is not
+zero; no truncated count is shown. No event content or identities are displayed.
+
+Edits, Refresh, saved preference/store changes, private/lock/owner/desktop/call
+changes, cancellation, failure and closing Settings retire the preview. It also
+expires after 30 seconds; explicitly Preview again. There is no automatic scan.
+**Apply-now, audit deletion and pruning remain unavailable.** Existing future-only
+Save/Reset controls are separate and unchanged.
+
 ## Routine notice quiet mode is run-only
 
 In the already-open **Sessions** window, select an exact session and use **Quiet routine notices for this run**. This one choice suppresses first Work/Maintenance notices before fatigue accounting and hides their notice rows. **Turn routine quiet off** and **Reset routine quiet to Off** clear it. Default is Off on every Kora restart; there is no saved setting or scheduled duration.

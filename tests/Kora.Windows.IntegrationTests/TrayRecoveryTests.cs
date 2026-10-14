@@ -96,10 +96,15 @@ public sealed class TrayRecoveryTests
         normalizedSource.Should().NotContain("menu.Opening")
             .And.NotContain("OnMenuOpening");
         File.ReadAllText(Path.Combine(directory.FullName, "src", "Kora", "SessionAttachmentWindowController.cs"))
-            .Should().Contain("Dispatcher.UIThread.Post(CloseInspection)")
-            .And.Contain("Dispatcher.UIThread.Post(() => OnRevoked(revoked))")
-            .And.Contain("Dispatcher.UIThread.Post(() => OnAttachmentRevoked(revoked))")
-            .And.NotContain("Dispatcher.UIThread.Invoke(CloseInspection)");
+            .Should().Contain("PostForCurrentInspection(CloseInspection)")
+            .And.Contain("PostForCurrentInspection(() => OnRevoked(revoked))")
+            .And.Contain("PostForCurrentInspection(() => OnAttachmentRevoked(revoked), exactView: true)")
+            .And.Contain("Dispatcher.UIThread.Post(() =>")
+            .And.Contain("ReferenceEquals(expectedLifetime, lifetime)")
+            .And.Contain("!exactView || expected == Volatile.Read(ref viewRevision)")
+            .And.NotContain("Dispatcher.UIThread.Invoke(CloseInspection)")
+            .And.NotContain("Dispatcher.UIThread.Invoke(() => OnRevoked(revoked))")
+            .And.NotContain("Dispatcher.UIThread.Invoke(() => OnAttachmentRevoked(revoked))");
         File.ReadAllText(Path.Combine(directory.FullName, "src", "Kora", "AttachmentCatalogueWindowController.cs"))
             .Should().Contain("Dispatcher.UIThread.Post(OnInspectionRevoked)")
             .And.NotContain("Dispatcher.UIThread.Invoke(OnInspectionRevoked)");

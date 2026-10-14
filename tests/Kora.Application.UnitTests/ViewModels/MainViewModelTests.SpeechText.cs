@@ -456,6 +456,8 @@ public sealed partial class MainViewModelTests
         await using var admission = fixture.OutputAdmission;
         await fixture.ViewModel.InitializeAsync();
         await fixture.RunAsync("set display.speech-text to CurrentUtterance");
+        fixture.ViewModel.ReaderTextScalePercent = 200;
+        fixture.ViewModel.EnsureReaderTypographyAvailable();
         fixture.TextToSpeech.ClearSpokenResponse();
         fixture.TextToSpeech.SpeakGate = new(TaskCreationOptions.RunContinuationsAsynchronously);
         var response = fixture.RunAsync("show your window");

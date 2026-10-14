@@ -79,6 +79,18 @@ the existing catalogue I subset. No scalar filter, body import/inference, schema
 index/cache, aggregate quota/count, mutation, activity renewal, model/tool/speech
 route, new source authority or installed accessibility/E/Q qualification is added.
 
+### Bounded native speech-caption reader text scale - 2026-10-15
+
+The confirmed device-local [reader scale](Information_Display.md#bounded-native-reader-text-scale)
+now includes only currently observed native speech-caption content, in new and
+open windows, using original typography. Caption chrome/accessibility names,
+geometry/display choice, playback identity, pin/dismissal and privacy/call/source
+retirement remain unchanged; unavailable preference evidence explicitly retires
+text without replay. This consumes the existing preference/typography/caption I
+subset. No other reader behavior, global UI scaling, caption enablement, speech,
+model/provider/audio path or voice inference changes; deterministic checks do not
+claim real audio, hardware or installed accessibility E/Q qualification.
+
 ### Bounded native Evidence reader text scale - 2026-10-15
 
 The confirmed device-local [reader scale](Information_Display.md#bounded-native-reader-text-scale)

@@ -892,6 +892,15 @@ Primary remains the default; an explicit target stays bound to its actual source
 Geometry is bounded/clipped inside that source's current working area and scaling, including negative coordinates and tiny areas; native resize/reposition hides first. A missing/ambiguous explicit target hides and retires even pinned text, never silently moving it to another physical display.
 Explicit recovery selects only future eligible text; it cannot repair preferences, clear privacy/call/ownership holds, resurrect a retired source, enable captions or extend completion/pinning.
 
+The confirmed device-local [reader text scale](#bounded-native-reader-text-scale)
+also applies to the actual observed caption content TextBox, in new and open
+native windows, from its original typography. Caption labels, Pin/Unpin, display
+selection/status, accessible names and native geometry remain independent.
+Unavailable reader preference evidence explicitly retires the caption; late
+frames cannot restore it. This changes only the former caption typography
+exclusion, not caption enablement, speech, identity, privacy/call gates or pin
+and display lifetimes.
+
 **Current sentence** and word alignment remain open: the actual adapter supplies
 utterance segment 0 only, so estimated boundaries are not advertised as
 host-admitted playback alignment. Arbitrary coordinates and
@@ -1141,13 +1150,13 @@ All also have exact get/status/reset and `list speech text settings` discovery.
 
 The delivered native reader preference is `appearance.reader-text-scale`: an absolute integer percentage, default **100**, inclusive **75–200**. It uses the appearance registry, exact `get`/`status`/`set`/`reset` and `list appearance settings`, and the native Settings Appearance editor. Relative or natural-language examples below remain proposed, not inferred commands ([registry](../src/Kora.Core/Configuration/AppearanceOptionRegistry.cs), [parser](../src/Kora.Application/Configuration/AppearanceCommand.cs)).
 
-Only content typography scales: shared DetailWindow Rendered blocks, exact Source and continuous text; native original file/folder and retained attachment source bodies; exact source citation/literal-match spans; native volatile clipboard snapshot source body; admitted complete immutable serialized Evidence page body and its inert focused literal-Find span. Newly created windows inherit the confirmed preference. Repeated changes apply against each control's original font/line-height, never cumulatively ([binding](../src/Kora/NativeReaderTypography.cs), [detail](../src/Kora/DetailWindow.axaml.cs), [file](../src/Kora/LocalFilePreviewWindow.cs), [span](../src/Kora/LocalFilePreviewWindow.Citations.cs), [clipboard](../src/Kora/ClipboardPreviewWindow.cs), [Evidence](../src/Kora/EvidenceWindow.axaml.cs)).
+Only content typography scales: shared DetailWindow Rendered blocks, exact Source and continuous text; native original file/folder and retained attachment source bodies; exact source citation/literal-match spans; native volatile clipboard snapshot source body; admitted complete immutable serialized Evidence page body and its inert focused literal-Find span; currently observed native speech-caption content text. Newly created windows inherit the confirmed preference. Repeated changes apply against each control's original font/line-height, never cumulatively ([binding](../src/Kora/NativeReaderTypography.cs), [detail](../src/Kora/DetailWindow.axaml.cs), [file](../src/Kora/LocalFilePreviewWindow.cs), [span](../src/Kora/LocalFilePreviewWindow.Citations.cs), [clipboard](../src/Kora/ClipboardPreviewWindow.cs), [Evidence](../src/Kora/EvidenceWindow.axaml.cs), [caption](../src/Kora/SpeechCaptionWindow.axaml.cs)).
 
 Trusted chrome, consent/approval/question controls, search inputs/results, provenance/citation locations, errors and renderer status retain their own typography and scrolling. This does not scale entire windows or transform content. Immutable source strings/bytes, search offsets and citations are not rewritten; content access, copy/export, caption enablement, call policy, permissions and persistence consent remain separate ([detail shell](../src/Kora/DetailWindow.axaml), [file reader](../src/Kora/LocalFilePreviewWindow.cs), [clipboard reader](../src/Kora/ClipboardPreviewWindow.cs)).
 
 The preference is device-local atomic state under application data paths, with strict integer validation and pending evidence until exact readback and successful audit. Malformed, unknown, externally changed or unconfirmed evidence fails explicitly; it is not silently treated as 100. Existing preference files/migrations remain unchanged ([store](../src/Kora.Application/Configuration/LocalReaderTextScalePreferences.cs), [workflow](../src/Kora.Application/Configuration/AppearanceConfigurationService.cs)).
 
-Excluded: inline guide/grant previews, compact response/conversation lists, Evidence filters/query fields/result navigation/provenance/status and incomplete pages, search/attachment catalogues, captions, browser/generated HTML/Mermaid/PDF/image renderers, model/runtime interfaces and voice-command inference. This is **not global text scaling**. Full accessibility, real hardware, Windows DPI/display and assistive-technology acceptance remain open; deterministic headless checks qualify only these bounded native readers.
+Excluded: inline guide/grant previews, compact response/conversation lists, Evidence filters/query fields/result navigation/provenance/status and incomplete pages, search/attachment catalogues, caption labels/Pin/Unpin/display selector/status/chrome, browser/generated HTML/Mermaid/PDF/image renderers, model/runtime interfaces and voice-command inference. Caption scaling preserves exact text, response/playback/generation/segment identity, native geometry/display selection, original pin/dismissal lifetime and retirement. Preference/privacy/source/call/window closure, replacement, interruption, failure/cancellation and late callbacks clear stale scaled content. This is **not global text scaling**. Full accessibility, real hardware, Windows DPI/display and assistive-technology acceptance remain open; deterministic headless checks qualify only these bounded native readers.
 
 The broader proposed registry includes:
 

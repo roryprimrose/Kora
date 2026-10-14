@@ -11,7 +11,7 @@ using Kora.Core.Voice;
 namespace Kora.Windows.IntegrationTests;
 
 [Collection(nameof(HeadlessUiTestGroup))]
-public sealed class SpeechCaptionDisplayTests
+public sealed partial class SpeechCaptionDisplayTests
 {
     [Theory]
     [InlineData(SpeechCaptionPlacement.TopLeft, 1)]
@@ -427,6 +427,19 @@ public sealed class SpeechCaptionDisplayTests
 
     private sealed class Caption : ObservableObject, ISpeechCaptionPresentation
     {
+        private int readerTextScalePercent = 100;
+        public int ReaderTextScalePercent
+        {
+            get => readerTextScalePercent;
+            set => SetProperty(ref readerTextScalePercent, value);
+        }
+        public Exception? TypographyFailure { get; set; }
+        public Action? OnTypographyAdmission { get; set; }
+        public void EnsureReaderTypographyAvailable()
+        {
+            OnTypographyAdmission?.Invoke();
+            if (TypographyFailure is { } failure) { throw failure; }
+        }
         public string? SpeechCaptionText { get; set; } = "Observed private utterance.";
         public string SpeechCaptionLabel { get; set; } = "CURRENT PLAYBACK - UTTERANCE";
         public string SpeechCaptionPinLabel { get; set; } = "Pin";

@@ -36,6 +36,12 @@ internal static class NativeReaderTypography
         reader.Bind(TextBox.FontSizeProperty, ScaleBinding(host, reader.FontSize));
     }
 
+    internal static Action<int> Capture(TextBox reader)
+    {
+        var baseFontSize = reader.FontSize;
+        return percent => reader.FontSize = Scale(baseFontSize, percent);
+    }
+
     private static Binding ScaleBinding(MainViewModel host, double baseline) => new(nameof(MainViewModel.ReaderTextScalePercent))
     {
         Source = host,

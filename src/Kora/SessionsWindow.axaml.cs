@@ -163,6 +163,7 @@ internal sealed partial class SessionsWindow : Window
         ClearQueue.Click += async (_, _) => await model.ClearQueueAsync();
         EventRecords.SelectionChanged += (_, _) =>
             model.SelectLocalEvent(EventRecords.SelectedItem as Kora.Core.Interaction.LocalEventView);
+        ClearLocalEventFilters.Click += (_, _) => model.ClearLocalEventFilters();
         ReviewLocalEvent.Click += async (_, _) => await model.ReviewLocalEventAsync();
         DismissLocalEvent.Click += async (_, _) => await model.DismissLocalEventAsync();
         DeferLocalEvent.Click += async (_, _) => await model.DeferLocalEventAsync();

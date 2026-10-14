@@ -152,6 +152,21 @@ defer uses the [same broker as commands](commands.md#trusted-local-events).
 No question target, voice output, task/approval deadline, grant or dispatch
 changes. Maintenance Check/Open remains in its native window.
 
+**Local event category** offers All, Work, Failure, Attention and Maintenance.
+**Local event reason** offers All and each exact delivery reason shown by the
+broker. The two filters combine over only the already-loaded bounded rows;
+they do not read more sources or change quiet mode. **Clear local event
+filters** restores All/All. Each edit or clear removes your event selection
+and event review detail, even if that event still matches. Select a visible
+exact event again before Review/Dismiss/Defer. Refresh and source/privacy
+changes also retire selection; no replacement is selected automatically.
+
+**No matching loaded events** means only that these filters match no loaded
+row. Broker omissions and routine quiet hidden/suppressed counts remain
+separate; this does not mean there are no other events or pending questions.
+Filters are native, content-free and memory-only: no new command, speech,
+model/tool route, saved preference or meaningful activity renewal.
+
 **Quiet routine notices for this run** turns off first **Work and Maintenance** notice deliveries and hides their notice rows together. **Turn routine quiet off** or **Reset routine quiet to Off** clears it; Kora also starts Off after restart. Status shows the choice, all omitted rows, routine rows hidden and sources suppressed without presentation. Nothing is saved as a quiet preference.
 
 Failures, Attention, required questions/approvals, authoritative work/status, citations and recovery stay available. Quiet never speaks or changes focus, capture, grants, dispatch or deadlines.

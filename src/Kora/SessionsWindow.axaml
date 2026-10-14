@@ -339,6 +339,20 @@
           </WrapPanel>
           <controls:NamedTextBlock Text="{Binding LocalEventStatus}" TextWrapping="Wrap"
                                   AutomationProperties.Name="Trusted visual local event status, fatigue, deferral and no replay reasons; no speech or focus change" />
+          <WrapPanel>
+            <TextBlock Text="Local event category" VerticalAlignment="Center" />
+            <ComboBox x:Name="LocalEventCategoryFilter" ItemsSource="{Binding LocalEventCategoryFilters}"
+                      SelectedItem="{Binding LocalEventCategoryChoice}" IsEnabled="{Binding CanFilterLocalEvents}"
+                      AutomationProperties.Name="Filter loaded local events by authoritative category; All, Work, Failure, Attention or Maintenance; clears exact event selection" />
+            <TextBlock Text="Local event reason" VerticalAlignment="Center" />
+            <ComboBox x:Name="LocalEventReasonFilter" ItemsSource="{Binding LocalEventReasonFilters}"
+                      SelectedItem="{Binding LocalEventReasonChoice}" IsEnabled="{Binding CanFilterLocalEvents}"
+                      AutomationProperties.Name="Filter loaded local events by exact delivery reason or All; combines with category and clears exact event selection" />
+            <Button x:Name="ClearLocalEventFilters" Content="Clear local event filters" IsEnabled="{Binding CanFilterLocalEvents}"
+                    AutomationProperties.Name="Show all already-loaded local events and clear exact selection; no source read or quiet change" />
+          </WrapPanel>
+          <controls:NamedTextBlock Text="{Binding LocalEventFilterStatus}" TextWrapping="Wrap"
+                                  AutomationProperties.Name="Matching loaded local-event counts and empty filter results; bounded source omissions and quiet status are separate" />
           <controls:ScrollableListBox x:Name="EventRecords" MaxHeight="130" ItemsSource="{Binding LocalEvents}"
                    SelectedItem="{Binding SelectedLocalEvent, Mode=OneWay}"
                    AutomationProperties.Name="Content-free exact host event IDs and revisions; pending questions remain independent">

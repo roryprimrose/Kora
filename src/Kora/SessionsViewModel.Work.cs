@@ -65,6 +65,7 @@ internal sealed partial class SessionsViewModel
 
     private async Task RefreshSelectedWorkAsync(bool concurrent = false)
     {
+        ClearLocalEvents();
         InvalidateQueuePrerequisite(clearSource: true);
         NotifyQueuePrerequisite();
         var target = RequireSelected();

@@ -11,14 +11,97 @@ internal sealed partial class SessionsViewModel
 {
     private LocalEventSnapshot? eventSnapshot;
     private LocalEventView? selectedEvent;
+    private LocalEventFilter eventFilter = new();
+    private long eventFilterEpoch;
+    private long eventSelectionEpoch;
+    private bool eventDetailPresented;
+    private Kora.Core.Authorization.WorkSessionAuthorization? eventAuthority;
     private bool presentingEvents;
     private long eventChoiceEpoch;
     private bool changingRoutineQuiet;
     private volatile bool routineSurfaceOpen;
     private long routineSurfaceRevision;
     private string eventUnavailable = "Local event broker unavailable/not observed. No source is inferred; maintenance network checks are separate.";
-    public IReadOnlyList<LocalEventView> LocalEvents => eventSnapshot?.Events ?? [];
-    public LocalEventView? SelectedLocalEvent => selectedEvent;
+    private bool EventSourceCurrent => !closed && access.CanInspect && access.CanControl
+        && eventSnapshot is { } snapshot && localEvents?.IsCurrent(snapshot) == true
+        && selected?.Authority == eventAuthority && selectionEpoch == eventSelectionEpoch;
+    public IReadOnlyList<LocalEventView> LocalEvents => EventSourceCurrent
+        ? [.. eventSnapshot!.Events.Where(eventFilter.Matches)] : [];
+    public LocalEventView? SelectedLocalEvent => EventSourceCurrent ? selectedEvent : null;
+    public bool CanFilterLocalEvents => !closed && access.CanInspect && access.CanControl
+        && selected is not null && localEvents is { IsAvailable: true };
+    public LocalEventCategory? LocalEventCategoryFilter
+    {
+        get => eventFilter.Category;
+        set
+        {
+            if (presentingEvents || !CanFilterLocalEvents || value == eventFilter.Category) { return; }
+            eventFilter = eventFilter with { Category = value };
+            ChangeLocalEventFilters();
+        }
+    }
+    public LocalEventReason? LocalEventReasonFilter
+    {
+        get => eventFilter.Reason;
+        set
+        {
+            if (presentingEvents || !CanFilterLocalEvents || value == eventFilter.Reason) { return; }
+            eventFilter = eventFilter with { Reason = value };
+            ChangeLocalEventFilters();
+        }
+    }
+    public IReadOnlyList<LocalEventFilterOption<LocalEventCategory>> LocalEventCategoryFilters { get; } =
+        [new(null), .. Enum.GetValues<LocalEventCategory>().Select(value => new LocalEventFilterOption<LocalEventCategory>(value))];
+    public IReadOnlyList<LocalEventFilterOption<LocalEventReason>> LocalEventReasonFilters { get; } =
+        [new(null), .. Enum.GetValues<LocalEventReason>().Select(value => new LocalEventFilterOption<LocalEventReason>(value))];
+    public LocalEventFilterOption<LocalEventCategory> LocalEventCategoryChoice
+    {
+        get => LocalEventCategoryFilters.FirstOrDefault(option => option.Value == eventFilter.Category) ?? new(eventFilter.Category);
+        set { if (value is not null) { LocalEventCategoryFilter = value.Value; } }
+    }
+    public LocalEventFilterOption<LocalEventReason> LocalEventReasonChoice
+    {
+        get => LocalEventReasonFilters.FirstOrDefault(option => option.Value == eventFilter.Reason) ?? new(eventFilter.Reason);
+        set { if (value is not null) { LocalEventReasonFilter = value.Value; } }
+    }
+    public string LocalEventFilterStatus => !eventFilter.IsValid
+        ? "Unknown category or reason filter; no results. Clear filters to recover."
+        : !EventSourceCurrent ? "No current bounded local-event snapshot. Refresh selected work; no empty source is inferred."
+        : LocalEvents.Count.ToString(CultureInfo.InvariantCulture) + " of "
+            + eventSnapshot!.Events.Count.ToString(CultureInfo.InvariantCulture)
+            + " loaded local events match the filters. "
+            + (LocalEvents.Count == 0 ? "No matching loaded events. " : string.Empty)
+            + "Select an exact visible event separately before Review/Dismiss/Defer. Snapshot omissions and quiet status remain separate.";
+
+    public void ClearLocalEventFilters()
+    {
+        if (presentingEvents || !CanFilterLocalEvents) { return; }
+        eventFilter = new();
+        ChangeLocalEventFilters();
+    }
+
+    private void ChangeLocalEventFilters()
+    {
+        RetireLocalEventSelection();
+        eventFilterEpoch++;
+        NotifyLocalEvents();
+    }
+
+    private void RetireLocalEventSelection()
+    {
+        selectedEvent = null;
+        if (eventDetailPresented)
+        {
+            eventDetailPresented = false;
+            detail = string.Empty;
+            OnPropertyChanged(nameof(Detail));
+        }
+    }
+
+    internal sealed record LocalEventFilterOption<T>(T? Value) where T : struct, Enum
+    {
+        public override string ToString() => Value?.ToString() ?? "All";
+    }
     public string RoutineQuietStatus => localEvents is { } broker
         ? "Quiet routine notices for this run: " + (broker.RoutineQuiet.Enabled ? "On" : "Off")
             + (broker.IsAvailable ? string.Empty : " (held/unavailable; refresh recovery, no confirmed change inferred)")
@@ -36,19 +119,21 @@ internal sealed partial class SessionsViewModel
         if (!visible) { ClearLocalEvents(); }
         else { NotifyLocalEvents(); }
     }
-    public string LocalEventStatus => eventSnapshot is { } snapshot
+    public string LocalEventStatus => EventSourceCurrent && eventSnapshot is { } snapshot
         ? "Local event broker: " + snapshot.Reason + "; " + snapshot.Omitted.ToString(CultureInfo.InvariantCulture)
             + " omitted, including " + snapshot.RoutineOmitted.ToString(CultureInfo.InvariantCulture)
             + " routine rows hidden by quiet; " + snapshot.RoutineSuppressed.ToString(CultureInfo.InvariantCulture)
             + " current routine sources suppressed without presentation/budget consumption (RoutineSuppressedNoReplay). "
             + "Eligible is first visual delivery; PresentedNoReplay is passive status only. " + LocalEventSnapshot.Scope
-        : eventUnavailable;
-    public bool CanControlLocalEvent => CanRead && access.CanControl && selectedEvent is not null;
+        : eventSnapshot is not null ? "Local event snapshot withdrawn after source/admission change. Refresh selected work; no current source is inferred." : eventUnavailable;
+    public bool CanControlLocalEvent => CanRead && EventSourceCurrent && selectedEvent is not null
+        && LocalEvents.Contains(selectedEvent);
 
     public void SelectLocalEvent(LocalEventView? record)
     {
-        if (closed || presentingEvents || record is not null && !LocalEvents.Contains(record)) { return; }
+        if (closed || presentingEvents || !EventSourceCurrent || record is not null && !LocalEvents.Contains(record)) { return; }
         selectedEvent = record;
+        eventFilterEpoch++;
         OnPropertyChanged(nameof(SelectedLocalEvent));
         OnPropertyChanged(nameof(CanControlLocalEvent));
     }
@@ -57,6 +142,7 @@ internal sealed partial class SessionsViewModel
     {
         if (localEvents is null) { return; }
         var choiceEpoch = eventChoiceEpoch;
+        var filterEpoch = eventFilterEpoch;
         if (!access.CanControl)
         {
             ClearLocalEvents();
@@ -79,9 +165,11 @@ internal sealed partial class SessionsViewModel
             NotifyLocalEvents();
             return;
         }
-        if (closed || selectionEpoch != epoch || eventChoiceEpoch != choiceEpoch
+        if (closed || selectionEpoch != epoch || eventChoiceEpoch != choiceEpoch || eventFilterEpoch != filterEpoch
             || selected?.Authority.SessionId != session || !localEvents.IsCurrent(observed)) { return; }
         eventSnapshot = observed;
+        eventAuthority = selected.Authority;
+        eventSelectionEpoch = epoch;
         selectedEvent = null;
         NotifyLocalEvents();
     }
@@ -122,15 +210,29 @@ internal sealed partial class SessionsViewModel
 
     private Task RunLocalEventAsync(LocalEventOperation operation) => RunAsync(async () =>
     {
-        var target = selectedEvent ?? throw new InvalidOperationException("Select an exact current host event.");
+        var target = SelectedLocalEvent ?? throw new InvalidOperationException("Select an exact current host event.");
+        if (!LocalEvents.Contains(target)) { throw new InvalidOperationException("Select an exact visible host event under the current filters."); }
         var epoch = selectionEpoch;
+        var filterEpoch = eventFilterEpoch;
         var result = await (localEvents ?? throw new InvalidOperationException("The local broker is unavailable."))
             .ExecuteNativeAsync(new(operation, target.Event.Id, target.Event.Revision),
-                () => !closed && selectionEpoch == epoch && selectedEvent == target
+                () => !closed && selectionEpoch == epoch && eventFilterEpoch == filterEpoch
+                    && EventSourceCurrent && selectedEvent == target
                     && selected?.Authority.SessionId == target.Event.SessionId, lifetime.Token);
+        if (!EventSourceCurrent || selectionEpoch != epoch || eventFilterEpoch != filterEpoch || selectedEvent != target)
+        {
+            throw new OperationCanceledException("Local event presentation changed; no late selection or details are admitted.");
+        }
+        if (result.Reason is LocalEventReason.SourceUnavailable or LocalEventReason.AdmissionChanged
+            or LocalEventReason.Expired or LocalEventReason.ClockRollback)
+        {
+            throw new InvalidOperationException("The exact local event source is no longer current: " + result.Reason + ". Refresh and select separately.");
+        }
         detail = JsonSerializer.Serialize(result);
-        selectedEvent = result;
-        eventSnapshot = eventSnapshot! with { Events = LocalEvents.Select(item => item.Event.Id == result.Event.Id ? result : item).ToArray() };
+        eventDetailPresented = true;
+        eventSnapshot = eventSnapshot! with { Events = eventSnapshot.Events.Select(item => item.Event.Id == result.Event.Id ? result : item).ToArray() };
+        selectedEvent = eventFilter.Matches(result) ? result : null;
+        if (selectedEvent is null) { RetireLocalEventSelection(); }
         status = "Exact local event " + operation + ": " + result.Reason + ". No question, output policy, maintenance or work authority changed.";
         NotifyLocalEvents();
     });
@@ -138,7 +240,8 @@ internal sealed partial class SessionsViewModel
     private void ClearLocalEvents()
     {
         eventSnapshot = null;
-        selectedEvent = null;
+        eventAuthority = null;
+        RetireLocalEventSelection();
         eventChoiceEpoch++;
         NotifyLocalEvents();
     }
@@ -151,6 +254,12 @@ internal sealed partial class SessionsViewModel
             OnPropertyChanged(nameof(LocalEvents));
             OnPropertyChanged(nameof(SelectedLocalEvent));
             OnPropertyChanged(nameof(LocalEventStatus));
+            OnPropertyChanged(nameof(LocalEventCategoryFilter));
+            OnPropertyChanged(nameof(LocalEventReasonFilter));
+            OnPropertyChanged(nameof(LocalEventCategoryChoice));
+            OnPropertyChanged(nameof(LocalEventReasonChoice));
+            OnPropertyChanged(nameof(LocalEventFilterStatus));
+            OnPropertyChanged(nameof(CanFilterLocalEvents));
             OnPropertyChanged(nameof(CanControlLocalEvent));
             OnPropertyChanged(nameof(RoutineQuietStatus));
             OnPropertyChanged(nameof(CanChangeRoutineQuiet));

@@ -14,8 +14,9 @@ public interface IExactGrantStore
     ValueTask<ExactGrantPage> ReadExactGrantPageAsync(ExactGrantQuery query, ExactGrantCursor? cursor, CancellationToken cancellationToken);
     /// <summary>Reads one exact current retained record, or reports absence without fabricating applicability.</summary>
     ValueTask<ExactGrantInspection?> InspectExactGrantAsync(HostId<ApprovalIdentity> id, CancellationToken cancellationToken);
-    /// <summary>Reads bounded committed exact-ID history for the current original native viewer, not the grant's origin.</summary>
+    /// <summary>Filters validated committed events, binding continuation to the exact native read admission and control revision.</summary>
     ValueTask<ExactGrantHistoryPage> ReadExactGrantHistoryAsync(ExactGrantInspection inspected, HostRequest viewer,
+        ExactGrantHistoryQuery query, long controlRevision, Guid admissionId,
         string? cursor, Func<bool> admitted, CancellationToken cancellationToken);
     /// <summary>Creates a fresh host-owned control session, never adopting a grant's original request or session.</summary>
     ValueTask<WorkSessionAuthorization> CreateExactGrantControlSessionAsync(

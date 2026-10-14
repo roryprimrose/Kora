@@ -403,6 +403,12 @@ the affected interaction. Native record review cannot supply missing script
 bytes, containment or deployment authority, and no action-name grants are
 migrated into exact grants. General effect dispatch remains gated.
 
+### Exact-grant history filters
+
+After explicit exact-record inspection, native history can filter the trusted committed event by defined audit outcome and exact bounded canonical ReasonCode. Any/empty defaults are unfiltered; both predicates match typed fields, never formatted text, diagnostic mirrors or a separately retained Requested review. Filter text remains volatile and is not logged, saved, sent to a model or included in activity tags. The authenticated continuation contains only its digest, not query text.
+
+Edits perform no read and retire rows/continuation, actionable selection and revocation/batch review, cancelling and suppressing late output. A fresh explicit Read retains the same inspected inert target and rechecks current-record/private-source admission. Signed continuations bind inspected identity/digest, store lifetime, complete viewer/read admission/control revision and finite audit ceiling/digest. Scanned/nonmatching counts and zero-match Next remain explicit within 4096 rows/5 seconds, 50 results/64 KiB and a 15-minute snapshot. Retention gaps fail closed; expired-but-present is not physical erasure. No execution proof, exhaustive/forensic history, replay, export, audit pruning, grant expansion or installed accessibility qualification is supplied.
+
 Failures, safety information, and unavailable speech are always visible. A
 VoiceOnly preference cannot hide:
 

@@ -71,18 +71,32 @@
         <ScrollViewer Grid.Row="1">
           <controls:NamedTextBlock Text="{Binding BatchInspection}" AutomationProperties.Name="Complete exact selected batch preview" TextWrapping="Wrap" />
         </ScrollViewer>
-        <Grid Grid.Row="2" RowDefinitions="Auto,Auto,*" RowSpacing="8">
+        <Grid Grid.Row="2" RowDefinitions="Auto,Auto,Auto,*" RowSpacing="8">
           <WrapPanel>
+            <StackPanel Margin="0,0,12,0">
+              <TextBlock Text="Committed event outcome" />
+              <ComboBox ItemsSource="{Binding HistoryOutcomeFilters}" SelectedItem="{Binding HistoryOutcomeFilter}"
+                        AutomationProperties.Name="Exact grant history committed event outcome filter, Any by default" MinWidth="160" />
+            </StackPanel>
+            <StackPanel Margin="0,0,12,0">
+              <TextBlock Text="Exact ReasonCode (empty means any)" />
+              <TextBox Text="{Binding HistoryReasonCodeFilter}" PlaceholderText="canonical lowercase reason, or empty"
+                       AutomationProperties.Name="Exact grant history canonical ReasonCode filter, typing performs no read" MinWidth="220" />
+            </StackPanel>
+            <Button Content="Clear history filters" Command="{Binding ClearHistoryFiltersCommand}"
+                    AutomationProperties.Name="Clear exact history filters and retire rows continuation selection and reviews" />
+          </WrapPanel>
+          <WrapPanel Grid.Row="1">
             <Button Content="Read history for this exact grant ID" Command="{Binding ReadHistoryCommand}"
                     AutomationProperties.Name="Read passive committed history for this exact inspected grant ID" />
             <Button Content="Next bounded history page" Command="{Binding NextHistoryCommand}"
                     AutomationProperties.Name="Continue the same finite exact grant history snapshot" />
           </WrapPanel>
-          <ScrollViewer Grid.Row="1" MaxHeight="120">
+          <ScrollViewer Grid.Row="2" MaxHeight="120">
             <controls:NamedTextBlock Text="{Binding HistorySummary}" TextWrapping="Wrap"
                                     AutomationProperties.Name="Exact grant history snapshot, scan bounds and evidence limitations" />
           </ScrollViewer>
-          <controls:ScrollableListBox Grid.Row="2" ItemsSource="{Binding HistoryRows}"
+          <controls:ScrollableListBox Grid.Row="3" ItemsSource="{Binding HistoryRows}"
                                      AutomationProperties.Name="Read-only committed exact grant history rows">
             <ListBox.ItemTemplate>
               <DataTemplate x:DataType="x:String">

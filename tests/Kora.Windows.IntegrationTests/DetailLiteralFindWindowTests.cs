@@ -3,6 +3,7 @@ using Avalonia.Automation.Peers;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
+using Avalonia.VisualTree;
 
 using AwesomeAssertions;
 
@@ -11,6 +12,7 @@ using Kora.Controls;
 using Kora.Core.Conversation;
 using Kora.Core.Hosting;
 using Kora.Core.Presentation;
+using Kora.NativeUxFixture;
 
 using Microsoft.Extensions.Logging.Abstractions;
 
@@ -19,6 +21,44 @@ namespace Kora.Windows.IntegrationTests;
 [Collection(nameof(HeadlessUiTestGroup))]
 public sealed class DetailLiteralFindWindowTests
 {
+    [Theory]
+    [InlineData(75)]
+    [InlineData(100)]
+    [InlineData(200)]
+    public async Task MaximumLiteralMatchHasBoundedScrollableViewportAndKeepsReaderAvailable(int percent)
+    {
+        await HeadlessSession.RunAsync(async () =>
+        {
+            using var fixture = new NativeUxFixtureSession(Path.GetTempPath());
+            await fixture.InitializeAsync();
+            var content = Content(new('a', 256));
+            var state = new DetailViewerState(content);
+            var result = new NativeDetailRenderer(NullLogger<NativeDetailRenderer>.Instance).Render(content.Source, content.Kind);
+            state.CompleteRender(state.Generation, result.SemanticText, result.Status, result.IsFallback);
+            var window = new DetailWindow(state, result, (_, _, _) => throw new InvalidOperationException("No clipboard authority."), fixture.Main)
+            { Width = 640, Height = 500 };
+            window.Show();
+            try
+            {
+                fixture.Main.ReaderTextScalePercent = percent;
+                Required<CheckBox>(window, "ReadingTextToggle").IsChecked = true;
+                Required<TextBox>(window, "SearchInput").Text = content.Source;
+                Click(window, "FirstMatch");
+                window.UpdateLayout();
+                var span = Required<NamedTextBlock>(window, "FindSpan");
+                var viewport = window.GetVisualDescendants().OfType<ScrollViewer>().Single(view => ReferenceEquals(view.Content, span));
+                viewport.MaxHeight.Should().Be(100);
+                viewport.Bounds.Height.Should().BeLessThanOrEqualTo(100);
+                span.Text.Should().Be(content.Source);
+                span.IsFocused.Should().BeTrue();
+                Required<TextBox>(window, "ContentReader").Bounds.Height.Should().BeGreaterThan(0);
+                state.MatchStart.Should().Be(0);
+                state.MatchLength.Should().Be(256);
+            }
+            finally { window.ClearAndClose(); }
+        });
+    }
+
     [Fact]
     public Task KeyboardFindAndProjectionChangesPreserveNativeFocusAndEscapeClosure() => HeadlessSession.RunAsync(() =>
     {
@@ -181,10 +221,10 @@ public sealed class DetailLiteralFindWindowTests
         window.ClearAndClose();
     });
 
-    private static AdmittedDetailContent Content()
+    private static AdmittedDetailContent Content(string body = "ALPHA alpha alpha\r\nexact USER")
     {
         var message = new ConversationMessage(HostRequest.Create(RequestOrigin.LocalUi), new(1), 1, 1,
-            DateTimeOffset.UnixEpoch, "ALPHA alpha alpha\r\nexact USER", null, null);
+            DateTimeOffset.UnixEpoch, body, null, null);
         return new(new(new(message.Request.RequestId.Value), 1), DetailContentKind.PlainText,
             DetailContentOrigin.RetainedConversation, DetailSensitivity.DisclosureConfirmationRequired,
             "Original USER", "Private retained original", message.Body, conversationMessage: message);

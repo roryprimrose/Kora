@@ -47,8 +47,11 @@
                 AutomationProperties.Name="Clear literal Find query and match" />
       </WrapPanel>
       <TextBlock Text="Literal Find: exact case and spaces; one line, 256 UTF-16 characters / 512 UTF-8 bytes maximum; nonoverlapping, no wrap. Searches only current admitted text, never reads a source." TextWrapping="Wrap" />
-      <controls:NamedTextBlock x:Name="FindSpan" Focusable="True" IsVisible="False" TextWrapping="Wrap" TabIndex="14"
-                              AutomationProperties.Name="Exact inert admitted detail literal match" />
+      <ScrollViewer MaxHeight="100" VerticalScrollBarVisibility="Auto"
+                    AutomationProperties.Name="Bounded inert literal match viewport">
+        <controls:NamedTextBlock x:Name="FindSpan" Focusable="True" IsVisible="False" TextWrapping="Wrap" TabIndex="14"
+                                AutomationProperties.Name="Exact inert admitted detail literal match" />
+      </ScrollViewer>
       <TextBlock x:Name="CopyPolicyLabel" Text="Copy exact source as Unicode plain text only. Clipboard content leaves Kora's boundary and may be read by other apps. Rich HTML copy is not supported."
                  TextWrapping="Wrap" />
       <CheckBox x:Name="DisclosureConfirmation" TabIndex="9"

@@ -60,6 +60,8 @@ public sealed class DetailWindowContractTests
         Named(document, "ReadingTextToggle").Attribute("Content")!.Value.Should().Contain("selection/search");
         // Native MaxLength would silently shorten the query; the host rejects it visibly.
         Named(document, "SearchInput").Attribute("MaxLength").Should().BeNull();
+        Named(document, "FindSpan").Parent!.Name.LocalName.Should().Be("ScrollViewer");
+        Named(document, "FindSpan").Parent!.Attribute("MaxHeight")!.Value.Should().Be("100");
         Read("DetailWindow.axaml").Should().Contain("DynamicResource").And.Contain("Rich HTML copy is not supported")
             .And.Contain("Clipboard content leaves Kora").And.NotContain("Animation").And.NotContain("WebView");
     }

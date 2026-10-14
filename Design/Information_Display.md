@@ -32,6 +32,8 @@ Query edits, projection/target changes, Cancel and Clear retire the cursor; Canc
 
 Find adds no admission/open route, clipboard/export, persistence/schema, logging/query telemetry, provider/egress, meaningful activity or execution authority. Existing independently admitted copy controls are unchanged; retained conversation copy stays blocked. Portable and headless tests are implementation evidence, not installed/accessibility/hardware or full qualification.
 
+The inert match viewport scrolls within a 100-DIP height bound without shortening text. Headless checks exercise the complete maximum-length match at 75%, 100% and 200% reader scale in the minimum-size window while retaining a visible reader; they do not replace installed visual/accessibility qualification.
+
 ## Delivered passive exact-conversation search - 2026-10-13
 
 The selected Sessions conversation pane now separately searches original retained USER bodies and typed HOST outcomes/reasons/task states. It shares the chronological native inert row template; full exact body and original request/task/sequence remain data, not model answers, generated summaries, ranked citations, rich links or execution controls.

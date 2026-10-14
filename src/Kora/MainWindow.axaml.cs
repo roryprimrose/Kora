@@ -105,7 +105,7 @@ public sealed partial class MainWindow : Window
             IsHitTestVisible = presenceInput.Refresh(
                 IsVisible && viewModel.CanRevealPrivatePresentation
                 && viewModel.State != Kora.Core.AssistantState.Hidden
-                && presence.IsPresenceVisible && presence.CurrentFrame.Opacity > 0);
+                && presence.CanInteract);
         }
         catch (Win32Exception exception)
         {

@@ -49,6 +49,7 @@ public sealed class PresenceRendererTests
             {
                 () => parent.IsVisible = false,
                 () => window.Hide(),
+                () => window.Opacity = 0,
                 () => control.IsPresentationEligible = false,
                 () => parent.Opacity = 0,
                 () => control.SetAnimationEnabled(false),
@@ -58,6 +59,7 @@ public sealed class PresenceRendererTests
             })
             {
                 disable();
+                control.CanInteract.Should().BeFalse();
                 var ticks = control.TickCount;
                 var invalidations = control.InvalidationCount;
                 scheduler.Advance(TimeSpan.FromHours(1));
@@ -74,6 +76,7 @@ public sealed class PresenceRendererTests
                 control.SetAnimationEnabled(true);
                 window.Content = parent;
                 window.WindowState = WindowState.Normal;
+                window.Opacity = 1;
                 window.Show();
                 window.UpdateLayout();
                 control.Arrange(new Rect(0, 0, 360, 360));
@@ -218,6 +221,7 @@ public sealed class PresenceRendererTests
             control.TickCount.Should().Be(before);
             control.Dispose();
             control.AncestorSubscriptionCount.Should().Be(0);
+            control.CanInteract.Should().BeFalse();
             var invalidations = control.InvalidationCount;
             scheduler.InvokeRetired();
             control.State = AssistantState.Executing;
@@ -335,6 +339,7 @@ public sealed class PresenceRendererTests
             control.PrepareBrushes();
             var builds = control.ResourceBuildCount;
             control.IsPresenceVisible = false;
+            control.CanInteract.Should().BeFalse();
             scheduler.Advance(TimeSpan.FromMilliseconds(99));
             control.PrepareBrushes();
             control.ResourceBuildCount.Should().Be(builds + 1);
@@ -388,6 +393,7 @@ public sealed class PresenceRendererTests
                 control.ResourceBuildCount.Should().Be(1);
             }
             control.State = AssistantState.Hidden;
+            control.CanInteract.Should().BeFalse();
             scheduler.Advance(TimeSpan.FromMilliseconds(99));
             control.CurrentFrame.Opacity.Should().BeInRange(0.1, 0.9);
             scheduler.Advance(TimeSpan.FromSeconds(1));

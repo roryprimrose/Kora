@@ -27,6 +27,7 @@ public sealed class PresenceAnimationFrameLoopTests
         window.Should().Contain("private void ShowPresenceWindow()")
             .And.Contain("private void HidePresenceWindow()")
             .And.Contain("presence.SetAnimationEnabled(false)")
+            .And.Contain("presence.CanInteract")
             .And.Contain("presenceInputTimer.Stop()");
     }
 

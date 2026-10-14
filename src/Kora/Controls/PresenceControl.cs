@@ -103,6 +103,8 @@ public sealed class PresenceControl : Control, IDisposable
     internal ReadOnlySpan<Particle> Particles => particles;
     internal PresenceVisualFrame CurrentFrame => animation.Current;
     internal ReadOnlySpan<IBrush> Brushes => brushes;
+    internal bool CanInteract => CanRender() && IsPresenceVisible
+        && State != AssistantState.Hidden && animation.Current.Opacity > 0;
 
     internal void BindPresentationEligibility(Func<bool> eligibility)
     {

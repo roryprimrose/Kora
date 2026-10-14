@@ -97,6 +97,7 @@ internal sealed partial class SessionsViewModel(
 
     internal void RevokeSessionList()
     {
+        ClearLocalEvents();
         InvalidateQueuePrerequisite(clearSource: true);
         InvalidateListSearch();
         sessions = null;
@@ -575,6 +576,7 @@ internal sealed partial class SessionsViewModel(
                 changingQueueControl = false;
                 NotifyQueue();
                 NotifyWork();
+                NotifyLocalEvents();
                 OnPropertyChanged(nameof(Status));
                 OnPropertyChanged(nameof(Detail));
             }

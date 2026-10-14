@@ -93,6 +93,33 @@ Broader multi-session proactive conversation, detector-driven speech,
 configurable reminders/quiet hours and installed accessibility/release
 acceptance remain gated. All R02 experiment evidence is retained unchanged.
 
+## Native content-free loaded-event filters
+
+The existing Sessions list has **Local event category** (All, Work, Failure,
+Attention, Maintenance) and **Local event reason** (All plus every exact
+`LocalEventReason` value). All is unfiltered; both typed predicates compose
+as a conjunction over only the already-loaded at-most-eight rows, in snapshot
+order. Unknown filter or row enums fail closed. This is not source search:
+there is no additional read, index, persistence, query logging, event body,
+command/model/tool/speech route, activity renewal or new authority.
+
+Every filter edit and explicit clear immediately retires exact selection and
+event review detail, even if the same event remains visible. Review/Dismiss/
+Defer require separate selection of a currently visible exact ID/revision;
+binding updates never select a replacement. A mutation whose resulting reason
+no longer matches also withdraws selection without discarding other loaded
+rows. Refresh retires selection at entry. Source/private/session/workspace
+revision changes, closure, failure, cancellation and late callbacks cannot
+restore withdrawn selection or publish stale event detail.
+
+Matching counts and **No matching loaded events** describe only the filtered
+snapshot. The broker's bounded omissions, quiet-hidden/suppressed counts and
+unavailable reasons remain independently authoritative; zero matches is not
+an empty source or an inferred success. Quiet policy, fatigue accounting,
+original deadlines and required questions remain unchanged. Deterministic
+domain/native tests cover this bounded implementation; installed accessibility,
+broader proactive conversation and E/Q qualification remain separate.
+
 ## Delivered run-only routine notice quiet mode - 2026-10-10
 
 In an already-open **Sessions** selected work surface, **Quiet routine notices for this run**, **Turn routine quiet off**, and **Reset routine quiet to Off** control one combined Work/Maintenance choice. Default is Off on every process start; On lasts until explicitly cleared/reset or Kora restarts. No quiet preference, timer, scheduling, network check or consent is saved.

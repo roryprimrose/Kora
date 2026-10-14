@@ -60,6 +60,18 @@ Existing exact lock behavior and non-executing power proposals are unchanged.
 
 ## Ordered Outstanding Work
 
+### Bounded native Sessions local-event filters - 2026-10-14
+
+[Category and exact reason filters](Proactive_Interaction.md#native-content-free-loaded-event-filters)
+compose over only the existing already-loaded bounded content-free rows.
+Edits immediately retire exact selection; source/privacy/workspace changes,
+refresh, failure/cancellation and stale callbacks remain fail closed.
+Matching/empty counts do not replace broker omissions or quiet status.
+No read/index/persistence, event body, logging, route, authority, dispatch or
+activity renewal is added. This consumes the delivered local broker's I
+subset; hardware, experiments and installed accessibility/E/Q qualification
+are not implementation prerequisites or claimed by this increment.
+
 ### Bounded native Evidence page literal Find — 2026-10-14
 
 The [Evidence inspector](Information_Display.md#delivered-bounded-native-evidence-inspection)

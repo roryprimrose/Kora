@@ -242,6 +242,15 @@ separately bound; passive delivery/status never resumes, dispatches, retargets
 voice or updates meaningful activity. Session retirement removes owned broker
 receipts before deletion; restart reconstructs no source or effects from them.
 
+Native [loaded-event category/reason filters](Proactive_Interaction.md#native-content-free-loaded-event-filters)
+compose only over these bounded content-free rows. Editing or clearing a
+filter revokes exact event selection and review detail immediately; Review/
+Dismiss/Defer remain disabled until separate selection of a visible current
+event. Refresh and source/private/session/workspace changes retire selection,
+with no late-callback restoration or silent retarget. Matching/empty results
+are separate from authoritative source omissions and routine quiet status.
+No additional source read, persistence, activity renewal or authority is added.
+
 The [R13 four fixed-read profiles](Work_Management.md#delivered-fixed-first-page-read-profiles---2026-10-12)
 addresses existing immutable session IDs directly. Pending capacity, FIFO,
 fair manual admission, revisions, dependencies and restart interruption are

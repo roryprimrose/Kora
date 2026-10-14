@@ -352,6 +352,19 @@ filter/page/citation display, without copying, export, execution or approval
 controls. [Privacy, limits and source distinctions](privacy-safety-and-logs.md#committed-authority-audit-inspection)
 describe its snapshot and recovery behavior.
 
+After an explicit successful complete Evidence Search/Next/trace/segment read,
+use **Find first**, **Find next**, **Find previous**, or **Clear literal Find**.
+This native Find scans only the current serialized page in memory, not retained
+sources or bodies. Ctrl+F focuses its query; Enter finds first; F3/Shift+F3 moves
+next/previous. One inert exact literal is focused with its UTF-16 location;
+case and spaces are exact, matches do not overlap or wrap, and page-local
+no-match is not an all-clear. The full page and selected citation stay unchanged.
+The volatile query has no copy/paste, export, speech, model or persistence route.
+All reads, filter/source edits, replacement, failures/cancellation and private
+closure clear it. Failed/unavailable/incomplete pages cannot enable Find.
+See [query bounds and retirement](privacy-safety-and-logs.md#logs); installed
+accessibility and general Ask Evidence/export remain unqualified/unavailable.
+
 Expand **Advanced filters (optional)** for exact request/invocation/approval/
 audit-correlation IDs, inclusive ISO times with `Z` or explicit offset,
 diagnostic severity and typed audit outcome. **Clear advanced filters** unsets

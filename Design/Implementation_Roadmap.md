@@ -60,6 +60,18 @@ Existing exact lock behavior and non-executing power proposals are unchanged.
 
 ## Ordered Outstanding Work
 
+### Bounded native Evidence page literal Find — 2026-10-14
+
+The [Evidence inspector](Information_Display.md#delivered-bounded-native-evidence-inspection)
+adds first/next/previous/clear over only its current successful complete
+serialized in-memory page, using the shared literal policy and focused inert
+UTF-16 span. Query/match retirement covers reads, filters, replacement,
+failure/cancellation and private closure
+([focused native tests](../tests/Kora.Windows.IntegrationTests/EvidenceLiteralFindTests.cs)).
+No retained-source/body expansion, schema/index, audit authority, activity
+identity, copy/export, speech/model/execution or network capability is added.
+General Ask Evidence and installed accessibility/full qualification remain open.
+
 ### Bounded native Evidence exact-field filters — 2026-10-14
 
 The [Evidence contract](Information_Display.md#delivered-bounded-native-evidence-inspection) exposes existing EventId, Category and ActionId through optional exact native filters with source-specific unsupported recovery and the existing snapshot/cursor/private-closure lifecycle ([native and real-reader tests](../tests/Kora.Windows.IntegrationTests/EvidenceAdvancedFilterTests.cs)).

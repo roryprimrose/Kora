@@ -169,6 +169,18 @@ projects interrupted/unknown tasks and never dispatches a saved queue.
 
 ## Passive Committed Authority Audit Inspection
 
+Native Evidence literal Find consumes only the already-admitted immutable
+serialized page in memory, never a new source read or authority decision.
+Its bounded query and exact inert match are volatile: no query content enters
+logs, typed audit, persistence, clipboard/export, speech, model context,
+activity identity/tags or baggage. Filter/source/page/read changes, failures,
+incomplete results, cancellation, private ownership/privacy revocation and
+close retire the query and match; revision/admission checks refuse late
+publication/focus. Matching a diagnostic `SecurityAudit` property or audit
+text confers no authority. The existing trusted typed commit/correlation
+distinction is unchanged. See the
+[bounded Find contract](Information_Display.md#delivered-bounded-native-evidence-inspection).
+
 The native inspector's separate **AuthorityAudit** source reads real typed
 schema-v3 interaction-store commits through the initialized store's shared
 lease, strict current-user ownership and read-only connection. Source authority

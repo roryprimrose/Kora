@@ -11,7 +11,7 @@
     Background="{DynamicResource KoraWindowBackgroundBrush}"
     Foreground="{DynamicResource KoraForegroundBrush}"
     WindowStartupLocation="CenterScreen">
-  <Grid Margin="24" RowDefinitions="Auto,Auto,Auto,Auto,Auto,*,Auto" RowSpacing="12">
+  <Grid Margin="24" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,*,Auto" RowSpacing="12">
     <TextBlock Text="Evidence - SQLite; DailyLog; opt-in CombinedLog ordinary diagnostics" FontSize="20" FontWeight="SemiBold" />
     <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="10">
       <ComboBox ItemsSource="{Binding Sources}" SelectedItem="{Binding Source}" MinWidth="130"
@@ -76,7 +76,33 @@
     </Expander>
     <controls:NamedTextBlock Grid.Row="4" Text="{Binding Status}" TextWrapping="Wrap"
                AutomationProperties.Name="Evidence status and storage limitations" />
-    <Grid Grid.Row="5" ColumnDefinitions="320,*" ColumnSpacing="14">
+    <StackPanel Grid.Row="5" Spacing="6">
+      <TextBlock TextWrapping="Wrap"
+                 Text="Literal Find in this exact serialized page only: case-sensitive, unchanged spaces, nonoverlapping, no wrap or occurrence count. No retained-source search. Ctrl+F focuses query; Enter finds first; F3 / Shift+F3 moves next / previous. Query is volatile; no copy/paste." />
+      <StackPanel Orientation="Horizontal" Spacing="8">
+        <TextBox x:Name="LiteralQuery" Text="{Binding FindQuery}" Width="380" AcceptsReturn="False"
+                 IsEnabled="{Binding CanFind}"
+                 PlaceholderText="{Binding FindQueryHint}"
+                 ContextMenu="{x:Null}" ContextFlyout="{x:Null}"
+                 AutomationProperties.Name="Case-sensitive literal Find in this exact serialized Evidence page only" />
+        <Button x:Name="FindFirst" Content="Find first" IsEnabled="{Binding CanFind}"
+                AutomationProperties.Name="Find first literal in this Evidence page; no wrap" />
+        <Button x:Name="FindNext" Content="Find next" IsEnabled="{Binding CanMoveFind}"
+                AutomationProperties.Name="Find next literal in this Evidence page; no wrap" />
+        <Button x:Name="FindPrevious" Content="Find previous" IsEnabled="{Binding CanMoveFind}"
+                AutomationProperties.Name="Find previous literal in this Evidence page; no wrap" />
+        <Button x:Name="ClearLiteral" Content="Clear literal Find"
+                AutomationProperties.Name="Clear volatile Evidence Find query and match without reading" />
+      </StackPanel>
+      <controls:NamedTextBlock x:Name="FindOutcome" Text="{Binding FindStatus}" TextWrapping="Wrap"
+                              AutomationProperties.Name="Evidence literal Find outcome and exact UTF-16 location" />
+      <ScrollViewer MaxHeight="80" IsVisible="{Binding HasFindSelection}">
+        <controls:NamedTextBlock x:Name="LiteralMatch" Text="{Binding FindMatchText}" Focusable="True"
+                                IsVisible="{Binding HasFindSelection}" FontFamily="Consolas" TextWrapping="Wrap"
+                                AutomationProperties.Name="Exact inert Evidence literal selection in current serialized page" />
+      </ScrollViewer>
+    </StackPanel>
+    <Grid Grid.Row="6" ColumnDefinitions="320,*" ColumnSpacing="14">
       <Grid RowDefinitions="*,Auto,*">
         <controls:ScrollableListBox x:Name="Records" ItemsSource="{Binding Records}" AutomationProperties.Name="Cited evidence records">
           <ListBox.ItemTemplate>
@@ -102,7 +128,7 @@
                    AutomationProperties.Name="Bounded structured evidence result, read only, no copy or export" />
       </ScrollViewer>
     </Grid>
-    <StackPanel Grid.Row="6" Orientation="Horizontal" Spacing="10">
+    <StackPanel Grid.Row="7" Orientation="Horizontal" Spacing="10">
       <Button x:Name="OpenSegment" Content="Open selected segment" IsEnabled="{Binding CanQuery}" />
       <Button x:Name="CloseView" Content="Close" />
       <TextBlock Text="No copy, export, model, browser, deletion or execution." VerticalAlignment="Center" />

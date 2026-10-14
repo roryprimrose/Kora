@@ -519,6 +519,26 @@ snapshot; later records do not silently extend it. Each page includes stable
 including metadata. A record too large for one page is explicitly marked
 `ContentOmitted`; content is never silently truncated.
 
+**Literal Find** searches only the exact serialized page already displayed
+after a successful complete explicit Evidence read, including its literal JSON
+escapes, citations and disclosure. It performs no new query or storage read.
+Find first/next/previous is case-sensitive, preserves spaces, selects one
+nonoverlapping literal and never wraps. The focused inert match shows its
+end-exclusive UTF-16 location without changing the page or cited-record
+selection. No-match is page-local, not a retained-source search or all-clear.
+Incomplete/failed/unavailable/content-omitted results cannot enable Find.
+
+Queries must be nonempty well-formed one-line text, at most 256 UTF-16
+characters and 512 UTF-8 bytes, without controls or Unicode format/separator
+characters. Invalid input is rejected visibly, never truncated. The query
+is volatile and never saved, logged/audited as content, copied/exported,
+spoken or sent to a model. Clear clears query/match without reading.
+Every read, page replacement, filter/source edit, cancellation, failure,
+ownership/privacy invalidation and close clears Find; late results cannot
+restore it. These controls do not change typed audit authority or source
+availability. [Contract and tests](../Design/Information_Display.md#delivered-bounded-native-evidence-inspection)
+are bounded automated evidence, not installed accessibility qualification.
+
 Expand **Advanced filters (optional)** for exact request, invocation, approval
 and audit-correlation GUIDs, **From / Until** times, severity and typed audit
 outcome. Blank fields are unset. GUIDs require nonempty hyphenated form without

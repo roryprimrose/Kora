@@ -6,7 +6,8 @@ namespace Kora.Core.Storage;
 /// <summary>A bounded mutable observation of explicitly saved, nonempty composer drafts.</summary>
 public sealed record SavedDraftPage(SessionListFilter Filter, ImmutableArray<SavedDraftSummary> Records,
     string? Next, int Scanned, int AuditScanned, bool AuthorityPending,
-    SessionListSearchKind? QueryKind = null, string? QueryDigest = null)
+    SessionListSearchKind? QueryKind = null, string? QueryDigest = null,
+    SavedDraftMetadataFilter? MetadataFilter = null)
 {
     public const int MaximumRecords = 25;
     public const int MaximumScanned = SessionListSearchPage.MaximumScannedRecords;
@@ -16,6 +17,7 @@ public sealed record SavedDraftPage(SessionListFilter Filter, ImmutableArray<Sav
         + "Empty pages can have Next; end is not a global total. Mutable canonical-ID keyset, not an atomic inventory. "
         + "Changes behind the cursor require Refresh; any committed authority change invalidates continuation. "
         + "Name search is ordinal case-sensitive metadata only; exact canonical ID is a separate mode. "
+        + "Optional exact positive saved revision and inclusive UTF-8 byte bounds filter metadata only; empty means Any. "
         + "Query edits invalidate observations without reading; Search/Refresh explicitly starts again. "
         + "Opening an exact session never reloads, saves, submits, resumes or renews activity.";
 
@@ -41,7 +43,8 @@ public sealed record SavedDraftPage(SessionListFilter Filter, ImmutableArray<Sav
                 && row.Session.IsActive != (Filter == SessionListFilter.Active)
                 || row.Source != Records[0].Source || row.Profile != Records[0].Profile
                 || row.ControlRevision != Records[0].ControlRevision || row.AuthorityCeiling != Records[0].AuthorityCeiling
-                || !string.Equals(row.AuthorityDigest, Records[0].AuthorityDigest, StringComparison.Ordinal))
+                || !string.Equals(row.AuthorityDigest, Records[0].AuthorityDigest, StringComparison.Ordinal)
+                || MetadataFilter is not null && !MetadataFilter.Matches(row))
             { throw new InvalidDataException("Saved draft catalogue mixes source scope, filter or canonical ordering."); }
             previous = id;
         }

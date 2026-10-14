@@ -19,6 +19,94 @@ namespace Kora.Windows.IntegrationTests;
 
 public sealed partial class SessionsConversationTests
 {
+    private static readonly string[] InvalidDraftMetadataIntegers =
+        [" ", "+1", "-1", "1,000", "1.5", "1 ", "9223372036854775808"];
+
+    [Fact]
+    public async Task NativeSavedDraftMetadataControlsAreAccessibleStrictAndRevokeWithoutReading()
+    {
+        await HeadlessSession.RunAsync(async () =>
+        {
+            using var f = new InteractionStorageFixture();
+            await f.InitializeAsync();
+            await WindowsSqliteConversationTests.FinishInitial(f);
+            await WindowsSqliteConversationTests.Save(f,
+                await f.Store.ReadConversationDraftAsync(f.Request.SessionId, f.Token), "🙂");
+            var checkpoint = new CatalogueCheckpoint();
+            var reads = 0;
+            checkpoint.Read = () => reads++;
+            f.Reopen(checkpoint);
+            await f.Store.InitializeAsync(f.Token);
+            var access = new WindowsSqliteSessionWorkspaceTests.Access();
+            using var model = new SavedDraftCatalogueViewModel(WindowsSqliteSessionWorkspaceTests.Service(f, access),
+                (_, _, _) => Task.FromResult(false), access, () => true, NullLogger<SavedDraftCatalogueViewModel>.Instance);
+            var window = new SavedDraftCatalogueWindow(model);
+            window.Show();
+            try
+            {
+                var revision = window.FindControl<TextBox>("DraftRevisionText")!;
+                var minimum = window.FindControl<TextBox>("DraftMinimumBytesText")!;
+                var maximum = window.FindControl<TextBox>("DraftMaximumBytesText")!;
+                var search = window.FindControl<Button>("RefreshPage")!;
+                foreach (var control in new[] { revision, minimum, maximum })
+                {
+                    ControlAutomationPeer.CreatePeerForElement(control)!.GetName().Should().NotBeNullOrWhiteSpace();
+                    control.Focusable.Should().BeTrue();
+                    control.IsEnabled.Should().BeTrue();
+                    foreach (var invalid in InvalidDraftMetadataIntegers)
+                    {
+                        control.Text = invalid;
+                        search.IsEnabled.Should().BeFalse();
+                        model.MetadataHint.Should().Contain("refused");
+                        await model.Refresh();
+                        model.Status.Should().Contain("InvalidDataException");
+                        reads.Should().Be(0);
+                        control.Text = "";
+                    }
+                }
+                revision.Text = "0";
+                model.CanSearch.Should().BeFalse();
+                revision.Text = "1";
+                minimum.Text = "5";
+                maximum.Text = "4";
+                model.CanSearch.Should().BeFalse();
+                minimum.Text = "4";
+                maximum.Text = "16385";
+                model.CanSearch.Should().BeFalse();
+                maximum.Text = "4";
+                reads.Should().Be(0);
+                search.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                await window.Operation;
+                model.Records.Should().ContainSingle().Which.Utf8Bytes.Should().Be(4);
+                model.Select(model.Records.Single());
+                revision.Text = "2";
+                model.Records.Should().BeEmpty();
+                model.SelectedRecord.Should().BeNull();
+                model.CanNavigate.Should().BeFalse();
+                model.CanNext.Should().BeFalse();
+                reads.Should().Be(1);
+                search.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                await window.Operation;
+                model.Records.Should().BeEmpty();
+                model.Status.Should().Contain("0 saved drafts").And.Contain("End");
+                window.FindControl<Button>("ClearQuery")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                model.RevisionText.Should().BeEmpty();
+                model.MinimumBytesText.Should().BeEmpty();
+                model.MaximumBytesText.Should().BeEmpty();
+                reads.Should().Be(2);
+                revision.Text = "1";
+                minimum.Text = "0";
+                maximum.Text = "16384";
+                window.Close();
+                model.RevisionText.Should().BeEmpty();
+                model.MinimumBytesText.Should().BeEmpty();
+                model.MaximumBytesText.Should().BeEmpty();
+                f.Count("conversation_messages").Should().Be(0);
+            }
+            finally { window.Close(); }
+        });
+    }
+
     [Fact]
     public async Task ActualNativeDraftQueryControlsReuseMetadataPolicyWithoutTypingReadsOrComposerChanges()
     {
@@ -127,6 +215,9 @@ public sealed partial class SessionsConversationTests
     [InlineData("query")]
     [InlineData("mode")]
     [InlineData("filter")]
+    [InlineData("revision")]
+    [InlineData("minimum")]
+    [InlineData("maximum")]
     public async Task QueryEpochRevocationDuringExactDraftNavigationPreservesTheCurrentDirtyComposer(string boundary)
     {
         using var f = new InteractionStorageFixture();
@@ -154,6 +245,9 @@ public sealed partial class SessionsConversationTests
             checkpoint.Read = null;
             if (boundary is "query") { model.QueryText = Guid.NewGuid().ToString("D"); }
             else if (boundary is "mode") { model.Mode = SavedDraftCatalogueMode.NameSubstring; }
+            else if (boundary is "revision") { model.RevisionText = "2"; }
+            else if (boundary is "minimum") { model.MinimumBytesText = "1"; }
+            else if (boundary is "maximum") { model.MaximumBytesText = "1"; }
             else { model.Filter = SessionListFilter.Done; }
         };
         await model.Navigate();
@@ -172,6 +266,11 @@ public sealed partial class SessionsConversationTests
     [InlineData("control")]
     [InlineData("cancel")]
     [InlineData("close")]
+    [InlineData("revision")]
+    [InlineData("minimum")]
+    [InlineData("maximum")]
+    [InlineData("private")]
+    [InlineData("failure")]
     public async Task DraftQueryChangesRevokePendingPagesAndKeepLateCallbacksFromRestoringPrivateResults(string boundary)
     {
         using var f = new InteractionStorageFixture();
@@ -187,6 +286,9 @@ public sealed partial class SessionsConversationTests
             (_, _, _) => Task.FromResult(false), access, () => true, NullLogger<SavedDraftCatalogueViewModel>.Instance);
         model.Mode = SavedDraftCatalogueMode.ExactId;
         model.QueryText = f.Request.SessionId.Value.ToString("D");
+        model.RevisionText = "1";
+        model.MinimumBytesText = "1";
+        model.MaximumBytesText = "16384";
         checkpoint.Read = () =>
         {
             checkpoint.Read = null;
@@ -195,6 +297,11 @@ public sealed partial class SessionsConversationTests
                 case "query": model.QueryText = Guid.NewGuid().ToString("D"); break;
                 case "mode": model.Mode = SavedDraftCatalogueMode.NameSubstring; break;
                 case "filter": model.Filter = SessionListFilter.Done; break;
+                case "revision": model.RevisionText = "2"; break;
+                case "minimum": model.MinimumBytesText = "2"; break;
+                case "maximum": model.MaximumBytesText = "2"; break;
+                case "private": access.CanInspect = false; model.SynchronizeAuthority(); break;
+                case "failure": throw new InvalidDataException("source failed");
                 case "source": model.Revoke(); break;
                 case "control": access.ControlRevision++; model.SynchronizeAuthority(); break;
                 case "cancel": model.Cancel(); break;
@@ -208,6 +315,12 @@ public sealed partial class SessionsConversationTests
         model.CanNavigate.Should().BeFalse();
         if (boundary is "source" or "control" or "cancel" or "close") { model.QueryText.Should().BeEmpty(); }
         if (boundary is "close") { model.Status.Should().BeEmpty(); }
+        if (boundary is "source" or "control" or "cancel" or "close" or "private")
+        {
+            model.RevisionText.Should().BeEmpty();
+            model.MinimumBytesText.Should().BeEmpty();
+            model.MaximumBytesText.Should().BeEmpty();
+        }
         f.Count("conversation_messages").Should().Be(0);
     }
 

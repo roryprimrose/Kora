@@ -45,13 +45,24 @@ All (default), Active and Done filters show exact immutable session ID, current 
 
 Browse remains the default. **NameSubstring** and **ExactId** reuse the authoritative [session metadata policy](../src/Kora.Core/Storage/SessionListSearch.cs): ordinal case-sensitive literal name matching, NFC/no-control/format/no-surrounding-whitespace, 120 scalars / 480 UTF-8 bytes; or a separate nonempty canonical lowercase D-format ID.
 An ID-shaped name is only a name. Unnamed sessions cannot match names but can match exact IDs. Invalid/empty queries never trim, normalize or fall back to Browse; **Clear query (Browse)** resets explicitly without reading.
-Typing, query mode and lifecycle filter edits immediately invalidate the catalogue page/cursor/selection and cancel pending callbacks without I/O or changing the current Sessions target/composer. **Search / refresh metadata** explicitly observes the new query; no first match is automatically selected.
+Optional **Exact saved revision**, **Minimum UTF-8 bytes** and **Maximum UTF-8 bytes**
+compose with Browse/name/exact-ID and All/Active/Done. The portable
+[metadata filter](../src/Kora.Core/Storage/SavedDraftMetadataFilter.cs) owns parsing,
+validation and matching: empty means Any, revision is a positive Int64, and
+inclusive byte bounds are 0 through `ConversationText.MaximumUtf8Bytes` (16384),
+with minimum <= maximum. Nonempty input accepts only invariant decimal digits;
+no signs, whitespace repair, separators, truncation or clamping. Invalid fields
+visibly refuse Search/Refresh. Zero byte bounds can truthfully match no nonempty draft.
+Metadata predicates apply only after existing source/authority-prefix and candidate
+metadata validation; irrelevant authority commits are still validated before disclosure.
+No body decoding or inference is added, and scalar-length filtering remains unavailable.
+Typing, query mode, lifecycle and revision/byte filter edits immediately invalidate the catalogue page/cursor/selection/exact navigation and cancel pending callbacks without I/O or changing the current Sessions target/composer. **Search / refresh metadata** explicitly observes the new query; no first match is automatically selected. Clear and private/source/close revocation also clear the volatile metadata fields.
 Exact ID seeks the existing draft-row primary key after the same mandatory private source/authority validation. Missing/cleared/unretained/Removed/nonmatching targets end without falling back to a list; unavailable or broken authority remains a recovery failure, not a healthy empty inventory.
 
 Each click consumes at most 50 candidate draft slots and returns at most 25 complete rows / 64 KiB. Cleared/null/empty slots consume scan positions but are not saved-content results; never-saved sessions and question/parameter drafts are not sources.
 Empty pages can have Next. End is an observation, not a global count or immutable inventory. Canonical-UUID keyset pages are mutable; changes behind the cursor require Refresh.
 
-Private signed continuation binds the store/profile/current run, native viewer, private control revision, query kind/digest (or Browse), state filter and last consumed exact ID. Complete typed audit-chain validation precedes disclosure in bounded existing 4096-commit segments; pending pages contain no draft rows.
+Private signed continuation binds the store/profile/current run, native viewer, private control revision, query kind/digest (or Browse), exact saved revision/byte bounds, state filter and last consumed exact ID. Complete typed audit-chain validation precedes disclosure in bounded existing 4096-commit segments; pending pages contain no draft rows.
 Any committed authority change invalidates continuation. Existing consolidated whole-store SQL provenance/retention checks remain costs, not per-click body decoding or a performance qualification.
 
 Metadata observes saved revision, body presence/length and current lifecycle; it does **not** verify body integrity or admit Reload/Submit. Exact navigation re-resolves the original metadata, generation, saved revision/presence and private source authority.

@@ -27,6 +27,12 @@ Native-only query entry adds no activated/model descriptor or generic-global-sea
 
 Use **Tray > Saved conversation drafts (metadata only)**, then explicit Refresh. All retained saved-content rows are the default; Active/Done filters and Next consume bounded mutable metadata pages, not bodies.
 Choose **Browse**, literal case-sensitive **NameSubstring**, or canonical lowercase **ExactId**, then **Search / refresh metadata**. The private volatile field performs no read on typing; invalid/empty queries never fall back to All. **Clear query (Browse)** resets without reading.
+Optional labelled native **Exact saved revision**, **Minimum UTF-8 bytes** and
+**Maximum UTF-8 bytes** fields compose with every mode and lifecycle filter.
+Empty means Any; strict positive revision/inclusive bounded byte parsing and
+visible invalid-field refusal follow the [canonical metadata policy](Interaction_And_Sessions.md#saved-conversation-draft-catalogue--2026-10-13).
+Editing any field immediately revokes page, selection, exact navigation, Next
+and late callbacks without reading; Clear/source/privacy/close clears the fields.
 Query/mode/filter edits cancel pending callbacks and clear the observed page/cursor/selection immediately, leaving the existing Sessions composer/target untouched. Exact IDs remain distinct from ID-shaped names; empty scanned pages can still have Next. No result is automatically selected.
 Select one immutable row and **Open exact session (no body load)**. Exact private source/revision revalidation precedes selection in the existing Sessions owner; no second composer or body authority exists.
 

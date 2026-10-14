@@ -45,6 +45,33 @@ public sealed partial class WindowsSqliteConversationTests
         using (var viewer = HostActivity.BeginRoot(Fresh(f.Request.SessionId), HostActivityLayer.Desktop, HostOperation.Request))
         {
             var audits = f.Count("security_audit_events");
+            var metadata = new SavedDraftMetadataFilter(1, 0, 16384);
+            var metadataPage = await f.Store.ReadSavedDraftPage(SessionListFilter.All, null, 1, () => true, f.Token,
+                metadataFilter: metadata);
+            metadataPage.Records.Should().HaveCount(25);
+            metadataPage.Next.Should().NotBeNull();
+            var metadataTail = await f.Store.ReadSavedDraftPage(SessionListFilter.All, metadataPage.Next, 1, () => true, f.Token,
+                metadataFilter: metadata);
+            metadataTail.Records.Should().HaveCount(25, "signed filters survive cursor serialization");
+            foreach (var alternate in new SavedDraftMetadataFilter?[] { null, new(2, 0, 16384), new(1, 1, 16384), new(1, 0, 16383) })
+            {
+                var switchedMetadata = () => f.Store.ReadSavedDraftPage(SessionListFilter.All, metadataPage.Next, 1,
+                    () => true, f.Token, metadataFilter: alternate).AsTask();
+                await switchedMetadata.Should().ThrowAsync<InvalidDataException>();
+            }
+            var tamperedMetadata = () => f.Store.ReadSavedDraftPage(SessionListFilter.All, metadataPage.Next![..^1] + "x", 1,
+                () => true, f.Token, metadataFilter: metadata).AsTask();
+            await tamperedMetadata.Should().ThrowAsync<InvalidDataException>();
+            var zero = await f.Store.ReadSavedDraftPage(SessionListFilter.All, null, 1, () => true, f.Token,
+                metadataFilter: new(long.MaxValue, 0, 0));
+            zero.Records.Should().BeEmpty();
+            zero.Scanned.Should().Be(50);
+            zero.Next.Should().NotBeNull();
+            var zeroTail = await f.Store.ReadSavedDraftPage(SessionListFilter.All, zero.Next, 1, () => true, f.Token,
+                metadataFilter: new(long.MaxValue, 0, 0));
+            zeroTail.Records.Should().BeEmpty();
+            zeroTail.Scanned.Should().Be(21);
+            zeroTail.Next.Should().BeNull();
             var excluded = await f.Store.ReadSavedDraftPage(Kora.Core.Storage.SessionListFilter.Done, null, 1, () => true, f.Token);
             excluded.Records.Should().BeEmpty();
             excluded.Scanned.Should().Be(50);
@@ -102,6 +129,9 @@ public sealed partial class WindowsSqliteConversationTests
             await mismatch.Should().ThrowAsync<InvalidDataException>();
             f.Count("security_audit_events").Should().Be(audits);
             await service.RenameAsync(ordered[0], new(1), 0, new(name), RequestOrigin.LocalUi, f.Token);
+            var staleMetadata = () => f.Store.ReadSavedDraftPage(SessionListFilter.All, metadataPage.Next, 1,
+                () => true, f.Token, metadataFilter: metadata).AsTask();
+            await staleMetadata.Should().ThrowAsync<InvalidDataException>();
             var stale = () => f.Store.ReadSavedDraftPage(SessionListFilter.All, noMatch.Next, 1, () => true, f.Token, query).AsTask();
             await stale.Should().ThrowAsync<InvalidDataException>("even a rename behind the cursor changes the conservative authority head");
             var refreshed = await f.Store.ReadSavedDraftPage(SessionListFilter.All, null, 1, () => true, f.Token, query);

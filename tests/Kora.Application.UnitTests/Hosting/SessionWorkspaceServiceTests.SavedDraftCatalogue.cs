@@ -11,6 +11,43 @@ namespace Kora.Application.UnitTests.Hosting;
 
 public sealed partial class SessionWorkspaceServiceTests
 {
+    [Theory]
+    [InlineData("match")]
+    [InlineData("empty")]
+    [InlineData("scope")]
+    [InlineData("revision")]
+    [InlineData("minimum")]
+    [InlineData("maximum")]
+    [InlineData("browse-any")]
+    public async Task SavedDraftMetadataFiltersAreForwardedAndUntrustedPagesCannotSubstituteThem(string boundary)
+    {
+        using var f = new Fixture();
+        using var root = HostActivity.BeginRoot(f.Request, HostActivityLayer.Application, HostOperation.Request);
+        var row = new SavedDraftSummary(Guid.NewGuid(), new(Guid.NewGuid()), f.Session, null,
+            2, 4, 1, f.ControlRevision, 1, new string('a', 64));
+        var filter = boundary is "browse-any" ? SavedDraftMetadataFilter.Any : new SavedDraftMetadataFilter(2, 4, 4);
+        f.DraftPage = new(SessionListFilter.All, boundary is "empty" ? [] : [row], null, 1, 0, false,
+            MetadataFilter: boundary is "browse-any" ? null : filter);
+        f.BeforeDraftRead = () =>
+        {
+            f.DraftPage = boundary switch
+            {
+                "scope" => f.DraftPage with { MetadataFilter = null },
+                "revision" => f.DraftPage with { Records = [row with { DraftRevision = 3 }] },
+                "minimum" => f.DraftPage with { Records = [row with { Utf8Bytes = 3 }] },
+                "maximum" => f.DraftPage with { Records = [row with { Utf8Bytes = 5 }] },
+                _ => f.DraftPage,
+            };
+        };
+        var read = () => f.Service.ReadSavedDraftCatalogue(SessionListFilter.All, null, () => true, f.Token,
+            metadataFilter: filter);
+        if (boundary is "match" or "empty" or "browse-any") { (await read()).Should().Be(f.DraftPage); }
+        else { await read.Should().ThrowAsync<Exception>(); }
+        f.ObservedDraftMetadataFilter.Should().BeSameAs(filter);
+        f.TaskWrites.Should().BeEmpty();
+        f.ControlCalls.Should().Be(0);
+    }
+
     [Fact]
     public async Task SavedDraftQueryConsumesMoreThanOneThousandFakeRetainedSessionsWithoutInventingAProfileQuota()
     {
@@ -163,11 +200,14 @@ public sealed partial class SessionWorkspaceServiceTests
         internal Action? BeforeDraftRead { get; set; }
         internal Action? BeforeDraftResolve { get; set; }
         internal SessionListSearch? ObservedDraftQuery { get; private set; }
+        internal SavedDraftMetadataFilter? ObservedDraftMetadataFilter { get; private set; }
         internal string? ObservedDraftCursor { get; private set; }
         public ValueTask<SavedDraftPage> ReadSavedDraftPage(SessionListFilter filter, string? cursor,
-            long controlRevision, Func<bool> admitted, CancellationToken token, SessionListSearch? query = null)
+            long controlRevision, Func<bool> admitted, CancellationToken token, SessionListSearch? query = null,
+            SavedDraftMetadataFilter? metadataFilter = null)
         {
             ObservedDraftQuery = query;
+            ObservedDraftMetadataFilter = metadataFilter;
             ObservedDraftCursor = cursor;
             BeforeDraftRead?.Invoke();
             return ValueTask.FromResult(DraftPage);

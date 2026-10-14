@@ -132,6 +132,11 @@ Fully validated fixed scans and bounded audit-prefix admission remain mandatory,
 No name/title/path/body/digest search, new metadata reads, schema/index/cache/layout/copy mutation, count cap, activity renewal, model/tool/speech route or saved query is added. Storage optimizations and profile-original/hidden-import work remain deferred.
 Focused Core/Application/private SQLite/native checks qualify this consumer only, not broader R26, provider/hardware, installed screen-reader/DPI, physical protected-storage/deletion or STOP. Existing audit/retention/deadline and enablement/RC gates are unchanged; no experiment is edited.
 
+### R26 private native retained metadata literal search - 2026-10-14
+
+The [retained attachment catalogue](File_And_Folder_Ingestion.md#delivered-retained-attachment-metadata-catalogue---2026-10-11) adds explicit volatile case-sensitive literal filtering of already exposed Session/source/revision/item IDs, digest and media type, composed with exact ID/lifecycle/removal filters. Shared Unicode bounds, fully validated finite scans, keyed authenticated query continuations, source/private revocation and separately explicit exact navigation remain mandatory. Removed tombstones never match literal search; no query content is serialized, persisted, audited, logged, exported or sent to a model.
+No hidden filename/path disclosure, file-content/OCR search, index, model grounding, authority expansion, installed/accessibility/hardware or full R26 qualification is claimed. Focused portable/Application/private SQLite/headless native evidence covers this consumer only; existing limits, corruption failure and experiment/enablement gates remain unchanged.
+
 ### R07 native immutable clipboard literal Find increment - 2026-10-14
 
 The [clipboard contract](Security_Data_Flows.md#delivered-r07-local-clipboard-preview---2026-10-07) adds private native First/Next/Previous/Clear over the exact existing capture, sharing portable literal query/offset policy with file Find.

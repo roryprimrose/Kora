@@ -254,7 +254,7 @@ public sealed partial class WindowsSqliteSessionAttachmentTests
         fixture.Reopen(checkpoint);
         await fixture.Store.InitializeAsync(fixture.Token);
         checkpoint.Metadata = _ => { if (cancel) { cancellation.Cancel(); } else { allowed = false; } };
-        var read = () => fixture.Store.ReadAttachmentPage(new(), null, () => allowed, cancellation.Token).AsTask();
+        var read = () => fixture.Store.ReadAttachmentPage(new(metadataText: "text/"), null, () => allowed, cancellation.Token).AsTask();
         await read.Should().ThrowAsync<Exception>();
     }
 

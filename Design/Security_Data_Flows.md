@@ -1,5 +1,10 @@
 # Security and Data Flows
 
+## Private retained attachment metadata search boundary
+
+The [retained-slot catalogue](File_And_Folder_Ingestion.md#delivered-retained-attachment-metadata-catalogue---2026-10-11) permits native bounded literal search only over already exposed Session/source/revision/item IDs, digest and media type. It does not search hidden descriptor filenames/paths or removed-slot metadata. The shared strict literal policy preserves exact case/spaces and fails closed on malformed/oversized input.
+The query remains volatile and excluded from query/page serialization, audit/logging, tags/Baggage, persistence, export, transcripts and model/network context. Run-local authenticated continuations contain only a keyed query fingerprint; source/profile/viewer/authority/expiry bounds and full validation of irrelevant records remain mandatory. No content read, original-path access, index, permission, consent, activity renewal or authority expansion is added. Query/source/private changes and cancellation/close fence late results and exact navigation; unknown/corrupt/unsupported state is not empty success.
+
 ## Owned definition metadata navigation boundary
 
 The [owned editor inventory](../docs/instruction-editor.md#search-observed-owned-metadata) projects only admitted existing per-kind bounded filenames and coherent catalogue metadata. Names/queries are private user metadata, never content-free audit labels, paths or authority.

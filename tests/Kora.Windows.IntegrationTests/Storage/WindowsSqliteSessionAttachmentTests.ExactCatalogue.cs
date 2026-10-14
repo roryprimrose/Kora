@@ -94,6 +94,8 @@ public sealed partial class WindowsSqliteSessionAttachmentTests
     [InlineData("query-changed-filter")]
     [InlineData("query-unknown")]
     [InlineData("query-noncanonical")]
+    [InlineData("metadata-missing")]
+    [InlineData("metadata-changed")]
     [InlineData("signature")]
     [InlineData("source")]
     [InlineData("profile")]
@@ -104,11 +106,11 @@ public sealed partial class WindowsSqliteSessionAttachmentTests
         using var root = HostActivity.BeginRoot(fixture.Request, HostActivityLayer.Application, HostOperation.Request);
         await Attach(fixture, Encoding.UTF8.GetBytes("private exact source"));
         AppendCatalogueAuditReceipts(fixture, SessionAttachmentPage.MaximumAuditRows + 1);
-        var query = new SessionAttachmentQuery(false, fixture.Request.SessionId.Value.ToString("D"));
+        var query = new SessionAttachmentQuery(false, fixture.Request.SessionId.Value.ToString("D"), metadataText: "text/");
         var first = await fixture.Store.ReadAttachmentPage(query, null, () => true, fixture.Token);
         first.AuthorityValidationPending.Should().BeTrue();
         var cursor = first.Next!;
-        if (boundary.StartsWith("query-", StringComparison.Ordinal))
+        if (boundary.StartsWith("query-", StringComparison.Ordinal) || boundary.StartsWith("metadata-", StringComparison.Ordinal))
         {
             var payload = JsonNode.Parse(Convert.FromBase64String(cursor.Split('.')[0]))!;
             switch (boundary)
@@ -121,6 +123,8 @@ public sealed partial class WindowsSqliteSessionAttachmentTests
                 case "query-changed-filter": payload["Query"]!["Filter"] = (int)SessionAttachmentFilter.Done; break;
                 case "query-unknown": payload["Query"]!["NameSubstring"] = "not admitted"; break;
                 case "query-noncanonical": payload["Query"]!["ExactSessionId"] = query.ExactSessionId!.ToUpperInvariant(); break;
+                case "metadata-missing": payload.AsObject().Remove("MetadataBinding"); break;
+                case "metadata-changed": payload["MetadataBinding"] = new string('a', 64); break;
             }
             var bytes = Encoding.UTF8.GetBytes(payload.ToJsonString());
             var key = (byte[])typeof(Windows.Storage.WindowsSqliteHostInteractionStore)

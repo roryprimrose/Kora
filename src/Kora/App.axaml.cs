@@ -99,8 +99,11 @@ public sealed partial class App : Avalonia.Application
             grantListWindow = new GrantListWindowController(viewModel);
             BindExactGrants(viewModel);
             var nativeQuestions = new NativeQuestionHost(Services.GetRequiredService<Kora.Windows.Storage.WindowsSqliteHostInteractionStore>(),
-                Services.GetRequiredService<TimeProvider>(), Services.GetRequiredService<ILogger<NativeQuestionViewModel>>());
+                Services.GetRequiredService<TimeProvider>(), Services.GetRequiredService<ILogger<NativeQuestionViewModel>>(),
+                questions => viewModel.BindQuestionVoiceReplies(questions, Services.GetRequiredService<TimeProvider>(),
+                    Services.GetRequiredService<ILogger<Kora.Application.Interaction.HostQuestionVoiceReplyService>>()));
             nativeQuestions.BindWorkspace(Services.GetRequiredService<Kora.Application.Hosting.SessionWorkspaceService>());
+            nativeQuestions.BindPrivateRevision(() => Services.GetRequiredService<Kora.Core.Storage.ISessionWorkspaceAccess>().ControlRevision);
             questionWindow = new QuestionWindowController(viewModel,
                 nativeQuestions,
                 Services.GetRequiredService<Kora.Application.Hosting.DurableVersionQuery>(),

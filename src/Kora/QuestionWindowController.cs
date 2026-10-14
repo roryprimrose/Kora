@@ -68,7 +68,8 @@ internal sealed partial class QuestionWindowController : IDisposable
                 window?.ReportOutcome(receipt.State == HostTaskState.Cancelled
                     ? "Exact local-version task and question cancelled before dispatch. Durable terminal/audit committed; no effect ran."
                     : $"Local version: {version}\n{DurableVersionQuery.StorageDisclosure}"
-                    + $"\nVerified durable receipt: {receipt.State}. No microphone, model, grant or effect was used.");
+                    + $"\nVerified durable receipt: {receipt.State}. No model, grant or external effect was used."
+                    + " Optional explicit question voice input is local and bounded.");
             }
         }
         catch (OperationCanceledException)

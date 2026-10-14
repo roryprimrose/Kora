@@ -16,7 +16,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 namespace Kora.Windows.IntegrationTests;
 
 [Collection(nameof(HeadlessUiTestGroup))]
-public sealed class NativeQuestionWindowContractTests
+public sealed partial class NativeQuestionWindowContractTests
 {
     [Theory]
     [InlineData("ReviewQuestion", "ReviewQuestion")]

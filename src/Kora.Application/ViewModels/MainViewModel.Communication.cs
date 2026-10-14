@@ -204,6 +204,7 @@ public sealed partial class MainViewModel
 
     private async void OnCommunicationPolicyChanged(object? sender, EventArgs args)
     {
+        RetireQuestionVoiceReply();
         try
         {
             var observation = communicationPolicy.Current;

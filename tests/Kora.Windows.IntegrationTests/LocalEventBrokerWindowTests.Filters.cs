@@ -571,6 +571,37 @@ public sealed partial class LocalEventBrokerWindowTests
         });
     }
 
+    [WindowsFact]
+    public async Task WorkDetailReplacesEventDetailWithoutInheritingItsSnapshotOrFilterLifetime()
+    {
+        using var f = new Fixture();
+        await f.Storage.InitializeAsync();
+        await WindowsSqliteTaskControlTests.WaitAsync(f.Storage);
+        var source = new PausedSource(f.Source());
+        await using var broker = new LocalEventBroker(source, f.State, f.Access, f.Storage.Time,
+            f, NullLogger<LocalEventBroker>.Instance);
+        var viewer = f.Viewer(broker);
+        await viewer.RefreshAsync();
+        await viewer.SelectAsync(viewer.Sessions.Single());
+        viewer.SelectLocalEvent(viewer.LocalEvents.Single());
+        await viewer.ReviewLocalEventAsync();
+        viewer.Detail.Should().NotBeEmpty();
+        viewer.SelectWorkRecord(viewer.WorkRecords.Single(row => row.Task is not null));
+        viewer.SelectedLocalEvent.Should().BeNull();
+        viewer.Detail.Should().BeEmpty();
+        await viewer.InspectWorkAsync();
+        var workDetail = viewer.Detail;
+        workDetail.Should().NotBeEmpty();
+        var reads = source.Reads;
+        viewer.LocalEventSourceFilter = LocalEventSource.CachedMaintenance;
+        viewer.LocalEventTypeFilter = LocalEventType.MaintenanceAvailable;
+        viewer.ClearLocalEventFilters();
+        viewer.Detail.Should().Be(workDetail, "non-event detail is independent of the retired event snapshot");
+        source.Reads.Should().Be(reads);
+        viewer.CanControlLocalEvent.Should().BeFalse();
+        viewer.Close();
+    }
+
     private static void AssertEventActionsDisabled(SessionsViewModel viewer, SessionsWindow window)
     {
         viewer.SelectedLocalEvent.Should().BeNull();

@@ -98,7 +98,7 @@ internal sealed partial class SessionsViewModel
                 selectedQueueEntry = null;
                 await RefreshSelectedWorkAsync();
             }
-            detail = Encoding.UTF8.GetString(SessionCommandResult.Serialize(result));
+            Detail = Encoding.UTF8.GetString(SessionCommandResult.Serialize(result));
             status = "Exact fixed-read queue " + result.Outcome
                 + ". Dispatch is manual and fair among already queued sessions; no model, effects, audio or restart replay.";
             NotifyQueue();

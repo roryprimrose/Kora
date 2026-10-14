@@ -128,7 +128,7 @@ internal sealed partial class SessionsViewModel
             () => !closed && providerSurfaceOpen && access.CanControl && selectionEpoch == epoch && selected?.Authority == target, lifetime.Token);
         ClearProviderReview();
         status = "Exact session provider override committed; app defaults unchanged, no authentication, network, generation or egress. Refresh for saved/effective status.";
-        detail = JsonSerializer.Serialize(saved);
+        Detail = JsonSerializer.Serialize(saved);
     });
 
     public void ClearProviderReview()

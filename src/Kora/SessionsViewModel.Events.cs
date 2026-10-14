@@ -127,7 +127,7 @@ internal sealed partial class SessionsViewModel
         if (eventDetailPresented)
         {
             eventDetailPresented = false;
-            detail = string.Empty;
+            Detail = string.Empty;
             OnPropertyChanged(nameof(Detail));
         }
     }
@@ -263,7 +263,7 @@ internal sealed partial class SessionsViewModel
         {
             throw new InvalidOperationException("The exact local event source is no longer current: " + result.Reason + ". Refresh and select separately.");
         }
-        detail = JsonSerializer.Serialize(result);
+        Detail = JsonSerializer.Serialize(result);
         eventDetailPresented = true;
         eventSnapshot = eventSnapshot! with { Events = eventSnapshot.Events.Select(item => item.Event.Id == result.Event.Id ? result : item).ToArray() };
         selectedEvent = eventFilter.Matches(result) ? result : null;

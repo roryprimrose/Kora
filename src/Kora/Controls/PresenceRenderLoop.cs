@@ -3,7 +3,7 @@ namespace Kora.Controls;
 internal sealed class PresenceRenderLoop(
     IPresenceFrameScheduler scheduler,
     Func<bool> canRender,
-    Action<TimeSpan, bool> update,
+    Action<TimeSpan, bool, bool> update,
     Func<TimeSpan?> cadence) : IDisposable
 {
     internal static readonly TimeSpan ActiveInterval = TimeSpan.FromMilliseconds(33);
@@ -40,7 +40,7 @@ internal sealed class PresenceRenderLoop(
         updating = true;
         try
         {
-            update(elapsed, resumed);
+            update(elapsed, resumed, true);
         }
         finally
         {
@@ -109,7 +109,7 @@ internal sealed class PresenceRenderLoop(
         updating = true;
         try
         {
-            update(elapsed, false);
+            update(elapsed, false, false);
         }
         finally
         {

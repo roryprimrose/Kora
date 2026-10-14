@@ -234,7 +234,7 @@ public sealed class PresenceRendererTests
         var eligible = false;
         var elapsedFrames = new List<(TimeSpan Elapsed, bool Resumed)>();
         using var loop = new PresenceRenderLoop(scheduler, () => eligible,
-            (elapsed, resumed) => elapsedFrames.Add((elapsed, resumed)),
+            (elapsed, resumed, _) => elapsedFrames.Add((elapsed, resumed)),
             () => PresenceRenderLoop.ActiveInterval);
         loop.Wake();
         elapsedFrames.Should().BeEmpty();
@@ -266,7 +266,7 @@ public sealed class PresenceRendererTests
 
         PresenceRenderLoop? stopping = null;
         using (stopping = new PresenceRenderLoop(scheduler, () => true,
-            (_, _) => stopping!.Stop(), () => PresenceRenderLoop.ActiveInterval))
+            (_, _, _) => stopping!.Stop(), () => PresenceRenderLoop.ActiveInterval))
         {
             stopping.Wake();
             scheduler.PendingCount.Should().Be(0);
@@ -274,7 +274,7 @@ public sealed class PresenceRendererTests
 
         var fail = false;
         using var failing = new PresenceRenderLoop(scheduler, () => true,
-            (_, _) =>
+            (_, _, _) =>
             {
                 if (fail) { throw new InvalidOperationException("Synthetic frame failure"); }
             }, () => PresenceRenderLoop.ActiveInterval);
@@ -388,6 +388,51 @@ public sealed class PresenceRendererTests
             control.InvalidationCount.Should().Be(invalidations);
             control.TickCount.Should().BeGreaterThan(0);
             scheduler.PendingCount.Should().Be(0);
+            window.Close();
+        });
+    }
+
+    [Fact]
+    public async Task SpeechWorkSamplesAuthoritativeStartWithoutSyntheticScaleOrStaticInvalidations()
+    {
+        await HeadlessSession.RunAsync(() =>
+        {
+            var scheduler = new RecordingScheduler();
+            using var control = new PresenceControl(scheduler)
+            {
+                IsPresentationEligible = true,
+                State = AssistantState.Failure,
+            };
+            var window = Show(control);
+            scheduler.Advance(TimeSpan.FromSeconds(1));
+            scheduler.PendingCount.Should().Be(0);
+            var playing = false;
+            var samples = 0;
+            control.FrameUpdating += (_, _) =>
+            {
+                samples++;
+                control.IsSpeaking = playing;
+                control.SpeechOutputLevel = playing ? 1 : 0;
+            };
+            control.IsSpeechWorkActive = true;
+            var ticks = control.TickCount;
+            var invalidations = control.InvalidationCount;
+            scheduler.Advance(TimeSpan.FromMilliseconds(160));
+            control.TickCount.Should().Be(ticks + 10);
+            samples.Should().Be(11);
+            control.CurrentFrame.Scale.Should().Be(1);
+            control.InvalidationCount.Should().Be(invalidations);
+            playing = true;
+            scheduler.Advance(TimeSpan.FromMilliseconds(16));
+            control.IsSpeaking.Should().BeTrue();
+            control.InvalidationCount.Should().BeGreaterThan(invalidations);
+            scheduler.Advance(TimeSpan.FromMilliseconds(160));
+            control.CurrentFrame.Scale.Should().BeGreaterThan(1.108);
+            playing = false;
+            control.IsSpeechWorkActive = false;
+            scheduler.Advance(TimeSpan.FromSeconds(1));
+            scheduler.PendingCount.Should().Be(0);
+            control.CurrentFrame.Scale.Should().Be(1);
             window.Close();
         });
     }

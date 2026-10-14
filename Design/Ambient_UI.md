@@ -154,9 +154,12 @@ Reattachment/reveal starts from the current state colour and resting speech
 scale, fading in without integrating the hidden interval or replaying frames.
 State and speech-input edges wake synchronously; speech start refreshes the
 authoritative playback envelope instead of waiting for a quiet-state poll.
+Active speech work keeps authoritative playback sampling awake at 16 ms,
+including synthesis before the actual playing envelope is available. Only that
+envelope drives speech sizing; a static non-playing frame does not invalidate.
 Actual speech playback retains the current-main 16-ms cadence; non-speaking
 colour/opacity/scale transitions, capture, calculating and execution use 33 ms.
-Settled non-speaking low-motion states use
+Settled non-speaking low-motion states without speech work use
 198 ms (six times fewer scheduled invalidations); high configured motion also
 uses 33 ms. The interval is always one of 16, 33 or 198 ms; a settled motionless
 failure requests no further frames.

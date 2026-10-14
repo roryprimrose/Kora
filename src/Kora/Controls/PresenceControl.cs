@@ -21,6 +21,9 @@ public sealed class PresenceControl : Control, IDisposable
     public static readonly StyledProperty<bool> IsSpeakingProperty =
         AvaloniaProperty.Register<PresenceControl, bool>(nameof(IsSpeaking));
 
+    public static readonly StyledProperty<bool> IsSpeechWorkActiveProperty =
+        AvaloniaProperty.Register<PresenceControl, bool>(nameof(IsSpeechWorkActive));
+
     public static readonly StyledProperty<double> SpeechOutputLevelProperty =
         AvaloniaProperty.Register<PresenceControl, double>(nameof(SpeechOutputLevel));
 
@@ -128,6 +131,12 @@ public sealed class PresenceControl : Control, IDisposable
     {
         get => GetValue(IsSpeakingProperty);
         set => SetValue(IsSpeakingProperty, value);
+    }
+
+    public bool IsSpeechWorkActive
+    {
+        get => GetValue(IsSpeechWorkActiveProperty);
+        set => SetValue(IsSpeechWorkActiveProperty, value);
     }
 
     public double SpeechOutputLevel
@@ -238,6 +247,7 @@ public sealed class PresenceControl : Control, IDisposable
         base.OnPropertyChanged(change);
         if (loop is not null && (change.Property == StateProperty
             || change.Property == IsSpeakingProperty
+            || change.Property == IsSpeechWorkActiveProperty
             || change.Property == SpeechOutputLevelProperty
             || change.Property == DotSizePercentProperty
             || change.Property == DotDensityPercentProperty
@@ -295,7 +305,7 @@ public sealed class PresenceControl : Control, IDisposable
 
     private TimeSpan? GetCadence()
     {
-        if (IsSpeaking)
+        if (IsSpeaking || IsSpeechWorkActive)
         {
             return PresenceRenderLoop.SpeechInterval;
         }
@@ -308,7 +318,7 @@ public sealed class PresenceControl : Control, IDisposable
         return GetActivity() > 0 ? PresenceRenderLoop.QuietInterval : null;
     }
 
-    private void UpdateFrame(TimeSpan elapsed, bool resumed)
+    private void UpdateFrame(TimeSpan elapsed, bool resumed, bool isWake)
     {
         FrameUpdating?.Invoke(this, EventArgs.Empty);
         if (!CanRender())
@@ -323,13 +333,14 @@ public sealed class PresenceControl : Control, IDisposable
         var inputs = (State, IsSpeaking, SpeechOutputLevel, IsSpeechScalingEnabled,
             SpeechScaleAmountPercent, IsPresenceVisible);
         var inputsChanged = inputs != previousInputs;
+        var visualChanged = false;
         if (inputsChanged && !resumed)
         {
             // Time before an input edge belongs to the previous target, not the new transition.
-            animation.Advance(previousInputs.State, previousInputs.Speaking, previousInputs.Level, elapsed,
+            visualChanged = animation.Advance(previousInputs.State, previousInputs.Speaking, previousInputs.Level, elapsed,
                 previousInputs.Scaling, previousInputs.Amount, previousInputs.Visible);
         }
-        transitioning = animation.Advance(
+        visualChanged |= animation.Advance(
             State,
             IsSpeaking,
             SpeechOutputLevel,
@@ -338,11 +349,7 @@ public sealed class PresenceControl : Control, IDisposable
             SpeechScaleAmountPercent,
             IsPresenceVisible);
         previousInputs = inputs;
-        // A zero-time wake starts transitions at the fast cadence without moving geometry.
-        if (elapsed == TimeSpan.Zero || inputsChanged)
-        {
-            transitioning = true;
-        }
+        transitioning = visualChanged || elapsed == TimeSpan.Zero || inputsChanged;
         var activity = GetActivity();
         var remaining = elapsed.TotalMilliseconds;
         while (activity > 0 && remaining > 0)
@@ -351,8 +358,11 @@ public sealed class PresenceControl : Control, IDisposable
             MoveParticles(activity * step / PresenceRenderLoop.ActiveInterval.TotalMilliseconds);
             remaining -= step;
         }
-        InvalidationCount++;
-        InvalidateVisual();
+        if (isWake || inputsChanged || visualChanged || activity > 0 && elapsed > TimeSpan.Zero)
+        {
+            InvalidationCount++;
+            InvalidateVisual();
+        }
     }
 
     private double GetActivity()

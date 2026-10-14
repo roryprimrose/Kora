@@ -1,3 +1,5 @@
+using System.Security.Cryptography;
+
 namespace Kora.Windows.Storage;
 
 internal sealed partial class RestrictedSqliteDatabase
@@ -9,4 +11,18 @@ internal sealed partial class RestrictedSqliteDatabase
         return WindowsFileIdentity.Read(handle);
     }
 
+    internal byte[] ComputeDatabaseDigest()
+    {
+        VerifyFiles();
+        using var stream = new FileStream(
+            databasePath,
+            FileMode.Open,
+            FileAccess.Read,
+            FileShare.ReadWrite,
+            bufferSize: 1024 * 1024,
+            FileOptions.SequentialScan);
+        var digest = SHA256.HashData(stream);
+        VerifyFiles();
+        return digest;
+    }
 }

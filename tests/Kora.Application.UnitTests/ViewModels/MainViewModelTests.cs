@@ -234,7 +234,10 @@ public sealed partial class MainViewModelTests : IDisposable
             fixture.ViewModel.ResponseTitle.Should().Be("MCP server inclusion was not changed.");
             fixture.ArtifactPreferences.SaveFailure = null;
 
+            var artifactConfigurationChanges = 0;
+            fixture.ArtifactDirectoryConfiguration!.Changed += (_, _) => artifactConfigurationChanges++;
             fixture.McpServerConfiguration!.NotifyChanged();
+            artifactConfigurationChanges.Should().Be(0);
             var secondFile = Path.Combine(root, "second.json");
             File.WriteAllText(secondFile, """{"servers":{"other":{"command":"other.exe"}}}""");
             fixture.ViewModel.ArtifactDirectoryInput = secondFile;

@@ -175,6 +175,22 @@ public sealed class WindowsPrivacyObservationServiceTests
     }
 
     [Fact]
+    public void Duplicate_topology_identity_does_not_publish_or_requery()
+    {
+        using var source = new FakeSource { Snapshot = Ready, TopologyIdentity = "topology-1" };
+        using var observer = Create(source);
+        var notifications = 0;
+        observer.Changed += (_, _) => notifications++;
+        var reads = source.ReadCalls;
+
+        source.Notify(topology: true, reason: WindowsPrivacyChangeReason.OutputTopology,
+            topologyIdentity: "topology-1");
+
+        notifications.Should().Be(0);
+        source.ReadCalls.Should().Be(reads);
+    }
+
+    [Fact]
     public void Default_speaker_change_is_distinguishable_from_microphone_default_change()
     {
         using var source = new FakeSource { Snapshot = Ready };
@@ -234,6 +250,37 @@ public sealed class WindowsPrivacyObservationServiceTests
         source.ReadCalls.Should().Be(1);
         source.DisposeCalls.Should().Be(1);
         changes.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task Polling_does_not_queue_overlapping_native_queries()
+    {
+        using var source = new FakeSource { Snapshot = Ready };
+        var time = new PrivacyPollingTimeProvider();
+        using var observer = new WindowsPrivacyObservationService(
+            source, NullLogger.Instance, TimeSpan.FromSeconds(1), time);
+        using var releaseRead = new ManualResetEventSlim();
+        var readEntered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        source.BeforeRead = () =>
+        {
+            readEntered.TrySetResult();
+            releaseRead.Wait(TestContext.Current.CancellationToken);
+        };
+
+        var firstPoll = Task.Run(time.Timer.Tick, TestContext.Current.CancellationToken);
+        try
+        {
+            await readEntered.Task.WaitAsync(TestContext.Current.CancellationToken);
+
+            time.Timer.Tick();
+
+            source.ReadCalls.Should().Be(2);
+        }
+        finally
+        {
+            releaseRead.Set();
+            await firstPoll;
+        }
     }
 
     [Fact]
@@ -356,6 +403,7 @@ public sealed class WindowsPrivacyObservationServiceTests
     private sealed class FakeSource : IWindowsPrivacySource
     {
         public event EventHandler<WindowsPrivacySignalEventArgs>? Changed;
+        public string? TopologyIdentity { get; set; }
         public WindowsPrivacySnapshot Snapshot { get; set; } = Ready;
         public Action? BeforeRead { get; set; }
         public int ReadCalls { get; private set; }
@@ -372,8 +420,10 @@ public sealed class WindowsPrivacyObservationServiceTests
             WindowsSessionState? state = null,
             bool topology = false,
             WindowsPrivacyChangeReason reason = WindowsPrivacyChangeReason.Unknown,
-            PrivacyObservation? observation = null) =>
-            Changed?.Invoke(this, new WindowsPrivacySignalEventArgs(state, topology, reason, observation));
+            PrivacyObservation? observation = null,
+            string? topologyIdentity = null) =>
+            Changed?.Invoke(this, new WindowsPrivacySignalEventArgs(
+                state, topology, reason, observation, topologyIdentity));
 
         public void Dispose()
         {

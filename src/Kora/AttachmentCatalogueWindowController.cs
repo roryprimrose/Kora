@@ -103,7 +103,7 @@ internal sealed class AttachmentCatalogueWindowController : IDisposable
 
     private void OnInspectionRevoked()
     {
-        if (!Dispatcher.UIThread.CheckAccess()) { Dispatcher.UIThread.Invoke(OnInspectionRevoked); return; }
+        if (!Dispatcher.UIThread.CheckAccess()) { Dispatcher.UIThread.Post(OnInspectionRevoked); return; }
         if (window?.DataContext is AttachmentCatalogueViewModel model) { model.Revoke(); }
     }
 

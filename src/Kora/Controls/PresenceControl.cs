@@ -15,6 +15,7 @@ namespace Kora.Controls;
 public sealed class PresenceControl : Control
 {
     private const string ActualThemeVariantPropertyName = "ActualThemeVariant";
+    private static readonly TimeSpan SpeechFrameInterval = TimeSpan.FromMilliseconds(16);
 
     public static readonly StyledProperty<AssistantState> StateProperty =
         AvaloniaProperty.Register<PresenceControl, AssistantState>(nameof(State), AssistantState.Information);
@@ -51,6 +52,8 @@ public sealed class PresenceControl : Control
     private readonly PresenceAnimation animation = new(AssistantState.Information);
     private readonly Particle[] particles;
     private readonly DispatcherTimer timer;
+    private bool isAttached;
+    private bool isAnimationEnabled = true;
     private long previousFrameTimestamp;
 
     static PresenceControl()
@@ -77,9 +80,13 @@ public sealed class PresenceControl : Control
                 (random.NextDouble() - 0.5) * 0.012,
                 (random.NextDouble() - 0.5) * 0.012,
                 0.7 + random.NextDouble() * 1.2))
+            .OrderBy(particle => particle.Z)
             .ToArray();
 
-        timer = new DispatcherTimer(PresenceAnimation.FrameInterval, DispatcherPriority.Background, OnTick);
+        timer = new DispatcherTimer(
+            PresenceAnimation.FrameInterval,
+            DispatcherPriority.Background,
+            OnTick);
     }
 
     public AssistantState State
@@ -159,9 +166,7 @@ public sealed class PresenceControl : Control
         var center = new Point(Bounds.Width / 2, Bounds.Height / 2);
         var scale = Math.Min(Bounds.Width, Bounds.Height) * 0.36 * frame.Scale;
 
-        foreach (var particle in particles
-            .Take(PresenceSettings.GetParticleCount(DotDensityPercent))
-            .OrderBy(item => item.Z))
+        foreach (var particle in particles.Take(PresenceSettings.GetParticleCount(DotDensityPercent)))
         {
             var perspective = 0.72 + ((particle.Z + 1) * 0.18);
             var x = center.X + particle.X * scale * perspective;
@@ -177,14 +182,21 @@ public sealed class PresenceControl : Control
     protected override void OnAttachedToVisualTree(Avalonia.VisualTreeAttachmentEventArgs e)
     {
         base.OnAttachedToVisualTree(e);
-        previousFrameTimestamp = Stopwatch.GetTimestamp();
-        timer.Start();
+        isAttached = true;
+        UpdateTimer();
     }
 
     protected override void OnDetachedFromVisualTree(Avalonia.VisualTreeAttachmentEventArgs e)
     {
+        isAttached = false;
         timer.Stop();
         base.OnDetachedFromVisualTree(e);
+    }
+
+    internal void SetAnimationEnabled(bool enabled)
+    {
+        isAnimationEnabled = enabled;
+        UpdateTimer();
     }
 
     protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
@@ -201,7 +213,20 @@ public sealed class PresenceControl : Control
 
     private void OnTick(object? sender, EventArgs eventArgs)
     {
+        if (!IsEffectivelyVisible)
+        {
+            timer.Stop();
+            return;
+        }
+
         FrameUpdating?.Invoke(this, EventArgs.Empty);
+        var targetInterval = IsSpeaking
+            ? SpeechFrameInterval
+            : PresenceAnimation.FrameInterval;
+        if (timer.Interval != targetInterval)
+        {
+            timer.Interval = targetInterval;
+        }
         var timestamp = Stopwatch.GetTimestamp();
         var elapsed = Stopwatch.GetElapsedTime(previousFrameTimestamp, timestamp);
         previousFrameTimestamp = timestamp;
@@ -217,14 +242,18 @@ public sealed class PresenceControl : Control
         {
             AssistantState.Listening => 0.8,
             AssistantState.Calculating => 1.25,
-            AssistantState.Waiting => 0.12,
+            AssistantState.Waiting => 0.35,
             AssistantState.Executing => 1.5,
             AssistantState.Success => 0.08,
             AssistantState.Failure => 0,
             AssistantState.Information => 0.28,
             _ => 0,
         };
-        activity *= MovementSpeedPercent / 100d;
+        var elapsedFrames = Math.Clamp(
+            elapsed.TotalMilliseconds / PresenceAnimation.FrameInterval.TotalMilliseconds,
+            0,
+            3);
+        activity *= MovementSpeedPercent / 100d * elapsedFrames;
 
         if (activity > 0)
         {
@@ -258,6 +287,18 @@ public sealed class PresenceControl : Control
         {
             InvalidateVisual();
         }
+    }
+
+    private void UpdateTimer()
+    {
+        if (!isAttached || !isAnimationEnabled)
+        {
+            timer.Stop();
+            return;
+        }
+
+        previousFrameTimestamp = Stopwatch.GetTimestamp();
+        timer.Start();
     }
 
     private Color ResolveParticleColor(byte red, byte green, byte blue)

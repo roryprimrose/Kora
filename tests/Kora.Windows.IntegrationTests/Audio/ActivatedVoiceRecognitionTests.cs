@@ -1106,6 +1106,7 @@ public sealed partial class ActivatedVoiceRecognitionTests(
     private sealed class ObserverSource : IWindowsPrivacySource
     {
         public event EventHandler<WindowsPrivacySignalEventArgs>? Changed;
+        public string? TopologyIdentity => null;
         public WindowsPrivacySnapshot Snapshot { get; set; } = Ready;
         public Action? BeforeRead { get; set; }
 

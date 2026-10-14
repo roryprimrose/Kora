@@ -30,7 +30,7 @@ public sealed partial class MainViewModel
             + "Other historical catalogue entries may remain available; no managed source is claimed current."));
 
     private void OnMcpServerConfigurationChanged(object? sender, EventArgs args) =>
-        uiDispatcher.Post(RefreshArtifactDirectories);
+        uiDispatcher.Post(() => RefreshArtifactDirectories(publishConfigurationChange: false));
 
     private void ApplyArtifactCatalogueChange()
     {
@@ -160,7 +160,7 @@ public sealed partial class MainViewModel
         return Task.CompletedTask;
     }
 
-    private void RefreshArtifactDirectories()
+    private void RefreshArtifactDirectories(bool publishConfigurationChange = true)
     {
         if (artifactDirectoryConfiguration is null)
         {
@@ -170,7 +170,9 @@ public sealed partial class MainViewModel
         }
         try
         {
-            var settings = artifactDirectoryConfiguration.Load();
+            var settings = publishConfigurationChange
+                ? artifactDirectoryConfiguration.Load()
+                : artifactDirectoryConfiguration.ReadCurrent();
             AdditionalArtifactDirectories = settings.GetPaths(SelectedArtifactDirectoryKind);
             McpServers = mcpServerConfiguration?.Load() ?? [];
             if (SelectedArtifactDirectory is not null

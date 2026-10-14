@@ -80,12 +80,12 @@ public sealed class TrayRecoveryTests
             directory = directory.Parent;
         }
         var source = File.ReadAllText(Path.Combine(directory!.FullName, "src", "Kora", "SystemTrayController.cs"));
-        source.Should().Contain("menu.Opening += OnMenuOpening")
-            .And.Contain("menu.Opening -= OnMenuOpening")
-            .And.Contain("EnableListeningFromTrayAsync(revision)")
+        var normalizedSource = source.ReplaceLineEndings("\n");
+        source.Should().Contain("EnableListeningFromTrayAsync(revision)")
             .And.Contain("DisableListeningFromTrayAsync")
             .And.Contain("StopSpeakingFromTrayAsync")
             .And.Contain("if (!disposed) { continuation(); }")
+            .And.Contain("NativeMenuDismissalDelay, DispatcherPriority.Input")
             .And.Contain("ClickSequenceOutcome.DoubleClick")
             .And.Contain("ClickSequenceOutcome.SingleClick")
             .And.Contain("Skill packages (inspection only)")
@@ -93,6 +93,16 @@ public sealed class TrayRecoveryTests
             .And.Contain("Release maintenance (notify-only)")
             .And.Contain("ShowDocumentation")
             .And.Contain("viewModel.ExitAsync()");
+        normalizedSource.Should().NotContain("menu.Opening")
+            .And.NotContain("OnMenuOpening");
+        File.ReadAllText(Path.Combine(directory.FullName, "src", "Kora", "SessionAttachmentWindowController.cs"))
+            .Should().Contain("Dispatcher.UIThread.Post(CloseInspection)")
+            .And.Contain("Dispatcher.UIThread.Post(() => OnRevoked(revoked))")
+            .And.Contain("Dispatcher.UIThread.Post(() => OnAttachmentRevoked(revoked))")
+            .And.NotContain("Dispatcher.UIThread.Invoke(CloseInspection)");
+        File.ReadAllText(Path.Combine(directory.FullName, "src", "Kora", "AttachmentCatalogueWindowController.cs"))
+            .Should().Contain("Dispatcher.UIThread.Post(OnInspectionRevoked)")
+            .And.NotContain("Dispatcher.UIThread.Invoke(OnInspectionRevoked)");
         source.Should().NotContain("viewModel.ListeningStatus").And.NotContain("· {device.Id}");
     }
 }

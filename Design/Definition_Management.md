@@ -137,6 +137,18 @@ access permits, but cannot be applied or invoked. Agent authoring/validation
 may be available before agent execution; expose Run as unavailable with the
 unqualified-runtime reason, never emulate execution with a prompt.
 
+## Delivered native skill metadata navigation
+
+The separate [bundled](../src/Kora/SkillPackagesWindow.axaml.cs) and [registered shared-source](../src/Kora/SharedSkillSourcesWindow.axaml.cs) inspectors now provide explicit **Search/Clear** over already admitted immutable snapshots, not the broader Definitions management surface or voice/tool search grammar. Initial open/list still selects the first admitted package; subsequent search/filter/Clear never opens a different result.
+
+[Snapshot search](../src/Kora.Application/Skills/SkillCatalogueSearch.cs) uses literal `OrdinalIgnoreCase` substring matching without trimming, wildcard syntax or Unicode normalization. Bundled fields are declared name, native manifest ID and description; shared fields are validated declared name, source-qualified metadata identity when that name exists, and a valid declared description. Missing metadata is not invented; path-fallback identities and roots/files/bodies are not query fields.
+
+[Query validation](../src/Kora.Core/Context/LiteralMetadataQuery.cs) shares the owned-definition policy: at most 256 UTF-16 units and 512 strict UTF-8 bytes, valid Unicode without control/format/line/paragraph separators. Invalid input is rejected explicitly with empty results/selection, never truncated or interpreted as All. Query/filter drafts apply only through Search; Clear restores empty/All. Nothing is persisted.
+
+Shared **All / Instruction-compatible / Instruction-incompatible** classifies structural instruction-only compatibility; every invocation remains unavailable. Bundled **All / Runtime unavailable / Runtime available** uses existing invocation availability, not an invented instruction-compatibility claim; runtime admission remains outstanding. All includes unavailable/incompatible observations ([filter policy](../src/Kora.Application/Skills/SkillCatalogueSearch.cs)).
+
+Filtering keeps exact original objects and only an exact surviving selection. Exclusion clears private identity/source panes with an explanation; no first/different result, reader call, Discover/Recheck/withdrawal, source switch, draft replacement, registration extension or new execution authority occurs. Source selection/reload/failure/withdrawal, privacy/ownership closure, call-policy change and close retire the private query/filter/results/selection; discovery generation and cancellation fence late publication ([shared window/controller](../src/Kora/SharedSkillSourcesWindowController.cs), [native tests](../tests/Kora.Windows.IntegrationTests/SkillMetadataSearchWindowTests.cs)).
+
 ## Editing, Ownership, and Confirmation
 
 In the target design, Kora is an editor of supported personal profile definitions

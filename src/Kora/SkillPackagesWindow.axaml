@@ -9,17 +9,28 @@
     WindowStartupLocation="CenterOwner"
     Background="{DynamicResource KoraWindowBackgroundBrush}"
     Foreground="{DynamicResource KoraForegroundBrush}">
-  <Grid RowDefinitions="Auto,Auto,Auto,*" Margin="20" RowSpacing="12">
+  <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto,*" Margin="20" RowSpacing="12">
     <StackPanel Orientation="Horizontal" Spacing="12">
       <TextBlock Text="Skill packages - read-only embedded source review"
                  FontSize="20" FontWeight="SemiBold" TextWrapping="Wrap" />
       <Button x:Name="SharedSources" Content="Shared profile sources (read only)" />
     </StackPanel>
-    <ComboBox x:Name="PackageSelector" Grid.Row="1" HorizontalAlignment="Stretch"
+    <StackPanel Grid.Row="1" Spacing="6">
+      <TextBlock Text="Search admitted names, IDs and declared descriptions only: literal ordinal-ignore-case substring, no trimming. Runtime availability is not instruction compatibility." TextWrapping="Wrap" />
+      <StackPanel Orientation="Horizontal" Spacing="8">
+        <TextBox x:Name="PackageQuery" MinWidth="280" IsUndoEnabled="False" AutomationProperties.Name="Bundled metadata query, at most 256 UTF-16 units and 512 UTF-8 bytes" />
+        <ComboBox x:Name="PackageFilter" AutomationProperties.Name="Bundled runtime availability filter" />
+        <Button x:Name="SearchPackages" Content="Search" AutomationProperties.Name="Search admitted bundled metadata without reading resources" />
+        <Button x:Name="ClearPackageSearch" Content="Clear" AutomationProperties.Name="Clear bundled search and restore All without selecting a result" />
+      </StackPanel>
+    </StackPanel>
+    <controls:NamedTextBlock x:Name="PackageSearchStatus" Grid.Row="2" TextWrapping="Wrap"
+                            AutomationProperties.Name="Bundled metadata search results and validation" />
+    <ComboBox x:Name="PackageSelector" Grid.Row="3" HorizontalAlignment="Stretch"
               AutomationProperties.Name="Select an inspection-only bundled skill package" />
-    <controls:NamedTextBlock x:Name="PackageIdentity" Grid.Row="2" TextWrapping="Wrap"
+    <controls:NamedTextBlock x:Name="PackageIdentity" Grid.Row="4" TextWrapping="Wrap"
                AutomationProperties.Name="Exact package identities, unavailable invocation and transitive disclosure" />
-    <controls:NavigableTabControl x:Name="SourceTabs" Grid.Row="3"
+    <controls:NavigableTabControl x:Name="SourceTabs" Grid.Row="5"
                 AutomationProperties.Name="Every declared immutable package file including manifest and shared helper" />
   </Grid>
 </Window>

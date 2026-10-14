@@ -10,14 +10,17 @@ public sealed class SharedSkillWindowContractTests
     public void Shared_native_review_has_explicit_read_consent_accessible_exact_source_and_no_active_content_routes()
     {
         var document = XDocument.Parse(Read("SharedSkillSourcesWindow.axaml"));
-        foreach (var name in new[] { "SourceSelector", "SharedStatus", "SharedPackageSelector", "SharedIdentity", "SharedSource", "UninspectedEntries" })
+        foreach (var name in new[] { "SourceSelector", "SharedStatus", "SharedPackageSelector", "SharedIdentity", "SharedSource", "UninspectedEntries",
+            "SharedQuery", "SharedFilter", "SearchSharedPackages", "ClearSharedSearch", "SharedSearchStatus" })
         {
             var control = document.Descendants().Single(element => element.Attributes().Any(attribute =>
                 string.Equals(attribute.Name.LocalName, "Name", StringComparison.Ordinal)
                 && string.Equals(attribute.Value, name, StringComparison.Ordinal)));
             control.Attribute("AutomationProperties.Name")!.Value.Should().NotBeNullOrWhiteSpace();
         }
-        foreach (var source in document.Descendants().Where(element => element.Name.LocalName is "TextBox"))
+        foreach (var source in document.Descendants().Where(element => element.Name.LocalName is "TextBox"
+            && element.Attributes().Any(attribute => string.Equals(attribute.Name.LocalName, "Name", StringComparison.Ordinal)
+                && !string.Equals(attribute.Value, "SharedQuery", StringComparison.Ordinal))))
         {
             source.Attribute("IsReadOnly")!.Value.Should().Be("True");
             source.Attribute("IsUndoEnabled")!.Value.Should().Be("False");

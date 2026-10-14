@@ -1,4 +1,5 @@
 using Avalonia.Platform.Storage;
+using System.ComponentModel;
 
 using Kora.Application.Skills;
 using Kora.Application.ViewModels;
@@ -27,6 +28,7 @@ internal sealed partial class SharedSkillSourcesWindowController(
             () => RunAsync(DiscoverAsync), () => RunAsync(VerifyAsync), () => RunAsync(UnregisterAsync, supersede: true));
         window.Closed += OnClosed;
         main.PrivacyClosureRequested += OnPrivacyClosed;
+        main.PropertyChanged += OnMainChanged;
         window.Show();
         window.Activate();
         _ = RunAsync(RefreshAsync);
@@ -95,6 +97,7 @@ internal sealed partial class SharedSkillSourcesWindowController(
     private async Task RefreshAsync(CancellationToken token)
     {
         if (window is not { } opened) { return; }
+        opened.ClearPrivateContent();
         var sources = await discovery.LoadSourcesAsync(() => CurrentWindow(opened, token), token);
         if (CurrentWindow(opened, token)) { opened.SetSources(sources); }
     }
@@ -123,8 +126,11 @@ internal sealed partial class SharedSkillSourcesWindowController(
     {
         if (window is not { } opened || opened.SelectedSource is not { } source)
         { window?.Report("Select an explicitly registered source first."); return; }
+        opened.ClearCatalogue();
+        var generation = opened.CatalogueGeneration;
         var catalogue = await discovery.DiscoverAsync(source, () => CurrentWindow(opened, token), token);
-        if (CurrentWindow(opened, token) && opened.SelectedSource == source) { opened.SetCatalogue(catalogue); }
+        if (CurrentWindow(opened, token) && opened.SelectedSource == source && opened.CatalogueGeneration == generation)
+        { opened.SetCatalogue(catalogue); }
     }
 
     private async Task VerifyAsync(CancellationToken token)
@@ -159,9 +165,15 @@ internal sealed partial class SharedSkillSourcesWindowController(
 
     private void OnPrivacyClosed(object? sender, EventArgs args) => window?.Close();
 
+    private void OnMainChanged(object? sender, PropertyChangedEventArgs args)
+    {
+        if (string.Equals(args.PropertyName, nameof(MainViewModel.CallPolicyRevision), StringComparison.Ordinal)) { window?.Close(); }
+    }
+
     private void OnClosed(object? sender, EventArgs args)
     {
         main.PrivacyClosureRequested -= OnPrivacyClosed;
+        main.PropertyChanged -= OnMainChanged;
         lifetime?.Cancel();
         lifetime?.Dispose();
         lifetime = null;

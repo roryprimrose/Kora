@@ -10,7 +10,8 @@ public sealed class SkillPackagesWindowContractTests
     public void InspectionOnlyShellExposesScreenReaderNamesForStaticAndPerFileDynamicControls()
     {
         var document = XDocument.Parse(Read("SkillPackagesWindow.axaml"));
-        foreach (var name in new[] { "PackageSelector", "PackageIdentity", "SourceTabs" })
+        foreach (var name in new[] { "PackageSelector", "PackageIdentity", "SourceTabs", "PackageQuery", "PackageFilter",
+            "SearchPackages", "ClearPackageSearch", "PackageSearchStatus" })
         {
             var control = document.Descendants().Single(element => element.Attributes().Any(attribute =>
                 string.Equals(attribute.Name.LocalName, "Name", StringComparison.Ordinal)

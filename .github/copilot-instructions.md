@@ -22,6 +22,15 @@
 - Dispose owned native, stream, timer, cancellation, and synchronization resources deterministically.
 - Keep comments for non-obvious invariants, privacy guarantees, concurrency rules, or platform constraints; prefer clear names for ordinary behavior.
 
+## Delivery, readiness, and proof policy
+
+- Apply the [three-tier delivery policy](../Design/Implementation_Roadmap.md#delivery-and-qualification-dependency-policy) before declaring work blocked. Determine the minimum consumed **I - Implementation** subset for the requested behavior; a broad Rxx package or its remaining completion gap is not a monolithic prerequisite.
+- Retired, historical, optional, physical, lab, hardware, acoustic, provider, containment, installed-native, accessibility, or experiment evidence is not an implementation prerequisite. Do not create, rerun, or wait for that evidence unless the change is enabling, advertising, packaging, or materially changing the exact affected capability/profile and its owning contract requires the evidence.
+- **E - Enablement** and **Q - RC** gates do not block implementation, deterministic validation, pull-request creation, or merge of a bounded fail-closed feature. Keep the unqualified capability disabled or explicitly unavailable and document that boundary truthfully.
+- A feature may be classified as implementation-blocked only by a concrete missing consumed production contract/service, a directly applicable failing maintained check, an unresolved material security/consent/authority decision, or conflicting live ownership. Cite the exact symbol, test, decision, or owner; do not cite an Rxx label, experiment, future proof, or qualification category alone.
+- When runtime readiness is missing or unknown, implement the production path with explicit unavailable/fail-closed behavior and deterministic fakes at the platform seam. Do not substitute success-shaped fallbacks, speculative enablement, real hardware/network calls, or an open-ended proof harness.
+- Include this distinction in delegated peer prompts and reviews. A peer owns implementation through deterministic tests, documentation, PR, CI/review repair and merge without waiting for unrelated or retired proofs.
+
 ## Instrumentation and activity correlation
 
 - Always define `ILogger<T>` diagnostic messages with source-generated `[LoggerMessage]` partial methods; do not use `LogDebug`, `LogInformation`, other `Log*` extension methods, or `LoggerMessage.Define` delegates.

@@ -82,11 +82,11 @@ internal sealed partial class SessionsViewModel
                 throw;
             }
         }
-        var status = await (openConversationDetail
+        var detailStatus = await (openConversationDetail
             ?? throw new InvalidOperationException("The native conversation detail viewer is unavailable."))(
                 content, DetailLive, Resolve, lifetime.Token);
         if (!DetailLive()) { throw new OperationCanceledException("Search match navigation was revoked."); }
-        conversationStatus = status;
+        conversationStatus = detailStatus;
     }, sourceRead: true, searchDetailEpoch:
         ConversationSearchMessages.Any(record => ReferenceEquals(record, message)) ? conversationSearchEpoch : null);
     public bool CanCompose => CanReadConversation && access.CanControl && selected?.Authority.IsActive == true

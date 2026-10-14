@@ -21,6 +21,8 @@ internal sealed partial class AllWorkViewModel(
     private SessionWorkOverviewPage? page;
     private SessionWorkOverviewRow? selected;
     private SessionListFilter filter;
+    private string queryText = string.Empty;
+    private SessionListSearchKind queryKind;
     private bool needsAnswer;
     private bool busy;
     private bool hadNext;
@@ -32,13 +34,53 @@ internal sealed partial class AllWorkViewModel(
     public IReadOnlyList<SessionWorkOverviewRow> Records => page?.Records ?? [];
     public SessionWorkOverviewRow? SelectedRecord => selected;
     public IReadOnlyList<SessionListFilter> Filters { get; } = Enum.GetValues<SessionListFilter>();
+    public IReadOnlyList<SessionListSearchKind> QueryKinds { get; } = Enum.GetValues<SessionListSearchKind>();
     public string Status => status;
     public bool CanRead => !closed && !busy && access.CanInspect;
     public bool CanEdit => !closed && access.CanInspect;
-    public bool CanNext => CanEdit && (busy ? hadNext : page?.Next is not null);
+    public bool CanSearch => CanEdit && (queryText.Length == 0 || SessionListSearch.IsValid(queryKind, filter, queryText));
+    public bool CanNext => CanSearch && (busy ? hadNext : page?.Next is not null);
     public bool CanCancel => !closed && operation is not null;
     public bool CanNavigate => CanEdit && selected is { Availability: SessionWorkOverviewAvailability.Observed };
     public string SelectedDetails => selected is null ? string.Empty : Describe(selected);
+    public string QueryHint => queryText.Length == 0
+        ? "No query: bounded overview scan. Typing never reads; Search/Refresh starts a fresh scan."
+        : SessionListSearch.IsValid(queryKind, filter, queryText)
+            ? "Valid private metadata query. Literal case-sensitive saved name substring or exact canonical session ID; no content search."
+            : "Invalid metadata query. NameSubstring requires nonblank single-line NFC text, no controls/formats or surrounding whitespace, "
+                + "at most 120 scalars / 480 UTF-8 bytes. ExactId requires a nonempty canonical lowercase D GUID. No normalization or fallback.";
+    public string QueryText
+    {
+        get => queryText;
+        set
+        {
+            if (!CanEdit || string.Equals(queryText, value, StringComparison.Ordinal)) { return; }
+            Invalidate();
+            queryText = value;
+            status = QueryHint;
+            Notify();
+        }
+    }
+    public SessionListSearchKind QueryKind
+    {
+        get => queryKind;
+        set
+        {
+            if (!CanEdit || !Enum.IsDefined(value) || queryKind == value) { return; }
+            Invalidate();
+            queryKind = value;
+            status = QueryHint;
+            Notify();
+        }
+    }
+    public void ClearQuery()
+    {
+        if (!CanEdit) { return; }
+        Invalidate();
+        queryText = string.Empty;
+        status = "Private metadata query cleared. Refresh starts a fresh bounded scan; no read was performed.";
+        Notify();
+    }
     public SessionListFilter Filter
     {
         get => filter;
@@ -75,8 +117,9 @@ internal sealed partial class AllWorkViewModel(
     public Task RefreshAsync(bool next = false) => RunAsync(async token =>
     {
         var cursor = next ? page?.Next ?? throw new InvalidOperationException("Refresh before Next.") : null;
+        var query = queryText.Length == 0 ? null : new SessionListSearch(queryKind, filter, queryText);
         ClearPage();
-        var result = await service.ReadWorkOverviewAsync(filter, needsAnswer, cursor, token);
+        var result = await service.ReadWorkOverviewAsync(filter, needsAnswer, cursor, token, query);
         token.ThrowIfCancellationRequested();
         page = result;
         status = "This page: " + result.Records.Length.ToString(CultureInfo.InvariantCulture) + " groups; "
@@ -155,7 +198,7 @@ internal sealed partial class AllWorkViewModel(
         Notify();
     }
     private void ClearPage() { page = null; selected = null; }
-    private void Invalidate() { epoch++; operation?.Cancel(); ClearPage(); }
+    private void Invalidate() { epoch++; hadNext = false; operation?.Cancel(); ClearPage(); }
     public void Close()
     {
         if (closed) { return; }
@@ -164,6 +207,8 @@ internal sealed partial class AllWorkViewModel(
         epoch++;
         ClearPage();
         filter = SessionListFilter.All;
+        queryText = string.Empty;
+        queryKind = SessionListSearchKind.NameSubstring;
         needsAnswer = false;
         status = string.Empty;
         lifetime.Cancel();
@@ -178,6 +223,10 @@ internal sealed partial class AllWorkViewModel(
         OnPropertyChanged(nameof(SelectedRecord));
         OnPropertyChanged(nameof(SelectedDetails));
         OnPropertyChanged(nameof(Filter));
+        OnPropertyChanged(nameof(QueryText));
+        OnPropertyChanged(nameof(QueryKind));
+        OnPropertyChanged(nameof(QueryHint));
+        OnPropertyChanged(nameof(CanSearch));
         OnPropertyChanged(nameof(NeedsAnswer));
         OnPropertyChanged(nameof(Status));
         OnPropertyChanged(nameof(CanRead));

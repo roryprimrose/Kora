@@ -12,6 +12,21 @@ internal sealed partial class AllWorkWindow : Window
         InitializeComponent();
         DataContext = model;
         Refresh.Click += async (_, _) => await model.RefreshAsync();
+        Search.Click += async (_, _) => await model.RefreshAsync();
+        ClearQuery.Click += (_, _) => { model.ClearQuery(); MetadataQuery.Focus(); };
+        MetadataQuery.KeyDown += async (_, args) =>
+        {
+            if (args.Key == Key.Escape)
+            {
+                model.ClearQuery();
+                args.Handled = true;
+            }
+            else if (args.Key == Key.Enter && model.CanSearch)
+            {
+                args.Handled = true;
+                await model.RefreshAsync();
+            }
+        };
         Next.Click += async (_, _) => await model.RefreshAsync(next: true);
         CancelRead.Click += (_, _) => model.Cancel();
         Navigate.Click += async (_, _) => await model.NavigateAsync();

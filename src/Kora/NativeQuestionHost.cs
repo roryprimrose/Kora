@@ -27,11 +27,12 @@ internal sealed class NativeQuestionHost : IDisposable
     private NativeQuestionViewModel? current;
     private int waiting;
     private volatile bool disposed;
-    private HostQuestionVoiceReplyService? voiceReplies;
+    private readonly HostQuestionVoiceReplyService? voiceReplies;
     private Func<long>? privateRevision;
 
     internal NativeQuestionHost(WindowsSqliteHostInteractionStore store, TimeProvider time,
-        ILogger<NativeQuestionViewModel> logger)
+        ILogger<NativeQuestionViewModel> logger,
+        Func<HostQuestionService, HostQuestionVoiceReplyService?>? replyFactory = null)
     {
         this.store = store;
         this.time = time;
@@ -41,6 +42,7 @@ internal sealed class NativeQuestionHost : IDisposable
         questions = new(gated, time);
         authorization = new(gated, time);
         reviews = new(gated, time);
+        voiceReplies = replyFactory?.Invoke(questions);
     }
 
     internal void BindGate(Func<bool> gate) => canInteract = gate;
@@ -60,10 +62,6 @@ internal sealed class NativeQuestionHost : IDisposable
             voiceReplies?.Retire("Question session changed. Microphone closed; no target is followed.");
         }
     }
-    internal void BindVoiceReplies(Kora.Application.ViewModels.MainViewModel main,
-        ILogger<HostQuestionVoiceReplyService> replyLogger) =>
-        voiceReplies = main.BindQuestionVoiceReplies(questions, time, replyLogger);
-
     internal async Task<HostTaskRecord> AskVersionAsync(Func<NativeQuestionViewModel, Task> present,
         CancellationToken cancellationToken)
     {
@@ -120,12 +118,14 @@ internal sealed class NativeQuestionHost : IDisposable
         }, dismissible: true);
         // This one live continuation is the registration; persisted metadata cannot create one.
         current = state;
-        state.BindVoiceReplies(voiceReplies, () => !disposed && ReferenceEquals(current, state) && Eligible());
+        state.BindVoiceReplies(voiceReplies, () => admittedRevision is not null && admittedPrivateRevision is not null
+            && !disposed && ReferenceEquals(current, state) && Eligible());
         var externallyCancelled = new TaskCompletionSource<HostTaskObservation>(TaskCreationOptions.RunContinuationsAsynchronously);
         void OnCancelled(HostTaskObservation observation)
         {
             if (observation.Task.Request == request)
             {
+                voiceReplies?.Retire("Exact question task cancelled. Microphone closed; no late answer is routed.");
                 externallyCancelled.TrySetResult(observation);
             }
         }

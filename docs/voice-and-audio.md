@@ -140,7 +140,8 @@ Proposal/approval questions are refused by this voice path. A mismatch reports
 no answer and cannot become a command, tool request, approval, composer input,
 session switch or answer to another question.
 
-Answer, cancellation, timeout, expiry, edits, foreground/presenter/session or
+Answer, cancellation (including external cancellation of the original waiting
+task), timeout, expiry, edits, foreground/presenter/session or
 control changes, mute/listening disable, privacy/ownership loss, call/device/
 topology changes, recognition/playback failure and app close retire the target,
 invalidate delayed generations and release capture. Afterwards the microphone

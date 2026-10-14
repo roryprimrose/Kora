@@ -132,6 +132,12 @@ Fully validated fixed scans and bounded audit-prefix admission remain mandatory,
 No name/title/path/body/digest search, new metadata reads, schema/index/cache/layout/copy mutation, count cap, activity renewal, model/tool/speech route or saved query is added. Storage optimizations and profile-original/hidden-import work remain deferred.
 Focused Core/Application/private SQLite/native checks qualify this consumer only, not broader R26, provider/hardware, installed screen-reader/DPI, physical protected-storage/deletion or STOP. Existing audit/retention/deadline and enablement/RC gates are unchanged; no experiment is edited.
 
+### R07 native immutable clipboard literal Find increment - 2026-10-14
+
+The [clipboard contract](Security_Data_Flows.md#delivered-r07-local-clipboard-preview---2026-10-07) adds private native First/Next/Previous/Clear over the exact existing capture, sharing portable literal query/offset policy with file Find.
+One inert focused case-sensitive span, unchanged spaces, bounded strict Unicode, nonoverlap/no wrap and exact capture/view/privacy/owner/call fences apply. No clipboard read/write/reuse/revoke query route, provider/egress/context/history/index/persistence, timer or activity renewal is added.
+[Portable](../tests/Kora.Core.UnitTests/Context/ClipboardLiteralFindTests.cs) and [headless native/controller](../tests/Kora.Windows.IntegrationTests/ClipboardLiteralFindWindowTests.cs) evidence is bounded to this consumer; no experiment, installed/privacy, hardware/acoustic or inference qualification gate is closed.
+
 ### R26 native current-source literal Find increment - 2026-10-12
 
 The shared private original-file viewer delivers native First/Next/Previous/Clear for one exact case-sensitive literal span in the currently inspected immutable single file, captured-folder selector item or revalidated retained Session attachment. Query spaces/case stay exact; nonoverlapping cursor steps never wrap or build all-occurrence indexes/counts.

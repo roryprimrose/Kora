@@ -10,13 +10,14 @@ using Kora.Core.Context;
 
 namespace Kora;
 
-internal sealed class ClipboardPreviewWindow(Action<Exception> reportFailure, MainViewModel? typographyHost = null) : Window, IClipboardPreviewView
+internal sealed partial class ClipboardPreviewWindow(Action<Exception> reportFailure, MainViewModel? typographyHost = null) : Window, IClipboardPreviewView
 {
     private readonly NamedTextBlock source = new() { FontFamily = new FontFamily("Consolas") };
 
-    public void Show(ClipboardSnapshot snapshot, Func<Task> reuse, Func<Task> revoke)
+    public void Show(ClipboardSnapshot snapshot, Func<Task> reuse, Func<Task> revoke, Func<bool> isCurrent)
     {
         typographyHost?.EnsureReaderTypographyAvailable();
+        ClearFindState();
         Title = "Local clipboard snapshot (untrusted plain text)";
         Width = 760;
         Height = 600;
@@ -52,6 +53,7 @@ internal sealed class ClipboardPreviewWindow(Action<Exception> reportFailure, Ma
         controls.Children.Add(reuseButton);
         controls.Children.Add(revokeButton);
         chrome.Children.Add(controls);
+        AddFind(chrome, snapshot, isCurrent);
         DockPanel.SetDock(chrome, Dock.Top);
         body.Children.Add(chrome);
         body.Children.Add(new ScrollViewer
@@ -61,14 +63,24 @@ internal sealed class ClipboardPreviewWindow(Action<Exception> reportFailure, Ma
             VerticalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Auto,
         });
         Content = body;
+        Closed += OnFindClosed;
         base.Show();
         Activate();
     }
 
     public void ClearAndClose()
     {
+        ClearFindState();
         source.Text = null;
         Content = null;
         Close();
+    }
+
+    private void OnFindClosed(object? sender, EventArgs args)
+    {
+        Closed -= OnFindClosed;
+        ClearFindState();
+        source.Text = null;
+        Content = null;
     }
 }

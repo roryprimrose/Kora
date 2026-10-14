@@ -642,6 +642,9 @@ snapshot ID** button uses the displayed ID; **Revoke and clear**, closing the
 preview, cancel, privacy/ownership loss, call-policy change and host exit clear
 or suppress it. A new capture replaces the prior selection with a new ID.
 
+**Literal Find is native-only**, not a typed/voice command or model tool. Use **Find first / Find next / Find previous / Clear literal Find** in the already captured preview; no clipboard reread, reuse/revoke action or activity renewal occurs.
+Exact case/spaces, one-line strict Unicode, 256 UTF-16 / 512 UTF-8 limits and visible invalid-input rejection apply. See [native clipboard Find](windows-and-tray.md#local-clipboard-preview) and its [contract](../Design/Security_Data_Flows.md#delivered-r07-local-clipboard-preview---2026-10-07).
+
 The whole text must fit 256 KiB UTF-8, with valid paired Unicode surrogates.
 Empty, unsupported, oversize, busy, denied, changed-version and malformed
 reads are explicit; there is no truncation, queued retry, background watcher,

@@ -129,9 +129,10 @@ public sealed class NativeReaderTextScaleTests
             fileWindow.ShowRevision(file, (_, mode, _) => Task.FromResult(
                 LocalFileSearchResult.Empty(LocalFileSearchOutcome.NoMatch, DateTimeOffset.UnixEpoch, mode)),
                 () => true, () => Task.CompletedTask);
-            var clipboardWindow = new ClipboardPreviewWindow(exception => failures.Add(exception.GetType().Name), fixture.Main);
-            clipboardWindow.Show(snapshot, () => Task.CompletedTask, () => Task.CompletedTask);
             fileWindow.Show();
+            var clipboardWindow = new ClipboardPreviewWindow(exception => failures.Add(exception.GetType().Name), fixture.Main);
+            clipboardWindow.Show(snapshot, () => Task.CompletedTask, () => Task.CompletedTask, () => true);
+            Dispatcher.UIThread.RunJobs();
             fileWindow.UpdateLayout();
             clipboardWindow.UpdateLayout();
             try
@@ -153,6 +154,20 @@ public sealed class NativeReaderTextScaleTests
                     AutomationProperties.GetName(control)?.StartsWith("Exact literal original source match", StringComparison.Ordinal) == true);
                 var exactLocation = location.Text;
                 exactLocation.Should().Contain($"UTF-16 [{text.IndexOf("needle", StringComparison.Ordinal)}, {text.IndexOf("needle", StringComparison.Ordinal) + 6})");
+                var clipboardFind = clipboardWindow.GetVisualDescendants().OfType<TextBox>().Single(control =>
+                    AutomationProperties.GetName(control)?.StartsWith("Case-sensitive literal Find", StringComparison.Ordinal) == true);
+                clipboardFind.Text = "needle";
+                var clipboardQueryFont = clipboardFind.FontSize;
+                var clipboardFindButton = clipboardWindow.GetVisualDescendants().OfType<Button>().Single(control =>
+                    string.Equals(control.Content as string, "Find first", StringComparison.Ordinal));
+                clipboardFind.Focus().Should().BeTrue();
+                await ((Kora.Application.Infrastructure.AsyncCommand)clipboardFindButton.Command!).ExecuteAsync();
+                clipboardWindow.UpdateLayout();
+                var clipboardLocation = Text(clipboardWindow, "Clipboard literal Find outcome and exact UTF-16 location");
+                var clipboardSpan = Text(clipboardWindow, "Exact inert clipboard literal match");
+                clipboardSpan.IsFocused.Should().BeTrue();
+                var exactClipboardLocation = clipboardLocation.Text;
+                exactClipboardLocation.Should().Contain($"UTF-16 [{text.IndexOf("needle", StringComparison.Ordinal)}, {text.IndexOf("needle", StringComparison.Ordinal) + 6})");
                 foreach (var scale in new[] { percent, 200, 75, 100, percent })
                 {
                     fixture.Main.ReaderTextScalePercent = scale;
@@ -166,6 +181,13 @@ public sealed class NativeReaderTextScaleTests
                     location.Text.Should().Be(exactLocation);
                     span.Text.Should().Be("needle");
                     span.FontSize.Should().Be(baseline * scale / 100d);
+                    clipboardSpan.Text.Should().Be("needle");
+                    clipboardSpan.FontSize.Should().Be(baseline * scale / 100d);
+                    clipboardSpan.IsFocused.Should().BeTrue();
+                    clipboardLocation.Text.Should().Be(exactClipboardLocation);
+                    clipboardLocation.FontSize.Should().Be(chromeFont);
+                    clipboardFind.Text.Should().Be("needle");
+                    clipboardFind.FontSize.Should().Be(clipboardQueryFont);
                     fileReader.Text.Should().Be(text);
                     clipboardReader.Text.Should().Be(text);
                     foreach (var window in new Window[] { fileWindow, clipboardWindow })

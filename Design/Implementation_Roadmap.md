@@ -74,8 +74,10 @@ broader E/Q qualification is claimed.
 
 ### Bounded native Sessions local-event filters - 2026-10-14
 
-[Category and exact reason filters](Proactive_Interaction.md#native-content-free-loaded-event-filters)
+[Category, exact reason, authoritative source and type filters](Proactive_Interaction.md#native-content-free-loaded-event-filters)
 compose over only the existing already-loaded bounded content-free rows.
+The 2026-10-15 Source/Type increment preserves exact AND and zero matches
+for impossible pairs, with no new source read or normalized choice.
 Edits immediately retire exact selection; source/privacy/workspace changes,
 refresh, failure/cancellation and stale callbacks remain fail closed.
 Matching/empty counts do not replace broker omissions or quiet status.

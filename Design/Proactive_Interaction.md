@@ -97,11 +97,16 @@ acceptance remain gated. All R02 experiment evidence is retained unchanged.
 
 The existing Sessions list has **Local event category** (All, Work, Failure,
 Attention, Maintenance) and **Local event reason** (All plus every exact
-`LocalEventReason` value). All is unfiltered; both typed predicates compose
+`LocalEventReason` value), **Local event source** (All plus every exact
+`LocalEventSource` value), and **Local event type** (All plus every exact
+`LocalEventType` value). All is unfiltered; all four typed predicates compose
 as a conjunction over only the already-loaded at-most-eight rows, in snapshot
 order. Unknown filter or row enums fail closed. This is not source search:
 there is no additional read, index, persistence, query logging, event body,
 command/model/tool/speech route, activity renewal or new authority.
+Source and Type are exact authoritative enums, not summary-text matches.
+Impossible source/type pairs remain selected and truthfully match zero;
+no choice is normalized, broadened or replaced to obtain a result.
 
 Every filter edit and explicit clear immediately retires exact selection and
 event review detail, even if the same event remains visible. Review/Dismiss/

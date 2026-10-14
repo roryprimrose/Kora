@@ -167,7 +167,7 @@ internal sealed partial class SessionsViewModel(
         set { nameDraft = value; OnPropertyChanged(); Notify(); }
     }
     public string Status => status;
-    public string Detail => detail;
+    public string Detail => eventDetailPresented && !EventSourceCurrent ? string.Empty : detail;
     public string HistorySessionId
     {
         get => historySessionId;

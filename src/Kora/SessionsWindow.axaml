@@ -347,7 +347,15 @@
             <TextBlock Text="Local event reason" VerticalAlignment="Center" />
             <ComboBox x:Name="LocalEventReasonFilter" ItemsSource="{Binding LocalEventReasonFilters}"
                       SelectedItem="{Binding LocalEventReasonChoice}" IsEnabled="{Binding CanFilterLocalEvents}"
-                      AutomationProperties.Name="Filter loaded local events by exact delivery reason or All; combines with category and clears exact event selection" />
+                      AutomationProperties.Name="Filter loaded local events by exact delivery reason or All; combines with category, source and type and clears exact event selection" />
+            <TextBlock Text="Local event source" VerticalAlignment="Center" />
+            <ComboBox x:Name="LocalEventSourceFilter" ItemsSource="{Binding LocalEventSourceFilters}"
+                      SelectedItem="{Binding LocalEventSourceChoice}" IsEnabled="{Binding CanFilterLocalEvents}"
+                      AutomationProperties.Name="Filter loaded local events by exact authoritative source or All; combines with category, reason and type and clears exact event selection" />
+            <TextBlock Text="Local event type" VerticalAlignment="Center" />
+            <ComboBox x:Name="LocalEventTypeFilter" ItemsSource="{Binding LocalEventTypeFilters}"
+                      SelectedItem="{Binding LocalEventTypeChoice}" IsEnabled="{Binding CanFilterLocalEvents}"
+                      AutomationProperties.Name="Filter loaded local events by exact authoritative type or All; combines with category, reason and source and clears exact event selection" />
             <Button x:Name="ClearLocalEventFilters" Content="Clear local event filters" IsEnabled="{Binding CanFilterLocalEvents}"
                     AutomationProperties.Name="Show all already-loaded local events and clear exact selection; no source read or quiet change" />
           </WrapPanel>

@@ -123,6 +123,11 @@ public sealed class DetailViewerState : ObservableObject
             ReportStatus("Copy blocked: this exact revision is closed or no longer accessible.");
             return false;
         }
+        if (content!.Origin == DetailContentOrigin.RetainedConversation)
+        {
+            ReportStatus("Copy blocked: retained conversation Details do not grant clipboard disclosure authority.");
+            return false;
+        }
         if (content!.Sensitivity == DetailSensitivity.DisclosureConfirmationRequired && !disclosureConfirmed)
         {
             ReportStatus("Confirm disclosure in the native control before copying private content.");

@@ -46,6 +46,9 @@ public sealed class EvidenceAdvancedFilterTests
             viewer.UntilFilter = "2026-10-10T00:00:00.0000000Z";
             viewer.Severity = EvidenceSeverity.Warning;
             viewer.AuditOutcome = SecurityAuditOutcome.Denied;
+            viewer.EventIdFilter = "-2147483648";
+            viewer.CategoryFilter = "Exact.Category";
+            viewer.ActionIdFilter = "Exact Action / correlation";
             await viewer.SearchAsync();
             var query = reader.Queries.Single();
             query.SessionId.Should().Be(request.SessionId);
@@ -59,6 +62,9 @@ public sealed class EvidenceAdvancedFilterTests
             query.FromUtc!.Value.Offset.Should().Be(TimeSpan.Zero);
             query.Severity.Should().Be(EvidenceSeverity.Warning);
             query.AuditOutcome.Should().Be(SecurityAuditOutcome.Denied);
+            query.EventId.Should().Be(int.MinValue);
+            query.Category.Should().Be("Exact.Category");
+            query.ActionId.Should().Be("Exact Action / correlation");
             viewer.CanNext.Should().BeTrue();
             viewer.Select(viewer.Records[0]);
             await viewer.NextAsync();
@@ -79,6 +85,9 @@ public sealed class EvidenceAdvancedFilterTests
             blank.UntilUtc.Should().BeNull();
             blank.Severity.Should().BeNull();
             blank.AuditOutcome.Should().BeNull();
+            blank.EventId.Should().BeNull();
+            blank.Category.Should().BeNull();
+            blank.ActionId.Should().BeNull();
             reader.Checkpoints[^1].Should().BeNull();
             viewer.Close();
             viewer.SessionFilter.Should().BeEmpty();
@@ -88,6 +97,9 @@ public sealed class EvidenceAdvancedFilterTests
             viewer.CorrelationFilter.Should().BeEmpty();
             viewer.FromFilter.Should().BeEmpty();
             viewer.UntilFilter.Should().BeEmpty();
+            viewer.EventIdFilter.Should().BeEmpty();
+            viewer.CategoryFilter.Should().BeEmpty();
+            viewer.ActionIdFilter.Should().BeEmpty();
         }
         finally { CultureInfo.CurrentCulture = previous; }
     }
@@ -106,6 +118,9 @@ public sealed class EvidenceAdvancedFilterTests
     [InlineData(nameof(EvidenceViewModel.SessionFilter))]
     [InlineData(nameof(EvidenceViewModel.TaskFilter))]
     [InlineData(nameof(EvidenceViewModel.TraceFilter))]
+    [InlineData(nameof(EvidenceViewModel.EventIdFilter))]
+    [InlineData(nameof(EvidenceViewModel.CategoryFilter))]
+    [InlineData(nameof(EvidenceViewModel.ActionIdFilter))]
     public async Task EveryChangedFilterRetiresCursorResultsAndSelection(string field)
     {
         using var listener = WindowsDailyEvidenceReaderTests.Listen();
@@ -206,14 +221,18 @@ public sealed class EvidenceAdvancedFilterTests
         viewer.Close();
     }
 
-    [Fact]
-    public async Task ChangingFiltersDuringAReadCancelsAndCannotPublishLateContent()
+    [Theory]
+    [InlineData(nameof(EvidenceViewModel.RequestFilter))]
+    [InlineData(nameof(EvidenceViewModel.EventIdFilter))]
+    [InlineData(nameof(EvidenceViewModel.CategoryFilter))]
+    [InlineData(nameof(EvidenceViewModel.ActionIdFilter))]
+    public async Task ChangingFiltersDuringAReadCancelsAndCannotPublishLateContent(string field)
     {
         using var listener = WindowsDailyEvidenceReaderTests.Listen();
         var reader = new CapturingReader { Held = new(TaskCreationOptions.RunContinuationsAsynchronously) };
         var viewer = Viewer(reader);
         var pending = viewer.SearchAsync();
-        viewer.RequestFilter = Guid.NewGuid().ToString("D");
+        Set(viewer, field, field is nameof(EvidenceViewModel.RequestFilter) ? Guid.NewGuid().ToString("D") : "1");
         reader.Token.IsCancellationRequested.Should().BeTrue();
         reader.Held.SetResult(Batch());
         await pending;
@@ -225,6 +244,22 @@ public sealed class EvidenceAdvancedFilterTests
         reader.Held = null;
         await viewer.SearchAsync();
         reader.Checkpoints[^1].Should().BeNull();
+        viewer.Close();
+    }
+
+    [Fact]
+    public async Task LateUnsupportedFailureCannotReplaceTheNewFilterRevision()
+    {
+        using var listener = WindowsDailyEvidenceReaderTests.Listen();
+        var reader = new CapturingReader { Held = new(TaskCreationOptions.RunContinuationsAsynchronously) };
+        var viewer = Viewer(reader);
+        var pending = viewer.SearchAsync();
+        viewer.ActionIdFilter = "Exact Action";
+        reader.Held.SetException(new NotSupportedException("Retired source failure."));
+        await pending;
+        viewer.Status.Should().StartWith("Filters changed");
+        viewer.ResultText.Should().BeEmpty();
+        viewer.ActionIdFilter.Should().Be("Exact Action");
         viewer.Close();
     }
 
@@ -387,6 +422,9 @@ public sealed class EvidenceAdvancedFilterTests
         await viewer.SearchAsync();
         viewer.Records.Should().HaveCount(4);
         viewer.AuditOutcome = SecurityAuditOutcome.Denied;
+        viewer.EventIdFilter = "0";
+        viewer.CategoryFilter = "daily.test";
+        viewer.ActionIdFilter = events[1].ActionId;
         await viewer.SearchAsync();
         viewer.Records.Should().ContainSingle().Which.Audit.Should().BeEquivalentTo(events[1]);
         viewer.CorrelationFilter = events[1].CorrelationId.ToString("D");
@@ -395,10 +433,233 @@ public sealed class EvidenceAdvancedFilterTests
         viewer.UntilFilter = Edge.ToString("O", CultureInfo.InvariantCulture);
         await viewer.SearchAsync();
         viewer.Records.Should().ContainSingle().Which.Reference.Source.Should().Be(EvidenceSource.Audit);
+        viewer.ActionIdFilter = events[1].ActionId.ToUpperInvariant();
+        await viewer.SearchAsync();
+        viewer.Records.Should().BeEmpty();
+        viewer.ActionIdFilter = events[1].ActionId;
+        viewer.CategoryFilter = "DAILY.TEST";
+        await viewer.SearchAsync();
+        viewer.Records.Should().BeEmpty();
+        viewer.CategoryFilter = "daily.test";
         viewer.AuditOutcome = SecurityAuditOutcome.Succeeded;
         await viewer.SearchAsync();
         viewer.Records.Should().BeEmpty();
         viewer.Status.Should().StartWith("Available");
+        viewer.Close();
+    }
+
+    [Theory]
+    [InlineData("0", 0)]
+    [InlineData("-1", -1)]
+    [InlineData("-2147483648", int.MinValue)]
+    [InlineData("2147483647", int.MaxValue)]
+    public async Task NativeEventIdsParseLosslesslyAcrossCultures(string text, int expected)
+    {
+        using var listener = WindowsDailyEvidenceReaderTests.Listen();
+        var previous = CultureInfo.CurrentCulture;
+        try
+        {
+            foreach (var culture in new[] { "en-US", "fr-FR", "tr-TR" })
+            {
+                CultureInfo.CurrentCulture = CultureInfo.GetCultureInfo(culture);
+                var reader = new CapturingReader();
+                var viewer = Viewer(reader);
+                viewer.EventIdFilter = text;
+                await viewer.SearchAsync();
+                reader.Queries.Should().ContainSingle().Which.EventId.Should().Be(expected);
+                viewer.Close();
+            }
+        }
+        finally { CultureInfo.CurrentCulture = previous; }
+    }
+
+    [Theory]
+    [InlineData(" ")]
+    [InlineData("\t")]
+    [InlineData(" 1")]
+    [InlineData("1 ")]
+    [InlineData("+1")]
+    [InlineData("01")]
+    [InlineData("-0")]
+    [InlineData("1.0")]
+    [InlineData("1,000")]
+    [InlineData("1e2")]
+    [InlineData("2147483648")]
+    [InlineData("-2147483649")]
+    [InlineData("\u0661")]
+    [InlineData("1\0")]
+    public async Task InvalidEventIdNeverFallsBackToAnUnfilteredRead(string value)
+    {
+        using var listener = WindowsDailyEvidenceReaderTests.Listen();
+        var reader = new CapturingReader();
+        var viewer = Viewer(reader);
+        viewer.EventIdFilter = value;
+        await viewer.SearchAsync();
+        reader.Queries.Should().BeEmpty();
+        viewer.Status.Should().Contain("FormatException");
+        viewer.ResultText.Should().BeEmpty();
+        viewer.Close();
+    }
+
+    public static TheoryData<string> InvalidExactText => new()
+    {
+        " ", "\t", " exact", "exact ", "ex\nact", "ex\0act", "\ud800",
+    };
+
+    [Theory]
+    [MemberData(nameof(InvalidExactText))]
+    public async Task InvalidExactTextNeverReadsTheStore(string value)
+    {
+        using var listener = WindowsDailyEvidenceReaderTests.Listen();
+        foreach (var field in new[] { nameof(EvidenceViewModel.CategoryFilter), nameof(EvidenceViewModel.ActionIdFilter) })
+        {
+            var reader = new CapturingReader();
+            var viewer = Viewer(reader);
+            Set(viewer, field, value);
+            await viewer.SearchAsync();
+            reader.Queries.Should().BeEmpty();
+            viewer.Status.Should().Contain("failed");
+            viewer.ResultText.Should().BeEmpty();
+            viewer.Close();
+        }
+    }
+
+    [Theory]
+    [InlineData(nameof(EvidenceViewModel.CategoryFilter), 256)]
+    [InlineData(nameof(EvidenceViewModel.ActionIdFilter), 128)]
+    public async Task NativeExactTextPreservesTheAuthoritativeLimitWithoutTruncation(string field, int limit)
+    {
+        using var listener = WindowsDailyEvidenceReaderTests.Listen();
+        var reader = new CapturingReader();
+        var viewer = Viewer(reader);
+        Set(viewer, field, new string('x', limit));
+        await viewer.SearchAsync();
+        reader.Queries.Should().ContainSingle();
+        Set(viewer, field, new string('x', limit + 1));
+        await viewer.SearchAsync();
+        reader.Queries.Should().ContainSingle();
+        viewer.Status.Should().Contain("ArgumentException");
+        viewer.ResultText.Should().BeEmpty();
+        viewer.Close();
+    }
+
+    [Theory]
+    [InlineData(EvidenceSource.Log, nameof(EvidenceViewModel.ActionIdFilter))]
+    [InlineData(EvidenceSource.DailyLog, nameof(EvidenceViewModel.ActionIdFilter))]
+    [InlineData(EvidenceSource.CombinedLog, nameof(EvidenceViewModel.ActionIdFilter))]
+    [InlineData(EvidenceSource.Span, nameof(EvidenceViewModel.ActionIdFilter))]
+    [InlineData(EvidenceSource.Link, nameof(EvidenceViewModel.ActionIdFilter))]
+    [InlineData(EvidenceSource.Span, nameof(EvidenceViewModel.EventIdFilter))]
+    [InlineData(EvidenceSource.Link, nameof(EvidenceViewModel.EventIdFilter))]
+    [InlineData(EvidenceSource.AuthorityAudit, nameof(EvidenceViewModel.EventIdFilter))]
+    [InlineData(EvidenceSource.Session, nameof(EvidenceViewModel.CategoryFilter))]
+    [InlineData(EvidenceSource.Conversation, nameof(EvidenceViewModel.CategoryFilter))]
+    public async Task NativeUnsupportedExactFieldsRequireExplicitRecoveryWithoutReading(EvidenceSource source, string field)
+    {
+        using var listener = WindowsDailyEvidenceReaderTests.Listen();
+        var reader = new CapturingReader();
+        var viewer = Viewer(reader);
+        viewer.Source = source;
+        Set(viewer, field, "1");
+        await viewer.SearchAsync();
+        reader.Queries.Should().BeEmpty();
+        viewer.Status.Should().StartWith("Unsupported filter").And.Contain("search again");
+        viewer.ClearAdvancedFilters();
+        await viewer.SearchAsync();
+        viewer.Status.Should().NotStartWith("Unsupported filter");
+        viewer.Close();
+    }
+
+    [Theory]
+    [InlineData(EvidenceSource.All)]
+    [InlineData(EvidenceSource.Log)]
+    [InlineData(EvidenceSource.DailyLog)]
+    [InlineData(EvidenceSource.CombinedLog)]
+    public async Task NativeEventIdAndCategoryMatchRealSourcesExactlyWithIntegerBounds(EvidenceSource source)
+    {
+        using var fixture = new OwnedStorageFixture();
+        using var listener = WindowsDailyEvidenceReaderTests.Listen();
+        var sink = new WindowsSqliteEvidenceSink(fixture, timeProvider: new Clock());
+        var owner = HostRequest.Create(RequestOrigin.LocalUi);
+        var envelopes = WindowsDailyEvidenceReaderTests.Produce(owner, 64)
+            .Select((envelope, index) => envelope with
+            {
+                EventId = index < 60 ? 777 : new[] { int.MinValue, -1, 0, int.MaxValue }[index - 60],
+                Category = index < 60 ? "Other.Category" : "Exact.Category",
+            }).ToArray();
+        using (var producer = HostActivity.BeginRoot(owner, HostActivityLayer.Application, HostOperation.Request))
+        {
+            foreach (var envelope in envelopes) { sink.WriteDiagnostic(envelope with { Trace = TraceSnapshot.Capture(producer.Activity) }); }
+        }
+        WindowsDailyEvidenceReaderTests.Write(fixture, "kora-20261010.log", envelopes);
+        var viewer = Viewer(new WindowsEvidenceReader(new(sink), new(fixture)));
+        viewer.Source = source;
+        viewer.CategoryFilter = "Exact.Category";
+        foreach (var envelope in envelopes.Where(envelope => envelope.Category is "Exact.Category"))
+        {
+            viewer.EventIdFilter = envelope.EventId.ToString(CultureInfo.InvariantCulture);
+            await viewer.SearchAsync();
+            viewer.Records.Should().HaveCount(source == EvidenceSource.CombinedLog ? 2 : 1)
+                .And.OnlyContain(record => record.EventId == envelope.EventId && record.Category == envelope.Category);
+            System.Text.Encoding.UTF8.GetByteCount(viewer.ResultText).Should().BeLessThanOrEqualTo(EvidencePage.MaximumBytes);
+        }
+        viewer.CategoryFilter = "exact.category";
+        await viewer.SearchAsync();
+        viewer.Records.Should().BeEmpty();
+        viewer.Status.Should().StartWith("Available");
+        viewer.Close();
+    }
+
+    [Fact]
+    public async Task NewExactFieldsDoNotLeakIntoTraceOrSegmentNavigationQueries()
+    {
+        using var listener = WindowsDailyEvidenceReaderTests.Listen();
+        var reader = new CapturingReader();
+        var viewer = Viewer(reader);
+        viewer.EventIdFilter = "1";
+        viewer.CategoryFilter = "test";
+        viewer.ActionIdFilter = "exact action";
+        await viewer.SearchAsync();
+        viewer.Select(viewer.Records[0]);
+        await viewer.ReadTraceAsync();
+        reader.Queries[^1].Source.Should().Be(EvidenceSource.All);
+        reader.Queries[^1].TraceId.Should().NotBeNull();
+        reader.Queries[^1].EventId.Should().BeNull();
+        reader.Queries[^1].Category.Should().BeNull();
+        reader.Queries[^1].ActionId.Should().BeNull();
+        var reference = viewer.Records[0].Reference;
+        await viewer.NavigateAsync(new(new string('a', 32), new string('b', 16), EvidenceSegmentStatus.Present, reference));
+        reader.Queries[^1].Record.Should().Be(reference);
+        reader.Queries[^1].EventId.Should().BeNull();
+        reader.Queries[^1].Category.Should().BeNull();
+        reader.Queries[^1].ActionId.Should().BeNull();
+        viewer.Close();
+    }
+
+    [Theory]
+    [InlineData(EvidenceSource.Span)]
+    [InlineData(EvidenceSource.Link)]
+    public async Task NativeActivityCategoryMatchesTheSourceRatherThanRenderedName(EvidenceSource source)
+    {
+        using var fixture = new OwnedStorageFixture();
+        using var listener = WindowsDailyEvidenceReaderTests.Listen();
+        var sink = new WindowsSqliteEvidenceSink(fixture, timeProvider: new Clock());
+        var trace = new TraceSnapshot(new string('a', 32), new string('b', 16), null,
+            System.Diagnostics.ActivityTraceFlags.Recorded, "Kora.Application", "1.0.0", "different.name",
+            System.Diagnostics.ActivityKind.Internal);
+        sink.WriteActivity(new(new(Guid.NewGuid()), trace, HostRequest.Create(RequestOrigin.LocalUi), Edge, Edge,
+            HostOperationOutcome.Completed, [new(new string('c', 32), new string('d', 16))]));
+        var viewer = Viewer(new WindowsSqliteEvidenceReader(sink));
+        viewer.Source = source;
+        viewer.CategoryFilter = trace.Source;
+        await viewer.SearchAsync();
+        viewer.Records.Should().ContainSingle().Which.Category.Should().Be(trace.Source);
+        viewer.CategoryFilter = trace.Source.ToLowerInvariant();
+        await viewer.SearchAsync();
+        viewer.Records.Should().BeEmpty();
+        viewer.CategoryFilter = trace.Name;
+        await viewer.SearchAsync();
+        viewer.Records.Should().BeEmpty();
         viewer.Close();
     }
 
@@ -419,6 +680,9 @@ public sealed class EvidenceAdvancedFilterTests
             case nameof(EvidenceViewModel.SessionFilter): viewer.SessionFilter = value; break;
             case nameof(EvidenceViewModel.TaskFilter): viewer.TaskFilter = value; break;
             case nameof(EvidenceViewModel.TraceFilter): viewer.TraceFilter = value; break;
+            case nameof(EvidenceViewModel.EventIdFilter): viewer.EventIdFilter = value; break;
+            case nameof(EvidenceViewModel.CategoryFilter): viewer.CategoryFilter = value; break;
+            case nameof(EvidenceViewModel.ActionIdFilter): viewer.ActionIdFilter = value; break;
             default: throw new ArgumentException("Unknown test field.", nameof(field));
         }
     }

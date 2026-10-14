@@ -76,6 +76,32 @@ public sealed class SharedSkillDiscoveryServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task AdmittedSnapshotSearchNeverCallsReaderPreferencesAuditOrRevisionRecheck()
+    {
+        await using var fixture = new Fixture();
+        await fixture.Register();
+        var catalogue = await fixture.Discover();
+        var scans = fixture.Reader.Scans;
+        var selections = fixture.Reader.Selections;
+        var writes = fixture.PreferenceStore.Writes;
+        var auditCount = fixture.Audit.Events.Count;
+        fixture.Open = false;
+        fixture.PreferenceStore.Text = "corrupt";
+        foreach (var filter in Enum.GetValues<SkillInstructionFilter>())
+        {
+            foreach (var query in new[] { "", "TEST", "local", "nonmatch" })
+            {
+                SkillCatalogueSearch.Shared(catalogue, query, filter);
+            }
+        }
+        fixture.Reader.Scans.Should().Be(scans);
+        fixture.Reader.Selections.Should().Be(selections);
+        fixture.PreferenceStore.Writes.Should().Be(writes);
+        fixture.Audit.Events.Should().HaveCount(auditCount);
+        fixture.PreferenceStore.Text.Should().Be("corrupt");
+    }
+
+    [Fact]
     public async Task Corrupt_consent_blocks_selection_and_reading_without_silent_reset()
     {
         await using var fixture = new Fixture();

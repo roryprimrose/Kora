@@ -9695,6 +9695,20 @@ public sealed partial class MainViewModelTests : IDisposable
 
     private sealed class FakeAppearancePreferences : IAppearancePreferences
     {
+        public int? ReaderTextScalePercent { get; private set; }
+        public bool ReaderScalePending { get; private set; }
+        public int? LoadReaderTextScalePercent() => ReaderScalePending
+            ? throw new InvalidDataException("Reader scale pending") : ReaderTextScalePercent;
+        public int? ReadBackReaderTextScalePercent() => ReaderTextScalePercent;
+        public void BeginReaderTextScaleWrite() => ReaderScalePending = true;
+        public void SaveReaderTextScalePercent(int percent)
+        {
+            ReaderTextScaleSettings.ValidatePercent(percent);
+            if (SaveException is not null) { throw SaveException; }
+            ReaderTextScalePercent = percent;
+        }
+        public void ConfirmReaderTextScaleWrite() => ReaderScalePending = false;
+
         public ApplicationThemeMode? Mode { get; set; }
 
         public bool? PresenceDisplayEnabled { get; set; }

@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.ComponentModel;
 
 using Kora.Definitions.Skills;
 using Kora.Application.ViewModels;
@@ -28,6 +29,7 @@ internal sealed partial class SkillPackagesWindowController : IDisposable
         this.renderer = renderer;
         sharedSources = new(viewModel, discovery, isCurrentHost, sharedLogger);
         viewModel.PrivacyClosureRequested += OnPrivacyClosureRequested;
+        viewModel.PropertyChanged += OnMainChanged;
     }
 
     internal void Open()
@@ -66,11 +68,17 @@ internal sealed partial class SkillPackagesWindowController : IDisposable
     public void Dispose()
     {
         viewModel.PrivacyClosureRequested -= OnPrivacyClosureRequested;
+        viewModel.PropertyChanged -= OnMainChanged;
         sharedSources.Dispose();
         Close();
     }
 
     private void OnPrivacyClosureRequested(object? sender, EventArgs eventArgs) => Close();
+
+    private void OnMainChanged(object? sender, PropertyChangedEventArgs args)
+    {
+        if (string.Equals(args.PropertyName, nameof(MainViewModel.CallPolicyRevision), StringComparison.Ordinal)) { Close(); }
+    }
 
     private void OnClosed(object? sender, EventArgs eventArgs) => window = null;
 

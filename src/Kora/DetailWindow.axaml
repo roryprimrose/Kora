@@ -15,6 +15,7 @@
       <TextBlock x:Name="ProvenanceLabel" TextWrapping="Wrap" />
       <TextBlock x:Name="ReferenceLabel" FontSize="11" TextWrapping="Wrap" />
       <TextBlock x:Name="DigestLabel" FontSize="11" TextWrapping="Wrap" />
+      <TextBlock x:Name="ConversationHostLabel" TextWrapping="Wrap" IsVisible="False" />
       <controls:NamedTextBlock x:Name="RendererStatus" TextWrapping="Wrap"
                  AutomationProperties.Name="Native renderer and source fallback status" />
       <TextBlock Text="native-text-v1 · 256 KiB UTF-8 · 512 blocks · 4096 nodes/controls · depth 32 · 8 viewers · search 256"
@@ -35,7 +36,7 @@
         <Button x:Name="NextMatch" Content="Next (F3)" TabIndex="4"
                 AutomationProperties.Name="Next search match" />
       </WrapPanel>
-      <TextBlock Text="Copy exact source as Unicode plain text only. Clipboard content leaves Kora's boundary and may be read by other apps. Rich HTML copy is not supported."
+      <TextBlock x:Name="CopyPolicyLabel" Text="Copy exact source as Unicode plain text only. Clipboard content leaves Kora's boundary and may be read by other apps. Rich HTML copy is not supported."
                  TextWrapping="Wrap" />
       <CheckBox x:Name="DisclosureConfirmation" TabIndex="5"
                 Content="I confirm disclosure of this private source outside Kora."

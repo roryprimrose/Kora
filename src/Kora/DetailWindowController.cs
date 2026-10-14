@@ -1,6 +1,7 @@
 using System.Runtime.InteropServices;
 
 using Avalonia.Controls;
+using Avalonia.Threading;
 
 using Kora.Application.Documentation;
 using Kora.Application.Presentation;
@@ -26,6 +27,13 @@ public sealed partial class DetailWindowController : IDisposable
     private readonly Dictionary<string, (HostId<EvidenceIdentity> Id, long Revision, string Digest, string Title)> pages =
         new(StringComparer.Ordinal);
     private bool disposed;
+    private long sourceEpoch;
+    private long conversationLease;
+    private bool validatingConversation;
+    private readonly CancellationTokenSource conversationLifetime = new();
+    private readonly DispatcherTimer? conversationValidation;
+    private readonly Dictionary<DetailContentReference, (long Lease, AdmittedDetailContent Content, Func<bool> Admitted,
+        Func<CancellationToken, Task<AdmittedDetailContent>> Resolve)> conversationSources = [];
     private Func<bool> historyAccess = () => false;
     private Func<DetailContentReference, AdmittedDetailContent?> webResultSource = _ => null;
 
@@ -34,19 +42,24 @@ public sealed partial class DetailWindowController : IDisposable
     private bool CanAccess(AdmittedDetailContent content) =>
         canAccess() && (content.Origin != DetailContentOrigin.SessionHistory || historyAccess())
         && (content.Origin != DetailContentOrigin.RetrievedWebResult
-            || ReferenceEquals(webResultSource(content.Reference), content));
+            || ReferenceEquals(webResultSource(content.Reference), content))
+        && (content.Origin != DetailContentOrigin.RetainedConversation
+            || conversationSources.TryGetValue(content.Reference, out var source)
+                && source.Content.IsSameSnapshot(content) && source.Admitted());
 
     internal DetailWindowController(
         IUserDocumentationProvider documentation, MainViewModel viewModel,
         ILogger<DetailWindowController> logger, ILogger<NativeDetailRenderer> rendererLogger)
         : this(documentation, () => viewModel.CanRevealPrivatePresentation,
             new NativeDetailRenderer(rendererLogger), new NativeDetailClipboard(),
-            (state, result, copy) => new DetailWindow(state, result, copy), logger)
+            (state, result, copy) => new DetailWindow(state, result, copy, viewModel), logger)
     {
         this.viewModel = viewModel;
         viewModel.PrivacyClosureRequested += OnPrivacyClosureRequested;
         BindWebResultSource(viewModel.ResolveWebResultDetails);
         viewModel.WebResultDetailsChanged += OnWebResultDetailsChanged;
+        conversationValidation = new() { Interval = TimeSpan.FromSeconds(5) };
+        conversationValidation.Tick += OnConversationValidation;
     }
 
     internal DetailWindowController(
@@ -90,6 +103,94 @@ public sealed partial class DetailWindowController : IDisposable
         return OpenContent(content, owner);
     }
 
+    internal async Task<string> OpenConversationDetailAsync(AdmittedDetailContent content, Window? owner,
+        Func<bool> admitted, Func<CancellationToken, Task<AdmittedDetailContent>> resolve, CancellationToken token)
+    {
+        if (content.Origin != DetailContentOrigin.RetainedConversation || content.ConversationMessage is null)
+        { throw new InvalidDataException("Only an exact retained original conversation record may enter this detail route."); }
+        if (disposed) { throw new InvalidOperationException("The conversation detail owner is disposed."); }
+        using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(token, conversationLifetime.Token);
+        token = cancellation.Token;
+        var epoch = sourceEpoch;
+        var current = await resolve(token);
+        token.ThrowIfCancellationRequested();
+        if (disposed || epoch != sourceEpoch || !canAccess() || !admitted() || !content.IsSameSnapshot(current))
+        { throw new InvalidOperationException("Exact conversation detail admission changed before opening."); }
+        if (conversationSources.TryGetValue(content.Reference, out var previous)
+            && !previous.Content.IsSameSnapshot(content))
+        { throw new InvalidDataException("An exact retained conversation revision cannot change."); }
+        if (windows.TryGetValue(content.Reference, out var stale) && stale.State.Content is null)
+        { RevokeReference(content.Reference); }
+        var activateOnly = windows.ContainsKey(content.Reference);
+        var lease = ++conversationLease;
+        conversationSources[content.Reference] = (lease, content, admitted, resolve);
+        try
+        {
+            var result = OpenContent(content, owner, deferPublication: true);
+            if (!windows.TryGetValue(content.Reference, out _))
+            {
+                conversationSources.Remove(content.Reference);
+                return result;
+            }
+            current = await resolve(token);
+            token.ThrowIfCancellationRequested();
+            if (disposed || epoch != sourceEpoch || !CanAccess(content) || !content.IsSameSnapshot(current)
+                || !windows.TryGetValue(content.Reference, out var prepared)
+                || !conversationSources.TryGetValue(content.Reference, out var finalSource) || finalSource.Lease != lease)
+            { throw new InvalidOperationException("Exact conversation detail admission changed at final publication."); }
+            result = PublishContent(content, owner, prepared, result, activateOnly);
+            conversationValidation?.Start();
+            return result;
+        }
+        catch
+        {
+            if (conversationSources.TryGetValue(content.Reference, out var failed) && failed.Lease == lease)
+            { RevokeReference(content.Reference); }
+            throw;
+        }
+    }
+
+    private async void OnConversationValidation(object? sender, EventArgs args) => await RevalidateConversationDetailsAsync();
+
+    internal async Task RevalidateConversationDetailsAsync()
+    {
+        if (disposed || validatingConversation) { return; }
+        var token = conversationLifetime.Token;
+        validatingConversation = true;
+        try
+        {
+            foreach (var entry in conversationSources.ToArray())
+            {
+                try
+                {
+                    if (!CanAccess(entry.Value.Content))
+                    { throw new InvalidOperationException("Retained conversation private/source admission ended."); }
+                    var current = await entry.Value.Resolve(token);
+                    if (!CanAccess(entry.Value.Content) || !entry.Value.Content.IsSameSnapshot(current))
+                    { throw new InvalidDataException("The retained conversation source changed."); }
+                }
+                catch (Exception exception) when (exception is not OutOfMemoryException)
+                {
+                    ConversationSourceFailure(logger, exception.GetType().Name);
+                    if (conversationSources.TryGetValue(entry.Key, out var failed) && failed.Lease == entry.Value.Lease)
+                    { RevokeReference(entry.Key); }
+                }
+            }
+        }
+        finally
+        {
+            validatingConversation = false;
+            if (conversationSources.Count == 0) { conversationValidation?.Stop(); }
+        }
+    }
+
+    private void RevokeReference(DetailContentReference reference)
+    {
+        conversationSources.Remove(reference);
+        registry.Close(reference);
+        if (windows.Remove(reference, out var entry)) { entry.View.ClearAndClose(); }
+    }
+
     internal string OpenWebResult(DetailContentReference reference, Window? owner)
     {
         var content = webResultSource(reference);
@@ -114,14 +215,15 @@ public sealed partial class DetailWindowController : IDisposable
         }
     }
 
-    private string OpenContent(AdmittedDetailContent content, Window? owner)
+    private string OpenContent(AdmittedDetailContent content, Window? owner, bool deferPublication = false)
     {
         if (disposed || !CanAccess(content)) { return "Details unavailable: the privacy/input gate is closed."; }
         DetailViewerState state;
         try
         {
             state = registry.Open(content, CanAccess(content),
-                content.Origin == DetailContentOrigin.RetrievedWebResult ? () => CanAccess(content) : null);
+                content.Origin is DetailContentOrigin.RetrievedWebResult or DetailContentOrigin.RetainedConversation
+                    ? () => CanAccess(content) : null);
         }
         catch (InvalidDataException) { return "Details unavailable: the immutable receipt changed. Close it and refresh history."; }
         catch (InvalidOperationException) { return "Details unavailable: close a viewer or check the privacy/input gate."; }
@@ -132,18 +234,8 @@ public sealed partial class DetailWindowController : IDisposable
                 RetireUnavailableWebResults();
                 return "Details unavailable: the exact source admission changed.";
             }
-            try
-            {
-                existing.View.Activate();
-                return "Activated the existing immutable detail revision.";
-            }
-            catch (InvalidOperationException)
-            {
-                windows.Remove(content.Reference);
-                registry.Close(content.Reference);
-                existing.View.ClearAndClose();
-                return "Native detail activation failed; no viewer or private render state was retained.";
-            }
+            return deferPublication ? "Exact immutable revision prepared; source validation pending."
+                : PublishContent(content, owner, existing, existing.State.Status, activateOnly: true);
         }
         var generation = state.Generation;
         var result = renderer.Render(content.Source, content.Kind, content.Reference);
@@ -162,7 +254,7 @@ public sealed partial class DetailWindowController : IDisposable
         catch (InvalidOperationException)
         {
             registry.Close(reference);
-            return "Native detail controls unavailable; no viewer or private render state was retained.";
+            return "Native detail controls unavailable or reader text scale unconfirmed; inspect preference evidence. No viewer or private render state was retained.";
         }
         if (!CanAccess(content) || state.Generation != generation || state.Content is null)
         {
@@ -172,13 +264,28 @@ public sealed partial class DetailWindowController : IDisposable
         }
         view.Closed += (_, _) =>
         {
+            conversationSources.Remove(reference);
             windows.Remove(reference);
             registry.Close(reference);
         };
         windows.Add(reference, (state, view));
+        return deferPublication ? result.Status : PublishContent(content, owner, (state, view), result.Status, activateOnly: false);
+    }
+
+    private string PublishContent(AdmittedDetailContent content, Window? owner,
+        (DetailViewerState State, IDetailView View) entry, string status, bool activateOnly)
+    {
+        var reference = content.Reference;
+        var (state, view) = entry;
+        var generation = state.Generation;
+        if (disposed || !CanAccess(content) || state.Content is null)
+        {
+            RevokeReference(reference);
+            return "Details unavailable: the exact source admission changed before publication.";
+        }
         try
         {
-            view.ShowOwned(owner);
+            if (!activateOnly) { view.ShowOwned(owner); }
             if (!CanAccess(content) || state.Generation != generation || state.Content is null)
             {
                 windows.Remove(reference);
@@ -187,15 +294,21 @@ public sealed partial class DetailWindowController : IDisposable
                 return "Details unavailable: the exact source admission changed while opening.";
             }
             view.Activate();
+            if (!CanAccess(content) || state.Generation != generation || state.Content is null)
+            {
+                RevokeReference(reference);
+                return "Details unavailable: the exact source admission changed while activating.";
+            }
         }
         catch (InvalidOperationException)
         {
             registry.Close(reference);
             windows.Remove(reference);
             view.ClearAndClose();
-            return "Native detail window unavailable; no viewer or private render state was retained.";
+            return activateOnly ? "Native detail activation failed; no viewer or private render state was retained."
+                : "Native detail window unavailable; no viewer or private render state was retained.";
         }
-        return result.Status;
+        return activateOnly ? "Activated the existing immutable detail revision." : status;
     }
 
     private AdmittedDetailContent Admit(UserDocumentationPage page)
@@ -263,11 +376,23 @@ public sealed partial class DetailWindowController : IDisposable
 
     private void OnPrivacyClosureRequested(object? sender, EventArgs eventArgs) => ClearForPrivacy();
 
+    internal void RevokeConversationSession(HostId<SessionIdentity> session)
+    {
+        sourceEpoch++;
+        foreach (var source in conversationSources.Where(pair =>
+            pair.Value.Content.ConversationMessage?.Request.SessionId == session).ToArray())
+        { RevokeReference(source.Key); }
+    }
+
     internal void RevokeSession(HostId<SessionIdentity> session)
     {
+        sourceEpoch++;
         foreach (var entry in windows.Where(pair => pair.Value.State.Content?.HistorySession == session
-            || pair.Value.State.Content?.SessionSource?.SessionId == session).ToArray())
+            || pair.Value.State.Content?.SessionSource?.SessionId == session
+            || conversationSources.TryGetValue(pair.Key, out var source)
+                && source.Content.ConversationMessage?.Request.SessionId == session).ToArray())
         {
+            conversationSources.Remove(entry.Key);
             windows.Remove(entry.Key);
             registry.Close(entry.Key);
             entry.Value.View.ClearAndClose();
@@ -276,6 +401,9 @@ public sealed partial class DetailWindowController : IDisposable
 
     internal void ClearForPrivacy()
     {
+        sourceEpoch++;
+        conversationValidation?.Stop();
+        conversationSources.Clear();
         registry.ClearForPrivacy();
         var owned = windows.Values.Select(entry => entry.View).ToArray();
         windows.Clear();
@@ -287,6 +415,9 @@ public sealed partial class DetailWindowController : IDisposable
     {
         if (disposed) { return; }
         disposed = true;
+        conversationLifetime.Cancel();
+        conversationLifetime.Dispose();
+        if (conversationValidation is not null) { conversationValidation.Tick -= OnConversationValidation; }
         if (viewModel is not null)
         {
             viewModel.PrivacyClosureRequested -= OnPrivacyClosureRequested;

@@ -2,6 +2,7 @@ using Kora.Core.Auditing;
 using Kora.Core.Configuration;
 using Kora.Core.Diagnostics;
 using Kora.Core.Hosting;
+
 using Microsoft.Extensions.Logging;
 
 namespace Kora.Application.Configuration;
@@ -25,6 +26,7 @@ public sealed partial class AppearanceConfigurationService(
         [AppearanceOption.MovementSpeed] = value => preferences.SavePresenceMovementSpeedPercent(value.GetNumber()),
         [AppearanceOption.SpeechScaling] = value => preferences.SavePresenceSpeechScalingEnabled(value.GetToggle()),
         [AppearanceOption.SpeechScaleAmount] = value => preferences.SavePresenceSpeechScaleAmountPercent(value.GetNumber()),
+        [AppearanceOption.ReaderTextScale] = value => preferences.SaveReaderTextScalePercent(value.GetNumber()),
     };
     private Dictionary<AppearanceOption, AppearanceValue> values =
         AppearanceOptionRegistry.Options.ToDictionary(item => item.Option, item => item.Default);
@@ -43,6 +45,7 @@ public sealed partial class AppearanceConfigurationService(
             {
                 Reload();
             }
+            if (option == AppearanceOption.ReaderTextScale) { EnsureReaderState(); }
             return new(AppearanceOptionRegistry.Get(option), values[option], revision, savedOptions.Contains(option));
         }
     }
@@ -55,6 +58,7 @@ public sealed partial class AppearanceConfigurationService(
             var saved = new Dictionary<AppearanceOption, AppearanceValue?>
             {
                 [AppearanceOption.Theme] = preferences.LoadThemeMode() is { } theme ? new AppearanceValue.Theme(theme) : null,
+                [AppearanceOption.ReaderTextScale] = preferences.LoadReaderTextScalePercent() is { } scale ? new AppearanceValue.Number(scale) : null,
                 [AppearanceOption.PresenceDisplay] = preferences.LoadPresenceDisplayEnabled() is { } display ? new AppearanceValue.Toggle(display) : null,
                 [AppearanceOption.PresenceTimeout] = preferences.LoadPresenceTimeoutSeconds() is { } presenceTimeout ? new AppearanceValue.Number(presenceTimeout) : null,
                 [AppearanceOption.ResponseTimeout] = preferences.LoadResponseTimeoutSeconds() is { } responseTimeout ? new AppearanceValue.Number(responseTimeout) : null,
@@ -90,15 +94,20 @@ public sealed partial class AppearanceConfigurationService(
     }
 
     public AppearanceProposal Propose(AppearanceOption option, AppearanceValue value, long expectedRevision,
-        SecurityAuditInitiator initiator)
+        SecurityAuditInitiator initiator, RequestOrigin? originalOrigin = null, Func<bool>? remainsEligible = null)
     {
         AppearanceOptionRegistry.Validate(option, value);
         ValidateInitiator(initiator);
-        return new(owner, option, value, expectedRevision, initiator);
+        if (option == AppearanceOption.ReaderTextScale)
+        {
+            ValidateReaderAdmission(initiator, originalOrigin, remainsEligible);
+        }
+        return new(owner, option, value, expectedRevision, initiator, originalOrigin, remainsEligible);
     }
 
-    public AppearanceProposal ProposeReset(AppearanceOption option, long expectedRevision, SecurityAuditInitiator initiator) =>
-        Propose(option, AppearanceOptionRegistry.Get(option).Default, expectedRevision, initiator);
+    public AppearanceProposal ProposeReset(AppearanceOption option, long expectedRevision, SecurityAuditInitiator initiator,
+        RequestOrigin? originalOrigin = null, Func<bool>? remainsEligible = null) =>
+        Propose(option, AppearanceOptionRegistry.Get(option).Default, expectedRevision, initiator, originalOrigin, remainsEligible);
 
     public Task<AppearanceApplyResult> ApplyAsync(AppearanceProposal proposal, CancellationToken cancellationToken) =>
         Task.Run(() => Apply(proposal, cancellationToken), cancellationToken);
@@ -124,6 +133,11 @@ public sealed partial class AppearanceConfigurationService(
                 Reload();
             }
             AppearanceOptionRegistry.Validate(proposal.Option, proposal.Value);
+            if (proposal.Option == AppearanceOption.ReaderTextScale)
+            {
+                ValidateReaderAdmission(proposal.Initiator, proposal.OriginalOrigin, proposal.RemainsEligible);
+                EnsureReaderState();
+            }
             if (proposal.Revision != revision)
             {
                 StaleProposal(logger, AppearanceOptionRegistry.Get(proposal.Option).Id, proposal.Revision);
@@ -132,6 +146,10 @@ public sealed partial class AppearanceConfigurationService(
             if (values[proposal.Option] == proposal.Value)
             {
                 return new(AppearanceApplyOutcome.Unchanged, Get(proposal.Option));
+            }
+            if (proposal.Option == AppearanceOption.ReaderTextScale)
+            {
+                return ApplyReaderScale(proposal, cancellationToken);
             }
             var audit = new SecurityAuditEvent(Guid.NewGuid(), SecurityAuditCategory.ConfigurationWrite,
                 AppearanceOptionRegistry.Get(proposal.Option).AuditAction, SecurityAuditOutcome.Requested,
@@ -170,6 +188,71 @@ public sealed partial class AppearanceConfigurationService(
         }
     }
 
+    private AppearanceApplyResult ApplyReaderScale(AppearanceProposal proposal, CancellationToken token)
+    {
+        using var activity = HostActivity.BeginOperation(HostActivityLayer.Application, HostOperation.Storage,
+            proposal.OriginalOrigin!.Value);
+        var audit = new SecurityAuditEvent(activity.Request.RequestId.Value,
+            SecurityAuditCategory.ConfigurationWrite, AppearanceOptionRegistry.Get(proposal.Option).AuditAction,
+            SecurityAuditOutcome.Requested, proposal.Initiator, "preferences.device-local");
+        try
+        {
+            auditLog.Write(audit);
+            token.ThrowIfCancellationRequested();
+            ValidateReaderAdmission(proposal.Initiator, proposal.OriginalOrigin, proposal.RemainsEligible);
+            EnsureReaderState();
+            preferences.BeginReaderTextScaleWrite();
+            preferences.SaveReaderTextScalePercent(proposal.Value.GetNumber());
+            if (preferences.ReadBackReaderTextScalePercent() != proposal.Value.GetNumber())
+            {
+                throw new InvalidDataException("Native reader text scale readback did not match the requested percentage.");
+            }
+            auditLog.Write(audit.WithOutcome(SecurityAuditOutcome.Succeeded));
+            preferences.ConfirmReaderTextScaleWrite();
+        }
+        catch (OperationCanceledException)
+        {
+            activity.Complete(HostOperationOutcome.Cancelled);
+            auditLog.Write(audit.WithOutcome(SecurityAuditOutcome.Cancelled, "user-cancelled"));
+            throw;
+        }
+        catch (Exception exception) when (exception is IOException or InvalidDataException
+            or UnauthorizedAccessException or InvalidOperationException)
+        {
+            activity.Complete(HostOperationOutcome.Failed);
+            auditLog.Write(audit.WithOutcome(SecurityAuditOutcome.Failed, "reader-scale-unconfirmed"));
+            SaveFailed(logger, AppearanceOptionRegistry.Get(proposal.Option).Id, exception);
+            throw;
+        }
+        values[proposal.Option] = proposal.Value;
+        savedOptions.Add(proposal.Option);
+        revision++;
+        activity.Complete(HostOperationOutcome.Completed);
+        Publish();
+        return new(AppearanceApplyOutcome.Applied, Get(proposal.Option));
+    }
+
+    private void EnsureReaderState()
+    {
+        var saved = preferences.LoadReaderTextScalePercent();
+        if ((saved ?? ReaderTextScaleSettings.DefaultPercent) != values[AppearanceOption.ReaderTextScale].GetNumber()
+            || saved.HasValue != savedOptions.Contains(AppearanceOption.ReaderTextScale))
+        {
+            throw new InvalidDataException("Native reader preference evidence changed; reload before proposing a new value.");
+        }
+    }
+
+    private static void ValidateReaderAdmission(SecurityAuditInitiator initiator, RequestOrigin? originalOrigin,
+        Func<bool>? remainsEligible)
+    {
+        if (originalOrigin is not (RequestOrigin.LocalUi or RequestOrigin.ActivatedVoice)
+            || (initiator == SecurityAuditInitiator.VoiceCommand) != (originalOrigin == RequestOrigin.ActivatedVoice)
+            || remainsEligible is null || !remainsEligible()
+            || HostActivity.Current is { } current && current.Request.Origin != originalOrigin)
+        {
+            throw new InvalidOperationException("Native reader scale requires the original exact local input and the owning unlocked host.");
+        }
+    }
     private void EnsureNotPublishing()
     {
         if (publishing)

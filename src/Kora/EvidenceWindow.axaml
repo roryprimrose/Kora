@@ -49,6 +49,14 @@
                    ContextMenu="{x:Null}" ContextFlyout="{x:Null}" AutomationProperties.Name="Exact audit correlation ID filter" />
         </WrapPanel>
         <WrapPanel>
+          <TextBox Text="{Binding EventIdFilter}" PlaceholderText="Exact event ID (signed 32-bit integer)" Width="300" Margin="0,0,10,8"
+                   ContextMenu="{x:Null}" ContextFlyout="{x:Null}" AutomationProperties.Name="Exact event ID filter" />
+          <TextBox Text="{Binding CategoryFilter}" PlaceholderText="Exact case-sensitive category (max 256)" Width="300" Margin="0,0,10,8"
+                   ContextMenu="{x:Null}" ContextFlyout="{x:Null}" AutomationProperties.Name="Exact category filter" />
+          <TextBox Text="{Binding ActionIdFilter}" PlaceholderText="Exact case-sensitive audit action ID (max 128)" Width="300" Margin="0,0,10,8"
+                   ContextMenu="{x:Null}" ContextFlyout="{x:Null}" AutomationProperties.Name="Exact audit action ID filter" />
+        </WrapPanel>
+        <WrapPanel>
           <TextBox Text="{Binding FromFilter}" PlaceholderText="From inclusive: 2026-10-10T00:00:00Z" Width="380" Margin="0,0,10,8"
                    ContextMenu="{x:Null}" ContextFlyout="{x:Null}" AutomationProperties.Name="Inclusive evidence time range start" />
           <TextBox Text="{Binding UntilFilter}" PlaceholderText="Until inclusive: ISO time with Z or offset" Width="380" Margin="0,0,10,8"
@@ -63,7 +71,7 @@
                   AutomationProperties.Name="Unset all advanced evidence filters without reading" />
         </StackPanel>
         <TextBlock TextWrapping="Wrap"
-                   Text="Blank means unset; Clear advanced filters resets typed choices to Any. GUIDs are correlation only, never permission. Both time edges are inclusive; ISO Z or explicit offsets normalize to UTC. SQLite/AuthorityAudit use commit time; DailyLog uses observation time; CombinedLog uses each source's own time, not an atomic snapshot. Severity requires All, Log, Audit, DailyLog or CombinedLog; audit outcome requires All, Audit or AuthorityAudit. Changing any filter clears results; search again." />
+                   Text="Blank means unset; Clear advanced filters resets typed choices to Any. Event ID/category/action use empty-only unset; whitespace-only, noncanonical integers and surrounding text whitespace fail. Event IDs include zero and negative signed 32-bit values. Category/action compare exact case-sensitive text. Category is diagnostic category, activity source for Span/Link, or typed audit category for AuthorityAudit. Event ID/severity require All, Log, Audit, DailyLog or CombinedLog; action ID/audit outcome require All, Audit or AuthorityAudit. All remains SQLite-only; CombinedLog does not support action ID. Correlation is never identity, permission or audit authority. Both time edges are inclusive; ISO Z or explicit offsets normalize to UTC. SQLite/AuthorityAudit use commit time; DailyLog uses observation time; CombinedLog uses each source's own time, not an atomic snapshot. Changing any filter clears results; search again." />
       </StackPanel>
     </Expander>
     <controls:NamedTextBlock Grid.Row="4" Text="{Binding Status}" TextWrapping="Wrap"

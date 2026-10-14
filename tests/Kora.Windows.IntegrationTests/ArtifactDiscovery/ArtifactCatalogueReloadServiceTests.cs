@@ -39,10 +39,12 @@ public sealed class ArtifactCatalogueReloadServiceTests : IDisposable
             preferences,
             configuration,
             mcp,
-            NullLogger<ArtifactCatalogueReloadService>.Instance);
+            NullLogger<ArtifactCatalogueReloadService>.Instance,
+            profileRoamingRoot: Path.Combine(root, "profile"));
         reload.Start();
         var changed = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         catalogue.Changed += (_, _) => changed.TrySetResult();
+        catalogue.ReloadFailed += (_, args) => changed.TrySetException(args.Exception);
 
         WritePrompt(prompt, "Updated", "Updated instructions.");
         await changed.Task.WaitAsync(

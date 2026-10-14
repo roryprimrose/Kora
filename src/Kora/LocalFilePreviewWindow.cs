@@ -6,6 +6,7 @@ using Avalonia.Media;
 
 using Kora.Application.Infrastructure;
 using Kora.Application.Presentation;
+using Kora.Application.ViewModels;
 using Kora.Controls;
 using Kora.Core.Context;
 using Kora.Core.Storage;
@@ -13,7 +14,7 @@ using Kora.Core.Hosting;
 
 namespace Kora;
 
-internal sealed partial class LocalFilePreviewWindow(Action<string> reportFailure) : Window
+internal sealed partial class LocalFilePreviewWindow(Action<string> reportFailure, MainViewModel? typographyHost = null) : Window
 {
     private NamedTextBlock content = CreateContent();
     private TextBox? queryBox;
@@ -383,10 +384,12 @@ internal sealed partial class LocalFilePreviewWindow(Action<string> reportFailur
     private DockPanel Compose(string metadata, Button? confirm, string? text, string disclosureText = Disclosure)
     {
         ClearContent();
+        typographyHost?.EnsureReaderTypographyAvailable();
         content = CreateContent();
+        if (typographyHost is not null) { NativeReaderTypography.Bind(content, typographyHost); }
         Width = 800;
         Height = 640;
-        var body = new DockPanel { Margin = new Avalonia.Thickness(16) };
+        var body = new DockPanel { LastChildFill = false };
         var chrome = new StackPanel { Spacing = 8 };
         var identity = new NamedTextBlock { Text = metadata, TextWrapping = TextWrapping.Wrap };
         AutomationProperties.SetName(identity, "Local file review identity and bounds");
@@ -400,16 +403,25 @@ internal sealed partial class LocalFilePreviewWindow(Action<string> reportFailur
         body.Children.Add(reviewScroll);
         content.Text = text;
         AutomationProperties.SetName(content, "Untrusted local file plain text content");
-        var source = new DockPanel();
+        var source = new Grid { RowDefinitions = new RowDefinitions("Auto,*") };
         AddCitationSpan(source);
-        source.Children.Add(new ScrollViewer
+        var sourceViewport = new ScrollViewer
         {
             Content = content,
             HorizontalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Auto,
             VerticalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Auto,
+        };
+        Grid.SetRow(sourceViewport, 1);
+        source.Children.Add(sourceViewport);
+        var layout = new Grid { Margin = new Avalonia.Thickness(16), RowDefinitions = new RowDefinitions("2*,3*") };
+        layout.Children.Add(new ScrollViewer
+        {
+            Content = body,
+            VerticalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Auto,
         });
-        body.Children.Add(source);
-        Content = body;
+        Grid.SetRow(source, 1);
+        layout.Children.Add(source);
+        Content = layout;
         return body;
     }
 

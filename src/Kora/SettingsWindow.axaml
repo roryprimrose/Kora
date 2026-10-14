@@ -78,6 +78,16 @@
             </StackPanel>
 
             <TextBlock Text="{Binding AppearanceSettingStatus}" Classes="muted" TextWrapping="Wrap" />
+            <Border Classes="settings-card">
+              <StackPanel Spacing="8">
+                <TextBlock Text="Native reader text scale" Classes="settings-title" />
+                <TextBlock Text="Integer percent: 75–200; default 100. Applies only to detail Rendered/Source/continuous text and native file/clipboard source bodies. Chrome, consent, errors, captions and other surfaces do not scale."
+                           TextWrapping="Wrap" Classes="settings-description" />
+                <NumericUpDown Value="{Binding ReaderTextScalePercent}" Minimum="{Binding ReaderTextScaleMinimum}" Maximum="{Binding ReaderTextScaleMaximum}" Increment="1"
+                               FormatString="0" Width="160" HorizontalAlignment="Left"
+                               AutomationProperties.Name="Native reader text scale percentage" />
+              </StackPanel>
+            </Border>
             <StackPanel Orientation="Horizontal" Spacing="12">
               <ComboBox ItemsSource="{Binding AppearanceOptions}" SelectedItem="{Binding SelectedAppearanceOption}" Width="340"
                         AutomationProperties.Name="Select an appearance option to inspect or change">

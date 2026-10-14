@@ -86,6 +86,26 @@ public sealed partial class WindowsSqliteHostInteractionStore : ISessionConversa
             return result;
         }, token));
 
+    public ValueTask<ConversationMessage> ReadConversationMessageAsync(HostId<SessionIdentity> session,
+        HostId<RequestIdentity> request, CancellationToken token) =>
+        new(Task.Run(() =>
+        {
+            session.Validate();
+            request.Validate();
+            using var lease = database.AcquireReadLease(token);
+            using var connection = Open(created: false, token);
+            using var transaction = connection.BeginTransaction();
+            var authority = RequireSession(connection, session);
+            if (authority.State == 2) { throw new InvalidOperationException("Removed conversation content is unavailable."); }
+            var message = ReadConversationMessage(connection, request)
+                ?? throw new InvalidOperationException("The exact retained conversation record is unavailable.");
+            if (message.Request.SessionId != session || message.Generation.Value > authority.Authority.Generation.Value)
+            { throw new InvalidDataException("Conversation detail ownership does not match the exact retained session."); }
+            database.VerifyFiles();
+            token.ThrowIfCancellationRequested();
+            return message;
+        }, token));
+
     public async ValueTask<ConversationDraftSnapshot> CommitConversationDraftAsync(HostRequest control,
         ConversationDraftSnapshot expected, string? body, Func<bool> admitted, CancellationToken token)
     {

@@ -42,6 +42,8 @@ public sealed class WindowsCommittedAuthorityAuditTests
             () => viewer.ApprovalFilter = selected.ApprovalId!.Value.ToString("D"),
             () => viewer.CorrelationFilter = selected.CorrelationId!.Value.ToString("D"),
             () => viewer.AuditOutcome = selected.Audit!.Outcome,
+            () => viewer.CategoryFilter = selected.Audit!.Category.ToString(),
+            () => viewer.ActionIdFilter = selected.Audit!.ActionId,
             () => viewer.FromFilter = selected.CommittedUtc!.Value.ToString("O", System.Globalization.CultureInfo.InvariantCulture),
             () => viewer.UntilFilter = selected.CommittedUtc!.Value.ToString("O", System.Globalization.CultureInfo.InvariantCulture),
         };
@@ -60,10 +62,23 @@ public sealed class WindowsCommittedAuthorityAuditTests
         viewer.AuditOutcome = selected.Audit!.Outcome;
         viewer.FromFilter = selected.CommittedUtc!.Value.ToString("O", System.Globalization.CultureInfo.InvariantCulture);
         viewer.UntilFilter = viewer.FromFilter;
+        viewer.CategoryFilter = selected.Audit.Category.ToString();
+        viewer.ActionIdFilter = selected.Audit.ActionId;
         await viewer.SearchAsync();
         viewer.Records.Should().ContainSingle().Which.Reference.Should().Be(selected.Reference);
         viewer.Status.Should().Contain(EvidencePage.AuthorityDisclosure);
         viewer.ResultText.Should().Contain("AuthorityProvenance");
+        viewer.CategoryFilter = selected.Audit.Category.ToString().ToLowerInvariant();
+        await viewer.SearchAsync();
+        viewer.Records.Should().BeEmpty();
+        viewer.CategoryFilter = selected.Audit.Category.ToString();
+        viewer.ActionIdFilter = selected.Audit.ActionId.ToUpperInvariant();
+        await viewer.SearchAsync();
+        viewer.Records.Should().BeEmpty();
+        viewer.EventIdFilter = "0";
+        await viewer.SearchAsync();
+        viewer.Status.Should().StartWith("Unsupported filter");
+        viewer.ResultText.Should().BeEmpty();
         viewer.ClearAdvancedFilters();
         viewer.FromFilter = selected.CommittedUtc.Value.AddTicks(1).ToString("O", System.Globalization.CultureInfo.InvariantCulture);
         await viewer.SearchAsync();

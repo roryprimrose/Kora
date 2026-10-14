@@ -101,7 +101,7 @@ internal sealed class LocalFilePreviewWindowController : IUserFilePicker, IUserF
         CloseView();
         if (id == Guid.Empty) { return; }
         showing = id;
-        var view = new LocalFilePreviewWindow(host.ReportHostInteractionFailure);
+        var view = new LocalFilePreviewWindow(host.ReportHostInteractionFailure, host);
         window = view;
         view.Closed += OnClosed;
         if (revision is not null)

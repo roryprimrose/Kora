@@ -15,13 +15,13 @@ internal sealed class ClipboardPreviewWindowController : IDisposable
     private readonly Action<string> reportFailure;
     private readonly DispatcherTimer? privacyTimer;
     private IClipboardPreviewView? window;
-    private Guid showing;
+    private ClipboardSnapshot? showing;
     private bool disposed;
 
     public ClipboardPreviewWindowController(MainViewModel host)
         : this(() => host.ClipboardPreview, host.ReuseClipboardAsync, host.ClearClipboardPreview, host.RevokeClipboardAsync,
             () => new ClipboardPreviewWindow(exception => host.ReportHostInteractionFailure(
-                "Native clipboard preview failed. No success is claimed. Failure type: " + exception.GetType().Name)),
+                "Native clipboard preview failed. No success is claimed. Failure type: " + exception.GetType().Name), host),
             host.ReportHostInteractionFailure)
     {
         this.host = host;
@@ -58,32 +58,36 @@ internal sealed class ClipboardPreviewWindowController : IDisposable
     {
         if (disposed) { return; }
         var snapshot = current();
-        if (snapshot is null || snapshot.SnapshotId != showing) { CloseView(); }
+        if (!ReferenceEquals(snapshot, showing)) { CloseView(); }
         if (snapshot is null || window is not null) { return; }
         var id = snapshot.SnapshotId;
         var view = create();
         window = view;
-        showing = id;
+        showing = snapshot;
         view.Closed += OnClosed;
+        bool IsCurrent() => !disposed && ReferenceEquals(window, view) && ReferenceEquals(current(), showing);
         // A queued callback cannot reuse or retarget another generation.
-        view.Show(snapshot, () => !disposed && current()?.SnapshotId == id
+        view.Show(snapshot, () => IsCurrent()
             ? reuse(id) : Task.FromException(new InvalidOperationException("Clipboard preview generation is stale; start a new explicit request.")),
-            () => !disposed && current()?.SnapshotId == id ? revoke()
-                : Task.FromException(new InvalidOperationException("Clipboard preview generation is stale; nothing was revoked. Start a new explicit request.")));
-        if (current()?.SnapshotId != id) { CloseView(); }
+            () => IsCurrent() ? revoke()
+                : Task.FromException(new InvalidOperationException("Clipboard preview generation is stale; nothing was revoked. Start a new explicit request.")),
+            IsCurrent);
+        if (!IsCurrent()) { CloseView(); }
     }
 
     private void OnClosed(object? sender, EventArgs args)
     {
+        if (!ReferenceEquals(sender, window)) { return; }
+        var clearCurrent = ReferenceEquals(current(), showing);
         CloseView();
-        clear();
+        if (clearCurrent) { clear(); }
     }
 
     private void CloseView()
     {
         var view = window;
         window = null;
-        showing = Guid.Empty;
+        showing = null;
         if (view is null) { return; }
         view.Closed -= OnClosed;
         view.ClearAndClose();

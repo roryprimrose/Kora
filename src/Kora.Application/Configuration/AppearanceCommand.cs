@@ -6,7 +6,7 @@ namespace Kora.Application.Configuration;
 public sealed record AppearanceCommand(AppearanceCommandOperation Operation,
     AppearanceOptionDescriptor? Descriptor = null, AppearanceValue? Value = null, string? Error = null)
 {
-    public const string Syntax = "Use list appearance settings, get <appearance.id>, set <appearance.id> to <value>, or reset <appearance.id>. The listed spoken name also works instead of the ID. Integers use the listed units, theme is system/light/dark, and booleans are true/false. Reset affects only that option.";
+    public const string Syntax = "Use list appearance settings, get/status <appearance.id>, set <appearance.id> to <value>, or reset <appearance.id>. The listed spoken name also works instead of the ID. Integers use the listed units, theme is system/light/dark, and booleans are true/false. Reset affects only that option.";
 
     public static AppearanceCommand? Parse(string transcript, string assistantName)
     {
@@ -19,6 +19,7 @@ public sealed record AppearanceCommand(AppearanceCommandOperation Operation,
         }
         if (!text.StartsWith("list appearance", StringComparison.OrdinalIgnoreCase)
             && !text.StartsWith("get appearance", StringComparison.OrdinalIgnoreCase)
+            && !text.StartsWith("status appearance", StringComparison.OrdinalIgnoreCase)
             && !text.StartsWith("set appearance", StringComparison.OrdinalIgnoreCase)
             && !text.StartsWith("reset appearance", StringComparison.OrdinalIgnoreCase))
         {
@@ -52,7 +53,8 @@ public sealed record AppearanceCommand(AppearanceCommandOperation Operation,
         {
             return new(AppearanceCommandOperation.Clarify, Error: "Choose an exact admitted appearance ID. " + Syntax);
         }
-        if (string.Equals(operation, "get", StringComparison.OrdinalIgnoreCase))
+        if (string.Equals(operation, "get", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(operation, "status", StringComparison.OrdinalIgnoreCase))
         {
             return new(AppearanceCommandOperation.Get, descriptor);
         }

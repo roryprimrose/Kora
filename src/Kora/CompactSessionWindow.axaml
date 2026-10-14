@@ -34,6 +34,20 @@
       <controls:ScrollableListBox ItemsSource="{Binding ConversationMessages}" MaxHeight="200"
           ItemTemplate="{StaticResource ConversationMessageTemplate}"
           AutomationProperties.Name="Original USER messages and separate typed HOST outcomes; inert native text, not assistant output" />
+      <TextBox x:Name="ConversationQuery" Text="{Binding ConversationQuery, Mode=TwoWay}" IsEnabled="{Binding CanReadConversation}"
+          PlaceholderText="Search retained USER words or typed HOST outcome/reason/task state in only this exact selected session"
+          AutomationProperties.Name="Shared private exact-session conversation lexical query; memory-only, not composer input, a model instruction or global search" />
+      <WrapPanel>
+        <Button x:Name="SearchConversation" Content="Search this conversation" IsEnabled="{Binding CanSearchConversation}" />
+        <Button x:Name="NextConversationSearch" Content="Next conversation matches" IsEnabled="{Binding CanNextConversationSearch}" />
+        <Button x:Name="CancelConversationSearch" Content="Cancel conversation search" IsEnabled="{Binding CanCancelConversationSearch}" />
+        <Button x:Name="ClearConversationSearch" Content="Clear private conversation search" />
+      </WrapPanel>
+      <controls:NamedTextBlock Text="{Binding ConversationSearchStatus}" TextWrapping="Wrap"
+          AutomationProperties.Name="Shared conversation search counters, exact snapshot continuation and explicit failures; no model context" />
+      <controls:ScrollableListBox x:Name="ConversationSearchResults" ItemsSource="{Binding ConversationSearchMessages}" MaxHeight="160"
+          ItemTemplate="{StaticResource ConversationMessageTemplate}"
+          AutomationProperties.Name="Shared exact immutable USER messages matching lexical words or typed HOST status; inert native text, chronological, no export or actions" />
       <TextBlock Text="Submit privately retains the original USER body with the actual HOST outcome. Production generation is unavailable; no runtime fallback, history context, network or tools. Structural credential checks cannot guarantee secret-free text. Draft edits are memory-only; both windows edit the same buffer." TextWrapping="Wrap" />
       <TextBox x:Name="ConversationComposer" Text="{Binding ComposerBody, Mode=TwoWay}" AcceptsReturn="True"
           Height="110" TextWrapping="Wrap" IsEnabled="{Binding CanCompose}"

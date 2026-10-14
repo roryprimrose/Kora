@@ -136,7 +136,7 @@ public sealed class BoundedSurfaceAccessibilityTests
                 var cycle = ReadCycle(window, first, reverse);
                 cycle.Select(control => ControlAutomationPeer.CreatePeerForElement(control)!.GetName())
                     .Should().BeEquivalentTo(
-                        "Appearance", "Select an appearance option to inspect or change",
+                        "Appearance", "Native reader text scale percentage", "Select an appearance option to inspect or change",
                         "Reset the selected appearance option to its default", "Show animated presence", "Application theme",
                         "Always show", "Stay on top", "Response timeout in seconds", "Presence timeout in seconds",
                         "Presence size in pixels", "Dot size percent", "Dot density percent", "Movement speed percent",
@@ -170,10 +170,14 @@ public sealed class BoundedSurfaceAccessibilityTests
                 window.FocusManager!.GetFocusedElement().Should().BeSameAs(selected);
                 var selector = window.FindControl<ComboBox>("PackageSelector")!;
                 var reader = ((Control)selected.Content!).GetVisualDescendants().OfType<TextBox>().Single();
+                var query = window.FindControl<TextBox>("PackageQuery")!;
+                var filter = window.FindControl<ComboBox>("PackageFilter")!;
+                var search = window.FindControl<Button>("SearchPackages")!;
+                var clear = window.FindControl<Button>("ClearPackageSearch")!;
                 ReadCycle(window, selector, reverse: false).Select(Describe)
-                    .Should().Equal(new Control[] { selected, reader, selector }.Select(Describe));
+                    .Should().Equal(new Control[] { selected, reader, query, filter, search, clear, selector }.Select(Describe));
                 ReadCycle(window, selector, reverse: true).Select(Describe)
-                    .Should().Equal(new Control[] { reader, selected, selector }.Select(Describe));
+                    .Should().Equal(new Control[] { clear, search, filter, query, reader, selected, selector }.Select(Describe));
                 reader.IsReadOnly.Should().BeTrue();
             }
             finally { window.Close(); }
@@ -255,7 +259,12 @@ public sealed class BoundedSurfaceAccessibilityTests
                 var selector = window.FindControl<ComboBox>("PackageSelector")!;
                 var tab = (TabItem)window.FindControl<TabControl>("SourceTabs")!.SelectedItem!;
                 var source = ((Control)tab.Content!).GetVisualDescendants().OfType<TextBox>().Single();
-                var expected = reverse ? new Control[] { source, tab, selector } : [tab, source, selector];
+                var query = window.FindControl<TextBox>("PackageQuery")!;
+                var filter = window.FindControl<ComboBox>("PackageFilter")!;
+                var search = window.FindControl<Button>("SearchPackages")!;
+                var clear = window.FindControl<Button>("ClearPackageSearch")!;
+                var expected = reverse ? new Control[] { clear, search, filter, query, source, tab, selector }
+                    : [tab, source, query, filter, search, clear, selector];
                 ReadCycle(window, selector, reverse).Select(Describe).Should().Equal(expected.Select(Describe));
                 ReadCycle(window, selector, reverse).Select(Describe).Should().Equal(expected.Select(Describe));
                 source.IsReadOnly.Should().BeTrue();

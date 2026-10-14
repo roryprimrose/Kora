@@ -57,6 +57,7 @@ public sealed partial class WindowsSqliteSessionAttachmentTests
             new SessionAttachmentQuery(includeRemoved),
             new SessionAttachmentQuery(includeRemoved, Guid.NewGuid().ToString("D")),
             new SessionAttachmentQuery(!includeRemoved, target.Value.ToString("D")),
+            new SessionAttachmentQuery(includeRemoved, target.Value.ToString("D"), SessionAttachmentFilter.Active),
         })
         {
             var wrong = () => fixture.Store.ReadAttachmentPage(changed, first.Next, () => true, fixture.Token).AsTask();
@@ -88,6 +89,9 @@ public sealed partial class WindowsSqliteSessionAttachmentTests
     [InlineData("query-null")]
     [InlineData("query-missing-id")]
     [InlineData("query-missing-flag")]
+    [InlineData("query-missing-filter")]
+    [InlineData("query-invalid-filter")]
+    [InlineData("query-changed-filter")]
     [InlineData("query-unknown")]
     [InlineData("query-noncanonical")]
     [InlineData("signature")]
@@ -112,6 +116,9 @@ public sealed partial class WindowsSqliteSessionAttachmentTests
                 case "query-null": payload["Query"] = null; break;
                 case "query-missing-id": payload["Query"]!.AsObject().Remove("ExactSessionId"); break;
                 case "query-missing-flag": payload["Query"]!.AsObject().Remove("IncludeRemoved"); break;
+                case "query-missing-filter": payload["Query"]!.AsObject().Remove("Filter"); break;
+                case "query-invalid-filter": payload["Query"]!["Filter"] = 99; break;
+                case "query-changed-filter": payload["Query"]!["Filter"] = (int)SessionAttachmentFilter.Done; break;
                 case "query-unknown": payload["Query"]!["NameSubstring"] = "not admitted"; break;
                 case "query-noncanonical": payload["Query"]!["ExactSessionId"] = query.ExactSessionId!.ToUpperInvariant(); break;
             }

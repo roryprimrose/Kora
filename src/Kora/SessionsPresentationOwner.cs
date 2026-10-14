@@ -1,5 +1,7 @@
 using Avalonia.Controls;
+using Avalonia.Interactivity;
 using Avalonia.Threading;
+using Kora.Core.Conversation;
 
 namespace Kora;
 
@@ -7,6 +9,7 @@ namespace Kora;
 internal sealed class SessionsPresentationOwner
 {
     private readonly SessionsViewModel model;
+    private readonly EventHandler<RoutedEventArgs> conversationDetailClick;
     private readonly List<Window> surfaces = [];
     private readonly DispatcherTimer refresh = new() { Interval = TimeSpan.FromSeconds(5) };
     private Window? active;
@@ -14,10 +17,14 @@ internal sealed class SessionsPresentationOwner
     private bool closing;
     private bool revoked;
     internal Task CloseOperation { get; private set; } = Task.CompletedTask;
+    internal Task DetailOperation { get; private set; } = Task.CompletedTask;
 
     internal SessionsPresentationOwner(SessionsViewModel model)
     {
         this.model = model;
+#pragma warning disable MA0147 // Avalonia routed-event boundary; the model operation handles and reports failures.
+        conversationDetailClick = OpenConversationDetail;
+#pragma warning restore MA0147
         model.DecideComposerDraft = ChooseDraft;
         model.SetProviderSurfaceOpen(false);
         refresh.Tick += Refresh;
@@ -30,6 +37,7 @@ internal sealed class SessionsPresentationOwner
         surface.Activated += Activated;
         surface.Closing += Closing;
         surface.Closed += Closed;
+        surface.AddHandler(Button.ClickEvent, conversationDetailClick);
         refresh.Start();
     }
 
@@ -49,6 +57,14 @@ internal sealed class SessionsPresentationOwner
     }
 
     private void Activated(object? sender, EventArgs args) => active = sender as Window;
+
+    private async void OpenConversationDetail(object? sender, RoutedEventArgs args)
+    {
+        if (revoked || args.Source is not Button { Name: "OpenConversationDetail", DataContext: ConversationMessage message }
+            || !model.CanOpenConversationDetails) { return; }
+        args.Handled = true;
+        await (DetailOperation = model.OpenConversationDetailAsync(message));
+    }
 
     private void Closing(object? sender, WindowClosingEventArgs args)
     {
@@ -78,6 +94,7 @@ internal sealed class SessionsPresentationOwner
         surface.Activated -= Activated;
         surface.Closing -= Closing;
         surface.Closed -= Closed;
+        surface.RemoveHandler(Button.ClickEvent, conversationDetailClick);
         surfaces.Remove(surface);
         if (ReferenceEquals(active, surface)) { active = null; }
         if (surfaces.Count != 0) { return; }

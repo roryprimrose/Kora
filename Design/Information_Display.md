@@ -10,6 +10,18 @@ The bounded native shared-question slice additionally reuses this passive
 plain-text renderer for complete immutable host-record review, separate from
 native answer/approval controls.
 
+## Delivered retained original USER / typed HOST Details - 2026-10-14
+
+After an explicit conversation Read or Search, the [shared native row](../src/Kora/ConversationPresentation.axaml) offers **Details - exact original USER / separate HOST** in Sessions and compact wherever that row is projected. Opening either surface or selecting session metadata reads/opens no Details automatically.
+
+The [canonical resolver](../src/Kora.Application/Hosting/SessionWorkspaceService.Conversation.cs) admits only the actual exact-session retained record: immutable request/task/sequence, record revision, original generation/time and byte-exact USER body. [RetainedConversation](../src/Kora.Core/Presentation/AdmittedDetailContent.cs) is a distinct typed origin, not `FinalizedResponse`, history receipts or model authority.
+
+The existing [viewer controller](../src/Kora/DetailWindowController.cs) renders inert plain text, with the separate typed HOST outcome/reason/task state in [native chrome](../src/Kora/DetailWindow.axaml.cs). The body SHA-256 and reference/revision stay immutable. Reopening deduplicates the same snapshot under native-text-v1's existing eight-viewer/source/search limits; conflicts never follow newer content.
+
+Exact storage/session/source/private/control/owner checks run at resolution and final publication. Only explicitly opened records receive bounded passive source revalidation. Selection/source loss, session disposition/retention, privacy and disposal revoke content/search and fence delayed publication. Retained Done stays Done without Resume or meaningful activity renewal.
+
+This route grants no clipboard/export authority: exact-source, selection and automatic copy remain blocked by [viewer state policy](../src/Kora.Application/Presentation/DetailViewerState.cs), including keyboard/programmatic paths. Existing document/history/web copy policy is unchanged. No model, tool, provider, egress, generated content, auto-offer or broader runtime/hardware/accessibility qualification is delivered.
+
 ## Delivered passive exact-conversation search - 2026-10-13
 
 The selected Sessions conversation pane now separately searches original retained USER bodies and typed HOST outcomes/reasons/task states. It shares the chronological native inert row template; full exact body and original request/task/sequence remain data, not model answers, generated summaries, ranked citations, rich links or execution controls.
@@ -221,6 +233,15 @@ search restrictions. The [native filter/parser](../src/Kora/EvidenceViewModel.Fi
 and [native/real-reader tests](../tests/Kora.Windows.IntegrationTests/EvidenceAdvancedFilterTests.cs)
 are the maintained evidence for this deterministic filtering slice, not
 installed/native accessibility, model reasoning or release qualification.
+
+The native form also consumes the existing `EvidenceQuery.EventId`, `Category` and `ActionId`, not new storage or result-text predicates. Empty text alone unsets these fields; whitespace-only/surrounding whitespace, controls, malformed Unicode, over-limit text and noncanonical/overflow integers fail.
+Event ID uses canonical invariant signed Int32 decimal with zero/negative/boundary values; Category/ActionId retain 256/128-character limits and exact ordinal text, without domain action-name constraints
+([query contract](../src/Kora.Core/Diagnostics/EvidenceQuery.cs), [parser](../src/Kora/EvidenceViewModel.Filters.cs), [admission](../src/Kora.Application/Diagnostics/DurableEvidenceQuery.cs)).
+
+Category projects diagnostic category on Log/Audit/DailyLog, activity source on Span/Link, and typed audit-category name on AuthorityAudit. Event ID supports All/Log/Audit/DailyLog/CombinedLog; ActionId supports All/Audit/AuthorityAudit.
+All remains SQLite-only; CombinedLog rejects ActionId because DailyLog cannot match it. Category rejects unavailable Session/Conversation; a citation under All narrows support to that source. Unsupported combinations fail before reading via existing native recovery
+([SQLite](../src/Kora.Windows/Storage/WindowsSqliteEvidenceReader.cs), [Daily](../src/Kora.Windows/Storage/WindowsDailyEvidenceReader.cs), [Combined](../src/Kora.Windows/Storage/WindowsEvidenceReader.cs),
+[AuthorityAudit](../src/Kora.Windows/Storage/WindowsSqliteHostInteractionStore.Inspection.cs), [source-admission tests](../tests/Kora.Application.UnitTests/Diagnostics/DurableEvidenceQueryTests.cs)).
 
 The complete compact serialized page, including correlation, typed values,
 stable citations and disclosure, is limited to 50 records / 64 KiB UTF-8.
@@ -1057,6 +1078,19 @@ Delivered caption options use [User Configuration](User_Configuration.md):
 | `display.speech-text-pin` | false / true; current observed caption only, run-only | `set display.speech-text-pin to true` |
 
 All also have exact get/status/reset and `list speech text settings` discovery.
+
+### Bounded native reader text scale
+
+The delivered native reader preference is `appearance.reader-text-scale`: an absolute integer percentage, default **100**, inclusive **75–200**. It uses the appearance registry, exact `get`/`status`/`set`/`reset` and `list appearance settings`, and the native Settings Appearance editor. Relative or natural-language examples below remain proposed, not inferred commands ([registry](../src/Kora.Core/Configuration/AppearanceOptionRegistry.cs), [parser](../src/Kora.Application/Configuration/AppearanceCommand.cs)).
+
+Only content typography scales: shared DetailWindow Rendered blocks, exact Source and continuous text; native original file/folder and retained attachment source bodies; exact source citation/literal-match spans; native volatile clipboard snapshot source body. Newly created windows inherit the confirmed preference. Repeated changes apply against each control's original font/line-height, never cumulatively ([binding](../src/Kora/NativeReaderTypography.cs), [detail](../src/Kora/DetailWindow.axaml.cs), [file](../src/Kora/LocalFilePreviewWindow.cs), [span](../src/Kora/LocalFilePreviewWindow.Citations.cs), [clipboard](../src/Kora/ClipboardPreviewWindow.cs)).
+
+Trusted chrome, consent/approval/question controls, search inputs/results, provenance/citation locations, errors and renderer status retain their own typography and scrolling. This does not scale entire windows or transform content. Immutable source strings/bytes, search offsets and citations are not rewritten; content access, copy/export, caption enablement, call policy, permissions and persistence consent remain separate ([detail shell](../src/Kora/DetailWindow.axaml), [file reader](../src/Kora/LocalFilePreviewWindow.cs), [clipboard reader](../src/Kora/ClipboardPreviewWindow.cs)).
+
+The preference is device-local atomic state under application data paths, with strict integer validation and pending evidence until exact readback and successful audit. Malformed, unknown, externally changed or unconfirmed evidence fails explicitly; it is not silently treated as 100. Existing preference files/migrations remain unchanged ([store](../src/Kora.Application/Configuration/LocalReaderTextScalePreferences.cs), [workflow](../src/Kora.Application/Configuration/AppearanceConfigurationService.cs)).
+
+Excluded: inline guide/grant previews, compact response/conversation lists, evidence/search/attachment catalogues, captions, browser/generated HTML/Mermaid/PDF/image renderers, model/runtime interfaces and voice-command inference. This is **not global text scaling**. Full accessibility, real hardware, Windows DPI/display and assistive-technology acceptance remain open; deterministic headless checks qualify only these bounded native readers.
+
 The broader proposed registry includes:
 
 | Preference | Default / choices | Example after "Kora" |

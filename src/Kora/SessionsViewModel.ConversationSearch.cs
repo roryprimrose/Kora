@@ -2,6 +2,7 @@ using System.Globalization;
 
 using Kora.Core.Conversation;
 using Kora.Core.Diagnostics;
+using Kora.Core.Storage;
 
 namespace Kora;
 
@@ -12,6 +13,8 @@ internal sealed partial class SessionsViewModel
     private CancellationTokenSource? conversationSearchCancellation;
     private long conversationSearchEpoch;
     private bool conversationSearchBusy;
+    private SessionWorkspaceEntry? conversationSearchTarget;
+    private long conversationSearchControlRevision;
     private string conversationSearchStatus = "Search only this exact session's retained USER messages and typed HOST outcomes. No model context or receipt-history search.";
 
     public string ConversationQuery
@@ -22,6 +25,8 @@ internal sealed partial class SessionsViewModel
             if (closed || !access.CanInspect) { return; }
             InvalidateConversationSearch();
             conversationQuery = value;
+            conversationSearchTarget = selected;
+            conversationSearchControlRevision = access.ControlRevision;
             conversationSearchStatus = "Query edited. Explicit Search required; composer and saved draft are unchanged.";
             NotifyConversationSearch();
         }
@@ -36,6 +41,7 @@ internal sealed partial class SessionsViewModel
     {
         InvalidateConversationSearch();
         conversationQuery = string.Empty;
+        conversationSearchTarget = null;
         conversationSearchStatus = "Private search query, rows and continuation cleared. Composer and saved draft unchanged.";
         NotifyConversationSearch();
     }
@@ -54,6 +60,8 @@ internal sealed partial class SessionsViewModel
         var selection = selectionEpoch;
         var revision = access.ControlRevision;
         var query = conversationQuery;
+        conversationSearchTarget = target;
+        conversationSearchControlRevision = revision;
         var cursor = next ? conversationSearchPage?.Next : null;
         InvalidateConversationSearch();
         var epoch = conversationSearchEpoch;
@@ -87,6 +95,12 @@ internal sealed partial class SessionsViewModel
             if (Live())
             {
                 conversationSearchPage = null;
+                if (exception is not ArgumentException and not OperationCanceledException)
+                {
+                    InvalidateConversationSearch();
+                    conversationQuery = string.Empty;
+                    conversationSearchTarget = null;
+                }
                 conversationSearchStatus = exception switch
                 {
                     ArgumentException => "InvalidQuery or CursorMismatch. Use 1-256 UTF-16 characters / 512 UTF-8 bytes with 1-32 distinct lexical terms of at most 64 characters; start fresh Search.",
@@ -95,6 +109,7 @@ internal sealed partial class SessionsViewModel
                     _ => "Exact conversation search unavailable. No search content; refresh the selected source and start fresh Search.",
                 };
             }
+            else if (conversationSearchEpoch == epoch) { ClearConversationSearch(); }
             Failure(logger, exception.GetType().Name);
             activity.Complete(exception is OperationCanceledException ? HostOperationOutcome.Cancelled : HostOperationOutcome.Failed);
         }
@@ -108,6 +123,14 @@ internal sealed partial class SessionsViewModel
 
     private void NotifyConversationSearch()
     {
+        if (conversationSearchTarget is { } target
+            && (closed || !access.CanInspect || access.ControlRevision != conversationSearchControlRevision || selected != target))
+        {
+            InvalidateConversationSearch();
+            conversationQuery = string.Empty;
+            conversationSearchTarget = null;
+            conversationSearchStatus = "Exact session/source or private ownership changed. Private search cleared; explicit fresh Search required.";
+        }
         foreach (var name in new[] { nameof(ConversationQuery), nameof(ConversationSearchStatus),
             nameof(ConversationSearchMessages), nameof(CanSearchConversation), nameof(CanNextConversationSearch),
             nameof(CanCancelConversationSearch) })

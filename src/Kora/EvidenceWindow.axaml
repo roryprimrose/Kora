@@ -124,7 +124,7 @@
         </controls:ScrollableListBox>
       </Grid>
       <ScrollViewer Grid.Column="1" HorizontalScrollBarVisibility="Disabled">
-        <controls:NamedTextBlock Text="{Binding ResultText}" TextWrapping="Wrap" FontFamily="Consolas"
+        <controls:NamedTextBlock x:Name="EvidenceBody" Text="{Binding ResultText}" TextWrapping="Wrap" FontFamily="Consolas"
                    AutomationProperties.Name="Bounded structured evidence result, read only, no copy or export" />
       </ScrollViewer>
     </Grid>

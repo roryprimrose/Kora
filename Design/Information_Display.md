@@ -207,6 +207,20 @@ exercise native/headless behavior, not installed accessibility or full
 qualification. General Ask Evidence, source search beyond existing filters,
 copy/export and new audit authority remain unavailable.
 
+The confirmed device-local [reader text scale](#bounded-native-reader-text-scale)
+also applies to only the admitted complete immutable serialized page body and
+its focused inert literal-Find span. New windows and live confirmed changes
+use each control's original font size/line height, not cumulative scaling.
+Filters, result navigation, provenance labels, status/errors, controls,
+accessible names and window dimensions retain their typography. Incomplete
+pages retain baseline typography; replacement, source/private closure,
+failure/cancellation and close retire scaled match/content state, including
+late callbacks. Unavailable preference evidence explicitly retires the reader,
+never silently substitutes 100. Serialization bytes, content-owned line breaks,
+UTF-16 offsets, record selection, continuations and evidence reads are unchanged.
+This adds no content, copy/export, persistence or activity authority and makes
+no installed accessibility claim.
+
 **AuthorityAudit** is a separate opt-in source for the real schema-v3
 interaction store's committed typed `security_audit_events`. It is not the
 SQLite diagnostic **Audit** projection or a daily audit mirror. **All** remains
@@ -1127,13 +1141,13 @@ All also have exact get/status/reset and `list speech text settings` discovery.
 
 The delivered native reader preference is `appearance.reader-text-scale`: an absolute integer percentage, default **100**, inclusive **75–200**. It uses the appearance registry, exact `get`/`status`/`set`/`reset` and `list appearance settings`, and the native Settings Appearance editor. Relative or natural-language examples below remain proposed, not inferred commands ([registry](../src/Kora.Core/Configuration/AppearanceOptionRegistry.cs), [parser](../src/Kora.Application/Configuration/AppearanceCommand.cs)).
 
-Only content typography scales: shared DetailWindow Rendered blocks, exact Source and continuous text; native original file/folder and retained attachment source bodies; exact source citation/literal-match spans; native volatile clipboard snapshot source body. Newly created windows inherit the confirmed preference. Repeated changes apply against each control's original font/line-height, never cumulatively ([binding](../src/Kora/NativeReaderTypography.cs), [detail](../src/Kora/DetailWindow.axaml.cs), [file](../src/Kora/LocalFilePreviewWindow.cs), [span](../src/Kora/LocalFilePreviewWindow.Citations.cs), [clipboard](../src/Kora/ClipboardPreviewWindow.cs)).
+Only content typography scales: shared DetailWindow Rendered blocks, exact Source and continuous text; native original file/folder and retained attachment source bodies; exact source citation/literal-match spans; native volatile clipboard snapshot source body; admitted complete immutable serialized Evidence page body and its inert focused literal-Find span. Newly created windows inherit the confirmed preference. Repeated changes apply against each control's original font/line-height, never cumulatively ([binding](../src/Kora/NativeReaderTypography.cs), [detail](../src/Kora/DetailWindow.axaml.cs), [file](../src/Kora/LocalFilePreviewWindow.cs), [span](../src/Kora/LocalFilePreviewWindow.Citations.cs), [clipboard](../src/Kora/ClipboardPreviewWindow.cs), [Evidence](../src/Kora/EvidenceWindow.axaml.cs)).
 
 Trusted chrome, consent/approval/question controls, search inputs/results, provenance/citation locations, errors and renderer status retain their own typography and scrolling. This does not scale entire windows or transform content. Immutable source strings/bytes, search offsets and citations are not rewritten; content access, copy/export, caption enablement, call policy, permissions and persistence consent remain separate ([detail shell](../src/Kora/DetailWindow.axaml), [file reader](../src/Kora/LocalFilePreviewWindow.cs), [clipboard reader](../src/Kora/ClipboardPreviewWindow.cs)).
 
 The preference is device-local atomic state under application data paths, with strict integer validation and pending evidence until exact readback and successful audit. Malformed, unknown, externally changed or unconfirmed evidence fails explicitly; it is not silently treated as 100. Existing preference files/migrations remain unchanged ([store](../src/Kora.Application/Configuration/LocalReaderTextScalePreferences.cs), [workflow](../src/Kora.Application/Configuration/AppearanceConfigurationService.cs)).
 
-Excluded: inline guide/grant previews, compact response/conversation lists, evidence/search/attachment catalogues, captions, browser/generated HTML/Mermaid/PDF/image renderers, model/runtime interfaces and voice-command inference. This is **not global text scaling**. Full accessibility, real hardware, Windows DPI/display and assistive-technology acceptance remain open; deterministic headless checks qualify only these bounded native readers.
+Excluded: inline guide/grant previews, compact response/conversation lists, Evidence filters/query fields/result navigation/provenance/status and incomplete pages, search/attachment catalogues, captions, browser/generated HTML/Mermaid/PDF/image renderers, model/runtime interfaces and voice-command inference. This is **not global text scaling**. Full accessibility, real hardware, Windows DPI/display and assistive-technology acceptance remain open; deterministic headless checks qualify only these bounded native readers.
 
 The broader proposed registry includes:
 

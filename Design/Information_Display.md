@@ -22,6 +22,16 @@ Exact storage/session/source/private/control/owner checks run at resolution and 
 
 This route grants no clipboard/export authority: exact-source, selection and automatic copy remain blocked by [viewer state policy](../src/Kora.Application/Presentation/DetailViewerState.cs), including keyboard/programmatic paths. Existing document/history/web copy policy is unchanged. No model, tool, provider, egress, generated content, auto-offer or broader runtime/hardware/accessibility qualification is delivered.
 
+### Native admitted-text literal Find
+
+The existing Detail window now exposes **Find first / Next / Previous / Cancel Find / Clear literal Find** over only its frozen in-memory displayed text. Exact source and continuous semantic text remain distinct projections; switching source resets navigation. Retained original USER is unchanged, with a separate explicit **Find separate typed HOST observation** target for the already displayed native observation, never a combined or generated body.
+
+[Viewer state](../src/Kora.Application/Presentation/DetailViewerState.cs) uses the canonical [SnapshotLiteralFind](../src/Kora.Core/Context/SnapshotLiteralFind.cs) policy shared by clipboard/local-file Find: case-sensitive unchanged spaces, nonempty well-formed one-line query, at most 256 UTF-16 characters / 512 strict UTF-8 bytes, nonoverlapping steps and **no wrap**. Invalid queries are rejected visibly, not normalized or shortened. One inert bounded span and end-exclusive UTF-16 location are exposed, without indexing/counting all occurrences. Direction exhaustion hides the match but retains its cursor for reverse navigation.
+
+Query edits, projection/target changes, Cancel and Clear retire the cursor; Cancel retains the query, Clear releases it. Close, source/revision replacement or failed private/source admission release all viewer text and fence publication/focus. Find is synchronous bounded in-memory work with no additional reader, task, timer or cancellation resource. Native Ctrl+F/Enter/F3/Shift+F3 and Escape preserve query/match/close focus behavior; the inert match follows existing reader text scale and accessible names/status.
+
+Find adds no admission/open route, clipboard/export, persistence/schema, logging/query telemetry, provider/egress, meaningful activity or execution authority. Existing independently admitted copy controls are unchanged; retained conversation copy stays blocked. Portable and headless tests are implementation evidence, not installed/accessibility/hardware or full qualification.
+
 ## Delivered passive exact-conversation search - 2026-10-13
 
 The selected Sessions conversation pane now separately searches original retained USER bodies and typed HOST outcomes/reasons/task states. It shares the chronological native inert row template; full exact body and original request/task/sequence remain data, not model answers, generated summaries, ranked citations, rich links or execution controls.
@@ -436,8 +446,9 @@ the current continuous semantic reader or exact-source reader, with the same
 access/disclosure gate. It never substitutes the whole source. `Ctrl+A`
 selects the continuous current content. `Ctrl+F`, `F3` / `Shift+F3`, `Ctrl+U`
 and `Escape` target native find, match navigation, exact source and close.
-Cut/paste and automatic TextBox/context clipboard paths are blocked; a query
-over 256 characters is rejected visibly rather than silently shortened.
+Cut/paste and automatic TextBox/context clipboard paths are blocked; Find uses
+the [admitted-text literal policy](#native-admitted-text-literal-find), not
+case-insensitive wrapping search.
 
 Remaining R14 gates include Sessions list/full conversation, durable
 history/artifact resolution, exact response offers and voice targeting,

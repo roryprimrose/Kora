@@ -223,7 +223,8 @@ public sealed partial class DetailWindowController : IDisposable
         {
             state = registry.Open(content, CanAccess(content),
                 content.Origin is DetailContentOrigin.RetrievedWebResult or DetailContentOrigin.RetainedConversation
-                    ? () => CanAccess(content) : null);
+                    ? () => CanAccess(content) : null,
+                () => !disposed && CanAccess(content));
         }
         catch (InvalidDataException) { return "Details unavailable: the immutable receipt changed. Close it and refresh history."; }
         catch (InvalidOperationException) { return "Details unavailable: close a viewer or check the privacy/input gate."; }

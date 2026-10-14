@@ -30,23 +30,36 @@
         <TextBlock Text="Find:" VerticalAlignment="Center" Margin="0,0,6,0" />
         <TextBox x:Name="SearchInput" Width="220" TabIndex="2" IsUndoEnabled="False"
                  ContextMenu="{x:Null}" ContextFlyout="{x:Null}"
-                 PlaceholderText="Find (Ctrl+F)" AutomationProperties.Name="Find in current text" />
-        <Button x:Name="PreviousMatch" Content="Previous (Shift+F3)" TabIndex="3"
-                AutomationProperties.Name="Previous search match" Margin="6,0" />
-        <Button x:Name="NextMatch" Content="Next (F3)" TabIndex="4"
-                AutomationProperties.Name="Next search match" />
+                 PlaceholderText="Literal Find (Ctrl+F)" AutomationProperties.Name="Case-sensitive literal Find in current admitted text only" />
+        <Button x:Name="PreviousMatch" Content="Previous (Shift+F3)" TabIndex="5"
+                AutomationProperties.Name="Previous literal match; no wrap" Margin="6,0" />
+        <Button x:Name="NextMatch" Content="Next (F3)" TabIndex="6"
+                AutomationProperties.Name="Next literal match; no wrap" />
       </WrapPanel>
+      <WrapPanel>
+        <CheckBox x:Name="FindHostToggle" Content="Find separate typed HOST observation" IsVisible="False" TabIndex="3"
+                  AutomationProperties.Name="Find only the separate admitted typed HOST observation" />
+        <Button x:Name="FirstMatch" Content="Find first (Enter)" Margin="8,0" TabIndex="4"
+                AutomationProperties.Name="Find first literal match; no wrap" />
+        <Button x:Name="CancelFind" Content="Cancel Find" Margin="8,0" TabIndex="7"
+                AutomationProperties.Name="Cancel literal Find and release match; retain query" />
+        <Button x:Name="ClearFind" Content="Clear literal Find" TabIndex="8"
+                AutomationProperties.Name="Clear literal Find query and match" />
+      </WrapPanel>
+      <TextBlock Text="Literal Find: exact case and spaces; one line, 256 UTF-16 characters / 512 UTF-8 bytes maximum; nonoverlapping, no wrap. Searches only current admitted text, never reads a source." TextWrapping="Wrap" />
+      <controls:NamedTextBlock x:Name="FindSpan" Focusable="True" IsVisible="False" TextWrapping="Wrap" TabIndex="14"
+                              AutomationProperties.Name="Exact inert admitted detail literal match" />
       <TextBlock x:Name="CopyPolicyLabel" Text="Copy exact source as Unicode plain text only. Clipboard content leaves Kora's boundary and may be read by other apps. Rich HTML copy is not supported."
                  TextWrapping="Wrap" />
-      <CheckBox x:Name="DisclosureConfirmation" TabIndex="5"
+      <CheckBox x:Name="DisclosureConfirmation" TabIndex="9"
                 Content="I confirm disclosure of this private source outside Kora."
                 AutomationProperties.Name="Confirm private source disclosure outside Kora" />
       <WrapPanel>
-        <Button x:Name="CopySelection" Content="Copy selection (Ctrl+C)" TabIndex="6"
+        <Button x:Name="CopySelection" Content="Copy selection (Ctrl+C)" TabIndex="10"
                 AutomationProperties.Name="Copy selected text from the continuous reader" />
-        <Button x:Name="CopySource" Content="Copy exact source (plain text)" TabIndex="7" Margin="8,0,0,0"
+        <Button x:Name="CopySource" Content="Copy exact source (plain text)" TabIndex="11" Margin="8,0,0,0"
                 AutomationProperties.Name="Copy exact source as plain text" />
-        <Button x:Name="CloseDetail" Content="Close (Escape)" TabIndex="8" Margin="8,0,0,0"
+        <Button x:Name="CloseDetail" Content="Close (Escape)" TabIndex="12" Margin="8,0,0,0"
                 AutomationProperties.Name="Close passive details" />
       </WrapPanel>
     </StackPanel>
@@ -55,7 +68,7 @@
       <StackPanel x:Name="RenderedDocument" Spacing="4" Margin="12" />
     </ScrollViewer>
     <TextBox x:Name="ContentReader" Grid.Row="2" IsReadOnly="True" AcceptsReturn="True" IsUndoEnabled="False"
-             TextWrapping="Wrap" TabIndex="9" ContextMenu="{x:Null}" ContextFlyout="{x:Null}"
+             TextWrapping="Wrap" TabIndex="13" ContextMenu="{x:Null}" ContextFlyout="{x:Null}"
              AutomationProperties.Name="Passive immutable detail text"
              Background="{DynamicResource KoraSurfaceAltBrush}"
              Foreground="{DynamicResource KoraForegroundBrush}"

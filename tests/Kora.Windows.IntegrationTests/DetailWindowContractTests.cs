@@ -47,8 +47,8 @@ public sealed class DetailWindowContractTests
         }
         var expectedOrder = new[]
         {
-            "SourceToggle", "ReadingTextToggle", "SearchInput", "PreviousMatch", "NextMatch", "DisclosureConfirmation",
-            "CopySelection", "CopySource", "CloseDetail", "ContentReader",
+            "SourceToggle", "ReadingTextToggle", "SearchInput", "FindHostToggle", "FirstMatch", "PreviousMatch", "NextMatch",
+            "CancelFind", "ClearFind", "DisclosureConfirmation", "CopySelection", "CopySource", "CloseDetail", "ContentReader", "FindSpan",
         };
         for (var index = 0; index < expectedOrder.Length; index++)
         {
@@ -77,7 +77,7 @@ public sealed class DetailWindowContractTests
             .And.Contain("reader.Text = string.Empty").And.Contain("renderedDocument.Children.Clear()")
             .And.Contain("selectable: false").And.Contain("reader.SelectAll()")
             .And.Contain("state.Close()").And.Contain("Show(owner)")
-            .And.NotContain("NotifyPresenceInteraction").And.NotContain("Cancel").And.NotContain("Clipboard.");
+            .And.NotContain("NotifyPresenceInteraction").And.NotContain("Clipboard.");
         Read("NativeDetailClipboard.cs").Should().Contain("SetTextAsync(source)")
             .And.NotContain("TryGet").And.NotContain("Html").And.NotContain("SetFile");
     }

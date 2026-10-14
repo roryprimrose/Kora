@@ -223,7 +223,6 @@ public sealed class SystemTrayController : IDisposable
         };
         trayClickTimer.Tick += OnTrayClickTimerTick;
         trayIcon.Clicked += OnTrayIconClicked;
-        menu.Opening += OnMenuOpening;
 
         viewModel.PropertyChanged += OnViewModelPropertyChanged;
         UpdateIdentityText();
@@ -242,7 +241,6 @@ public sealed class SystemTrayController : IDisposable
         disposed = true;
         DesktopLog.Debug(logger, "Disposing system tray controls");
         viewModel.PropertyChanged -= OnViewModelPropertyChanged;
-        menu.Opening -= OnMenuOpening;
         trayIcon.Clicked -= OnTrayIconClicked;
         trayClickTimer.Stop();
         trayClickTimer.Tick -= OnTrayClickTimerTick;
@@ -359,13 +357,6 @@ public sealed class SystemTrayController : IDisposable
         microphonesItem.Menu = devices;
     }
 
-    private void OnMenuOpening(object? sender, EventArgs eventArgs)
-    {
-        if (disposed) { return; }
-        UpdateVoiceControls();
-        refreshMicrophonesCommand.Execute(null);
-    }
-
     internal static NativeMenuItem CreateMicrophoneItem(
         MicrophoneDevice device, bool selected, string availability, bool selectable = true) =>
         new(device.Name + " (" + availability + ")"
@@ -395,7 +386,7 @@ public sealed class SystemTrayController : IDisposable
     private void RunAfterNativeMenuCloses(Action action) =>
         RunAfterNativeMenuCloses(action, continuation => DispatcherTimer.RunOnce(
             () => { if (!disposed) { continuation(); } },
-            NativeMenuDismissalDelay, DispatcherPriority.Background));
+            NativeMenuDismissalDelay, DispatcherPriority.Input));
 
     internal static void RunAfterNativeMenuCloses(Action action, Action<Action> schedule)
     {

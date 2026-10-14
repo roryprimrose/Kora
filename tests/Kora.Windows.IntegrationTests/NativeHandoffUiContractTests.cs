@@ -30,7 +30,9 @@ public sealed class NativeHandoffUiContractTests
         var composition = File.ReadAllText(Path.Combine(root, "src", "Kora", "App.HandoffPresentation.cs"));
         composition.Should().Contain("GetRequiredService<ModelHandoffPresentation>");
         File.ReadAllText(Path.Combine(root, "src", "Kora", "Program.cs")).Should()
-            .Contain("AddSingleton<ModelHandoffPresentation>").And.Contain("AddSingleton<ModelProviderHandoffWorkflow>");
+            .Contain("AddSingleton<ModelHandoffPresentation>")
+            .And.Contain("AddSingleton<ModelProviderHandoffWorkflow>")
+            .And.Contain("AddSingleton<Kora.Application.Interaction.HostQuestionReviewService>");
         XDocument.Load(Path.Combine(root, "src", "Kora", "SettingsWindow.axaml")).Descendants()
             .Any(control => string.Equals(control.Attribute("Click")?.Value, "OnReviewHandoffClicked", StringComparison.Ordinal)).Should().BeTrue();
     }

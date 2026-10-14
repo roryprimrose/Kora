@@ -1,4 +1,5 @@
 using System.Runtime.InteropServices;
+using System.Text;
 
 using Kora.Core.Platform;
 using Kora.Core.Voice;
@@ -18,6 +19,8 @@ internal sealed class WindowsPrivacySource : IWindowsPrivacySource
     private readonly WindowsSessionNotificationWindow sessionWindow;
     private readonly MMDeviceEnumerator enumerator;
     private readonly MMDeviceNotificationClient notifications;
+    private readonly Lock topologySync = new();
+    private string? topologyIdentity;
 
     public WindowsPrivacySource(IMicrophoneAccessService microphoneAccess, ILogger logger)
     {
@@ -49,33 +52,96 @@ internal sealed class WindowsPrivacySource : IWindowsPrivacySource
 
     public event EventHandler<WindowsPrivacySignalEventArgs>? Changed;
 
+    public string? TopologyIdentity
+    {
+        get
+        {
+            lock (topologySync)
+            {
+                return topologyIdentity;
+            }
+        }
+    }
+
     public WindowsPrivacySnapshot Read()
     {
         using var queryEnumerator = new MMDeviceEnumerator();
-        var microphones = new List<string>();
-        try
+        var topology = ReadTopology(queryEnumerator);
+        lock (topologySync)
         {
-            var endpoints = queryEnumerator.EnumerateAudioEndPoints(DataFlow.Capture, DeviceState.Active);
-            foreach (var endpoint in endpoints)
-            {
-                using (endpoint)
-                {
-                    microphones.Add(endpoint.ID);
-                }
-            }
-        }
-        catch (COMException exception)
-        {
-            WindowsLog.Error(logger, exception, "Observing microphone endpoint topology");
+            topologyIdentity = topology.Identity;
         }
 
         return new WindowsPrivacySnapshot(
             sessionWindow.IsRegistered ? WindowsSessionNotificationWindow.ReadSessionState() : WindowsSessionState.Unknown,
             microphoneAccess.GetStatus().State,
             0,
-            microphones.Order(StringComparer.Ordinal).ToArray(),
-            ReadDefault(queryEnumerator, DataFlow.Capture),
-            ReadDefault(queryEnumerator, DataFlow.Render));
+            topology.Microphones,
+            topology.DefaultMicrophoneId,
+            topology.DefaultSpeakerId);
+    }
+
+    private AudioTopology ReadTopology(MMDeviceEnumerator queryEnumerator)
+    {
+        var microphones = ReadActiveEndpoints(queryEnumerator, DataFlow.Capture,
+            "Observing microphone endpoint topology");
+        var speakers = ReadActiveEndpoints(queryEnumerator, DataFlow.Render,
+            "Observing output endpoint topology");
+        var defaultMicrophoneId = ReadDefault(queryEnumerator, DataFlow.Capture);
+        var defaultSpeakerId = ReadDefault(queryEnumerator, DataFlow.Render);
+        var identity = CreateTopologyIdentity(microphones, speakers, defaultMicrophoneId, defaultSpeakerId);
+        return new AudioTopology(microphones, defaultMicrophoneId, defaultSpeakerId, identity);
+    }
+
+    private string[] ReadActiveEndpoints(
+        MMDeviceEnumerator queryEnumerator,
+        DataFlow flow,
+        string failureContext)
+    {
+        var endpointIds = new List<string>();
+        try
+        {
+            var endpoints = queryEnumerator.EnumerateAudioEndPoints(flow, DeviceState.Active);
+            foreach (var endpoint in endpoints)
+            {
+                using (endpoint)
+                {
+                    endpointIds.Add(endpoint.ID);
+                }
+            }
+        }
+        catch (COMException exception)
+        {
+            WindowsLog.Error(logger, exception, failureContext);
+        }
+
+        return endpointIds.Order(StringComparer.Ordinal).ToArray();
+    }
+
+    private static string CreateTopologyIdentity(
+        IReadOnlyList<string> microphones,
+        IReadOnlyList<string> speakers,
+        string? defaultMicrophoneId,
+        string? defaultSpeakerId)
+    {
+        var identity = new StringBuilder();
+        Append(identity, defaultMicrophoneId);
+        Append(identity, defaultSpeakerId);
+        foreach (var microphone in microphones)
+        {
+            Append(identity, microphone);
+        }
+        identity.Append('|');
+        foreach (var speaker in speakers)
+        {
+            Append(identity, speaker);
+        }
+        return identity.ToString();
+    }
+
+    private static void Append(StringBuilder identity, string? value)
+    {
+        identity.Append(value?.Length ?? -1).Append(':').Append(value).Append(';');
     }
 
     public void Dispose()
@@ -140,8 +206,22 @@ internal sealed class WindowsPrivacySource : IWindowsPrivacySource
             }
         }
 
+        string identity;
+        using (var queryEnumerator = new MMDeviceEnumerator())
+        {
+            identity = ReadTopology(queryEnumerator).Identity;
+        }
+        lock (topologySync)
+        {
+            if (string.Equals(topologyIdentity, identity, StringComparison.Ordinal))
+            {
+                return;
+            }
+            topologyIdentity = identity;
+        }
+
         Changed?.Invoke(this, new WindowsPrivacySignalEventArgs(topologyChanged: true, reason: reason,
-            observation: observation));
+            observation: observation, topologyIdentity: identity));
     }
 
     private void OnSessionChanged(WindowsPrivacySignalEventArgs signal) =>
@@ -162,4 +242,10 @@ internal sealed class WindowsPrivacySource : IWindowsPrivacySource
                 WindowsSessionState.Unlocked, reason: WindowsPrivacyChangeReason.Power, observation: observation));
         }
     }
+
+    private sealed record AudioTopology(
+        string[] Microphones,
+        string? DefaultMicrophoneId,
+        string? DefaultSpeakerId,
+        string Identity);
 }

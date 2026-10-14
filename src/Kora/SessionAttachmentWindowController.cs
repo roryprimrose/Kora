@@ -206,7 +206,7 @@ internal sealed class SessionAttachmentWindowController : IUserFilePicker, IDisp
     {
         if (!Dispatcher.UIThread.CheckAccess())
         {
-            Dispatcher.UIThread.Invoke(() => OnRevoked(revoked));
+            Dispatcher.UIThread.Post(() => OnRevoked(revoked));
             return;
         }
 
@@ -219,7 +219,7 @@ internal sealed class SessionAttachmentWindowController : IUserFilePicker, IDisp
     {
         if (!Dispatcher.UIThread.CheckAccess())
         {
-            Dispatcher.UIThread.Invoke(() => OnAttachmentRevoked(revoked));
+            Dispatcher.UIThread.Post(() => OnAttachmentRevoked(revoked));
             return;
         }
         if (session != revoked) { return; }
@@ -243,7 +243,7 @@ internal sealed class SessionAttachmentWindowController : IUserFilePicker, IDisp
     {
         if (!Dispatcher.UIThread.CheckAccess())
         {
-            Dispatcher.UIThread.Invoke(CloseInspection);
+            Dispatcher.UIThread.Post(CloseInspection);
             return;
         }
         RevokeView();

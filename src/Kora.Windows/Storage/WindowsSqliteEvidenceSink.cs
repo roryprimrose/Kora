@@ -18,8 +18,8 @@ public sealed partial class WindowsSqliteEvidenceSink : IEvidenceSink
 {
     internal const string PartitionName = "EvidenceStorageV1";
     internal const int MaximumEnvelopeBytes = 65536;
-    internal const int MaximumCachedEnvelopeEntries = 16384;
-    internal const int MaximumCachedEncodedPayloadBytes = 32 * 1024 * 1024;
+    internal const int MaximumCachedEnvelopeEntries = 65536;
+    internal const int MaximumCachedEncodedPayloadBytes = 64 * 1024 * 1024;
     private const int ApplicationId = 1263489586;
     private const string BootstrapProperty = "kora.bootstrap";
     private const string ContextGapProperty = "kora.evidence.gap";
@@ -52,6 +52,7 @@ public sealed partial class WindowsSqliteEvidenceSink : IEvidenceSink
     private readonly TimeProvider timeProvider;
     private readonly ISqliteTransactionCheckpoint? checkpoint;
     private readonly EnvelopeValidationCache validationCache = new();
+    private byte[]? validatedDatabaseDigest;
 
     internal long PersistedEnvelopeDecodeCount => validationCache.DecodeCount;
     internal int PersistedEnvelopeCacheEntryCount => validationCache.EntryCount;
@@ -141,6 +142,7 @@ public sealed partial class WindowsSqliteEvidenceSink : IEvidenceSink
         checkpoint?.BeforeCommit(connection, transaction);
         database.VerifyFiles();
         transaction.Commit();
+        TrustCommittedDatabase();
     }
 
     private static void CommitEvidence(Action commit)
@@ -167,6 +169,7 @@ public sealed partial class WindowsSqliteEvidenceSink : IEvidenceSink
         checkpoint?.BeforeCommit(connection, transaction);
         database.VerifyFiles();
         transaction.Commit();
+        TrustCommittedDatabase();
     }
 
     private static void Insert(SqliteConnection connection, SqliteTransaction transaction, string table,
@@ -190,10 +193,24 @@ public sealed partial class WindowsSqliteEvidenceSink : IEvidenceSink
     private SqliteConnection OpenDatabase(bool created)
     {
         var connection = database.Open(created);
-        var validated = ValidateDatabase(connection, cache: validationCache);
-        RestrictedSqliteDatabase.ResetProgressBudget(validated);
-        return validated;
+        var observedDigest = database.ComputeDatabaseDigest();
+        if (validatedDatabaseDigest is null
+            || !CryptographicOperations.FixedTimeEquals(validatedDatabaseDigest, observedDigest))
+        {
+            ValidateDatabase(connection, cache: validationCache);
+            var validatedDigest = database.ComputeDatabaseDigest();
+            if (!CryptographicOperations.FixedTimeEquals(observedDigest, validatedDigest))
+            {
+                connection.Dispose();
+                throw new InvalidDataException("The evidence database changed while its persisted envelopes were being validated.");
+            }
+            validatedDatabaseDigest = validatedDigest;
+        }
+        RestrictedSqliteDatabase.ResetProgressBudget(connection);
+        return connection;
     }
+
+    private void TrustCommittedDatabase() => validatedDatabaseDigest = database.ComputeDatabaseDigest();
 
     internal FileStream AcquireReadLease(CancellationToken cancellationToken) => database.AcquireReadLease(cancellationToken);
 

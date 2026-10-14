@@ -154,9 +154,15 @@ changes. Maintenance Check/Open remains in its native window.
 
 **Local event category** offers All, Work, Failure, Attention and Maintenance.
 **Local event reason** offers All and each exact delivery reason shown by the
-broker. The two filters combine over only the already-loaded bounded rows;
-they do not read more sources or change quiet mode. **Clear local event
-filters** restores All/All. Each edit or clear removes your event selection
+broker. **Local event source** offers All, LocalVersionQueue,
+LocalVersionQuestion and CachedMaintenance. **Local event type** offers All,
+Queued, Current, Completed, Failed, Blocked, Unknown, UserAttention and
+MaintenanceAvailable. All four filters combine with AND over only the
+already-loaded bounded rows; impossible Source/Type pairs show zero without
+changing either choice. Use Tab/Shift+Tab to move between filters and arrow
+keys to choose an exact value.
+They do not read more sources or change quiet mode. **Clear local event
+filters** restores All for all four filters. Each edit or clear removes your event selection
 and event review detail, even if that event still matches. Select a visible
 exact event again before Review/Dismiss/Defer. Refresh and source/privacy
 changes also retire selection; no replacement is selected automatically.

@@ -54,6 +54,30 @@ internal sealed partial class SessionsViewModel
         [new(null), .. Enum.GetValues<LocalEventCategory>().Select(value => new LocalEventFilterOption<LocalEventCategory>(value))];
     public IReadOnlyList<LocalEventFilterOption<LocalEventReason>> LocalEventReasonFilters { get; } =
         [new(null), .. Enum.GetValues<LocalEventReason>().Select(value => new LocalEventFilterOption<LocalEventReason>(value))];
+    public LocalEventSource? LocalEventSourceFilter
+    {
+        get => eventFilter.Source;
+        set
+        {
+            if (presentingEvents || !CanFilterLocalEvents || value == eventFilter.Source) { return; }
+            eventFilter = eventFilter with { Source = value };
+            ChangeLocalEventFilters();
+        }
+    }
+    public LocalEventType? LocalEventTypeFilter
+    {
+        get => eventFilter.Type;
+        set
+        {
+            if (presentingEvents || !CanFilterLocalEvents || value == eventFilter.Type) { return; }
+            eventFilter = eventFilter with { Type = value };
+            ChangeLocalEventFilters();
+        }
+    }
+    public IReadOnlyList<LocalEventFilterOption<LocalEventSource>> LocalEventSourceFilters { get; } =
+        [new(null), .. Enum.GetValues<LocalEventSource>().Select(value => new LocalEventFilterOption<LocalEventSource>(value))];
+    public IReadOnlyList<LocalEventFilterOption<LocalEventType>> LocalEventTypeFilters { get; } =
+        [new(null), .. Enum.GetValues<LocalEventType>().Select(value => new LocalEventFilterOption<LocalEventType>(value))];
     public LocalEventFilterOption<LocalEventCategory> LocalEventCategoryChoice
     {
         get => LocalEventCategoryFilters.FirstOrDefault(option => option.Value == eventFilter.Category) ?? new(eventFilter.Category);
@@ -64,8 +88,18 @@ internal sealed partial class SessionsViewModel
         get => LocalEventReasonFilters.FirstOrDefault(option => option.Value == eventFilter.Reason) ?? new(eventFilter.Reason);
         set { if (value is not null) { LocalEventReasonFilter = value.Value; } }
     }
+    public LocalEventFilterOption<LocalEventSource> LocalEventSourceChoice
+    {
+        get => LocalEventSourceFilters.FirstOrDefault(option => option.Value == eventFilter.Source) ?? new(eventFilter.Source);
+        set { if (value is not null) { LocalEventSourceFilter = value.Value; } }
+    }
+    public LocalEventFilterOption<LocalEventType> LocalEventTypeChoice
+    {
+        get => LocalEventTypeFilters.FirstOrDefault(option => option.Value == eventFilter.Type) ?? new(eventFilter.Type);
+        set { if (value is not null) { LocalEventTypeFilter = value.Value; } }
+    }
     public string LocalEventFilterStatus => !eventFilter.IsValid
-        ? "Unknown category or reason filter; no results. Clear filters to recover."
+        ? "Unknown category, reason, source or type filter; no results. Clear filters to recover."
         : !EventSourceCurrent ? "No current bounded local-event snapshot. Refresh selected work; no empty source is inferred."
         : LocalEvents.Count.ToString(CultureInfo.InvariantCulture) + " of "
             + eventSnapshot!.Events.Count.ToString(CultureInfo.InvariantCulture)
@@ -93,7 +127,7 @@ internal sealed partial class SessionsViewModel
         if (eventDetailPresented)
         {
             eventDetailPresented = false;
-            detail = string.Empty;
+            Detail = string.Empty;
             OnPropertyChanged(nameof(Detail));
         }
     }
@@ -132,6 +166,7 @@ internal sealed partial class SessionsViewModel
     public void SelectLocalEvent(LocalEventView? record)
     {
         if (closed || presentingEvents || !EventSourceCurrent || record is not null && !LocalEvents.Contains(record)) { return; }
+        RetireLocalEventSelection();
         selectedEvent = record;
         eventFilterEpoch++;
         OnPropertyChanged(nameof(SelectedLocalEvent));
@@ -228,7 +263,7 @@ internal sealed partial class SessionsViewModel
         {
             throw new InvalidOperationException("The exact local event source is no longer current: " + result.Reason + ". Refresh and select separately.");
         }
-        detail = JsonSerializer.Serialize(result);
+        Detail = JsonSerializer.Serialize(result);
         eventDetailPresented = true;
         eventSnapshot = eventSnapshot! with { Events = eventSnapshot.Events.Select(item => item.Event.Id == result.Event.Id ? result : item).ToArray() };
         selectedEvent = eventFilter.Matches(result) ? result : null;
@@ -256,8 +291,12 @@ internal sealed partial class SessionsViewModel
             OnPropertyChanged(nameof(LocalEventStatus));
             OnPropertyChanged(nameof(LocalEventCategoryFilter));
             OnPropertyChanged(nameof(LocalEventReasonFilter));
+            OnPropertyChanged(nameof(LocalEventSourceFilter));
+            OnPropertyChanged(nameof(LocalEventTypeFilter));
             OnPropertyChanged(nameof(LocalEventCategoryChoice));
             OnPropertyChanged(nameof(LocalEventReasonChoice));
+            OnPropertyChanged(nameof(LocalEventSourceChoice));
+            OnPropertyChanged(nameof(LocalEventTypeChoice));
             OnPropertyChanged(nameof(LocalEventFilterStatus));
             OnPropertyChanged(nameof(CanFilterLocalEvents));
             OnPropertyChanged(nameof(CanControlLocalEvent));

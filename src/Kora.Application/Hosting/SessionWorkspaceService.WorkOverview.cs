@@ -21,13 +21,13 @@ public sealed partial class SessionWorkspaceService
     }
 
     public async Task<SessionWorkOverviewPage> ReadWorkOverviewAsync(SessionListFilter filter, bool needsAnswer,
-        SessionWorkOverviewCursor? cursor, CancellationToken token)
+        SessionWorkOverviewCursor? cursor, CancellationToken token, SessionListSearch? query = null)
     {
         using var timeout = new CancellationTokenSource(WorkOverviewTimeout, overviewTime ?? TimeProvider.System);
         using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(token, timeout.Token);
         try
         {
-            var result = await ReadAsync(() => ReadWorkOverviewCoreAsync(filter, needsAnswer, cursor, cancellation.Token),
+            var result = await ReadAsync(() => ReadWorkOverviewCoreAsync(filter, needsAnswer, cursor, query, cancellation.Token),
                 cancellation.Token).WaitAsync(cancellation.Token).ConfigureAwait(false);
             cancellation.Token.ThrowIfCancellationRequested();
             return result;
@@ -39,16 +39,20 @@ public sealed partial class SessionWorkspaceService
     }
 
     private async ValueTask<SessionWorkOverviewPage> ReadWorkOverviewCoreAsync(SessionListFilter filter, bool needsAnswer,
-        SessionWorkOverviewCursor? cursor, CancellationToken readToken)
+        SessionWorkOverviewCursor? cursor, SessionListSearch? query, CancellationToken readToken)
     {
         if (!Enum.IsDefined(filter)) { throw new ArgumentOutOfRangeException(nameof(filter)); }
+        if (query is not null && query.Filter != filter)
+        {
+            throw new ArgumentException("The overview query must use the selected lifecycle filter.", nameof(query));
+        }
         var revision = access.ControlRevision;
         var epoch = Interlocked.Read(ref workOverviewEpoch);
         if (cursor is not null && (cursor.Host != workOverviewHost || cursor.AdmissionRevision != revision
             || cursor.SourceEpoch != epoch || cursor.After == Guid.Empty || cursor.Filter != filter
-            || cursor.NeedsAnswer != needsAnswer))
+            || cursor.NeedsAnswer != needsAnswer || !string.Equals(cursor.QueryDigest, query?.Digest, StringComparison.Ordinal)))
         {
-            throw new ArgumentException("The overview continuation expired or belongs to another host/filter/source. Refresh.", nameof(cursor));
+            throw new ArgumentException("The overview continuation expired or belongs to another host/query/filter/source. Refresh.", nameof(cursor));
         }
         var page = await store.ReadMetadataPageAsync(cursor?.After, SessionWorkOverviewPage.MaximumSessions, readToken)
             .AsTask().WaitAsync(readToken).ConfigureAwait(false);
@@ -73,9 +77,10 @@ public sealed partial class SessionWorkspaceService
                 throw new InvalidDataException("Work overview metadata requires strictly ordered canonical session IDs.");
             }
             previous = id.ToString("D");
-            var continuation = new SessionWorkOverviewCursor(workOverviewHost, revision, epoch, id, filter, needsAnswer);
+            var continuation = new SessionWorkOverviewCursor(workOverviewHost, revision, epoch, id, filter, needsAnswer, query?.Digest);
             SessionWorkOverviewRow? row = null;
-            if (filter == SessionListFilter.All || entry.Authority.IsActive == (filter == SessionListFilter.Active))
+            if ((filter == SessionListFilter.All || entry.Authority.IsActive == (filter == SessionListFilter.Active))
+                && (query is null || query.Matches(entry)))
             {
                 row = await ObserveOverviewAsync(entry, needsAnswer, readToken).ConfigureAwait(false);
             }

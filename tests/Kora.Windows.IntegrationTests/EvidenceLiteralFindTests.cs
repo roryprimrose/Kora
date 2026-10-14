@@ -22,7 +22,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 namespace Kora.Windows.IntegrationTests;
 
 [Collection(nameof(HeadlessUiTestGroup))]
-public sealed class EvidenceLiteralFindTests
+public sealed partial class EvidenceLiteralFindTests
 {
     [Fact]
     public async Task FindUsesOnlyExactSerializedPageWithoutChangingQueryCursorRecordsOrDiagnostics()

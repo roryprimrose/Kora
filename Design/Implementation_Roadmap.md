@@ -60,6 +60,18 @@ Existing exact lock behavior and non-executing power proposals are unchanged.
 
 ## Ordered Outstanding Work
 
+### Bounded native Evidence reader text scale - 2026-10-15
+
+The confirmed device-local [reader scale](Information_Display.md#bounded-native-reader-text-scale)
+now covers only admitted complete immutable serialized Evidence page bodies
+and their inert focused literal-Find spans, including new windows and live
+confirmed changes from original typography. Chrome, strings/bytes/offsets,
+navigation, evidence reads, activity and authority remain unchanged.
+Preference/source/private closure and page retirement fail closed.
+This consumes the existing preference/typography/Evidence I subset; no global
+UI scaling, model/runtime route, voice inference, installed accessibility or
+broader E/Q qualification is claimed.
+
 ### Bounded native Sessions local-event filters - 2026-10-14
 
 [Category and exact reason filters](Proactive_Interaction.md#native-content-free-loaded-event-filters)

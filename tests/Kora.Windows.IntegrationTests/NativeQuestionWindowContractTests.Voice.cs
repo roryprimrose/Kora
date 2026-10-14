@@ -168,8 +168,8 @@ public sealed partial class NativeQuestionWindowContractTests
                 await replies.Quiescence;
                 model.Completion.IsCompleted.Should().BeFalse();
                 duplicate = CreateWindow(model);
-                duplicate.Show();
-                duplicate.Activate();
+                await ShowAsync(duplicate, model);
+                model.HasPendingOperation.Should().BeFalse();
                 model.CanAnswerByVoice.Should().BeFalse();
                 await model.AnswerByVoiceAsync();
                 factory.OpenCount.Should().Be(1);

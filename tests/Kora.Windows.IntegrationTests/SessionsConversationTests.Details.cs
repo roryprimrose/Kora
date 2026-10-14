@@ -4,6 +4,7 @@ using Avalonia.VisualTree;
 
 using AwesomeAssertions;
 
+using Kora.Core.Conversation;
 using Kora.Core.Diagnostics;
 using Kora.Core.Hosting;
 using Kora.Core.Presentation;
@@ -13,6 +14,78 @@ namespace Kora.Windows.IntegrationTests;
 
 public sealed partial class SessionsConversationTests
 {
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task CriteriaEditsFenceLateDetailCallbacksWithoutClearingIndependentComposer(bool roleEdit)
+    {
+        using var f = new InteractionStorageFixture();
+        await f.InitializeAsync();
+        await WindowsSqliteConversationTests.FinishInitial(f);
+        await WindowsSqliteConversationTests.Submit(f, f.Request.SessionId, "marker original");
+        var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var release = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
+        await using var composed = new Composition(f, (_, _, _, _) =>
+        {
+            entered.SetResult();
+            return release.Task;
+        });
+        var model = composed.Model;
+        await model.RefreshAsync();
+        await model.SelectAsync(model.Sessions.Single());
+        model.ComposerBody = "independent memory draft";
+        model.ConversationQuery = "marker";
+        await model.SearchConversationAsync();
+        var pending = model.OpenConversationDetailAsync(model.ConversationSearchMessages.Single());
+        await entered.Task;
+        if (roleEdit) { model.ConversationRole = ConversationSearchRole.HOST; }
+        else { model.ConversationQuery = "different"; }
+        release.SetResult("stale success must not publish");
+        await pending;
+        model.ConversationStatus.Should().Contain("navigation revoked").And.NotContain("stale success");
+        model.ConversationSearchMessages.Should().BeEmpty();
+        model.ConversationRole.Should().Be(roleEdit ? ConversationSearchRole.HOST : ConversationSearchRole.All);
+        model.ConversationQuery.Should().Be(roleEdit ? "marker" : "different");
+        model.ComposerBody.Should().Be("independent memory draft");
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task SearchCriteriaEditRevokesMatchDetailsAndDeferredNavigationWithoutTouchingComposer(bool roleEdit)
+    {
+        using var f = new InteractionStorageFixture();
+        await f.InitializeAsync();
+        await WindowsSqliteConversationTests.FinishInitial(f);
+        await WindowsSqliteConversationTests.Submit(f, f.Request.SessionId, "marker original");
+        Func<bool>? admitted = null;
+        Func<CancellationToken, Task<AdmittedDetailContent>>? revalidate = null;
+        var revoked = new List<HostId<SessionIdentity>>();
+        await using var composed = new Composition(f, (content, live, resolve, _) =>
+        {
+            live().Should().BeTrue();
+            admitted = live;
+            revalidate = resolve;
+            return Task.FromResult("Original search match Details opened");
+        }, revokeDetails: revoked.Add);
+        var model = composed.Model;
+        await model.RefreshAsync();
+        await model.SelectAsync(model.Sessions.Single());
+        model.ComposerBody = "independent memory draft";
+        model.ConversationQuery = "marker";
+        await model.SearchConversationAsync();
+        await model.OpenConversationDetailAsync(model.ConversationSearchMessages.Single());
+        admitted!().Should().BeTrue();
+        if (roleEdit) { model.ConversationRole = ConversationSearchRole.HOST; }
+        else { model.ConversationQuery = "different"; }
+        admitted().Should().BeFalse();
+        revoked.Should().Equal(f.Request.SessionId);
+        Func<Task> resolveAgain = () => revalidate!(f.Token);
+        await resolveAgain.Should().ThrowAsync<InvalidOperationException>();
+        model.ConversationSearchMessages.Should().BeEmpty();
+        model.ComposerBody.Should().Be("independent memory draft");
+    }
+
     [Fact]
     public async Task SessionsAndCompactShareExplicitRetainedDetailsWithDoneStillPassiveAndStaleRowsRefused()
     {

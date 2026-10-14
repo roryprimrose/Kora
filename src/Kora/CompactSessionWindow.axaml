@@ -37,6 +37,9 @@
       <TextBox x:Name="ConversationQuery" Text="{Binding ConversationQuery, Mode=TwoWay}" IsEnabled="{Binding CanReadConversation}"
           PlaceholderText="Search retained USER words or typed HOST outcome/reason/task state in only this exact selected session"
           AutomationProperties.Name="Shared private exact-session conversation lexical query; memory-only, not composer input, a model instruction or global search" />
+       <ComboBox x:Name="ConversationRole" ItemsSource="{Binding ConversationRoles}"
+          SelectedItem="{Binding ConversationRole, Mode=TwoWay}" IsEnabled="{Binding CanReadConversation}"
+          AutomationProperties.Name="Shared conversation search field filter: All original USER and typed HOST fields, USER original body only, HOST outcome reason and task state only; editing does not read" />
       <WrapPanel>
         <Button x:Name="SearchConversation" Content="Search this conversation" IsEnabled="{Binding CanSearchConversation}" />
         <Button x:Name="NextConversationSearch" Content="Next conversation matches" IsEnabled="{Binding CanNextConversationSearch}" />

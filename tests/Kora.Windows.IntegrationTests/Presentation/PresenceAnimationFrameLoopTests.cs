@@ -8,16 +8,21 @@ public sealed class PresenceAnimationFrameLoopTests
     public void Presence_animation_uses_a_bounded_render_priority_cadence()
     {
         var source = File.ReadAllText(Path.Combine(FindRepositoryRoot(), "src", "Kora", "Controls", "PresenceControl.cs"));
+        var loop = File.ReadAllText(Path.Combine(FindRepositoryRoot(), "src", "Kora", "Controls", "PresenceRenderLoop.cs"));
+        var scheduler = File.ReadAllText(Path.Combine(FindRepositoryRoot(), "src", "Kora", "Controls", "DispatcherPresenceFrameScheduler.cs"));
         var window = File.ReadAllText(Path.Combine(FindRepositoryRoot(), "src", "Kora", "MainWindow.axaml.cs"));
 
-        source.Should().Contain("SpeechFrameInterval = TimeSpan.FromMilliseconds(16)")
-            .And.Contain("IsSpeaking")
-            .And.Contain("PresenceAnimation.FrameInterval")
-            .And.Contain("DispatcherPriority.Background")
-            .And.Contain("elapsed.TotalMilliseconds / PresenceAnimation.FrameInterval.TotalMilliseconds")
-            .And.Contain("if (!isAttached || !isAnimationEnabled)")
-            .And.Contain("if (!IsEffectivelyVisible)")
-            .And.Contain(".OrderBy(particle => particle.Z)")
+        loop.Should().Contain("SpeechInterval = TimeSpan.FromMilliseconds(16)")
+            .And.Contain("ActiveInterval = TimeSpan.FromMilliseconds(33)")
+            .And.Contain("QuietInterval = TimeSpan.FromMilliseconds(198)")
+            .And.Contain("admittedGeneration != generation");
+        scheduler.Should().Contain("DispatcherTimer.RunOnce")
+            .And.Contain("DispatcherPriority.Background");
+        source.Should().Contain("IsSpeaking")
+            .And.Contain("IsEffectivelyVisible")
+            .And.Contain("isAnimationEnabled")
+            .And.Contain("step / PresenceRenderLoop.ActiveInterval.TotalMilliseconds")
+            .And.Contain(".OrderBy(index => particles[index].Z)")
             .And.NotContain("RequestAnimationFrame");
         window.Should().Contain("private void ShowPresenceWindow()")
             .And.Contain("private void HidePresenceWindow()")

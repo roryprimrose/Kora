@@ -98,6 +98,7 @@ public sealed class PresenceControl : Control, IDisposable
     internal long TickCount => loop.TickCount;
     internal long InvalidationCount { get; private set; }
     internal long ResourceBuildCount { get; private set; }
+    internal int AncestorSubscriptionCount => ancestors.Count;
     internal ReadOnlySpan<int> DepthOrder => depthOrder;
     internal ReadOnlySpan<Particle> Particles => particles;
     internal PresenceVisualFrame CurrentFrame => animation.Current;
@@ -219,6 +220,10 @@ public sealed class PresenceControl : Control, IDisposable
     protected override void OnAttachedToVisualTree(Avalonia.VisualTreeAttachmentEventArgs e)
     {
         base.OnAttachedToVisualTree(e);
+        if (disposed)
+        {
+            return;
+        }
         attached = true;
         foreach (var ancestor in this.GetVisualAncestors())
         {
@@ -298,7 +303,8 @@ public sealed class PresenceControl : Control, IDisposable
 
     private bool CanRender() => !disposed && attached && isAnimationEnabled && IsEffectivelyVisible && Opacity > 0
         && IsPresentationEligible && (authoritativeEligibility?.Invoke() ?? true)
-        && Bounds.Width > 0 && Bounds.Height > 0 && State != AssistantState.Hidden
+        && Bounds.Width > 0 && Bounds.Height > 0
+        && (State != AssistantState.Hidden || animation.Current.Opacity > 0)
         && (IsPresenceVisible || animation.Current.Opacity > 0)
         && ancestors.TrueForAll(static ancestor => ancestor.IsVisible && ancestor.Opacity > 0
             && ancestor is not Window { WindowState: WindowState.Minimized });

@@ -217,12 +217,18 @@ public sealed class PresenceRendererTests
             scheduler.Advance(TimeSpan.FromHours(1));
             control.TickCount.Should().Be(before);
             control.Dispose();
+            control.AncestorSubscriptionCount.Should().Be(0);
             var invalidations = control.InvalidationCount;
             scheduler.InvokeRetired();
             control.State = AssistantState.Executing;
             control.TickCount.Should().Be(before);
             control.InvalidationCount.Should().Be(invalidations);
             scheduler.PendingCount.Should().Be(0);
+            window.Content = null;
+            window.Content = control;
+            window.UpdateLayout();
+            control.AncestorSubscriptionCount.Should().Be(0);
+            control.InvalidationCount.Should().Be(invalidations);
             window.Close();
         });
     }
@@ -382,6 +388,10 @@ public sealed class PresenceRendererTests
                 control.ResourceBuildCount.Should().Be(1);
             }
             control.State = AssistantState.Hidden;
+            scheduler.Advance(TimeSpan.FromMilliseconds(99));
+            control.CurrentFrame.Opacity.Should().BeInRange(0.1, 0.9);
+            scheduler.Advance(TimeSpan.FromSeconds(1));
+            control.CurrentFrame.Opacity.Should().Be(0);
             var invalidations = control.InvalidationCount;
             scheduler.Advance(TimeSpan.FromHours(1));
             scheduler.InvokeRetired();

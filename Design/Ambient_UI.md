@@ -143,10 +143,11 @@ Animation uses measured elapsed time so delayed UI frames do not accumulate lag.
 
 The existing particle-cloud renderer uses cancellable one-shot dispatcher work,
 not a permanently running frame timer. Detached, effectively hidden,
-minimized, zero-size/zero-opacity, disposed, Hidden-state or privacy-ineligible controls
+minimized, zero-size/zero-opacity, disposed or privacy-ineligible controls
 schedule no animation work or renderer invalidations. Privacy defaults to
 ineligible and each admitted callback rechecks the host's current presentation
-gate. A visible requested hide still completes its 220-ms fade; reaching zero
+gate. A visible requested hide (including the Hidden-state target) still completes
+its 220-ms fade; reaching zero
 stops work. Requested hides immediately relinquish mouse interception, including
 the final transparent interval before the HWND hides.
 

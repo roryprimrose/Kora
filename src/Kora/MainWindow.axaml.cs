@@ -104,6 +104,7 @@ public sealed partial class MainWindow : Window
         {
             IsHitTestVisible = presenceInput.Refresh(
                 IsVisible && viewModel.CanRevealPrivatePresentation
+                && viewModel.State != Kora.Core.AssistantState.Hidden
                 && presence.IsPresenceVisible && presence.CurrentFrame.Opacity > 0);
         }
         catch (Win32Exception exception)
@@ -424,6 +425,10 @@ public sealed partial class MainWindow : Window
         if (eventArgs.PropertyName is nameof(MainViewModel.IsSpeaking))
         {
             viewModel.RefreshSpeechPlaybackFrame();
+        }
+        else if (eventArgs.PropertyName is nameof(MainViewModel.State))
+        {
+            RefreshPresenceInput();
         }
         if (eventArgs.PropertyName is nameof(MainViewModel.PresenceTimeoutSeconds))
         {

@@ -24,6 +24,7 @@ Drafts and unadmitted bodies are discarded on closure, session/privacy/ownership
 Uninventoried managed copies hold deletion acceptance. Broader scopes and provider use remain dependent work. Forgetting is not forensic erasure or
 removal of previously returned/exported/provider copies.
 Logs and Activities carry host IDs and typed outcomes, not memory content.
+Native GUID/Review/Retention filters use only metadata already returned by an explicit List for the selected exact active session. Query text and filter state are private and volatile: no storage/content read, persistence, logging, Activity, session-clock renewal or model context follows a filter edit. Edits and Clear retire selection, inspection, replacement draft and mutation eligibility; selection and inspection must be explicit again. Forgotten rows expose only existing content-free identity metadata. Classification is not listed or searched, and no secret-detection claim is made. Explicit List refresh and existing source/session/private closure remain authoritative; no cross-session/global inventory or content search is added.
 See the [authoritative proposal boundary](../Design/Model_Providers_Memory_And_Knowledge.md#delivered-original-user-session-memory-proposals---2026-10-10).
 
 ## Trusted local event privacy

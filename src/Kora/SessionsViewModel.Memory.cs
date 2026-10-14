@@ -8,18 +8,120 @@ namespace Kora;
 internal sealed partial class SessionsViewModel
 {
     private IReadOnlyList<MemorySummary> memoryRows = [];
+    private IReadOnlyList<MemorySummary> visibleMemoryRows = [];
+    private bool memoryListed;
+    private long memoryListControl;
+    private Kora.Core.Authorization.WorkSessionAuthorization? memorySource;
+    private string memoryIdFilter = string.Empty;
+    private MemoryReviewState? memoryReviewFilter;
+    private MemoryRetentionState? memoryRetentionFilter;
+    private bool memoryMutationReady;
+    private long memoryEpoch;
     private MemorySummary? selectedMemory;
     private MemoryRecord? inspectedMemory;
     private string memoryDetail = string.Empty;
     private string memoryDraft = string.Empty;
     private MemoryContentClass memoryClass = MemoryContentClass.ExplicitFact;
-    public IReadOnlyList<MemorySummary> MemoryRecords => memoryRows;
-    public MemorySummary? SelectedMemory => selectedMemory;
-    public string MemoryDetail => memoryDetail;
+    public IReadOnlyList<MemorySummary> MemoryRecords => MemorySourceCurrent ? visibleMemoryRows : [];
+    private bool MemorySourceCurrent => !closed && access.CanInspect && access.CanControl
+        && selected?.Authority.IsActive == true && (memorySource is null
+            || selected.Authority == memorySource && access.ControlRevision == memoryListControl);
+    public bool CanFilterMemories => MemorySourceCurrent && memoryListed;
+    public string MemoryIdFilter
+    {
+        get => memoryIdFilter;
+        set
+        {
+            if (notifying || !CanFilterMemories || string.Equals(value, memoryIdFilter, StringComparison.Ordinal)) { return; }
+            memoryIdFilter = value;
+            ChangeMemoryFilters();
+        }
+    }
+    public MemoryReviewState? MemoryReviewFilter
+    {
+        get => memoryReviewFilter;
+        set
+        {
+            if (notifying || !CanFilterMemories || value == memoryReviewFilter) { return; }
+            memoryReviewFilter = value;
+            ChangeMemoryFilters();
+        }
+    }
+    public MemoryRetentionState? MemoryRetentionFilter
+    {
+        get => memoryRetentionFilter;
+        set
+        {
+            if (notifying || !CanFilterMemories || value == memoryRetentionFilter) { return; }
+            memoryRetentionFilter = value;
+            ChangeMemoryFilters();
+        }
+    }
+    public IReadOnlyList<MemoryFilterOption<MemoryReviewState>> MemoryReviewFilters { get; } =
+        [new(null), .. Enum.GetValues<MemoryReviewState>().Select(value => new MemoryFilterOption<MemoryReviewState>(value))];
+    public IReadOnlyList<MemoryFilterOption<MemoryRetentionState>> MemoryRetentionFilters { get; } =
+        [new(null), .. Enum.GetValues<MemoryRetentionState>().Select(value => new MemoryFilterOption<MemoryRetentionState>(value))];
+    public MemoryFilterOption<MemoryReviewState> MemoryReviewChoice
+    {
+        get => MemoryReviewFilters.FirstOrDefault(option => option.Value == memoryReviewFilter) ?? new(memoryReviewFilter);
+        set { if (value is not null) { MemoryReviewFilter = value.Value; } }
+    }
+    public MemoryFilterOption<MemoryRetentionState> MemoryRetentionChoice
+    {
+        get => MemoryRetentionFilters.FirstOrDefault(option => option.Value == memoryRetentionFilter) ?? new(memoryRetentionFilter);
+        set { if (value is not null) { MemoryRetentionFilter = value.Value; } }
+    }
+    public string MemoryFilterStatus { get; private set; } = "List explicitly before filtering metadata.";
+
+    public void ClearMemoryFilters()
+    {
+        if (notifying || !CanFilterMemories) { return; }
+        memoryIdFilter = string.Empty;
+        memoryReviewFilter = null;
+        memoryRetentionFilter = null;
+        ChangeMemoryFilters();
+    }
+
+    private void ChangeMemoryFilters()
+    {
+        RetireMemorySelection();
+        ApplyMemoryFilters();
+        NotifyMemories();
+    }
+
+    private void RetireMemorySelection()
+    {
+        selectedMemory = null;
+        inspectedMemory = null;
+        memoryMutationReady = false;
+        memoryDetail = string.Empty;
+        memoryDraft = string.Empty;
+        memories?.ClearInspection();
+        memoryEpoch++;
+    }
+
+    private void ApplyMemoryFilters()
+    {
+        var exact = Guid.Empty;
+        var validId = memoryIdFilter.Length == 0 || Guid.TryParseExact(memoryIdFilter, "D", out exact)
+            && exact != Guid.Empty && memoryIdFilter.Equals(exact.ToString("D"), StringComparison.OrdinalIgnoreCase);
+        var validStates = (memoryReviewFilter is null || Enum.IsDefined(memoryReviewFilter.Value))
+            && (memoryRetentionFilter is null || Enum.IsDefined(memoryRetentionFilter.Value));
+        visibleMemoryRows = !validId || !validStates ? [] : [.. memoryRows.Where(row =>
+            Enum.IsDefined(row.Review) && Enum.IsDefined(row.Retention)
+            && (memoryIdFilter.Length == 0 || row.Id == exact)
+            && (memoryReviewFilter is null || row.Review == memoryReviewFilter)
+            && (memoryRetentionFilter is null || row.Retention == memoryRetentionFilter))];
+        MemoryFilterStatus = !validId ? "Enter a complete nonempty canonical D memory GUID, or clear it for Any."
+            : !validStates ? "Unknown Review or Retention filter; no results. Clear filters to recover."
+            : $"{visibleMemoryRows.Count} of {memoryRows.Count} snapshot memories. Metadata only; select and inspect again before actions. List explicitly to refresh.";
+    }
+    public MemorySummary? SelectedMemory => MemorySourceCurrent ? selectedMemory : null;
+    public string MemoryDetail => MemorySourceCurrent ? memoryDetail : string.Empty;
     public string MemoryDraft
     {
-        get => memoryDraft;
-        set { if (!CanReadMemories || notifying) { return; } memoryDraft = value; OnPropertyChanged(); }
+        get => MemorySourceCurrent ? memoryDraft : string.Empty;
+        set { if (!CanProposeMemory || notifying) { return; } memoryDraft = value; OnPropertyChanged(); }
     }
     public MemoryContentClass MemoryClass
     {
@@ -29,23 +131,20 @@ internal sealed partial class SessionsViewModel
     public IReadOnlyList<MemoryContentClass> MemoryClasses { get; } =
         [MemoryContentClass.ExplicitFact, MemoryContentClass.ResponsePreference, MemoryContentClass.WorkflowPreference, MemoryContentClass.Decision];
     public bool CanReadMemories => CanRead && access.CanControl && selected?.Authority.IsActive == true && memories is not null;
-    public bool CanInspectMemory => CanReadMemories && selectedMemory is not null;
-    public bool CanProposeMemory => CanReadMemories;
+    public bool CanInspectMemory => CanReadMemories && MemorySourceCurrent && selectedMemory is not null;
+    public bool CanProposeMemory => CanReadMemories && MemorySourceCurrent;
     public bool CanReviewMemory => CanInspectMemory && inspectedMemory?.Review == MemoryReviewState.Proposed
         && inspectedMemory.Candidate is not null && inspectedMemory.Retention != MemoryRetentionState.Forgotten;
-    public bool CanAdmitMemory => CanInspectMemory && selectedMemory?.Review == MemoryReviewState.Reviewed
+    public bool CanAdmitMemory => CanInspectMemory && memoryMutationReady && selectedMemory?.Review == MemoryReviewState.Reviewed
         && selectedMemory.Retention == MemoryRetentionState.Pending;
-    public bool CanEditMemory => CanInspectMemory && selectedMemory?.Retention != MemoryRetentionState.Forgotten;
-    public bool CanDisableMemory => CanInspectMemory && selectedMemory?.Retention == MemoryRetentionState.Enabled;
+    public bool CanEditMemory => CanInspectMemory && memoryMutationReady && selectedMemory?.Retention != MemoryRetentionState.Forgotten;
+    public bool CanDisableMemory => CanInspectMemory && memoryMutationReady && selectedMemory?.Retention == MemoryRetentionState.Enabled;
 
     public void SelectMemory(MemorySummary? record)
     {
-        if (notifying || !CanReadMemories || record is not null && !memoryRows.Contains(record)) { return; }
+        if (notifying || !CanReadMemories || record is not null && !MemoryRecords.Contains(record)) { return; }
+        RetireMemorySelection();
         selectedMemory = record;
-        inspectedMemory = null;
-        memoryDetail = string.Empty;
-        memoryDraft = string.Empty;
-        selectionEpoch++;
         NotifyMemories();
     }
 
@@ -61,27 +160,46 @@ internal sealed partial class SessionsViewModel
     private Task RunMemoryAsync(MemoryCommandOperation operation, bool accept = false) => RunAsync(async () =>
     {
         var subject = RequireSelected().Authority.SessionId;
+        var authority = RequireSelected().Authority;
+        var control = access.ControlRevision;
         var epoch = selectionEpoch;
+        var targetEpoch = memoryEpoch;
+        if (operation != MemoryCommandOperation.List && !MemorySourceCurrent)
+        {
+            throw new InvalidOperationException("Memory metadata source changed. List again under current private session admission.");
+        }
         var target = operation is MemoryCommandOperation.List or MemoryCommandOperation.Propose ? null
             : selectedMemory ?? throw new InvalidOperationException("Select an exact memory from the metadata list.");
+        if (target is not null && (!MemoryRecords.Contains(target)
+            || operation != MemoryCommandOperation.Inspect && !memoryMutationReady))
+        {
+            throw new InvalidOperationException("Select and inspect an exact visible memory before a fresh action.");
+        }
         var command = new MemoryCommand(operation, subject.Value, target?.Id, target?.Revision ?? 0, accept,
             operation is MemoryCommandOperation.Edit or MemoryCommandOperation.Propose ? new(memoryClass, memoryDraft) : null);
         var result = await (memories ?? throw new InvalidOperationException("Memory management is unavailable."))
             .ExecuteAsync(command, RequestOrigin.LocalUi,
-                () => !closed && access.CanControl && selectionEpoch == epoch && selected?.Authority.SessionId == subject,
+                () => !closed && access.CanControl && access.ControlRevision == control
+                    && selectionEpoch == epoch && memoryEpoch == targetEpoch && selected?.Authority == authority,
                 lifetime.Token);
-        if (closed || selectionEpoch != epoch || selected?.Authority.SessionId != subject || !access.CanControl)
+        if (closed || selectionEpoch != epoch || memoryEpoch != targetEpoch || selected?.Authority != authority
+            || !access.CanControl || access.ControlRevision != control)
         {
             throw new OperationCanceledException("Memory presentation admission changed.");
         }
+        memorySource = authority;
+        memoryListControl = control;
         if (operation == MemoryCommandOperation.List)
         {
-            ClearMemories();
+            RetireMemorySelection();
             memoryRows = result.Memories;
+            memoryListed = true;
+            ApplyMemoryFilters();
         }
         else if (result.Inspected is { } inspected)
         {
             inspectedMemory = inspected;
+            memoryMutationReady = true;
             memoryDraft = inspected.Candidate?.Value ?? string.Empty;
             memoryClass = inspected.Candidate?.ContentClass ?? MemoryContentClass.ExplicitFact;
         }
@@ -102,6 +220,11 @@ internal sealed partial class SessionsViewModel
                     selectedMemory = updated;
                 }
             }
+            ApplyMemoryFilters();
+            if (selectedMemory is not null && !visibleMemoryRows.Contains(selectedMemory))
+            {
+                RetireMemorySelection();
+            }
         }
         memoryDetail = Encoding.UTF8.GetString(MemoryCommandResult.Serialize(result));
         status = "Memory management " + result.Outcome + ". Inspect exact content/classification, then explicitly review and separately admit."
@@ -112,26 +235,47 @@ internal sealed partial class SessionsViewModel
     private void ClearMemories()
     {
         memoryRows = [];
-        selectedMemory = null;
-        inspectedMemory = null;
-        memoryDraft = string.Empty;
-        memoryDetail = string.Empty;
-        memories?.ClearInspection();
+        visibleMemoryRows = [];
+        memoryListed = false;
+        memorySource = null;
+        memoryIdFilter = string.Empty;
+        memoryReviewFilter = null;
+        memoryRetentionFilter = null;
+        MemoryFilterStatus = "List explicitly before filtering metadata.";
+        RetireMemorySelection();
     }
 
     private void NotifyMemories()
     {
-        OnPropertyChanged(nameof(MemoryRecords));
-        OnPropertyChanged(nameof(SelectedMemory));
-        OnPropertyChanged(nameof(MemoryDetail));
-        OnPropertyChanged(nameof(MemoryDraft));
-        OnPropertyChanged(nameof(MemoryClass));
-        OnPropertyChanged(nameof(CanReadMemories));
-        OnPropertyChanged(nameof(CanProposeMemory));
-        OnPropertyChanged(nameof(CanInspectMemory));
-        OnPropertyChanged(nameof(CanReviewMemory));
-        OnPropertyChanged(nameof(CanAdmitMemory));
-        OnPropertyChanged(nameof(CanEditMemory));
-        OnPropertyChanged(nameof(CanDisableMemory));
+        var previous = notifying;
+        notifying = true;
+        try
+        {
+            OnPropertyChanged(nameof(MemoryRecords));
+            OnPropertyChanged(nameof(SelectedMemory));
+            OnPropertyChanged(nameof(MemoryDetail));
+            OnPropertyChanged(nameof(MemoryDraft));
+            OnPropertyChanged(nameof(MemoryClass));
+            OnPropertyChanged(nameof(CanReadMemories));
+            OnPropertyChanged(nameof(CanProposeMemory));
+            OnPropertyChanged(nameof(CanInspectMemory));
+            OnPropertyChanged(nameof(CanReviewMemory));
+            OnPropertyChanged(nameof(CanAdmitMemory));
+            OnPropertyChanged(nameof(CanEditMemory));
+            OnPropertyChanged(nameof(CanDisableMemory));
+            OnPropertyChanged(nameof(CanFilterMemories));
+            OnPropertyChanged(nameof(MemoryIdFilter));
+            OnPropertyChanged(nameof(MemoryReviewFilter));
+            OnPropertyChanged(nameof(MemoryRetentionFilter));
+            OnPropertyChanged(nameof(MemoryReviewChoice));
+            OnPropertyChanged(nameof(MemoryRetentionChoice));
+            OnPropertyChanged(nameof(MemoryFilterStatus));
+        }
+        finally { notifying = previous; }
+    }
+
+    internal sealed record MemoryFilterOption<T>(T? Value) where T : struct, Enum
+    {
+        public override string ToString() => Value?.ToString() ?? "Any";
     }
 }

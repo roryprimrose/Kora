@@ -413,6 +413,24 @@
                          TextWrapping="Wrap" />
               <Button x:Name="ListMemories" Content="_List selected session memories" IsEnabled="{Binding CanReadMemories}"
                       AutomationProperties.Name="List exact active selected session memory identity, revision, scope, review, retention and creation time only" />
+              <TextBlock Text="Filter only the frozen listed metadata. No content search or classification filter. Edits clear selection, inspection and replacement draft; select and inspect an exact visible result again. List explicitly to refresh." TextWrapping="Wrap" />
+              <TextBox x:Name="MemoryIdFilter" Text="{Binding MemoryIdFilter, Mode=TwoWay}"
+                       IsEnabled="{Binding CanFilterMemories}" PlaceholderText="Exact memory GUID, or empty for Any"
+                       AutomationProperties.Name="Exact memory GUID filter over listed metadata only; no content reads" />
+              <WrapPanel>
+                <TextBlock Text="Review" VerticalAlignment="Center" />
+                <ComboBox x:Name="MemoryReviewFilter" ItemsSource="{Binding MemoryReviewFilters}"
+                          SelectedItem="{Binding MemoryReviewChoice, Mode=TwoWay}"
+                          IsEnabled="{Binding CanFilterMemories}" AutomationProperties.Name="Memory Review filter; Any or a defined review state" />
+                <TextBlock Text="Retention" VerticalAlignment="Center" />
+                <ComboBox x:Name="MemoryRetentionFilter" ItemsSource="{Binding MemoryRetentionFilters}"
+                          SelectedItem="{Binding MemoryRetentionChoice, Mode=TwoWay}"
+                          IsEnabled="{Binding CanFilterMemories}" AutomationProperties.Name="Memory Retention filter; Any or a defined retention state" />
+                <Button x:Name="ClearMemoryFilters" Content="_Clear memory filters"
+                        IsEnabled="{Binding CanFilterMemories}" AutomationProperties.Name="Clear memory filters and retire selection, inspection and replacement draft" />
+              </WrapPanel>
+              <controls:NamedTextBlock Text="{Binding MemoryFilterStatus}" TextWrapping="Wrap"
+                                       AutomationProperties.Name="Local memory metadata filter results or validation recovery" />
               <ListBox x:Name="MemoryRecords" MaxHeight="160" ItemsSource="{Binding MemoryRecords}"
                        SelectedItem="{Binding SelectedMemory, Mode=OneWay}" IsEnabled="{Binding CanReadMemories}"
                        AutomationProperties.Name="Content-free memory inventory; selection is passive">

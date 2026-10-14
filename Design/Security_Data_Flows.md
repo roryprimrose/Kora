@@ -667,6 +667,8 @@ closed. Returned snapshots cannot be retroactively erased; subsequent use
 re-resolves current state. Actual-store tests are not forensic/power-loss or
 experiment/native-runtime isolation qualification.
 
+The [native content-free memory filters](Model_Providers_Memory_And_Knowledge.md#delivered-native-content-free-session-memory-filters---2026-10-14) operate only on the frozen metadata returned by explicit List for the selected exact active session. GUID and defined Review/Retention state selectors add no storage/content reads, inspection, host activity, clock renewal, persistence, query logging or model context. Classification is absent from the admitted summary and is not searchable. Filter changes/Clear retire exact selection, inspection, replacement draft and mutation eligibility; fresh visible selection and inspection precede action. Full List bounds, exact session/generation/control admission, cancellation and source/private closure are unchanged. Forgotten identity remains content-free; no recall, global catalogue, secret detection, authority or egress expansion is delivered.
+
 The [bounded RT2 observation](../experiments/r02-runtime-lifecycle-proof/EVIDENCE.md)
 passes its 20 safe tests but leaves all-path runtime admission **Blocked**.
 Native initialization launches PowerShell/console-host descendants and creates

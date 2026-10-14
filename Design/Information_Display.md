@@ -164,6 +164,37 @@ full clipboard answering and real native acceptance remain unavailable/open.
 
 ### Delivered Bounded Native Evidence Inspection
 
+**Find first / Find next / Find previous / Clear literal Find** inspect only
+the exact immutable serialized `ResultText` page already returned by an explicit
+successful Search, Next, trace or segment read. They do not query a retained
+source, reopen storage, expand omitted bodies, change filters/cursors or select
+a different cited record/segment. Available complete pages alone enable Find;
+failed, unsupported, unavailable, partial, scan-limited, changed, timed-out or
+content-omitted results do not. All's disclosed unavailable Session/Conversation
+sources remain unavailable, not searchable history.
+
+The authoritative [SnapshotLiteralFind](../src/Kora.Core/Context/SnapshotLiteralFind.cs)
+policy preserves exact case, spaces and serialized escapes, with a nonempty
+well-formed one-line query bounded to 256 UTF-16 characters / 512 UTF-8 bytes.
+Controls, Unicode format/line/paragraph separators and malformed/over-limit
+queries are rejected visibly without truncation, normalization or regex.
+One nonoverlapping match is presented as a focused inert native literal
+selection with its end-exclusive UTF-16 location; the original serialized
+page is unchanged. Direction ends never wrap or claim global absence; no-match
+means only absence in that page, not retained-source absence or an all-clear.
+Ctrl+F focuses the query, Enter finds first, F3/Shift+F3 moves next/previous.
+
+The query is volatile presentation state: no persistence, content logging/audit,
+clipboard transfer/export, speech, model context or authority. Query edits
+retire the match; Clear retires query/match without reading. Every evidence read,
+page replacement, basic/advanced filter or source edit, cancellation/failure,
+private ownership revocation and close retires query/match/selection. Admission
+and presentation revision checks suppress late publication and focus.
+[Evidence Find tests](../tests/Kora.Windows.IntegrationTests/EvidenceLiteralFindTests.cs)
+exercise native/headless behavior, not installed accessibility or full
+qualification. General Ask Evidence, source search beyond existing filters,
+copy/export and new audit authority remain unavailable.
+
 **AuthorityAudit** is a separate opt-in source for the real schema-v3
 interaction store's committed typed `security_audit_events`. It is not the
 SQLite diagnostic **Audit** projection or a daily audit mirror. **All** remains

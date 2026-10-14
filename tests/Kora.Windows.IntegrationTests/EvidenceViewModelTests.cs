@@ -108,7 +108,7 @@ public sealed class EvidenceViewModelTests
         source.Should().Contain("DynamicResource").And.Contain("AutomationProperties.Name")
             .And.Contain("No copy, export, model, browser, deletion or execution.")
             .And.NotContain("WebView").And.NotContain("SelectableTextBlock").And.NotContain("MaxLength");
-        document.Descendants().Where(element => string.Equals(element.Name.LocalName, "TextBox", StringComparison.Ordinal)).Should().HaveCount(13);
+        document.Descendants().Where(element => string.Equals(element.Name.LocalName, "TextBox", StringComparison.Ordinal)).Should().HaveCount(14);
         source.Should().Contain("Advanced filters (optional)").And.Contain("Both time edges are inclusive");
         foreach (var binding in new[] { nameof(EvidenceViewModel.RequestFilter), nameof(EvidenceViewModel.InvocationFilter),
             nameof(EvidenceViewModel.ApprovalFilter), nameof(EvidenceViewModel.CorrelationFilter),

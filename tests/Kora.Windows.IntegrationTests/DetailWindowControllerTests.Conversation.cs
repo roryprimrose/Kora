@@ -86,16 +86,19 @@ public sealed partial class DetailWindowControllerTests
     {
         using var f = new Fixture();
         var content = ConversationContent();
-        Task<AdmittedDetailContent> Resolve(CancellationToken token) => Task.FromResult(content);
+        var reads = 0;
+        Task<AdmittedDetailContent> Resolve(CancellationToken token) { reads++; return Task.FromResult(content); }
         var status = await f.Controller.OpenConversationDetailAsync(content, null, () => true, Resolve, CancellationToken.None);
         status.Should().Contain("plain text");
         await f.Controller.OpenConversationDetailAsync(content, null, () => true, Resolve, CancellationToken.None);
         var view = f.Views.Single();
+        var admittedReads = reads;
         view.State.Content!.ConversationMessage.Should().Be(content.ConversationMessage);
         view.State.ActiveText.Should().Be(content.Source);
         view.State.Search("script").Should().BeTrue();
         view.State.SetSource(true);
         view.State.ActiveText.Should().Be(content.Source);
+        reads.Should().Be(admittedReads, "Find scans only the admitted in-memory snapshot, without retained reads");
         await f.Controller.CopyAsync(content.Reference, view.State.Generation, true);
         await f.Controller.CopyAsync(content.Reference, view.State.Generation, true, 0, 5);
         f.Clipboard.Writes.Should().BeEmpty();

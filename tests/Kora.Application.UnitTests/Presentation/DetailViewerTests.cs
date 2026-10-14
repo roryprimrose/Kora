@@ -2,6 +2,7 @@ using System.Diagnostics;
 using AwesomeAssertions;
 using Kora.Application.Presentation;
 using Kora.Core.Hosting;
+using Kora.Core.Context;
 using Kora.Core.Presentation;
 
 namespace Kora.Application.UnitTests.Presentation;
@@ -189,43 +190,173 @@ public sealed class DetailViewerTests
     }
 
     [Fact]
-    public void Forward_backward_search_wraps_and_respects_source_and_case_without_activity_changes()
+    public void Literal_navigation_preserves_case_and_direction_without_wrap_or_activity_changes()
     {
-        var viewer = new DetailViewerState(Item(source: "a SOURCE b source"));
+        var viewer = new DetailViewerState(Item(source: "a SOURCE b source source"));
         viewer.Search("source").Should().BeTrue();
-        viewer.MatchStart.Should().Be(2);
+        viewer.MatchStart.Should().Be(11);
         viewer.MatchLength.Should().Be(6);
         viewer.Search("source").Should().BeTrue();
-        viewer.MatchStart.Should().Be(11);
-        viewer.Search("source").Should().BeTrue();
-        viewer.MatchStart.Should().Be(2);
+        viewer.MatchStart.Should().Be(18);
+        viewer.Search("source").Should().BeFalse();
+        viewer.MatchStart.Should().Be(-1);
+        viewer.Status.Should().Contain("no wrap");
         viewer.Search("source", backwards: true).Should().BeTrue();
         viewer.MatchStart.Should().Be(11);
-        viewer.Search("source", backwards: true).Should().BeTrue();
-        viewer.MatchStart.Should().Be(2);
+        viewer.Search("source", backwards: true).Should().BeFalse();
         viewer.Search("missing", backwards: true).Should().BeFalse();
         viewer.Search("missing").Should().BeFalse();
-        viewer.Status.Should().Be("No search match.");
+        viewer.Status.Should().Be("No literal match in this exact admitted text.");
         viewer.Search("").Should().BeFalse();
         viewer.Search("a", backwards: true).Should().BeTrue();
         viewer.MatchStart.Should().Be(0);
-        viewer.Search("a", backwards: true).Should().BeTrue();
-        viewer.MatchStart.Should().Be(0);
-        viewer.Content!.Source.Should().Be("a SOURCE b source");
+        viewer.Search("a", backwards: true).Should().BeFalse();
+        viewer.Content!.Source.Should().Be("a SOURCE b source source");
     }
 
     [Fact]
-    public void Search_rejects_overlength_query_visibly_and_keeps_current_selection()
+    public void Search_rejects_overlength_query_visibly_and_retires_current_selection()
     {
         var viewer = new DetailViewerState(Item(source: new('s', 256)));
         viewer.Search(new('s', 256)).Should().BeTrue();
         viewer.Search(new('s', 257)).Should().BeFalse();
         viewer.Status.Should().Contain("nothing was truncated");
-        viewer.MatchLength.Should().Be(256);
+        viewer.MatchLength.Should().Be(0);
         var nullQuery = () => viewer.Search(null!);
         nullQuery.Should().Throw<ArgumentNullException>();
         viewer.CompleteRender(1, "Rendered semantic text.", "Rendered.", false);
         viewer.Search("absent").Should().BeFalse();
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("alpha\nalpha")]
+    [InlineData("\u202ealpha")]
+    [InlineData("surrogate")]
+    public void Invalid_literal_queries_are_rejected_without_shortening(string query)
+    {
+        if (string.Equals(query, "surrogate", StringComparison.Ordinal)) { query = new string('\ud800', 1); }
+        var viewer = new DetailViewerState(Item(source: "alpha alpha"));
+        viewer.Find(query, SnapshotFindDirection.First).Should().BeFalse();
+        viewer.SearchQuery.Should().Be(query);
+        viewer.Status.Should().Contain("rejected").And.Contain("nothing was truncated");
+        viewer.CanNavigateFind.Should().BeFalse();
+    }
+
+    [Fact]
+    public void Find_bounds_edits_cancel_clear_render_and_source_changes_retire_cursor()
+    {
+        var viewer = new DetailViewerState(Item(source: new('é', 256)));
+        viewer.Find(new('é', 256), SnapshotFindDirection.First).Should().BeTrue();
+        viewer.Find(new('界', 171), SnapshotFindDirection.First).Should().BeFalse();
+        viewer.Find("é", SnapshotFindDirection.Next).Should().BeFalse();
+        viewer.Status.Should().Contain("choose Find first");
+        viewer.Find("é", SnapshotFindDirection.First).Should().BeTrue();
+        viewer.CancelFind();
+        viewer.SearchQuery.Should().Be("é");
+        viewer.CanNavigateFind.Should().BeFalse();
+        viewer.CancelFind(clearQuery: true);
+        viewer.SearchQuery.Should().BeEmpty();
+        viewer.EditFindQuery("new");
+        viewer.SetSource(true);
+        viewer.SearchQuery.Should().BeEmpty();
+        viewer.Find("é", SnapshotFindDirection.First).Should().BeTrue();
+        viewer.CompleteRender(viewer.Generation, "semantic", "Rendered.", false).Should().BeTrue();
+        viewer.MatchStart.Should().Be(-1);
+        viewer.SetSource(false);
+        viewer.Find("semantic", SnapshotFindDirection.First).Should().BeTrue();
+        viewer.SetFindHost(true);
+        viewer.FindHost.Should().BeFalse();
+        viewer.Status.Should().Contain("unavailable");
+        viewer.HostText.Should().BeEmpty();
+        viewer.Find("semantic", SnapshotFindDirection.First).Should().BeTrue();
+        var invalidDirection = () => viewer.Find("semantic", (SnapshotFindDirection)99);
+        invalidDirection.Should().Throw<ArgumentOutOfRangeException>();
+        var nullQuery = () => viewer.EditFindQuery(null!);
+        nullQuery.Should().Throw<ArgumentNullException>();
+        var nullFind = () => viewer.Find(null!, SnapshotFindDirection.First);
+        nullFind.Should().Throw<ArgumentNullException>();
+    }
+
+    [Fact]
+    public void Typed_host_is_separate_and_closed_or_invalidated_snapshots_cannot_disclose()
+    {
+        var message = new Kora.Core.Conversation.ConversationMessage(HostRequest.Create(RequestOrigin.LocalUi),
+            new(1), 1, 1, DateTimeOffset.UnixEpoch, "exact USER\r\nalpha alpha", null, null);
+        var content = new AdmittedDetailContent(new(new(message.Request.RequestId.Value), 1),
+            DetailContentKind.PlainText, DetailContentOrigin.RetainedConversation,
+            DetailSensitivity.DisclosureConfirmationRequired, "Original USER", "Private retained original",
+            message.Body, conversationMessage: message);
+        var allowed = true;
+        var viewer = new DetailViewerState(content, () => allowed);
+        viewer.Find("HOST", SnapshotFindDirection.First).Should().BeFalse();
+        viewer.SetFindHost(true);
+        viewer.FindHost.Should().BeTrue();
+        viewer.FindText.Should().Be(viewer.HostText);
+        viewer.HostText.Should().Contain("Pending / inspect task recovery");
+        viewer.Find("HOST", SnapshotFindDirection.First).Should().BeTrue();
+        viewer.ActiveText.Should().Be(message.Body);
+        viewer.TryGetCopySource(true, true, out _).Should().BeFalse();
+        viewer.SetFindHost(false);
+        viewer.FindText.Should().Be(message.Body);
+        viewer.Find("alpha", SnapshotFindDirection.First).Should().BeTrue();
+        allowed = false;
+        viewer.Find("alpha", SnapshotFindDirection.Next).Should().BeFalse();
+        viewer.HostText.Should().BeEmpty();
+        viewer.SearchQuery.Should().BeEmpty();
+        viewer.MatchStart.Should().Be(-1);
+        viewer.CanNavigateFind.Should().BeFalse();
+        viewer.SetFindHost(true);
+        viewer.EditFindQuery("late");
+        viewer.CancelFind();
+        viewer.FindText.Should().BeEmpty();
+        viewer.RenderState.Should().Be(DetailRenderState.Closed);
+    }
+
+    [Fact]
+    public void Final_find_publication_rechecks_admission_and_late_callbacks_cannot_restore()
+    {
+        var reads = 0;
+        var viewer = new DetailViewerState(Item(source: "alpha"), () => ++reads < 4);
+        viewer.Find("alpha", SnapshotFindDirection.First).Should().BeFalse();
+        viewer.Content.Should().BeNull();
+        viewer.MatchLength.Should().Be(0);
+    }
+
+    [Fact]
+    public void Find_gate_does_not_expand_copy_policy_and_revokes_failed_source_admission()
+    {
+        var allowed = true;
+        var viewer = new DetailViewerState(Item(source: "alpha"), findAdmission: () => allowed);
+        viewer.Find("alpha", SnapshotFindDirection.First).Should().BeTrue();
+        allowed = false;
+        viewer.FindAvailable.Should().BeFalse();
+        viewer.Content.Should().BeNull();
+        viewer.Find("alpha", SnapshotFindDirection.First).Should().BeFalse();
+    }
+
+    [Fact]
+    public void Terminal_host_observation_is_exact_separate_text_and_find_publication_can_be_revoked()
+    {
+        var message = new Kora.Core.Conversation.ConversationMessage(HostRequest.Create(RequestOrigin.LocalUi),
+            new(1), 1, 2, DateTimeOffset.UnixEpoch, "exact USER",
+            Kora.Core.Dependencies.ModelTurnOutcome.Unavailable, Kora.Core.Dependencies.ModelTurnReason.UnregisteredModel);
+        var content = new AdmittedDetailContent(new(new(message.Request.RequestId.Value), 2),
+            DetailContentKind.PlainText, DetailContentOrigin.RetainedConversation,
+            DetailSensitivity.DisclosureConfirmationRequired, "Original USER", "Private retained original",
+            message.Body, conversationMessage: message);
+        var allowed = true;
+        var viewer = new DetailViewerState(content, findAdmission: () => allowed);
+        viewer.HostText.Should().Contain("Unavailable").And.Contain("UnregisteredModel");
+        viewer.SetFindHost(true);
+        viewer.PropertyChanged += (_, args) =>
+        {
+            if (string.Equals(args.PropertyName, nameof(DetailViewerState.CanNavigateFind), StringComparison.Ordinal)
+                && viewer.MatchStart >= 0) { allowed = false; }
+        };
+        viewer.Find("Unavailable", SnapshotFindDirection.First).Should().BeFalse();
+        viewer.Content.Should().BeNull();
+        viewer.HostText.Should().BeEmpty();
     }
 
     [Theory]
@@ -302,7 +433,9 @@ public sealed class DetailViewerTests
         ActivitySource.AddActivityListener(listener);
         var registry = new DetailViewerRegistry();
         var item = Item(source: "private body");
-        registry.Open(item, true);
+        var viewer = registry.Open(item, true);
+        viewer.Find("private body", SnapshotFindDirection.First).Should().BeTrue();
+        viewer.CancelFind(clearQuery: true);
         registry.Open(item, true);
         var blocked = () => registry.Open(item, false);
         blocked.Should().Throw<InvalidOperationException>();

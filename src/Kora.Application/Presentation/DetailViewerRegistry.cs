@@ -9,7 +9,8 @@ public sealed class DetailViewerRegistry
         new("Kora.Application", typeof(DetailViewerRegistry).Assembly.GetName().Version!.ToString());
     private readonly Dictionary<DetailContentReference, DetailViewerState> viewers = [];
 
-    public DetailViewerState Open(AdmittedDetailContent content, bool canAccess, Func<bool>? readAdmission = null)
+    public DetailViewerState Open(AdmittedDetailContent content, bool canAccess, Func<bool>? readAdmission = null,
+        Func<bool>? findAdmission = null)
     {
         using var presentation = ActivitySource.StartActivity("presentation.open");
         presentation?.SetStatus(ActivityStatusCode.Error);
@@ -34,7 +35,7 @@ public sealed class DetailViewerRegistry
         {
             throw new InvalidOperationException("Eight detail viewers are already open. Close a viewer before opening another item.");
         }
-        var viewer = new DetailViewerState(content, readAdmission);
+        var viewer = new DetailViewerState(content, readAdmission, findAdmission);
         viewers.Add(content.Reference, viewer);
         presentation?.SetStatus(ActivityStatusCode.Ok);
         return viewer;

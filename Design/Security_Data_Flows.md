@@ -17,6 +17,11 @@ List/Refresh retains existing native source/session/host admission and reconcili
 Selected rows bind original kind/canonical filename/source-qualified artifact ID/digest/native revision plus catalogue and private ownership epoch. Actual Inspect repeats admission and native exact readback, refusing stale/changed/replaced/disappeared choices without showing a newer same-name revision.
 Unknown/unmapped/unrevisioned state is never enabled by inference. Reload failure removes availability and labels historical observations unavailable; private closure clears metadata and text and fences late callbacks. Dirty drafts are not implicitly discarded by metadata changes. This is no profile/bundled-as-owned reader, writer or model-tool extension.
 
+## Native admitted Detail literal Find boundary
+
+The [Detail Find contract](Information_Display.md#native-admitted-text-literal-find) operates only on the frozen in-memory text already admitted into an open viewer, including original USER and a separate already-displayed typed HOST target. It calls the shared snapshot literal policy; it never resolves another record, reads storage/source/clipboard, queries a model/provider or changes admission.
+Queries and one exact match are volatile presentation only: no persistence, logging, export, clipboard transfer, egress, audit-body data or new schema. Existing trusted admission/revocation remains authoritative; every Find gesture and final match/focus publication fails closed on source/private loss or closed/replaced content. Cancel/Clear release navigation state; closure releases private presentation, without managed-memory zeroization or qualification claims. Existing independently admitted copy policy remains unchanged and retained conversation copy is blocked.
+
 ## Exact-session conversation retention boundary
 
 The [native conversation foundation](Interaction_And_Sessions.md#delivered-exact-session-conversationcomposer-foundation--2026-10-12)

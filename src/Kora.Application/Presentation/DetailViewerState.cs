@@ -1,5 +1,6 @@
 using System.Text;
 using Kora.Application.Infrastructure;
+using Kora.Core.Context;
 using Kora.Core.Presentation;
 
 namespace Kora.Application.Presentation;
@@ -13,14 +14,19 @@ public sealed class DetailViewerState : ObservableObject
     private bool isSource;
     private string searchQuery = string.Empty;
     private int matchStart = -1;
+    private SnapshotLiteralSpan? selected;
+    private bool findHost;
     private long generation = 1;
-    private readonly Func<bool>? readAdmission;
+    private Func<bool>? readAdmission;
+    private Func<bool>? findAdmission;
 
-    public DetailViewerState(AdmittedDetailContent content, Func<bool>? sourceReadAdmission = null)
+    public DetailViewerState(AdmittedDetailContent content, Func<bool>? sourceReadAdmission = null,
+        Func<bool>? findAdmission = null)
     {
         ArgumentNullException.ThrowIfNull(content);
         this.content = content;
         readAdmission = sourceReadAdmission;
+        this.findAdmission = findAdmission;
         Reference = content.Reference;
     }
 
@@ -32,9 +38,17 @@ public sealed class DetailViewerState : ObservableObject
     public bool IsSource => isSource;
     public string ActiveText => !CanRead() ? string.Empty
         : isSource || renderState != DetailRenderState.Rendered ? content!.Source : renderedText;
-    public string SearchQuery => searchQuery;
-    public int MatchStart => matchStart;
-    public int MatchLength => matchStart < 0 ? 0 : searchQuery.Length;
+    public string SearchQuery => CanFind() ? searchQuery : string.Empty;
+    public int MatchStart => CanFind() ? matchStart : -1;
+    public int MatchLength => MatchStart < 0 ? 0 : searchQuery.Length;
+    public bool FindHost => findHost;
+    public bool FindAvailable => CanFind();
+    public bool CanNavigateFind => FindAvailable && selected is not null;
+    public string HostText => !CanRead() || content!.ConversationMessage is not { } message ? string.Empty
+        : $"Separate HOST observation: {message.Outcome?.ToString() ?? "Pending / inspect task recovery"}"
+            + $" · Reason: {message.Reason?.ToString() ?? "None recorded"} · Task status: {message.ExpectedTaskState}"
+            + " · Not an assistant answer or execution permission.";
+    public string FindText => findHost ? HostText : ActiveText;
 
     public bool CompleteRender(long renderGeneration, string semanticText, string message, bool fallback)
     {
@@ -74,45 +88,73 @@ public sealed class DetailViewerState : ObservableObject
     public bool Search(string query, bool backwards = false)
     {
         ArgumentNullException.ThrowIfNull(query);
-        if (!CanRead())
-        {
-            return false;
-        }
-        if (query.Length > NativeDetailProfile.MaximumSearchCharacters)
-        {
-            ReportStatus("Search is limited to 256 characters; nothing was truncated.");
-            return false;
-        }
         var sameQuery = string.Equals(query, searchQuery, StringComparison.Ordinal);
+        return Find(query, !sameQuery || selected is null ? SnapshotFindDirection.First
+            : backwards ? SnapshotFindDirection.Previous : SnapshotFindDirection.Next);
+    }
+
+    public void SetFindHost(bool host)
+    {
+        if (!CanFind()) { return; }
+        if (host && content!.ConversationMessage is null)
+        {
+            CancelFind();
+            ReportStatus("Separate typed HOST Details are unavailable for this admitted snapshot.");
+            return;
+        }
+        findHost = host;
+        ResetSearch();
+        NotifyPresentation();
+    }
+
+    public void CancelFind(bool clearQuery = false)
+    {
+        selected = null;
+        matchStart = -1;
+        if (clearQuery) { searchQuery = string.Empty; }
+        NotifyFind();
+        if (CanFind()) { ReportStatus(clearQuery ? "Literal Find cleared." : "Literal Find cancelled; no match or focus claimed."); }
+    }
+
+    public void EditFindQuery(string query)
+    {
+        ArgumentNullException.ThrowIfNull(query);
+        if (!CanFind()) { return; }
         searchQuery = query;
-        var text = ActiveText;
-        if (query.Length == 0)
+        CancelFind();
+    }
+
+    public bool Find(string query, SnapshotFindDirection direction)
+    {
+        ArgumentNullException.ThrowIfNull(query);
+        if (!CanFind()) { return false; }
+        if (!string.Equals(query, searchQuery, StringComparison.Ordinal)) { EditFindQuery(query); }
+        var previous = selected;
+        matchStart = -1;
+        if (!SnapshotLiteralFind.IsValidQuery(query))
         {
-            matchStart = -1;
+            CancelFind();
+            ReportStatus("Literal Find rejected: enter nonempty, bounded, well-formed one-line text without unsafe controls; nothing was truncated.");
+            return false;
         }
-        else if (backwards)
+        if (direction != SnapshotFindDirection.First && previous is null)
         {
-            var start = sameQuery && matchStart > 0 ? matchStart - 1 : text.Length - 1;
-            matchStart = text.LastIndexOf(query, start, StringComparison.OrdinalIgnoreCase);
-            if (matchStart < 0)
-            {
-                matchStart = text.LastIndexOf(query, StringComparison.OrdinalIgnoreCase);
-            }
+            CancelFind();
+            ReportStatus("Literal Find unavailable: choose Find first before navigating.");
+            return false;
         }
-        else
-        {
-            var start = sameQuery && matchStart >= 0 ? matchStart + query.Length : 0;
-            matchStart = text.IndexOf(query, start, StringComparison.OrdinalIgnoreCase);
-            if (matchStart < 0)
-            {
-                matchStart = text.IndexOf(query, StringComparison.OrdinalIgnoreCase);
-            }
-        }
-        ReportStatus(matchStart < 0 ? "No search match." : "Search match in the current immutable revision.");
-        OnPropertyChanged(nameof(SearchQuery));
-        OnPropertyChanged(nameof(MatchStart));
-        OnPropertyChanged(nameof(MatchLength));
-        return matchStart >= 0;
+        var text = FindText;
+        var match = SnapshotLiteralFind.Find(text, query, direction, previous);
+        if (!CanFind()) { return false; }
+        selected = match ?? (direction == SnapshotFindDirection.First ? null : previous);
+        matchStart = match?.Start ?? -1;
+        ReportStatus(match is not null
+            ? $"One exact literal match: UTF-16 [{match.Start}, {match.Start + match.Length}); end exclusive."
+            : direction == SnapshotFindDirection.First ? "No literal match in this exact admitted text."
+                : direction == SnapshotFindDirection.Next ? "End of forward direction; no wrap. Earlier matches may remain."
+                    : "End of backward direction; no wrap. Later matches may remain.");
+        NotifyFind();
+        return CanFind() && matchStart >= 0;
     }
 
     public bool TryGetCopySource(bool canAccess, bool disclosureConfirmed, out string? source)
@@ -164,9 +206,12 @@ public sealed class DetailViewerState : ObservableObject
     public void Close()
     {
         content = null;
+        readAdmission = null;
+        findAdmission = null;
         renderedText = string.Empty;
         generation++;
         renderState = DetailRenderState.Closed;
+        findHost = false;
         status = "Viewer closed; retained source and work were not changed.";
         ResetSearch();
         NotifyPresentation();
@@ -180,13 +225,29 @@ public sealed class DetailViewerState : ObservableObject
         return false;
     }
 
+    private bool CanFind()
+    {
+        if (!CanRead()) { return false; }
+        if (findAdmission is null || findAdmission()) { return true; }
+        Close();
+        return false;
+    }
+
     private void ResetSearch()
     {
         searchQuery = string.Empty;
         matchStart = -1;
+        selected = null;
+        NotifyFind();
+    }
+
+    private void NotifyFind()
+    {
         OnPropertyChanged(nameof(SearchQuery));
         OnPropertyChanged(nameof(MatchStart));
         OnPropertyChanged(nameof(MatchLength));
+        OnPropertyChanged(nameof(CanNavigateFind));
+        OnPropertyChanged(nameof(FindAvailable));
     }
 
     private void NotifyPresentation()
@@ -197,5 +258,7 @@ public sealed class DetailViewerState : ObservableObject
         OnPropertyChanged(nameof(Status));
         OnPropertyChanged(nameof(IsSource));
         OnPropertyChanged(nameof(ActiveText));
+        OnPropertyChanged(nameof(HostText));
+        OnPropertyChanged(nameof(FindHost));
     }
 }

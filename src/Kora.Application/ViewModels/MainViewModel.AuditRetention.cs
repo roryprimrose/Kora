@@ -17,8 +17,10 @@ public sealed partial class MainViewModel
 
     public void BindAuditRetentionNativeLifetime(Func<bool> lifetime)
     {
+        auditImpactPreview?.Retire("Native lifetime changed; preview retired.");
         auditRetentionNativeLifetime = lifetime;
         OnPropertyChanged(nameof(CanChangeAuditRetentionNative));
+        NotifyAuditImpactPreview();
     }
 
     public IReadOnlyList<int> AuditRetentionChoices { get; } =
@@ -43,6 +45,7 @@ public sealed partial class MainViewModel
     private void SynchronizeAuditRetention()
     {
         if (disposed) { return; }
+        auditImpactPreview?.Retire("Preference refreshed or changed; preview retired.");
         SelectedAuditRetentionDays = auditRetentionConfiguration!.Get().Desired.Days;
         OnPropertyChanged(nameof(AuditRetentionStatus));
         OnPropertyChanged(nameof(CanChangeAuditRetention));
@@ -54,6 +57,7 @@ public sealed partial class MainViewModel
     internal async Task ExecuteAuditRetentionCommandAsync(AuditRetentionCommand command,
         SecurityAuditInitiator initiator, CancellationToken cancellationToken = default)
     {
+        auditImpactPreview?.Retire("Retention control request changed; preview retired.");
         var nativeLifetime = auditRetentionNativeLifetime;
         if (!CanChangeAuditRetention || initiator == SecurityAuditInitiator.LocalUser && !nativeLifetime())
         {

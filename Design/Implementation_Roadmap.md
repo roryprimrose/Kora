@@ -72,6 +72,21 @@ This consumes the existing preference/typography/Evidence I subset; no global
 UI scaling, model/runtime route, voice inference, installed accessibility or
 broader E/Q qualification is claimed.
 
+### Bounded read-only audit shortening impact preview - 2026-10-15
+
+[Native Settings preview](User_Configuration.md#read-only-audit-shortening-impact-preview)
+requires an explicit shorter 30–365 day choice. It reports separately qualified,
+content-free newly-due aggregates for required authority and diagnostic audit at
+one fixed cutoff. Finite row/byte/time limits return Incomplete/Unavailable, not
+truncated success or false zero. Exact proposal, preference/readback, private
+store snapshot and host/control revisions fence publication; edits, refresh,
+changes, close, cancellation/failure and timeout retire it without replay.
+There is no activity renewal, mutation, model/tool/voice/network route or periodic
+scan. Future-only Set/Reset is unchanged; apply-now/deletion/pruning remain
+unavailable. Existing storage/configuration supplies the consumed I subset;
+installed accessibility, audit cleanup/forensic disposal and broader E/Q remain
+unqualified, not implementation prerequisites.
+
 ### Bounded native Sessions local-event filters - 2026-10-14
 
 [Category, exact reason, authoritative source and type filters](Proactive_Interaction.md#native-content-free-loaded-event-filters)

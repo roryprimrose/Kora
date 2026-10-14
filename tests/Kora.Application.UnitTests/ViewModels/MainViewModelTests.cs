@@ -8501,7 +8501,7 @@ public sealed partial class MainViewModelTests : IDisposable
             bool enableArtifactConfiguration = false,
             Exception? artifactReadFailure = null,
             bool enableMcpServerConfiguration = true, bool enableProviderProfiles = false,
-            bool enableQuestionReplies = false)
+            bool enableQuestionReplies = false, bool enableAuditImpact = false)
         {
             Catalog = new BuiltInCommandCatalog();
             CaptionPreferences.LoadFailure = captionReadFailure;
@@ -8661,7 +8661,8 @@ public sealed partial class MainViewModelTests : IDisposable
                 webPageGet,
                 ArtifactDirectoryConfiguration,
                 McpServerConfiguration,
-                enableProviderProfiles ? new ProviderProfileConfigurationService(ProfilePreferences, ProfileCatalogue, OutputAdmission, Audit, ProfileTime) : null);
+                enableProviderProfiles ? new ProviderProfileConfigurationService(ProfilePreferences, ProfileCatalogue, OutputAdmission, Audit, ProfileTime) : null,
+                enableAuditImpact ? new AuditImpactPreviewService(ImpactReader, AuditPreferences, AuditConfiguration!) : null);
             ViewModel.BindCallOwnershipGate(static () => true);
             ViewModel.BindManualCallNativeLifetime(true);
             if (enableWindowsSpeechRate) { ViewModel.BindWindowsSpeechRateNativeLifetime(static () => true); }
@@ -8714,6 +8715,7 @@ public sealed partial class MainViewModelTests : IDisposable
         public FakeAuditRetentionPreferences AuditPreferences { get; } = new();
         public AuditRetentionPolicy AuditPolicy { get; } = new();
         public AuditRetentionConfigurationService? AuditConfiguration { get; }
+        public Kora.Application.UnitTests.Configuration.AuditImpactPreviewServiceTests.Reader ImpactReader { get; } = new();
         public FakeArtifactPreferences ArtifactPreferences { get; } = new();
         public ArtifactDirectoryConfigurationService? ArtifactDirectoryConfiguration { get; }
         public McpServerConfigurationService? McpServerConfiguration { get; }

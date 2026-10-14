@@ -24,6 +24,17 @@ public sealed class AuditRetentionUiContractTests
             controls.Single(control => string.Equals(control.Attribute("Command")?.Value, "{Binding " + command + "}", StringComparison.Ordinal))
                 .Attribute("IsEnabled")!.Value.Should().Be("{Binding CanChangeAuditRetentionNative}");
         }
+        var proposal = controls.Single(control =>
+            string.Equals(control.Attribute("SelectedItem")?.Value, "{Binding ProposedAuditImpactDays}", StringComparison.Ordinal));
+        proposal.Attribute("ItemsSource")!.Value.Should().Be("{Binding AuditRetentionChoices}");
+        proposal.Attribute("AutomationProperties.Name")!.Value.Should().Be("Proposed audit retention days for read-only preview");
+        proposal.Attribute("AutomationProperties.HelpText")!.Value.Should().Contain("Selecting does not save");
+        var preview = controls.Single(control =>
+            string.Equals(control.Attribute("Command")?.Value, "{Binding PreviewAuditImpactCommand}", StringComparison.Ordinal));
+        preview.Attribute("IsEnabled")!.Value.Should().Be("{Binding CanPreviewAuditImpact}");
+        controls.Single(control =>
+            string.Equals(control.Attribute("Text")?.Value, "{Binding AuditImpactPreviewStatus}", StringComparison.Ordinal))
+            .Attribute("AutomationProperties.Name")!.Value.Should().Be("Read-only audit impact preview status");
         File.ReadAllText(Path.Combine(root, "src", "Kora", "SettingsWindowController.cs"))
             .Should().Contain("BindAuditRetentionNativeLifetime").And.Contain("Volatile.Read(ref nativeVisibilityRevision) == revision");
         var composition = File.ReadAllText(Path.Combine(root, "src", "Kora", "Program.cs"));

@@ -1371,6 +1371,16 @@ Existing bytes/hashes/relationships/citations/deadlines and every grant record/
 validity/scope remain. Lost evidence or corrupt/unconfirmed preference holds
 new required audit/authority commits and refuses startup writes, never defaults
 to 90. Explicit saved-state/receipt inspection and repair precede refresh.
+The native [read-only shortening preview](User_Configuration.md#read-only-audit-shortening-impact-preview)
+observes newly due committed rows at one fixed cutoff without a durable intent,
+activity renewal or audit/approval authority. Required authority and independently
+typed diagnostic audit projections remain distinct. Only bounded counts and
+committed/proposed-due ranges leave the reader; no audit content or identity is
+returned. Private query-only snapshots, saved/readback/policy and host/control
+revisions fence publication. Source limits are Incomplete without partial counts;
+corrupt/unknown sources are Unavailable, not zero. Edits, refresh, store/preference,
+privacy/owner/desktop/call changes, cancellation/failure/close/timeout retire the
+result and fence late callbacks. Notifications never start a scan.
 No apply-now, audit pruning, session/history/approval/task/question deletion,
 ordinary/file policy or cleanup-schedule change is authorized by this option.
 Store history, artifacts and indexes under verified private LocalApplicationData permissions; deletion covers caches, indexes, blobs, journals/recoverable copies and outstanding dispatch authority, not independently stored perpetual grants.

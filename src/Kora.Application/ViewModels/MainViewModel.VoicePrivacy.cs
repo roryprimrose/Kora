@@ -63,6 +63,7 @@ public sealed partial class MainViewModel
     private void OnWindowsPrivacyChanged(object? sender, WindowsPrivacyChangedEventArgs eventArgs)
     {
         if (disposed) { return; }
+        auditImpactPreview?.Retire("Private/lock/desktop revision changed; preview retired.");
         RetireQuestionVoiceReply();
         var snapshot = eventArgs.Current;
         var voicePrivacyChanged = (eventArgs.Reason & (WindowsPrivacyChangeReason.Power
@@ -209,6 +210,11 @@ public sealed partial class MainViewModel
             return;
         }
         disposed = true;
+        if (auditImpactPreview is not null)
+        {
+            auditImpactPreview.Changed -= OnAuditImpactPreviewChanged;
+            auditImpactPreview.Dispose();
+        }
         RetireWebResultDetails();
         RetireSpeechCaption();
         lifecycleAdmissionClosed = true;

@@ -43,7 +43,7 @@ public sealed class SecurityAuditEvent
         ApprovalId = approvalId;
         ReasonCode = reasonCode is null
             ? null
-            : ValidateIdentifier(reasonCode, nameof(reasonCode));
+            : ValidateReasonCode(reasonCode);
     }
 
     public Guid CorrelationId { get; }
@@ -61,6 +61,9 @@ public sealed class SecurityAuditEvent
     public Guid? ApprovalId { get; }
 
     public string? ReasonCode { get; }
+
+    public static string ValidateReasonCode(string reasonCode) =>
+        ValidateIdentifier(reasonCode, nameof(reasonCode));
 
     public SecurityAuditEvent WithOutcome(
         SecurityAuditOutcome outcome,

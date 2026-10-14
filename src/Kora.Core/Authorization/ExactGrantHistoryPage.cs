@@ -7,7 +7,7 @@ namespace Kora.Core.Authorization;
 public sealed record ExactGrantHistoryPage(
     ExactGrantInspection? Current, ImmutableArray<ExactGrantHistoryEntry> Records, string? Next,
     DateTimeOffset ObservedAt, long AuditCeiling, string AuditCeilingDigest,
-    long ScannedThrough, int ScannedRows, bool ScanLimitReached)
+    long ScannedThrough, int ScannedRows, bool ScanLimitReached, int NonmatchingRows = 0)
 {
     public const int MaximumRecords = 50;
     public const int MaximumBytes = 64 * 1024;

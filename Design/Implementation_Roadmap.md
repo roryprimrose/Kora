@@ -72,6 +72,12 @@ No retained-source/body expansion, schema/index, audit authority, activity
 identity, copy/export, speech/model/execution or network capability is added.
 General Ask Evidence and installed accessibility/full qualification remain open.
 
+### Bounded exact-grant committed-history typed filters - 2026-10-14
+
+The existing [one-exact-grant history](../docs/settings.md#exact-operation-grants) admits native Any/defined committed-event outcome and bounded exact canonical ReasonCode predicates after explicit retained-record inspection. The trusted reader validates exact membership and the authoritative prefix before matching; authenticated continuation binds inspected grant/store, viewer/read admission/control revision, filter digest and finite ceiling/digest. Edits retire rows/continuation/actionable reviews without reading. Scan/nonmatch/zero-match progress retains 4096 rows/5 seconds, 50 results/64 KiB and 15-minute bounds.
+
+No schema/pruning/retention change, authority expansion, diagnostic-mirror reconstruction, execution proof, exhaustive/forensic claim, replay/export/model/egress or installed accessibility/full qualification is delivered. The archived history receipt is historical contract evidence, not qualification of this increment.
+
 ### Bounded native Evidence exact-field filters — 2026-10-14
 
 The [Evidence contract](Information_Display.md#delivered-bounded-native-evidence-inspection) exposes existing EventId, Category and ActionId through optional exact native filters with source-specific unsupported recovery and the existing snapshot/cursor/private-closure lifecycle ([native and real-reader tests](../tests/Kora.Windows.IntegrationTests/EvidenceAdvancedFilterTests.cs)).

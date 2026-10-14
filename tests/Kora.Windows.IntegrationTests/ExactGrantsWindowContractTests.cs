@@ -14,6 +14,7 @@ public sealed class ExactGrantsWindowContractTests
         foreach (var binding in new[] { "RefreshCommand", "NextCommand", "InspectCommand", "RevokeCommand", "Selected", "Inspection", "Reviewed", "Message",
             "PreviewBatchCommand", "RevokeBatchCommand", "BatchInspection", "BatchReviewed",
             "ReadHistoryCommand", "NextHistoryCommand", "HistoryRows", "HistorySummary",
+            "HistoryOutcomeFilter}", "HistoryReasonCodeFilter", "ClearHistoryFiltersCommand",
             "ScopeFilter}", "StatusFilter}", "ActionIdFilter", "OriginatingSessionFilter", "ClearFiltersCommand", "InventorySummary" })
         {
             var control = document.Descendants().Single(element => element.Attributes().Any(attribute =>
@@ -30,7 +31,7 @@ public sealed class ExactGrantsWindowContractTests
             string.Equals(element.Attribute("AutomationProperties.Name")?.Value, "Retained exact operation grants", StringComparison.Ordinal))
             .Name.LocalName.Should().Be("ScrollableListBox");
         document.Descendants().Where(element => string.Equals(element.Name.LocalName, "Button", StringComparison.Ordinal))
-            .Should().HaveCount(9);
+            .Should().HaveCount(10);
         document.Descendants().Single(element =>
             string.Equals(element.Attribute("ItemsSource")?.Value, "{Binding HistoryRows}", StringComparison.Ordinal))
             .Name.LocalName.Should().Be("ScrollableListBox");

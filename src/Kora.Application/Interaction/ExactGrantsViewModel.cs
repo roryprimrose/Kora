@@ -59,6 +59,7 @@ public sealed partial class ExactGrantsViewModel : ObservableObject, IDisposable
         NextHistoryCommand = new(() => NextHistoryAsync(), ReportFailure,
             () => CanReadHistory && historyNext is not null);
         ClearFiltersCommand = new(() => { ClearFilters(); return Task.CompletedTask; }, ReportFailure, () => !disposed);
+        ClearHistoryFiltersCommand = new(() => { ClearHistoryFilters(); return Task.CompletedTask; }, ReportFailure, () => !disposed);
     }
 
     public AsyncCommand RefreshCommand { get; }
@@ -237,6 +238,7 @@ public sealed partial class ExactGrantsViewModel : ObservableObject, IDisposable
             preview = current;
             inspectedHistoryTarget = current;
             historyControlRevision = revision;
+            historyAdmissionId = Guid.NewGuid();
             previewControlRevision = revision;
             Message = current is null ? "Exact retained record is unavailable. No applicability or revocation is inferred."
                 : "Current exact inspection. Review this immutable ID/revision before explicit confirmation.";
@@ -351,6 +353,7 @@ public sealed partial class ExactGrantsViewModel : ObservableObject, IDisposable
         ReadHistoryCommand.NotifyCanExecuteChanged();
         NextHistoryCommand.NotifyCanExecuteChanged();
         ClearFiltersCommand.NotifyCanExecuteChanged();
+        ClearHistoryFiltersCommand.NotifyCanExecuteChanged();
         OnPropertyChanged(nameof(CanRevoke));
         OnPropertyChanged(nameof(CanRevokeBatch));
     }
@@ -369,11 +372,15 @@ public sealed partial class ExactGrantsViewModel : ObservableObject, IDisposable
         next = null;
         scopeFilter = statusFilter = "Any";
         actionIdFilter = originatingSessionFilter = string.Empty;
+        historyOutcomeFilter = "Any";
+        historyReasonCodeFilter = string.Empty;
         InventorySummary = "Closed. No retained query metadata or late private output is admitted.";
         OnPropertyChanged(nameof(ScopeFilter));
         OnPropertyChanged(nameof(StatusFilter));
         OnPropertyChanged(nameof(ActionIdFilter));
         OnPropertyChanged(nameof(OriginatingSessionFilter));
+        OnPropertyChanged(nameof(HistoryOutcomeFilter));
+        OnPropertyChanged(nameof(HistoryReasonCodeFilter));
         Records = [];
         Reviewed = false;
         Message = "Closed. No late private output is admitted.";

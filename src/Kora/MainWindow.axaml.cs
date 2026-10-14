@@ -57,6 +57,7 @@ public sealed partial class MainWindow : Window
         presence = this.FindControl<PresenceControl>("Presence")
             ?? throw new InvalidOperationException("The presence control was not loaded.");
         DataContext = viewModel;
+        presence.BindPresentationEligibility(() => viewModel.CanRevealPrivatePresentation);
         ShowInTaskbar = false;
         Opacity = 0;
         Win32Properties.AddWindowStylesCallback(this, ConfigurePresenceWindowStyles);
@@ -102,7 +103,8 @@ public sealed partial class MainWindow : Window
         try
         {
             IsHitTestVisible = presenceInput.Refresh(
-                IsVisible && viewModel.CanRevealPrivatePresentation);
+                IsVisible && viewModel.CanRevealPrivatePresentation
+                && presence.IsPresenceVisible && presence.CurrentFrame.Opacity > 0);
         }
         catch (Win32Exception exception)
         {
@@ -135,6 +137,7 @@ public sealed partial class MainWindow : Window
 
     private void OnClosed(object? sender, EventArgs eventArgs)
     {
+        presence.Dispose();
         presenceInputTimer.Stop();
         presenceTimeoutTimer.Stop();
         presenceInactivity.Stop();
@@ -174,6 +177,7 @@ public sealed partial class MainWindow : Window
         }
 
         initialized = true;
+        presence.IsMotionEnabled = WindowsPresenceMotionPreference.IsAnimationEnabled();
         DesktopLog.Information(logger, "Main window loaded");
         await viewModel.InitializeAsync();
         RestorePosition();
@@ -320,9 +324,11 @@ public sealed partial class MainWindow : Window
             case WindowAction.Show:
                 DesktopLog.Debug(logger, "Showing the presence");
                 CancelPendingHide();
+                presence.IsMotionEnabled = WindowsPresenceMotionPreference.IsAnimationEnabled();
                 EnsurePositionOnConnectedScreen();
                 ShowPresenceWindow();
                 presence.IsPresenceVisible = true;
+                RefreshPresenceInput();
                 SchedulePresenceTimeout();
                 break;
             case WindowAction.Hide:
@@ -362,6 +368,7 @@ public sealed partial class MainWindow : Window
     {
         CancelPendingHide();
         presence.IsPresenceVisible = false;
+        RefreshPresenceInput();
         var hideRequest = new CancellationTokenSource();
         pendingHide = hideRequest;
         try
@@ -413,6 +420,11 @@ public sealed partial class MainWindow : Window
 
     private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs eventArgs)
     {
+        presence.IsPresentationEligible = viewModel.CanRevealPrivatePresentation;
+        if (eventArgs.PropertyName is nameof(MainViewModel.IsSpeaking))
+        {
+            viewModel.RefreshSpeechPlaybackFrame();
+        }
         if (eventArgs.PropertyName is nameof(MainViewModel.PresenceTimeoutSeconds))
         {
             SchedulePresenceTimeout();

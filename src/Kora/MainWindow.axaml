@@ -20,6 +20,7 @@
       x:Name="Presence"
       State="{Binding State}"
       IsSpeaking="{Binding IsSpeechPlaybackActive}"
+      IsPresentationEligible="{Binding CanRevealPrivatePresentation}"
       SpeechOutputLevel="{Binding SpeechOutputLevel}"
       DotSizePercent="{Binding PresenceDotSizePercent}"
       DotDensityPercent="{Binding PresenceDotDensityPercent}"

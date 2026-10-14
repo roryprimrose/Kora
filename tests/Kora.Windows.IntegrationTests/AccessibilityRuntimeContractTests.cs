@@ -137,7 +137,7 @@ public sealed class AccessibilityRuntimeContractTests
             var window = new ClipboardPreviewWindow(_ => { });
             try
             {
-                window.Show(snapshot, () => { reuseInvoked = true; return Task.CompletedTask; }, () => { revokeInvoked = true; return Task.CompletedTask; });
+                window.Show(snapshot, () => { reuseInvoked = true; return Task.CompletedTask; }, () => { revokeInvoked = true; return Task.CompletedTask; }, () => true);
 
                 var explicitlyNamed = AssertAllExplicitAutomationNamesResolve(window);
                 explicitlyNamed.Should().BeGreaterThanOrEqualTo(5, "every clipboard preview control declares an automation name");

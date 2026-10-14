@@ -262,9 +262,9 @@ public sealed class WindowsDailyEvidenceReaderTests
         var excluded = await service.QueryAsync(query with { Record = actual[0].Reference, SessionId = other.SessionId },
             null, TestContext.Current.CancellationToken);
         excluded.Status.Should().Be(EvidencePageStatus.MissingOrRemoved);
-        var auditFilter = await service.QueryAsync(query with { ActionId = "host.query.version" },
-            null, TestContext.Current.CancellationToken);
-        auditFilter.Records.Should().BeEmpty();
+        var auditFilter = () => service.QueryAsync(query with { ActionId = "host.query.version" },
+            null, TestContext.Current.CancellationToken).AsTask();
+        await auditFilter.Should().ThrowAsync<NotSupportedException>();
         (await File.ReadAllBytesAsync(path, TestContext.Current.CancellationToken)).Should().Equal(before);
         Directory.GetFiles(fixture.LocalRoot, "*", SearchOption.AllDirectories).Should().Equal(path);
     }

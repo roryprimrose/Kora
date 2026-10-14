@@ -25,6 +25,7 @@ public sealed class LocalAppearancePreferences : IAppearancePreferences
     private const string ResponseWindowFileName = "response-window.txt";
     private readonly IPreferenceStore store;
     private readonly ILogger<LocalAppearancePreferences> logger;
+    private readonly LocalReaderTextScalePreferences readerScale;
 
     public LocalAppearancePreferences(
         IApplicationDataPaths paths,
@@ -39,7 +40,14 @@ public sealed class LocalAppearancePreferences : IAppearancePreferences
     {
         this.store = store;
         this.logger = logger;
+        readerScale = new(store);
     }
+
+    public int? LoadReaderTextScalePercent() => readerScale.LoadReaderTextScalePercent();
+    public int? ReadBackReaderTextScalePercent() => readerScale.ReadBackReaderTextScalePercent();
+    public void BeginReaderTextScaleWrite() => readerScale.BeginReaderTextScaleWrite();
+    public void SaveReaderTextScalePercent(int percent) => readerScale.SaveReaderTextScalePercent(percent);
+    public void ConfirmReaderTextScaleWrite() => readerScale.ConfirmReaderTextScaleWrite();
 
     public ApplicationThemeMode? LoadThemeMode()
     {

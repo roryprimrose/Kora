@@ -10,6 +10,23 @@ namespace Kora.Application.UnitTests.Presentation;
 public sealed class DetailViewerTests
 {
     [Fact]
+    public void RetainedConversationDetailsDoNotGrantExactSourceOrSelectionDisclosure()
+    {
+        var message = new Kora.Core.Conversation.ConversationMessage(HostRequest.Create(RequestOrigin.LocalUi),
+            new(1), 1, 1, DateTimeOffset.UnixEpoch, "exact retained USER", null, null);
+        var content = new AdmittedDetailContent(new(new(message.Request.RequestId.Value), 1),
+            DetailContentKind.PlainText, DetailContentOrigin.RetainedConversation,
+            DetailSensitivity.DisclosureConfirmationRequired, "Original USER", "Private retained original",
+            message.Body, conversationMessage: message);
+        var state = new DetailViewerState(content);
+        state.TryGetCopySource(true, true, out var source).Should().BeFalse();
+        source.Should().BeNull();
+        state.TryGetCopySelection(true, true, 0, 5, out var selection).Should().BeFalse();
+        selection.Should().BeNull();
+        state.Status.Should().Contain("do not grant clipboard");
+        state.ActiveText.Should().Be(message.Body);
+    }
+    [Fact]
     public void Reopening_exact_reference_reuses_state_but_new_revision_is_separate()
     {
         var registry = new DetailViewerRegistry();

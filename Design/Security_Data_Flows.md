@@ -524,6 +524,14 @@ callbacks. Clearing releases references, not a managed-memory zeroization
 claim. Logs retain content-minimizing typed outcomes/failure types under host
 correlation, never text/digest/excerpts or raw native exception messages.
 
+Native **Find first / Find next / Find previous / Clear literal Find** navigates only this already captured immutable snapshot.
+Exact case/spaces and original UTF-16 offsets use the [shared pure literal policy](../src/Kora.Core/Context/SnapshotLiteralFind.cs); the [clipboard adapter](../src/Kora.Core/Context/ClipboardLiteralFind.cs) binds directional spans to the exact capture object, without file/session identities.
+Queries wholly fit the existing 256 UTF-16 / 512 strict UTF-8 limits and are nonempty, well-formed, one-line text without unsafe controls; invalid input is visibly rejected, never truncated or normalized. One inert focused exact span is shown, with nonoverlapping steps, no wrap, index or count-all-occurrences.
+The [native controller](../src/Kora/ClipboardPreviewWindowController.cs) and [Find state](../src/Kora/ClipboardPreviewWindow.Find.cs) fence exact snapshot/source/version, view generation and the original capture's privacy/owner/call eligibility on gestures and final publication/focus.
+Query edits retire matches without I/O; clear, close, replacement, revocation and private loss release volatile references and fence old callbacks.
+Keyboard access remains native-only and blocks built-in cut/copy/paste/context routes. Find adds no clipboard reads/writes, reuse/revoke dispatch, typed/voice/model/tool query, provider/egress/context/persistence/history, activity renewal or timer.
+[Portable policy tests](../tests/Kora.Core.UnitTests/Context/ClipboardLiteralFindTests.cs) and [headless lifecycle/transfer tests](../tests/Kora.Windows.IntegrationTests/ClipboardLiteralFindWindowTests.cs) are consumer evidence, not installed-native/privacy qualification.
+
 Text remains untrusted and potentially secret. All inference/egress is
 unavailable, including for apparently safe text: preview is not approval and
 there is no secret-detection/redaction-correctness claim. The existing JSON

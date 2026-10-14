@@ -554,6 +554,8 @@ public sealed partial class NewRequestComposerTests : IDisposable
             };
         }
         public ValueTask<ConversationPage> ReadConversationPageAsync(HostId<SessionIdentity> session, ConversationCursor? cursor, int limit, CancellationToken token) => throw new NotSupportedException();
+        public ValueTask<ConversationMessage> ReadConversationMessageAsync(HostId<SessionIdentity> session,
+            HostId<RequestIdentity> request, CancellationToken token) => throw new NotSupportedException();
     }
 
     private sealed class AccessState : ISessionWorkspaceAccess

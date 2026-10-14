@@ -240,6 +240,15 @@ public sealed partial class SessionWorkspaceServiceTests
         internal int Reads { get; private set; }
         internal Func<ConversationPage, ConversationPage>? AfterRead { get; set; }
         internal Func<CancellationToken, Task>? BeforeConversationRead { get; set; }
+        internal Action<int>? BeforeExactRead { get; set; }
+        internal int ExactReads { get; private set; }
+        public ValueTask<ConversationMessage> ReadConversationMessageAsync(HostId<SessionIdentity> session,
+            HostId<RequestIdentity> request, CancellationToken token)
+        {
+            ExactReads++;
+            BeforeExactRead?.Invoke(ExactReads);
+            return ValueTask.FromResult(Messages.Single(message => message.Request.RequestId == request));
+        }
         public async ValueTask<ConversationPage> ReadConversationPageAsync(HostId<SessionIdentity> session,
             ConversationCursor? cursor, int limit, CancellationToken token)
         {

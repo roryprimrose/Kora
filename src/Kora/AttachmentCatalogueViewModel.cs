@@ -20,6 +20,7 @@ internal sealed partial class AttachmentCatalogueViewModel(
     private SessionAttachmentSummary? selected;
     private CancellationTokenSource? operation;
     private bool includeRemoved;
+    private SessionAttachmentFilter filter;
     private AttachmentCatalogueMode mode;
     private string queryText = string.Empty;
     private bool disposed;
@@ -35,12 +36,24 @@ internal sealed partial class AttachmentCatalogueViewModel(
     public bool CanEdit => !disposed && access.CanInspect && admitted();
     public bool CanEditId => CanEdit && mode == AttachmentCatalogueMode.ExactId;
     public bool CanRead => CanEdit && operation is null;
-    public bool CanSearch => CanRead && (mode == AttachmentCatalogueMode.Browse
+    public bool CanSearch => CanRead && Enum.IsDefined(filter) && (mode == AttachmentCatalogueMode.Browse
         || SessionListSearch.IsValid(SessionListSearchKind.ExactId, SessionListFilter.All, queryText));
     public bool CanNext => CanSearch && page?.Next is not null;
     public bool CanCancel => !disposed && operation is not null;
     public bool CanNavigate => CanRead && selected?.CopyStatus == AttachmentCopyStatus.Confirmed;
     public IReadOnlyList<AttachmentCatalogueMode> Modes { get; } = Enum.GetValues<AttachmentCatalogueMode>();
+    public IReadOnlyList<SessionAttachmentFilter> Filters { get; } = Enum.GetValues<SessionAttachmentFilter>();
+    public SessionAttachmentFilter Filter
+    {
+        get => filter;
+        set
+        {
+            if (!CanEdit || filter == value) { return; }
+            InvalidateQuery();
+            filter = value;
+            Notify();
+        }
+    }
     public AttachmentCatalogueMode Mode
     {
         get => mode;
@@ -63,7 +76,9 @@ internal sealed partial class AttachmentCatalogueViewModel(
             Notify();
         }
     }
-    public string QueryHint => mode == AttachmentCatalogueMode.Browse
+    public string QueryHint => !Enum.IsDefined(filter)
+        ? "Invalid stored session lifecycle filter. Choose All, Active, Done or Removed; no fallback or read."
+        : mode == AttachmentCatalogueMode.Browse
         ? "Browse retained slots. Clear returns to Browse; typing performs no read."
         : !SessionListSearch.IsValid(SessionListSearchKind.ExactId, SessionListFilter.All, queryText)
             ? "Invalid exact session ID. Enter a nonempty canonical lowercase D-format UUID; no Browse fallback. No names, paths, bodies or digest search."
@@ -92,7 +107,7 @@ internal sealed partial class AttachmentCatalogueViewModel(
     public Task Refresh(bool next = false) => Run(async (current, token) =>
     {
         var query = new SessionAttachmentQuery(includeRemoved,
-            mode == AttachmentCatalogueMode.Browse ? null : queryText);
+            mode == AttachmentCatalogueMode.Browse ? null : queryText, filter);
         var cursor = next ? page?.Next ?? throw new InvalidOperationException("Refresh before Next.") : null;
         Clear();
         var result = await read(query, cursor, current, token);
@@ -173,7 +188,7 @@ internal sealed partial class AttachmentCatalogueViewModel(
         epoch++;
         operation?.Cancel();
         Clear();
-        status = "Query/mode/removal filter edited. Page, continuation and selection cleared; explicit Search/Refresh required.";
+        status = "Query/mode/session lifecycle/removal filter edited. Page, continuation and selection cleared; explicit Search/Refresh required.";
     }
 
     internal void SynchronizeAuthority()
@@ -212,6 +227,7 @@ internal sealed partial class AttachmentCatalogueViewModel(
         Clear();
         status = string.Empty;
         includeRemoved = false;
+        filter = SessionAttachmentFilter.All;
         mode = AttachmentCatalogueMode.Browse;
         queryText = string.Empty;
         Notify();
@@ -231,6 +247,7 @@ internal sealed partial class AttachmentCatalogueViewModel(
         OnPropertyChanged(nameof(CanCancel));
         OnPropertyChanged(nameof(CanNavigate));
         OnPropertyChanged(nameof(IncludeRemoved));
+        OnPropertyChanged(nameof(Filter));
         OnPropertyChanged(nameof(Mode));
         OnPropertyChanged(nameof(QueryText));
         OnPropertyChanged(nameof(QueryHint));

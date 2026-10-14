@@ -36,6 +36,16 @@ Privacy, ownership or session retirement revokes both views without saving or st
 Questions, approvals, voice focus and legacy response presentation remain in their existing surfaces. This selected-session projection adds no generation, relatedness, voice routing, model context, clipboard or export authority.
 Installed accessibility, physical storage and provider qualification remain separate ([delivery boundary](../Design/UI_Workspace_And_Windows.md#delivered-compact-selected-session-projection)).
 
+### Exact retained original message Details
+
+After **Read exact conversation** or explicit conversation Search, choose **Details - exact original USER / separate HOST** on one row. The shared row uses the same action in Sessions and compact projections; selecting a session or opening either window does not read/open Details automatically ([shared action](../src/Kora/ConversationPresentation.axaml)).
+
+The separate native window shows the complete unchanged **USER** body as inert plain text. Original session/request/task/sequence, revision, generation/time and SHA-256 identify that exact retained record. **HOST** outcome, reason and task state are separate observations, not an assistant answer or permission to execute anything ([native chrome](../src/Kora/DetailWindow.axaml.cs)).
+
+Find and exact-source viewing stay passive. Reopening the same unchanged record activates its viewer; eight viewers are allowed. Stale selection/body/source refuses with Refresh rather than opening a newer message. Done reading does not Resume or renew activity. Privacy, owner/source/selection loss, deletion, retention or closure clears private viewer state ([controller](../src/Kora/DetailWindowController.cs)).
+
+These conversation Details grant **no clipboard/export disclosure authority**. Copy exact source, selection, Ctrl+C and automatic copy remain blocked, even after disclosure confirmation; other admitted viewer origins retain their existing policy. There is no generated content, provider call, model tool or network operation ([copy policy](../src/Kora.Application/Presentation/DetailViewerState.cs)).
+
 ### New request with a fresh session
 
 Open **Tray > New request (fresh session only)** or **Sessions > New request (fresh target)**. Reopening activates the same window and preserves its isolated memory draft. Relatedness inference is unavailable: this entry never continues the selected, named, recent or Done session and never changes question/approval/voice focus.
@@ -59,13 +69,14 @@ Dirty means the current body differs exactly from its last confirmed saved memor
 
 ### Search one exact retained conversation
 
-Select an exact session in **Sessions**, then use **Search this conversation** in its conversation pane. Search matches whole lexical words in original retained **USER** messages or separate typed **HOST** outcome/reason/task-state fields. It never searches other sessions, saved draft bodies, Question/Answer receipts, logs, attachments, memories or accounts.
+Select an exact session in **Sessions**, then use **Search this conversation** in its conversation pane or **Compact selected-session conversation**. Both views share one private query, result page, continuation and cancellation state; edits and actions in either are reflected in the other ([shared search state](../src/Kora/SessionsViewModel.ConversationSearch.cs), [compact controls](../src/Kora/CompactSessionWindow.axaml)). Search matches whole lexical words in original retained **USER** messages or separate typed **HOST** outcome/reason/task-state fields.
+It never searches other sessions, saved draft bodies, Question/Answer receipts, logs, attachments, memories or accounts ([admitted reader](../src/Kora.Application/Hosting/SessionWorkspaceService.ConversationSearch.cs)).
 
 Queries use 1–256 UTF-16 characters / 512 UTF-8 bytes and 1–32 distinct terms of at most 64 characters. NFC/invariant case and whole-word OR apply; punctuation separates words rather than becoming regex/wildcard/instruction syntax. Blank or invalid queries explicitly fail, never show every message. Typing alone does not search or save the query.
 
 Results are chronological exact messages, not generated answers, summaries or relevance ranking. Each read scans at most the existing 100-message session bound; default 25 / maximum 50 complete results, counters and cursor fit 64 KiB. **Next conversation matches** stays on the original generation/sequence ceiling/head; later append is excluded and changed terminal status requires fresh Search.
 
-Enter searches. **Cancel conversation search**, **Clear private conversation search** and Escape clear only private query/results/cursor, leaving the memory composer, saved drafts and current question/voice focus untouched. Private/owner/session/source changes revoke results and late callbacks.
+Enter in the query searches. **Cancel conversation search**, **Clear private conversation search** and Escape in the query clear only shared private query/results/cursor, leaving both views open and the memory composer, saved baseline and current question/voice focus untouched. Opening or activating a view performs no search; closing one view preserves the surviving view's shared search. Exact selection, lifecycle/source, private control epoch or last-owner loss clears query/results and fences late callbacks ([shared-search tests](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.CompactSearch.cs)).
 Reading retained Done never resumes or renews activity, creates task authority, runs cleanup or sends context to a model. No new copy/export/speech/network action is offered.
 
 ### Exact-session conversation and composer
@@ -311,7 +322,9 @@ Open **Tray > Retained session attachments**, then choose **Search / refresh met
 
 Default **Browse** preserves the removal filter. For one session, choose **ExactId**, enter its nonempty canonical lowercase D-format UUID, then explicitly Search or press Enter in the query field. Uppercase, empty, noncanonical, control-containing or oversized input is invalid, never Browse. No session names, filenames, original paths, bodies, excerpts or digests are searched.
 
-Typing performs no I/O. Mode, ID and **Include removed slots** edits retire results, selection and continuation and cancel pending work; use Search again. **Clear query (Browse)** clears the volatile ID without reading or changing the removal filter. Search never auto-selects or opens a match. Escape closes and clears private state. Source/privacy/ownership/lifecycle revocation clears the query too.
+Choose **Stored session lifecycle: All (default), Active, Done or Removed** independently of Browse/ExactId and **Include removed slots**. All preserves existing behavior. Removed sessions can have only removed-slot provenance: enable Include removed slots to see it. An Active or Done session can also have a removed attachment slot; removing a slot does not remove its session. See the [canonical lifecycle contract and tests](../Design/File_And_Folder_Ingestion.md#delivered-retained-attachment-metadata-catalogue---2026-10-11).
+
+Typing performs no I/O. Mode, ID, lifecycle filter and **Include removed slots** edits retire results, selection and continuation and cancel pending work; use Search again. **Clear query (Browse)** clears the volatile ID without reading or changing either filter. Search never auto-selects or opens a match. Escape closes and clears private state. Source/privacy/ownership/lifecycle revocation clears the query too.
 
 - Each page has at most **16 rows / 64 KiB** and scans at most **64 slots**. **Next bounded page** may continue after zero matches; ExactId does not jump over unvalidated slots. **Include removed slots** shows content-free removal provenance; historical removed slots do not count toward the sixteen-live-file cap.
 - Typed authority is validated in bounded segments before rows are shown. **Authority validation pending** pages contain no attachments; use Next to continue. Reads have a five-second budget. Continuations expire after two minutes; any committed authority, storage/profile or query change requires Refresh.
@@ -341,6 +354,9 @@ diagnostic severity and typed audit outcome. **Clear advanced filters** unsets
 them without reading. Any filter edit retires results/selection/Next and
 requires a fresh search. [Formats, source support and time semantics](privacy-safety-and-logs.md#logs)
 are enforced without broadening authority, copying or export.
+
+The same area exposes exact **Event ID**, **Category** and **Audit action ID**; empty-only unset, canonical signed integer parsing, case-sensitive text and source-specific support are described in [Evidence formats and source semantics](privacy-safety-and-logs.md#logs).
+Unsupported sources require explicit recovery rather than an empty-success result; edits, Clear advanced and private closure use the existing retirement lifecycle ([native filters](../src/Kora/EvidenceViewModel.Filters.cs), [viewer lifecycle](../src/Kora/EvidenceViewModel.cs)).
 
 Kora keeps a notification-area icon while running.
 Windows may initially place it under **Show hidden icons**. You can drag or pin
@@ -614,8 +630,15 @@ and approvals are preserved and must be resolved explicitly.
 
 The separate [clipboard preview](commands.md#explicit-local-clipboard-preview)
 uses inert native plain text, not Markdown/HTML parsing or the document viewer's
-copy controls. It has exact-ID reuse and revoke/clear only. Closing it revokes
+copy controls. It has exact-ID reuse, revoke/clear and native literal Find. Closing it revokes
 the selected snapshot. It does not authorize explanation or model transmission.
+
+Enter an unchanged one-line query and choose **Find first** (or Enter in the query). **Find next** (F3) starts at the selected span's exclusive end; **Find previous** (Shift+F3) finds the last span ending at or before its start.
+Ctrl+F focuses the query without retargeting questions or voice. Case/spaces/punctuation remain exact; limits are 256 UTF-16 characters / 512 strict UTF-8 bytes, with visible rejection rather than truncation.
+Only one inert exact span is focused, alongside original end-exclusive UTF-16 offsets and the unchanged snapshot identity/source/version. No wrap or occurrence count is offered; end-of-direction is not global absence. Editing retires the match without I/O; **Clear literal Find** releases the query/cursor/span, not the snapshot or Windows clipboard.
+Reader text scaling applies to the snapshot body and exact span without changing query text, offsets or focus; query/status controls remain unscaled ([headless scaling contract](../tests/Kora.Windows.IntegrationTests/NativeReaderTextScaleTests.cs)).
+Cut/copy/paste/context routes are blocked, including query shortcuts. Private/owner/call loss, replacement, revoke, close and disposal clear volatile state and fence callbacks. Find never rereads the clipboard or invokes reuse/revoke, inference, persistence, history, activity renewal or a new timer.
+See the [canonical contract and automated evidence](../Design/Security_Data_Flows.md#delivered-r07-local-clipboard-preview---2026-10-07); installed-native accessibility/privacy qualification remains separate.
 
 The separate **Review local version (native question)** tray entry opens one
 owned native card bound to the original durable host question, not whichever

@@ -10,14 +10,21 @@ namespace Kora.Application.UnitTests.Hosting;
 public sealed partial class SessionWorkspaceServiceTests
 {
     [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public async Task ExactAttachmentQueryIsForwardedByActualConsumerAndRemainsMetadataOnly(bool includeRemoved)
+    [InlineData(false, SessionAttachmentFilter.All)]
+    [InlineData(true, SessionAttachmentFilter.Active)]
+    [InlineData(false, SessionAttachmentFilter.Done)]
+    [InlineData(true, SessionAttachmentFilter.Removed)]
+    public async Task ExactAttachmentQueryIsForwardedByActualConsumerAndRemainsMetadataOnly(bool includeRemoved, SessionAttachmentFilter filter)
     {
         using var fixture = new Fixture();
         using var root = HostActivity.BeginRoot(fixture.Request, HostActivityLayer.Application, HostOperation.Request);
         var summary = CatalogueSummary(fixture);
-        var query = new SessionAttachmentQuery(includeRemoved, summary.Session.Value.ToString("D"));
+        if (filter == SessionAttachmentFilter.Done) { summary = summary with { SessionState = AttachmentSessionState.Done }; }
+        if (filter == SessionAttachmentFilter.Removed)
+        {
+            summary = summary with { SessionState = AttachmentSessionState.Removed, CopyStatus = AttachmentCopyStatus.Unavailable, StoredBytes = 0 };
+        }
+        var query = new SessionAttachmentQuery(includeRemoved, summary.Session.Value.ToString("D"), filter);
         fixture.CataloguePage = new(query, [summary], null, DateTimeOffset.UnixEpoch, 1, new string('a', 64), 2, false);
         var audit = new FileAudit();
         await using var files = FileService(fixture, FileAction(new FileCapture(), audit), audit);
@@ -31,6 +38,9 @@ public sealed partial class SessionWorkspaceServiceTests
         audit.Events.Should().BeEmpty();
         fixture.CataloguePage = fixture.CataloguePage with { Query = new(includeRemoved, Guid.NewGuid().ToString("D")), Records = [] };
         var mismatched = () => service.Read(query, null, () => true, fixture.Token);
+        await mismatched.Should().ThrowAsync<InvalidDataException>();
+        fixture.CataloguePage = fixture.CataloguePage with { Query = new(includeRemoved, query.ExactSessionId,
+            filter == SessionAttachmentFilter.All ? SessionAttachmentFilter.Active : SessionAttachmentFilter.All) };
         await mismatched.Should().ThrowAsync<InvalidDataException>();
     }
 

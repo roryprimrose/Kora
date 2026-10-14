@@ -15,7 +15,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Kora.Windows.IntegrationTests;
 
-public sealed class DetailWindowControllerTests
+public sealed partial class DetailWindowControllerTests
 {
     [Theory]
     [InlineData("")]
@@ -405,8 +405,9 @@ public sealed class DetailWindowControllerTests
         public bool Cleared { get; private set; }
         public int Activations { get; private set; }
         public bool FailActivation { get; set; }
+        public bool Shown { get; private set; }
         public event EventHandler? Closed;
-        public void ShowOwned(Window? owner) { }
+        public void ShowOwned(Window? owner) => Shown = true;
         public void Activate()
         {
             if (FailActivation) { throw new InvalidOperationException("fake activation unavailable"); }

@@ -228,19 +228,27 @@ public sealed class WindowsSqliteEvidenceQueryTests
             }
             transaction.Commit();
         }
+        clock.Now = clock.Now.AddTicks(1);
+        using (var producer = HostActivity.BeginRoot(HostRequest.Create(RequestOrigin.LocalUi), HostActivityLayer.Application, HostOperation.Request))
+        {
+            sink.WriteDiagnostic(Diagnostic(producer, 2) with { Category = "exact.match", MessageTemplate = "exact match" });
+        }
         WindowsDailyEvidenceReaderTests.Write(fixture, "kora-20261007.log", []);
         var service = source == EvidenceSource.CombinedLog
             ? new DurableEvidenceQuery(new WindowsEvidenceReader(new(sink), new(fixture)), new Access(), clock,
                 NullLogger<DurableEvidenceQuery>.Instance)
             : Service(sink, clock);
-        var query = new EvidenceQuery { Source = source, Text = "absent-safe-text" };
+        var query = new EvidenceQuery
+        {
+            Source = source, Text = "exact match", EventId = 2, Category = "exact.match",
+        };
         var first = await service.QueryAsync(query, null, TestContext.Current.CancellationToken);
         first.Status.Should().Be(EvidencePageStatus.ScanLimitReached);
         first.Records.Should().BeEmpty();
         first.Cursor.Should().NotBeNull();
         var second = await service.QueryAsync(query, first.Cursor, TestContext.Current.CancellationToken);
         second.Status.Should().Be(EvidencePageStatus.Available);
-        second.Records.Should().BeEmpty();
+        second.Records.Should().ContainSingle().Which.EventId.Should().Be(2);
         second.Cursor.Should().BeNull();
     }
 

@@ -117,7 +117,7 @@ jobs:
 
       - name: Upload static source-tool contract results
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: source-tool-contracts
           path: ${{ runner.temp }}/kora-source-tool-contracts/tests.json
@@ -125,7 +125,7 @@ jobs:
 
       - name: Retain main source-tool candidate
         if: needs.version.outputs.publish == 'true'
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: Kora-source-tools
           path: artifacts/source-tools
@@ -246,7 +246,7 @@ jobs:
 
       - name: Upload static publish inspection
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: publish-inspection
           path: artifacts/publish-inspection
@@ -254,7 +254,7 @@ jobs:
 
       - name: Upload dependency license audit
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: dependency-license-audit
           path: artifacts/license-compliance
@@ -262,7 +262,7 @@ jobs:
 
       - name: Upload test results
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: test-results
           path: .net-test-artifacts/**/*.trx
@@ -271,7 +271,7 @@ jobs:
 
       - name: Upload coverage report
         if: always() && hashFiles('.net-test-artifacts/coverage-report/Cobertura.xml') != ''
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: coverage-report
           path: .net-test-artifacts/coverage-report
@@ -279,7 +279,7 @@ jobs:
           include-hidden-files: true
 
       - name: Upload Windows x64 application
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: Kora-win-x64
           path: artifacts/Kora-win-x64
@@ -287,7 +287,7 @@ jobs:
           include-hidden-files: true
 
       - name: Upload Windows x86 application
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: Kora-win-x86
           path: artifacts/Kora-win-x86
@@ -333,7 +333,7 @@ jobs:
 
       - name: Upload source bootstrap fixture results
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: source-bootstrap-contracts
           path: ${{ runner.temp }}/kora-source-bootstrap-contracts/tests.json
@@ -350,7 +350,7 @@ jobs:
 
       - name: Upload Windows test results
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: windows-test-results
           path: .net-test-artifacts/windows/*.trx
@@ -405,7 +405,7 @@ jobs:
       # Feature and PR builds compile setup but never upload/publish its bytes.
       - name: Retain main installer candidate
         if: needs.version.outputs.publish == 'true'
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: Kora-Setup-${{ needs.version.outputs.version }}-win-x64
           path: ${{ steps.package.outputs.installer-path }}

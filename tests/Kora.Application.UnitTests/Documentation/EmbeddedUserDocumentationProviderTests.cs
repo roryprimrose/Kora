@@ -92,7 +92,7 @@ public sealed class EmbeddedUserDocumentationProviderTests
             .Skip(1)
             .ToArray();
 
-        sections.Should().HaveCount(commands.Count + 13);
+        sections.Should().HaveCount(commands.Count + 14);
         var editor = sections.Single(section => section.StartsWith("Edit an owned instruction or literal prompt without a model", StringComparison.Ordinal));
         editor.Should().Contain("instructions editor").And.Contain("prompts editor")
             .And.Contain("same").And.Contain("Reload/Overwrite/Cancel").And.Contain("No paths or body dictation");
@@ -106,6 +106,12 @@ public sealed class EmbeddedUserDocumentationProviderTests
         var sharedSkills = sections.Single(section => section.StartsWith("Inspect shared profile skills locally", StringComparison.Ordinal));
         sharedSkills.Should().Contain("immutable").And.Contain("model exposure")
             .And.Contain("unavailable").And.Contain("removed/replaced/busy sources fail closed");
+        var skillSearch = sections.Single(section => section.StartsWith("Search admitted skill package metadata", StringComparison.Ordinal));
+        skillSearch.Should().Contain("ordinal-ignore-case").And.Contain("256 UTF-16 units / 512 strict UTF-8 bytes")
+            .And.Contain("at most eight packages").And.Contain("at most 32 snapshots")
+            .And.Contain("All / Runtime unavailable / Runtime available")
+            .And.Contain("All / Instruction-compatible / Instruction-incompatible")
+            .And.Contain("requires explicit result selection").And.Contain("no model/tool/typed/voice search route");
         var sessions = sections.Single(section => section.StartsWith(
             "Inspect existing minimal durable sessions", StringComparison.Ordinal));
         var sessionPhrases = Regex.Matches(sessions, @"^- \*\*(?<phrase>.+?)\*\*\r?$",
@@ -118,6 +124,7 @@ public sealed class EmbeddedUserDocumentationProviderTests
             RegexOptions.Multiline, TimeSpan.FromSeconds(1))
             .Select(match => match.Groups["phrase"].Value).ToArray();
         appearancePhrases.Should().Equal("list appearance settings", "get appearance.theme",
+            "status appearance.reader-text-scale", "set appearance.reader-text-scale to 200",
             "set appearance.theme to dark", "reset appearance.theme");
         appearancePhrases.Should().OnlyContain(phrase => AppearanceCommand.Parse(phrase, "Kora") != null);
         var output = sections.Single(section => section.StartsWith(

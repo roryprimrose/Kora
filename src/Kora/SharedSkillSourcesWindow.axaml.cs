@@ -4,6 +4,7 @@ using System.Collections.ObjectModel;
 using Avalonia.Controls;
 using Avalonia.Markup.Xaml;
 
+using Kora.Application.Skills;
 using Kora.Core.Skills;
 
 namespace Kora;
@@ -13,6 +14,9 @@ public sealed partial class SharedSkillSourcesWindow : Window
     private ReadOnlyCollection<SharedSkillSource> sources = Array.AsReadOnly(Array.Empty<SharedSkillSource>());
     private SharedSkillCatalogue? catalogue;
     private bool closed;
+    private IReadOnlyList<SharedSkillSnapshot> results = [];
+    private bool updatingResults;
+    internal long CatalogueGeneration { get; private set; }
 
     public SharedSkillSourcesWindow() => throw new InvalidOperationException("Use the admitted local shared source inspection route.");
 
@@ -29,8 +33,19 @@ public sealed partial class SharedSkillSourcesWindow : Window
         this.FindControl<Button>("DiscoverSource")!.Click += async (_, _) => await discover();
         this.FindControl<Button>("VerifyRevision")!.Click += async (_, _) => await verify();
         this.FindControl<Button>("UnregisterSource")!.Click += async (_, _) => await unregister();
+        var filter = this.FindControl<ComboBox>("SharedFilter")!;
+        filter.ItemsSource = new[] { "All", "Instruction-compatible", "Instruction-incompatible" };
+        filter.SelectedIndex = 0;
+        this.FindControl<Button>("SearchSharedPackages")!.Click += (_, _) => Search();
+        this.FindControl<Button>("ClearSharedSearch")!.Click += (_, _) =>
+        {
+            this.FindControl<TextBox>("SharedQuery")!.Text = string.Empty;
+            filter.SelectedIndex = 0;
+            Search();
+        };
         this.FindControl<ComboBox>("SourceSelector")!.SelectionChanged += (_, _) => ClearCatalogue();
-        this.FindControl<ComboBox>("SharedPackageSelector")!.SelectionChanged += (_, _) => ShowSelectedPackage();
+        this.FindControl<ComboBox>("SharedPackageSelector")!.SelectionChanged += (_, _) =>
+        { if (!updatingResults) { ShowSelectedPackage(); } };
         Closed += (_, _) => { closed = true; ClearPrivateContent(); };
     }
 
@@ -50,7 +65,7 @@ public sealed partial class SharedSkillSourcesWindow : Window
         get
         {
             var index = this.FindControl<ComboBox>("SharedPackageSelector")!.SelectedIndex;
-            return catalogue is not null && index >= 0 && index < catalogue.Packages.Count ? catalogue.Packages[index] : null;
+            return index >= 0 && index < results.Count ? results[index] : null;
         }
     }
 
@@ -70,11 +85,12 @@ public sealed partial class SharedSkillSourcesWindow : Window
         if (closed || SelectedSource != value.Source)
         { throw new InvalidOperationException("The exact selected source inspection is no longer current."); }
         catalogue = value;
+        this.FindControl<TextBox>("SharedQuery")!.Text = string.Empty;
+        this.FindControl<ComboBox>("SharedFilter")!.SelectedIndex = 0;
+        SetResults(value.Packages, null);
         var selector = this.FindControl<ComboBox>("SharedPackageSelector")!;
-        selector.ItemsSource = value.Packages.Select(package =>
-            $"{JsonSerializer.Serialize(package.Name ?? package.RelativeFile)} | {package.Version ?? "unknown version"} | "
-            + (package.IsInstructionCompatible ? "instruction-compatible; invocation unavailable" : "incompatible; unavailable")).ToArray();
         selector.SelectedIndex = value.Packages.Count == 0 ? -1 : 0;
+        this.FindControl<TextBlock>("SharedSearchStatus")!.Text = $"{value.Packages.Count} admitted snapshots; All includes unavailable entries. All invocation unavailable.";
         Report($"{value.Packages.Count} pinned local snapshots. No scripts or references read. Live sources can change; recheck before relying on the displayed revision.");
     }
 
@@ -82,18 +98,31 @@ public sealed partial class SharedSkillSourcesWindow : Window
 
     internal void SetBusy(bool busy)
     {
-        foreach (var name in new[] { "RegisterSource", "RefreshSources", "DiscoverSource", "VerifyRevision" })
+        foreach (var name in new[] { "RegisterSource", "RefreshSources", "DiscoverSource", "VerifyRevision", "SearchSharedPackages", "ClearSharedSearch" })
         { this.FindControl<Button>(name)!.IsEnabled = !busy; }
         this.FindControl<ComboBox>("SourceSelector")!.IsEnabled = !busy;
         this.FindControl<ComboBox>("SharedPackageSelector")!.IsEnabled = !busy;
+        this.FindControl<TextBox>("SharedQuery")!.IsEnabled = !busy;
+        this.FindControl<ComboBox>("SharedFilter")!.IsEnabled = !busy;
     }
 
     internal void SetWithdrawalBusy(bool busy) => this.FindControl<Button>("UnregisterSource")!.IsEnabled = !busy;
 
     internal void ClearCatalogue()
     {
+        CatalogueGeneration++;
         catalogue = null;
+        results = [];
+        this.FindControl<TextBox>("SharedQuery")!.Text = string.Empty;
+        this.FindControl<ComboBox>("SharedFilter")!.SelectedIndex = 0;
+        this.FindControl<TextBlock>("SharedSearchStatus")!.Text = string.Empty;
         this.FindControl<ComboBox>("SharedPackageSelector")!.ItemsSource = Array.Empty<string>();
+        ClearSelection();
+        Report("No admitted catalogue. Select an exact registered source and explicitly choose List selected source.");
+    }
+
+    private void ClearSelection()
+    {
         this.FindControl<TextBlock>("SharedIdentity")!.Text = string.Empty;
         this.FindControl<TextBox>("SharedSource")!.Text = string.Empty;
         this.FindControl<TextBox>("UninspectedEntries")!.Text = string.Empty;
@@ -110,7 +139,7 @@ public sealed partial class SharedSkillSourcesWindow : Window
 
     private void ShowSelectedPackage()
     {
-        if (SelectedPackage is not { } package) { return; }
+        if (SelectedPackage is not { } package) { ClearSelection(); return; }
         this.FindControl<TextBlock>("SharedIdentity")!.Text =
             $"{JsonSerializer.Serialize(package.SourceQualifiedIdentity)}\nSource: "
             + $"{JsonSerializer.Serialize(catalogue!.Source.ProfileRelativeRoot + '\\' + package.RelativeFile)}\n"
@@ -125,5 +154,49 @@ public sealed partial class SharedSkillSourcesWindow : Window
             || package.UnavailableReasons.Contains("invalid-control-text")
             ? "No safe text projection. Exact original bytes in hexadecimal:\n" + Convert.ToHexString(package.Bytes)
             : package.Text;
+    }
+
+    private void Search()
+    {
+        if (closed) { return; }
+        if (catalogue is null)
+        {
+            ClearCatalogue();
+            this.FindControl<TextBlock>("SharedSearchStatus")!.Text = "No admitted catalogue. Explicitly list the selected registered source first.";
+            return;
+        }
+        var selected = SelectedPackage;
+        try
+        {
+            var matching = SkillCatalogueSearch.Shared(catalogue,
+                this.FindControl<TextBox>("SharedQuery")!.Text ?? string.Empty,
+                (SkillInstructionFilter)this.FindControl<ComboBox>("SharedFilter")!.SelectedIndex);
+            SetResults(matching, selected);
+            this.FindControl<TextBlock>("SharedSearchStatus")!.Text =
+                $"{results.Count} of {catalogue.Packages.Count} admitted snapshots from the exact selected source. All invocation unavailable."
+                + (selected is not null && SelectedPackage is null ? " Selection excluded; private source panes cleared. Select a result explicitly." : string.Empty);
+        }
+        catch (Exception exception) when (exception is InvalidDataException or ArgumentOutOfRangeException)
+        {
+            SetResults([], null);
+            this.FindControl<TextBlock>("SharedSearchStatus")!.Text = $"Search rejected: {exception.Message} No results or selection published.";
+        }
+    }
+
+    private void SetResults(IReadOnlyList<SharedSkillSnapshot> matching, SharedSkillSnapshot? selected)
+    {
+        updatingResults = true;
+        try
+        {
+            results = matching;
+            var selector = this.FindControl<ComboBox>("SharedPackageSelector")!;
+            selector.ItemsSource = results.Select(package =>
+                $"{JsonSerializer.Serialize(package.Name ?? "(declared name unavailable)")} | {package.Version ?? "unknown version"} | "
+                + $"{JsonSerializer.Serialize(package.SourceQualifiedIdentity)} | {JsonSerializer.Serialize(package.RelativeFile)} | "
+                + (package.IsInstructionCompatible ? "instruction-compatible; invocation unavailable" : "instruction-incompatible; invocation unavailable")).ToArray();
+            selector.SelectedIndex = results.ToList().FindIndex(package => ReferenceEquals(package, selected));
+        }
+        finally { updatingResults = false; }
+        if (SelectedPackage is null) { ClearSelection(); }
     }
 }

@@ -35,6 +35,9 @@ public static class AppearanceOptionRegistry
             new(AppearanceOption.SpeechScaleAmount, "appearance.speech-scale-amount", "Presence speech scale amount",
                 AppearanceValueType.Number, "percent", new AppearanceValue.Number(PresenceSettings.DefaultSpeechScaleAmountPercent),
                 PresenceSettings.MinimumSpeechScaleAmountPercent, PresenceSettings.MaximumSpeechScaleAmountPercent, "configuration.presence-speech-scale-amount"),
+            new(AppearanceOption.ReaderTextScale, "appearance.reader-text-scale", "Native reader text scale",
+                AppearanceValueType.Number, "percent", new AppearanceValue.Number(ReaderTextScaleSettings.DefaultPercent),
+                ReaderTextScaleSettings.MinimumPercent, ReaderTextScaleSettings.MaximumPercent, "configuration.reader-text-scale"),
         ]);
 
     public static AppearanceOptionDescriptor Get(AppearanceOption option) =>
@@ -47,6 +50,9 @@ public static class AppearanceOptionRegistry
         var descriptor = Get(option);
         switch (option, value)
         {
+            case (AppearanceOption.ReaderTextScale, AppearanceValue.Number integer):
+                ReaderTextScaleSettings.ValidatePercent(integer.Value);
+                return;
             case (AppearanceOption.Theme, AppearanceValue.Theme theme):
                 ApplicationThemeSettings.Validate(theme.Value);
                 return;

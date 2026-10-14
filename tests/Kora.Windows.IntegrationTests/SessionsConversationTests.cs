@@ -13,6 +13,7 @@ using Kora.Core.Dependencies;
 using Kora.Core.Diagnostics;
 using Kora.Core.Hosting;
 using Kora.Core.Providers;
+using Kora.Core.Storage;
 using Kora.Core.Tools;
 using Kora.Windows.IntegrationTests.Storage;
 using Kora.Windows.Storage;
@@ -240,7 +241,10 @@ public sealed partial class SessionsConversationTests
         internal SessionConversationService Conversation { get; }
         internal NewRequestComposer NewComposer() => new(Workspace, Conversation, Access, NullLogger<NewRequestComposer>.Instance);
 
-        internal Composition(InteractionStorageFixture f)
+        internal Composition(InteractionStorageFixture f,
+            Func<Kora.Core.Presentation.AdmittedDetailContent, Func<bool>,
+                Func<CancellationToken, Task<Kora.Core.Presentation.AdmittedDetailContent>>, CancellationToken, Task<string>>? openDetail = null,
+            ISessionWorkspaceStore? conversationReader = null)
         {
             var workspace = WindowsSqliteSessionWorkspaceTests.Service(f, Access);
             Workspace = workspace;
@@ -256,13 +260,16 @@ public sealed partial class SessionsConversationTests
                 new(runtimes), new(runtimes), NullLogger<ReadOnlyCapabilityRegistry>.Instance);
             turns = new(f.Store, Access, boundary, registry, Audit, NullLogger<ModelTurnHost>.Instance,
                 f.Time, mode, profiles, f.Store);
-            var conversation = new SessionConversationService(f.Store, f.Store, workspace, Access, turns, f.Time,
+            var conversationWorkspace = conversationReader is null ? workspace
+                : new SessionWorkspaceService(conversationReader, new(f.Tasks), Access, NullLogger<SessionWorkspaceService>.Instance);
+            var conversation = new SessionConversationService(f.Store, f.Store, conversationWorkspace, Access, turns, f.Time,
                 NullLogger<SessionConversationService>.Instance);
             Conversation = conversation;
             var sink = new WindowsSqliteEvidenceSink(f.Paths);
             sink.Initialize();
             Model = new(workspace, new DurableEvidenceQuery(new WindowsSqliteEvidenceReader(sink), Access, f.Time,
-                NullLogger<DurableEvidenceQuery>.Instance), Access, NullLogger<SessionsViewModel>.Instance, conversation: conversation);
+                NullLogger<DurableEvidenceQuery>.Instance), Access, NullLogger<SessionsViewModel>.Instance,
+                conversation: conversation, openConversationDetail: openDetail);
         }
         public async ValueTask DisposeAsync()
         {

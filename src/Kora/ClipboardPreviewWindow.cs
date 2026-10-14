@@ -4,21 +4,25 @@ using Avalonia.Layout;
 using Avalonia.Media;
 
 using Kora.Application.Infrastructure;
+using Kora.Application.ViewModels;
 using Kora.Controls;
 using Kora.Core.Context;
 
 namespace Kora;
 
-internal sealed class ClipboardPreviewWindow(Action<Exception> reportFailure) : Window, IClipboardPreviewView
+internal sealed partial class ClipboardPreviewWindow(Action<Exception> reportFailure, MainViewModel? typographyHost = null) : Window, IClipboardPreviewView
 {
     private readonly NamedTextBlock source = new() { FontFamily = new FontFamily("Consolas") };
 
-    public void Show(ClipboardSnapshot snapshot, Func<Task> reuse, Func<Task> revoke)
+    public void Show(ClipboardSnapshot snapshot, Func<Task> reuse, Func<Task> revoke, Func<bool> isCurrent)
     {
+        typographyHost?.EnsureReaderTypographyAvailable();
+        ClearFindState();
         Title = "Local clipboard snapshot (untrusted plain text)";
         Width = 760;
         Height = 600;
         source.Text = snapshot.Text;
+        if (typographyHost is not null) { NativeReaderTypography.Bind(source, typographyHost); }
         AutomationProperties.SetName(source, "Clipboard snapshot plain text content");
         var reuseButton = new Button { Content = "Reuse this exact snapshot ID" };
         AutomationProperties.SetName(reuseButton, "Reuse this exact clipboard snapshot ID");
@@ -49,6 +53,7 @@ internal sealed class ClipboardPreviewWindow(Action<Exception> reportFailure) : 
         controls.Children.Add(reuseButton);
         controls.Children.Add(revokeButton);
         chrome.Children.Add(controls);
+        AddFind(chrome, snapshot, isCurrent);
         DockPanel.SetDock(chrome, Dock.Top);
         body.Children.Add(chrome);
         body.Children.Add(new ScrollViewer
@@ -58,14 +63,24 @@ internal sealed class ClipboardPreviewWindow(Action<Exception> reportFailure) : 
             VerticalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Auto,
         });
         Content = body;
+        Closed += OnFindClosed;
         base.Show();
         Activate();
     }
 
     public void ClearAndClose()
     {
+        ClearFindState();
         source.Text = null;
         Content = null;
         Close();
+    }
+
+    private void OnFindClosed(object? sender, EventArgs args)
+    {
+        Closed -= OnFindClosed;
+        ClearFindState();
+        source.Text = null;
+        Content = null;
     }
 }

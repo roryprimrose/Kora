@@ -90,7 +90,11 @@ internal sealed class SessionsWindowController(
         model = new(service, evidence, access, logger, localEvents,
             content => details?.OpenHistoryDetail(content, window)
                 ?? "History details unavailable: the native viewer is not composed.",
-            session => details?.RevokeSession(session), memories, attachments, providers, conversation);
+            session => details?.RevokeSession(session), memories, attachments, providers, conversation,
+            (content, admitted, resolve, token) => details?.OpenConversationDetailAsync(content,
+                window ?? (Avalonia.Controls.Window?)compact, admitted, resolve, token)
+                ?? Task.FromResult("Conversation details unavailable: the native viewer is not composed."),
+            session => details?.RevokeConversationSession(session));
         presentation = new(model);
     }
 
@@ -128,6 +132,7 @@ internal sealed class SessionsWindowController(
         }
 
         if (disposed) { return; }
+        details?.RevokeSession(session);
         if (model is { } state)
         {
             if (state.ReferencesSession(session)) { presentation?.Revoke(); }

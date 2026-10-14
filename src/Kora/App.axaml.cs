@@ -180,7 +180,7 @@ public sealed partial class App : Avalonia.Application
             viewModel.BindSessionAttachments(sessionFiles);
             attachmentWindow = new SessionAttachmentWindowController(viewModel.ReportHostInteractionFailure, sessionFiles,
                 Services.GetRequiredService<SessionWorkspaceService>(),
-                Services.GetRequiredService<Kora.Core.Storage.ISessionWorkspaceAccess>(), fileWindow);
+                Services.GetRequiredService<Kora.Core.Storage.ISessionWorkspaceAccess>(), fileWindow, viewModel);
             attachmentCatalogue = new(viewModel, Services.GetRequiredService<SessionWorkspaceService>(), sessionFiles,
                 attachmentWindow, Services.GetRequiredService<Kora.Core.Storage.ISessionWorkspaceAccess>(),
                 Services.GetRequiredService<ILogger<AttachmentCatalogueViewModel>>(),
@@ -216,7 +216,7 @@ public sealed partial class App : Avalonia.Application
             Services.GetRequiredService<SessionWorkspaceService>().BindRetention(sessionRetention);
             sessionRetention.Revoking += sessionsWindow.RevokeSession;
             sessionRetention.Revoking += newRequestWindow.RevokeSession;
-            sessionRetention.Revoking += detailWindow.RevokeSession;
+            sessionRetention.Revoking += session => Avalonia.Threading.Dispatcher.UIThread.Invoke(() => detailWindow.RevokeSession(session));
             sessionRetention.Revoking += viewModel.RevokeSessionPresentation;
             sessionRetention.Revoking += session => attachmentWindow?.RevokeSession(session);
             var memories = Services.GetRequiredService<Kora.Application.Memory.MemoryManagementService>();

@@ -1,5 +1,4 @@
 ﻿using System.Collections.ObjectModel;
-using System.Globalization;
 using System.Text;
 
 using Kora.Core.Artifacts;
@@ -35,21 +34,7 @@ public sealed class OwnedDefinitionInventory
     public ArtifactKind Kind { get; }
     public ReadOnlyCollection<OwnedDefinitionInventoryRow> Rows { get; }
 
-    public static void ValidateQuery(string query)
-    {
-        ArgumentNullException.ThrowIfNull(query);
-        if (query.Length > LocalFileRetrievalPolicy.MaximumQueryCharacters)
-        { throw new InvalidDataException("Use at most 256 UTF-16 units / 512 UTF-8 bytes for the literal metadata query."); }
-        try
-        {
-            if (Utf8.GetByteCount(query) > LocalFileRetrievalPolicy.MaximumQueryUtf8Bytes
-                || query.EnumerateRunes().Any(rune => Rune.GetUnicodeCategory(rune) is UnicodeCategory.Control
-                    or UnicodeCategory.Format or UnicodeCategory.LineSeparator or UnicodeCategory.ParagraphSeparator))
-            { throw new InvalidDataException("Use a bounded single-line literal metadata query without control or format characters."); }
-        }
-        catch (EncoderFallbackException exception)
-        { throw new InvalidDataException("The metadata query must contain valid Unicode.", exception); }
-    }
+    public static void ValidateQuery(string query) => LiteralMetadataQuery.Validate(query);
 
     public OwnedDefinitionInventoryPage Page(string query, OwnedDefinitionUseFilter filter, int offset = 0)
     {

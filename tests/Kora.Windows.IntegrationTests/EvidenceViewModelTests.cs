@@ -69,10 +69,16 @@ public sealed class EvidenceViewModelTests
         var access = new Access();
         var service = new DurableEvidenceQuery(reader, access, TimeProvider.System, NullLogger<DurableEvidenceQuery>.Instance);
         var viewer = new EvidenceViewModel(service, () => access.CanInspect, NullLogger<EvidenceViewModel>.Instance);
+        viewer.EventIdFilter = "0";
+        viewer.CategoryFilter = "Exact.Category";
+        viewer.ActionIdFilter = "Exact Action";
         var pending = viewer.SearchAsync();
         await viewer.SearchAsync();
         reader.Calls.Should().Be(1);
         viewer.Close();
+        viewer.EventIdFilter.Should().BeEmpty();
+        viewer.CategoryFilter.Should().BeEmpty();
+        viewer.ActionIdFilter.Should().BeEmpty();
         reader.Token.WaitHandle.SafeWaitHandle.IsClosed.Should().BeFalse();
         reader.Completion.SetResult(new(new(0, 0, 0, 0), [], null, false, false));
         await pending;
@@ -102,11 +108,12 @@ public sealed class EvidenceViewModelTests
         source.Should().Contain("DynamicResource").And.Contain("AutomationProperties.Name")
             .And.Contain("No copy, export, model, browser, deletion or execution.")
             .And.NotContain("WebView").And.NotContain("SelectableTextBlock").And.NotContain("MaxLength");
-        document.Descendants().Where(element => string.Equals(element.Name.LocalName, "TextBox", StringComparison.Ordinal)).Should().HaveCount(10);
+        document.Descendants().Where(element => string.Equals(element.Name.LocalName, "TextBox", StringComparison.Ordinal)).Should().HaveCount(13);
         source.Should().Contain("Advanced filters (optional)").And.Contain("Both time edges are inclusive");
         foreach (var binding in new[] { nameof(EvidenceViewModel.RequestFilter), nameof(EvidenceViewModel.InvocationFilter),
             nameof(EvidenceViewModel.ApprovalFilter), nameof(EvidenceViewModel.CorrelationFilter),
             nameof(EvidenceViewModel.FromFilter), nameof(EvidenceViewModel.UntilFilter),
+            nameof(EvidenceViewModel.EventIdFilter), nameof(EvidenceViewModel.CategoryFilter), nameof(EvidenceViewModel.ActionIdFilter),
             nameof(EvidenceViewModel.Severity), nameof(EvidenceViewModel.AuditOutcome) })
         {
             source.Should().Contain("{Binding " + binding + "}");

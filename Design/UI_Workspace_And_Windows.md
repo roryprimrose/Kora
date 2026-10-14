@@ -10,12 +10,15 @@ Related: [Interaction and Sessions](Interaction_And_Sessions.md), [Work Manageme
 
 ## Delivered selected-conversation lexical search — 2026-10-13
 
+The shared USER/HOST row additionally exposes explicit [exact retained conversation Details](Information_Display.md#delivered-retained-original-user--typed-host-details---2026-10-14), including compact projections of that row. A separate passive native viewer displays the complete original USER body and separately typed HOST chrome; opening the surface or selecting metadata does not read or open Details. Existing private/source/selection revocation and Done semantics apply; no clipboard authority or installed qualification is added.
+
 The existing private selected-session conversation pane has distinct **Search this conversation**, **Next conversation matches**, **Cancel conversation search** and **Clear private conversation search** controls.
 Enter searches; Escape clears only search state without closing, moving question/voice focus or touching composer drafts. Editing the query revokes prior results but performs no automatic read.
 
 Results use the same inert native original USER/separate HOST row template as chronological pages. Their request/task IDs and exact bodies are not reinterpreted as answers or executable actions. No result navigation to another session or automatic saved-draft reload occurs. Active and retained Done use the same admitted exact-session reader, snapshot continuation and final source validation.
 
 The [canonical search contract](Interaction_And_Sessions.md#delivered-passive-exact-conversation-lexical-search--2026-10-13) owns lexical/work/output bounds, counters and invalidation. Session/source/private changes clear query, rows and cursor and fence in-flight publication.
+The [compact projection](../src/Kora/CompactSessionWindow.axaml) exposes these same controls over the workspace's single query/page/cursor and cancellation state. Opening either view or typing reads nothing; closing one view retains the shared state until the last owner closes. [Headless shared-search tests](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.CompactSearch.cs) cover keyboard actions, retained Done, saved baseline and late-source revocation.
 Native-only query entry adds no activated/model descriptor or generic-global-search retarget. Headless binding tests do not qualify installed keyboard/accessibility/DPI or full R12/R14 runtime acceptance.
 
 ## Delivered exact-session native composer — 2026-10-12
@@ -346,6 +349,8 @@ The delivered owned Instruction/Prompt editor adds per-kind metadata search and 
 List/Refresh reconciles the existing bounded source pipeline; query/filter/Next only projects its admitted immutable owned metadata snapshot. Complete labels/details are bounded to 64 KiB UTF-8 with explicit omissions and Next when needed.
 Selection alone never opens another file, grants use or retargets an unsaved draft. Inspect revalidates the original kind/filename/digest/native revision and catalogue/private epoch. Stale choices require Refresh/reselection; failed reload clears availability, while the original/draft remains subject to existing privacy guards.
 Private closure clears query/rows/selection/editor text and suppresses late publication. Keyboard-native controls and current exact List/Inspect commands share the editor; broader profile editing, source filters and accessibility/installed qualification remain deferred. See [owned inventory controls](../docs/instruction-editor.md#search-observed-owned-metadata).
+
+The owned Instruction/Prompt editor's explicit **Compare** opens only a Close-only passive native viewer: frozen inspected baseline beside exact current memory draft, or labelled missing/new baseline. Raw source and separately labelled prepared-Save validation are distinct. Identity/input/source/private changes withdraw and clear it; it has no mutation, consent, copy/export or use-review authority. See [Compare source presentation](../docs/instruction-editor.md#compare-the-open-draft-without-saving); this is not the planned full profile/diff workspace or installed/accessibility qualification.
 
 ## Compact Session Interaction
 

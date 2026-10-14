@@ -451,6 +451,16 @@ Original intent, live host context, exact active session/generation, private own
 
 No live database/device/model proof or installed trial is claimed. Full R12/D-014/release acceptance, cross-session/global/profile/project/source memories and all provider-memory consumers remain open.
 
+### Delivered Native Content-Free Session Memory Filters - 2026-10-14
+
+The [native memory presentation](../src/Kora/SessionsViewModel.Memory.cs) filters only the complete already-returned `MemorySummary` snapshot after explicit List for the selected exact active session. Exact canonical nonempty D GUID (case-insensitive; empty means Any), nullable typed Review and Retention (Any plus every defined enum) combine with AND. Invalid GUID or unknown state fails closed with visible recovery; no truncation, alternate selector, content loading, storage query or serialization/schema change is introduced. The 128-identity and 64-KiB result bounds remain authoritative.
+
+`MemorySummary` contains no classification, candidate or lineage. Classification filtering is therefore not admitted. Inspection still returns exact bytes/classification only on a fresh explicit action, including content-free Forgotten identities. Filtering is local/private/volatile, with no query logging, persistence, model context, network, provider, execution, admission or activity renewal.
+
+Every changed filter and explicit Clear retires selection, inspected content, replacement draft and all mutation eligibility, even if the selected identity still matches. Only an exact visible row can be selected; inspect again before mutation. Explicit List refresh retains the filters but retires old action state. Proposal and mutation results replace metadata under the current filters; a hidden updated row cannot retain selection. Session/source/control/private closure and cancellation fences reject stale or late results. Filtering does not replace those management admission checks or expand authority.
+
+[Deterministic native and actual-store tests](../tests/Kora.Windows.IntegrationTests/SessionsMemoryFilterTests.cs) cover exact GUID/state combinations, invalid selectors, action retirement, refresh/updates, Forgotten non-disclosure, closure/cancellation, no filtering I/O/persistence/logging/activity, and headless focus/accessibility names. Installed accessibility, release/full R12 qualification, content search, recall/global catalogue and automatic model use are not claimed.
+
 ### Delivered Reviewed Memory Admission - 2026-10-09
 
 This first package's volatile/storage gaps are historical. The [durable increment below](#delivered-session-only-durable-memory-storage---2026-10-09) supersedes those gaps; the [management surface](#delivered-native-memory-management-surface---2026-10-09) adds native/exact controls.

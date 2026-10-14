@@ -678,7 +678,17 @@ Close clears the window's text, unsaved choices and review. Only **Save draft** 
 
 The original five-minute expiry keeps running while hidden. Reopening does not extend expiry or inactivity, and never creates another intent/question, approval, grant or dispatch. Privacy/ownership loss, changed authority, expiry, cancellation, completed/Unknown work, storage/audit failure and host disposal withdraw recovery and end that wait.
 
-After restart or completion, this route reports **Unavailable**. Inspect retained read-only status and start a fresh review; Kora never replays the old task or resumes Done. Pending/history metadata cannot turn another saved question into active controls. General question recovery, approvals, provider handoff, full composer and prefix-free voice remain separate. Headless checks are not installed screen-reader/DPI acceptance.
+The live foreground card also offers **Answer by voice** and the separately
+chosen **Hear question, then answer by voice**. These require existing voice
+consent/readiness and do not enable listening. The accessible status/countdown
+and **Cancel reply** remain visible during the one-question turn. The microphone
+stays closed during playback; 15 seconds are allowed to begin speech afterwards.
+Timeout/Cancel reply leave native answer controls available. Closing, hiding,
+editing, duplicate presentation or changing the admitted target retires capture;
+returning never resumes it. Only **Show local version** or its schema option
+number answers this card. See [bounded voice reply behavior](voice-and-audio.md#answer-one-native-question-by-voice).
+
+After restart or completion, this route reports **Unavailable**. Inspect retained read-only status and start a fresh review; Kora never replays the old task or resumes Done. Pending/history metadata cannot turn another saved question into active controls. General question recovery, approvals, provider handoff and full composer remain separate. Headless checks are not installed screen-reader/DPI acceptance.
 
 Choose **Documentation**, select a guide page, then **Open details** to read
 that exact page in a separate native window. Its host-owned title, provenance,

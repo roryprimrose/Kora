@@ -3629,6 +3629,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             }
 
             await Task.WhenAll(captureClosure, textToSpeech.StopAsync());
+#pragma warning disable VSTHRD003 // Await owned reply retirement asynchronously so no queued UI commit survives host handoff/close.
+            if (questionVoiceReplies is not null) { await questionVoiceReplies.Quiescence; }
+#pragma warning restore VSTHRD003
             activeSpokenText = null;
             IsSpeaking = false;
             if (activeReasoningCancellation is { } cancellation)

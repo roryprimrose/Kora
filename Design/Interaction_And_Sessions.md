@@ -878,6 +878,38 @@ Kora neither bypasses these requirements nor dictates credentials into a model.
 
 ## Conversational Voice Turns
 
+### Delivered bounded native-question increment
+
+The current implementation provides **Answer by voice** for the authoritative
+host's exact live foreground native question, plus the deliberately selected
+**Hear question, then answer by voice** action. The latter opens one reply only
+after successful playback of that same question. It is not a global automatic
+conversation mode or a Settings preference. Existing consent, listening hold,
+unlocked interactive Windows session, ownership/private-control revision,
+exact device/readiness, local recognizer and call-policy gates remain required;
+unknown state denies capture.
+
+One application-wide turn binds the original question key/revision,
+session/generation and unique visible presenter. Its accessible countdown allows
+15 seconds to start speech without extending on silence. The existing local
+single-utterance recognizer supplies one-second trailing silence and a 60-second
+maximum utterance; no PTT button-release substitute is used. Cancel/timeout leave
+the native question answerable. Target/foreground/session/control changes,
+question edits/expiry/answer, privacy/ownership/call/device loss, failures and
+closure synchronously retire admission and fence delayed callbacks. Capture
+returns to closed/ordinary explicit PTT readiness, not Wake Listening.
+
+Answers match only the exact schema, with no optional assistant-name stripping
+and no command, tool, composer or session-routing fallback. Proposal/approval
+questions are refused; approval readback specificity and grants are unchanged.
+No audio or raw-transcript archive, transcript/content logging, model/network
+effects, wake integration or during-TTS capture is added. Accepted structured
+answers retain the existing question persistence/audit policy. Maintained
+deterministic production-path tests validate this implementation independently
+of later hardware/acoustic/installed qualification.
+
+### Broader target behavior
+
 The activation name starts an unsolicited user turn; it is not required for
 every statement in an already established exchange. When Kora asks a
 host-owned question and that question becomes the unique foreground voice

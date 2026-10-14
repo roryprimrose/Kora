@@ -101,12 +101,55 @@ listening** closes input for the current run without withdrawing saved consent.
 
 The production wake engine is not selected or integrated. The previous ambient
 phrase grammar is not production wake and is no longer run on ambient audio.
-The microphone stays closed until explicit push-to-talk. Hold **Push to talk**
+The microphone stays closed until explicit push-to-talk or an admitted native
+question reply action. Hold **Push to talk**
 in the native Speech & audio settings (mouse, Space or Enter), speak one
 command, then release to finish. Losing the capture control/window also ends
 capture. Each answer or approval requires a new activation. Transcripts use the
 same deterministic command pipeline as typed input; activation alone approves
 nothing.
+
+### Answer one native question by voice
+
+The live foreground native question offers **Answer by voice** and the separate
+**Hear question, then answer by voice** action. Neither enables listening,
+grants microphone consent, selects another microphone, or releases a run hold.
+All existing Windows privacy, ownership, local-recognizer, exact-device,
+readiness and call-policy checks must already pass. Unknown state denies capture.
+There is no global conversational-replies preference in this increment.
+
+Only the authoritative host's exact current question/revision and original
+session/generation can offer a reply. Retained/background questions, generated
+prose, tools, skills, duplicate presenters and selected-session metadata cannot.
+The hear-then-answer action keeps the microphone closed throughout playback and
+opens only after successful completion of that exact question's speech.
+Playback rejection, cancellation or failure never opens capture.
+
+An accessible **Awaiting reply** countdown gives 15 seconds to begin speech.
+Silence does not extend it. **Capturing reply** uses the existing local
+single-utterance recognizer: one-second trailing silence and a maximum of
+60 seconds. **Cancel reply** closes capture without answering the question.
+Timeout leaves the native question answerable. No button release, assistant-name
+prefix, wake listener or during-speech barge-in is used.
+
+Only the exact question schema accepts a reply: a complete option label,
+one-based option number / `option N`, or a permitted bounded text answer.
+Yes/No are accepted only when that schema permits them; the local-version
+question instead requires **Show local version** or its option number.
+Proposal/approval questions are refused by this voice path. A mismatch reports
+no answer and cannot become a command, tool request, approval, composer input,
+session switch or answer to another question.
+
+Answer, cancellation, timeout, expiry, edits, foreground/presenter/session or
+control changes, mute/listening disable, privacy/ownership loss, call/device/
+topology changes, recognition/playback failure and app close retire the target,
+invalidate delayed generations and release capture. Afterwards the microphone
+is closed; ordinary explicit PTT readiness may remain, never ambient listening.
+Audio and rejected/raw transcripts are not persisted or logged, sent to a model
+or network, or added to telemetry. An accepted schema-valid structured answer
+uses the existing question record and typed audit transaction, not a new
+transcript archive. Deterministic fake-platform tests establish this bounded
+implementation; they do not claim wake/acoustic or installed qualification.
 
 The configured [display / PTT command-prefix name](settings.md#assistant-display--ptt-command-prefix-name)
 is not a production wake profile. Native Apply/reset and exact

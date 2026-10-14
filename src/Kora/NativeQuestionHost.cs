@@ -27,6 +27,8 @@ internal sealed class NativeQuestionHost : IDisposable
     private NativeQuestionViewModel? current;
     private int waiting;
     private volatile bool disposed;
+    private HostQuestionVoiceReplyService? voiceReplies;
+    private Func<long>? privateRevision;
 
     internal NativeQuestionHost(WindowsSqliteHostInteractionStore store, TimeProvider time,
         ILogger<NativeQuestionViewModel> logger)
@@ -44,7 +46,23 @@ internal sealed class NativeQuestionHost : IDisposable
     internal void BindGate(Func<bool> gate) => canInteract = gate;
     internal void BindCallObservation(Func<CallPolicyObservation> observe) => callObservation = observe;
     internal void BindAdmissionRevision(Func<long> observe) => admissionRevision = observe;
-    internal void BindWorkspace(SessionWorkspaceService service) => workspace = service;
+    internal void BindPrivateRevision(Func<long> observe) => privateRevision = observe;
+    internal void BindWorkspace(SessionWorkspaceService service)
+    {
+        workspace = service;
+        service.SessionLifecycleChanged += OnSessionChanged;
+        service.SessionRetired += OnSessionChanged;
+    }
+    private void OnSessionChanged(HostId<SessionIdentity> session)
+    {
+        if (current?.Key.Request.SessionId == session)
+        {
+            voiceReplies?.Retire("Question session changed. Microphone closed; no target is followed.");
+        }
+    }
+    internal void BindVoiceReplies(Kora.Application.ViewModels.MainViewModel main,
+        ILogger<HostQuestionVoiceReplyService> replyLogger) =>
+        voiceReplies = main.BindQuestionVoiceReplies(questions, time, replyLogger);
 
     internal async Task<HostTaskRecord> AskVersionAsync(Func<NativeQuestionViewModel, Task> present,
         CancellationToken cancellationToken)
@@ -72,7 +90,9 @@ internal sealed class NativeQuestionHost : IDisposable
         Func<NativeQuestionViewModel, Task> present, CancellationToken cancellationToken)
     {
         var admittedRevision = admissionRevision?.Invoke();
-        bool Eligible() => !disposed && canInteract() && admittedRevision == admissionRevision?.Invoke();
+        var admittedPrivateRevision = privateRevision?.Invoke();
+        bool Eligible() => !disposed && canInteract() && admittedRevision == admissionRevision?.Invoke()
+            && admittedPrivateRevision == privateRevision?.Invoke();
         currentAdmission = Eligible;
         await store.CreateSessionAsync(request, cancellationToken);
         // This ordinary read has no admitted exact effect/content/containment authority.
@@ -100,6 +120,7 @@ internal sealed class NativeQuestionHost : IDisposable
         }, dismissible: true);
         // This one live continuation is the registration; persisted metadata cannot create one.
         current = state;
+        state.BindVoiceReplies(voiceReplies, () => !disposed && ReferenceEquals(current, state) && Eligible());
         var externallyCancelled = new TaskCompletionSource<HostTaskObservation>(TaskCreationOptions.RunContinuationsAsynchronously);
         void OnCancelled(HostTaskObservation observation)
         {
@@ -243,6 +264,11 @@ internal sealed class NativeQuestionHost : IDisposable
         if (disposed) { return; }
         disposed = true;
         current?.Close("Native host disposed. No old question or continuation can be reopened.");
+        if (workspace is not null)
+        {
+            workspace.SessionLifecycleChanged -= OnSessionChanged;
+            workspace.SessionRetired -= OnSessionChanged;
+        }
         current = null;
     }
 

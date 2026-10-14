@@ -7,10 +7,30 @@ namespace Kora.Application.Interaction;
 public sealed class HostQuestionService(IHostInteractionStore store, TimeProvider time)
 {
     private readonly InteractionTransaction transaction = new(store);
+    public event Action<HostQuestionKey?>? ReplyTargetChanging;
+
+    public ValueTask<HostInteractionDecision> ReviewReplyAsync(HostQuestionKey key, HostRevision generation,
+        Func<bool> isPresented, CancellationToken cancellationToken) =>
+        UpdateAsync(key, "question.voice-review", (snapshot, question) =>
+            question.Proposal is null && question.SessionGeneration == generation && isPresented()
+                ? (snapshot, new(HostInteractionOutcome.Presented, "exact-voice-question-reviewed", question))
+                : InteractionTransaction.Reject(snapshot, "voice-question-unavailable"),
+            cancellationToken, retireReply: false);
+
+    public ValueTask<HostInteractionDecision> SubmitReplyAsync(HostQuestionKey key, HostRevision generation,
+        QuestionAnswer answer, Func<bool> isPresented, CancellationToken cancellationToken) =>
+        UpdateAsync(key, "question.voice-submit", (snapshot, question) =>
+            question.SessionGeneration == generation && isPresented()
+                ? Answer(snapshot, question, answer, RequestOrigin.ActivatedVoice, submitting: true)
+                : InteractionTransaction.Reject(snapshot, "voice-question-unavailable"),
+            cancellationToken, retireReply: false);
 
     public ValueTask<HostInteractionDecision> CreateAsync(HostRequest request, QuestionSpec spec,
-        DateTimeOffset expiresAt, CancellationToken cancellationToken) =>
-        transaction.RunAsync(request, "question.create", snapshot => Create(snapshot, request, spec, expiresAt), cancellationToken);
+        DateTimeOffset expiresAt, CancellationToken cancellationToken)
+    {
+        ReplyTargetChanging?.Invoke(null);
+        return transaction.RunAsync(request, "question.create", snapshot => Create(snapshot, request, spec, expiresAt), cancellationToken);
+    }
 
     private (HostInteractionSnapshot, HostInteractionDecision) Create(HostInteractionSnapshot snapshot,
         HostRequest request, QuestionSpec spec, DateTimeOffset expiresAt)
@@ -80,8 +100,11 @@ public sealed class HostQuestionService(IHostInteractionStore store, TimeProvide
 
     private ValueTask<HostInteractionDecision> UpdateAsync(HostQuestionKey key, string action,
         Func<HostInteractionSnapshot, HostQuestionRecord, (HostInteractionSnapshot, HostInteractionDecision)> update,
-        CancellationToken cancellationToken) =>
-        transaction.RunAsync(key.Request, action, snapshot => Update(snapshot, key, update), cancellationToken);
+        CancellationToken cancellationToken, bool retireReply = true)
+    {
+        if (retireReply) { ReplyTargetChanging?.Invoke(key); }
+        return transaction.RunAsync(key.Request, action, snapshot => Update(snapshot, key, update), cancellationToken);
+    }
 
     private (HostInteractionSnapshot, HostInteractionDecision) Update(HostInteractionSnapshot snapshot, HostQuestionKey key,
         Func<HostInteractionSnapshot, HostQuestionRecord, (HostInteractionSnapshot, HostInteractionDecision)> update)

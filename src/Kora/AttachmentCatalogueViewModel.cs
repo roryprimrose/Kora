@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Text.Json;
 
 using Kora.Application.Infrastructure;
+using Kora.Core.Context;
 using Kora.Core.Diagnostics;
 using Kora.Core.Hosting;
 using Kora.Core.Storage;
@@ -23,6 +24,7 @@ internal sealed partial class AttachmentCatalogueViewModel(
     private SessionAttachmentFilter filter;
     private AttachmentCatalogueMode mode;
     private string queryText = string.Empty;
+    private string metadataText = string.Empty;
     private bool disposed;
     private long epoch;
     private long controlRevision = access.ControlRevision;
@@ -36,7 +38,7 @@ internal sealed partial class AttachmentCatalogueViewModel(
     public bool CanEdit => !disposed && access.CanInspect && admitted();
     public bool CanEditId => CanEdit && mode == AttachmentCatalogueMode.ExactId;
     public bool CanRead => CanEdit && operation is null;
-    public bool CanSearch => CanRead && Enum.IsDefined(filter) && (mode == AttachmentCatalogueMode.Browse
+    public bool CanSearch => CanRead && ValidMetadataText && Enum.IsDefined(filter) && (mode == AttachmentCatalogueMode.Browse
         || SessionListSearch.IsValid(SessionListSearchKind.ExactId, SessionListFilter.All, queryText));
     public bool CanNext => CanSearch && page?.Next is not null;
     public bool CanCancel => !disposed && operation is not null;
@@ -76,13 +78,35 @@ internal sealed partial class AttachmentCatalogueViewModel(
             Notify();
         }
     }
+    public string MetadataText
+    {
+        get => metadataText;
+        set
+        {
+            if (!CanEdit || string.Equals(metadataText, value, StringComparison.Ordinal)) { return; }
+            InvalidateQuery();
+            metadataText = value;
+            Notify();
+        }
+    }
+    private bool ValidMetadataText
+    {
+        get
+        {
+            try { LiteralMetadataQuery.Validate(metadataText); return true; }
+            catch (InvalidDataException) { return false; }
+        }
+    }
+    public string MetadataHint => ValidMetadataText
+        ? "Optional case-sensitive literal in exposed session/source/revision/item IDs, digest or media type only. Spaces stay exact; no wildcard, name, path or body search. Removed slots never match. Empty disables literal filtering; typing performs no read."
+        : "Invalid literal metadata query: at most 256 UTF-16 units / 512 UTF-8 bytes, valid single-line Unicode without control or format characters. No read or Browse fallback.";
     public string QueryHint => !Enum.IsDefined(filter)
         ? "Invalid stored session lifecycle filter. Choose All, Active, Done or Removed; no fallback or read."
         : mode == AttachmentCatalogueMode.Browse
         ? "Browse retained slots. Clear returns to Browse; typing performs no read."
         : !SessionListSearch.IsValid(SessionListSearchKind.ExactId, SessionListFilter.All, queryText)
-            ? "Invalid exact session ID. Enter a nonempty canonical lowercase D-format UUID; no Browse fallback. No names, paths, bodies or digest search."
-            : "Exact session ID: nonempty canonical lowercase D-format UUID. No names, paths, bodies or digest search; never permission.";
+            ? "Invalid exact session ID. Enter a nonempty canonical lowercase D-format UUID; no Browse fallback."
+            : "Exact session ID: nonempty canonical lowercase D-format UUID; independent of optional literal metadata, never permission.";
     public bool IncludeRemoved
     {
         get => includeRemoved;
@@ -107,7 +131,8 @@ internal sealed partial class AttachmentCatalogueViewModel(
     public Task Refresh(bool next = false) => Run(async (current, token) =>
     {
         var query = new SessionAttachmentQuery(includeRemoved,
-            mode == AttachmentCatalogueMode.Browse ? null : queryText, filter);
+            mode == AttachmentCatalogueMode.Browse ? null : queryText, filter,
+            metadataText.Length == 0 ? null : metadataText);
         var cursor = next ? page?.Next ?? throw new InvalidOperationException("Refresh before Next.") : null;
         Clear();
         var result = await read(query, cursor, current, token);
@@ -120,6 +145,8 @@ internal sealed partial class AttachmentCatalogueViewModel(
             + result.AuditScannedRows.ToString(CultureInfo.InvariantCulture) + " authority commits validated. "
             + (result.AuthorityValidationPending ? "Authority validation pending; Next continues before any attachment row is disclosed. "
                 : result.Next is not null ? "More slots remain. Next may follow an empty nonmatching page. "
+                    : result.Records.IsEmpty && query.MetadataText is not null
+                        ? "No matching retained metadata under these filters at this observation; no fallback. "
                     : result.Records.IsEmpty && query.ExactId is not null
                         ? "Exact attachment slot not found under this filter at this observation; no fallback to Browse. "
                         : "End of this observation, not a global total. ")
@@ -161,7 +188,7 @@ internal sealed partial class AttachmentCatalogueViewModel(
         catch (Exception exception) when (exception is not OutOfMemoryException)
         {
             Clear();
-            if (!disposed && epoch == originalEpoch) { status = "Attachment catalogue unavailable: " + exception.GetType().Name + ". No empty success; correct the canonical ID or refresh under private admission."; }
+            if (!disposed && epoch == originalEpoch) { status = "Attachment catalogue unavailable: " + exception.GetType().Name + ". No empty success; correct the canonical ID/literal query or refresh under private admission."; }
             Failure(logger, exception.GetType().Name);
             activity.Complete(HostOperationOutcome.Failed);
         }
@@ -180,6 +207,7 @@ internal sealed partial class AttachmentCatalogueViewModel(
         InvalidateQuery();
         mode = AttachmentCatalogueMode.Browse;
         queryText = string.Empty;
+        metadataText = string.Empty;
         Notify();
     }
 
@@ -206,6 +234,7 @@ internal sealed partial class AttachmentCatalogueViewModel(
         Clear();
         mode = AttachmentCatalogueMode.Browse;
         queryText = string.Empty;
+        metadataText = string.Empty;
         status = "Private source, lifecycle, retention or attachment changed. Page and selection cleared; refresh.";
         Notify();
     }
@@ -230,6 +259,7 @@ internal sealed partial class AttachmentCatalogueViewModel(
         filter = SessionAttachmentFilter.All;
         mode = AttachmentCatalogueMode.Browse;
         queryText = string.Empty;
+        metadataText = string.Empty;
         Notify();
     }
 
@@ -250,6 +280,8 @@ internal sealed partial class AttachmentCatalogueViewModel(
         OnPropertyChanged(nameof(Filter));
         OnPropertyChanged(nameof(Mode));
         OnPropertyChanged(nameof(QueryText));
+        OnPropertyChanged(nameof(MetadataText));
+        OnPropertyChanged(nameof(MetadataHint));
         OnPropertyChanged(nameof(QueryHint));
     }
 }

@@ -9,6 +9,30 @@ namespace Kora.Application.UnitTests.Hosting;
 
 public sealed partial class SessionWorkspaceServiceTests
 {
+    [Fact]
+    public async Task LiteralAttachmentQueryPassesThroughWithoutContentReadsAuthorityOrAuditAndRejectsMismatchedText()
+    {
+        using var fixture = new Fixture();
+        using var root = HostActivity.BeginRoot(fixture.Request, HostActivityLayer.Application, HostOperation.Request);
+        var summary = CatalogueSummary(fixture);
+        var query = new SessionAttachmentQuery(true, summary.Session.Value.ToString("D"),
+            SessionAttachmentFilter.Active, "text/");
+        fixture.CataloguePage = new(query, [summary], null, DateTimeOffset.UnixEpoch, 1, new string('a', 64), 2, false);
+        var audit = new FileAudit();
+        await using var files = FileService(fixture, FileAction(new FileCapture(), audit), audit);
+        var service = new SessionAttachmentCatalogueService(fixture.Service, files);
+        (await service.Read(query, null, () => true, fixture.Token)).Records.Should().ContainSingle();
+        fixture.ObservedAttachmentQuery.Should().BeSameAs(query);
+        fixture.CataloguePage = fixture.CataloguePage with { Query = new(true, query.ExactSessionId, query.Filter, "text") };
+        var mismatch = () => service.Read(query, null, () => true, fixture.Token);
+        await mismatch.Should().ThrowAsync<InvalidDataException>();
+        fixture.FileReads.Should().Be(0);
+        fixture.ControlCalls.Should().Be(0);
+        fixture.PassiveInspectionCalls.Should().Be(0);
+        fixture.TaskWrites.Should().BeEmpty();
+        audit.Events.Should().BeEmpty();
+    }
+
     [Theory]
     [InlineData(false, SessionAttachmentFilter.All)]
     [InlineData(true, SessionAttachmentFilter.Active)]

@@ -21,12 +21,101 @@ using Kora.Windows.IntegrationTests.Audio;
 using Kora.Windows.IntegrationTests.Storage;
 
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Logging;
 
 namespace Kora.Windows.IntegrationTests;
 
 [Collection(nameof(DurableStorageCompositionTestGroup))]
 public sealed class AttachmentCatalogueWindowTests
 {
+    [WindowsFact]
+    public async Task NativeLiteralMetadataSearchIsFocusedExplicitComposableVolatileAndNeverLogsCandidate()
+    {
+        await HeadlessSession.RunAsync(async () =>
+        {
+            using var fixture = new InteractionStorageFixture();
+            await fixture.InitializeAsync();
+            var access = new WindowsSqliteSessionWorkspaceTests.Access();
+            var summary = Summary(fixture.Request);
+            var seen = new List<SessionAttachmentQuery>();
+            var cursor = "YQ==." + new string('a', 64);
+            var fail = false;
+            var logger = new CatalogueLogger();
+            using var model = new AttachmentCatalogueViewModel((query, next, _, _) =>
+            {
+                seen.Add(query);
+                if (fail) { throw new IOException("PRIVATE_QUERY_SENTINEL"); }
+                return Task.FromResult(new SessionAttachmentPage(query, query.Matches(summary) ? [summary] : [],
+                    next is null ? cursor : null, DateTimeOffset.UnixEpoch, 1, new string('a', 64), 64, next is null));
+            }, (exact, current, _) =>
+            {
+                exact.Should().BeSameAs(summary);
+                current().Should().BeTrue();
+                return Task.CompletedTask;
+            }, access, () => true, logger);
+            var window = new AttachmentCatalogueWindow(model);
+            window.Show();
+            try
+            {
+                var field = window.FindControl<TextBox>("AttachmentMetadataText")!;
+                field.IsEnabled.Should().BeTrue();
+                ControlAutomationPeer.CreatePeerForElement(field)!.GetName()
+                    .Should().Contain("volatile literal").And.Contain("case sensitive");
+                field.Focus();
+                field.IsFocused.Should().BeTrue();
+                seen.Should().BeEmpty();
+                foreach (var invalid in new[] { "\n", "\u200b", new string('a', 257),
+                    new string('界', 171), new string('\ud800', 1) })
+                {
+                    field.Text = invalid;
+                    model.CanSearch.Should().BeFalse();
+                    model.MetadataHint.Should().Contain("Invalid literal");
+                    field.RaiseEvent(new KeyEventArgs { RoutedEvent = InputElement.KeyDownEvent, Key = Key.Enter });
+                    seen.Should().BeEmpty();
+                }
+                await model.Refresh();
+                model.Status.Should().Contain("InvalidDataException");
+                seen.Should().BeEmpty();
+                field.Text = "text/";
+                model.Mode = AttachmentCatalogueMode.ExactId;
+                model.QueryText = summary.Session.Value.ToString("D");
+                model.IncludeRemoved = true;
+                field.RaiseEvent(new KeyEventArgs { RoutedEvent = InputElement.KeyDownEvent, Key = Key.Enter });
+                await window.Operation;
+                seen.Single().Should().Be(new SessionAttachmentQuery(true, model.QueryText, metadataText: "text/"));
+                model.Records.Should().ContainSingle();
+                model.SelectedRecord.Should().BeNull();
+                model.Select(summary);
+                await model.Navigate();
+                model.Status.Should().Contain("Opened the exact");
+                field.Text = "TEXT/";
+                model.Records.Should().BeEmpty();
+                model.SelectedRecord.Should().BeNull();
+                model.CanNext.Should().BeFalse();
+                await model.Refresh();
+                model.CanNext.Should().BeTrue();
+                await model.Refresh(next: true);
+                model.Status.Should().Contain("No matching retained metadata").And.Contain("no fallback");
+                field.Text = "PRIVATE_QUERY_SENTINEL";
+                fail = true;
+                await model.Refresh();
+                model.Status.Should().Contain("unavailable").And.NotContain("PRIVATE_QUERY_SENTINEL");
+                logger.Messages.Should().NotBeEmpty().And.OnlyContain(text => !text.Contains("PRIVATE_QUERY_SENTINEL", StringComparison.Ordinal));
+                var calls = seen.Count;
+                model.ClearQuery();
+                model.MetadataText.Should().BeEmpty();
+                model.QueryText.Should().BeEmpty();
+                model.IncludeRemoved.Should().BeTrue();
+                seen.Count.Should().Be(calls);
+                field.Text = "text/";
+                field.RaiseEvent(new KeyEventArgs { RoutedEvent = InputElement.KeyDownEvent, Key = Key.Escape });
+                model.MetadataText.Should().BeEmpty();
+                window.IsVisible.Should().BeFalse();
+            }
+            finally { window.Close(); }
+        });
+    }
+
     [WindowsFact]
     public async Task NativeLifecycleFilterIsExplicitIndependentAndEmptyPagesKeepNextWithoutSelection()
     {
@@ -245,6 +334,7 @@ public sealed class AttachmentCatalogueWindowTests
                 model.Records.Should().BeEmpty("opening does not enumerate, capture or read a body");
                 model.Mode = AttachmentCatalogueMode.ExactId;
                 model.QueryText = fixture.Request.SessionId.Value.ToString("D");
+                model.MetadataText = "text/";
                 await model.Refresh();
                 window.UpdateLayout();
                 var slot = model.Records.Single();
@@ -360,6 +450,7 @@ public sealed class AttachmentCatalogueWindowTests
     [InlineData("filter")]
     [InlineData("invalid-filter")]
     [InlineData("id")]
+    [InlineData("metadata")]
     [InlineData("mode")]
     [InlineData("clear")]
     [InlineData("control")]
@@ -385,6 +476,7 @@ public sealed class AttachmentCatalogueWindowTests
             access, () => true, NullLogger<AttachmentCatalogueViewModel>.Instance);
         model.Mode = AttachmentCatalogueMode.ExactId;
         model.QueryText = summary.Session.Value.ToString("D");
+        model.MetadataText = "text/";
         await model.Refresh();
         model.Select(summary);
         model.CanNavigate.Should().BeTrue();
@@ -395,6 +487,7 @@ public sealed class AttachmentCatalogueWindowTests
         if (boundary is "filter") { model.Filter = SessionAttachmentFilter.Done; }
         if (boundary is "invalid-filter") { model.Filter = (SessionAttachmentFilter)99; }
         if (boundary is "id") { model.QueryText = Guid.NewGuid().ToString("D"); }
+        if (boundary is "metadata") { model.MetadataText = "unmatched"; }
         if (boundary is "mode") { model.Mode = AttachmentCatalogueMode.Browse; }
         if (boundary is "clear") { model.ClearQuery(); }
         if (boundary is "control") { access.ControlRevision++; model.SynchronizeAuthority(); }
@@ -411,6 +504,7 @@ public sealed class AttachmentCatalogueWindowTests
         if (boundary is "control" or "private" or "cancel" or "revoke" or "dispose")
         {
             model.QueryText.Should().BeEmpty();
+            model.MetadataText.Should().BeEmpty();
             model.Mode.Should().Be(AttachmentCatalogueMode.Browse);
         }
         model.Dispose();
@@ -419,9 +513,10 @@ public sealed class AttachmentCatalogueWindowTests
     }
 
     [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public async Task CatalogueLateNavigationNeverDisclosesAfterOriginalSelectionIsRevoked(bool lifecycle)
+    [InlineData("lifecycle")]
+    [InlineData("removal")]
+    [InlineData("metadata")]
+    public async Task CatalogueLateNavigationNeverDisclosesAfterOriginalSelectionIsRevoked(string boundary)
     {
         using var fixture = new InteractionStorageFixture();
         await fixture.InitializeAsync();
@@ -443,8 +538,9 @@ public sealed class AttachmentCatalogueWindowTests
         model.Select(summary);
         var navigation = model.Navigate();
         await entered.Task.WaitAsync(fixture.Token);
-        if (lifecycle) { model.Filter = SessionAttachmentFilter.Done; }
-        else { model.IncludeRemoved = true; }
+        if (boundary is "lifecycle") { model.Filter = SessionAttachmentFilter.Done; }
+        if (boundary is "removal") { model.IncludeRemoved = true; }
+        if (boundary is "metadata") { model.MetadataText = "unmatched"; }
         release.SetResult();
         await navigation;
         disclosed.Should().BeFalse();
@@ -477,5 +573,14 @@ public sealed class AttachmentCatalogueWindowTests
     private sealed class Audit : ISecurityAuditLog
     {
         public void Write(SecurityAuditEvent auditEvent) { }
+    }
+
+    private sealed class CatalogueLogger : ILogger<AttachmentCatalogueViewModel>
+    {
+        internal List<string> Messages { get; } = [];
+        public bool IsEnabled(LogLevel logLevel) => true;
+        public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
+        public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception,
+            Func<TState, Exception?, string> formatter) => Messages.Add(formatter(state, exception) + exception);
     }
 }

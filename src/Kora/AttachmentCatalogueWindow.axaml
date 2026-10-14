@@ -25,6 +25,11 @@
                  IsEnabled="{Binding CanEditId}" AutomationProperties.Name="Private volatile exact session ID query; typing performs no read" />
       </WrapPanel>
       <controls:NamedTextBlock Text="{Binding QueryHint}" TextWrapping="Wrap" />
+      <TextBox x:Name="AttachmentMetadataText" Text="{Binding MetadataText, Mode=TwoWay}" Width="700"
+               PlaceholderText="Optional literal metadata (IDs, digest or media type)"
+               HorizontalAlignment="Left" IsEnabled="{Binding CanEdit}"
+               AutomationProperties.Name="Optional private volatile literal metadata query: exposed IDs, digest or media type; case sensitive; typing performs no read" />
+      <controls:NamedTextBlock Text="{Binding MetadataHint}" TextWrapping="Wrap" />
     </StackPanel>
     <controls:NamedTextBlock Grid.Row="2" Text="{Binding Status}" TextWrapping="Wrap"
                             AutomationProperties.Name="Content-free metadata scope and finite scan limitations; not full body verification" />

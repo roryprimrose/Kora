@@ -24,7 +24,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Kora.Windows.IntegrationTests;
 
-[Collection(nameof(DurableStorageCompositionTestGroup))]
+[Collection(nameof(ProcessGlobalEvidenceTestGroup))]
 public sealed class NativeQuestionTests
 {
     [WindowsFact]

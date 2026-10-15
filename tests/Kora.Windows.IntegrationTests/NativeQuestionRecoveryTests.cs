@@ -21,7 +21,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Kora.Windows.IntegrationTests;
 
-[Collection(nameof(DurableStorageCompositionTestGroup))]
+[Collection(nameof(HeadlessUiTestGroup))]
 public sealed class NativeQuestionRecoveryTests
 {
     [Theory]

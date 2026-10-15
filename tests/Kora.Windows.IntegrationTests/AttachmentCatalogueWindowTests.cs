@@ -25,7 +25,7 @@ using Microsoft.Extensions.Logging;
 
 namespace Kora.Windows.IntegrationTests;
 
-[Collection(nameof(DurableStorageCompositionTestGroup))]
+[Collection(nameof(HeadlessUiTestGroup))]
 public sealed class AttachmentCatalogueWindowTests
 {
     [WindowsFact]

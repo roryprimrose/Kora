@@ -226,6 +226,11 @@ try {
         Assert (@($global:KoraReleaseTestState.Calls | Where-Object { ($_ -join ' ') -like '*--include repos/roryprimrose/Kora/releases/123*' }).Count -gt 0) 'Creation did not use authenticated direct-ID readback.'
         Assert (@($global:KoraReleaseTestState.Calls | Where-Object { $_[0] -eq 'release' -and $_[1] -in @('create', 'upload') }).Count -eq 0) 'Publication rediscovered a newly created draft by tag for a write.'
     }
+    $global:KoraReleaseTestState = New-ReleaseFixtureState
+    $global:KoraReleaseTestState.TagVisibilityDelayReads = 2
+    Invoke-Release Publish | Out-Null
+    Assert (-not $global:KoraReleaseTestState.Releases[0].draft) 'Delayed tag visibility left the release unpublished.'
+    Assert (@($global:KoraReleaseTestState.Writes | Where-Object { $_ -eq 'tag' }).Count -eq 1) 'Delayed tag visibility retried the tag write.'
     foreach ($response in @('malformed', 'missing-id', 'wrong-id', 'id-type', 'source', 'body', 'channel', 'published')) {
         $global:KoraReleaseTestState = New-ReleaseFixtureState
         $global:KoraReleaseTestState.CreateResponse = $response

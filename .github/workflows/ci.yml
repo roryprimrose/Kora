@@ -61,7 +61,7 @@ jobs:
           "already-published=$($state.AlreadyPublished.ToString().ToLowerInvariant())" >> $env:GITHUB_OUTPUT
 
   portable:
-    name: Portable build, tests, coverage, and package
+    name: Portable build, tests and package
     runs-on: ubuntu-latest
     timeout-minutes: 20
     needs: version
@@ -93,7 +93,7 @@ jobs:
         shell: pwsh
         run: ./eng/Test-DependencyLicenses.ps1
 
-      - name: Build
+      - name: Build solution without restore
         run: dotnet build Kora.slnx --configuration Release --no-restore
 
       # Publication tests use a fake CLI, including abrupt child exits under the Actions pwsh wrapper.
@@ -107,28 +107,12 @@ jobs:
         shell: pwsh
         run: ./eng/Test-SourceToolsContracts.ps1 -OutputDirectory (Join-Path $env:RUNNER_TEMP 'kora-source-tool-contracts')
 
-      - name: Package exact-revision source tools without executing them
-        shell: pwsh
-        env:
-          BUILD_VERSION: ${{ needs.version.outputs.version }}
-        run: >
-          ./eng/Build-SourceTools.ps1 -Revision "$env:GITHUB_SHA"
-          -Version "$env:BUILD_VERSION" -OutputDirectory artifacts/source-tools
-
       - name: Upload static source-tool contract results
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: source-tool-contracts
           path: ${{ runner.temp }}/kora-source-tool-contracts/tests.json
-          if-no-files-found: error
-
-      - name: Retain main source-tool candidate
-        if: needs.version.outputs.publish == 'true'
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          name: Kora-source-tools
-          path: artifacts/source-tools
           if-no-files-found: error
 
       - name: Test portable core with coverage
@@ -195,13 +179,47 @@ jobs:
           -MinimumLine 100
           -MinimumBranch 100
 
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: test-results
+          path: .net-test-artifacts/**/*.trx
+          if-no-files-found: error
+          include-hidden-files: true
+
+      - name: Upload coverage report
+        if: always() && hashFiles('.net-test-artifacts/coverage-report/Cobertura.xml') != ''
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: coverage-report
+          path: .net-test-artifacts/coverage-report
+          if-no-files-found: error
+          include-hidden-files: true
+
+      - name: Package exact-revision source tools without executing them
+        shell: pwsh
+        env:
+          BUILD_VERSION: ${{ needs.version.outputs.version }}
+        run: >
+          ./eng/Build-SourceTools.ps1 -Revision "$env:GITHUB_SHA"
+          -Version "$env:BUILD_VERSION" -OutputDirectory artifacts/source-tools
+
+      - name: Retain main source-tool candidate
+        if: needs.version.outputs.publish == 'true'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: Kora-source-tools
+          path: artifacts/source-tools
+          if-no-files-found: error
+
       - name: Publish Windows x64 application
         run: >
           dotnet publish src/Kora/Kora.csproj
           --configuration Release
           --runtime win-x64
           --self-contained false
-          --property:RestoreLockedMode=true
+          --no-restore
           --output artifacts/Kora-win-x64
 
       - name: Publish Windows x86 application
@@ -210,7 +228,7 @@ jobs:
           --configuration Release
           --runtime win-x86
           --self-contained false
-          --property:RestoreLockedMode=true
+          --no-restore
           --output artifacts/Kora-win-x86
 
       - name: Add dependency license texts to publish artifacts
@@ -260,24 +278,6 @@ jobs:
           path: artifacts/license-compliance
           if-no-files-found: error
 
-      - name: Upload test results
-        if: always()
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          name: test-results
-          path: .net-test-artifacts/**/*.trx
-          if-no-files-found: error
-          include-hidden-files: true
-
-      - name: Upload coverage report
-        if: always() && hashFiles('.net-test-artifacts/coverage-report/Cobertura.xml') != ''
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          name: coverage-report
-          path: .net-test-artifacts/coverage-report
-          if-no-files-found: error
-          include-hidden-files: true
-
       - name: Upload Windows x64 application
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
@@ -297,7 +297,7 @@ jobs:
   windows-integration:
     name: Windows integration tests
     runs-on: windows-latest
-    # Covers setup/build and the full isolated suite; product and test deadlines are unchanged.
+    # Covers setup/build and all concurrent shards; product and test deadlines are unchanged.
     timeout-minutes: 30
     needs: version
     if: needs.version.outputs.already-published != 'true'
@@ -318,10 +318,10 @@ jobs:
             **/packages.lock.json
 
       - name: Restore locked dependencies
-        run: dotnet restore tests/Kora.Windows.IntegrationTests/Kora.Windows.IntegrationTests.csproj --locked-mode
+        run: dotnet restore tests/Kora.Windows.IntegrationTests/Kora.Windows.IntegrationTests.csproj --locked-mode --runtime win-x64
 
-      - name: Build Windows integration tests
-        run: dotnet build tests/Kora.Windows.IntegrationTests/Kora.Windows.IntegrationTests.csproj --configuration Release --no-restore
+      - name: Build Windows integration tests without restore
+        run: dotnet build tests/Kora.Windows.IntegrationTests/Kora.Windows.IntegrationTests.csproj --configuration Release --runtime win-x64 --no-restore
 
       - name: Test payload rejection before packaging
         shell: pwsh
@@ -340,20 +340,15 @@ jobs:
           if-no-files-found: error
 
       - name: Run Windows integration tests
-        run: >
-          dotnet test
-          --project tests/Kora.Windows.IntegrationTests/Kora.Windows.IntegrationTests.csproj
-          --configuration Release
-          --no-build
-          --results-directory .net-test-artifacts/windows
-          --report-trx
+        shell: pwsh
+        run: .\eng\Run-WindowsIntegrationTests.ps1 -MaxThreads 2
 
       - name: Upload Windows test results
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: windows-test-results
-          path: .net-test-artifacts/windows/*.trx
+          path: .net-test-artifacts/windows/**/*.trx
           if-no-files-found: error
           include-hidden-files: true
 
@@ -361,7 +356,7 @@ jobs:
     name: Build WiX MSI and custom Burn setup
     runs-on: windows-latest
     timeout-minutes: 20
-    needs: [version, portable, windows-integration]
+    needs: [version, portable]
     steps:
       - name: Check out source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -390,6 +385,14 @@ jobs:
           -Version "$env:BUILD_VERSION"
           -SourceRevision "$env:GITHUB_SHA"
 
+      - name: Restore locked installer dependencies
+        shell: pwsh
+        run: |
+          dotnet restore .\installer\Kora.Msi\Kora.Msi.wixproj --locked-mode
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          dotnet restore .\installer\Kora.Bundle\Kora.Bundle.wixproj --locked-mode
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
       - name: Build MSI and Burn bundle without installing
         id: package
         shell: pwsh
@@ -401,6 +404,7 @@ jobs:
           -Version "$env:BUILD_VERSION"
           -ProductVersion "$env:PRODUCT_VERSION"
           -ApplicationPayloadPath .\artifacts\Kora-win-x64
+          -NoRestore
 
       # Feature and PR builds compile setup but never upload/publish its bytes.
       - name: Retain main installer candidate

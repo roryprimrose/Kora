@@ -402,9 +402,13 @@ $($generated.body)
     if (-not $draft.draft) { return [pscustomobject] @{ AlreadyPublished = $true } }
     $reference = Get-GitHubRecord "repos/$repository/git/ref/tags/$tag"
     if ($null -eq $reference) {
-        Invoke-Gh -Arguments @('api', '--method', 'POST', "repos/$repository/git/refs",
-            '-f', "ref=refs/tags/$tag", '-f', "sha=$SourceRevision") | Out-Null
-        $reference = Get-GitHubRecord "repos/$repository/git/ref/tags/$tag"
+        $createdReference = ((Invoke-Gh -Arguments @('api', '--method', 'POST', "repos/$repository/git/refs",
+            '-f', "ref=refs/tags/$tag", '-f', "sha=$SourceRevision")) -join "`n") | ConvertFrom-Json
+        if ($createdReference.ref -cne "refs/tags/$tag") {
+            throw 'Tag creation response differs from the requested exact tag.'
+        }
+        Assert-TagSource $createdReference $SourceRevision
+        $reference = Get-GitHubRecordAfterSuccessfulWrite "repos/$repository/git/ref/tags/$tag"
         if ($null -eq $reference) { throw 'Exact-source tag creation was not established; draft remains unpublished.' }
     }
     Assert-TagSource $reference $SourceRevision

@@ -154,14 +154,14 @@ public sealed partial class NativeQuestionWindowContractTests
         var ready = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         void OnChanged(object? sender, PropertyChangedEventArgs args)
         {
-            if (window.IsActive && model.IsEditable) { ready.TrySetResult(); }
+            if (window.IsActive && model.IsEditable && !model.HasPendingOperation) { ready.TrySetResult(); }
         }
         model.PropertyChanged += OnChanged;
         try
         {
             window.Show();
             window.Activate();
-            if (window.IsActive && model.IsEditable) { ready.TrySetResult(); }
+            if (window.IsActive && model.IsEditable && !model.HasPendingOperation) { ready.TrySetResult(); }
             await ready.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
         }
         finally { model.PropertyChanged -= OnChanged; }

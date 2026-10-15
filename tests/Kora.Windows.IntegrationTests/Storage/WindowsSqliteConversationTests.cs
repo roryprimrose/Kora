@@ -11,7 +11,6 @@ using Microsoft.Data.Sqlite;
 
 namespace Kora.Windows.IntegrationTests.Storage;
 
-[Collection(nameof(DurableStorageCompositionTestGroup))]
 public sealed partial class WindowsSqliteConversationTests
 {
     [Fact]

@@ -9,7 +9,7 @@ using Kora.Windows.Storage;
 
 namespace Kora.Windows.IntegrationTests.Storage;
 
-[Collection(nameof(DurableStorageCompositionTestGroup))]
+[Collection(nameof(ProcessGlobalEvidenceTestGroup))]
 public sealed partial class WindowsSqliteSessionQueueTests
 {
     [WindowsFact]

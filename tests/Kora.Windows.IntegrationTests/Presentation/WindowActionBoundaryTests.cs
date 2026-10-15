@@ -5,11 +5,13 @@ using AwesomeAssertions;
 using Kora.Application.Diagnostics;
 using Kora.Core.Diagnostics;
 using Kora.Core.Hosting;
+using Kora.Windows.IntegrationTests.Storage;
 
 using Microsoft.Extensions.Logging;
 
 namespace Kora.Windows.IntegrationTests.Presentation;
 
+[Collection(nameof(ProcessGlobalEvidenceTestGroup))]
 public sealed class WindowActionBoundaryTests
 {
     [Fact]

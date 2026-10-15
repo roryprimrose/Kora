@@ -14,7 +14,6 @@ using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Kora.Windows.IntegrationTests;
 
-[Collection(nameof(DurableStorageCompositionTestGroup))]
 public sealed class SessionsRetentionViewModelTests
 {
     [WindowsFact]

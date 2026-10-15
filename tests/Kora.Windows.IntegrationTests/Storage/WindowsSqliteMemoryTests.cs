@@ -11,7 +11,6 @@ using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Kora.Windows.IntegrationTests.Storage;
 
-[Collection(nameof(DurableStorageCompositionTestGroup))]
 public sealed partial class WindowsSqliteMemoryTests
 {
     private static MemoryCandidate Candidate => new(MemoryContentClass.ResponsePreference, "exact reviewed memory café");

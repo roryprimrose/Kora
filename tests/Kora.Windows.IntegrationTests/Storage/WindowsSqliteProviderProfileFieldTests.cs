@@ -17,7 +17,7 @@ using Microsoft.Extensions.Logging;
 
 namespace Kora.Windows.IntegrationTests.Storage;
 
-[Collection(nameof(DurableStorageCompositionTestGroup))]
+[Collection(nameof(ProcessGlobalEvidenceTestGroup))]
 public sealed class WindowsSqliteProviderProfileFieldTests
 {
     [Theory]

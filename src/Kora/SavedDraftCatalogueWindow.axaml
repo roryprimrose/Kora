@@ -51,6 +51,18 @@
         </StackPanel>
       </WrapPanel>
       <controls:NamedTextBlock Text="{Binding MetadataHint}" TextWrapping="Wrap" />
+      <WrapPanel>
+        <StackPanel>
+          <TextBlock Text="Exact observation source GUID (Any if empty)" />
+          <TextBox x:Name="DraftSourceText" Text="{Binding SourceText, Mode=TwoWay}" Width="360"
+                   IsEnabled="{Binding CanEditQuery}" AutomationProperties.Name="Exact observation source GUID; canonical lowercase D format; empty means Any; metadata only, not authority; typing performs no read" />
+        </StackPanel>
+        <StackPanel>
+          <TextBlock Text="Exact device profile GUID (Any if empty)" />
+          <TextBox x:Name="DraftProfileText" Text="{Binding ProfileText, Mode=TwoWay}" Width="360"
+                   IsEnabled="{Binding CanEditQuery}" AutomationProperties.Name="Exact device profile GUID; canonical lowercase D format; empty means Any; metadata only, not ownership or identity; typing performs no read" />
+        </StackPanel>
+      </WrapPanel>
     </StackPanel>
     <controls:NamedTextBlock Grid.Row="2" Text="{Binding Status}" TextWrapping="Wrap"
                             AutomationProperties.Name="Passive bounded metadata observation; not body integrity verification" />

@@ -83,10 +83,22 @@ Scalar matching uses only already exposed validated `SavedDraftSummary.UnicodeSc
 never body reads, inference or code-unit filtering. Nonempty input accepts only invariant decimal digits;
 no signs, whitespace repair, separators, truncation or clamping. Invalid fields
 visibly refuse Search/Refresh. Zero byte or scalar bounds can truthfully match no nonempty draft.
+Optional **Exact observation source GUID** and **Exact device profile GUID** compose
+with every existing predicate using AND. Empty fields mean Any; nonempty fields
+must be complete nonempty canonical lowercase `D` GUIDs. Braces, uppercase,
+whitespace, trimming, partial matches, repair and reinterpretation are refused.
+The portable metadata filter owns this parsing once and reuses host identity
+validation for the typed profile. Source matches `SavedDraftSummary.Source`;
+profile matches `SavedDraftSummary.Profile.Value`, both exact. These IDs are
+metadata/correlation only, never device ownership, identity or authority.
+The filter digest binds all numeric and GUID predicates; the signed cursor binds
+the complete filter alongside every existing query/source/private/control/head
+and authority fence. Nonmatching source/profile criteria do not bypass validation
+of any scanned saved-draft summary, metadata name or authority prefix.
 Metadata predicates apply only after existing source/authority-prefix and candidate
 metadata validation; irrelevant authority commits are still validated before disclosure.
 No body decoding or inference is added.
-Typing, query mode, lifecycle and revision/byte/scalar filter edits immediately invalidate the catalogue page/cursor/selection/exact navigation and cancel pending callbacks without I/O or changing the current Sessions target/composer. **Search / refresh metadata** explicitly observes the new query; no first match is automatically selected. Clear and private/source/close revocation also clear the volatile metadata fields.
+Typing, query mode, lifecycle and revision/byte/scalar/source/profile filter edits immediately invalidate the catalogue page/cursor/selection/exact navigation and cancel pending callbacks without I/O or changing the current Sessions target/composer. **Search / refresh metadata** explicitly observes the new query; no first match is automatically selected. Clear and private/source/close revocation also clear the volatile metadata fields.
 Exact ID seeks the existing draft-row primary key after the same mandatory private source/authority validation. Missing/cleared/unretained/Removed/nonmatching targets end without falling back to a list; unavailable or broken authority remains a recovery failure, not a healthy empty inventory.
 
 Each click consumes at most 50 candidate draft slots and returns at most 25 complete rows / 64 KiB. Cleared/null/empty slots consume scan positions but are not saved-content results; never-saved sessions and question/parameter drafts are not sources.

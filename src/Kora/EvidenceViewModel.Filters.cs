@@ -14,6 +14,7 @@ internal sealed partial class EvidenceViewModel
     private string sessionFilter = string.Empty;
     private string taskFilter = string.Empty;
     private string traceFilter = string.Empty;
+    private string spanFilter = string.Empty;
     private string requestFilter = string.Empty;
     private string invocationFilter = string.Empty;
     private string approvalFilter = string.Empty;
@@ -34,6 +35,7 @@ internal sealed partial class EvidenceViewModel
     public string SessionFilter { get => sessionFilter; set => ChangeFilter(ref sessionFilter, value); }
     public string TaskFilter { get => taskFilter; set => ChangeFilter(ref taskFilter, value); }
     public string TraceFilter { get => traceFilter; set => ChangeFilter(ref traceFilter, value); }
+    public string SpanFilter { get => spanFilter; set => ChangeFilter(ref spanFilter, value); }
     public string RequestFilter { get => requestFilter; set => ChangeFilter(ref requestFilter, value); }
     public string InvocationFilter { get => invocationFilter; set => ChangeFilter(ref invocationFilter, value); }
     public string ApprovalFilter { get => approvalFilter; set => ChangeFilter(ref approvalFilter, value); }
@@ -81,6 +83,7 @@ internal sealed partial class EvidenceViewModel
         SessionId = Identity<SessionIdentity>(SessionFilter),
         TaskId = Identity<TaskIdentity>(TaskFilter),
         TraceId = string.IsNullOrEmpty(TraceFilter) ? null : TraceFilter,
+        SpanId = string.IsNullOrEmpty(SpanFilter) ? null : SpanFilter,
         RequestId = Identity<RequestIdentity>(RequestFilter),
         InvocationId = Identity<InvocationIdentity>(InvocationFilter),
         ApprovalId = Identifier(ApprovalFilter),

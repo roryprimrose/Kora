@@ -86,6 +86,20 @@ installed accessibility/full conversation qualification is added.
 
 ## Ordered Outstanding Work
 
+### Bounded native Evidence exact Span ID filter - 2026-10-15
+
+The [native Evidence reader](Information_Display.md#delivered-bounded-native-evidence-inspection)
+exposes the already-authoritative optional exact Span ID beside Trace ID:
+empty-only Any, otherwise existing nonzero 16-lowercase-hex W3C validation.
+Every existing filter composes with AND; edits revoke page/selection/cursor
+and late callbacks without reading. Clear advanced preserves both basic W3C
+fields; close clears both. Deterministic native/portable/real-reader checks
+cover this consumed implementation subset, not installed accessibility or RC
+qualification. Private/source/authority fences, complete bounded validation,
+snapshots and omission remain unchanged. No ParentSpanId filter, new navigation,
+model/tool/speech/export/clipboard route, storage/schema/index/cache, persistence,
+filter-value telemetry, activity renewal or generated content is delivered.
+
 ### Bounded native saved-draft revision/UTF-8 metadata filters - 2026-10-15
 
 The [saved-draft catalogue](Interaction_And_Sessions.md#saved-conversation-draft-catalogue--2026-10-13)

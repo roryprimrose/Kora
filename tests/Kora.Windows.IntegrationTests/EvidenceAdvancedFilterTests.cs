@@ -15,7 +15,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 namespace Kora.Windows.IntegrationTests;
 
 [Collection("Evidence query")]
-public sealed class EvidenceAdvancedFilterTests
+public sealed partial class EvidenceAdvancedFilterTests
 {
     private static readonly DateTimeOffset Edge = new(2026, 10, 10, 0, 0, 0, TimeSpan.Zero);
 
@@ -75,6 +75,12 @@ public sealed class EvidenceAdvancedFilterTests
         viewer.SpanFilter.Should().Be(value);
         viewer.ResultText.Should().BeEmpty();
         viewer.Status.Should().Contain("failed").And.Contain("span (16)");
+        viewer.SpanFilter = string.Empty;
+        viewer.ParentSpanFilter = value;
+        await viewer.SearchAsync();
+        reader.Queries.Should().ContainSingle();
+        viewer.ParentSpanFilter.Should().Be(value);
+        viewer.Status.Should().Contain("failed");
         viewer.Close();
     }
 
@@ -816,6 +822,7 @@ public sealed class EvidenceAdvancedFilterTests
         var audit = new SecurityAuditEvent(Guid.NewGuid(), SecurityAuditCategory.ApplicationExecution,
             "host.query.version", SecurityAuditOutcome.Succeeded, SecurityAuditInitiator.LocalUser, "application.current", Guid.NewGuid());
         DiagnosticEnvelope envelope;
+        using var parentActivity = HostActivity.BeginRoot(owner, HostActivityLayer.Application, HostOperation.Request);
         using (var producer = HostActivity.BeginAudit(owner, audit))
         {
             envelope = WindowsDailyEvidenceReaderTests.Produce(owner, 1)[0] with
@@ -835,6 +842,9 @@ public sealed class EvidenceAdvancedFilterTests
             () => viewer.TaskFilter = Guid.NewGuid().ToString("D"),
             () => viewer.TraceFilter = new string('f', 32),
             () => viewer.SpanFilter = new string('f', 16),
+            () => viewer.ParentSpanFilter = new string('f', 16),
+            () => viewer.Outcome = EvidenceViewModel.OutcomeChoices[1],
+            () => viewer.ContentAvailability = EvidenceContentAvailability.Omitted,
             () => viewer.RequestFilter = Guid.NewGuid().ToString("D"),
             () => viewer.InvocationFilter = Guid.NewGuid().ToString("D"),
             () => viewer.ApprovalFilter = Guid.NewGuid().ToString("D"),
@@ -855,6 +865,9 @@ public sealed class EvidenceAdvancedFilterTests
             viewer.TaskFilter = owner.TaskId.Value.ToString("D");
             viewer.TraceFilter = envelope.Trace!.TraceId;
             viewer.SpanFilter = envelope.Trace.SpanId;
+            viewer.ParentSpanFilter = envelope.Trace.ParentSpanId!;
+            viewer.Outcome = EvidenceViewModel.OutcomeChoices[0];
+            viewer.ContentAvailability = EvidenceContentAvailability.Present;
             viewer.RequestFilter = owner.RequestId.Value.ToString("D");
             viewer.InvocationFilter = owner.InvocationId!.Value.Value.ToString("D");
             viewer.ApprovalFilter = audit.ApprovalId!.Value.ToString("D");

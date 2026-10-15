@@ -349,6 +349,8 @@ public sealed class WindowsSqliteEvidenceQueryTests
         var invalid = async () => await Service(sink, new Clock()).QueryAsync(new()
         {
             SpanId = "0123456789abcdef",
+            ParentSpanId = "0123456789abcdef", Outcome = HostOperationOutcome.Failed,
+            ContentAvailability = EvidenceContentAvailability.Omitted,
         }, null, TestContext.Current.CancellationToken);
         if (corruption is "acl" or "unexpected")
         {

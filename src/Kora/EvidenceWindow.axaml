@@ -43,6 +43,22 @@
               AutomationProperties.Name="Optional advanced evidence filters">
       <StackPanel Spacing="8">
         <WrapPanel>
+          <TextBox x:Name="ParentSpanId" Text="{Binding ParentSpanFilter}" PlaceholderText="Exact W3C parent span ID (16 lowercase hex)"
+                   Width="360" Margin="0,0,10,8" ContextMenu="{x:Null}" ContextFlyout="{x:Null}"
+                   AutomationProperties.Name="Exact W3C Parent Span ID correlation filter; empty means Any"
+                   ToolTip.Tip="Empty means Any. Otherwise exactly 16 lowercase hexadecimal characters, not all zero. No trimming or partial matching." />
+          <ComboBox x:Name="OperationOutcome" ItemsSource="{Binding OutcomeChoices}" SelectedItem="{Binding Outcome, Mode=TwoWay}"
+                    MinWidth="150" Margin="0,0,10,8" AutomationProperties.Name="Exact host operation outcome; Any includes null outcomes">
+            <ComboBox.ItemTemplate>
+              <DataTemplate><TextBlock x:DataType="local:EvidenceViewModel+OutcomeChoice" Text="{Binding Label}" /></DataTemplate>
+            </ComboBox.ItemTemplate>
+          </ComboBox>
+          <ComboBox x:Name="ContentAvailability" ItemsSource="{Binding ContentAvailabilities}" SelectedItem="{Binding ContentAvailability, Mode=TwoWay}"
+                    MinWidth="150" Margin="0,0,10,8" AutomationProperties.Name="Evidence content availability: Any, Present or Omitted" />
+        </WrapPanel>
+        <TextBlock TextWrapping="Wrap"
+                   Text="Parent Span ID is exact correlation metadata, not trace navigation. Host operation outcome matches the retained Outcome, not audit outcome; null outcomes match only Any. Content availability: Any, Present (ContentOmitted false), Omitted (true). These are metadata predicates, not integrity proof or body restoration. Every filter composes with AND; edits read nothing and retire prior results. Clear advanced resets these three filters to Any." />
+        <WrapPanel>
           <TextBox Text="{Binding RequestFilter}" PlaceholderText="Exact request GUID" Width="300" Margin="0,0,10,8"
                    ContextMenu="{x:Null}" ContextFlyout="{x:Null}" AutomationProperties.Name="Exact request ID filter" />
           <TextBox Text="{Binding InvocationFilter}" PlaceholderText="Exact invocation GUID" Width="300" Margin="0,0,10,8"

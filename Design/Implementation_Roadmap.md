@@ -73,6 +73,20 @@ Portable and deterministic headless/private-store checks gate this consumed I
 subset; no storage/model/provider/execution capability is enabled and full work
 management, installed-accessibility and existing E/Q qualification remain separate.
 
+### Bounded native Evidence retained metadata predicates - 2026-10-15
+
+The existing [Evidence inspector](Information_Display.md#delivered-bounded-native-evidence-inspection)
+now exposes exact Parent Span ID, exact retained `HostOperationOutcome`, and an
+explicit Any/Present/Omitted content discriminator. Empty parent means Any;
+nonempty input shares the portable strict W3C rule. Visible accessible Any
+selections, AND composition with every existing filter, full bounded record
+validation, signed query/cursor binding and edit cancellation/retirement use
+the existing query/reader/presentation I subset. No storage schema/index/cache,
+authority, activity renewal, model/tool/speech, body restoration, navigation,
+export/clipboard or filter persistence/logging is added. Focused deterministic
+Core/Application/SQLite/native checks are implementation evidence only; general
+Ask Evidence and installed/accessibility E/Q qualification remain unavailable.
+
 ### Bounded Presence renderer work reduction - 2026-10-15
 
 The [native particle-cloud scheduling boundary](Ambient_UI.md#bounded-native-renderer-scheduling)

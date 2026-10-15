@@ -703,8 +703,7 @@ public sealed partial class WindowsSqliteEvidenceSink : IEvidenceSink
 
     private static void ValidateW3C(string value, int length)
     {
-        if (value is null || value.Length != length || value.All(character => character == '0')
-            || value.Any(character => character is not (>= '0' and <= '9' or >= 'a' and <= 'f')))
+        if (!TraceSnapshot.IsValidW3CId(value, length))
         {
             throw new InvalidDataException("A W3C correlation identifier is invalid.");
         }

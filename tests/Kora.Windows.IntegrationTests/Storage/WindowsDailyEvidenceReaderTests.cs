@@ -379,7 +379,11 @@ public sealed class WindowsDailyEvidenceReaderTests
         }
         var service = Service(new WindowsDailyEvidenceReader(fixture));
         using var inspection = Root();
-        var page = await service.QueryAsync(new() { Source = EvidenceSource.DailyLog, SpanId = "0123456789abcdef" },
+        var page = await service.QueryAsync(new()
+        {
+            Source = EvidenceSource.DailyLog, SpanId = "0123456789abcdef", ParentSpanId = "0123456789abcdef",
+            Outcome = HostOperationOutcome.Unknown, ContentAvailability = EvidenceContentAvailability.Omitted,
+        },
             null, TestContext.Current.CancellationToken);
         page.Status.Should().Be(expected);
         page.Records.Should().BeEmpty();

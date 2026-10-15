@@ -36,7 +36,10 @@ internal sealed partial class AllWorkViewModel(
     public SessionWorkOverviewRow? SelectedRecord => selected;
     public IReadOnlyList<SessionListFilter> Filters { get; } = Enum.GetValues<SessionListFilter>();
     public IReadOnlyList<SessionListSearchKind> QueryKinds { get; } = Enum.GetValues<SessionListSearchKind>();
-    public sealed record AvailabilityChoice(SessionWorkOverviewAvailability? Value, string Label);
+    public sealed record AvailabilityChoice(SessionWorkOverviewAvailability? Value, string Label)
+    {
+        public override string ToString() => Label;
+    }
     public IReadOnlyList<AvailabilityChoice> AvailabilityChoices { get; } =
     [
         new(null, "Any"),

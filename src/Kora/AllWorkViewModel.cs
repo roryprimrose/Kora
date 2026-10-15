@@ -21,6 +21,7 @@ internal sealed partial class AllWorkViewModel(
     private SessionWorkOverviewPage? page;
     private SessionWorkOverviewRow? selected;
     private SessionListFilter filter;
+    private SessionWorkOverviewAvailability? availability;
     private string queryText = string.Empty;
     private SessionListSearchKind queryKind;
     private bool needsAnswer;
@@ -35,6 +36,15 @@ internal sealed partial class AllWorkViewModel(
     public SessionWorkOverviewRow? SelectedRecord => selected;
     public IReadOnlyList<SessionListFilter> Filters { get; } = Enum.GetValues<SessionListFilter>();
     public IReadOnlyList<SessionListSearchKind> QueryKinds { get; } = Enum.GetValues<SessionListSearchKind>();
+    public sealed record AvailabilityChoice(SessionWorkOverviewAvailability? Value, string Label);
+    public IReadOnlyList<AvailabilityChoice> AvailabilityChoices { get; } =
+    [
+        new(null, "Any"),
+        new(SessionWorkOverviewAvailability.Observed, "Observed"),
+        new(SessionWorkOverviewAvailability.SourceChanged, "Source changed"),
+        new(SessionWorkOverviewAvailability.ReadUnavailable, "Read unavailable"),
+        new(SessionWorkOverviewAvailability.OutputBound, "Output bound")
+    ];
     public string Status => status;
     public bool CanRead => !closed && !busy && access.CanInspect;
     public bool CanEdit => !closed && access.CanInspect;
@@ -105,6 +115,19 @@ internal sealed partial class AllWorkViewModel(
             Notify();
         }
     }
+    public SessionWorkOverviewAvailability? Availability
+    {
+        get => availability;
+        set
+        {
+            SessionWorkOverviewFilter.Validate(value);
+            if (!CanEdit || availability == value) { return; }
+            Invalidate();
+            availability = value;
+            status = "Observation availability filter changed. No read performed; Refresh. Unavailable is not empty work.";
+            Notify();
+        }
+    }
 
     public void Select(SessionWorkOverviewRow? row)
     {
@@ -119,7 +142,7 @@ internal sealed partial class AllWorkViewModel(
         var cursor = next ? page?.Next ?? throw new InvalidOperationException("Refresh before Next.") : null;
         var query = queryText.Length == 0 ? null : new SessionListSearch(queryKind, filter, queryText);
         ClearPage();
-        var result = await service.ReadWorkOverviewAsync(filter, needsAnswer, cursor, token, query);
+        var result = await service.ReadWorkOverviewAsync(filter, needsAnswer, cursor, token, query, availability);
         token.ThrowIfCancellationRequested();
         page = result;
         status = "This page: " + result.Records.Length.ToString(CultureInfo.InvariantCulture) + " groups; "
@@ -207,6 +230,7 @@ internal sealed partial class AllWorkViewModel(
         epoch++;
         ClearPage();
         filter = SessionListFilter.All;
+        availability = null;
         queryText = string.Empty;
         queryKind = SessionListSearchKind.NameSubstring;
         needsAnswer = false;
@@ -223,6 +247,7 @@ internal sealed partial class AllWorkViewModel(
         OnPropertyChanged(nameof(SelectedRecord));
         OnPropertyChanged(nameof(SelectedDetails));
         OnPropertyChanged(nameof(Filter));
+        OnPropertyChanged(nameof(Availability));
         OnPropertyChanged(nameof(QueryText));
         OnPropertyChanged(nameof(QueryKind));
         OnPropertyChanged(nameof(QueryHint));

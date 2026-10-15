@@ -206,6 +206,8 @@ Publisher/inspection revocation, lifecycle/disposition/retention, query/selectio
 
 All/Active/Done is stored lifecycle; **Observed needs answer** filters observed pending-question metadata, not reply eligibility.
 
+The native **Observation availability** combo offers exactly **Any**, **Observed**, **Source changed**, **Read unavailable**, **Output bound**, composed by AND with lifecycle, literal metadata query and Needs answer. Matching is content-free, exact typed availability under the [portable policy](../src/Kora.Core/Storage/SessionWorkOverviewFilter.cs), never an empty-work predicate. Undefined values are refused. Editing reads nothing and revokes current rows, selection, continuation and late callbacks immediately; explicit Search/Refresh/Next binds the exact choice with existing private/source/query/head fences. The keyboard-focusable native combo has an accessible name explaining its choices and no-read/unavailable boundary, remains editable during reads, and is disabled by private closure. Choices are volatile, clear on close and add no persistence, telemetry, authority or export route. Zero matches remain a truthful bounded scan, not all-clear.
+
 One complete typed projection is limited to 64 KiB. It retains exact session IDs/generations/metadata revisions, per-session authority/queue revisions and observation time, confirmed fixed-profile slot/capacity limits, observed current fixed reads, all returned policy reasons/queue deadlines and up to fifty task/question records per session.
 
 Queue receipt, task and question omissions remain explicit; full bodies/history/attachments/memory/diagnostic strings are excluded.

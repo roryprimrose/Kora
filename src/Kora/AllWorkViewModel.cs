@@ -22,6 +22,7 @@ internal sealed partial class AllWorkViewModel(
     private SessionWorkOverviewRow? selected;
     private SessionListFilter filter;
     private SessionWorkOverviewAvailability? availability;
+    private SessionWorkOverviewContent content;
     private string queryText = string.Empty;
     private SessionListSearchKind queryKind;
     private bool needsAnswer;
@@ -47,6 +48,17 @@ internal sealed partial class AllWorkViewModel(
         new(SessionWorkOverviewAvailability.SourceChanged, "Source changed"),
         new(SessionWorkOverviewAvailability.ReadUnavailable, "Read unavailable"),
         new(SessionWorkOverviewAvailability.OutputBound, "Output bound")
+    ];
+    public sealed record ContentChoice(SessionWorkOverviewContent Value, string Label)
+    {
+        public override string ToString() => Label;
+    }
+    public IReadOnlyList<ContentChoice> ContentChoices { get; } =
+    [
+        new(SessionWorkOverviewContent.Any, "Any"),
+        new(SessionWorkOverviewContent.QueueReceipt, "At least one observed queue receipt"),
+        new(SessionWorkOverviewContent.Task, "At least one observed task"),
+        new(SessionWorkOverviewContent.PendingQuestion, "At least one observed pending question")
     ];
     public string Status => status;
     public bool CanRead => !closed && !busy && access.CanInspect;
@@ -140,6 +152,29 @@ internal sealed partial class AllWorkViewModel(
             Availability = value.Value;
         }
     }
+    public SessionWorkOverviewContent Content
+    {
+        get => content;
+        set
+        {
+            SessionWorkOverviewFilter.Validate(value);
+            if (!CanEdit || content == value) { return; }
+            Invalidate();
+            content = value;
+            status = "Observed-content filter changed. No read performed; Refresh. Only retained observed records match; "
+                + "unavailable or omitted records prove no absence, completion or permission.";
+            Notify();
+        }
+    }
+    public ContentChoice SelectedContentChoice
+    {
+        get => ContentChoices.Single(choice => choice.Value == content);
+        set
+        {
+            ArgumentNullException.ThrowIfNull(value);
+            Content = value.Value;
+        }
+    }
 
     public void Select(SessionWorkOverviewRow? row)
     {
@@ -154,7 +189,7 @@ internal sealed partial class AllWorkViewModel(
         var cursor = next ? page?.Next ?? throw new InvalidOperationException("Refresh before Next.") : null;
         var query = queryText.Length == 0 ? null : new SessionListSearch(queryKind, filter, queryText);
         ClearPage();
-        var result = await service.ReadWorkOverviewAsync(filter, needsAnswer, cursor, token, query, availability);
+        var result = await service.ReadWorkOverviewAsync(filter, needsAnswer, cursor, token, query, availability, content);
         token.ThrowIfCancellationRequested();
         page = result;
         status = "This page: " + result.Records.Length.ToString(CultureInfo.InvariantCulture) + " groups; "
@@ -243,6 +278,7 @@ internal sealed partial class AllWorkViewModel(
         ClearPage();
         filter = SessionListFilter.All;
         availability = null;
+        content = SessionWorkOverviewContent.Any;
         queryText = string.Empty;
         queryKind = SessionListSearchKind.NameSubstring;
         needsAnswer = false;
@@ -261,6 +297,8 @@ internal sealed partial class AllWorkViewModel(
         OnPropertyChanged(nameof(Filter));
         OnPropertyChanged(nameof(Availability));
         OnPropertyChanged(nameof(SelectedAvailabilityChoice));
+        OnPropertyChanged(nameof(Content));
+        OnPropertyChanged(nameof(SelectedContentChoice));
         OnPropertyChanged(nameof(QueryText));
         OnPropertyChanged(nameof(QueryKind));
         OnPropertyChanged(nameof(QueryHint));

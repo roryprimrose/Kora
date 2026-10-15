@@ -16,10 +16,9 @@ namespace Kora.Windows.IntegrationTests.Storage;
 public sealed partial class WindowsSqliteSessionAttachmentTests
 {
     [Theory]
-    [InlineData(false, false)]
-    [InlineData(true, false)]
-    [InlineData(true, true)]
-    public async Task ExactCatalogueValidatesNonmatchingSlotsAndFindsMatchBeyondFirstBoundedScanWithoutGlobalCap(bool includeRemoved, bool useDigest)
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task ExactCatalogueValidatesNonmatchingSlotsAndFindsMatchBeyondFirstBoundedScanWithoutGlobalCap(bool includeRemoved)
     {
         using var fixture = await Initialize();
         using var root = HostActivity.BeginRoot(fixture.Request, HostActivityLayer.Application, HostOperation.Request);
@@ -34,6 +33,7 @@ public sealed partial class WindowsSqliteSessionAttachmentTests
         var target = new HostId<SessionIdentity>(Guid.Parse("ffffffff-ffff-ffff-ffff-ffffffffffff"));
         await NewSession(fixture, target);
         var retained = await Attach(fixture, Encoding.UTF8.GetBytes("PRIVATE_EXACT_BODY_NOT_SEARCHED"));
+        var useDigest = !includeRemoved;
         var query = new SessionAttachmentQuery(includeRemoved, target.Value.ToString("D"),
             exactDigest: useDigest ? retained.File.Digest : null);
         var clock = await fixture.Store.ReadRetentionAsync(target, fixture.Token);

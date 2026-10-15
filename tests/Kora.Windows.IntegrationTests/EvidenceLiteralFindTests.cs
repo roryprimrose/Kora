@@ -526,14 +526,14 @@ public sealed partial class EvidenceLiteralFindTests
     private sealed class Reader : IEvidenceReader
     {
         internal Reader() => Read = () => new(Batch());
-        internal EvidenceRecord Record { get; } = new(new(EvidenceSource.Log, new(Guid.NewGuid())),
+        internal EvidenceRecord Record { get; } = new(new(EvidenceSource.Log, new(Guid.Parse("11111111-1111-1111-1111-111111111111"))),
             DateTimeOffset.UnixEpoch, null, EvidenceSegmentStatus.Present, null,
             new("0123456789abcdef0123456789abcdef", new string('b', 16), null, ActivityTraceFlags.Recorded,
                 "Kora.Application", "1.0.0", "session.request", ActivityKind.Internal),
             null, null, "Information", "test", 0, "aaaaaaa AAA .*?[a]  xyz \ud83d\ude42",
             new Dictionary<string, EvidenceValue>(StringComparer.Ordinal) { ["SecurityAudit"] = new(EvidenceValueKind.Boolean, "true") },
             null, null, [new(new string('c', 32), new string('d', 16), EvidenceSegmentStatus.Present,
-                new(EvidenceSource.Span, new(Guid.NewGuid())))]);
+                new(EvidenceSource.Span, new(Guid.Parse("22222222-2222-2222-2222-222222222222"))))]);
         internal List<EvidenceQuery> Queries { get; } = [];
         internal List<EvidenceReadCheckpoint?> Checkpoints { get; } = [];
         internal Func<ValueTask<EvidenceReadBatch>> Read { get; set; }

@@ -26,8 +26,16 @@ $shards = @(
         Filter = 'FullyQualifiedName~Kora.Windows.IntegrationTests.Storage.&FullyQualifiedName!~Kora.Windows.IntegrationTests.Storage.WindowsSqliteSessionAttachmentTests&FullyQualifiedName!~Kora.Windows.IntegrationTests.Storage.WindowsSqliteConversationTests&FullyQualifiedName!~Kora.Windows.IntegrationTests.Storage.WindowsSqliteSessionQueueTests&FullyQualifiedName!~Kora.Windows.IntegrationTests.Storage.WindowsSqliteMemoryTests&FullyQualifiedName!~Kora.Windows.IntegrationTests.Storage.WindowsSqliteExactGrantFilterTests'
     }
     [pscustomobject]@{
+        Name = 'ui-definitions'
+        Filter = 'FullyQualifiedName~Kora.Windows.IntegrationTests.ArtifactDiscovery.'
+    }
+    [pscustomobject]@{
+        Name = 'native-ux'
+        Filter = 'FullyQualifiedName~Kora.Windows.IntegrationTests.NativeUx.'
+    }
+    [pscustomobject]@{
         Name = 'ui-platform'
-        Filter = 'FullyQualifiedName!~Kora.Windows.IntegrationTests.Storage.'
+        Filter = 'FullyQualifiedName!~Kora.Windows.IntegrationTests.Storage.&FullyQualifiedName!~Kora.Windows.IntegrationTests.ArtifactDiscovery.&FullyQualifiedName!~Kora.Windows.IntegrationTests.NativeUx.'
     }
 )
 

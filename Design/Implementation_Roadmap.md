@@ -313,6 +313,23 @@ diagnostic/audit payload, model/tool/speech/export or activity renewal is added.
 This bounded I increment does not advance broader R26 or E/Q qualification;
 Presence/native-presenter and unrelated filter/review work remain separate.
 
+### R26 exact retained attachment SHA-256 predicate - 2026-10-16
+
+The [retained metadata catalogue](File_And_Folder_Ingestion.md#delivered-retained-attachment-metadata-catalogue---2026-10-11)
+adds an optional exact canonical original-byte digest predicate composed with
+Browse/literal/exact session ID/lifecycle/media type/copy status/stored-byte
+bounds. One portable strict syntax rule is shared with file-reference validation.
+Only Confirmed copies match; unavailable/removed provenance never displays or
+serializes a prior digest, even from malformed objects. Fully validated finite
+scans, keyed signed-continuation binding, stale/cancellation fences and native
+no-read edits/selection retirement remain mandatory.
+Deterministic Core/Application/private SQLite/headless accessible-control tests
+qualify this bounded I consumer. No schema/index/cache, body/path/hash read,
+mutation, aggregate, persistence, audit/diagnostic payload, model/network/device
+or authority expansion is introduced. Broader R26, installed accessibility,
+physical storage and E/Q gates remain unchanged; no experiment evidence is
+required, rerun or retired, and unrelated live ownership scopes remain separate.
+
 ### R26 exact retained attachment media-type filter - 2026-10-15
 
 The bounded exact retained media-type increment adds All / `text/plain` / `text/markdown`, composed with exact ID, lifecycle, removed-slot and literal filters inside the existing fully validated scan. One extracted Core strict type rule, authenticated query/authority digest continuations and immediate native edit revocation preserve fail-closed nonmatch/corruption admission; tombstones match only All. Deterministic portable/private SQLite/headless control checks cover this consumer only. No schema/index/cache, body/OCR/path disclosure, count-total claim, activity renewal, model/tool/speech route, authority expansion or broader R26/installed-accessibility qualification is added.

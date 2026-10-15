@@ -247,6 +247,14 @@ qualify this I subset, not installed screen-reader or native acceptance.
 
 Publisher/inspection revocation, lifecycle/disposition/retention, query/selection/private control, cancellation/close/disposal clear page and exact navigation immediately; asynchronous callbacks remain bound to the original owned window and selected reference. Existing native file reviews/controls must be quiescent before navigation. Full inert source/citation lifetime remains owned by the existing attachment controller.
 
+The optional, focusable **Exact SHA-256** field accepts exactly 64 lowercase
+hexadecimal characters, not all zero; empty disables it. It composes with every
+existing predicate and matches only Confirmed copies, not Held or removed slots.
+Typing reads nothing and retires rows, details, navigation and continuation.
+Search/Enter remains explicit; Clear query, revocation and close erase it.
+Unavailable rows/details never display the prior digest, including malformed
+objects. Headless accessible-name/focus checks do not claim installed accessibility.
+
 [Canonical limits and evidence](File_And_Folder_Ingestion.md#delivered-retained-attachment-metadata-catalogue---2026-10-11) qualify this consumer only; no managed knowledge, new source consent, body/capture/copy mutation, schema/index/cache, model/network or installed/native acceptance is claimed.
 
 ### Delivered Bounded Passive All Work / Attention Overview - 2026-10-11

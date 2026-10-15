@@ -402,7 +402,8 @@ public sealed partial class WindowsSqliteHostInteractionStore : ISessionAttachme
                 throw new FormatException("Invalid continuation authentication.");
             }
             var cursor = HostInteractionCodec.Decode<AttachmentCursor>(System.Text.Encoding.UTF8.GetString(bytes));
-            if (cursor.Query != new SessionAttachmentQuery(query.IncludeRemoved, query.ExactSessionId, query.Filter)
+            if (cursor.Query != new SessionAttachmentQuery(query.IncludeRemoved, query.ExactSessionId, query.Filter,
+                    exactMediaType: query.ExactMediaType)
                 || !string.Equals(cursor.MetadataBinding, AttachmentMetadataBinding(query), StringComparison.Ordinal)
                 || !Same(cursor.Identity, identity) || cursor.Viewer != viewer || cursor.After == Guid.Empty
                 || cursor.ExpiresAt.Offset != TimeSpan.Zero || now >= cursor.ExpiresAt

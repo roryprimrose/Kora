@@ -367,10 +367,11 @@ public sealed partial class WindowsSqliteSessionAttachmentTests
         fixture.RunAsync(async () => await fixture.Tasks.CommitAsync(
             new(fixture.Request, new(2), HostTaskState.Denied), 1, fixture.Token));
 
-    private static Task<SessionFileAttachment> Attach(InteractionStorageFixture fixture, byte[] bytes, Func<bool>? gate = null)
+    private static Task<SessionFileAttachment> Attach(InteractionStorageFixture fixture, byte[] bytes, Func<bool>? gate = null,
+        string path = @"C:\Synthetic\source.md")
     {
         var file = new LocalFileRevision(new(Guid.NewGuid(), Guid.NewGuid(), fixture.Request,
-            new(@"C:\Synthetic\source.md", "verified-synthetic-native-identity", bytes.Length, fixture.Time.Now)), bytes, fixture.Time.Now);
+            new(path, "verified-synthetic-native-identity", bytes.Length, fixture.Time.Now)), bytes, fixture.Time.Now);
         return fixture.RunAsync(() => fixture.Store.Attach(fixture.Request, new(1), file, bytes, gate ?? (() => true), fixture.Token));
     }
 

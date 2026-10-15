@@ -22,6 +22,7 @@ internal sealed partial class AttachmentCatalogueViewModel(
     private CancellationTokenSource? operation;
     private bool includeRemoved;
     private SessionAttachmentFilter filter;
+    private string mediaType = "All";
     private AttachmentCatalogueMode mode;
     private string queryText = string.Empty;
     private string metadataText = string.Empty;
@@ -38,13 +39,29 @@ internal sealed partial class AttachmentCatalogueViewModel(
     public bool CanEdit => !disposed && access.CanInspect && admitted();
     public bool CanEditId => CanEdit && mode == AttachmentCatalogueMode.ExactId;
     public bool CanRead => CanEdit && operation is null;
-    public bool CanSearch => CanRead && ValidMetadataText && Enum.IsDefined(filter) && (mode == AttachmentCatalogueMode.Browse
+    public bool CanSearch => CanRead && ValidMetadataText && ValidMediaType && Enum.IsDefined(filter) && (mode == AttachmentCatalogueMode.Browse
         || SessionListSearch.IsValid(SessionListSearchKind.ExactId, SessionListFilter.All, queryText));
     public bool CanNext => CanSearch && page?.Next is not null;
     public bool CanCancel => !disposed && operation is not null;
     public bool CanNavigate => CanRead && selected?.CopyStatus == AttachmentCopyStatus.Confirmed;
     public IReadOnlyList<AttachmentCatalogueMode> Modes { get; } = Enum.GetValues<AttachmentCatalogueMode>();
     public IReadOnlyList<SessionAttachmentFilter> Filters { get; } = Enum.GetValues<SessionAttachmentFilter>();
+    public IReadOnlyList<string> MediaTypes { get; } = ["All", LocalFileMediaType.PlainText, LocalFileMediaType.Markdown];
+    public string MediaType
+    {
+        get => mediaType;
+        set
+        {
+            if (!CanEdit || string.Equals(mediaType, value, StringComparison.Ordinal)) { return; }
+            InvalidateQuery();
+            mediaType = value;
+            Notify();
+        }
+    }
+    private bool ValidMediaType => string.Equals(mediaType, "All", StringComparison.Ordinal) || LocalFileMediaType.IsCanonical(mediaType);
+    public string MediaTypeHint => ValidMediaType
+        ? "Exact retained media type; All includes removed provenance, but removed tombstones never match a selected type. Independent of ID, lifecycle and literal query; changing performs no read."
+        : "Invalid exact media type. Choose All, text/plain or text/markdown; no normalization, fallback or read.";
     public SessionAttachmentFilter Filter
     {
         get => filter;
@@ -130,9 +147,10 @@ internal sealed partial class AttachmentCatalogueViewModel(
 
     public Task Refresh(bool next = false) => Run(async (current, token) =>
     {
+        if (!ValidMediaType) { throw new InvalidDataException("Unknown or noncanonical exact media-type filter."); }
         var query = new SessionAttachmentQuery(includeRemoved,
             mode == AttachmentCatalogueMode.Browse ? null : queryText, filter,
-            metadataText.Length == 0 ? null : metadataText);
+            metadataText.Length == 0 ? null : metadataText, string.Equals(mediaType, "All", StringComparison.Ordinal) ? null : mediaType);
         var cursor = next ? page?.Next ?? throw new InvalidOperationException("Refresh before Next.") : null;
         Clear();
         var result = await read(query, cursor, current, token);
@@ -145,8 +163,8 @@ internal sealed partial class AttachmentCatalogueViewModel(
             + result.AuditScannedRows.ToString(CultureInfo.InvariantCulture) + " authority commits validated. "
             + (result.AuthorityValidationPending ? "Authority validation pending; Next continues before any attachment row is disclosed. "
                 : result.Next is not null ? "More slots remain. Next may follow an empty nonmatching page. "
-                    : result.Records.IsEmpty && query.MetadataText is not null
-                        ? "No matching retained metadata under these filters at this observation; no fallback. "
+                    : result.Records.IsEmpty && (query.MetadataText is not null || query.ExactMediaType is not null)
+                        ? "No matching retained metadata on this bounded page under these filters; end of this observation, not a global total; no fallback. "
                     : result.Records.IsEmpty && query.ExactId is not null
                         ? "Exact attachment slot not found under this filter at this observation; no fallback to Browse. "
                         : "End of this observation, not a global total. ")
@@ -216,7 +234,7 @@ internal sealed partial class AttachmentCatalogueViewModel(
         epoch++;
         operation?.Cancel();
         Clear();
-        status = "Query/mode/session lifecycle/removal filter edited. Page, continuation and selection cleared; explicit Search/Refresh required.";
+        status = "Query/mode/session lifecycle/media type/removal filter edited. Page, continuation and selection cleared; explicit Search/Refresh required.";
     }
 
     internal void SynchronizeAuthority()
@@ -257,6 +275,7 @@ internal sealed partial class AttachmentCatalogueViewModel(
         status = string.Empty;
         includeRemoved = false;
         filter = SessionAttachmentFilter.All;
+        mediaType = "All";
         mode = AttachmentCatalogueMode.Browse;
         queryText = string.Empty;
         metadataText = string.Empty;
@@ -278,6 +297,8 @@ internal sealed partial class AttachmentCatalogueViewModel(
         OnPropertyChanged(nameof(CanNavigate));
         OnPropertyChanged(nameof(IncludeRemoved));
         OnPropertyChanged(nameof(Filter));
+        OnPropertyChanged(nameof(MediaType));
+        OnPropertyChanged(nameof(MediaTypeHint));
         OnPropertyChanged(nameof(Mode));
         OnPropertyChanged(nameof(QueryText));
         OnPropertyChanged(nameof(MetadataText));

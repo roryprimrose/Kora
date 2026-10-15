@@ -27,7 +27,8 @@ public sealed record SessionAttachmentPage(
         if (Query is null || Records.IsDefault || Records.Length > MaximumRecords
             || ScannedRows < Records.Length || ScannedRows > MaximumScannedRows
             || !Enum.IsDefined(Query.Filter)
-            || Query.IncludeRemoved && Query.ExactId is null && Query.MetadataText is null && Query.Filter == SessionAttachmentFilter.All
+            || Query.IncludeRemoved && Query.ExactId is null && Query.MetadataText is null && Query.ExactMediaType is null
+                && Query.Filter == SessionAttachmentFilter.All
                 && ScannedRows != Records.Length
             || ObservedAt.Offset != TimeSpan.Zero || AuthorityCeiling < 0
             || AuthorityDigest is null || AuthorityDigest.Length != 64

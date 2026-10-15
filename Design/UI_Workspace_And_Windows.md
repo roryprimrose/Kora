@@ -211,6 +211,16 @@ and explicit recovery, not a partial list. See the
 [memory filter contract](Model_Providers_Memory_And_Knowledge.md#delivered-native-content-free-session-memory-filters---2026-10-14).
 Headless keyboard/focus and automation checks are not installed accessibility qualification.
 
+The 2026-10-16 extension exposes inclusive revision minimum/maximum and Created
+From/Until UTC text fields, each empty for Any, with keyboard focus and explicit
+automation names. Revisions are positive decimal Int64 values; Created input uses
+`yyyy-MM-ddTHH:mm:ss.fffffff+00:00`. Equal endpoints are included; reversed or
+malformed ranges show validation recovery and no rows. All predicates compose
+with AND over the same frozen snapshot. Clear or Escape in any text filter clears
+all bounds without I/O. Edits still retire inspection, draft, selection, mutation
+readiness and pending callbacks, even when a row remains visible. No permission,
+provider, memory-content or mutation authority is added.
+
 ### Delivered Retained Session Attachment Catalogue - 2026-10-11
 
 **Tray > Retained session attachments** is a separate native metadata-only window, not the current-question recovery surface, All Work overview, model context or a conversation. Opening reads nothing. Refresh/Next/Cancel returns at most sixteen content-free summaries / 64 KiB, scanning sixty-four slots; optional removal provenance is independent of the sixteen retained-body cap.

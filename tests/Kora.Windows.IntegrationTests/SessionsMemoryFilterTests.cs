@@ -1,5 +1,6 @@
 using System.Collections.Immutable;
 using System.Diagnostics;
+using System.Globalization;
 
 using Avalonia.Automation.Peers;
 using Avalonia.Automation.Provider;
@@ -34,6 +35,9 @@ namespace Kora.Windows.IntegrationTests;
 [Collection(nameof(HeadlessUiTestGroup))]
 public sealed class SessionsMemoryFilterTests
 {
+    private static readonly string[] RangeControlNames = ["MemoryMinimumRevisionFilter", "MemoryMaximumRevisionFilter",
+        "MemoryCreatedFromFilter", "MemoryCreatedUntilFilter"];
+
     [WindowsFact]
     public async Task EveryTypedStateAndCombinedExactGuidFilterUsesOnlyTheFrozenContentFreeSnapshot()
     {
@@ -41,8 +45,13 @@ public sealed class SessionsMemoryFilterTests
         f.Model.CanFilterMemories.Should().BeFalse();
         f.Model.MemoryIdFilter = "not admitted before List";
         f.Model.MemoryScopeFilter = MemoryScopeKind.Source;
+        f.Model.MemoryMinimumRevisionFilter = "1";
+        f.Model.MemoryMaximumRevisionFilter = "2";
+        f.Model.MemoryCreatedFromFilter = "not admitted";
+        f.Model.MemoryCreatedUntilFilter = "not admitted";
         f.Model.MemoryIdFilter.Should().BeEmpty();
         f.Model.MemoryScopeFilter.Should().BeNull();
+        AssertEmptyRanges(f.Model);
         f.Model.MemoryScopeChoice.Should().BeSameAs(f.Model.MemoryScopeFilters[0]);
         foreach (var state in new[] { "proposed", "reviewed", "rejected", "enabled", "disabled", "forgotten" })
         {
@@ -117,6 +126,57 @@ public sealed class SessionsMemoryFilterTests
         f.Model.MemoryFilterStatus.Should().Contain("Unknown");
         f.Model.ClearMemoryFilters();
         f.Model.MemoryRecords.Should().Equal(snapshot);
+        foreach (var row in snapshot)
+        {
+            f.Model.ClearMemoryFilters();
+            f.Model.MemoryIdFilter = row.Id.ToString("D");
+            f.Model.MemoryScopeFilter = row.Scope.Kind;
+            f.Model.MemoryReviewFilter = row.Review;
+            f.Model.MemoryRetentionFilter = row.Retention;
+            f.Model.MemoryMinimumRevisionFilter = row.Revision.ToString(CultureInfo.InvariantCulture);
+            f.Model.MemoryMaximumRevisionFilter = row.Revision.ToString(CultureInfo.InvariantCulture);
+            f.Model.MemoryCreatedFromFilter = row.CreatedAt.ToString("O", CultureInfo.InvariantCulture);
+            f.Model.MemoryCreatedUntilFilter = row.CreatedAt.ToString("O", CultureInfo.InvariantCulture);
+            f.Model.MemoryRecords.Should().Equal([row], "both revision and UTC endpoints are inclusive and AND with every exact predicate");
+            f.Model.MemoryMinimumRevisionFilter = (row.Revision + 1).ToString(CultureInfo.InvariantCulture);
+            f.Model.MemoryRecords.Should().BeEmpty();
+            f.Model.MemoryFilterStatus.Should().Contain("minimum must be <= maximum");
+            f.Model.MemoryMaximumRevisionFilter = string.Empty;
+            f.Model.MemoryRecords.Should().BeEmpty();
+            f.Model.MemoryFilterStatus.Should().StartWith("0 of 6");
+            f.Model.MemoryMinimumRevisionFilter = string.Empty;
+            f.Model.MemoryCreatedUntilFilter = string.Empty;
+            f.Model.MemoryCreatedFromFilter = row.CreatedAt.AddTicks(1).ToString("O", CultureInfo.InvariantCulture);
+            f.Model.MemoryRecords.Should().BeEmpty();
+            f.Model.MemoryCreatedFromFilter = string.Empty;
+            f.Model.MemoryCreatedUntilFilter = row.CreatedAt.AddTicks(-1).ToString("O", CultureInfo.InvariantCulture);
+            f.Model.MemoryRecords.Should().BeEmpty();
+        }
+        foreach (var input in new[] { "0", "-1", "1 ", "9223372036854775808" })
+        {
+            f.Model.ClearMemoryFilters();
+            f.Model.MemoryMinimumRevisionFilter = input;
+            f.Model.MemoryRecords.Should().BeEmpty();
+            f.Model.MemoryFilterStatus.Should().NotStartWith("0 of");
+            f.Model.ClearMemoryFilters();
+            f.Model.MemoryMaximumRevisionFilter = input;
+            f.Model.MemoryRecords.Should().BeEmpty();
+            f.Model.MemoryFilterStatus.Should().NotStartWith("0 of");
+        }
+        foreach (var input in new[] { " ", "1970-01-01", "1970-01-01T00:00:00.0000000+01:00" })
+        {
+            f.Model.ClearMemoryFilters();
+            f.Model.MemoryCreatedFromFilter = input;
+            f.Model.MemoryRecords.Should().BeEmpty();
+            f.Model.MemoryFilterStatus.Should().Contain("canonical UTC");
+            f.Model.ClearMemoryFilters();
+            f.Model.MemoryCreatedUntilFilter = input;
+            f.Model.MemoryRecords.Should().BeEmpty();
+            f.Model.MemoryFilterStatus.Should().Contain("canonical UTC");
+        }
+        f.Model.ClearMemoryFilters();
+        f.Model.MemoryRecords.Should().Equal(snapshot);
+        AssertEmptyRanges(f.Model);
         f.Store.Calls.Should().Be(calls, "typing and changing filters perform no storage or admission");
         f.Activities.Should().Be(activities, "filter edits create no host operations or model-context effects");
         f.Logger.Messages.Should().Equal(logs, "query text is never logged");
@@ -131,6 +191,10 @@ public sealed class SessionsMemoryFilterTests
     [InlineData("scope")]
     [InlineData("review")]
     [InlineData("retention")]
+    [InlineData("minimum")]
+    [InlineData("maximum")]
+    [InlineData("from")]
+    [InlineData("until")]
     [InlineData("clear")]
     public async Task FilterEditsRetireSelectionInspectionReplacementAndEveryMutationEligibility(string field)
     {
@@ -151,6 +215,10 @@ public sealed class SessionsMemoryFilterTests
             case "scope": f.Model.MemoryScopeFilter = row.Scope.Kind; break;
             case "review": f.Model.MemoryReviewFilter = row.Review; break;
             case "retention": f.Model.MemoryRetentionFilter = row.Retention; break;
+            case "minimum": f.Model.MemoryMinimumRevisionFilter = row.Revision.ToString(CultureInfo.InvariantCulture); break;
+            case "maximum": f.Model.MemoryMaximumRevisionFilter = row.Revision.ToString(CultureInfo.InvariantCulture); break;
+            case "from": f.Model.MemoryCreatedFromFilter = row.CreatedAt.ToString("O", CultureInfo.InvariantCulture); break;
+            case "until": f.Model.MemoryCreatedUntilFilter = row.CreatedAt.ToString("O", CultureInfo.InvariantCulture); break;
             case "clear": f.Model.ClearMemoryFilters(); break;
         }
         AssertRetired(f.Model);
@@ -249,6 +317,10 @@ public sealed class SessionsMemoryFilterTests
         var row = f.Model.MemoryRecords.Single();
         f.Model.MemoryIdFilter = row.Id.ToString("D");
         f.Model.MemoryScopeFilter = MemoryScopeKind.Session;
+        f.Model.MemoryMinimumRevisionFilter = "1";
+        f.Model.MemoryMaximumRevisionFilter = long.MaxValue.ToString(CultureInfo.InvariantCulture);
+        f.Model.MemoryCreatedFromFilter = DateTimeOffset.MinValue.ToString("O", CultureInfo.InvariantCulture);
+        f.Model.MemoryCreatedUntilFilter = DateTimeOffset.MaxValue.ToString("O", CultureInfo.InvariantCulture);
         f.Model.SelectMemory(row);
         await f.Model.InspectMemoryAsync();
         if (boundary is "session") { await f.Model.SelectAsync(null); }
@@ -293,6 +365,7 @@ public sealed class SessionsMemoryFilterTests
             f.Model.CanFilterMemories.Should().BeFalse();
             f.Model.MemoryIdFilter.Should().BeEmpty();
             f.Model.MemoryScopeFilter.Should().BeNull();
+            AssertEmptyRanges(f.Model);
             AssertRetired(f.Model);
         }
     }
@@ -319,6 +392,15 @@ public sealed class SessionsMemoryFilterTests
                 var scope = window.FindControl<ComboBox>("MemoryScopeFilter")!;
                 var retention = window.FindControl<ComboBox>("MemoryRetentionFilter")!;
                 var clear = window.FindControl<Button>("ClearMemoryFilters")!;
+                var rangeFields = RangeControlNames
+                    .Select(name => window.FindControl<TextBox>(name)!).ToArray();
+                foreach (var range in rangeFields)
+                {
+                    range.IsEnabled.Should().BeTrue();
+                    range.Focus().Should().BeTrue();
+                    ControlAutomationPeer.CreatePeerForElement(range)!.GetName().Should()
+                        .Contain("inclusive").And.Contain("Any").And.Contain("metadata only");
+                }
                 id.Focus().Should().BeTrue();
                 scope.SelectedIndex.Should().Be(0);
                 scope.SelectedItem.Should().BeSameAs(f.Model.MemoryScopeFilters[0]);
@@ -340,6 +422,24 @@ public sealed class SessionsMemoryFilterTests
                 clear.Focus().Should().BeTrue();
                 id.Focus().Should().BeTrue();
                 var calls = f.Store.Calls;
+                var row = f.Model.MemoryRecords.Single();
+                string[] values = [row.Revision.ToString(CultureInfo.InvariantCulture),
+                    row.Revision.ToString(CultureInfo.InvariantCulture),
+                    row.CreatedAt.ToString("O", CultureInfo.InvariantCulture), row.CreatedAt.ToString("O", CultureInfo.InvariantCulture)];
+                for (var index = 0; index < rangeFields.Length; index++)
+                {
+                    var range = rangeFields[index];
+                    range.Focus().Should().BeTrue();
+                    range.Text = values[index];
+                    f.Model.MemoryRecords.Should().ContainSingle();
+                    range.Text = "invalid";
+                    f.Model.MemoryRecords.Should().BeEmpty();
+                    range.RaiseEvent(new KeyEventArgs { RoutedEvent = InputElement.KeyDownEvent, Key = Key.Escape });
+                    range.IsFocused.Should().BeTrue();
+                    rangeFields.Should().OnlyContain(field => field.Text == string.Empty);
+                    AssertEmptyRanges(f.Model);
+                    f.Model.MemoryRecords.Should().ContainSingle();
+                }
                 scope.Focus().Should().BeTrue();
                 window.KeyPress(Key.Down, RawInputModifiers.None, PhysicalKey.ArrowDown, null);
                 f.Model.MemoryScopeFilter.Should().Be(MemoryScopeKind.Unknown);
@@ -387,6 +487,14 @@ public sealed class SessionsMemoryFilterTests
         model.CanDisableMemory.Should().BeFalse();
     }
 
+    private static void AssertEmptyRanges(SessionsViewModel model)
+    {
+        model.MemoryMinimumRevisionFilter.Should().BeEmpty();
+        model.MemoryMaximumRevisionFilter.Should().BeEmpty();
+        model.MemoryCreatedFromFilter.Should().BeEmpty();
+        model.MemoryCreatedUntilFilter.Should().BeEmpty();
+    }
+
     [WindowsFact]
     public async Task MalformedSnapshotRowsCannotHideBehindScopeExclusionOrLeavePartialResults()
     {
@@ -407,6 +515,8 @@ public sealed class SessionsMemoryFilterTests
             field.SetValue(f.Model, new[] { row, malformed });
             f.Model.ClearMemoryFilters();
             f.Model.MemoryScopeFilter = MemoryScopeKind.Source;
+            f.Model.MemoryMinimumRevisionFilter = long.MaxValue.ToString(CultureInfo.InvariantCulture);
+            f.Model.MemoryCreatedFromFilter = DateTimeOffset.MaxValue.ToString("O", CultureInfo.InvariantCulture);
             f.Model.MemoryRecords.Should().BeEmpty();
             f.Model.MemoryFilterStatus.Should().Contain("Invalid memory snapshot").And.Contain("List explicitly");
             AssertRetired(f.Model);
@@ -420,9 +530,17 @@ public sealed class SessionsMemoryFilterTests
     }
 
     [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public async Task ScopeEditFencesLateInspectionAndFailedRefreshWithoutRevivingDetailOrReadiness(bool fail)
+    [InlineData(false, "scope")]
+    [InlineData(true, "scope")]
+    [InlineData(false, "minimum")]
+    [InlineData(true, "minimum")]
+    [InlineData(false, "maximum")]
+    [InlineData(true, "maximum")]
+    [InlineData(false, "from")]
+    [InlineData(true, "from")]
+    [InlineData(false, "until")]
+    [InlineData(true, "until")]
+    public async Task FilterEditFencesLateInspectionAndFailedRefreshWithoutRevivingDetailOrReadiness(bool fail, string field)
     {
         await using var f = await Fixture.Create();
         await f.CreateMemory("enabled");
@@ -436,7 +554,14 @@ public sealed class SessionsMemoryFilterTests
         var pending = fail ? f.Model.ListMemoriesAsync() : f.Model.InspectMemoryAsync();
         await f.Store.Entered.Task.WaitAsync(f.Storage.Token);
         var calls = f.Store.Calls;
-        f.Model.MemoryScopeFilter = MemoryScopeKind.Session;
+        switch (field)
+        {
+            case "scope": f.Model.MemoryScopeFilter = MemoryScopeKind.Session; break;
+            case "minimum": f.Model.MemoryMinimumRevisionFilter = "1"; break;
+            case "maximum": f.Model.MemoryMaximumRevisionFilter = row.Revision.ToString(CultureInfo.InvariantCulture); break;
+            case "from": f.Model.MemoryCreatedFromFilter = row.CreatedAt.ToString("O", CultureInfo.InvariantCulture); break;
+            case "until": f.Model.MemoryCreatedUntilFilter = row.CreatedAt.ToString("O", CultureInfo.InvariantCulture); break;
+        }
         AssertRetired(f.Model);
         f.Store.Calls.Should().Be(calls);
         f.Store.Release.SetResult();
@@ -444,6 +569,7 @@ public sealed class SessionsMemoryFilterTests
         AssertRetired(f.Model);
         f.Model.MemoryRecords.Should().BeEmpty();
         f.Model.CanFilterMemories.Should().BeFalse();
+        AssertEmptyRanges(f.Model);
         f.Model.Status.Should().Contain("unavailable/denied").And.Contain("Refresh durable state");
     }
 

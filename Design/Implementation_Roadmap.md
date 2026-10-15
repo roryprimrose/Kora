@@ -48,6 +48,18 @@ Deterministic portable and headless native checks are I evidence only.
 Installed accessibility, broader proactive functionality and E/Q qualification
 remain separate; no network, device, provider or experiment path is enabled.
 
+### Bounded selected-session memory metadata ranges - 2026-10-16
+
+The [native frozen memory filter](Model_Providers_Memory_And_Knowledge.md#delivered-native-content-free-session-memory-filters---2026-10-14)
+adds optional inclusive positive revision and canonical UTC Created ranges,
+AND-composed with exact GUID/Scope/Review/Retention. Portable parsing, ordering
+and full-row validation plus deterministic native no-read, retirement,
+cancellation/privacy and accessible-control tests cover this consumed I subset.
+Malformed input explicitly fails closed. This is metadata only, not permission,
+provider, memory-content or mutation authority. Full memory, installed
+accessibility, provider and E/Q qualification remain unchanged and unclaimed;
+unqualified recall/global catalogue/model consumers remain unavailable.
+
 ### Bounded Presence renderer work reduction - 2026-10-15
 
 The [native particle-cloud scheduling boundary](Ambient_UI.md#bounded-native-renderer-scheduling)

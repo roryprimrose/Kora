@@ -179,14 +179,18 @@ internal sealed partial class SessionsWindow : Window
         ListMemories.Click += async (_, _) => await model.ListMemoriesAsync();
         ProposeMemory.Click += async (_, _) => await model.ProposeMemoryAsync();
         ClearMemoryFilters.Click += (_, _) => { model.ClearMemoryFilters(); MemoryIdFilter.Focus(); };
-        MemoryIdFilter.KeyDown += (_, args) =>
+        foreach (var filter in new[] { MemoryIdFilter, MemoryMinimumRevisionFilter, MemoryMaximumRevisionFilter,
+            MemoryCreatedFromFilter, MemoryCreatedUntilFilter })
         {
-            if (args.Key == Key.Escape)
+            filter.KeyDown += (_, args) =>
             {
-                args.Handled = true;
-                model.ClearMemoryFilters();
-            }
-        };
+                if (args.Key == Key.Escape)
+                {
+                    args.Handled = true;
+                    model.ClearMemoryFilters();
+                }
+            };
+        }
         MemoryRecords.SelectionChanged += (_, _) =>
             model.SelectMemory(MemoryRecords.SelectedItem as Kora.Core.Commands.MemorySummary);
         InspectMemory.Click += async (_, _) => await model.InspectMemoryAsync();

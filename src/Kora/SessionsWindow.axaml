@@ -478,6 +478,19 @@
               <TextBox x:Name="MemoryIdFilter" Text="{Binding MemoryIdFilter, Mode=TwoWay}"
                        IsEnabled="{Binding CanFilterMemories}" PlaceholderText="Exact memory GUID, or empty for Any"
                        AutomationProperties.Name="Exact memory GUID filter over listed metadata only; no content reads" />
+              <TextBlock Text="Inclusive ranges, combined with all metadata filters. Empty bounds mean Any. Revisions are positive decimal integers. UTC Created times use yyyy-MM-ddTHH:mm:ss.fffffff+00:00 (seven fractional digits)." TextWrapping="Wrap" />
+              <TextBox x:Name="MemoryMinimumRevisionFilter" Text="{Binding MemoryMinimumRevisionFilter, Mode=TwoWay}"
+                       IsEnabled="{Binding CanFilterMemories}" PlaceholderText="Minimum revision (inclusive), or empty for Any"
+                       AutomationProperties.Name="Minimum memory revision inclusive; positive decimal or empty for Any; metadata only" />
+              <TextBox x:Name="MemoryMaximumRevisionFilter" Text="{Binding MemoryMaximumRevisionFilter, Mode=TwoWay}"
+                       IsEnabled="{Binding CanFilterMemories}" PlaceholderText="Maximum revision (inclusive), or empty for Any"
+                       AutomationProperties.Name="Maximum memory revision inclusive; positive decimal or empty for Any; metadata only" />
+              <TextBox x:Name="MemoryCreatedFromFilter" Text="{Binding MemoryCreatedFromFilter, Mode=TwoWay}"
+                       IsEnabled="{Binding CanFilterMemories}" PlaceholderText="Created From UTC (inclusive), or empty for Any"
+                       AutomationProperties.Name="Memory Created From UTC inclusive; yyyy-MM-ddTHH:mm:ss.fffffff+00:00 or empty for Any; metadata only" />
+              <TextBox x:Name="MemoryCreatedUntilFilter" Text="{Binding MemoryCreatedUntilFilter, Mode=TwoWay}"
+                       IsEnabled="{Binding CanFilterMemories}" PlaceholderText="Created Until UTC (inclusive), or empty for Any"
+                       AutomationProperties.Name="Memory Created Until UTC inclusive; yyyy-MM-ddTHH:mm:ss.fffffff+00:00 or empty for Any; metadata only" />
               <WrapPanel>
                 <TextBlock Text="Scope" VerticalAlignment="Center" />
                 <ComboBox x:Name="MemoryScopeFilter" ItemsSource="{Binding MemoryScopeFilters}"

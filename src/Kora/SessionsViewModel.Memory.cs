@@ -13,6 +13,10 @@ internal sealed partial class SessionsViewModel
     private long memoryListControl;
     private Kora.Core.Authorization.WorkSessionAuthorization? memorySource;
     private string memoryIdFilter = string.Empty;
+    private string memoryMinimumRevisionFilter = string.Empty;
+    private string memoryMaximumRevisionFilter = string.Empty;
+    private string memoryCreatedFromFilter = string.Empty;
+    private string memoryCreatedUntilFilter = string.Empty;
     private MemoryScopeKind? memoryScopeFilter;
     private MemoryReviewState? memoryReviewFilter;
     private MemoryRetentionState? memoryRetentionFilter;
@@ -47,6 +51,33 @@ internal sealed partial class SessionsViewModel
             memoryScopeFilter = value;
             ChangeMemoryFilters();
         }
+    }
+    public string MemoryMinimumRevisionFilter
+    {
+        get => memoryMinimumRevisionFilter;
+        set => ChangeMemoryRangeFilter(ref memoryMinimumRevisionFilter, value);
+    }
+    public string MemoryMaximumRevisionFilter
+    {
+        get => memoryMaximumRevisionFilter;
+        set => ChangeMemoryRangeFilter(ref memoryMaximumRevisionFilter, value);
+    }
+    public string MemoryCreatedFromFilter
+    {
+        get => memoryCreatedFromFilter;
+        set => ChangeMemoryRangeFilter(ref memoryCreatedFromFilter, value);
+    }
+    public string MemoryCreatedUntilFilter
+    {
+        get => memoryCreatedUntilFilter;
+        set => ChangeMemoryRangeFilter(ref memoryCreatedUntilFilter, value);
+    }
+
+    private void ChangeMemoryRangeFilter(ref string field, string value)
+    {
+        if (notifying || !CanFilterMemories || string.Equals(value, field, StringComparison.Ordinal)) { return; }
+        field = value;
+        ChangeMemoryFilters();
     }
     public MemoryReviewState? MemoryReviewFilter
     {
@@ -98,7 +129,16 @@ internal sealed partial class SessionsViewModel
         memoryScopeFilter = null;
         memoryReviewFilter = null;
         memoryRetentionFilter = null;
+        ClearMemoryRangeFilters();
         ChangeMemoryFilters();
+    }
+
+    private void ClearMemoryRangeFilters()
+    {
+        memoryMinimumRevisionFilter = string.Empty;
+        memoryMaximumRevisionFilter = string.Empty;
+        memoryCreatedFromFilter = string.Empty;
+        memoryCreatedUntilFilter = string.Empty;
     }
 
     private void ChangeMemoryFilters()
@@ -123,7 +163,8 @@ internal sealed partial class SessionsViewModel
     {
         try
         {
-            var filter = new MemoryMetadataFilter(memoryIdFilter, memoryScopeFilter, memoryReviewFilter, memoryRetentionFilter);
+            var filter = MemoryMetadataFilter.Parse(memoryIdFilter, memoryScopeFilter, memoryReviewFilter, memoryRetentionFilter,
+                memoryMinimumRevisionFilter, memoryMaximumRevisionFilter, memoryCreatedFromFilter, memoryCreatedUntilFilter);
             visibleMemoryRows = [.. memoryRows.Where(filter.Matches)];
             MemoryFilterStatus = $"{visibleMemoryRows.Count} of {memoryRows.Count} snapshot memories. Metadata only; select and inspect again before actions. List explicitly to refresh.";
         }
@@ -259,6 +300,7 @@ internal sealed partial class SessionsViewModel
         memoryScopeFilter = null;
         memoryReviewFilter = null;
         memoryRetentionFilter = null;
+        ClearMemoryRangeFilters();
         MemoryFilterStatus = "List explicitly before filtering metadata.";
         RetireMemorySelection();
     }
@@ -283,6 +325,10 @@ internal sealed partial class SessionsViewModel
             OnPropertyChanged(nameof(CanDisableMemory));
             OnPropertyChanged(nameof(CanFilterMemories));
             OnPropertyChanged(nameof(MemoryIdFilter));
+            OnPropertyChanged(nameof(MemoryMinimumRevisionFilter));
+            OnPropertyChanged(nameof(MemoryMaximumRevisionFilter));
+            OnPropertyChanged(nameof(MemoryCreatedFromFilter));
+            OnPropertyChanged(nameof(MemoryCreatedUntilFilter));
             OnPropertyChanged(nameof(MemoryScopeFilter));
             OnPropertyChanged(nameof(MemoryScopeChoice));
             OnPropertyChanged(nameof(MemoryReviewFilter));

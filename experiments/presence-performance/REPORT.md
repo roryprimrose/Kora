@@ -151,8 +151,9 @@ Two additional designs remain unranked, not performance claims:
 The prototypes are **not production-ready window hosts**. In particular, the native experiment does not provide production Ctrl-drag placement, live footprint/density rebuilding, per-monitor DPI changes, production privacy/ownership integration, or complete hide/reveal lifecycle integration. Preserve those contracts rather than transplanting this experiment wholesale. A helper process would
 additionally require host-owned lifecycle, fail-closed disconnect behavior, bounded state messages and measured IPC overhead ([native prototype](NativeBitmapWindow.cs), [production window](../../src/Kora/MainWindow.axaml.cs), [production visibility rules](../../Design/Ambient_UI.md)).
 
-For a bounded production increment, retain one authoritative animation/settings model, cache stable resources, stop hidden/static recurring work, and evaluate a platform-owned reusable-buffer presenter against the retained-Avalonia implementation. Do not precompile combinatorial colour/theme/speech variants. This is an architectural recommendation, not authorization to enable a new renderer; all
-changes in this worktree remain opt-in evaluation code and evidence.
+For a bounded production increment, retain one authoritative animation/settings model, cache stable resources, stop hidden/static recurring work, and evaluate a platform-owned reusable-buffer presenter against the retained-Avalonia implementation. Do not precompile combinatorial colour/theme/speech variants. These measurements do not authorize changing the default renderer.
+
+The branch now includes a separately gated production integration, described in [Ambient UI](../../Design/Ambient_UI.md#opt-in-native-presence-renderer). It is not the standalone prototype measured here. The historical baseline is frozen in [the original snapshot](snapshots/baseline/PresenceControl.cs), so consuming #250 cannot silently redefine the committed comparison.
 
 ## Validation and reproducibility
 

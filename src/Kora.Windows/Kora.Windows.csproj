@@ -13,6 +13,7 @@
     <PackageReference Include="Microsoft.Win32.SystemEvents" />
     <PackageReference Include="MisakiSharp" />
     <PackageReference Include="NAudio" />
+    <PackageReference Include="SkiaSharp" />
     <PackageReference Include="System.Speech" />
   </ItemGroup>
 

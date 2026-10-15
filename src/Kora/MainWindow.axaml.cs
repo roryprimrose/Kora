@@ -86,6 +86,7 @@ public sealed partial class MainWindow : Window
         Loaded += OnLoaded;
         Closing += OnClosing;
         Closed += OnClosed;
+        InitializeNativePresence();
     }
 
     private (uint Style, uint ExtendedStyle) ConfigurePresenceWindowStyles(uint style, uint extendedStyle) =>
@@ -105,7 +106,7 @@ public sealed partial class MainWindow : Window
             IsHitTestVisible = presenceInput.Refresh(
                 IsVisible && viewModel.CanRevealPrivatePresentation
                 && viewModel.State != Kora.Core.AssistantState.Hidden
-                && presence.CanInteract);
+                && (nativePresence?.CanInteract ?? presence.CanInteract));
         }
         catch (Win32Exception exception)
         {
@@ -121,6 +122,10 @@ public sealed partial class MainWindow : Window
     protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
     {
         base.OnPropertyChanged(change);
+        if (nativePresence is not null)
+        {
+            RefreshNativePresence();
+        }
         if (change.Property == IsVisibleProperty && presenceInput is not null)
         {
             RefreshPresenceInput();
@@ -138,6 +143,7 @@ public sealed partial class MainWindow : Window
 
     private void OnClosed(object? sender, EventArgs eventArgs)
     {
+        CloseNativePresence();
         presence.Dispose();
         presenceInputTimer.Stop();
         presenceTimeoutTimer.Stop();
@@ -313,6 +319,7 @@ public sealed partial class MainWindow : Window
     {
         if (action is WindowAction.Show or WindowAction.ShowPresence
             && (presenceInputFailed
+                || nativePresenceFailed
                 || windowActionFailed
                 || !viewModel.CanRevealPrivatePresentation
                 || !viewModel.IsPresenceDisplayEnabled))
@@ -472,7 +479,7 @@ public sealed partial class MainWindow : Window
 
     private void ShowPresenceWindow()
     {
-        presence.SetAnimationEnabled(true);
+        presence.SetAnimationEnabled(nativePresence is null);
         Show();
         if (!presenceInputFailed)
         {
@@ -482,6 +489,7 @@ public sealed partial class MainWindow : Window
 
     private void HidePresenceWindow()
     {
+        nativePresence?.Suspend();
         presenceInputTimer.Stop();
         IsHitTestVisible = false;
         presence.SetAnimationEnabled(false);

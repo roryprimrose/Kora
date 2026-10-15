@@ -49,7 +49,7 @@ $metadata = [ordered]@{
     Memory = Get-CimInstance Win32_OperatingSystem | Select-Object TotalVisibleMemorySize, FreePhysicalMemory
     SourceHashes = @(Get-ChildItem -LiteralPath $PSScriptRoot -Filter '*.cs' |
         Get-FileHash -Algorithm SHA256 | Select-Object Path, Hash)
-    BaselineHash = Get-FileHash -LiteralPath (Join-Path $PSScriptRoot '..\..\src\Kora\Controls\PresenceControl.cs') -Algorithm SHA256 |
+    BaselineHash = Get-FileHash -LiteralPath (Join-Path $PSScriptRoot 'snapshots\baseline\PresenceControl.cs') -Algorithm SHA256 |
         Select-Object Path, Hash
 }
 $metadata | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $metadataPath -Encoding utf8

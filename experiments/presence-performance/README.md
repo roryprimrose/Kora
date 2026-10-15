@@ -15,7 +15,9 @@ The separately supplied [laptop results](results/laptop-2026-10-15/README.md) re
 This opt-in executable creates synthetic transparent windows, links the unchanged production presence control and animation rules, and never starts Kora's application composition, microphone, model, synthesis provider, preferences, or session/approval services. Speech levels and state changes are synthetic. Images contain only the fixture's own graphics, not desktop captures. See [the entry
 point](Program.cs), [native prototype](NativeBitmapWindow.cs), and [pixel verification](FidelityVerification.cs).
 
-The benchmark links production files instead of maintaining an edited baseline. The [PR #247 snapshot](snapshots/PresenceControl.cs) is pinned to `e5e46148d9dec9bc6a73266cbffc3f6e639748a3`, with its namespace changed to permit side-by-side compilation. That snapshot is an experimental input, not production source.
+The original renderer is now frozen at [the baseline snapshot](snapshots/baseline/PresenceControl.cs), copied unchanged from `df75e4b1f1be51c0990a3b4f61e69c022a8c57cf`, so rebasing onto the production renderer changes in #250 does not invalidate historical comparisons. Animation/settings/input rules remain linked. This executable does not benchmark the newly integrated native presenter.
+
+The [PR #247 snapshot](snapshots/PresenceControl.cs) is pinned to `e5e46148d9dec9bc6a73266cbffc3f6e639748a3`, with its namespace changed to permit side-by-side compilation. Both snapshots are experimental inputs, not production source.
 
 Every measured case runs in a fresh child process, with a warmup period, explicit completion/error outcomes, and a bounded lifetime watchdog. The runner only terminates its own timed-out child tree. It refuses to overwrite existing per-case measurements. See [the runner](Invoke-PresenceBenchmark.ps1).
 

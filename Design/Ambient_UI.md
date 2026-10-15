@@ -210,6 +210,46 @@ playback and execution.
 
 ## Interaction proposal
 
+### Opt-in native presence renderer
+
+The existing Avalonia presence remains the default. `KORA_PRESENCE_RENDERER=native` selects the in-process buffered presenter for the owning process's next startup; unset it or use the exact value `avalonia` to retain the existing presenter. Unknown values fail explicitly, without a silent renderer fallback or preference-file changes
+([selection](../src/Kora/Controls/PresenceRendererSelection.cs)).
+
+The native path retains the Avalonia window for position, size, DPI observation, click-through/Ctrl-drag routing, timeout, privacy and shutdown. Its layered child surface cannot outlive the host window's native visibility. An `asInvoker`, `uiAccess=false` Windows 10 compatibility manifest permits layered child hosting; it does not request elevation
+([host](../src/Kora/MainWindow.NativePresence.cs), [manifest](../src/Kora/app.manifest)).
+
+One rendering worker owns the particle field and reusable DIB resources. The UI presents at most one completed frame at a time and discards queued pixels after suspension or a geometry-generation change. Shutdown does not require draining UI callbacks. Rendering/presentation errors make the native presence unavailable and report restart recovery; the default renderer is not silently substituted
+([worker](../src/Kora.Application/Visuals/PresenceRenderWorker.cs)).
+
+Speech visualization samples the existing host-owned playback frame while speech is active. Neither the presenter nor its worker owns microphone capture, synthesis, audio output, caption text or task state. Host privacy/visibility remains the admission boundary. Particle density, dot size, footprint, speed, theme, state transitions, visibility fades and speech-scale settings remain live inputs
+([integration](../src/Kora/MainWindow.NativePresence.cs)).
+
+Both presenters consume the Windows animation preference read during initialization and each show request. As in the default renderer, reduced motion freezes particle movement without disabling the independent speech-sizing setting; colour/visibility transitions still settle. The native buffer bounds each physical dimension to 4096 pixels; invalid geometry is explicitly unavailable
+([inputs](../src/Kora.Application/Visuals/PresenceRenderInputs.cs)).
+
+The native path preserves #250's eligibility, seeded-prefix selection, motion rates and bounded elapsed-time integration. Static and fully faded frames stop recurring drawing; quiet motion uses the same 198-ms cadence and active animation uses 33 ms. A host-owned 16-ms sampler observes authoritative playback during speech work even before audio starts; it does not drive particle calculations or
+fabricate audio levels ([worker](../src/Kora.Application/Visuals/PresenceRenderWorker.cs), [host](../src/Kora/Controls/NativePresenceHost.cs)).
+
+To select the native presenter for one launch, set the environment only in the launching shell. Do not use `setx` or change device preferences:
+
+```powershell
+$env:KORA_PRESENCE_RENDERER = 'native'
+& .\src\Kora\bin\Release\net10.0-windows10.0.19041.0\Kora.exe
+Remove-Item Env:KORA_PRESENCE_RENDERER
+```
+
+This is an **I - Implementation** increment, not default enablement or **Q - RC** qualification. Earlier laptop results compare standalone prototypes, not integrated Kora. Before changing the default, check the integrated path on the laptop for composed appearance, DPI/display changes, Ctrl-drag, speech/caption alignment and representative longer-run resource use. Post-composition pixel fidelity
+and energy savings are not claimed ([evaluation scope](../experiments/presence-performance/REPORT.md)).
+
+The isolated fixture exercises the production worker and child host with synthetic inputs, no application service composition, devices, saved preferences, clipboard or network. It checks native submissions, resize/DPI projection, playback sampling, privacy-style suspension, reveal and disposal ([fixture](../tests/Kora.NativeUxFixture/NativeUx/NativePresenceFixture.cs)):
+
+```powershell
+dotnet build .\Kora.slnx --configuration Release --no-restore
+$scratch = Join-Path $env:TEMP ('KoraPresence-' + [Guid]::NewGuid().ToString('N'))
+New-Item -ItemType Directory -Path $scratch | Out-Null
+& .\tests\Kora.NativeUxFixture\bin\Release\net10.0-windows10.0.19041.0\Kora.NativeUxFixture.exe --launch-native-fixtures --scratch-parent $scratch --native-presence-fixture
+```
+
 Native rich output follows [Information Display](Information_Display.md): optional speech
 text is a separate readable surface, not a caption beneath the presence.
 Markdown/diagrams and browser/HTML views use explicit detail/viewer surfaces; this

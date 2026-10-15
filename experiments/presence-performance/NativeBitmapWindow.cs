@@ -21,10 +21,7 @@ internal sealed partial class NativeBitmapWindow : IDisposable
     private readonly List<double> intervals = [];
     private readonly int size;
     private readonly double dotSize;
-    private readonly nint dc;
-    private readonly nint bitmap;
-    private readonly nint previousBitmap;
-    private readonly SKSurface surface;
+    private readonly NativeDibBuffer buffer;
     private readonly WindowsPresenceWindowInput input;
     private readonly nint window;
     private long measurementStart;
@@ -63,15 +60,7 @@ internal sealed partial class NativeBitmapWindow : IDisposable
         window = CreateWindowEx(options.Topmost ? 0x080800A8u : 0x080800A0u, windowClass.ClassName, "Synthetic Kora presence only",
             0x80000000, 30, 30, size, size, 0, 0, instance, 0);
         Check(window != 0, "CreateWindowEx");
-        dc = CreateCompatibleDC(0);
-        Check(dc != 0, "CreateCompatibleDC");
-        var info = new BitmapInfo { HeaderSize = 40, Width = size, Height = -size, Planes = 1, BitCount = 32 };
-        bitmap = CreateDIBSection(dc, ref info, 0, out var pixels, 0, 0);
-        Check(bitmap != 0 && pixels != 0, "CreateDIBSection");
-        previousBitmap = SelectObject(dc, bitmap);
-        Check(previousBitmap != 0 && previousBitmap != -1, "SelectObject");
-        surface = SKSurface.Create(new SKImageInfo(size, size, SKColorType.Bgra8888, SKAlphaType.Premul), pixels, size * 4)
-            ?? throw new InvalidOperationException("Skia could not wrap the owned DIB.");
+        buffer = new NativeDibBuffer(size, size);
         input = new WindowsPresenceWindowInput(window, new LayeredInputNative());
     }
 
@@ -180,14 +169,12 @@ internal sealed partial class NativeBitmapWindow : IDisposable
         {
             return;
         }
-        surface.Canvas.Clear(SKColors.Transparent);
-        scene.Draw(surface.Canvas, size, dotSize, options.Scenario is "reactive" && (int)(timeline / 7) % 2 != 0);
-        surface.Canvas.Flush();
+        buffer.Draw(scene, dotSize, options.Scenario is "reactive" && (int)(timeline / 7) % 2 != 0);
         var destination = new NativePoint { X = 30, Y = 30 };
         var source = new NativePoint();
         var dimensions = new NativeSize { Width = size, Height = size };
         var blend = new BlendFunction { Alpha = 255, Format = 1 };
-        Check(UpdateLayeredWindow(window, 0, ref destination, ref dimensions, dc, ref source, 0, ref blend, 2),
+        Check(UpdateLayeredWindow(window, 0, ref destination, ref dimensions, buffer.DeviceContext, ref source, 0, ref blend, 2),
             "UpdateLayeredWindow");
         if (measurementStart != 0)
         {
@@ -209,7 +196,7 @@ internal sealed partial class NativeBitmapWindow : IDisposable
         var resourcesAfter = ResourceSnapshot.Capture();
         intervals.Sort();
         var pixels = 0;
-        using (var image = surface.Snapshot())
+        using (var image = buffer.Snapshot())
         {
             using var encoded = image.Encode(SKEncodedImageFormat.Png, 100);
             using (var stream = File.Create(Path.ChangeExtension(Program.Options.Output, ".png")))
@@ -272,11 +259,8 @@ internal sealed partial class NativeBitmapWindow : IDisposable
             return;
         }
         disposed = true;
-        surface.Dispose();
+        buffer.Dispose();
         scene.Dispose();
-        _ = SelectObject(dc, previousBitmap);
-        _ = DeleteObject(bitmap);
-        _ = DeleteDC(dc);
         process.Dispose();
     }
 
@@ -332,21 +316,6 @@ internal sealed partial class NativeBitmapWindow : IDisposable
         public NativePoint Point;
         public uint Private;
     }
-    [StructLayout(LayoutKind.Sequential)]
-    private struct BitmapInfo
-    {
-        public uint HeaderSize;
-        public int Width;
-        public int Height;
-        public ushort Planes;
-        public ushort BitCount;
-        public uint Compression;
-        public uint ImageSize;
-        public int XPixelsPerMeter;
-        public int YPixelsPerMeter;
-        public uint ColorsUsed;
-        public uint ColorsImportant;
-    }
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
     private struct BlendFunction { public byte Operation; public byte Flags; public byte Alpha; public byte Format; }
 
@@ -376,18 +345,6 @@ internal sealed partial class NativeBitmapWindow : IDisposable
     [LibraryImport("user32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static partial bool ShowWindow(nint window, int command);
-    [LibraryImport("gdi32.dll", SetLastError = true)]
-    private static partial nint CreateCompatibleDC(nint dc);
-    [LibraryImport("gdi32.dll", SetLastError = true)]
-    private static partial nint CreateDIBSection(nint dc, ref BitmapInfo info, uint usage, out nint bits, nint section, uint offset);
-    [LibraryImport("gdi32.dll", SetLastError = true)]
-    private static partial nint SelectObject(nint dc, nint bitmap);
-    [LibraryImport("gdi32.dll")]
-    [return: MarshalAs(UnmanagedType.Bool)]
-    private static partial bool DeleteObject(nint value);
-    [LibraryImport("gdi32.dll")]
-    [return: MarshalAs(UnmanagedType.Bool)]
-    private static partial bool DeleteDC(nint dc);
     [LibraryImport("user32.dll", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static partial bool UpdateLayeredWindow(nint window, nint destinationDc, ref NativePoint destination,

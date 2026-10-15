@@ -8,6 +8,8 @@ date: 2026-10-15
 
 Read the [evaluation report](REPORT.md), [topmost summary](results/summary.csv), and [raw topmost measurements](results/runs.json). The reusable native bitmap renderer was the best measured CPU/memory prototype on this remote host; this is not a production renderer change or physical-GPU qualification.
 
+The separately supplied [laptop results](results/laptop-2026-10-15/README.md) reproduce the native-buffer advantage on physical hardware. They are short samples of the original benchmark commit, not measurements of an integrated application renderer.
+
 ## Scope and safety
 
 This opt-in executable creates synthetic transparent windows, links the unchanged production presence control and animation rules, and never starts Kora's application composition, microphone, model, synthesis provider, preferences, or session/approval services. Speech levels and state changes are synthetic. Images contain only the fixture's own graphics, not desktop captures. See [the entry
@@ -27,7 +29,11 @@ dotnet build .\experiments\presence-performance-tests\Presence.Performance.Tests
 dotnet test --project .\experiments\presence-performance-tests\Presence.Performance.Tests.csproj --configuration Release --no-build -- --report-trx --results-directory .\artifacts\presence-tests
 ```
 
-The [tests](../presence-performance-tests/ParticleSceneTests.cs) cover particle selection, cache bounds, settling, speech spread versus dot radius, and seamless trajectory positions. The separate native-window verification compares cached/direct/atlas renderings against production pixels across density, size, dot-size and motion-frame cases.
+The [scene tests](../presence-performance-tests/ParticleSceneTests.cs) cover selection, cache bounds, settling, speech spread versus dot radius, and seamless trajectories. The [DIB tests](../presence-performance-tests/NativeDibBufferTests.cs) cover actual buffer layout, GDI coordinate interpretation, premultiplied BGRA, clearing, disposal, and native resource release.
+
+The [raster/buffer verifier](FidelityVerification.cs) compares production output with cached/direct/atlas drawing and actual bytes read from the shared [native DIB operation](NativeDibBuffer.cs). It checks 54 DIB cases against production at the stated error limits and 54 against direct Skia byte-for-byte; see [validation evidence](results/dib-byte-validation/README.md).
+
+This is not end-to-end native-window presentation fidelity. The verifier does not capture output after `UpdateLayeredWindow`, Windows composition, display scaling or scanout. A successful native submission and non-empty buffer snapshot remain smoke checks, not proof of the final visible image.
 
 ## Reproduce the final topmost comparison
 

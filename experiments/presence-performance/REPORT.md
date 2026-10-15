@@ -63,6 +63,21 @@ results](results/runs.json)).
 An actual Skia GPU context was observed in the default-backend draw probe. That does not identify a physical adapter, prove GPU execution efficiency, or diagnose why cadence was limited. **Hypothesis, unconfirmed:** this remote display/composition path limits redraw cadence. Neither a blanket "software fallback caused it" diagnosis nor a physical-GPU performance conclusion is justified by these
 measurements ([backend observations](results/runs.json), [probe implementation](RenderProbe.cs)).
 
+## Physical-laptop corroboration
+
+The user supplied a separate 36-run series from benchmark commit `5d16773f2843141f2b51640580ec9b74cb85230a`. It reports Ryzen AI MAX 385/Radeon 8050S hardware, three repetitions, five measured seconds and one warmup second per case. It is preserved unchanged, not pooled with the VM measurements ([provenance](results/laptop-2026-10-15/README.md),
+[manifest](results/laptop-2026-10-15/manifest.json)).
+
+| Laptop scenario | Baseline CPU-ms/s | Compositor CPU-ms/s | Native DIB CPU-ms/s | Native below baseline | Native below compositor |
+|---|---:|---:|---:|---:|---:|
+| Default | 256.1 | 112.3 | 40.6 | 84.2% | 63.9% |
+| Maximum | 281.1 | 109.4 | 40.6 | 85.6% | 62.9% |
+| Reactive, first five seconds | 344.6 | 196.3 | 50.0 | 85.5% | 74.5% |
+
+The native maximum median reproduces the remote result approximately, but its three laptop samples range from 34.4 to 84.3 CPU-ms/s. Native submissions were about 30/s versus baseline draws about 24.8/s. Maximum working sets were 41.1 MiB native, 62.7 MiB compositor and 108.0 MiB baseline ([laptop summary](results/laptop-2026-10-15/summary.csv)).
+
+Five-second reactive samples do not cover the complete seven-state/theme cycle or a sustained speech-off period. Shared DWM intervals include startup and warmup and are not exclusively attributable. These results corroborate the candidate ranking, not exact whole-machine savings or integrated application performance ([limits](results/laptop-2026-10-15/README.md), [timing](Program.cs)).
+
 ## Which ideas were tested
 
 | Option or combination | Outcome | Evidence |
@@ -115,6 +130,12 @@ code](NativeBitmapWindow.cs), [host metadata](results/manifest.json)).
 There were **189 deterministic image comparisons**: 54 cached-versus-production, 54 direct-Skia-versus-production, 54 atlas comparisons, and 27 PR-snapshot comparisons. Required cached and direct-Skia paths passed across density 25/100/200%, footprint 240/360/600, dot size 50/100/200%, and initial/60-step motion. Pure tests additionally verify that speech changes particle spread without changing
 dot radius ([fidelity data](results/fidelity.json), [verifier](FidelityVerification.cs), [13-test TRX](results/tests.trx)).
 
+**Coverage correction:** the original "native-window verification" description was too broad. The 189 historical comparisons use an independent in-memory Skia raster; rows labelled `skia/native-dib` do not test actual DIB bytes. The original native snapshot only proves a non-empty buffer, and successful native calls do not prove the final image ([historical data](results/fidelity.json), [native
+path](NativeBitmapWindow.cs)).
+
+The repaired verifier adds **108 actual-DIB comparisons**, using the same extracted operation as the native benchmark: 54 against production output at explicit normalized colour/alpha limits, and 54 byte-for-byte against direct Skia. The actual DIB allocation, BGRA premultiplication, row layout and clearing are now covered; **post-`UpdateLayeredWindow`/DWM display fidelity is not** ([repair
+evidence](results/dib-byte-validation/README.md)).
+
 The [PR #247](https://github.com/roryprimrose/Kora/pull/247) renderer was pinned at `e5e46148d9dec9bc6a73266cbffc3f6e639748a3`. Its sorting change selects a different seeded subset below maximum density: it sorts all particles before taking the requested count. The original takes the seeded prefix and then sorts it. The image comparisons detect that difference; the cached candidate preserves the
 original selection order. This observation was sent to the other session; this evaluation does not change that PR ([snapshot](snapshots/PresenceControl.cs), [original](../../src/Kora/Controls/PresenceControl.cs), [pixel results](results/fidelity.json)).
 
@@ -148,3 +169,6 @@ Build succeeded.
 ```
 
 Use [the reproduction instructions](README.md) for the same final workloads, watchdog, pixel checks and export gates. Source hashes and actual elapsed denominators are retained with the data. No full-product test-suite, physical-display presentation, real speech-device, or production enablement claim is made.
+
+The subsequent DIB repair passed **32 tests** and **297 raster/buffer comparisons** for required paths; diagnostic atlas rows remain intentionally unqualified. A native smoke run exercised the extracted buffer through successful layered-window submissions. This adds verification evidence only; it does not revise historical CPU results or change production code ([repair
+manifest](results/dib-byte-validation/manifest.json), [test evidence](results/dib-byte-validation/tests.trx), [scope](results/dib-byte-validation/README.md)).

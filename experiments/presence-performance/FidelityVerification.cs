@@ -31,6 +31,7 @@ internal static class FidelityVerification
                     baseline.Measure(new Size(size, size));
                     baseline.Arrange(new Rect(0, 0, size, size));
                     using var scene = new ParticleScene(PresenceSettings.GetParticleCount(density), cacheTrajectories: false);
+                    using var dib = new NativeDibBuffer(size, size);
                     for (var frame = 0; frame < 2; frame++)
                     {
                         if (frame != 0)
@@ -47,13 +48,20 @@ internal static class FidelityVerification
                         using var direct = DrawSkia(size, canvas => scene.Draw(canvas, size, dotSize, light));
                         using var atlas = DrawSkia(size, canvas => scene.DrawAtlas(canvas, size, dotSize, light));
                         var cachedRow = Compare("cached", density, size, dotSize, frame * 60, reference, cached);
-                        var directRow = Compare("skia/native-dib", density, size, dotSize, frame * 60, reference, direct);
+                        var directRow = Compare("skia-raster", density, size, dotSize, frame * 60, reference, direct);
+                        dib.Draw(scene, dotSize, light);
+                        var dibRow = CompareDib("native-dib-bytes", density, size, dotSize, frame * 60, reference, dib);
+                        var dibSkiaRow = CompareDib("native-dib-vs-skia-bytes", density, size, dotSize, frame * 60, direct, dib);
                         rows.Add(cachedRow);
                         rows.Add(directRow);
+                        rows.Add(dibRow);
+                        rows.Add(dibSkiaRow);
                         rows.Add(Compare("atlas", density, size, dotSize, frame * 60, reference, atlas));
-                        if (cachedRow.AlphaRelativeError > 0.000001 || directRow.AlphaRelativeError > 0.01)
+                        if (cachedRow.AlphaRelativeError > 0.000001 || directRow.AlphaRelativeError > 0.01
+                            || dibRow.AlphaRelativeError > 0.01 || dibRow.DibBytes!.ChannelRelativeError > 0.01
+                            || dibRow.DibBytes.InvalidPremultipliedPixels != 0 || dibSkiaRow.DibBytes!.MaximumChannelError != 0)
                         {
-                            throw new InvalidOperationException($"Exact-path fidelity failed: {JsonSerializer.Serialize(new[] { cachedRow, directRow })}");
+                            throw new InvalidOperationException($"Raster/DIB fidelity failed: {JsonSerializer.Serialize(new[] { cachedRow, directRow, dibRow, dibSkiaRow })}");
                         }
                     }
                     var pr = new Pr247.PresenceControl { DotDensityPercent = density, DotSizePercent = dotSize };
@@ -69,7 +77,7 @@ internal static class FidelityVerification
             }
         }
         File.WriteAllText(output, JsonSerializer.Serialize(rows, Program.BenchmarkResult.JsonOptions));
-        Console.WriteLine($"Fidelity: {rows.Count} image comparisons passed required cached/Skia checks. "
+        Console.WriteLine($"Fidelity: {rows.Count} image comparisons passed required cached/Skia/actual-DIB-byte checks. "
             + $"Atlas maximum alpha-relative error: {rows.Where(row => row.Variant is "atlas").Max(row => row.AlphaRelativeError):P2}.");
     }
 
@@ -93,6 +101,20 @@ internal static class FidelityVerification
         draw(surface.Canvas);
         using var image = surface.Snapshot();
         return SKBitmap.FromImage(image);
+    }
+
+    private static Comparison CompareDib(string variant, int density, int size, int dotSize, int frame, SKBitmap reference, NativeDibBuffer dib)
+    {
+        var info = new SKImageInfo(size, size, SKColorType.Bgra8888, SKAlphaType.Premul);
+        using var expected = new SKBitmap(info);
+        using var referenceImage = SKImage.FromBitmap(reference);
+        if (!referenceImage.ReadPixels(info, expected.GetPixels(), dib.Stride, 0, 0))
+        {
+            throw new InvalidOperationException("Could not convert the production raster to premultiplied BGRA.");
+        }
+        var comparison = BgraPixelComparison.Compare(expected.Bytes, dib.CopyBgraPixels());
+        return new Comparison(variant, density, size, dotSize, frame,
+            comparison.ChangedPixels, comparison.MeanChannelAbsoluteError, comparison.AlphaRelativeError, comparison);
     }
 
     private static Comparison Compare(string variant, int density, int size, int dotSize, int frame, SKBitmap reference, SKBitmap candidate)
@@ -125,5 +147,5 @@ internal static class FidelityVerification
     }
 
     private sealed record Comparison(string Variant, int Density, int Size, int DotSize, int Frame,
-        int ChangedPixels, double MeanChannelAbsoluteError, double AlphaRelativeError);
+        int ChangedPixels, double MeanChannelAbsoluteError, double AlphaRelativeError, BgraPixelComparison.Result? DibBytes = null);
 }

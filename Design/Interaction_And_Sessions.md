@@ -260,6 +260,12 @@ original-size claim and never matches byte bounds. These volatile filters grant
 no session authority, source access or activity renewal; editing reads nothing
 and retires the original observation/navigation.
 
+An optional exact canonical SHA-256 predicate composes with the same catalogue
+filters but matches only Confirmed retained-copy metadata, never Held or removed
+slots. Unavailable provenance has no displayed/serialized historical digest.
+The volatile query is fingerprint-bound to signed continuations, not serialized
+as text; it grants no body integrity, session authority or new source access.
+
 ## Current Implementation and Design Gap
 
 The [optional native enqueue prerequisite](Work_Management.md#delivered-optional-native-enqueue-prerequisite---2026-10-12) adds same-session bounded metadata-only choice to all six fixed profiles. It combines nonqueue tasks with already-observed queued pending/running/recent terminal tasks using actual host task metadata from the same atomic work read, never queue-entry revisions or history scans. None is the initial default; exact selected ID/revision flows through the original command/service/store with final stale-source refusal.

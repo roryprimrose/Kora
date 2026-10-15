@@ -29,6 +29,7 @@ internal sealed partial class AttachmentCatalogueViewModel(
     private AttachmentCatalogueMode mode;
     private string queryText = string.Empty;
     private string metadataText = string.Empty;
+    private string digestText = string.Empty;
     private bool disposed;
     private long epoch;
     private long controlRevision = access.ControlRevision;
@@ -52,7 +53,7 @@ internal sealed partial class AttachmentCatalogueViewModel(
     public bool CanEdit => !disposed && access.CanInspect && admitted();
     public bool CanEditId => CanEdit && mode == AttachmentCatalogueMode.ExactId;
     public bool CanRead => CanEdit && operation is null;
-    public bool CanSearch => CanRead && ValidCopyAndBytes && ValidMetadataText && ValidMediaType && Enum.IsDefined(filter) && (mode == AttachmentCatalogueMode.Browse
+    public bool CanSearch => CanRead && ValidDigest && ValidCopyAndBytes && ValidMetadataText && ValidMediaType && Enum.IsDefined(filter) && (mode == AttachmentCatalogueMode.Browse
         || SessionListSearch.IsValid(SessionListSearchKind.ExactId, SessionListFilter.All, queryText));
     public bool CanNext => CanSearch && page?.Next is not null;
     public bool CanCancel => !disposed && operation is not null;
@@ -174,6 +175,21 @@ internal sealed partial class AttachmentCatalogueViewModel(
             Notify();
         }
     }
+    public string DigestText
+    {
+        get => digestText;
+        set
+        {
+            if (!CanEdit || string.Equals(digestText, value, StringComparison.Ordinal)) { return; }
+            InvalidateQuery();
+            digestText = value;
+            Notify();
+        }
+    }
+    private bool ValidDigest => digestText.Length == 0 || LocalFileDigest.IsCanonical(digestText);
+    public string DigestHint => ValidDigest
+        ? "Optional exact SHA-256: 64 lowercase hexadecimal characters, not all zero. Empty means Any. Only Confirmed retained copies match; Held and removed slots never match. Typing performs no read."
+        : "Invalid exact SHA-256. Use exactly 64 lowercase hexadecimal characters, not all zero; no trimming, normalization, fallback or read.";
     private bool ValidMetadataText
     {
         get
@@ -220,7 +236,8 @@ internal sealed partial class AttachmentCatalogueViewModel(
         var query = new SessionAttachmentQuery(includeRemoved,
             mode == AttachmentCatalogueMode.Browse ? null : queryText, filter,
             metadataText.Length == 0 ? null : metadataText, string.Equals(mediaType, "All", StringComparison.Ordinal) ? null : mediaType,
-            bounds.CopyStatus, bounds.MinimumStoredBytes, bounds.MaximumStoredBytes);
+            bounds.CopyStatus, bounds.MinimumStoredBytes, bounds.MaximumStoredBytes,
+            digestText.Length == 0 ? null : digestText);
         var cursor = next ? page?.Next ?? throw new InvalidOperationException("Refresh before Next.") : null;
         Clear();
         var result = await read(query, cursor, current, token);
@@ -234,7 +251,8 @@ internal sealed partial class AttachmentCatalogueViewModel(
             + (result.AuthorityValidationPending ? "Authority validation pending; Next continues before any attachment row is disclosed. "
                 : result.Next is not null ? "More slots remain. Next may follow an empty nonmatching page. "
                     : result.Records.IsEmpty && (query.MetadataText is not null || query.ExactMediaType is not null
-                        || query.CopyStatus is not null || query.MinimumStoredBytes is not null || query.MaximumStoredBytes is not null)
+                        || query.CopyStatus is not null || query.MinimumStoredBytes is not null || query.MaximumStoredBytes is not null
+                        || query.ExactDigest is not null)
                         ? "No matching retained metadata on this bounded page under these filters; end of this observation, not a global total; no fallback. "
                     : result.Records.IsEmpty && query.ExactId is not null
                         ? "Exact attachment slot not found under this filter at this observation; no fallback to Browse. "
@@ -297,6 +315,7 @@ internal sealed partial class AttachmentCatalogueViewModel(
         mode = AttachmentCatalogueMode.Browse;
         queryText = string.Empty;
         metadataText = string.Empty;
+        digestText = string.Empty;
         Notify();
     }
 
@@ -305,7 +324,7 @@ internal sealed partial class AttachmentCatalogueViewModel(
         epoch++;
         operation?.Cancel();
         Clear();
-        status = "Query/mode/session lifecycle/media type/copy status/byte bounds/removal filter edited. Page, continuation and selection cleared; explicit Search/Refresh required.";
+        status = "Query/mode/session lifecycle/media type/copy status/byte bounds/digest/removal filter edited. Page, continuation and selection cleared; explicit Search/Refresh required.";
     }
 
     internal void SynchronizeAuthority()
@@ -324,6 +343,7 @@ internal sealed partial class AttachmentCatalogueViewModel(
         mode = AttachmentCatalogueMode.Browse;
         queryText = string.Empty;
         metadataText = string.Empty;
+        digestText = string.Empty;
         copyStatus = CopyStatuses[0];
         minimumBytesText = string.Empty;
         maximumBytesText = string.Empty;
@@ -356,6 +376,7 @@ internal sealed partial class AttachmentCatalogueViewModel(
         mode = AttachmentCatalogueMode.Browse;
         queryText = string.Empty;
         metadataText = string.Empty;
+        digestText = string.Empty;
         Notify();
     }
 
@@ -384,6 +405,8 @@ internal sealed partial class AttachmentCatalogueViewModel(
         OnPropertyChanged(nameof(QueryText));
         OnPropertyChanged(nameof(MetadataText));
         OnPropertyChanged(nameof(MetadataHint));
+        OnPropertyChanged(nameof(DigestText));
+        OnPropertyChanged(nameof(DigestHint));
         OnPropertyChanged(nameof(QueryHint));
     }
 }

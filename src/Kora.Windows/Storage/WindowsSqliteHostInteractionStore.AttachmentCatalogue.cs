@@ -87,7 +87,7 @@ public sealed partial class WindowsSqliteHostInteractionStore : ISessionAttachme
         {
             var pending = new SessionAttachmentPage(query, [], EncodeAttachmentCursor(new(query, identity, expires,
                 snapshot.AuthorityCeiling!.Value, snapshot.AuthorityCeilingDigest!, null, audit.Through, audit.Hash, profile, viewer,
-                AttachmentMetadataBinding(query))),
+                AttachmentMetadataBinding(query), AttachmentDigestBinding(query))),
                 now, snapshot.AuthorityCeiling.Value, snapshot.AuthorityCeilingDigest!, 0, false, audit.Scanned, true);
             pending.Validate();
             VerifyCatalogueSource(identity, admitted, token);
@@ -122,7 +122,7 @@ public sealed partial class WindowsSqliteHostInteractionStore : ISessionAttachme
         var more = (long)remaining.ExecuteScalar()! == 1;
         var next = more ? EncodeAttachmentCursor(new(query, identity, expires, snapshot.AuthorityCeiling!.Value,
             snapshot.AuthorityCeilingDigest!, after!.Value, audit.Through, audit.Hash, profile, viewer,
-            AttachmentMetadataBinding(query))) : null;
+            AttachmentMetadataBinding(query), AttachmentDigestBinding(query))) : null;
         var page = new SessionAttachmentPage(query, records.ToImmutable(), next, now,
             snapshot.AuthorityCeiling!.Value, snapshot.AuthorityCeilingDigest!, scanned,
             more && scanned == SessionAttachmentPage.MaximumScannedRows, audit.Scanned);
@@ -388,6 +388,9 @@ public sealed partial class WindowsSqliteHostInteractionStore : ISessionAttachme
     private string? AttachmentMetadataBinding(SessionAttachmentQuery query) => query.MetadataText is null ? null
         : Convert.ToHexStringLower(HMACSHA256.HashData(attachmentCursorKey, System.Text.Encoding.UTF8.GetBytes(query.MetadataText)));
 
+    private string? AttachmentDigestBinding(SessionAttachmentQuery query) => query.ExactDigest is null ? null
+        : Convert.ToHexStringLower(HMACSHA256.HashData(attachmentCursorKey, System.Text.Encoding.UTF8.GetBytes(query.ExactDigest)));
+
     private AttachmentCursor DecodeAttachmentCursor(string text, SessionAttachmentQuery query, string identity,
         HostId<RequestIdentity> viewer, DateTimeOffset now)
     {
@@ -402,10 +405,11 @@ public sealed partial class WindowsSqliteHostInteractionStore : ISessionAttachme
                 throw new FormatException("Invalid continuation authentication.");
             }
             var cursor = HostInteractionCodec.Decode<AttachmentCursor>(System.Text.Encoding.UTF8.GetString(bytes));
-            if (cursor.Query != new SessionAttachmentQuery(query.IncludeRemoved, query.ExactSessionId, query.Filter,
+            if (cursor.Query is null || cursor.Query != new SessionAttachmentQuery(query.IncludeRemoved, query.ExactSessionId, query.Filter,
                     exactMediaType: query.ExactMediaType, copyStatus: query.CopyStatus,
                     minimumStoredBytes: query.MinimumStoredBytes, maximumStoredBytes: query.MaximumStoredBytes)
                 || !string.Equals(cursor.MetadataBinding, AttachmentMetadataBinding(query), StringComparison.Ordinal)
+                || !string.Equals(cursor.DigestBinding, AttachmentDigestBinding(query), StringComparison.Ordinal)
                 || !Same(cursor.Identity, identity) || cursor.Viewer != viewer || cursor.After == Guid.Empty
                 || cursor.ExpiresAt.Offset != TimeSpan.Zero || now >= cursor.ExpiresAt
                 || cursor.ExpiresAt > now.AddMinutes(SessionAttachmentPage.SnapshotMinutes))
@@ -422,5 +426,5 @@ public sealed partial class WindowsSqliteHostInteractionStore : ISessionAttachme
 
     private sealed record AttachmentCursor(SessionAttachmentQuery Query, string Identity, DateTimeOffset ExpiresAt,
         long Ceiling, string Digest, Guid? After, long AuditedThrough, string AuditedHash,
-        HostId<DeviceProfileIdentity> Profile, HostId<RequestIdentity> Viewer, string? MetadataBinding);
+        HostId<DeviceProfileIdentity> Profile, HostId<RequestIdentity> Viewer, string? MetadataBinding, string? DigestBinding);
 }

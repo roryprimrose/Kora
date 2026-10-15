@@ -29,6 +29,32 @@ The optional **Exact retained media type: All (default) / text/plain / text/mark
 
 `LiteralMetadataQuery` is the authoritative single-line strict-Unicode policy: at most 256 UTF-16 units / 512 UTF-8 bytes; no controls, format or line/paragraph separators. Spaces and punctuation remain exact literals, with no trimming, normalization, wildcard, ranking or fallback. The native empty field disables literal filtering; a supplied empty query is invalid. Typing does no I/O; explicit Search/Enter and Next retain full validation of nonmatching slots and bounded audit segments. Text stays memory-only, is excluded from query/page serialization and never enters persistence, audit, diagnostics, Activity tags/Baggage, exports, transcripts or model/network context. Run-local authenticated cursors bind a keyed fingerprint, not the text. Any literal edit retires rows, exact selection, continuation and pending work; Clear, revocation and close clear the literal too. End-of-observation no-match is labelled without claiming a global total.
 
+The optional **Exact SHA-256** predicate composes by AND with Browse/ExactId,
+literal metadata, lifecycle, exact media type, copy status, stored-byte bounds
+and removed-slot inclusion. Core `LocalFileDigest` owns the strict original-byte
+digest rule, reused by `LocalFileReference.Validate` and catalogue admission:
+exactly 64 lowercase ASCII hexadecimal characters, not all zero. No trimming,
+case folding, prefix, wildcard or repair is admitted; the native empty field
+disables the predicate, while an explicitly supplied empty query is invalid.
+Only **Confirmed** retained copies can match; Held and Unavailable never match.
+This is stored copy certification, not a fresh body/hash-integrity check.
+Every candidate, including nonmatches and tombstones, is validated first.
+Removed provenance never discloses its historical digest in catalogue rows or
+serialized/detail projections, even if a malformed retained object carries one.
+The digest query is volatile and excluded from query/page/cursor serialization;
+the signed continuation binds a separate run-local keyed fingerprint alongside
+all existing source/profile/viewer/query/authority fences.
+The focusable, accessibly named native field supports explicit Search/Enter;
+edits perform no read and synchronously retire page, continuation, selected
+details/navigation and late callbacks. Clear query, revocation and disposal
+erase the digest field. Empty pages with continuation and bounded no-match
+observations remain truthful. No schema/index/cache, body/path read, persistence,
+audit/log/tag payload, egress, activity renewal or authority change is added.
+Deterministic [portable contract tests](../tests/Kora.Core.UnitTests/Storage/SessionAttachmentDigestTests.cs),
+[private SQLite tests](../tests/Kora.Windows.IntegrationTests/Storage/WindowsSqliteSessionAttachmentTests.DigestCatalogue.cs)
+and [headless native tests](../tests/Kora.Windows.IntegrationTests/AttachmentCatalogueWindowTests.Digest.cs)
+qualify this bounded I subset only, not installed accessibility or broader R26/E/Q.
+
 The optional **Exact copy status: Any (default) / Confirmed / Held / Unavailable**
 and inclusive **minimum / maximum retained stored bytes** compose by AND with
 every existing predicate. Status matches validated typed metadata exactly;

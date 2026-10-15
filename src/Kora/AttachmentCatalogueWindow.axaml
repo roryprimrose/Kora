@@ -44,6 +44,11 @@
                HorizontalAlignment="Left" IsEnabled="{Binding CanEdit}"
                AutomationProperties.Name="Optional private volatile literal metadata query: exposed IDs, digest or media type; case sensitive; typing performs no read" />
       <controls:NamedTextBlock Text="{Binding MetadataHint}" TextWrapping="Wrap" />
+      <TextBox x:Name="AttachmentDigest" Text="{Binding DigestText, Mode=TwoWay}" Width="700"
+               PlaceholderText="Optional exact SHA-256 (Any when empty)"
+               HorizontalAlignment="Left" IsEnabled="{Binding CanEdit}"
+               AutomationProperties.Name="Optional exact SHA-256 of a Confirmed retained copy; 64 lowercase hexadecimal characters, not all zero; typing performs no read" />
+      <controls:NamedTextBlock Text="{Binding DigestHint}" TextWrapping="Wrap" />
     </StackPanel>
     <controls:NamedTextBlock Grid.Row="2" Text="{Binding Status}" TextWrapping="Wrap"
                             AutomationProperties.Name="Content-free metadata scope and finite scan limitations; not full body verification" />
@@ -61,7 +66,7 @@
               <TextBlock Text="{Binding RetainedStoredBytes, StringFormat='Stored original bytes: {0}', TargetNullValue='Stored original bytes: unavailable (removed provenance; no size claim)'}" />
               <TextBlock Text="{Binding MediaType}" />
               <TextBlock Text="{Binding CapturedAt, StringFormat='Captured UTC: {0:O}'}" />
-              <TextBlock Text="{Binding File.Digest, StringFormat='Original digest header: {0}'}" TextWrapping="Wrap" />
+              <TextBlock Text="{Binding RetainedDigest, StringFormat='Original digest header: {0}', TargetNullValue='Original digest: unavailable (removed provenance)'}" TextWrapping="Wrap" />
             </StackPanel>
           </DataTemplate>
         </ListBox.ItemTemplate>

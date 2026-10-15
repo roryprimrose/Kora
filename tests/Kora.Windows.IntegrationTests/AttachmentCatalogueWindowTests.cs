@@ -532,6 +532,8 @@ public sealed partial class AttachmentCatalogueWindowTests
     [InlineData("invalid-media")]
     [InlineData("copy")]
     [InlineData("invalid-copy")]
+    [InlineData("digest")]
+    [InlineData("invalid-digest")]
     [InlineData("minimum")]
     [InlineData("maximum")]
     [InlineData("id")]
@@ -575,6 +577,8 @@ public sealed partial class AttachmentCatalogueWindowTests
         if (boundary is "invalid-media") { model.MediaType = "TEXT/PLAIN"; }
         if (boundary is "copy") { model.CopyStatus = new(AttachmentCopyStatus.Held); }
         if (boundary is "invalid-copy") { model.CopyStatus = new((AttachmentCopyStatus)99); }
+        if (boundary is "digest") { model.DigestText = new string('b', 64); }
+        if (boundary is "invalid-digest") { model.DigestText = "invalid"; }
         if (boundary is "minimum") { model.MinimumBytesText = "0"; }
         if (boundary is "maximum") { model.MaximumBytesText = "0"; }
         if (boundary is "id") { model.QueryText = Guid.NewGuid().ToString("D"); }
@@ -605,6 +609,7 @@ public sealed partial class AttachmentCatalogueWindowTests
 
     [Theory]
     [InlineData("lifecycle")]
+    [InlineData("digest")]
     [InlineData("removal")]
     [InlineData("metadata")]
     [InlineData("media")]
@@ -640,6 +645,7 @@ public sealed partial class AttachmentCatalogueWindowTests
         if (boundary is "minimum") { model.MinimumBytesText = "0"; }
         if (boundary is "maximum") { model.MaximumBytesText = "0"; }
         if (boundary is "metadata") { model.MetadataText = "unmatched"; }
+        if (boundary is "digest") { model.DigestText = new string('b', 64); }
         release.SetResult();
         await navigation;
         disclosed.Should().BeFalse();

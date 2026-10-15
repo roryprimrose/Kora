@@ -375,6 +375,17 @@ Default **Browse** preserves the removal filter. For one session, choose **Exact
 
 Optionally enter a **literal metadata query** in the separate field, then Search or press Enter there. It matches a case-sensitive literal substring of already displayed Session/source/revision/item IDs, digest or media type, independently of ExactId and lifecycle. For example, `text/` matches retained text types; `TEXT/`, spaces and `*` are not normalized or wildcards. Names, paths, profile IDs, bodies, excerpts and OCR are never searched. Removed slots never match a literal, even with Include removed slots; clear the literal to browse their ordinary provenance. Held metadata can match but cannot open a body.
 
+Optionally enter **Exact SHA-256**, then Search or press Enter in that field.
+Use exactly 64 lowercase hexadecimal characters, not all zero; empty means Any.
+Spaces, uppercase, prefixes and wildcards are invalid, never normalized.
+It combines with every other filter and matches only Confirmed retained copies,
+not Held or Unavailable. It does not read bytes or reverify body integrity.
+Removed provenance never displays its prior digest. Typing performs no read and
+immediately clears results, details, selection/navigation and continuation.
+Clear query, private/source revocation and close erase the volatile digest.
+Signed continuations bind a keyed fingerprint, never the query digest text;
+changed predicates or stale authority require a fresh explicit Search.
+
 The literal is limited to 256 UTF-16 units / 512 UTF-8 bytes of valid single-line Unicode without control/format characters. Empty disables literal filtering; invalid input disables Search with recovery guidance and never falls back. Query text is memory-only: not saved, audited, logged, exported or sent to a model/network. No matching retained metadata at the end is reported truthfully; an empty page with Next is not a whole-catalogue no-match.
 
 Choose **Stored session lifecycle: All (default), Active, Done or Removed** independently of Browse/ExactId and **Include removed slots**. All preserves existing behavior. Removed sessions can have only removed-slot provenance: enable Include removed slots to see it. An Active or Done session can also have a removed attachment slot; removing a slot does not remove its session. See the [canonical lifecycle contract and tests](../Design/File_And_Folder_Ingestion.md#delivered-retained-attachment-metadata-catalogue---2026-10-11).

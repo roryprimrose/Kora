@@ -16,9 +16,10 @@ namespace Kora.Windows.IntegrationTests.Storage;
 public sealed partial class WindowsSqliteSessionAttachmentTests
 {
     [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public async Task ExactCatalogueValidatesNonmatchingSlotsAndFindsMatchBeyondFirstBoundedScanWithoutGlobalCap(bool includeRemoved)
+    [InlineData(false, false)]
+    [InlineData(true, false)]
+    [InlineData(true, true)]
+    public async Task ExactCatalogueValidatesNonmatchingSlotsAndFindsMatchBeyondFirstBoundedScanWithoutGlobalCap(bool includeRemoved, bool useDigest)
     {
         using var fixture = await Initialize();
         using var root = HostActivity.BeginRoot(fixture.Request, HostActivityLayer.Application, HostOperation.Request);
@@ -33,7 +34,8 @@ public sealed partial class WindowsSqliteSessionAttachmentTests
         var target = new HostId<SessionIdentity>(Guid.Parse("ffffffff-ffff-ffff-ffff-ffffffffffff"));
         await NewSession(fixture, target);
         var retained = await Attach(fixture, Encoding.UTF8.GetBytes("PRIVATE_EXACT_BODY_NOT_SEARCHED"));
-        var query = new SessionAttachmentQuery(includeRemoved, target.Value.ToString("D"));
+        var query = new SessionAttachmentQuery(includeRemoved, target.Value.ToString("D"),
+            exactDigest: useDigest ? retained.File.Digest : null);
         var clock = await fixture.Store.ReadRetentionAsync(target, fixture.Token);
         var tasks = fixture.Count("host_tasks");
         var audit = fixture.Count("security_audit_events");
@@ -77,8 +79,8 @@ public sealed partial class WindowsSqliteSessionAttachmentTests
         await staleSelection.Should().ThrowAsync<InvalidOperationException>();
         var fresh = await fixture.Store.ReadAttachmentPage(query, null, () => true, fixture.Token);
         var removed = await fixture.Store.ReadAttachmentPage(query, fresh.Next, () => true, fixture.Token);
-        removed.Records.Length.Should().Be(includeRemoved ? 1 : 0);
-        if (includeRemoved) { removed.Records.Single().CopyStatus.Should().Be(AttachmentCopyStatus.Unavailable); }
+        removed.Records.Length.Should().Be(includeRemoved && !useDigest ? 1 : 0);
+        if (includeRemoved && !useDigest) { removed.Records.Single().CopyStatus.Should().Be(AttachmentCopyStatus.Unavailable); }
         // Even an excluded predecessor must be decoded and validated; exact ID never jumps over corruption.
         fixture.Mutate("UPDATE session_file SET descriptor=json_set(descriptor,'$.Format',99) WHERE session_id=(SELECT MIN(session_id) FROM session_file);");
         var corrupt = () => fixture.Store.ReadAttachmentPage(query, null, () => true, fixture.Token).AsTask();

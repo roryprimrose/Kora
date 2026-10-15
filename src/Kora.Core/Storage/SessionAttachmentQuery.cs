@@ -10,7 +10,7 @@ public sealed record SessionAttachmentQuery
     public SessionAttachmentQuery(bool includeRemoved = false, string? exactSessionId = null,
         SessionAttachmentFilter filter = SessionAttachmentFilter.All, string? metadataText = null,
         string? exactMediaType = null, AttachmentCopyStatus? copyStatus = null,
-        long? minimumStoredBytes = null, long? maximumStoredBytes = null)
+        long? minimumStoredBytes = null, long? maximumStoredBytes = null, string? exactDigest = null)
     {
         if (!Enum.IsDefined(filter)) { throw new InvalidDataException("Unknown attachment session lifecycle filter."); }
         Filter = filter;
@@ -23,6 +23,7 @@ public sealed record SessionAttachmentQuery
         CopyStatus = copyStatus;
         MinimumStoredBytes = minimumStoredBytes;
         MaximumStoredBytes = maximumStoredBytes;
+        ExactDigest = exactDigest;
         Validate();
     }
 
@@ -51,6 +52,8 @@ public sealed record SessionAttachmentQuery
     public Guid? ExactId { get; }
     [JsonIgnore]
     public string? MetadataText { get; }
+    [JsonIgnore]
+    public string? ExactDigest { get; }
 
     public void Validate()
     {
@@ -62,6 +65,7 @@ public sealed record SessionAttachmentQuery
             || MinimumStoredBytes > MaximumStoredBytes)
         { throw new InvalidDataException("Stored byte bounds must be within 0 through the local file maximum, inclusive, with minimum <= maximum."); }
         if (ExactMediaType is not null) { LocalFileMediaType.Validate(ExactMediaType); }
+        if (ExactDigest is not null) { LocalFileDigest.Validate(ExactDigest); }
         if (MetadataText is null) { return; }
         LiteralMetadataQuery.Validate(MetadataText);
         if (MetadataText.Length == 0) { throw new InvalidDataException("A literal attachment metadata query must be nonempty."); }
@@ -73,6 +77,8 @@ public sealed record SessionAttachmentQuery
         row.Validate();
         return
         (IncludeRemoved || row.CopyStatus != AttachmentCopyStatus.Unavailable)
+        && (ExactDigest is null || row.CopyStatus == AttachmentCopyStatus.Confirmed
+            && string.Equals(row.File.Digest, ExactDigest, StringComparison.Ordinal))
         && (CopyStatus is null || row.CopyStatus == CopyStatus)
         && (MinimumStoredBytes is null && MaximumStoredBytes is null
             || row.CopyStatus != AttachmentCopyStatus.Unavailable

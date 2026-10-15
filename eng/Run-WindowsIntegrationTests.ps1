@@ -2,7 +2,7 @@
 param(
     [Parameter()]
     [ValidateRange(1, 64)]
-    [int] $MaxThreads = 2,
+    [int] $MaxThreads = 1,
 
     [Parameter()]
     [ValidateNotNullOrEmpty()]
@@ -18,16 +18,24 @@ $resultsRoot = [System.IO.Path]::GetFullPath((Join-Path $repositoryRoot $Results
 
 $shards = @(
     [pscustomobject]@{
-        Name = 'storage-heavy'
-        Filter = 'FullyQualifiedName~Kora.Windows.IntegrationTests.Storage.WindowsSqliteSessionAttachmentTests|FullyQualifiedName~Kora.Windows.IntegrationTests.Storage.WindowsSqliteConversationTests|FullyQualifiedName~Kora.Windows.IntegrationTests.Storage.WindowsSqliteSessionQueueTests|FullyQualifiedName~Kora.Windows.IntegrationTests.Storage.WindowsSqliteMemoryTests|FullyQualifiedName~Kora.Windows.IntegrationTests.Storage.WindowsSqliteExactGrantFilterTests'
+        Name = 'storage-heavy-a'
+        Filter = 'FullyQualifiedName~Kora.Windows.IntegrationTests.Storage.WindowsSqliteSessionAttachmentTests|FullyQualifiedName~Kora.Windows.IntegrationTests.Storage.WindowsSqliteMemoryTests|FullyQualifiedName~Kora.Windows.IntegrationTests.Storage.WindowsSqliteExactGrantFilterTests'
+    }
+    [pscustomobject]@{
+        Name = 'storage-heavy-b'
+        Filter = 'FullyQualifiedName~Kora.Windows.IntegrationTests.Storage.WindowsSqliteConversationTests|FullyQualifiedName~Kora.Windows.IntegrationTests.Storage.WindowsSqliteSessionQueueTests'
     }
     [pscustomobject]@{
         Name = 'storage-other'
         Filter = 'FullyQualifiedName~Kora.Windows.IntegrationTests.Storage.&FullyQualifiedName!~Kora.Windows.IntegrationTests.Storage.WindowsSqliteSessionAttachmentTests&FullyQualifiedName!~Kora.Windows.IntegrationTests.Storage.WindowsSqliteConversationTests&FullyQualifiedName!~Kora.Windows.IntegrationTests.Storage.WindowsSqliteSessionQueueTests&FullyQualifiedName!~Kora.Windows.IntegrationTests.Storage.WindowsSqliteMemoryTests&FullyQualifiedName!~Kora.Windows.IntegrationTests.Storage.WindowsSqliteExactGrantFilterTests'
     }
     [pscustomobject]@{
+        Name = 'ui-heavy'
+        Filter = 'FullyQualifiedName~Kora.Windows.IntegrationTests.ArtifactDiscovery.OwnedDefinitionEditorWindowTests|FullyQualifiedName~Kora.Windows.IntegrationTests.NativeUx.NativeUxFixtureContractTests'
+    }
+    [pscustomobject]@{
         Name = 'ui-platform'
-        Filter = 'FullyQualifiedName!~Kora.Windows.IntegrationTests.Storage.'
+        Filter = 'FullyQualifiedName!~Kora.Windows.IntegrationTests.Storage.&FullyQualifiedName!~Kora.Windows.IntegrationTests.ArtifactDiscovery.OwnedDefinitionEditorWindowTests&FullyQualifiedName!~Kora.Windows.IntegrationTests.NativeUx.NativeUxFixtureContractTests'
     }
 )
 

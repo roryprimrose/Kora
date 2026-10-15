@@ -78,6 +78,32 @@ internal sealed partial class SessionsViewModel
         [new(null), .. Enum.GetValues<LocalEventSource>().Select(value => new LocalEventFilterOption<LocalEventSource>(value))];
     public IReadOnlyList<LocalEventFilterOption<LocalEventType>> LocalEventTypeFilters { get; } =
         [new(null), .. Enum.GetValues<LocalEventType>().Select(value => new LocalEventFilterOption<LocalEventType>(value))];
+    public RequestOrigin? LocalEventOriginFilter
+    {
+        get => eventFilter.Origin;
+        set
+        {
+            if (presentingEvents || !CanFilterLocalEvents || value == eventFilter.Origin) { return; }
+            eventFilter = eventFilter with { Origin = value };
+            ChangeLocalEventFilters();
+        }
+    }
+    public LocalEventQueueReasonFilter LocalEventQueueReasonFilter
+    {
+        get => eventFilter.QueueReason;
+        set
+        {
+            if (presentingEvents || !CanFilterLocalEvents || value == eventFilter.QueueReason) { return; }
+            eventFilter = eventFilter with { QueueReason = value };
+            ChangeLocalEventFilters();
+        }
+    }
+    public IReadOnlyList<LocalEventFilterOption<RequestOrigin>> LocalEventOriginFilters { get; } =
+        [new(null, "Any"), .. Enum.GetValues<RequestOrigin>().Select(value => new LocalEventFilterOption<RequestOrigin>(value))];
+    public IReadOnlyList<LocalEventQueueReasonFilterOption> LocalEventQueueReasonFilters { get; } =
+        [new(new()), new(new(LocalEventQueueReasonMatch.None)),
+            .. Enum.GetValues<SessionQueueEligibility>().Select(value =>
+                new LocalEventQueueReasonFilterOption(new(LocalEventQueueReasonMatch.Exact, value)))];
     public LocalEventFilterOption<LocalEventCategory> LocalEventCategoryChoice
     {
         get => LocalEventCategoryFilters.FirstOrDefault(option => option.Value == eventFilter.Category) ?? new(eventFilter.Category);
@@ -98,8 +124,18 @@ internal sealed partial class SessionsViewModel
         get => LocalEventTypeFilters.FirstOrDefault(option => option.Value == eventFilter.Type) ?? new(eventFilter.Type);
         set { if (value is not null) { LocalEventTypeFilter = value.Value; } }
     }
+    public LocalEventFilterOption<RequestOrigin> LocalEventOriginChoice
+    {
+        get => LocalEventOriginFilters.FirstOrDefault(option => option.Value == eventFilter.Origin) ?? new(eventFilter.Origin);
+        set { if (value is not null) { LocalEventOriginFilter = value.Value; } }
+    }
+    public LocalEventQueueReasonFilterOption LocalEventQueueReasonChoice
+    {
+        get => LocalEventQueueReasonFilters.FirstOrDefault(option => option.Value == eventFilter.QueueReason) ?? new(eventFilter.QueueReason);
+        set { if (value is not null) { LocalEventQueueReasonFilter = value.Value; } }
+    }
     public string LocalEventFilterStatus => !eventFilter.IsValid
-        ? "Unknown category, reason, source or type filter; no results. Clear filters to recover."
+        ? "Unknown category, reason, source, type, origin or queue reason filter; no results. Clear filters to recover."
         : !EventSourceCurrent ? "No current bounded local-event snapshot. Refresh selected work; no empty source is inferred."
         : LocalEvents.Count.ToString(CultureInfo.InvariantCulture) + " of "
             + eventSnapshot!.Events.Count.ToString(CultureInfo.InvariantCulture)
@@ -132,9 +168,19 @@ internal sealed partial class SessionsViewModel
         }
     }
 
-    internal sealed record LocalEventFilterOption<T>(T? Value) where T : struct, Enum
+    internal sealed record LocalEventFilterOption<T>(T? Value, string AnyLabel = "All") where T : struct, Enum
     {
-        public override string ToString() => Value?.ToString() ?? "All";
+        public override string ToString() => Value?.ToString() ?? AnyLabel;
+    }
+    internal sealed record LocalEventQueueReasonFilterOption(LocalEventQueueReasonFilter Value)
+    {
+        public override string ToString() => !Value.IsValid ? "Unknown"
+            : Value.Match switch
+            {
+                LocalEventQueueReasonMatch.Any => "Any",
+                LocalEventQueueReasonMatch.None => "No queue reason / not applicable",
+                _ => Value.Value!.Value.ToString(),
+            };
     }
     public string RoutineQuietStatus => localEvents is { } broker
         ? "Quiet routine notices for this run: " + (broker.RoutineQuiet.Enabled ? "On" : "Off")
@@ -293,10 +339,14 @@ internal sealed partial class SessionsViewModel
             OnPropertyChanged(nameof(LocalEventReasonFilter));
             OnPropertyChanged(nameof(LocalEventSourceFilter));
             OnPropertyChanged(nameof(LocalEventTypeFilter));
+            OnPropertyChanged(nameof(LocalEventOriginFilter));
+            OnPropertyChanged(nameof(LocalEventQueueReasonFilter));
             OnPropertyChanged(nameof(LocalEventCategoryChoice));
             OnPropertyChanged(nameof(LocalEventReasonChoice));
             OnPropertyChanged(nameof(LocalEventSourceChoice));
             OnPropertyChanged(nameof(LocalEventTypeChoice));
+            OnPropertyChanged(nameof(LocalEventOriginChoice));
+            OnPropertyChanged(nameof(LocalEventQueueReasonChoice));
             OnPropertyChanged(nameof(LocalEventFilterStatus));
             OnPropertyChanged(nameof(CanFilterLocalEvents));
             OnPropertyChanged(nameof(CanControlLocalEvent));

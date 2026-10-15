@@ -168,12 +168,17 @@ changes. Maintenance Check/Open remains in its native window.
 broker. **Local event source** offers All, LocalVersionQueue,
 LocalVersionQuestion and CachedMaintenance. **Local event type** offers All,
 Queued, Current, Completed, Failed, Blocked, Unknown, UserAttention and
-MaintenanceAvailable. All four filters combine with AND over only the
+MaintenanceAvailable. **Local event request origin** offers Any, LocalUi,
+ActivatedVoice and HostSystem, matching the original request origin exactly.
+**Local event queue eligibility reason** offers Any, **No queue reason / not
+applicable**, and each exact queue eligibility reason. Questions and maintenance
+have no queue reason; this absence is not queue success, eligibility or authority.
+All six filters combine with AND over only the
 already-loaded bounded rows; impossible Source/Type pairs show zero without
 changing either choice. Use Tab/Shift+Tab to move between filters and arrow
 keys to choose an exact value.
 They do not read more sources or change quiet mode. **Clear local event
-filters** restores All for all four filters. Each edit or clear removes your event selection
+filters** restores All/Any for all six filters. Each edit or clear removes your event selection
 and event review detail, even if that event still matches. Select a visible
 exact event again before Review/Dismiss/Defer. Refresh and source/privacy
 changes also retire selection; no replacement is selected automatically.

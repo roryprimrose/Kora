@@ -20,6 +20,91 @@ namespace Kora.Windows.IntegrationTests;
 
 public sealed partial class LocalEventBrokerWindowTests
 {
+    public static TheoryData<SessionQueueEligibility> QueueReasons => new(Enum.GetValues<SessionQueueEligibility>());
+
+    [Theory]
+    [MemberData(nameof(QueueReasons))]
+    public async Task NativeQueueReasonChoicesHaveExactPositiveMatchesAndKeepQuestionMaintenanceAbsenceSeparate(SessionQueueEligibility eligibility)
+    {
+        await HeadlessSession.RunAsync(async () =>
+        {
+            using var f = new Fixture();
+            await f.Storage.InitializeAsync();
+            var now = f.Storage.Time.GetUtcNow();
+            LocalEvent Create(LocalEventSource source, LocalEventType type, RequestOrigin origin, SessionQueueEligibility? queue)
+            {
+                var subject = Guid.NewGuid();
+                return new(LocalEvent.Identity(source, f.Storage.Request.SessionId.Value, subject), 1, source, type,
+                    f.Storage.Request.SessionId, source == LocalEventSource.CachedMaintenance ? null : new HostId<TaskIdentity>(subject),
+                    subject, 1, 1, 0, origin, queue, now, now.AddMinutes(30));
+            }
+            var events = new[]
+            {
+                Create(LocalEventSource.LocalVersionQueue, LocalEventType.Blocked, RequestOrigin.LocalUi, eligibility),
+                Create(LocalEventSource.LocalVersionQueue, LocalEventType.Blocked, RequestOrigin.ActivatedVoice, eligibility),
+                Create(LocalEventSource.LocalVersionQuestion, LocalEventType.UserAttention, RequestOrigin.ActivatedVoice, null),
+                Create(LocalEventSource.CachedMaintenance, LocalEventType.MaintenanceAvailable, RequestOrigin.HostSystem, null),
+            };
+            var source = new PausedSource(new FrozenSource(events));
+            await using var broker = new LocalEventBroker(source, f.State, f.Access, f.Storage.Time,
+                f, NullLogger<LocalEventBroker>.Instance);
+            var viewer = f.Viewer(broker);
+            await viewer.RefreshAsync();
+            await viewer.SelectAsync(viewer.Sessions.Single());
+            var window = new SessionsWindow(viewer);
+            window.Show();
+            try
+            {
+                var loaded = viewer.LocalEvents.ToArray();
+                loaded.Should().HaveCount(4);
+                var reads = source.Reads;
+                var originControl = window.FindControl<ComboBox>("LocalEventOriginFilter")!;
+                var queueControl = window.FindControl<ComboBox>("LocalEventQueueReasonFilter")!;
+                foreach (var origin in viewer.LocalEventOriginFilters)
+                foreach (var queue in viewer.LocalEventQueueReasonFilters)
+                {
+                    originControl.SelectedItem = origin;
+                    queueControl.SelectedItem = queue;
+                    viewer.LocalEvents.Should().Equal(loaded.Where(new LocalEventFilter(Origin: origin.Value, QueueReason: queue.Value).Matches));
+                    AssertEventActionsDisabled(viewer, window);
+                }
+                viewer.ClearLocalEventFilters();
+                source.Reads.Should().Be(reads, "all native origin/queue choices filter loaded rows without another observation");
+                viewer.LocalEventQueueReasonFilter = new(LocalEventQueueReasonMatch.Exact, eligibility);
+                viewer.LocalEvents.Should().HaveCount(2).And.OnlyContain(row => row.Event.QueueReason == eligibility);
+                viewer.LocalEventOriginFilter = RequestOrigin.ActivatedVoice;
+                viewer.LocalEvents.Should().ContainSingle().Which.Event.Source.Should().Be(LocalEventSource.LocalVersionQueue);
+                viewer.LocalEventCategoryFilter = LocalEventCategory.Failure;
+                viewer.LocalEventSourceFilter = LocalEventSource.LocalVersionQueue;
+                viewer.LocalEventTypeFilter = LocalEventType.Blocked;
+                viewer.LocalEventReasonFilter = viewer.LocalEvents.Single().Reason;
+                viewer.SelectLocalEvent(viewer.LocalEvents.Single());
+                await viewer.ReviewLocalEventAsync();
+                reads = source.Reads;
+                viewer.LocalEventOriginFilter = RequestOrigin.LocalUi;
+                viewer.LocalEvents.Should().BeEmpty("the other origin has a different delivery reason; all six predicates remain AND");
+                viewer.Detail.Should().BeEmpty();
+                AssertEventActionsDisabled(viewer, window);
+                viewer.ClearLocalEventFilters();
+                viewer.LocalEventQueueReasonFilter = new(LocalEventQueueReasonMatch.None);
+                viewer.LocalEvents.Should().HaveCount(2).And.OnlyContain(row => row.Event.QueueReason == null
+                    && row.Event.Source != LocalEventSource.LocalVersionQueue);
+                viewer.LocalEventOriginFilter = RequestOrigin.HostSystem;
+                viewer.LocalEvents.Should().ContainSingle().Which.Event.Type.Should().Be(LocalEventType.MaintenanceAvailable);
+                viewer.SelectLocalEvent(viewer.LocalEvents.Single());
+                await viewer.ReviewLocalEventAsync();
+                reads = source.Reads;
+                viewer.LocalEventQueueReasonFilter = new(LocalEventQueueReasonMatch.Exact, eligibility);
+                viewer.LocalEvents.Should().BeEmpty();
+                viewer.Detail.Should().BeEmpty();
+                viewer.LocalEventFilterStatus.Should().Contain("0 of 4").And.Contain("No matching loaded events");
+                AssertEventActionsDisabled(viewer, window);
+                source.Reads.Should().Be(reads);
+            }
+            finally { window.Close(); }
+        });
+    }
+
     [WindowsFact]
     public async Task NativeTypedFiltersComposeWithoutReadsWritesActivitiesOrQuestionAndWorkEffects()
     {
@@ -79,6 +164,16 @@ public sealed partial class LocalEventBrokerWindowTests
                 var reasonControl = window.FindControl<ComboBox>("LocalEventReasonFilter")!;
                 var sourceControl = window.FindControl<ComboBox>("LocalEventSourceFilter")!;
                 var typeControl = window.FindControl<ComboBox>("LocalEventTypeFilter")!;
+                var originControl = window.FindControl<ComboBox>("LocalEventOriginFilter")!;
+                var queueControl = window.FindControl<ComboBox>("LocalEventQueueReasonFilter")!;
+                viewer.LocalEventOriginFilters.Select(option => option.Value).Should()
+                    .Equal([null, .. Enum.GetValues<RequestOrigin>().Select(value => (RequestOrigin?)value)]);
+                viewer.LocalEventOriginFilters.Select(option => option.ToString()).Should().Equal(["Any", .. Enum.GetNames<RequestOrigin>()]);
+                viewer.LocalEventQueueReasonFilters.Select(option => option.Value).Should().Equal(
+                    [new(), new(LocalEventQueueReasonMatch.None), .. Enum.GetValues<SessionQueueEligibility>()
+                        .Select(value => new LocalEventQueueReasonFilter(LocalEventQueueReasonMatch.Exact, value))]);
+                viewer.LocalEventQueueReasonFilters.Select(option => option.ToString()).Should()
+                    .Equal(["Any", "No queue reason / not applicable", .. Enum.GetNames<SessionQueueEligibility>()]);
                 ControlAutomationPeer.CreatePeerForElement(categoryControl)!.GetName().Should().Contain("authoritative category");
                 ControlAutomationPeer.CreatePeerForElement(reasonControl)!.GetName().Should().Contain("exact delivery reason");
                 foreach (var category in categories)
@@ -102,6 +197,39 @@ public sealed partial class LocalEventBrokerWindowTests
                         }
                     }
                 }
+                var questionRow = rows.Single();
+                viewer.LocalEventCategoryFilter = questionRow.Event.Category;
+                viewer.LocalEventReasonFilter = questionRow.Reason;
+                viewer.LocalEventSourceFilter = questionRow.Event.Source;
+                viewer.LocalEventTypeFilter = questionRow.Event.Type;
+                foreach (var origin in viewer.LocalEventOriginFilters)
+                foreach (var queue in viewer.LocalEventQueueReasonFilters)
+                {
+                    originControl.SelectedItem = origin;
+                    queueControl.SelectedItem = queue;
+                    viewer.LocalEvents.Should().Equal(rows.Where(new LocalEventFilter(questionRow.Event.Category,
+                        questionRow.Reason, questionRow.Event.Source, questionRow.Event.Type, origin.Value, queue.Value).Matches));
+                    AssertEventActionsDisabled(viewer, window);
+                    viewer.LocalEventStatus.Should().Be(snapshotStatus);
+                    viewer.PendingQuestions.Single().Key.Should().Be(question.Key);
+                }
+                viewer.ClearLocalEventFilters();
+                viewer.LocalEventOriginFilter = (RequestOrigin)99;
+                viewer.LocalEventOriginChoice.Value.Should().Be((RequestOrigin)99);
+                viewer.LocalEventFilterStatus.Should().Contain("Unknown");
+                viewer.LocalEvents.Should().BeEmpty();
+                viewer.ClearLocalEventFilters();
+                foreach (var invalid in new[] { new LocalEventQueueReasonFilter((LocalEventQueueReasonMatch)99),
+                    new(LocalEventQueueReasonMatch.Exact), new(LocalEventQueueReasonMatch.Exact, (SessionQueueEligibility)99),
+                    new(LocalEventQueueReasonMatch.None, SessionQueueEligibility.Ready) })
+                {
+                    viewer.LocalEventQueueReasonFilter = invalid;
+                    viewer.LocalEventQueueReasonChoice.Value.Should().Be(invalid);
+                    viewer.LocalEventQueueReasonChoice.ToString().Should().Be("Unknown");
+                    viewer.LocalEventFilterStatus.Should().Contain("Unknown");
+                    viewer.LocalEvents.Should().BeEmpty();
+                }
+                viewer.ClearLocalEventFilters();
                 viewer.LocalEventCategoryFilter = LocalEventCategory.Work;
                 viewer.LocalEventFilterStatus.Should().Contain("No matching loaded events").And.Contain("0 of 1");
                 viewer.LocalEventStatus.Should().Contain("omitted");
@@ -188,6 +316,18 @@ public sealed partial class LocalEventBrokerWindowTests
                 viewer.Detail.Should().BeEmpty();
                 AssertEventActionsDisabled(viewer, window);
                 viewer.SelectLocalEvent(row);
+                await viewer.ReviewLocalEventAsync();
+                viewer.LocalEventOriginFilter = row.Event.Origin;
+                viewer.LocalEvents.Should().ContainSingle();
+                viewer.Detail.Should().BeEmpty();
+                AssertEventActionsDisabled(viewer, window);
+                viewer.SelectLocalEvent(row);
+                await viewer.ReviewLocalEventAsync();
+                viewer.LocalEventQueueReasonFilter = new(LocalEventQueueReasonMatch.None);
+                viewer.LocalEvents.Should().ContainSingle("questions have no queue reason, not a successful queue receipt");
+                viewer.Detail.Should().BeEmpty();
+                AssertEventActionsDisabled(viewer, window);
+                viewer.SelectLocalEvent(row);
                 viewer.ClearLocalEventFilters();
                 AssertEventActionsDisabled(viewer, window);
                 viewer.LocalEventReasonFilter = row.Reason;
@@ -217,6 +357,8 @@ public sealed partial class LocalEventBrokerWindowTests
     [InlineData("filter")]
     [InlineData("source-filter")]
     [InlineData("type-filter")]
+    [InlineData("origin-filter")]
+    [InlineData("queue-filter")]
     [InlineData("clear-filters")]
     [InlineData("privacy")]
     [InlineData("revision")]
@@ -254,6 +396,8 @@ public sealed partial class LocalEventBrokerWindowTests
             case "filter": viewer.LocalEventCategoryFilter = LocalEventCategory.Attention; break;
             case "source-filter": viewer.LocalEventSourceFilter = null; break;
             case "type-filter": viewer.LocalEventTypeFilter = null; break;
+            case "origin-filter": viewer.LocalEventOriginFilter = RequestOrigin.LocalUi; break;
+            case "queue-filter": viewer.LocalEventQueueReasonFilter = new(LocalEventQueueReasonMatch.None); break;
             case "clear-filters": viewer.ClearLocalEventFilters(); break;
             case "privacy": f.Access.CanInspect = false; f.Access.CanControl = false; break;
             case "revision": f.Access.ControlRevision++; break;
@@ -342,6 +486,8 @@ public sealed partial class LocalEventBrokerWindowTests
     [InlineData("filter")]
     [InlineData("source-filter")]
     [InlineData("type-filter")]
+    [InlineData("origin-filter")]
+    [InlineData("queue-filter")]
     [InlineData("clear-filters")]
     [InlineData("privacy")]
     [InlineData("revision")]
@@ -376,6 +522,8 @@ public sealed partial class LocalEventBrokerWindowTests
             case "filter": viewer.LocalEventReasonFilter = LocalEventReason.Eligible; break;
             case "source-filter": viewer.LocalEventSourceFilter = null; break;
             case "type-filter": viewer.LocalEventTypeFilter = null; break;
+            case "origin-filter": viewer.LocalEventOriginFilter = RequestOrigin.LocalUi; break;
+            case "queue-filter": viewer.LocalEventQueueReasonFilter = new(LocalEventQueueReasonMatch.None); break;
             case "clear-filters": viewer.ClearLocalEventFilters(); break;
             case "privacy": f.Access.CanInspect = false; f.Access.CanControl = false; break;
             case "revision": f.Access.ControlRevision++; break;
@@ -408,6 +556,8 @@ public sealed partial class LocalEventBrokerWindowTests
         var row = viewer.LocalEvents.Single();
         viewer.LocalEventSourceFilter = row.Event.Source;
         viewer.LocalEventTypeFilter = row.Event.Type;
+        viewer.LocalEventOriginFilter = row.Event.Origin;
+        viewer.LocalEventQueueReasonFilter = new(LocalEventQueueReasonMatch.None);
         viewer.SelectLocalEvent(row);
         await viewer.ReviewLocalEventAsync();
         viewer.Detail.Should().NotBeEmpty();
@@ -439,6 +589,8 @@ public sealed partial class LocalEventBrokerWindowTests
         viewer.LocalEventCategoryFilter = LocalEventCategory.Attention;
         viewer.LocalEventSourceFilter = LocalEventSource.LocalVersionQuestion;
         viewer.LocalEventTypeFilter = LocalEventType.UserAttention;
+        viewer.LocalEventOriginFilter = RequestOrigin.LocalUi;
+        viewer.LocalEventQueueReasonFilter = new(LocalEventQueueReasonMatch.None);
         viewer.SelectLocalEvent(viewer.LocalEvents.Single());
         var task = await service.ExecuteCommandAsync(new(SessionCommandOperation.TaskInspect, f.Storage.Request.SessionId.Value)
         { TaskId = f.Storage.Request.TaskId.Value }, RequestOrigin.LocalUi, () => true, f.Token);
@@ -474,6 +626,8 @@ public sealed partial class LocalEventBrokerWindowTests
         var row = viewer.LocalEvents.Single();
         viewer.LocalEventSourceFilter = row.Event.Source;
         viewer.LocalEventTypeFilter = row.Event.Type;
+        viewer.LocalEventOriginFilter = row.Event.Origin;
+        viewer.LocalEventQueueReasonFilter = new(LocalEventQueueReasonMatch.None);
         viewer.SelectLocalEvent(row);
         await viewer.ReviewLocalEventAsync();
         viewer.Detail.Should().NotBeEmpty();
@@ -518,6 +672,8 @@ public sealed partial class LocalEventBrokerWindowTests
                 var reason = window.FindControl<ComboBox>("LocalEventReasonFilter")!;
                 var sourceFilter = window.FindControl<ComboBox>("LocalEventSourceFilter")!;
                 var type = window.FindControl<ComboBox>("LocalEventTypeFilter")!;
+                var origin = window.FindControl<ComboBox>("LocalEventOriginFilter")!;
+                var queue = window.FindControl<ComboBox>("LocalEventQueueReasonFilter")!;
                 var clear = window.FindControl<Button>("ClearLocalEventFilters")!;
                 ControlAutomationPeer.CreatePeerForElement(sourceFilter)!.GetName().Should().Be(
                     "Filter loaded local events by exact authoritative source or All; combines with category, reason and type and clears exact event selection");
@@ -525,13 +681,17 @@ public sealed partial class LocalEventBrokerWindowTests
                     "Filter loaded local events by exact authoritative type or All; combines with category, reason and source and clears exact event selection");
                 ControlAutomationPeer.CreatePeerForElement(clear)!.GetName().Should().Be(
                     "Show all already-loaded local events and clear exact selection; no source read or quiet change");
+                ControlAutomationPeer.CreatePeerForElement(origin)!.GetName().Should().Be(
+                    "Filter loaded local events by exact request origin or Any; combines with all event filters and clears exact event selection");
+                ControlAutomationPeer.CreatePeerForElement(queue)!.GetName().Should().Be(
+                    "Filter loaded local events by Any, No queue reason / not applicable, or exact queue eligibility reason; combines with all event filters and clears exact event selection; absence is not success or authority");
                 category.Focus().Should().BeTrue();
-                foreach (var next in new Control[] { reason, sourceFilter, type, clear })
+                foreach (var next in new Control[] { reason, sourceFilter, type, origin, queue, clear })
                 {
                     window.KeyPress(Key.Tab, RawInputModifiers.None, PhysicalKey.Tab, null);
                     window.FocusManager!.GetFocusedElement().Should().BeSameAs(next);
                 }
-                foreach (var previous in new Control[] { type, sourceFilter, reason, category })
+                foreach (var previous in new Control[] { queue, origin, type, sourceFilter, reason, category })
                 {
                     window.KeyPress(Key.Tab, RawInputModifiers.Shift, PhysicalKey.Tab, null);
                     window.FocusManager!.GetFocusedElement().Should().BeSameAs(previous);
@@ -551,11 +711,30 @@ public sealed partial class LocalEventBrokerWindowTests
                 window.KeyPress(Key.Down, RawInputModifiers.None, PhysicalKey.ArrowDown, null);
                 viewer.LocalEventTypeFilter.Should().Be(LocalEventType.Queued);
                 AssertEventActionsDisabled(viewer, window);
+                viewer.ClearLocalEventFilters();
+                viewer.SelectLocalEvent(viewer.LocalEvents.Single());
+                origin.Focus().Should().BeTrue();
+                window.KeyPress(Key.Down, RawInputModifiers.None, PhysicalKey.ArrowDown, null);
+                viewer.LocalEventOriginFilter.Should().Be(RequestOrigin.LocalUi);
+                AssertEventActionsDisabled(viewer, window);
+                viewer.SelectLocalEvent(viewer.LocalEvents.Single());
+                queue.Focus().Should().BeTrue();
+                window.KeyPress(Key.Down, RawInputModifiers.None, PhysicalKey.ArrowDown, null);
+                viewer.LocalEventQueueReasonFilter.Should().Be(new LocalEventQueueReasonFilter(LocalEventQueueReasonMatch.None));
+                viewer.LocalEvents.Should().ContainSingle();
+                AssertEventActionsDisabled(viewer, window);
+                window.KeyPress(Key.Down, RawInputModifiers.None, PhysicalKey.ArrowDown, null);
+                viewer.LocalEventQueueReasonFilter.Should().Be(new LocalEventQueueReasonFilter(LocalEventQueueReasonMatch.Exact, SessionQueueEligibility.Ready));
+                viewer.LocalEvents.Should().BeEmpty();
+                window.KeyPress(Key.Up, RawInputModifiers.None, PhysicalKey.ArrowUp, null);
+                viewer.LocalEvents.Should().ContainSingle();
                 clear.Focus().Should().BeTrue();
                 window.KeyPress(Key.Space, RawInputModifiers.None, PhysicalKey.Space, " ");
                 window.KeyRelease(Key.Space, RawInputModifiers.None, PhysicalKey.Space, " ");
                 viewer.LocalEventSourceFilter.Should().BeNull();
                 viewer.LocalEventTypeFilter.Should().BeNull();
+                viewer.LocalEventOriginFilter.Should().BeNull();
+                viewer.LocalEventQueueReasonFilter.Should().Be(default(LocalEventQueueReasonFilter));
                 AssertEventActionsDisabled(viewer, window);
                 var events = window.FindControl<ListBox>("EventRecords")!;
                 window.UpdateLayout();

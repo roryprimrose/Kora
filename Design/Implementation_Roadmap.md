@@ -155,10 +155,14 @@ unqualified, not implementation prerequisites.
 
 ### Bounded native Sessions local-event filters - 2026-10-14
 
-[Category, exact reason, authoritative source and type filters](Proactive_Interaction.md#native-content-free-loaded-event-filters)
+[Category, exact reason, authoritative source/type, request-origin and queue-reason filters](Proactive_Interaction.md#native-content-free-loaded-event-filters)
 compose over only the existing already-loaded bounded content-free rows.
 The 2026-10-15 Source/Type increment preserves exact AND and zero matches
 for impossible pairs, with no new source read or normalized choice.
+The bounded Origin/QueueReason increment adds exact `RequestOrigin` and explicit
+portable Any/None/Exact eligibility predicates. None means not applicable for
+questions/maintenance, never success or authority; all six predicates are AND
+and full row/view validation precedes exclusion.
 Edits immediately retire exact selection; source/privacy/workspace changes,
 refresh, failure/cancellation and stale callbacks remain fail closed.
 Matching/empty counts do not replace broker omissions or quiet status.

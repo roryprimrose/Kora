@@ -104,6 +104,36 @@ internal sealed partial class SessionsViewModel
         [new(new()), new(new(LocalEventQueueReasonMatch.None)),
             .. Enum.GetValues<SessionQueueEligibility>().Select(value =>
                 new LocalEventQueueReasonFilterOption(new(LocalEventQueueReasonMatch.Exact, value)))];
+    public string LocalEventSessionIdFilter
+    {
+        get => eventFilter.SessionId;
+        set
+        {
+            if (presentingEvents || !CanFilterLocalEvents || string.Equals(value, eventFilter.SessionId, StringComparison.Ordinal)) { return; }
+            eventFilter = eventFilter with { SessionId = value };
+            ChangeLocalEventFilters();
+        }
+    }
+    public string LocalEventTaskIdFilter
+    {
+        get => eventFilter.TaskId;
+        set
+        {
+            if (presentingEvents || !CanFilterLocalEvents || string.Equals(value, eventFilter.TaskId, StringComparison.Ordinal)) { return; }
+            eventFilter = eventFilter with { TaskId = value };
+            ChangeLocalEventFilters();
+        }
+    }
+    public string LocalEventSubjectIdFilter
+    {
+        get => eventFilter.SubjectId;
+        set
+        {
+            if (presentingEvents || !CanFilterLocalEvents || string.Equals(value, eventFilter.SubjectId, StringComparison.Ordinal)) { return; }
+            eventFilter = eventFilter with { SubjectId = value };
+            ChangeLocalEventFilters();
+        }
+    }
     public LocalEventFilterOption<LocalEventCategory> LocalEventCategoryChoice
     {
         get => LocalEventCategoryFilters.FirstOrDefault(option => option.Value == eventFilter.Category) ?? new(eventFilter.Category);
@@ -135,7 +165,7 @@ internal sealed partial class SessionsViewModel
         set { if (value is not null) { LocalEventQueueReasonFilter = value.Value; } }
     }
     public string LocalEventFilterStatus => !eventFilter.IsValid
-        ? "Unknown category, reason, source, type, origin or queue reason filter; no results. Clear filters to recover."
+        ? "Unknown category, reason, source, type, origin or queue reason, or invalid exact ID filter; no results. IDs require complete nonempty lowercase D GUIDs, or empty for Any. Clear filters to recover."
         : !EventSourceCurrent ? "No current bounded local-event snapshot. Refresh selected work; no empty source is inferred."
         : LocalEvents.Count.ToString(CultureInfo.InvariantCulture) + " of "
             + eventSnapshot!.Events.Count.ToString(CultureInfo.InvariantCulture)
@@ -341,6 +371,9 @@ internal sealed partial class SessionsViewModel
             OnPropertyChanged(nameof(LocalEventTypeFilter));
             OnPropertyChanged(nameof(LocalEventOriginFilter));
             OnPropertyChanged(nameof(LocalEventQueueReasonFilter));
+            OnPropertyChanged(nameof(LocalEventSessionIdFilter));
+            OnPropertyChanged(nameof(LocalEventTaskIdFilter));
+            OnPropertyChanged(nameof(LocalEventSubjectIdFilter));
             OnPropertyChanged(nameof(LocalEventCategoryChoice));
             OnPropertyChanged(nameof(LocalEventReasonChoice));
             OnPropertyChanged(nameof(LocalEventSourceChoice));

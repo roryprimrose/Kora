@@ -158,7 +158,12 @@ The [content-free loaded local-event inventory](Proactive_Interaction.md#native-
 has keyboard-accessible category/reason/source/type and exact request-origin/
 queue-eligibility-reason combos. Origin offers Any and every defined origin;
 queue reason distinctly offers Any, No queue reason / not applicable, and
-every exact eligibility reason. All six predicates are AND. Edits do not read:
+every exact eligibility reason. Three labelled, keyboard-accessible text fields
+add optional exact session/task/subject IDs: empty for Any, otherwise complete
+canonical lowercase `D` GUIDs only. All nine predicates are AND. Invalid input
+visibly matches nothing, without repair; missing task IDs never match an exact
+task. IDs remain correlation metadata, never session/task targets or
+navigation/action authority. Edits do not read:
 they recompute loaded rows and retire exact selection/details and late callbacks.
 Zero matches is truthful; a question/maintenance null queue reason confers no
 success, eligibility, question-answering or maintenance-navigation authority.

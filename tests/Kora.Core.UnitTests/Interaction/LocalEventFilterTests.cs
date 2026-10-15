@@ -7,6 +7,73 @@ namespace Kora.Core.UnitTests.Interaction;
 
 public sealed class LocalEventFilterTests
 {
+    [Theory]
+    [InlineData(null)]
+    [InlineData(" ")]
+    [InlineData("00000000-0000-0000-0000-000000000000")]
+    [InlineData("ABCDEF12-1234-4567-89AB-ABCDEF123456")]
+    [InlineData("abcdef121234456789ababcdef123456")]
+    [InlineData("{abcdef12-1234-4567-89ab-abcdef123456}")]
+    [InlineData("abcdef12-1234-4567-89ab-abcdef12345")]
+    [InlineData(" abcdef12-1234-4567-89ab-abcdef123456")]
+    [InlineData("abcdef12-1234-4567-89ab-abcdef123456 ")]
+    [InlineData("abcdef12-1234-4567-89ab-abcdef123456\n")]
+    [InlineData("abcdef12-1234-4567-89ab-abcdef12345g")]
+    public void IdentityAdmissionNeverRepairsOrBroadensInvalidText(string? value)
+    {
+        var row = new LocalEventView(LocalEventTests.Event(), LocalEventReason.Eligible, null);
+        foreach (var filter in new[] { new LocalEventFilter(SessionId: value!), new LocalEventFilter(TaskId: value!),
+            new LocalEventFilter(SubjectId: value!) })
+        {
+            filter.IsValid.Should().BeFalse();
+            filter.Matches(row).Should().BeFalse();
+            filter.Invoking(candidate => candidate.Matches(row with { Event = row.Event with { Revision = 0 } }))
+                .Should().Throw<InvalidDataException>();
+        }
+    }
+
+    [Fact]
+    public void ExactIdentitiesComposeWithAllMetadataAndNeverMatchAbsentTasks()
+    {
+        var rows = Enum.GetValues<LocalEventType>().Select(type =>
+            new LocalEventView(LocalEventTests.Event(type), LocalEventReason.Eligible, null)).ToArray();
+        var other = "abcdef12-1234-4567-89ab-abcdef123456";
+        foreach (var target in rows)
+        foreach (var session in new[] { "", target.Event.SessionId.Value.ToString("D"), other })
+        foreach (var task in new[] { "", target.Event.TaskId?.Value.ToString("D") ?? other, other })
+        foreach (var subject in new[] { "", target.Event.SubjectId.ToString("D"), other })
+        {
+            var filter = new LocalEventFilter(target.Event.Category, target.Reason, target.Event.Source,
+                target.Event.Type, target.Event.Origin,
+                target.Event.QueueReason is { } reason ? new(LocalEventQueueReasonMatch.Exact, reason)
+                    : new(LocalEventQueueReasonMatch.None), session, task, subject);
+            filter.IsValid.Should().BeTrue();
+            rows.Where(filter.Matches).Should().Equal(rows.Where(row =>
+                row.Event.Category == target.Event.Category && row.Reason == target.Reason
+                && row.Event.Source == target.Event.Source && row.Event.Type == target.Event.Type
+                && row.Event.Origin == target.Event.Origin && row.Event.QueueReason == target.Event.QueueReason
+                && (session.Length == 0 || string.Equals(row.Event.SessionId.Value.ToString("D"), session, StringComparison.Ordinal))
+                && (task.Length == 0 || row.Event.TaskId is { } id && string.Equals(id.Value.ToString("D"), task, StringComparison.Ordinal))
+                && (subject.Length == 0 || string.Equals(row.Event.SubjectId.ToString("D"), subject, StringComparison.Ordinal))));
+        }
+        var maintenance = rows.Single(row => row.Event.Source == LocalEventSource.CachedMaintenance);
+        new LocalEventFilter(TaskId: maintenance.Event.SubjectId.ToString("D")).Matches(maintenance).Should().BeFalse();
+        var queue = rows.First();
+        var exact = new LocalEventFilter(SessionId: queue.Event.SessionId.Value.ToString("D"),
+            TaskId: queue.Event.TaskId!.Value.Value.ToString("D"), SubjectId: queue.Event.SubjectId.ToString("D"));
+        foreach (var invalid in new[]
+        {
+            queue with { Event = queue.Event with { SessionId = default } },
+            queue with { Event = queue.Event with { TaskId = default(HostId<TaskIdentity>) } },
+            queue with { Event = queue.Event with { SubjectId = Guid.Empty } },
+            queue with { Reason = (LocalEventReason)99 },
+        })
+        {
+            exact.Invoking(filter => filter.Matches(invalid)).Should().Throw<InvalidDataException>();
+            new LocalEventFilter(SessionId: other).Invoking(filter => filter.Matches(invalid)).Should().Throw<InvalidDataException>();
+        }
+    }
+
     [Fact]
     public void EveryExactCategoryReasonSourceAndTypeComposeWithoutChangingRows()
     {

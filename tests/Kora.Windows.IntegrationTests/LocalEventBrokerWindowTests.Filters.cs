@@ -198,6 +198,14 @@ public sealed partial class LocalEventBrokerWindowTests
                     }
                 }
                 var questionRow = rows.Single();
+                viewer.ClearLocalEventFilters();
+                viewer.LocalEventSessionIdFilter = questionRow.Event.SessionId.Value.ToString("D");
+                viewer.LocalEventTaskIdFilter = questionRow.Event.TaskId!.Value.Value.ToString("D");
+                viewer.LocalEventSubjectIdFilter = questionRow.Event.SubjectId.ToString("D");
+                viewer.LocalEvents.Should().Equal(rows);
+                viewer.LocalEventSubjectIdFilter = "invalid";
+                viewer.LocalEvents.Should().BeEmpty();
+                viewer.ClearLocalEventFilters();
                 viewer.LocalEventCategoryFilter = questionRow.Event.Category;
                 viewer.LocalEventReasonFilter = questionRow.Reason;
                 viewer.LocalEventSourceFilter = questionRow.Event.Source;
@@ -359,6 +367,9 @@ public sealed partial class LocalEventBrokerWindowTests
     [InlineData("type-filter")]
     [InlineData("origin-filter")]
     [InlineData("queue-filter")]
+    [InlineData("session-id-filter")]
+    [InlineData("task-id-filter")]
+    [InlineData("subject-id-filter")]
     [InlineData("clear-filters")]
     [InlineData("privacy")]
     [InlineData("revision")]
@@ -398,6 +409,9 @@ public sealed partial class LocalEventBrokerWindowTests
             case "type-filter": viewer.LocalEventTypeFilter = null; break;
             case "origin-filter": viewer.LocalEventOriginFilter = RequestOrigin.LocalUi; break;
             case "queue-filter": viewer.LocalEventQueueReasonFilter = new(LocalEventQueueReasonMatch.None); break;
+            case "session-id-filter": viewer.LocalEventSessionIdFilter = f.Storage.Request.SessionId.Value.ToString("D"); break;
+            case "task-id-filter": viewer.LocalEventTaskIdFilter = f.Storage.Request.TaskId.Value.ToString("D"); break;
+            case "subject-id-filter": viewer.LocalEventSubjectIdFilter = Guid.NewGuid().ToString("D"); break;
             case "clear-filters": viewer.ClearLocalEventFilters(); break;
             case "privacy": f.Access.CanInspect = false; f.Access.CanControl = false; break;
             case "revision": f.Access.ControlRevision++; break;
@@ -488,6 +502,9 @@ public sealed partial class LocalEventBrokerWindowTests
     [InlineData("type-filter")]
     [InlineData("origin-filter")]
     [InlineData("queue-filter")]
+    [InlineData("session-id-filter")]
+    [InlineData("task-id-filter")]
+    [InlineData("subject-id-filter")]
     [InlineData("clear-filters")]
     [InlineData("privacy")]
     [InlineData("revision")]
@@ -524,6 +541,9 @@ public sealed partial class LocalEventBrokerWindowTests
             case "type-filter": viewer.LocalEventTypeFilter = null; break;
             case "origin-filter": viewer.LocalEventOriginFilter = RequestOrigin.LocalUi; break;
             case "queue-filter": viewer.LocalEventQueueReasonFilter = new(LocalEventQueueReasonMatch.None); break;
+            case "session-id-filter": viewer.LocalEventSessionIdFilter = f.Storage.Request.SessionId.Value.ToString("D"); break;
+            case "task-id-filter": viewer.LocalEventTaskIdFilter = f.Storage.Request.TaskId.Value.ToString("D"); break;
+            case "subject-id-filter": viewer.LocalEventSubjectIdFilter = Guid.NewGuid().ToString("D"); break;
             case "clear-filters": viewer.ClearLocalEventFilters(); break;
             case "privacy": f.Access.CanInspect = false; f.Access.CanControl = false; break;
             case "revision": f.Access.ControlRevision++; break;
@@ -624,6 +644,9 @@ public sealed partial class LocalEventBrokerWindowTests
         await viewer.RefreshAsync();
         await viewer.SelectAsync(viewer.Sessions.Single());
         var row = viewer.LocalEvents.Single();
+        viewer.LocalEventSessionIdFilter = row.Event.SessionId.Value.ToString("D");
+        viewer.LocalEventTaskIdFilter = row.Event.TaskId!.Value.Value.ToString("D");
+        viewer.LocalEventSubjectIdFilter = row.Event.SubjectId.ToString("D");
         viewer.LocalEventSourceFilter = row.Event.Source;
         viewer.LocalEventTypeFilter = row.Event.Type;
         viewer.LocalEventOriginFilter = row.Event.Origin;
@@ -674,6 +697,9 @@ public sealed partial class LocalEventBrokerWindowTests
                 var type = window.FindControl<ComboBox>("LocalEventTypeFilter")!;
                 var origin = window.FindControl<ComboBox>("LocalEventOriginFilter")!;
                 var queue = window.FindControl<ComboBox>("LocalEventQueueReasonFilter")!;
+                var sessionId = window.FindControl<TextBox>("LocalEventSessionIdFilter")!;
+                var taskId = window.FindControl<TextBox>("LocalEventTaskIdFilter")!;
+                var subjectId = window.FindControl<TextBox>("LocalEventSubjectIdFilter")!;
                 var clear = window.FindControl<Button>("ClearLocalEventFilters")!;
                 ControlAutomationPeer.CreatePeerForElement(sourceFilter)!.GetName().Should().Be(
                     "Filter loaded local events by exact authoritative source or All; combines with category, reason and type and clears exact event selection");
@@ -686,12 +712,17 @@ public sealed partial class LocalEventBrokerWindowTests
                 ControlAutomationPeer.CreatePeerForElement(queue)!.GetName().Should().Be(
                     "Filter loaded local events by Any, No queue reason / not applicable, or exact queue eligibility reason; combines with all event filters and clears exact event selection; absence is not success or authority");
                 category.Focus().Should().BeTrue();
-                foreach (var next in new Control[] { reason, sourceFilter, type, origin, queue, clear })
+                foreach (var field in new[] { sessionId, taskId, subjectId })
+                {
+                    ControlAutomationPeer.CreatePeerForElement(field)!.GetName().Should()
+                        .Contain("complete lowercase D GUID").And.Contain("correlation only, never retargets or authorizes");
+                }
+                foreach (var next in new Control[] { reason, sourceFilter, type, origin, queue, sessionId, taskId, subjectId, clear })
                 {
                     window.KeyPress(Key.Tab, RawInputModifiers.None, PhysicalKey.Tab, null);
                     window.FocusManager!.GetFocusedElement().Should().BeSameAs(next);
                 }
-                foreach (var previous in new Control[] { queue, origin, type, sourceFilter, reason, category })
+                foreach (var previous in new Control[] { subjectId, taskId, sessionId, queue, origin, type, sourceFilter, reason, category })
                 {
                     window.KeyPress(Key.Tab, RawInputModifiers.Shift, PhysicalKey.Tab, null);
                     window.FocusManager!.GetFocusedElement().Should().BeSameAs(previous);

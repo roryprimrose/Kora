@@ -380,6 +380,18 @@
             <ComboBox x:Name="LocalEventQueueReasonFilter" ItemsSource="{Binding LocalEventQueueReasonFilters}"
                       SelectedItem="{Binding LocalEventQueueReasonChoice}" IsEnabled="{Binding CanFilterLocalEvents}"
                       AutomationProperties.Name="Filter loaded local events by Any, No queue reason / not applicable, or exact queue eligibility reason; combines with all event filters and clears exact event selection; absence is not success or authority" />
+            <TextBlock Text="Local event session ID" VerticalAlignment="Center" />
+            <TextBox x:Name="LocalEventSessionIdFilter" Text="{Binding LocalEventSessionIdFilter}" Width="300"
+                     PlaceholderText="Any session ID (empty)" IsEnabled="{Binding CanFilterLocalEvents}"
+                     AutomationProperties.Name="Filter loaded local events by exact session ID; empty for Any, complete lowercase D GUID; AND with all filters; clears selection; correlation only, never retargets or authorizes" />
+            <TextBlock Text="Local event task ID" VerticalAlignment="Center" />
+            <TextBox x:Name="LocalEventTaskIdFilter" Text="{Binding LocalEventTaskIdFilter}" Width="300"
+                     PlaceholderText="Any task ID (empty)" IsEnabled="{Binding CanFilterLocalEvents}"
+                     AutomationProperties.Name="Filter loaded local events by exact task ID; empty for Any, complete lowercase D GUID; missing tasks never match; AND with all filters; clears selection; correlation only, never retargets or authorizes" />
+            <TextBlock Text="Local event subject ID" VerticalAlignment="Center" />
+            <TextBox x:Name="LocalEventSubjectIdFilter" Text="{Binding LocalEventSubjectIdFilter}" Width="300"
+                     PlaceholderText="Any subject ID (empty)" IsEnabled="{Binding CanFilterLocalEvents}"
+                     AutomationProperties.Name="Filter loaded local events by exact subject ID; empty for Any, complete lowercase D GUID; AND with all filters; clears selection; correlation only, never retargets or authorizes" />
             <Button x:Name="ClearLocalEventFilters" Content="Clear local event filters" IsEnabled="{Binding CanFilterLocalEvents}"
                     AutomationProperties.Name="Show all already-loaded local events and clear exact selection; no source read or quiet change" />
           </WrapPanel>
@@ -393,6 +405,9 @@
                 <StackPanel>
                   <TextBlock Text="{Binding DisplaySummary}" TextWrapping="Wrap" />
                   <TextBlock Text="{Binding Event.Id, StringFormat='Exact event {0}'}" />
+                  <TextBlock Text="{Binding Event.SessionId.Value, StringFormat='Session ID {0:D}'}" />
+                  <TextBlock Text="{Binding Event.TaskId.Value, StringFormat='Task ID {0:D}'}" />
+                  <TextBlock Text="{Binding Event.SubjectId, StringFormat='Subject ID {0:D}'}" />
                   <TextBlock Text="{Binding Event.Revision, StringFormat='Revision {0}'}" />
                   <TextBlock Text="{Binding Reason, StringFormat='Delivery state {0}'}" />
                   <TextBlock Text="{Binding Event.ExpiresAt, StringFormat='Original expiry {0:O}'}" />

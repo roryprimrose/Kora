@@ -16,6 +16,9 @@ public sealed record EvidenceQuery
     public Guid? CorrelationId { get; init; }
     public string? TraceId { get; init; }
     public string? SpanId { get; init; }
+    public string? ParentSpanId { get; init; }
+    public HostOperationOutcome? Outcome { get; init; }
+    public EvidenceContentAvailability ContentAvailability { get; init; }
     public DateTimeOffset? FromUtc { get; init; }
     public DateTimeOffset? UntilUtc { get; init; }
     public EvidenceSeverity? Severity { get; init; }
@@ -25,4 +28,15 @@ public sealed record EvidenceQuery
     public SecurityAuditOutcome? AuditOutcome { get; init; }
     public EvidencePropertyFilter? Property { get; init; }
     public string? Text { get; init; }
+
+    public bool MatchesRetainedMetadata(EvidenceRecord record) =>
+        (ParentSpanId is null || string.Equals(record.Trace?.ParentSpanId, ParentSpanId, StringComparison.Ordinal))
+        && (Outcome is null || record.Outcome == Outcome)
+        && (ContentAvailability switch
+        {
+            EvidenceContentAvailability.Any => true,
+            EvidenceContentAvailability.Present => !record.ContentOmitted,
+            EvidenceContentAvailability.Omitted => record.ContentOmitted,
+            _ => throw new InvalidOperationException("The evidence content availability is invalid."),
+        });
 }

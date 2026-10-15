@@ -8,6 +8,10 @@ public sealed record TraceSnapshot(
     string TraceId, string SpanId, string? ParentSpanId, ActivityTraceFlags Flags,
     string Source, string? SourceVersion, string Name, ActivityKind Kind)
 {
+    public static bool IsValidW3CId(string? value, int length) =>
+        value is not null && value.Length == length && value.Any(character => character != '0')
+        && value.All(character => character is >= '0' and <= '9' or >= 'a' and <= 'f');
+
     public static TraceSnapshot? Capture(Activity? activity) => activity is null ? null :
         new(activity.TraceId.ToHexString(), activity.SpanId.ToHexString(),
             activity.ParentSpanId == default ? null : activity.ParentSpanId.ToHexString(),

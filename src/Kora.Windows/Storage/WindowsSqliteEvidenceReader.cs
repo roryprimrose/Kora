@@ -260,7 +260,8 @@ public sealed class WindowsSqliteEvidenceReader(WindowsSqliteEvidenceSink sink) 
 
     internal static bool Matches(EvidenceRecord record, EvidenceQuery query)
     {
-        if (query.Severity is { } severity && !string.Equals(record.Level, severity.ToString(), StringComparison.Ordinal)
+        if (!query.MatchesRetainedMetadata(record)
+            || query.Severity is { } severity && !string.Equals(record.Level, severity.ToString(), StringComparison.Ordinal)
             || query.EventId is { } eventId && record.EventId != eventId
             || query.Category is { } category && !string.Equals(record.Category, category, StringComparison.Ordinal)
             || query.ActionId is { } action && !string.Equals(record.Audit?.ActionId, action, StringComparison.Ordinal)

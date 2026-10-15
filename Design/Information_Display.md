@@ -274,7 +274,7 @@ repair or reinterpretation occurs. Span ID composes with every existing
 source/text/identity/time/typed filter using AND; it is correlation only,
 never identity, permission or audit authority. Link records retain the existing
 source-or-target pair semantics: when both W3C IDs are specified, both must
-match the same end, not separate ends. ParentSpanId is not a filter.
+match the same end, not separate ends.
 Zero matches disclose only absence within the admitted filtered snapshot.
 Editing or emptying the field performs no read and immediately retires the
 page, selection, continuation and literal-Find state, including late callbacks.
@@ -298,6 +298,30 @@ requires All, Audit or AuthorityAudit. Unsupported choices fail visibly, not
 as empty success. **Clear advanced filters** unsets the optional fields/choices
 without reading. Malformed values, invalid ranges and undefined enum values
 never fall back to an unfiltered read.
+
+Advanced filters also expose exact **Parent Span ID**, **Host operation outcome**
+and **Content availability**. Only an empty parent span field means Any;
+nonempty input uses the same portable W3C validator as Trace/Span IDs (16
+lowercase hexadecimal characters, not all zero), without repair or case folding.
+Parent matching uses only the record's retained `Trace.ParentSpanId`, not linked
+targets or invented authority provenance. Outcome offers a visible accessible
+**Any** plus every defined `HostOperationOutcome`, matching `EvidenceRecord.Outcome`
+exactly; null outcomes match only Any, never an audit or interaction outcome.
+Content availability is an explicit Any/Present/Omitted discriminator:
+Present means `ContentOmitted == false`, Omitted means `true`. It does not infer
+body existence from text, retention or source, restore content, or prove integrity.
+These predicates AND with every existing filter, including Trace and Span IDs,
+after full bounded envelope/provenance validation. Missing metadata cannot match
+an exact predicate. A Present record exceeding the complete page byte budget
+fails explicitly rather than silently changing to Omitted; Any retains existing
+budget omission behavior. Empty results are only absence in this bounded snapshot.
+All three predicates bind the authenticated query digest/continuation and retain
+source, private, retention and snapshot fences. Editing reads nothing and cancels
+and retires page, selection, continuation and late callbacks; Clear advanced and
+close reset all three to Any. They are volatile correlation/presentation metadata,
+never identity, authority or evidence-integrity claims. No new navigation, body
+restoration, export/clipboard, persistence, filter logging/tags/audit payload,
+schema/index/cache, model/tool/speech route or activity renewal is added.
 
 Every basic/advanced filter edit clears previous content, selection and cursor,
 and cancels an in-flight read; late content cannot restore the retired query.

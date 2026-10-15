@@ -15,6 +15,9 @@ internal sealed partial class EvidenceViewModel
     private string taskFilter = string.Empty;
     private string traceFilter = string.Empty;
     private string spanFilter = string.Empty;
+    private string parentSpanFilter = string.Empty;
+    private OutcomeChoice outcome = OutcomeChoices[0];
+    private EvidenceContentAvailability contentAvailability;
     private string requestFilter = string.Empty;
     private string invocationFilter = string.Empty;
     private string approvalFilter = string.Empty;
@@ -29,6 +32,13 @@ internal sealed partial class EvidenceViewModel
 
     public static IReadOnlyList<EvidenceSeverity?> Severities { get; } = [null, .. Enum.GetValues<EvidenceSeverity>().Select(value => (EvidenceSeverity?)value)];
     public static IReadOnlyList<SecurityAuditOutcome?> AuditOutcomes { get; } = [null, .. Enum.GetValues<SecurityAuditOutcome>().Select(value => (SecurityAuditOutcome?)value)];
+    public sealed record OutcomeChoice(HostOperationOutcome? Value, string Label)
+    {
+        public override string ToString() => Label;
+    }
+    public static IReadOnlyList<OutcomeChoice> OutcomeChoices { get; } =
+        [new(null, "Any"), .. Enum.GetValues<HostOperationOutcome>().Select(value => new OutcomeChoice(value, value.ToString()))];
+    public static IReadOnlyList<EvidenceContentAvailability> ContentAvailabilities { get; } = Enum.GetValues<EvidenceContentAvailability>();
 
     public EvidenceSource Source { get => source; set => ChangeFilter(ref source, value); }
     public string SafeText { get => safeText; set => ChangeFilter(ref safeText, value); }
@@ -36,6 +46,9 @@ internal sealed partial class EvidenceViewModel
     public string TaskFilter { get => taskFilter; set => ChangeFilter(ref taskFilter, value); }
     public string TraceFilter { get => traceFilter; set => ChangeFilter(ref traceFilter, value); }
     public string SpanFilter { get => spanFilter; set => ChangeFilter(ref spanFilter, value); }
+    public string ParentSpanFilter { get => parentSpanFilter; set => ChangeFilter(ref parentSpanFilter, value); }
+    public OutcomeChoice Outcome { get => outcome; set => ChangeFilter(ref outcome, value); }
+    public EvidenceContentAvailability ContentAvailability { get => contentAvailability; set => ChangeFilter(ref contentAvailability, value); }
     public string RequestFilter { get => requestFilter; set => ChangeFilter(ref requestFilter, value); }
     public string InvocationFilter { get => invocationFilter; set => ChangeFilter(ref invocationFilter, value); }
     public string ApprovalFilter { get => approvalFilter; set => ChangeFilter(ref approvalFilter, value); }
@@ -50,6 +63,9 @@ internal sealed partial class EvidenceViewModel
 
     public void ClearAdvancedFilters()
     {
+        ParentSpanFilter = string.Empty;
+        Outcome = OutcomeChoices[0];
+        ContentAvailability = EvidenceContentAvailability.Any;
         RequestFilter = string.Empty;
         InvocationFilter = string.Empty;
         ApprovalFilter = string.Empty;
@@ -84,6 +100,9 @@ internal sealed partial class EvidenceViewModel
         TaskId = Identity<TaskIdentity>(TaskFilter),
         TraceId = string.IsNullOrEmpty(TraceFilter) ? null : TraceFilter,
         SpanId = string.IsNullOrEmpty(SpanFilter) ? null : SpanFilter,
+        ParentSpanId = string.IsNullOrEmpty(ParentSpanFilter) ? null : ParentSpanFilter,
+        Outcome = Outcome.Value,
+        ContentAvailability = ContentAvailability,
         RequestId = Identity<RequestIdentity>(RequestFilter),
         InvocationId = Identity<InvocationIdentity>(InvocationFilter),
         ApprovalId = Identifier(ApprovalFilter),

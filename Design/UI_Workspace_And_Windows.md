@@ -547,8 +547,16 @@ under the existing portable W3C policy. All existing filters compose with AND.
 Edits revoke the current page/selection/continuation without reading.
 Clear advanced preserves both basic W3C fields; emptying either unsets it,
 and close clears both. Span ID is correlation only, not session or audit
-authority. This adds no ParentSpanId predicate, navigation, export or model
-route; the broader mode below remains a target contract, not qualification.
+authority. Advanced filters also offer exact **Parent Span ID**, explicit
+**Host operation outcome** (Any plus every retained host outcome; null only
+matches Any) and **Content availability** (Any/Present/Omitted, based solely on
+`ContentOmitted`). Parent input uses the same strict W3C policy; all predicates
+AND, with full record validation before exclusion. Clear advanced resets these
+three choices to Any while preserving basic Trace/Span. Visible accessible Any
+choices are real selections, not null placeholders. These are passive volatile
+metadata, never identity, authority, integrity proof or content restoration.
+No new navigation, export or model route is added; the broader mode below
+remains a target contract, not qualification.
 
 Evidence mode provides a bounded local timeline/search over permitted session,
 diagnostic and security-audit records. It supports time range, source kind,

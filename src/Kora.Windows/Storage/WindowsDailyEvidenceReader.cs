@@ -288,7 +288,8 @@ public sealed partial class WindowsDailyEvidenceReader : IEvidenceReader
     private static bool Matches(EvidenceRecord record, EvidenceQuery query, HostRequest viewer)
     {
         var host = record.Host;
-        if (host?.RequestId == viewer.RequestId || query.Source is not (EvidenceSource.All or EvidenceSource.DailyLog)
+        if (!query.MatchesRetainedMetadata(record)
+            || host?.RequestId == viewer.RequestId || query.Source is not (EvidenceSource.All or EvidenceSource.DailyLog)
             || query.Record is { } reference && reference != record.Reference
             || query.SessionId is { } session && host?.SessionId != session
             || query.TaskId is { } task && host?.TaskId != task

@@ -65,7 +65,7 @@ jobs:
           "already-published=$($state.AlreadyPublished.ToString().ToLowerInvariant())" >> $env:GITHUB_OUTPUT
 
   portable:
-    name: Portable build, tests and package
+    name: Portable build, tests, coverage, and package
     runs-on: ubuntu-latest
     timeout-minutes: 20
     needs: version

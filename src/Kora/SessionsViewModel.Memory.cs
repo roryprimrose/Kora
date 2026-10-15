@@ -13,6 +13,7 @@ internal sealed partial class SessionsViewModel
     private long memoryListControl;
     private Kora.Core.Authorization.WorkSessionAuthorization? memorySource;
     private string memoryIdFilter = string.Empty;
+    private MemoryScopeKind? memoryScopeFilter;
     private MemoryReviewState? memoryReviewFilter;
     private MemoryRetentionState? memoryRetentionFilter;
     private bool memoryMutationReady;
@@ -37,6 +38,16 @@ internal sealed partial class SessionsViewModel
             ChangeMemoryFilters();
         }
     }
+    public MemoryScopeKind? MemoryScopeFilter
+    {
+        get => memoryScopeFilter;
+        set
+        {
+            if (notifying || !CanFilterMemories || value == memoryScopeFilter) { return; }
+            memoryScopeFilter = value;
+            ChangeMemoryFilters();
+        }
+    }
     public MemoryReviewState? MemoryReviewFilter
     {
         get => memoryReviewFilter;
@@ -57,10 +68,17 @@ internal sealed partial class SessionsViewModel
             ChangeMemoryFilters();
         }
     }
+    public IReadOnlyList<MemoryFilterOption<MemoryScopeKind>> MemoryScopeFilters { get; } =
+        [new(null), .. Enum.GetValues<MemoryScopeKind>().Select(value => new MemoryFilterOption<MemoryScopeKind>(value))];
     public IReadOnlyList<MemoryFilterOption<MemoryReviewState>> MemoryReviewFilters { get; } =
         [new(null), .. Enum.GetValues<MemoryReviewState>().Select(value => new MemoryFilterOption<MemoryReviewState>(value))];
     public IReadOnlyList<MemoryFilterOption<MemoryRetentionState>> MemoryRetentionFilters { get; } =
         [new(null), .. Enum.GetValues<MemoryRetentionState>().Select(value => new MemoryFilterOption<MemoryRetentionState>(value))];
+    public MemoryFilterOption<MemoryScopeKind> MemoryScopeChoice
+    {
+        get => MemoryScopeFilters.FirstOrDefault(option => option.Value == memoryScopeFilter) ?? new(memoryScopeFilter);
+        set { if (value is not null) { MemoryScopeFilter = value.Value; } }
+    }
     public MemoryFilterOption<MemoryReviewState> MemoryReviewChoice
     {
         get => MemoryReviewFilters.FirstOrDefault(option => option.Value == memoryReviewFilter) ?? new(memoryReviewFilter);
@@ -77,6 +95,7 @@ internal sealed partial class SessionsViewModel
     {
         if (notifying || !CanFilterMemories) { return; }
         memoryIdFilter = string.Empty;
+        memoryScopeFilter = null;
         memoryReviewFilter = null;
         memoryRetentionFilter = null;
         ChangeMemoryFilters();
@@ -102,19 +121,17 @@ internal sealed partial class SessionsViewModel
 
     private void ApplyMemoryFilters()
     {
-        var exact = Guid.Empty;
-        var validId = memoryIdFilter.Length == 0 || Guid.TryParseExact(memoryIdFilter, "D", out exact)
-            && exact != Guid.Empty && memoryIdFilter.Equals(exact.ToString("D"), StringComparison.OrdinalIgnoreCase);
-        var validStates = (memoryReviewFilter is null || Enum.IsDefined(memoryReviewFilter.Value))
-            && (memoryRetentionFilter is null || Enum.IsDefined(memoryRetentionFilter.Value));
-        visibleMemoryRows = !validId || !validStates ? [] : [.. memoryRows.Where(row =>
-            Enum.IsDefined(row.Review) && Enum.IsDefined(row.Retention)
-            && (memoryIdFilter.Length == 0 || row.Id == exact)
-            && (memoryReviewFilter is null || row.Review == memoryReviewFilter)
-            && (memoryRetentionFilter is null || row.Retention == memoryRetentionFilter))];
-        MemoryFilterStatus = !validId ? "Enter a complete nonempty canonical D memory GUID, or clear it for Any."
-            : !validStates ? "Unknown Review or Retention filter; no results. Clear filters to recover."
-            : $"{visibleMemoryRows.Count} of {memoryRows.Count} snapshot memories. Metadata only; select and inspect again before actions. List explicitly to refresh.";
+        try
+        {
+            var filter = new MemoryMetadataFilter(memoryIdFilter, memoryScopeFilter, memoryReviewFilter, memoryRetentionFilter);
+            visibleMemoryRows = [.. memoryRows.Where(filter.Matches)];
+            MemoryFilterStatus = $"{visibleMemoryRows.Count} of {memoryRows.Count} snapshot memories. Metadata only; select and inspect again before actions. List explicitly to refresh.";
+        }
+        catch (InvalidDataException exception)
+        {
+            visibleMemoryRows = [];
+            MemoryFilterStatus = exception.Message;
+        }
     }
     public MemorySummary? SelectedMemory => MemorySourceCurrent ? selectedMemory : null;
     public string MemoryDetail => MemorySourceCurrent ? memoryDetail : string.Empty;
@@ -239,6 +256,7 @@ internal sealed partial class SessionsViewModel
         memoryListed = false;
         memorySource = null;
         memoryIdFilter = string.Empty;
+        memoryScopeFilter = null;
         memoryReviewFilter = null;
         memoryRetentionFilter = null;
         MemoryFilterStatus = "List explicitly before filtering metadata.";
@@ -265,6 +283,8 @@ internal sealed partial class SessionsViewModel
             OnPropertyChanged(nameof(CanDisableMemory));
             OnPropertyChanged(nameof(CanFilterMemories));
             OnPropertyChanged(nameof(MemoryIdFilter));
+            OnPropertyChanged(nameof(MemoryScopeFilter));
+            OnPropertyChanged(nameof(MemoryScopeChoice));
             OnPropertyChanged(nameof(MemoryReviewFilter));
             OnPropertyChanged(nameof(MemoryRetentionFilter));
             OnPropertyChanged(nameof(MemoryReviewChoice));

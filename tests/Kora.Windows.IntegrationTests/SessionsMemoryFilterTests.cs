@@ -2,8 +2,11 @@ using System.Collections.Immutable;
 using System.Diagnostics;
 
 using Avalonia.Automation.Peers;
+using Avalonia.Automation.Provider;
 using Avalonia.Controls;
+using Avalonia.Headless;
 using Avalonia.Input;
+using Avalonia.Input.Raw;
 using Avalonia.Interactivity;
 using Avalonia.LogicalTree;
 
@@ -37,7 +40,10 @@ public sealed class SessionsMemoryFilterTests
         await using var f = await Fixture.Create();
         f.Model.CanFilterMemories.Should().BeFalse();
         f.Model.MemoryIdFilter = "not admitted before List";
+        f.Model.MemoryScopeFilter = MemoryScopeKind.Source;
         f.Model.MemoryIdFilter.Should().BeEmpty();
+        f.Model.MemoryScopeFilter.Should().BeNull();
+        f.Model.MemoryScopeChoice.Should().BeSameAs(f.Model.MemoryScopeFilters[0]);
         foreach (var state in new[] { "proposed", "reviewed", "rejected", "enabled", "disabled", "forgotten" })
         {
             await f.CreateMemory(state);
@@ -46,34 +52,43 @@ public sealed class SessionsMemoryFilterTests
         var snapshot = f.Model.MemoryRecords.ToArray();
         snapshot.Should().HaveCount(6);
         MemoryReviewState?[] reviews = [null, .. Enum.GetValues<MemoryReviewState>().Select(value => (MemoryReviewState?)value)];
+        MemoryScopeKind?[] scopes = [null, .. Enum.GetValues<MemoryScopeKind>().Select(value => (MemoryScopeKind?)value)];
         MemoryRetentionState?[] retentions = [null, .. Enum.GetValues<MemoryRetentionState>().Select(value => (MemoryRetentionState?)value)];
         f.Model.MemoryReviewFilters.Select(option => option.Value).Should()
             .Equal(reviews);
         f.Model.MemoryRetentionFilters.Select(option => option.Value).Should()
             .Equal(retentions);
         f.Model.MemoryReviewFilters[0].ToString().Should().Be("Any");
+        f.Model.MemoryScopeFilters.Select(option => option.Value).Should().Equal(scopes);
+        f.Model.MemoryScopeFilters[0].ToString().Should().Be("Any");
         f.Model.MemoryRetentionFilters[0].ToString().Should().Be("Any");
         var calls = f.Store.Calls;
         var activities = f.Activities;
         var logs = f.Logger.Messages.ToArray();
         var bytes = File.ReadAllBytes(f.Storage.DatabasePath);
         var clock = await f.Storage.Store.ReadRetentionAsync(f.Storage.Request.SessionId, f.Storage.Token);
-        foreach (var review in reviews)
+        foreach (var scope in scopes)
         {
-            foreach (var retention in retentions)
+            f.Model.MemoryScopeFilter = scope;
+            foreach (var review in reviews)
             {
-                f.Model.MemoryReviewFilter = review;
-                f.Model.MemoryRetentionFilter = retention;
-                f.Model.MemoryRecords.Should().Equal(snapshot.Where(row =>
-                    (review is null || row.Review == review) && (retention is null || row.Retention == retention)));
-                foreach (var row in snapshot)
+                foreach (var retention in retentions)
                 {
-                    f.Model.MemoryIdFilter = row.Id.ToString("D").ToUpperInvariant();
-                    f.Model.MemoryRecords.Should().Equal(snapshot.Where(candidate =>
-                        candidate.Id == row.Id && (review is null || candidate.Review == review)
-                        && (retention is null || candidate.Retention == retention)));
+                    f.Model.MemoryReviewFilter = review;
+                    f.Model.MemoryRetentionFilter = retention;
+                    f.Model.MemoryRecords.Should().Equal(snapshot.Where(row =>
+                        (scope is null || row.Scope.Kind == scope)
+                        && (review is null || row.Review == review) && (retention is null || row.Retention == retention)));
+                    foreach (var row in snapshot)
+                    {
+                        f.Model.MemoryIdFilter = row.Id.ToString("D").ToUpperInvariant();
+                        f.Model.MemoryRecords.Should().Equal(snapshot.Where(candidate =>
+                            candidate.Id == row.Id && (review is null || candidate.Review == review)
+                            && (scope is null || candidate.Scope.Kind == scope)
+                            && (retention is null || candidate.Retention == retention)));
+                    }
+                    f.Model.MemoryIdFilter = string.Empty;
                 }
-                f.Model.MemoryIdFilter = string.Empty;
             }
         }
         f.Model.ClearMemoryFilters();
@@ -87,6 +102,11 @@ public sealed class SessionsMemoryFilterTests
             f.Model.MemoryRecords.Should().BeEmpty();
             f.Model.MemoryFilterStatus.Should().Contain("canonical D");
         }
+        f.Model.ClearMemoryFilters();
+        f.Model.MemoryScopeFilter = (MemoryScopeKind)99;
+        f.Model.MemoryScopeChoice.Value.Should().Be((MemoryScopeKind)99);
+        f.Model.MemoryRecords.Should().BeEmpty();
+        f.Model.MemoryFilterStatus.Should().Contain("Unknown").And.Contain("Clear filters");
         f.Model.ClearMemoryFilters();
         f.Model.MemoryReviewFilter = (MemoryReviewState)99;
         f.Model.MemoryRecords.Should().BeEmpty();
@@ -108,6 +128,7 @@ public sealed class SessionsMemoryFilterTests
 
     [Theory]
     [InlineData("id")]
+    [InlineData("scope")]
     [InlineData("review")]
     [InlineData("retention")]
     [InlineData("clear")]
@@ -127,6 +148,7 @@ public sealed class SessionsMemoryFilterTests
         switch (field)
         {
             case "id": f.Model.MemoryIdFilter = row.Id.ToString("D"); break;
+            case "scope": f.Model.MemoryScopeFilter = row.Scope.Kind; break;
             case "review": f.Model.MemoryReviewFilter = row.Review; break;
             case "retention": f.Model.MemoryRetentionFilter = row.Retention; break;
             case "clear": f.Model.ClearMemoryFilters(); break;
@@ -226,6 +248,7 @@ public sealed class SessionsMemoryFilterTests
         await f.Model.ListMemoriesAsync();
         var row = f.Model.MemoryRecords.Single();
         f.Model.MemoryIdFilter = row.Id.ToString("D");
+        f.Model.MemoryScopeFilter = MemoryScopeKind.Session;
         f.Model.SelectMemory(row);
         await f.Model.InspectMemoryAsync();
         if (boundary is "session") { await f.Model.SelectAsync(null); }
@@ -253,7 +276,7 @@ public sealed class SessionsMemoryFilterTests
             var refresh = f.Model.ListMemoriesAsync();
             await f.Store.Entered.Task.WaitAsync(f.Storage.Token);
             if (boundary is "cancel-close") { f.Model.Close(); }
-            else { f.Model.MemoryReviewFilter = MemoryReviewState.Proposed; }
+            else { f.Model.MemoryScopeFilter = MemoryScopeKind.Source; }
             AssertRetired(f.Model);
             f.Store.Release.SetResult();
             await refresh;
@@ -269,6 +292,7 @@ public sealed class SessionsMemoryFilterTests
             f.Model.MemoryRecords.Should().BeEmpty();
             f.Model.CanFilterMemories.Should().BeFalse();
             f.Model.MemoryIdFilter.Should().BeEmpty();
+            f.Model.MemoryScopeFilter.Should().BeNull();
             AssertRetired(f.Model);
         }
     }
@@ -292,20 +316,41 @@ public sealed class SessionsMemoryFilterTests
                 window.UpdateLayout();
                 var id = window.FindControl<TextBox>("MemoryIdFilter")!;
                 var review = window.FindControl<ComboBox>("MemoryReviewFilter")!;
+                var scope = window.FindControl<ComboBox>("MemoryScopeFilter")!;
                 var retention = window.FindControl<ComboBox>("MemoryRetentionFilter")!;
                 var clear = window.FindControl<Button>("ClearMemoryFilters")!;
                 id.Focus().Should().BeTrue();
+                scope.SelectedIndex.Should().Be(0);
+                scope.SelectedItem.Should().BeSameAs(f.Model.MemoryScopeFilters[0]);
+                scope.SelectionBoxItem!.ToString().Should().Be("Any");
+                review.SelectedIndex.Should().Be(0);
+                retention.SelectedIndex.Should().Be(0);
+                ControlAutomationPeer.CreatePeerForElement(scope)!.GetName().Should()
+                    .Contain("Scope").And.Contain("Any").And.Contain("not permission");
+                var scopeSelection = ControlAutomationPeer.CreatePeerForElement(scope)!.GetProvider<ISelectionProvider>()!;
+                scopeSelection.Should().NotBeNull();
+                scopeSelection.GetSelection().Should().ContainSingle();
                 ControlAutomationPeer.CreatePeerForElement(id)!.GetName().Should().Contain("metadata only");
                 ControlAutomationPeer.CreatePeerForElement(review)!.GetName().Should().Contain("Review").And.Contain("Any");
                 ControlAutomationPeer.CreatePeerForElement(retention)!.GetName().Should().Contain("Retention").And.Contain("Any");
                 ControlAutomationPeer.CreatePeerForElement(clear)!.GetName().Should().Contain("retire selection");
                 review.Focus().Should().BeTrue();
+                scope.Focus().Should().BeTrue();
                 retention.Focus().Should().BeTrue();
                 clear.Focus().Should().BeTrue();
                 id.Focus().Should().BeTrue();
                 var calls = f.Store.Calls;
+                scope.Focus().Should().BeTrue();
+                window.KeyPress(Key.Down, RawInputModifiers.None, PhysicalKey.ArrowDown, null);
+                f.Model.MemoryScopeFilter.Should().Be(MemoryScopeKind.Unknown);
+                f.Model.MemoryRecords.Should().BeEmpty();
+                window.KeyPress(Key.Up, RawInputModifiers.None, PhysicalKey.ArrowUp, null);
+                f.Model.MemoryScopeFilter.Should().BeNull();
                 id.Text = f.Model.MemoryRecords.Single().Id.ToString("D");
                 f.Model.MemoryIdFilter.Should().Be(id.Text);
+                scope.SelectedIndex = 4;
+                f.Model.MemoryScopeFilter.Should().Be(MemoryScopeKind.Project);
+                f.Model.MemoryRecords.Should().BeEmpty();
                 review.SelectedIndex = 2;
                 f.Model.MemoryReviewFilter.Should().Be(MemoryReviewState.Reviewed);
                 f.Model.MemoryRecords.Should().BeEmpty();
@@ -315,6 +360,8 @@ public sealed class SessionsMemoryFilterTests
                 id.IsFocused.Should().BeTrue();
                 id.Text.Should().BeEmpty();
                 f.Model.MemoryReviewFilter.Should().BeNull();
+                f.Model.MemoryScopeFilter.Should().BeNull();
+                scope.SelectedIndex.Should().Be(0);
                 f.Model.MemoryRetentionFilter.Should().BeNull();
                 review.SelectedIndex.Should().Be(0);
                 retention.SelectedIndex.Should().Be(0);
@@ -338,6 +385,66 @@ public sealed class SessionsMemoryFilterTests
         model.CanAdmitMemory.Should().BeFalse();
         model.CanEditMemory.Should().BeFalse();
         model.CanDisableMemory.Should().BeFalse();
+    }
+
+    [WindowsFact]
+    public async Task MalformedSnapshotRowsCannotHideBehindScopeExclusionOrLeavePartialResults()
+    {
+        await using var f = await Fixture.Create();
+        await f.CreateMemory("enabled");
+        await f.Model.ListMemoriesAsync();
+        var row = f.Model.MemoryRecords.Single();
+        f.Model.SelectMemory(row);
+        await f.Model.InspectMemoryAsync();
+        var calls = f.Store.Calls;
+        var field = typeof(SessionsViewModel).GetField("memoryRows",
+            System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!;
+        foreach (var malformed in new[] { row with { Id = Guid.Empty }, row with { Revision = 0 },
+            row with { Scope = null! }, row with { Review = (MemoryReviewState)99 },
+            row with { Retention = (MemoryRetentionState)99 },
+            row with { CreatedAt = row.CreatedAt.ToOffset(TimeSpan.FromHours(-1)) } })
+        {
+            field.SetValue(f.Model, new[] { row, malformed });
+            f.Model.ClearMemoryFilters();
+            f.Model.MemoryScopeFilter = MemoryScopeKind.Source;
+            f.Model.MemoryRecords.Should().BeEmpty();
+            f.Model.MemoryFilterStatus.Should().Contain("Invalid memory snapshot").And.Contain("List explicitly");
+            AssertRetired(f.Model);
+        }
+        f.Store.Calls.Should().Be(calls);
+        await f.Model.ListMemoriesAsync();
+        f.Model.MemoryRecords.Should().BeEmpty("Source is a metadata predicate, not access to another source");
+        f.Model.MemoryFilterStatus.Should().StartWith("0 of 1");
+        f.Model.ClearMemoryFilters();
+        f.Model.MemoryRecords.Should().Equal(row);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task ScopeEditFencesLateInspectionAndFailedRefreshWithoutRevivingDetailOrReadiness(bool fail)
+    {
+        await using var f = await Fixture.Create();
+        await f.CreateMemory("enabled");
+        await f.Model.ListMemoriesAsync();
+        var row = f.Model.MemoryRecords.Single();
+        f.Model.SelectMemory(row);
+        await f.Model.InspectMemoryAsync();
+        f.Model.MemoryDraft = "unsubmitted";
+        f.Store.Hold = true;
+        f.Store.Fail = fail;
+        var pending = fail ? f.Model.ListMemoriesAsync() : f.Model.InspectMemoryAsync();
+        await f.Store.Entered.Task.WaitAsync(f.Storage.Token);
+        var calls = f.Store.Calls;
+        f.Model.MemoryScopeFilter = MemoryScopeKind.Session;
+        AssertRetired(f.Model);
+        f.Store.Calls.Should().Be(calls);
+        f.Store.Release.SetResult();
+        await pending;
+        AssertRetired(f.Model);
+        f.Model.MemoryRecords.Should().BeEmpty();
+        f.Model.CanFilterMemories.Should().BeFalse();
+        f.Model.Status.Should().Contain("unavailable/denied").And.Contain("Refresh durable state");
     }
 
     private sealed class Fixture : IAsyncDisposable
@@ -414,12 +521,14 @@ public sealed class SessionsMemoryFilterTests
     {
         internal int Calls { get; private set; }
         internal bool Hold { get; set; }
+        internal bool Fail { get; set; }
         internal TaskCompletionSource Entered { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         internal TaskCompletionSource Release { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         public async ValueTask<MemoryBoundary> ReadMemoryBoundaryAsync(HostRequest request, long controlRevision, CancellationToken token)
         {
             Calls++;
             if (Hold) { Entered.SetResult(); await Release.Task.WaitAsync(token); }
+            if (Fail) { throw new InvalidDataException("Memory storage is unavailable."); }
             return await inner.ReadMemoryBoundaryAsync(request, controlRevision, token);
         }
 

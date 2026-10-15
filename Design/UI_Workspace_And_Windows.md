@@ -194,6 +194,18 @@ queue payload. There is no composer, model management, Ask Evidence, export,
 rich browser, new worker/effect/provider or full R14/A4 acceptance. Maintained
 headless focus/accessible-name checks are not installed screen-reader/DPI proof.
 
+### Delivered Session Memory Scope Metadata Filter - 2026-10-15
+
+The separate **Sessions > Session memories** surface exposes exact GUID plus
+**Scope**, **Review** and **Retention** metadata filters over its already-loaded
+bounded snapshot. Each enum starts with visibly selected **Any**; all predicates
+are AND. Scope is not permission or provider authority. Edits retire selection,
+inspection, draft and pending callbacks without reads; explicit **List** alone
+refreshes the source. Undefined filters or malformed row metadata show no results
+and explicit recovery, not a partial list. See the
+[memory filter contract](Model_Providers_Memory_And_Knowledge.md#delivered-native-content-free-session-memory-filters---2026-10-14).
+Headless keyboard/focus and automation checks are not installed accessibility qualification.
+
 ### Delivered Retained Session Attachment Catalogue - 2026-10-11
 
 **Tray > Retained session attachments** is a separate native metadata-only window, not the current-question recovery surface, All Work overview, model context or a conversation. Opening reads nothing. Refresh/Next/Cancel returns at most sixteen content-free summaries / 64 KiB, scanning sixty-four slots; optional removal provenance is independent of the sixteen retained-body cap.

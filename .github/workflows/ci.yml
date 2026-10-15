@@ -318,7 +318,7 @@ jobs:
             **/packages.lock.json
 
       - name: Restore locked dependencies
-        run: dotnet restore tests/Kora.Windows.IntegrationTests/Kora.Windows.IntegrationTests.csproj --locked-mode --runtime win-x64
+        run: dotnet restore tests/Kora.Windows.IntegrationTests/Kora.Windows.IntegrationTests.csproj --locked-mode
 
       - name: Build Windows integration tests without restore
         run: dotnet build tests/Kora.Windows.IntegrationTests/Kora.Windows.IntegrationTests.csproj --configuration Release --runtime win-x64 --no-restore

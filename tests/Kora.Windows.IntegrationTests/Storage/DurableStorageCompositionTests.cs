@@ -19,7 +19,7 @@ using Microsoft.Extensions.Logging;
 
 namespace Kora.Windows.IntegrationTests.Storage;
 
-[Collection(nameof(DurableStorageCompositionTestGroup))]
+[Collection(nameof(ProcessGlobalEvidenceTestGroup))]
 public sealed class DurableStorageCompositionTests
 {
     private const string RootVariable = "KORA_OWNED_COMPOSITION_CHILD_ROOT";

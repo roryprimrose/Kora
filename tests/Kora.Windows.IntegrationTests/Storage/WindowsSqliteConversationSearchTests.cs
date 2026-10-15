@@ -7,7 +7,6 @@ using Kora.Core.Hosting;
 
 namespace Kora.Windows.IntegrationTests.Storage;
 
-[Collection(nameof(DurableStorageCompositionTestGroup))]
 public sealed class WindowsSqliteConversationSearchTests
 {
     [Fact]

@@ -18,7 +18,6 @@ using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Kora.Windows.IntegrationTests.Storage;
 
-[Collection(nameof(DurableStorageCompositionTestGroup))]
 public sealed class WindowsSqliteDiagnosticRetentionTests
 {
     private static readonly string[] AuthorityPartitions = ["HostStorageV1", "InteractionStorageV1"];

@@ -12,7 +12,6 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace Kora.Windows.IntegrationTests.Storage;
 
-[Collection(nameof(DurableStorageCompositionTestGroup))]
 public sealed class WindowsSqliteProviderProfileConfigurationTests
 {
     [Fact]

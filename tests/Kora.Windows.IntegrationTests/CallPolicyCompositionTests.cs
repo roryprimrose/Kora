@@ -10,7 +10,6 @@ using Kora.Windows.IntegrationTests.Storage;
 
 namespace Kora.Windows.IntegrationTests;
 
-[Collection(nameof(DurableStorageCompositionTestGroup))]
 public sealed class CallPolicyCompositionTests
 {
     [Theory]

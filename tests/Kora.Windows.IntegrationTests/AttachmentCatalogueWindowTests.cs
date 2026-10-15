@@ -4,6 +4,7 @@ using Avalonia.Automation.Peers;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
+using Avalonia.Threading;
 using Avalonia.VisualTree;
 
 using AwesomeAssertions;
@@ -25,7 +26,7 @@ using Microsoft.Extensions.Logging;
 
 namespace Kora.Windows.IntegrationTests;
 
-[Collection(nameof(DurableStorageCompositionTestGroup))]
+[Collection(nameof(HeadlessUiTestGroup))]
 public sealed class AttachmentCatalogueWindowTests
 {
     [WindowsFact]
@@ -496,6 +497,7 @@ public sealed class AttachmentCatalogueWindowTests
                     model.Status.Should().NotContain("unavailable");
                     model.Records.Should().ContainSingle();
                     await Task.Run(fixture.AdvanceLifecycleTargetAsync);
+                    await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Background);
                     model.Records.Should().BeEmpty();
                     model.SelectedDetails.Should().BeEmpty();
                     model.QueryText.Should().BeEmpty();

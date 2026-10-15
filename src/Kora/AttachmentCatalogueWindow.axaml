@@ -28,6 +28,17 @@
       </WrapPanel>
       <controls:NamedTextBlock Text="{Binding QueryHint}" TextWrapping="Wrap" />
       <controls:NamedTextBlock Text="{Binding MediaTypeHint}" TextWrapping="Wrap" />
+      <WrapPanel>
+        <ComboBox x:Name="AttachmentCopyStatus" ItemsSource="{Binding CopyStatuses}" SelectedItem="{Binding CopyStatus, Mode=TwoWay}"
+                  IsEnabled="{Binding CanEdit}" AutomationProperties.Name="Exact copy status: Any, Confirmed, Held or Unavailable; changing performs no read" />
+        <TextBox x:Name="AttachmentMinimumBytes" Text="{Binding MinimumBytesText, Mode=TwoWay}" Width="200"
+                 PlaceholderText="Minimum stored bytes (Any)" IsEnabled="{Binding CanEdit}"
+                 AutomationProperties.Name="Inclusive minimum retained stored bytes; empty means Any; unsigned invariant digits only; typing performs no read" />
+        <TextBox x:Name="AttachmentMaximumBytes" Text="{Binding MaximumBytesText, Mode=TwoWay}" Width="200"
+                 PlaceholderText="Maximum stored bytes (Any)" IsEnabled="{Binding CanEdit}"
+                 AutomationProperties.Name="Inclusive maximum retained stored bytes; empty means Any; unsigned invariant digits only; typing performs no read" />
+      </WrapPanel>
+      <controls:NamedTextBlock Text="{Binding CopyAndBytesHint}" TextWrapping="Wrap" />
       <TextBox x:Name="AttachmentMetadataText" Text="{Binding MetadataText, Mode=TwoWay}" Width="700"
                PlaceholderText="Optional literal metadata (IDs, digest or media type)"
                HorizontalAlignment="Left" IsEnabled="{Binding CanEdit}"
@@ -47,7 +58,7 @@
               <TextBlock Text="{Binding SessionState, StringFormat='Stored session: {0}'}" />
               <TextBlock Text="{Binding CopyStatus, StringFormat='Copy certification: {0}'}" />
               <TextBlock Text="{Binding StorageRevision.Value, StringFormat='Storage revision: {0}'}" />
-              <TextBlock Text="{Binding StoredBytes, StringFormat='Stored original bytes: {0}'}" />
+              <TextBlock Text="{Binding RetainedStoredBytes, StringFormat='Stored original bytes: {0}', TargetNullValue='Stored original bytes: unavailable (removed provenance; no size claim)'}" />
               <TextBlock Text="{Binding MediaType}" />
               <TextBlock Text="{Binding CapturedAt, StringFormat='Captured UTC: {0:O}'}" />
               <TextBlock Text="{Binding File.Digest, StringFormat='Original digest header: {0}'}" TextWrapping="Wrap" />

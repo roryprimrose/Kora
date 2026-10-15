@@ -1,5 +1,3 @@
-using System.Globalization;
-
 using Kora.Core.Conversation;
 
 namespace Kora.Core.Storage;
@@ -42,9 +40,9 @@ public sealed record SavedDraftMetadataFilter
 
     public static SavedDraftMetadataFilter Parse(string revision, string minimum, string maximum,
         string minimumScalars = "", string maximumScalars = "") =>
-        new(ParseOptionalUnsignedDecimal(revision), ParseOptionalUnsignedDecimal(minimum),
-            ParseOptionalUnsignedDecimal(maximum), ParseOptionalUnsignedDecimal(minimumScalars),
-            ParseOptionalUnsignedDecimal(maximumScalars));
+        new(OptionalUnsignedDecimal.Parse(revision), OptionalUnsignedDecimal.Parse(minimum),
+            OptionalUnsignedDecimal.Parse(maximum), OptionalUnsignedDecimal.Parse(minimumScalars),
+            OptionalUnsignedDecimal.Parse(maximumScalars));
 
     public static bool IsValid(string revision, string minimum, string maximum,
         string minimumScalars = "", string maximumScalars = "")
@@ -53,13 +51,4 @@ public sealed record SavedDraftMetadataFilter
         catch (InvalidDataException) { return false; }
     }
 
-    private static long? ParseOptionalUnsignedDecimal(string text)
-    {
-        ArgumentNullException.ThrowIfNull(text);
-        if (text.Length == 0) { return null; }
-        if (text.Any(character => character is < '0' or > '9')
-            || !long.TryParse(text, NumberStyles.None, CultureInfo.InvariantCulture, out var value))
-        { throw new InvalidDataException("Enter invariant decimal integers only; no signs, whitespace, separators or overflow. Empty means Any."); }
-        return value;
-    }
 }

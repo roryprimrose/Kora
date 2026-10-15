@@ -29,6 +29,31 @@ The optional **Exact retained media type: All (default) / text/plain / text/mark
 
 `LiteralMetadataQuery` is the authoritative single-line strict-Unicode policy: at most 256 UTF-16 units / 512 UTF-8 bytes; no controls, format or line/paragraph separators. Spaces and punctuation remain exact literals, with no trimming, normalization, wildcard, ranking or fallback. The native empty field disables literal filtering; a supplied empty query is invalid. Typing does no I/O; explicit Search/Enter and Next retain full validation of nonmatching slots and bounded audit segments. Text stays memory-only, is excluded from query/page serialization and never enters persistence, audit, diagnostics, Activity tags/Baggage, exports, transcripts or model/network context. Run-local authenticated cursors bind a keyed fingerprint, not the text. Any literal edit retires rows, exact selection, continuation and pending work; Clear, revocation and close clear the literal too. End-of-observation no-match is labelled without claiming a global total.
 
+The optional **Exact copy status: Any (default) / Confirmed / Held / Unavailable**
+and inclusive **minimum / maximum retained stored bytes** compose by AND with
+every existing predicate. Status matches validated typed metadata exactly;
+Any is a non-null, visibly/accessibly selected native choice. Empty byte fields
+mean Any. The shared `OptionalUnsignedDecimal` parser (also used for saved-draft
+metadata) accepts only invariant ASCII decimal digits: no signs, whitespace,
+separators, overflow, clamping or repair. Typed query validation enforces
+**0 through `LocalFilePolicy.MaximumBytes` (262,144), inclusive, minimum <= maximum**.
+Open-ended and equal-ended ranges are supported. Confirmed and Held retained
+metadata can match byte ranges, without granting Held navigation or claiming
+current body integrity. Unavailable/removed tombstones never match any byte
+predicate, including 0..0: their validated zero is a sentinel, not an original
+size. Native rows label that size unavailable and selected details omit it.
+Tombstones can match exact Unavailable only when removal/lifecycle and all other
+predicates allow them. Every scanned summary and bounded authority prefix is
+fully validated before exclusion. Continuations bind all three typed fields
+alongside every existing query/source/private/control/head fence.
+Editing performs no read and synchronously revokes page, selection, navigation,
+continuation and pending callbacks. Clear query preserves these filters;
+source/private/control revocation and disposal clear them. Zero matches remain
+truthful bounded observations, never fallback or aggregate totals.
+This increment changes no schema/index/cache, persistence, bytes/path/content
+read, copy/delete/recovery operation, logs/tags/audit payload, model/tool/speech/
+export authority or meaningful-activity renewal.
+
 - Each page returns at most **sixteen summaries / 64 KiB**, scanning at most **sixty-four slots**. Retained-only is the default; **Include removed slots** shows content-free removal provenance. Historical slots are not the sixteen-live-body cap. A retained-only page can have zero matches and a valid Next.
 - **Stored session lifecycle: All (default) / Active / Done / Removed** filters only fully validated current metadata, independently of Browse/ExactId and **Include removed slots**. All preserves prior catalogue behavior. Removed sessions can have only content-free removed slots, so Removed without Include removed slots yields no rows; Active/Done can also have removed slots.
 - Complete typed audit authority is checked in bounded **4,096-commit segments**, before attachment rows are disclosed. Pending-authority pages are explicitly labelled and contain no attachment summaries; Next continues validation. The existing five-second private lease/SQLite progress budget and five-second cancellation deadline remain finite.

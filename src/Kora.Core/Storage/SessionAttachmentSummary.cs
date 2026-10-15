@@ -11,6 +11,10 @@ public sealed record SessionAttachmentSummary(
     AttachmentSessionState SessionState, LocalFileReference File, long StoredBytes, string MediaType,
     DateTimeOffset CapturedAt, AttachmentCopyStatus CopyStatus)
 {
+    /// <summary>Unavailable slots carry a zero sentinel, not an original-size observation.</summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public long? RetainedStoredBytes => CopyStatus == AttachmentCopyStatus.Unavailable ? null : StoredBytes;
+
     public void Validate()
     {
         if (ObservationSource == Guid.Empty || Profile.Value == Guid.Empty || Session.Value == Guid.Empty

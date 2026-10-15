@@ -205,6 +205,19 @@ Exact IDs, current stored lifecycle, capture/storage generations, source/revisio
 
 Selecting metadata grants nothing. **Open exact session/attachment** uses fresh existing private workspace and full stored-byte inspection, refusing stale/replaced/removed/held references rather than opening newer content. Current Done inspection stays Done and never resumes, dispatches, renews meaningful activity, triggers cleanup or retargets a current question.
 
+The exact-copy-status picker has a real selected **Any** item plus every defined
+status. Minimum/maximum retained stored-byte fields are optional, inclusive and
+strict invariant unsigned decimal; invalid or inverted bounds disable Search
+without repair. They compose with all existing filters, not navigation authority.
+Unavailable tombstone sizes are labelled unavailable, never displayed as an
+original zero-byte file; selected details omit their sentinel size. Byte bounds
+exclude tombstones even for 0..0. Search/Enter remains explicit; edits revoke
+page/selection/navigation/continuation/late callbacks without a read. Clear query
+preserves these filters; source/private/control revocation and close clear them.
+The [canonical metadata contract](File_And_Folder_Ingestion.md#delivered-retained-attachment-metadata-catalogue---2026-10-11)
+owns bounds and validation. Maintained headless focus/accessible-selection checks
+qualify this I subset, not installed screen-reader or native acceptance.
+
 Publisher/inspection revocation, lifecycle/disposition/retention, query/selection/private control, cancellation/close/disposal clear page and exact navigation immediately; asynchronous callbacks remain bound to the original owned window and selected reference. Existing native file reviews/controls must be quiescent before navigation. Full inert source/citation lifetime remains owned by the existing attachment controller.
 
 [Canonical limits and evidence](File_And_Folder_Ingestion.md#delivered-retained-attachment-metadata-catalogue---2026-10-11) qualify this consumer only; no managed knowledge, new source consent, body/capture/copy mutation, schema/index/cache, model/network or installed/native acceptance is claimed.

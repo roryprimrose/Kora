@@ -23,6 +23,9 @@ internal sealed partial class AttachmentCatalogueViewModel(
     private bool includeRemoved;
     private SessionAttachmentFilter filter;
     private string mediaType = "All";
+    private AttachmentCopyStatusChoice copyStatus = new(null);
+    private string minimumBytesText = string.Empty;
+    private string maximumBytesText = string.Empty;
     private AttachmentCatalogueMode mode;
     private string queryText = string.Empty;
     private string metadataText = string.Empty;
@@ -34,12 +37,22 @@ internal sealed partial class AttachmentCatalogueViewModel(
 
     public IReadOnlyList<SessionAttachmentSummary> Records => page?.Records ?? [];
     public SessionAttachmentSummary? SelectedRecord => selected;
-    public string SelectedDetails => selected is null ? string.Empty : JsonSerializer.Serialize(selected);
+    public string SelectedDetails
+    {
+        get
+        {
+            if (selected is null) { return string.Empty; }
+            var details = JsonSerializer.SerializeToNode(selected)!.AsObject();
+            if (selected.CopyStatus == AttachmentCopyStatus.Unavailable)
+            { details.Remove(nameof(SessionAttachmentSummary.StoredBytes)); }
+            return details.ToJsonString();
+        }
+    }
     public string Status => status;
     public bool CanEdit => !disposed && access.CanInspect && admitted();
     public bool CanEditId => CanEdit && mode == AttachmentCatalogueMode.ExactId;
     public bool CanRead => CanEdit && operation is null;
-    public bool CanSearch => CanRead && ValidMetadataText && ValidMediaType && Enum.IsDefined(filter) && (mode == AttachmentCatalogueMode.Browse
+    public bool CanSearch => CanRead && ValidCopyAndBytes && ValidMetadataText && ValidMediaType && Enum.IsDefined(filter) && (mode == AttachmentCatalogueMode.Browse
         || SessionListSearch.IsValid(SessionListSearchKind.ExactId, SessionListFilter.All, queryText));
     public bool CanNext => CanSearch && page?.Next is not null;
     public bool CanCancel => !disposed && operation is not null;
@@ -47,6 +60,61 @@ internal sealed partial class AttachmentCatalogueViewModel(
     public IReadOnlyList<AttachmentCatalogueMode> Modes { get; } = Enum.GetValues<AttachmentCatalogueMode>();
     public IReadOnlyList<SessionAttachmentFilter> Filters { get; } = Enum.GetValues<SessionAttachmentFilter>();
     public IReadOnlyList<string> MediaTypes { get; } = ["All", LocalFileMediaType.PlainText, LocalFileMediaType.Markdown];
+    public IReadOnlyList<AttachmentCopyStatusChoice> CopyStatuses { get; } =
+        [new(null), .. Enum.GetValues<AttachmentCopyStatus>().Select(value => new AttachmentCopyStatusChoice(value))];
+    public AttachmentCopyStatusChoice CopyStatus
+    {
+        get => copyStatus;
+        set
+        {
+            if (!CanEdit || copyStatus == value) { return; }
+            InvalidateQuery();
+            copyStatus = value;
+            Notify();
+        }
+    }
+    public string MinimumBytesText
+    {
+        get => minimumBytesText;
+        set
+        {
+            if (!CanEdit || string.Equals(minimumBytesText, value, StringComparison.Ordinal)) { return; }
+            InvalidateQuery();
+            minimumBytesText = value;
+            Notify();
+        }
+    }
+    public string MaximumBytesText
+    {
+        get => maximumBytesText;
+        set
+        {
+            if (!CanEdit || string.Equals(maximumBytesText, value, StringComparison.Ordinal)) { return; }
+            InvalidateQuery();
+            maximumBytesText = value;
+            Notify();
+        }
+    }
+    private SessionAttachmentQuery CopyAndBytesQuery()
+    {
+        if (copyStatus is null) { throw new InvalidDataException("Choose Any or a defined copy status."); }
+        return new(copyStatus: copyStatus.Status, minimumStoredBytes: OptionalUnsignedDecimal.Parse(minimumBytesText),
+            maximumStoredBytes: OptionalUnsignedDecimal.Parse(maximumBytesText));
+    }
+    private bool ValidCopyAndBytes
+    {
+        get
+        {
+            try { _ = CopyAndBytesQuery(); return true; }
+            catch (InvalidDataException) { return false; }
+        }
+    }
+    public string CopyAndBytesHint => ValidCopyAndBytes
+        ? "Copy status is exact; Any disables it. Inclusive retained stored-byte bounds: empty means Any; invariant digits only, 0 through "
+            + LocalFilePolicy.MaximumBytes.ToString(CultureInfo.InvariantCulture)
+            + ", minimum <= maximum. Unavailable tombstones never match byte bounds; Held metadata grants no navigation. Editing performs no read."
+        : "Invalid copy status or stored-byte bounds. Choose Any or a defined status; use only unsigned invariant digits, 0 through "
+            + LocalFilePolicy.MaximumBytes.ToString(CultureInfo.InvariantCulture) + ", minimum <= maximum. No repair, fallback or read.";
     public string MediaType
     {
         get => mediaType;
@@ -148,9 +216,11 @@ internal sealed partial class AttachmentCatalogueViewModel(
     public Task Refresh(bool next = false) => Run(async (current, token) =>
     {
         if (!ValidMediaType) { throw new InvalidDataException("Unknown or noncanonical exact media-type filter."); }
+        var bounds = CopyAndBytesQuery();
         var query = new SessionAttachmentQuery(includeRemoved,
             mode == AttachmentCatalogueMode.Browse ? null : queryText, filter,
-            metadataText.Length == 0 ? null : metadataText, string.Equals(mediaType, "All", StringComparison.Ordinal) ? null : mediaType);
+            metadataText.Length == 0 ? null : metadataText, string.Equals(mediaType, "All", StringComparison.Ordinal) ? null : mediaType,
+            bounds.CopyStatus, bounds.MinimumStoredBytes, bounds.MaximumStoredBytes);
         var cursor = next ? page?.Next ?? throw new InvalidOperationException("Refresh before Next.") : null;
         Clear();
         var result = await read(query, cursor, current, token);
@@ -163,7 +233,8 @@ internal sealed partial class AttachmentCatalogueViewModel(
             + result.AuditScannedRows.ToString(CultureInfo.InvariantCulture) + " authority commits validated. "
             + (result.AuthorityValidationPending ? "Authority validation pending; Next continues before any attachment row is disclosed. "
                 : result.Next is not null ? "More slots remain. Next may follow an empty nonmatching page. "
-                    : result.Records.IsEmpty && (query.MetadataText is not null || query.ExactMediaType is not null)
+                    : result.Records.IsEmpty && (query.MetadataText is not null || query.ExactMediaType is not null
+                        || query.CopyStatus is not null || query.MinimumStoredBytes is not null || query.MaximumStoredBytes is not null)
                         ? "No matching retained metadata on this bounded page under these filters; end of this observation, not a global total; no fallback. "
                     : result.Records.IsEmpty && query.ExactId is not null
                         ? "Exact attachment slot not found under this filter at this observation; no fallback to Browse. "
@@ -234,7 +305,7 @@ internal sealed partial class AttachmentCatalogueViewModel(
         epoch++;
         operation?.Cancel();
         Clear();
-        status = "Query/mode/session lifecycle/media type/removal filter edited. Page, continuation and selection cleared; explicit Search/Refresh required.";
+        status = "Query/mode/session lifecycle/media type/copy status/byte bounds/removal filter edited. Page, continuation and selection cleared; explicit Search/Refresh required.";
     }
 
     internal void SynchronizeAuthority()
@@ -253,6 +324,9 @@ internal sealed partial class AttachmentCatalogueViewModel(
         mode = AttachmentCatalogueMode.Browse;
         queryText = string.Empty;
         metadataText = string.Empty;
+        copyStatus = CopyStatuses[0];
+        minimumBytesText = string.Empty;
+        maximumBytesText = string.Empty;
         status = "Private source, lifecycle, retention or attachment changed. Page and selection cleared; refresh.";
         Notify();
     }
@@ -276,6 +350,9 @@ internal sealed partial class AttachmentCatalogueViewModel(
         includeRemoved = false;
         filter = SessionAttachmentFilter.All;
         mediaType = "All";
+        copyStatus = CopyStatuses[0];
+        minimumBytesText = string.Empty;
+        maximumBytesText = string.Empty;
         mode = AttachmentCatalogueMode.Browse;
         queryText = string.Empty;
         metadataText = string.Empty;
@@ -299,6 +376,10 @@ internal sealed partial class AttachmentCatalogueViewModel(
         OnPropertyChanged(nameof(Filter));
         OnPropertyChanged(nameof(MediaType));
         OnPropertyChanged(nameof(MediaTypeHint));
+        OnPropertyChanged(nameof(CopyStatus));
+        OnPropertyChanged(nameof(MinimumBytesText));
+        OnPropertyChanged(nameof(MaximumBytesText));
+        OnPropertyChanged(nameof(CopyAndBytesHint));
         OnPropertyChanged(nameof(Mode));
         OnPropertyChanged(nameof(QueryText));
         OnPropertyChanged(nameof(MetadataText));

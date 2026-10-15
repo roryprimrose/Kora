@@ -36,7 +36,10 @@ internal sealed partial class AllWorkViewModel(
     public SessionWorkOverviewRow? SelectedRecord => selected;
     public IReadOnlyList<SessionListFilter> Filters { get; } = Enum.GetValues<SessionListFilter>();
     public IReadOnlyList<SessionListSearchKind> QueryKinds { get; } = Enum.GetValues<SessionListSearchKind>();
-    public sealed record AvailabilityChoice(SessionWorkOverviewAvailability? Value, string Label);
+    public sealed record AvailabilityChoice(SessionWorkOverviewAvailability? Value, string Label)
+    {
+        public override string ToString() => Label;
+    }
     public IReadOnlyList<AvailabilityChoice> AvailabilityChoices { get; } =
     [
         new(null, "Any"),
@@ -126,6 +129,15 @@ internal sealed partial class AllWorkViewModel(
             availability = value;
             status = "Observation availability filter changed. No read performed; Refresh. Unavailable is not empty work.";
             Notify();
+        }
+    }
+    public AvailabilityChoice SelectedAvailabilityChoice
+    {
+        get => AvailabilityChoices.Single(choice => choice.Value == availability);
+        set
+        {
+            ArgumentNullException.ThrowIfNull(value);
+            Availability = value.Value;
         }
     }
 
@@ -248,6 +260,7 @@ internal sealed partial class AllWorkViewModel(
         OnPropertyChanged(nameof(SelectedDetails));
         OnPropertyChanged(nameof(Filter));
         OnPropertyChanged(nameof(Availability));
+        OnPropertyChanged(nameof(SelectedAvailabilityChoice));
         OnPropertyChanged(nameof(QueryText));
         OnPropertyChanged(nameof(QueryKind));
         OnPropertyChanged(nameof(QueryHint));

@@ -128,6 +128,15 @@ internal sealed partial class AllWorkViewModel(
             Notify();
         }
     }
+    public AvailabilityChoice SelectedAvailabilityChoice
+    {
+        get => AvailabilityChoices.Single(choice => choice.Value == availability);
+        set
+        {
+            ArgumentNullException.ThrowIfNull(value);
+            Availability = value.Value;
+        }
+    }
 
     public void Select(SessionWorkOverviewRow? row)
     {
@@ -248,6 +257,7 @@ internal sealed partial class AllWorkViewModel(
         OnPropertyChanged(nameof(SelectedDetails));
         OnPropertyChanged(nameof(Filter));
         OnPropertyChanged(nameof(Availability));
+        OnPropertyChanged(nameof(SelectedAvailabilityChoice));
         OnPropertyChanged(nameof(QueryText));
         OnPropertyChanged(nameof(QueryKind));
         OnPropertyChanged(nameof(QueryHint));

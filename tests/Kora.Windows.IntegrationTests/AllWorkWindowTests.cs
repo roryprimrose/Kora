@@ -43,6 +43,11 @@ public sealed class AllWorkWindowTests
             {
                 var control = window.FindControl<ComboBox>("ObservationAvailability")!;
                 var peer = ControlAutomationPeer.CreatePeerForElement(control)!;
+                control.SelectedIndex.Should().Be(0);
+                control.SelectedItem.Should().BeSameAs(model.AvailabilityChoices[0]);
+                model.SelectedAvailabilityChoice.Label.Should().Be("Any");
+                var selection = peer.GetProvider<ISelectionProvider>()!;
+                selection.GetSelection().Should().ContainSingle().Which.GetName().Should().Be("Any");
                 peer.GetName().Should().Contain("changing performs no read").And.Contain("unavailable is not empty work");
                 peer.GetProvider<ISelectionProvider>().Should().NotBeNull();
                 model.AvailabilityChoices.Select(choice => choice.Label).Should()
@@ -86,6 +91,7 @@ public sealed class AllWorkWindowTests
                 invalid.Should().Throw<ArgumentOutOfRangeException>();
                 held.Fail = true;
                 model.Availability = SessionWorkOverviewAvailability.ReadUnavailable;
+                control.SelectedIndex.Should().Be(3);
                 await model.RefreshAsync();
                 model.Records.Single().Availability.Should().Be(SessionWorkOverviewAvailability.ReadUnavailable);
                 model.NeedsAnswer = true;

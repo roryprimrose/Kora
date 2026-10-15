@@ -38,7 +38,7 @@ public sealed record ArtifactDefinition
         }
         Source = ValidateIdentifier(source, nameof(source), 64);
         Version = ValidateIdentifier(version, nameof(version), 64);
-        Digest = ValidateDigest(digest);
+        Digest = ArtifactDigest.Validate(digest);
         Content = ValidateText(content, nameof(content), MaximumContentLength);
     }
 
@@ -94,14 +94,4 @@ public sealed record ArtifactDefinition
         return value;
     }
 
-    private static string ValidateDigest(string value)
-    {
-        ArgumentException.ThrowIfNullOrWhiteSpace(value);
-        if (value.Length != 64 || value.Any(character =>
-            character is not (>= 'a' and <= 'f' or >= '0' and <= '9')))
-        {
-            throw new ArgumentException("An artifact requires a lowercase SHA-256 digest.", nameof(value));
-        }
-        return value;
-    }
 }

@@ -1,6 +1,5 @@
 using System.Collections.Immutable;
 
-using Kora.Core.Hosting;
 using Kora.Core.Storage;
 
 namespace Kora.Application.Hosting;
@@ -10,17 +9,20 @@ public sealed partial class SessionWorkspaceService
     private readonly Guid listSearchHost = Guid.NewGuid();
 
     public Task<SessionListSearchPage> SearchListAsync(SessionListSearchKind kind, SessionListFilter filter,
-        string query, SessionListSearchCursor? cursor, int limit, CancellationToken token) =>
+        string query, SessionListSearchCursor? cursor, int limit, CancellationToken token,
+        long? minimumGeneration = null, long? maximumGeneration = null,
+        long? minimumMetadataRevision = null, long? maximumMetadataRevision = null) =>
         ReadAsync(async () =>
         {
             token.ThrowIfCancellationRequested();
-            var search = new SessionListSearch(kind, filter, query);
+            var search = new SessionListSearch(kind, filter, query, minimumGeneration, maximumGeneration,
+                minimumMetadataRevision, maximumMetadataRevision);
             SessionListSearchPage.ValidateLimit(limit);
             cursor?.Validate(listSearchHost, access.ControlRevision, search);
             if (search.ExactId is { } id)
             {
                 var entry = await store.ReadMetadataAsync(new(id), token).ConfigureAwait(false);
-                ValidateListEntry(entry);
+                SessionListSearch.ValidateEntry(entry);
                 if (entry.Authority.SessionId.Value != id)
                 {
                     throw new InvalidDataException("Exact metadata lookup returned another session.");
@@ -32,8 +34,7 @@ public sealed partial class SessionWorkspaceService
             var page = await store.ReadMetadataPageAsync(cursor?.After,
                 SessionListSearchPage.MaximumScannedRecords, token).ConfigureAwait(false);
             if (page.Records.IsDefault || page.Records.Length > SessionListSearchPage.MaximumScannedRecords
-                || page.Next is not null && (page.Records.IsEmpty || page.Next == Guid.Empty
-                    || page.Next != page.Records[^1].Authority.SessionId.Value))
+                || page.Next is not null && (page.Records.IsEmpty || page.Next == Guid.Empty))
             {
                 throw new InvalidDataException("Metadata continuation requires a bounded advancing source page.");
             }
@@ -41,13 +42,17 @@ public sealed partial class SessionWorkspaceService
             foreach (var entry in page.Records)
             {
                 token.ThrowIfCancellationRequested();
-                ValidateListEntry(entry);
+                SessionListSearch.ValidateEntry(entry);
                 var current = entry.Authority.SessionId.Value.ToString("D");
                 if (string.CompareOrdinal(previous, current) >= 0)
                 {
                     throw new InvalidDataException("Metadata requires strictly ordered canonical session IDs.");
                 }
                 previous = current;
+            }
+            if (page.Next is not null && page.Next != page.Records[^1].Authority.SessionId.Value)
+            {
+                throw new InvalidDataException("Metadata continuation must identify the last validated source row.");
             }
 
             var records = ImmutableArray.CreateBuilder<SessionWorkspaceEntry>();
@@ -88,18 +93,5 @@ public sealed partial class SessionWorkspaceService
             return result;
         }, token);
 
-    private static void ValidateListEntry(SessionWorkspaceEntry entry)
-    {
-        entry.Authority.SessionId.Validate();
-        _ = new HostRevision(entry.Authority.Generation.Value);
-        if (entry.Metadata is { } metadata)
-        {
-            if (metadata.SessionId != entry.Authority.SessionId)
-            {
-                throw new InvalidDataException("Name metadata must belong to its exact session.");
-            }
-            _ = new HostRevision(metadata.Revision.Value);
-            _ = new SessionName(metadata.Name.Value);
-        }
-    }
+    private static void ValidateListEntry(SessionWorkspaceEntry entry) => SessionListSearch.ValidateEntry(entry);
 }

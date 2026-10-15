@@ -317,6 +317,18 @@ The Sessions window now has a separate metadata query and explicit **NameSubstri
 NameSubstring is literal ordinal, case-sensitive NFC name containment, with the existing [SessionName limits](../src/Kora.Core/Hosting/SessionName.cs). ExactId requires a nonempty canonical lowercase D GUID and uses the existing exact metadata lookup.
 Unknown/Removed IDs are unavailable, not a fallback inventory. All/Active/Done applies across the metadata scan; outside search it retains ordinary page-only filtering.
 
+Four optional native text controls add inclusive authority-generation minimum
+and maximum and name-metadata-revision minimum and maximum, AND-composed with
+the chosen mode and lifecycle. Empty means Any; values must be positive
+invariant decimal `Int64` integers with minimum <= maximum. Invalid bounds
+disable Search and show recovery guidance; no trimming, truncation or fallback.
+Generation can match unnamed rows by exact ID, but either name-revision bound
+excludes unnamed rows rather than inventing revision zero. These observations
+are not freshness, historical completeness, session selection or action authority.
+All query fields have accessible names and keyboard Enter/Escape behavior.
+Editing retires query-bound results and exact selection, cancels in-flight
+search and never reads. Clear and privacy/close erase all four bounds.
+
 Each name-search click consumes at most 50 validated metadata rows plus the reader's one-row lookahead, returns at most 25 native matches and bounds complete serialized output to 64 KiB. Zero matches can still have Next.
 Scanned/unnamed/nonmatching counts, result/byte limits and current end are explicit. A matching row deferred by an output limit is reconsidered on Next; no matching name or record is truncated or silently omitted.
 

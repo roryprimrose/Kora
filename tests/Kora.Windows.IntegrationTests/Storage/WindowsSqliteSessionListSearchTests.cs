@@ -42,8 +42,12 @@ public sealed class WindowsSqliteSessionListSearchTests
         next.Records.Should().Equal(duplicate, last);
         next.Next.Should().BeNull();
         var exact = await service.SearchListAsync(SessionListSearchKind.ExactId, SessionListFilter.All,
-            last.Authority.SessionId.Value.ToString("D"), null, 25, f.Token);
+            last.Authority.SessionId.Value.ToString("D"), null, 25, f.Token, 1, 1, 2, 2);
         exact.Records.Should().ContainSingle().Which.Should().Be(last);
+        var excluded = await service.SearchListAsync(SessionListSearchKind.ExactId, SessionListFilter.All,
+            last.Authority.SessionId.Value.ToString("D"), null, 25, f.Token, 1, 1, 3, null);
+        excluded.Records.Should().BeEmpty();
+        excluded.Scanned.Should().Be(1);
         f.Count("security_audit_events").Should().Be(audits);
         f.Count("host_tasks").Should().Be(tasks);
         (await f.Store.ReadRetentionAsync(last.Authority.SessionId, f.Token)).Should().Be(clocks);

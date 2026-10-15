@@ -244,8 +244,22 @@ In **Sessions**, choose **NameSubstring** or **ExactId**, enter the metadata que
 - **NameSubstring** is literal, case-sensitive ordinal containment. `%`, `_` and punctuation are ordinary characters, not wildcards or SQL. Use NFC single-line Unicode, no control/format characters or surrounding whitespace, at most 120 scalars / 480 UTF-8 bytes. Invalid input is rejected without trimming, normalization or truncation.
 - **ExactId** requires the complete nonempty immutable ID in canonical lowercase `00000000-0000-0000-0000-000000000001` format. It looks up that one session, including unnamed metadata. Unknown/Removed IDs are unavailable, not a fallback list.
 - **All / Active / Done** applies to the whole metadata search. Outside search it continues filtering only the ordinary current page.
+- Optional **Generation minimum/maximum** and **Name revision minimum/maximum**
+  are inclusive and must all match alongside the query and lifecycle. Empty
+  means Any. Enter positive decimal integers up to `9223372036854775807`;
+  signs, whitespace, separators, zero, overflow or reversed ranges are invalid.
+  Generation can match named or unnamed rows. Either name-revision bound
+  excludes unnamed rows: unnamed is never revision zero. These native
+  session-list controls do not extend All Work or the saved-draft catalogue.
 - **Next metadata search** continues even after zero matches. Each click scans at most 50 rows plus one bounded lookahead, displays at most 25 matches and retains complete records within 64 KiB. Counts and output/scan limits are explicit; deferred matches are not silently skipped.
 - **Cancel metadata search** suppresses late results. **Clear metadata search** (or Escape in its field) discards the volatile query/results. **Refresh** returns to ordinary list paging. Query, mode, state, privacy, source or host changes require a fresh Search.
+
+Enter in any query/range field searches; Escape or Clear erases all bounds.
+Editing performs no read and retires prior search results/selection. Numeric
+predicates are bound into Next; changed bounds require a fresh Search.
+Names, generations and revisions are volatile passive metadata, not session
+selection, ownership, permission, freshness, historical completeness or action
+authority.
 
 Names can duplicate or change. Every result still shows its actual name, immutable ID, Active/Done state, generation and metadata revision; unnamed metadata stays visibly unnamed. Actions use exact observed IDs/revisions, never names.
 Unchanged visible selection retains selected work, original question identities, history and memory drafts; a disappeared or changed subject clears stale controls and details.

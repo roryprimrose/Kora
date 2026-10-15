@@ -650,8 +650,7 @@ internal sealed partial class SessionsViewModel(
     {
         if (closed) { return; }
         closed = true;
-        InvalidateListSearch();
-        listQuery = string.Empty;
+        RevokeListSearchPresentation();
         lifetime.Cancel();
         if (!busy && !protectingComposer && !refreshingWork && !changingRoutineQuiet && !changingQueueControl) { lifetime.Dispose(); }
         sessions = null;

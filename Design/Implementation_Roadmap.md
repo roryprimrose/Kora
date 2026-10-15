@@ -34,6 +34,20 @@ do not depend on hosted management, and speech preferences do not qualify wake.
 
 ## Current Delivery
 
+### Bounded native local-event exact correlation-ID filters - 2026-10-16
+
+The existing [loaded-event filters](Proactive_Interaction.md#native-content-free-loaded-event-filters)
+now compose optional exact session, task and subject IDs with the six existing
+metadata predicates. Complete lowercase `D` GUID admission reuses host-ID
+parsing; invalid text fails closed, all candidates are validated before
+exclusion, and missing tasks never match exact task IDs. Native edits and clear
+operate on the loaded snapshot without reads, retire exact selection/details,
+and retain cancellation, revocation and stale-generation fences. Correlation
+does not retarget work or grant ownership, navigation or action authority.
+Deterministic portable and headless native checks are I evidence only.
+Installed accessibility, broader proactive functionality and E/Q qualification
+remain separate; no network, device, provider or experiment path is enabled.
+
 ### Bounded Presence renderer work reduction - 2026-10-15
 
 The [native particle-cloud scheduling boundary](Ambient_UI.md#bounded-native-renderer-scheduling)

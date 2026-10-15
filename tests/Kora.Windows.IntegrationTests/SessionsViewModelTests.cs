@@ -137,7 +137,15 @@ public sealed partial class SessionsViewModelTests
         document.Descendants().Should().NotContain(element =>
             element.Name.LocalName == "WebView" || element.Name.LocalName == "SelectableTextBlock");
         document.Descendants().Where(element => string.Equals(element.Name.LocalName, "TextBox", StringComparison.Ordinal))
-            .Should().HaveCount(8, "name, exact history ID, metadata/history/conversation queries, memory GUID filter, memory drafts and the exact-session memory-only composer are independent native inputs");
+            .Should().HaveCount(11, "name, exact history ID, metadata/history/conversation queries, three local-event correlation IDs, memory GUID filter, memory drafts and the exact-session memory-only composer are independent native inputs");
+        foreach (var property in new[] { "LocalEventSessionIdFilter", "LocalEventTaskIdFilter", "LocalEventSubjectIdFilter" })
+        {
+            var field = document.Descendants().Single(element => element.Name.LocalName is "TextBox"
+                && element.Attribute("Text")?.Value.Contains(property, StringComparison.Ordinal) == true);
+            field.Attribute("MaxLength").Should().BeNull("invalid IDs must be rejected, never truncated into valid IDs");
+            field.Attribute("IsEnabled")!.Value.Should().Be("{Binding CanFilterLocalEvents}");
+            field.Attribute("AutomationProperties.Name")!.Value.Should().Contain("correlation only, never retargets or authorizes");
+        }
         var conversationQuery = document.Descendants().Single(element => element.Name.LocalName is "TextBox"
             && element.Attribute("Text")?.Value.Contains("ConversationQuery", StringComparison.Ordinal) == true);
         conversationQuery.Attribute("MaxLength").Should().BeNull("shared lexical validation rejects invalid queries instead of UI truncation");

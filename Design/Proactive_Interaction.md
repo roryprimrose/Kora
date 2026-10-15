@@ -105,7 +105,17 @@ queue eligibility reason** offers Any, **No queue reason / not applicable**
 (`LocalEvent.QueueReason is null`), and every exact `SessionQueueEligibility`.
 Core's portable `LocalEventQueueReasonFilter` explicitly discriminates Any,
 None and Exact; null is never overloaded as both Any and not applicable.
-All/Any is unfiltered; all six typed predicates compose
+Optional **Local event session ID**, **Local event task ID** and **Local event
+subject ID** accept only complete nonempty canonical lowercase `D` GUID text;
+empty means Any. Admission reuses the host command exact-ID parser and checks
+canonical text without trimming, case folding or partial matching. Invalid
+input visibly matches nothing until corrected or explicitly cleared.
+IDs are displayed in canonical lowercase `D` form. Exact task ID matches only
+an event carrying that task identity; a missing task never matches a subject
+ID or an empty/unknown identity. These are correlation metadata only: they
+never select or retarget a session/task, establish ownership/authority, or
+authorize navigation or actions.
+All/Any is unfiltered; all nine predicates compose
 as a conjunction over only the already-loaded at-most-eight rows, in snapshot
 order. Unknown filter enums/discriminators are explicitly unavailable; every
 loaded event/view is fully validated before exclusion, including irrelevant

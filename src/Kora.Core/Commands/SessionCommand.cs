@@ -204,7 +204,7 @@ public sealed partial record SessionCommand(
         }
     }
 
-    private static bool ExactId(string text, out Guid id) =>
+    internal static bool ExactId(string text, out Guid id) =>
         Guid.TryParseExact(text, "D", out id) && id != Guid.Empty;
 
     private static bool Revision(string text, bool positive, out long value) =>

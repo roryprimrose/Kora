@@ -79,6 +79,12 @@
                         AutomationProperties.Name="Exact grant history committed event outcome filter, Any by default" MinWidth="160" />
             </StackPanel>
             <StackPanel Margin="0,0,12,0">
+              <TextBlock Text="Committed event initiator" />
+              <ComboBox ItemsSource="{Binding HistoryInitiatorFilters}" SelectedValue="{Binding HistoryInitiatorFilter}"
+                        SelectedValueBinding="{Binding Label}" DisplayMemberBinding="{Binding Label}"
+                        AutomationProperties.Name="Exact grant history committed event initiator filter, Any by default" MinWidth="160" />
+            </StackPanel>
+            <StackPanel Margin="0,0,12,0">
               <TextBlock Text="Exact ReasonCode (empty means any)" />
               <TextBox Text="{Binding HistoryReasonCodeFilter}" PlaceholderText="canonical lowercase reason, or empty"
                        AutomationProperties.Name="Exact grant history canonical ReasonCode filter, typing performs no read" MinWidth="220" />

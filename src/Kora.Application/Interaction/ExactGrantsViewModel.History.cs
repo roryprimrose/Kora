@@ -36,7 +36,7 @@ public sealed partial class ExactGrantsViewModel
             throw new InvalidOperationException("Exact history requires an explicit native viewer action, not an ambient model or historical request.");
         }
         var exact = inspectedHistoryTarget ?? throw new InvalidOperationException("Inspect one actual retained exact ID before reading history.");
-        var query = ExactGrantHistoryQuery.FromInput(HistoryOutcomeFilter, HistoryReasonCodeFilter);
+        var query = ExactGrantHistoryQuery.FromInput(HistoryOutcomeFilter, HistoryReasonCodeFilter, HistoryInitiatorFilter);
         using var linked = Begin(token);
         var revision = historyControlRevision;
         var admissionId = historyAdmissionId;
@@ -131,6 +131,7 @@ public sealed partial class ExactGrantsViewModel
             .AppendLine("Committed: " + entry.CommittedAt.ToString("O", CultureInfo.InvariantCulture)
                 + "; retention deadline: " + entry.DueAt.ToString("O", CultureInfo.InvariantCulture) + "; " + entry.Retention)
             .AppendLine("Recorded action: " + entry.Audit.ActionId + "; committed event outcome: " + entry.Audit.Outcome
+                + "; committed event initiator: " + entry.Audit.Initiator
                 + "; interaction: " + p.InteractionOutcome + "; reason: " + entry.Audit.ReasonCode)
             .AppendLine("Correlation ID: " + entry.Audit.CorrelationId.ToString("D") + "; commit SHA-256: " + p.CommitDigest)
             .AppendLine("Original request/session/task/invocation: " + entry.Request.RequestId.Value.ToString("D") + " / "

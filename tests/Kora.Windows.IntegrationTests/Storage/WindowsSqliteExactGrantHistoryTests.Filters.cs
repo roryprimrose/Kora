@@ -4,6 +4,8 @@ using System.Text;
 
 using Avalonia.Automation;
 using Avalonia.Controls;
+using Avalonia.Headless;
+using Avalonia.Input;
 using Avalonia.VisualTree;
 
 using AwesomeAssertions;
@@ -57,6 +59,26 @@ public sealed partial class WindowsSqliteExactGrantHistoryTests
         (await ReadFiltered(f, inspected, new(SecurityAuditOutcome.Requested))).Records.Should().BeEmpty();
         (await ReadFiltered(f, inspected, new(SecurityAuditOutcome.Succeeded, denied.Audit.ReasonCode))).Records.Should().BeEmpty();
         (await ReadFiltered(f, inspected, new(reasonCode: "unknown-exact-reason"))).Records.Should().BeEmpty();
+        foreach (var initiator in Enum.GetValues<SecurityAuditInitiator>())
+        {
+            foreach (var outcome in Enum.GetValues<SecurityAuditOutcome>())
+            {
+                foreach (var reason in new[] { null, denied.Audit.ReasonCode, "unknown-exact-reason" })
+                {
+                    var query = new ExactGrantHistoryQuery(outcome, reason, initiator);
+                    var page = await ReadFiltered(f, inspected, query);
+                    page.Records.Select(row => row.Audit.CorrelationId).Should().Equal(all.Records
+                        .Where(row => row.Audit.Initiator == initiator && row.Audit.Outcome == outcome
+                            && (reason is null || string.Equals(row.Audit.ReasonCode, reason, StringComparison.Ordinal)))
+                        .Select(row => row.Audit.CorrelationId));
+                    page.NonmatchingRows.Should().Be(page.ScannedRows - page.Records.Length);
+                    page.Current.Should().Be(inspected);
+                }
+            }
+            var onlyInitiator = await ReadFiltered(f, inspected, new(initiator: initiator));
+            onlyInitiator.Records.Select(row => row.Audit.CorrelationId).Should().Equal(all.Records
+                .Where(row => row.Audit.Initiator == initiator).Select(row => row.Audit.CorrelationId));
+        }
         SHA256.HashData(File.ReadAllBytes(f.DatabasePath)).Should().Equal(before);
         Activity.Current.Should().BeNull();
     }
@@ -71,7 +93,7 @@ public sealed partial class WindowsSqliteExactGrantHistoryTests
         var inspected = (await f.Store.InspectExactGrantAsync(grant.Id, f.Token))!;
         f.Time.Now = f.Time.Now.AddDays(91);
         var viewer = HostRequest.Create(RequestOrigin.LocalUi);
-        var query = new ExactGrantHistoryQuery(SecurityAuditOutcome.Succeeded);
+        var query = new ExactGrantHistoryQuery(SecurityAuditOutcome.Succeeded, initiator: SecurityAuditInitiator.TypedCommand);
         var first = await ReadFiltered(f, inspected, query, viewer);
         first.Records.Should().BeEmpty();
         first.ScannedRows.Should().Be(4096);
@@ -100,6 +122,7 @@ public sealed partial class WindowsSqliteExactGrantHistoryTests
     [InlineData(8)]
     [InlineData(9)]
     [InlineData(10)]
+    [InlineData(11)]
     public async Task AuthenticatedContinuationRejectsChangedFilterTupleExactInspectionViewerAdmissionControlCeilingAndDigest(int change)
     {
         using var f = new InteractionStorageFixture();
@@ -108,14 +131,14 @@ public sealed partial class WindowsSqliteExactGrantHistoryTests
         AppendUnrelated(f, 4100);
         var inspected = (await f.Store.InspectExactGrantAsync(grant.Id, f.Token))!;
         var viewer = HostRequest.Create(RequestOrigin.LocalUi);
-        var query = new ExactGrantHistoryQuery(SecurityAuditOutcome.Denied, "exact-private-query");
+        var query = new ExactGrantHistoryQuery(SecurityAuditOutcome.Denied, "exact-private-query", SecurityAuditInitiator.VoiceCommand);
         var admission = Guid.NewGuid();
         var revision = 1L;
         var first = await ReadFiltered(f, inspected, query, viewer, admission: admission, revision: revision);
         first.Next.Should().NotBeNull();
         Encoding.UTF8.GetString(Convert.FromBase64String(first.Next!.Split('.')[0])).Should().NotContain("exact-private-query");
-        if (change == 0) { query = new(SecurityAuditOutcome.Succeeded, "exact-private-query"); }
-        else if (change == 1) { query = new(SecurityAuditOutcome.Denied, "other"); }
+        if (change == 0) { query = new(SecurityAuditOutcome.Succeeded, "exact-private-query", SecurityAuditInitiator.VoiceCommand); }
+        else if (change == 1) { query = new(SecurityAuditOutcome.Denied, "other", SecurityAuditInitiator.VoiceCommand); }
         else if (change == 2) { query = ExactGrantHistoryQuery.Unfiltered; }
         else if (change == 3) { viewer = new(new(Guid.NewGuid()), viewer.SessionId, viewer.TaskId, viewer.Origin, viewer.InvocationId); }
         else if (change == 4) { admission = Guid.NewGuid(); }
@@ -124,7 +147,8 @@ public sealed partial class WindowsSqliteExactGrantHistoryTests
         else if (change == 7) { f.Mutate("DELETE FROM security_audit_events WHERE sequence=" + first.AuditCeiling + ";"); }
         else if (change == 8) { f.Mutate("UPDATE security_audit_events SET hash=printf('%064d',1) WHERE sequence=" + first.AuditCeiling + ";"); }
         else if (change == 9) { f.Mutate("UPDATE authority_head SET sequence=0,hash=printf('%064d',0);"); }
-        else { f.Time.Now = f.Time.Now.AddMinutes(15); }
+        else if (change == 10) { f.Time.Now = f.Time.Now.AddMinutes(15); }
+        else { query = new(SecurityAuditOutcome.Denied, "exact-private-query", SecurityAuditInitiator.LocalUser); }
         var read = () => ReadFiltered(f, inspected, query, viewer, first.Next, admission, revision);
         await read.Should().ThrowAsync<InvalidDataException>();
     }
@@ -165,16 +189,39 @@ public sealed partial class WindowsSqliteExactGrantHistoryTests
                 state.Reviewed = true;
                 await state.ReadHistoryAsync(f.Token);
                 var outcome = window.GetVisualDescendants().OfType<ComboBox>().Single(item =>
-                    AutomationProperties.GetName(item)?.StartsWith("Exact grant history committed", StringComparison.Ordinal) == true);
+                    AutomationProperties.GetName(item)?.StartsWith("Exact grant history committed event outcome", StringComparison.Ordinal) == true);
+                var initiator = window.GetVisualDescendants().OfType<ComboBox>().Single(item =>
+                    AutomationProperties.GetName(item)?.StartsWith("Exact grant history committed event initiator", StringComparison.Ordinal) == true);
                 var reason = window.GetVisualDescendants().OfType<TextBox>().Single(item =>
                     AutomationProperties.GetName(item)?.StartsWith("Exact grant history canonical", StringComparison.Ordinal) == true);
                 outcome.Focusable.Should().BeTrue();
+                initiator.Focusable.Should().BeTrue();
+                initiator.Items.Cast<ExactGrantHistoryInitiatorOption>().Should().Equal(ExactGrantHistoryQuery.InitiatorOptions);
                 reason.Focusable.Should().BeTrue();
                 outcome.Focus();
                 outcome.IsFocused.Should().BeTrue();
+                window.KeyPress(Key.Tab, RawInputModifiers.None, PhysicalKey.Tab, null);
+                initiator.IsFocused.Should().BeTrue();
+                window.KeyPress(Key.Tab, RawInputModifiers.None, PhysicalKey.Tab, null);
+                reason.IsFocused.Should().BeTrue();
+                window.KeyPress(Key.Tab, RawInputModifiers.Shift, PhysicalKey.Tab, null);
+                initiator.IsFocused.Should().BeTrue();
                 reason.Focus();
                 reason.IsFocused.Should().BeTrue();
                 var before = SHA256.HashData(File.ReadAllBytes(f.DatabasePath));
+                initiator.SelectedIndex = 5;
+                state.HistoryInitiatorFilter.Should().Be("ModelSuggestion");
+                state.HistoryRows.Should().BeEmpty();
+                state.CanReadHistory.Should().BeTrue();
+                state.HistorySummary.Should().Contain("typing performs no read");
+                await state.ReadHistoryCommand.ExecuteAsync();
+                state.HistoryRows.Should().BeEmpty();
+                foreach (var option in ExactGrantHistoryQuery.InitiatorOptions)
+                {
+                    initiator.SelectedItem = option;
+                    state.HistoryInitiatorFilter.Should().Be(option.Label);
+                    state.HistoryRows.Should().BeEmpty();
+                }
                 reason.Text = "not-retained";
                 state.HistoryReasonCodeFilter.Should().Be("not-retained");
                 state.HistoryRows.Should().BeEmpty();
@@ -189,6 +236,8 @@ public sealed partial class WindowsSqliteExactGrantHistoryTests
                 SHA256.HashData(File.ReadAllBytes(f.DatabasePath)).Should().Equal(before);
                 await state.ClearHistoryFiltersCommand.ExecuteAsync();
                 state.HistoryOutcomeFilter.Should().Be("Any");
+                state.HistoryInitiatorFilter.Should().Be("Any");
+                ((ExactGrantHistoryInitiatorOption)initiator.SelectedItem!).Value.Should().BeNull();
                 await state.ReadHistoryAsync(f.Token);
                 state.HistoryRows.Should().ContainSingle();
                 state.CanRevoke.Should().BeFalse();
@@ -243,7 +292,7 @@ public sealed partial class WindowsSqliteExactGrantHistoryTests
         var grant = await f.GrantAsync("perpetual");
         var inspected = (await f.Store.InspectExactGrantAsync(grant.Id, f.Token))!;
         f.Mutate(corruption);
-        var read = () => ReadFiltered(f, inspected, new(SecurityAuditOutcome.Denied, "not-present"));
+        var read = () => ReadFiltered(f, inspected, new(SecurityAuditOutcome.Denied, "not-present", SecurityAuditInitiator.ModelSuggestion));
         await read.Should().ThrowAsync<InvalidDataException>();
     }
 

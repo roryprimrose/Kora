@@ -100,7 +100,72 @@ public sealed class ExactGrantHistoryQueryTests
         query.Should().Throw<ArgumentException>();
     }
 
-    private static SecurityAuditEvent Audit(SecurityAuditOutcome outcome, string? reason) =>
+    [Fact]
+    public void EveryInitiatorComposesExactlyWithEveryOutcomeAndReasonWithoutNormalization()
+    {
+        ExactGrantHistoryQuery.InitiatorOptions.Select(option => option.Label).Should().Equal(["Any", .. Enum.GetNames<SecurityAuditInitiator>()]);
+        ExactGrantHistoryQuery.InitiatorOptions.Select(option => option.Value).Should().Equal(
+            [null, .. Enum.GetValues<SecurityAuditInitiator>().Select(value => (SecurityAuditInitiator?)value)]);
+        var digests = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var initiator in Enum.GetValues<SecurityAuditInitiator>())
+        {
+            foreach (var outcome in Enum.GetValues<SecurityAuditOutcome>())
+            {
+                foreach (var reason in new string?[] { null, "policy-denied", ".", new string('a', 128) })
+                {
+                    var query = ExactGrantHistoryQuery.FromInput(outcome.ToString(), reason ?? "", initiator.ToString());
+                    query.Should().Be(new ExactGrantHistoryQuery(outcome, reason, initiator));
+                    query.Initiator.Should().Be(initiator);
+                    digests.Add(query.Digest).Should().BeTrue();
+                    foreach (var actualInitiator in Enum.GetValues<SecurityAuditInitiator>())
+                    {
+                        foreach (var actualOutcome in Enum.GetValues<SecurityAuditOutcome>())
+                        {
+                            var audit = Audit(actualOutcome, reason, actualInitiator);
+                            query.Matches(audit).Should().Be(actualInitiator == initiator && actualOutcome == outcome);
+                            new ExactGrantHistoryQuery(initiator: initiator).Matches(audit).Should().Be(actualInitiator == initiator);
+                            ExactGrantHistoryQuery.Unfiltered.Matches(audit).Should().BeTrue();
+                            query.Matches(Audit(actualOutcome, "other", actualInitiator)).Should().Be(
+                                reason is null && actualInitiator == initiator && actualOutcome == outcome);
+                        }
+                    }
+                    query.Digest.Should().NotBe(new ExactGrantHistoryQuery(outcome, reason).Digest);
+                }
+            }
+        }
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("any")]
+    [InlineData("system")]
+    [InlineData("Localuser")]
+    [InlineData(" LocalUser")]
+    [InlineData("LocalUser ")]
+    [InlineData("LocalUser\n")]
+    [InlineData("0")]
+    [InlineData("4")]
+    [InlineData("999")]
+    [InlineData("System, LocalUser")]
+    public void InvalidInitiatorLabelsFailExplicitly(string? initiator)
+    {
+        var parse = () => ExactGrantHistoryQuery.FromInput("Any", "", initiator!);
+        parse.Should().Throw<InvalidDataException>();
+    }
+
+    [Theory]
+    [InlineData(-1)]
+    [InlineData(5)]
+    [InlineData(int.MaxValue)]
+    public void UndefinedInitiatorEnumsFailExplicitly(int initiator)
+    {
+        var create = () => new ExactGrantHistoryQuery(initiator: (SecurityAuditInitiator)initiator);
+        create.Should().Throw<InvalidDataException>();
+    }
+
+    private static SecurityAuditEvent Audit(SecurityAuditOutcome outcome, string? reason,
+        SecurityAuditInitiator initiator = SecurityAuditInitiator.LocalUser) =>
         new(Guid.NewGuid(), SecurityAuditCategory.SecurityApproval, "approval.revoke-exact", outcome,
-            SecurityAuditInitiator.LocalUser, "task", reasonCode: reason);
+            initiator, "task", reasonCode: reason);
 }

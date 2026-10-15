@@ -781,6 +781,7 @@ Storage failure is explicit; do not show a sent message, saved answer, or comple
 ## Accessibility and Degraded Operation
 
 Provide keyboard access and screen-reader labels for session lists/search, tabs/filters, composer, forms, Details/History, queue, Done/resume/delete, and all trusted cards.
+The [exact-grant history controls](../docs/settings.md#exact-operation-grants) additionally expose a focusable, named committed-event initiator selector: Any plus every defined typed initiator. It composes with committed outcome/exact reason, never Requested review or actionable inventory. Editing is passive and retires prior rows/continuation/selection/reviews without reading or renewing authority; only the explicitly inspected inert exact target remains.
 Maintain intentional focus/tab order; a background update never moves focus to an affirmative action.
 Use shared theme, text scaling, reduced motion, contrast, and multi-display/DPI rules; animation is never the only progress/attention signal.
 Missing voice/runtime/network does not remove the UI path. Native session/work controls remain deterministic; unavailable answer generation is explicitly labeled.

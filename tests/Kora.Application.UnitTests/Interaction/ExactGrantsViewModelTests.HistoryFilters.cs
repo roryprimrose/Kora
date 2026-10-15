@@ -10,24 +10,68 @@ namespace Kora.Application.UnitTests.Interaction;
 public sealed partial class ExactGrantsViewModelTests
 {
     [Fact]
+    public async Task EveryNativeInitiatorEditRetainsOnlyTheSameInertExactTargetAndReadsCommittedInitiatorOnly()
+    {
+        await using var f = new Fixture();
+        await f.InspectAsync();
+        var target = f.Preview;
+        var reads = 0;
+        foreach (var option in ExactGrantsViewModel.HistoryInitiatorFilters)
+        {
+            f.State.HistoryInitiatorFilter = option.Label;
+            f.Store.HistoryReads.Should().Be(reads);
+            f.State.CanReadHistory.Should().BeTrue();
+            var page = History(f);
+            var row = page.Records[0];
+            var committed = new SecurityAuditEvent(row.Audit.CorrelationId, row.Audit.Category, row.Audit.ActionId,
+                row.Audit.Outcome, option.Value ?? SecurityAuditInitiator.LocalUser, row.Audit.TargetId);
+            var requestedInitiator = committed.Initiator == SecurityAuditInitiator.ModelSuggestion
+                ? SecurityAuditInitiator.System : SecurityAuditInitiator.ModelSuggestion;
+            var requested = new SecurityAuditEvent(row.Audit.CorrelationId, row.Audit.Category, row.Audit.ActionId,
+                SecurityAuditOutcome.Requested, requestedInitiator, row.Audit.TargetId,
+                reasonCode: "requested-private-only");
+            f.Store.HistoryResult = page with { Records = [row with
+            {
+                Audit = committed, Provenance = row.Provenance with { RequestedAudit = requested },
+            }] };
+            await f.State.ReadHistoryAsync(f.Token);
+            reads++;
+            f.Store.HistoryQuery!.Initiator.Should().Be(option.Value);
+            f.Store.HistoryExact.Should().BeSameAs(target);
+            f.State.HistoryRows.Should().ContainSingle().Which.Should()
+                .Contain("committed event initiator: " + committed.Initiator)
+                .And.NotContain("requested-private-only")
+                .And.NotContain(requestedInitiator.ToString());
+            f.State.Reviewed.Should().BeFalse();
+            f.State.CanRevoke.Should().BeFalse();
+        }
+        f.State.Dispose();
+        f.State.HistoryInitiatorFilter.Should().Be("Any");
+        f.Store.Revokes.Should().Be(0);
+    }
+
+    [Fact]
     public async Task TypedHistoryFiltersArePassiveAndExplicitReadCarriesCurrentExactAdmissionWithoutMutation()
     {
         var logger = new EnabledLogger();
         await using var f = new Fixture(logger);
         ExactGrantsViewModel.HistoryOutcomeFilters.Should().Equal("Any", "Requested", "Succeeded", "Failed", "Denied", "Cancelled", "Unknown");
+        ExactGrantsViewModel.HistoryInitiatorFilters.Should().Equal(ExactGrantHistoryQuery.InitiatorOptions);
         await f.InspectAsync();
         f.State.Reviewed = true;
         f.Store.HistoryResult = History(f, "next");
         await f.State.ReadHistoryAsync(f.Token);
         var oldAdmission = f.Store.HistoryAdmissionId;
         f.State.HistoryOutcomeFilter = "Succeeded";
+        f.State.HistoryInitiatorFilter = "LocalUser";
         f.State.HistoryReasonCodeFilter = "exact-private-reason";
         AssertHistoryFilterRetired(f);
         f.Store.HistoryReads.Should().Be(1);
         f.State.CanReadHistory.Should().BeTrue();
         f.Store.HistoryResult = History(f) with { Records = [] };
         await f.State.ReadHistoryCommand.ExecuteAsync();
-        f.Store.HistoryQuery.Should().Be(new ExactGrantHistoryQuery(SecurityAuditOutcome.Succeeded, "exact-private-reason"));
+        f.Store.HistoryQuery.Should().Be(new ExactGrantHistoryQuery(SecurityAuditOutcome.Succeeded, "exact-private-reason",
+            SecurityAuditInitiator.LocalUser));
         f.Store.HistoryControlRevision.Should().Be(f.Access.ControlRevision);
         f.Store.HistoryAdmissionId.Should().NotBe(oldAdmission).And.NotBe(Guid.Empty);
         f.Store.HistoryCursor.Should().BeNull();
@@ -38,22 +82,27 @@ public sealed partial class ExactGrantsViewModelTests
         f.Intents.Tasks.Should().BeEmpty();
         HostActivity.Current.Should().BeNull();
         f.State.HistoryOutcomeFilter = f.State.HistoryOutcomeFilter;
+        f.State.HistoryInitiatorFilter = f.State.HistoryInitiatorFilter;
         f.State.HistoryReasonCodeFilter = f.State.HistoryReasonCodeFilter;
         await f.State.ClearHistoryFiltersCommand.ExecuteAsync();
         f.State.HistoryOutcomeFilter.Should().Be("Any");
+        f.State.HistoryInitiatorFilter.Should().Be("Any");
         f.State.HistoryReasonCodeFilter.Should().BeEmpty();
         await f.State.ReadHistoryAsync(f.Token);
         f.Store.HistoryQuery.Should().Be(ExactGrantHistoryQuery.Unfiltered);
         f.Store.Revokes.Should().Be(0);
         f.State.Dispose();
         f.State.HistoryOutcomeFilter.Should().Be("Any");
+        f.State.HistoryInitiatorFilter.Should().Be("Any");
         f.State.HistoryReasonCodeFilter.Should().BeEmpty();
         f.State.ClearHistoryFiltersCommand.CanExecute(null).Should().BeFalse();
         var outcome = () => f.State.HistoryOutcomeFilter = "Failed";
         var reason = () => f.State.HistoryReasonCodeFilter = "late";
+        var initiator = () => f.State.HistoryInitiatorFilter = "System";
         var clear = f.State.ClearHistoryFilters;
         outcome.Should().Throw<ObjectDisposedException>();
         reason.Should().Throw<ObjectDisposedException>();
+        initiator.Should().Throw<ObjectDisposedException>();
         clear.Should().Throw<ObjectDisposedException>();
     }
 
@@ -69,20 +118,24 @@ public sealed partial class ExactGrantsViewModelTests
     }
 
     [Theory]
-    [InlineData("invalid", "")]
-    [InlineData("Any", "Private Query")]
-    [InlineData("1", "")]
-    public async Task InvalidHistoryInputHasExplicitPrivateFreeFailureWithoutStorageFallback(string outcome, string reason)
+    [InlineData("invalid", "", "Any")]
+    [InlineData("Any", "Private Query", "Any")]
+    [InlineData("1", "", "Any")]
+    [InlineData("Any", "", "0")]
+    [InlineData("Any", "", "LocalUser ")]
+    [InlineData("Any", "", "private-label")]
+    public async Task InvalidHistoryInputHasExplicitPrivateFreeFailureWithoutStorageFallback(string outcome, string reason, string initiator)
     {
         var logger = new EnabledLogger();
         await using var f = new Fixture(logger);
         await f.InspectAsync();
         f.State.HistoryOutcomeFilter = outcome;
         f.State.HistoryReasonCodeFilter = reason;
+        f.State.HistoryInitiatorFilter = initiator;
         f.State.ReadHistoryCommand.Execute(null);
         f.Store.HistoryReads.Should().Be(0);
-        f.State.Message.Should().Contain("unavailable").And.NotContain("Private Query");
-        logger.Last.Should().NotBeNull().And.NotContain("Private Query");
+        f.State.Message.Should().Contain("unavailable").And.NotContain("Private Query").And.NotContain("private-label");
+        logger.Last.Should().NotBeNull().And.NotContain("Private Query").And.NotContain("private-label");
         f.State.CanReadHistory.Should().BeFalse();
     }
 
@@ -97,7 +150,7 @@ public sealed partial class ExactGrantsViewModelTests
         f.Store.PendingHistory = pending.Task;
         var read = f.State.ReadHistoryCommand.ExecuteAsync();
         var admission = f.Store.HistoryAdmission!;
-        f.State.HistoryReasonCodeFilter = "policy-denied";
+        f.State.HistoryInitiatorFilter = "ModelSuggestion";
         f.Store.HistoryToken.IsCancellationRequested.Should().BeTrue();
         admission().Should().BeFalse();
         AssertHistoryFilterRetired(f);
@@ -127,7 +180,7 @@ public sealed partial class ExactGrantsViewModelTests
         await using var f = new Fixture();
         await f.InspectAsync();
         f.State.Reviewed = true;
-        f.State.HistoryOutcomeFilter = "Denied";
+        f.State.HistoryInitiatorFilter = "VoiceCommand";
         AssertHistoryFilterRetired(f);
         await f.InspectAsync();
         f.State.SetBatchSelection([f.Preview]);
@@ -146,11 +199,13 @@ public sealed partial class ExactGrantsViewModelTests
     [InlineData(2)]
     [InlineData(3)]
     [InlineData(4)]
+    [InlineData(5)]
     public async Task ReaderCannotReturnNonmatchesOrInvalidScanCountsUnderTypedQuery(int invalid)
     {
         await using var f = new Fixture();
         await f.InspectAsync();
-        f.State.HistoryOutcomeFilter = "Denied";
+        f.State.HistoryOutcomeFilter = invalid == 5 ? "Succeeded" : "Denied";
+        f.State.HistoryInitiatorFilter = invalid == 5 ? "System" : "Any";
         var page = History(f);
         f.Store.HistoryResult = invalid switch
         {
@@ -158,7 +213,8 @@ public sealed partial class ExactGrantsViewModelTests
             1 => page with { Records = [], ScannedRows = -1 },
             2 => page with { Records = [], ScannedRows = 4097 },
             3 => page with { Records = [], NonmatchingRows = -1 },
-            _ => page with { Records = [], NonmatchingRows = 4097 },
+            4 => page with { Records = [], NonmatchingRows = 4097 },
+            _ => page,
         };
         var read = () => f.State.ReadHistoryAsync(f.Token);
         await read.Should().ThrowAsync<InvalidDataException>();

@@ -41,6 +41,7 @@ internal sealed class ExactGrantTestStore(AudioControlTestStore intents, ExactGr
     internal int Pages { get; private set; }
     internal int HistoryReads { get; private set; }
     internal ExactGrantHistoryQuery? HistoryQuery { get; private set; }
+    internal ExactGrantInspection? HistoryExact { get; private set; }
     internal long HistoryControlRevision { get; private set; }
     internal Guid HistoryAdmissionId { get; private set; }
     internal string? HistoryCursor { get; private set; }
@@ -52,6 +53,7 @@ internal sealed class ExactGrantTestStore(AudioControlTestStore intents, ExactGr
     {
         HistoryReads++;
         HistoryQuery = query;
+        HistoryExact = inspected;
         HistoryControlRevision = controlRevision;
         HistoryAdmissionId = admissionId;
         HistoryCursor = cursor;

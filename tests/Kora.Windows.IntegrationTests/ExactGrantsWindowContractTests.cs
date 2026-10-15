@@ -14,7 +14,7 @@ public sealed class ExactGrantsWindowContractTests
         foreach (var binding in new[] { "RefreshCommand", "NextCommand", "InspectCommand", "RevokeCommand", "Selected", "Inspection", "Reviewed", "Message",
             "PreviewBatchCommand", "RevokeBatchCommand", "BatchInspection", "BatchReviewed",
             "ReadHistoryCommand", "NextHistoryCommand", "HistoryRows", "HistorySummary",
-            "HistoryOutcomeFilter}", "HistoryReasonCodeFilter", "ClearHistoryFiltersCommand",
+            "HistoryOutcomeFilter}", "HistoryInitiatorFilter}", "HistoryReasonCodeFilter", "ClearHistoryFiltersCommand",
             "ScopeFilter}", "StatusFilter}", "ActionIdFilter", "OriginatingSessionFilter", "ClearFiltersCommand", "InventorySummary" })
         {
             var control = document.Descendants().Single(element => element.Attributes().Any(attribute =>

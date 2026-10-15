@@ -80,12 +80,13 @@ public sealed partial class ExactGrantsViewModelTests
     {
         await using var f = new Fixture();
         await f.InspectAsync();
+        f.State.HistoryInitiatorFilter = "LocalUser";
         using var cancellation = new CancellationTokenSource();
         f.Store.HistoryResult = History(f);
         f.Store.BeforeHistory = () =>
         {
             if (change == 0) { f.State.Dispose(); }
-            else if (change == 1) { f.State.Selected = null; }
+            else if (change == 1) { f.State.Selected = f.Preview; }
             else if (change == 2) { f.Eligible = false; }
             else if (change == 3) { f.Access.CanInspect = false; }
             else if (change == 4) { f.Access.ControlRevision++; }
@@ -156,6 +157,7 @@ public sealed partial class ExactGrantsViewModelTests
     {
         await using var f = new Fixture();
         await f.InspectAsync();
+        f.State.HistoryInitiatorFilter = "LocalUser";
         var page = History(f);
         if (change == 0) { page = page with { Current = f.Preview with { StoreIdentity = "foreign" } }; }
         else if (change == 1) { page = page with { Current = f.Preview with { Grant = f.Preview.Grant with { Id = new(Guid.NewGuid()) } } }; }
@@ -173,6 +175,7 @@ public sealed partial class ExactGrantsViewModelTests
     {
         await using var f = new Fixture();
         await f.InspectAsync();
+        f.State.HistoryInitiatorFilter = "LocalUser";
         f.Store.ReadFailure = new IOException("private-user-provider-body");
         f.State.ReadHistoryCommand.Execute(null);
         f.State.Message.Should().Contain("unavailable").And.Contain(nameof(IOException)).And.NotContain("private-user-provider-body");

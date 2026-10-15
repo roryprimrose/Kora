@@ -36,7 +36,7 @@ public sealed partial class ExactGrantsViewModel
             throw new InvalidOperationException("Exact history requires an explicit native viewer action, not an ambient model or historical request.");
         }
         var exact = inspectedHistoryTarget ?? throw new InvalidOperationException("Inspect one actual retained exact ID before reading history.");
-        var query = ExactGrantHistoryQuery.FromInput(HistoryOutcomeFilter, HistoryReasonCodeFilter);
+        var query = ExactGrantHistoryQuery.FromInput(HistoryOutcomeFilter, HistoryReasonCodeFilter, HistoryInitiatorFilter);
         using var linked = Begin(token);
         var revision = historyControlRevision;
         var admissionId = historyAdmissionId;

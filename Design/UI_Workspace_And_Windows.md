@@ -154,6 +154,15 @@ remain five minutes, never current defaults. Pre-dispatch question waits have th
 slot/active clock; their cards remain visible while history/evidence is read.
 Answer/review remains in the original separately owned Questions window.
 
+The [content-free loaded local-event inventory](Proactive_Interaction.md#native-content-free-loaded-event-filters)
+has keyboard-accessible category/reason/source/type and exact request-origin/
+queue-eligibility-reason combos. Origin offers Any and every defined origin;
+queue reason distinctly offers Any, No queue reason / not applicable, and
+every exact eligibility reason. All six predicates are AND. Edits do not read:
+they recompute loaded rows and retire exact selection/details and late callbacks.
+Zero matches is truthful; a question/maintenance null queue reason confers no
+success, eligibility, question-answering or maintenance-navigation authority.
+
 Native Inspect, eligible Cancel, Remove pending ID, confirmed pending Clear,
 six closed profile Enqueue buttons and manual fair Dispatch use the already admitted exact
 command/host workflows. Displayed IDs/generations/revisions and the captured

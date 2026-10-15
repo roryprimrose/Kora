@@ -99,16 +99,29 @@ The existing Sessions list has **Local event category** (All, Work, Failure,
 Attention, Maintenance) and **Local event reason** (All plus every exact
 `LocalEventReason` value), **Local event source** (All plus every exact
 `LocalEventSource` value), and **Local event type** (All plus every exact
-`LocalEventType` value). All is unfiltered; all four typed predicates compose
+`LocalEventType` value). **Local event request origin** offers Any plus every
+defined `RequestOrigin`, matching `LocalEvent.Origin` exactly. **Local event
+queue eligibility reason** offers Any, **No queue reason / not applicable**
+(`LocalEvent.QueueReason is null`), and every exact `SessionQueueEligibility`.
+Core's portable `LocalEventQueueReasonFilter` explicitly discriminates Any,
+None and Exact; null is never overloaded as both Any and not applicable.
+All/Any is unfiltered; all six typed predicates compose
 as a conjunction over only the already-loaded at-most-eight rows, in snapshot
-order. Unknown filter or row enums fail closed. This is not source search:
+order. Unknown filter enums/discriminators are explicitly unavailable; every
+loaded event/view is fully validated before exclusion, including irrelevant
+rows. Invalid metadata fails rather than becoming an empty match. This is not source search:
 there is no additional read, index, persistence, query logging, event body,
 command/model/tool/speech route, activity renewal or new authority.
 Source and Type are exact authoritative enums, not summary-text matches.
+Origin and queue reason are also exact metadata, not summary-text matches.
+Questions and maintenance have no queue reason: this absence is not queue
+success, eligibility or authority, and grants no answer/navigation action.
 Impossible source/type pairs remain selected and truthfully match zero;
 no choice is normalized, broadened or replaced to obtain a result.
 
-Every filter edit and explicit clear immediately retires exact selection and
+Filters are volatile native presentation choices, not persisted, logged,
+activity-tagged, audited or sent to model/tool/speech/clipboard/export routes.
+Every filter edit and explicit clear immediately recomputes visible rows and retires exact selection and
 event review detail, even if the same event remains visible. Review/Dismiss/
 Defer require separate selection of a currently visible exact ID/revision;
 binding updates never select a replacement. A mutation whose resulting reason

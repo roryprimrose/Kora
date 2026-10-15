@@ -9,6 +9,34 @@ namespace Kora.Windows.IntegrationTests.Storage;
 [Collection(nameof(DurableStorageCompositionTestGroup))]
 public sealed class WindowsSqliteConversationSearchTests
 {
+    [Theory]
+    [InlineData(ConversationSearchRole.All, "Unavailable", 2)]
+    [InlineData(ConversationSearchRole.USER, "Unavailable", 1)]
+    [InlineData(ConversationSearchRole.HOST, "Unavailable", 2)]
+    [InlineData(ConversationSearchRole.USER, "UnregisteredModel", 0)]
+    [InlineData(ConversationSearchRole.HOST, "original", 0)]
+    public async Task ActualRoleSearchPreservesPrivateSourceBodiesRetentionAndAudit(
+        ConversationSearchRole role, string query, int expected)
+    {
+        using var f = new InteractionStorageFixture();
+        await f.InitializeAsync();
+        await WindowsSqliteConversationTests.FinishInitial(f);
+        await WindowsSqliteConversationTests.Submit(f, f.Request.SessionId, "Unavailable original");
+        await WindowsSqliteConversationTests.Submit(f, f.Request.SessionId, "other");
+        var clock = await f.Store.ReadRetentionAsync(f.Request.SessionId, f.Token);
+        var audit = WindowsSqliteConversationTests.AuditText(f);
+        var service = WindowsSqliteSessionWorkspaceTests.Service(f, new());
+        using var root = HostActivity.BeginRoot(f.Request, HostActivityLayer.Application, HostOperation.Request);
+        var page = await service.SearchConversationAsync(f.Request.SessionId, query, null, 25, f.Token, role);
+        page.Messages.Should().HaveCount(expected);
+        page.Role.Should().Be(role);
+        page.Scanned.Should().Be(2);
+        page.Next.Should().BeNull();
+        (await f.Store.ReadRetentionAsync(f.Request.SessionId, f.Token)).Should().Be(clock);
+        WindowsSqliteConversationTests.AuditText(f).Should().Be(audit);
+        f.Count("conversation_messages").Should().Be(2);
+    }
+
     [Fact]
     public async Task ActualHundredMessageBoundCrossesSourcePagesWithoutInventingMatchesOrChangingActivity()
     {

@@ -21,16 +21,26 @@ Windows login sessions, voice capture generations, provider/SDK conversations, a
 **Sessions > Exact-session conversation and composer > Search this conversation** reads original retained USER bodies and separate typed HOST outcome/reason/task-state fields in only the explicitly selected session. Active and retained Done are readable without Resume.
 This is not the older Question/Answer receipt `HistorySearch`, model history reasoning, global body search, an FTS index or retrieval upload.
 
+The optional exact **All / USER / HOST** field filter defaults to All. All searches the
+union of immutable original USER body and typed HOST outcome, reason and expected
+task-state strings; USER searches only the original body; HOST searches only those
+typed fields, never assistant prose or status-looking words in the USER body.
+The filter composes with the same literal query, selects matches rather than
+stored rows or page admission, and never rewrites a message's role. Every consumed
+chronological source row is validated before matching or exclusion. Zero matches
+are an exhausted observation when Next is absent, not unavailable content;
+undefined role values fail explicitly without reading.
+
 The [conversation matcher](../src/Kora.Core/Conversation/ConversationSearch.cs) reuses `SessionHistorySearch` and the authoritative `LocalFileRetrievalPolicy` tokenizer: 1–256 UTF-16 characters / 512 strict UTF-8 bytes, 1–32 distinct lexical terms of at most 64 characters, NFC/invariant whole-word OR.
 Punctuation is a separator, not regex, wildcard or instruction syntax. Blank/malformed/unsupported queries fail explicitly, never inventory all bodies.
 
 The [passive workflow](../src/Kora.Application/Hosting/SessionWorkspaceService.ConversationSearch.cs) delegates to existing admitted conversation pages; no SQL, schema, body representation or persisted query is added.
 Each call scans at most the existing 100-message session bound, returns default 25 / maximum 50 complete messages and caps the complete serialized result, counters and continuation at 64 KiB. Bodies, original request/task IDs, source generation and chronological sequence stay unchanged.
 
-Continuations bind the normalized query digest and original session/generation/sequence ceiling/head revision. Nonmatches advance; a byte-deferred match remains for Next. `Scanned` counts consumed records.
+Continuations bind the exact field filter, normalized query digest and original session/generation/sequence ceiling/head revision under existing private/retention admission. Nonmatches advance; a byte-deferred match remains for Next. `Scanned` counts consumed records.
 `OmittedMessages` and `UnavailableMessages` are zero because valid complete bodies fit and inaccessible/invalid sources fail the entire read rather than becoming success-shaped omissions. Exhausted snapshots are freshly revalidated through the provider under the same private admission/retention epoch before publication.
 
-Later append cannot expand a continuation's ceiling; terminal updates invalidate its original head revision and require fresh Search. Lifecycle, removal, retention/private/owner changes, query edits and Cancel/Clear revoke results and late callbacks.
+Later append cannot expand a continuation's ceiling; terminal updates invalidate its original head revision and require fresh Search. Lifecycle, removal, retention/private/owner changes, query or field-filter edits and Cancel/Clear revoke results, selected match/navigation, continuation and late callbacks. Editing performs no read; explicit Search is required. Clear resets the filter to All.
 Search does not alter composer body/baseline, dirty-draft decisions, held submissions, saved drafts, question/voice focus, meaningful activity, cleanup, Keep, provider preferences or task/approval authority.
 
 Only admitted original messages appear as inert native USER/HOST rows, with no generated summary, semantic ranking, rich actions, copy/export, clipboard/speech, network/model calls or hidden context assembly.

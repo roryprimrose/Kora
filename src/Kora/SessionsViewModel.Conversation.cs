@@ -55,15 +55,19 @@ internal sealed partial class SessionsViewModel
     {
         if (!ConversationMessages.Concat(ConversationSearchMessages).Any(record => ReferenceEquals(record, message)))
         { throw new InvalidOperationException("Select an actual record from the currently observed exact conversation page."); }
-        var content = await conversation!.ReadDetailAsync(target, message, live, lifetime.Token);
-        if (!live()) { throw new OperationCanceledException("The original conversation selection changed."); }
+        var searchMatch = ConversationSearchMessages.Any(record => ReferenceEquals(record, message));
+        var searchEpoch = conversationSearchEpoch;
+        bool DetailLive() => live() && (!searchMatch || conversationSearchEpoch == searchEpoch);
+        if (searchMatch) { conversationSearchDetailTarget = target; }
+        var content = await conversation!.ReadDetailAsync(target, message, DetailLive, lifetime.Token);
+        if (!DetailLive()) { throw new OperationCanceledException("The original conversation selection or search changed."); }
         var beginValidation = HostActivity.CaptureContinuation(HostActivityLayer.Desktop, HostOperation.Storage);
         async Task<Kora.Core.Presentation.AdmittedDetailContent> Resolve(CancellationToken token)
         {
             using var validation = beginValidation();
             try
             {
-                var exact = await conversation.ReadDetailAsync(target, message, live, token);
+                var exact = await conversation.ReadDetailAsync(target, message, DetailLive, token);
                 validation.Complete(HostOperationOutcome.Completed);
                 return exact;
             }
@@ -78,10 +82,13 @@ internal sealed partial class SessionsViewModel
                 throw;
             }
         }
-        conversationStatus = await (openConversationDetail
+        var detailStatus = await (openConversationDetail
             ?? throw new InvalidOperationException("The native conversation detail viewer is unavailable."))(
-                content, live, Resolve, lifetime.Token);
-    }, sourceRead: true);
+                content, DetailLive, Resolve, lifetime.Token);
+        if (!DetailLive()) { throw new OperationCanceledException("Search match navigation was revoked."); }
+        conversationStatus = detailStatus;
+    }, sourceRead: true, searchDetailEpoch:
+        ConversationSearchMessages.Any(record => ReferenceEquals(record, message)) ? conversationSearchEpoch : null);
     public bool CanCompose => CanReadConversation && access.CanControl && selected?.Authority.IsActive == true
         && !conversationHeld && !conversationSourceHeld;
     public bool CanSaveConversationDraft => CanCompose && savedConversationDraft is not null;
@@ -224,7 +231,7 @@ internal sealed partial class SessionsViewModel
     }
 
     private async Task RunConversationAsync(Func<Kora.Core.Storage.SessionWorkspaceEntry, Func<bool>, Task> operation,
-        bool submission = false, bool sourceRead = false)
+        bool submission = false, bool sourceRead = false, long? searchDetailEpoch = null)
     {
         if (!CanReadConversation) { return; }
         var target = RequireSelected();
@@ -245,7 +252,12 @@ internal sealed partial class SessionsViewModel
         }
         catch (Exception exception) when (exception is not OutOfMemoryException)
         {
-            if (sourceRead && exception is ConversationSnapshotChangedException && Live())
+            var searchNavigationRevoked = searchDetailEpoch is { } searchEpoch && searchEpoch != conversationSearchEpoch && Live();
+            if (searchNavigationRevoked)
+            {
+                conversationStatus = "Search match navigation revoked. Composer and saved draft unchanged; explicit fresh Search required.";
+            }
+            else if (sourceRead && exception is ConversationSnapshotChangedException && Live())
             {
                 ClearConversationSearch();
                 conversationPage = null;
@@ -277,7 +289,8 @@ internal sealed partial class SessionsViewModel
                 conversationStatus = "The original selection changed during admission; its memory draft remains held, never retargeted. Inspect exact receipts.";
             }
             Failure(logger, exception.GetType().Name);
-            activity.Complete(exception is OperationCanceledException ? HostOperationOutcome.Cancelled : HostOperationOutcome.Failed);
+            activity.Complete(searchNavigationRevoked || exception is OperationCanceledException
+                ? HostOperationOutcome.Cancelled : HostOperationOutcome.Failed);
         }
         finally
         {

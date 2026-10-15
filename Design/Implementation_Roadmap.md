@@ -58,6 +58,13 @@ Session permission levels and expanded skill/instruction authoring are
 [proposed contracts](Session_Permission_Levels.md), not new runtime authority.
 Existing exact lock behavior and non-executing power proposals are unchanged.
 
+The delivered [passive exact-conversation search](Interaction_And_Sessions.md#delivered-passive-exact-conversation-lexical-search--2026-10-13)
+also composes an optional All/USER/HOST field filter in Sessions and shared compact
+projection. Immutable bodies, typed HOST fields, bounded validated chronological
+scan and exact query/filter/source/private snapshot fences remain authoritative.
+No global/history search, storage/index/schema/cache, model/provider authority or
+installed accessibility/full conversation qualification is added.
+
 ## Ordered Outstanding Work
 
 ### Bounded native saved-draft revision/UTF-8 metadata filters - 2026-10-15

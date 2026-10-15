@@ -9,11 +9,13 @@ namespace Kora;
 internal sealed partial class SessionsViewModel
 {
     private string conversationQuery = string.Empty;
+    private ConversationSearchRole conversationRole;
     private ConversationSearchPage? conversationSearchPage;
     private CancellationTokenSource? conversationSearchCancellation;
     private long conversationSearchEpoch;
     private bool conversationSearchBusy;
     private SessionWorkspaceEntry? conversationSearchTarget;
+    private SessionWorkspaceEntry? conversationSearchDetailTarget;
     private long conversationSearchControlRevision;
     private string conversationSearchStatus = "Search only this exact session's retained USER messages and typed HOST outcomes. No model context or receipt-history search.";
 
@@ -32,6 +34,21 @@ internal sealed partial class SessionsViewModel
         }
     }
     public string ConversationSearchStatus => conversationSearchStatus;
+    public IReadOnlyList<ConversationSearchRole> ConversationRoles { get; } = Enum.GetValues<ConversationSearchRole>();
+    public ConversationSearchRole ConversationRole
+    {
+        get => conversationRole;
+        set
+        {
+            if (closed || !access.CanInspect || conversationRole == value) { return; }
+            InvalidateConversationSearch();
+            conversationRole = value;
+            conversationSearchTarget = selected;
+            conversationSearchControlRevision = access.ControlRevision;
+            conversationSearchStatus = "Role filter edited. Explicit Search required; composer and saved draft are unchanged.";
+            NotifyConversationSearch();
+        }
+    }
     public IReadOnlyList<ConversationMessage> ConversationSearchMessages => conversationSearchPage?.Messages ?? [];
     public bool CanSearchConversation => CanReadConversation && !conversationSearchBusy;
     public bool CanNextConversationSearch => CanSearchConversation && conversationSearchPage?.Next is not null;
@@ -41,6 +58,7 @@ internal sealed partial class SessionsViewModel
     {
         InvalidateConversationSearch();
         conversationQuery = string.Empty;
+        conversationRole = ConversationSearchRole.All;
         conversationSearchTarget = null;
         conversationSearchStatus = "Private search query, rows and continuation cleared. Composer and saved draft unchanged.";
         NotifyConversationSearch();
@@ -51,6 +69,11 @@ internal sealed partial class SessionsViewModel
         conversationSearchEpoch++;
         conversationSearchCancellation?.Cancel();
         conversationSearchPage = null;
+        if (conversationSearchDetailTarget is { } detailTarget)
+        {
+            conversationSearchDetailTarget = null;
+            revokeConversationDetails?.Invoke(detailTarget.Authority.SessionId);
+        }
     }
 
     public async Task SearchConversationAsync(bool next = false)
@@ -60,6 +83,7 @@ internal sealed partial class SessionsViewModel
         var selection = selectionEpoch;
         var revision = access.ControlRevision;
         var query = conversationQuery;
+        var role = conversationRole;
         conversationSearchTarget = target;
         conversationSearchControlRevision = revision;
         var cursor = next ? conversationSearchPage?.Next : null;
@@ -78,13 +102,13 @@ internal sealed partial class SessionsViewModel
         {
             if (next && cursor is null) { throw new ArgumentException("CursorMismatch", nameof(next)); }
             var result = await conversation!.SearchAsync(target.Authority.SessionId, query, cursor,
-                ConversationSearchPage.DefaultRecords, cancellation.Token);
+                ConversationSearchPage.DefaultRecords, cancellation.Token, role);
             cancellation.Token.ThrowIfCancellationRequested();
             if (!Live() || result.Session != target.Authority)
             { throw new OperationCanceledException("Exact private conversation search was revoked."); }
             conversationSearchPage = result;
             conversationSearchStatus = "Observed " + result.Messages.Length.ToString(CultureInfo.InvariantCulture)
-                + " exact USER/HOST matches; scanned " + result.Scanned.ToString(CultureInfo.InvariantCulture)
+                + " exact " + result.Role + " field matches; scanned " + result.Scanned.ToString(CultureInfo.InvariantCulture)
                 + ", omitted 0, unavailable 0. "
                 + (result.Next is null ? "End of original sequence snapshot." : "Next continues the original snapshot.")
                 + " Chronological inert text; not generated answers, ranking or execution authority.";
@@ -99,11 +123,12 @@ internal sealed partial class SessionsViewModel
                 {
                     InvalidateConversationSearch();
                     conversationQuery = string.Empty;
+                    conversationRole = ConversationSearchRole.All;
                     conversationSearchTarget = null;
                 }
                 conversationSearchStatus = exception switch
                 {
-                    ArgumentException => "InvalidQuery or CursorMismatch. Use 1-256 UTF-16 characters / 512 UTF-8 bytes with 1-32 distinct lexical terms of at most 64 characters; start fresh Search.",
+                    ArgumentException => "InvalidQuery, InvalidRole or CursorMismatch. Select All, USER or HOST; use 1-256 UTF-16 characters / 512 UTF-8 bytes with 1-32 distinct lexical terms of at most 64 characters; start fresh Search.",
                     ConversationSnapshotChangedException => "Snapshot changed. No search content; start a fresh Search.",
                     OperationCanceledException => "Search cancelled. No search content or successful observation inferred.",
                     _ => "Exact conversation search unavailable. No search content; refresh the selected source and start fresh Search.",
@@ -128,10 +153,11 @@ internal sealed partial class SessionsViewModel
         {
             InvalidateConversationSearch();
             conversationQuery = string.Empty;
+            conversationRole = ConversationSearchRole.All;
             conversationSearchTarget = null;
             conversationSearchStatus = "Exact session/source or private ownership changed. Private search cleared; explicit fresh Search required.";
         }
-        foreach (var name in new[] { nameof(ConversationQuery), nameof(ConversationSearchStatus),
+        foreach (var name in new[] { nameof(ConversationQuery), nameof(ConversationRole), nameof(ConversationSearchStatus),
             nameof(ConversationSearchMessages), nameof(CanSearchConversation), nameof(CanNextConversationSearch),
             nameof(CanCancelConversationSearch) })
         { OnPropertyChanged(name); }

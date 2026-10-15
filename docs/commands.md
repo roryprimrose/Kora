@@ -5,7 +5,12 @@
 **Tray > Saved conversation drafts (metadata only)** is native-only; it has no typed/voice/model body query. Opening reads nothing. Explicit Refresh/Next/Cancel shows bounded saved composer metadata across retained All/Active/Done sessions, never a body preview or global count.
 Cleared/empty/never-saved and question/parameter drafts are not saved-content results.
 Its **Browse / NameSubstring / ExactId** modes search session metadata only. Name matching is literal, ordinal case-sensitive under the session-name bounds; exact IDs require canonical lowercase D format. ID-shaped names are not targets. Invalid/empty queries never become All.
-Typing performs no read. Query/mode/filter edits cancel pending pages and invalidate the catalogue selection without changing the current composer. Use **Search / refresh metadata**, Next, Cancel, or **Clear query (Browse)** explicitly. A zero-match bounded page may still have Next; there is no global inventory count.
+Optional **Exact saved revision**, **Minimum UTF-8 bytes** and **Maximum UTF-8 bytes**
+compose with every mode and All/Active/Done. Empty fields mean Any; revision must
+be a positive integer, and byte bounds are inclusive 0-16384 with minimum <= maximum.
+Use decimal digits only: signs, whitespace, separators and overflow visibly refuse
+Search/Refresh, without repair or body reads. No scalar-length filter is available.
+Typing performs no read. Query/mode/lifecycle/revision/byte edits cancel pending pages and invalidate the catalogue selection and exact navigation without changing the current composer. Use **Search / refresh metadata**, Next, Cancel, or **Clear query (Browse)** explicitly; Clear also empties the metadata fields without reading. A zero-match bounded page may still have Next; there is no global inventory count.
 
 Select one row and **Open exact session (no body load)**. Changed source/revision/privacy refuses with Refresh. The existing Sessions dirty-buffer Save/Discard/Cancel protection remains; an explicit Save that changes authority requires fresh catalogue observation.
 **Reload saved draft**, Save and Submit are separate Sessions gestures. Done remains Done. See the [canonical scope and limitations](../Design/Interaction_And_Sessions.md#saved-conversation-draft-catalogue--2026-10-13).

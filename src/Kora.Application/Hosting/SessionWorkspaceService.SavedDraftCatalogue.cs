@@ -8,7 +8,8 @@ public sealed partial class SessionWorkspaceService
         ?? throw new InvalidOperationException("The private saved composer metadata source is unavailable.");
 
     public Task<SavedDraftPage> ReadSavedDraftCatalogue(SessionListFilter filter, string? cursor,
-        Func<bool> admitted, CancellationToken token, SessionListSearch? query = null)
+        Func<bool> admitted, CancellationToken token, SessionListSearch? query = null,
+        SavedDraftMetadataFilter? metadataFilter = null)
     {
         RequireNativeFileInput();
         if (query is not null && query.Filter != filter)
@@ -16,10 +17,11 @@ public sealed partial class SessionWorkspaceService
         return ReadAsync(async () =>
         {
             var result = await SavedDraftCatalogue.ReadSavedDraftPage(filter, cursor, access.ControlRevision,
-                admitted, token, query).ConfigureAwait(false);
+                admitted, token, query, metadataFilter).ConfigureAwait(false);
             result.Validate();
             token.ThrowIfCancellationRequested();
             if (result.Filter != filter || result.QueryKind != query?.Kind
+                || (result.MetadataFilter ?? SavedDraftMetadataFilter.Any) != (metadataFilter ?? SavedDraftMetadataFilter.Any)
                 || !string.Equals(result.QueryDigest, query?.Digest, StringComparison.Ordinal)
                 || query is not null && result.Records.Any(row => !query.Matches(new(row.Session, row.Metadata)))
                 || !admitted())

@@ -60,6 +60,18 @@ Existing exact lock behavior and non-executing power proposals are unchanged.
 
 ## Ordered Outstanding Work
 
+### Bounded native saved-draft revision/UTF-8 metadata filters - 2026-10-15
+
+The [saved-draft catalogue](Interaction_And_Sessions.md#saved-conversation-draft-catalogue--2026-10-13)
+now composes optional exact positive revision and inclusive UTF-8 byte bounds
+with Browse/name/exact-ID and All/Active/Done. One portable contract owns strict
+parsing and matching; validated metadata scans and signed continuations retain
+full private/source/authority binding. Edits revoke observations without I/O;
+invalid input refuses reads and zero matches remain truthful. This consumes only
+the existing catalogue I subset. No scalar filter, body import/inference, schema,
+index/cache, aggregate quota/count, mutation, activity renewal, model/tool/speech
+route, new source authority or installed accessibility/E/Q qualification is added.
+
 ### Bounded native Evidence reader text scale - 2026-10-15
 
 The confirmed device-local [reader scale](Information_Display.md#bounded-native-reader-text-scale)

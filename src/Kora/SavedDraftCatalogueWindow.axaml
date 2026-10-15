@@ -23,6 +23,24 @@
                  IsEnabled="{Binding CanEditQuery}" AutomationProperties.Name="Private volatile session name or exact ID query; typing performs no read" />
       </WrapPanel>
       <controls:NamedTextBlock Text="{Binding QueryHint}" TextWrapping="Wrap" />
+      <WrapPanel>
+        <StackPanel>
+          <TextBlock Text="Exact saved revision (Any if empty)" />
+          <TextBox x:Name="DraftRevisionText" Text="{Binding RevisionText, Mode=TwoWay}" Width="240"
+                   IsEnabled="{Binding CanEditQuery}" AutomationProperties.Name="Exact positive saved draft revision; empty means Any; typing performs no read" />
+        </StackPanel>
+        <StackPanel>
+          <TextBlock Text="Minimum UTF-8 bytes (inclusive)" />
+          <TextBox x:Name="DraftMinimumBytesText" Text="{Binding MinimumBytesText, Mode=TwoWay}" Width="240"
+                   IsEnabled="{Binding CanEditQuery}" AutomationProperties.Name="Inclusive minimum saved draft UTF-8 bytes; empty means Any; typing performs no read" />
+        </StackPanel>
+        <StackPanel>
+          <TextBlock Text="Maximum UTF-8 bytes (inclusive)" />
+          <TextBox x:Name="DraftMaximumBytesText" Text="{Binding MaximumBytesText, Mode=TwoWay}" Width="240"
+                   IsEnabled="{Binding CanEditQuery}" AutomationProperties.Name="Inclusive maximum saved draft UTF-8 bytes; empty means Any; typing performs no read" />
+        </StackPanel>
+      </WrapPanel>
+      <controls:NamedTextBlock Text="{Binding MetadataHint}" TextWrapping="Wrap" />
     </StackPanel>
     <controls:NamedTextBlock Grid.Row="2" Text="{Binding Status}" TextWrapping="Wrap"
                             AutomationProperties.Name="Passive bounded metadata observation; not body integrity verification" />

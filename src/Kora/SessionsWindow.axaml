@@ -464,6 +464,10 @@
                        IsEnabled="{Binding CanFilterMemories}" PlaceholderText="Exact memory GUID, or empty for Any"
                        AutomationProperties.Name="Exact memory GUID filter over listed metadata only; no content reads" />
               <WrapPanel>
+                <TextBlock Text="Scope" VerticalAlignment="Center" />
+                <ComboBox x:Name="MemoryScopeFilter" ItemsSource="{Binding MemoryScopeFilters}"
+                          SelectedItem="{Binding MemoryScopeChoice, Mode=TwoWay}"
+                          IsEnabled="{Binding CanFilterMemories}" AutomationProperties.Name="Memory Scope filter; Any or a defined scope kind; metadata only, not permission" />
                 <TextBlock Text="Review" VerticalAlignment="Center" />
                 <ComboBox x:Name="MemoryReviewFilter" ItemsSource="{Binding MemoryReviewFilters}"
                           SelectedItem="{Binding MemoryReviewChoice, Mode=TwoWay}"

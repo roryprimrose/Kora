@@ -10,6 +10,43 @@ namespace Kora.Application.UnitTests.Hosting;
 public sealed partial class SessionWorkspaceServiceTests
 {
     [Theory]
+    [InlineData(AttachmentCopyStatus.Confirmed)]
+    [InlineData(AttachmentCopyStatus.Held)]
+    [InlineData(AttachmentCopyStatus.Unavailable)]
+    public async Task CopyAndByteQueryIsForwardedExactlyAndMismatchRefusesWithoutBodyOrWrites(AttachmentCopyStatus copy)
+    {
+        using var fixture = new Fixture();
+        using var root = HostActivity.BeginRoot(fixture.Request, HostActivityLayer.Application, HostOperation.Request);
+        var summary = CatalogueSummary(fixture) with
+        { CopyStatus = copy, StoredBytes = copy == AttachmentCopyStatus.Unavailable ? 0 : 4 };
+        var query = new SessionAttachmentQuery(true, summary.Session.Value.ToString("D"), SessionAttachmentFilter.Active,
+            copyStatus: copy, minimumStoredBytes: copy == AttachmentCopyStatus.Unavailable ? null : 0, maximumStoredBytes: 4);
+        fixture.CataloguePage = new(query, query.Matches(summary) ? [summary] : [], null,
+            DateTimeOffset.UnixEpoch, 1, new string('a', 64), 1, false);
+        var audit = new FileAudit();
+        await using var files = FileService(fixture, FileAction(new FileCapture(), audit), audit);
+        var service = new SessionAttachmentCatalogueService(fixture.Service, files);
+        (await service.Read(query, null, () => true, fixture.Token)).Should().BeSameAs(fixture.CataloguePage);
+        fixture.ObservedAttachmentQuery.Should().BeSameAs(query);
+        foreach (var changed in new[]
+        {
+            new SessionAttachmentQuery(true, query.ExactSessionId, query.Filter, maximumStoredBytes: 4),
+            new(true, query.ExactSessionId, query.Filter, copyStatus: copy, maximumStoredBytes: 3),
+            new(true, query.ExactSessionId, query.Filter, copyStatus: copy, minimumStoredBytes: 1, maximumStoredBytes: 4)
+        })
+        {
+            fixture.CataloguePage = fixture.CataloguePage with { Query = changed, Records = [] };
+            var mismatch = () => service.Read(query, null, () => true, fixture.Token);
+            await mismatch.Should().ThrowAsync<InvalidDataException>();
+        }
+        fixture.FileReads.Should().Be(0);
+        fixture.ControlCalls.Should().Be(0);
+        fixture.PassiveInspectionCalls.Should().Be(0);
+        fixture.TaskWrites.Should().BeEmpty();
+        audit.Events.Should().BeEmpty();
+    }
+
+    [Theory]
     [InlineData("text/plain")]
     [InlineData("text/markdown")]
     public async Task ExactMediaQueryPassesUnchangedAndRefusesMismatchedFilterWithoutBodyOrAuthority(string type)

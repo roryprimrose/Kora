@@ -27,7 +27,7 @@ using Microsoft.Extensions.Logging;
 namespace Kora.Windows.IntegrationTests;
 
 [Collection(nameof(HeadlessUiTestGroup))]
-public sealed class AttachmentCatalogueWindowTests
+public sealed partial class AttachmentCatalogueWindowTests
 {
     [WindowsFact]
     public async Task NativeExactMediaPickerIsAccessibleExplicitStrictAndRevokesRowsSelectionAndContinuation()
@@ -530,6 +530,10 @@ public sealed class AttachmentCatalogueWindowTests
     [InlineData("invalid-filter")]
     [InlineData("media")]
     [InlineData("invalid-media")]
+    [InlineData("copy")]
+    [InlineData("invalid-copy")]
+    [InlineData("minimum")]
+    [InlineData("maximum")]
     [InlineData("id")]
     [InlineData("metadata")]
     [InlineData("mode")]
@@ -569,6 +573,10 @@ public sealed class AttachmentCatalogueWindowTests
         if (boundary is "invalid-filter") { model.Filter = (SessionAttachmentFilter)99; }
         if (boundary is "media") { model.MediaType = "text/markdown"; }
         if (boundary is "invalid-media") { model.MediaType = "TEXT/PLAIN"; }
+        if (boundary is "copy") { model.CopyStatus = new(AttachmentCopyStatus.Held); }
+        if (boundary is "invalid-copy") { model.CopyStatus = new((AttachmentCopyStatus)99); }
+        if (boundary is "minimum") { model.MinimumBytesText = "0"; }
+        if (boundary is "maximum") { model.MaximumBytesText = "0"; }
         if (boundary is "id") { model.QueryText = Guid.NewGuid().ToString("D"); }
         if (boundary is "metadata") { model.MetadataText = "unmatched"; }
         if (boundary is "mode") { model.Mode = AttachmentCatalogueMode.Browse; }
@@ -600,6 +608,9 @@ public sealed class AttachmentCatalogueWindowTests
     [InlineData("removal")]
     [InlineData("metadata")]
     [InlineData("media")]
+    [InlineData("copy")]
+    [InlineData("minimum")]
+    [InlineData("maximum")]
     public async Task CatalogueLateNavigationNeverDisclosesAfterOriginalSelectionIsRevoked(string boundary)
     {
         using var fixture = new InteractionStorageFixture();
@@ -625,6 +636,9 @@ public sealed class AttachmentCatalogueWindowTests
         if (boundary is "lifecycle") { model.Filter = SessionAttachmentFilter.Done; }
         if (boundary is "removal") { model.IncludeRemoved = true; }
         if (boundary is "media") { model.MediaType = "text/markdown"; }
+        if (boundary is "copy") { model.CopyStatus = new(AttachmentCopyStatus.Held); }
+        if (boundary is "minimum") { model.MinimumBytesText = "0"; }
+        if (boundary is "maximum") { model.MaximumBytesText = "0"; }
         if (boundary is "metadata") { model.MetadataText = "unmatched"; }
         release.SetResult();
         await navigation;

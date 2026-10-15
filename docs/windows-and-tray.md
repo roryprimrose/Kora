@@ -381,7 +381,16 @@ Choose **Stored session lifecycle: All (default), Active, Done or Removed** inde
 
 Choose **Exact retained media type: All (default), text/plain or text/markdown** independently of the other filters, then Search. Only the already validated retained type is matched exactly; no filename, extension or path inference occurs. Removed tombstones match only All, even with Include removed slots. Held metadata can match but cannot open a body. Undefined, differently cased, spaced or parameterized types are invalid, never All. No matching retained metadata is reported truthfully at the end of the bounded observation, not as a global total.
 
-Typing performs no I/O. Mode, ID, literal, lifecycle, media-type filter and **Include removed slots** edits retire results, selection, navigation and continuation and cancel pending work; use Search again. **Clear query (Browse)** clears both volatile query fields without reading or changing the filters. Search never auto-selects or opens a match. Escape closes and clears private state. Source/privacy/ownership/lifecycle revocation clears both query fields too.
+Choose **Exact copy status: Any (default), Confirmed, Held or Unavailable** and
+optionally enter inclusive **minimum / maximum retained stored bytes**. Empty
+means Any; nonempty bounds accept only invariant decimal digits, from 0 through
+262144, with minimum <= maximum. Signs, whitespace, separators and overflow are
+invalid, never repaired. All filters combine by AND. Held metadata may match but
+cannot open a body. Unavailable tombstones can match exact Unavailable with
+Include removed slots and a matching lifecycle, but never match byte bounds,
+even 0..0. Their size is unavailable, not an original zero-byte-file claim.
+
+Typing performs no I/O. Mode, ID, literal, lifecycle, media-type/copy-status/byte filters and **Include removed slots** edits retire results, selection, navigation and continuation and cancel pending work; use Search again (or Enter in a query/byte field). **Clear query (Browse)** clears both volatile query fields without reading or changing the filters. Search never auto-selects or opens a match. Escape closes and clears private state. Source/privacy/ownership/control revocation also clears the copy-status/byte fields.
 
 - Each page has at most **16 rows / 64 KiB** and scans at most **64 slots**. **Next bounded page** may continue after zero matches; ExactId does not jump over unvalidated slots. **Include removed slots** shows content-free removal provenance; historical removed slots do not count toward the sixteen-live-file cap.
 - Typed authority is validated in bounded segments before rows are shown. **Authority validation pending** pages contain no attachments; use Next to continue. Reads have a five-second budget. Continuations expire after two minutes; any committed authority, storage/profile or query change requires Refresh.

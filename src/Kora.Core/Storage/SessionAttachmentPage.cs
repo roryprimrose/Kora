@@ -28,6 +28,7 @@ public sealed record SessionAttachmentPage(
             || ScannedRows < Records.Length || ScannedRows > MaximumScannedRows
             || !Enum.IsDefined(Query.Filter)
             || Query.IncludeRemoved && Query.ExactId is null && Query.MetadataText is null && Query.ExactMediaType is null
+                && Query.CopyStatus is null && Query.MinimumStoredBytes is null && Query.MaximumStoredBytes is null
                 && Query.Filter == SessionAttachmentFilter.All
                 && ScannedRows != Records.Length
             || ObservedAt.Offset != TimeSpan.Zero || AuthorityCeiling < 0

@@ -68,12 +68,19 @@ public sealed partial class WindowsSqliteSessionAttachmentTests
         using var root = HostActivity.BeginRoot(fixture.Request, HostActivityLayer.Application, HostOperation.Request);
         var retained = await Attach(fixture, Encoding.UTF8.GetBytes("private source"));
         AppendCatalogueAuditReceipts(fixture, SessionAttachmentPage.MaximumAuditRows + 1);
-        var query = new SessionAttachmentQuery(true, retained.Session.Value.ToString("D"), SessionAttachmentFilter.Active, "text/", type);
+        var query = new SessionAttachmentQuery(true, retained.Session.Value.ToString("D"), SessionAttachmentFilter.Active, "text/", type,
+            AttachmentCopyStatus.Confirmed, 0, 262144);
         var first = await fixture.Store.ReadAttachmentPage(query, null, () => true, fixture.Token);
         first.AuthorityValidationPending.Should().BeTrue();
         first.Records.Should().BeEmpty();
         foreach (var changed in new[]
         {
+            new SessionAttachmentQuery(true, query.ExactSessionId, query.Filter, query.MetadataText, type, null, 0, 262144),
+            new(true, query.ExactSessionId, query.Filter, query.MetadataText, type, AttachmentCopyStatus.Held, 0, 262144),
+            new(true, query.ExactSessionId, query.Filter, query.MetadataText, type, query.CopyStatus, null, 262144),
+            new(true, query.ExactSessionId, query.Filter, query.MetadataText, type, query.CopyStatus, 1, 262144),
+            new(true, query.ExactSessionId, query.Filter, query.MetadataText, type, query.CopyStatus, 0, null),
+            new(true, query.ExactSessionId, query.Filter, query.MetadataText, type, query.CopyStatus, 0, 262143),
             new SessionAttachmentQuery(true, query.ExactSessionId, query.Filter, query.MetadataText),
             new(true, query.ExactSessionId, query.Filter, query.MetadataText,
                 string.Equals(type, "text/plain", StringComparison.Ordinal) ? "text/markdown" : "text/plain"),

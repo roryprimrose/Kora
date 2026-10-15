@@ -253,6 +253,13 @@ Native full-source inspection and the same lexical-lines citations remain availa
 
 Exact reviewed attachment removal revokes native view/search before atomic body/path-metadata removal and owned-journal verification. Session disposition and ordinary deletion inventory the same copies; live/Unknown work and uninventoried copies hold completion. Content-free provenance remains, original user files and unrelated/kept sessions/Perpetual grants do not change. No body is added to history, memory, preferences, models, logs or audit text.
 
+The separate [retained metadata catalogue](File_And_Folder_Ingestion.md#delivered-retained-attachment-metadata-catalogue---2026-10-11)
+also composes optional exact copy status and inclusive retained-byte bounds with
+ID/lifecycle/removal/type/literal predicates. Unavailable provenance has no
+original-size claim and never matches byte bounds. These volatile filters grant
+no session authority, source access or activity renewal; editing reads nothing
+and retires the original observation/navigation.
+
 ## Current Implementation and Design Gap
 
 The [optional native enqueue prerequisite](Work_Management.md#delivered-optional-native-enqueue-prerequisite---2026-10-12) adds same-session bounded metadata-only choice to all six fixed profiles. It combines nonqueue tasks with already-observed queued pending/running/recent terminal tasks using actual host task metadata from the same atomic work read, never queue-entry revisions or history scans. None is the initial default; exact selected ID/revision flows through the original command/service/store with final stale-source refusal.

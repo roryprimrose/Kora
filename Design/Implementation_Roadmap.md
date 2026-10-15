@@ -271,6 +271,22 @@ Fully validated fixed scans and bounded audit-prefix admission remain mandatory,
 No name/title/path/body/digest search, new metadata reads, schema/index/cache/layout/copy mutation, count cap, activity renewal, model/tool/speech route or saved query is added. Storage optimizations and profile-original/hidden-import work remain deferred.
 Focused Core/Application/private SQLite/native checks qualify this consumer only, not broader R26, provider/hardware, installed screen-reader/DPI, physical protected-storage/deletion or STOP. Existing audit/retention/deadline and enablement/RC gates are unchanged; no experiment is edited.
 
+### R26 retained attachment copy-status and byte-range filters - 2026-10-15
+
+The [retained attachment catalogue](File_And_Folder_Ingestion.md#delivered-retained-attachment-metadata-catalogue---2026-10-11)
+adds optional exact Any/Confirmed/Held/Unavailable and inclusive retained
+StoredBytes bounds composed with all existing predicates. A shared strict
+unsigned-decimal parser, typed limits, validated-before-exclusion finite scans,
+authenticated query/source/private/head continuations and synchronous
+edit-without-read revocation preserve the existing I contract. Unavailable
+tombstones never match byte bounds or present their zero sentinel as original
+size. Deterministic Core/Application/SQLite/native accessibility tests cover
+composition, malformed input, tampering, zero matches and late revocation.
+No schema/index/cache, content/path read, mutation, aggregate/persistence,
+diagnostic/audit payload, model/tool/speech/export or activity renewal is added.
+This bounded I increment does not advance broader R26 or E/Q qualification;
+Presence/native-presenter and unrelated filter/review work remain separate.
+
 ### R26 exact retained attachment media-type filter - 2026-10-15
 
 The bounded exact retained media-type increment adds All / `text/plain` / `text/markdown`, composed with exact ID, lifecycle, removed-slot and literal filters inside the existing fully validated scan. One extracted Core strict type rule, authenticated query/authority digest continuations and immediate native edit revocation preserve fail-closed nonmatch/corruption admission; tombstones match only All. Deterministic portable/private SQLite/headless control checks cover this consumer only. No schema/index/cache, body/OCR/path disclosure, count-total claim, activity renewal, model/tool/speech route, authority expansion or broader R26/installed-accessibility qualification is added.

@@ -375,22 +375,7 @@ public sealed class PresenceControl : Control, IDisposable
 
     private double GetActivity()
     {
-        if (!IsMotionEnabled)
-        {
-            return 0;
-        }
-        var activity = State switch
-        {
-            AssistantState.Listening => 0.8,
-            AssistantState.Calculating => 1.25,
-            AssistantState.Waiting => 0.35,
-            AssistantState.Executing => 1.5,
-            AssistantState.Success => 0.08,
-            AssistantState.Failure => 0,
-            AssistantState.Information => 0.28,
-            _ => 0,
-        };
-        return activity * MovementSpeedPercent / 100d;
+        return PresenceParticleField.GetActivity(State, MovementSpeedPercent, IsMotionEnabled);
     }
 
     private void MoveParticles(double activity)

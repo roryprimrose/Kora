@@ -479,6 +479,16 @@ Done-session conversation is readable without resume. Sending new work requires 
 
 ### Evidence Mode
 
+The delivered [bounded native inspector](Information_Display.md#delivered-bounded-native-evidence-inspection)
+has an optional exact **Span ID** field beside **Trace ID**. Empty means Any;
+nonempty means exactly 16 lowercase hexadecimal characters, not all zero,
+under the existing portable W3C policy. All existing filters compose with AND.
+Edits revoke the current page/selection/continuation without reading.
+Clear advanced preserves both basic W3C fields; emptying either unsets it,
+and close clears both. Span ID is correlation only, not session or audit
+authority. This adds no ParentSpanId predicate, navigation, export or model
+route; the broader mode below remains a target contract, not qualification.
+
 Evidence mode provides a bounded local timeline/search over permitted session,
 diagnostic and security-audit records. It supports time range, source kind,
 severity, event/category, correlation, session, task, invocation, approval,

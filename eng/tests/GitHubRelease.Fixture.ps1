@@ -8,7 +8,7 @@ function New-ReleaseFixtureState {
         Fail = ''; FailAfter = $false; DownloadCorrupt = $false; DriftOnTag = $false
         Pages = @{}; UseNativeExit = $false; Annotated = @{}; HardStop = ''; ResultPath = ''
         HideCreatedDrafts = $false; CreateResponse = ''; DirectReadChange = ''; ReadTimeout = $false
-        CompetingAfterCreate = $false
+        CompetingAfterCreate = $false; TagVisibilityDelayReads = 0
         DriftBodyOnUpload = $false
     }
 }
@@ -50,7 +50,9 @@ function gh {
                 elseif ($record.Count -gt 0) { 200 } else { 404 }
             if ($record.Count -gt 0) { $record = $record[0] } else { $record = $null }
         } elseif ($path -like '*/git/ref/tags/*') {
-            $record = $state.Tag
+            $hidden = $null -ne $state.Tag -and $state.TagVisibilityDelayReads -gt 0
+            if ($hidden) { $state.TagVisibilityDelayReads-- }
+            $record = if ($hidden) { $null } else { $state.Tag }
             $status = if ($state.TagStatus -notin @(200, 404)) { $state.TagStatus }
                 elseif ($null -ne $record) { 200 } else { 404 }
         } elseif ($path -match '/releases/(\d+)$') {
@@ -172,6 +174,8 @@ function gh {
             $sha = @($arguments | Where-Object { $_ -like 'sha=*' })[0].Substring(4)
             $state.Tag = @{ object = @{ type = 'commit'; sha = $sha } }
             if ($state.DriftOnTag) { $state.Releases[0].target_commitish = 'b' * 40 }
+            $reference = @($arguments | Where-Object { $_ -like 'ref=*' })[0].Substring(4)
+            $response = @{ ref = $reference; object = $state.Tag.object } | ConvertTo-Json -Depth 4
         }
         'publish' {
             $release = @($state.Releases | Where-Object id -eq $path.Split('/')[-1])[0]

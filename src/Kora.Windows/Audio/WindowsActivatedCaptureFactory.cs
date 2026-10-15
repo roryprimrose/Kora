@@ -10,11 +10,15 @@ namespace Kora.Windows.Audio;
 
 internal sealed class WindowsActivatedCaptureFactory : IActivatedCaptureFactory
 {
-    public async Task<IActivatedCapture> OpenAsync(
+    public Task<IActivatedCapture> OpenAsync(
         MicrophoneDevice microphone,
         IReadOnlyList<string> phrases,
         BlockingAudioStream stream,
-        Func<bool> canOpen)
+        Func<bool> canOpen) =>
+        OpenAsync(microphone, phrases, stream, canOpen, VoiceCaptureLimits.Default.EmptySpeechDeadline);
+
+    public async Task<IActivatedCapture> OpenAsync(MicrophoneDevice microphone,
+        IReadOnlyList<string> phrases, BlockingAudioStream stream, Func<bool> canOpen, TimeSpan speechStartWindow)
     {
         MMDevice? endpoint = null;
         SpeechRecognitionEngine? recognizer = null;
@@ -37,7 +41,7 @@ internal sealed class WindowsActivatedCaptureFactory : IActivatedCaptureFactory
                 ?? throw new InvalidOperationException("No English Windows speech recognizer is installed.");
             recognizer = new SpeechRecognitionEngine(info.Id)
             {
-                InitialSilenceTimeout = TimeSpan.FromSeconds(5),
+                InitialSilenceTimeout = speechStartWindow,
                 EndSilenceTimeout = TimeSpan.FromSeconds(1),
                 EndSilenceTimeoutAmbiguous = TimeSpan.FromSeconds(1),
             };

@@ -21,7 +21,6 @@ using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Kora.Windows.IntegrationTests.ArtifactDiscovery;
 
-[Collection(nameof(DurableStorageCompositionTestGroup))]
 public sealed class OwnedInstructionEditorCompositionTests : IDisposable
 {
     private readonly string root = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..",

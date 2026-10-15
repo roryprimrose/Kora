@@ -20,6 +20,97 @@ public sealed class EvidenceAdvancedFilterTests
     private static readonly DateTimeOffset Edge = new(2026, 10, 10, 0, 0, 0, TimeSpan.Zero);
 
     [Theory]
+    [InlineData("")]
+    [InlineData("0123456789abcdef")]
+    [InlineData("0000000000000001")]
+    public async Task NativeSpanUsesEmptyOnlyAnyAndPreservesExactCanonicalInput(string value)
+    {
+        using var listener = WindowsDailyEvidenceReaderTests.Listen();
+        var reader = new CapturingReader();
+        var viewer = Viewer(reader);
+        viewer.SpanFilter = value;
+        await viewer.SearchAsync();
+        reader.Queries.Should().ContainSingle().Which.SpanId.Should().Be(value.Length == 0 ? null : value);
+        viewer.Select(viewer.Records[0]);
+        viewer.SpanFilter = value;
+        viewer.CanNext.Should().BeTrue();
+        viewer.CanReadTrace.Should().BeTrue();
+        reader.Queries.Should().ContainSingle();
+        viewer.SpanFilter = string.Empty;
+        await viewer.SearchAsync();
+        reader.Queries[^1].SpanId.Should().BeNull();
+        reader.Checkpoints[^1].Should().BeNull();
+        viewer.Close();
+    }
+
+    [Theory]
+    [InlineData("0")]
+    [InlineData("0123456789abcde")]
+    [InlineData("0123456789abcdef0")]
+    [InlineData("0123456789ABCDEF")]
+    [InlineData("0123456789abcdeg")]
+    [InlineData("0000000000000000")]
+    [InlineData(" 0123456789abcdef")]
+    [InlineData("0123456789abcdef ")]
+    [InlineData("01234567 9abcdef")]
+    [InlineData("                ")]
+    [InlineData("\t")]
+    [InlineData("0123456789abcde\n")]
+    [InlineData("0x23456789abcdef")]
+    [InlineData("0123456789abcde\u00e9")]
+    [InlineData("0123456789abcde\ud800")]
+    public async Task MalformedSpanNeverReadsRepairsOrFallsBackToAny(string value)
+    {
+        using var listener = WindowsDailyEvidenceReaderTests.Listen();
+        var reader = new CapturingReader();
+        var viewer = Viewer(reader);
+        await viewer.SearchAsync();
+        viewer.Select(viewer.Records[0]);
+        viewer.SpanFilter = value;
+        viewer.Records.Should().BeEmpty();
+        viewer.CanNext.Should().BeFalse();
+        viewer.CanReadTrace.Should().BeFalse();
+        await viewer.SearchAsync();
+        reader.Queries.Should().ContainSingle();
+        viewer.SpanFilter.Should().Be(value);
+        viewer.ResultText.Should().BeEmpty();
+        viewer.Status.Should().Contain("failed").And.Contain("span (16)");
+        viewer.Close();
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task LateSpanReadFailureCannotRestoreRetiredResultsOrStatus(bool cancelled)
+    {
+        using var listener = WindowsDailyEvidenceReaderTests.Listen();
+        var reader = new CapturingReader();
+        var viewer = Viewer(reader);
+        viewer.SpanFilter = "0123456789abcdef";
+        await viewer.SearchAsync();
+        viewer.Select(viewer.Records[0]);
+        reader.Held = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        var pending = viewer.NextAsync();
+        viewer.SpanFilter = new string('b', 16);
+        reader.Token.IsCancellationRequested.Should().BeTrue();
+        if (cancelled) { reader.Held.SetException(new OperationCanceledException()); }
+        else { reader.Held.SetException(new IOException("Retired source failure.")); }
+        await pending;
+        viewer.Status.Should().StartWith("Filters changed");
+        viewer.Records.Should().BeEmpty();
+        viewer.Segments.Should().BeEmpty();
+        viewer.ResultText.Should().BeEmpty();
+        viewer.CanNext.Should().BeFalse();
+        viewer.CanReadTrace.Should().BeFalse();
+        reader.Queries.Should().HaveCount(2);
+        reader.Held = null;
+        await viewer.SearchAsync();
+        reader.Queries[^1].SpanId.Should().Be(new string('b', 16));
+        reader.Checkpoints[^1].Should().BeNull();
+        viewer.Close();
+    }
+
+    [Theory]
     [InlineData("en-US")]
     [InlineData("fr-FR")]
     [InlineData("tr-TR")]
@@ -38,6 +129,8 @@ public sealed class EvidenceAdvancedFilterTests
             var correlation = Guid.NewGuid();
             viewer.SessionFilter = request.SessionId.Value.ToString("D");
             viewer.TaskFilter = request.TaskId.Value.ToString("D");
+            viewer.TraceFilter = new string('a', 32);
+            viewer.SpanFilter = "0123456789abcdef";
             viewer.RequestFilter = request.RequestId.Value.ToString("D");
             viewer.InvocationFilter = invocation.ToString("D").ToUpperInvariant();
             viewer.ApprovalFilter = approval.ToString("D");
@@ -53,6 +146,8 @@ public sealed class EvidenceAdvancedFilterTests
             var query = reader.Queries.Single();
             query.SessionId.Should().Be(request.SessionId);
             query.TaskId.Should().Be(request.TaskId);
+            query.TraceId.Should().Be(viewer.TraceFilter);
+            query.SpanId.Should().Be(viewer.SpanFilter);
             query.RequestId.Should().Be(request.RequestId);
             query.InvocationId.Should().Be(new HostId<InvocationIdentity>(invocation));
             query.ApprovalId.Should().Be(approval);
@@ -75,6 +170,9 @@ public sealed class EvidenceAdvancedFilterTests
             viewer.Records.Should().BeEmpty();
             viewer.CanNext.Should().BeFalse();
             viewer.SessionFilter.Should().Be(request.SessionId.Value.ToString("D"));
+            reader.Queries.Should().HaveCount(2);
+            viewer.TraceFilter.Should().Be(new string('a', 32));
+            viewer.SpanFilter.Should().Be("0123456789abcdef");
             await viewer.SearchAsync();
             var blank = reader.Queries[^1];
             blank.RequestId.Should().BeNull();
@@ -88,9 +186,13 @@ public sealed class EvidenceAdvancedFilterTests
             blank.EventId.Should().BeNull();
             blank.Category.Should().BeNull();
             blank.ActionId.Should().BeNull();
+            blank.TraceId.Should().Be(viewer.TraceFilter);
+            blank.SpanId.Should().Be(viewer.SpanFilter);
             reader.Checkpoints[^1].Should().BeNull();
             viewer.Close();
             viewer.SessionFilter.Should().BeEmpty();
+            viewer.TraceFilter.Should().BeEmpty();
+            viewer.SpanFilter.Should().BeEmpty();
             viewer.RequestFilter.Should().BeEmpty();
             viewer.InvocationFilter.Should().BeEmpty();
             viewer.ApprovalFilter.Should().BeEmpty();
@@ -118,6 +220,7 @@ public sealed class EvidenceAdvancedFilterTests
     [InlineData(nameof(EvidenceViewModel.SessionFilter))]
     [InlineData(nameof(EvidenceViewModel.TaskFilter))]
     [InlineData(nameof(EvidenceViewModel.TraceFilter))]
+    [InlineData(nameof(EvidenceViewModel.SpanFilter))]
     [InlineData(nameof(EvidenceViewModel.EventIdFilter))]
     [InlineData(nameof(EvidenceViewModel.CategoryFilter))]
     [InlineData(nameof(EvidenceViewModel.ActionIdFilter))]
@@ -135,6 +238,7 @@ public sealed class EvidenceAdvancedFilterTests
         viewer.ResultText.Should().BeEmpty();
         viewer.CanNext.Should().BeFalse();
         viewer.CanReadTrace.Should().BeFalse();
+        reader.Queries.Should().ContainSingle();
         await viewer.NextAsync();
         reader.Queries.Should().ContainSingle();
         viewer.Status.Should().Contain("failed");
@@ -226,13 +330,19 @@ public sealed class EvidenceAdvancedFilterTests
     [InlineData(nameof(EvidenceViewModel.EventIdFilter))]
     [InlineData(nameof(EvidenceViewModel.CategoryFilter))]
     [InlineData(nameof(EvidenceViewModel.ActionIdFilter))]
+    [InlineData(nameof(EvidenceViewModel.SpanFilter))]
     public async Task ChangingFiltersDuringAReadCancelsAndCannotPublishLateContent(string field)
     {
         using var listener = WindowsDailyEvidenceReaderTests.Listen();
         var reader = new CapturingReader { Held = new(TaskCreationOptions.RunContinuationsAsynchronously) };
         var viewer = Viewer(reader);
         var pending = viewer.SearchAsync();
-        Set(viewer, field, field is nameof(EvidenceViewModel.RequestFilter) ? Guid.NewGuid().ToString("D") : "1");
+        Set(viewer, field, field switch
+        {
+            nameof(EvidenceViewModel.RequestFilter) => Guid.NewGuid().ToString("D"),
+            nameof(EvidenceViewModel.SpanFilter) => "0123456789abcdef",
+            _ => "1",
+        });
         reader.Token.IsCancellationRequested.Should().BeTrue();
         reader.Held.SetResult(Batch());
         await pending;
@@ -247,19 +357,21 @@ public sealed class EvidenceAdvancedFilterTests
         viewer.Close();
     }
 
-    [Fact]
-    public async Task LateUnsupportedFailureCannotReplaceTheNewFilterRevision()
+    [Theory]
+    [InlineData(nameof(EvidenceViewModel.ActionIdFilter))]
+    [InlineData(nameof(EvidenceViewModel.SpanFilter))]
+    public async Task LateUnsupportedFailureCannotReplaceTheNewFilterRevision(string field)
     {
         using var listener = WindowsDailyEvidenceReaderTests.Listen();
         var reader = new CapturingReader { Held = new(TaskCreationOptions.RunContinuationsAsynchronously) };
         var viewer = Viewer(reader);
         var pending = viewer.SearchAsync();
-        viewer.ActionIdFilter = "Exact Action";
+        Set(viewer, field, "0123456789abcdef");
         reader.Held.SetException(new NotSupportedException("Retired source failure."));
         await pending;
         viewer.Status.Should().StartWith("Filters changed");
         viewer.ResultText.Should().BeEmpty();
-        viewer.ActionIdFilter.Should().Be("Exact Action");
+        reader.Queries.Should().ContainSingle();
         viewer.Close();
     }
 
@@ -363,6 +475,14 @@ public sealed class EvidenceAdvancedFilterTests
                 ? count * 2 / 3 : count / 3);
         }
         viewer.RequestFilter = owner.RequestId.Value.ToString("D");
+        viewer.SessionFilter = owner.SessionId.Value.ToString("D");
+        viewer.TaskFilter = owner.TaskId.Value.ToString("D");
+        viewer.TraceFilter = matching.Trace!.TraceId;
+        viewer.SpanFilter = matching.Trace.SpanId;
+        viewer.SafeText = matching.MessageTemplate;
+        viewer.EventIdFilter = matching.EventId.ToString(CultureInfo.InvariantCulture);
+        viewer.CategoryFilter = matching.Category;
+        viewer.Severity = EvidenceSeverity.Warning;
         viewer.InvocationFilter = owner.InvocationId!.Value.Value.ToString("D");
         viewer.ApprovalFilter = audit.ApprovalId!.Value.ToString("D");
         viewer.CorrelationFilter = audit.CorrelationId.ToString("D");
@@ -378,6 +498,15 @@ public sealed class EvidenceAdvancedFilterTests
             viewer.Records[1].CommittedUtc.Should().BeNull();
             viewer.Records[1].DailyProvenance.Should().NotBeNull();
         }
+        viewer.SpanFilter = new string('f', 16);
+        await viewer.SearchAsync();
+        viewer.Records.Should().BeEmpty();
+        viewer.Status.Should().NotContain("failed");
+        viewer.SpanFilter = string.Empty;
+        viewer.TraceFilter = string.Empty;
+        viewer.SessionFilter = string.Empty;
+        viewer.TaskFilter = string.Empty;
+        viewer.SafeText = string.Empty;
         viewer.FromFilter = "2026-10-10T00:00:00.0000001Z";
         await viewer.SearchAsync();
         viewer.Status.Should().Contain("failed");
@@ -427,7 +556,15 @@ public sealed class EvidenceAdvancedFilterTests
         viewer.ActionIdFilter = events[1].ActionId;
         await viewer.SearchAsync();
         viewer.Records.Should().ContainSingle().Which.Audit.Should().BeEquivalentTo(events[1]);
+        var match = viewer.Records[0];
         viewer.CorrelationFilter = events[1].CorrelationId.ToString("D");
+        viewer.SpanFilter = match.Trace!.SpanId;
+        viewer.TraceFilter = match.Trace.TraceId;
+        viewer.SessionFilter = match.Host!.SessionId.Value.ToString("D");
+        viewer.TaskFilter = match.Host.TaskId.Value.ToString("D");
+        viewer.RequestFilter = match.Host.RequestId.Value.ToString("D");
+        viewer.SafeText = match.Text!;
+        viewer.Severity = EvidenceSeverity.Information;
         viewer.ApprovalFilter = events[1].ApprovalId!.Value.ToString("D");
         viewer.FromFilter = Edge.ToString("O", CultureInfo.InvariantCulture);
         viewer.UntilFilter = Edge.ToString("O", CultureInfo.InvariantCulture);
@@ -442,6 +579,7 @@ public sealed class EvidenceAdvancedFilterTests
         viewer.Records.Should().BeEmpty();
         viewer.CategoryFilter = "daily.test";
         viewer.AuditOutcome = SecurityAuditOutcome.Succeeded;
+        viewer.TraceFilter = string.Empty;
         await viewer.SearchAsync();
         viewer.Records.Should().BeEmpty();
         viewer.Status.Should().StartWith("Available");
@@ -617,6 +755,7 @@ public sealed class EvidenceAdvancedFilterTests
         var reader = new CapturingReader();
         var viewer = Viewer(reader);
         viewer.EventIdFilter = "1";
+        viewer.SpanFilter = "0123456789abcdef";
         viewer.CategoryFilter = "test";
         viewer.ActionIdFilter = "exact action";
         await viewer.SearchAsync();
@@ -624,12 +763,14 @@ public sealed class EvidenceAdvancedFilterTests
         await viewer.ReadTraceAsync();
         reader.Queries[^1].Source.Should().Be(EvidenceSource.All);
         reader.Queries[^1].TraceId.Should().NotBeNull();
+        reader.Queries[^1].SpanId.Should().BeNull();
         reader.Queries[^1].EventId.Should().BeNull();
         reader.Queries[^1].Category.Should().BeNull();
         reader.Queries[^1].ActionId.Should().BeNull();
         var reference = viewer.Records[0].Reference;
         await viewer.NavigateAsync(new(new string('a', 32), new string('b', 16), EvidenceSegmentStatus.Present, reference));
         reader.Queries[^1].Record.Should().Be(reference);
+        reader.Queries[^1].SpanId.Should().BeNull();
         reader.Queries[^1].EventId.Should().BeNull();
         reader.Queries[^1].Category.Should().BeNull();
         reader.Queries[^1].ActionId.Should().BeNull();
@@ -663,6 +804,84 @@ public sealed class EvidenceAdvancedFilterTests
         viewer.Close();
     }
 
+    [WindowsFact]
+    public async Task ExactSpanComposesWithEveryNativeFilterFamilyUsingAnd()
+    {
+        using var fixture = new OwnedStorageFixture();
+        using var listener = WindowsDailyEvidenceReaderTests.Listen();
+        var clock = new Clock();
+        var sink = new WindowsSqliteEvidenceSink(fixture, timeProvider: clock);
+        var owner = new HostRequest(new(Guid.NewGuid()), new(Guid.NewGuid()), new(Guid.NewGuid()),
+            RequestOrigin.LocalUi, new(Guid.NewGuid()));
+        var audit = new SecurityAuditEvent(Guid.NewGuid(), SecurityAuditCategory.ApplicationExecution,
+            "host.query.version", SecurityAuditOutcome.Succeeded, SecurityAuditInitiator.LocalUser, "application.current", Guid.NewGuid());
+        DiagnosticEnvelope envelope;
+        using (var producer = HostActivity.BeginAudit(owner, audit))
+        {
+            envelope = WindowsDailyEvidenceReaderTests.Produce(owner, 1)[0] with
+            {
+                Trace = TraceSnapshot.Capture(producer.Activity), AuditCorrelationId = audit.CorrelationId,
+                ApprovalId = audit.ApprovalId,
+            };
+            sink.WriteAudit(new(envelope, audit));
+            sink.WriteDiagnostic(envelope);
+        }
+        var viewer = Viewer(new WindowsSqliteEvidenceReader(sink));
+        Action[] mismatches =
+        [
+            () => viewer.Source = EvidenceSource.Span,
+            () => viewer.SafeText = "absent literal",
+            () => viewer.SessionFilter = Guid.NewGuid().ToString("D"),
+            () => viewer.TaskFilter = Guid.NewGuid().ToString("D"),
+            () => viewer.TraceFilter = new string('f', 32),
+            () => viewer.SpanFilter = new string('f', 16),
+            () => viewer.RequestFilter = Guid.NewGuid().ToString("D"),
+            () => viewer.InvocationFilter = Guid.NewGuid().ToString("D"),
+            () => viewer.ApprovalFilter = Guid.NewGuid().ToString("D"),
+            () => viewer.CorrelationFilter = Guid.NewGuid().ToString("D"),
+            () => viewer.FromFilter = Edge.AddTicks(1).ToString("O", CultureInfo.InvariantCulture),
+            () => viewer.UntilFilter = Edge.AddTicks(-1).ToString("O", CultureInfo.InvariantCulture),
+            () => viewer.Severity = EvidenceSeverity.Warning,
+            () => viewer.EventIdFilter = "1",
+            () => viewer.CategoryFilter = "Other.Category",
+            () => viewer.ActionIdFilter = "other.action",
+            () => viewer.AuditOutcome = SecurityAuditOutcome.Denied,
+        ];
+        foreach (var mismatch in mismatches)
+        {
+            viewer.Source = EvidenceSource.Audit;
+            viewer.SafeText = envelope.MessageTemplate;
+            viewer.SessionFilter = owner.SessionId.Value.ToString("D");
+            viewer.TaskFilter = owner.TaskId.Value.ToString("D");
+            viewer.TraceFilter = envelope.Trace!.TraceId;
+            viewer.SpanFilter = envelope.Trace.SpanId;
+            viewer.RequestFilter = owner.RequestId.Value.ToString("D");
+            viewer.InvocationFilter = owner.InvocationId!.Value.Value.ToString("D");
+            viewer.ApprovalFilter = audit.ApprovalId!.Value.ToString("D");
+            viewer.CorrelationFilter = audit.CorrelationId.ToString("D");
+            viewer.FromFilter = Edge.AddTicks(-1).ToString("O", CultureInfo.InvariantCulture);
+            viewer.UntilFilter = Edge.AddTicks(1).ToString("O", CultureInfo.InvariantCulture);
+            viewer.Severity = EvidenceSeverity.Information;
+            viewer.EventIdFilter = "0";
+            viewer.CategoryFilter = envelope.Category;
+            viewer.ActionIdFilter = audit.ActionId;
+            viewer.AuditOutcome = audit.Outcome;
+            await viewer.SearchAsync();
+            viewer.Records.Should().ContainSingle().Which.Audit.Should().BeEquivalentTo(audit);
+            mismatch();
+            viewer.Records.Should().BeEmpty();
+            await viewer.SearchAsync();
+            viewer.Records.Should().BeEmpty();
+            viewer.CanNext.Should().BeFalse();
+            viewer.CanReadTrace.Should().BeFalse();
+            viewer.Status.Should().NotContain("failed");
+            // Span cannot provide the selected diagnostic/audit filters; refusal is not empty success.
+            if (viewer.Source == EvidenceSource.Span) { viewer.Status.Should().StartWith("Unsupported filter"); }
+            else { viewer.Status.Should().StartWith("MissingOrRemoved"); }
+        }
+        viewer.Close();
+    }
+
     private static void Set(EvidenceViewModel viewer, string field, string value)
     {
         switch (field)
@@ -680,6 +899,7 @@ public sealed class EvidenceAdvancedFilterTests
             case nameof(EvidenceViewModel.SessionFilter): viewer.SessionFilter = value; break;
             case nameof(EvidenceViewModel.TaskFilter): viewer.TaskFilter = value; break;
             case nameof(EvidenceViewModel.TraceFilter): viewer.TraceFilter = value; break;
+            case nameof(EvidenceViewModel.SpanFilter): viewer.SpanFilter = value; break;
             case nameof(EvidenceViewModel.EventIdFilter): viewer.EventIdFilter = value; break;
             case nameof(EvidenceViewModel.CategoryFilter): viewer.CategoryFilter = value; break;
             case nameof(EvidenceViewModel.ActionIdFilter): viewer.ActionIdFilter = value; break;

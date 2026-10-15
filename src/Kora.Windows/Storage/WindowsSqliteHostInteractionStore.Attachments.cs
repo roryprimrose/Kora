@@ -290,7 +290,7 @@ public sealed partial class WindowsSqliteHostInteractionStore
             || data.Generation.Value <= 0 || data.ReviewId == Guid.Empty
             || data.Reference.SourceId == Guid.Empty || data.Reference.RevisionId == Guid.Empty || data.Reference.ItemId == Guid.Empty
             || !IsHex(data.Reference.Digest, 64) || data.CapturedAt.Offset != TimeSpan.Zero
-            || !Same(data.Projection, SessionFileAttachment.Projection) || data.MediaType is not ("text/plain" or "text/markdown") || revision <= 0
+            || !Same(data.Projection, SessionFileAttachment.Projection) || !LocalFileMediaType.IsCanonical(data.MediaType) || revision <= 0
             || data.Generation.Value > owner.Authority.Generation.Value
             || (bytes is null) != (data.Metadata is null)
             || data.Metadata is null && !Same(bodyType, "null")

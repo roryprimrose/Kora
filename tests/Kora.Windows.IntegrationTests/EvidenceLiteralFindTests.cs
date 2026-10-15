@@ -22,7 +22,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 namespace Kora.Windows.IntegrationTests;
 
 [Collection(nameof(HeadlessUiTestGroup))]
-public sealed class EvidenceLiteralFindTests
+public sealed partial class EvidenceLiteralFindTests
 {
     [Fact]
     public async Task FindUsesOnlyExactSerializedPageWithoutChangingQueryCursorRecordsOrDiagnostics()
@@ -164,6 +164,7 @@ public sealed class EvidenceLiteralFindTests
     [InlineData("SessionFilter")]
     [InlineData("TaskFilter")]
     [InlineData("TraceFilter")]
+    [InlineData("SpanFilter")]
     [InlineData("RequestFilter")]
     [InlineData("InvocationFilter")]
     [InlineData("ApprovalFilter")]
@@ -192,6 +193,7 @@ public sealed class EvidenceLiteralFindTests
             case "SessionFilter": viewer.SessionFilter = "new"; break;
             case "TaskFilter": viewer.TaskFilter = "new"; break;
             case "TraceFilter": viewer.TraceFilter = "new"; break;
+            case "SpanFilter": viewer.SpanFilter = "new"; break;
             case "RequestFilter": viewer.RequestFilter = "new"; break;
             case "InvocationFilter": viewer.InvocationFilter = "new"; break;
             case "ApprovalFilter": viewer.ApprovalFilter = "new"; break;
@@ -253,6 +255,7 @@ public sealed class EvidenceLiteralFindTests
 
     [Theory]
     [InlineData("filter")]
+    [InlineData("span")]
     [InlineData("source")]
     [InlineData("privacy")]
     [InlineData("close")]
@@ -262,12 +265,14 @@ public sealed class EvidenceLiteralFindTests
         var reader = new Reader();
         var access = new Access();
         var viewer = Viewer(reader, access);
+        viewer.SpanFilter = reader.Record.Trace!.SpanId;
         await viewer.SearchAsync();
         Match(viewer);
         var held = new TaskCompletionSource<EvidenceReadBatch>(TaskCreationOptions.RunContinuationsAsynchronously);
         reader.Read = () => new(held.Task);
         var pending = viewer.SearchAsync();
         if (string.Equals(invalidation, "filter", StringComparison.Ordinal)) { viewer.CategoryFilter = "changed"; }
+        if (string.Equals(invalidation, "span", StringComparison.Ordinal)) { viewer.SpanFilter = "0123456789abcdef"; }
         if (string.Equals(invalidation, "source", StringComparison.Ordinal)) { viewer.Source = EvidenceSource.DailyLog; }
         if (string.Equals(invalidation, "privacy", StringComparison.Ordinal)) { access.CanInspect = false; viewer.FindLiteral(SnapshotFindDirection.First); }
         if (string.Equals(invalidation, "close", StringComparison.Ordinal)) { viewer.Close(); }
@@ -420,6 +425,88 @@ public sealed class EvidenceLiteralFindTests
     }
 
     [Fact]
+    public async Task SpanValuesAreNeverIncludedInDiagnosticMessagesOnSuccessOrFailure()
+    {
+        using var listener = WindowsDailyEvidenceReaderTests.Listen();
+        var reader = new Reader();
+        var logger = new Logger<EvidenceViewModel>();
+        var serviceLogger = new Logger<DurableEvidenceQuery>();
+        var viewer = Viewer(reader, logger: logger, serviceLogger: serviceLogger);
+        viewer.SpanFilter = "0123456789abcdef";
+        await viewer.SearchAsync();
+        reader.Queries.Should().ContainSingle().Which.SpanId.Should().Be(viewer.SpanFilter);
+        viewer.SpanFilter = "0123456789ABCDEF";
+        await viewer.SearchAsync();
+        reader.Queries.Should().ContainSingle();
+        logger.Messages.Should().NotBeEmpty();
+        serviceLogger.Messages.Should().NotBeEmpty();
+        logger.Messages.Concat(serviceLogger.Messages).Should()
+            .OnlyContain(message => !message.Contains("0123456789abcdef", StringComparison.OrdinalIgnoreCase));
+        viewer.Close();
+    }
+
+    [Fact]
+    public async Task NativeSpanFieldIsVisibleAccessibleAdjacentAndRevokesWithoutReading()
+    {
+        await HeadlessSession.RunAsync(async () =>
+        {
+            using var listener = WindowsDailyEvidenceReaderTests.Listen();
+            var reader = new Reader();
+            var viewer = Viewer(reader);
+            var window = new EvidenceWindow(viewer);
+            window.Show();
+            try
+            {
+                await viewer.SearchAsync();
+                viewer.Select(viewer.Records[0]);
+                Match(viewer);
+                var field = window.FindControl<TextBox>("SpanId")!;
+                field.IsVisible.Should().BeTrue();
+                field.IsEffectivelyVisible.Should().BeTrue();
+                field.IsEnabled.Should().BeTrue();
+                field.Focusable.Should().BeTrue();
+                field.Focus().Should().BeTrue();
+                field.Bounds.Width.Should().BeGreaterThan(0);
+                Grid.GetColumn(field).Should().Be(3);
+                var row = (Grid)field.Parent!;
+                row.Children.OfType<TextBox>().Single(input => Grid.GetColumn(input) == 2)
+                    .Text.Should().Be(viewer.TraceFilter);
+                ControlAutomationPeer.CreatePeerForElement(field)!.GetName()
+                    .Should().Be("Exact W3C Span ID correlation filter; empty means Any");
+                field.ContextMenu.Should().BeNull();
+                field.ContextFlyout.Should().BeNull();
+                field.Text = "0123456789abcdef";
+                viewer.SpanFilter.Should().Be(field.Text);
+                viewer.Records.Should().BeEmpty();
+                viewer.Segments.Should().BeEmpty();
+                viewer.ResultText.Should().BeEmpty();
+                viewer.CanNext.Should().BeFalse();
+                viewer.CanReadTrace.Should().BeFalse();
+                Retired(viewer);
+                reader.Queries.Should().ContainSingle();
+                viewer.TraceFilter = new string('a', 32);
+                viewer.EventIdFilter = "0";
+                Click(window, "ClearAdvanced");
+                field.Text.Should().Be("0123456789abcdef");
+                viewer.TraceFilter.Should().Be(new string('a', 32));
+                viewer.EventIdFilter.Should().BeEmpty();
+                reader.Queries.Should().ContainSingle();
+                field.Text = string.Empty;
+                viewer.SpanFilter.Should().BeEmpty();
+                reader.Queries.Should().ContainSingle();
+                await viewer.SearchAsync();
+                reader.Queries[^1].SpanId.Should().BeNull();
+                field.Text = "0123456789abcdef";
+                window.Close();
+                field.Text.Should().BeEmpty();
+                viewer.TraceFilter.Should().BeEmpty();
+                viewer.CanQuery.Should().BeFalse();
+            }
+            finally { window.Close(); }
+        });
+    }
+
+    [Fact]
     public async Task NativeButtonsKeyboardFocusAutomationAndClipboardBlockingUseOnlyTheCurrentPage()
     {
         await HeadlessSession.RunAsync(async () =>
@@ -526,14 +613,14 @@ public sealed class EvidenceLiteralFindTests
     private sealed class Reader : IEvidenceReader
     {
         internal Reader() => Read = () => new(Batch());
-        internal EvidenceRecord Record { get; } = new(new(EvidenceSource.Log, new(Guid.NewGuid())),
+        internal EvidenceRecord Record { get; } = new(new(EvidenceSource.Log, new(Guid.Parse("11111111-1111-1111-1111-111111111111"))),
             DateTimeOffset.UnixEpoch, null, EvidenceSegmentStatus.Present, null,
             new("0123456789abcdef0123456789abcdef", new string('b', 16), null, ActivityTraceFlags.Recorded,
                 "Kora.Application", "1.0.0", "session.request", ActivityKind.Internal),
             null, null, "Information", "test", 0, "aaaaaaa AAA .*?[a]  xyz \ud83d\ude42",
             new Dictionary<string, EvidenceValue>(StringComparer.Ordinal) { ["SecurityAudit"] = new(EvidenceValueKind.Boolean, "true") },
             null, null, [new(new string('c', 32), new string('d', 16), EvidenceSegmentStatus.Present,
-                new(EvidenceSource.Span, new(Guid.NewGuid())))]);
+                new(EvidenceSource.Span, new(Guid.Parse("22222222-2222-2222-2222-222222222222"))))]);
         internal List<EvidenceQuery> Queries { get; } = [];
         internal List<EvidenceReadCheckpoint?> Checkpoints { get; } = [];
         internal Func<ValueTask<EvidenceReadBatch>> Read { get; set; }

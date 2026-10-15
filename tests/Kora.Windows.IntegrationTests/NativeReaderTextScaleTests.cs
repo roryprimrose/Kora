@@ -49,6 +49,8 @@ public sealed class NativeReaderTextScaleTests
             {
                 var reader = window.FindControl<TextBox>("ContentReader")!;
                 var originalFont = reader.FontSize;
+                var findSpan = window.FindControl<NamedTextBlock>("FindSpan")!;
+                var findFont = findSpan.FontSize;
                 var heading = window.FindControl<StackPanel>("RenderedDocument")!.Children.OfType<TextBlock>().First();
                 var headingFont = heading.FontSize;
                 var headingLineHeight = heading.LineHeight;
@@ -64,6 +66,7 @@ public sealed class NativeReaderTextScaleTests
                     Dispatcher.UIThread.RunJobs();
                     window.UpdateLayout();
                     reader.FontSize.Should().Be(originalFont * scale / 100d);
+                    findSpan.FontSize.Should().Be(findFont * scale / 100d);
                     heading.FontSize.Should().Be(headingFont * scale / 100d);
                     heading.LineHeight.Should().Be(headingLineHeight * scale / 100d);
                     title.FontSize.Should().Be(titleFont);
@@ -88,6 +91,8 @@ public sealed class NativeReaderTextScaleTests
                 reader.SelectionStart.Should().Be(offset);
                 reader.SelectionEnd.Should().Be(offset + 6);
                 state.MatchStart.Should().Be(offset);
+                findSpan.Text.Should().Be("needle");
+                findSpan.FontSize.Should().Be(findFont * (percent == 200 ? 75 : 200) / 100d);
                 content.Source.Should().Be(source);
                 content.Digest.Should().Be(digest);
                 content.Utf8Bytes.Should().Be(Encoding.UTF8.GetByteCount(source));

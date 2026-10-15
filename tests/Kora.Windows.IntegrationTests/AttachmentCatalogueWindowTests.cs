@@ -4,6 +4,7 @@ using Avalonia.Automation.Peers;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
+using Avalonia.Threading;
 using Avalonia.VisualTree;
 
 using AwesomeAssertions;
@@ -25,9 +26,86 @@ using Microsoft.Extensions.Logging;
 
 namespace Kora.Windows.IntegrationTests;
 
-[Collection(nameof(DurableStorageCompositionTestGroup))]
+[Collection(nameof(HeadlessUiTestGroup))]
 public sealed class AttachmentCatalogueWindowTests
 {
+    [WindowsFact]
+    public async Task NativeExactMediaPickerIsAccessibleExplicitStrictAndRevokesRowsSelectionAndContinuation()
+    {
+        await HeadlessSession.RunAsync(async () =>
+        {
+            using var fixture = new InteractionStorageFixture();
+            await fixture.InitializeAsync();
+            var access = new WindowsSqliteSessionWorkspaceTests.Access();
+            var summary = Summary(fixture.Request);
+            var seen = new List<SessionAttachmentQuery>();
+            using var model = new AttachmentCatalogueViewModel((query, next, _, _) =>
+            {
+                seen.Add(query);
+                return Task.FromResult(new SessionAttachmentPage(query, query.Matches(summary) ? [summary] : [],
+                    next is null ? "YQ==." + new string('a', 64) : null, DateTimeOffset.UnixEpoch,
+                    1, new string('a', 64), 64, next is null));
+            }, (_, _, _) => throw new InvalidOperationException("No implicit navigation."),
+                access, () => true, NullLogger<AttachmentCatalogueViewModel>.Instance);
+            var window = new AttachmentCatalogueWindow(model);
+            window.Show();
+            try
+            {
+                var picker = window.FindControl<ComboBox>("AttachmentMediaType")!;
+                model.MediaType.Should().Be("All");
+                model.MediaTypes.Should().Equal("All", "text/plain", "text/markdown");
+                ControlAutomationPeer.CreatePeerForElement(picker)!.GetName().Should().Contain("Exact retained media type")
+                    .And.Contain("removed tombstones match only All");
+                picker.Focus();
+                picker.IsFocused.Should().BeTrue();
+                seen.Should().BeEmpty();
+                await model.Refresh();
+                model.Select(summary);
+                model.CanNavigate.Should().BeTrue();
+                foreach (var type in model.MediaTypes)
+                {
+                    var calls = seen.Count;
+                    picker.SelectedItem = type;
+                    model.MediaType.Should().Be(type);
+                    seen.Count.Should().Be(calls);
+                    if (!string.Equals(type, "All", StringComparison.Ordinal))
+                    {
+                        model.Records.Should().BeEmpty();
+                        model.SelectedRecord.Should().BeNull();
+                        model.CanNext.Should().BeFalse();
+                        model.CanNavigate.Should().BeFalse();
+                    }
+                    model.Mode = AttachmentCatalogueMode.ExactId;
+                    model.QueryText = summary.Session.Value.ToString("D");
+                    model.IncludeRemoved = true;
+                    model.MetadataText = "text/";
+                    await model.Refresh();
+                    seen.Last().ExactMediaType.Should().Be(string.Equals(type, "All", StringComparison.Ordinal) ? null : type);
+                    model.CanNext.Should().BeTrue();
+                    await model.Refresh(next: true);
+                    if (string.Equals(type, "text/markdown", StringComparison.Ordinal))
+                    {
+                        model.Status.Should().Contain("No matching retained metadata on this bounded page")
+                            .And.Contain("not a global total");
+                    }
+                    model.ClearQuery();
+                    model.MediaType.Should().Be(type);
+                }
+                foreach (var invalid in new[] { "", "TEXT/PLAIN", "text/plain; charset=utf-8", "text/html", null! })
+                {
+                    var calls = seen.Count;
+                    model.MediaType = invalid;
+                    model.CanSearch.Should().BeFalse();
+                    model.MediaTypeHint.Should().Contain("Invalid");
+                    await model.Refresh();
+                    model.Status.Should().Contain("InvalidDataException");
+                    seen.Count.Should().Be(calls);
+                }
+            }
+            finally { window.Close(); }
+        });
+    }
+
     [WindowsFact]
     public async Task NativeLiteralMetadataSearchIsFocusedExplicitComposableVolatileAndNeverLogsCandidate()
     {
@@ -419,6 +497,7 @@ public sealed class AttachmentCatalogueWindowTests
                     model.Status.Should().NotContain("unavailable");
                     model.Records.Should().ContainSingle();
                     await Task.Run(fixture.AdvanceLifecycleTargetAsync);
+                    await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Background);
                     model.Records.Should().BeEmpty();
                     model.SelectedDetails.Should().BeEmpty();
                     model.QueryText.Should().BeEmpty();
@@ -449,6 +528,8 @@ public sealed class AttachmentCatalogueWindowTests
     [InlineData("query")]
     [InlineData("filter")]
     [InlineData("invalid-filter")]
+    [InlineData("media")]
+    [InlineData("invalid-media")]
     [InlineData("id")]
     [InlineData("metadata")]
     [InlineData("mode")]
@@ -486,6 +567,8 @@ public sealed class AttachmentCatalogueWindowTests
         if (boundary is "query") { model.IncludeRemoved = true; }
         if (boundary is "filter") { model.Filter = SessionAttachmentFilter.Done; }
         if (boundary is "invalid-filter") { model.Filter = (SessionAttachmentFilter)99; }
+        if (boundary is "media") { model.MediaType = "text/markdown"; }
+        if (boundary is "invalid-media") { model.MediaType = "TEXT/PLAIN"; }
         if (boundary is "id") { model.QueryText = Guid.NewGuid().ToString("D"); }
         if (boundary is "metadata") { model.MetadataText = "unmatched"; }
         if (boundary is "mode") { model.Mode = AttachmentCatalogueMode.Browse; }
@@ -516,6 +599,7 @@ public sealed class AttachmentCatalogueWindowTests
     [InlineData("lifecycle")]
     [InlineData("removal")]
     [InlineData("metadata")]
+    [InlineData("media")]
     public async Task CatalogueLateNavigationNeverDisclosesAfterOriginalSelectionIsRevoked(string boundary)
     {
         using var fixture = new InteractionStorageFixture();
@@ -540,6 +624,7 @@ public sealed class AttachmentCatalogueWindowTests
         await entered.Task.WaitAsync(fixture.Token);
         if (boundary is "lifecycle") { model.Filter = SessionAttachmentFilter.Done; }
         if (boundary is "removal") { model.IncludeRemoved = true; }
+        if (boundary is "media") { model.MediaType = "text/markdown"; }
         if (boundary is "metadata") { model.MetadataText = "unmatched"; }
         release.SetResult();
         await navigation;

@@ -37,6 +37,76 @@ internal sealed partial class NativeQuestionViewModel : ObservableObject
     private string status = "Choose an answer. Editing is local; Save draft and Submit are explicit.";
     private string reviewText = string.Empty;
     private QuestionAnswer answer;
+    private HostQuestionVoiceReplyService? voiceReplies;
+    private Func<bool> ownsVoiceTarget = static () => false;
+    private Func<bool> visibleVoicePresenter = static () => false;
+    private HostQuestionKey? voiceTarget;
+    private int voicePresenterCount;
+    internal string VoiceReplyStatus => voiceReplies?.Status ?? "Question voice reply unavailable. Use native answer controls.";
+    internal bool IsVoiceReplyActive => voiceReplies?.IsActive == true;
+    internal bool CanAnswerByVoice => voiceReplies is not null && IsEditable && !IsApproval
+        && ownsVoiceTarget() && voicePresenterCount == 1 && visibleVoicePresenter() && !IsVoiceReplyActive;
+
+    internal void BindVoiceReplies(HostQuestionVoiceReplyService? replies, Func<bool> ownsTarget)
+    {
+        voiceReplies = replies;
+        ownsVoiceTarget = ownsTarget;
+        if (replies is not null) { replies.Changed += OnVoiceReplyChanged; }
+    }
+
+    internal void BindVisibleVoicePresenter(Func<bool> visible)
+    {
+        StopVoiceReply();
+        voicePresenterCount++;
+        visibleVoicePresenter = visible;
+    }
+
+    internal Task AnswerByVoiceAsync(bool afterPlayback = false)
+    {
+        if (!CanAnswerByVoice) { StopVoiceReply(); return Task.CompletedTask; }
+        voiceTarget = Key;
+        var exact = Question;
+        return voiceReplies!.OpenAsync(exact,
+            () => ownsVoiceTarget() && voicePresenterCount == 1 && visibleVoicePresenter() && IsEditable && Key == exact.Key,
+            AcceptVoiceDecision, afterPlayback, CancellationToken.None);
+    }
+
+    internal void StopVoiceReply()
+    {
+        if (voiceTarget is not null)
+        {
+            voiceTarget = null;
+            voiceReplies?.Retire("Reply cancelled or presenter changed. Microphone closed; question remains answerable.");
+        }
+    }
+
+    private void AcceptVoiceDecision(HostInteractionDecision decision)
+    {
+        lock (stateGate)
+        {
+            if (closed || cleared || decision.Outcome != HostInteractionOutcome.Answered
+                || decision.Question is not { } accepted || accepted.Key != question.Key.Next()
+                || accepted.SessionGeneration != question.SessionGeneration) { return; }
+            question = accepted;
+            closed = true;
+            ClearAnswer();
+            status = "Exact question answered by local voice. Microphone closed.";
+            completion.TrySetResult(decision);
+        }
+        Notify();
+    }
+
+    private void OnVoiceReplyChanged(object? sender, EventArgs args)
+    {
+        void Update()
+        {
+            OnPropertyChanged(nameof(VoiceReplyStatus));
+            OnPropertyChanged(nameof(IsVoiceReplyActive));
+            OnPropertyChanged(nameof(CanAnswerByVoice));
+        }
+        if (Avalonia.Threading.Dispatcher.UIThread.CheckAccess()) { Update(); }
+        else { Avalonia.Threading.Dispatcher.UIThread.Post(Update); }
+    }
 
     internal NativeQuestionViewModel(HostQuestionRecord question, HostQuestionService questions,
         HostAuthorizationService authorization, HostQuestionReviewService reviews, Func<bool> canInteract,
@@ -98,6 +168,7 @@ internal sealed partial class NativeQuestionViewModel : ObservableObject
 
     internal void Edit(QuestionAnswer value)
     {
+        StopVoiceReply();
         if (!IsEditable)
         {
             RefreshEligibility();
@@ -201,6 +272,7 @@ internal sealed partial class NativeQuestionViewModel : ObservableObject
     private async Task DecideAsync(HostQuestionKey target, Func<ValueTask<HostInteractionDecision>> decide,
         bool reviewing = false, bool checking = false)
     {
+        StopVoiceReply();
         if (!IsEditable) { RefreshEligibility(); return; }
         lock (stateGate)
         {
@@ -311,6 +383,8 @@ internal sealed partial class NativeQuestionViewModel : ObservableObject
 
     internal void Close(string reason)
     {
+        StopVoiceReply();
+        if (voiceReplies is not null) { voiceReplies.Changed -= OnVoiceReplyChanged; }
         lock (stateGate) { CloseState(reason); }
         Notify();
     }
@@ -329,6 +403,9 @@ internal sealed partial class NativeQuestionViewModel : ObservableObject
 
     internal void Dismiss()
     {
+        StopVoiceReply();
+        voicePresenterCount = Math.Max(0, voicePresenterCount - 1);
+        visibleVoicePresenter = static () => false;
         lock (stateGate)
         {
             if (!dismissible || closed)
@@ -439,5 +516,8 @@ internal sealed partial class NativeQuestionViewModel : ObservableObject
         OnPropertyChanged(nameof(IsEditable));
         OnPropertyChanged(nameof(CanSubmit));
         OnPropertyChanged(nameof(CanSaveDraft));
+        OnPropertyChanged(nameof(CanAnswerByVoice));
+        OnPropertyChanged(nameof(IsVoiceReplyActive));
+        OnPropertyChanged(nameof(VoiceReplyStatus));
     }
 }

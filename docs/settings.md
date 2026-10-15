@@ -29,6 +29,26 @@ unconfirmed marker. Reset affects only the named option. No preference change
 grants consent/approval, replays retired speech or enables a gated capability.
 Legacy process-local overrides are labelled separately below.
 
+## Read-only audit shortening preview
+
+In **Settings > Logging**, explicitly select **Proposed audit retention days for
+read-only preview**, then **Preview audit shortening impact only**. The value
+must be 30–365 days and shorter than the current confirmed saved/default value.
+Selecting or previewing does not Save or change existing records.
+
+The result separately reports required-authority audit and diagnostic-audit
+projection status, newly-due count and affected committed/proposed-due UTC
+ranges. Newly due means the proposed deadline is at or before the fixed preview
+cutoff while the original deadline is still later. Already-due records are not
+counted again. A complete zero has no range. Incomplete or Unavailable is not
+zero; no truncated count is shown. No event content or identities are displayed.
+
+Edits, Refresh, saved preference/store changes, private/lock/owner/desktop/call
+changes, cancellation, failure and closing Settings retire the preview. It also
+expires after 30 seconds; explicitly Preview again. There is no automatic scan.
+**Apply-now, audit deletion and pruning remain unavailable.** Existing future-only
+Save/Reset controls are separate and unchanged.
+
 ## Routine notice quiet mode is run-only
 
 In the already-open **Sessions** window, select an exact session and use **Quiet routine notices for this run**. This one choice suppresses first Work/Maintenance notices before fatigue accounting and hides their notice rows. **Turn routine quiet off** and **Reset routine quiet to Off** clear it. Default is Off on every Kora restart; there is no saved setting or scheduled duration.
@@ -397,7 +417,7 @@ defaults, bounds, scope and application timing.
 | `appearance.movement-speed` | `100` | 25-200 percent |
 | `appearance.speech-scaling` | `true` | `true`, `false` (visual sizing only) |
 | `appearance.speech-scale-amount` | `100` | 0-200 percent |
-| `appearance.reader-text-scale` | `100` | 75-200 integer percent; native source/detail bodies only ([domain](../src/Kora.Core/Configuration/ReaderTextScaleSettings.cs)) |
+| `appearance.reader-text-scale` | `100` | 75-200 integer percent; native source/detail and complete serialized Evidence bodies only ([domain](../src/Kora.Core/Configuration/ReaderTextScaleSettings.cs)) |
 
 Use **get appearance.theme**, **set appearance.theme to dark**, or
 **reset appearance.theme**; substitute another listed ID and its typed value.
@@ -427,11 +447,11 @@ Speech scaling changes only animation, not audio output or call policy.
 
 **Native reader text scale** in Settings > Appearance applies an absolute integer percentage immediately; select its exact ID for **Reset selected option** (100). Exact commands include `get/status appearance.reader-text-scale`, `set appearance.reader-text-scale to 75` (or 100/200), and `reset appearance.reader-text-scale`. Relative changes and number words are not inferred ([registry](../src/Kora.Core/Configuration/AppearanceOptionRegistry.cs), [parser](../src/Kora.Application/Configuration/AppearanceCommand.cs), [editor](../src/Kora/SettingsWindow.axaml)).
 
-It scales only shared native DetailWindow Rendered/Source/continuous text, file/folder/retained attachment source bodies and exact cited/literal-match spans, and the native clipboard snapshot source body. Trusted chrome, search inputs/results, identity/location labels, consent/approval/question/error controls and captions remain independently readable. Strings, bytes, digests and offsets are unchanged; the preference grants no content access/copy/export or persistence consent ([detail](../src/Kora/DetailWindow.axaml.cs), [file](../src/Kora/LocalFilePreviewWindow.cs), [span](../src/Kora/LocalFilePreviewWindow.Citations.cs), [clipboard](../src/Kora/ClipboardPreviewWindow.cs)).
+It scales only shared native DetailWindow Rendered/Source/continuous text, file/folder/retained attachment source bodies and exact cited/literal-match spans, the native clipboard snapshot source body, admitted complete serialized Evidence page bodies and their inert focused literal-Find spans, and the currently observed native speech-caption content text. New windows and live confirmed changes use original typography, never cumulative scaling. Trusted chrome, search inputs/result navigation, identity/location labels, consent/approval/question/error controls and caption labels, Pin/Unpin and display selector/status retain their own typography. Strings, bytes, digests and offsets are unchanged; the preference grants no content access/copy/export or persistence consent ([detail](../src/Kora/DetailWindow.axaml.cs), [file](../src/Kora/LocalFilePreviewWindow.cs), [span](../src/Kora/LocalFilePreviewWindow.Citations.cs), [clipboard](../src/Kora/ClipboardPreviewWindow.cs), [Evidence](../src/Kora/EvidenceWindow.axaml.cs), [caption](../src/Kora/SpeechCaptionWindow.axaml.cs)).
 
 Unlike the older appearance options, reader-scale writes retain an unconfirmed marker until exact readback and the success audit complete. Invalid or unconfirmed state blocks new scaled readers with an explicit error; inspect saved evidence and audit receipts before repair, never blindly retry. The prior confirmed UI value is not evidence of successful persistence ([workflow](../src/Kora.Application/Configuration/AppearanceConfigurationService.cs), [store](../src/Kora.Application/Configuration/LocalReaderTextScalePreferences.cs)).
 
-This is not global text scaling: inline guide/grant previews, compact responses/conversations, evidence/search/catalogues, captions and browser/HTML/diagram/image/PDF readers are excluded. Full accessibility, hardware and Windows DPI acceptance remain open; see the [bounded contract](../Design/Information_Display.md#bounded-native-reader-text-scale).
+Open Evidence readers and captions retire explicitly on unavailable preference evidence; source/private/call/window closure, replacement, interruption and failure/cancellation clear stale scaled content without reading or replaying again. Caption scaling changes neither caption enablement nor speech, exact playback identity, pin lifetime, native geometry/display choice or accessible labels. This is not global text scaling: inline guide/grant previews, compact responses/conversations, Evidence filters/query fields/navigation/provenance/status and incomplete pages, search/catalogues, caption chrome and browser/HTML/diagram/image/PDF readers are excluded. Full accessibility, hardware and Windows DPI acceptance remain open; see the [bounded contract](../Design/Information_Display.md#bounded-native-reader-text-scale).
 
 Response pinning, topmost behavior and window placement retain their existing
 direct controls but are not registered: their shared-file writes are outside

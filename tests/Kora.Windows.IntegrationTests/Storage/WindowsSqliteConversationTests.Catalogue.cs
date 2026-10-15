@@ -15,6 +15,74 @@ namespace Kora.Windows.IntegrationTests.Storage;
 public sealed partial class WindowsSqliteConversationTests
 {
     [Fact]
+    public async Task SavedDraftRevisionByteAndScalarRangesComposeWithEveryMetadataQueryAndLifecycleWithoutBodyReads()
+    {
+        using var f = new InteractionStorageFixture();
+        await f.InitializeAsync();
+        await FinishInitial(f);
+        var saved = await Save(f, await f.Store.ReadConversationDraftAsync(f.Request.SessionId, f.Token), "🙂");
+        saved = await Save(f, saved, "🙂");
+        var service = WindowsSqliteSessionWorkspaceTests.Service(f, new());
+        await service.RenameAsync(saved.Session.SessionId, new(1), 0, new("private needle"),
+            RequestOrigin.LocalUi, f.Token);
+        using var viewer = HostActivity.BeginRoot(Fresh(f.Request.SessionId), HostActivityLayer.Desktop, HostOperation.Request);
+        foreach (var filter in new[]
+        {
+            SavedDraftMetadataFilter.Any, new(2, null, null), new(null, 4, null),
+            new(null, null, 4), new(2, 4, 4), new(null, 0, 16384),
+            new(1, null, null), new(null, 5, null), new(null, null, 3), new(null, 0, 0),
+            new(2, 4, 4, 1, 1), new(null, null, null, 1, null), new(null, null, null, null, 1),
+            new(2, 4, 4, 0, 4096), new(null, null, null, 2, null), new(null, null, null, null, 0),
+            new(2, 4, 4, 0, 0), new(null, null, null, 4096, 4096),
+        })
+        {
+            foreach (var lifecycle in Enum.GetValues<SessionListFilter>())
+            {
+                foreach (var kind in new SessionListSearchKind?[] { null, SessionListSearchKind.NameSubstring, SessionListSearchKind.ExactId })
+                {
+                    var query = kind is null ? null : new SessionListSearch(kind.Value, lifecycle,
+                        kind == SessionListSearchKind.NameSubstring ? "needle" : saved.Session.SessionId.Value.ToString("D"));
+                    var page = await f.Store.ReadSavedDraftPage(lifecycle, null, 1, () => true, f.Token, query, filter);
+                    page.MetadataFilter.Should().Be(filter);
+                    page.Scanned.Should().Be(1);
+                    page.Next.Should().BeNull();
+                    var matches = lifecycle != SessionListFilter.Done && filter.Matches(new(Guid.NewGuid(), new(Guid.NewGuid()),
+                        saved.Session, null, 2, 4, 1, 1, 1, new string('a', 64)));
+                    page.Records.Length.Should().Be(matches ? 1 : 0);
+                    JsonSerializer.Serialize(page).Should().NotContain("\"Body\"").And.NotContain("🙂");
+                }
+            }
+        }
+        saved = await Save(f, saved, new string('é', 4096));
+        var bytes = Encoding.UTF8.GetByteCount(saved.Draft.Body!);
+        var boundary = await f.Store.ReadSavedDraftPage(SessionListFilter.All, null, 1, () => true, f.Token,
+            metadataFilter: new(saved.Draft.Revision, bytes, bytes, 4096, 4096));
+        var boundaryRow = boundary.Records.Should().ContainSingle().Which;
+        boundaryRow.Utf8Bytes.Should().Be(bytes);
+        boundaryRow.UnicodeScalars.Should().Be(4096);
+        var control = Fresh(saved.Session.SessionId);
+        using (var root = HostActivity.BeginRoot(control, HostActivityLayer.Application, HostOperation.Request))
+        {
+            await f.Store.RecordControlIntentAsync(control, f.Token);
+            await f.Store.ChangeIdleLifecycleAsync(control, new(1), false, () => true, f.Token);
+            var task = (await f.Tasks.ReadTaskAsync(control.TaskId, f.Token))!;
+            await f.Tasks.CommitAsync(task.Next(HostTaskState.Succeeded), task.Revision.Value, f.Token);
+        }
+        foreach (var lifecycle in Enum.GetValues<SessionListFilter>())
+        {
+            foreach (var kind in new SessionListSearchKind?[] { null, SessionListSearchKind.NameSubstring, SessionListSearchKind.ExactId })
+            {
+                var query = kind is null ? null : new SessionListSearch(kind.Value, lifecycle,
+                    kind == SessionListSearchKind.NameSubstring ? "needle" : saved.Session.SessionId.Value.ToString("D"));
+                var page = await f.Store.ReadSavedDraftPage(lifecycle, null, 1, () => true, f.Token, query,
+                    new(saved.Draft.Revision, bytes, bytes, 4096, 4096));
+                page.Records.Length.Should().Be(lifecycle == SessionListFilter.Active ? 0 : 1);
+                page.Records.Should().OnlyContain(row => !row.Session.IsActive && row.UnicodeScalars == 4096);
+            }
+        }
+    }
+
+    [Fact]
     public async Task SavedDraftSearchUsesOnlyCurrentNameOrSeparateExactIdentityNeverBodyOrImplicitRetargeting()
     {
         using var f = new InteractionStorageFixture();
@@ -136,7 +204,8 @@ public sealed partial class WindowsSqliteConversationTests
         await FinishInitial(f);
         var saved = await Save(f, await f.Store.ReadConversationDraftAsync(f.Request.SessionId, f.Token), "ordinary saved draft");
         using var viewer = HostActivity.BeginRoot(Fresh(f.Request.SessionId), HostActivityLayer.Desktop, HostOperation.Request);
-        var exact = (await f.Store.ReadSavedDraftPage(SessionListFilter.All, null, 1, () => true, f.Token)).Records.Single();
+        var exact = (await f.Store.ReadSavedDraftPage(SessionListFilter.All, null, 1, () => true, f.Token,
+            metadataFilter: new(saved.Draft.Revision, 1, 16384, 1, 4096))).Records.Single();
         if (boundary is "clear" or "replace") { await Save(f, saved, boundary is "clear" ? null : "new saved draft"); }
         if (boundary is "rename")
         {
@@ -197,6 +266,9 @@ public sealed partial class WindowsSqliteConversationTests
         var queryRead = () => f.Store.ReadSavedDraftPage(SessionListFilter.All, null, 1, () => true, f.Token,
             new(SessionListSearchKind.ExactId, SessionListFilter.All, f.Request.SessionId.Value.ToString("D"))).AsTask();
         await queryRead.Should().ThrowAsync<Exception>("metadata queries retain every original source/provenance check");
+        var metadataRead = () => f.Store.ReadSavedDraftPage(SessionListFilter.Done, null, 1, () => true, f.Token,
+            metadataFilter: new(long.MaxValue, 0, 0, 0, 0)).AsTask();
+        await metadataRead.Should().ThrowAsync<Exception>("irrelevant metadata rows never bypass validation");
     }
 
     [Fact]

@@ -26,7 +26,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Kora.Windows.IntegrationTests.Storage;
 
-[Collection(nameof(DurableStorageCompositionTestGroup))]
+[Collection(nameof(HeadlessUiTestGroup))]
 public sealed partial class WindowsSqliteExactGrantHistoryTests
 {
     [Theory]

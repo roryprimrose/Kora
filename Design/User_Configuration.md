@@ -405,6 +405,48 @@ independent Perpetual records have no expiry/retention/eviction. Full
 R04/R10/A0–A4, installed/native, acoustic, encryption, forensic/tamperproof,
 artifact/backup disposal, runtime and release qualification remain open.
 
+#### Read-only audit shortening impact preview
+
+Native **Settings > Logging** separately offers an initially unselected proposed
+audit-days choice and **Preview audit shortening impact only**. The user must
+explicitly choose canonical 30–365 days below the confirmed effective saved/default
+preference. This is observation, not Save, Reset, confirmation, approval or
+apply-now. Existing future-only Set/Reset semantics remain unchanged.
+
+At one fixed UTC cutoff, **newly due** means `proposed due <= cutoff < original
+due`, with proposed due equal to original committed UTC plus the exact selected
+days. Already-due rows are not newly due. Required-authority audit and independently
+qualified diagnostic-audit projections report separate source/status, affected
+count, oldest/newest affected committed UTC and resulting due-time range.
+Complete zero has no range. No event text, properties, identities, titles,
+paths or combined authority count is exposed. Diagnostic lookalikes never gain
+typed audit status or authority.
+
+The [portable aggregate policy](../src/Kora.Core/Diagnostics/AuditRetentionImpact.cs)
+owns bounds and timing validation. Each source scans at most 4,096 rows and
+4 MiB encoded envelopes, plus one bounded sentinel; hitting either bound yields
+Incomplete with **no partial count**. Unknown, corrupt, missing, unsupported or
+inaccessible sources yield Unavailable, never zero. Sources open only existing
+private SQLite stores in query-only mode, with exact schema/integrity checks,
+typed envelope/column/deadline checks and ordered audit-prefix/head validation.
+Existing SQLite progress and lease deadlines remain; the entire preview also
+has a ten-second deadline.
+
+The host-held result binds the exact proposal, fixed cutoff, saved preference/
+readback/effective-policy revision, opaque private store identity/revision snapshot,
+native visible lifetime, owner/unlocked privacy/desktop/call and request/control
+revision. Edits, Refresh, preference/store changes, privacy/lock/owner/call changes,
+cancellation, failure, close and a non-renewable thirty-second lifetime retire it;
+late read or timer callbacks cannot publish or retire a newer preview. Store
+notifications only retire results: they never trigger an automatic scan.
+
+This path creates no durable intent or audit-control session, renews no session
+activity, writes no preference, audit receipt, record, deadline or cleanup schedule,
+and adds no model/tool/voice/network route or periodic scan. Apply-now, deletion,
+pruning, continuation anchors and forensic/recoverable-copy disposal remain
+unavailable. This consumes the existing storage/configuration I subset; installed
+accessibility and broader R04/R10 E/Q qualification are not claimed.
+
 ### Delivered bounded future-only SQLite diagnostic retention (R10/R04)
 
 The diagnostic schema-1 option is `logging.sqlite-diagnostic-retention-days`: canonical
@@ -607,7 +649,7 @@ Other voice/audio/call/manual state, grants, models, retention, dependencies and
 startup are not registered. No model tools or broader execution authority
 are exposed by the appearance slice.
 
-The reader option is the separately bounded native [source/detail typography contract](Information_Display.md#bounded-native-reader-text-scale): absolute integer percent, default 100, inclusive 75–200. Its original input/host eligibility is rechecked at commit; atomic pending evidence stays held until exact readback and successful audit. A failed terminal receipt does not claim disk rollback and new readers reject unconfirmed evidence. Existing option formats and migrations are preserved ([workflow](../src/Kora.Application/Configuration/AppearanceConfigurationService.cs), [store](../src/Kora.Application/Configuration/LocalReaderTextScalePreferences.cs)).
+The reader option is the separately bounded native [source/detail, complete serialized Evidence-page and observed speech-caption content typography contract](Information_Display.md#bounded-native-reader-text-scale): absolute integer percent, default 100, inclusive 75–200. Its original input/host eligibility is rechecked at commit; atomic pending evidence stays held until exact readback and successful audit. A failed terminal receipt does not claim disk rollback and new readers reject unconfirmed evidence. Open Evidence readers and captions retire explicitly when preference evidence becomes unavailable; no chrome or global UI scale is added. Caption labels, pin/display controls, accessible names, geometry, enablement, speech and privacy/call/source lifetimes are unchanged. Existing option formats and migrations are preserved ([workflow](../src/Kora.Application/Configuration/AppearanceConfigurationService.cs), [store](../src/Kora.Application/Configuration/LocalReaderTextScalePreferences.cs)).
 
 ### Delivered bounded installed speech choices (R10)
 

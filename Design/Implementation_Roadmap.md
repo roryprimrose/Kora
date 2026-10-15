@@ -34,6 +34,21 @@ do not depend on hosted management, and speech preferences do not qualify wake.
 
 ## Current Delivery
 
+### Bounded Presence renderer work reduction - 2026-10-15
+
+The [native particle-cloud scheduling boundary](Ambient_UI.md#bounded-native-renderer-scheduling)
+adds renderability/privacy/disposal-fenced one-shot frames, immediate authoritative
+speech/state wake, bounded 16/33/198-ms cadence, invariant seeded depth order and
+effective-colour/theme/opacity brush reuse. Visible fades remain distinct from
+actual hidden state; requested hide relinquishes mouse interception immediately.
+Windows animation preferences freeze geometry without reseeding.
+Focused deterministic scheduler/headless/native-input tests are implementation
+evidence for this existing presentation consumer's I subset. No new authority,
+audio/model/network path, package, compositor or hardware prerequisite is added.
+Whole-app CPU savings and reproduction/resolution of the earlier whole-core
+observation are not claimed; installed/accessibility/hardware and E/Q qualification
+remain separate and unchanged.
+
 The [exact command reference](../docs/commands.md) and
 [settings reference](../docs/settings.md) describe usable routes. The
 [canonical tool catalogue](Internal_Model_Tools.md) separately labels model
@@ -58,7 +73,99 @@ Session permission levels and expanded skill/instruction authoring are
 [proposed contracts](Session_Permission_Levels.md), not new runtime authority.
 Existing exact lock behavior and non-executing power proposals are unchanged.
 
+The delivered [passive exact-conversation search](Interaction_And_Sessions.md#delivered-passive-exact-conversation-lexical-search--2026-10-13)
+also composes an optional All/USER/HOST field filter in Sessions and shared compact
+projection, plus optional exact terminal outcome/reason/expected-task-state
+predicates with Any. One portable filter ANDs typed terminal HOST metadata with
+query/role; USER-only plus a predicate truthfully yields zero without repair.
+Every edit revokes shared results/navigation/continuation without reads.
+Immutable bodies, typed HOST fields, bounded validated chronological
+scan and exact query/filter/source/private snapshot fences remain authoritative.
+No global/history search, storage/index/schema/cache, model/provider authority or
+installed accessibility/full conversation qualification is added.
+
 ## Ordered Outstanding Work
+
+### Bounded native Evidence exact Span ID filter - 2026-10-15
+
+The [native Evidence reader](Information_Display.md#delivered-bounded-native-evidence-inspection)
+exposes the already-authoritative optional exact Span ID beside Trace ID:
+empty-only Any, otherwise existing nonzero 16-lowercase-hex W3C validation.
+Every existing filter composes with AND; edits revoke page/selection/cursor
+and late callbacks without reading. Clear advanced preserves both basic W3C
+fields; close clears both. Deterministic native/portable/real-reader checks
+cover this consumed implementation subset, not installed accessibility or RC
+qualification. Private/source/authority fences, complete bounded validation,
+snapshots and omission remain unchanged. No ParentSpanId filter, new navigation,
+model/tool/speech/export/clipboard route, storage/schema/index/cache, persistence,
+filter-value telemetry, activity renewal or generated content is delivered.
+
+### Bounded native saved-draft revision/UTF-8 metadata filters - 2026-10-15
+
+The [saved-draft catalogue](Interaction_And_Sessions.md#saved-conversation-draft-catalogue--2026-10-13)
+now composes optional exact positive revision and inclusive UTF-8 byte and Unicode scalar bounds
+with Browse/name/exact-ID and All/Active/Done. One portable contract owns strict
+parsing and matching; validated metadata scans and signed continuations retain
+full private/source/authority binding. Edits revoke observations without I/O;
+invalid input refuses reads and zero matches remain truthful. This consumes only
+the existing catalogue I subset. Scalar bounds use only validated exposed summary
+metadata, with the authoritative conversation maximum and the same strict numeric
+parser. No code-unit filter, body import/inference, schema,
+index/cache, aggregate quota/count, mutation, activity renewal, model/tool/speech
+route, new source authority or installed accessibility/E/Q qualification is added.
+
+### Bounded native speech-caption reader text scale - 2026-10-15
+
+The confirmed device-local [reader scale](Information_Display.md#bounded-native-reader-text-scale)
+now includes only currently observed native speech-caption content, in new and
+open windows, using original typography. Caption chrome/accessibility names,
+geometry/display choice, playback identity, pin/dismissal and privacy/call/source
+retirement remain unchanged; unavailable preference evidence explicitly retires
+text without replay. This consumes the existing preference/typography/caption I
+subset. No other reader behavior, global UI scaling, caption enablement, speech,
+model/provider/audio path or voice inference changes; deterministic checks do not
+claim real audio, hardware or installed accessibility E/Q qualification.
+
+### Bounded native Evidence reader text scale - 2026-10-15
+
+The confirmed device-local [reader scale](Information_Display.md#bounded-native-reader-text-scale)
+now covers only admitted complete immutable serialized Evidence page bodies
+and their inert focused literal-Find spans, including new windows and live
+confirmed changes from original typography. Chrome, strings/bytes/offsets,
+navigation, evidence reads, activity and authority remain unchanged.
+Preference/source/private closure and page retirement fail closed.
+This consumes the existing preference/typography/Evidence I subset; no global
+UI scaling, model/runtime route, voice inference, installed accessibility or
+broader E/Q qualification is claimed.
+
+### Bounded read-only audit shortening impact preview - 2026-10-15
+
+[Native Settings preview](User_Configuration.md#read-only-audit-shortening-impact-preview)
+requires an explicit shorter 30–365 day choice. It reports separately qualified,
+content-free newly-due aggregates for required authority and diagnostic audit at
+one fixed cutoff. Finite row/byte/time limits return Incomplete/Unavailable, not
+truncated success or false zero. Exact proposal, preference/readback, private
+store snapshot and host/control revisions fence publication; edits, refresh,
+changes, close, cancellation/failure and timeout retire it without replay.
+There is no activity renewal, mutation, model/tool/voice/network route or periodic
+scan. Future-only Set/Reset is unchanged; apply-now/deletion/pruning remain
+unavailable. Existing storage/configuration supplies the consumed I subset;
+installed accessibility, audit cleanup/forensic disposal and broader E/Q remain
+unqualified, not implementation prerequisites.
+
+### Bounded native Sessions local-event filters - 2026-10-14
+
+[Category, exact reason, authoritative source and type filters](Proactive_Interaction.md#native-content-free-loaded-event-filters)
+compose over only the existing already-loaded bounded content-free rows.
+The 2026-10-15 Source/Type increment preserves exact AND and zero matches
+for impossible pairs, with no new source read or normalized choice.
+Edits immediately retire exact selection; source/privacy/workspace changes,
+refresh, failure/cancellation and stale callbacks remain fail closed.
+Matching/empty counts do not replace broker omissions or quiet status.
+No read/index/persistence, event body, logging, route, authority, dispatch or
+activity renewal is added. This consumes the delivered local broker's I
+subset; hardware, experiments and installed accessibility/E/Q qualification
+are not implementation prerequisites or claimed by this increment.
 
 ### Bounded native Evidence page literal Find — 2026-10-14
 
@@ -77,6 +184,14 @@ General Ask Evidence and installed accessibility/full qualification remain open.
 The existing [one-exact-grant history](../docs/settings.md#exact-operation-grants) admits native Any/defined committed-event outcome and bounded exact canonical ReasonCode predicates after explicit retained-record inspection. The trusted reader validates exact membership and the authoritative prefix before matching; authenticated continuation binds inspected grant/store, viewer/read admission/control revision, filter digest and finite ceiling/digest. Edits retire rows/continuation/actionable reviews without reading. Scan/nonmatch/zero-match progress retains 4096 rows/5 seconds, 50 results/64 KiB and 15-minute bounds.
 
 No schema/pruning/retention change, authority expansion, diagnostic-mirror reconstruction, execution proof, exhaustive/forensic claim, replay/export/model/egress or installed accessibility/full qualification is delivered. The archived history receipt is historical contract evidence, not qualification of this increment.
+
+### R14 bounded All work private metadata query - 2026-10-14
+
+The [passive overview contract](Work_Management.md#delivered-passive-cross-session-work-observation---2026-10-11) now composes the authoritative Sessions/saved-draft literal saved-name or canonical exact-GUID query with All/Active/Done and Needs answer. Explicit Search/Refresh/Next retains ten-session canonical-ID scans, fifty task/question records per session, complete 64 KiB pages, truthful zero-match continuations, independent unavailable sources and private admission/source invalidation. Query text is volatile; typing performs no read and close clears it. Focused portable and headless/private-SQLite tests exercise the delivered boundary. No global/body search, atomic all-clear, model context, execution/provider authority or installed-accessibility/full R14 qualification is claimed.
+
+### Bounded native admitted Detail literal Find - 2026-10-14
+
+The [Detail literal Find contract](Information_Display.md#native-admitted-text-literal-find) delivers Find first/Next/Previous/Cancel/Clear on only frozen admitted in-memory text, with retained original USER and separate typed HOST targets. Shared snapshot query policy, nonwrapping exact navigation, source/private/close fences, inert focus/accessibility status and reader-scale tests preserve origin and bytes. No broader admission, source read, persistence/logging/export/clipboard, provider/egress, generated response or installed/accessibility/hardware/full qualification is claimed.
 
 ### Bounded native Evidence exact-field filters — 2026-10-14
 
@@ -150,6 +265,10 @@ Fully validated fixed scans and bounded audit-prefix admission remain mandatory,
 No name/title/path/body/digest search, new metadata reads, schema/index/cache/layout/copy mutation, count cap, activity renewal, model/tool/speech route or saved query is added. Storage optimizations and profile-original/hidden-import work remain deferred.
 Focused Core/Application/private SQLite/native checks qualify this consumer only, not broader R26, provider/hardware, installed screen-reader/DPI, physical protected-storage/deletion or STOP. Existing audit/retention/deadline and enablement/RC gates are unchanged; no experiment is edited.
 
+### R26 exact retained attachment media-type filter - 2026-10-15
+
+The bounded exact retained media-type increment adds All / `text/plain` / `text/markdown`, composed with exact ID, lifecycle, removed-slot and literal filters inside the existing fully validated scan. One extracted Core strict type rule, authenticated query/authority digest continuations and immediate native edit revocation preserve fail-closed nonmatch/corruption admission; tombstones match only All. Deterministic portable/private SQLite/headless control checks cover this consumer only. No schema/index/cache, body/OCR/path disclosure, count-total claim, activity renewal, model/tool/speech route, authority expansion or broader R26/installed-accessibility qualification is added.
+
 ### R26 private native retained metadata literal search - 2026-10-14
 
 The [retained attachment catalogue](File_And_Folder_Ingestion.md#delivered-retained-attachment-metadata-catalogue---2026-10-11) adds explicit volatile case-sensitive literal filtering of already exposed Session/source/revision/item IDs, digest and media type, composed with exact ID/lifecycle/removal filters. Shared Unicode bounds, fully validated finite scans, keyed authenticated query continuations, source/private revocation and separately explicit exact navigation remain mandatory. Removed tombstones never match literal search; no query content is serialized, persisted, audited, logged, exported or sent to a model.
@@ -193,6 +312,7 @@ Profile-original editing remains explicitly security-boundary deferred. Broader 
 ### R22 owned metadata inventory navigation increment - 2026-10-12
 
 The existing native editor exposes only its two existing separately bounded 128-file owned inventories. Explicit admitted List/Refresh enumerates and reconciles; literal metadata query/use filters and deterministic ≤64 KiB complete-label/details pages are in-memory, without body reads, new roots/indexes, writes, activation or first-result loading.
+The bounded 2026-10-15 exact artifact SHA-256 predicate adds only an optional native metadata filter for those same two kinds: empty Any or exactly 64 lowercase hexadecimal characters under the shared portable artifact policy, ordinal Digest equality, AND composition and truthful zero matches. Complete validation precedes exclusion; page continuation binds inventory/query/use/digest. Editing retires selections, details, validation, pending review/use and late callbacks without reads or activity renewal. No NativeRevision predicate, source/runtime/use authority, persistence, logging/export or integrity proof is added; installed/accessibility and broader Definitions qualification remain unchanged.
 Observed catalogue use state is disclosed as an observation, not current disk integrity. Exact row Inspect binds original kind/filename/source-qualified ID/digest/native revision/catalogue/private epoch and revalidates native readback. Stale/replaced/unknown rows cannot silently retarget a current-name replacement; failures require Refresh/reselection.
 Dirty originals/drafts and existing Save/copy/Disable/review/conflict/close flows remain explicit. Source/use/call changes retire choices; failed refresh removes availability; privacy/ownership/closure clears private controls and suppresses late callbacks. Native filter controls are the search route, not a new model tool or fabricated typed grammar.
 Focused deterministic portable and actual headless controller/native/private SQLite checks cover these consumed contracts. They do not replace unique RT1/RT2/PV1, offline-inference/CPU-floor, worker containment, hardware, native installed/accessibility or physical-storage proofs; no maintained experiments are edited or retired.

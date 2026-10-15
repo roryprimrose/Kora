@@ -17,7 +17,6 @@ using System.Xml.Linq;
 
 namespace Kora.Windows.IntegrationTests;
 
-[Collection(nameof(DurableStorageCompositionTestGroup))]
 public sealed class SessionsProviderProfileTests
 {
     [Theory]

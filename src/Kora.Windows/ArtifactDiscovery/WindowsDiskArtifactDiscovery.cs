@@ -42,6 +42,15 @@ public sealed class WindowsDiskArtifactDiscovery
     public IReadOnlyList<string> RootPaths =>
         roots.Select(root => root.Path).Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
 
+    public IReadOnlyList<ArtifactWatchRoot> WatchRoots =>
+        roots.GroupBy(root => root.Path, StringComparer.OrdinalIgnoreCase)
+            .Select(group => new ArtifactWatchRoot(
+                group.Key,
+                group.Select(root => root.Pattern).Distinct(StringComparer.OrdinalIgnoreCase).ToArray(),
+                group.Max(root => root.MaximumDepth),
+                group.Any(root => root.Kind == ArtifactKind.Skill)))
+            .ToArray();
+
     public IReadOnlyList<ArtifactDefinition> Load()
     {
         var files = new List<(ArtifactRoot Root, string Path)>();
@@ -199,4 +208,10 @@ public sealed class WindowsDiskArtifactDiscovery
         string Source,
         string Pattern,
         int MaximumDepth);
+
+    public sealed record ArtifactWatchRoot(
+        string Path,
+        IReadOnlyList<string> Patterns,
+        int MaximumDepth,
+        bool WatchAllFiles);
 }

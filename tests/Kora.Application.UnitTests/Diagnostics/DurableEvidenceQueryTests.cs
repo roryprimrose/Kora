@@ -470,6 +470,7 @@ public sealed class DurableEvidenceQueryTests
             original with { EventId = int.MaxValue },
             original with { Category = "Exact.Category" },
             original with { ActionId = "Exact Action / correlation" },
+            original with { SpanId = "0123456789abcdef" },
         ];
         foreach (var query in changed)
         {
@@ -573,6 +574,30 @@ public sealed class DurableEvidenceQueryTests
         var link = query with { Record = new(EvidenceSource.Link, new(Guid.NewGuid()), 31), EventId = null, ActionId = null };
         DurableEvidenceQuery.Validate(link);
         link.Record!.Citation.Should().EndWith(":31");
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("0123456789abcde")]
+    [InlineData("0123456789abcdef0")]
+    [InlineData("0123456789ABCDEF")]
+    [InlineData("0123456789abcdeg")]
+    [InlineData("0000000000000000")]
+    [InlineData(" 0123456789abcdef")]
+    [InlineData("0123456789abcdef ")]
+    [InlineData("                ")]
+    [InlineData("\t")]
+    [InlineData("0123456789abcde\n")]
+    [InlineData("0x23456789abcdef")]
+    public async Task InvalidExactSpanIsRejectedByPortablePolicyBeforeReading(string span)
+    {
+        using var listener = Listen();
+        var fixture = new Fixture();
+        using var host = Root();
+        var read = () => fixture.Service.QueryAsync(new() { SpanId = span }, null,
+            TestContext.Current.CancellationToken).AsTask();
+        await read.Should().ThrowAsync<ArgumentException>();
+        fixture.Reader.Calls.Should().Be(0);
     }
 
     public static TheoryData<EvidenceQuery> InvalidFilters => new()

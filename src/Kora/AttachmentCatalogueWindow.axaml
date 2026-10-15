@@ -19,12 +19,15 @@
       <WrapPanel>
         <ComboBox x:Name="AttachmentSessionFilter" ItemsSource="{Binding Filters}" SelectedItem="{Binding Filter, Mode=TwoWay}"
                   IsEnabled="{Binding CanEdit}" AutomationProperties.Name="Stored session lifecycle: All, Active, Done or Removed; independent of removed attachment slots" />
+        <ComboBox x:Name="AttachmentMediaType" ItemsSource="{Binding MediaTypes}" SelectedItem="{Binding MediaType, Mode=TwoWay}"
+                  IsEnabled="{Binding CanEdit}" AutomationProperties.Name="Exact retained media type: All, text/plain or text/markdown; removed tombstones match only All; changing performs no read" />
         <ComboBox x:Name="AttachmentQueryMode" ItemsSource="{Binding Modes}" SelectedItem="{Binding Mode, Mode=TwoWay}"
                   IsEnabled="{Binding CanEdit}" AutomationProperties.Name="Attachment metadata query mode: Browse or ExactId" />
         <TextBox x:Name="AttachmentQueryText" Text="{Binding QueryText, Mode=TwoWay}" Width="540"
                  IsEnabled="{Binding CanEditId}" AutomationProperties.Name="Private volatile exact session ID query; typing performs no read" />
       </WrapPanel>
       <controls:NamedTextBlock Text="{Binding QueryHint}" TextWrapping="Wrap" />
+      <controls:NamedTextBlock Text="{Binding MediaTypeHint}" TextWrapping="Wrap" />
       <TextBox x:Name="AttachmentMetadataText" Text="{Binding MetadataText, Mode=TwoWay}" Width="700"
                PlaceholderText="Optional literal metadata (IDs, digest or media type)"
                HorizontalAlignment="Left" IsEnabled="{Binding CanEdit}"

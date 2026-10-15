@@ -820,6 +820,18 @@
                 <Button Content="Refresh audit retention only" Command="{Binding RefreshAuditRetentionCommand}" IsEnabled="{Binding CanChangeAuditRetentionNative}" />
                 <Button Content="Save future audit retention only" Command="{Binding SaveAuditRetentionCommand}" IsEnabled="{Binding CanChangeAuditRetentionNative}" />
                 <Button Content="Reset future audit retention to 90 days" Command="{Binding ResetAuditRetentionCommand}" IsEnabled="{Binding CanChangeAuditRetentionNative}" />
+                <TextBlock Text="Read-only shortening impact preview" Classes="settings-title" />
+                <TextBlock Text="Explicitly select shorter proposed days. Preview counts only committed records newly due at its fixed cutoff, separately by source. A preview lasts at most 30 seconds; edits, refresh, source or host changes retire it. It never saves, renews activity or changes any record. Apply-now and deletion remain unavailable."
+                           Classes="settings-description" TextWrapping="Wrap" />
+                <ComboBox ItemsSource="{Binding AuditRetentionChoices}" SelectedItem="{Binding ProposedAuditImpactDays}"
+                          IsEnabled="{Binding CanChangeAuditRetentionNative}"
+                          AutomationProperties.Name="Proposed audit retention days for read-only preview"
+                          AutomationProperties.HelpText="Select 30 through 365 days, shorter than current saved or default retention. Selecting does not save." />
+                <Button Content="Preview audit shortening impact only" Command="{Binding PreviewAuditImpactCommand}"
+                        IsEnabled="{Binding CanPreviewAuditImpact}"
+                        AutomationProperties.Name="Preview audit shortening impact only" />
+                <TextBlock Text="{Binding AuditImpactPreviewStatus}" Classes="settings-description" TextWrapping="Wrap"
+                           AutomationProperties.Name="Read-only audit impact preview status" />
               </StackPanel>
             </Border>
           </StackPanel>

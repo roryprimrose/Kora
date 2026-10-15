@@ -15,12 +15,15 @@ public sealed class SessionWorkOverviewPageTests
         var id = new HostId<SessionIdentity>(Guid.NewGuid());
         var entry = new SessionWorkspaceEntry(new(id, new(2), false), new(id, new(3), new("Private 🐈")));
         var row = new SessionWorkOverviewRow(entry, SessionWorkOverviewAvailability.OutputBound, null);
-        var cursor = new SessionWorkOverviewCursor(Guid.NewGuid(), 3, 2, id.Value, SessionListFilter.Done, true);
+        var query = new SessionListSearch(SessionListSearchKind.NameSubstring, SessionListFilter.Done, "Private");
+        var cursor = new SessionWorkOverviewCursor(Guid.NewGuid(), 3, 2, id.Value, SessionListFilter.Done, true, query.Digest);
         var page = new SessionWorkOverviewPage([row], 1, 0, true, cursor);
         var bytes = SessionWorkOverviewPage.Serialize(page);
         bytes.Length.Should().Be(SessionWorkOverviewPage.GetSerializedSize(page));
         Encoding.UTF8.GetString(bytes).Should().Contain(id.Value.ToString("D"));
         page.Next.Should().Be(cursor);
+        cursor.QueryDigest.Should().Be(query.Digest);
+        Encoding.UTF8.GetString(bytes).Should().NotContain("\"Value\":\"Private\"");
         page.Records.Single().Work.Should().BeNull();
         var oversized = page with { Records = [.. Enumerable.Repeat(row, 500)] };
         var serialize = () => SessionWorkOverviewPage.Serialize(oversized);

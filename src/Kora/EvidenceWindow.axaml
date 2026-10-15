@@ -24,17 +24,21 @@
       <Button x:Name="Next" Content="Next page" IsEnabled="{Binding CanNext}" />
       <Button x:Name="Trace" Content="Read selected trace" IsEnabled="{Binding CanReadTrace}" />
     </StackPanel>
-    <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="10">
-      <TextBox Text="{Binding SessionFilter}" PlaceholderText="Session GUID (correlation filter only)" Width="300"
+    <Grid Grid.Row="2" ColumnDefinitions="*,*,*,*" ColumnSpacing="10">
+      <TextBox Text="{Binding SessionFilter}" PlaceholderText="Session GUID (correlation filter only)"
                ContextMenu="{x:Null}" ContextFlyout="{x:Null}"
                AutomationProperties.Name="Session correlation filter" />
-      <TextBox Text="{Binding TaskFilter}" PlaceholderText="Task GUID" Width="300"
+      <TextBox Grid.Column="1" Text="{Binding TaskFilter}" PlaceholderText="Task GUID"
                ContextMenu="{x:Null}" ContextFlyout="{x:Null}"
                AutomationProperties.Name="Task correlation filter" />
-      <TextBox Text="{Binding TraceFilter}" PlaceholderText="W3C trace ID" Width="300"
+      <TextBox Grid.Column="2" Text="{Binding TraceFilter}" PlaceholderText="W3C trace ID"
                ContextMenu="{x:Null}" ContextFlyout="{x:Null}"
                AutomationProperties.Name="Trace correlation filter" />
-    </StackPanel>
+      <TextBox x:Name="SpanId" Grid.Column="3" Text="{Binding SpanFilter}" PlaceholderText="Exact W3C span ID (16 lowercase hex)"
+               ContextMenu="{x:Null}" ContextFlyout="{x:Null}"
+               AutomationProperties.Name="Exact W3C Span ID correlation filter; empty means Any"
+               ToolTip.Tip="Empty means Any. Otherwise exactly 16 lowercase hexadecimal characters, not all zero. No trimming or partial matching." />
+    </Grid>
     <Expander Grid.Row="3" Header="Advanced filters (optional)" IsExpanded="False"
               AutomationProperties.Name="Optional advanced evidence filters">
       <StackPanel Spacing="8">
@@ -71,7 +75,7 @@
                   AutomationProperties.Name="Unset all advanced evidence filters without reading" />
         </StackPanel>
         <TextBlock TextWrapping="Wrap"
-                   Text="Blank means unset; Clear advanced filters resets typed choices to Any. Event ID/category/action use empty-only unset; whitespace-only, noncanonical integers and surrounding text whitespace fail. Event IDs include zero and negative signed 32-bit values. Category/action compare exact case-sensitive text. Category is diagnostic category, activity source for Span/Link, or typed audit category for AuthorityAudit. Event ID/severity require All, Log, Audit, DailyLog or CombinedLog; action ID/audit outcome require All, Audit or AuthorityAudit. All remains SQLite-only; CombinedLog does not support action ID. Correlation is never identity, permission or audit authority. Both time edges are inclusive; ISO Z or explicit offsets normalize to UTC. SQLite/AuthorityAudit use commit time; DailyLog uses observation time; CombinedLog uses each source's own time, not an atomic snapshot. Changing any filter clears results; search again." />
+                   Text="Blank means unset; Clear advanced filters resets typed choices to Any and preserves the basic Trace ID and Span ID fields. Empty Span ID means Any; otherwise exactly 16 lowercase hexadecimal characters, not all zero, without trimming, repair or partial matching. All filters compose with AND. Event ID/category/action use empty-only unset; whitespace-only, noncanonical integers and surrounding text whitespace fail. Event IDs include zero and negative signed 32-bit values. Category/action compare exact case-sensitive text. Category is diagnostic category, activity source for Span/Link, or typed audit category for AuthorityAudit. Event ID/severity require All, Log, Audit, DailyLog or CombinedLog; action ID/audit outcome require All, Audit or AuthorityAudit. All remains SQLite-only; CombinedLog does not support action ID. Correlation is never identity, permission or audit authority. Both time edges are inclusive; ISO Z or explicit offsets normalize to UTC. SQLite/AuthorityAudit use commit time; DailyLog uses observation time; CombinedLog uses each source's own time, not an atomic snapshot. Changing any filter clears results; search again." />
       </StackPanel>
     </Expander>
     <controls:NamedTextBlock Grid.Row="4" Text="{Binding Status}" TextWrapping="Wrap"
@@ -124,7 +128,7 @@
         </controls:ScrollableListBox>
       </Grid>
       <ScrollViewer Grid.Column="1" HorizontalScrollBarVisibility="Disabled">
-        <controls:NamedTextBlock Text="{Binding ResultText}" TextWrapping="Wrap" FontFamily="Consolas"
+        <controls:NamedTextBlock x:Name="EvidenceBody" Text="{Binding ResultText}" TextWrapping="Wrap" FontFamily="Consolas"
                    AutomationProperties.Name="Bounded structured evidence result, read only, no copy or export" />
       </ScrollViewer>
     </Grid>

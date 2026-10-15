@@ -13,12 +13,24 @@ Related: [Interaction and Sessions](Interaction_And_Sessions.md), [Work Manageme
 The shared USER/HOST row additionally exposes explicit [exact retained conversation Details](Information_Display.md#delivered-retained-original-user--typed-host-details---2026-10-14), including compact projections of that row. A separate passive native viewer displays the complete original USER body and separately typed HOST chrome; opening the surface or selecting metadata does not read or open Details. Existing private/source/selection revocation and Done semantics apply; no clipboard authority or installed qualification is added.
 
 The existing private selected-session conversation pane has distinct **Search this conversation**, **Next conversation matches**, **Cancel conversation search** and **Clear private conversation search** controls.
-Enter searches; Escape clears only search state without closing, moving question/voice focus or touching composer drafts. Editing the query revokes prior results but performs no automatic read.
+Enter searches; Escape clears only search state without closing, moving question/voice focus or touching composer drafts. The native keyboard-focusable **All / USER / HOST** selector composes with the query: All includes original USER and typed HOST fields, USER only the immutable body, HOST only outcome/reason/expected-task-state strings, never assistant prose. Editing either query or filter immediately clears prior rows, selected match/navigation and Next and cancels late callbacks without reading. Explicit Search observes the new criteria; Clear resets to All.
 
 Results use the same inert native original USER/separate HOST row template as chronological pages. Their request/task IDs and exact bodies are not reinterpreted as answers or executable actions. No result navigation to another session or automatic saved-draft reload occurs. Active and retained Done use the same admitted exact-session reader, snapshot continuation and final source validation.
 
 The [canonical search contract](Interaction_And_Sessions.md#delivered-passive-exact-conversation-lexical-search--2026-10-13) owns lexical/work/output bounds, counters and invalidation. Session/source/private changes clear query, rows and cursor and fence in-flight publication.
-The [compact projection](../src/Kora/CompactSessionWindow.axaml) exposes these same controls over the workspace's single query/page/cursor and cancellation state. Opening either view or typing reads nothing; closing one view retains the shared state until the last owner closes. [Headless shared-search tests](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.CompactSearch.cs) cover keyboard actions, retained Done, saved baseline and late-source revocation.
+Both views additionally expose labelled, keyboard-focusable **Terminal outcome**,
+**Terminal reason** and **Expected terminal task state** selectors with accessible
+names identifying their exact HOST enum and no-read edit behavior. Each defaults
+to **Any** and uses the same shared volatile typed filter. Predicates AND with
+query/role; USER-only with any predicate remains selected and truthfully yields
+zero. Editing any selector immediately revokes rows, selected navigation,
+continuation and delayed callbacks in both views without reading. Clear and
+source/private revocation reset all terminal selectors to Any. No body rewrite,
+assistant prose, generated output or receipt-history search is added.
+The [terminal-control tests](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.ConversationTerminal.cs)
+cover all defined choices/Any, shared binding, no-read revocation and explicit
+invalid-enum refusal; headless controls are not installed accessibility proof.
+The [compact projection](../src/Kora/CompactSessionWindow.axaml) exposes these same controls over the workspace's single query/filter/page/cursor and cancellation state. Opening either view, typing or changing the field filter reads nothing; closing one view retains the shared state until the last owner closes. [Headless shared-search tests](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.CompactSearch.cs) cover keyboard actions, retained Done, saved baseline and late-source revocation; [native field-filter tests](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.ConversationRole.cs) cover shared binding, accessible control names, zero/invalid filters and no-read selection/continuation revocation.
 Native-only query entry adds no activated/model descriptor or generic-global-search retarget. Headless binding tests do not qualify installed keyboard/accessibility/DPI or full R12/R14 runtime acceptance.
 
 ## Delivered exact-session native composer — 2026-10-12
@@ -27,6 +39,13 @@ Native-only query entry adds no activated/model descriptor or generic-global-sea
 
 Use **Tray > Saved conversation drafts (metadata only)**, then explicit Refresh. All retained saved-content rows are the default; Active/Done filters and Next consume bounded mutable metadata pages, not bodies.
 Choose **Browse**, literal case-sensitive **NameSubstring**, or canonical lowercase **ExactId**, then **Search / refresh metadata**. The private volatile field performs no read on typing; invalid/empty queries never fall back to All. **Clear query (Browse)** resets without reading.
+Optional labelled native **Exact saved revision**, **Minimum UTF-8 bytes**,
+**Maximum UTF-8 bytes**, **Minimum Unicode scalars** and **Maximum Unicode scalars**
+fields compose with every mode and lifecycle filter.
+Empty means Any; strict positive revision/inclusive bounded byte and scalar parsing and
+visible invalid-field refusal follow the [canonical metadata policy](Interaction_And_Sessions.md#saved-conversation-draft-catalogue--2026-10-13).
+Editing any field immediately revokes page, selection, exact navigation, Next
+and late callbacks without reading; Clear/source/privacy/close clears the fields.
 Query/mode/filter edits cancel pending callbacks and clear the observed page/cursor/selection immediately, leaving the existing Sessions composer/target untouched. Exact IDs remain distinct from ID-shaped names; empty scanned pages can still have Next. No result is automatically selected.
 Select one immutable row and **Open exact session (no body load)**. Exact private source/revision revalidation precedes selection in the existing Sessions owner; no second composer or body authority exists.
 
@@ -460,6 +479,16 @@ Done-session conversation is readable without resume. Sending new work requires 
 
 ### Evidence Mode
 
+The delivered [bounded native inspector](Information_Display.md#delivered-bounded-native-evidence-inspection)
+has an optional exact **Span ID** field beside **Trace ID**. Empty means Any;
+nonempty means exactly 16 lowercase hexadecimal characters, not all zero,
+under the existing portable W3C policy. All existing filters compose with AND.
+Edits revoke the current page/selection/continuation without reading.
+Clear advanced preserves both basic W3C fields; emptying either unsets it,
+and close clears both. Span ID is correlation only, not session or audit
+authority. This adds no ParentSpanId predicate, navigation, export or model
+route; the broader mode below remains a target contract, not qualification.
+
 Evidence mode provides a bounded local timeline/search over permitted session,
 diagnostic and security-audit records. It supports time range, source kind,
 severity, event/category, correlation, session, task, invocation, approval,
@@ -600,6 +629,17 @@ The text-only body-free summary is historical structural compatibility, never ap
 **Disable reviewed use** and exact `instructions` / `prompts` `disable` or `stop-use` focus one separate native confirmation for the clean inspected supported native owned source/kind/digest/revision (instruction v1; prompt v1/v2).
 The durable hold withdraws all new selections without writing/deleting the source, preserves inspection/editing and already captured reasoning, and retires pending unadmitted choices without replay. Dirty drafts remain intact with an explicit Save/Reload prerequisite.
 Cancellation/stale review and failed audit/preference readback never invent completion or restore enablement. No-change reload/restart/restored bytes cannot re-enable use; fresh exact review is required. Profile-original editing and installed/accessibility qualification stay open.
+
+The owned editor's native **Exact SHA-256** field narrows observed artifact
+metadata for both owned kinds, ANDed with literal metadata query and use state.
+Empty means Any; otherwise exactly 64 lowercase hexadecimal characters are
+required by the shared portable artifact policy. No trimming, folding or partial
+matching occurs; unknown digests match only Any. Predicate edits perform no
+source/catalogue read and synchronously retire page/selection/details/continuation,
+validation and pending review/use controls, preserving the open draft and fencing
+late callbacks. Next binds the complete filter state and original inventory;
+zero matches is truthful. Digest never supplies use authority or disk integrity,
+and no additional source, persistence, export or activity renewal is introduced.
 
 The Skills surface lists source-qualified skills and revisions without reading
 arbitrary profile paths. Selecting a revision shows host-resolved identity,

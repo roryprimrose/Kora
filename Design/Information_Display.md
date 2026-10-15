@@ -22,6 +22,18 @@ Exact storage/session/source/private/control/owner checks run at resolution and 
 
 This route grants no clipboard/export authority: exact-source, selection and automatic copy remain blocked by [viewer state policy](../src/Kora.Application/Presentation/DetailViewerState.cs), including keyboard/programmatic paths. Existing document/history/web copy policy is unchanged. No model, tool, provider, egress, generated content, auto-offer or broader runtime/hardware/accessibility qualification is delivered.
 
+### Native admitted-text literal Find
+
+The existing Detail window now exposes **Find first / Next / Previous / Cancel Find / Clear literal Find** over only its frozen in-memory displayed text. Exact source and continuous semantic text remain distinct projections; switching source resets navigation. Retained original USER is unchanged, with a separate explicit **Find separate typed HOST observation** target for the already displayed native observation, never a combined or generated body.
+
+[Viewer state](../src/Kora.Application/Presentation/DetailViewerState.cs) uses the canonical [SnapshotLiteralFind](../src/Kora.Core/Context/SnapshotLiteralFind.cs) policy shared by clipboard/local-file Find: case-sensitive unchanged spaces, nonempty well-formed one-line query, at most 256 UTF-16 characters / 512 strict UTF-8 bytes, nonoverlapping steps and **no wrap**. Invalid queries are rejected visibly, not normalized or shortened. One inert bounded span and end-exclusive UTF-16 location are exposed, without indexing/counting all occurrences. Direction exhaustion hides the match but retains its cursor for reverse navigation.
+
+Query edits, projection/target changes, Cancel and Clear retire the cursor; Cancel retains the query, Clear releases it. Close, source/revision replacement or failed private/source admission release all viewer text and fence publication/focus. Find is synchronous bounded in-memory work with no additional reader, task, timer or cancellation resource. Native Ctrl+F/Enter/F3/Shift+F3 and Escape preserve query/match/close focus behavior; the inert match follows existing reader text scale and accessible names/status.
+
+Find adds no admission/open route, clipboard/export, persistence/schema, logging/query telemetry, provider/egress, meaningful activity or execution authority. Existing independently admitted copy controls are unchanged; retained conversation copy stays blocked. Portable and headless tests are implementation evidence, not installed/accessibility/hardware or full qualification.
+
+The inert match viewport scrolls within a 100-DIP height bound without shortening text. Headless checks exercise the complete maximum-length match at 75%, 100% and 200% reader scale in the minimum-size window while retaining a visible reader; they do not replace installed visual/accessibility qualification.
+
 ## Delivered passive exact-conversation search - 2026-10-13
 
 The selected Sessions conversation pane now separately searches original retained USER bodies and typed HOST outcomes/reasons/task states. It shares the chronological native inert row template; full exact body and original request/task/sequence remain data, not model answers, generated summaries, ranked citations, rich links or execution controls.
@@ -195,6 +207,20 @@ exercise native/headless behavior, not installed accessibility or full
 qualification. General Ask Evidence, source search beyond existing filters,
 copy/export and new audit authority remain unavailable.
 
+The confirmed device-local [reader text scale](#bounded-native-reader-text-scale)
+also applies to only the admitted complete immutable serialized page body and
+its focused inert literal-Find span. New windows and live confirmed changes
+use each control's original font size/line height, not cumulative scaling.
+Filters, result navigation, provenance labels, status/errors, controls,
+accessible names and window dimensions retain their typography. Incomplete
+pages retain baseline typography; replacement, source/private closure,
+failure/cancellation and close retire scaled match/content state, including
+late callbacks. Unavailable preference evidence explicitly retires the reader,
+never silently substitutes 100. Serialization bytes, content-owned line breaks,
+UTF-16 offsets, record selection, continuations and evidence reads are unchanged.
+This adds no content, copy/export, persistence or activity authority and makes
+no installed accessibility claim.
+
 **AuthorityAudit** is a separate opt-in source for the real schema-v3
 interaction store's committed typed `security_audit_events`. It is not the
 SQLite diagnostic **Audit** projection or a daily audit mirror. **All** remains
@@ -233,12 +259,31 @@ user-modifiable. Native installed/accessibility acceptance remains open.
 
 The tray's **Evidence (read-only)** entry opens a separate, non-topmost native
 window using the existing theme resources. It is not the clipboard-capable
-passive detail viewer. Source, safe-text, session/task GUID and W3C trace
+passive detail viewer. Source, safe-text, session/task GUID and W3C trace/span
 filters provide deterministic current-user SQLite inspection without a model,
 network, microphone or browser. Search starts a fresh bounded snapshot;
 Next page continues only that snapshot. Selecting a cited record exposes its
 parent/explicit link availability; Read selected trace and Open selected
 segment use the same typed query service, never paths or SQL.
+
+The basic **Span ID** field beside **Trace ID** binds the existing optional
+exact `EvidenceQuery.SpanId`. Only empty input means Any. Nonempty input must
+pass the existing portable W3C validator: exactly 16 lowercase hexadecimal
+characters, not all zero. No trimming, case folding, prefix/partial matching,
+repair or reinterpretation occurs. Span ID composes with every existing
+source/text/identity/time/typed filter using AND; it is correlation only,
+never identity, permission or audit authority. Link records retain the existing
+source-or-target pair semantics: when both W3C IDs are specified, both must
+match the same end, not separate ends. ParentSpanId is not a filter.
+Zero matches disclose only absence within the admitted filtered snapshot.
+Editing or emptying the field performs no read and immediately retires the
+page, selection, continuation and literal-Find state, including late callbacks.
+**Clear advanced filters** preserves both basic W3C fields; empty either
+field explicitly to unset it. Closing clears both. No filter-value logging,
+persistence, export, clipboard, model/tool/speech route, schema/index/cache,
+trace navigation, activity renewal or generated content is added. Complete
+bounded record validation, private/source/authority fences, authenticated
+snapshots/continuations and explicit content omission remain unchanged.
 
 The optional **Advanced filters** area adds exact request, invocation, approval
 and audit-correlation GUIDs, inclusive **From / Until** timestamps, diagnostic
@@ -436,8 +481,9 @@ the current continuous semantic reader or exact-source reader, with the same
 access/disclosure gate. It never substitutes the whole source. `Ctrl+A`
 selects the continuous current content. `Ctrl+F`, `F3` / `Shift+F3`, `Ctrl+U`
 and `Escape` target native find, match navigation, exact source and close.
-Cut/paste and automatic TextBox/context clipboard paths are blocked; a query
-over 256 characters is rejected visibly rather than silently shortened.
+Cut/paste and automatic TextBox/context clipboard paths are blocked; Find uses
+the [admitted-text literal policy](#native-admitted-text-literal-find), not
+case-insensitive wrapping search.
 
 Remaining R14 gates include Sessions list/full conversation, durable
 history/artifact resolution, exact response offers and voice targeting,
@@ -865,6 +911,15 @@ Primary remains the default; an explicit target stays bound to its actual source
 Geometry is bounded/clipped inside that source's current working area and scaling, including negative coordinates and tiny areas; native resize/reposition hides first. A missing/ambiguous explicit target hides and retires even pinned text, never silently moving it to another physical display.
 Explicit recovery selects only future eligible text; it cannot repair preferences, clear privacy/call/ownership holds, resurrect a retired source, enable captions or extend completion/pinning.
 
+The confirmed device-local [reader text scale](#bounded-native-reader-text-scale)
+also applies to the actual observed caption content TextBox, in new and open
+native windows, from its original typography. Caption labels, Pin/Unpin, display
+selection/status, accessible names and native geometry remain independent.
+Unavailable reader preference evidence explicitly retires the caption; late
+frames cannot restore it. This changes only the former caption typography
+exclusion, not caption enablement, speech, identity, privacy/call gates or pin
+and display lifetimes.
+
 **Current sentence** and word alignment remain open: the actual adapter supplies
 utterance segment 0 only, so estimated boundaries are not advertised as
 host-admitted playback alignment. Arbitrary coordinates and
@@ -1114,13 +1169,13 @@ All also have exact get/status/reset and `list speech text settings` discovery.
 
 The delivered native reader preference is `appearance.reader-text-scale`: an absolute integer percentage, default **100**, inclusive **75–200**. It uses the appearance registry, exact `get`/`status`/`set`/`reset` and `list appearance settings`, and the native Settings Appearance editor. Relative or natural-language examples below remain proposed, not inferred commands ([registry](../src/Kora.Core/Configuration/AppearanceOptionRegistry.cs), [parser](../src/Kora.Application/Configuration/AppearanceCommand.cs)).
 
-Only content typography scales: shared DetailWindow Rendered blocks, exact Source and continuous text; native original file/folder and retained attachment source bodies; exact source citation/literal-match spans; native volatile clipboard snapshot source body. Newly created windows inherit the confirmed preference. Repeated changes apply against each control's original font/line-height, never cumulatively ([binding](../src/Kora/NativeReaderTypography.cs), [detail](../src/Kora/DetailWindow.axaml.cs), [file](../src/Kora/LocalFilePreviewWindow.cs), [span](../src/Kora/LocalFilePreviewWindow.Citations.cs), [clipboard](../src/Kora/ClipboardPreviewWindow.cs)).
+Only content typography scales: shared DetailWindow Rendered blocks, exact Source and continuous text; native original file/folder and retained attachment source bodies; exact source citation/literal-match spans; native volatile clipboard snapshot source body; admitted complete immutable serialized Evidence page body and its inert focused literal-Find span; currently observed native speech-caption content text. Newly created windows inherit the confirmed preference. Repeated changes apply against each control's original font/line-height, never cumulatively ([binding](../src/Kora/NativeReaderTypography.cs), [detail](../src/Kora/DetailWindow.axaml.cs), [file](../src/Kora/LocalFilePreviewWindow.cs), [span](../src/Kora/LocalFilePreviewWindow.Citations.cs), [clipboard](../src/Kora/ClipboardPreviewWindow.cs), [Evidence](../src/Kora/EvidenceWindow.axaml.cs), [caption](../src/Kora/SpeechCaptionWindow.axaml.cs)).
 
 Trusted chrome, consent/approval/question controls, search inputs/results, provenance/citation locations, errors and renderer status retain their own typography and scrolling. This does not scale entire windows or transform content. Immutable source strings/bytes, search offsets and citations are not rewritten; content access, copy/export, caption enablement, call policy, permissions and persistence consent remain separate ([detail shell](../src/Kora/DetailWindow.axaml), [file reader](../src/Kora/LocalFilePreviewWindow.cs), [clipboard reader](../src/Kora/ClipboardPreviewWindow.cs)).
 
 The preference is device-local atomic state under application data paths, with strict integer validation and pending evidence until exact readback and successful audit. Malformed, unknown, externally changed or unconfirmed evidence fails explicitly; it is not silently treated as 100. Existing preference files/migrations remain unchanged ([store](../src/Kora.Application/Configuration/LocalReaderTextScalePreferences.cs), [workflow](../src/Kora.Application/Configuration/AppearanceConfigurationService.cs)).
 
-Excluded: inline guide/grant previews, compact response/conversation lists, evidence/search/attachment catalogues, captions, browser/generated HTML/Mermaid/PDF/image renderers, model/runtime interfaces and voice-command inference. This is **not global text scaling**. Full accessibility, real hardware, Windows DPI/display and assistive-technology acceptance remain open; deterministic headless checks qualify only these bounded native readers.
+Excluded: inline guide/grant previews, compact response/conversation lists, Evidence filters/query fields/result navigation/provenance/status and incomplete pages, search/attachment catalogues, caption labels/Pin/Unpin/display selector/status/chrome, browser/generated HTML/Mermaid/PDF/image renderers, model/runtime interfaces and voice-command inference. Caption scaling preserves exact text, response/playback/generation/segment identity, native geometry/display selection, original pin/dismissal lifetime and retirement. Preference/privacy/source/call/window closure, replacement, interruption, failure/cancellation and late callbacks clear stale scaled content. This is **not global text scaling**. Full accessibility, real hardware, Windows DPI/display and assistive-technology acceptance remain open; deterministic headless checks qualify only these bounded native readers.
 
 The broader proposed registry includes:
 

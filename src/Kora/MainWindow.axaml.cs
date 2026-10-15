@@ -16,6 +16,7 @@ using Kora.Core.Voice;
 using Kora.Core.Diagnostics;
 using Kora.Core.Hosting;
 using Kora.Application.Hosting;
+using Kora.Controls;
 using Kora.Windows.Presentation;
 
 using Microsoft.Extensions.DependencyInjection;
@@ -27,6 +28,7 @@ public sealed partial class MainWindow : Window
 {
     private readonly MainViewModel viewModel;
     private readonly ILogger<MainWindow> logger;
+    private readonly PresenceControl presence;
     private readonly DispatcherTimer presenceTimeoutTimer;
     private readonly PresentationInactivityTimeout presenceInactivity = new();
     private readonly DispatcherTimer positionSaveTimer;
@@ -52,7 +54,10 @@ public sealed partial class MainWindow : Window
         this.viewModel = viewModel;
         this.logger = logger;
         AvaloniaXamlLoader.Load(this);
+        presence = this.FindControl<PresenceControl>("Presence")
+            ?? throw new InvalidOperationException("The presence control was not loaded.");
         DataContext = viewModel;
+        presence.BindPresentationEligibility(() => viewModel.CanRevealPrivatePresentation);
         ShowInTaskbar = false;
         Opacity = 0;
         Win32Properties.AddWindowStylesCallback(this, ConfigurePresenceWindowStyles);
@@ -98,7 +103,9 @@ public sealed partial class MainWindow : Window
         try
         {
             IsHitTestVisible = presenceInput.Refresh(
-                IsVisible && viewModel.CanRevealPrivatePresentation);
+                IsVisible && viewModel.CanRevealPrivatePresentation
+                && viewModel.State != Kora.Core.AssistantState.Hidden
+                && presence.CanInteract);
         }
         catch (Win32Exception exception)
         {
@@ -106,7 +113,7 @@ public sealed partial class MainWindow : Window
             presenceInputTimer.Stop();
             IsHitTestVisible = false;
             DesktopLog.Error(logger, exception, "Updating presence mouse routing");
-            Hide();
+            HidePresenceWindow();
             viewModel.ReportPresenceInputFailure(exception.Message);
         }
     }
@@ -131,6 +138,7 @@ public sealed partial class MainWindow : Window
 
     private void OnClosed(object? sender, EventArgs eventArgs)
     {
+        presence.Dispose();
         presenceInputTimer.Stop();
         presenceTimeoutTimer.Stop();
         presenceInactivity.Stop();
@@ -155,6 +163,8 @@ public sealed partial class MainWindow : Window
             {
                 DesktopLog.Error(logger, exception, "Initializing the main window");
                 viewModel.ReportHostInteractionFailure("Desktop initialization failed. " + exception.Message);
+                presenceInputTimer.Stop();
+                IsHitTestVisible = false;
                 Hide();
             }, HostActivityLayer.Desktop, HostOperation.Presentation);
         }
@@ -168,18 +178,19 @@ public sealed partial class MainWindow : Window
         }
 
         initialized = true;
+        presence.IsMotionEnabled = WindowsPresenceMotionPreference.IsAnimationEnabled();
         DesktopLog.Information(logger, "Main window loaded");
         await viewModel.InitializeAsync();
         RestorePosition();
         if (!viewModel.CanRevealPrivatePresentation)
         {
-            Hide();
+            HidePresenceWindow();
             return;
         }
         if (viewModel.GetOptionalSpeechProviderOffer() is { } offer)
         {
             Opacity = 1;
-            Show();
+            ShowPresenceWindow();
             var review = await ShowOptionalSpeechOfferAsync(offer);
             viewModel.AcknowledgeOptionalSpeechProviderOffer(offer, review);
         }
@@ -195,12 +206,12 @@ public sealed partial class MainWindow : Window
         {
             DesktopLog.Debug(logger, "Hiding the main window after successful background startup");
             viewModel.HidePresentation();
-            Hide();
+            HidePresenceWindow();
         }
         else if (!viewModel.IsPresenceDisplayEnabled)
         {
             DesktopLog.Debug(logger, "Keeping the disabled presence hidden after startup");
-            Hide();
+            HidePresenceWindow();
         }
         else
         {
@@ -314,9 +325,11 @@ public sealed partial class MainWindow : Window
             case WindowAction.Show:
                 DesktopLog.Debug(logger, "Showing the presence");
                 CancelPendingHide();
+                presence.IsMotionEnabled = WindowsPresenceMotionPreference.IsAnimationEnabled();
                 EnsurePositionOnConnectedScreen();
-                Show();
-                Presence.IsPresenceVisible = true;
+                ShowPresenceWindow();
+                presence.IsPresenceVisible = true;
+                RefreshPresenceInput();
                 SchedulePresenceTimeout();
                 break;
             case WindowAction.Hide:
@@ -355,7 +368,8 @@ public sealed partial class MainWindow : Window
     private async Task HidePresenceAfterTransitionAsync()
     {
         CancelPendingHide();
-        Presence.IsPresenceVisible = false;
+        presence.IsPresenceVisible = false;
+        RefreshPresenceInput();
         var hideRequest = new CancellationTokenSource();
         pendingHide = hideRequest;
         try
@@ -363,7 +377,7 @@ public sealed partial class MainWindow : Window
             await Task.Delay(
                 PresenceAnimation.VisibilityTransitionDuration + PresenceAnimation.FrameInterval,
                 hideRequest.Token);
-            Hide();
+            HidePresenceWindow();
         }
         catch (OperationCanceledException) when (hideRequest.IsCancellationRequested)
         {
@@ -407,6 +421,15 @@ public sealed partial class MainWindow : Window
 
     private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs eventArgs)
     {
+        presence.IsPresentationEligible = viewModel.CanRevealPrivatePresentation;
+        if (eventArgs.PropertyName is nameof(MainViewModel.IsSpeaking))
+        {
+            viewModel.RefreshSpeechPlaybackFrame();
+        }
+        else if (eventArgs.PropertyName is nameof(MainViewModel.State))
+        {
+            RefreshPresenceInput();
+        }
         if (eventArgs.PropertyName is nameof(MainViewModel.PresenceTimeoutSeconds))
         {
             SchedulePresenceTimeout();
@@ -424,8 +447,8 @@ public sealed partial class MainWindow : Window
                 presenceTimeoutTimer.Stop();
                 presenceInactivity.Stop();
                 CancelPendingHide();
-                Presence.IsPresenceVisible = false;
-                Hide();
+                presence.IsPresenceVisible = false;
+                HidePresenceWindow();
             }
         }
         else if (eventArgs.PropertyName is nameof(MainViewModel.IsListening)
@@ -445,6 +468,24 @@ public sealed partial class MainWindow : Window
         {
             EnsurePositionOnConnectedScreen();
         }
+    }
+
+    private void ShowPresenceWindow()
+    {
+        presence.SetAnimationEnabled(true);
+        Show();
+        if (!presenceInputFailed)
+        {
+            presenceInputTimer.Start();
+        }
+    }
+
+    private void HidePresenceWindow()
+    {
+        presenceInputTimer.Stop();
+        IsHitTestVisible = false;
+        presence.SetAnimationEnabled(false);
+        Hide();
     }
 
     private void OnPointerPressed(object? sender, PointerPressedEventArgs eventArgs)

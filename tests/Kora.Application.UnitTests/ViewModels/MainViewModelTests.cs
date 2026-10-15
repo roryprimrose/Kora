@@ -234,7 +234,10 @@ public sealed partial class MainViewModelTests : IDisposable
             fixture.ViewModel.ResponseTitle.Should().Be("MCP server inclusion was not changed.");
             fixture.ArtifactPreferences.SaveFailure = null;
 
+            var artifactConfigurationChanges = 0;
+            fixture.ArtifactDirectoryConfiguration!.Changed += (_, _) => artifactConfigurationChanges++;
             fixture.McpServerConfiguration!.NotifyChanged();
+            artifactConfigurationChanges.Should().Be(0);
             var secondFile = Path.Combine(root, "second.json");
             File.WriteAllText(secondFile, """{"servers":{"other":{"command":"other.exe"}}}""");
             fixture.ViewModel.ArtifactDirectoryInput = secondFile;
@@ -8497,12 +8500,14 @@ public sealed partial class MainViewModelTests : IDisposable
             Kora.Tools.Network.WebPageGet? webPageGet = null,
             bool enableArtifactConfiguration = false,
             Exception? artifactReadFailure = null,
-            bool enableMcpServerConfiguration = true, bool enableProviderProfiles = false)
+            bool enableMcpServerConfiguration = true, bool enableProviderProfiles = false,
+            bool enableQuestionReplies = false, bool enableAuditImpact = false)
         {
             Catalog = new BuiltInCommandCatalog();
             CaptionPreferences.LoadFailure = captionReadFailure;
             Dispatcher = new ImmediateDispatcher();
             Voice = new FakeVoiceRecognitionService(Dispatcher, Events);
+            ReplyVoice = enableQuestionReplies ? new QuestionVoiceAdapter(Voice) : null;
             TextToSpeech = new FakeTextToSpeechService(Events);
             NamePreferences = new FakeAssistantNamePreferences();
             AppearancePreferences = new FakeAppearancePreferences();
@@ -8604,7 +8609,7 @@ public sealed partial class MainViewModelTests : IDisposable
                 ApprovalPreferences,
                 ModelExecutionPreferences,
                 MicrophoneAccess,
-                Voice,
+                (IActivatedVoiceRecognitionService?)ReplyVoice ?? Voice,
                 TextToSpeech,
                 new AssistantNameConfigurationService(NamePreferences, Catalog, Audit,
                     NullLogger<AssistantNameConfigurationService>.Instance),
@@ -8656,7 +8661,8 @@ public sealed partial class MainViewModelTests : IDisposable
                 webPageGet,
                 ArtifactDirectoryConfiguration,
                 McpServerConfiguration,
-                enableProviderProfiles ? new ProviderProfileConfigurationService(ProfilePreferences, ProfileCatalogue, OutputAdmission, Audit, ProfileTime) : null);
+                enableProviderProfiles ? new ProviderProfileConfigurationService(ProfilePreferences, ProfileCatalogue, OutputAdmission, Audit, ProfileTime) : null,
+                enableAuditImpact ? new AuditImpactPreviewService(ImpactReader, AuditPreferences, AuditConfiguration!) : null);
             ViewModel.BindCallOwnershipGate(static () => true);
             ViewModel.BindManualCallNativeLifetime(true);
             if (enableWindowsSpeechRate) { ViewModel.BindWindowsSpeechRateNativeLifetime(static () => true); }
@@ -8709,6 +8715,7 @@ public sealed partial class MainViewModelTests : IDisposable
         public FakeAuditRetentionPreferences AuditPreferences { get; } = new();
         public AuditRetentionPolicy AuditPolicy { get; } = new();
         public AuditRetentionConfigurationService? AuditConfiguration { get; }
+        public Kora.Application.UnitTests.Configuration.AuditImpactPreviewServiceTests.Reader ImpactReader { get; } = new();
         public FakeArtifactPreferences ArtifactPreferences { get; } = new();
         public ArtifactDirectoryConfigurationService? ArtifactDirectoryConfiguration { get; }
         public McpServerConfigurationService? McpServerConfiguration { get; }
@@ -8716,6 +8723,7 @@ public sealed partial class MainViewModelTests : IDisposable
         public ImmediateDispatcher Dispatcher { get; }
 
         public FakeVoiceRecognitionService Voice { get; }
+        public QuestionVoiceAdapter? ReplyVoice { get; }
 
         public FakeTextToSpeechService TextToSpeech { get; }
 
@@ -9506,6 +9514,7 @@ public sealed partial class MainViewModelTests : IDisposable
         public TaskCompletionSource? SpeakGate { get; set; }
 
         public bool HoldSpeechCompletionOnStop { get; set; }
+        public bool ReturnWhileSpeaking { get; set; }
 
         public TaskCompletionSource SpeakStarted { get; set; } = new(
             TaskCreationOptions.RunContinuationsAsynchronously);
@@ -9560,6 +9569,7 @@ public sealed partial class MainViewModelTests : IDisposable
             SpokenOutputDevice = outputDevice;
             IsSpeaking = true;
             SpeakStarted.TrySetResult();
+            if (ReturnWhileSpeaking) { return; }
             if (SpeakGate is not null)
             {
                 await SpeakGate.Task.WaitAsync(cancellationToken);

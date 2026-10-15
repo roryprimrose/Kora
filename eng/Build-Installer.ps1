@@ -5,7 +5,8 @@ param(
     [ValidatePattern('^\d+\.\d+\.\d+$')]
     [string] $ProductVersion,
     [string] $ApplicationPayloadPath,
-    [switch] $SkipMsiValidation
+    [switch] $SkipMsiValidation,
+    [switch] $NoRestore
 )
 
 Set-StrictMode -Version Latest
@@ -133,13 +134,17 @@ finally { $writer.Dispose() }
 
 $msiProject = Join-Path $root 'installer\Kora.Msi\Kora.Msi.wixproj'
 $bundleProject = Join-Path $root 'installer\Kora.Bundle\Kora.Bundle.wixproj'
-Invoke-DotNet -Arguments @('restore', $msiProject, '--locked-mode')
+if (-not $NoRestore) {
+    Invoke-DotNet -Arguments @('restore', $msiProject, '--locked-mode')
+}
 Invoke-DotNet -Arguments @('build', $msiProject, '--configuration', 'Release', '--no-restore',
     "--property:Version=$Version", "--property:ProductVersion=$ProductVersion", "--property:ApplicationPayload=$application",
     "--property:SuppressValidation=$($SkipMsiValidation.IsPresent.ToString().ToLowerInvariant())",
     "--property:OutputPath=$output\")
 $msi = Join-Path $output "Kora-$ProductVersion-win-x64.msi"
-Invoke-DotNet -Arguments @('restore', $bundleProject, '--locked-mode')
+if (-not $NoRestore) {
+    Invoke-DotNet -Arguments @('restore', $bundleProject, '--locked-mode')
+}
 $applicationExeHash = (Get-FileHash -LiteralPath (Join-Path $application 'Kora.exe') -Algorithm SHA256).Hash
 $applicationAssemblyHash = (Get-FileHash -LiteralPath (Join-Path $application 'Kora.dll') -Algorithm SHA256).Hash
 Invoke-DotNet -Arguments @('build', $bundleProject, '--configuration', 'Release', '--no-restore',

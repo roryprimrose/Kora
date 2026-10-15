@@ -23,7 +23,7 @@ internal sealed partial class SessionsViewModel
             historySearch = null;
             history = null;
             selectedHistory = null;
-            detail = string.Empty;
+            Detail = string.Empty;
             selectionEpoch++;
             status = LocalFileRetrievalPolicy.TryQuery(value, out _)
                 ? "Query changed; start a fresh exact-session lexical search."
@@ -54,7 +54,7 @@ internal sealed partial class SessionsViewModel
         var query = historyQuery;
         history = null;
         selectedHistory = null;
-        detail = string.Empty;
+        Detail = string.Empty;
         using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(lifetime.Token);
         historySearchCancellation = cancellation;
         NotifyHistory();
@@ -69,7 +69,7 @@ internal sealed partial class SessionsViewModel
             }
             historySearch = result;
             history = new(result.SessionId, result.Generation, result.Disposed, result.Snapshot, result.Records, null);
-            detail = Encoding.UTF8.GetString(SessionCommandResult.Serialize(new("observed", SessionHistorySearchPage.Scope)
+            Detail = Encoding.UTF8.GetString(SessionCommandResult.Serialize(new("observed", SessionHistorySearchPage.Scope)
                 { HistorySearch = result }));
             status = "Passive lexical search: " + result.Records.Length.ToString(CultureInfo.InvariantCulture)
                 + " matches, " + result.Scanned.ToString(CultureInfo.InvariantCulture) + " scanned, "
@@ -86,7 +86,7 @@ internal sealed partial class SessionsViewModel
         historySearchCancellation?.Cancel();
         historySearch = null;
         historyQuery = string.Empty;
-        detail = string.Empty;
+        Detail = string.Empty;
     }
 
     private void NotifyHistorySearch()

@@ -389,6 +389,7 @@ internal static class Program
             provider.GetRequiredService<IUiDispatcher>(), provider.GetRequiredService<ISecurityAuditLog>(),
             provider.GetRequiredService<ILogger<MaintenanceViewModel>>()));
         services.AddSingleton<Kora.Application.Interaction.HostQuestionService>();
+        services.AddSingleton<Kora.Application.Interaction.HostQuestionReviewService>();
         services.AddSingleton<Kora.Application.Interaction.HostAuthorizationService>();
         services.AddSingleton<HostTaskCoordinator>();
         services.AddSingleton<DurableVersionQuery>();
@@ -471,6 +472,9 @@ internal static class Program
         services.AddSingleton<IAuditRetentionPreferences>(provider =>
             new LocalAuditRetentionPreferences(provider.GetRequiredService<IPreferenceStore>()));
         services.AddSingleton<AuditRetentionConfigurationService>();
+        services.AddSingleton<IAuditRetentionImpactReader>(provider =>
+            new WindowsSqliteAuditImpactReader(interactions, evidence, paths));
+        services.AddSingleton<AuditImpactPreviewService>();
         services.AddSingleton<IModelApprovalPreferences>(provider =>
             new LocalModelApprovalPreferences(
                 provider.GetRequiredService<IPreferenceStore>()));

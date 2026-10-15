@@ -2,6 +2,10 @@
 using System.Security.Principal;
 
 using Avalonia.Controls;
+using Avalonia.Automation;
+using Avalonia.Headless;
+using Avalonia.Input;
+using Avalonia.Input.Raw;
 using Avalonia.Interactivity;
 using Avalonia.VisualTree;
 
@@ -36,8 +40,8 @@ public sealed partial class OwnedDefinitionEditorWindowTests
             using var f = new NativeUxFixtureSession(parent);
             await f.InitializeAsync();
             await using var admission = new InstructionControlAdmission(f.Interactions, f.Interactions, new HostTaskCoordinator(f.Tasks));
-            var instructionStore = new WindowsOwnedInstructionStore(f);
-            var promptStore = new WindowsOwnedInstructionStore(f, ArtifactKind.Prompt);
+            var instructionStore = new InventoryStore(new WindowsOwnedInstructionStore(f));
+            var promptStore = new InventoryStore(new WindowsOwnedInstructionStore(f, ArtifactKind.Prompt));
             var instructions = new InstructionRevisionCatalogue(f);
             var prompts = new InstructionRevisionCatalogue(f, ArtifactKind.Prompt);
             var catalogue = EmbeddedArtifactCatalogue.Load();
@@ -49,8 +53,8 @@ public sealed partial class OwnedDefinitionEditorWindowTests
             using var reload = new ArtifactCatalogueReloadService(catalogue, f, preferences,
                 new ArtifactDirectoryConfigurationService(preferences, f.Audit),
                 new McpServerConfigurationService(f, preferences, Path.Combine(f.LocalRoot, "no-profile")),
-                NullLogger<ArtifactCatalogueReloadService>.Instance, instructions, instructionStore,
-                Path.Combine(f.LocalRoot, "no-profile"), prompts, promptStore);
+                NullLogger<ArtifactCatalogueReloadService>.Instance, instructions, instructionStore.Inner,
+                Path.Combine(f.LocalRoot, "no-profile"), prompts, promptStore.Inner);
             var saved = new List<OwnedInstructionSnapshot>();
             foreach (var name in InventoryNames)
             {
@@ -90,6 +94,42 @@ public sealed partial class OwnedDefinitionEditorWindowTests
             native.Source.Text.Should().BeNullOrEmpty();
             native.QueryInput.Focus();
             native.QueryInput.IsFocused.Should().BeTrue();
+            native.DigestInput.Focus();
+            native.DigestInput.IsFocused.Should().BeTrue();
+            AutomationProperties.GetName(native.DigestInput).Should().Contain("Exact artifact SHA-256").And.Contain("Any");
+            var clearSearch = native.GetVisualDescendants().OfType<Button>().Single(button => Equals(button.Content, "Clear search"));
+            native.KeyPress(Key.Tab, RawInputModifiers.None, PhysicalKey.Tab, null);
+            clearSearch.IsFocused.Should().BeTrue();
+            native.KeyPress(Key.Tab, RawInputModifiers.Shift, PhysicalKey.Tab, null);
+            native.DigestInput.IsFocused.Should().BeTrue();
+            var store = kind == ArtifactKind.Instruction ? instructionStore : promptStore;
+            var reads = store.Reads;
+            var lists = store.Lists;
+            var writes = store.Writes;
+            native.DigestInput.Text = saved[0].Document.Definition.Digest;
+            Rows().Should().ContainSingle().Which.Name.Should().Be("enabled");
+            native.DigestInput.Text = saved[1].Document.Definition.Digest;
+            Rows().Should().ContainSingle().Which.Name.Should().Be("held");
+            native.UseStateInput.SelectedItem = OwnedDefinitionUseFilter.UseEnabled;
+            Rows().Should().BeEmpty();
+            native.UseStateInput.SelectedItem = OwnedDefinitionUseFilter.All;
+            foreach (var invalid in new[] { saved[1].Document.Definition.Digest.ToUpperInvariant(),
+                new string('a', 63), new string('a', 65), new string('g', 64), " " + saved[1].Document.Definition.Digest,
+                saved[1].Document.Definition.Digest + " ", "\t", "\n" })
+            {
+                native.DigestInput.Text = invalid;
+                native.Files.ItemsSource.Should().BeNull();
+                native.Files.SelectedItem.Should().BeNull();
+                native.NextPage.IsEnabled.Should().BeFalse();
+                Status().Should().Contain("No truncation or partial match");
+            }
+            native.DigestInput.Text = new string('f', 64);
+            Rows().Should().BeEmpty();
+            Status().Should().Contain("0 visible of 0 matches");
+            native.DigestInput.Text = string.Empty;
+            store.Reads.Should().Be(reads);
+            store.Lists.Should().Be(lists);
+            store.Writes.Should().Be(writes);
             native.UseStateInput.SelectedItem = OwnedDefinitionUseFilter.UseEnabled;
             Rows().Should().ContainSingle().Which.Name.Should().Be("enabled");
             native.UseStateInput.SelectedItem = OwnedDefinitionUseFilter.ReviewRequired;
@@ -111,6 +151,40 @@ public sealed partial class OwnedDefinitionEditorWindowTests
             native.GetVisualDescendants().OfType<Button>().Single(button => Equals(button.Content, "Inspect"))
                 .RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             await sourceRead.Task.WaitAsync(TestContext.Current.CancellationToken);
+            await Run("list");
+            var original = native.Source.Text;
+            native.Files.SelectedItem = Rows()[1];
+            store.ReadEntered = new(TaskCreationOptions.RunContinuationsAsynchronously);
+            store.ReleaseRead = new(TaskCreationOptions.RunContinuationsAsynchronously);
+            var pendingInspect = Run("inspect " + Rows()[1].Name);
+            await store.ReadEntered.Task.WaitAsync(TestContext.Current.CancellationToken);
+            reads = store.Reads;
+            lists = store.Lists;
+            native.DigestInput.Text = saved[0].Document.Definition.Digest;
+            native.Files.SelectedItem.Should().BeNull();
+            native.ReviewUse.IsEnabled.Should().BeFalse();
+            native.DisableReviewedUse.IsEnabled.Should().BeFalse();
+            store.Reads.Should().Be(reads);
+            store.Lists.Should().Be(lists);
+            store.ReleaseRead.TrySetResult();
+            await pendingInspect;
+            native.Source.Text.Should().Be(original, "a digest edit retires a pending inspection without loading its late result");
+            store.ReleaseRead = null;
+            native.DigestInput.Text = string.Empty;
+            var catalogueIdentity = catalogue.Candidates;
+            store.ListEntered = new(TaskCreationOptions.RunContinuationsAsynchronously);
+            store.ReleaseList = new(TaskCreationOptions.RunContinuationsAsynchronously);
+            var pendingRefresh = Run("list");
+            await store.ListEntered.Task.WaitAsync(TestContext.Current.CancellationToken);
+            native.DigestInput.Text = saved[0].Document.Definition.Digest;
+            native.Files.ItemsSource.Should().BeNull();
+            store.ReleaseList.TrySetResult();
+            await pendingRefresh;
+            native.Files.ItemsSource.Should().BeNull("a refresh begun under retired filter state cannot publish or reconcile after editing");
+            catalogue.Candidates.Should().BeSameAs(catalogueIdentity);
+            native.Source.Text.Should().Be(original);
+            store.ReleaseList = null;
+            native.DigestInput.Text = string.Empty;
             await Run("list");
             native.Source.Text += "\nUnsaved private draft.";
             var draft = native.Source.Text;
@@ -156,11 +230,13 @@ public sealed partial class OwnedDefinitionEditorWindowTests
             Status().Should().Contain("Historical observations").And.Contain("unavailable");
             native.Source.Text.Should().Be(draft);
             native.QueryInput.Text = "private query";
+            native.DigestInput.Text = saved[0].Document.Definition.Digest;
             ownership++;
             owned = false;
             await Run("list");
             native.IsVisible.Should().BeFalse();
             native.QueryInput.Text.Should().BeEmpty();
+            native.DigestInput.Text.Should().BeEmpty();
             native.Source.Text.Should().BeEmpty();
             native.Files.ItemsSource.Should().BeNull();
             catalogue.Publish(catalogue.Candidates);
@@ -194,9 +270,11 @@ public sealed partial class OwnedDefinitionEditorWindowTests
                 window.ShowInventory(snapshot.Page("", OwnedDefinitionUseFilter.All, first.NextOffset!.Value));
                 window.Files.SelectedItem.Should().BeNull();
                 window.QueryInput.Text = "private query";
+                window.DigestInput.Text = new string('a', 64);
                 window.Source.Text = "private draft";
                 window.ClearPrivateText();
                 window.QueryInput.Text.Should().BeEmpty();
+                window.DigestInput.Text.Should().BeEmpty();
                 window.Source.Text.Should().BeEmpty();
                 window.Files.ItemsSource.Should().BeNull();
                 window.NextPage.IsEnabled.Should().BeFalse();
@@ -283,6 +361,14 @@ public sealed partial class OwnedDefinitionEditorWindowTests
             }
             seen.Select(row => row.Name).Should().Equal(names);
             seen.Should().OnlyContain(row => row.Kind == kind && row.ObservedUseEnabled == false && row.NativeRevision != null);
+            native.Files.SelectedItem = Rows()[0];
+            native.DigestInput.Text = first[0].Digest;
+            Rows().Should().ContainSingle().Which.Should().BeSameAs(first[0]);
+            native.Files.SelectedItem.Should().BeNull();
+            native.NextPage.IsEnabled.Should().BeFalse();
+            native.DigestInput.Text = string.Empty;
+            Rows().Should().Equal(first);
+            native.NextPage.IsEnabled.Should().BeTrue();
             native.GetVisualDescendants().OfType<Button>().Single(button => Equals(button.Content, "Clear search"))
                 .RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             Rows().Should().Equal(first);
@@ -299,5 +385,47 @@ public sealed partial class OwnedDefinitionEditorWindowTests
             native.Files.SelectedItem.Should().BeNull();
             native.Source.Text.Should().BeNullOrEmpty();
         });
+    }
+
+    private sealed class InventoryStore(WindowsOwnedInstructionStore inner) : IOwnedInstructionStore
+    {
+        internal WindowsOwnedInstructionStore Inner => inner;
+        internal int Reads;
+        internal int Lists;
+        internal int Writes;
+        internal TaskCompletionSource? ReadEntered;
+        internal TaskCompletionSource? ReleaseRead;
+        internal TaskCompletionSource? ListEntered;
+        internal TaskCompletionSource? ReleaseList;
+
+        public async Task<IReadOnlyList<string>> List(CancellationToken token)
+        {
+            Lists++;
+            if (ReleaseList is { } release)
+            {
+                ListEntered!.TrySetResult();
+                await release.Task.WaitAsync(token);
+            }
+            return await inner.List(token);
+        }
+
+        public async Task<OwnedInstructionSnapshot?> Read(string name, CancellationToken token)
+        {
+            Reads++;
+            if (ReleaseRead is { } release)
+            {
+                ReadEntered!.TrySetResult();
+                await release.Task.WaitAsync(token);
+            }
+            return await inner.Read(name, token);
+        }
+
+        public Task<InstructionWriteResult> Write(string name, OwnedInstructionSnapshot? expected,
+            ArtifactFileDocument? replacement, Func<bool> eligible,
+            Func<Func<InstructionWriteResult>, Task<InstructionWriteResult>> commit, CancellationToken token)
+        {
+            Writes++;
+            return inner.Write(name, expected, replacement, eligible, commit, token);
+        }
     }
 }

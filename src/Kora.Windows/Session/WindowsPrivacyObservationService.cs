@@ -22,7 +22,9 @@ public sealed class WindowsPrivacyObservationService : IWindowsPrivacyObservatio
     private WindowsPrivacySnapshot current = new(
         WindowsSessionState.Unknown, MicrophoneAccessState.Unknown, 0, [], null, null);
     private WindowsSessionState? sessionOverride;
+    private string? observedTopologyIdentity;
     private long observationVersion;
+    private int pollActive;
     private bool disposed;
 
     public WindowsPrivacyObservationService(
@@ -45,7 +47,7 @@ public sealed class WindowsPrivacyObservationService : IWindowsPrivacyObservatio
         if (pollingInterval is { } interval)
         {
             poll = (timeProvider ?? TimeProvider.System).CreateTimer(
-                _ => Refresh(topologyChanged: false, WindowsPrivacyChangeReason.Polling), null, interval, interval);
+                _ => Poll(), null, interval, interval);
         }
     }
 
@@ -93,18 +95,55 @@ public sealed class WindowsPrivacyObservationService : IWindowsPrivacyObservatio
         using var activity = HostActivity.BeginOperation(HostActivityLayer.Windows, HostOperation.Runtime);
         lock (querySync)
         {
-            var result = ReadAndPublish(topologyChanged, reason, observation, out var outcome);
+            var result = ReadAndUpdate(topologyChanged, reason, observation, out var outcome,
+                out var change, out var failure, out var queryStarted, out var queryCompleted);
+            Publish(change, failure, reason, queryStarted, queryCompleted);
             activity.Complete(outcome);
             return result;
         }
     }
 
-    private WindowsPrivacySnapshot ReadAndPublish(bool topologyChanged, WindowsPrivacyChangeReason reason,
-        PrivacyObservation? observation, out HostOperationOutcome outcome)
+    private void Poll()
+    {
+        if (Interlocked.CompareExchange(ref pollActive, 1, 0) != 0)
+        {
+            return;
+        }
+
+        try
+        {
+            lock (querySync)
+            {
+                ReadAndUpdate(topologyChanged: false, WindowsPrivacyChangeReason.Polling,
+                    observation: null, out var outcome, out var change, out var failure,
+                    out var queryStarted, out var queryCompleted);
+                if (change is null && failure is null)
+                {
+                    return;
+                }
+
+                using var activity = HostActivity.BeginOperation(HostActivityLayer.Windows, HostOperation.Runtime);
+                Publish(change, failure, WindowsPrivacyChangeReason.Polling, queryStarted, queryCompleted);
+                activity.Complete(outcome);
+            }
+        }
+        finally
+        {
+            Volatile.Write(ref pollActive, 0);
+        }
+    }
+
+    private WindowsPrivacySnapshot ReadAndUpdate(bool topologyChanged, WindowsPrivacyChangeReason reason,
+        PrivacyObservation? observation, out HostOperationOutcome outcome,
+        out WindowsPrivacyChangedEventArgs? change, out Exception? failure,
+        out long queryStarted, out long queryCompleted)
     {
         outcome = HostOperationOutcome.Cancelled;
+        change = null;
+        failure = null;
+        queryStarted = Stopwatch.GetTimestamp();
+        queryCompleted = queryStarted;
         long requestedVersion;
-        WindowsPrivacyChangedEventArgs? change;
         WindowsPrivacySnapshot result;
         lock (sync)
         {
@@ -117,21 +156,21 @@ public sealed class WindowsPrivacyObservationService : IWindowsPrivacyObservatio
         }
 
         WindowsPrivacySnapshot observed;
-        var queryStarted = Stopwatch.GetTimestamp();
         try
         {
             observed = source.Read();
+            observedTopologyIdentity = source.TopologyIdentity;
             outcome = HostOperationOutcome.Completed;
         }
         catch (Exception exception) when (exception is not OutOfMemoryException)
         {
             outcome = HostOperationOutcome.Failed;
-            WindowsLog.Error(logger, exception, "Observing Windows privacy prerequisites");
+            failure = exception;
             observed = new WindowsPrivacySnapshot(
                 WindowsSessionState.Unknown, MicrophoneAccessState.Unknown,
                 0, [], null, null);
         }
-        var queryCompleted = Stopwatch.GetTimestamp();
+        queryCompleted = Stopwatch.GetTimestamp();
 
         lock (sync)
         {
@@ -160,13 +199,22 @@ public sealed class WindowsPrivacyObservationService : IWindowsPrivacyObservatio
             result = current;
         }
 
+        return result;
+    }
+
+    private void Publish(WindowsPrivacyChangedEventArgs? change, Exception? failure,
+        WindowsPrivacyChangeReason reason, long queryStarted, long queryCompleted)
+    {
+        if (failure is not null)
+        {
+            WindowsLog.Error(logger, failure, "Observing Windows privacy prerequisites");
+        }
         Notify(change);
         if (change is not null)
         {
             WindowsLog.PrivacyQueryCompleted(logger, change.Observation.Id, reason,
                 queryStarted, queryCompleted, Stopwatch.Frequency);
         }
-        return result;
     }
 
     private void OnSourceChanged(object? sender, WindowsPrivacySignalEventArgs eventArgs)
@@ -177,6 +225,14 @@ public sealed class WindowsPrivacyObservationService : IWindowsPrivacyObservatio
         {
             if (disposed)
             {
+                return;
+            }
+            if (eventArgs.TopologyChanged
+                && eventArgs.SessionState is null
+                && eventArgs.TopologyIdentity is not null
+                && string.Equals(observedTopologyIdentity, eventArgs.TopologyIdentity, StringComparison.Ordinal))
+            {
+                activity.Complete(HostOperationOutcome.Completed);
                 return;
             }
 

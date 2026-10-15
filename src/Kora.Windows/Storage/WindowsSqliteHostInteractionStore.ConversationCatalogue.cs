@@ -17,7 +17,8 @@ public sealed partial class WindowsSqliteHostInteractionStore : ISavedDraftCatal
     private readonly byte[] draftCursorKey = RandomNumberGenerator.GetBytes(32);
 
     public ValueTask<SavedDraftPage> ReadSavedDraftPage(SessionListFilter filter, string? cursor,
-        long controlRevision, Func<bool> admitted, CancellationToken token, SessionListSearch? query = null) =>
+        long controlRevision, Func<bool> admitted, CancellationToken token, SessionListSearch? query = null,
+        SavedDraftMetadataFilter? metadataFilter = null) =>
         new(ReadDraftMetadataOperation(() =>
         {
             if (!Enum.IsDefined(filter) || controlRevision < 0 || query is not null && query.Filter != filter)
@@ -34,6 +35,7 @@ public sealed partial class WindowsSqliteHostInteractionStore : ISavedDraftCatal
             var continuation = cursor is null ? null : DecodeDraftCursor(cursor);
             if (continuation is not null && (continuation.Filter != filter || continuation.ControlRevision != controlRevision
                 || continuation.QueryKind != query?.Kind
+                || (continuation.MetadataFilter ?? SavedDraftMetadataFilter.Any) != (metadataFilter ?? SavedDraftMetadataFilter.Any)
                 || !string.Equals(continuation.QueryDigest, query?.Digest, StringComparison.Ordinal)
                 || continuation.Profile != profile || continuation.Viewer != viewer || continuation.Source != runId
                 || !Same(continuation.Identity, identity) || continuation.Ceiling != snapshot.AuthorityCeiling
@@ -46,11 +48,11 @@ public sealed partial class WindowsSqliteHostInteractionStore : ISavedDraftCatal
             var scope = new DraftCursor(filter, controlRevision, profile, viewer, runId, identity,
                 snapshot.AuthorityCeiling!.Value, snapshot.AuthorityCeilingDigest!, continuation?.After,
                 audit.Through, audit.Hash, continuation?.ExpiresAt ?? now.AddMinutes(SessionAttachmentPage.SnapshotMinutes));
-            scope = scope with { QueryKind = query?.Kind, QueryDigest = query?.Digest };
+            scope = scope with { QueryKind = query?.Kind, QueryDigest = query?.Digest, MetadataFilter = metadataFilter };
             if (audit.Through < scope.Ceiling)
             {
                 var pending = new SavedDraftPage(filter, [], EncodeDraftCursor(scope), 0, audit.Scanned, true,
-                    query?.Kind, query?.Digest);
+                    query?.Kind, query?.Digest, metadataFilter);
                 pending.Validate();
                 VerifyCatalogueSource(identity, admitted, token);
                 return pending;
@@ -68,11 +70,12 @@ public sealed partial class WindowsSqliteHostInteractionStore : ISavedDraftCatal
                 var summary = DecodeDraftMetadata(connection, rows, scope);
                 if (summary is not null && (filter == SessionListFilter.All
                     || summary.Session.IsActive == (filter == SessionListFilter.Active))
-                    && (query is null || query.Matches(new(summary.Session, summary.Metadata))))
+                    && (query is null || query.Matches(new(summary.Session, summary.Metadata)))
+                    && (metadataFilter is null || metadataFilter.Matches(summary)))
                 {
                     var reserved = new SavedDraftPage(filter, records.ToImmutable().Add(summary),
                         EncodeDraftCursor(scope with { After = id.Value }), SavedDraftPage.MaximumScanned, audit.Scanned, false,
-                        query?.Kind, query?.Digest);
+                        query?.Kind, query?.Digest, metadataFilter);
                     if (SavedDraftPage.Size(reserved) > SavedDraftPage.MaximumBytes) { break; }
                     records.Add(summary);
                 }
@@ -85,7 +88,7 @@ public sealed partial class WindowsSqliteHostInteractionStore : ISavedDraftCatal
             var more = query?.ExactId is null && (long)remaining.ExecuteScalar()! == 1;
             var result = new SavedDraftPage(filter, records.ToImmutable(),
                 more ? EncodeDraftCursor(scope with { After = after }) : null, scanned, audit.Scanned, false,
-                query?.Kind, query?.Digest);
+                query?.Kind, query?.Digest, metadataFilter);
             result.Validate();
             VerifyCatalogueSource(identity, admitted, token);
             return result;
@@ -258,5 +261,6 @@ public sealed partial class WindowsSqliteHostInteractionStore : ISavedDraftCatal
     private sealed record DraftCursor(SessionListFilter Filter, long ControlRevision, HostId<DeviceProfileIdentity> Profile,
         HostId<RequestIdentity> Viewer, Guid Source, string Identity, long Ceiling, string Digest, Guid? After,
         long Through, string Hash, DateTimeOffset ExpiresAt,
-        SessionListSearchKind? QueryKind = null, string? QueryDigest = null);
+        SessionListSearchKind? QueryKind = null, string? QueryDigest = null,
+        SavedDraftMetadataFilter? MetadataFilter = null);
 }

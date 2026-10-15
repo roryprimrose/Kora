@@ -23,6 +23,7 @@ internal sealed class SessionAttachmentWindowController : IUserFilePicker, IDisp
     private HostId<SessionIdentity>? session;
     private SessionAttachmentSummary? catalogueSelection;
     private Guid reviewing;
+    private long viewRevision;
     private bool disposed;
 
     internal SessionAttachmentWindowController(Action<string> reportFailure, SessionFileAttachmentService service,
@@ -202,11 +203,23 @@ internal sealed class SessionAttachmentWindowController : IUserFilePicker, IDisp
             && review.Request.SessionId != session || reviewing != Guid.Empty && service.Review?.ReviewId != reviewing)) { Close(); }
     }
 
+    private void PostForCurrentInspection(Action notification, bool exactView = false)
+    {
+        var expectedLifetime = Volatile.Read(ref lifetime);
+        var expected = Volatile.Read(ref viewRevision);
+        // Global revocation follows the inspection lifetime; body invalidation also binds its exact view.
+        Dispatcher.UIThread.Post(() =>
+        {
+            if (ReferenceEquals(expectedLifetime, lifetime)
+                && (!exactView || expected == Volatile.Read(ref viewRevision))) { notification(); }
+        });
+    }
+
     private void OnRevoked(HostId<SessionIdentity> revoked)
     {
         if (!Dispatcher.UIThread.CheckAccess())
         {
-            Dispatcher.UIThread.Invoke(() => OnRevoked(revoked));
+            PostForCurrentInspection(() => OnRevoked(revoked));
             return;
         }
 
@@ -219,7 +232,7 @@ internal sealed class SessionAttachmentWindowController : IUserFilePicker, IDisp
     {
         if (!Dispatcher.UIThread.CheckAccess())
         {
-            Dispatcher.UIThread.Invoke(() => OnAttachmentRevoked(revoked));
+            PostForCurrentInspection(() => OnAttachmentRevoked(revoked), exactView: true);
             return;
         }
         if (session != revoked) { return; }
@@ -233,6 +246,7 @@ internal sealed class SessionAttachmentWindowController : IUserFilePicker, IDisp
             Dispatcher.UIThread.Invoke(RevokeView);
             return;
         }
+        Interlocked.Increment(ref viewRevision);
         if (window is not { } view) { return; }
         window = null;
         view.Closed -= OnClosed;
@@ -243,7 +257,7 @@ internal sealed class SessionAttachmentWindowController : IUserFilePicker, IDisp
     {
         if (!Dispatcher.UIThread.CheckAccess())
         {
-            Dispatcher.UIThread.Invoke(CloseInspection);
+            PostForCurrentInspection(CloseInspection);
             return;
         }
         RevokeView();
@@ -264,6 +278,7 @@ internal sealed class SessionAttachmentWindowController : IUserFilePicker, IDisp
 
     internal void Close(bool revokeService = true)
     {
+        Interlocked.Increment(ref viewRevision);
         var view = window;
         window = null;
         eligible = null;

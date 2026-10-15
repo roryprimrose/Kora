@@ -9,4 +9,8 @@ internal interface IActivatedCaptureFactory
         IReadOnlyList<string> phrases,
         BlockingAudioStream stream,
         Func<bool> canOpen);
+
+    Task<IActivatedCapture> OpenAsync(MicrophoneDevice microphone, IReadOnlyList<string> phrases,
+        BlockingAudioStream stream, Func<bool> canOpen, TimeSpan speechStartWindow) =>
+        OpenAsync(microphone, phrases, stream, canOpen);
 }

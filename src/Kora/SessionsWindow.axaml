@@ -52,6 +52,22 @@
         <TextBox x:Name="ConversationQuery" Text="{Binding ConversationQuery, Mode=TwoWay}" IsEnabled="{Binding CanReadConversation}"
             PlaceholderText="Search retained USER words or typed HOST outcome/reason/task state in only this exact selected session"
             AutomationProperties.Name="Private exact-session conversation lexical query; memory-only, not composer input, a model instruction or global search" />
+         <ComboBox x:Name="ConversationRole" ItemsSource="{Binding ConversationRoles}"
+            SelectedItem="{Binding ConversationRole, Mode=TwoWay}" IsEnabled="{Binding CanReadConversation}"
+            AutomationProperties.Name="Conversation search field filter: All original USER and typed HOST fields, USER original body only, HOST outcome reason and task state only; editing does not read" />
+        <TextBlock Text="Exact terminal HOST predicates (Any means unrestricted). USER-only with any predicate yields zero; all predicates AND with the query and role." TextWrapping="Wrap" />
+        <TextBlock Text="Terminal outcome" />
+        <ComboBox x:Name="ConversationOutcome" ItemsSource="{Binding ConversationOutcomes}"
+            SelectedItem="{Binding ConversationOutcomeChoice, Mode=TwoWay}" IsEnabled="{Binding CanReadConversation}"
+            AutomationProperties.Name="Exact terminal HOST ModelTurnOutcome; Any or one defined outcome; editing does not read" />
+        <TextBlock Text="Terminal reason" />
+        <ComboBox x:Name="ConversationReason" ItemsSource="{Binding ConversationReasons}"
+            SelectedItem="{Binding ConversationReasonChoice, Mode=TwoWay}" IsEnabled="{Binding CanReadConversation}"
+            AutomationProperties.Name="Exact terminal HOST ModelTurnReason; Any or one defined reason; editing does not read" />
+        <TextBlock Text="Expected terminal task state" />
+        <ComboBox x:Name="ConversationTaskState" ItemsSource="{Binding ConversationTaskStates}"
+            SelectedItem="{Binding ConversationTaskStateChoice, Mode=TwoWay}" IsEnabled="{Binding CanReadConversation}"
+            AutomationProperties.Name="Exact terminal HOST expected HostTaskState; Any or one defined state; editing does not read" />
         <WrapPanel>
           <Button x:Name="SearchConversation" Content="Search this conversation" IsEnabled="{Binding CanSearchConversation}" />
           <Button x:Name="NextConversationSearch" Content="Next conversation matches" IsEnabled="{Binding CanNextConversationSearch}" />
@@ -339,6 +355,28 @@
           </WrapPanel>
           <controls:NamedTextBlock Text="{Binding LocalEventStatus}" TextWrapping="Wrap"
                                   AutomationProperties.Name="Trusted visual local event status, fatigue, deferral and no replay reasons; no speech or focus change" />
+          <WrapPanel>
+            <TextBlock Text="Local event category" VerticalAlignment="Center" />
+            <ComboBox x:Name="LocalEventCategoryFilter" ItemsSource="{Binding LocalEventCategoryFilters}"
+                      SelectedItem="{Binding LocalEventCategoryChoice}" IsEnabled="{Binding CanFilterLocalEvents}"
+                      AutomationProperties.Name="Filter loaded local events by authoritative category; All, Work, Failure, Attention or Maintenance; clears exact event selection" />
+            <TextBlock Text="Local event reason" VerticalAlignment="Center" />
+            <ComboBox x:Name="LocalEventReasonFilter" ItemsSource="{Binding LocalEventReasonFilters}"
+                      SelectedItem="{Binding LocalEventReasonChoice}" IsEnabled="{Binding CanFilterLocalEvents}"
+                      AutomationProperties.Name="Filter loaded local events by exact delivery reason or All; combines with category, source and type and clears exact event selection" />
+            <TextBlock Text="Local event source" VerticalAlignment="Center" />
+            <ComboBox x:Name="LocalEventSourceFilter" ItemsSource="{Binding LocalEventSourceFilters}"
+                      SelectedItem="{Binding LocalEventSourceChoice}" IsEnabled="{Binding CanFilterLocalEvents}"
+                      AutomationProperties.Name="Filter loaded local events by exact authoritative source or All; combines with category, reason and type and clears exact event selection" />
+            <TextBlock Text="Local event type" VerticalAlignment="Center" />
+            <ComboBox x:Name="LocalEventTypeFilter" ItemsSource="{Binding LocalEventTypeFilters}"
+                      SelectedItem="{Binding LocalEventTypeChoice}" IsEnabled="{Binding CanFilterLocalEvents}"
+                      AutomationProperties.Name="Filter loaded local events by exact authoritative type or All; combines with category, reason and source and clears exact event selection" />
+            <Button x:Name="ClearLocalEventFilters" Content="Clear local event filters" IsEnabled="{Binding CanFilterLocalEvents}"
+                    AutomationProperties.Name="Show all already-loaded local events and clear exact selection; no source read or quiet change" />
+          </WrapPanel>
+          <controls:NamedTextBlock Text="{Binding LocalEventFilterStatus}" TextWrapping="Wrap"
+                                  AutomationProperties.Name="Matching loaded local-event counts and empty filter results; bounded source omissions and quiet status are separate" />
           <controls:ScrollableListBox x:Name="EventRecords" MaxHeight="130" ItemsSource="{Binding LocalEvents}"
                    SelectedItem="{Binding SelectedLocalEvent, Mode=OneWay}"
                    AutomationProperties.Name="Content-free exact host event IDs and revisions; pending questions remain independent">

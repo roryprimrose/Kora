@@ -24,6 +24,23 @@ public sealed class AuditRetentionConfigurationServiceTests : IDisposable
     public void Dispose() => listener.Dispose();
 
     [Fact]
+    public async Task Passive_observation_is_unavailable_during_commit_notifications_or_changed_policy()
+    {
+        await using var fixture = new Fixture();
+        fixture.Service.IsCurrentObservation(fixture.Service.GetObservation()).Should().BeTrue();
+        fixture.Service.IsCurrentObservation(fixture.Service.Get() with { Revision = -1 }).Should().BeFalse();
+        fixture.Service.Changed += (_, _) =>
+            fixture.Service.IsCurrentObservation(fixture.Service.GetObservation()).Should().BeFalse();
+        await fixture.Refresh();
+        fixture.Audit.BeforeWrite = _ =>
+            fixture.Service.IsCurrentObservation(fixture.Service.GetObservation()).Should().BeFalse();
+        await fixture.Set("30");
+        fixture.Service.IsCurrentObservation(fixture.Service.GetObservation()).Should().BeTrue();
+        fixture.Service.HoldUnavailable();
+        fixture.Service.IsCurrentObservation(fixture.Service.GetObservation()).Should().BeFalse();
+    }
+
+    [Fact]
     public async Task Exact_bounds_default_reset_and_restart_activate_only_after_old_policy_receipts()
     {
         await using var fixture = new Fixture();

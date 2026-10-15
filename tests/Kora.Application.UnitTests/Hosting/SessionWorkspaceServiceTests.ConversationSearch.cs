@@ -13,6 +13,82 @@ namespace Kora.Application.UnitTests.Hosting;
 public sealed partial class SessionWorkspaceServiceTests
 {
     [Theory]
+    [InlineData(ConversationSearchRole.All, "Unavailable", 2)]
+    [InlineData(ConversationSearchRole.USER, "Unavailable", 1)]
+    [InlineData(ConversationSearchRole.HOST, "Unavailable", 2)]
+    [InlineData(ConversationSearchRole.HOST, "body", 0)]
+    [InlineData(ConversationSearchRole.USER, "body UnregisteredModel", 1)]
+    public async Task RoleSelectsFieldsNotStoredRowsOrPageAdmission(ConversationSearchRole role, string query, int count)
+    {
+        using var f = new ConversationFixture();
+        f.Messages = [Message(f, 1, "body Unavailable"), Message(f, 2, "other")];
+        using var root = HostActivity.BeginRoot(f.Request, HostActivityLayer.Application, HostOperation.Request);
+        var page = await f.Service.SearchConversationAsync(f.Session.SessionId, query, null, 25, f.Token, role);
+        page.Messages.Should().HaveCount(count);
+        page.Scanned.Should().Be(2);
+        page.Role.Should().Be(role);
+        page.Next.Should().BeNull();
+        f.Messages[0].Body.Should().Be("body Unavailable");
+        f.TaskWrites.Should().BeEmpty();
+        f.ControlCalls.Should().Be(0);
+    }
+
+    [Theory]
+    [InlineData(ConversationSearchRole.USER)]
+    [InlineData(ConversationSearchRole.HOST)]
+    public async Task RoleContinuationBindsFilterAndDigestBeforeAnyRead(ConversationSearchRole role)
+    {
+        using var f = new ConversationFixture();
+        f.Messages = [Message(f, 1, "Unavailable"), Message(f, 2, "Unavailable")];
+        using var root = HostActivity.BeginRoot(f.Request, HostActivityLayer.Application, HostOperation.Request);
+        var first = await f.Service.SearchConversationAsync(f.Session.SessionId, "Unavailable", null, 1, f.Token, role);
+        first.Next!.Role.Should().Be(role);
+        var reads = f.Reads;
+        foreach (var tampered in new[] { first.Next with { Role = ConversationSearchRole.All },
+            first.Next with { Role = (ConversationSearchRole)99 }, first.Next with { QueryDigest = "wrong" } })
+        {
+            await f.Service.Invoking(service => service.SearchConversationAsync(f.Session.SessionId,
+                "Unavailable", tampered, 1, f.Token, role)).Should().ThrowAsync<ArgumentException>();
+        }
+        await f.Service.Invoking(service => service.SearchConversationAsync(f.Session.SessionId,
+            "Unavailable", first.Next, 1, f.Token, ConversationSearchRole.All)).Should().ThrowAsync<ArgumentException>();
+        await f.Service.Invoking(service => service.SearchConversationAsync(f.Session.SessionId,
+            "Unavailable", null, 1, f.Token, (ConversationSearchRole)99)).Should().ThrowAsync<ArgumentOutOfRangeException>();
+        f.Reads.Should().Be(reads);
+        var next = await f.Service.SearchConversationAsync(f.Session.SessionId, "UNAVAILABLE", first.Next, 1, f.Token, role);
+        next.Messages.Single().Should().Be(f.Messages[1]);
+        next.Next.Should().BeNull();
+    }
+
+    [Theory]
+    [InlineData("body")]
+    [InlineData("status")]
+    [InlineData("session")]
+    [InlineData("generation")]
+    [InlineData("sequence")]
+    [InlineData("revision")]
+    public async Task HostNonmatchesStillValidateEveryConsumedSourceRow(string invalid)
+    {
+        using var f = new ConversationFixture();
+        var message = Message(f, 2, "body");
+        message = invalid switch
+        {
+            "body" => message with { Body = "\ud800" },
+            "status" => message with { Reason = (ModelTurnReason)99 },
+            "session" => message with { Request = HostRequest.Create(RequestOrigin.LocalUi) },
+            "generation" => message with { Generation = new(2) },
+            "sequence" => message with { Sequence = 3 },
+            _ => message with { Revision = 1 },
+        };
+        f.Messages = [Message(f, 1, "body"), message];
+        f.AfterRead = page => page with { Messages = f.Messages.ToImmutableArray() };
+        using var root = HostActivity.BeginRoot(f.Request, HostActivityLayer.Application, HostOperation.Request);
+        await f.Service.Invoking(service => service.SearchConversationAsync(f.Session.SessionId,
+            "body", null, 25, f.Token, ConversationSearchRole.HOST)).Should().ThrowAsync<Exception>();
+        f.TaskWrites.Should().BeEmpty();
+    }
+
+    [Theory]
     [InlineData(25)]
     [InlineData(50)]
     public async Task ConversationSearchUsesOriginalBodiesAcrossSourcePagesWithoutWrites(int limit)
@@ -163,7 +239,8 @@ public sealed partial class SessionWorkspaceServiceTests
             await release.Task.WaitAsync(token);
         };
         using var root = HostActivity.BeginRoot(f.Request, HostActivityLayer.Application, HostOperation.Request);
-        var pending = f.Service.SearchConversationAsync(f.Session.SessionId, "marker", null, 25, cancellation.Token);
+        var pending = f.Service.SearchConversationAsync(f.Session.SessionId, "marker", null, 25, cancellation.Token,
+            ConversationSearchRole.HOST, new(ModelTurnOutcome.Unavailable, ModelTurnReason.UnregisteredModel, HostTaskState.Unavailable));
         await entered.Task;
         if (change is "private") { f.CanInspect = false; }
         if (change is "owner") { f.AdvanceRevision(); }
@@ -216,15 +293,16 @@ public sealed partial class SessionWorkspaceServiceTests
             return page;
         };
         using var root = HostActivity.BeginRoot(f.Request, HostActivityLayer.Application, HostOperation.Request);
+        var terminal = new ConversationTerminalFilter(ModelTurnOutcome.Unavailable, ModelTurnReason.UnregisteredModel, HostTaskState.Unavailable);
         if (change is "generation" or "head")
         {
-            var first = await f.Service.SearchConversationAsync(f.Session.SessionId, "word", null, 1, f.Token);
-            await f.Service.Invoking(service => service.SearchConversationAsync(f.Session.SessionId, "word", first.Next, 1, f.Token))
+            var first = await f.Service.SearchConversationAsync(f.Session.SessionId, "Unavailable", null, 1, f.Token, ConversationSearchRole.HOST, terminal);
+            await f.Service.Invoking(service => service.SearchConversationAsync(f.Session.SessionId, "Unavailable", first.Next, 1, f.Token, ConversationSearchRole.HOST, terminal))
                 .Should().ThrowAsync<InvalidDataException>();
         }
         else
         {
-            await f.Service.Invoking(service => service.SearchConversationAsync(f.Session.SessionId, "word", null, 25, f.Token))
+            await f.Service.Invoking(service => service.SearchConversationAsync(f.Session.SessionId, "Unavailable", null, 25, f.Token, ConversationSearchRole.HOST, terminal))
                 .Should().ThrowAsync<Exception>();
         }
         f.TaskWrites.Should().BeEmpty();

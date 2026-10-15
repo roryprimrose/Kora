@@ -63,6 +63,8 @@ public sealed partial class MainViewModel
     private void OnWindowsPrivacyChanged(object? sender, WindowsPrivacyChangedEventArgs eventArgs)
     {
         if (disposed) { return; }
+        auditImpactPreview?.Retire("Private/lock/desktop revision changed; preview retired.");
+        RetireQuestionVoiceReply();
         var snapshot = eventArgs.Current;
         var voicePrivacyChanged = (eventArgs.Reason & (WindowsPrivacyChangeReason.Power
             | WindowsPrivacyChangeReason.MicrophonePermission | WindowsPrivacyChangeReason.InputTopology
@@ -208,9 +210,17 @@ public sealed partial class MainViewModel
             return;
         }
         disposed = true;
+        if (auditImpactPreview is not null)
+        {
+            auditImpactPreview.Changed -= OnAuditImpactPreviewChanged;
+            auditImpactPreview.Dispose();
+        }
         RetireWebResultDetails();
         RetireSpeechCaption();
         lifecycleAdmissionClosed = true;
+        questionVoiceReplies?.CloseAdmission();
+        RetireQuestionVoiceReply();
+        PropertyChanged -= OnQuestionVoiceReadinessChanged;
         // Refresh cancellation can release an awaiting caller before Dispose returns.
         HoldVoiceInput("Microphone closed · host disposed");
         microphoneRefreshCancellation?.Cancel();
@@ -395,6 +405,7 @@ public sealed partial class MainViewModel
 
     private void HoldVoiceInput(string reason, WindowsSessionState? sessionState = null, bool restoreOnUnlock = false)
     {
+        RetireQuestionVoiceReply();
         long revision;
         lock (voiceReadinessGate)
         {
@@ -539,6 +550,7 @@ public sealed partial class MainViewModel
 
     public async Task BeginPushToTalkAsync()
     {
+        RetireQuestionVoiceReply();
         if (lifecycleAdmissionClosed || IsBusy && !IsSpeaking
             || !IsHostInputEligible || !RefreshVoiceReadiness())
         {

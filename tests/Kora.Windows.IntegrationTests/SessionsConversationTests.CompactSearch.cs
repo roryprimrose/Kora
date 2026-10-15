@@ -166,6 +166,10 @@ public sealed partial class SessionsConversationTests
     [InlineData("cancel")]
     [InlineData("escape")]
     [InlineData("edit")]
+    [InlineData("role")]
+    [InlineData("outcome")]
+    [InlineData("reason")]
+    [InlineData("task-state")]
     [InlineData("private")]
     [InlineData("control")]
     [InlineData("owner")]
@@ -207,6 +211,9 @@ public sealed partial class SessionsConversationTests
                 await model.SelectAsync(model.Sessions.Single(row => row.Authority.SessionId == original));
                 model.ComposerBody = "dirty independent";
                 compact.FindControl<TextBox>("ConversationQuery")!.Text = "marker";
+                model.ConversationOutcome = ModelTurnOutcome.Unavailable;
+                model.ConversationReason = ModelTurnReason.UnregisteredModel;
+                model.ConversationTaskState = HostTaskState.Unavailable;
                 reader.Reads.Should().Be(0, "opening and typing never read bodies");
                 Click(compact, "SearchConversation");
                 var pending = compact.ConversationOperation;
@@ -218,6 +225,10 @@ public sealed partial class SessionsConversationTests
                     case "escape": compact.FindControl<TextBox>("ConversationQuery")!.RaiseEvent(
                         new KeyEventArgs { RoutedEvent = InputElement.KeyDownEvent, Key = Key.Escape }); break;
                     case "edit": workspace.FindControl<TextBox>("ConversationQuery")!.Text = "new query"; break;
+                    case "role": workspace.FindControl<ComboBox>("ConversationRole")!.SelectedItem = ConversationSearchRole.HOST; break;
+                    case "outcome": model.ConversationOutcome = ModelTurnOutcome.Denied; break;
+                    case "reason": model.ConversationReason = ModelTurnReason.CallerCancelled; break;
+                    case "task-state": model.ConversationTaskState = HostTaskState.Cancelled; break;
                     case "private": composed.Access.CanInspect = false; break;
                     case "control": composed.Access.ControlRevision++; break;
                     case "owner": owner.Revoke(); break;
@@ -230,17 +241,34 @@ public sealed partial class SessionsConversationTests
                         await model.RefreshWorkAsync();
                         break;
                 }
-                if (revoke is "cancel" or "escape" or "edit" or "owner" or "selection" or "lifecycle")
+                if (revoke is "cancel" or "escape" or "edit" or "role" or "outcome" or "reason" or "task-state" or "owner" or "selection" or "lifecycle")
                 { observed.IsCancellationRequested.Should().BeTrue(); }
+                reader.Reads.Should().Be(1, "query/filter edits must never schedule another read");
                 release.SetResult(snapshot);
                 await pending;
                 model.ConversationSearchMessages.Should().BeEmpty();
                 model.CanNextConversationSearch.Should().BeFalse();
                 model.CanCancelConversationSearch.Should().BeFalse();
-                model.ConversationQuery.Should().Be(string.Equals(revoke, "edit", StringComparison.Ordinal) ? "new query" : string.Empty);
+                model.ConversationQuery.Should().Be(revoke switch { "edit" => "new query", "role" or "outcome" or "reason" or "task-state" => "marker", _ => string.Empty });
+                model.ConversationRole.Should().Be(revoke is "role" ? ConversationSearchRole.HOST : ConversationSearchRole.All);
+                var criteriaEdit = revoke is "edit" or "role" or "outcome" or "reason" or "task-state";
+                model.ConversationOutcome.Should().Be(revoke is "outcome" ? ModelTurnOutcome.Denied
+                    : criteriaEdit ? ModelTurnOutcome.Unavailable : null);
+                model.ConversationReason.Should().Be(revoke is "reason" ? ModelTurnReason.CallerCancelled
+                    : criteriaEdit ? ModelTurnReason.UnregisteredModel : null);
+                model.ConversationTaskState.Should().Be(revoke is "task-state" ? HostTaskState.Cancelled
+                    : criteriaEdit ? HostTaskState.Unavailable : null);
+                workspace.FindControl<ComboBox>("ConversationOutcome")!.SelectedItem.Should().Be(model.ConversationOutcomeChoice);
+                compact.FindControl<ComboBox>("ConversationOutcome")!.SelectedItem.Should().Be(model.ConversationOutcomeChoice);
+                workspace.FindControl<ComboBox>("ConversationReason")!.SelectedItem.Should().Be(model.ConversationReasonChoice);
+                compact.FindControl<ComboBox>("ConversationReason")!.SelectedItem.Should().Be(model.ConversationReasonChoice);
+                workspace.FindControl<ComboBox>("ConversationTaskState")!.SelectedItem.Should().Be(model.ConversationTaskStateChoice);
+                compact.FindControl<ComboBox>("ConversationTaskState")!.SelectedItem.Should().Be(model.ConversationTaskStateChoice);
+                workspace.FindControl<ComboBox>("ConversationRole")!.SelectedItem.Should().Be(model.ConversationRole);
+                compact.FindControl<ComboBox>("ConversationRole")!.SelectedItem.Should().Be(model.ConversationRole);
                 workspace.FindControl<TextBox>("ConversationQuery")!.Text.Should().Be(model.ConversationQuery);
                 compact.FindControl<TextBox>("ConversationQuery")!.Text.Should().Be(model.ConversationQuery);
-                if (revoke is "cancel" or "escape" or "edit" or "lifecycle")
+                if (revoke is "cancel" or "escape" or "edit" or "role" or "lifecycle")
                 { model.ComposerBody.Should().Be("dirty independent"); }
             }
             finally { owner.Revoke(); }
@@ -262,9 +290,15 @@ public sealed partial class SessionsConversationTests
         await composed.Model.SelectAsync(composed.Model.Sessions.Single());
         composed.Model.ComposerBody = "dirty independent";
         composed.Model.ConversationQuery = "marker";
+        composed.Model.ConversationOutcome = ModelTurnOutcome.Unavailable;
+        composed.Model.ConversationReason = ModelTurnReason.UnregisteredModel;
+        composed.Model.ConversationTaskState = HostTaskState.Unavailable;
         await composed.Model.SearchConversationAsync();
         composed.Model.ConversationSearchMessages.Should().BeEmpty();
         composed.Model.ConversationQuery.Should().BeEmpty();
+        composed.Model.ConversationOutcome.Should().BeNull();
+        composed.Model.ConversationReason.Should().BeNull();
+        composed.Model.ConversationTaskState.Should().BeNull();
         composed.Model.ConversationSearchStatus.Should().Contain(snapshotChanged ? "Snapshot changed" : "unavailable");
         composed.Model.ComposerBody.Should().Be("dirty independent");
     }

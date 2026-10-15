@@ -46,6 +46,18 @@ Find and exact-source viewing stay passive. Reopening the same unchanged record 
 
 These conversation Details grant **no clipboard/export disclosure authority**. Copy exact source, selection, Ctrl+C and automatic copy remain blocked, even after disclosure confirmation; other admitted viewer origins retain their existing policy. There is no generated content, provider call, model tool or network operation ([copy policy](../src/Kora.Application/Presentation/DetailViewerState.cs)).
 
+### Find a literal in open Details
+
+Type a query in **Literal Find** (`Ctrl+F`), then choose **Find first** or press Enter. **Next** (`F3`) starts after the match end; **Previous** (`Shift+F3`) finds the last match ending at or before its start. Find is case-sensitive with unchanged spaces, nonoverlapping and **does not wrap**. At a direction boundary the match hides; you can reverse direction using the retained cursor. A no-match result is distinct from an unavailable or rejected query.
+
+Queries must wholly fit 256 UTF-16 characters / 512 UTF-8 bytes: nonempty well-formed one-line text without unsafe controls. Nothing is normalized or truncated. Only one inert match with an exact end-exclusive UTF-16 location is focused; the complete displayed text and origin stay unchanged.
+
+Find uses only the current frozen in-memory reader projection, never another source read. **Exact source** switches to the admitted source and resets Find. In retained conversation Details, **Find separate typed HOST observation** searches only the separate already-displayed HOST chrome, not the original USER body. Switching targets resets Find.
+
+**Cancel Find** releases the match/cursor and retains the query; **Clear literal Find** also releases the query. Both return focus to the query. Query edits reset navigation. Escape closes Details; private/source loss, replacement or closure clears text and prevents old controls from publishing a match. The match follows the reader text scale and has native accessibility names/status.
+
+There is no Find clipboard/paste/export, logging, persistence, provider or network operation, broader Detail opening authority or installed/accessibility/hardware qualification. See the [admitted-text contract](../Design/Information_Display.md#native-admitted-text-literal-find).
+
 ### New request with a fresh session
 
 Open **Tray > New request (fresh session only)** or **Sessions > New request (fresh target)**. Reopening activates the same window and preserves its isolated memory draft. Relatedness inference is unavailable: this entry never continues the selected, named, recent or Done session and never changes question/approval/voice focus.
@@ -71,6 +83,17 @@ Dirty means the current body differs exactly from its last confirmed saved memor
 
 Select an exact session in **Sessions**, then use **Search this conversation** in its conversation pane or **Compact selected-session conversation**. Both views share one private query, result page, continuation and cancellation state; edits and actions in either are reflected in the other ([shared search state](../src/Kora/SessionsViewModel.ConversationSearch.cs), [compact controls](../src/Kora/CompactSessionWindow.axaml)). Search matches whole lexical words in original retained **USER** messages or separate typed **HOST** outcome/reason/task-state fields.
 It never searches other sessions, saved draft bodies, Question/Answer receipts, logs, attachments, memories or accounts ([admitted reader](../src/Kora.Application/Hosting/SessionWorkspaceService.ConversationSearch.cs)).
+
+Choose **All**, **USER** or **HOST** for the lexical fields, then optionally select
+an exact **Terminal outcome**, **Terminal reason** and **Expected terminal task
+state**. Each terminal selector defaults to **Any**. Selected predicates all AND
+with the query and role, matching only terminal HOST metadata, never status-like
+words in USER text. USER-only with any terminal predicate is valid and yields
+zero without changing your selections; incompatible defined combinations also
+truthfully yield zero. Editing any field immediately clears results, selected
+navigation and Next in both views and fences late callbacks without reading.
+Explicit Search is required. Clear resets the role to All and terminal fields
+to Any; no query or filter is saved, logged or sent to a model.
 
 Queries use 1–256 UTF-16 characters / 512 UTF-8 bytes and 1–32 distinct terms of at most 64 characters. NFC/invariant case and whole-word OR apply; punctuation separates words rather than becoming regex/wildcard/instruction syntax. Blank or invalid queries explicitly fail, never show every message. Typing alone does not search or save the query.
 
@@ -140,6 +163,27 @@ defer uses the [same broker as commands](commands.md#trusted-local-events).
 No question target, voice output, task/approval deadline, grant or dispatch
 changes. Maintenance Check/Open remains in its native window.
 
+**Local event category** offers All, Work, Failure, Attention and Maintenance.
+**Local event reason** offers All and each exact delivery reason shown by the
+broker. **Local event source** offers All, LocalVersionQueue,
+LocalVersionQuestion and CachedMaintenance. **Local event type** offers All,
+Queued, Current, Completed, Failed, Blocked, Unknown, UserAttention and
+MaintenanceAvailable. All four filters combine with AND over only the
+already-loaded bounded rows; impossible Source/Type pairs show zero without
+changing either choice. Use Tab/Shift+Tab to move between filters and arrow
+keys to choose an exact value.
+They do not read more sources or change quiet mode. **Clear local event
+filters** restores All for all four filters. Each edit or clear removes your event selection
+and event review detail, even if that event still matches. Select a visible
+exact event again before Review/Dismiss/Defer. Refresh and source/privacy
+changes also retire selection; no replacement is selected automatically.
+
+**No matching loaded events** means only that these filters match no loaded
+row. Broker omissions and routine quiet hidden/suppressed counts remain
+separate; this does not mean there are no other events or pending questions.
+Filters are native, content-free and memory-only: no new command, speech,
+model/tool route, saved preference or meaningful activity renewal.
+
 **Quiet routine notices for this run** turns off first **Work and Maintenance** notice deliveries and hides their notice rows together. **Turn routine quiet off** or **Reset routine quiet to Off** clears it; Kora also starts Off after restart. Status shows the choice, all omitted rows, routine rows hidden and sources suppressed without presentation. Nothing is saved as a quiet preference.
 
 Failures, Attention, required questions/approvals, authoritative work/status, citations and recovery stay available. Quiet never speaks or changes focus, capture, grants, dispatch or deadlines.
@@ -179,10 +223,12 @@ Open **Tray > Sessions > All work / attention overview**, then **Refresh overvie
 
 - Each click scans at most ten session identities. The complete page stays within 64 KiB; each independent session source retains the existing fifty task/question bounds and recent queue receipt limit. Scanned/nonmatching/unavailable groups, omitted records and end/byte-limit markers are visible. Next works after zero matches and never skips a byte-deferred session.
 - **All / Active / Done** is the stored session lifecycle, not a task state. **Observed needs answer** means pending-question metadata at that snapshot; unavailable sources remain visible. Question IDs are not freshly admitted reply targets.
+- Optional **NameSubstring / ExactId** and **Search metadata** (or Enter in the field) narrow the bounded scan using the same [session-list query rules](#search-the-session-list). Names are literal case-sensitive saved-name substrings; exact GUIDs require nonempty canonical lowercase D format. Both modes scan at most ten session identities per click here, not the Sessions direct-ID lookup. Empty query browses; invalid nonempty text is rejected without fallback. Typing performs no read. Search and Refresh start fresh with the current query, All/Active/Done and Needs answer filters; Next continues that exact admitted query/filter/source epoch, even after zero matches.
+- **Clear query** (or Escape in its field) discards volatile query/results/selection/continuation without reading and keeps keyboard focus in the field. A second Escape outside the field closes the window. Query/mode/filter edits revoke pending reads and stale navigation; names are never routing or permission authority. Query text is not saved, logged or sent to a model.
 - Select a group to read exact IDs/generations, source revisions/UTC time, fixed-profile slots/capacity, observed current fixed reads, queue/task states, scheduler reasons and captured deadlines. Full private bodies, history, attachments, memory and diagnostic text are not collected.
 - Pages are **not globally atomic**. No global counts, all-clear, ETA, unread tracking or actual provider/resource contention is claimed. Refresh for mutations/new IDs behind the cursor.
 - **Open exact session with fresh passive read** navigates the immutable ID through fresh private workspace reads. It never resumes, dispatches, enqueues, reprioritizes, cancels, renews activity, consumes grants or retargets voice/questions. Inspect/cancel authority is not renewed; reply only in the original Questions window.
-- Storage has a ten-second total timeout. Privacy, ownership, retained-source, lifecycle/disposition or retention/hold changes reject or clear observations; stale work is never relabelled current. Close clears rows, filters, IDs and continuation and suppresses late callbacks. Browsing causes no cleanup/background heartbeat.
+- Storage has a ten-second total timeout. Privacy, ownership, retained-source, lifecycle/disposition or retention/hold changes reject or clear observations; stale work is never relabelled current. Close clears query text/mode, rows, filters, IDs and continuation and suppresses late callbacks. Browsing causes no cleanup/background heartbeat.
 
 This is a passive bounded overview, not a conversation/composer, general provider manager, Stop all, permission-tier feature or installed-native acceptance proof.
 
@@ -328,7 +374,9 @@ The literal is limited to 256 UTF-16 units / 512 UTF-8 bytes of valid single-lin
 
 Choose **Stored session lifecycle: All (default), Active, Done or Removed** independently of Browse/ExactId and **Include removed slots**. All preserves existing behavior. Removed sessions can have only removed-slot provenance: enable Include removed slots to see it. An Active or Done session can also have a removed attachment slot; removing a slot does not remove its session. See the [canonical lifecycle contract and tests](../Design/File_And_Folder_Ingestion.md#delivered-retained-attachment-metadata-catalogue---2026-10-11).
 
-Typing performs no I/O. Mode, ID, literal, lifecycle filter and **Include removed slots** edits retire results, selection and continuation and cancel pending work; use Search again. **Clear query (Browse)** clears both volatile query fields without reading or changing either filter. Search never auto-selects or opens a match. Escape closes and clears private state. Source/privacy/ownership/lifecycle revocation clears both query fields too.
+Choose **Exact retained media type: All (default), text/plain or text/markdown** independently of the other filters, then Search. Only the already validated retained type is matched exactly; no filename, extension or path inference occurs. Removed tombstones match only All, even with Include removed slots. Held metadata can match but cannot open a body. Undefined, differently cased, spaced or parameterized types are invalid, never All. No matching retained metadata is reported truthfully at the end of the bounded observation, not as a global total.
+
+Typing performs no I/O. Mode, ID, literal, lifecycle, media-type filter and **Include removed slots** edits retire results, selection, navigation and continuation and cancel pending work; use Search again. **Clear query (Browse)** clears both volatile query fields without reading or changing the filters. Search never auto-selects or opens a match. Escape closes and clears private state. Source/privacy/ownership/lifecycle revocation clears both query fields too.
 
 - Each page has at most **16 rows / 64 KiB** and scans at most **64 slots**. **Next bounded page** may continue after zero matches; ExactId does not jump over unvalidated slots. **Include removed slots** shows content-free removal provenance; historical removed slots do not count toward the sixteen-live-file cap.
 - Typed authority is validated in bounded segments before rows are shown. **Authority validation pending** pages contain no attachments; use Next to continue. Reads have a five-second budget. Continuations expire after two minutes; any committed authority, storage/profile or query change requires Refresh.
@@ -676,7 +724,17 @@ Close clears the window's text, unsaved choices and review. Only **Save draft** 
 
 The original five-minute expiry keeps running while hidden. Reopening does not extend expiry or inactivity, and never creates another intent/question, approval, grant or dispatch. Privacy/ownership loss, changed authority, expiry, cancellation, completed/Unknown work, storage/audit failure and host disposal withdraw recovery and end that wait.
 
-After restart or completion, this route reports **Unavailable**. Inspect retained read-only status and start a fresh review; Kora never replays the old task or resumes Done. Pending/history metadata cannot turn another saved question into active controls. General question recovery, approvals, provider handoff, full composer and prefix-free voice remain separate. Headless checks are not installed screen-reader/DPI acceptance.
+The live foreground card also offers **Answer by voice** and the separately
+chosen **Hear question, then answer by voice**. These require existing voice
+consent/readiness and do not enable listening. The accessible status/countdown
+and **Cancel reply** remain visible during the one-question turn. The microphone
+stays closed during playback; 15 seconds are allowed to begin speech afterwards.
+Timeout/Cancel reply leave native answer controls available. Closing, hiding,
+editing, duplicate presentation or changing the admitted target retires capture;
+returning never resumes it. Only **Show local version** or its schema option
+number answers this card. See [bounded voice reply behavior](voice-and-audio.md#answer-one-native-question-by-voice).
+
+After restart or completion, this route reports **Unavailable**. Inspect retained read-only status and start a fresh review; Kora never replays the old task or resumes Done. Pending/history metadata cannot turn another saved question into active controls. General question recovery, approvals, provider handoff and full composer remain separate. Headless checks are not installed screen-reader/DPI acceptance.
 
 Choose **Documentation**, select a guide page, then **Open details** to read
 that exact page in a separate native window. Its host-owned title, provenance,

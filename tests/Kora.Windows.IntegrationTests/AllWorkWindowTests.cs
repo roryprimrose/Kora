@@ -2,6 +2,7 @@ using Avalonia.Automation.Peers;
 using Avalonia.Automation.Provider;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
+using Avalonia.Input;
 
 using AwesomeAssertions;
 
@@ -24,6 +25,148 @@ namespace Kora.Windows.IntegrationTests;
 [Collection(nameof(HeadlessUiTestGroup))]
 public sealed class AllWorkWindowTests
 {
+    [Theory]
+    [InlineData("query")]
+    [InlineData("revision")]
+    [InlineData("close")]
+    public async Task ExactNavigationAdmissionDoesNotSurviveQueryOrPrivateLifetimeChanges(string boundary)
+    {
+        using var f = new InteractionStorageFixture();
+        await f.InitializeAsync();
+        var access = new WindowsSqliteSessionWorkspaceTests.Access();
+        var service = WindowsSqliteSessionWorkspaceTests.Service(f, access);
+        var entered = new TaskCompletionSource<Func<bool>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var model = new AllWorkViewModel(service, access, NullLogger<AllWorkViewModel>.Instance,
+            async (id, admitted, _) =>
+            {
+                id.Should().Be(f.Request.SessionId);
+                admitted().Should().BeTrue();
+                entered.SetResult(admitted);
+                await release.Task.WaitAsync(f.Token);
+            });
+        model.QueryKind = SessionListSearchKind.ExactId;
+        model.QueryText = f.Request.SessionId.Value.ToString("D");
+        await model.RefreshAsync();
+        model.Select(model.Records.Single());
+        var navigation = model.NavigateAsync();
+        var admitted = await entered.Task.WaitAsync(f.Token);
+        if (boundary is "query") { model.QueryText = "00000000-0000-0000-0000-000000000099"; }
+        if (boundary is "revision") { access.ControlRevision++; }
+        if (boundary is "close") { model.Close(); }
+        admitted().Should().BeFalse();
+        release.SetResult();
+        await navigation;
+        model.Records.Should().BeEmpty();
+        model.CanNavigate.Should().BeFalse();
+        model.Close();
+        model.QueryText.Should().BeEmpty();
+    }
+
+    [WindowsFact]
+    public async Task PrivateMetadataQueryIsExplicitAccessibleFocusPreservingAndNeverPersistentOrAuthority()
+    {
+        await HeadlessSession.RunAsync(async () =>
+        {
+            using var f = new InteractionStorageFixture();
+            await f.InitializeAsync();
+            var question = await WindowsSqliteTaskControlTests.WaitAsync(f);
+            var access = new WindowsSqliteSessionWorkspaceTests.Access();
+            var service = WindowsSqliteSessionWorkspaceTests.Service(f, access);
+            var target = await service.CreateAsync(new("Private café_100% name"), RequestOrigin.LocalUi, f.Token);
+            var model = new AllWorkViewModel(service, access, NullLogger<AllWorkViewModel>.Instance,
+                (_, _, _) => throw new InvalidOperationException("Search cannot navigate automatically."));
+            var window = new AllWorkWindow(model);
+            window.Show();
+            try
+            {
+                var tasks = f.Count("host_tasks");
+                var audit = f.Count("security_audit_events");
+                var clock = await f.Store.ReadRetentionAsync(f.Request.SessionId, f.Token);
+                var field = window.FindControl<TextBox>("MetadataQuery")!;
+                var search = window.FindControl<Button>("Search")!;
+                ControlAutomationPeer.CreatePeerForElement(field)!.GetName().Should().Contain("typing performs no read");
+                field.Focus().Should().BeTrue();
+                field.Text = "café_100%";
+                model.QueryText.Should().Be("café_100%");
+                model.Records.Should().BeEmpty();
+                model.CanSearch.Should().BeTrue();
+                var complete = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+                void OnChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs args)
+                {
+                    if (args.PropertyName is nameof(AllWorkViewModel.Status) && model.Records.Count == 1)
+                    {
+                        complete.TrySetResult();
+                    }
+                }
+                model.PropertyChanged += OnChanged;
+                field.RaiseEvent(new KeyEventArgs { RoutedEvent = InputElement.KeyDownEvent, Key = Key.Enter });
+                await complete.Task.WaitAsync(f.Token);
+                model.PropertyChanged -= OnChanged;
+                field.IsFocused.Should().BeTrue();
+                model.Records.Single().Session.Should().Be(target);
+                model.QueryText = "CAFÉ_100%";
+                model.Records.Should().BeEmpty();
+                await model.RefreshAsync();
+                model.Records.Should().BeEmpty();
+                model.Status.Should().Contain("filter nonmatches").And.Contain("not a global all-clear");
+                model.QueryKind = SessionListSearchKind.ExactId;
+                model.QueryText = f.Request.SessionId.Value.ToString("D");
+                model.NeedsAnswer = true;
+                await model.RefreshAsync();
+                model.Records.Single().Work!.PendingQuestions.Single().Key.Should().Be(question.Key);
+                model.Select(model.Records.Single());
+                model.CanNavigate.Should().BeTrue();
+                model.QueryText = target.Authority.SessionId.Value.ToString("D");
+                model.CanNavigate.Should().BeFalse();
+                await model.RefreshAsync();
+                model.Records.Should().BeEmpty("Needs answer composes with the exact ID");
+                model.NeedsAnswer = false;
+                model.Filter = SessionListFilter.Done;
+                await model.RefreshAsync();
+                model.Records.Should().BeEmpty("lifecycle composes with the exact ID");
+                field.RaiseEvent(new KeyEventArgs { RoutedEvent = InputElement.KeyDownEvent, Key = Key.Escape });
+                model.QueryText.Should().BeEmpty();
+                model.Records.Should().BeEmpty();
+                window.IsVisible.Should().BeTrue("Escape in the query clears rather than closes");
+                model.QueryKind = SessionListSearchKind.NameSubstring;
+                foreach (var invalid in new[] { " ", " x", "x ", "cafe\u0301", "x\nx", "x\u200bx", new string('x', 121) })
+                {
+                    model.QueryText = invalid;
+                    model.CanSearch.Should().BeFalse();
+                    search.IsEnabled.Should().BeFalse();
+                    model.QueryHint.Should().StartWith("Invalid");
+                    await model.RefreshAsync();
+                    model.Records.Should().BeEmpty("invalid text cannot fall back to All");
+                    model.Status.Should().Contain("unavailable");
+                }
+                model.QueryKind = SessionListSearchKind.ExactId;
+                model.QueryText = "AAAAAAAA-0000-0000-0000-000000000001";
+                model.CanSearch.Should().BeFalse();
+                model.QueryText = Guid.Empty.ToString("D");
+                model.CanSearch.Should().BeFalse();
+                model.QueryText = "private volatile marker";
+                window.FindControl<Button>("ClearQuery")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                field.IsFocused.Should().BeTrue();
+                model.QueryText.Should().BeEmpty();
+                f.Count("host_tasks").Should().Be(tasks);
+                f.Count("security_audit_events").Should().Be(audit);
+                (await f.Store.ReadRetentionAsync(f.Request.SessionId, f.Token)).Should().Be(clock);
+                var retained = await f.Store.ReadQuestionPageAsync(f.Request.SessionId, null, 50, f.Token);
+                retained.Records.Single().Key.Should().Be(question.Key);
+                model.QueryText = "private close marker";
+                window.Close();
+                model.QueryText.Should().BeEmpty();
+                model.QueryKind.Should().Be(SessionListSearchKind.NameSubstring);
+                field.Text.Should().BeEmpty();
+                model.CanSearch.Should().BeFalse();
+                var database = System.Text.Encoding.UTF8.GetString(await File.ReadAllBytesAsync(f.DatabasePath, f.Token));
+                database.Should().NotContain("private close marker").And.NotContain("private volatile marker");
+            }
+            finally { window.Close(); }
+        });
+    }
+
     [WindowsFact]
     public async Task OwnedControllerRevokesLifecycleRetentionAndPrivacyWithoutReopeningOrCollectingInBackground()
     {
@@ -45,6 +188,8 @@ public sealed class AllWorkWindowTests
             controller.Open();
             var model = (AllWorkViewModel)opened!.DataContext!;
             model.Records.Should().BeEmpty();
+            model.QueryKind = SessionListSearchKind.ExactId;
+            model.QueryText = f.LifecycleTarget!.SessionId.Value.ToString("D");
             await model.RefreshAsync();
             model.Records.Should().NotBeEmpty();
             await Task.Run(f.AdvanceLifecycleTargetAsync);
@@ -70,6 +215,7 @@ public sealed class AllWorkWindowTests
             opened.IsVisible.Should().BeFalse();
             model.Records.Should().BeEmpty();
             model.Status.Should().BeEmpty();
+            model.QueryText.Should().BeEmpty();
             controller.Dispose();
             controller.Open();
             opened.IsVisible.Should().BeFalse();
@@ -83,6 +229,9 @@ public sealed class AllWorkWindowTests
     [InlineData("filter")]
     [InlineData("cancel")]
     [InlineData("revoke")]
+    [InlineData("query")]
+    [InlineData("query-kind")]
+    [InlineData("clear-query")]
     public async Task InFlightPrivateSnapshotNeverRepopulatesClosedOrChangedOverview(string boundary)
     {
         using var f = new InteractionStorageFixture();
@@ -92,6 +241,8 @@ public sealed class AllWorkWindowTests
         var service = new SessionWorkspaceService(held, new(f.Tasks), access, NullLogger<SessionWorkspaceService>.Instance);
         var model = new AllWorkViewModel(service, access, NullLogger<AllWorkViewModel>.Instance,
             (_, _, _) => throw new InvalidOperationException("A passive test must not navigate."));
+        model.QueryKind = SessionListSearchKind.ExactId;
+        model.QueryText = f.Request.SessionId.Value.ToString("D");
         await model.RefreshAsync();
         model.Records.Should().NotBeEmpty();
         held.Hold = true;
@@ -105,6 +256,9 @@ public sealed class AllWorkWindowTests
         if (boundary is "filter") { model.Filter = SessionListFilter.Done; }
         if (boundary is "cancel") { model.Cancel(); }
         if (boundary is "revoke") { model.Revoke(); }
+        if (boundary is "query") { model.QueryText = "00000000-0000-0000-0000-000000000099"; }
+        if (boundary is "query-kind") { model.QueryKind = SessionListSearchKind.NameSubstring; }
+        if (boundary is "clear-query") { model.ClearQuery(); }
         held.Release.SetResult();
         await read;
         model.Records.Should().BeEmpty();
@@ -114,6 +268,7 @@ public sealed class AllWorkWindowTests
         model.Close();
         model.Status.Should().BeEmpty();
         model.NeedsAnswer.Should().BeFalse();
+        model.QueryText.Should().BeEmpty();
         held.Writes.Should().Be(0);
     }
 

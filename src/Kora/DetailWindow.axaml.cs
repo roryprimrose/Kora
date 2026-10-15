@@ -8,6 +8,8 @@ using Avalonia.Markup.Xaml;
 using Kora.Application.Presentation;
 using Kora.Application.ViewModels;
 using Kora.Core.Presentation;
+using Kora.Core.Context;
+using Kora.Controls;
 
 namespace Kora;
 
@@ -23,6 +25,7 @@ public sealed partial class DetailWindow : Window, IDetailView
     private readonly StackPanel renderedDocument;
     private readonly ScrollViewer renderedViewport;
     private bool cleared;
+    private readonly NamedTextBlock findSpan;
 
     // XAML tooling requires a public default constructor. It cannot admit or open content.
     public DetailWindow() => throw new InvalidOperationException("Use the explicit host-owned native detail route.");
@@ -36,6 +39,7 @@ public sealed partial class DetailWindow : Window, IDetailView
         AvaloniaXamlLoader.Load(this);
         reader = Required<TextBox>("ContentReader");
         search = Required<TextBox>("SearchInput");
+        findSpan = Required<NamedTextBlock>("FindSpan");
         source = Required<CheckBox>("SourceToggle");
         readingText = Required<CheckBox>("ReadingTextToggle");
         disclosure = Required<CheckBox>("DisclosureConfirmation");
@@ -52,6 +56,7 @@ public sealed partial class DetailWindow : Window, IDetailView
             renderedDocument.Children.Add(control);
         }
         if (typographyHost is not null) { NativeReaderTypography.Bind(reader, typographyHost); }
+        if (typographyHost is not null) { NativeReaderTypography.Bind(findSpan, typographyHost); }
         var content = state.Content ?? throw new InvalidOperationException("The detail revision is closed.");
         Title = $"{content.Title} — details — revision {content.Reference.Revision}";
         Required<TextBlock>("DetailTitle").Text = content.Title;
@@ -69,9 +74,8 @@ public sealed partial class DetailWindow : Window, IDetailView
                 + $" · Submitted UTC: {message.SubmittedAt:O} · Original generation: {message.Generation.Value}";
             var host = Required<TextBlock>("ConversationHostLabel");
             host.IsVisible = true;
-            host.Text = $"Separate HOST observation: {message.Outcome?.ToString() ?? "Pending / inspect task recovery"}"
-                + $" · Reason: {message.Reason?.ToString() ?? "None recorded"} · Task status: {message.ExpectedTaskState}"
-                + " · Not an assistant answer or execution permission.";
+            host.Text = state.HostText;
+            Required<CheckBox>("FindHostToggle").IsVisible = true;
             Required<TextBlock>("CopyPolicyLabel").Text = "Passive retained conversation Details grant no clipboard/export disclosure authority. Exact-source and selection copy are blocked.";
             Required<Button>("CopySource").IsEnabled = false;
             Required<Button>("CopySelection").IsEnabled = false;
@@ -80,8 +84,17 @@ public sealed partial class DetailWindow : Window, IDetailView
         disclosure.IsVisible = content.ConversationMessage is null && content.Sensitivity == DetailSensitivity.DisclosureConfirmationRequired;
         source.IsCheckedChanged += (_, _) => state.SetSource(source.IsChecked == true);
         readingText.IsCheckedChanged += (_, _) => Refresh();
-        Required<Button>("PreviousMatch").Click += (_, _) => Find(backwards: true);
-        Required<Button>("NextMatch").Click += (_, _) => Find(backwards: false);
+        Required<Button>("PreviousMatch").Click += (_, _) => Find(SnapshotFindDirection.Previous);
+        Required<Button>("NextMatch").Click += (_, _) => Find(SnapshotFindDirection.Next);
+        Required<Button>("FirstMatch").Click += (_, _) => Find(SnapshotFindDirection.First);
+        Required<Button>("CancelFind").Click += (_, _) => CancelLiteralFind(false);
+        Required<Button>("ClearFind").Click += (_, _) => CancelLiteralFind(true);
+        Required<CheckBox>("FindHostToggle").IsCheckedChanged += (_, _) =>
+            state.SetFindHost(Required<CheckBox>("FindHostToggle").IsChecked == true);
+        search.PropertyChanged += (_, args) =>
+        {
+            if (!cleared && args.Property == TextBox.TextProperty) { state.EditFindQuery(search.Text ?? string.Empty); }
+        };
         Required<Button>("CloseDetail").Click += (_, _) => Close();
         Required<Button>("CopySource").Click += OnCopyRequested;
         Required<Button>("CopySelection").Click += OnCopySelectionRequested;
@@ -120,14 +133,18 @@ public sealed partial class DetailWindow : Window, IDetailView
 
     private void Refresh()
     {
-        if (state.Content is null) { ClearPresentation(); return; }
+        if (state.Content is null) { ClearAndClose(); return; }
         if (!string.Equals(reader.Text, state.ActiveText, StringComparison.Ordinal))
         {
             reader.SelectionStart = 0;
             reader.SelectionEnd = 0;
             reader.Text = state.ActiveText;
-            search.Text = string.Empty;
         }
+        if (!string.Equals(search.Text ?? string.Empty, state.SearchQuery, StringComparison.Ordinal)) { search.Text = state.SearchQuery; }
+        findSpan.Text = state.MatchStart < 0 ? null : state.FindText.Substring(state.MatchStart, state.MatchLength);
+        findSpan.IsVisible = state.MatchStart >= 0;
+        Required<Button>("NextMatch").IsEnabled = state.CanNavigateFind;
+        Required<Button>("PreviousMatch").IsEnabled = state.CanNavigateFind;
         var structured = !state.IsSource && readingText.IsChecked != true
             && state.RenderState == DetailRenderState.Rendered;
         renderedViewport.IsVisible = structured;
@@ -135,15 +152,29 @@ public sealed partial class DetailWindow : Window, IDetailView
         Required<TextBlock>("RenderStatus").Text = state.Status;
     }
 
-    private void Find(bool backwards)
+    private void CancelLiteralFind(bool clearQuery)
     {
-        if (state.Search(search.Text ?? string.Empty, backwards))
+        if (cleared || state.Content is null) { ClearAndClose(); return; }
+        state.CancelFind(clearQuery);
+        search.Focus();
+    }
+
+    private void Find(SnapshotFindDirection direction)
+    {
+        if (cleared || state.Content is null) { ClearAndClose(); return; }
+        var generation = state.Generation;
+        if (state.Find(search.Text ?? string.Empty, direction))
         {
-            readingText.IsChecked = true;
-            reader.CaretIndex = state.MatchStart;
-            reader.SelectionStart = state.MatchStart;
-            reader.SelectionEnd = state.MatchStart + state.MatchLength;
-            reader.Focus();
+            UpdateLayout();
+            if (!state.FindAvailable || generation != state.Generation) { ClearAndClose(); return; }
+            findSpan.BringIntoView();
+            if (!state.FindAvailable || generation != state.Generation) { ClearAndClose(); return; }
+            if (!findSpan.Focus())
+            {
+                state.CancelFind();
+                state.ReportStatus("Literal Find focus unavailable; no match or focus claimed.");
+            }
+            if (!state.FindAvailable || generation != state.Generation) { ClearAndClose(); }
         }
     }
 
@@ -178,9 +209,16 @@ public sealed partial class DetailWindow : Window, IDetailView
 
     private void OnKeyDown(object? sender, KeyEventArgs eventArgs)
     {
+        if (eventArgs.Key == Key.Enter && ReferenceEquals(eventArgs.Source, search))
+        {
+            eventArgs.Handled = true;
+            Find(SnapshotFindDirection.First);
+            return;
+        }
         var action = DetailKeyboardNavigation.Resolve(eventArgs.Key, eventArgs.KeyModifiers);
         if (action == DetailKeyboardNavigation.Action.None) { return; }
         eventArgs.Handled = true;
+        if (cleared || state.Content is null) { ClearAndClose(); return; }
         switch (action)
         {
             case DetailKeyboardNavigation.Action.CopySelection:
@@ -196,10 +234,13 @@ public sealed partial class DetailWindow : Window, IDetailView
                 reader.Focus();
                 reader.SelectAll();
                 break;
-            case DetailKeyboardNavigation.Action.FocusSearch: search.Focus(); break;
+            case DetailKeyboardNavigation.Action.FocusSearch:
+                if (state.FindAvailable) { search.Focus(); }
+                else { ClearAndClose(); }
+                break;
             case DetailKeyboardNavigation.Action.ToggleSource: source.IsChecked = source.IsChecked != true; break;
-            case DetailKeyboardNavigation.Action.PreviousMatch: Find(backwards: true); break;
-            case DetailKeyboardNavigation.Action.NextMatch: Find(backwards: false); break;
+            case DetailKeyboardNavigation.Action.PreviousMatch: Find(SnapshotFindDirection.Previous); break;
+            case DetailKeyboardNavigation.Action.NextMatch: Find(SnapshotFindDirection.Next); break;
             case DetailKeyboardNavigation.Action.Close: Close(); break;
         }
     }
@@ -232,6 +273,8 @@ public sealed partial class DetailWindow : Window, IDetailView
         reader.Text = string.Empty;
         renderedDocument.Children.Clear();
         search.Text = string.Empty;
+        findSpan.Text = null;
+        findSpan.IsVisible = false;
         disclosure.IsChecked = false;
         foreach (var name in new[] { "DetailTitle", "ProvenanceLabel", "ReferenceLabel", "DigestLabel", "ConversationHostLabel", "RendererStatus", "RenderStatus" })
         {

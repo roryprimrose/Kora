@@ -26,7 +26,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 namespace Kora.Windows.IntegrationTests;
 
 [Collection(nameof(HeadlessUiTestGroup))]
-public sealed class LocalEventBrokerWindowTests
+public sealed partial class LocalEventBrokerWindowTests
 {
     [WindowsFact]
     public async Task Native_delivery_preserves_focus_pending_questions_history_activity_and_exact_command_parity()
@@ -144,6 +144,12 @@ public sealed class LocalEventBrokerWindowTests
                 await viewer.RefreshWorkAsync();
                 viewer.LocalEvents.Should().BeEmpty();
                 viewer.LocalEventStatus.Should().Contain("1 routine rows hidden").And.Contain("1 current routine sources suppressed");
+                var quietStatus = viewer.LocalEventStatus;
+                viewer.LocalEventCategoryFilter = LocalEventCategory.Failure;
+                viewer.LocalEvents.Should().BeEmpty();
+                viewer.LocalEventFilterStatus.Should().Contain("No matching loaded events");
+                viewer.LocalEventStatus.Should().Be(quietStatus);
+                viewer.ClearLocalEventFilters();
                 viewer.WorkRecords.Should().Contain(row => row.Queue!.Entry.State == SessionQueueState.Pending);
                 await viewer.ClearRoutineQuietAsync();
                 viewer.LocalEvents.Should().ContainSingle().Which.Reason.Should().Be(LocalEventReason.RoutineSuppressedNoReplay);
@@ -355,13 +361,17 @@ public sealed class LocalEventBrokerWindowTests
     private sealed class PausedSource(ILocalEventSource source) : ILocalEventSource
     {
         internal bool Pause { get; set; }
+        internal Exception? Failure { get; set; }
+        internal int Reads { get; private set; }
         internal TaskCompletionSource Entered { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         internal TaskCompletionSource Release { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
         public async Task<IReadOnlyList<LocalEvent>> ReadAsync(HostId<SessionIdentity> session, CancellationToken cancellationToken)
         {
+            Reads++;
             var observed = await source.ReadAsync(session, cancellationToken);
             if (Pause) { Entered.TrySetResult(); await Release.Task.WaitAsync(cancellationToken); }
+            if (Failure is { } failure) { throw failure; }
             return observed;
         }
 

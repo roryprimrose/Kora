@@ -97,6 +97,7 @@ internal sealed partial class SessionsViewModel(
 
     internal void RevokeSessionList()
     {
+        ClearLocalEvents();
         InvalidateQueuePrerequisite(clearSource: true);
         InvalidateListSearch();
         sessions = null;
@@ -132,7 +133,7 @@ internal sealed partial class SessionsViewModel(
             RequestOrigin.LocalUi, () => !closed && access.CanInspect && selectionEpoch == epoch
                 && selected?.Authority.SessionId == subject && selectedTask?.Request.TaskId == task, lifetime.Token);
         inspectedTask = result.TaskDetails.SingleOrDefault();
-        detail = Encoding.UTF8.GetString(SessionCommandResult.Serialize(result));
+        Detail = Encoding.UTF8.GetString(SessionCommandResult.Serialize(result));
         status = "Exact task observation. Inspect is passive; cancellation is a separate deliberate action using these revisions.";
     });
 
@@ -155,7 +156,7 @@ internal sealed partial class SessionsViewModel(
         await RefreshSelectedWorkAsync();
         var cancelled = result.TaskDetails.Single();
         inspectedTask = cancelled;
-        detail = Encoding.UTF8.GetString(SessionCommandResult.Serialize(new("committed",
+        Detail = Encoding.UTF8.GetString(SessionCommandResult.Serialize(new("committed",
             "Exact local-version wait cancelled before dispatch; no effect termination claimed.")
         { TaskDetails = [cancelled] }));
         status = "Durable terminal task, question cancellation and required audit committed atomically. Refresh to observe other work.";
@@ -166,7 +167,11 @@ internal sealed partial class SessionsViewModel(
         set { nameDraft = value; OnPropertyChanged(); Notify(); }
     }
     public string Status => status;
-    public string Detail => detail;
+    public string Detail
+    {
+        get => eventDetailPresented && !EventSourceCurrent ? string.Empty : detail;
+        private set { detail = value; eventDetailPresented = false; }
+    }
     public string HistorySessionId
     {
         get => historySessionId;
@@ -224,7 +229,7 @@ internal sealed partial class SessionsViewModel(
             throw new OperationCanceledException("The history subject or selected session changed.");
         }
         history = page;
-        detail = Encoding.UTF8.GetString(SessionCommandResult.Serialize(new("observed", SessionHistoryPage.Scope) { History = history }));
+        Detail = Encoding.UTF8.GetString(SessionCommandResult.Serialize(new("observed", SessionHistoryPage.Scope) { History = history }));
         status = "Passive ordered history for exact ID " + id.ToString("D")
             + (history.Disposed ? ". Disposed: content redacted; immutable citations retained." : ". No session activity, reply, focus or voice target changed.");
     }, passive: true);
@@ -249,7 +254,7 @@ internal sealed partial class SessionsViewModel(
         var preview = await service.PreviewDispositionAsync(target.Authority.SessionId, target.Authority.Generation,
             target.Metadata?.Revision.Value ?? 0, lifetime.Token);
         dispositionPreview = preview;
-        detail = "Exact session ID: " + preview.Session.Authority.SessionId.Value.ToString("D")
+        Detail = "Exact session ID: " + preview.Session.Authority.SessionId.Value.ToString("D")
             + "\nName (label only): " + (preview.Session.Metadata?.Name.Value ?? "Unnamed")
             + "\nGeneration: " + preview.Session.Authority.Generation.Value.ToString(CultureInfo.InvariantCulture)
             + "\nMetadata revision: " + (preview.Session.Metadata?.Revision.Value ?? 0).ToString(CultureInfo.InvariantCulture)
@@ -272,7 +277,7 @@ internal sealed partial class SessionsViewModel(
             () => !closed && access.CanControl, lifetime.Token);
         sessions = null;
         ClearSelection();
-        detail = SessionDispositionPreview.Scope;
+        Detail = SessionDispositionPreview.Scope;
         status = "Committed logical disposition for " + receipt.SessionId.Value.ToString("D")
             + " at tombstone generation " + receipt.Generation.Value.ToString(CultureInfo.InvariantCulture)
             + ". Live rows removed; retained provenance and recoverable copies are not erased. Refresh to inspect unrelated sessions.";
@@ -483,7 +488,7 @@ internal sealed partial class SessionsViewModel(
         }
         else { text.AppendLine("Evidence not queried. Use Read selected evidence."); }
         text.AppendLine(DurableVersionQuery.StorageDisclosure);
-        detail = text.ToString();
+        Detail = text.ToString();
     }
 
     private async Task RunAsync(Func<Task> operation, bool passive = false,
@@ -575,6 +580,7 @@ internal sealed partial class SessionsViewModel(
                 changingQueueControl = false;
                 NotifyQueue();
                 NotifyWork();
+                NotifyLocalEvents();
                 OnPropertyChanged(nameof(Status));
                 OnPropertyChanged(nameof(Detail));
             }
@@ -636,7 +642,7 @@ internal sealed partial class SessionsViewModel(
         history = null;
         ClearHistorySearch();
         selectedHistory = null;
-        detail = string.Empty;
+        Detail = string.Empty;
         nameDraft = string.Empty;
     }
 

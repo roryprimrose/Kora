@@ -1,0 +1,1892 @@
+[
+  {
+    "Variant": "cached",
+    "Density": 25,
+    "Size": 240,
+    "DotSize": 50,
+    "Frame": 0,
+    "ChangedPixels": 0,
+    "MeanChannelAbsoluteError": 0,
+    "AlphaRelativeError": 0
+  },
+  {
+    "Variant": "skia/native-dib",
+    "Density": 25,
+    "Size": 240,
+    "DotSize": 50,
+    "Frame": 0,
+    "ChangedPixels": 0,
+    "MeanChannelAbsoluteError": 0,
+    "AlphaRelativeError": 0
+  },
+  {
+    "Variant": "atlas",
+    "Density": 25,
+    "Size": 240,
+    "DotSize": 50,
+    "Frame": 0,
+    "ChangedPixels": 138,
+    "MeanChannelAbsoluteError": 0.26548177083333335,
+    "AlphaRelativeError": 0.6583815845219602
+  },
+  {
+    "Variant": "cached",
+    "Density": 25,
+    "Size": 240,
+    "DotSize": 50,
+    "Frame": 60,
+    "ChangedPixels": 0,
+    "MeanChannelAbsoluteError": 0,
+    "AlphaRelativeError": 0
+  },
+  {
+    "Variant": "skia/native-dib",
+    "Density": 25,
+    "Size": 240,
+    "DotSize": 50,
+    "Frame": 60,
+    "ChangedPixels": 0,
+    "MeanChannelAbsoluteError": 0,
+    "AlphaRelativeError": 0
+  },
+  {
+    "Variant": "atlas",
+    "Density": 25,
+    "Size": 240,
+    "DotSize": 50,
+    "Frame": 60,
+    "ChangedPixels": 130,
+    "MeanChannelAbsoluteError": 0.2312890625,
+    "AlphaRelativeError": 0.6532441661923734
+  },
+  {
+    "Variant": "pr247-prefix",
+    "Density": 25,
+    "Size": 240,
+    "DotSize": 50,
+    "Frame": 0,
+    "ChangedPixels": 209,
+    "MeanChannelAbsoluteError": 0.6084461805555555,
+    "AlphaRelativeError": 1.1474368027114814
+  },
+  {
+    "Variant": "cached",
+    "Density": 25,
+    "Size": 240,
+    "DotSize": 100,
+    "Frame": 0,
+    "ChangedPixels": 0,
+    "MeanChannelAbsoluteError": 0,
+    "AlphaRelativeError": 0
+  },
+  {
+    "Variant": "skia/native-dib",
+    "Density": 25,
+    "Size": 240,
+    "DotSize": 100,
+    "Frame": 0,
+    "ChangedPixels": 0,
+    "MeanChannelAbsoluteError": 0,
+    "AlphaRelativeError": 0
+  },
+  {
+    "Variant": "atlas",
+    "Density": 25,
+    "Size": 240,
+    "DotSize": 100,
+    "Frame": 0,
+    "ChangedPixels": 273,
+    "MeanChannelAbsoluteError": 0.4133810763888889,
+    "AlphaRelativeError": 0.3003518648838846
+  },
+  {
+    "Variant": "cached",
+    "Density": 25,
+    "Size": 240,
+    "DotSize": 100,
+    "Frame": 60,
+    "ChangedPixels": 0,
+    "MeanChannelAbsoluteError": 0,
+    "AlphaRelativeError": 0
+  },
+  {
+    "Variant": "skia/native-dib",
+    "Density": 25,
+    "Size": 240,
+    "DotSize": 100,
+    "Frame": 60,
+    "ChangedPixels": 0,
+    "MeanChannelAbsoluteError": 0,
+    "AlphaRelativeError": 0
+  },
+  {
+    "Variant": "atlas",
+    "Density": 25,
+    "Size": 240,
+    "DotSize": 100,
+    "Frame": 60,
+    "ChangedPixels": 290,
+    "MeanChannelAbsoluteError": 0.45065104166666664,
+    "AlphaRelativeError": 0.34237407537865444
+  },
+  {
+    "Variant": "pr247-prefix",
+    "Density": 25,
+    "Size": 240,
+    "DotSize": 100,
+    "Frame": 0,
+    "ChangedPixels": 500,
+    "MeanChannelAbsoluteError": 1.514765625,
+    "AlphaRelativeError": 1.151688951442646
+  },
+  {
+    "Variant": "cached",
+    "Density": 25,
+    "Size": 240,
+    "DotSize": 200,
+    "Frame": 0,
+    "ChangedPixels": 0,
+    "MeanChannelAbsoluteError": 0,
+    "AlphaRelativeError": 0
+  },
+  {
+    "Variant": "skia/native-dib",
+    "Density": 25,
+    "Size": 240,
+    "DotSize": 200,
+    "Frame": 0,
+    "ChangedPixels": 0,
+    "MeanChannelAbsoluteError": 0,
+    "AlphaRelativeError": 0
+  },
+  {
+    "Variant": "atlas",
+    "Density": 25,
+    "Size": 240,
+    "DotSize": 200,
+    "Frame": 0,
+    "ChangedPixels": 586,
+    "MeanChannelAbsoluteError": 0.7707161458333334,
+    "AlphaRelativeError": 0.14884377465022627
+  },
+  {
+    "Variant": "cached",
+    "Density": 25,
+    "Size": 240,
+    "DotSize": 200,
+    "Frame": 60,
+    "ChangedPixels": 0,
+    "MeanChannelAbsoluteError": 0,
+    "AlphaRelativeError": 0
+  },
+  {
+    "Variant": "skia/native-dib",
+    "Density": 25,
+    "Size": 240,
+    "DotSize": 200,
+    "Frame": 60,
+    "ChangedPixels": 0,
+    "MeanChannelAbsoluteError": 0,
+    "AlphaRelativeError": 0
+  },
+  {
+    "Variant": "atlas",
+    "Density": 25,
+    "Size": 240,
+    "DotSize": 200,
+    "Frame": 60,
+    "ChangedPixels": 556,
+    "MeanChannelAbsoluteError": 0.766484375,
+    "AlphaRelativeError": 0.13939784094285432
+  },
+  {
+    "Variant": "pr247-prefix",
+    "Density": 25,
+    "Size": 240,
+    "DotSize": 200,
+    "Frame": 0,
+    "ChangedPixels": 1492,
+    "MeanChannelAbsoluteError": 4.616488715277778,
+    "AlphaRelativeError": 1.1218250508573089
+  },
+  {
+    "Variant": "cached",
+    "Density": 25,
+    "Size": 360,
+    "DotSize": 50,
+    "Frame": 0,
+    "ChangedPixels": 0,
+    "MeanChannelAbsoluteError": 0,
+    "AlphaRelativeError": 0
+  },
+  {
+    "Variant": "skia/native-dib",
+    "Density": 25,
+    "Size": 360,
+    "DotSize": 50,
+    "Frame": 0,
+    "ChangedPixels": 0,
+    "MeanChannelAbsoluteError": 0,
+    "AlphaRelativeError": 0
+  },
+  {
+    "Variant": "atlas",
+    "Density": 25,
+    "Size": 360,
+    "DotSize": 50,
+    "Frame": 0,
+    "ChangedPixels": 137,
+    "MeanChannelAbsoluteError": 0.11027777777777778,
+    "AlphaRelativeError": 0.6013071895424836
+  },
+  {
+    "Variant": "cached",
+    "Density": 25,
+    "Size": 360,
+    "DotSize": 50,
+    "Frame": 60,
+    "ChangedPixels": 0,
+    "MeanChannelAbsoluteError": 0,
+    "AlphaRelativeError": 0
+  },
+  {
+    "Variant": "skia/native-dib",
+    "Density": 25,
+    "Size": 360,
+    "DotSize": 50,
+    "Frame": 60,
+    "ChangedPixels": 0,
+    "MeanChannelAbsoluteError": 0,
+    "AlphaRelativeError": 0
+  },
+  {
+    "Variant": "atlas",
+    "Density": 25,
+    "Size": 360,
+    "DotSize": 50,
+    "Frame": 60,
+    "ChangedPixels": 139,
+    "MeanChannelAbsoluteError": 0.11674382716049382,
+    "AlphaRelativeError": 0.6793108239544254
+  },
+  {
+    "Variant": "pr247-prefix",
+    "Density": 25,
+    "Size": 360,
+    "DotSize": 50,
+    "Frame": 0,
+    "ChangedPixels": 210,
+    "MeanChannelAbsoluteError": 0.27187307098765434,
+    "AlphaRelativeError": 1.1440689751077735
+  },
+  {
+    "Variant": "cached",
+    "Density": 25,
+    "Size": 360,
+    "DotSize": 100,
+    "Frame": 0,
+    "ChangedPixels": 0,
+    "MeanChannelAbsoluteError": 0,
+    "AlphaRelativeError": 0
+  },
+  {
+    "Variant": "skia/native-dib",
+    "Density": 25,
+    "Size": 360,
+    "DotSize": 100,
+    "Frame": 0,
+    "ChangedPixels": 0,
+    "MeanChannelAbsoluteError": 0,
+    "AlphaRelativeError": 0
+  },
+  {
+    "Variant": "atlas",
+    "Density": 25,
+    "Size": 360,
+    "DotSize": 100,
+    "Frame": 0,
+    "ChangedPixels": 267,
+    "MeanChannelAbsoluteError": 0.17140432098765432,
+    "AlphaRelativeError": 0.3127308544693425
+  },
+  {
+    "Variant": "cached",
+    "Density": 25,
+    "Size": 360,
+    "DotSize": 100,
+    "Frame": 60,
+    "ChangedPixels": 0,
+    "MeanChannelAbsoluteError": 0,
+    "AlphaRelativeError": 0
+  },
+  {
+    "Variant": "skia/native-dib",
+    "Density": 25,
+    "Size": 360,
+    "DotSize": 100,
+    "Frame": 60,
+    "ChangedPixels": 0,
+    "MeanChannelAbsoluteError": 0,
+    "AlphaRelativeError": 0
+  },
+  {
+    "Variant": "atlas",
+    "Density": 25,
+    "Size": 360,
+    "DotSize": 100,
+    "Frame": 60,
+    "ChangedPixels": 293,
+    "MeanChannelAbsoluteError": 0.20616319444444445,
+    "AlphaRelativeError": 0.3290749361240419
+  },
+  {
+    "Variant": "pr247-prefix",
+    "Density": 25,
+    "Size": 360,
+    "DotSize": 100,
+    "Frame": 0,
+    "ChangedPixels": 492,
+    "MeanChannelAbsoluteError": 0.6647993827160494,
+    "AlphaRelativeError": 1.152249621838393
+  },
+  {
+    "Variant": "cached",
+    "Density": 25,
+    "Size": 360,
+    "DotSize": 200,
+    "Frame": 0,
+    "ChangedPixels": 0,
+    "MeanChannelAbsoluteError": 0,
+    "AlphaRelativeError": 0
+  },
+  {
+    "Variant": "skia/native-dib",
+    "Density": 25,
+    "Size": 360,
+    "DotSize": 200,
+    "Frame": 0,
+    "ChangedPixels": 0,
+    "MeanChannelAbsoluteError": 0,
+    "AlphaRelativeError": 0
+  },
+  {
+    "Variant": "atlas",
+    "Density": 25,
+    "Size": 360,
+    "DotSize": 200,
+    "Frame": 0,
+    "ChangedPixels": 584,
+    "MeanChannelAbsoluteError": 0.36908179012345677,
+    "AlphaRelativeError": 0.14607689127738735
+  },
+  {
+    "Variant": "cached",
+    "Density": 25,
+    "Size": 360,
+    "DotSize": 200,
+    "Frame": 60,
+    "ChangedPixels": 0,
+    "MeanChannelAbsoluteError": 0,
+    "AlphaRelativeError": 0
+  },
+  {
+    "Variant": "skia/native-dib",
+    "Density": 25,
+    "Size": 360,
+    "DotSize": 200,
+    "Frame": 60,
+    "ChangedPixels": 0,
+    "MeanChannelAbsoluteError": 0,
+    "AlphaRelativeError": 0
+  },
+  {
+    "Variant": "atlas",
+    "Density": 25,
+    "Size": 360,
+    "DotSize": 200,
+    "Frame": 60,
+    "ChangedPixels": 568,
+    "MeanChannelAbsoluteError": 0.35106481481481483,
+    "AlphaRelativeError": 0.13515935190589318
+  },
+  {
+    "Variant": "pr247-prefix",
+    "Density": 25,
+    "Size": 360,
+    "DotSize": 200,
+    "Frame": 0,
+    "ChangedPixels": 1529,
+    "MeanChannelAbsoluteError": 2.1288233024691356,
+    "AlphaRelativeError": 1.140405126085159
+  },
+  {
+    "Variant": "cached",
+    "Density": 25,
+    "Size": 600,
+    "DotSize": 50,
+    "Frame": 0,
+    "ChangedPixels": 0,
+    "MeanChannelAbsoluteError": 0,
+    "AlphaRelativeError": 0
+  },
+  {
+    "Variant": "skia/native-dib",
+    "Density": 25,
+    "Size": 600,
+    "DotSize": 50,
+    "Frame": 0,
+    "ChangedPixels": 0,
+    "MeanChannelAbsoluteError": 0,
+    "AlphaRelativeError": 0
+  },
+  {
+    "Variant": "atlas",
+    "Density": 25,
+    "Size": 600,
+    "DotSize": 50,
+    "Frame": 0,
+    "ChangedPixels": 143,
+    "MeanChannelAbsoluteError": 0.045385416666666664,
+    "AlphaRelativeError": 0.6872964169381107
+  },
+  {
+    "Variant": "cached",
+    "Density": 25,
+    "Size": 600,
+    "DotSize": 50,
+    "Frame": 60,
+    "ChangedPixels": 0,
+    "MeanChannelAbsoluteError": 0,
+    "AlphaRelativeError": 0
+  },
+  {
+    "Variant": "skia/native-dib",
+    "Density": 25,
+    "Size": 600,
+    "DotSize": 50,
+    "Frame": 60,
+    "ChangedPixels": 0,
+    "MeanChannelAbsoluteError": 0,
+    "AlphaRelativeError": 0
+  },
+  {
+    "Variant": "atlas",
+    "Density": 25,
+    "Size": 600,
+    "DotSize": 50,
+    "Frame": 60,
+    "ChangedPixels": 137,
+    "MeanChannelAbsoluteError": 0.041252083333333335,
+    "AlphaRelativeError": 0.6280504908835904
+  },
+  {
+    "Variant": "pr247-prefix",
+    "Density": 25,
+    "Size": 600,
+    "DotSize": 50,
+    "Frame": 0,
+    "ChangedPixels": 217,
+    "MeanChannelAbsoluteError": 0.10112847222222222,
+    "AlphaRelativeError": 1.1562101685313695
+  },
+  {
+    "Variant": "cached",
+    "Density": 25,
+    "Size": 600,
+    "DotSize": 100,
+    "Frame": 0,
+    "ChangedPixels": 0,
+    "MeanChannelAbsoluteError": 0,
+    "AlphaRelativeError": 0
+  },
+  {
+    "Variant": "skia/native-dib",
+    "Density": 25,
+    "Size": 600,
+    "DotSize": 100,
+    "Frame": 0,
+    "ChangedPixels": 1,
+    "MeanChannelAbsoluteError": 2.361111111111111E-05,
+    "AlphaRelativeError": 0.00017585200295431366
+  },
+  {
+    "Variant": "atlas",
+    "Density": 25,
+    "Size": 600,
+    "DotSize": 100,
+    "Frame": 0,
+    "ChangedPixels": 279,
+    "MeanChannelAbsoluteError": 0.06220763888888889,
+    "AlphaRelativeError": 0.3356663032391939
+  },
+  {
+    "Variant": "cached",
+    "Density": 25,
+    "Size": 600,
+    "DotSize": 100,
+    "Frame": 60,
+    "ChangedPixels": 0,
+    "MeanChannelAbsoluteError": 0,
+    "AlphaRelativeError": 0
+  },
+  {
+    "Variant": "skia/native-dib",
+    "Density": 25,
+    "Size": 600,
+    "DotSize": 100,
+    "Frame": 60,
+    "ChangedPixels": 0,
+    "MeanChannelAbsoluteError": 0,
+    "AlphaRelativeError": 0
+  },
+  {
+    "Variant": "atlas",
+    "Density": 25,
+    "Size": 600,
+    "DotSize": 100,
+    "Frame": 60,
+    "ChangedPixels": 283,
+    "MeanChannelAbsoluteError": 0.06852013888888889,
+    "AlphaRelativeError": 0.3056624903758662
+  },
+  {
+    "Variant": "pr247-prefix",
+    "Density": 25,
+    "Size": 600,
+    "DotSize": 100,
+    "Frame": 0,
+    "ChangedPixels": 498,
+    "MeanChannelAbsoluteError": 0.24206666666666668,
+    "AlphaRelativeError": 1.1517954489501636
+  },
+  {
+    "Variant": "cached",
+    "Density": 25,
+    "Size": 600,
+    "DotSize": 200,
+    "Frame": 0,
+    "ChangedPixels": 0,
+    "MeanChannelAbsoluteError": 0,
+    "AlphaRelativeError": 0
+  },
+  {
+    "Variant": "skia/native-dib",
+    "Density": 25,
+    "Size": 600,
+    "DotSize": 200,
+    "Frame": 0,
+    "ChangedPixels": 0,
+    "MeanChannelAbsoluteError": 0,
+    "AlphaRelativeError": 0
+  },
+  {
+    "Variant": "atlas",
+    "Density": 25,
+    "Size": 600,
+    "DotSize": 200,
+    "Frame": 0,
+    "ChangedPixels": 590,
+    "MeanChannelAbsoluteError": 0.13700902777777776,
+    "AlphaRelativeError": 0.14536896597203905
+  },
+  {
+    "Variant": "cached",
+    "Density": 25,
+    "Size": 600,
+    "DotSize": 200,
+    "Frame": 60,
+    "ChangedPixels": 0,
+    "MeanChannelAbsoluteError": 0,
+    "AlphaRelativeError": 0
+  },
+  {
+    "Variant": "skia/native-dib",
+    "Density": 25,
+    "Size": 600,
+    "DotSize": 200,
+    "Frame": 60,
+    "ChangedPixels": 0,
+    "MeanChannelAbsoluteError": 0,
+    "AlphaRelativeError": 0
+  },
+  {
+    "Variant": "atlas",
+    "Density": 25,
+    "Size": 600,
+    "DotSize": 200,
+    "Frame": 60,
+    "ChangedPixels": 580,
+    "MeanChannelAbsoluteError": 0.13721805555555555,
+    "AlphaRelativeError": 0.14127656076610087
+  },
+  {
+    "Variant": "pr247-prefix",
+    "Density": 25,
+    "Size": 600,
+    "DotSize": 200,
+    "Frame": 0,
+    "ChangedPixels": 1573,
+    "MeanChannelAbsoluteError": 0.7909326388888889,
+    "AlphaRelativeError": 1.1448908599314165
+  },
+  {
+    "Variant": "cached",
+    "Density": 100,
+    "Size": 240,
+    "DotSize": 50,
+    "Frame": 0,
+    "ChangedPixels": 0,
+    "MeanChannelAbsoluteError": 0,
+    "AlphaRelativeError": 0
+  },
+  {
+    "Variant": "skia/native-dib",
+    "Density": 100,
+    "Size": 240,
+    "DotSize": 50,
+    "Frame": 0,
+    "ChangedPixels": 0,
+    "MeanChannelAbsoluteError": 0,
+    "AlphaRelativeError": 0
+  },
+  {
+    "Variant": "atlas",
+    "Density": 100,
+    "Size": 240,
+    "DotSize": 50,
+    "Frame": 0,
+    "ChangedPixels": 508,
+    "MeanChannelAbsoluteError": 0.9653515625,
+    "AlphaRelativeError": 0.6566702322738386
+  },
+  {
+    "Variant": "cached",
+    "Density": 100,
+    "Size": 240,
+    "DotSize": 50,
+    "Frame": 60,
+    "ChangedPixels": 0,
+    "MeanChannelAbsoluteError": 0,
+    "AlphaRelativeError": 0
+  },
+  {
+    "Variant": "skia/native-dib",
+    "Density": 100,
+    "Size": 240,
+    "DotSize": 50,
+    "Frame": 60,
+    "ChangedPixels": 0,
+    "MeanChannelAbsoluteError": 0,
+    "AlphaRelativeError": 0
+  },
+  {
+    "Variant": "atlas",
+    "Density": 100,
+    "Size": 240,
+    "DotSize": 50,
+    "Frame": 60,
+    "ChangedPixels": 511,
+    "MeanChannelAbsoluteError": 0.9836111111111111,
+    "AlphaRelativeError": 0.6605493953560252
+  },
+  {
+    "Variant": "pr247-prefix",
+    "Density": 100,
+    "Size": 240,
+    "DotSize": 50,
+    "Frame": 0,
+    "ChangedPixels": 565,
+    "MeanChannelAbsoluteError": 1.6523263888888888,
+    "AlphaRelativeError": 1.0053484107579462
+  },
+  {
+    "Variant": "cached",
+    "Density": 100,
+    "Size": 240,
+    "DotSize": 100,
+    "Frame": 0,
+    "ChangedPixels": 0,
+    "MeanChannelAbsoluteError": 0,
+    "AlphaRelativeError": 0
+  },
+  {
+    "Variant": "skia/native-dib",
+    "Density": 100,
+    "Size": 240,
+    "DotSize": 100,
+    "Frame": 0,
+    "ChangedPixels": 0,
+    "MeanChannelAbsoluteError": 0,
+    "AlphaRelativeError": 0
+  },
+  {
+    "Variant": "atlas",
+    "Density": 100,
+    "Size": 240,
+    "DotSize": 100,
+    "Frame": 0,
+    "ChangedPixels": 1054,
+    "MeanChannelAbsoluteError": 1.6697916666666666,
+    "AlphaRelativeError": 0.3248791572784871
+  },
+  {
+    "Variant": "cached",
+    "Density": 100,
+    "Size": 240,
+    "DotSize": 100,
+    "Frame": 60,
+    "ChangedPixels": 0,
+    "MeanChannelAbsoluteError": 0,
+    "AlphaRelativeError": 0
+  },
+  {
+    "Variant": "skia/native-dib",
+    "Density": 100,
+    "Size": 240,
+    "DotSize": 100,
+    "Frame": 60,
+    "ChangedPixels": 0,
+    "MeanChannelAbsoluteError": 0,
+    "AlphaRelativeError": 0
+  },
+  {
+    "Variant": "atlas",
+    "Density": 100,
+    "Size": 240,
+    "DotSize": 100,
+    "Frame": 60,
+    "ChangedPixels": 1034,
+    "MeanChannelAbsoluteError": 1.536267361111111,
+    "AlphaRelativeError": 0.3306576103735721
+  },
+  {
+    "Variant": "pr247-prefix",
+    "Density": 100,
+    "Size": 240,
+    "DotSize": 100,
+    "Frame": 0,
+    "ChangedPixels": 1406,
+    "MeanChannelAbsoluteError": 4.227174479166667,
+    "AlphaRelativeError": 1.0062202707647274
+  },
+  {
+    "Variant": "cached",
+    "Density": 100,
+    "Size": 240,
+    "DotSize": 200,
+    "Frame": 0,
+    "ChangedPixels": 0,
+    "MeanChannelAbsoluteError": 0,
+    "AlphaRelativeError": 0
+  },
+  {
+    "Variant": "skia/native-dib",
+    "Density": 100,
+    "Size": 240,
+    "DotSize": 200,
+    "Frame": 0,
+    "ChangedPixels": 0,
+    "MeanChannelAbsoluteError": 0,
+    "AlphaRelativeError": 0
+  },
+  {
+    "Variant": "atlas",
+    "Density": 100,
+    "Size": 240,
+    "DotSize": 200,
+    "Frame": 0,
+    "ChangedPixels": 2121,
+    "MeanChannelAbsoluteError": 2.7245138888888887,
+    "AlphaRelativeError": 0.14896536404885916
+  },
+  {
+    "Variant": "cached",
+    "Density": 100,
+    "Size": 240,
+    "DotSize": 200,
+    "Frame": 60,
+    "ChangedPixels": 0,
+    "MeanChannelAbsoluteError": 0,
+    "AlphaRelativeError": 0
+  },
+  {
+    "Variant": "skia/native-dib",
+    "Density": 100,
+    "Size": 240,
+    "DotSize": 200,
+    "Frame": 60,
+    "ChangedPixels": 0,
+    "MeanChannelAbsoluteError": 0,
+    "AlphaRelativeError": 0
+  },
+  {
+    "Variant": "atlas",
+    "Density": 100,
+    "Size": 240,
+    "DotSize": 200,
+    "Frame": 60,
+    "ChangedPixels": 2137,
+    "MeanChannelAbsoluteError": 2.675998263888889,
+    "AlphaRelativeError": 0.14371139057901045
+  },
+  {
+    "Variant": "pr247-prefix",
+    "Density": 100,
+    "Size": 240,
+    "DotSize": 200,
+    "Frame": 0,
+    "ChangedPixels": 4092,
+    "MeanChannelAbsoluteError": 12.033138020833333,
+    "AlphaRelativeError": 0.9754894361390251
+  },
+  {
+    "Variant": "cached",
+    "Density": 100,
+    "Size": 360,
+    "DotSize": 50,
+    "Frame": 0,
+    "ChangedPixels": 0,
+    "MeanChannelAbsoluteError": 0,
+    "AlphaRelativeError": 0
+  },
+  {
+    "Variant": "skia/native-dib",
+    "Density": 100,
+    "Size": 360,
+    "DotSize": 50,
+    "Frame": 0,
+    "ChangedPixels": 0,
+    "MeanChannelAbsoluteError": 0,
+    "AlphaRelativeError": 0
+  },
+  {
+    "Variant": "atlas",
+    "Density": 100,
+    "Size": 360,
+    "DotSize": 50,
+    "Frame": 0,
+    "ChangedPixels": 499,
+    "MeanChannelAbsoluteError": 0.4080015432098765,
+    "AlphaRelativeError": 0.6658467215004996
+  },
+  {
+    "Variant": "cached",
+    "Density": 100,
+    "Size": 360,
+    "DotSize": 50,
+    "Frame": 60,
+    "ChangedPixels": 0,
+    "MeanChannelAbsoluteError": 0,
+    "AlphaRelativeError": 0
+  },
+  {
+    "Variant": "skia/native-dib",
+    "Density": 100,
+    "Size": 360,
+    "DotSize": 50,
+    "Frame": 60,
+    "ChangedPixels": 0,
+    "MeanChannelAbsoluteError": 0,
+    "AlphaRelativeError": 0
+  },
+  {
+    "Variant": "atlas",
+    "Density": 100,
+    "Size": 360,
+    "DotSize": 50,
+    "Frame": 60,
+    "ChangedPixels": 501,
+    "MeanChannelAbsoluteError": 0.4209972993827161,
+    "AlphaRelativeError": 0.6787499523028199
+  },
+  {
+    "Variant": "pr247-prefix",
+    "Density": 100,
+    "Size": 360,
+    "DotSize": 50,
+    "Frame": 0,
+    "ChangedPixels": 551,
+    "MeanChannelAbsoluteError": 0.7222935956790123,
+    "AlphaRelativeError": 1.0103389960796372
+  },
+  {
+    "Variant": "cached",
+    "Density": 100,
+    "Size": 360,
+    "DotSize": 100,
+    "Frame": 0,
+    "ChangedPixels": 0,
+    "MeanChannelAbsoluteError": 0,
+    "AlphaRelativeError": 0
+  },
+  {
+    "Variant": "skia/native-dib",
+    "Density": 100,
+    "Size": 360,
+    "DotSize": 100,
+    "Frame": 0,
+    "ChangedPixels": 0,
+    "MeanChannelAbsoluteError": 0,
+    "AlphaRelativeError": 0
+  },
+  {
+    "Variant": "atlas",
+    "Density": 100,
+    "Size": 360,
+    "DotSize": 100,
+    "Frame": 0,
+    "ChangedPixels": 1019,
+    "MeanChannelAbsoluteError": 0.6557947530864198,
+    "AlphaRelativeError": 0.32733940726375516
+  },
+  {
+    "Variant": "cached",
+    "Density": 100,
+    "Size": 360,
+    "DotSize": 100,
+    "Frame": 60,
+    "ChangedPixels": 0,
+    "MeanChannelAbsoluteError": 0,
+    "AlphaRelativeError": 0
+  },
+  {
+    "Variant": "skia/native-dib",
+    "Density": 100,
+    "Size": 360,
+    "DotSize": 100,
+    "Frame": 60,
+    "ChangedPixels": 0,
+    "MeanChannelAbsoluteError": 0,
+    "AlphaRelativeError": 0
+  },
+  {
+    "Variant": "atlas",
+    "Density": 100,
+    "Size": 360,
+    "DotSize": 100,
+    "Frame": 60,
+    "ChangedPixels": 1045,
+    "MeanChannelAbsoluteError": 0.7100385802469136,
+    "AlphaRelativeError": 0.3379420264807827
+  },
+  {
+    "Variant": "pr247-prefix",
+    "Density": 100,
+    "Size": 360,
+    "DotSize": 100,
+    "Frame": 0,
+    "ChangedPixels": 1353,
+    "MeanChannelAbsoluteError": 1.842391975308642,
+    "AlphaRelativeError": 1.0088132794424016
+  },
+  {
+    "Variant": "cached",
+    "Density": 100,
+    "Size": 360,
+    "DotSize": 200,
+    "Frame": 0,
+    "ChangedPixels": 0,
+    "MeanChannelAbsoluteError": 0,
+    "AlphaRelativeError": 0
+  },
+  {
+    "Variant": "skia/native-dib",
+    "Density": 100,
+    "Size": 360,
+    "DotSize": 200,
+    "Frame": 0,
+    "ChangedPixels": 0,
+    "MeanChannelAbsoluteError": 0,
+    "AlphaRelativeError": 0
+  },
+  {
+    "Variant": "atlas",
+    "Density": 100,
+    "Size": 360,
+    "DotSize": 200,
+    "Frame": 0,
+    "ChangedPixels": 2163,
+    "MeanChannelAbsoluteError": 1.3057002314814814,
+    "AlphaRelativeError": 0.1554328944962516
+  },
+  {
+    "Variant": "cached",
+    "Density": 100,
+    "Size": 360,
+    "DotSize": 200,
+    "Frame": 60,
+    "ChangedPixels": 0,
+    "MeanChannelAbsoluteError": 0,
+    "AlphaRelativeError": 0
+  },
+  {
+    "Variant": "skia/native-dib",
+    "Density": 100,
+    "Size": 360,
+    "DotSize": 200,
+    "Frame": 60,
+    "ChangedPixels": 0,
+    "MeanChannelAbsoluteError": 0,
+    "AlphaRelativeError": 0
+  },
+  {
+    "Variant": "atlas",
+    "Density": 100,
+    "Size": 360,
+    "DotSize": 200,
+    "Frame": 60,
+    "ChangedPixels": 2140,
+    "MeanChannelAbsoluteError": 1.2594868827160495,
+    "AlphaRelativeError": 0.14852599153397045
+  },
+  {
+    "Variant": "pr247-prefix",
+    "Density": 100,
+    "Size": 360,
+    "DotSize": 200,
+    "Frame": 0,
+    "ChangedPixels": 4252,
+    "MeanChannelAbsoluteError": 5.8645756172839505,
+    "AlphaRelativeError": 1.0005119765953556
+  },
+  {
+    "Variant": "cached",
+    "Density": 100,
+    "Size": 600,
+    "DotSize": 50,
+    "Frame": 0,
+    "ChangedPixels": 0,
+    "MeanChannelAbsoluteError": 0,
+    "AlphaRelativeError": 0
+  },
+  {
+    "Variant": "skia/native-dib",
+    "Density": 100,
+    "Size": 600,
+    "DotSize": 50,
+    "Frame": 0,
+    "ChangedPixels": 0,
+    "MeanChannelAbsoluteError": 0,
+    "AlphaRelativeError": 0
+  },
+  {
+    "Variant": "atlas",
+    "Density": 100,
+    "Size": 600,
+    "DotSize": 50,
+    "Frame": 0,
+    "ChangedPixels": 535,
+    "MeanChannelAbsoluteError": 0.16687569444444444,
+    "AlphaRelativeError": 0.7232830304896828
+  },
+  {
+    "Variant": "cached",
+    "Density": 100,
+    "Size": 600,
+    "DotSize": 50,
+    "Frame": 60,
+    "ChangedPixels": 0,
+    "MeanChannelAbsoluteError": 0,
+    "AlphaRelativeError": 0
+  },
+  {
+    "Variant": "skia/native-dib",
+    "Density": 100,
+    "Size": 600,
+    "DotSize": 50,
+    "Frame": 60,
+    "ChangedPixels": 0,
+    "MeanChannelAbsoluteError": 0,
+    "AlphaRelativeError": 0
+  },
+  {
+    "Variant": "atlas",
+    "Density": 100,
+    "Size": 600,
+    "DotSize": 50,
+    "Frame": 60,
+    "ChangedPixels": 506,
+    "MeanChannelAbsoluteError": 0.15488125,
+    "AlphaRelativeError": 0.6710037886035743
+  },
+  {
+    "Variant": "pr247-prefix",
+    "Density": 100,
+    "Size": 600,
+    "DotSize": 50,
+    "Frame": 0,
+    "ChangedPixels": 559,
+    "MeanChannelAbsoluteError": 0.2638875,
+    "AlphaRelativeError": 1.0071604558053588
+  },
+  {
+    "Variant": "cached",
+    "Density": 100,
+    "Size": 600,
+    "DotSize": 100,
+    "Frame": 0,
+    "ChangedPixels": 0,
+    "MeanChannelAbsoluteError": 0,
+    "AlphaRelativeError": 0
+  },
+  {
+    "Variant": "skia/native-dib",
+    "Density": 100,
+    "Size": 600,
+    "DotSize": 100,
+    "Frame": 0,
+    "ChangedPixels": 1,
+    "MeanChannelAbsoluteError": 2.361111111111111E-05,
+    "AlphaRelativeError": 4.795197130554037E-05
+  },
+  {
+    "Variant": "atlas",
+    "Density": 100,
+    "Size": 600,
+    "DotSize": 100,
+    "Frame": 0,
+    "ChangedPixels": 1034,
+    "MeanChannelAbsoluteError": 0.24910902777777777,
+    "AlphaRelativeError": 0.33642144028541016
+  },
+  {
+    "Variant": "cached",
+    "Density": 100,
+    "Size": 600,
+    "DotSize": 100,
+    "Frame": 60,
+    "ChangedPixels": 0,
+    "MeanChannelAbsoluteError": 0,
+    "AlphaRelativeError": 0
+  },
+  {
+    "Variant": "skia/native-dib",
+    "Density": 100,
+    "Size": 600,
+    "DotSize": 100,
+    "Frame": 60,
+    "ChangedPixels": 0,
+    "MeanChannelAbsoluteError": 0,
+    "AlphaRelativeError": 0
+  },
+  {
+    "Variant": "atlas",
+    "Density": 100,
+    "Size": 600,
+    "DotSize": 100,
+    "Frame": 60,
+    "ChangedPixels": 1052,
+    "MeanChannelAbsoluteError": 0.25519375,
+    "AlphaRelativeError": 0.3326399938653835
+  },
+  {
+    "Variant": "pr247-prefix",
+    "Density": 100,
+    "Size": 600,
+    "DotSize": 100,
+    "Frame": 0,
+    "ChangedPixels": 1392,
+    "MeanChannelAbsoluteError": 0.68495625,
+    "AlphaRelativeError": 1.0090916937595305
+  },
+  {
+    "Variant": "cached",
+    "Density": 100,
+    "Size": 600,
+    "DotSize": 200,
+    "Frame": 0,
+    "ChangedPixels": 0,
+    "MeanChannelAbsoluteError": 0,
+    "AlphaRelativeError": 0
+  },
+  {
+    "Variant": "skia/native-dib",
+    "Density": 100,
+    "Size": 600,
+    "DotSize": 200,
+    "Frame": 0,
+    "ChangedPixels": 0,
+    "MeanChannelAbsoluteError": 0,
+    "AlphaRelativeError": 0
+  },
+  {
+    "Variant": "atlas",
+    "Density": 100,
+    "Size": 600,
+    "DotSize": 200,
+    "Frame": 0,
+    "ChangedPixels": 2167,
+    "MeanChannelAbsoluteError": 0.4885527777777778,
+    "AlphaRelativeError": 0.1538821275252955
+  },
+  {
+    "Variant": "cached",
+    "Density": 100,
+    "Size": 600,
+    "DotSize": 200,
+    "Frame": 60,
+    "ChangedPixels": 0,
+    "MeanChannelAbsoluteError": 0,
+    "AlphaRelativeError": 0
+  },
+  {
+    "Variant": "skia/native-dib",
+    "Density": 100,
+    "Size": 600,
+    "DotSize": 200,
+    "Frame": 60,
+    "ChangedPixels": 0,
+    "MeanChannelAbsoluteError": 0,
+    "AlphaRelativeError": 0
+  },
+  {
+    "Variant": "atlas",
+    "Density": 100,
+    "Size": 600,
+    "DotSize": 200,
+    "Frame": 60,
+    "ChangedPixels": 2142,
+    "MeanChannelAbsoluteError": 0.47058541666666664,
+    "AlphaRelativeError": 0.1501372652400778
+  },
+  {
+    "Variant": "pr247-prefix",
+    "Density": 100,
+    "Size": 600,
+    "DotSize": 200,
+    "Frame": 0,
+    "ChangedPixels": 4354,
+    "MeanChannelAbsoluteError": 2.2084840277777777,
+    "AlphaRelativeError": 1.006801470170922
+  },
+  {
+    "Variant": "cached",
+    "Density": 200,
+    "Size": 240,
+    "DotSize": 50,
+    "Frame": 0,
+    "ChangedPixels": 0,
+    "MeanChannelAbsoluteError": 0,
+    "AlphaRelativeError": 0
+  },
+  {
+    "Variant": "skia/native-dib",
+    "Density": 200,
+    "Size": 240,
+    "DotSize": 50,
+    "Frame": 0,
+    "ChangedPixels": 0,
+    "MeanChannelAbsoluteError": 0,
+    "AlphaRelativeError": 0
+  },
+  {
+    "Variant": "atlas",
+    "Density": 200,
+    "Size": 240,
+    "DotSize": 50,
+    "Frame": 0,
+    "ChangedPixels": 1019,
+    "MeanChannelAbsoluteError": 1.9437456597222222,
+    "AlphaRelativeError": 0.6472596245021809
+  },
+  {
+    "Variant": "cached",
+    "Density": 200,
+    "Size": 240,
+    "DotSize": 50,
+    "Frame": 60,
+    "ChangedPixels": 0,
+    "MeanChannelAbsoluteError": 0,
+    "AlphaRelativeError": 0
+  },
+  {
+    "Variant": "skia/native-dib",
+    "Density": 200,
+    "Size": 240,
+    "DotSize": 50,
+    "Frame": 60,
+    "ChangedPixels": 0,
+    "MeanChannelAbsoluteError": 0,
+    "AlphaRelativeError": 0
+  },
+  {
+    "Variant": "atlas",
+    "Density": 200,
+    "Size": 240,
+    "DotSize": 50,
+    "Frame": 60,
+    "ChangedPixels": 1022,
+    "MeanChannelAbsoluteError": 1.980625,
+    "AlphaRelativeError": 0.6392386976318848
+  },
+  {
+    "Variant": "pr247-prefix",
+    "Density": 200,
+    "Size": 240,
+    "DotSize": 50,
+    "Frame": 0,
+    "ChangedPixels": 0,
+    "MeanChannelAbsoluteError": 0,
+    "AlphaRelativeError": 0
+  },
+  {
+    "Variant": "cached",
+    "Density": 200,
+    "Size": 240,
+    "DotSize": 100,
+    "Frame": 0,
+    "ChangedPixels": 0,
+    "MeanChannelAbsoluteError": 0,
+    "AlphaRelativeError": 0
+  },
+  {
+    "Variant": "skia/native-dib",
+    "Density": 200,
+    "Size": 240,
+    "DotSize": 100,
+    "Frame": 0,
+    "ChangedPixels": 0,
+    "MeanChannelAbsoluteError": 0,
+    "AlphaRelativeError": 0
+  },
+  {
+    "Variant": "atlas",
+    "Density": 200,
+    "Size": 240,
+    "DotSize": 100,
+    "Frame": 0,
+    "ChangedPixels": 2071,
+    "MeanChannelAbsoluteError": 3.156540798611111,
+    "AlphaRelativeError": 0.31625042105769696
+  },
+  {
+    "Variant": "cached",
+    "Density": 200,
+    "Size": 240,
+    "DotSize": 100,
+    "Frame": 60,
+    "ChangedPixels": 0,
+    "MeanChannelAbsoluteError": 0,
+    "AlphaRelativeError": 0
+  },
+  {
+    "Variant": "skia/native-dib",
+    "Density": 200,
+    "Size": 240,
+    "DotSize": 100,
+    "Frame": 60,
+    "ChangedPixels": 0,
+    "MeanChannelAbsoluteError": 0,
+    "AlphaRelativeError": 0
+  },
+  {
+    "Variant": "atlas",
+    "Density": 200,
+    "Size": 240,
+    "DotSize": 100,
+    "Frame": 60,
+    "ChangedPixels": 2034,
+    "MeanChannelAbsoluteError": 2.9516493055555557,
+    "AlphaRelativeError": 0.31666386008804637
+  },
+  {
+    "Variant": "pr247-prefix",
+    "Density": 200,
+    "Size": 240,
+    "DotSize": 100,
+    "Frame": 0,
+    "ChangedPixels": 0,
+    "MeanChannelAbsoluteError": 0,
+    "AlphaRelativeError": 0
+  },
+  {
+    "Variant": "cached",
+    "Density": 200,
+    "Size": 240,
+    "DotSize": 200,
+    "Frame": 0,
+    "ChangedPixels": 0,
+    "MeanChannelAbsoluteError": 0,
+    "AlphaRelativeError": 0
+  },
+  {
+    "Variant": "skia/native-dib",
+    "Density": 200,
+    "Size": 240,
+    "DotSize": 200,
+    "Frame": 0,
+    "ChangedPixels": 0,
+    "MeanChannelAbsoluteError": 0,
+    "AlphaRelativeError": 0
+  },
+  {
+    "Variant": "atlas",
+    "Density": 200,
+    "Size": 240,
+    "DotSize": 200,
+    "Frame": 0,
+    "ChangedPixels": 4258,
+    "MeanChannelAbsoluteError": 4.690065104166667,
+    "AlphaRelativeError": 0.13775647980140138
+  },
+  {
+    "Variant": "cached",
+    "Density": 200,
+    "Size": 240,
+    "DotSize": 200,
+    "Frame": 60,
+    "ChangedPixels": 0,
+    "MeanChannelAbsoluteError": 0,
+    "AlphaRelativeError": 0
+  },
+  {
+    "Variant": "skia/native-dib",
+    "Density": 200,
+    "Size": 240,
+    "DotSize": 200,
+    "Frame": 60,
+    "ChangedPixels": 0,
+    "MeanChannelAbsoluteError": 0,
+    "AlphaRelativeError": 0
+  },
+  {
+    "Variant": "atlas",
+    "Density": 200,
+    "Size": 240,
+    "DotSize": 200,
+    "Frame": 60,
+    "ChangedPixels": 4265,
+    "MeanChannelAbsoluteError": 4.629361979166666,
+    "AlphaRelativeError": 0.13350874448058037
+  },
+  {
+    "Variant": "pr247-prefix",
+    "Density": 200,
+    "Size": 240,
+    "DotSize": 200,
+    "Frame": 0,
+    "ChangedPixels": 0,
+    "MeanChannelAbsoluteError": 0,
+    "AlphaRelativeError": 0
+  },
+  {
+    "Variant": "cached",
+    "Density": 200,
+    "Size": 360,
+    "DotSize": 50,
+    "Frame": 0,
+    "ChangedPixels": 0,
+    "MeanChannelAbsoluteError": 0,
+    "AlphaRelativeError": 0
+  },
+  {
+    "Variant": "skia/native-dib",
+    "Density": 200,
+    "Size": 360,
+    "DotSize": 50,
+    "Frame": 0,
+    "ChangedPixels": 0,
+    "MeanChannelAbsoluteError": 0,
+    "AlphaRelativeError": 0
+  },
+  {
+    "Variant": "atlas",
+    "Density": 200,
+    "Size": 360,
+    "DotSize": 50,
+    "Frame": 0,
+    "ChangedPixels": 1024,
+    "MeanChannelAbsoluteError": 0.8688310185185185,
+    "AlphaRelativeError": 0.6567578355159371
+  },
+  {
+    "Variant": "cached",
+    "Density": 200,
+    "Size": 360,
+    "DotSize": 50,
+    "Frame": 60,
+    "ChangedPixels": 0,
+    "MeanChannelAbsoluteError": 0,
+    "AlphaRelativeError": 0
+  },
+  {
+    "Variant": "skia/native-dib",
+    "Density": 200,
+    "Size": 360,
+    "DotSize": 50,
+    "Frame": 60,
+    "ChangedPixels": 0,
+    "MeanChannelAbsoluteError": 0,
+    "AlphaRelativeError": 0
+  },
+  {
+    "Variant": "atlas",
+    "Density": 200,
+    "Size": 360,
+    "DotSize": 50,
+    "Frame": 60,
+    "ChangedPixels": 1023,
+    "MeanChannelAbsoluteError": 0.867139274691358,
+    "AlphaRelativeError": 0.6619509694081008
+  },
+  {
+    "Variant": "pr247-prefix",
+    "Density": 200,
+    "Size": 360,
+    "DotSize": 50,
+    "Frame": 0,
+    "ChangedPixels": 0,
+    "MeanChannelAbsoluteError": 0,
+    "AlphaRelativeError": 0
+  },
+  {
+    "Variant": "cached",
+    "Density": 200,
+    "Size": 360,
+    "DotSize": 100,
+    "Frame": 0,
+    "ChangedPixels": 0,
+    "MeanChannelAbsoluteError": 0,
+    "AlphaRelativeError": 0
+  },
+  {
+    "Variant": "skia/native-dib",
+    "Density": 200,
+    "Size": 360,
+    "DotSize": 100,
+    "Frame": 0,
+    "ChangedPixels": 0,
+    "MeanChannelAbsoluteError": 0,
+    "AlphaRelativeError": 0
+  },
+  {
+    "Variant": "atlas",
+    "Density": 200,
+    "Size": 360,
+    "DotSize": 100,
+    "Frame": 0,
+    "ChangedPixels": 2044,
+    "MeanChannelAbsoluteError": 1.3028819444444444,
+    "AlphaRelativeError": 0.317327895486619
+  },
+  {
+    "Variant": "cached",
+    "Density": 200,
+    "Size": 360,
+    "DotSize": 100,
+    "Frame": 60,
+    "ChangedPixels": 0,
+    "MeanChannelAbsoluteError": 0,
+    "AlphaRelativeError": 0
+  },
+  {
+    "Variant": "skia/native-dib",
+    "Density": 200,
+    "Size": 360,
+    "DotSize": 100,
+    "Frame": 60,
+    "ChangedPixels": 0,
+    "MeanChannelAbsoluteError": 0,
+    "AlphaRelativeError": 0
+  },
+  {
+    "Variant": "atlas",
+    "Density": 200,
+    "Size": 360,
+    "DotSize": 100,
+    "Frame": 60,
+    "ChangedPixels": 2072,
+    "MeanChannelAbsoluteError": 1.3830574845679013,
+    "AlphaRelativeError": 0.3225190110436012
+  },
+  {
+    "Variant": "pr247-prefix",
+    "Density": 200,
+    "Size": 360,
+    "DotSize": 100,
+    "Frame": 0,
+    "ChangedPixels": 0,
+    "MeanChannelAbsoluteError": 0,
+    "AlphaRelativeError": 0
+  },
+  {
+    "Variant": "cached",
+    "Density": 200,
+    "Size": 360,
+    "DotSize": 200,
+    "Frame": 0,
+    "ChangedPixels": 0,
+    "MeanChannelAbsoluteError": 0,
+    "AlphaRelativeError": 0
+  },
+  {
+    "Variant": "skia/native-dib",
+    "Density": 200,
+    "Size": 360,
+    "DotSize": 200,
+    "Frame": 0,
+    "ChangedPixels": 3,
+    "MeanChannelAbsoluteError": 0.0012982253086419753,
+    "AlphaRelativeError": 2.0705719955137607E-05
+  },
+  {
+    "Variant": "atlas",
+    "Density": 200,
+    "Size": 360,
+    "DotSize": 200,
+    "Frame": 0,
+    "ChangedPixels": 4323,
+    "MeanChannelAbsoluteError": 2.4365007716049383,
+    "AlphaRelativeError": 0.14635838150289018
+  },
+  {
+    "Variant": "cached",
+    "Density": 200,
+    "Size": 360,
+    "DotSize": 200,
+    "Frame": 60,
+    "ChangedPixels": 0,
+    "MeanChannelAbsoluteError": 0,
+    "AlphaRelativeError": 0
+  },
+  {
+    "Variant": "skia/native-dib",
+    "Density": 200,
+    "Size": 360,
+    "DotSize": 200,
+    "Frame": 60,
+    "ChangedPixels": 0,
+    "MeanChannelAbsoluteError": 0,
+    "AlphaRelativeError": 0
+  },
+  {
+    "Variant": "atlas",
+    "Density": 200,
+    "Size": 360,
+    "DotSize": 200,
+    "Frame": 60,
+    "ChangedPixels": 4285,
+    "MeanChannelAbsoluteError": 2.351329089506173,
+    "AlphaRelativeError": 0.14284285653527792
+  },
+  {
+    "Variant": "pr247-prefix",
+    "Density": 200,
+    "Size": 360,
+    "DotSize": 200,
+    "Frame": 0,
+    "ChangedPixels": 0,
+    "MeanChannelAbsoluteError": 0,
+    "AlphaRelativeError": 0
+  },
+  {
+    "Variant": "cached",
+    "Density": 200,
+    "Size": 600,
+    "DotSize": 50,
+    "Frame": 0,
+    "ChangedPixels": 0,
+    "MeanChannelAbsoluteError": 0,
+    "AlphaRelativeError": 0
+  },
+  {
+    "Variant": "skia/native-dib",
+    "Density": 200,
+    "Size": 600,
+    "DotSize": 50,
+    "Frame": 0,
+    "ChangedPixels": 0,
+    "MeanChannelAbsoluteError": 0,
+    "AlphaRelativeError": 0
+  },
+  {
+    "Variant": "atlas",
+    "Density": 200,
+    "Size": 600,
+    "DotSize": 50,
+    "Frame": 0,
+    "ChangedPixels": 1053,
+    "MeanChannelAbsoluteError": 0.3251722222222222,
+    "AlphaRelativeError": 0.6884382809072354
+  },
+  {
+    "Variant": "cached",
+    "Density": 200,
+    "Size": 600,
+    "DotSize": 50,
+    "Frame": 60,
+    "ChangedPixels": 0,
+    "MeanChannelAbsoluteError": 0,
+    "AlphaRelativeError": 0
+  },
+  {
+    "Variant": "skia/native-dib",
+    "Density": 200,
+    "Size": 600,
+    "DotSize": 50,
+    "Frame": 60,
+    "ChangedPixels": 1,
+    "MeanChannelAbsoluteError": 8.333333333333334E-06,
+    "AlphaRelativeError": 0.0001519006569703414
+  },
+  {
+    "Variant": "atlas",
+    "Density": 200,
+    "Size": 600,
+    "DotSize": 50,
+    "Frame": 60,
+    "ChangedPixels": 1027,
+    "MeanChannelAbsoluteError": 0.3133784722222222,
+    "AlphaRelativeError": 0.6529069988227699
+  },
+  {
+    "Variant": "pr247-prefix",
+    "Density": 200,
+    "Size": 600,
+    "DotSize": 50,
+    "Frame": 0,
+    "ChangedPixels": 0,
+    "MeanChannelAbsoluteError": 0,
+    "AlphaRelativeError": 0
+  },
+  {
+    "Variant": "cached",
+    "Density": 200,
+    "Size": 600,
+    "DotSize": 100,
+    "Frame": 0,
+    "ChangedPixels": 0,
+    "MeanChannelAbsoluteError": 0,
+    "AlphaRelativeError": 0
+  },
+  {
+    "Variant": "skia/native-dib",
+    "Density": 200,
+    "Size": 600,
+    "DotSize": 100,
+    "Frame": 0,
+    "ChangedPixels": 1,
+    "MeanChannelAbsoluteError": 2.361111111111111E-05,
+    "AlphaRelativeError": 2.3754323286838204E-05
+  },
+  {
+    "Variant": "atlas",
+    "Density": 200,
+    "Size": 600,
+    "DotSize": 100,
+    "Frame": 0,
+    "ChangedPixels": 2098,
+    "MeanChannelAbsoluteError": 0.5099375,
+    "AlphaRelativeError": 0.3291351525977728
+  },
+  {
+    "Variant": "cached",
+    "Density": 200,
+    "Size": 600,
+    "DotSize": 100,
+    "Frame": 60,
+    "ChangedPixels": 0,
+    "MeanChannelAbsoluteError": 0,
+    "AlphaRelativeError": 0
+  },
+  {
+    "Variant": "skia/native-dib",
+    "Density": 200,
+    "Size": 600,
+    "DotSize": 100,
+    "Frame": 60,
+    "ChangedPixels": 0,
+    "MeanChannelAbsoluteError": 0,
+    "AlphaRelativeError": 0
+  },
+  {
+    "Variant": "atlas",
+    "Density": 200,
+    "Size": 600,
+    "DotSize": 100,
+    "Frame": 60,
+    "ChangedPixels": 2118,
+    "MeanChannelAbsoluteError": 0.5145638888888889,
+    "AlphaRelativeError": 0.32549993813235867
+  },
+  {
+    "Variant": "pr247-prefix",
+    "Density": 200,
+    "Size": 600,
+    "DotSize": 100,
+    "Frame": 0,
+    "ChangedPixels": 0,
+    "MeanChannelAbsoluteError": 0,
+    "AlphaRelativeError": 0
+  },
+  {
+    "Variant": "cached",
+    "Density": 200,
+    "Size": 600,
+    "DotSize": 200,
+    "Frame": 0,
+    "ChangedPixels": 0,
+    "MeanChannelAbsoluteError": 0,
+    "AlphaRelativeError": 0
+  },
+  {
+    "Variant": "skia/native-dib",
+    "Density": 200,
+    "Size": 600,
+    "DotSize": 200,
+    "Frame": 0,
+    "ChangedPixels": 0,
+    "MeanChannelAbsoluteError": 0,
+    "AlphaRelativeError": 0
+  },
+  {
+    "Variant": "atlas",
+    "Density": 200,
+    "Size": 600,
+    "DotSize": 200,
+    "Frame": 0,
+    "ChangedPixels": 4354,
+    "MeanChannelAbsoluteError": 0.9352083333333333,
+    "AlphaRelativeError": 0.14929636716470573
+  },
+  {
+    "Variant": "cached",
+    "Density": 200,
+    "Size": 600,
+    "DotSize": 200,
+    "Frame": 60,
+    "ChangedPixels": 0,
+    "MeanChannelAbsoluteError": 0,
+    "AlphaRelativeError": 0
+  },
+  {
+    "Variant": "skia/native-dib",
+    "Density": 200,
+    "Size": 600,
+    "DotSize": 200,
+    "Frame": 60,
+    "ChangedPixels": 0,
+    "MeanChannelAbsoluteError": 0,
+    "AlphaRelativeError": 0
+  },
+  {
+    "Variant": "atlas",
+    "Density": 200,
+    "Size": 600,
+    "DotSize": 200,
+    "Frame": 60,
+    "ChangedPixels": 4314,
+    "MeanChannelAbsoluteError": 0.9415402777777778,
+    "AlphaRelativeError": 0.1452994838378203
+  },
+  {
+    "Variant": "pr247-prefix",
+    "Density": 200,
+    "Size": 600,
+    "DotSize": 200,
+    "Frame": 0,
+    "ChangedPixels": 0,
+    "MeanChannelAbsoluteError": 0,
+    "AlphaRelativeError": 0
+  }
+]

@@ -1,4 +1,5 @@
-﻿using System.Globalization;
+﻿using System.ComponentModel;
+using System.Globalization;
 
 using Avalonia;
 using Avalonia.Controls;
@@ -26,6 +27,7 @@ public sealed class SpeechCaptionWindowController : ObservableObject, IDisposabl
     private bool disposed;
     private bool failed;
     private bool canSelect;
+    private bool refreshing;
     private IReadOnlyList<CaptionDisplayChoice> choices = [];
     private CaptionDisplayChoice? selectedChoice;
     private string displayStatus = "Primary display (run-only default).";
@@ -39,6 +41,7 @@ public sealed class SpeechCaptionWindowController : ObservableObject, IDisposabl
         window.BindDisplaySelection(this);
         timer = new DispatcherTimer(TimeSpan.FromMilliseconds(50), DispatcherPriority.Input, OnFrame);
         presentation.PrivacyClosureRequested += OnPrivacyClosure;
+        presentation.PropertyChanged += OnPresentationChanged;
         displays.Changed += OnDisplaysChanged;
         window.Closed += OnClosed;
         timer.Start();
@@ -54,6 +57,16 @@ public sealed class SpeechCaptionWindowController : ObservableObject, IDisposabl
     public bool CanSelect => canSelect;
 
     private void OnFrame(object? sender, EventArgs args) => Refresh();
+    private void OnPresentationChanged(object? sender, PropertyChangedEventArgs args)
+    {
+        if (string.Equals(args.PropertyName, nameof(ISpeechCaptionPresentation.ReaderTextScalePercent), StringComparison.Ordinal)) { Refresh(); }
+        else if (string.Equals(args.PropertyName, nameof(ISpeechCaptionPresentation.SpeechCaptionText), StringComparison.Ordinal)
+            || string.Equals(args.PropertyName, nameof(ISpeechCaptionPresentation.IsSpeechCaptionVisible), StringComparison.Ordinal))
+        {
+            if (!presentation.IsSpeechCaptionVisible || presentation.SpeechCaptionText is null) { ClearAndHide(); }
+            else { Refresh(); }
+        }
+    }
     private void OnDisplaysChanged(object? sender, EventArgs args)
     {
         if (disposed || failed) { return; }
@@ -63,7 +76,8 @@ public sealed class SpeechCaptionWindowController : ObservableObject, IDisposabl
 
     public void Refresh()
     {
-        if (disposed || failed) { return; }
+        if (disposed || failed || refreshing) { return; }
+        refreshing = true;
         try
         {
             var snapshot = displays.Capture();
@@ -71,7 +85,7 @@ public sealed class SpeechCaptionWindowController : ObservableObject, IDisposabl
             var target = ResolveTarget(snapshot);
             if (target is null)
             {
-                window.Hide();
+                ClearAndHide();
                 if (!targetUnavailable)
                 {
                     targetUnavailable = true;
@@ -83,25 +97,33 @@ public sealed class SpeechCaptionWindowController : ObservableObject, IDisposabl
             }
             if (targetUnavailable)
             {
-                window.Hide();
+                ClearAndHide();
                 presentation.ReportSpeechCaptionDisplayUnavailable(reportRecovery: false);
                 return;
             }
             presentation.RefreshSpeechPlaybackFrame();
             if (!presentation.IsSpeechCaptionVisible)
             {
-                window.Hide();
+                ClearAndHide();
                 return;
             }
+            presentation.EnsureReaderTypographyAvailable();
+            if (!presentation.IsSpeechCaptionVisible || presentation.SpeechCaptionText is not { } text)
+            {
+                ClearAndHide();
+                return;
+            }
+            window.ApplyCaption(text, presentation.ReaderTextScalePercent);
             Place(target);
             // Recheck source privacy after layout and before exposing the native text surface.
             if (presentation.IsSpeechCaptionVisible) { if (!window.IsVisible) { window.Show(); } }
-            else { window.Hide(); }
+            else { ClearAndHide(); }
         }
         catch (Exception exception) when (exception is not OutOfMemoryException)
         {
             FailPresentation(exception);
         }
+        finally { refreshing = false; }
     }
 
     private void UpdateChoices(CaptionDisplaySnapshot snapshot)
@@ -186,7 +208,7 @@ public sealed class SpeechCaptionWindowController : ObservableObject, IDisposabl
     {
         failed = true;
         timer.Stop();
-        window.Hide();
+        ClearAndHide();
         SetProperty(ref canSelect, false, nameof(CanSelect));
         presentation.ReportSpeechCaptionPresentationFailure(exception.GetType().Name);
     }
@@ -201,10 +223,7 @@ public sealed class SpeechCaptionWindowController : ObservableObject, IDisposabl
         var marginY = Math.Min(Math.Ceiling(24 * target.Scaling), (area.Height - 1) / 2);
         var width = Math.Min(520, (area.Width - 2 * marginX) / target.Scaling);
         var height = (area.Height - 2 * marginY) / target.Scaling;
-        var content = window.Content as Control
-            ?? throw new InvalidOperationException("The caption native surface is unavailable.");
-        content.Measure(new Size(width, height));
-        var measuredHeight = Math.Min(height, content.DesiredSize.Height);
+        var measuredHeight = Math.Min(height, window.MeasureOriginalContent(new Size(width, height)).Height);
         var pixelWidth = Math.Min(area.Width, (int)Math.Ceiling(width * target.Scaling));
         var pixelHeight = Math.Min(area.Height, (int)Math.Ceiling(measuredHeight * target.Scaling));
         var position = new PixelPoint(
@@ -229,14 +248,14 @@ public sealed class SpeechCaptionWindowController : ObservableObject, IDisposabl
     {
         if (Dispatcher.UIThread.CheckAccess())
         {
-            window.Hide();
+            ClearAndHide();
             InvalidateNativeChoices();
         }
         else
         {
             Dispatcher.UIThread.Post(() =>
             {
-                if (!disposed) { window.Hide(); InvalidateNativeChoices(); }
+                if (!disposed) { ClearAndHide(); InvalidateNativeChoices(); }
             });
         }
     }
@@ -246,6 +265,12 @@ public sealed class SpeechCaptionWindowController : ObservableObject, IDisposabl
         Dispose();
     }
 
+    private void ClearAndHide()
+    {
+        window.Hide();
+        window.ClearCaption();
+    }
+
     public void Dispose()
     {
         if (disposed) { return; }
@@ -253,10 +278,12 @@ public sealed class SpeechCaptionWindowController : ObservableObject, IDisposabl
         timer.Stop();
         timer.Tick -= OnFrame;
         presentation.PrivacyClosureRequested -= OnPrivacyClosure;
+        presentation.PropertyChanged -= OnPresentationChanged;
         displays.Changed -= OnDisplaysChanged;
         displays.Dispose();
         window.Closed -= OnClosed;
         window.DataContext = null;
+        window.ClearCaption();
         window.Close();
         choices = [];
         selectedChoice = null;

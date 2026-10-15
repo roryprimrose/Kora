@@ -45,7 +45,7 @@ public sealed partial class WindowsSqliteConversationTests
         using (var viewer = HostActivity.BeginRoot(Fresh(f.Request.SessionId), HostActivityLayer.Desktop, HostOperation.Request))
         {
             var audits = f.Count("security_audit_events");
-            var metadata = new SavedDraftMetadataFilter(1, 0, 16384);
+            var metadata = new SavedDraftMetadataFilter(1, 0, 16384, 1, 4096);
             var metadataPage = await f.Store.ReadSavedDraftPage(SessionListFilter.All, null, 1, () => true, f.Token,
                 metadataFilter: metadata);
             metadataPage.Records.Should().HaveCount(25);
@@ -53,7 +53,11 @@ public sealed partial class WindowsSqliteConversationTests
             var metadataTail = await f.Store.ReadSavedDraftPage(SessionListFilter.All, metadataPage.Next, 1, () => true, f.Token,
                 metadataFilter: metadata);
             metadataTail.Records.Should().HaveCount(25, "signed filters survive cursor serialization");
-            foreach (var alternate in new SavedDraftMetadataFilter?[] { null, new(2, 0, 16384), new(1, 1, 16384), new(1, 0, 16383) })
+            foreach (var alternate in new SavedDraftMetadataFilter?[]
+            {
+                null, new(1, 0, 16384), new(2, 0, 16384, 1, 4096), new(1, 1, 16384, 1, 4096),
+                new(1, 0, 16383, 1, 4096), new(1, 0, 16384, 2, 4096), new(1, 0, 16384, 1, 4095),
+            })
             {
                 var switchedMetadata = () => f.Store.ReadSavedDraftPage(SessionListFilter.All, metadataPage.Next, 1,
                     () => true, f.Token, metadataFilter: alternate).AsTask();
@@ -63,12 +67,12 @@ public sealed partial class WindowsSqliteConversationTests
                 () => true, f.Token, metadataFilter: metadata).AsTask();
             await tamperedMetadata.Should().ThrowAsync<InvalidDataException>();
             var zero = await f.Store.ReadSavedDraftPage(SessionListFilter.All, null, 1, () => true, f.Token,
-                metadataFilter: new(long.MaxValue, 0, 0));
+                metadataFilter: new(null, null, null, 0, 0));
             zero.Records.Should().BeEmpty();
             zero.Scanned.Should().Be(50);
             zero.Next.Should().NotBeNull();
             var zeroTail = await f.Store.ReadSavedDraftPage(SessionListFilter.All, zero.Next, 1, () => true, f.Token,
-                metadataFilter: new(long.MaxValue, 0, 0));
+                metadataFilter: new(null, null, null, 0, 0));
             zeroTail.Records.Should().BeEmpty();
             zeroTail.Scanned.Should().Be(21);
             zeroTail.Next.Should().BeNull();

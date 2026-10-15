@@ -39,6 +39,16 @@
           <TextBox x:Name="DraftMaximumBytesText" Text="{Binding MaximumBytesText, Mode=TwoWay}" Width="240"
                    IsEnabled="{Binding CanEditQuery}" AutomationProperties.Name="Inclusive maximum saved draft UTF-8 bytes; empty means Any; typing performs no read" />
         </StackPanel>
+        <StackPanel>
+          <TextBlock Text="Minimum Unicode scalars (inclusive)" />
+          <TextBox x:Name="DraftMinimumScalarsText" Text="{Binding MinimumScalarsText, Mode=TwoWay}" Width="240"
+                   IsEnabled="{Binding CanEditQuery}" AutomationProperties.Name="Inclusive minimum saved draft Unicode scalar count; empty means Any; typing performs no read" />
+        </StackPanel>
+        <StackPanel>
+          <TextBlock Text="Maximum Unicode scalars (inclusive)" />
+          <TextBox x:Name="DraftMaximumScalarsText" Text="{Binding MaximumScalarsText, Mode=TwoWay}" Width="240"
+                   IsEnabled="{Binding CanEditQuery}" AutomationProperties.Name="Inclusive maximum saved draft Unicode scalar count; empty means Any; typing performs no read" />
+        </StackPanel>
       </WrapPanel>
       <controls:NamedTextBlock Text="{Binding MetadataHint}" TextWrapping="Wrap" />
     </StackPanel>

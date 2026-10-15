@@ -20,7 +20,7 @@ namespace Kora.Windows.IntegrationTests;
 public sealed partial class SessionsConversationTests
 {
     private static readonly string[] InvalidDraftMetadataIntegers =
-        [" ", "+1", "-1", "1,000", "1.5", "1 ", "9223372036854775808"];
+        [" ", " 1", "+1", "-1", "1,000", "1_000", "1.5", "1e2", "1 ", "1\n", "1\0", "１", "١", "9223372036854775808"];
 
     [Fact]
     public async Task NativeSavedDraftMetadataControlsAreAccessibleStrictAndRevokeWithoutReading()
@@ -47,8 +47,10 @@ public sealed partial class SessionsConversationTests
                 var revision = window.FindControl<TextBox>("DraftRevisionText")!;
                 var minimum = window.FindControl<TextBox>("DraftMinimumBytesText")!;
                 var maximum = window.FindControl<TextBox>("DraftMaximumBytesText")!;
+                var minimumScalars = window.FindControl<TextBox>("DraftMinimumScalarsText")!;
+                var maximumScalars = window.FindControl<TextBox>("DraftMaximumScalarsText")!;
                 var search = window.FindControl<Button>("RefreshPage")!;
-                foreach (var control in new[] { revision, minimum, maximum })
+                foreach (var control in new[] { revision, minimum, maximum, minimumScalars, maximumScalars })
                 {
                     ControlAutomationPeer.CreatePeerForElement(control)!.GetName().Should().NotBeNullOrWhiteSpace();
                     control.Focusable.Should().BeTrue();
@@ -74,12 +76,23 @@ public sealed partial class SessionsConversationTests
                 maximum.Text = "16385";
                 model.CanSearch.Should().BeFalse();
                 maximum.Text = "4";
+                minimumScalars.Text = "4097";
+                model.CanSearch.Should().BeFalse();
+                minimumScalars.Text = "2";
+                maximumScalars.Text = "1";
+                model.CanSearch.Should().BeFalse();
+                minimumScalars.Text = "1";
+                maximumScalars.Text = "4097";
+                model.CanSearch.Should().BeFalse();
+                maximumScalars.Text = "1";
                 reads.Should().Be(0);
                 search.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
                 await window.Operation;
                 model.Records.Should().ContainSingle().Which.Utf8Bytes.Should().Be(4);
+                model.Records.Single().UnicodeScalars.Should().Be(1, "the emoji is one scalar, not two UTF-16 code units or four bytes");
                 model.Select(model.Records.Single());
-                revision.Text = "2";
+                maximumScalars.Text = "";
+                minimumScalars.Text = "2";
                 model.Records.Should().BeEmpty();
                 model.SelectedRecord.Should().BeNull();
                 model.CanNavigate.Should().BeFalse();
@@ -93,18 +106,72 @@ public sealed partial class SessionsConversationTests
                 model.RevisionText.Should().BeEmpty();
                 model.MinimumBytesText.Should().BeEmpty();
                 model.MaximumBytesText.Should().BeEmpty();
+                model.MinimumScalarsText.Should().BeEmpty();
+                model.MaximumScalarsText.Should().BeEmpty();
                 reads.Should().Be(2);
                 revision.Text = "1";
                 minimum.Text = "0";
                 maximum.Text = "16384";
+                minimumScalars.Text = "0";
+                maximumScalars.Text = "4096";
                 window.Close();
                 model.RevisionText.Should().BeEmpty();
                 model.MinimumBytesText.Should().BeEmpty();
                 model.MaximumBytesText.Should().BeEmpty();
+                model.MinimumScalarsText.Should().BeEmpty();
+                model.MaximumScalarsText.Should().BeEmpty();
                 f.Count("conversation_messages").Should().Be(0);
             }
             finally { window.Close(); }
         });
+    }
+
+    [Fact]
+    public async Task SavedDraftScalarEditsImmediatelyRevokeRealContinuationAndSelectionWithoutARead()
+    {
+        using var f = new InteractionStorageFixture();
+        await f.InitializeAsync();
+        await WindowsSqliteConversationTests.FinishInitial(f);
+        for (var index = 0; index < SavedDraftPage.MaximumRecords + 1; index++)
+        {
+            if (index != 0)
+            {
+                f.Request = InteractionStorageFixture.NewRequest();
+                await f.AdmitAsync(newSession: true);
+                await WindowsSqliteConversationTests.FinishInitial(f);
+            }
+            await WindowsSqliteConversationTests.Save(f,
+                await f.Store.ReadConversationDraftAsync(f.Request.SessionId, f.Token), "🙂");
+        }
+        var checkpoint = new CatalogueCheckpoint();
+        var reads = 0;
+        checkpoint.Read = () => reads++;
+        f.Reopen(checkpoint);
+        await f.Store.InitializeAsync(f.Token);
+        var access = new WindowsSqliteSessionWorkspaceTests.Access();
+        using var model = new SavedDraftCatalogueViewModel(WindowsSqliteSessionWorkspaceTests.Service(f, access),
+            (_, _, _) => Task.FromResult(false), access, () => true, NullLogger<SavedDraftCatalogueViewModel>.Instance);
+        foreach (var minimum in new[] { true, false })
+        {
+            await model.Refresh();
+            var row = model.Records[0];
+            model.Select(row);
+            model.CanNext.Should().BeTrue();
+            model.CanNavigate.Should().BeTrue();
+            var observedReads = reads;
+            if (minimum) { model.MinimumScalarsText = "1"; }
+            else { model.MaximumScalarsText = "4096"; }
+            reads.Should().Be(observedReads);
+            model.Records.Should().BeEmpty();
+            model.SelectedRecord.Should().BeNull();
+            model.CanNext.Should().BeFalse();
+            model.CanNavigate.Should().BeFalse();
+            model.CanSearch.Should().BeTrue();
+        }
+        model.ClearQuery();
+        model.MinimumScalarsText.Should().BeEmpty();
+        model.MaximumScalarsText.Should().BeEmpty();
+        f.Count("conversation_messages").Should().Be(0);
     }
 
     [Fact]
@@ -218,6 +285,8 @@ public sealed partial class SessionsConversationTests
     [InlineData("revision")]
     [InlineData("minimum")]
     [InlineData("maximum")]
+    [InlineData("scalar-minimum")]
+    [InlineData("scalar-maximum")]
     public async Task QueryEpochRevocationDuringExactDraftNavigationPreservesTheCurrentDirtyComposer(string boundary)
     {
         using var f = new InteractionStorageFixture();
@@ -248,6 +317,8 @@ public sealed partial class SessionsConversationTests
             else if (boundary is "revision") { model.RevisionText = "2"; }
             else if (boundary is "minimum") { model.MinimumBytesText = "1"; }
             else if (boundary is "maximum") { model.MaximumBytesText = "1"; }
+            else if (boundary is "scalar-minimum") { model.MinimumScalarsText = "1"; }
+            else if (boundary is "scalar-maximum") { model.MaximumScalarsText = "1"; }
             else { model.Filter = SessionListFilter.Done; }
         };
         await model.Navigate();
@@ -269,6 +340,8 @@ public sealed partial class SessionsConversationTests
     [InlineData("revision")]
     [InlineData("minimum")]
     [InlineData("maximum")]
+    [InlineData("scalar-minimum")]
+    [InlineData("scalar-maximum")]
     [InlineData("private")]
     [InlineData("failure")]
     public async Task DraftQueryChangesRevokePendingPagesAndKeepLateCallbacksFromRestoringPrivateResults(string boundary)
@@ -289,6 +362,8 @@ public sealed partial class SessionsConversationTests
         model.RevisionText = "1";
         model.MinimumBytesText = "1";
         model.MaximumBytesText = "16384";
+        model.MinimumScalarsText = "1";
+        model.MaximumScalarsText = "4096";
         checkpoint.Read = () =>
         {
             checkpoint.Read = null;
@@ -300,6 +375,8 @@ public sealed partial class SessionsConversationTests
                 case "revision": model.RevisionText = "2"; break;
                 case "minimum": model.MinimumBytesText = "2"; break;
                 case "maximum": model.MaximumBytesText = "2"; break;
+                case "scalar-minimum": model.MinimumScalarsText = "2"; break;
+                case "scalar-maximum": model.MaximumScalarsText = "2"; break;
                 case "private": access.CanInspect = false; model.SynchronizeAuthority(); break;
                 case "failure": throw new InvalidDataException("source failed");
                 case "source": model.Revoke(); break;
@@ -320,6 +397,8 @@ public sealed partial class SessionsConversationTests
             model.RevisionText.Should().BeEmpty();
             model.MinimumBytesText.Should().BeEmpty();
             model.MaximumBytesText.Should().BeEmpty();
+            model.MinimumScalarsText.Should().BeEmpty();
+            model.MaximumScalarsText.Should().BeEmpty();
         }
         f.Count("conversation_messages").Should().Be(0);
     }

@@ -25,6 +25,8 @@ internal sealed partial class SavedDraftCatalogueViewModel(
     private string revisionText = string.Empty;
     private string minimumBytesText = string.Empty;
     private string maximumBytesText = string.Empty;
+    private string minimumScalarsText = string.Empty;
+    private string maximumScalarsText = string.Empty;
     private bool disposed;
     private long epoch;
     private long controlRevision = access.ControlRevision;
@@ -84,6 +86,16 @@ internal sealed partial class SavedDraftCatalogueViewModel(
         get => maximumBytesText;
         set => EditMetadata(ref maximumBytesText, value);
     }
+    public string MinimumScalarsText
+    {
+        get => minimumScalarsText;
+        set => EditMetadata(ref minimumScalarsText, value);
+    }
+    public string MaximumScalarsText
+    {
+        get => maximumScalarsText;
+        set => EditMetadata(ref maximumScalarsText, value);
+    }
     private void EditMetadata(ref string field, string value)
     {
         if (!CanEditQuery || string.Equals(field, value, StringComparison.Ordinal)) { return; }
@@ -91,12 +103,16 @@ internal sealed partial class SavedDraftCatalogueViewModel(
         field = value;
         Notify();
     }
-    public string MetadataHint => SavedDraftMetadataFilter.IsValid(revisionText, minimumBytesText, maximumBytesText)
-        ? "Optional exact saved revision and inclusive UTF-8 byte range; empty means Any. Decimal digits only; byte bounds 0-"
-            + Kora.Core.Conversation.ConversationText.MaximumUtf8Bytes.ToString(CultureInfo.InvariantCulture) + ". No body read."
-        : "Invalid metadata filter: Search/Refresh refused. Use positive revision and byte bounds within the conversation maximum, minimum <= maximum; no signs, whitespace, separators or overflow.";
+    private bool ValidMetadata => SavedDraftMetadataFilter.IsValid(revisionText, minimumBytesText, maximumBytesText,
+        minimumScalarsText, maximumScalarsText);
+    public string MetadataHint => ValidMetadata
+        ? "Optional exact saved revision and inclusive UTF-8 byte / Unicode scalar ranges; empty means Any. Decimal digits only; byte bounds 0-"
+            + Kora.Core.Conversation.ConversationText.MaximumUtf8Bytes.ToString(CultureInfo.InvariantCulture)
+            + "; scalar bounds 0-" + Kora.Core.Conversation.ConversationText.MaximumUtf16Characters.ToString(CultureInfo.InvariantCulture)
+            + ". Validated metadata only, not code units or a body read."
+        : "Invalid metadata filter: Search/Refresh refused. Use positive revision and byte/scalar bounds within their conversation maxima, minimum <= maximum; no signs, whitespace, separators or overflow.";
     public bool CanEditQuery => !disposed && access.CanInspect && admitted();
-    public bool CanSearch => CanRead && SavedDraftMetadataFilter.IsValid(revisionText, minimumBytesText, maximumBytesText)
+    public bool CanSearch => CanRead && ValidMetadata
         && (mode == SavedDraftCatalogueMode.Browse || SessionListSearch.IsValid(QueryKind, filter, queryText));
     public string QueryHint => mode == SavedDraftCatalogueMode.Browse
         ? "Browse retained saved drafts. Clear explicitly returns to Browse; typing never reads."
@@ -127,7 +143,8 @@ internal sealed partial class SavedDraftCatalogueViewModel(
     public Task Refresh(bool next = false) => Run(async (current, token) =>
     {
         var query = mode == SavedDraftCatalogueMode.Browse ? null : new SessionListSearch(QueryKind, filter, queryText);
-        var metadataFilter = SavedDraftMetadataFilter.Parse(revisionText, minimumBytesText, maximumBytesText);
+        var metadataFilter = SavedDraftMetadataFilter.Parse(revisionText, minimumBytesText, maximumBytesText,
+            minimumScalarsText, maximumScalarsText);
         var cursor = next ? page?.Next ?? throw new InvalidOperationException("Refresh before Next.") : null;
         Clear();
         var result = await service.ReadSavedDraftCatalogue(filter, cursor, current, token, query, metadataFilter);
@@ -223,7 +240,14 @@ internal sealed partial class SavedDraftCatalogueViewModel(
         Notify();
     }
     private void Clear() { page = null; selected = null; }
-    private void ClearMetadata() { revisionText = string.Empty; minimumBytesText = string.Empty; maximumBytesText = string.Empty; }
+    private void ClearMetadata()
+    {
+        revisionText = string.Empty;
+        minimumBytesText = string.Empty;
+        maximumBytesText = string.Empty;
+        minimumScalarsText = string.Empty;
+        maximumScalarsText = string.Empty;
+    }
     public void Dispose()
     {
         if (disposed) { return; }
@@ -242,6 +266,7 @@ internal sealed partial class SavedDraftCatalogueViewModel(
         foreach (var name in new[] { nameof(Records), nameof(SelectedRecord), nameof(SelectedDetails), nameof(Status),
             nameof(Filter), nameof(Mode), nameof(QueryText), nameof(QueryHint), nameof(CanEditQuery),
             nameof(RevisionText), nameof(MinimumBytesText), nameof(MaximumBytesText), nameof(MetadataHint),
+            nameof(MinimumScalarsText), nameof(MaximumScalarsText),
             nameof(CanSearch), nameof(CanRead), nameof(CanNext), nameof(CanNavigate), nameof(CanCancel) })
         { OnPropertyChanged(name); }
     }

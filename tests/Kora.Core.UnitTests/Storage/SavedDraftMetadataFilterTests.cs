@@ -50,13 +50,94 @@ public sealed class SavedDraftMetadataFilterTests
     [InlineData("١")]
     [InlineData("\uD800")]
     [InlineData("9223372036854775808")]
-    public void EveryNonemptyInvalidIntegerRefusesAllThreeFields(string text)
+    public void EveryNonemptyInvalidIntegerRefusesAllFiveFields(string text)
     {
         SavedDraftMetadataFilter.IsValid(text, "", "").Should().BeFalse();
         SavedDraftMetadataFilter.IsValid("", text, "").Should().BeFalse();
         SavedDraftMetadataFilter.IsValid("", "", text).Should().BeFalse();
+        SavedDraftMetadataFilter.IsValid("", "", "", text, "").Should().BeFalse();
+        SavedDraftMetadataFilter.IsValid("", "", "", "", text).Should().BeFalse();
         var parse = () => SavedDraftMetadataFilter.Parse(text, "", "");
         parse.Should().Throw<InvalidDataException>();
+    }
+
+    [Theory]
+    [InlineData("", "", null, null)]
+    [InlineData("0", "", 0L, null)]
+    [InlineData("", "0", null, 0L)]
+    [InlineData("0", "0", 0L, 0L)]
+    [InlineData("1", "", 1L, null)]
+    [InlineData("", "1", null, 1L)]
+    [InlineData("0001", "0001", 1L, 1L)]
+    [InlineData("0", "4096", 0L, 4096L)]
+    [InlineData("4096", "", 4096L, null)]
+    [InlineData("", "4096", null, 4096L)]
+    [InlineData("4096", "4096", 4096L, 4096L)]
+    public void ScalarRangesRoundTripWithRevisionAndBytes(string minimum, string maximum,
+        long? expectedMinimum, long? expectedMaximum)
+    {
+        var filter = SavedDraftMetadataFilter.Parse("2", "4", "16384", minimum, maximum);
+        filter.Should().Be(new SavedDraftMetadataFilter(2, 4, 16384, expectedMinimum, expectedMaximum));
+        filter.MinimumUnicodeScalars.Should().Be(expectedMinimum);
+        filter.MaximumUnicodeScalars.Should().Be(expectedMaximum);
+        SavedDraftMetadataFilter.IsValid("2", "4", "16384", minimum, maximum).Should().BeTrue();
+        JsonSerializer.Deserialize<SavedDraftMetadataFilter>(JsonSerializer.Serialize(filter)).Should().Be(filter);
+        ConversationText.MaximumUtf16Characters.Should().Be(4096);
+    }
+
+    [Theory]
+    [InlineData("4097", "")]
+    [InlineData("", "4097")]
+    [InlineData("2", "1")]
+    [InlineData("9223372036854775807", "")]
+    [InlineData("", "9223372036854775807")]
+    public void ScalarRangeNeverClampsOrRepairs(string minimum, string maximum)
+    {
+        SavedDraftMetadataFilter.IsValid("", "", "", minimum, maximum).Should().BeFalse();
+        var parse = () => SavedDraftMetadataFilter.Parse("", "", "", minimum, maximum);
+        parse.Should().Throw<InvalidDataException>();
+    }
+
+    [Theory]
+    [InlineData(-1L, null)]
+    [InlineData(4097L, null)]
+    [InlineData(null, -1L)]
+    [InlineData(null, 4097L)]
+    [InlineData(2L, 1L)]
+    public void TypedScalarBoundsRejectInvalidValues(long? minimum, long? maximum)
+    {
+        var create = () => new SavedDraftMetadataFilter(null, null, null, minimum, maximum);
+        create.Should().Throw<InvalidDataException>();
+    }
+
+    [Theory]
+    [InlineData(null, null, 1L, true)]
+    [InlineData(0L, null, 1L, true)]
+    [InlineData(null, 0L, 1L, false)]
+    [InlineData(0L, 0L, 1L, false)]
+    [InlineData(1L, null, 1L, true)]
+    [InlineData(2L, null, 1L, false)]
+    [InlineData(null, 1L, 1L, true)]
+    [InlineData(null, 1L, 2L, false)]
+    [InlineData(1L, 1L, 1L, true)]
+    [InlineData(1L, 2L, 2L, true)]
+    [InlineData(0L, 4096L, 4096L, true)]
+    [InlineData(4096L, null, 4096L, true)]
+    [InlineData(null, 4096L, 4096L, true)]
+    [InlineData(4096L, 4096L, 4096L, true)]
+    [InlineData(4096L, 4096L, 4095L, false)]
+    public void ScalarMatchingUsesOnlyInclusiveValidatedSummary(long? minimum, long? maximum, long scalars, bool matches)
+    {
+        var row = new SavedDraftSummary(Guid.NewGuid(), new(Guid.NewGuid()),
+            new(new(Guid.NewGuid()), new(1), true), null, 2, 16384, scalars, 1, 1, new string('a', 64));
+        row.Validate();
+        var filter = new SavedDraftMetadataFilter(2, 16384, 16384, minimum, maximum);
+        filter.Matches(row).Should().Be(matches);
+        filter.Matches(row with { DraftRevision = 1 }).Should().BeFalse();
+        filter.Matches(row with { Utf8Bytes = 16383 }).Should().BeFalse();
+        var page = new SavedDraftPage(SessionListFilter.All, [row], null, 1, 0, false, MetadataFilter: filter);
+        if (matches) { page.Validate(); }
+        else { page.Invoking(value => value.Validate()).Should().Throw<InvalidDataException>(); }
     }
 
     [Theory]
@@ -113,6 +194,11 @@ public sealed class SavedDraftMetadataFilterTests
         foreach (var fields in new (string, string, string)[] { (null!, "", ""), ("", null!, ""), ("", "", null!) })
         {
             var parse = () => SavedDraftMetadataFilter.Parse(fields.Item1, fields.Item2, fields.Item3);
+            parse.Should().Throw<ArgumentNullException>();
+        }
+        foreach (var fields in new (string, string)[] { (null!, ""), ("", null!) })
+        {
+            var parse = () => SavedDraftMetadataFilter.Parse("", "", "", fields.Item1, fields.Item2);
             parse.Should().Throw<ArgumentNullException>();
         }
         ConversationText.MaximumUtf8Bytes.Should().Be(16384);

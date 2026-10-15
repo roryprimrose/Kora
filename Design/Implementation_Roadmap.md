@@ -60,7 +60,11 @@ Existing exact lock behavior and non-executing power proposals are unchanged.
 
 The delivered [passive exact-conversation search](Interaction_And_Sessions.md#delivered-passive-exact-conversation-lexical-search--2026-10-13)
 also composes an optional All/USER/HOST field filter in Sessions and shared compact
-projection. Immutable bodies, typed HOST fields, bounded validated chronological
+projection, plus optional exact terminal outcome/reason/expected-task-state
+predicates with Any. One portable filter ANDs typed terminal HOST metadata with
+query/role; USER-only plus a predicate truthfully yields zero without repair.
+Every edit revokes shared results/navigation/continuation without reads.
+Immutable bodies, typed HOST fields, bounded validated chronological
 scan and exact query/filter/source/private snapshot fences remain authoritative.
 No global/history search, storage/index/schema/cache, model/provider authority or
 installed accessibility/full conversation qualification is added.

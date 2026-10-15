@@ -18,6 +18,18 @@ Enter searches; Escape clears only search state without closing, moving question
 Results use the same inert native original USER/separate HOST row template as chronological pages. Their request/task IDs and exact bodies are not reinterpreted as answers or executable actions. No result navigation to another session or automatic saved-draft reload occurs. Active and retained Done use the same admitted exact-session reader, snapshot continuation and final source validation.
 
 The [canonical search contract](Interaction_And_Sessions.md#delivered-passive-exact-conversation-lexical-search--2026-10-13) owns lexical/work/output bounds, counters and invalidation. Session/source/private changes clear query, rows and cursor and fence in-flight publication.
+Both views additionally expose labelled, keyboard-focusable **Terminal outcome**,
+**Terminal reason** and **Expected terminal task state** selectors with accessible
+names identifying their exact HOST enum and no-read edit behavior. Each defaults
+to **Any** and uses the same shared volatile typed filter. Predicates AND with
+query/role; USER-only with any predicate remains selected and truthfully yields
+zero. Editing any selector immediately revokes rows, selected navigation,
+continuation and delayed callbacks in both views without reading. Clear and
+source/private revocation reset all terminal selectors to Any. No body rewrite,
+assistant prose, generated output or receipt-history search is added.
+The [terminal-control tests](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.ConversationTerminal.cs)
+cover all defined choices/Any, shared binding, no-read revocation and explicit
+invalid-enum refusal; headless controls are not installed accessibility proof.
 The [compact projection](../src/Kora/CompactSessionWindow.axaml) exposes these same controls over the workspace's single query/filter/page/cursor and cancellation state. Opening either view, typing or changing the field filter reads nothing; closing one view retains the shared state until the last owner closes. [Headless shared-search tests](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.CompactSearch.cs) cover keyboard actions, retained Done, saved baseline and late-source revocation; [native field-filter tests](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.ConversationRole.cs) cover shared binding, accessible control names, zero/invalid filters and no-read selection/continuation revocation.
 Native-only query entry adds no activated/model descriptor or generic-global-search retarget. Headless binding tests do not qualify installed keyboard/accessibility/DPI or full R12/R14 runtime acceptance.
 

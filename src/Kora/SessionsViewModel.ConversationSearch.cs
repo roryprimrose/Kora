@@ -1,7 +1,9 @@
 using System.Globalization;
 
 using Kora.Core.Conversation;
+using Kora.Core.Dependencies;
 using Kora.Core.Diagnostics;
+using Kora.Core.Hosting;
 using Kora.Core.Storage;
 
 namespace Kora;
@@ -10,6 +12,7 @@ internal sealed partial class SessionsViewModel
 {
     private string conversationQuery = string.Empty;
     private ConversationSearchRole conversationRole;
+    private ConversationTerminalFilter conversationTerminal;
     private ConversationSearchPage? conversationSearchPage;
     private CancellationTokenSource? conversationSearchCancellation;
     private long conversationSearchEpoch;
@@ -50,6 +53,53 @@ internal sealed partial class SessionsViewModel
         }
     }
     public IReadOnlyList<ConversationMessage> ConversationSearchMessages => conversationSearchPage?.Messages ?? [];
+    public ModelTurnOutcome? ConversationOutcome
+    {
+        get => conversationTerminal.Outcome;
+        set => EditConversationTerminal(conversationTerminal with { Outcome = value });
+    }
+    public ModelTurnReason? ConversationReason
+    {
+        get => conversationTerminal.Reason;
+        set => EditConversationTerminal(conversationTerminal with { Reason = value });
+    }
+    public HostTaskState? ConversationTaskState
+    {
+        get => conversationTerminal.TaskState;
+        set => EditConversationTerminal(conversationTerminal with { TaskState = value });
+    }
+    public IReadOnlyList<ConversationTerminalOption<ModelTurnOutcome>> ConversationOutcomes { get; } =
+        [new(null), .. Enum.GetValues<ModelTurnOutcome>().Select(value => new ConversationTerminalOption<ModelTurnOutcome>(value))];
+    public IReadOnlyList<ConversationTerminalOption<ModelTurnReason>> ConversationReasons { get; } =
+        [new(null), .. Enum.GetValues<ModelTurnReason>().Select(value => new ConversationTerminalOption<ModelTurnReason>(value))];
+    public IReadOnlyList<ConversationTerminalOption<HostTaskState>> ConversationTaskStates { get; } =
+        [new(null), .. Enum.GetValues<HostTaskState>().Select(value => new ConversationTerminalOption<HostTaskState>(value))];
+    public ConversationTerminalOption<ModelTurnOutcome> ConversationOutcomeChoice
+    {
+        get => ConversationOutcomes.FirstOrDefault(option => option.Value == ConversationOutcome) ?? new(ConversationOutcome);
+        set { if (value is not null) { ConversationOutcome = value.Value; } }
+    }
+    public ConversationTerminalOption<ModelTurnReason> ConversationReasonChoice
+    {
+        get => ConversationReasons.FirstOrDefault(option => option.Value == ConversationReason) ?? new(ConversationReason);
+        set { if (value is not null) { ConversationReason = value.Value; } }
+    }
+    public ConversationTerminalOption<HostTaskState> ConversationTaskStateChoice
+    {
+        get => ConversationTaskStates.FirstOrDefault(option => option.Value == ConversationTaskState) ?? new(ConversationTaskState);
+        set { if (value is not null) { ConversationTaskState = value.Value; } }
+    }
+
+    private void EditConversationTerminal(ConversationTerminalFilter value)
+    {
+        if (closed || !access.CanInspect || conversationTerminal == value) { return; }
+        InvalidateConversationSearch();
+        conversationTerminal = value;
+        conversationSearchTarget = selected;
+        conversationSearchControlRevision = access.ControlRevision;
+        conversationSearchStatus = "Terminal HOST filter edited. Explicit Search required; USER-only with a terminal predicate yields zero.";
+        NotifyConversationSearch();
+    }
     public bool CanSearchConversation => CanReadConversation && !conversationSearchBusy;
     public bool CanNextConversationSearch => CanSearchConversation && conversationSearchPage?.Next is not null;
     public bool CanCancelConversationSearch => conversationSearchBusy;
@@ -59,6 +109,7 @@ internal sealed partial class SessionsViewModel
         InvalidateConversationSearch();
         conversationQuery = string.Empty;
         conversationRole = ConversationSearchRole.All;
+        conversationTerminal = default;
         conversationSearchTarget = null;
         conversationSearchStatus = "Private search query, rows and continuation cleared. Composer and saved draft unchanged.";
         NotifyConversationSearch();
@@ -84,6 +135,7 @@ internal sealed partial class SessionsViewModel
         var revision = access.ControlRevision;
         var query = conversationQuery;
         var role = conversationRole;
+        var terminal = conversationTerminal;
         conversationSearchTarget = target;
         conversationSearchControlRevision = revision;
         var cursor = next ? conversationSearchPage?.Next : null;
@@ -102,7 +154,7 @@ internal sealed partial class SessionsViewModel
         {
             if (next && cursor is null) { throw new ArgumentException("CursorMismatch", nameof(next)); }
             var result = await conversation!.SearchAsync(target.Authority.SessionId, query, cursor,
-                ConversationSearchPage.DefaultRecords, cancellation.Token, role);
+                ConversationSearchPage.DefaultRecords, cancellation.Token, role, terminal);
             cancellation.Token.ThrowIfCancellationRequested();
             if (!Live() || result.Session != target.Authority)
             { throw new OperationCanceledException("Exact private conversation search was revoked."); }
@@ -124,11 +176,12 @@ internal sealed partial class SessionsViewModel
                     InvalidateConversationSearch();
                     conversationQuery = string.Empty;
                     conversationRole = ConversationSearchRole.All;
+                    conversationTerminal = default;
                     conversationSearchTarget = null;
                 }
                 conversationSearchStatus = exception switch
                 {
-                    ArgumentException => "InvalidQuery, InvalidRole or CursorMismatch. Select All, USER or HOST; use 1-256 UTF-16 characters / 512 UTF-8 bytes with 1-32 distinct lexical terms of at most 64 characters; start fresh Search.",
+                    ArgumentException => "InvalidQuery, InvalidRole, InvalidTerminalFilter or CursorMismatch. Select defined roles and Any or exact typed terminal values; use 1-256 UTF-16 characters / 512 UTF-8 bytes with 1-32 distinct lexical terms of at most 64 characters; start fresh Search.",
                     ConversationSnapshotChangedException => "Snapshot changed. No search content; start a fresh Search.",
                     OperationCanceledException => "Search cancelled. No search content or successful observation inferred.",
                     _ => "Exact conversation search unavailable. No search content; refresh the selected source and start fresh Search.",
@@ -154,12 +207,20 @@ internal sealed partial class SessionsViewModel
             InvalidateConversationSearch();
             conversationQuery = string.Empty;
             conversationRole = ConversationSearchRole.All;
+            conversationTerminal = default;
             conversationSearchTarget = null;
             conversationSearchStatus = "Exact session/source or private ownership changed. Private search cleared; explicit fresh Search required.";
         }
-        foreach (var name in new[] { nameof(ConversationQuery), nameof(ConversationRole), nameof(ConversationSearchStatus),
+        foreach (var name in new[] { nameof(ConversationQuery), nameof(ConversationRole), nameof(ConversationOutcome),
+            nameof(ConversationReason), nameof(ConversationTaskState), nameof(ConversationOutcomeChoice),
+            nameof(ConversationReasonChoice), nameof(ConversationTaskStateChoice), nameof(ConversationSearchStatus),
             nameof(ConversationSearchMessages), nameof(CanSearchConversation), nameof(CanNextConversationSearch),
             nameof(CanCancelConversationSearch) })
         { OnPropertyChanged(name); }
+    }
+
+    internal sealed record ConversationTerminalOption<T>(T? Value) where T : struct, Enum
+    {
+        public override string ToString() => Value?.ToString() ?? "Any";
     }
 }

@@ -9,13 +9,13 @@ public sealed partial class SessionWorkspaceService
 {
     public Task<ConversationSearchPage> SearchConversationAsync(HostId<SessionIdentity> session, string query,
         ConversationSearchCursor? cursor, int limit, CancellationToken token,
-        ConversationSearchRole role = ConversationSearchRole.All) =>
+        ConversationSearchRole role = ConversationSearchRole.All, ConversationTerminalFilter terminal = default) =>
         ReadAsync(async () =>
         {
             session.Validate();
             if (limit is <= 0 or > ConversationText.MaximumPageRecords) { throw new ArgumentOutOfRangeException(nameof(limit)); }
-            var search = new ConversationSearch(query, role);
-            if (cursor is not null && (cursor.Role != search.Role
+            var search = new ConversationSearch(query, role, terminal);
+            if (cursor is not null && (cursor.Role != search.Role || cursor.Terminal != search.Terminal
                 || !string.Equals(cursor.QueryDigest, search.Digest, StringComparison.Ordinal)))
             { throw new ArgumentException("CursorMismatch: start a fresh conversation search.", nameof(cursor)); }
             var continuation = cursor?.Conversation;
@@ -35,8 +35,10 @@ public sealed partial class SessionWorkspaceService
                 if (page.Messages.IsEmpty && after < page.Ceiling)
                 { throw new InvalidDataException("The exact conversation snapshot has an unavailable sequence gap."); }
                 ConversationSearchCursor? Next(long sequence) => sequence < page.Ceiling
-                    ? new(new(session, page.Session.Generation, page.Ceiling, sequence, page.HeadRevision), search.Digest, search.Role) : null;
-                result = new(page.Session, page.HeadRevision, page.Ceiling, search.Digest, records.ToImmutable(), scanned, Next(after), search.Role);
+                    ? new(new(session, page.Session.Generation, page.Ceiling, sequence, page.HeadRevision),
+                        search.Digest, search.Role, search.Terminal) : null;
+                result = new(page.Session, page.HeadRevision, page.Ceiling, search.Digest, records.ToImmutable(), scanned,
+                    Next(after), search.Role, search.Terminal);
                 foreach (var message in page.Messages)
                 {
                     token.ThrowIfCancellationRequested();

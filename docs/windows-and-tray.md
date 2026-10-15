@@ -84,6 +84,17 @@ Dirty means the current body differs exactly from its last confirmed saved memor
 Select an exact session in **Sessions**, then use **Search this conversation** in its conversation pane or **Compact selected-session conversation**. Both views share one private query, result page, continuation and cancellation state; edits and actions in either are reflected in the other ([shared search state](../src/Kora/SessionsViewModel.ConversationSearch.cs), [compact controls](../src/Kora/CompactSessionWindow.axaml)). Search matches whole lexical words in original retained **USER** messages or separate typed **HOST** outcome/reason/task-state fields.
 It never searches other sessions, saved draft bodies, Question/Answer receipts, logs, attachments, memories or accounts ([admitted reader](../src/Kora.Application/Hosting/SessionWorkspaceService.ConversationSearch.cs)).
 
+Choose **All**, **USER** or **HOST** for the lexical fields, then optionally select
+an exact **Terminal outcome**, **Terminal reason** and **Expected terminal task
+state**. Each terminal selector defaults to **Any**. Selected predicates all AND
+with the query and role, matching only terminal HOST metadata, never status-like
+words in USER text. USER-only with any terminal predicate is valid and yields
+zero without changing your selections; incompatible defined combinations also
+truthfully yield zero. Editing any field immediately clears results, selected
+navigation and Next in both views and fences late callbacks without reading.
+Explicit Search is required. Clear resets the role to All and terminal fields
+to Any; no query or filter is saved, logged or sent to a model.
+
 Queries use 1–256 UTF-16 characters / 512 UTF-8 bytes and 1–32 distinct terms of at most 64 characters. NFC/invariant case and whole-word OR apply; punctuation separates words rather than becoming regex/wildcard/instruction syntax. Blank or invalid queries explicitly fail, never show every message. Typing alone does not search or save the query.
 
 Results are chronological exact messages, not generated answers, summaries or relevance ranking. Each read scans at most the existing 100-message session bound; default 25 / maximum 50 complete results, counters and cursor fit 64 KiB. **Next conversation matches** stays on the original generation/sequence ceiling/head; later append is excluded and changed terminal status requires fresh Search.

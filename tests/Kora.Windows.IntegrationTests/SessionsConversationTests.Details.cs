@@ -5,6 +5,7 @@ using Avalonia.VisualTree;
 using AwesomeAssertions;
 
 using Kora.Core.Conversation;
+using Kora.Core.Dependencies;
 using Kora.Core.Diagnostics;
 using Kora.Core.Hosting;
 using Kora.Core.Presentation;
@@ -15,9 +16,12 @@ namespace Kora.Windows.IntegrationTests;
 public sealed partial class SessionsConversationTests
 {
     [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public async Task CriteriaEditsFenceLateDetailCallbacksWithoutClearingIndependentComposer(bool roleEdit)
+    [InlineData("query")]
+    [InlineData("role")]
+    [InlineData("outcome")]
+    [InlineData("reason")]
+    [InlineData("task-state")]
+    public async Task CriteriaEditsFenceLateDetailCallbacksWithoutClearingIndependentComposer(string edit)
     {
         using var f = new InteractionStorageFixture();
         await f.InitializeAsync();
@@ -38,21 +42,23 @@ public sealed partial class SessionsConversationTests
         await model.SearchConversationAsync();
         var pending = model.OpenConversationDetailAsync(model.ConversationSearchMessages.Single());
         await entered.Task;
-        if (roleEdit) { model.ConversationRole = ConversationSearchRole.HOST; }
-        else { model.ConversationQuery = "different"; }
+        EditSearchCriteria(model, edit);
         release.SetResult("stale success must not publish");
         await pending;
         model.ConversationStatus.Should().Contain("navigation revoked").And.NotContain("stale success");
         model.ConversationSearchMessages.Should().BeEmpty();
-        model.ConversationRole.Should().Be(roleEdit ? ConversationSearchRole.HOST : ConversationSearchRole.All);
-        model.ConversationQuery.Should().Be(roleEdit ? "marker" : "different");
+        model.ConversationRole.Should().Be(edit is "role" ? ConversationSearchRole.HOST : ConversationSearchRole.All);
+        model.ConversationQuery.Should().Be(edit is "query" ? "different" : "marker");
         model.ComposerBody.Should().Be("independent memory draft");
     }
 
     [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public async Task SearchCriteriaEditRevokesMatchDetailsAndDeferredNavigationWithoutTouchingComposer(bool roleEdit)
+    [InlineData("query")]
+    [InlineData("role")]
+    [InlineData("outcome")]
+    [InlineData("reason")]
+    [InlineData("task-state")]
+    public async Task SearchCriteriaEditRevokesMatchDetailsAndDeferredNavigationWithoutTouchingComposer(string edit)
     {
         using var f = new InteractionStorageFixture();
         await f.InitializeAsync();
@@ -76,14 +82,25 @@ public sealed partial class SessionsConversationTests
         await model.SearchConversationAsync();
         await model.OpenConversationDetailAsync(model.ConversationSearchMessages.Single());
         admitted!().Should().BeTrue();
-        if (roleEdit) { model.ConversationRole = ConversationSearchRole.HOST; }
-        else { model.ConversationQuery = "different"; }
+        EditSearchCriteria(model, edit);
         admitted().Should().BeFalse();
         revoked.Should().Equal(f.Request.SessionId);
         Func<Task> resolveAgain = () => revalidate!(f.Token);
         await resolveAgain.Should().ThrowAsync<InvalidOperationException>();
         model.ConversationSearchMessages.Should().BeEmpty();
         model.ComposerBody.Should().Be("independent memory draft");
+    }
+
+    private static void EditSearchCriteria(SessionsViewModel model, string edit)
+    {
+        switch (edit)
+        {
+            case "role": model.ConversationRole = ConversationSearchRole.HOST; break;
+            case "outcome": model.ConversationOutcome = ModelTurnOutcome.Denied; break;
+            case "reason": model.ConversationReason = ModelTurnReason.CallerCancelled; break;
+            case "task-state": model.ConversationTaskState = HostTaskState.Cancelled; break;
+            default: model.ConversationQuery = "different"; break;
+        }
     }
 
     [Fact]

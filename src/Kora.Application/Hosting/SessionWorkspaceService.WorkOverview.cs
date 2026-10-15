@@ -21,13 +21,14 @@ public sealed partial class SessionWorkspaceService
     }
 
     public async Task<SessionWorkOverviewPage> ReadWorkOverviewAsync(SessionListFilter filter, bool needsAnswer,
-        SessionWorkOverviewCursor? cursor, CancellationToken token, SessionListSearch? query = null)
+        SessionWorkOverviewCursor? cursor, CancellationToken token, SessionListSearch? query = null,
+        SessionWorkOverviewAvailability? availability = null)
     {
         using var timeout = new CancellationTokenSource(WorkOverviewTimeout, overviewTime ?? TimeProvider.System);
         using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(token, timeout.Token);
         try
         {
-            var result = await ReadAsync(() => ReadWorkOverviewCoreAsync(filter, needsAnswer, cursor, query, cancellation.Token),
+            var result = await ReadAsync(() => ReadWorkOverviewCoreAsync(filter, needsAnswer, cursor, query, availability, cancellation.Token),
                 cancellation.Token).WaitAsync(cancellation.Token).ConfigureAwait(false);
             cancellation.Token.ThrowIfCancellationRequested();
             return result;
@@ -39,8 +40,10 @@ public sealed partial class SessionWorkspaceService
     }
 
     private async ValueTask<SessionWorkOverviewPage> ReadWorkOverviewCoreAsync(SessionListFilter filter, bool needsAnswer,
-        SessionWorkOverviewCursor? cursor, SessionListSearch? query, CancellationToken readToken)
+        SessionWorkOverviewCursor? cursor, SessionListSearch? query, SessionWorkOverviewAvailability? availability,
+        CancellationToken readToken)
     {
+        SessionWorkOverviewFilter.Validate(availability);
         if (!Enum.IsDefined(filter)) { throw new ArgumentOutOfRangeException(nameof(filter)); }
         if (query is not null && query.Filter != filter)
         {
@@ -50,7 +53,8 @@ public sealed partial class SessionWorkspaceService
         var epoch = Interlocked.Read(ref workOverviewEpoch);
         if (cursor is not null && (cursor.Host != workOverviewHost || cursor.AdmissionRevision != revision
             || cursor.SourceEpoch != epoch || cursor.After == Guid.Empty || cursor.Filter != filter
-            || cursor.NeedsAnswer != needsAnswer || !string.Equals(cursor.QueryDigest, query?.Digest, StringComparison.Ordinal)))
+            || cursor.NeedsAnswer != needsAnswer || cursor.Availability != availability
+            || !string.Equals(cursor.QueryDigest, query?.Digest, StringComparison.Ordinal)))
         {
             throw new ArgumentException("The overview continuation expired or belongs to another host/query/filter/source. Refresh.", nameof(cursor));
         }
@@ -61,8 +65,20 @@ public sealed partial class SessionWorkspaceService
         {
             throw new InvalidDataException("Work overview requires a bounded advancing metadata source.");
         }
-        var records = ImmutableArray.CreateBuilder<SessionWorkOverviewRow>();
         var previous = cursor?.After.ToString("D") ?? string.Empty;
+        // Validate every returned metadata record, including records deferred by the byte ceiling.
+        foreach (var entry in page.Records)
+        {
+            readToken.ThrowIfCancellationRequested();
+            ValidateListEntry(entry);
+            var id = entry.Authority.SessionId.Value.ToString("D");
+            if (string.CompareOrdinal(previous, id) >= 0)
+            {
+                throw new InvalidDataException("Work overview metadata requires strictly ordered canonical session IDs.");
+            }
+            previous = id;
+        }
+        var records = ImmutableArray.CreateBuilder<SessionWorkOverviewRow>();
         var scanned = 0;
         var nonmatches = 0;
         SessionWorkOverviewCursor? next = null;
@@ -70,30 +86,39 @@ public sealed partial class SessionWorkspaceService
         foreach (var entry in page.Records)
         {
             readToken.ThrowIfCancellationRequested();
-            ValidateListEntry(entry);
             var id = entry.Authority.SessionId.Value;
-            if (string.CompareOrdinal(previous, id.ToString("D")) >= 0)
-            {
-                throw new InvalidDataException("Work overview metadata requires strictly ordered canonical session IDs.");
-            }
-            previous = id.ToString("D");
-            var continuation = new SessionWorkOverviewCursor(workOverviewHost, revision, epoch, id, filter, needsAnswer, query?.Digest);
+            var continuation = new SessionWorkOverviewCursor(workOverviewHost, revision, epoch, id, filter, needsAnswer, query?.Digest, availability);
             SessionWorkOverviewRow? row = null;
             if ((filter == SessionListFilter.All || entry.Authority.IsActive == (filter == SessionListFilter.Active))
                 && (query is null || query.Matches(entry)))
             {
-                row = await ObserveOverviewAsync(entry, needsAnswer, readToken).ConfigureAwait(false);
+                row = await ObserveOverviewAsync(entry, readToken).ConfigureAwait(false);
             }
             if (row is not null)
             {
+                // Classify a complete single-row ceiling before filtering; unavailable is never empty work.
+                var single = new SessionWorkOverviewPage([row], SessionWorkOverviewPage.MaximumSessions,
+                    SessionWorkOverviewPage.MaximumSessions, true, continuation);
+                if (SessionWorkOverviewPage.GetSerializedSize(single) > SessionWorkOverviewPage.MaximumResultBytes)
+                {
+                    row = new(entry, SessionWorkOverviewAvailability.OutputBound, null);
+                }
+                var matches = SessionWorkOverviewFilter.Matches(availability, row);
+                if (!matches || needsAnswer && row.Work is { PendingQuestions.IsEmpty: true, OmittedQuestions: 0 })
+                {
+                    nonmatches++;
+                    scanned++;
+                    next = scanned < page.Records.Length || page.Next is not null ? continuation : null;
+                    continue;
+                }
                 // Reserve maximum counters and continuation before consuming a row. Never skip the unconsumed ID.
                 SessionWorkOverviewPage Candidate(SessionWorkOverviewRow candidate) => new(
                     records.ToImmutable().Add(candidate), SessionWorkOverviewPage.MaximumSessions,
                     SessionWorkOverviewPage.MaximumSessions, true, continuation);
                 if (SessionWorkOverviewPage.GetSerializedSize(Candidate(row)) > SessionWorkOverviewPage.MaximumResultBytes)
                 {
-                    if (records.Count > 0) { limited = true; break; }
-                    row = new(entry, SessionWorkOverviewAvailability.OutputBound, null);
+                    limited = true;
+                    break;
                 }
                 records.Add(row);
             }
@@ -113,8 +138,8 @@ public sealed partial class SessionWorkspaceService
         return result;
     }
 
-    private async Task<SessionWorkOverviewRow?> ObserveOverviewAsync(
-        SessionWorkspaceEntry entry, bool needsAnswer, CancellationToken token)
+    private async Task<SessionWorkOverviewRow> ObserveOverviewAsync(
+        SessionWorkspaceEntry entry, CancellationToken token)
     {
         var parent = HostActivity.RequireCurrent();
         using var observation = HostActivity.BeginRoot(new(new(Guid.NewGuid()), entry.Authority.SessionId,
@@ -157,11 +182,6 @@ public sealed partial class SessionWorkspaceService
             return new(entry, SessionWorkOverviewAvailability.SourceChanged, null);
         }
         // The admitted store owns policy/reasons. Do not recalculate eligibility or reinterpret omissions here.
-        if (needsAnswer && snapshot.PendingQuestions.IsEmpty && snapshot.OmittedQuestions == 0)
-        {
-            observation.Complete(HostOperationOutcome.Completed);
-            return null;
-        }
         var work = new SessionWorkOverviewObservation(snapshot.AuthorityRevision, snapshot.ObservedAt,
             snapshot.Queue.Revision, snapshot.PendingCount, snapshot.PendingCapacity, snapshot.ExecutionSlots,
             snapshot.QueueRecords.Count(record => record.Entry.IsCurrent), snapshot.QueueRecords, snapshot.OmittedQueueRecords,

@@ -25,8 +25,93 @@ namespace Kora.Windows.IntegrationTests;
 [Collection(nameof(HeadlessUiTestGroup))]
 public sealed class AllWorkWindowTests
 {
+    [WindowsFact]
+    public async Task ExactNativeAvailabilityChoicesRevokeWithoutReadingAndRemainVolatileAccessibleAndPassive()
+    {
+        await HeadlessSession.RunAsync(async () =>
+        {
+            using var f = new InteractionStorageFixture();
+            await f.InitializeAsync();
+            var held = new GatedWorkStore(f.Store);
+            var access = new WindowsSqliteSessionWorkspaceTests.Access();
+            var service = new SessionWorkspaceService(held, new(f.Tasks), access, NullLogger<SessionWorkspaceService>.Instance);
+            var model = new AllWorkViewModel(service, access, NullLogger<AllWorkViewModel>.Instance,
+                (_, _, _) => throw new InvalidOperationException("Filtering grants no navigation."));
+            var window = new AllWorkWindow(model);
+            window.Show();
+            try
+            {
+                var control = window.FindControl<ComboBox>("ObservationAvailability")!;
+                var peer = ControlAutomationPeer.CreatePeerForElement(control)!;
+                peer.GetName().Should().Contain("changing performs no read").And.Contain("unavailable is not empty work");
+                peer.GetProvider<ISelectionProvider>().Should().NotBeNull();
+                model.AvailabilityChoices.Select(choice => choice.Label).Should()
+                    .Equal("Any", "Observed", "Source changed", "Read unavailable", "Output bound");
+                held.Reads.Should().Be(0);
+                var clock = await f.Store.ReadRetentionAsync(f.Request.SessionId, f.Token);
+                var audits = f.Count("security_audit_events");
+                var tasks = f.Count("host_tasks");
+                await model.RefreshAsync();
+                model.Select(model.Records.Single());
+                var reads = held.Reads;
+                control.Focus().Should().BeTrue();
+                control.SelectedIndex = 1;
+                model.Availability.Should().Be(SessionWorkOverviewAvailability.Observed);
+                model.Records.Should().BeEmpty();
+                model.SelectedRecord.Should().BeNull();
+                model.CanNavigate.Should().BeFalse();
+                model.CanNext.Should().BeFalse();
+                held.Reads.Should().Be(reads);
+                await model.RefreshAsync();
+                model.Records.Single().Availability.Should().Be(SessionWorkOverviewAvailability.Observed);
+                control.IsFocused.Should().BeTrue();
+                for (var index = 2; index < 5; index++)
+                {
+                    control.SelectedIndex = index;
+                    model.Availability.Should().Be(model.AvailabilityChoices[index].Value);
+                    model.Records.Should().BeEmpty();
+                    await model.RefreshAsync();
+                    model.Records.Should().BeEmpty();
+                    model.Status.Should().Contain("not a global all-clear");
+                }
+                control.SelectedIndex = 0;
+                model.Availability.Should().BeNull();
+                control.RaiseEvent(new KeyEventArgs { RoutedEvent = InputElement.KeyDownEvent, Key = Key.Down });
+                model.Availability.Should().Be(SessionWorkOverviewAvailability.Observed);
+                control.RaiseEvent(new KeyEventArgs { RoutedEvent = InputElement.KeyDownEvent, Key = Key.Up });
+                model.Availability.Should().BeNull();
+                await model.RefreshAsync();
+                model.Records.Should().ContainSingle();
+                var invalid = () => model.Availability = (SessionWorkOverviewAvailability)99;
+                invalid.Should().Throw<ArgumentOutOfRangeException>();
+                held.Fail = true;
+                model.Availability = SessionWorkOverviewAvailability.ReadUnavailable;
+                await model.RefreshAsync();
+                model.Records.Single().Availability.Should().Be(SessionWorkOverviewAvailability.ReadUnavailable);
+                model.NeedsAnswer = true;
+                await model.RefreshAsync();
+                model.Records.Should().ContainSingle("unavailable is never no pending questions");
+                model.Select(model.Records.Single());
+                model.CanNavigate.Should().BeFalse();
+                model.SelectedDetails.Should().Contain("not an empty queue");
+                held.Fail = false;
+                access.CanInspect = false;
+                window.Close();
+                model.Availability.Should().BeNull();
+                model.Records.Should().BeEmpty();
+                control.IsEnabled.Should().BeFalse();
+                held.Writes.Should().Be(0);
+                f.Count("security_audit_events").Should().Be(audits);
+                f.Count("host_tasks").Should().Be(tasks);
+                (await f.Store.ReadRetentionAsync(f.Request.SessionId, f.Token)).Should().Be(clock);
+            }
+            finally { window.Close(); }
+        });
+    }
+
     [Theory]
     [InlineData("query")]
+    [InlineData("availability")]
     [InlineData("revision")]
     [InlineData("close")]
     public async Task ExactNavigationAdmissionDoesNotSurviveQueryOrPrivateLifetimeChanges(string boundary)
@@ -45,6 +130,7 @@ public sealed class AllWorkWindowTests
                 entered.SetResult(admitted);
                 await release.Task.WaitAsync(f.Token);
             });
+        model.Availability = SessionWorkOverviewAvailability.Observed;
         model.QueryKind = SessionListSearchKind.ExactId;
         model.QueryText = f.Request.SessionId.Value.ToString("D");
         await model.RefreshAsync();
@@ -52,6 +138,7 @@ public sealed class AllWorkWindowTests
         var navigation = model.NavigateAsync();
         var admitted = await entered.Task.WaitAsync(f.Token);
         if (boundary is "query") { model.QueryText = "00000000-0000-0000-0000-000000000099"; }
+        if (boundary is "availability") { model.Availability = SessionWorkOverviewAvailability.SourceChanged; }
         if (boundary is "revision") { access.ControlRevision++; }
         if (boundary is "close") { model.Close(); }
         admitted().Should().BeFalse();
@@ -232,6 +319,7 @@ public sealed class AllWorkWindowTests
     [InlineData("query")]
     [InlineData("query-kind")]
     [InlineData("clear-query")]
+    [InlineData("availability")]
     public async Task InFlightPrivateSnapshotNeverRepopulatesClosedOrChangedOverview(string boundary)
     {
         using var f = new InteractionStorageFixture();
@@ -241,6 +329,7 @@ public sealed class AllWorkWindowTests
         var service = new SessionWorkspaceService(held, new(f.Tasks), access, NullLogger<SessionWorkspaceService>.Instance);
         var model = new AllWorkViewModel(service, access, NullLogger<AllWorkViewModel>.Instance,
             (_, _, _) => throw new InvalidOperationException("A passive test must not navigate."));
+        model.Availability = SessionWorkOverviewAvailability.Observed;
         model.QueryKind = SessionListSearchKind.ExactId;
         model.QueryText = f.Request.SessionId.Value.ToString("D");
         await model.RefreshAsync();
@@ -259,6 +348,7 @@ public sealed class AllWorkWindowTests
         if (boundary is "query") { model.QueryText = "00000000-0000-0000-0000-000000000099"; }
         if (boundary is "query-kind") { model.QueryKind = SessionListSearchKind.NameSubstring; }
         if (boundary is "clear-query") { model.ClearQuery(); }
+        if (boundary is "availability") { model.Availability = SessionWorkOverviewAvailability.OutputBound; }
         held.Release.SetResult();
         await read;
         model.Records.Should().BeEmpty();
@@ -269,18 +359,23 @@ public sealed class AllWorkWindowTests
         model.Status.Should().BeEmpty();
         model.NeedsAnswer.Should().BeFalse();
         model.QueryText.Should().BeEmpty();
+        model.Availability.Should().BeNull();
         held.Writes.Should().Be(0);
     }
 
     private sealed class GatedWorkStore(WindowsSqliteHostInteractionStore store) : ISessionWorkspaceStore, ISessionWorkStore
     {
         internal bool Hold { get; set; }
+        internal bool Fail { get; set; }
+        internal int Reads { get; private set; }
         internal int Writes { get; private set; }
         internal TaskCompletionSource Entered { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         internal TaskCompletionSource Release { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         public async ValueTask<SessionWorkSnapshot> ReadWorkAsync(HostId<SessionIdentity> session, long admissionRevision,
             SessionQueueLimits limits, CancellationToken token)
         {
+            Reads++;
+            if (Fail) { throw new IOException("Exact work source failed."); }
             var result = await store.ReadWorkAsync(session, admissionRevision, limits, token);
             if (Hold)
             {

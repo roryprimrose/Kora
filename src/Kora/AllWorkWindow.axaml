@@ -13,6 +13,12 @@
       <Button x:Name="CancelRead" Content="_Cancel read" IsEnabled="{Binding CanCancel}" />
       <ComboBox ItemsSource="{Binding Filters}" SelectedItem="{Binding Filter, Mode=TwoWay}"
                 IsEnabled="{Binding CanEdit}" AutomationProperties.Name="Stored lifecycle filter, independent of task and queue state" />
+      <ComboBox x:Name="ObservationAvailability" ItemsSource="{Binding AvailabilityChoices}"
+                SelectedValueBinding="{Binding Value}" SelectedValue="{Binding Availability, Mode=TwoWay}"
+                IsEnabled="{Binding CanEdit}"
+                AutomationProperties.Name="Observation availability filter: Any, Observed, Source changed, Read unavailable, Output bound; changing performs no read; unavailable is not empty work">
+        <ComboBox.ItemTemplate><DataTemplate><TextBlock Text="{Binding Label}" /></DataTemplate></ComboBox.ItemTemplate>
+      </ComboBox>
       <CheckBox Content="Observed needs _answer" IsChecked="{Binding NeedsAnswer, Mode=TwoWay}"
                 IsEnabled="{Binding CanEdit}" AutomationProperties.Name="Pending-question metadata in scanned snapshots only; unavailable sources remain explicit, never a fresh reply target" />
     </WrapPanel>

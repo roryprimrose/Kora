@@ -21,7 +21,7 @@ public sealed record SessionAttachmentSummary(
             || File.Digest is null || File.Digest.Length != 64
             || File.Digest.Any(c => c is not (>= '0' and <= '9' or >= 'a' and <= 'f'))
             || File.Digest.All(c => c == '0') || StoredBytes is < 0 or > LocalFilePolicy.MaximumBytes
-            || MediaType is not ("text/plain" or "text/markdown") || CapturedAt.Offset != TimeSpan.Zero
+            || !LocalFileMediaType.IsCanonical(MediaType) || CapturedAt.Offset != TimeSpan.Zero
             || CopyStatus == AttachmentCopyStatus.Unavailable && StoredBytes != 0
             || SessionState == AttachmentSessionState.Removed && CopyStatus != AttachmentCopyStatus.Unavailable)
         {

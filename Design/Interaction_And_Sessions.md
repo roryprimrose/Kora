@@ -31,20 +31,36 @@ chronological source row is validated before matching or exclusion. Zero matches
 are an exhausted observation when Next is absent, not unavailable content;
 undefined role values fail explicitly without reading.
 
+Optional exact typed **ModelTurnOutcome**, **ModelTurnReason** and expected
+**HostTaskState** selectors each include **Any**. The portable
+[terminal filter](../src/Kora.Core/Conversation/ConversationTerminalFilter.cs)
+owns validation and matching once. All selected predicates AND together and
+with the lexical query/role; only terminal HOST metadata can satisfy them.
+Nonterminal USER rows retain null outcome/reason, and status-looking USER text
+cannot supply metadata. USER-only plus any terminal predicate is valid and
+truthfully exhausts with zero, without changing role or clearing predicates.
+Every defined enum value is selectable, including combinations with no possible
+retained terminal; undefined values explicitly fail before reading. All scanned
+rows are fully validated before exclusion, even for valid zero-match criteria.
+
 The [conversation matcher](../src/Kora.Core/Conversation/ConversationSearch.cs) reuses `SessionHistorySearch` and the authoritative `LocalFileRetrievalPolicy` tokenizer: 1–256 UTF-16 characters / 512 strict UTF-8 bytes, 1–32 distinct lexical terms of at most 64 characters, NFC/invariant whole-word OR.
 Punctuation is a separator, not regex, wildcard or instruction syntax. Blank/malformed/unsupported queries fail explicitly, never inventory all bodies.
 
 The [passive workflow](../src/Kora.Application/Hosting/SessionWorkspaceService.ConversationSearch.cs) delegates to existing admitted conversation pages; no SQL, schema, body representation or persisted query is added.
 Each call scans at most the existing 100-message session bound, returns default 25 / maximum 50 complete messages and caps the complete serialized result, counters and continuation at 64 KiB. Bodies, original request/task IDs, source generation and chronological sequence stay unchanged.
 
-Continuations bind the exact field filter, normalized query digest and original session/generation/sequence ceiling/head revision under existing private/retention admission. Nonmatches advance; a byte-deferred match remains for Next. `Scanned` counts consumed records.
+Continuations and pages bind the exact role and every terminal predicate, normalized query digest and original session/generation/sequence ceiling/head revision under existing private/retention admission. Nonmatches advance; a byte-deferred match remains for Next. `Scanned` counts consumed records.
 `OmittedMessages` and `UnavailableMessages` are zero because valid complete bodies fit and inaccessible/invalid sources fail the entire read rather than becoming success-shaped omissions. Exhausted snapshots are freshly revalidated through the provider under the same private admission/retention epoch before publication.
 
-Later append cannot expand a continuation's ceiling; terminal updates invalidate its original head revision and require fresh Search. Lifecycle, removal, retention/private/owner changes, query or field-filter edits and Cancel/Clear revoke results, selected match/navigation, continuation and late callbacks. Editing performs no read; explicit Search is required. Clear resets the filter to All.
+Later append cannot expand a continuation's ceiling; terminal updates invalidate its original head revision and require fresh Search. Lifecycle, removal, retention/private/owner changes, query or any role/terminal-filter edits and Cancel/Clear revoke results, selected match/navigation, continuation and late callbacks. Editing performs no read; explicit Search is required. Clear resets the role to All and terminal predicates to Any.
 Search does not alter composer body/baseline, dirty-draft decisions, held submissions, saved drafts, question/voice focus, meaningful activity, cleanup, Keep, provider preferences or task/approval authority.
 
 Only admitted original messages appear as inert native USER/HOST rows, with no generated summary, semantic ranking, rich actions, copy/export, clipboard/speech, network/model calls or hidden context assembly.
 Raw logs, attachments, memories, templates, accounts and credential-rejected bodies are not search sources. Query/body/excerpt/name/path never enter diagnostic messages, audit or activity tags. Installed accessibility, hardware, inference and physical-storage/STOP qualification remain gated.
+Query and filter values are volatile only: no persistence, logging, activity tags,
+audit payload, model context, speech, clipboard/export or activity renewal.
+Typed HOST chrome and original bodies remain unchanged; no generated output,
+receipt-history search, schema/index/cache or provider/runtime authority is added.
 
 ## Delivered exact-session conversation/composer foundation — 2026-10-12
 

@@ -40,6 +40,19 @@
        <ComboBox x:Name="ConversationRole" ItemsSource="{Binding ConversationRoles}"
           SelectedItem="{Binding ConversationRole, Mode=TwoWay}" IsEnabled="{Binding CanReadConversation}"
           AutomationProperties.Name="Shared conversation search field filter: All original USER and typed HOST fields, USER original body only, HOST outcome reason and task state only; editing does not read" />
+      <TextBlock Text="Exact terminal HOST predicates (Any means unrestricted). USER-only with any predicate yields zero; all predicates AND with the query and role." TextWrapping="Wrap" />
+      <TextBlock Text="Terminal outcome" />
+      <ComboBox x:Name="ConversationOutcome" ItemsSource="{Binding ConversationOutcomes}"
+          SelectedItem="{Binding ConversationOutcomeChoice, Mode=TwoWay}" IsEnabled="{Binding CanReadConversation}"
+          AutomationProperties.Name="Shared exact terminal HOST ModelTurnOutcome; Any or one defined outcome; editing does not read" />
+      <TextBlock Text="Terminal reason" />
+      <ComboBox x:Name="ConversationReason" ItemsSource="{Binding ConversationReasons}"
+          SelectedItem="{Binding ConversationReasonChoice, Mode=TwoWay}" IsEnabled="{Binding CanReadConversation}"
+          AutomationProperties.Name="Shared exact terminal HOST ModelTurnReason; Any or one defined reason; editing does not read" />
+      <TextBlock Text="Expected terminal task state" />
+      <ComboBox x:Name="ConversationTaskState" ItemsSource="{Binding ConversationTaskStates}"
+          SelectedItem="{Binding ConversationTaskStateChoice, Mode=TwoWay}" IsEnabled="{Binding CanReadConversation}"
+          AutomationProperties.Name="Shared exact terminal HOST expected HostTaskState; Any or one defined state; editing does not read" />
       <WrapPanel>
         <Button x:Name="SearchConversation" Content="Search this conversation" IsEnabled="{Binding CanSearchConversation}" />
         <Button x:Name="NextConversationSearch" Content="Next conversation matches" IsEnabled="{Binding CanNextConversationSearch}" />

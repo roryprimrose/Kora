@@ -6,20 +6,24 @@ namespace Kora.Core.Conversation;
 public sealed class ConversationSearch
 {
     private readonly SessionHistorySearch lexical;
-    public ConversationSearch(string query, ConversationSearchRole role = ConversationSearchRole.All)
+    public ConversationSearch(string query, ConversationSearchRole role = ConversationSearchRole.All,
+        ConversationTerminalFilter terminal = default)
     {
         if (!Enum.IsDefined(role)) { throw new ArgumentOutOfRangeException(nameof(role)); }
+        terminal.Validate();
         lexical = new(query);
         Role = role;
+        Terminal = terminal;
     }
 
     public ConversationSearchRole Role { get; }
+    public ConversationTerminalFilter Terminal { get; }
     public string Digest => lexical.Digest;
 
     public bool Matches(ConversationMessage message, CancellationToken token)
     {
         token.ThrowIfCancellationRequested();
-        return Fields(message).Any(field => lexical.MatchesText(field, token));
+        return Terminal.Matches(message, Role) && Fields(message).Any(field => lexical.MatchesText(field, token));
     }
 
     private IEnumerable<string> Fields(ConversationMessage message)

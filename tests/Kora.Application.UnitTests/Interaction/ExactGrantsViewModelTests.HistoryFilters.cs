@@ -25,8 +25,10 @@ public sealed partial class ExactGrantsViewModelTests
             var row = page.Records[0];
             var committed = new SecurityAuditEvent(row.Audit.CorrelationId, row.Audit.Category, row.Audit.ActionId,
                 row.Audit.Outcome, option.Value ?? SecurityAuditInitiator.LocalUser, row.Audit.TargetId);
+            var requestedInitiator = committed.Initiator == SecurityAuditInitiator.ModelSuggestion
+                ? SecurityAuditInitiator.System : SecurityAuditInitiator.ModelSuggestion;
             var requested = new SecurityAuditEvent(row.Audit.CorrelationId, row.Audit.Category, row.Audit.ActionId,
-                SecurityAuditOutcome.Requested, SecurityAuditInitiator.ModelSuggestion, row.Audit.TargetId,
+                SecurityAuditOutcome.Requested, requestedInitiator, row.Audit.TargetId,
                 reasonCode: "requested-private-only");
             f.Store.HistoryResult = page with { Records = [row with
             {
@@ -36,8 +38,10 @@ public sealed partial class ExactGrantsViewModelTests
             reads++;
             f.Store.HistoryQuery!.Initiator.Should().Be(option.Value);
             f.Store.HistoryExact.Should().BeSameAs(target);
-            f.State.HistoryRows.Should().ContainSingle().Which.Should().NotContain("requested-private-only")
-                .And.NotContain("ModelSuggestion");
+            f.State.HistoryRows.Should().ContainSingle().Which.Should()
+                .Contain("committed event initiator: " + committed.Initiator)
+                .And.NotContain("requested-private-only")
+                .And.NotContain(requestedInitiator.ToString());
             f.State.Reviewed.Should().BeFalse();
             f.State.CanRevoke.Should().BeFalse();
         }

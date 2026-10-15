@@ -131,6 +131,7 @@ public sealed partial class ExactGrantsViewModel
             .AppendLine("Committed: " + entry.CommittedAt.ToString("O", CultureInfo.InvariantCulture)
                 + "; retention deadline: " + entry.DueAt.ToString("O", CultureInfo.InvariantCulture) + "; " + entry.Retention)
             .AppendLine("Recorded action: " + entry.Audit.ActionId + "; committed event outcome: " + entry.Audit.Outcome
+                + "; committed event initiator: " + entry.Audit.Initiator
                 + "; interaction: " + p.InteractionOutcome + "; reason: " + entry.Audit.ReasonCode)
             .AppendLine("Correlation ID: " + entry.Audit.CorrelationId.ToString("D") + "; commit SHA-256: " + p.CommitDigest)
             .AppendLine("Original request/session/task/invocation: " + entry.Request.RequestId.Value.ToString("D") + " / "

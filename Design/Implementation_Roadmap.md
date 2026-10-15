@@ -60,6 +60,19 @@ provider, memory-content or mutation authority. Full memory, installed
 accessibility, provider and E/Q qualification remain unchanged and unclaimed;
 unqualified recall/global catalogue/model consumers remain unavailable.
 
+### Bounded positive All Work observation predicates - 2026-10-16
+
+The [passive All Work observation](Work_Management.md#delivered-passive-cross-session-work-observation---2026-10-11)
+adds one native positive-content choice for retained queue receipts, tasks or
+pending questions, independently AND-composed with existing availability,
+Browse/name/exact-ID/lifecycle/Needs answer. Unavailable and omitted-only sources
+never satisfy positive predicates or establish absence, completion or authority.
+Existing bounded reads, exact continuations, private cancellation/source fences,
+selection retirement and explicit non-null Any accessibility remain authoritative.
+Portable and deterministic headless/private-store checks gate this consumed I
+subset; no storage/model/provider/execution capability is enabled and full work
+management, installed-accessibility and existing E/Q qualification remain separate.
+
 ### Bounded Presence renderer work reduction - 2026-10-15
 
 The [native particle-cloud scheduling boundary](Ambient_UI.md#bounded-native-renderer-scheduling)

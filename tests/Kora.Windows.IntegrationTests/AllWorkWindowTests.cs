@@ -26,6 +26,99 @@ namespace Kora.Windows.IntegrationTests;
 public sealed class AllWorkWindowTests
 {
     [WindowsFact]
+    public async Task PositiveObservedContentChoicesAreVisibleAccessiblePassiveAndComposeWithoutAbsenceInference()
+    {
+        await HeadlessSession.RunAsync(async () =>
+        {
+            using var f = new InteractionStorageFixture();
+            await f.InitializeAsync();
+            var question = await WindowsSqliteTaskControlTests.WaitAsync(f);
+            var held = new GatedWorkStore(f.Store);
+            var access = new WindowsSqliteSessionWorkspaceTests.Access();
+            var service = new SessionWorkspaceService(held, new(f.Tasks), access, NullLogger<SessionWorkspaceService>.Instance);
+            var model = new AllWorkViewModel(service, access, NullLogger<AllWorkViewModel>.Instance,
+                (_, _, _) => throw new InvalidOperationException("Content filtering grants no navigation."));
+            var window = new AllWorkWindow(model);
+            window.Show();
+            try
+            {
+                var control = window.FindControl<ComboBox>("ObservedContent")!;
+                var peer = ControlAutomationPeer.CreatePeerForElement(control)!;
+                control.SelectedIndex.Should().Be(0);
+                control.SelectedItem.Should().BeSameAs(model.ContentChoices[0]);
+                peer.GetProvider<ISelectionProvider>()!.GetSelection().Should()
+                    .ContainSingle().Which.GetName().Should().Be("Any");
+                peer.GetName().Should().Contain("changing performs no read").And.Contain("unavailable never matches")
+                    .And.Contain("omissions prove no absence or completion");
+                model.ContentChoices.Select(choice => choice.Label).Should().Equal("Any",
+                    "At least one observed queue receipt", "At least one observed task", "At least one observed pending question");
+                held.Reads.Should().Be(0);
+                var audits = f.Count("security_audit_events");
+                var tasks = f.Count("host_tasks");
+                var clock = await f.Store.ReadRetentionAsync(f.Request.SessionId, f.Token);
+                model.QueryKind = SessionListSearchKind.ExactId;
+                model.QueryText = f.Request.SessionId.Value.ToString("D");
+                model.NeedsAnswer = true;
+                model.Availability = SessionWorkOverviewAvailability.Observed;
+                await model.RefreshAsync();
+                model.Select(model.Records.Single());
+                var stale = model.SelectedRecord;
+                var reads = held.Reads;
+                control.Focus().Should().BeTrue();
+                control.SelectedIndex = 1;
+                model.Content.Should().Be(SessionWorkOverviewContent.QueueReceipt);
+                model.Records.Should().BeEmpty();
+                model.SelectedRecord.Should().BeNull();
+                model.SelectedDetails.Should().BeEmpty();
+                model.CanNavigate.Should().BeFalse();
+                model.CanNext.Should().BeFalse();
+                held.Reads.Should().Be(reads);
+                model.Select(stale);
+                model.CanNavigate.Should().BeFalse("retired selection cannot be restored");
+                await model.RefreshAsync();
+                model.Records.Should().BeEmpty();
+                model.Status.Should().Contain("not a global all-clear").And.Contain("Omitted records");
+                control.IsFocused.Should().BeTrue();
+                control.SelectedIndex = 2;
+                await model.RefreshAsync();
+                model.Records.Single().Work!.Tasks.Should().NotBeEmpty();
+                control.SelectedIndex = 3;
+                await model.RefreshAsync();
+                model.Records.Single().Work!.PendingQuestions.Single().Key.Should().Be(question.Key);
+                model.Availability = SessionWorkOverviewAvailability.ReadUnavailable;
+                await model.RefreshAsync();
+                model.Records.Should().BeEmpty("availability is an independent AND predicate");
+                held.Fail = true;
+                await model.RefreshAsync();
+                model.Records.Should().BeEmpty("unavailable is not positive content");
+                control.SelectedIndex = 0;
+                await model.RefreshAsync();
+                model.Records.Single().Availability.Should().Be(SessionWorkOverviewAvailability.ReadUnavailable);
+                model.SelectedContentChoice.Label.Should().Be("Any");
+                control.RaiseEvent(new KeyEventArgs { RoutedEvent = InputElement.KeyDownEvent, Key = Key.Down });
+                model.Content.Should().Be(SessionWorkOverviewContent.QueueReceipt);
+                control.RaiseEvent(new KeyEventArgs { RoutedEvent = InputElement.KeyDownEvent, Key = Key.Up });
+                model.Content.Should().Be(SessionWorkOverviewContent.Any);
+                var invalid = () => model.Content = (SessionWorkOverviewContent)99;
+                invalid.Should().Throw<ArgumentOutOfRangeException>();
+                model.Content = SessionWorkOverviewContent.Task;
+                window.Close();
+                model.Content.Should().Be(SessionWorkOverviewContent.Any);
+                control.SelectedItem.Should().BeSameAs(model.ContentChoices[0]);
+                control.IsEnabled.Should().BeFalse();
+                model.Records.Should().BeEmpty();
+                held.Writes.Should().Be(0);
+                f.Count("security_audit_events").Should().Be(audits);
+                f.Count("host_tasks").Should().Be(tasks);
+                (await f.Store.ReadRetentionAsync(f.Request.SessionId, f.Token)).Should().Be(clock);
+                (await f.Store.ReadQuestionPageAsync(f.Request.SessionId, null, 50, f.Token))
+                    .Records.Single().Key.Should().Be(question.Key);
+            }
+            finally { window.Close(); }
+        });
+    }
+
+    [WindowsFact]
     public async Task ExactNativeAvailabilityChoicesRevokeWithoutReadingAndRemainVolatileAccessibleAndPassive()
     {
         await HeadlessSession.RunAsync(async () =>
@@ -118,6 +211,7 @@ public sealed class AllWorkWindowTests
     [Theory]
     [InlineData("query")]
     [InlineData("availability")]
+    [InlineData("content")]
     [InlineData("revision")]
     [InlineData("close")]
     public async Task ExactNavigationAdmissionDoesNotSurviveQueryOrPrivateLifetimeChanges(string boundary)
@@ -145,6 +239,7 @@ public sealed class AllWorkWindowTests
         var admitted = await entered.Task.WaitAsync(f.Token);
         if (boundary is "query") { model.QueryText = "00000000-0000-0000-0000-000000000099"; }
         if (boundary is "availability") { model.Availability = SessionWorkOverviewAvailability.SourceChanged; }
+        if (boundary is "content") { model.Content = SessionWorkOverviewContent.Task; }
         if (boundary is "revision") { access.ControlRevision++; }
         if (boundary is "close") { model.Close(); }
         admitted().Should().BeFalse();
@@ -326,6 +421,7 @@ public sealed class AllWorkWindowTests
     [InlineData("query-kind")]
     [InlineData("clear-query")]
     [InlineData("availability")]
+    [InlineData("content")]
     public async Task InFlightPrivateSnapshotNeverRepopulatesClosedOrChangedOverview(string boundary)
     {
         using var f = new InteractionStorageFixture();
@@ -336,6 +432,7 @@ public sealed class AllWorkWindowTests
         var model = new AllWorkViewModel(service, access, NullLogger<AllWorkViewModel>.Instance,
             (_, _, _) => throw new InvalidOperationException("A passive test must not navigate."));
         model.Availability = SessionWorkOverviewAvailability.Observed;
+        model.Content = SessionWorkOverviewContent.Task;
         model.QueryKind = SessionListSearchKind.ExactId;
         model.QueryText = f.Request.SessionId.Value.ToString("D");
         await model.RefreshAsync();
@@ -355,6 +452,7 @@ public sealed class AllWorkWindowTests
         if (boundary is "query-kind") { model.QueryKind = SessionListSearchKind.NameSubstring; }
         if (boundary is "clear-query") { model.ClearQuery(); }
         if (boundary is "availability") { model.Availability = SessionWorkOverviewAvailability.OutputBound; }
+        if (boundary is "content") { model.Content = SessionWorkOverviewContent.PendingQuestion; }
         held.Release.SetResult();
         await read;
         model.Records.Should().BeEmpty();
@@ -366,6 +464,7 @@ public sealed class AllWorkWindowTests
         model.NeedsAnswer.Should().BeFalse();
         model.QueryText.Should().BeEmpty();
         model.Availability.Should().BeNull();
+        model.Content.Should().Be(SessionWorkOverviewContent.Any);
         held.Writes.Should().Be(0);
     }
 

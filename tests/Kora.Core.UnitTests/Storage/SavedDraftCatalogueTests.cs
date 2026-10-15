@@ -116,7 +116,7 @@ public sealed class SavedDraftCatalogueTests
         }).ToImmutableArray();
         var query = new SessionListSearch(SessionListSearchKind.NameSubstring, SessionListFilter.Active, "🙂");
         var page = new SavedDraftPage(SessionListFilter.Active, rows, Cursor(3000), 50, 4096, false, query.Kind, query.Digest,
-            new(long.MaxValue, 16384, 16384));
+            new(long.MaxValue, 16384, 16384, 4096, 4096));
         page.Validate();
         SavedDraftPage.Size(page).Should().BeLessThanOrEqualTo(SavedDraftPage.MaximumBytes);
         page.Records.Should().HaveCount(25);

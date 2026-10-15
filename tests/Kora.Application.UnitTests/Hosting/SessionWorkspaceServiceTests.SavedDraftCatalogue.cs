@@ -18,14 +18,17 @@ public sealed partial class SessionWorkspaceServiceTests
     [InlineData("revision")]
     [InlineData("minimum")]
     [InlineData("maximum")]
+    [InlineData("scalar-minimum")]
+    [InlineData("scalar-maximum")]
+    [InlineData("scalar-scope")]
     [InlineData("browse-any")]
     public async Task SavedDraftMetadataFiltersAreForwardedAndUntrustedPagesCannotSubstituteThem(string boundary)
     {
         using var f = new Fixture();
         using var root = HostActivity.BeginRoot(f.Request, HostActivityLayer.Application, HostOperation.Request);
         var row = new SavedDraftSummary(Guid.NewGuid(), new(Guid.NewGuid()), f.Session, null,
-            2, 4, 1, f.ControlRevision, 1, new string('a', 64));
-        var filter = boundary is "browse-any" ? SavedDraftMetadataFilter.Any : new SavedDraftMetadataFilter(2, 4, 4);
+            2, 4, 2, f.ControlRevision, 1, new string('a', 64));
+        var filter = boundary is "browse-any" ? SavedDraftMetadataFilter.Any : new SavedDraftMetadataFilter(2, 4, 4, 2, 2);
         f.DraftPage = new(SessionListFilter.All, boundary is "empty" ? [] : [row], null, 1, 0, false,
             MetadataFilter: boundary is "browse-any" ? null : filter);
         f.BeforeDraftRead = () =>
@@ -36,6 +39,9 @@ public sealed partial class SessionWorkspaceServiceTests
                 "revision" => f.DraftPage with { Records = [row with { DraftRevision = 3 }] },
                 "minimum" => f.DraftPage with { Records = [row with { Utf8Bytes = 3 }] },
                 "maximum" => f.DraftPage with { Records = [row with { Utf8Bytes = 5 }] },
+                "scalar-minimum" => f.DraftPage with { Records = [row with { UnicodeScalars = 1 }] },
+                "scalar-maximum" => f.DraftPage with { Records = [row with { UnicodeScalars = 3 }] },
+                "scalar-scope" => f.DraftPage with { MetadataFilter = new(2, 4, 4) },
                 _ => f.DraftPage,
             };
         };

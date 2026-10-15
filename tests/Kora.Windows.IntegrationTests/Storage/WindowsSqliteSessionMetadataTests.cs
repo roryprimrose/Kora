@@ -279,10 +279,12 @@ public sealed class WindowsSqliteSessionMetadataTests
         outcomes.Count(success => success).Should().Be(1);
         fixture.Reopen();
         (await fixture.Store.ReadMetadataPageAsync(null, 25, fixture.Token)).Records.Single().Metadata!.Revision.Value.Should().Be(1);
-        stopped.Should().NotBeEmpty();
-        stopped.SelectMany(activity => activity.Tags).Should().NotContain(tag =>
+        Activity[] completed;
+        lock (stopped) { completed = [.. stopped]; }
+        completed.Should().NotBeEmpty();
+        completed.SelectMany(activity => activity.Tags).Should().NotContain(tag =>
             tag.Value != null && tag.Value.Contains("Private", StringComparison.Ordinal));
-        stopped.Select(activity => activity.OperationName).Should().NotContain(name => name.Contains("Private", StringComparison.Ordinal));
+        completed.Select(activity => activity.OperationName).Should().NotContain(name => name.Contains("Private", StringComparison.Ordinal));
     }
 
     [Theory]

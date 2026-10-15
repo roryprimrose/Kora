@@ -34,6 +34,21 @@ do not depend on hosted management, and speech preferences do not qualify wake.
 
 ## Current Delivery
 
+### Bounded Presence renderer work reduction - 2026-10-15
+
+The [native particle-cloud scheduling boundary](Ambient_UI.md#bounded-native-renderer-scheduling)
+adds renderability/privacy/disposal-fenced one-shot frames, immediate authoritative
+speech/state wake, bounded 16/33/198-ms cadence, invariant seeded depth order and
+effective-colour/theme/opacity brush reuse. Visible fades remain distinct from
+actual hidden state; requested hide relinquishes mouse interception immediately.
+Windows animation preferences freeze geometry without reseeding.
+Focused deterministic scheduler/headless/native-input tests are implementation
+evidence for this existing presentation consumer's I subset. No new authority,
+audio/model/network path, package, compositor or hardware prerequisite is added.
+Whole-app CPU savings and reproduction/resolution of the earlier whole-core
+observation are not claimed; installed/accessibility/hardware and E/Q qualification
+remain separate and unchanged.
+
 The [exact command reference](../docs/commands.md) and
 [settings reference](../docs/settings.md) describe usable routes. The
 [canonical tool catalogue](Internal_Model_Tools.md) separately labels model
@@ -70,6 +85,20 @@ No global/history search, storage/index/schema/cache, model/provider authority o
 installed accessibility/full conversation qualification is added.
 
 ## Ordered Outstanding Work
+
+### Bounded native Evidence exact Span ID filter - 2026-10-15
+
+The [native Evidence reader](Information_Display.md#delivered-bounded-native-evidence-inspection)
+exposes the already-authoritative optional exact Span ID beside Trace ID:
+empty-only Any, otherwise existing nonzero 16-lowercase-hex W3C validation.
+Every existing filter composes with AND; edits revoke page/selection/cursor
+and late callbacks without reading. Clear advanced preserves both basic W3C
+fields; close clears both. Deterministic native/portable/real-reader checks
+cover this consumed implementation subset, not installed accessibility or RC
+qualification. Private/source/authority fences, complete bounded validation,
+snapshots and omission remain unchanged. No ParentSpanId filter, new navigation,
+model/tool/speech/export/clipboard route, storage/schema/index/cache, persistence,
+filter-value telemetry, activity renewal or generated content is delivered.
 
 ### Bounded native saved-draft revision/UTF-8 metadata filters - 2026-10-15
 
@@ -285,6 +314,7 @@ Profile-original editing remains explicitly security-boundary deferred. Broader 
 ### R22 owned metadata inventory navigation increment - 2026-10-12
 
 The existing native editor exposes only its two existing separately bounded 128-file owned inventories. Explicit admitted List/Refresh enumerates and reconciles; literal metadata query/use filters and deterministic ≤64 KiB complete-label/details pages are in-memory, without body reads, new roots/indexes, writes, activation or first-result loading.
+The bounded 2026-10-15 exact artifact SHA-256 predicate adds only an optional native metadata filter for those same two kinds: empty Any or exactly 64 lowercase hexadecimal characters under the shared portable artifact policy, ordinal Digest equality, AND composition and truthful zero matches. Complete validation precedes exclusion; page continuation binds inventory/query/use/digest. Editing retires selections, details, validation, pending review/use and late callbacks without reads or activity renewal. No NativeRevision predicate, source/runtime/use authority, persistence, logging/export or integrity proof is added; installed/accessibility and broader Definitions qualification remain unchanged.
 Observed catalogue use state is disclosed as an observation, not current disk integrity. Exact row Inspect binds original kind/filename/source-qualified ID/digest/native revision/catalogue/private epoch and revalidates native readback. Stale/replaced/unknown rows cannot silently retarget a current-name replacement; failures require Refresh/reselection.
 Dirty originals/drafts and existing Save/copy/Disable/review/conflict/close flows remain explicit. Source/use/call changes retire choices; failed refresh removes availability; privacy/ownership/closure clears private controls and suppresses late callbacks. Native filter controls are the search route, not a new model tool or fabricated typed grammar.
 Focused deterministic portable and actual headless controller/native/private SQLite checks cover these consumed contracts. They do not replace unique RT1/RT2/PV1, offline-inference/CPU-floor, worker containment, hardware, native installed/accessibility or physical-storage proofs; no maintained experiments are edited or retired.

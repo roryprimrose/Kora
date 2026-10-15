@@ -20,6 +20,9 @@ public sealed partial class InstructionEditorTests
         snapshot.Rows.Should().ContainSingle();
         snapshot.Page("example", OwnedDefinitionUseFilter.ReviewRequired).Rows.Should().ContainSingle();
         snapshot.Page("missing", OwnedDefinitionUseFilter.All).Rows.Should().BeEmpty();
+        snapshot.Page("example", OwnedDefinitionUseFilter.ReviewRequired, digest: original.Document.Definition.Digest).Rows.Should().ContainSingle();
+        snapshot.Page("", OwnedDefinitionUseFilter.UseEnabled, digest: original.Document.Definition.Digest).Rows.Should().BeEmpty();
+        snapshot.Page("", OwnedDefinitionUseFilter.All, digest: new string('f', 64)).Rows.Should().BeEmpty();
         f.Actions.IsInventoryCurrent(snapshot).Should().BeTrue();
         f.Files.Reads.Should().Be(0);
         f.Files.Writes.Should().Be(0);
@@ -46,6 +49,8 @@ public sealed partial class InstructionEditorTests
     {
         await using var f = new Fixture();
         var snapshot = await f.Actions.ObserveInventory(["example"], f.Eligible, CancellationToken.None);
+        var exact = snapshot.Page("", OwnedDefinitionUseFilter.All, digest: f.Files.Current!.Document.Definition.Digest);
+        exact.Rows.Should().ContainSingle();
         f.Files.BeforeRead = () =>
         {
             var original = f.Files.Current!;
@@ -64,7 +69,7 @@ public sealed partial class InstructionEditorTests
             if (change is "reload-failed") { f.Catalogue.ReportReloadFailure(new IOException("Unavailable")); }
             if (change is "same-byte-catalogue") { f.Catalogue.Publish(f.Catalogue.Candidates); }
         };
-        var inspect = () => f.Actions.InspectInventory(snapshot, snapshot.Rows[0], f.Eligible, CancellationToken.None);
+        var inspect = () => f.Actions.InspectInventory(snapshot, exact.Rows[0], f.Eligible, CancellationToken.None);
         await inspect.Should().ThrowAsync<InvalidOperationException>();
         f.Files.Writes.Should().Be(0);
         f.Audit.Events.Should().BeEmpty();

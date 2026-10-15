@@ -139,6 +139,50 @@ It responds by more than 90% within 150 ms, retaining the syllable rhythm;
 stopping speech or switching sizing off smoothly settles back to normal.
 Animation uses measured elapsed time so delayed UI frames do not accumulate lag.
 
+### Bounded native renderer scheduling
+
+The existing particle-cloud renderer uses cancellable one-shot dispatcher work,
+not a permanently running frame timer. Detached, effectively hidden,
+minimized, zero-size/zero-opacity, disposed or privacy-ineligible controls
+schedule no animation work or renderer invalidations. Privacy defaults to
+ineligible and each admitted callback rechecks the host's current presentation
+gate. A visible requested hide (including the Hidden-state target) still completes
+its 220-ms fade; reaching zero
+stops work. Requested hides immediately relinquish mouse interception, including
+the final transparent interval before the HWND hides.
+
+Reattachment/reveal starts from the current state colour and resting speech
+scale, fading in without integrating the hidden interval or replaying frames.
+State and speech-input edges wake synchronously; speech start refreshes the
+authoritative playback envelope instead of waiting for a quiet-state poll.
+Active speech work keeps authoritative playback sampling awake at 16 ms,
+including synthesis before the actual playing envelope is available. Only that
+envelope drives speech sizing; a static non-playing frame does not invalidate.
+Actual speech playback retains the current-main 16-ms cadence; non-speaking
+colour/opacity/scale transitions, capture, calculating and execution use 33 ms.
+Settled non-speaking low-motion states without speech work use
+198 ms (six times fewer scheduled invalidations); high configured motion also
+uses 33 ms. The interval is always one of 16, 33 or 198 ms; a settled motionless
+failure requests no further frames.
+Elapsed-time motion retains the nominal velocity at either cadence and caps
+delayed integration at 198 ms. Windows' animation preference is read at startup
+and each explicit show; reduced motion freezes the current particle arrangement
+without reseeding it. Colour, visibility and actual speech sizing remain separate.
+
+Depth order is computed once over the deterministic maximum seeded cloud, then
+filtered by the original density prefix; changing density never selects a
+different sorted subset. Six immutable brushes are reused until the effective
+state colour/theme or animated opacity changes. Geometry, density, diameter,
+speed and speech scale alone do not rebuild brushes. Particle limits and palettes
+are unchanged.
+
+[Deterministic renderer/native input tests](../tests/Kora.Windows.IntegrationTests/PresenceRendererTests.cs)
+exercise hidden/detached/privacy/disposal fences, immediate wake, exact cadence
+ratio, direct bounded drawing, seeded ordering, brush identity, input-edge fades
+and retired callbacks. These are bounded scheduling/resource assertions, not
+measured whole-application CPU savings, reproduction of a whole-core report,
+GPU/hardware evidence or installed/accessibility qualification.
+
 The native Settings surface provides device-local sliders for the overall
 presence footprint (240-600 px, default 360), particle diameter (50-200%,
 default 100%), dot density (25-200%, default 100%, or 150 particles), and particle

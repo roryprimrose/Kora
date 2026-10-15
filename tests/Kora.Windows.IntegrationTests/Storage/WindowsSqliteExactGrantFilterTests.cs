@@ -14,7 +14,6 @@ using Kora.Windows.IntegrationTests.Audio;
 
 namespace Kora.Windows.IntegrationTests.Storage;
 
-[Collection(nameof(DurableStorageCompositionTestGroup))]
 public sealed class WindowsSqliteExactGrantFilterTests
 {
     [WindowsFact]

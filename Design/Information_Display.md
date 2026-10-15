@@ -259,12 +259,31 @@ user-modifiable. Native installed/accessibility acceptance remains open.
 
 The tray's **Evidence (read-only)** entry opens a separate, non-topmost native
 window using the existing theme resources. It is not the clipboard-capable
-passive detail viewer. Source, safe-text, session/task GUID and W3C trace
+passive detail viewer. Source, safe-text, session/task GUID and W3C trace/span
 filters provide deterministic current-user SQLite inspection without a model,
 network, microphone or browser. Search starts a fresh bounded snapshot;
 Next page continues only that snapshot. Selecting a cited record exposes its
 parent/explicit link availability; Read selected trace and Open selected
 segment use the same typed query service, never paths or SQL.
+
+The basic **Span ID** field beside **Trace ID** binds the existing optional
+exact `EvidenceQuery.SpanId`. Only empty input means Any. Nonempty input must
+pass the existing portable W3C validator: exactly 16 lowercase hexadecimal
+characters, not all zero. No trimming, case folding, prefix/partial matching,
+repair or reinterpretation occurs. Span ID composes with every existing
+source/text/identity/time/typed filter using AND; it is correlation only,
+never identity, permission or audit authority. Link records retain the existing
+source-or-target pair semantics: when both W3C IDs are specified, both must
+match the same end, not separate ends. ParentSpanId is not a filter.
+Zero matches disclose only absence within the admitted filtered snapshot.
+Editing or emptying the field performs no read and immediately retires the
+page, selection, continuation and literal-Find state, including late callbacks.
+**Clear advanced filters** preserves both basic W3C fields; empty either
+field explicitly to unset it. Closing clears both. No filter-value logging,
+persistence, export, clipboard, model/tool/speech route, schema/index/cache,
+trace navigation, activity renewal or generated content is added. Complete
+bounded record validation, private/source/authority fences, authenticated
+snapshots/continuations and explicit content omission remain unchanged.
 
 The optional **Advanced filters** area adds exact request, invocation, approval
 and audit-correlation GUIDs, inclusive **From / Until** timestamps, diagnostic

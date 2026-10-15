@@ -36,31 +36,50 @@ public sealed class OwnedDefinitionInventory
 
     public static void ValidateQuery(string query) => LiteralMetadataQuery.Validate(query);
 
-    public OwnedDefinitionInventoryPage Page(string query, OwnedDefinitionUseFilter filter, int offset = 0)
+    public OwnedDefinitionInventoryPage Page(string query, OwnedDefinitionUseFilter filter, int offset = 0, string digest = "")
     {
         ValidateQuery(query);
+        ArgumentNullException.ThrowIfNull(digest);
+        if (digest.Length != 0) { ArtifactDigest.Validate(digest); }
         if (!Enum.IsDefined(filter)) { throw new ArgumentOutOfRangeException(nameof(filter)); }
-        var matching = Rows.Where(row => (filter switch
-        {
-            OwnedDefinitionUseFilter.All => true,
-            OwnedDefinitionUseFilter.UseEnabled => row.ObservedUseEnabled is true,
-            OwnedDefinitionUseFilter.ReviewRequired => row.ObservedUseEnabled is false,
-            _ => row.ObservedUseEnabled is null,
-        }) && (row.CanonicalFileName.Contains(query, StringComparison.OrdinalIgnoreCase)
-            || row.DisplayName?.Contains(query, StringComparison.OrdinalIgnoreCase) == true
-            || row.ArtifactId?.Contains(query, StringComparison.OrdinalIgnoreCase) == true)).ToArray();
-        if (offset < 0 || offset > matching.Length) { throw new ArgumentOutOfRangeException(nameof(offset)); }
-        var visible = new List<OwnedDefinitionInventoryRow>();
-        var bytes = 0;
-        foreach (var row in matching.Skip(offset))
+        var validated = Rows.Select(row =>
         {
             var size = Utf8.GetByteCount(row.Details) + Utf8.GetByteCount(row.ToString());
             if (size > MaximumDisplayUtf8Bytes)
             { throw new InvalidDataException("One complete metadata row exceeds the native display bound."); }
-            if (bytes + size > MaximumDisplayUtf8Bytes) { break; }
-            visible.Add(row);
-            bytes += size;
+            return (Row: row, Size: size);
+        }).ToArray();
+        var matching = validated.Where(item => (filter switch
+        {
+            OwnedDefinitionUseFilter.All => true,
+            OwnedDefinitionUseFilter.UseEnabled => item.Row.ObservedUseEnabled is true,
+            OwnedDefinitionUseFilter.ReviewRequired => item.Row.ObservedUseEnabled is false,
+            _ => item.Row.ObservedUseEnabled is null,
+        }) && (digest.Length == 0 || string.Equals(item.Row.Digest, digest, StringComparison.Ordinal))
+            && (item.Row.CanonicalFileName.Contains(query, StringComparison.OrdinalIgnoreCase)
+                || item.Row.DisplayName?.Contains(query, StringComparison.OrdinalIgnoreCase) == true
+                || item.Row.ArtifactId?.Contains(query, StringComparison.OrdinalIgnoreCase) == true)).ToArray();
+        if (offset < 0 || offset > matching.Length) { throw new ArgumentOutOfRangeException(nameof(offset)); }
+        var visible = new List<OwnedDefinitionInventoryRow>();
+        var bytes = 0;
+        foreach (var item in matching.Skip(offset))
+        {
+            if (bytes + item.Size > MaximumDisplayUtf8Bytes) { break; }
+            visible.Add(item.Row);
+            bytes += item.Size;
         }
-        return new(Array.AsReadOnly(visible.ToArray()), offset, matching.Length, bytes);
+        return new(Array.AsReadOnly(visible.ToArray()), offset, matching.Length, bytes)
+        { Inventory = this, Query = query, Filter = filter, Digest = digest };
+    }
+
+    public OwnedDefinitionInventoryPage Continue(OwnedDefinitionInventoryPage page, string query,
+        OwnedDefinitionUseFilter filter, string digest = "")
+    {
+        ArgumentNullException.ThrowIfNull(page);
+        if (!ReferenceEquals(page.Inventory, this) || !string.Equals(page.Query, query, StringComparison.Ordinal)
+            || page.Filter != filter || !string.Equals(page.Digest, digest, StringComparison.Ordinal)
+            || page.NextOffset is not { } next)
+        { throw new InvalidOperationException("The inventory or complete filter changed, or no next page exists. Restart from the first page."); }
+        return Page(query, filter, next, digest);
     }
 }

@@ -481,6 +481,16 @@ Done-session conversation is readable without resume. Sending new work requires 
 
 ### Evidence Mode
 
+The delivered [bounded native inspector](Information_Display.md#delivered-bounded-native-evidence-inspection)
+has an optional exact **Span ID** field beside **Trace ID**. Empty means Any;
+nonempty means exactly 16 lowercase hexadecimal characters, not all zero,
+under the existing portable W3C policy. All existing filters compose with AND.
+Edits revoke the current page/selection/continuation without reading.
+Clear advanced preserves both basic W3C fields; emptying either unsets it,
+and close clears both. Span ID is correlation only, not session or audit
+authority. This adds no ParentSpanId predicate, navigation, export or model
+route; the broader mode below remains a target contract, not qualification.
+
 Evidence mode provides a bounded local timeline/search over permitted session,
 diagnostic and security-audit records. It supports time range, source kind,
 severity, event/category, correlation, session, task, invocation, approval,
@@ -621,6 +631,17 @@ The text-only body-free summary is historical structural compatibility, never ap
 **Disable reviewed use** and exact `instructions` / `prompts` `disable` or `stop-use` focus one separate native confirmation for the clean inspected supported native owned source/kind/digest/revision (instruction v1; prompt v1/v2).
 The durable hold withdraws all new selections without writing/deleting the source, preserves inspection/editing and already captured reasoning, and retires pending unadmitted choices without replay. Dirty drafts remain intact with an explicit Save/Reload prerequisite.
 Cancellation/stale review and failed audit/preference readback never invent completion or restore enablement. No-change reload/restart/restored bytes cannot re-enable use; fresh exact review is required. Profile-original editing and installed/accessibility qualification stay open.
+
+The owned editor's native **Exact SHA-256** field narrows observed artifact
+metadata for both owned kinds, ANDed with literal metadata query and use state.
+Empty means Any; otherwise exactly 64 lowercase hexadecimal characters are
+required by the shared portable artifact policy. No trimming, folding or partial
+matching occurs; unknown digests match only Any. Predicate edits perform no
+source/catalogue read and synchronously retire page/selection/details/continuation,
+validation and pending review/use controls, preserving the open draft and fencing
+late callbacks. Next binds the complete filter state and original inventory;
+zero matches is truthful. Digest never supplies use authority or disk integrity,
+and no additional source, persistence, export or activity renewal is introduced.
 
 The Skills surface lists source-qualified skills and revisions without reading
 arbitrary profile paths. Selecting a revision shows host-resolved identity,

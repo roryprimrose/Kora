@@ -24,7 +24,7 @@ using Kora.Windows.Storage;
 
 namespace Kora.Windows.IntegrationTests;
 
-[Collection(nameof(DurableStorageCompositionTestGroup))]
+[Collection(nameof(HeadlessUiTestGroup))]
 public sealed partial class SessionAttachmentWindowTests
 {
     [WindowsFact]

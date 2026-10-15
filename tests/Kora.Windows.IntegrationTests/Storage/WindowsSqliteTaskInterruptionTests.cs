@@ -13,7 +13,6 @@ using Microsoft.Data.Sqlite;
 
 namespace Kora.Windows.IntegrationTests.Storage;
 
-[Collection(nameof(DurableStorageCompositionTestGroup))]
 public sealed class WindowsSqliteTaskInterruptionTests
 {
     private const string RootVariable = "KORA_OWNED_STORAGE_CHILD_ROOT";

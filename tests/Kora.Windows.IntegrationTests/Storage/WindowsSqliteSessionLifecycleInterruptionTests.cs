@@ -10,7 +10,6 @@ using Kora.Windows.Storage;
 
 namespace Kora.Windows.IntegrationTests.Storage;
 
-[Collection(nameof(DurableStorageCompositionTestGroup))]
 public sealed class WindowsSqliteSessionLifecycleInterruptionTests
 {
     private const string RootVariable = "KORA_SESSION_CHILD_ROOT";

@@ -16,7 +16,6 @@ using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Kora.Windows.IntegrationTests.Storage;
 
-[Collection(nameof(DurableStorageCompositionTestGroup))]
 public sealed class WindowsCommittedAuthorityAuditTests
 {
     [WindowsFact]
@@ -64,10 +63,17 @@ public sealed class WindowsCommittedAuthorityAuditTests
         viewer.UntilFilter = viewer.FromFilter;
         viewer.CategoryFilter = selected.Audit.Category.ToString();
         viewer.ActionIdFilter = selected.Audit.ActionId;
+        viewer.SpanFilter = selected.AuthorityProvenance!.SpanId!;
+        viewer.TraceFilter = selected.AuthorityProvenance.TraceId!;
         await viewer.SearchAsync();
         viewer.Records.Should().ContainSingle().Which.Reference.Should().Be(selected.Reference);
         viewer.Status.Should().Contain(EvidencePage.AuthorityDisclosure);
         viewer.ResultText.Should().Contain("AuthorityProvenance");
+        viewer.SpanFilter = "0123456789abcdef";
+        await viewer.SearchAsync();
+        viewer.Records.Should().BeEmpty();
+        viewer.Status.Should().StartWith("MissingOrRemoved");
+        viewer.SpanFilter = selected.AuthorityProvenance.SpanId!;
         viewer.CategoryFilter = selected.Audit.Category.ToString().ToLowerInvariant();
         await viewer.SearchAsync();
         viewer.Records.Should().BeEmpty();

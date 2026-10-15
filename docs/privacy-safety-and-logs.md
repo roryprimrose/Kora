@@ -567,6 +567,17 @@ results cannot return. Next continues the exact immutable query. These rules
 are exercised by [native typed-filter and real-reader tests](../tests/Kora.Windows.IntegrationTests/EvidenceAdvancedFilterTests.cs)
 and [signed-cursor tests](../tests/Kora.Application.UnitTests/Diagnostics/DurableEvidenceQueryTests.cs).
 
+The basic **Span ID** field beside **Trace ID** uses the existing exact W3C
+predicate: empty means Any; otherwise exactly 16 lowercase hexadecimal
+characters, not all zero. No trimming, case folding, partial match or repair.
+It composes with all other filters using AND and is correlation only, never
+identity or audit authority. Editing/emptying performs no read and retires
+results, selection, Next and late callbacks. **Clear advanced filters**
+preserves both basic W3C fields; empty either explicitly to unset it. Close
+clears both. Zero matches mean only absence in the filtered admitted snapshot.
+This adds no ParentSpanId filter, navigation, persistence, export, clipboard,
+model/tool/speech route or filter-value telemetry.
+
 The same [native parser](../src/Kora/EvidenceViewModel.Filters.cs) also exposes **Event ID**, **Category** and **Audit action ID**. Only empty text unsets these three fields; whitespace-only/surrounding whitespace, controls, invalid Unicode and over-limit values fail without a read.
 Event ID is canonical invariant signed 32-bit decimal, including zero, negatives and both integer bounds; no `+`, leading zeros, rounding or overflow fallback.
 

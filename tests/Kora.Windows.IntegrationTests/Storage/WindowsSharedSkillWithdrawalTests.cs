@@ -20,16 +20,16 @@ using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Kora.Windows.IntegrationTests.Storage;
 
-// Real sinks subscribe process-wide; the existing composition group excludes foreign test callbacks at teardown.
-[Collection(nameof(DurableStorageCompositionTestGroup))]
+// Real sinks subscribe process-wide, so foreign test callbacks must be excluded during teardown.
+[Collection(nameof(ProcessGlobalEvidenceTestGroup))]
 public sealed class WindowsSharedSkillWithdrawalTests
 {
     [Fact]
-    public void Real_global_evidence_fixture_uses_existing_exclusive_composition_collection()
+    public void Real_global_evidence_fixture_uses_narrow_exclusive_collection()
     {
         typeof(WindowsSharedSkillWithdrawalTests).GetCustomAttribute<CollectionAttribute>()!.Name
-            .Should().Be(nameof(DurableStorageCompositionTestGroup));
-        typeof(DurableStorageCompositionTestGroup).GetCustomAttribute<CollectionDefinitionAttribute>()!
+            .Should().Be(nameof(ProcessGlobalEvidenceTestGroup));
+        typeof(ProcessGlobalEvidenceTestGroup).GetCustomAttribute<CollectionDefinitionAttribute>()!
             .DisableParallelization.Should().BeTrue();
     }
 

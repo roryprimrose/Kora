@@ -239,7 +239,8 @@ public sealed partial class SessionWorkspaceServiceTests
             await release.Task.WaitAsync(token);
         };
         using var root = HostActivity.BeginRoot(f.Request, HostActivityLayer.Application, HostOperation.Request);
-        var pending = f.Service.SearchConversationAsync(f.Session.SessionId, "marker", null, 25, cancellation.Token, ConversationSearchRole.HOST);
+        var pending = f.Service.SearchConversationAsync(f.Session.SessionId, "marker", null, 25, cancellation.Token,
+            ConversationSearchRole.HOST, new(ModelTurnOutcome.Unavailable, ModelTurnReason.UnregisteredModel, HostTaskState.Unavailable));
         await entered.Task;
         if (change is "private") { f.CanInspect = false; }
         if (change is "owner") { f.AdvanceRevision(); }
@@ -292,15 +293,16 @@ public sealed partial class SessionWorkspaceServiceTests
             return page;
         };
         using var root = HostActivity.BeginRoot(f.Request, HostActivityLayer.Application, HostOperation.Request);
+        var terminal = new ConversationTerminalFilter(ModelTurnOutcome.Unavailable, ModelTurnReason.UnregisteredModel, HostTaskState.Unavailable);
         if (change is "generation" or "head")
         {
-            var first = await f.Service.SearchConversationAsync(f.Session.SessionId, "Unavailable", null, 1, f.Token, ConversationSearchRole.HOST);
-            await f.Service.Invoking(service => service.SearchConversationAsync(f.Session.SessionId, "Unavailable", first.Next, 1, f.Token, ConversationSearchRole.HOST))
+            var first = await f.Service.SearchConversationAsync(f.Session.SessionId, "Unavailable", null, 1, f.Token, ConversationSearchRole.HOST, terminal);
+            await f.Service.Invoking(service => service.SearchConversationAsync(f.Session.SessionId, "Unavailable", first.Next, 1, f.Token, ConversationSearchRole.HOST, terminal))
                 .Should().ThrowAsync<InvalidDataException>();
         }
         else
         {
-            await f.Service.Invoking(service => service.SearchConversationAsync(f.Session.SessionId, "Unavailable", null, 25, f.Token, ConversationSearchRole.HOST))
+            await f.Service.Invoking(service => service.SearchConversationAsync(f.Session.SessionId, "Unavailable", null, 25, f.Token, ConversationSearchRole.HOST, terminal))
                 .Should().ThrowAsync<Exception>();
         }
         f.TaskWrites.Should().BeEmpty();

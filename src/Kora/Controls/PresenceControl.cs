@@ -1,10 +1,9 @@
-using System.Diagnostics;
-
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Media;
+using Avalonia.Media.Immutable;
 using Avalonia.Styling;
-using Avalonia.Threading;
+using Avalonia.VisualTree;
 
 using Kora.Application.Visuals;
 using Kora.Core;
@@ -12,16 +11,18 @@ using Kora.Core.Configuration;
 
 namespace Kora.Controls;
 
-public sealed class PresenceControl : Control
+public sealed class PresenceControl : Control, IDisposable
 {
     private const string ActualThemeVariantPropertyName = "ActualThemeVariant";
-    private static readonly TimeSpan SpeechFrameInterval = TimeSpan.FromMilliseconds(16);
 
     public static readonly StyledProperty<AssistantState> StateProperty =
         AvaloniaProperty.Register<PresenceControl, AssistantState>(nameof(State), AssistantState.Information);
 
     public static readonly StyledProperty<bool> IsSpeakingProperty =
         AvaloniaProperty.Register<PresenceControl, bool>(nameof(IsSpeaking));
+
+    public static readonly StyledProperty<bool> IsSpeechWorkActiveProperty =
+        AvaloniaProperty.Register<PresenceControl, bool>(nameof(IsSpeechWorkActive));
 
     public static readonly StyledProperty<double> SpeechOutputLevelProperty =
         AvaloniaProperty.Register<PresenceControl, double>(nameof(SpeechOutputLevel));
@@ -49,27 +50,34 @@ public sealed class PresenceControl : Control
     public static readonly StyledProperty<bool> IsPresenceVisibleProperty =
         AvaloniaProperty.Register<PresenceControl, bool>(nameof(IsPresenceVisible), true);
 
-    private readonly PresenceAnimation animation = new(AssistantState.Information);
-    private readonly Particle[] particles;
-    private readonly DispatcherTimer timer;
-    private bool isAttached;
-    private bool isAnimationEnabled = true;
-    private long previousFrameTimestamp;
+    public static readonly StyledProperty<bool> IsPresentationEligibleProperty =
+        AvaloniaProperty.Register<PresenceControl, bool>(nameof(IsPresentationEligible));
 
-    static PresenceControl()
-    {
-        AffectsRender<PresenceControl>(
-            StateProperty,
-            IsSpeakingProperty,
-            SpeechOutputLevelProperty,
-            DotSizePercentProperty,
-            DotDensityPercentProperty,
-            IsSpeechScalingEnabledProperty,
-            SpeechScaleAmountPercentProperty,
-            IsPresenceVisibleProperty);
-    }
+    public static readonly StyledProperty<bool> IsMotionEnabledProperty =
+        AvaloniaProperty.Register<PresenceControl, bool>(nameof(IsMotionEnabled), true);
+
+    private PresenceAnimation animation = new(AssistantState.Information);
+    private readonly Particle[] particles;
+    private readonly int[] depthOrder;
+    private readonly PresenceRenderLoop loop;
+    private readonly List<Visual> ancestors = [];
+    private readonly IBrush[] brushes = new IBrush[6];
+    private Color? brushColor;
+    private double brushOpacity = -1;
+    private bool attached;
+    private bool isAnimationEnabled = true;
+    private bool disposed;
+    private bool transitioning;
+    private Func<bool>? authoritativeEligibility;
+    private (AssistantState State, bool Speaking, double Level, bool Scaling, int Amount, bool Visible) previousInputs =
+        (AssistantState.Information, false, 0, true, PresenceSettings.DefaultSpeechScaleAmountPercent, true);
 
     public PresenceControl()
+        : this(new DispatcherPresenceFrameScheduler())
+    {
+    }
+
+    internal PresenceControl(IPresenceFrameScheduler scheduler)
     {
         var random = new Random(104729);
         particles = Enumerable.Range(0, PresenceSettings.GetParticleCount(PresenceSettings.MaximumDotDensityPercent))
@@ -80,13 +88,40 @@ public sealed class PresenceControl : Control
                 (random.NextDouble() - 0.5) * 0.012,
                 (random.NextDouble() - 0.5) * 0.012,
                 0.7 + random.NextDouble() * 1.2))
-            .OrderBy(particle => particle.Z)
             .ToArray();
 
-        timer = new DispatcherTimer(
-            PresenceAnimation.FrameInterval,
-            DispatcherPriority.Background,
-            OnTick);
+        // Z never moves. Filter this order by the original seeded prefix, not by sorted rank.
+        depthOrder = Enumerable.Range(0, particles.Length).OrderBy(index => particles[index].Z).ToArray();
+        loop = new PresenceRenderLoop(scheduler, CanRender, UpdateFrame, GetCadence);
+    }
+
+    internal long TickCount => loop.TickCount;
+    internal long InvalidationCount { get; private set; }
+    internal long ResourceBuildCount { get; private set; }
+    internal int AncestorSubscriptionCount => ancestors.Count;
+    internal ReadOnlySpan<int> DepthOrder => depthOrder;
+    internal ReadOnlySpan<Particle> Particles => particles;
+    internal PresenceVisualFrame CurrentFrame => animation.Current;
+    internal ReadOnlySpan<IBrush> Brushes => brushes;
+    internal bool CanInteract => CanRender() && IsPresenceVisible
+        && State != AssistantState.Hidden && animation.Current.Opacity > 0;
+
+    internal void BindPresentationEligibility(Func<bool> eligibility)
+    {
+        authoritativeEligibility = eligibility;
+        loop.Wake();
+    }
+
+    public bool IsPresentationEligible
+    {
+        get => GetValue(IsPresentationEligibleProperty);
+        set => SetValue(IsPresentationEligibleProperty, value);
+    }
+
+    public bool IsMotionEnabled
+    {
+        get => GetValue(IsMotionEnabledProperty);
+        set => SetValue(IsMotionEnabledProperty, value);
     }
 
     public AssistantState State
@@ -99,6 +134,12 @@ public sealed class PresenceControl : Control
     {
         get => GetValue(IsSpeakingProperty);
         set => SetValue(IsSpeakingProperty, value);
+    }
+
+    public bool IsSpeechWorkActive
+    {
+        get => GetValue(IsSpeechWorkActiveProperty);
+        set => SetValue(IsSpeechWorkActiveProperty, value);
     }
 
     public double SpeechOutputLevel
@@ -150,24 +191,23 @@ public sealed class PresenceControl : Control
         base.Render(context);
 
         var frame = animation.Current;
-        if (frame.Opacity <= 0 || Bounds.Width <= 0 || Bounds.Height <= 0)
+        if (!CanRender() || frame.Opacity <= 0)
         {
             return;
         }
 
-        var color = ResolveParticleColor(frame.Color.Red, frame.Color.Green, frame.Color.Blue);
-        var brushes = Enumerable.Range(0, 6)
-            .Select(index => new SolidColorBrush(Color.FromArgb(
-                (byte)Math.Round((70 + (index * 28)) * frame.Opacity),
-                color.R,
-                color.G,
-                color.B)))
-            .ToArray();
+        PrepareBrushes();
         var center = new Point(Bounds.Width / 2, Bounds.Height / 2);
         var scale = Math.Min(Bounds.Width, Bounds.Height) * 0.36 * frame.Scale;
 
-        foreach (var particle in particles.Take(PresenceSettings.GetParticleCount(DotDensityPercent)))
+        var particleCount = PresenceSettings.GetParticleCount(DotDensityPercent);
+        foreach (var index in depthOrder)
         {
+            if (index >= particleCount)
+            {
+                continue;
+            }
+            var particle = particles[index];
             var perspective = 0.72 + ((particle.Z + 1) * 0.18);
             var x = center.X + particle.X * scale * perspective;
             var y = center.Y + particle.Y * scale * perspective;
@@ -182,62 +222,163 @@ public sealed class PresenceControl : Control
     protected override void OnAttachedToVisualTree(Avalonia.VisualTreeAttachmentEventArgs e)
     {
         base.OnAttachedToVisualTree(e);
-        isAttached = true;
-        UpdateTimer();
+        if (disposed)
+        {
+            return;
+        }
+        attached = true;
+        foreach (var ancestor in this.GetVisualAncestors())
+        {
+            ancestors.Add(ancestor);
+            ancestor.PropertyChanged += OnAncestorPropertyChanged;
+        }
+        loop.Wake();
     }
 
     protected override void OnDetachedFromVisualTree(Avalonia.VisualTreeAttachmentEventArgs e)
     {
-        isAttached = false;
-        timer.Stop();
+        attached = false;
+        loop.Stop();
+        UnsubscribeAncestors();
         base.OnDetachedFromVisualTree(e);
     }
 
     internal void SetAnimationEnabled(bool enabled)
     {
         isAnimationEnabled = enabled;
-        UpdateTimer();
+        loop.Wake();
     }
 
     protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
     {
         base.OnPropertyChanged(change);
-        if (string.Equals(
+        if (loop is not null && (change.Property == StateProperty
+            || change.Property == IsSpeakingProperty
+            || change.Property == IsSpeechWorkActiveProperty
+            || change.Property == SpeechOutputLevelProperty
+            || change.Property == DotSizePercentProperty
+            || change.Property == DotDensityPercentProperty
+            || change.Property == MovementSpeedPercentProperty
+            || change.Property == IsSpeechScalingEnabledProperty
+            || change.Property == SpeechScaleAmountPercentProperty
+            || change.Property == IsPresenceVisibleProperty
+            || change.Property == IsPresentationEligibleProperty
+            || change.Property == IsMotionEnabledProperty
+            || change.Property == IsVisibleProperty
+            || change.Property == OpacityProperty
+            || change.Property == BoundsProperty
+            || string.Equals(
             change.Property.Name,
             ActualThemeVariantPropertyName,
-            StringComparison.Ordinal))
+            StringComparison.Ordinal)))
         {
+            loop.Wake();
+        }
+    }
+
+    public void Dispose()
+    {
+        disposed = true;
+        loop.Dispose();
+        UnsubscribeAncestors();
+        authoritativeEligibility = null;
+        FrameUpdating = null;
+    }
+
+    private void UnsubscribeAncestors()
+    {
+        foreach (var ancestor in ancestors)
+        {
+            ancestor.PropertyChanged -= OnAncestorPropertyChanged;
+        }
+        ancestors.Clear();
+    }
+
+    private void OnAncestorPropertyChanged(object? sender, AvaloniaPropertyChangedEventArgs change)
+    {
+        if (change.Property == IsVisibleProperty || change.Property == OpacityProperty
+            || change.Property == BoundsProperty || change.Property == Window.WindowStateProperty)
+        {
+            loop.Wake();
+        }
+    }
+
+    private bool CanRender() => !disposed && attached && isAnimationEnabled && IsEffectivelyVisible && Opacity > 0
+        && IsPresentationEligible && (authoritativeEligibility?.Invoke() ?? true)
+        && Bounds.Width > 0 && Bounds.Height > 0
+        && (State != AssistantState.Hidden || animation.Current.Opacity > 0)
+        && (IsPresenceVisible || animation.Current.Opacity > 0)
+        && ancestors.TrueForAll(static ancestor => ancestor.IsVisible && ancestor.Opacity > 0
+            && ancestor is not Window { WindowState: WindowState.Minimized });
+
+    private TimeSpan? GetCadence()
+    {
+        if (IsSpeaking || IsSpeechWorkActive)
+        {
+            return PresenceRenderLoop.SpeechInterval;
+        }
+        if (transitioning
+            || IsMotionEnabled && State is AssistantState.Listening or AssistantState.Calculating or AssistantState.Executing
+            || GetActivity() >= 0.5)
+        {
+            return PresenceRenderLoop.ActiveInterval;
+        }
+        return GetActivity() > 0 ? PresenceRenderLoop.QuietInterval : null;
+    }
+
+    private void UpdateFrame(TimeSpan elapsed, bool resumed, bool isWake)
+    {
+        FrameUpdating?.Invoke(this, EventArgs.Empty);
+        if (!CanRender())
+        {
+            return;
+        }
+        if (resumed)
+        {
+            animation = new PresenceAnimation(State);
+            animation.Advance(AssistantState.Hidden, false, 0, PresenceAnimation.VisibilityTransitionDuration);
+        }
+        var inputs = (State, IsSpeaking, SpeechOutputLevel, IsSpeechScalingEnabled,
+            SpeechScaleAmountPercent, IsPresenceVisible);
+        var inputsChanged = inputs != previousInputs;
+        var visualChanged = false;
+        if (inputsChanged && !resumed)
+        {
+            // Time before an input edge belongs to the previous target, not the new transition.
+            visualChanged = animation.Advance(previousInputs.State, previousInputs.Speaking, previousInputs.Level, elapsed,
+                previousInputs.Scaling, previousInputs.Amount, previousInputs.Visible);
+        }
+        visualChanged |= animation.Advance(
+            State,
+            IsSpeaking,
+            SpeechOutputLevel,
+            inputsChanged ? TimeSpan.Zero : elapsed,
+            IsSpeechScalingEnabled,
+            SpeechScaleAmountPercent,
+            IsPresenceVisible);
+        previousInputs = inputs;
+        transitioning = visualChanged || elapsed == TimeSpan.Zero || inputsChanged;
+        var activity = GetActivity();
+        var remaining = elapsed.TotalMilliseconds;
+        while (activity > 0 && remaining > 0)
+        {
+            var step = Math.Min(remaining, PresenceRenderLoop.ActiveInterval.TotalMilliseconds);
+            MoveParticles(activity * step / PresenceRenderLoop.ActiveInterval.TotalMilliseconds);
+            remaining -= step;
+        }
+        if (isWake || inputsChanged || visualChanged || activity > 0 && elapsed > TimeSpan.Zero)
+        {
+            InvalidationCount++;
             InvalidateVisual();
         }
     }
 
-    private void OnTick(object? sender, EventArgs eventArgs)
+    private double GetActivity()
     {
-        if (!IsEffectivelyVisible)
+        if (!IsMotionEnabled)
         {
-            timer.Stop();
-            return;
+            return 0;
         }
-
-        FrameUpdating?.Invoke(this, EventArgs.Empty);
-        var targetInterval = IsSpeaking
-            ? SpeechFrameInterval
-            : PresenceAnimation.FrameInterval;
-        if (timer.Interval != targetInterval)
-        {
-            timer.Interval = targetInterval;
-        }
-        var timestamp = Stopwatch.GetTimestamp();
-        var elapsed = Stopwatch.GetElapsedTime(previousFrameTimestamp, timestamp);
-        previousFrameTimestamp = timestamp;
-        var visualChanged = animation.Advance(
-            State,
-            IsSpeaking,
-            SpeechOutputLevel,
-            elapsed,
-            IsSpeechScalingEnabled,
-            SpeechScaleAmountPercent,
-            IsPresenceVisible);
         var activity = State switch
         {
             AssistantState.Listening => 0.8,
@@ -249,56 +390,53 @@ public sealed class PresenceControl : Control
             AssistantState.Information => 0.28,
             _ => 0,
         };
-        var elapsedFrames = Math.Clamp(
-            elapsed.TotalMilliseconds / PresenceAnimation.FrameInterval.TotalMilliseconds,
-            0,
-            3);
-        activity *= MovementSpeedPercent / 100d * elapsedFrames;
+        return activity * MovementSpeedPercent / 100d;
+    }
 
-        if (activity > 0)
+    private void MoveParticles(double activity)
+    {
+        var particleCount = PresenceSettings.GetParticleCount(DotDensityPercent);
+        for (var index = 0; index < particleCount; index++)
         {
-            var particleCount = PresenceSettings.GetParticleCount(DotDensityPercent);
-            for (var index = 0; index < particleCount; index++)
+            var particle = particles[index];
+            particle.X += particle.Dx * activity;
+            particle.Y += particle.Dy * activity;
+
+            var distance = Math.Sqrt((particle.X * particle.X) + (particle.Y * particle.Y));
+            if (distance > 1)
             {
-                var particle = particles[index];
-                particle.X += particle.Dx * activity;
-                particle.Y += particle.Dy * activity;
-
-                var distance = Math.Sqrt((particle.X * particle.X) + (particle.Y * particle.Y));
-                if (distance > 1)
-                {
-                    particle.Dx -= particle.X * 0.0009 * activity;
-                    particle.Dy -= particle.Y * 0.0009 * activity;
-                }
-
-                if (Math.Abs(particle.X) > 1.18)
-                {
-                    particle.Dx *= -0.85;
-                }
-
-                if (Math.Abs(particle.Y) > 1.18)
-                {
-                    particle.Dy *= -0.85;
-                }
+                particle.Dx -= particle.X * 0.0009 * activity;
+                particle.Dy -= particle.Y * 0.0009 * activity;
             }
-        }
 
-        if (visualChanged || activity > 0)
-        {
-            InvalidateVisual();
+            if (Math.Abs(particle.X) > 1.18)
+            {
+                particle.Dx *= -0.85;
+            }
+
+            if (Math.Abs(particle.Y) > 1.18)
+            {
+                particle.Dy *= -0.85;
+            }
         }
     }
 
-    private void UpdateTimer()
+    internal void PrepareBrushes()
     {
-        if (!isAttached || !isAnimationEnabled)
+        var frame = animation.Current;
+        var color = ResolveParticleColor(frame.Color.Red, frame.Color.Green, frame.Color.Blue);
+        if (brushColor == color && brushOpacity == frame.Opacity)
         {
-            timer.Stop();
             return;
         }
-
-        previousFrameTimestamp = Stopwatch.GetTimestamp();
-        timer.Start();
+        for (var index = 0; index < brushes.Length; index++)
+        {
+            brushes[index] = new ImmutableSolidColorBrush(Color.FromArgb(
+                (byte)Math.Round((70 + (index * 28)) * frame.Opacity), color.R, color.G, color.B));
+        }
+        brushColor = color;
+        brushOpacity = frame.Opacity;
+        ResourceBuildCount++;
     }
 
     private Color ResolveParticleColor(byte red, byte green, byte blue)
@@ -313,7 +451,7 @@ public sealed class PresenceControl : Control
             (byte)Math.Round(blue * factor));
     }
 
-    private sealed class Particle(
+    internal sealed class Particle(
         double x,
         double y,
         double z,

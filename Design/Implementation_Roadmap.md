@@ -34,6 +34,21 @@ do not depend on hosted management, and speech preferences do not qualify wake.
 
 ## Current Delivery
 
+### Bounded Presence renderer work reduction - 2026-10-15
+
+The [native particle-cloud scheduling boundary](Ambient_UI.md#bounded-native-renderer-scheduling)
+adds renderability/privacy/disposal-fenced one-shot frames, immediate authoritative
+speech/state wake, bounded 16/33/198-ms cadence, invariant seeded depth order and
+effective-colour/theme/opacity brush reuse. Visible fades remain distinct from
+actual hidden state; requested hide relinquishes mouse interception immediately.
+Windows animation preferences freeze geometry without reseeding.
+Focused deterministic scheduler/headless/native-input tests are implementation
+evidence for this existing presentation consumer's I subset. No new authority,
+audio/model/network path, package, compositor or hardware prerequisite is added.
+Whole-app CPU savings and reproduction/resolution of the earlier whole-core
+observation are not claimed; installed/accessibility/hardware and E/Q qualification
+remain separate and unchanged.
+
 The [exact command reference](../docs/commands.md) and
 [settings reference](../docs/settings.md) describe usable routes. The
 [canonical tool catalogue](Internal_Model_Tools.md) separately labels model

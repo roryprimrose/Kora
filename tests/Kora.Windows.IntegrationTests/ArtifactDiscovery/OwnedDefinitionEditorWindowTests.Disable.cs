@@ -34,6 +34,13 @@ public sealed partial class OwnedDefinitionEditorWindowTests
     [InlineData(ArtifactKind.Prompt, "owner-closed")]
     [InlineData(ArtifactKind.Prompt, "input")]
     [InlineData(ArtifactKind.Instruction, "disk")]
+    [InlineData(ArtifactKind.Instruction, "digest")]
+    [InlineData(ArtifactKind.Prompt, "digest")]
+    [InlineData(ArtifactKind.Instruction, "digest-invalid")]
+    [InlineData(ArtifactKind.Prompt, "query")]
+    [InlineData(ArtifactKind.Prompt, "use-filter")]
+    [InlineData(ArtifactKind.Instruction, "digest-activate")]
+    [InlineData(ArtifactKind.Prompt, "digest-activate")]
     public async Task ActualNativeDisableHasExactReviewAndNoSourceMutationOrDraftDiscard(ArtifactKind kind, string condition)
     {
         await HeadlessSession.RunAsync(async () =>
@@ -67,6 +74,8 @@ public sealed partial class OwnedDefinitionEditorWindowTests
             var source = (await store.Write("example", null, document, () => true, f.Token)).Current!;
             reload.ReconcileSavedCopy(source).Should().BeTrue();
             await actions.Activate(source, _ => Task.FromResult(true), () => true, f.Token);
+            var useReview = condition is "digest-activate";
+            if (useReview) { await actions.Disable(source, _ => Task.FromResult(true), () => true, f.Token); }
             var path = Path.Combine(f.RoamingRoot, OwnedDefinitionKind.DirectoryName(kind), source.CanonicalFileName);
             var originalBytes = File.ReadAllBytes(path);
             var info = new FileInfo(path);
@@ -119,12 +128,13 @@ public sealed partial class OwnedDefinitionEditorWindowTests
                     .RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
                 disable = completion.Task;
             }
-            else { disable = Run("Kora, " + prefix + " stop-use"); }
+            else { disable = Run("Kora, " + prefix + (useReview ? " activate" : " stop-use")); }
             (await Task.WhenAny(disable, reviewOpened.Task)).Should().BeSameAs(reviewOpened.Task);
             dialog = await reviewOpened.Task;
             dialog.GetVisualDescendants().OfType<TextBox>().Select(text => text.Text).Should().Equal(source.Document.Text, source.Document.Text);
-            string.Join("\n", dialog.GetVisualDescendants().OfType<TextBlock>().Select(text => text.Text))
-                .Should().Contain(source.Revision).And.Contain(source.CanonicalFileName).And.Contain("NEW requests");
+            var disclosure = string.Join("\n", dialog.GetVisualDescendants().OfType<TextBlock>().Select(text => text.Text));
+            if (useReview) { disclosure.Should().Contain(source.Document.Definition.Digest).And.Contain("Permit explicit selection"); }
+            else { disclosure.Should().Contain(source.Revision).And.Contain(source.CanonicalFileName).And.Contain("NEW requests"); }
             if (condition is "owner-closed")
             {
                 f.Access.SetOpen(false);
@@ -144,13 +154,26 @@ public sealed partial class OwnedDefinitionEditorWindowTests
                 case "owner": ownership++; break;
                 case "input": await Run(prefix + " list"); break;
                 case "disk": File.WriteAllBytes(path, Document(kind, "External edit").CopyBytes()); break;
+                case "digest": editor.DigestInput.Text = source.Document.Definition.Digest; break;
+                case "digest-activate": editor.DigestInput.Text = source.Document.Definition.Digest; break;
+                case "digest-invalid": editor.DigestInput.Text = "invalid"; break;
+                case "query": editor.QueryInput.Text = "example"; break;
+                case "use-filter": editor.UseStateInput.SelectedItem = OwnedDefinitionUseFilter.UseEnabled; break;
+            }
+            if (condition is "digest" or "digest-invalid" or "query" or "use-filter" or "digest-activate")
+            {
+                dialog.IsVisible.Should().BeFalse();
+                editor.ReviewUse.IsEnabled.Should().BeFalse();
+                editor.DisableReviewedUse.IsEnabled.Should().BeFalse();
+                editor.Files.SelectedItem.Should().BeNull();
+                editor.NextPage.IsEnabled.Should().BeFalse();
             }
             dialog.GetVisualDescendants().OfType<Button>().Single(button =>
-                Equals(button.Content, condition is "cancel" ? "Cancel" : "Confirm disable reviewed use"))
+                Equals(button.Content, condition is "cancel" ? "Cancel" : useReview ? "Permit explicit use" : "Confirm disable reviewed use"))
                 .RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             await disable;
             editor.Source.Text.Should().Be(draft);
-            var shouldHold = condition is "confirmed" or "disk";
+            var shouldHold = condition is "confirmed" or "disk" or "digest-activate";
             actions.IsReviewedUseEnabled(source).Should().Be(!shouldHold);
             if (condition is "disk")
             {

@@ -1,4 +1,5 @@
 ﻿using Avalonia.Controls;
+using Avalonia.Automation;
 using Avalonia.Layout;
 using Avalonia.Media;
 
@@ -11,6 +12,9 @@ internal sealed class OwnedInstructionEditorWindow : Window
 {
     internal readonly ComboBox Files = new() { Width = 240 };
     internal readonly TextBox QueryInput = new() { Width = 240, PlaceholderText = "Find filename, name or exact ID" };
+    internal readonly TextBox DigestInput = new() { Width = 300, PlaceholderText = "Exact SHA-256 (empty means Any)" };
+    internal readonly Button ReviewUse = new() { Content = "Review use", Margin = new(3), IsEnabled = false };
+    internal readonly Button DisableReviewedUse = new() { Content = "Disable reviewed use", Margin = new(3), IsEnabled = false };
     internal readonly ComboBox UseStateInput = new()
     {
         Width = 180, ItemsSource = Enum.GetValues<OwnedDefinitionUseFilter>(), SelectedItem = OwnedDefinitionUseFilter.All,
@@ -47,12 +51,16 @@ internal sealed class OwnedInstructionEditorWindow : Window
         controls.Children.Add(Files);
         controls.Children.Add(NameInput);
         controls.Children.Add(CopyNameInput);
-        foreach (var action in new[] { "List", "Refresh", "Create", "Inspect", "Validate", "Compare", "Save", "Save as new copy", "Reload", "Delete", "Review use", "Disable reviewed use" })
+        foreach (var action in new[] { "List", "Refresh", "Create", "Inspect", "Validate", "Compare", "Save", "Save as new copy", "Reload", "Delete" })
         {
             var button = new Button { Content = action, Margin = new(3) };
             button.Click += (_, _) => run(action);
             controls.Children.Add(button);
         }
+        ReviewUse.Click += (_, _) => run("Review use");
+        DisableReviewedUse.Click += (_, _) => run("Disable reviewed use");
+        controls.Children.Add(ReviewUse);
+        controls.Children.Add(DisableReviewedUse);
         var panel = new DockPanel { Margin = new(12) };
         DockPanel.SetDock(controls, Dock.Top);
         panel.Children.Add(controls);
@@ -60,11 +68,15 @@ internal sealed class OwnedInstructionEditorWindow : Window
         search.Children.Add(new TextBlock { Text = "Owned metadata search: ", VerticalAlignment = VerticalAlignment.Center });
         search.Children.Add(QueryInput);
         search.Children.Add(UseStateInput);
+        AutomationProperties.SetName(DigestInput, "Exact artifact SHA-256 digest; empty means Any");
+        search.Children.Add(new TextBlock { Text = "Exact SHA-256: ", VerticalAlignment = VerticalAlignment.Center });
+        search.Children.Add(DigestInput);
         search.Children.Add(NextPage);
         var clear = new Button { Content = "Clear search", Margin = new(3) };
-        clear.Click += (_, _) => { QueryInput.Text = string.Empty; UseStateInput.SelectedItem = OwnedDefinitionUseFilter.All; run("Filter"); };
+        clear.Click += (_, _) => { QueryInput.Text = string.Empty; UseStateInput.SelectedItem = OwnedDefinitionUseFilter.All; DigestInput.Text = string.Empty; run("Filter"); };
         search.Children.Add(clear);
         QueryInput.PropertyChanged += (_, change) => { if (change.Property == TextBox.TextProperty) { run("Filter"); } };
+        DigestInput.PropertyChanged += (_, change) => { if (change.Property == TextBox.TextProperty) { run("Filter"); } };
         UseStateInput.SelectionChanged += (_, _) => run("Filter");
         NextPage.Click += (_, _) => run("Next");
         Files.SelectionChanged += (_, _) => inventoryDetails.Text = (Files.SelectedItem as OwnedDefinitionInventoryRow)?.Details ?? string.Empty;
@@ -122,9 +134,15 @@ internal sealed class OwnedInstructionEditorWindow : Window
         finally { selectingKind = false; }
     }
     internal void CancelReview() => activeReview?.Close();
+    internal void SetUseReviewAvailable(bool available)
+    {
+        ReviewUse.IsEnabled = available;
+        DisableReviewedUse.IsEnabled = available;
+    }
     internal void ClearPrivateText()
     {
-        ClearInventory(); QueryInput.Text = string.Empty; UseStateInput.SelectedItem = OwnedDefinitionUseFilter.All;
+        ClearInventory(); QueryInput.Text = string.Empty; UseStateInput.SelectedItem = OwnedDefinitionUseFilter.All; DigestInput.Text = string.Empty;
+        SetUseReviewAvailable(false);
         Source.Text = string.Empty; NameInput.Text = string.Empty; CopyNameInput.Text = string.Empty;
         status.Text = string.Empty; inventoryStatus.Text = string.Empty;
         ClearValidation();

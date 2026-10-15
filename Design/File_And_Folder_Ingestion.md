@@ -55,6 +55,39 @@ Deterministic [portable contract tests](../tests/Kora.Core.UnitTests/Storage/Ses
 and [headless native tests](../tests/Kora.Windows.IntegrationTests/AttachmentCatalogueWindowTests.Digest.cs)
 qualify this bounded I subset only, not installed accessibility or broader R26/E/Q.
 
+The optional **exact observation-source GUID**, **exact device-profile GUID**
+and inclusive **Captured From / Until UTC** compose by AND with every existing
+predicate, including exact digest. IDs reuse `SessionListSearch` canonical
+nonempty lowercase D admission. UTC input reuses the strict round-trip parser
+extracted from memory metadata into `OptionalCanonicalUtc`:
+`yyyy-MM-ddTHH:mm:ss.fffffff+00:00`. No trimming, case conversion, timezone
+conversion, abbreviated fractions, `Z` alias or repair is admitted. Empty native
+fields mean Any; explicitly supplied empty IDs are invalid. Either time bound
+may be unset; equal endpoints include the captured instant and From must not
+exceed Until. Typed bounds must have zero offset.
+Only **Confirmed** retained copies match any of these predicates. Held and
+Unavailable/Removed slots never match, even when an old header equals the query.
+Tombstone serialized/detail/row projections suppress observation-source,
+device-profile and captured-time values, including malformed retained objects.
+These fields are retained correlation metadata only: never source consent,
+profile ownership, session authority, file-read authority or proof of current
+availability. Selection and full byte inspection retain their existing fences.
+Every candidate is fully validated before filtering; no SQL predicate skips
+nonmatches or corrupt slots. The complete new filter is volatile, excluded from
+serialization and bound by a separate run-local keyed continuation fingerprint
+alongside the existing query/source/profile/viewer/head/expiry fences.
+Focusable, accessibly named native controls support explicit Search/Enter.
+Edits perform no read and retire rows, details, selection, navigation,
+continuation and pending callbacks. Clear query, revocation and disposal erase
+all four fields. Bounded complete empty pages and cancellation remain unchanged.
+No schema/index/cache, original path/body read, audit/log/tag payload, persistence,
+model/network call or new authority is introduced. Deterministic
+[portable contracts](../tests/Kora.Core.UnitTests/Storage/SessionAttachmentCorrelationTests.cs),
+[SQLite metadata/continuations](../tests/Kora.Windows.IntegrationTests/Storage/WindowsSqliteSessionAttachmentTests.CorrelationCatalogue.cs)
+and [headless native controls](../tests/Kora.Windows.IntegrationTests/AttachmentCatalogueWindowTests.Correlation.cs)
+qualify this bounded I subset only; installed accessibility and broader E/Q are
+not claimed.
+
 The optional **Exact copy status: Any (default) / Confirmed / Held / Unavailable**
 and inclusive **minimum / maximum retained stored bytes** compose by AND with
 every existing predicate. Status matches validated typed metadata exactly;

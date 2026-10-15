@@ -1,4 +1,3 @@
-using System.Globalization;
 using Kora.Core.Commands;
 using Kora.Core.Hosting;
 using Kora.Core.Storage;
@@ -53,7 +52,7 @@ public sealed record MemoryMetadataFilter
         MemoryRetentionState? retention, string minimumRevision, string maximumRevision,
         string createdFromUtc, string createdUntilUtc) =>
         new(id, scope, review, retention, OptionalUnsignedDecimal.Parse(minimumRevision),
-            OptionalUnsignedDecimal.Parse(maximumRevision), ParseUtc(createdFromUtc), ParseUtc(createdUntilUtc));
+            OptionalUnsignedDecimal.Parse(maximumRevision), OptionalCanonicalUtc.Parse(createdFromUtc), OptionalCanonicalUtc.Parse(createdUntilUtc));
 
     private static long? ValidateRevision(long? value)
     {
@@ -61,17 +60,6 @@ public sealed record MemoryMetadataFilter
         try { return new HostRevision(value.Value).Value; }
         catch (ArgumentOutOfRangeException exception)
         { throw new InvalidDataException("Revision bounds must be positive decimal revisions. Empty means Any.", exception); }
-    }
-
-    private static DateTimeOffset? ParseUtc(string text)
-    {
-        ArgumentNullException.ThrowIfNull(text);
-        if (text.Length == 0) { return null; }
-        if (!DateTimeOffset.TryParseExact(text, "O", CultureInfo.InvariantCulture, DateTimeStyles.None, out var value)
-            || value.Offset != TimeSpan.Zero
-            || !text.Equals(value.ToString("O", CultureInfo.InvariantCulture), StringComparison.Ordinal))
-        { throw new InvalidDataException("Enter canonical UTC Created time: yyyy-MM-ddTHH:mm:ss.fffffff+00:00. Empty means Any."); }
-        return value;
     }
 
     public bool Matches(MemorySummary row)

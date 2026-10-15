@@ -266,6 +266,14 @@ slots. Unavailable provenance has no displayed/serialized historical digest.
 The volatile query is fingerprint-bound to signed continuations, not serialized
 as text; it grants no body integrity, session authority or new source access.
 
+Optional exact observation-source and device-profile GUIDs plus inclusive
+canonical UTC Captured bounds compose with those predicates only for Confirmed
+retained copies. Unavailable/Removed tombstones never match or disclose their
+prior source/profile/time in catalogue projections. These volatile, signed-
+continuation-bound values are correlation only, never consent, profile
+ownership, session/file-read authority or current availability. The linked
+catalogue contract owns canonical parsing and bounded validation.
+
 ## Current Implementation and Design Gap
 
 The [optional native enqueue prerequisite](Work_Management.md#delivered-optional-native-enqueue-prerequisite---2026-10-12) adds same-session bounded metadata-only choice to all six fixed profiles. It combines nonqueue tasks with already-observed queued pending/running/recent terminal tasks using actual host task metadata from the same atomic work read, never queue-entry revisions or history scans. None is the initial default; exact selected ID/revision flows through the original command/service/store with final stale-source refusal.

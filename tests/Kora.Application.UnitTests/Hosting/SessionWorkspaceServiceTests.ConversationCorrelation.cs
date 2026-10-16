@@ -107,7 +107,7 @@ public sealed partial class SessionWorkspaceServiceTests
     public async Task CorrelatedLargeBodiesRemainWholeAndByteBoundedWithoutSkippingOriginalRows()
     {
         using var f = new ConversationFixture();
-        var original = Message(f, 1, "marker " + new string('\u0800', 4090));
+        var original = Message(f, 1, "marker " + new string('\u0800', ConversationText.MaximumUtf16Characters - "marker ".Length));
         f.Messages = Enumerable.Range(1, 8).Select(index => original with { Sequence = index }).ToArray();
         var correlation = new ConversationCorrelationFilter(original.Request.RequestId, original.Request.TaskId);
         var range = new ConversationRangeFilter(1, 100, DateTimeOffset.MinValue, DateTimeOffset.MaxValue);

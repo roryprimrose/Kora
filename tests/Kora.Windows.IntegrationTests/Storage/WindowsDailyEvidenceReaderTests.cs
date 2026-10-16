@@ -383,6 +383,8 @@ public sealed class WindowsDailyEvidenceReaderTests
         {
             Source = EvidenceSource.DailyLog, SpanId = "0123456789abcdef", ParentSpanId = "0123456789abcdef",
             Outcome = HostOperationOutcome.Unknown, ContentAvailability = EvidenceContentAvailability.Omitted,
+            EventName = "Does.Not.Match", ExceptionType = "Not.An.Exception",
+            FromAuditSequence = 1, UntilAuditSequence = 1,
         },
             null, TestContext.Current.CancellationToken);
         page.Status.Should().Be(expected);

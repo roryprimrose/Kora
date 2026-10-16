@@ -485,6 +485,10 @@ public sealed class DurableEvidenceQueryTests
             .. Enum.GetValues<HostOperationOutcome>().Select(value => original with { Outcome = value }),
             original with { ContentAvailability = EvidenceContentAvailability.Present },
             original with { ContentAvailability = EvidenceContentAvailability.Omitted },
+            original with { EventName = "Event.Name" },
+            original with { ExceptionType = "System.IOException" },
+            original with { FromAuditSequence = 1 },
+            original with { UntilAuditSequence = long.MaxValue },
         ];
         foreach (var query in changed)
         {
@@ -537,6 +541,36 @@ public sealed class DurableEvidenceQueryTests
                 }
             }
         }
+    }
+
+    [Fact]
+    public async Task MetadataContinuationRejectsRemovalCaseChangesAndEitherSequenceEdge()
+    {
+        using var listener = Listen();
+        var fixture = new Fixture();
+        fixture.Reader.Batch = Batch(2);
+        var original = new EvidenceQuery
+        {
+            Limit = 1, EventName = "Event.Name", ExceptionType = "System.IOException",
+            FromAuditSequence = 1, UntilAuditSequence = long.MaxValue,
+        };
+        using var host = Root();
+        var cursor = (await fixture.Service.QueryAsync(original, null, TestContext.Current.CancellationToken)).Cursor!;
+        EvidenceQuery[] changes =
+        [
+            original with { EventName = null }, original with { EventName = "event.name" },
+            original with { ExceptionType = null }, original with { ExceptionType = "system.ioexception" },
+            original with { FromAuditSequence = null }, original with { FromAuditSequence = 2 },
+            original with { UntilAuditSequence = null }, original with { UntilAuditSequence = long.MaxValue - 1 },
+        ];
+        foreach (var changed in changes)
+        {
+            var read = () => fixture.Service.QueryAsync(changed, cursor, TestContext.Current.CancellationToken).AsTask();
+            await read.Should().ThrowAsync<InvalidDataException>();
+        }
+        fixture.Reader.Calls.Should().Be(1);
+        await fixture.Service.QueryAsync(original, cursor, TestContext.Current.CancellationToken);
+        fixture.Reader.Calls.Should().Be(2);
     }
 
     [Theory]
@@ -645,13 +679,26 @@ public sealed class DurableEvidenceQueryTests
         using var host = Root();
         var fixture = new Fixture();
         fixture.Reader.Batch = Batch(1, new string('x', EvidencePage.MaximumBytes));
-        var read = () => fixture.Service.QueryAsync(new() { ContentAvailability = EvidenceContentAvailability.Present },
+        var read = () => fixture.Service.QueryAsync(new()
+        {
+            ContentAvailability = EvidenceContentAvailability.Present, EventName = "Event",
+            ExceptionType = "System.IOException", FromAuditSequence = 1, UntilAuditSequence = 1,
+        },
             null, TestContext.Current.CancellationToken).AsTask();
         await read.Should().ThrowAsync<InvalidDataException>();
     }
 
     public static TheoryData<EvidenceQuery> InvalidFilters => new()
     {
+        new EvidenceQuery { EventName = "" }, new EvidenceQuery { ExceptionType = "" },
+        new EvidenceQuery { EventName = " Event" }, new EvidenceQuery { EventName = "Event " },
+        new EvidenceQuery { ExceptionType = " Type" }, new EvidenceQuery { ExceptionType = "Type " },
+        new EvidenceQuery { EventName = "E\nvent" }, new EvidenceQuery { ExceptionType = "Ty\0pe" },
+        new EvidenceQuery { EventName = "\ud800" }, new EvidenceQuery { ExceptionType = "\ud800" },
+        new EvidenceQuery { EventName = new string('x', 129) }, new EvidenceQuery { ExceptionType = new string('x', 257) },
+        new EvidenceQuery { FromAuditSequence = 0 }, new EvidenceQuery { UntilAuditSequence = 0 },
+        new EvidenceQuery { FromAuditSequence = -1 }, new EvidenceQuery { UntilAuditSequence = -1 },
+        new EvidenceQuery { FromAuditSequence = 2, UntilAuditSequence = 1 },
         new EvidenceQuery { Source = (EvidenceSource)99 }, new EvidenceQuery { Limit = 0 }, new EvidenceQuery { Limit = 51 },
         new EvidenceQuery { Outcome = (HostOperationOutcome)99 },
         new EvidenceQuery { ContentAvailability = (EvidenceContentAvailability)99 },
@@ -683,6 +730,22 @@ public sealed class DurableEvidenceQueryTests
     {
         var invalid = () => DurableEvidenceQuery.Validate(query);
         invalid.Should().Throw<Exception>();
+    }
+
+    [Fact]
+    public void NewMetadataPreservesSourceCompatibilityAndBoundaryValues()
+    {
+        foreach (var source in Enum.GetValues<EvidenceSource>())
+        foreach (var from in new long?[] { null, 1, long.MaxValue })
+        foreach (var until in new long?[] { null, long.MaxValue })
+        {
+            DurableEvidenceQuery.Validate(new()
+            {
+                Source = source, EventName = new string('e', 128), ExceptionType = new string('t', 256),
+                FromAuditSequence = from, UntilAuditSequence = until,
+            });
+            DurableEvidenceQuery.Validate(new() { Source = source, EventName = "Plain Unicode \u00e9", ExceptionType = "A / B" });
+        }
     }
 
     private static HostActivity Root() => HostActivity.BeginRoot(HostRequest.Create(RequestOrigin.LocalUi),

@@ -192,6 +192,13 @@ public sealed partial class DurableEvidenceQuery(
         Text(query.Text, 256);
         Text(query.Category, 256);
         Text(query.ActionId, 128);
+        ExactText(query.EventName, 128);
+        ExactText(query.ExceptionType, 256);
+        if (query.FromAuditSequence is <= 0 || query.UntilAuditSequence is <= 0
+            || query.FromAuditSequence > query.UntilAuditSequence)
+        {
+            throw new ArgumentException("Audit sequence bounds require positive ordered 64-bit integers.", nameof(query));
+        }
         // All is the existing heterogeneous SQLite search; an exact citation narrows its source.
         var filterSource = query.Source == EvidenceSource.All ? query.Record?.Source ?? query.Source : query.Source;
         if (query.EventId is not null && filterSource is EvidenceSource.Span or EvidenceSource.Link
@@ -231,6 +238,15 @@ public sealed partial class DurableEvidenceQuery(
             }
             EvidenceFieldPolicy.ValidateValue(property.Value);
             Text(property.Value.CanonicalValue, 1024);
+        }
+    }
+
+    private static void ExactText(string? value, int limit)
+    {
+        Text(value, limit);
+        if (value is not null && (value.Length == 0 || char.IsWhiteSpace(value[0]) || char.IsWhiteSpace(value[^1])))
+        {
+            throw new ArgumentException("Exact evidence metadata requires nonempty text without surrounding whitespace.", nameof(value));
         }
     }
 

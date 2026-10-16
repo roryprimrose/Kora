@@ -1,6 +1,13 @@
 [CmdletBinding()]
 param(
     [Parameter()]
+    [ValidateSet('All', 'storage-heavy', 'storage-other', 'ui-definitions', 'native-ux', 'ui-platform')]
+    [string] $Shard = 'All',
+
+    [Parameter()]
+    [switch] $ListShards,
+
+    [Parameter()]
     [ValidateRange(1, 64)]
     [int] $MaxThreads = 2,
 
@@ -39,6 +46,13 @@ $shards = @(
     }
 )
 
+if ($Shard -cne 'All') {
+    $shards = @($shards | Where-Object Name -EQ $Shard)
+}
+if ($ListShards) {
+    return $shards
+}
+
 New-Item -ItemType Directory -Path $resultsRoot -Force | Out-Null
 
 $runs = @(
@@ -76,9 +90,9 @@ $runs = @(
 )
 
 $failedShards = @()
-foreach ($shard in $shards) {
-    $run = $runs | Where-Object Name -EQ $shard.Name
-    Write-Host "::group::Windows integration tests ($($shard.Name))"
+foreach ($definition in $shards) {
+    $run = $runs | Where-Object Name -EQ $definition.Name
+    Write-Host "::group::Windows integration tests ($($definition.Name))"
     Get-Content -LiteralPath $run.LogPath
     Write-Host '::endgroup::'
 

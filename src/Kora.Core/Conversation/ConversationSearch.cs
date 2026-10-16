@@ -10,30 +10,35 @@ public sealed class ConversationSearch
 {
     private readonly SessionHistorySearch lexical;
     public ConversationSearch(string query, ConversationSearchRole role = ConversationSearchRole.All,
-        ConversationTerminalFilter terminal = default, ConversationRangeFilter range = default)
+        ConversationTerminalFilter terminal = default, ConversationRangeFilter range = default,
+        ConversationCorrelationFilter correlation = default)
     {
         if (!Enum.IsDefined(role)) { throw new ArgumentOutOfRangeException(nameof(role)); }
         terminal.Validate();
         try { range.Validate(); }
         catch (InvalidDataException exception) { throw new ArgumentException("Invalid conversation range.", nameof(range), exception); }
+        try { correlation.Validate(); }
+        catch (InvalidDataException exception) { throw new ArgumentException("Invalid conversation correlation.", nameof(correlation), exception); }
         lexical = new(query);
         Role = role;
         Terminal = terminal;
         Range = range;
+        Correlation = correlation;
         Digest = Convert.ToHexStringLower(SHA256.HashData(JsonSerializer.SerializeToUtf8Bytes(
-            new { lexical.Digest, Role, Terminal, Range })));
+            new { lexical.Digest, Role, Terminal, Range, Correlation })));
     }
 
     public ConversationSearchRole Role { get; }
     public ConversationTerminalFilter Terminal { get; }
     public ConversationRangeFilter Range { get; }
+    public ConversationCorrelationFilter Correlation { get; }
     public string Digest { get; }
 
     public bool Matches(ConversationMessage message, CancellationToken token)
     {
         token.ThrowIfCancellationRequested();
         message.Validate();
-        return Range.Matches(message) && Terminal.Matches(message, Role)
+        return Correlation.Matches(message) && Range.Matches(message) && Terminal.Matches(message, Role)
             && Fields(message).Any(field => lexical.MatchesText(field, token));
     }
 

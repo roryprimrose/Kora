@@ -685,20 +685,7 @@ public sealed partial class WindowsSqliteEvidenceSink : IEvidenceSink
         {
             throw new InvalidDataException("An activity trace is required.");
         }
-        ValidateW3C(trace.TraceId, 32);
-        ValidateW3C(trace.SpanId, 16);
-        if (trace.ParentSpanId is not null)
-        {
-            ValidateW3C(trace.ParentSpanId, 16);
-        }
-        if (!Enum.IsDefined(trace.Kind) || trace.Flags is not (ActivityTraceFlags.None or ActivityTraceFlags.Recorded)
-            || trace.Source is not ("Kora.Core" or "Kora.Application" or "Kora.Windows" or "Kora.Desktop"))
-        {
-            throw new InvalidDataException("An activity source, kind or trace flags are invalid.");
-        }
-        Bounded(trace.Source, 128);
-        OptionalBounded(trace.SourceVersion, 128);
-        Bounded(trace.Name, 128);
+        trace.Validate();
     }
 
     private static void ValidateW3C(string value, int length)

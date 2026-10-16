@@ -7,6 +7,15 @@ The query remains volatile and excluded from query/page serialization, audit/log
 
 Native attachment revocation is nonblocking and bound to the originating inspection lifetime; body invalidation additionally binds its exact view revision. Delayed notifications cannot cancel a newly admitted explicit inspection or close its new retained/recovery view. Current-lifetime session/private revocation still clears all its views and pending work; changing views alone does not supersede that revocation.
 
+Optional exact local-file source/revision/item IDs use the shared nonempty
+canonical lowercase D-GUID policy and match only Confirmed retained copies.
+Every complete summary is validated before exclusion. Exact predicates cannot
+reconstruct or expose former IDs from unavailable/removed tombstones; Held
+copies never match. These volatile IDs are keyed-continuation-bound correlation
+metadata only, never source consent, current file identity, path disclosure,
+body integrity, file-read authority or proof a copy exists. Existing provenance
+and separately admitted full-byte navigation remain unchanged.
+
 ## All work private metadata query boundary
 
 The [bounded All work overview](Work_Management.md#delivered-passive-cross-session-work-observation---2026-10-11) reuses the authoritative Sessions/saved-draft metadata query policy, never content search. Literal saved-name substrings and canonical exact GUIDs are private navigation data, not intent, identity or authority. Typing performs no read; explicit Search/Refresh/Next uses existing private metadata admission and independently admitted per-session work observations. Ten-session scans, fifty task/question records per session, complete 64 KiB projection, canonical-ID ordering, timeout/cancellation and explicit unavailable/nonmatch/omission counts remain unchanged.

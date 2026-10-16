@@ -107,6 +107,18 @@ revokes results, selected Details and late callbacks without reading. Clear or
 private/source loss empties all four fields. These are passive original-message
 metadata, not generated output, session authority or access to hidden content.
 
+Optional **Exact request ID** and **Exact task ID** further narrow this same
+selected session, AND with every other predicate. Enter complete canonical
+lowercase nonempty D-format GUIDs, for example
+`aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa`, or leave empty for Any. Uppercase,
+whitespace, braces, partial IDs and the all-zero GUID explicitly fail before
+reading; input is never repaired. Next binds both IDs. Editing retires rows,
+selection/Details, continuation and late callbacks without reading; Clear or
+private/source loss empties both fields. These are passive correlation metadata
+only: they cannot retarget a session/task or establish identity, intent,
+ownership, permission, approval or execution authority. Composer and saved
+draft remain unchanged.
+
 Queries use 1–256 UTF-16 characters / 512 UTF-8 bytes and 1–32 distinct terms of at most 64 characters. NFC/invariant case and whole-word OR apply; punctuation separates words rather than becoming regex/wildcard/instruction syntax. Blank or invalid queries explicitly fail, never show every message. Typing alone does not search or save the query.
 
 Results are chronological exact messages, not generated answers, summaries or relevance ranking. Each read scans at most the existing 100-message session bound; default 25 / maximum 50 complete results, counters and cursor fit 64 KiB. **Next conversation matches** stays on the original generation/sequence ceiling/head; later append is excluded and changed terminal status requires fresh Search.
@@ -252,6 +264,8 @@ Open **Tray > Sessions > All work / attention overview**, then **Refresh overvie
 - **All / Active / Done** is the stored session lifecycle, not a task state. **Observed needs answer** means pending-question metadata at that snapshot; unavailable sources remain visible. Question IDs are not freshly admitted reply targets.
 - Optional **NameSubstring / ExactId** and **Search metadata** (or Enter in the field) narrow the bounded scan using the same [session-list query rules](#search-the-session-list). Names are literal case-sensitive saved-name substrings; exact GUIDs require nonempty canonical lowercase D format. Both modes scan at most ten session identities per click here, not the Sessions direct-ID lookup. Empty query browses; invalid nonempty text is rejected without fallback. Typing performs no read. Search and Refresh start fresh with the current query, All/Active/Done and Needs answer filters; Next continues that exact admitted query/filter/source epoch, even after zero matches.
 - **Clear query** (or Escape in its field) discards volatile query/results/selection/continuation without reading and keeps keyboard focus in the field. A second Escape outside the field closes the window. Query/mode/filter edits revoke pending reads and stale navigation; names are never routing or permission authority. Query text is not saved, logged or sent to a model.
+- Expand **Optional inclusive observed work metadata ranges** to set minimum/maximum authority revision, queue revision, pending count/capacity, execution slots, observed current fixed reads, or omitted queue-receipt/task/pending-question counts. Empty means Any; endpoints are inclusive and minimum must not exceed maximum. Enter ASCII decimal Int64 only, without signs, whitespace or separators. Authority revision, capacity and slots must be positive; queue revision and counts may be zero. Invalid bounds show recovery and disable Search/Refresh/Next without reading or falling back to Any. **Clear work metadata ranges** clears just these bounds and results without reading.
+- Ranges AND-compose with lifecycle, Browse/name/exact-ID, Needs answer, **Observation availability** and positive **Observed content** choices. Only validated **Observed** work matches an active range; Source changed, Read unavailable and Output bound never do. Matching an omission count supplies no retained records and proves no absence, completeness, success or authority. Zero is just the observed scalar, not all-clear. Edits retire rows/selection/continuation and late callbacks, remain available during reads, and clear on close/private closure.
 - Select a group to read exact IDs/generations, source revisions/UTC time, fixed-profile slots/capacity, observed current fixed reads, queue/task states, scheduler reasons and captured deadlines. Full private bodies, history, attachments, memory and diagnostic text are not collected.
 - Pages are **not globally atomic**. No global counts, all-clear, ETA, unread tracking or actual provider/resource contention is claimed. Refresh for mutations/new IDs behind the cursor.
 - **Open exact session with fresh passive read** navigates the immutable ID through fresh private workspace reads. It never resumes, dispatches, enqueues, reprioritizes, cancels, renews activity, consumes grants or retargets voice/questions. Inspect/cancel authority is not renewed; reply only in the original Questions window.
@@ -412,6 +426,19 @@ Open **Tray > Retained session attachments**, then choose **Search / refresh met
 Default **Browse** preserves the removal filter. For one session, choose **ExactId**, enter its nonempty canonical lowercase D-format UUID, then explicitly Search or press Enter in the query field. Uppercase, empty, noncanonical, control-containing or oversized input is invalid, never Browse.
 
 Optionally enter a **literal metadata query** in the separate field, then Search or press Enter there. It matches a case-sensitive literal substring of already displayed Session/source/revision/item IDs, digest or media type, independently of ExactId and lifecycle. For example, `text/` matches retained text types; `TEXT/`, spaces and `*` are not normalized or wildcards. Names, paths, profile IDs, bodies, excerpts and OCR are never searched. Removed slots never match a literal, even with Include removed slots; clear the literal to browse their ordinary provenance. Held metadata can match but cannot open a body.
+
+Optionally enter **Exact local-file source GUID**, **revision GUID**, or **item
+GUID**, then Search or press Enter in that field. Empty means Any; otherwise
+use a complete nonempty canonical lowercase D-format GUID. No trimming, case
+conversion, zero GUID, alias or fallback is accepted. These independent exact
+predicates AND-compose with every other attachment filter and match only
+Confirmed retained copies, never Held or unavailable/removed tombstones or their
+former IDs. They are retained correlation metadata only: not source consent,
+current file identity, path disclosure, body integrity, file-read authority or
+proof a copy exists. Typing reads nothing and clears rows/details/selection/
+continuation and late work. Clear query, Cancel, private/source revocation and
+close erase these volatile fields. Exact inspection remains a separate action
+with fresh private admission and full stored-byte/hash/provenance validation.
 
 Optionally enter **Exact SHA-256**, then Search or press Enter in that field.
 Use exactly 64 lowercase hexadecimal characters, not all zero; empty means Any.

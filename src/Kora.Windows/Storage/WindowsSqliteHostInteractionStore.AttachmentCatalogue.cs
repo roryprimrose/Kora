@@ -391,13 +391,15 @@ public sealed partial class WindowsSqliteHostInteractionStore : ISessionAttachme
     private string? AttachmentDigestBinding(SessionAttachmentQuery query) => query.ExactDigest is null ? null
         : Convert.ToHexStringLower(HMACSHA256.HashData(attachmentCursorKey, System.Text.Encoding.UTF8.GetBytes(query.ExactDigest)));
 
-    private string? AttachmentCorrelationBinding(SessionAttachmentQuery query) => !query.HasCorrelationPredicates && !query.HasVersionPredicates ? null
+    private string? AttachmentCorrelationBinding(SessionAttachmentQuery query) =>
+        !query.HasCorrelationPredicates && !query.HasVersionPredicates && !query.HasFileReferencePredicates ? null
         : Convert.ToHexStringLower(HMACSHA256.HashData(attachmentCursorKey, JsonSerializer.SerializeToUtf8Bytes(new
         {
             query.ExactObservationSource, query.ExactDeviceProfile, query.CapturedFromUtc, query.CapturedUntilUtc,
             query.MinimumSessionGeneration, query.MaximumSessionGeneration,
             query.MinimumCapturedGeneration, query.MaximumCapturedGeneration,
-            query.MinimumStorageRevision, query.MaximumStorageRevision
+            query.MinimumStorageRevision, query.MaximumStorageRevision,
+            query.ExactFileSourceId, query.ExactFileRevisionId, query.ExactFileItemId
         })));
 
     private AttachmentCursor DecodeAttachmentCursor(string text, SessionAttachmentQuery query, string identity,

@@ -73,6 +73,87 @@ remain separate and unclaimed. Saved drafts #282, Presence/native presenter,
 build/performance, attachment file identities, memory scope identity and Evidence
 trace metadata are unchanged.
 
+### R26 retained attachment exact local-file reference predicates - 2026-10-16
+
+Built on freshly fetched canonical main
+`afdee7f508bc2e186bf56ef5f65cb27711e83bd1`, the
+[retained catalogue](File_And_Folder_Ingestion.md#delivered-retained-attachment-metadata-catalogue---2026-10-11)
+adds optional exact local-file source/revision/item IDs, AND-composed with every
+merged predicate. Strict canonical nonempty lowercase D GUID admission, complete
+candidate validation and full authenticated continuation identity fail closed.
+Only Confirmed retained copies match; exact predicates cannot disclose or
+reconstruct former IDs from unavailable/removed tombstones. IDs are retained
+correlation only, never consent, current file identity, path disclosure, body
+integrity, file-read authority or proof a copy exists.
+Explicit accessible native fields preserve no-read edits, selection/detail
+retirement, bounded pages, revocation/cancellation and stale-result fences.
+Portable, private SQLite and headless tests cover this consumed I subset.
+No schema, source/body read, provider, experiment or enabled runtime profile
+changes; broader R26, installed accessibility and E/Q remain unclaimed.
+Saved-draft provenance (#282), Presence/native presenter, memory scope identity,
+exact-grant audit/approval, Evidence trace metadata and independent build/
+performance work are outside this increment.
+
+### Bounded native Evidence exact trace metadata predicates - 2026-10-16
+
+Based on freshly fetched main `afdee7f508bc2e186bf56ef5f65cb27711e83bd1`.
+The [Evidence inspector](Information_Display.md#delivered-bounded-native-evidence-inspection)
+adds optional exact source, source version, activity operation name, ActivityKind
+and trace-flags predicates, AND-composed with all merged filters. Source version
+has explicit Any/Absent/Present/Exact semantics; null trace is unknown, not absent
+version. Strict bounded exact text, defined kind/flags, full trace validation
+before exclusion and complete signed query identity preserve source compatibility,
+page-budget failure, cancellation/privacy, stale-result and selection retirement.
+Native visible non-null Any choices and read-free clear/edit behavior have
+deterministic portable, reader and headless accessibility checks. Trace metadata
+is untrusted diagnostic correlation only, never session selection, identity,
+intent, permission, approval or authority; no baggage/tags/content disclosure,
+storage schema, provider/device/network/experiment or sibling-domain changes.
+This consumed I subset does not claim installed accessibility, full Evidence,
+Ask Evidence or E/Q qualification, and requires no unrelated proof.
+
+### Bounded native selected-session memory scope identity predicate - 2026-10-16
+
+Built from freshly fetched canonical main `afdee7f508bc2e186bf56ef5f65cb27711e83bd1`.
+The [memory snapshot filter contract](Model_Providers_Memory_And_Knowledge.md#delivered-native-content-free-session-memory-filters---2026-10-14)
+adds optional exact scope identity GUID, AND-composed with exact memory ID,
+Scope kind, Review, Retention and inclusive revision/created-time ranges.
+Shared strict complete canonical D admission treats only empty as Any;
+complete-row validation precedes exclusion and invalid metadata rejects the
+whole result. Identity describes the admitted row, never permission, device/
+provider ownership, scope authority, content or mutation authority. Accessible
+native edits/Clear/Escape remain snapshot-only, with no store read, activity,
+logging or persistence, and retire selection, inspection, mutation readiness,
+drafts and stale callbacks under existing session/privacy/control fences.
+The consumed I subset is the existing bounded admitted metadata snapshot and
+portable/private SQLite/headless checks, including exact portable line/branch
+coverage. No schema, command syntax, runtime exposure, provider/device/network
+operation or experiment is added. Installed accessibility and broader R12/E/Q
+remain separate and unclaimed. Saved drafts (#282), Presence/native presenter,
+unknown build/performance work and sibling attachment file identities,
+exact-grant audit correlation/approval and Evidence trace metadata are unchanged.
+
+### Bounded selected-conversation exact correlation predicates - 2026-10-16
+
+Built on freshly fetched main `afdee7f508bc2e186bf56ef5f65cb27711e83bd1`.
+The [passive selected-conversation contract](Interaction_And_Sessions.md#delivered-passive-exact-conversation-lexical-search--2026-10-13)
+adds optional exact request/task IDs AND-composed with lexical, USER/HOST,
+typed terminal and sequence/submitted-time ranges. One portable policy admits
+canonical lowercase nonempty D GUIDs only; empty means Any, invalid input is
+never repaired. Both predicates bind digest/page/cursor identity; complete
+message and request validation precedes exclusion. Shared accessible Sessions/
+Compact controls preserve no-read edit, selection/detail retirement, cancellation,
+stale/private/source fences, original USER privacy and separate typed HOST status.
+Existing bounded scans/pages and host-resolved selected session remain unchanged.
+Correlation metadata cannot retarget a session/task or establish identity,
+intent, ownership, permission, approval or execution authority.
+This consumes the existing admitted conversation-page I subset and deterministic
+portable/private-storage/headless tests; exact portable coverage and Release
+analyzers gate delivery. No saved-draft, attachment, memory, grant, Evidence,
+Presence, All Work, local-event or session-name ownership is extended. No
+network/device/provider/experiment or unrelated proof is required or claimed;
+installed accessibility and broader E/Q qualification remain separate.
+
 ### R26 retained attachment inclusive generation/revision predicates - 2026-10-16
 
 From canonical main `74cd8517e5b5412deea706d1125a9b6e156a49e9`, the
@@ -290,6 +371,26 @@ Malformed input explicitly fails closed. This is metadata only, not permission,
 provider, memory-content or mutation authority. Full memory, installed
 accessibility, provider and E/Q qualification remain unchanged and unclaimed;
 unqualified recall/global catalogue/model consumers remain unavailable.
+
+### Bounded All Work retained observation metadata ranges - 2026-10-16
+
+Built on freshly fetched main `afdee7f508bc2e186bf56ef5f65cb27711e83bd1`.
+The [passive All Work contract](Work_Management.md#delivered-passive-cross-session-work-observation---2026-10-11)
+adds optional inclusive authority/queue revision, pending count/capacity,
+execution-slot/current-fixed-read and explicit queue/task/question omission
+count ranges, AND-composed with lifecycle, Browse/name/exact-ID, Needs answer,
+availability and positive observed content. Portable positive/nonnegative
+Int64 admission, ordered endpoints, complete consumed-observation validation
+and exact continuation identity fail closed. Unavailable/output-bound work
+never matches active ranges; omission counts cannot become records, absence,
+completeness, success or authority. Accessible volatile no-read edits/Clear,
+selection retirement, cancellation/source/private fences and existing
+ten-session/64-KiB/ten-second budgets are preserved. Deterministic portable,
+private-store and headless accessibility checks gate this consumed I subset.
+No storage/schema, provider/device/external operation, experiment or sibling
+conversation/local-event/session-name/attachment/memory/grant/Evidence/Presence
+scope is extended. Full work management, installed accessibility and E/Q
+qualification remain separate and unclaimed.
 
 ### Bounded positive All Work observation predicates - 2026-10-16
 

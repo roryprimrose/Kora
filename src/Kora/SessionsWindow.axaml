@@ -56,6 +56,13 @@
             SelectedItem="{Binding ConversationRole, Mode=TwoWay}" IsEnabled="{Binding CanReadConversation}"
             AutomationProperties.Name="Conversation search field filter: All original USER and typed HOST fields, USER original body only, HOST outcome reason and task state only; editing does not read" />
         <TextBlock Text="Inclusive original-message ranges (empty means Any). Minimum must not exceed maximum; all ranges AND with the query, role and terminal predicates." TextWrapping="Wrap" />
+        <TextBlock Text="Exact request ID (empty means Any)" />
+        <TextBox x:Name="ConversationRequestId" Text="{Binding ConversationRequestId, Mode=TwoWay}" IsEnabled="{Binding CanReadConversation}"
+            AutomationProperties.Name="Exact conversation request ID; canonical lowercase nonempty D GUID, empty means Any; AND with all predicates; editing does not read" />
+        <TextBlock Text="Exact task ID (empty means Any)" />
+        <TextBox x:Name="ConversationTaskId" Text="{Binding ConversationTaskId, Mode=TwoWay}" IsEnabled="{Binding CanReadConversation}"
+            AutomationProperties.Name="Exact conversation task ID; canonical lowercase nonempty D GUID, empty means Any; AND with all predicates; editing does not read" />
+        <TextBlock Text="Request/task IDs are passive correlation metadata only. They cannot retarget a session or task, establish identity, intent, ownership, permission, approval or execution authority." TextWrapping="Wrap" />
         <TextBlock Text="Minimum message sequence" />
         <TextBox x:Name="ConversationMinimumSequence" Text="{Binding ConversationMinimumSequence, Mode=TwoWay}" IsEnabled="{Binding CanReadConversation}"
             AutomationProperties.Name="Inclusive minimum original message sequence; invariant decimal within conversation limits, empty means Any; editing does not read" />
@@ -547,6 +554,9 @@
               <TextBox x:Name="MemoryIdFilter" Text="{Binding MemoryIdFilter, Mode=TwoWay}"
                        IsEnabled="{Binding CanFilterMemories}" PlaceholderText="Exact memory GUID, or empty for Any"
                        AutomationProperties.Name="Exact memory GUID filter over listed metadata only; no content reads" />
+              <TextBox x:Name="MemoryScopeIdentityFilter" Text="{Binding MemoryScopeIdentityFilter, Mode=TwoWay}"
+                       IsEnabled="{Binding CanFilterMemories}" PlaceholderText="Exact memory scope identity GUID, or empty for Any"
+                       AutomationProperties.Name="Exact memory scope identity canonical D GUID or empty for Any; snapshot metadata only, not permission, ownership or scope authority" />
               <TextBlock Text="Inclusive ranges, combined with all metadata filters. Empty bounds mean Any. Revisions are positive decimal integers. UTC Created times use yyyy-MM-ddTHH:mm:ss.fffffff+00:00 (seven fractional digits)." TextWrapping="Wrap" />
               <TextBox x:Name="MemoryMinimumRevisionFilter" Text="{Binding MemoryMinimumRevisionFilter, Mode=TwoWay}"
                        IsEnabled="{Binding CanFilterMemories}" PlaceholderText="Minimum revision (inclusive), or empty for Any"

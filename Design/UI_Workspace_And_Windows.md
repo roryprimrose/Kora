@@ -41,6 +41,19 @@ Clear/source/private/last-owner revocation empties ranges; the composer and
 saved baseline remain independent. [Headless range tests](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.ConversationRanges.cs)
 verify shared binding, inclusive composition, no-read edits, accessible names
 and invalid-input refusal, not installed accessibility qualification.
+Both views share labelled, keyboard-focusable **Exact request ID** and **Exact
+task ID** text fields. Accessible names identify canonical lowercase nonempty
+D GUID admission, empty as Any, AND composition and no-read editing. The
+[canonical correlation contract](Interaction_And_Sessions.md#delivered-passive-exact-conversation-lexical-search--2026-10-13)
+owns admission/matching; invalid fields remain visible for correction and fail
+before reading. Edits retire rows, selection, open/deferred search Details,
+continuation and late callbacks without reading. Clear/private/source/last-owner
+revocation empties both IDs, not the independent composer or saved baseline.
+IDs cannot retarget the host-resolved selection or confer authority.
+[Headless correlation tests](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.ConversationCorrelation.cs)
+cover shared controls, exact composition, retained Done, privacy and no-read
+invalid-input refusal; installed accessibility qualification is not claimed.
+
 The [compact projection](../src/Kora/CompactSessionWindow.axaml) exposes these same controls over the workspace's single query/filter/page/cursor and cancellation state. Opening either view, typing or changing the field filter reads nothing; closing one view retains the shared state until the last owner closes. [Headless shared-search tests](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.CompactSearch.cs) cover keyboard actions, retained Done, saved baseline and late-source revocation; [native field-filter tests](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.ConversationRole.cs) cover shared binding, accessible control names, zero/invalid filters and no-read selection/continuation revocation.
 Native-only query entry adds no activated/model descriptor or generic-global-search retarget. Headless binding tests do not qualify installed keyboard/accessibility/DPI or full R12/R14 runtime acceptance.
 
@@ -242,7 +255,12 @@ headless focus/accessible-name checks are not installed screen-reader/DPI proof.
 The separate **Sessions > Session memories** surface exposes exact GUID plus
 **Scope**, **Review** and **Retention** metadata filters over its already-loaded
 bounded snapshot. Each enum starts with visibly selected **Any**; all predicates
-are AND. Scope is not permission or provider authority. Edits retire selection,
+are AND. The 2026-10-16 exact scope identity GUID field (empty for Any) and inclusive
+revision/created-time ranges compose with those predicates. Scope kind/identity
+are row metadata, not permission, ownership, scope or provider authority.
+The identity field has an explicit automation name and keyboard focus; Escape
+clears every filter in place, while Clear returns focus to the memory ID field.
+Edits retire selection,
 inspection, draft and pending callbacks without reads; explicit **List** alone
 refreshes the source. Undefined filters or malformed row metadata show no results
 and explicit recovery, not a partial list. See the
@@ -320,7 +338,33 @@ are correlation metadata only, not consent, session/file-read authority,
 currentness or proof a copy still exists; headless accessibility checks are not
 installed qualification.
 
+Three optional, focusable **exact local-file source / revision / item ID**
+fields AND-compose with every retained attachment predicate. Empty means Any;
+otherwise only nonempty canonical lowercase D-format GUIDs are admitted.
+Only Confirmed retained copies match; Held and unavailable/removed tombstones
+never match former IDs. IDs are correlation only, not consent, current file
+identity, path disclosure, body integrity, file-read authority or copy existence.
+Search/Enter is explicit; edits read nothing and retire page/details/selection/
+navigation/continuation and late callbacks. Clear query, revocation/cancellation
+and close erase all three fields. The canonical metadata contract owns complete
+candidate validation and continuation binding; headless accessible-name/focus
+tests do not qualify installed accessibility.
+
 ### Delivered Bounded Passive All Work / Attention Overview - 2026-10-11
+
+**Optional inclusive observed work metadata ranges** expands nine labelled,
+keyboard-focusable minimum/maximum pairs in a bounded scroll area, plus
+**Clear work metadata ranges** and accessible validation/recovery text.
+They use the [canonical admission/composition contract](Work_Management.md#delivered-passive-cross-session-work-observation---2026-10-11),
+not native policy copies. Blank endpoints visibly mean Any; invalid bounds
+disable Search/Refresh/Next without reading or falling back to Any.
+Every edit immediately retires private rows, selected details, navigation and
+continuation and cancels late callbacks; no input is disabled by a read.
+Only validated Observed work can satisfy any active range. Omissions remain
+explicit counts, never absence, completeness, success or authority claims.
+Clear reads nothing; close/private closure clears volatile endpoints and
+disables the controls. Installed screen-reader/DPI qualification remains
+separate from deterministic headless keyboard/accessibility checks.
 
 The separate **Observed content** native combo narrows the bounded observation to **Any**, **At least one observed queue receipt**, **At least one observed task**, or **At least one observed pending question**. It composes by AND with Browse/name/exact-ID, lifecycle, Needs answer and the unchanged explicit availability choice. Only retained metadata records in Observed rows satisfy positive choices; unavailable and omitted-only records cannot. Exclusion never proves absence, completion, authority or permission. The keyboard-focusable combo exposes a visible/accessibly selected non-null Any item and an accessible no-read/unavailable/omission warning, remains editable during reads and disables on private closure. Changes retire rows, selection, continuation and late callbacks without reading; close clears the volatile choice. See the [observed-content policy](Work_Management.md#delivered-passive-cross-session-work-observation---2026-10-11). Installed screen-reader qualification remains separate from deterministic headless accessibility checks.
 
@@ -643,6 +687,21 @@ choices are real selections, not null placeholders. These are passive volatile
 metadata, never identity, authority, integrity proof or content restoration.
 No new navigation, export or model route is added; the broader mode below
 remains a target contract, not qualification.
+
+Advanced trace controls also offer exact source, operation name, defined
+ActivityKind and exact None/Recorded flags, each with a visible accessible Any.
+Source version has explicit Any/Absent/Present/Exact choices and a separate exact
+text field; text is required only for Exact. Absent requires an existing trace
+with null version, never an unknown/null trace. Exact source/version/name inputs
+are case-sensitive plain valid Unicode, bounded to 128 characters without
+surrounding whitespace or controls. All predicates AND after complete retained
+trace validation, bind continuations and retire stale results/selection on edits
+without reading. Clear advanced and close reset these controls. This is untrusted
+diagnostic correlation, not session selection, identity, intent, permission,
+approval or authority; no baggage, tags, paths, credentials, user or omitted
+content is exposed. Deterministic headless checks are not installed accessibility
+qualification; the detailed [Evidence contract](Information_Display.md#delivered-bounded-native-evidence-inspection)
+owns these semantics.
 
 Evidence mode provides a bounded local timeline/search over permitted session,
 diagnostic and security-audit records. It supports time range, source kind,

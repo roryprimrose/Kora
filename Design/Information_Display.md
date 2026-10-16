@@ -323,6 +323,34 @@ never identity, authority or evidence-integrity claims. No new navigation, body
 restoration, export/clipboard, persistence, filter logging/tags/audit payload,
 schema/index/cache, model/tool/speech route or activity renewal is added.
 
+Advanced trace metadata filters add exact **Trace source**, **Activity operation
+name**, **ActivityKind**, and **Trace flags**, plus **Trace source version**
+with explicit **Any / Absent / Present / Exact** semantics. Empty source/name
+means Any. Exact text is ordinal case-sensitive, at most 128 UTF-16 characters,
+valid Unicode without surrounding whitespace or control characters; nothing is
+trimmed, repaired, case-folded or partially matched. Version Exact requires
+nonempty valid text; the other three choices require empty version text.
+Absent means a retained trace whose source version is null, Present means a
+retained non-null valid version, and Any imposes no version predicate. A null
+trace is unknown, not an absent source version, and never matches any set trace
+predicate. Kind and flags have visible non-null Any choices plus every defined
+value; flags are exact None or Recorded, not a bit-inclusion test.
+Complete `TraceSnapshot` validation (W3C IDs, optional parent, admitted source,
+optional version, operation name, defined kind and flags) precedes exclusion,
+even for nonmatching records. The existing four-source capture allowlist stays
+unchanged; unknown source predicates are valid searches but cannot invent data.
+These predicates AND with every existing filter on every source, bind the
+signed query fingerprint and continuation, and reset to Any with Clear advanced
+or close. AuthorityAudit has only its committed trace/span provenance, not a
+fabricated `TraceSnapshot`; it cannot match these new predicates.
+Trace metadata is untrusted diagnostic correlation only: it cannot select a
+session or establish identity, intent, permission, approval or authority.
+No baggage, tags, user content, paths, credentials or omitted content is exposed,
+searched or recovered by these predicates. No filter logging/persistence,
+schema/index/cache, navigation, model/provider/device/network or experiment path
+is added. Portable and headless/real-reader deterministic checks cover this I
+subset; installed accessibility and E/Q qualification remain separate.
+
 Every basic/advanced filter edit clears previous content, selection and cursor,
 and cancels an in-flight read; late content cannot restore the retired query.
 Search explicitly creates a fresh snapshot; Next uses the same immutable typed

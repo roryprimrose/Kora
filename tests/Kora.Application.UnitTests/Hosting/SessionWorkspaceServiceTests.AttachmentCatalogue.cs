@@ -10,6 +10,38 @@ namespace Kora.Application.UnitTests.Hosting;
 public sealed partial class SessionWorkspaceServiceTests
 {
     [Fact]
+    public async Task FileReferenceQueryIsForwardedExactlyWithoutBodyReadsAndEveryIdMismatchRefuses()
+    {
+        using var fixture = new Fixture();
+        using var root = HostActivity.BeginRoot(fixture.Request, HostActivityLayer.Application, HostOperation.Request);
+        var row = CatalogueSummary(fixture);
+        SessionAttachmentQuery Query(int omitted = -1) => new(true, row.Session.Value.ToString("D"),
+            SessionAttachmentFilter.Active, "text/", row.MediaType, AttachmentCopyStatus.Confirmed, 0, row.StoredBytes,
+            row.File.Digest, row.ObservationSource.ToString("D"), row.Profile.Value.ToString("D"), row.CapturedAt, row.CapturedAt,
+            row.SessionGeneration.Value, row.SessionGeneration.Value, row.CapturedGeneration.Value, row.CapturedGeneration.Value,
+            row.StorageRevision.Value, row.StorageRevision.Value, omitted == 0 ? null : row.File.SourceId.ToString("D"),
+            omitted == 1 ? null : row.File.RevisionId.ToString("D"), omitted == 2 ? null : row.File.ItemId.ToString("D"));
+        var query = Query();
+        fixture.CataloguePage = new(query, [row], null, DateTimeOffset.UnixEpoch, 1, new string('a', 64), 1, false);
+        var audit = new FileAudit();
+        await using var files = FileService(fixture, FileAction(new FileCapture(), audit), audit);
+        var service = new SessionAttachmentCatalogueService(fixture.Service, files);
+        (await service.Read(query, null, () => true, fixture.Token)).Should().BeSameAs(fixture.CataloguePage);
+        fixture.ObservedAttachmentQuery.Should().BeSameAs(query);
+        for (var id = 0; id < 3; id++)
+        {
+            fixture.CataloguePage = fixture.CataloguePage with { Query = Query(id), Records = [] };
+            var mismatch = () => service.Read(query, null, () => true, fixture.Token);
+            await mismatch.Should().ThrowAsync<InvalidDataException>();
+        }
+        fixture.FileReads.Should().Be(0);
+        fixture.ControlCalls.Should().Be(0);
+        fixture.PassiveInspectionCalls.Should().Be(0);
+        fixture.TaskWrites.Should().BeEmpty();
+        audit.Events.Should().BeEmpty();
+    }
+
+    [Fact]
     public async Task CompleteVersionRangesAreForwardedWithoutBodyReadsAndEveryEndpointMismatchRefuses()
     {
         using var fixture = new Fixture();

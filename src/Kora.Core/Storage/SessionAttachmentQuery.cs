@@ -24,7 +24,8 @@ public sealed record SessionAttachmentQuery
         DateTimeOffset? capturedFromUtc = null, DateTimeOffset? capturedUntilUtc = null,
         long? minimumSessionGeneration = null, long? maximumSessionGeneration = null,
         long? minimumCapturedGeneration = null, long? maximumCapturedGeneration = null,
-        long? minimumStorageRevision = null, long? maximumStorageRevision = null)
+        long? minimumStorageRevision = null, long? maximumStorageRevision = null,
+        string? exactFileSourceId = null, string? exactFileRevisionId = null, string? exactFileItemId = null)
     {
         if (!Enum.IsDefined(filter)) { throw new InvalidDataException("Unknown attachment session lifecycle filter."); }
         Filter = filter;
@@ -50,6 +51,12 @@ public sealed record SessionAttachmentQuery
         MaximumCapturedGeneration = maximumCapturedGeneration;
         MinimumStorageRevision = minimumStorageRevision;
         MaximumStorageRevision = maximumStorageRevision;
+        ExactFileSourceId = exactFileSourceId is null ? null
+            : new SessionListSearch(SessionListSearchKind.ExactId, SessionListFilter.All, exactFileSourceId).ExactId;
+        ExactFileRevisionId = exactFileRevisionId is null ? null
+            : new SessionListSearch(SessionListSearchKind.ExactId, SessionListFilter.All, exactFileRevisionId).ExactId;
+        ExactFileItemId = exactFileItemId is null ? null
+            : new SessionListSearch(SessionListSearchKind.ExactId, SessionListFilter.All, exactFileItemId).ExactId;
         Validate();
     }
 
@@ -101,6 +108,15 @@ public sealed record SessionAttachmentQuery
     [JsonIgnore]
     public long? MaximumStorageRevision { get; }
     [JsonIgnore]
+    public Guid? ExactFileSourceId { get; }
+    [JsonIgnore]
+    public Guid? ExactFileRevisionId { get; }
+    [JsonIgnore]
+    public Guid? ExactFileItemId { get; }
+    [JsonIgnore]
+    public bool HasFileReferencePredicates => ExactFileSourceId is not null || ExactFileRevisionId is not null
+        || ExactFileItemId is not null;
+    [JsonIgnore]
     public bool HasVersionPredicates => MinimumSessionGeneration is not null || MaximumSessionGeneration is not null
         || MinimumCapturedGeneration is not null || MaximumCapturedGeneration is not null
         || MinimumStorageRevision is not null || MaximumStorageRevision is not null;
@@ -137,6 +153,10 @@ public sealed record SessionAttachmentQuery
         row.Validate();
         return
         (IncludeRemoved || row.CopyStatus != AttachmentCopyStatus.Unavailable)
+        && (!HasFileReferencePredicates || row.CopyStatus == AttachmentCopyStatus.Confirmed
+            && (ExactFileSourceId is not { } fileSource || row.File.SourceId == fileSource)
+            && (ExactFileRevisionId is not { } fileRevision || row.File.RevisionId == fileRevision)
+            && (ExactFileItemId is not { } fileItem || row.File.ItemId == fileItem))
         && (!HasVersionPredicates || row.CopyStatus == AttachmentCopyStatus.Confirmed
             && MatchesRange(row.SessionGeneration, MinimumSessionGeneration, MaximumSessionGeneration)
             && MatchesRange(row.CapturedGeneration, MinimumCapturedGeneration, MaximumCapturedGeneration)

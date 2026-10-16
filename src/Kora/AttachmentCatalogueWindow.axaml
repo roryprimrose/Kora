@@ -51,6 +51,18 @@
                AutomationProperties.Name="Optional exact SHA-256 of a Confirmed retained copy; 64 lowercase hexadecimal characters, not all zero; typing performs no read" />
       <controls:NamedTextBlock Text="{Binding DigestHint}" TextWrapping="Wrap" />
       <WrapPanel>
+        <TextBox x:Name="AttachmentFileSourceId" Text="{Binding FileSourceIdText, Mode=TwoWay}" Width="460"
+                 PlaceholderText="Exact local-file source GUID (Any when empty)" IsEnabled="{Binding CanEdit}"
+                 AutomationProperties.Name="Optional exact retained local-file source ID; nonempty canonical lowercase D-format GUID; correlation only, not source consent or file-read authority; typing performs no read" />
+        <TextBox x:Name="AttachmentFileRevisionId" Text="{Binding FileRevisionIdText, Mode=TwoWay}" Width="460"
+                 PlaceholderText="Exact local-file revision GUID (Any when empty)" IsEnabled="{Binding CanEdit}"
+                 AutomationProperties.Name="Optional exact retained local-file revision ID; nonempty canonical lowercase D-format GUID; correlation only, not current file identity or body integrity; typing performs no read" />
+        <TextBox x:Name="AttachmentFileItemId" Text="{Binding FileItemIdText, Mode=TwoWay}" Width="460"
+                 PlaceholderText="Exact local-file item GUID (Any when empty)" IsEnabled="{Binding CanEdit}"
+                 AutomationProperties.Name="Optional exact retained local-file item ID; nonempty canonical lowercase D-format GUID; correlation only, not path disclosure or proof a copy exists; typing performs no read" />
+      </WrapPanel>
+      <controls:NamedTextBlock Text="{Binding FileReferenceHint}" TextWrapping="Wrap" />
+      <WrapPanel>
         <TextBox x:Name="AttachmentObservationSource" Text="{Binding ObservationSourceText, Mode=TwoWay}" Width="460"
                  PlaceholderText="Exact observation-source GUID (Any when empty)" IsEnabled="{Binding CanEdit}"
                  AutomationProperties.Name="Optional exact retained observation-source GUID; lowercase D format; correlation only, not source consent; typing performs no read" />

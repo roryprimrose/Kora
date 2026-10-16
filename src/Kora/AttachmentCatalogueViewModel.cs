@@ -40,6 +40,9 @@ internal sealed partial class AttachmentCatalogueViewModel(
     private string maximumCapturedGenerationText = string.Empty;
     private string minimumStorageRevisionText = string.Empty;
     private string maximumStorageRevisionText = string.Empty;
+    private string fileSourceIdText = string.Empty;
+    private string fileRevisionIdText = string.Empty;
+    private string fileItemIdText = string.Empty;
     private bool disposed;
     private long epoch;
     private long controlRevision = access.ControlRevision;
@@ -63,7 +66,7 @@ internal sealed partial class AttachmentCatalogueViewModel(
     public bool CanEdit => !disposed && access.CanInspect && admitted();
     public bool CanEditId => CanEdit && mode == AttachmentCatalogueMode.ExactId;
     public bool CanRead => CanEdit && operation is null;
-    public bool CanSearch => CanRead && ValidVersions && ValidCorrelation && ValidDigest && ValidCopyAndBytes && ValidMetadataText && ValidMediaType && Enum.IsDefined(filter) && (mode == AttachmentCatalogueMode.Browse
+    public bool CanSearch => CanRead && ValidFileReference && ValidVersions && ValidCorrelation && ValidDigest && ValidCopyAndBytes && ValidMetadataText && ValidMediaType && Enum.IsDefined(filter) && (mode == AttachmentCatalogueMode.Browse
         || SessionListSearch.IsValid(SessionListSearchKind.ExactId, SessionListFilter.All, queryText));
     public bool CanNext => CanSearch && page?.Next is not null;
     public bool CanCancel => !disposed && operation is not null;
@@ -263,34 +266,34 @@ internal sealed partial class AttachmentCatalogueViewModel(
     public string MinimumSessionGenerationText
     {
         get => minimumSessionGenerationText;
-        set => ChangeVersionBound(ref minimumSessionGenerationText, value);
+        set => ChangePredicateText(ref minimumSessionGenerationText, value);
     }
     public string MaximumSessionGenerationText
     {
         get => maximumSessionGenerationText;
-        set => ChangeVersionBound(ref maximumSessionGenerationText, value);
+        set => ChangePredicateText(ref maximumSessionGenerationText, value);
     }
     public string MinimumCapturedGenerationText
     {
         get => minimumCapturedGenerationText;
-        set => ChangeVersionBound(ref minimumCapturedGenerationText, value);
+        set => ChangePredicateText(ref minimumCapturedGenerationText, value);
     }
     public string MaximumCapturedGenerationText
     {
         get => maximumCapturedGenerationText;
-        set => ChangeVersionBound(ref maximumCapturedGenerationText, value);
+        set => ChangePredicateText(ref maximumCapturedGenerationText, value);
     }
     public string MinimumStorageRevisionText
     {
         get => minimumStorageRevisionText;
-        set => ChangeVersionBound(ref minimumStorageRevisionText, value);
+        set => ChangePredicateText(ref minimumStorageRevisionText, value);
     }
     public string MaximumStorageRevisionText
     {
         get => maximumStorageRevisionText;
-        set => ChangeVersionBound(ref maximumStorageRevisionText, value);
+        set => ChangePredicateText(ref maximumStorageRevisionText, value);
     }
-    private void ChangeVersionBound(ref string field, string value)
+    private void ChangePredicateText(ref string field, string value)
     {
         if (!CanEdit || string.Equals(field, value, StringComparison.Ordinal)) { return; }
         InvalidateQuery();
@@ -315,6 +318,36 @@ internal sealed partial class AttachmentCatalogueViewModel(
     public string VersionHint => ValidVersions
         ? "Optional inclusive session-generation, captured-generation and storage-revision ranges. Empty means Any; positive invariant decimal digits only, 1 through 9223372036854775807, minimum <= maximum. Only Confirmed retained copies match. Versions are correlation metadata, not consent, session/file-read authority, currentness or proof a copy still exists. Typing performs no read."
         : "Invalid generation/revision range. Use positive invariant decimal digits only, 1 through 9223372036854775807, minimum <= maximum. Empty means Any; no repair, fallback or read.";
+    public string FileSourceIdText
+    {
+        get => fileSourceIdText;
+        set => ChangePredicateText(ref fileSourceIdText, value);
+    }
+    public string FileRevisionIdText
+    {
+        get => fileRevisionIdText;
+        set => ChangePredicateText(ref fileRevisionIdText, value);
+    }
+    public string FileItemIdText
+    {
+        get => fileItemIdText;
+        set => ChangePredicateText(ref fileItemIdText, value);
+    }
+    private SessionAttachmentQuery FileReferenceQuery() => new(
+        exactFileSourceId: fileSourceIdText.Length == 0 ? null : fileSourceIdText,
+        exactFileRevisionId: fileRevisionIdText.Length == 0 ? null : fileRevisionIdText,
+        exactFileItemId: fileItemIdText.Length == 0 ? null : fileItemIdText);
+    private bool ValidFileReference
+    {
+        get
+        {
+            try { _ = FileReferenceQuery(); return true; }
+            catch (InvalidDataException) { return false; }
+        }
+    }
+    public string FileReferenceHint => ValidFileReference
+        ? "Optional exact local-file source/revision/item IDs: nonempty canonical lowercase D-format GUIDs; empty means Any. Only Confirmed retained copies match. Retained correlation only, not source consent, current file identity, path disclosure, body integrity, file-read authority or proof a copy exists. Typing performs no read."
+        : "Invalid exact file-reference ID. Use complete nonempty canonical lowercase D-format GUIDs. Empty means Any; no trimming, normalization, fallback or read.";
     private bool ValidMetadataText
     {
         get
@@ -360,6 +393,7 @@ internal sealed partial class AttachmentCatalogueViewModel(
         var bounds = CopyAndBytesQuery();
         var correlation = CorrelationQuery();
         var versions = VersionQuery();
+        var fileReference = FileReferenceQuery();
         var query = new SessionAttachmentQuery(includeRemoved,
             mode == AttachmentCatalogueMode.Browse ? null : queryText, filter,
             metadataText.Length == 0 ? null : metadataText, string.Equals(mediaType, "All", StringComparison.Ordinal) ? null : mediaType,
@@ -369,7 +403,9 @@ internal sealed partial class AttachmentCatalogueViewModel(
             correlation.CapturedFromUtc, correlation.CapturedUntilUtc,
             versions.MinimumSessionGeneration, versions.MaximumSessionGeneration,
             versions.MinimumCapturedGeneration, versions.MaximumCapturedGeneration,
-            versions.MinimumStorageRevision, versions.MaximumStorageRevision);
+            versions.MinimumStorageRevision, versions.MaximumStorageRevision,
+            fileReference.ExactFileSourceId?.ToString("D"), fileReference.ExactFileRevisionId?.ToString("D"),
+            fileReference.ExactFileItemId?.ToString("D"));
         var cursor = next ? page?.Next ?? throw new InvalidOperationException("Refresh before Next.") : null;
         Clear();
         var result = await read(query, cursor, current, token);
@@ -384,7 +420,7 @@ internal sealed partial class AttachmentCatalogueViewModel(
                 : result.Next is not null ? "More slots remain. Next may follow an empty nonmatching page. "
                     : result.Records.IsEmpty && (query.MetadataText is not null || query.ExactMediaType is not null
                         || query.CopyStatus is not null || query.MinimumStoredBytes is not null || query.MaximumStoredBytes is not null
-                        || query.ExactDigest is not null || query.HasCorrelationPredicates || query.HasVersionPredicates)
+                        || query.ExactDigest is not null || query.HasCorrelationPredicates || query.HasVersionPredicates || query.HasFileReferencePredicates)
                         ? "No matching retained metadata on this bounded page under these filters; end of this observation, not a global total; no fallback. "
                     : result.Records.IsEmpty && query.ExactId is not null
                         ? "Exact attachment slot not found under this filter at this observation; no fallback to Browse. "
@@ -457,7 +493,7 @@ internal sealed partial class AttachmentCatalogueViewModel(
         epoch++;
         operation?.Cancel();
         Clear();
-        status = "Query/mode/session lifecycle/media type/copy status/byte bounds/digest/correlation/version ranges/removal filter edited. Page, continuation and selection cleared; explicit Search/Refresh required.";
+        status = "Query/mode/session lifecycle/media type/copy status/byte bounds/digest/correlation/version ranges/file-reference IDs/removal filter edited. Page, continuation and selection cleared; explicit Search/Refresh required.";
     }
 
     internal void SynchronizeAuthority()
@@ -527,6 +563,9 @@ internal sealed partial class AttachmentCatalogueViewModel(
         maximumCapturedGenerationText = string.Empty;
         minimumStorageRevisionText = string.Empty;
         maximumStorageRevisionText = string.Empty;
+        fileSourceIdText = string.Empty;
+        fileRevisionIdText = string.Empty;
+        fileItemIdText = string.Empty;
     }
 
     private void Notify()
@@ -568,6 +607,10 @@ internal sealed partial class AttachmentCatalogueViewModel(
         OnPropertyChanged(nameof(MinimumStorageRevisionText));
         OnPropertyChanged(nameof(MaximumStorageRevisionText));
         OnPropertyChanged(nameof(VersionHint));
+        OnPropertyChanged(nameof(FileSourceIdText));
+        OnPropertyChanged(nameof(FileRevisionIdText));
+        OnPropertyChanged(nameof(FileItemIdText));
+        OnPropertyChanged(nameof(FileReferenceHint));
         OnPropertyChanged(nameof(QueryHint));
     }
 }

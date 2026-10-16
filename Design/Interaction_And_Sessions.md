@@ -62,6 +62,20 @@ the semantic query digest and explicit page/cursor identity. Changing any bound
 refuses continuation before reading. Metadata is passive: it cannot establish
 chronology authority, permission, ownership, model output or session read access.
 
+Optional **Exact request ID** and **Exact task ID** predicates AND with each
+other, lexical, USER/HOST, terminal and sequence/submitted-time predicates.
+The portable [correlation filter](../src/Kora.Core/Conversation/ConversationCorrelationFilter.cs)
+admits only complete canonical lowercase nonempty D-format GUIDs; empty
+means Any. No trimming, uppercase conversion, braces, partial ID or empty-GUID
+repair is performed. Invalid input fails explicitly before body reads. Each
+predicate joins the semantic digest and explicit page/cursor identity;
+changing either refuses continuation before reading. Every consumed message
+and its original request/session/task IDs are validated before exclusion,
+including nonmatching rows. The session is already host-resolved: these IDs
+are passive correlation metadata only, cannot retarget a session or task, and
+cannot establish identity, intent, ownership, permission, approval or execution
+authority. Original USER body bytes and separate typed HOST status are unchanged.
+
 The [conversation matcher](../src/Kora.Core/Conversation/ConversationSearch.cs) reuses `SessionHistorySearch` and the authoritative `LocalFileRetrievalPolicy` tokenizer: 1–256 UTF-16 characters / 512 strict UTF-8 bytes, 1–32 distinct lexical terms of at most 64 characters, NFC/invariant whole-word OR.
 Punctuation is a separator, not regex, wildcard or instruction syntax. Blank/malformed/unsupported queries fail explicitly, never inventory all bodies.
 
@@ -330,6 +344,16 @@ currentness, file-read authority or proof a copy still exists. No session-list,
 saved draft or Evidence behavior changes. The linked catalogue contract owns
 strict parsing, full candidate validation and complete continuation identity.
 
+Optional exact local-file source/revision/item IDs also AND-compose with every
+retained attachment predicate. Nonempty canonical lowercase D GUIDs match only
+Confirmed retained copies, never Held or unavailable/removed tombstones, even
+when former IDs agree. They are retained correlation metadata only, not source
+consent, current file identity, path disclosure, body integrity, file-read
+authority or proof a copy exists. Complete validation, private continuation
+binding, no-read edits and selection/detail retirement remain unchanged.
+Clear query, revocation/cancellation and close erase these volatile fields.
+The linked catalogue contract owns admission and deterministic evidence.
+
 ## Current Implementation and Design Gap
 
 The [optional native enqueue prerequisite](Work_Management.md#delivered-optional-native-enqueue-prerequisite---2026-10-12) adds same-session bounded metadata-only choice to all six fixed profiles. It combines nonqueue tasks with already-observed queued pending/running/recent terminal tasks using actual host task metadata from the same atomic work read, never queue-entry revisions or history scans. None is the initial default; exact selected ID/revision flows through the original command/service/store with final stale-source refusal.
@@ -596,7 +620,7 @@ claimed replaced by this increment.
 
 The [metadata-only policy](../src/Kora.Core/Storage/SessionListSearch.cs) and [Application read path](../src/Kora.Application/Hosting/SessionWorkspaceService.ListSearch.cs) support explicit bounded Browse, names or an explicitly selected exact immutable ID.
 The separate [saved composer catalogue](#saved-conversation-draft-catalogue--2026-10-13) reuses this policy on authoritative saved-draft session metadata, not body content; it retains its stricter committed-head continuation invalidation and mandatory audit-prefix validation.
-The [All work overview](Work_Management.md#delivered-passive-cross-session-work-observation---2026-10-11) also reuses this exact policy, composing lifecycle and needs-answer filters over its own ten-session bounded canonical-ID scan. Both query modes scan rather than directly resolving an ID there; zero-match pages can have Next. Its volatile digest-bound continuation additionally binds needs-answer and the overview source epoch. Query editing never reads, and clear/close revoke private query/results without adding content/model or execution authority.
+The [All work overview](Work_Management.md#delivered-passive-cross-session-work-observation---2026-10-11) also reuses this exact policy, composing lifecycle and needs-answer filters over its own ten-session bounded canonical-ID scan. Both query modes scan rather than directly resolving an ID there; zero-match pages can have Next. Its volatile digest-bound continuation additionally binds needs-answer, availability, positive observed content, all optional inclusive work-metadata range endpoints and the overview source epoch. Work ranges apply only to complete validated Observed metadata, never unavailable or output-bound projections. Query editing never reads, and clear/close revoke private query/results without adding content/model or execution authority.
 They reuse the persisted private metadata reader, authoritative name/audit validation and unchanged admission revision, without task intent, activity renewal, grants, model calls, memory use or new storage/index authority.
 
 Browse requires exactly empty query text and uses the same canonical-ID ordered bounded source scan, not an unbounded inventory or implicit selection. Nonempty Browse text is rejected, not ignored or reinterpreted. NameSubstring still requires nonempty validated text; an empty name query never becomes Browse.
@@ -1257,7 +1281,7 @@ A terminal task result does not automatically mark the whole session Done.
 
 The [bounded reviewed-memory store](Model_Providers_Memory_And_Knowledge.md#delivered-session-only-durable-memory-storage---2026-10-09) retains only exact admitted session-owned candidates. Authoritative Done/retirement, disposition and retention invalidate their bodies/receipts with typed audit in the existing transaction and retain non-reusable tombstones. Restart reads data, not review/use or egress authority; broader scope storage remains unavailable.
 
-The [native selected-session memory filters](Model_Providers_Memory_And_Knowledge.md#delivered-native-content-free-session-memory-filters---2026-10-14) combine exact GUID, Scope kind, Review and Retention with AND over the explicit bounded List snapshot. Scope is metadata, not permission or a session/provider selector. Any is initially selected; defined non-session kinds truthfully yield zero rows, never cross-session reads. Every row's full metadata is validated before exclusion. Filter edits revoke selection, inspection, draft, mutation readiness and pending presentation under the existing source/session/control fences, with no store read or activity renewal. Explicit List refresh and separate fresh inspection remain necessary.
+The [native selected-session memory filters](Model_Providers_Memory_And_Knowledge.md#delivered-native-content-free-session-memory-filters---2026-10-14) combine exact memory GUID, optional exact scope identity GUID, Scope kind, Review, Retention and inclusive revision/created-time ranges with AND over the explicit bounded List snapshot. Scope identity uses complete canonical D GUID admission; empty means Any. Scope kind and identity are snapshot metadata, not permission, ownership, scope authority or a session/provider selector. Any is initially selected; defined non-session kinds truthfully yield zero rows, never cross-session reads. Every row's full metadata is validated before exclusion. Filter edits revoke selection, inspection, draft, mutation readiness and pending presentation under the existing source/session/control fences, with no store read or activity renewal. Explicit List refresh and separate fresh inspection remain necessary.
 
 Host-owned records include:
 

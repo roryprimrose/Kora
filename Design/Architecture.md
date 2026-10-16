@@ -295,6 +295,13 @@ diagnostic metadata, never exception messages, stacks or omitted content.
 Sequence is committed ordering metadata, not authority, completeness, freshness,
 replay position or permission. These volatile filters bind signed continuations
 and do not change storage, capture, authority or instrumentation payloads.
+Exact trace source/version/operation-name/kind/flags predicates reuse the same
+matcher and complete portable `TraceSnapshot` validation. Version Any, Absent,
+Present and Exact distinguish a null version on an existing trace from an
+unknown/null trace. The four admitted sources stay unchanged. These are untrusted
+diagnostic correlations, never session selection, identity, intent, permission,
+approval or authority; no baggage, tags, user content, paths, credentials or
+omitted content is admitted by searching them.
 Session/task/trace fields are correlation filters, not a way to select host
 authority. Signed continuations bind the original query, viewer session,
 15-minute expiry and per-table snapshot ceilings bound to their original ordinary

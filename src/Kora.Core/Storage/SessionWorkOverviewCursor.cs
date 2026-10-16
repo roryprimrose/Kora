@@ -4,4 +4,5 @@ namespace Kora.Core.Storage;
 public sealed record SessionWorkOverviewCursor(
     Guid Host, long AdmissionRevision, long SourceEpoch, Guid After, SessionListFilter Filter, bool NeedsAnswer,
     string? QueryDigest = null, SessionWorkOverviewAvailability? Availability = null,
-    SessionWorkOverviewContent Content = SessionWorkOverviewContent.Any);
+    SessionWorkOverviewContent Content = SessionWorkOverviewContent.Any,
+    SessionWorkOverviewRanges Ranges = default);

@@ -10,16 +10,11 @@ public sealed record MemoryMetadataFilter
     public MemoryMetadataFilter(string id = "", MemoryScopeKind? scope = null,
         MemoryReviewState? review = null, MemoryRetentionState? retention = null,
         long? minimumRevision = null, long? maximumRevision = null,
-        DateTimeOffset? createdFromUtc = null, DateTimeOffset? createdUntilUtc = null)
+        DateTimeOffset? createdFromUtc = null, DateTimeOffset? createdUntilUtc = null,
+        string scopeIdentity = "")
     {
-        ArgumentNullException.ThrowIfNull(id);
-        if (id.Length != 0)
-        {
-            if (!Guid.TryParseExact(id, "D", out var exact) || exact == Guid.Empty
-                || !id.Equals(exact.ToString("D"), StringComparison.OrdinalIgnoreCase))
-            { throw new InvalidDataException("Enter a complete nonempty canonical D memory GUID, or clear it for Any."); }
-            Id = exact;
-        }
+        Id = ParseIdentity(id, "memory");
+        ScopeIdentity = ParseIdentity(scopeIdentity, "memory scope identity");
         if (scope is { } scopeValue && !Enum.IsDefined(scopeValue)
             || review is { } reviewValue && !Enum.IsDefined(reviewValue)
             || retention is { } retentionValue && !Enum.IsDefined(retentionValue))
@@ -40,6 +35,7 @@ public sealed record MemoryMetadataFilter
     }
 
     public Guid? Id { get; }
+    public Guid? ScopeIdentity { get; }
     public MemoryScopeKind? Scope { get; }
     public MemoryReviewState? Review { get; }
     public MemoryRetentionState? Retention { get; }
@@ -50,9 +46,20 @@ public sealed record MemoryMetadataFilter
 
     public static MemoryMetadataFilter Parse(string id, MemoryScopeKind? scope, MemoryReviewState? review,
         MemoryRetentionState? retention, string minimumRevision, string maximumRevision,
-        string createdFromUtc, string createdUntilUtc) =>
+        string createdFromUtc, string createdUntilUtc, string scopeIdentity = "") =>
         new(id, scope, review, retention, OptionalUnsignedDecimal.Parse(minimumRevision),
-            OptionalUnsignedDecimal.Parse(maximumRevision), OptionalCanonicalUtc.Parse(createdFromUtc), OptionalCanonicalUtc.Parse(createdUntilUtc));
+            OptionalUnsignedDecimal.Parse(maximumRevision), OptionalCanonicalUtc.Parse(createdFromUtc), OptionalCanonicalUtc.Parse(createdUntilUtc),
+            scopeIdentity);
+
+    private static Guid? ParseIdentity(string text, string field)
+    {
+        ArgumentNullException.ThrowIfNull(text);
+        if (text.Length == 0) { return null; }
+        if (!Guid.TryParseExact(text, "D", out var exact) || exact == Guid.Empty
+            || !text.Equals(exact.ToString("D"), StringComparison.OrdinalIgnoreCase))
+        { throw new InvalidDataException($"Enter a complete nonempty canonical D {field} GUID, or clear it for Any."); }
+        return exact;
+    }
 
     private static long? ValidateRevision(long? value)
     {
@@ -71,6 +78,7 @@ public sealed record MemoryMetadataFilter
             || !Enum.IsDefined(row.Retention) || row.CreatedAt.Offset != TimeSpan.Zero)
         { throw new InvalidDataException("Invalid memory snapshot metadata; no results. List explicitly to refresh under current session admission."); }
         return (Id is not { } id || row.Id == id)
+            && (ScopeIdentity is not { } identity || row.Scope.Identity == identity)
             && (Scope is not { } scope || row.Scope.Kind == scope)
             && (Review is not { } review || row.Review == review)
             && (Retention is not { } retention || row.Retention == retention)

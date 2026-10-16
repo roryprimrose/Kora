@@ -151,7 +151,7 @@ public sealed partial class SessionWorkspaceService
                 {
                     HistorySearch = await SearchHistoryAsync(session, command.HistoryQuery
                         ?? throw new InvalidOperationException("A lexical query is required."),
-                        command.HistorySearchCursor, command.Limit, token).ConfigureAwait(false),
+                        command.HistorySearchCursor, command.Limit, token, command.HistoryMetadata).ConfigureAwait(false),
                 }
                 : command.Operation == SessionCommandOperation.History
                 ? new SessionCommandResult("observed", SessionHistoryPage.Scope)

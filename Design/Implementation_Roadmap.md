@@ -154,6 +154,23 @@ Presence, All Work, local-event or session-name ownership is extended. No
 network/device/provider/experiment or unrelated proof is required or claimed;
 installed accessibility and broader E/Q qualification remain separate.
 
+### Bounded exact-session interaction-receipt metadata predicates - 2026-10-16
+
+Built from freshly fetched main `72fcebc7e44fb043a6a9c9d4cb89ee693eea2d8e`.
+The [older receipt HistorySearch](Interaction_And_Sessions.md#delivered-passive-exact-session-lexical-history-search---2026-10-09)
+AND-composes optional exact kind, task state, decision, question status and
+answer channel with its unchanged lexical OR query. Strict enum admission,
+complete-page validation before exclusion, canonical digest-bound continuations,
+truthful counters, bounded scan/whole-result bytes and final re-resolution remain
+fail-closed. Native explicit Any controls use no-read edits and retire stale
+selection/details/cursors on query, subject, source/privacy or closure changes.
+This consumes the existing private receipt reader I subset with deterministic
+portable/private SQLite/headless checks and exact portable coverage. Historical
+values gain no selection, identity, answer, approval, mutation or replay authority.
+Shared lexical/conversation behavior and sibling-owned search scopes are unchanged.
+No new runtime/provider, schema/index, experiment or enabled profile is added;
+broader R12/R14, installed accessibility and E/Q remain separate and unclaimed.
+
 ### R26 retained attachment inclusive generation/revision predicates - 2026-10-16
 
 From canonical main `74cd8517e5b5412deea706d1125a9b6e156a49e9`, the

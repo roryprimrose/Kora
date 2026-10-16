@@ -243,6 +243,28 @@
       <Button x:Name="CancelHistorySearch" Content="Cancel search" IsEnabled="{Binding CanCancelHistorySearch}" />
       <Button x:Name="ClearHistorySearch" Content="Clear query and results" IsEnabled="{Binding CanRead}" />
     </WrapPanel>
+    <WrapPanel>
+      <TextBlock Text="Receipt kind" VerticalAlignment="Center" />
+      <ComboBox x:Name="HistoryKind" ItemsSource="{Binding HistoryKinds}"
+                SelectedItem="{Binding HistoryKindChoice, Mode=TwoWay}" IsEnabled="{Binding CanRead}"
+                AutomationProperties.Name="Exact receipt kind; Any adds no restriction; passive history only" />
+      <TextBlock Text="Task state" VerticalAlignment="Center" />
+      <ComboBox x:Name="HistoryTaskState" ItemsSource="{Binding HistoryTaskStates}"
+                SelectedItem="{Binding HistoryTaskStateChoice, Mode=TwoWay}" IsEnabled="{Binding CanRead}"
+                AutomationProperties.Name="Exact historical task state; Any adds no restriction; no task selection or replay" />
+      <TextBlock Text="Decision" VerticalAlignment="Center" />
+      <ComboBox x:Name="HistoryDecision" ItemsSource="{Binding HistoryDecisions}"
+                SelectedItem="{Binding HistoryDecisionChoice, Mode=TwoWay}" IsEnabled="{Binding CanRead}"
+                AutomationProperties.Name="Exact historical decision; Any adds no restriction; no approval authority" />
+      <TextBlock Text="Question status" VerticalAlignment="Center" />
+      <ComboBox x:Name="HistoryQuestionStatus" ItemsSource="{Binding HistoryQuestionStatuses}"
+                SelectedItem="{Binding HistoryQuestionStatusChoice, Mode=TwoWay}" IsEnabled="{Binding CanRead}"
+                AutomationProperties.Name="Exact historical question status; Any adds no restriction; no question selection or answer" />
+      <TextBlock Text="Answer channel" VerticalAlignment="Center" />
+      <ComboBox x:Name="HistoryAnswerChannel" ItemsSource="{Binding HistoryAnswerChannels}"
+                SelectedItem="{Binding HistoryAnswerChannelChoice, Mode=TwoWay}" IsEnabled="{Binding CanRead}"
+                AutomationProperties.Name="Exact historical answer channel; Any adds no restriction; not identity or authority" />
+    </WrapPanel>
     </StackPanel>
     </ScrollViewer>
     <Grid Grid.Row="4" ColumnDefinitions="320,*" ColumnSpacing="14">

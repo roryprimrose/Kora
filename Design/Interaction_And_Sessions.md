@@ -672,6 +672,37 @@ This delivers only passive session-list metadata navigation, not conversation/co
 
 ### Delivered Passive Exact-Session Lexical History Search - 2026-10-09
 
+The bounded receipt-metadata increment (2026-10-16, from main
+`72fcebc7e44fb043a6a9c9d4cb89ee693eea2d8e`) adds optional exact
+`SessionHistoryKind`, `HostTaskState`, `HostInteractionOutcome` decision,
+`QuestionStatus` and `RequestOrigin` answer-channel predicates through the
+[portable policy](../src/Kora.Core/Storage/SessionHistoryMetadataFilter.cs),
+Application read path and native Sessions controls. Every specified predicate
+is AND-composed with the existing lexical OR query; absent means **Any**.
+A missing nullable field cannot satisfy an exact predicate. Undefined enum
+values are rejected, never coerced to Any. Contradictory combinations yield
+zero matches, not a broader query. Gap/redacted/unavailable receipts never match.
+Complete ordered exact-session pages, including nonmatches and tails beyond
+the result limit, are validated before filtering; source provenance remains
+validated by the admitted private reader. Baseline/gap/omission counters
+describe consumed receipts, not only matching receipts.
+
+Canonical typed values join the versioned query/cursor digest. Default Any
+queries retain their existing lexical identity; shared `LocalFileRetrievalPolicy`
+and `SessionHistorySearch.MatchesText` semantics and conversation search are
+unchanged. Native predicate edits are volatile, perform no reads, cancel old
+searches and retire rows, details and continuation. Clear/Escape restore Any.
+Exact subject, selection, source/private admission revision, closure and
+end-of-scan re-resolution fences still apply. Typed/activated text syntax is
+unchanged; these new choices are native controls and typed host API metadata,
+not model/voice-derived targeting.
+
+Historical states, decisions and answer channels are passive citations only.
+They cannot select a session/question/task, establish identity or authority,
+replay work, answer a question, approve or mutate anything. No schema/index,
+new capture, egress, runtime/provider call or enabled capability profile is
+added. Broader history and installed accessibility/E/Q remain unqualified.
+
 The [Application scan](../src/Kora.Application/Hosting/SessionWorkspaceService.Search.cs) consumes the delivered private ordered history reader, without a new schema, index, content capture or authority write. The [Core matcher](../src/Kora.Core/Storage/SessionHistorySearch.cs) reuses the selected-file lexical query/token rules: NFC invariant-case whole-word OR, 256 characters/512 UTF-8 bytes, 32 distinct terms/64 characters per term. Only committed question/option labels, final answer/choices and typed kind/task/decision/question-status metadata are searchable; bootstrap bodies, reasoning, full conversations/artifacts and volatile previews remain unavailable.
 
 The [result contract](../src/Kora.Core/Storage/SessionHistorySearchPage.cs) returns complete immutable receipts ordered by host sequence, at most 50 results/200 scanned receipts/64 KiB including command JSON overhead. Input reads remain bounded by the existing 64 KiB history page and 200 consumed receipts; no unbounded materialization occurs. Query-bound continuations retain exact session, generation and original sequence ceiling. Empty bounded pages may still have a continuation. Baseline/gap/redacted/unavailable counts and oversized matching omissions are explicit; missing/corrupt storage is not an empty success.

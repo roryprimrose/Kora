@@ -13,6 +13,9 @@ internal sealed class OwnedInstructionEditorWindow : Window
     internal readonly ComboBox Files = new() { Width = 240 };
     internal readonly TextBox QueryInput = new() { Width = 240, PlaceholderText = "Find filename, name or exact ID" };
     internal readonly TextBox DigestInput = new() { Width = 300, PlaceholderText = "Exact SHA-256 (empty means Any)" };
+    internal readonly TextBox RevisionInput = new() { Width = 300, PlaceholderText = "Exact native revision (empty means Any)" };
+    internal readonly TextBox ObservedFromInput = new() { Width = 300, PlaceholderText = "yyyy-MM-ddTHH:mm:ss.fffffff+00:00" };
+    internal readonly TextBox ObservedUntilInput = new() { Width = 300, PlaceholderText = "yyyy-MM-ddTHH:mm:ss.fffffff+00:00" };
     internal readonly Button ReviewUse = new() { Content = "Review use", Margin = new(3), IsEnabled = false };
     internal readonly Button DisableReviewedUse = new() { Content = "Disable reviewed use", Margin = new(3), IsEnabled = false };
     internal readonly ComboBox UseStateInput = new()
@@ -71,12 +74,25 @@ internal sealed class OwnedInstructionEditorWindow : Window
         AutomationProperties.SetName(DigestInput, "Exact artifact SHA-256 digest; empty means Any");
         search.Children.Add(new TextBlock { Text = "Exact SHA-256: ", VerticalAlignment = VerticalAlignment.Center });
         search.Children.Add(DigestInput);
+        AutomationProperties.SetName(RevisionInput, "Exact native owned revision; empty means Any; metadata only");
+        search.Children.Add(new TextBlock { Text = "Exact native revision: ", VerticalAlignment = VerticalAlignment.Center });
+        search.Children.Add(RevisionInput);
+        AutomationProperties.SetName(ObservedFromInput, "Observed UTC From inclusive; canonical UTC; empty means Any; snapshot metadata only");
+        search.Children.Add(new TextBlock { Text = "Observed UTC From (inclusive): ", VerticalAlignment = VerticalAlignment.Center });
+        search.Children.Add(ObservedFromInput);
+        AutomationProperties.SetName(ObservedUntilInput, "Observed UTC Until inclusive; canonical UTC; empty means Any; snapshot metadata only");
+        search.Children.Add(new TextBlock { Text = "Observed UTC Until (inclusive): ", VerticalAlignment = VerticalAlignment.Center });
+        search.Children.Add(ObservedUntilInput);
         search.Children.Add(NextPage);
         var clear = new Button { Content = "Clear search", Margin = new(3) };
-        clear.Click += (_, _) => { QueryInput.Text = string.Empty; UseStateInput.SelectedItem = OwnedDefinitionUseFilter.All; DigestInput.Text = string.Empty; run("Filter"); };
+        AutomationProperties.SetName(clear, "Clear all owned metadata predicates; empty query, All use state, Any digest, revision and observed UTC bounds");
+        clear.Click += (_, _) => { ClearSearch(); run("Filter"); };
         search.Children.Add(clear);
         QueryInput.PropertyChanged += (_, change) => { if (change.Property == TextBox.TextProperty) { run("Filter"); } };
         DigestInput.PropertyChanged += (_, change) => { if (change.Property == TextBox.TextProperty) { run("Filter"); } };
+        RevisionInput.PropertyChanged += (_, change) => { if (change.Property == TextBox.TextProperty) { run("Filter"); } };
+        ObservedFromInput.PropertyChanged += (_, change) => { if (change.Property == TextBox.TextProperty) { run("Filter"); } };
+        ObservedUntilInput.PropertyChanged += (_, change) => { if (change.Property == TextBox.TextProperty) { run("Filter"); } };
         UseStateInput.SelectionChanged += (_, _) => run("Filter");
         NextPage.Click += (_, _) => run("Next");
         Files.SelectionChanged += (_, _) => inventoryDetails.Text = (Files.SelectedItem as OwnedDefinitionInventoryRow)?.Details ?? string.Empty;
@@ -90,6 +106,7 @@ internal sealed class OwnedInstructionEditorWindow : Window
         {
             Text = "Source: Kora-owned roaming Instructions/*.instructions.md or Prompts/*.prompt.md; select kind explicitly. Profile files and bundled definitions are read-only. "
                 + "Observed catalogue use state; inspect revalidates disk and exact revision. Search/filter is metadata-only, not a freshness, compatibility or integrity guarantee. "
+                + "Observed UTC is snapshot time only, not freshness, trust, approval, ownership or use authority. "
                 + "Save as new copy retains the original draft and creates a separate disabled same-kind owned file. No profile fork, model, dictation, scripts, rename or restore. "
                 + "Save is not activation. Review permits explicit selection for a new request only. Disable reviewed use holds the exact saved revision without changing its source; a fresh review is required to enable it again. "
                 + "Prompts are user requests, not system guidance. Native v1 stays literal; v2 supports required ${input:name} text only, with private expanded preview and separate use admission.",
@@ -106,6 +123,11 @@ internal sealed class OwnedInstructionEditorWindow : Window
     }
 
     internal void Report(string text) => status.Text = text;
+    internal void ClearSearch()
+    {
+        QueryInput.Text = string.Empty; UseStateInput.SelectedItem = OwnedDefinitionUseFilter.All; DigestInput.Text = string.Empty;
+        RevisionInput.Text = string.Empty; ObservedFromInput.Text = string.Empty; ObservedUntilInput.Text = string.Empty;
+    }
     internal void ReportValidation(string text) => validationStatus.Text = text;
     internal void ClearValidation()
     {
@@ -141,7 +163,7 @@ internal sealed class OwnedInstructionEditorWindow : Window
     }
     internal void ClearPrivateText()
     {
-        ClearInventory(); QueryInput.Text = string.Empty; UseStateInput.SelectedItem = OwnedDefinitionUseFilter.All; DigestInput.Text = string.Empty;
+        ClearInventory(); ClearSearch();
         SetUseReviewAvailable(false);
         Source.Text = string.Empty; NameInput.Text = string.Empty; CopyNameInput.Text = string.Empty;
         status.Text = string.Empty; inventoryStatus.Text = string.Empty;

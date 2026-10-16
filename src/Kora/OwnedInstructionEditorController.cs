@@ -449,7 +449,7 @@ internal sealed partial class OwnedInstructionEditorController(
         baseline = null; selectedName = null; originalText = string.Empty; uncertain = false;
         newDraft = false;
         opened.Source.Text = string.Empty; opened.NameInput.Text = string.Empty; opened.CopyNameInput.Text = string.Empty; opened.ClearInventory();
-        opened.QueryInput.Text = string.Empty; opened.UseStateInput.SelectedItem = OwnedDefinitionUseFilter.All; opened.DigestInput.Text = string.Empty;
+        opened.ClearSearch();
         opened.SelectKind(kind);
         return true;
     }

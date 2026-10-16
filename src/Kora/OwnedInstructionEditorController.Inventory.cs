@@ -89,9 +89,12 @@ internal sealed partial class OwnedInstructionEditorController
             var query = opened.QueryInput.Text ?? string.Empty;
             var filter = opened.UseStateInput.SelectedItem is OwnedDefinitionUseFilter value ? value : OwnedDefinitionUseFilter.All;
             var digest = opened.DigestInput.Text ?? string.Empty;
+            var revision = opened.RevisionInput.Text ?? string.Empty;
+            var from = opened.ObservedFromInput.Text ?? string.Empty;
+            var until = opened.ObservedUntilInput.Text ?? string.Empty;
             var page = next && inventoryPage is { } previous
-                ? snapshot.Continue(previous, query, filter, digest)
-                : snapshot.Page(query, filter, digest: digest);
+                ? snapshot.Continue(previous, query, filter, digest, revision, from, until)
+                : snapshot.Page(query, filter, digest: digest, revision: revision, observedFromUtc: from, observedUntilUtc: until);
             inventoryPage = page;
             opened.ShowInventory(page);
             if (selected is not null && (edited || !page.Rows.Contains(selected)))

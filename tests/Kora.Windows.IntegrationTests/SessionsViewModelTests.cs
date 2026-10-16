@@ -222,7 +222,7 @@ public sealed partial class SessionsViewModelTests
         Read("DesktopSessionWorkspaceAccess.cs").Should().Contain("OnPrivacyClosure").And.Contain("AdmissionRevision");
         source.Should().Contain("Enqueue local version").And.Contain("Confirm clear displayed pending queue");
         code.Should().Contain("model.RefreshWorkAsync").And.Contain("model.DispatchQueueAsync")
-            .And.Contain("ClearHistorySearch.Click += (_, _) => { model.HistoryQuery = string.Empty; HistoryQuery.Focus(); }");
+            .And.Contain("ClearHistorySearch.Click += (_, _) => { model.ClearHistorySearchInputs(); HistoryQuery.Focus(); }");
         Read("SessionsPresentationOwner.cs").Should().Contain("model.Close()")
             .And.Contain("surface.Close()").And.Contain("refresh.Stop()").And.Contain("refresh.Tick -= Refresh");
         source.Should().Contain("WorkStatus").And.Contain("PendingQuestions").And.Contain("CanRemoveQueueEntry")

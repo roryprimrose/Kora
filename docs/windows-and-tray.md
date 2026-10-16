@@ -762,6 +762,16 @@ does not restore text, names, authority, approvals or work.
 
 **Search exact history** uses the same exact-ID field. Enter lexical words in the volatile query field and press Enter or the Search button. Results use the existing receipt list; select a match and use **Open immutable receipt details** for fresh resolution. **Next search snapshot page** continues even after an empty page; status reports scanned receipts, gaps and oversized matching omissions. Search defaults to 25 results, scans at most 200 receipts/call and bounds complete output to 64 KiB ([workflow](../src/Kora/SessionsViewModel.Search.cs)).
 
+Optionally narrow receipt **kind**, **task state**, **decision**, **question
+status** and **answer channel** using the labelled choices. Each starts at
+**Any**; every selected exact value must match along with at least one lexical
+word. Missing metadata does not match an exact value, and contradictory choices
+can yield no matches. These historical values do not select a question/task,
+identify a user, confer approval or answer/replay/mutate anything. Editing a
+choice performs no read and clears stale receipts/details/Next; explicitly
+Search again. Clear and query-field Escape also restore all choices to Any.
+These controls do not change conversation search or typed/voice command syntax.
+
 Escape in the query field clears query/results without closing the window. **Clear query and results** returns focus to that field; **Cancel search** suppresses pending results. Editing query/subject, closing, privacy/ownership loss or retention retirement invalidates late content. Search does not disable the focused field, replace pending-question targets or renew activity ([native controls](../src/Kora/SessionsWindow.axaml.cs), [deterministic recovery tests](../tests/Kora.Windows.IntegrationTests/SessionsHistorySearchTests.cs), [late-result tests](../tests/Kora.Windows.IntegrationTests/SessionsViewModelTests.Search.cs)). These headless checks are not physical keyboard, installed screen-reader or DPI qualification.
 
 ### Logical session disposition

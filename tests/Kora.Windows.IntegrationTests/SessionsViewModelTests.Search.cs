@@ -2,6 +2,8 @@ using AwesomeAssertions;
 
 using Kora.Application.Diagnostics;
 using Kora.Application.Hosting;
+using Kora.Core.Hosting;
+using Kora.Core.Interaction;
 using Kora.Core.Storage;
 using Kora.Windows.IntegrationTests.Storage;
 using Kora.Windows.Storage;
@@ -18,6 +20,13 @@ public sealed partial class SessionsViewModelTests
     [InlineData("cancel")]
     [InlineData("close")]
     [InlineData("privacy")]
+    [InlineData("kind")]
+    [InlineData("state")]
+    [InlineData("decision")]
+    [InlineData("question")]
+    [InlineData("channel")]
+    [InlineData("source")]
+    [InlineData("clear")]
     public async Task Native_search_suppresses_cancelled_or_late_content_and_has_explicit_recovery(string mode)
     {
         using var f = new InteractionStorageFixture();
@@ -32,6 +41,7 @@ public sealed partial class SessionsViewModelTests
             access, NullLogger<SessionsViewModel>.Instance);
         model.HistorySessionId = f.Request.SessionId.Value.ToString("D");
         model.HistoryQuery = "needle";
+        model.HistoryKindChoice = new(SessionHistoryKind.Question);
         var search = model.SearchHistoryAsync();
         model.CanCancelHistorySearch.Should().BeTrue();
         model.CanSearchHistory.Should().BeFalse();
@@ -40,6 +50,13 @@ public sealed partial class SessionsViewModelTests
         if (mode is "cancel") { model.CancelHistorySearch(); }
         if (mode is "close") { model.Close(); }
         if (mode is "privacy") { access.CanInspect = false; }
+        if (mode is "kind") { model.HistoryKindChoice = new(SessionHistoryKind.Answer); }
+        if (mode is "state") { model.HistoryTaskStateChoice = new(HostTaskState.Succeeded); }
+        if (mode is "decision") { model.HistoryDecisionChoice = new(HostInteractionOutcome.Answered); }
+        if (mode is "question") { model.HistoryQuestionStatusChoice = new(QuestionStatus.Answered); }
+        if (mode is "channel") { model.HistoryAnswerChannelChoice = new(RequestOrigin.LocalUi); }
+        if (mode is "source") { access.ControlRevision++; }
+        if (mode is "clear") { model.ClearHistorySearchInputs(); }
         var record = new SessionHistoryEvent(Guid.NewGuid(), f.Request.SessionId, 1, new(1),
             SessionHistoryKind.Question, SessionHistoryAvailability.Available, null, null, null, 1,
             new('a', 64), null, false, "needle", [], null, [], null, null, null, null);
@@ -51,5 +68,10 @@ public sealed partial class SessionsViewModelTests
         model.SelectedHistoryRecord.Should().BeNull();
         held.ControlCalls.Should().Be(0);
         model.Close();
+        model.HistoryKindChoice.Value.Should().BeNull();
+        model.HistoryTaskStateChoice.Value.Should().BeNull();
+        model.HistoryDecisionChoice.Value.Should().BeNull();
+        model.HistoryQuestionStatusChoice.Value.Should().BeNull();
+        model.HistoryAnswerChannelChoice.Value.Should().BeNull();
     }
 }

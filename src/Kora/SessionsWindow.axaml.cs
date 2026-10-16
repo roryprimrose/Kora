@@ -115,7 +115,7 @@ internal sealed partial class SessionsWindow : Window
         SearchHistory.Click += async (_, _) => await model.SearchHistoryAsync();
         NextHistorySearch.Click += async (_, _) => await model.SearchHistoryAsync(next: true);
         CancelHistorySearch.Click += (_, _) => model.CancelHistorySearch();
-        ClearHistorySearch.Click += (_, _) => { model.HistoryQuery = string.Empty; HistoryQuery.Focus(); };
+        ClearHistorySearch.Click += (_, _) => { model.ClearHistorySearchInputs(); HistoryQuery.Focus(); };
         HistoryQuery.KeyDown += async (_, args) =>
         {
             if (args.Key == Key.Enter && model.CanSearchHistory)
@@ -126,7 +126,7 @@ internal sealed partial class SessionsWindow : Window
             else if (args.Key == Key.Escape)
             {
                 args.Handled = true;
-                model.HistoryQuery = string.Empty;
+                model.ClearHistorySearchInputs();
             }
         };
         HistoryRecords.SelectionChanged += (_, _) =>

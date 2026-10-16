@@ -9,6 +9,90 @@ namespace Kora.Core.UnitTests.Storage;
 
 public sealed class SessionHistorySearchTests
 {
+    [Fact]
+    public void Exact_metadata_is_AND_composed_with_unchanged_lexical_OR_and_missing_fields_never_match()
+    {
+        var token = TestContext.Current.CancellationToken;
+        var record = Record() with { Question = "café", TaskState = HostTaskState.Succeeded,
+            Decision = HostInteractionOutcome.Answered, QuestionStatus = QuestionStatus.Answered,
+            AnswerChannel = RequestOrigin.LocalUi };
+        var all = new SessionHistoryMetadataFilter(SessionHistoryKind.Question, HostTaskState.Succeeded,
+            HostInteractionOutcome.Answered, QuestionStatus.Answered, RequestOrigin.LocalUi);
+        var search = new SessionHistorySearch("absent CAFE\u0301", all);
+        search.Matches(record, token).Should().BeTrue();
+        new SessionHistorySearch("absent", all).Matches(record, token).Should().BeFalse();
+        search.Digest.Should().Be(new SessionHistorySearch("CAFÉ absent café", all).Digest);
+        var filters = new[] { default(SessionHistoryMetadataFilter),
+            new(Kind: SessionHistoryKind.Answer), new(TaskState: HostTaskState.Failed),
+            new(Decision: HostInteractionOutcome.Approved), new(QuestionStatus: QuestionStatus.Pending),
+            new(AnswerChannel: RequestOrigin.ActivatedVoice) };
+        foreach (var filter in filters)
+        {
+            var exact = new SessionHistorySearch("café", filter);
+            exact.Digest.Should().NotBe(search.Digest);
+            exact.Matches(record, token).Should().Be(filter == default);
+        }
+        foreach (var filter in new[] { new SessionHistoryMetadataFilter(TaskState: HostTaskState.Succeeded),
+            new(Decision: HostInteractionOutcome.Answered), new(QuestionStatus: QuestionStatus.Answered),
+            new(AnswerChannel: RequestOrigin.LocalUi) })
+        {
+            new SessionHistorySearch("café", filter).Matches(Record() with { Question = "café" }, token).Should().BeFalse();
+        }
+        foreach (var availability in Enum.GetValues<SessionHistoryAvailability>())
+        {
+            search.Matches(record with { Availability = availability }, token).Should()
+                .Be(availability is SessionHistoryAvailability.Available or SessionHistoryAvailability.MetadataOnly);
+        }
+        new SessionHistorySearch("café", new(AnswerChannel: RequestOrigin.HostSystem))
+            .Matches(record, token).Should().BeFalse();
+        // ConversationSearch consumes this shared default digest, not the receipt metadata envelope.
+        new SessionHistorySearch("CAFÉ café").Digest.Should().Be(Convert.ToHexString(
+            System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes("CAFÉ"))));
+    }
+
+    [Fact]
+    public void Every_defined_predicate_has_a_distinct_canonical_digest_and_undefined_values_fail_closed()
+    {
+        var filters = Enum.GetValues<SessionHistoryKind>().Select(value => new SessionHistoryMetadataFilter(Kind: value))
+            .Concat(Enum.GetValues<HostTaskState>().Select(value => new SessionHistoryMetadataFilter(TaskState: value)))
+            .Concat(Enum.GetValues<HostInteractionOutcome>().Select(value => new SessionHistoryMetadataFilter(Decision: value)))
+            .Concat(Enum.GetValues<QuestionStatus>().Select(value => new SessionHistoryMetadataFilter(QuestionStatus: value)))
+            .Concat(Enum.GetValues<RequestOrigin>().Select(value => new SessionHistoryMetadataFilter(AnswerChannel: value)))
+            .Append(default).ToArray();
+        filters.Select(filter => new SessionHistorySearch("word", filter).Digest).Should().OnlyHaveUniqueItems();
+        foreach (var filter in new[] { new SessionHistoryMetadataFilter(Kind: (SessionHistoryKind)(-1)),
+            new(TaskState: (HostTaskState)999), new(Decision: (HostInteractionOutcome)999),
+            new(QuestionStatus: (QuestionStatus)999), new(AnswerChannel: (RequestOrigin)999) })
+        {
+            var act = () => new SessionHistorySearch("word", filter);
+            act.Should().Throw<ArgumentOutOfRangeException>();
+        }
+    }
+
+    [Fact]
+    public void Receipt_shape_validation_rejects_corruption_before_any_matching()
+    {
+        var valid = Record() with { RequestId = Guid.NewGuid(), TaskId = Guid.NewGuid(), SourceId = Guid.NewGuid(),
+            SourceRevision = 0, AuditSequence = 1, TaskState = HostTaskState.Succeeded,
+            Decision = HostInteractionOutcome.Answered, QuestionStatus = QuestionStatus.Answered, AnswerChannel = RequestOrigin.ActivatedVoice };
+        valid.Validate();
+        Record().Validate();
+        (valid with { AnswerChannel = RequestOrigin.LocalUi }).Validate();
+        foreach (var invalid in new[] { valid with { Id = Guid.Empty }, valid with { Sequence = 0 },
+            valid with { SourceRevision = -1 }, valid with { AuditSequence = 0 }, valid with { Generation = default },
+            valid with { Kind = (SessionHistoryKind)999 }, valid with { Availability = (SessionHistoryAvailability)999 },
+            valid with { TaskState = (HostTaskState)999 }, valid with { Decision = (HostInteractionOutcome)999 },
+            valid with { QuestionStatus = (QuestionStatus)999 }, valid with { AnswerChannel = RequestOrigin.HostSystem },
+            valid with { Options = default }, valid with { Choices = default },
+            valid with { RequestId = Guid.Empty }, valid with { TaskId = Guid.Empty }, valid with { SourceId = Guid.Empty },
+            valid with { ProvenanceDigest = null! }, valid with { ProvenanceDigest = "bad" },
+            valid with { ProvenanceDigest = new('g', 64) } })
+        {
+            var act = invalid.Validate;
+            act.Should().Throw<InvalidDataException>();
+        }
+    }
+
     [Theory]
     [InlineData("")]
     [InlineData("   ")]

@@ -447,6 +447,20 @@ Existing work refresh and memory proposal controls remain independent. Composer,
 
 ### Delivered Passive Details Boundary
 
+Receipt-history search has five separately labelled native choices with explicit
+**Any**: receipt kind, task state, decision, question status and answer channel.
+They narrow only the older exact-session interaction receipts, not adjacent
+conversation, session-list or Evidence searches. All selected values AND-compose
+with the lexical OR query. Missing metadata is not an exact match. Editing any
+choice performs no read and retires old receipt selection/details/continuation;
+Search is explicit. Clear and query-field Escape restore every choice to Any
+and retain query focus. Source/private/subject changes and closure clear these
+volatile values and fence late callbacks. Accessible names distinguish each
+historical field from current identity, approval, question or task authority.
+The [receipt contract](Interaction_And_Sessions.md#delivered-passive-exact-session-lexical-history-search---2026-10-09)
+owns admission, digest, bounds and passive-only semantics; deterministic headless
+checks do not claim installed-native accessibility qualification.
+
 The [passive lexical increment](Interaction_And_Sessions.md#delivered-passive-exact-session-lexical-history-search---2026-10-09) adds exact-session query, Search/Next/Cancel/Clear controls beside the existing history ID. Enter searches; Escape clears within the focused field. Search results reuse the immutable receipt list and fresh detail viewer without changing selected work or pending-question identities. Complete 64 KiB results and explicit scanned/gap/omitted counts distinguish an empty bounded page from an exhausted snapshot ([controls](../src/Kora/SessionsWindow.axaml), [headless recovery](../tests/Kora.Windows.IntegrationTests/SessionsHistorySearchTests.cs)).
 
 The [selected-session receipt increment](Information_Display.md#delivered-immutable-selected-session-receipt-details---2026-10-09)

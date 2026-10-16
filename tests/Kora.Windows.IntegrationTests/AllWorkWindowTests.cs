@@ -23,7 +23,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 namespace Kora.Windows.IntegrationTests;
 
 [Collection(nameof(HeadlessUiTestGroup))]
-public sealed class AllWorkWindowTests
+public sealed partial class AllWorkWindowTests
 {
     [WindowsFact]
     public async Task PositiveObservedContentChoicesAreVisibleAccessiblePassiveAndComposeWithoutAbsenceInference()
@@ -212,6 +212,9 @@ public sealed class AllWorkWindowTests
     [InlineData("query")]
     [InlineData("availability")]
     [InlineData("content")]
+    [InlineData("range-minimum")]
+    [InlineData("range-maximum")]
+    [InlineData("clear-ranges")]
     [InlineData("revision")]
     [InlineData("close")]
     public async Task ExactNavigationAdmissionDoesNotSurviveQueryOrPrivateLifetimeChanges(string boundary)
@@ -233,6 +236,7 @@ public sealed class AllWorkWindowTests
         model.Availability = SessionWorkOverviewAvailability.Observed;
         model.QueryKind = SessionListSearchKind.ExactId;
         model.QueryText = f.Request.SessionId.Value.ToString("D");
+        model.RangeInputs[0].Minimum = "1";
         await model.RefreshAsync();
         model.Select(model.Records.Single());
         var navigation = model.NavigateAsync();
@@ -240,6 +244,9 @@ public sealed class AllWorkWindowTests
         if (boundary is "query") { model.QueryText = "00000000-0000-0000-0000-000000000099"; }
         if (boundary is "availability") { model.Availability = SessionWorkOverviewAvailability.SourceChanged; }
         if (boundary is "content") { model.Content = SessionWorkOverviewContent.Task; }
+        if (boundary is "range-minimum") { model.RangeInputs[0].Minimum = "2"; }
+        if (boundary is "range-maximum") { model.RangeInputs[1].Maximum = "0"; }
+        if (boundary is "clear-ranges") { model.ClearRanges(); }
         if (boundary is "revision") { access.ControlRevision++; }
         if (boundary is "close") { model.Close(); }
         admitted().Should().BeFalse();
@@ -422,6 +429,9 @@ public sealed class AllWorkWindowTests
     [InlineData("clear-query")]
     [InlineData("availability")]
     [InlineData("content")]
+    [InlineData("range-minimum")]
+    [InlineData("range-maximum")]
+    [InlineData("clear-ranges")]
     public async Task InFlightPrivateSnapshotNeverRepopulatesClosedOrChangedOverview(string boundary)
     {
         using var f = new InteractionStorageFixture();
@@ -435,6 +445,7 @@ public sealed class AllWorkWindowTests
         model.Content = SessionWorkOverviewContent.Task;
         model.QueryKind = SessionListSearchKind.ExactId;
         model.QueryText = f.Request.SessionId.Value.ToString("D");
+        model.RangeInputs[0].Minimum = "1";
         await model.RefreshAsync();
         model.Records.Should().NotBeEmpty();
         held.Hold = true;
@@ -453,6 +464,9 @@ public sealed class AllWorkWindowTests
         if (boundary is "clear-query") { model.ClearQuery(); }
         if (boundary is "availability") { model.Availability = SessionWorkOverviewAvailability.OutputBound; }
         if (boundary is "content") { model.Content = SessionWorkOverviewContent.PendingQuestion; }
+        if (boundary is "range-minimum") { model.RangeInputs[0].Minimum = "2"; }
+        if (boundary is "range-maximum") { model.RangeInputs[1].Maximum = "0"; }
+        if (boundary is "clear-ranges") { model.ClearRanges(); }
         held.Release.SetResult();
         await read;
         model.Records.Should().BeEmpty();
@@ -465,6 +479,7 @@ public sealed class AllWorkWindowTests
         model.QueryText.Should().BeEmpty();
         model.Availability.Should().BeNull();
         model.Content.Should().Be(SessionWorkOverviewContent.Any);
+        model.RangeInputs.Should().OnlyContain(input => input.Minimum.Length == 0 && input.Maximum.Length == 0);
         held.Writes.Should().Be(0);
     }
 

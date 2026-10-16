@@ -313,6 +313,26 @@ provider, memory-content or mutation authority. Full memory, installed
 accessibility, provider and E/Q qualification remain unchanged and unclaimed;
 unqualified recall/global catalogue/model consumers remain unavailable.
 
+### Bounded All Work retained observation metadata ranges - 2026-10-16
+
+Built on freshly fetched main `afdee7f508bc2e186bf56ef5f65cb27711e83bd1`.
+The [passive All Work contract](Work_Management.md#delivered-passive-cross-session-work-observation---2026-10-11)
+adds optional inclusive authority/queue revision, pending count/capacity,
+execution-slot/current-fixed-read and explicit queue/task/question omission
+count ranges, AND-composed with lifecycle, Browse/name/exact-ID, Needs answer,
+availability and positive observed content. Portable positive/nonnegative
+Int64 admission, ordered endpoints, complete consumed-observation validation
+and exact continuation identity fail closed. Unavailable/output-bound work
+never matches active ranges; omission counts cannot become records, absence,
+completeness, success or authority. Accessible volatile no-read edits/Clear,
+selection retirement, cancellation/source/private fences and existing
+ten-session/64-KiB/ten-second budgets are preserved. Deterministic portable,
+private-store and headless accessibility checks gate this consumed I subset.
+No storage/schema, provider/device/external operation, experiment or sibling
+conversation/local-event/session-name/attachment/memory/grant/Evidence/Presence
+scope is extended. Full work management, installed accessibility and E/Q
+qualification remain separate and unclaimed.
+
 ### Bounded positive All Work observation predicates - 2026-10-16
 
 The [passive All Work observation](Work_Management.md#delivered-passive-cross-session-work-observation---2026-10-11)

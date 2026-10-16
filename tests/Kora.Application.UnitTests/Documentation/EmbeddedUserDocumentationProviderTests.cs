@@ -13,6 +13,22 @@ namespace Kora.Application.UnitTests.Documentation;
 public sealed class EmbeddedUserDocumentationProviderTests
 {
     [Fact]
+    public void Embedded_all_work_guide_explains_inclusive_ranges_and_unavailable_omission_boundaries()
+    {
+        var guide = new EmbeddedUserDocumentationProvider().GetPages()
+            .Single(page => string.Equals(page.Id, "windows-and-tray", StringComparison.Ordinal)).Markdown;
+        guide.Should().Contain("Optional inclusive observed work metadata ranges")
+            .And.Contain("authority revision, queue revision, pending count/capacity")
+            .And.Contain("execution slots, observed current fixed reads")
+            .And.Contain("omitted queue-receipt/task/pending-question counts")
+            .And.Contain("minimum must not exceed maximum")
+            .And.Contain("queue revision and counts may be zero")
+            .And.Contain("Source changed, Read unavailable and Output bound never do")
+            .And.Contain("proves no absence, completeness, success or authority")
+            .And.Contain("Clear work metadata ranges");
+    }
+
+    [Fact]
     public void Embedded_sessions_guide_distinguishes_bounded_native_metadata_from_unadmitted_routing_and_history()
     {
         var pages = new EmbeddedUserDocumentationProvider().GetPages();

@@ -64,7 +64,8 @@ internal sealed partial class AllWorkViewModel(
     public string Status => status;
     public bool CanRead => !closed && !busy && access.CanInspect;
     public bool CanEdit => !closed && access.CanInspect;
-    public bool CanSearch => CanEdit && (queryText.Length == 0 || SessionListSearch.IsValid(queryKind, filter, queryText));
+    public bool CanSearch => CanEdit && (queryText.Length == 0 || SessionListSearch.IsValid(queryKind, filter, queryText))
+        && TryRanges(out _, out _);
     public bool CanNext => CanSearch && (busy ? hadNext : page?.Next is not null);
     public bool CanCancel => !closed && operation is not null;
     public bool CanNavigate => CanEdit && selected is { Availability: SessionWorkOverviewAvailability.Observed };
@@ -185,24 +186,34 @@ internal sealed partial class AllWorkViewModel(
     }
     public void Cancel() => operation?.Cancel();
 
-    public Task RefreshAsync(bool next = false) => RunAsync(async token =>
+    public Task RefreshAsync(bool next = false)
     {
-        var cursor = next ? page?.Next ?? throw new InvalidOperationException("Refresh before Next.") : null;
-        var query = queryText.Length == 0 ? null : new SessionListSearch(queryKind, filter, queryText);
-        ClearPage();
-        var result = await service.ReadWorkOverviewAsync(filter, needsAnswer, cursor, token, query, availability, content);
-        token.ThrowIfCancellationRequested();
-        page = result;
-        status = "This page: " + result.Records.Length.ToString(CultureInfo.InvariantCulture) + " groups; "
-            + result.Scanned.ToString(CultureInfo.InvariantCulture) + " consumed/scanned; "
-            + result.Nonmatches.ToString(CultureInfo.InvariantCulture) + " filter nonmatches; "
-            + result.Records.Count(row => row.Availability != SessionWorkOverviewAvailability.Observed)
-                .ToString(CultureInfo.InvariantCulture) + " explicitly unavailable. "
-            + (result.OutputLimited ? "Complete byte bound reached; Next retries the unconsumed session. "
-                : result.Next is not null ? "Session scan bound reached; Next continues even with zero matches. "
-                    : "End of current metadata observation; not a global all-clear. ")
-            + SessionWorkOverviewPage.Scope;
-    });
+        if (!TryRanges(out var ranges, out _))
+        {
+            Invalidate();
+            status = RangeHint;
+            Notify();
+            return Task.CompletedTask;
+        }
+        return RunAsync(async token =>
+        {
+            var cursor = next ? page?.Next ?? throw new InvalidOperationException("Refresh before Next.") : null;
+            var query = queryText.Length == 0 ? null : new SessionListSearch(queryKind, filter, queryText);
+            ClearPage();
+            var result = await service.ReadWorkOverviewAsync(filter, needsAnswer, cursor, token, query, availability, content, ranges);
+            token.ThrowIfCancellationRequested();
+            page = result;
+            status = "This page: " + result.Records.Length.ToString(CultureInfo.InvariantCulture) + " groups; "
+                + result.Scanned.ToString(CultureInfo.InvariantCulture) + " consumed/scanned; "
+                + result.Nonmatches.ToString(CultureInfo.InvariantCulture) + " filter nonmatches; "
+                + result.Records.Count(row => row.Availability != SessionWorkOverviewAvailability.Observed)
+                    .ToString(CultureInfo.InvariantCulture) + " explicitly unavailable. "
+                + (result.OutputLimited ? "Complete byte bound reached; Next retries the unconsumed session. "
+                    : result.Next is not null ? "Session scan bound reached; Next continues even with zero matches. "
+                        : "End of current metadata observation; not a global all-clear. ")
+                + SessionWorkOverviewPage.Scope;
+        });
+    }
 
     public Task NavigateAsync() => RunAsync(async token =>
     {
@@ -283,6 +294,7 @@ internal sealed partial class AllWorkViewModel(
         queryText = string.Empty;
         queryKind = SessionListSearchKind.NameSubstring;
         needsAnswer = false;
+        foreach (var input in RangeInputs) { input.Clear(); }
         status = string.Empty;
         lifetime.Cancel();
         closing = false;
@@ -303,6 +315,7 @@ internal sealed partial class AllWorkViewModel(
         OnPropertyChanged(nameof(QueryText));
         OnPropertyChanged(nameof(QueryKind));
         OnPropertyChanged(nameof(QueryHint));
+        OnPropertyChanged(nameof(RangeHint));
         OnPropertyChanged(nameof(CanSearch));
         OnPropertyChanged(nameof(NeedsAnswer));
         OnPropertyChanged(nameof(Status));

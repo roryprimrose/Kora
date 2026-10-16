@@ -334,6 +334,20 @@ tests do not qualify installed accessibility.
 
 ### Delivered Bounded Passive All Work / Attention Overview - 2026-10-11
 
+**Optional inclusive observed work metadata ranges** expands nine labelled,
+keyboard-focusable minimum/maximum pairs in a bounded scroll area, plus
+**Clear work metadata ranges** and accessible validation/recovery text.
+They use the [canonical admission/composition contract](Work_Management.md#delivered-passive-cross-session-work-observation---2026-10-11),
+not native policy copies. Blank endpoints visibly mean Any; invalid bounds
+disable Search/Refresh/Next without reading or falling back to Any.
+Every edit immediately retires private rows, selected details, navigation and
+continuation and cancels late callbacks; no input is disabled by a read.
+Only validated Observed work can satisfy any active range. Omissions remain
+explicit counts, never absence, completeness, success or authority claims.
+Clear reads nothing; close/private closure clears volatile endpoints and
+disables the controls. Installed screen-reader/DPI qualification remains
+separate from deterministic headless keyboard/accessibility checks.
+
 The separate **Observed content** native combo narrows the bounded observation to **Any**, **At least one observed queue receipt**, **At least one observed task**, or **At least one observed pending question**. It composes by AND with Browse/name/exact-ID, lifecycle, Needs answer and the unchanged explicit availability choice. Only retained metadata records in Observed rows satisfy positive choices; unavailable and omitted-only records cannot. Exclusion never proves absence, completion, authority or permission. The keyboard-focusable combo exposes a visible/accessibly selected non-null Any item and an accessible no-read/unavailable/omission warning, remains editable during reads and disables on private closure. Changes retire rows, selection, continuation and late callbacks without reading; close clears the volatile choice. See the [observed-content policy](Work_Management.md#delivered-passive-cross-session-work-observation---2026-10-11). Installed screen-reader qualification remains separate from deterministic headless accessibility checks.
 
 **Tray > Sessions > All work / attention overview** opens a separate owned native read-only window. Opening performs no reads or grants; manual Refresh/Next/Cancel scans at most ten canonical session IDs per click through admitted metadata and reads independent current `SessionWorkSnapshot` sources, plus bounded metadata lookahead.

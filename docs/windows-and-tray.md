@@ -415,6 +415,19 @@ authority or proof of current availability. Editing reads nothing and retires
 results/details/navigation/continuation/pending work. Clear query, revocation
 and close erase all four fields; they are never saved, logged or sent out.
 
+Optionally enter inclusive **minimum / maximum session generation**, **captured
+generation** and **storage revision**, then Search or press Enter. Empty means
+Any; each endpoint may be omitted. Use positive invariant decimal digits from
+1 through 9223372036854775807 with minimum <= maximum. Equal endpoints are
+included; signs, whitespace, separators, zero and overflow are invalid, not
+repaired. These ranges combine with every other filter and match only Confirmed
+retained copies, never Held or removed slots. Removed rows/details do not expose
+former versions. Versions are retained correlation metadata only, never source
+consent, session/file-read authority, currentness or proof a copy still exists.
+Editing performs no read and retires results/details/navigation/continuation/
+pending work. Clear query, revocation and close erase all six volatile fields.
+Signed continuations bind every endpoint; changing one requires fresh Search.
+
 The literal is limited to 256 UTF-16 units / 512 UTF-8 bytes of valid single-line Unicode without control/format characters. Empty disables literal filtering; invalid input disables Search with recovery guidance and never falls back. Query text is memory-only: not saved, audited, logged, exported or sent to a model/network. No matching retained metadata at the end is reported truthfully; an empty page with Next is not a whole-catalogue no-match.
 
 Choose **Stored session lifecycle: All (default), Active, Done or Removed** independently of Browse/ExactId and **Include removed slots**. All preserves existing behavior. Removed sessions can have only removed-slot provenance: enable Include removed slots to see it. An Active or Done session can also have a removed attachment slot; removing a slot does not remove its session. See the [canonical lifecycle contract and tests](../Design/File_And_Folder_Ingestion.md#delivered-retained-attachment-metadata-catalogue---2026-10-11).
@@ -430,11 +443,11 @@ cannot open a body. Unavailable tombstones can match exact Unavailable with
 Include removed slots and a matching lifecycle, but never match byte bounds,
 even 0..0. Their size is unavailable, not an original zero-byte-file claim.
 
-Typing performs no I/O. Mode, ID, literal, lifecycle, media-type/copy-status/byte/digest/correlation filters and **Include removed slots** edits retire results, selection, navigation and continuation and cancel pending work; use Search again (or Enter in a text field). **Clear query (Browse)** clears volatile ID, literal, digest and correlation fields without reading or changing the remaining filters. Search never auto-selects or opens a match. Escape closes and clears private state. Source/privacy/ownership/control revocation also clears the copy-status/byte fields.
+Typing performs no I/O. Mode, ID, literal, lifecycle, media-type/copy-status/byte/digest/correlation/version-range filters and **Include removed slots** edits retire results, selection, navigation and continuation and cancel pending work; use Search again (or Enter in a text field). **Clear query (Browse)** clears volatile ID, literal, digest, correlation and version-range fields without reading or changing the remaining filters. Search never auto-selects or opens a match. Escape closes and clears private state. Source/privacy/ownership/control revocation also clears the copy-status/byte fields.
 
 - Each page has at most **16 rows / 64 KiB** and scans at most **64 slots**. **Next bounded page** may continue after zero matches; ExactId does not jump over unvalidated slots. **Include removed slots** shows content-free removal provenance; historical removed slots do not count toward the sixteen-live-file cap.
 - Typed authority is validated in bounded segments before rows are shown. **Authority validation pending** pages contain no attachments; use Next to continue. Reads have a five-second budget. Continuations expire after two minutes; any committed authority, storage/profile or query change requires Refresh.
-- Rows show exact Session ID, current Active/Done/Removed lifecycle, generations, storage revision, source/revision/item/digest headers, byte count/type/captured UTC and copy certification. No filename, path, excerpt or original source metadata appears.
+- Rows show exact Session ID, current Active/Done/Removed lifecycle, retained generations, storage revision, source/revision/item/digest headers, byte count/type/captured UTC and copy certification. Unavailable rows/details suppress former generations/revision, digest, source/profile and captured time. No filename, path, excerpt or original source metadata appears.
 - **Confirmed** is stored copy certification, not a body-integrity check or current file access. **Held** means replacement disclosure is not certified. **Unavailable** means the slot is removed. Held/removed slots cannot open a body here; use existing exact-session copy recovery where allowed.
 
 Select a confirmed row and choose **Open exact session/attachment**. Kora re-resolves that exact current Session/generation/storage/reference through existing private inspection, then validates actual stored UTF-8 bytes, digest and provenance. A stale/replaced/removed/held selection refuses; it never silently opens a newer file.

@@ -10,6 +10,39 @@ namespace Kora.Application.UnitTests.Hosting;
 public sealed partial class SessionWorkspaceServiceTests
 {
     [Fact]
+    public async Task CompleteVersionRangesAreForwardedWithoutBodyReadsAndEveryEndpointMismatchRefuses()
+    {
+        using var fixture = new Fixture();
+        using var root = HostActivity.BeginRoot(fixture.Request, HostActivityLayer.Application, HostOperation.Request);
+        var summary = CatalogueSummary(fixture);
+        SessionAttachmentQuery Query(int omitted = -1) => new(true, summary.Session.Value.ToString("D"),
+            SessionAttachmentFilter.Active, "text/", summary.MediaType, AttachmentCopyStatus.Confirmed, 0, summary.StoredBytes,
+            summary.File.Digest, summary.ObservationSource.ToString("D"), summary.Profile.Value.ToString("D"),
+            summary.CapturedAt, summary.CapturedAt, omitted == 0 ? null : summary.SessionGeneration.Value,
+            omitted == 1 ? null : summary.SessionGeneration.Value, omitted == 2 ? null : summary.CapturedGeneration.Value,
+            omitted == 3 ? null : summary.CapturedGeneration.Value, omitted == 4 ? null : summary.StorageRevision.Value,
+            omitted == 5 ? null : summary.StorageRevision.Value);
+        var query = Query();
+        fixture.CataloguePage = new(query, [summary], null, DateTimeOffset.UnixEpoch, 1, new string('a', 64), 1, false);
+        var audit = new FileAudit();
+        await using var files = FileService(fixture, FileAction(new FileCapture(), audit), audit);
+        var service = new SessionAttachmentCatalogueService(fixture.Service, files);
+        (await service.Read(query, null, () => true, fixture.Token)).Should().BeSameAs(fixture.CataloguePage);
+        fixture.ObservedAttachmentQuery.Should().BeSameAs(query);
+        for (var endpoint = 0; endpoint < 6; endpoint++)
+        {
+            fixture.CataloguePage = fixture.CataloguePage with { Query = Query(endpoint), Records = [] };
+            var mismatch = () => service.Read(query, null, () => true, fixture.Token);
+            await mismatch.Should().ThrowAsync<InvalidDataException>();
+        }
+        fixture.FileReads.Should().Be(0);
+        fixture.ControlCalls.Should().Be(0);
+        fixture.PassiveInspectionCalls.Should().Be(0);
+        fixture.TaskWrites.Should().BeEmpty();
+        audit.Events.Should().BeEmpty();
+    }
+
+    [Fact]
     public async Task ExactDigestPassesThroughVolatileQueryWithoutBodyReadsAndRejectsChangedPredicate()
     {
         using var fixture = new Fixture();

@@ -55,6 +55,34 @@ Deterministic [portable contract tests](../tests/Kora.Core.UnitTests/Storage/Ses
 and [headless native tests](../tests/Kora.Windows.IntegrationTests/AttachmentCatalogueWindowTests.Digest.cs)
 qualify this bounded I subset only, not installed accessibility or broader R26/E/Q.
 
+The optional inclusive **session-generation**, **captured-generation** and
+**storage-revision** ranges compose by AND with Browse/literal/exact-session/
+lifecycle/media/copy-status/bytes/digest/source/profile/captured-time predicates.
+Each endpoint is independently optional; empty native text means Any. Nonempty
+input uses `OptionalUnsignedDecimal` and the authoritative positive `HostRevision`
+rule: ASCII invariant decimal digits, 1 through 9223372036854775807, minimum <=
+maximum. Signs, whitespace, separators, zero, overflow and inverted ranges fail
+closed without repair or Browse fallback. Equal endpoints are inclusive.
+Only **Confirmed** retained copies match any version bound; Held and
+Unavailable/Removed never match, even when a former header equals the query.
+Tombstone serialization, details and native rows suppress all three former
+version values, including malformed retained objects. Validating internal
+provenance does not disclose or reconstruct it for this query.
+Generations/revisions are retained correlation/version metadata only, never
+source consent, session authority, currentness, file-read authority or proof a
+copy still exists. Every candidate is validated before exclusion. All six
+volatile endpoints participate in query identity and the keyed authenticated
+continuation binding without serializing their query values. The metadata-only
+projection, complete bounded pages, audit validation and stale/cancellation
+fences are unchanged. Accessible native fields support explicit Search/Enter;
+editing performs no read and retires selection/details/navigation/continuation
+and pending work. Clear query, revocation and disposal erase all six fields.
+No schema, index, body/path read, persistence, provider or authority is added.
+Deterministic [portable](../tests/Kora.Core.UnitTests/Storage/SessionAttachmentVersionRangeTests.cs),
+[SQLite](../tests/Kora.Windows.IntegrationTests/Storage/WindowsSqliteSessionAttachmentTests.VersionCatalogue.cs)
+and [headless native](../tests/Kora.Windows.IntegrationTests/AttachmentCatalogueWindowTests.Versions.cs)
+checks qualify only this bounded I subset, not installed accessibility or R26/E/Q.
+
 The optional **exact observation-source GUID**, **exact device-profile GUID**
 and inclusive **Captured From / Until UTC** compose by AND with every existing
 predicate, including exact digest. IDs reuse `SessionListSearch` canonical
@@ -117,7 +145,7 @@ export authority or meaningful-activity renewal.
 - **Stored session lifecycle: All (default) / Active / Done / Removed** filters only fully validated current metadata, independently of Browse/ExactId and **Include removed slots**. All preserves prior catalogue behavior. Removed sessions can have only content-free removed slots, so Removed without Include removed slots yields no rows; Active/Done can also have removed slots.
 - Complete typed audit authority is checked in bounded **4,096-commit segments**, before attachment rows are disclosed. Pending-authority pages are explicitly labelled and contain no attachment summaries; Next continues validation. The existing five-second private lease/SQLite progress budget and five-second cancellation deadline remain finite.
 - Authenticated, run/store/profile/query-bound continuations expire after **two minutes**. Any committed authority-head change rejects Next and requires Refresh; this conservative rule includes unrelated authority changes. No global count, whole-inventory atomicity, physical-deletion or forensic claim is made.
-- Summaries show exact Session ID and current stored Active/Done/Removed state, current/captured generations, storage revision, source/revision/item/original digest headers, stored original byte count, type, captured UTC and **Confirmed / Held / Unavailable** copy certification. No body, excerpt, filename, original path or path-bearing capture metadata is returned/displayed.
+- Summaries show exact Session ID and current stored Active/Done/Removed state, retained current/captured generations, storage revision, source/revision/item/original digest headers, stored original byte count, type, captured UTC and **Confirmed / Held / Unavailable** copy certification. Unavailable projections suppress former generation/revision, digest, source/profile and captured-time values. No body, excerpt, filename, original path or path-bearing capture metadata is returned/displayed.
 - **Confirmed** means stored capture/replacement copy certification, **not current body-integrity verification or present filesystem access**. Held replacement metadata remains inspectable without reading either body; removed slots are Unavailable. Unknown descriptor/type/scope/profile/session/audit lineage and missing committed provenance fail closed, not into empty success.
 
 The reader uses only the initialized private interaction database, shared read-only lease and bounded descriptor/length/type/audit/current-metadata projections. It never calls the full-body attachment reader or broad `Open`/`ValidateAuthority` path to populate a page. One shared descriptor decoder preserves format/projection/source rules for both cheap metadata and full original-byte reads; current session/metadata/latest-row proofs and passive source-copy/retention gates remain mandatory.

@@ -67,6 +67,31 @@
                  AutomationProperties.Name="Optional inclusive retained Captured Until canonical UTC; yyyy-MM-ddTHH:mm:ss.fffffff+00:00; typing performs no read" />
       </WrapPanel>
       <controls:NamedTextBlock Text="{Binding CorrelationHint}" TextWrapping="Wrap" />
+      <WrapPanel>
+        <TextBox x:Name="AttachmentMinimumSessionGeneration" Text="{Binding MinimumSessionGenerationText, Mode=TwoWay}" Width="460"
+                 PlaceholderText="Minimum session generation (Any)" IsEnabled="{Binding CanEdit}"
+                 AutomationProperties.Name="Optional inclusive minimum retained session generation; positive invariant digits; typing performs no read" />
+        <TextBox x:Name="AttachmentMaximumSessionGeneration" Text="{Binding MaximumSessionGenerationText, Mode=TwoWay}" Width="460"
+                 PlaceholderText="Maximum session generation (Any)" IsEnabled="{Binding CanEdit}"
+                 AutomationProperties.Name="Optional inclusive maximum retained session generation; positive invariant digits; typing performs no read" />
+      </WrapPanel>
+      <WrapPanel>
+        <TextBox x:Name="AttachmentMinimumCapturedGeneration" Text="{Binding MinimumCapturedGenerationText, Mode=TwoWay}" Width="460"
+                 PlaceholderText="Minimum captured generation (Any)" IsEnabled="{Binding CanEdit}"
+                 AutomationProperties.Name="Optional inclusive minimum retained captured generation; positive invariant digits; typing performs no read" />
+        <TextBox x:Name="AttachmentMaximumCapturedGeneration" Text="{Binding MaximumCapturedGenerationText, Mode=TwoWay}" Width="460"
+                 PlaceholderText="Maximum captured generation (Any)" IsEnabled="{Binding CanEdit}"
+                 AutomationProperties.Name="Optional inclusive maximum retained captured generation; positive invariant digits; typing performs no read" />
+      </WrapPanel>
+      <WrapPanel>
+        <TextBox x:Name="AttachmentMinimumStorageRevision" Text="{Binding MinimumStorageRevisionText, Mode=TwoWay}" Width="460"
+                 PlaceholderText="Minimum storage revision (Any)" IsEnabled="{Binding CanEdit}"
+                 AutomationProperties.Name="Optional inclusive minimum retained storage revision; positive invariant digits; typing performs no read" />
+        <TextBox x:Name="AttachmentMaximumStorageRevision" Text="{Binding MaximumStorageRevisionText, Mode=TwoWay}" Width="460"
+                 PlaceholderText="Maximum storage revision (Any)" IsEnabled="{Binding CanEdit}"
+                 AutomationProperties.Name="Optional inclusive maximum retained storage revision; positive invariant digits; typing performs no read" />
+      </WrapPanel>
+      <controls:NamedTextBlock Text="{Binding VersionHint}" TextWrapping="Wrap" />
     </StackPanel>
     </ScrollViewer>
     <controls:NamedTextBlock Grid.Row="2" Text="{Binding Status}" TextWrapping="Wrap"
@@ -81,7 +106,9 @@
               <TextBlock Text="{Binding Session.Value, StringFormat='Session: {0}'}" TextWrapping="Wrap" />
               <TextBlock Text="{Binding SessionState, StringFormat='Stored session: {0}'}" />
               <TextBlock Text="{Binding CopyStatus, StringFormat='Copy certification: {0}'}" />
-              <TextBlock Text="{Binding StorageRevision.Value, StringFormat='Storage revision: {0}'}" />
+              <TextBlock Text="{Binding RetainedSessionGeneration.Value, StringFormat='Session generation: {0}', TargetNullValue='Session generation: unavailable (removed provenance)'}" />
+              <TextBlock Text="{Binding RetainedCapturedGeneration.Value, StringFormat='Captured generation: {0}', TargetNullValue='Captured generation: unavailable (removed provenance)'}" />
+              <TextBlock Text="{Binding RetainedStorageRevision.Value, StringFormat='Storage revision: {0}', TargetNullValue='Storage revision: unavailable (removed provenance)'}" />
               <TextBlock Text="{Binding RetainedStoredBytes, StringFormat='Stored original bytes: {0}', TargetNullValue='Stored original bytes: unavailable (removed provenance; no size claim)'}" />
               <TextBlock Text="{Binding MediaType}" />
               <TextBlock Text="{Binding RetainedCapturedAt, StringFormat='Captured UTC: {0:O}', TargetNullValue='Captured UTC: unavailable (removed provenance)'}" />

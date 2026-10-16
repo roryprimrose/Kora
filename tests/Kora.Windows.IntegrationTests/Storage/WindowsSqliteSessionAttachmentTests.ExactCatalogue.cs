@@ -16,10 +16,12 @@ namespace Kora.Windows.IntegrationTests.Storage;
 public sealed partial class WindowsSqliteSessionAttachmentTests
 {
     [Theory]
-    [InlineData(false, false)]
-    [InlineData(true, false)]
-    [InlineData(true, true)]
-    public async Task ExactCatalogueValidatesNonmatchingSlotsAndFindsMatchBeyondFirstBoundedScanWithoutGlobalCap(bool includeRemoved, bool correlation)
+    [InlineData(false, false, false)]
+    [InlineData(true, false, false)]
+    [InlineData(true, true, false)]
+    [InlineData(true, true, true)]
+    public async Task ExactCatalogueValidatesNonmatchingSlotsAndFindsMatchBeyondFirstBoundedScanWithoutGlobalCap(
+        bool includeRemoved, bool correlation, bool versions)
     {
         using var fixture = await Initialize();
         using var root = HostActivity.BeginRoot(fixture.Request, HostActivityLayer.Application, HostOperation.Request);
@@ -42,7 +44,13 @@ public sealed partial class WindowsSqliteSessionAttachmentTests
             exactObservationSource: observation?.ObservationSource.ToString("D"),
             exactDeviceProfile: observation?.Profile.Value.ToString("D"),
             capturedFromUtc: correlation ? retained.File.AdmittedAt : null,
-            capturedUntilUtc: correlation ? retained.File.AdmittedAt : null);
+            capturedUntilUtc: correlation ? retained.File.AdmittedAt : null,
+            minimumSessionGeneration: versions ? retained.Generation.Value : null,
+            maximumSessionGeneration: versions ? retained.Generation.Value : null,
+            minimumCapturedGeneration: versions ? retained.Generation.Value : null,
+            maximumCapturedGeneration: versions ? retained.Generation.Value : null,
+            minimumStorageRevision: versions ? retained.StorageRevision.Value : null,
+            maximumStorageRevision: versions ? retained.StorageRevision.Value : null);
         var clock = await fixture.Store.ReadRetentionAsync(target, fixture.Token);
         var tasks = fixture.Count("host_tasks");
         var audit = fixture.Count("security_audit_events");

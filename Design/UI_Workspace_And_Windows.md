@@ -279,6 +279,18 @@ scrolls independently to retain access to rows and actions on smaller windows.
 The canonical metadata contract above owns strict admission and continuation
 binding; headless checks are not installed accessibility qualification.
 
+Six optional, focusable **minimum / maximum session-generation, captured-
+generation and storage-revision** fields AND-compose with every retained
+attachment predicate. Empty means Any; positive invariant decimal digits and
+minimum <= maximum are required. Only Confirmed retained copies match.
+Tombstone rows/details suppress former versions. Search/Enter is explicit;
+edits read nothing and retire results/details/selection/continuation and late
+callbacks. Clear query, revocation and close erase all six fields. The canonical
+metadata contract owns admission and complete continuation binding. Versions
+are correlation metadata only, not consent, session/file-read authority,
+currentness or proof a copy still exists; headless accessibility checks are not
+installed qualification.
+
 ### Delivered Bounded Passive All Work / Attention Overview - 2026-10-11
 
 The separate **Observed content** native combo narrows the bounded observation to **Any**, **At least one observed queue receipt**, **At least one observed task**, or **At least one observed pending question**. It composes by AND with Browse/name/exact-ID, lifecycle, Needs answer and the unchanged explicit availability choice. Only retained metadata records in Observed rows satisfy positive choices; unavailable and omitted-only records cannot. Exclusion never proves absence, completion, authority or permission. The keyboard-focusable combo exposes a visible/accessibly selected non-null Any item and an accessible no-read/unavailable/omission warning, remains editable during reads and disables on private closure. Changes retire rows, selection, continuation and late callbacks without reading; close clears the volatile choice. See the [observed-content policy](Work_Management.md#delivered-passive-cross-session-work-observation---2026-10-11). Installed screen-reader qualification remains separate from deterministic headless accessibility checks.

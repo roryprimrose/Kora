@@ -8,7 +8,9 @@ namespace Kora.Core.Storage;
 public sealed record SessionAttachmentSummary(
     [property: System.Text.Json.Serialization.JsonIgnore] Guid ObservationSource,
     [property: System.Text.Json.Serialization.JsonIgnore] HostId<DeviceProfileIdentity> Profile, HostId<SessionIdentity> Session,
-    HostRevision SessionGeneration, HostRevision CapturedGeneration, HostRevision StorageRevision,
+    [property: System.Text.Json.Serialization.JsonIgnore] HostRevision SessionGeneration,
+    [property: System.Text.Json.Serialization.JsonIgnore] HostRevision CapturedGeneration,
+    [property: System.Text.Json.Serialization.JsonIgnore] HostRevision StorageRevision,
     AttachmentSessionState SessionState, [property: System.Text.Json.Serialization.JsonIgnore] LocalFileReference File, long StoredBytes, string MediaType,
     [property: System.Text.Json.Serialization.JsonIgnore] DateTimeOffset CapturedAt, AttachmentCopyStatus CopyStatus)
 {
@@ -21,6 +23,12 @@ public sealed record SessionAttachmentSummary(
     public HostId<DeviceProfileIdentity>? RetainedProfile => HasRetainedMetadata ? Profile : null;
     [System.Text.Json.Serialization.JsonPropertyName("CapturedAt")]
     public DateTimeOffset? RetainedCapturedAt => HasRetainedMetadata ? CapturedAt : null;
+    [System.Text.Json.Serialization.JsonPropertyName("SessionGeneration")]
+    public HostRevision? RetainedSessionGeneration => HasRetainedMetadata ? SessionGeneration : null;
+    [System.Text.Json.Serialization.JsonPropertyName("CapturedGeneration")]
+    public HostRevision? RetainedCapturedGeneration => HasRetainedMetadata ? CapturedGeneration : null;
+    [System.Text.Json.Serialization.JsonPropertyName("StorageRevision")]
+    public HostRevision? RetainedStorageRevision => HasRetainedMetadata ? StorageRevision : null;
 
     /// <summary>Removal provenance never serializes a prior digest, even before candidate validation.</summary>
     [System.Text.Json.Serialization.JsonPropertyName("File")]

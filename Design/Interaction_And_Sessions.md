@@ -330,6 +330,16 @@ currentness, file-read authority or proof a copy still exists. No session-list,
 saved draft or Evidence behavior changes. The linked catalogue contract owns
 strict parsing, full candidate validation and complete continuation identity.
 
+Optional exact local-file source/revision/item IDs also AND-compose with every
+retained attachment predicate. Nonempty canonical lowercase D GUIDs match only
+Confirmed retained copies, never Held or unavailable/removed tombstones, even
+when former IDs agree. They are retained correlation metadata only, not source
+consent, current file identity, path disclosure, body integrity, file-read
+authority or proof a copy exists. Complete validation, private continuation
+binding, no-read edits and selection/detail retirement remain unchanged.
+Clear query, revocation/cancellation and close erase these volatile fields.
+The linked catalogue contract owns admission and deterministic evidence.
+
 ## Current Implementation and Design Gap
 
 The [optional native enqueue prerequisite](Work_Management.md#delivered-optional-native-enqueue-prerequisite---2026-10-12) adds same-session bounded metadata-only choice to all six fixed profiles. It combines nonqueue tasks with already-observed queued pending/running/recent terminal tasks using actual host task metadata from the same atomic work read, never queue-entry revisions or history scans. None is the initial default; exact selected ID/revision flows through the original command/service/store with final stale-source refusal.

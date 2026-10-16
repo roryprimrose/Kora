@@ -55,6 +55,34 @@ Deterministic [portable contract tests](../tests/Kora.Core.UnitTests/Storage/Ses
 and [headless native tests](../tests/Kora.Windows.IntegrationTests/AttachmentCatalogueWindowTests.Digest.cs)
 qualify this bounded I subset only, not installed accessibility or broader R26/E/Q.
 
+The optional **exact local-file source ID**, **revision ID** and **item ID**
+compose by AND with every Browse/literal/exact-session/lifecycle/media/status/
+bytes/digest/observation-source/profile/time/generation/revision predicate.
+Each independently reuses `SessionListSearch` strict nonempty canonical lowercase
+D-format GUID admission. Empty native fields mean Any; explicitly supplied
+empty strings, zero GUIDs, aliases, case changes and whitespace are rejected,
+never trimmed, normalized or repaired. Only **Confirmed** retained copies match.
+Held and Unavailable/Removed slots never match, including queries equal to
+former headers; exact predicates never reconstruct or disclose former IDs from
+tombstones. Existing unfiltered content-free removal provenance is unchanged.
+These are retained correlation metadata only, never source consent, current
+file identity, path disclosure, body integrity, file-read authority or proof a
+copy exists. Every complete summary is validated before filtering, including
+nonmatching and removed candidates. All three volatile IDs participate in query
+identity and the keyed authenticated continuation fingerprint without serializing
+query values. No SQL exclusion, body/path read, schema, index, cache, persistence,
+audit/log/tag payload, model/provider call or authority is added.
+Focusable, accessibly named native inputs support explicit Search/Enter.
+Edits perform no read and retire rows/details/selection/navigation/continuation
+and pending callbacks; Clear query, cancellation/revocation and close erase
+the fields. Existing bounded complete pages, timeouts, exact navigation and
+stale/cancellation fences remain unchanged.
+Deterministic [portable contracts](../tests/Kora.Core.UnitTests/Storage/SessionAttachmentFileReferenceTests.cs),
+[private SQLite checks](../tests/Kora.Windows.IntegrationTests/Storage/WindowsSqliteSessionAttachmentTests.FileReferenceCatalogue.cs)
+and [headless controls](../tests/Kora.Windows.IntegrationTests/AttachmentCatalogueWindowTests.FileReference.cs)
+qualify only this consumed I subset; installed accessibility, broader R26 and
+E/Q remain separate and unclaimed.
+
 The optional inclusive **session-generation**, **captured-generation** and
 **storage-revision** ranges compose by AND with Browse/literal/exact-session/
 lifecycle/media/copy-status/bytes/digest/source/profile/captured-time predicates.

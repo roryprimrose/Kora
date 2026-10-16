@@ -411,6 +411,19 @@ Default **Browse** preserves the removal filter. For one session, choose **Exact
 
 Optionally enter a **literal metadata query** in the separate field, then Search or press Enter there. It matches a case-sensitive literal substring of already displayed Session/source/revision/item IDs, digest or media type, independently of ExactId and lifecycle. For example, `text/` matches retained text types; `TEXT/`, spaces and `*` are not normalized or wildcards. Names, paths, profile IDs, bodies, excerpts and OCR are never searched. Removed slots never match a literal, even with Include removed slots; clear the literal to browse their ordinary provenance. Held metadata can match but cannot open a body.
 
+Optionally enter **Exact local-file source GUID**, **revision GUID**, or **item
+GUID**, then Search or press Enter in that field. Empty means Any; otherwise
+use a complete nonempty canonical lowercase D-format GUID. No trimming, case
+conversion, zero GUID, alias or fallback is accepted. These independent exact
+predicates AND-compose with every other attachment filter and match only
+Confirmed retained copies, never Held or unavailable/removed tombstones or their
+former IDs. They are retained correlation metadata only: not source consent,
+current file identity, path disclosure, body integrity, file-read authority or
+proof a copy exists. Typing reads nothing and clears rows/details/selection/
+continuation and late work. Clear query, Cancel, private/source revocation and
+close erase these volatile fields. Exact inspection remains a separate action
+with fresh private admission and full stored-byte/hash/provenance validation.
+
 Optionally enter **Exact SHA-256**, then Search or press Enter in that field.
 Use exactly 64 lowercase hexadecimal characters, not all zero; empty means Any.
 Spaces, uppercase, prefixes and wildcards are invalid, never normalized.

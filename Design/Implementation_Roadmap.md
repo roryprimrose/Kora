@@ -56,6 +56,27 @@ remain separate and unclaimed. Saved drafts #282, Presence/native presenter,
 build/performance, attachment file identities, memory scope identity and Evidence
 trace metadata are unchanged.
 
+### R26 retained attachment exact local-file reference predicates - 2026-10-16
+
+Built on freshly fetched canonical main
+`afdee7f508bc2e186bf56ef5f65cb27711e83bd1`, the
+[retained catalogue](File_And_Folder_Ingestion.md#delivered-retained-attachment-metadata-catalogue---2026-10-11)
+adds optional exact local-file source/revision/item IDs, AND-composed with every
+merged predicate. Strict canonical nonempty lowercase D GUID admission, complete
+candidate validation and full authenticated continuation identity fail closed.
+Only Confirmed retained copies match; exact predicates cannot disclose or
+reconstruct former IDs from unavailable/removed tombstones. IDs are retained
+correlation only, never consent, current file identity, path disclosure, body
+integrity, file-read authority or proof a copy exists.
+Explicit accessible native fields preserve no-read edits, selection/detail
+retirement, bounded pages, revocation/cancellation and stale-result fences.
+Portable, private SQLite and headless tests cover this consumed I subset.
+No schema, source/body read, provider, experiment or enabled runtime profile
+changes; broader R26, installed accessibility and E/Q remain unclaimed.
+Saved-draft provenance (#282), Presence/native presenter, memory scope identity,
+exact-grant audit/approval, Evidence trace metadata and independent build/
+performance work are outside this increment.
+
 ### R26 retained attachment inclusive generation/revision predicates - 2026-10-16
 
 From canonical main `74cd8517e5b5412deea706d1125a9b6e156a49e9`, the

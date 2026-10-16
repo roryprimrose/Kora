@@ -40,6 +40,19 @@
        <ComboBox x:Name="ConversationRole" ItemsSource="{Binding ConversationRoles}"
           SelectedItem="{Binding ConversationRole, Mode=TwoWay}" IsEnabled="{Binding CanReadConversation}"
           AutomationProperties.Name="Shared conversation search field filter: All original USER and typed HOST fields, USER original body only, HOST outcome reason and task state only; editing does not read" />
+      <TextBlock Text="Inclusive original-message ranges (empty means Any). Minimum must not exceed maximum; all ranges AND with the query, role and terminal predicates." TextWrapping="Wrap" />
+      <TextBlock Text="Minimum message sequence" />
+      <TextBox x:Name="ConversationMinimumSequence" Text="{Binding ConversationMinimumSequence, Mode=TwoWay}" IsEnabled="{Binding CanReadConversation}"
+          AutomationProperties.Name="Shared inclusive minimum original message sequence; invariant decimal within conversation limits, empty means Any; editing does not read" />
+      <TextBlock Text="Maximum message sequence" />
+      <TextBox x:Name="ConversationMaximumSequence" Text="{Binding ConversationMaximumSequence, Mode=TwoWay}" IsEnabled="{Binding CanReadConversation}"
+          AutomationProperties.Name="Shared inclusive maximum original message sequence; invariant decimal within conversation limits, empty means Any; editing does not read" />
+      <TextBlock Text="Submitted from UTC (yyyy-MM-ddTHH:mm:ss.fffffff+00:00)" />
+      <TextBox x:Name="ConversationSubmittedFrom" Text="{Binding ConversationSubmittedFrom, Mode=TwoWay}" IsEnabled="{Binding CanReadConversation}"
+          AutomationProperties.Name="Shared inclusive submitted from canonical UTC time; yyyy-MM-ddTHH:mm:ss.fffffff+00:00, empty means Any; editing does not read" />
+      <TextBlock Text="Submitted through UTC (yyyy-MM-ddTHH:mm:ss.fffffff+00:00)" />
+      <TextBox x:Name="ConversationSubmittedThrough" Text="{Binding ConversationSubmittedThrough, Mode=TwoWay}" IsEnabled="{Binding CanReadConversation}"
+          AutomationProperties.Name="Shared inclusive submitted through canonical UTC time; yyyy-MM-ddTHH:mm:ss.fffffff+00:00, empty means Any; editing does not read" />
       <TextBlock Text="Exact terminal HOST predicates (Any means unrestricted). USER-only with any predicate yields zero; all predicates AND with the query and role." TextWrapping="Wrap" />
       <TextBlock Text="Terminal outcome" />
       <ComboBox x:Name="ConversationOutcome" ItemsSource="{Binding ConversationOutcomes}"

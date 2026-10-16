@@ -13,6 +13,10 @@ internal sealed partial class SessionsViewModel
     private string conversationQuery = string.Empty;
     private ConversationSearchRole conversationRole;
     private ConversationTerminalFilter conversationTerminal;
+    private string conversationMinimumSequence = string.Empty;
+    private string conversationMaximumSequence = string.Empty;
+    private string conversationSubmittedFrom = string.Empty;
+    private string conversationSubmittedThrough = string.Empty;
     private ConversationSearchPage? conversationSearchPage;
     private CancellationTokenSource? conversationSearchCancellation;
     private long conversationSearchEpoch;
@@ -37,6 +41,45 @@ internal sealed partial class SessionsViewModel
         }
     }
     public string ConversationSearchStatus => conversationSearchStatus;
+    public string ConversationMinimumSequence
+    {
+        get => conversationMinimumSequence;
+        set => EditConversationRange(ref conversationMinimumSequence, value);
+    }
+    public string ConversationMaximumSequence
+    {
+        get => conversationMaximumSequence;
+        set => EditConversationRange(ref conversationMaximumSequence, value);
+    }
+    public string ConversationSubmittedFrom
+    {
+        get => conversationSubmittedFrom;
+        set => EditConversationRange(ref conversationSubmittedFrom, value);
+    }
+    public string ConversationSubmittedThrough
+    {
+        get => conversationSubmittedThrough;
+        set => EditConversationRange(ref conversationSubmittedThrough, value);
+    }
+
+    private void EditConversationRange(ref string field, string value)
+    {
+        if (closed || !access.CanInspect || string.Equals(field, value, StringComparison.Ordinal)) { return; }
+        InvalidateConversationSearch();
+        field = value;
+        conversationSearchTarget = selected;
+        conversationSearchControlRevision = access.ControlRevision;
+        conversationSearchStatus = "Inclusive metadata range edited. Explicit Search required; empty means Any, not authority.";
+        NotifyConversationSearch();
+    }
+
+    private void ResetConversationRanges()
+    {
+        conversationMinimumSequence = string.Empty;
+        conversationMaximumSequence = string.Empty;
+        conversationSubmittedFrom = string.Empty;
+        conversationSubmittedThrough = string.Empty;
+    }
     public IReadOnlyList<ConversationSearchRole> ConversationRoles { get; } = Enum.GetValues<ConversationSearchRole>();
     public ConversationSearchRole ConversationRole
     {
@@ -110,6 +153,7 @@ internal sealed partial class SessionsViewModel
         conversationQuery = string.Empty;
         conversationRole = ConversationSearchRole.All;
         conversationTerminal = default;
+        ResetConversationRanges();
         conversationSearchTarget = null;
         conversationSearchStatus = "Private search query, rows and continuation cleared. Composer and saved draft unchanged.";
         NotifyConversationSearch();
@@ -136,6 +180,10 @@ internal sealed partial class SessionsViewModel
         var query = conversationQuery;
         var role = conversationRole;
         var terminal = conversationTerminal;
+        var minimumSequence = conversationMinimumSequence;
+        var maximumSequence = conversationMaximumSequence;
+        var submittedFrom = conversationSubmittedFrom;
+        var submittedThrough = conversationSubmittedThrough;
         conversationSearchTarget = target;
         conversationSearchControlRevision = revision;
         var cursor = next ? conversationSearchPage?.Next : null;
@@ -153,8 +201,19 @@ internal sealed partial class SessionsViewModel
         try
         {
             if (next && cursor is null) { throw new ArgumentException("CursorMismatch", nameof(next)); }
+            ConversationRangeFilter range;
+            try { range = ConversationRangeFilter.Parse(minimumSequence, maximumSequence, submittedFrom, submittedThrough); }
+            catch (InvalidDataException exception)
+            {
+                conversationSearchStatus = "InvalidRange. Use ordered inclusive sequence bounds 1-"
+                    + ConversationText.MaximumSessionMessages.ToString(CultureInfo.InvariantCulture)
+                    + " and canonical UTC yyyy-MM-ddTHH:mm:ss.fffffff+00:00; empty means Any. Correct the fields and explicitly Search.";
+                Failure(logger, exception.GetType().Name);
+                activity.Complete(HostOperationOutcome.Failed);
+                return;
+            }
             var result = await conversation!.SearchAsync(target.Authority.SessionId, query, cursor,
-                ConversationSearchPage.DefaultRecords, cancellation.Token, role, terminal);
+                ConversationSearchPage.DefaultRecords, cancellation.Token, role, terminal, range);
             cancellation.Token.ThrowIfCancellationRequested();
             if (!Live() || result.Session != target.Authority)
             { throw new OperationCanceledException("Exact private conversation search was revoked."); }
@@ -177,11 +236,14 @@ internal sealed partial class SessionsViewModel
                     conversationQuery = string.Empty;
                     conversationRole = ConversationSearchRole.All;
                     conversationTerminal = default;
+                    ResetConversationRanges();
                     conversationSearchTarget = null;
                 }
                 conversationSearchStatus = exception switch
                 {
-                    ArgumentException => "InvalidQuery, InvalidRole, InvalidTerminalFilter or CursorMismatch. Select defined roles and Any or exact typed terminal values; use 1-256 UTF-16 characters / 512 UTF-8 bytes with 1-32 distinct lexical terms of at most 64 characters; start fresh Search.",
+                    ArgumentException => "InvalidQuery, InvalidRole, InvalidTerminalFilter, InvalidRange or CursorMismatch. Use ordered inclusive sequence bounds 1-"
+                        + ConversationText.MaximumSessionMessages.ToString(CultureInfo.InvariantCulture)
+                        + " and canonical UTC yyyy-MM-ddTHH:mm:ss.fffffff+00:00 (empty means Any). Select defined roles and Any or exact typed terminal values; use 1-256 UTF-16 characters / 512 UTF-8 bytes with 1-32 distinct lexical terms of at most 64 characters; start fresh Search.",
                     ConversationSnapshotChangedException => "Snapshot changed. No search content; start a fresh Search.",
                     OperationCanceledException => "Search cancelled. No search content or successful observation inferred.",
                     _ => "Exact conversation search unavailable. No search content; refresh the selected source and start fresh Search.",
@@ -208,10 +270,13 @@ internal sealed partial class SessionsViewModel
             conversationQuery = string.Empty;
             conversationRole = ConversationSearchRole.All;
             conversationTerminal = default;
+            ResetConversationRanges();
             conversationSearchTarget = null;
             conversationSearchStatus = "Exact session/source or private ownership changed. Private search cleared; explicit fresh Search required.";
         }
         foreach (var name in new[] { nameof(ConversationQuery), nameof(ConversationRole), nameof(ConversationOutcome),
+            nameof(ConversationMinimumSequence), nameof(ConversationMaximumSequence),
+            nameof(ConversationSubmittedFrom), nameof(ConversationSubmittedThrough),
             nameof(ConversationReason), nameof(ConversationTaskState), nameof(ConversationOutcomeChoice),
             nameof(ConversationReasonChoice), nameof(ConversationTaskStateChoice), nameof(ConversationSearchStatus),
             nameof(ConversationSearchMessages), nameof(CanSearchConversation), nameof(CanNextConversationSearch),

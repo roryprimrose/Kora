@@ -25,7 +25,7 @@ public sealed class ConversationSearchTests
     {
         var search = new ConversationSearch(query, role);
         search.Role.Should().Be(role);
-        search.Digest.Should().Be(new SessionHistorySearch(query).Digest);
+        search.Digest.Should().Be(new ConversationSearch(query, role).Digest);
         search.Matches(Message(), TestContext.Current.CancellationToken).Should().Be(expected);
     }
 
@@ -81,7 +81,7 @@ public sealed class ConversationSearchTests
     {
         var search = new ConversationSearch(query);
         search.Matches(Message(), TestContext.Current.CancellationToken).Should().Be(expected);
-        search.Digest.Should().Be(new SessionHistorySearch(query).Digest);
+        search.Digest.Should().Be(new ConversationSearch(query).Digest);
     }
 
     [Fact]

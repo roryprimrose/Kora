@@ -1,3 +1,6 @@
+using System.Security.Cryptography;
+using System.Text.Json;
+
 using Kora.Core.Storage;
 
 namespace Kora.Core.Conversation;
@@ -7,23 +10,31 @@ public sealed class ConversationSearch
 {
     private readonly SessionHistorySearch lexical;
     public ConversationSearch(string query, ConversationSearchRole role = ConversationSearchRole.All,
-        ConversationTerminalFilter terminal = default)
+        ConversationTerminalFilter terminal = default, ConversationRangeFilter range = default)
     {
         if (!Enum.IsDefined(role)) { throw new ArgumentOutOfRangeException(nameof(role)); }
         terminal.Validate();
+        try { range.Validate(); }
+        catch (InvalidDataException exception) { throw new ArgumentException("Invalid conversation range.", nameof(range), exception); }
         lexical = new(query);
         Role = role;
         Terminal = terminal;
+        Range = range;
+        Digest = Convert.ToHexStringLower(SHA256.HashData(JsonSerializer.SerializeToUtf8Bytes(
+            new { lexical.Digest, Role, Terminal, Range })));
     }
 
     public ConversationSearchRole Role { get; }
     public ConversationTerminalFilter Terminal { get; }
-    public string Digest => lexical.Digest;
+    public ConversationRangeFilter Range { get; }
+    public string Digest { get; }
 
     public bool Matches(ConversationMessage message, CancellationToken token)
     {
         token.ThrowIfCancellationRequested();
-        return Terminal.Matches(message, Role) && Fields(message).Any(field => lexical.MatchesText(field, token));
+        message.Validate();
+        return Range.Matches(message) && Terminal.Matches(message, Role)
+            && Fields(message).Any(field => lexical.MatchesText(field, token));
     }
 
     private IEnumerable<string> Fields(ConversationMessage message)

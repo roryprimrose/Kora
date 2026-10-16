@@ -19,6 +19,8 @@ public sealed record SavedDraftPage(SessionListFilter Filter, ImmutableArray<Sav
         + "Name search is ordinal case-sensitive metadata only; exact canonical ID is a separate mode. "
         + "Optional exact positive saved revision and inclusive UTF-8 byte / Unicode scalar bounds filter validated metadata only; empty means Any. "
         + "Optional exact observation source/device profile GUIDs are canonical lowercase D format; empty means Any. IDs are metadata/correlation only, not ownership, identity or authority. All predicates AND. "
+        + "Inclusive session generation, named metadata revision and authority ceiling ranges are positive Int64; control revision ranges are nonnegative Int64. Empty means Any; named revision bounds exclude unnamed rows. "
+        + "Generation, control revision, ceiling and digest are observed provenance only, never current authority, permission, body integrity, device ownership or navigation authority. "
         + "Query edits invalidate observations without reading; Search/Refresh explicitly starts again. "
         + "Opening an exact session never reloads, saves, submits, resumes or renews activity.";
 

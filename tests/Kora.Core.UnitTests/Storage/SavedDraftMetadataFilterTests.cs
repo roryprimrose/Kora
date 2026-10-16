@@ -4,12 +4,110 @@ using AwesomeAssertions;
 
 using Kora.Core.Conversation;
 using Kora.Core.Hosting;
+using Kora.Core.Memory;
 using Kora.Core.Storage;
 
 namespace Kora.Core.UnitTests.Storage;
 
 public sealed class SavedDraftMetadataFilterTests
 {
+    private const string SourceId = "abcdef12-3456-7890-abcd-ef1234567890";
+    private const string ProfileId = "fedcba98-7654-3210-fedc-ba9876543210";
+
+    [Theory]
+    [InlineData("", "")]
+    [InlineData(SourceId, "")]
+    [InlineData("", ProfileId)]
+    [InlineData(SourceId, ProfileId)]
+    public void OptionalGuidPredicatesRoundTripAndMatchExactSummaryOnly(string source, string profile)
+    {
+        var row = new SavedDraftSummary(Guid.Parse(SourceId), new(Guid.Parse(ProfileId)),
+            new(new(Guid.NewGuid()), new(1), true), null, 2, 4, 1, 1, 1, new string('a', 64));
+        row.Validate();
+        var filter = SavedDraftMetadataFilter.Parse("2", "4", "4", "1", "1", source, profile);
+        filter.Source.Should().Be(source.Length == 0 ? null : row.Source);
+        filter.Profile.Should().Be(profile.Length == 0 ? null : row.Profile);
+        SavedDraftMetadataFilter.IsValid("2", "4", "4", "1", "1", source, profile).Should().BeTrue();
+        JsonSerializer.Deserialize<SavedDraftMetadataFilter>(JsonSerializer.Serialize(filter)).Should().Be(filter);
+        filter.Matches(row).Should().BeTrue();
+        filter.Matches(row with { Source = Guid.NewGuid() }).Should().Be(source.Length == 0);
+        filter.Matches(row with { Profile = new(Guid.NewGuid()) }).Should().Be(profile.Length == 0);
+        filter.Matches(row with { DraftRevision = 1 }).Should().BeFalse();
+        filter.Matches(row with { Utf8Bytes = 3 }).Should().BeFalse();
+        filter.Matches(row with { Utf8Bytes = 5 }).Should().BeFalse();
+        filter.Matches(row with { UnicodeScalars = 2 }).Should().BeFalse();
+        var page = new SavedDraftPage(SessionListFilter.All, [row], null, 1, 0, false, MetadataFilter: filter);
+        page.Validate();
+        if (source.Length != 0)
+        {
+            (page with { Records = [row with { Source = Guid.NewGuid() }] })
+                .Invoking(value => value.Validate()).Should().Throw<InvalidDataException>();
+        }
+        if (profile.Length != 0)
+        {
+            (page with { Records = [row with { Profile = new(Guid.NewGuid()) }] })
+                .Invoking(value => value.Validate()).Should().Throw<InvalidDataException>();
+        }
+    }
+
+    [Theory]
+    [InlineData("00000000-0000-0000-0000-000000000000")]
+    [InlineData("ABCDEF12-3456-7890-ABCD-EF1234567890")]
+    [InlineData("{abcdef12-3456-7890-abcd-ef1234567890}")]
+    [InlineData("(abcdef12-3456-7890-abcd-ef1234567890)")]
+    [InlineData("abcdef1234567890abcdef1234567890")]
+    [InlineData("abcdef12")]
+    [InlineData("abcdef12-3456-7890-abcd-ef123456789")]
+    [InlineData(" abcdef12-3456-7890-abcd-ef1234567890")]
+    [InlineData("abcdef12-3456-7890-abcd-ef1234567890 ")]
+    [InlineData("\tabcdef12-3456-7890-abcd-ef1234567890")]
+    [InlineData("abcdef12-3456-7890-abcd-ef1234567890\n")]
+    [InlineData("abcdef12-3456-7890-abcd-ef1234567890\0")]
+    [InlineData(" ")]
+    [InlineData("\u200b")]
+    [InlineData("\uD800")]
+    public void EveryMalformedNonemptyGuidRefusesBothFieldsWithoutRepair(string text)
+    {
+        SavedDraftMetadataFilter.IsValid("", "", "", source: text).Should().BeFalse();
+        SavedDraftMetadataFilter.IsValid("", "", "", profile: text).Should().BeFalse();
+        var parseSource = () => SavedDraftMetadataFilter.Parse("", "", "", source: text);
+        var parseProfile = () => SavedDraftMetadataFilter.Parse("", "", "", profile: text);
+        parseSource.Should().Throw<InvalidDataException>();
+        parseProfile.Should().Throw<InvalidDataException>();
+    }
+
+    [Fact]
+    public void TypedEmptyGuidPredicatesAndNullNativeFieldsFailClosed()
+    {
+        var source = () => new SavedDraftMetadataFilter(null, null, null, source: Guid.Empty);
+        var profile = () => new SavedDraftMetadataFilter(null, null, null, profile: default(HostId<DeviceProfileIdentity>));
+        source.Should().Throw<InvalidDataException>();
+        profile.Should().Throw<InvalidDataException>();
+        var parseSource = () => SavedDraftMetadataFilter.Parse("", "", "", source: null!);
+        var parseProfile = () => SavedDraftMetadataFilter.Parse("", "", "", profile: null!);
+        parseSource.Should().Throw<ArgumentNullException>();
+        parseProfile.Should().Throw<ArgumentNullException>();
+        SavedDraftMetadataFilter.Parse("", "", "", source: "", profile: "").Should().Be(SavedDraftMetadataFilter.Any);
+    }
+
+    [Fact]
+    public void FilterDigestBindsEveryOptionalPredicateWithoutNativeText()
+    {
+        var filters = new SavedDraftMetadataFilter[]
+        {
+            SavedDraftMetadataFilter.Any, new(1, null, null), new(null, 0, null), new(null, null, 0),
+            new(null, null, null, 0), new(null, null, null, null, 0),
+            new(null, null, null, source: Guid.Parse(SourceId)),
+            new(null, null, null, profile: new(Guid.Parse(ProfileId))),
+            SavedDraftMetadataFilter.Parse("2", "4", "4", "1", "1", SourceId, ProfileId),
+        };
+        filters.Select(filter => filter.Digest).Should().OnlyHaveUniqueItems();
+        filters.Should().OnlyContain(filter => filter.Digest.Length == 64
+            && filter.Digest.All(char.IsAsciiHexDigitLower));
+        SavedDraftMetadataFilter.Parse("0002", "04", "04", "01", "01", SourceId, ProfileId)
+            .Digest.Should().Be(filters[^1].Digest, "existing numeric leading-zero semantics are unchanged");
+    }
+
     [Theory]
     [InlineData("", "", "", null, null, null)]
     [InlineData("1", "", "", 1L, null, null)]

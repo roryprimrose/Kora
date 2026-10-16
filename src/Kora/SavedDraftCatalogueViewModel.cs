@@ -27,6 +27,8 @@ internal sealed partial class SavedDraftCatalogueViewModel(
     private string maximumBytesText = string.Empty;
     private string minimumScalarsText = string.Empty;
     private string maximumScalarsText = string.Empty;
+    private string sourceText = string.Empty;
+    private string profileText = string.Empty;
     private bool disposed;
     private long epoch;
     private long controlRevision = access.ControlRevision;
@@ -96,6 +98,16 @@ internal sealed partial class SavedDraftCatalogueViewModel(
         get => maximumScalarsText;
         set => EditMetadata(ref maximumScalarsText, value);
     }
+    public string SourceText
+    {
+        get => sourceText;
+        set => EditMetadata(ref sourceText, value);
+    }
+    public string ProfileText
+    {
+        get => profileText;
+        set => EditMetadata(ref profileText, value);
+    }
     private void EditMetadata(ref string field, string value)
     {
         if (!CanEditQuery || string.Equals(field, value, StringComparison.Ordinal)) { return; }
@@ -104,13 +116,13 @@ internal sealed partial class SavedDraftCatalogueViewModel(
         Notify();
     }
     private bool ValidMetadata => SavedDraftMetadataFilter.IsValid(revisionText, minimumBytesText, maximumBytesText,
-        minimumScalarsText, maximumScalarsText);
+        minimumScalarsText, maximumScalarsText, sourceText, profileText);
     public string MetadataHint => ValidMetadata
         ? "Optional exact saved revision and inclusive UTF-8 byte / Unicode scalar ranges; empty means Any. Decimal digits only; byte bounds 0-"
             + Kora.Core.Conversation.ConversationText.MaximumUtf8Bytes.ToString(CultureInfo.InvariantCulture)
             + "; scalar bounds 0-" + Kora.Core.Conversation.ConversationText.MaximumUtf16Characters.ToString(CultureInfo.InvariantCulture)
-            + ". Validated metadata only, not code units or a body read."
-        : "Invalid metadata filter: Search/Refresh refused. Use positive revision and byte/scalar bounds within their conversation maxima, minimum <= maximum; no signs, whitespace, separators or overflow.";
+            + ". Optional exact observation source/device profile: nonempty canonical lowercase D-format GUIDs. Metadata/correlation only, not ownership, identity or authority. Empty means Any; no trimming or repair. Not code units or a body read."
+        : "Invalid metadata filter: Search/Refresh refused. Use positive revision and byte/scalar bounds within their conversation maxima, minimum <= maximum; no signs, whitespace, separators or overflow. Source/profile must be nonempty canonical lowercase D-format GUIDs or empty for Any; no braces, uppercase, whitespace or repair.";
     public bool CanEditQuery => !disposed && access.CanInspect && admitted();
     public bool CanSearch => CanRead && ValidMetadata
         && (mode == SavedDraftCatalogueMode.Browse || SessionListSearch.IsValid(QueryKind, filter, queryText));
@@ -144,7 +156,7 @@ internal sealed partial class SavedDraftCatalogueViewModel(
     {
         var query = mode == SavedDraftCatalogueMode.Browse ? null : new SessionListSearch(QueryKind, filter, queryText);
         var metadataFilter = SavedDraftMetadataFilter.Parse(revisionText, minimumBytesText, maximumBytesText,
-            minimumScalarsText, maximumScalarsText);
+            minimumScalarsText, maximumScalarsText, sourceText, profileText);
         var cursor = next ? page?.Next ?? throw new InvalidOperationException("Refresh before Next.") : null;
         Clear();
         var result = await service.ReadSavedDraftCatalogue(filter, cursor, current, token, query, metadataFilter);
@@ -247,6 +259,8 @@ internal sealed partial class SavedDraftCatalogueViewModel(
         maximumBytesText = string.Empty;
         minimumScalarsText = string.Empty;
         maximumScalarsText = string.Empty;
+        sourceText = string.Empty;
+        profileText = string.Empty;
     }
     public void Dispose()
     {
@@ -267,6 +281,7 @@ internal sealed partial class SavedDraftCatalogueViewModel(
             nameof(Filter), nameof(Mode), nameof(QueryText), nameof(QueryHint), nameof(CanEditQuery),
             nameof(RevisionText), nameof(MinimumBytesText), nameof(MaximumBytesText), nameof(MetadataHint),
             nameof(MinimumScalarsText), nameof(MaximumScalarsText),
+            nameof(SourceText), nameof(ProfileText),
             nameof(CanSearch), nameof(CanRead), nameof(CanNext), nameof(CanNavigate), nameof(CanCancel) })
         { OnPropertyChanged(name); }
     }

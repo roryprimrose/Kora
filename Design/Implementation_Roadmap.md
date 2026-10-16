@@ -198,6 +198,25 @@ parser. No code-unit filter, body import/inference, schema,
 index/cache, aggregate quota/count, mutation, activity renewal, model/tool/speech
 route, new source authority or installed accessibility/E/Q qualification is added.
 
+### Bounded saved-draft exact source/profile metadata predicates - 2026-10-15
+
+The [saved-draft catalogue](Interaction_And_Sessions.md#saved-conversation-draft-catalogue--2026-10-13)
+adds optional exact observation-source and device-profile GUID fields, ANDed with
+Browse/name/exact session-ID, lifecycle, saved revision and both length ranges.
+One portable policy accepts empty Any or complete nonempty canonical lowercase
+`D` GUIDs, never repaired input. Filter digests and signed continuations bind every
+predicate under existing source/private/control/head/authority fences. Every
+scanned summary/name and authority prefix is validated before exclusion; edits
+perform no read and immediately revoke observations and delayed callbacks.
+This consumes only the existing catalogue I subset. IDs grant no ownership,
+identity or authority. No body read, aggregate total, autosave/reload/mutation/
+submit, schema/index/cache, persisted filter, filter logging/tags/audit payload,
+model/tool/speech/clipboard/export route or activity renewal is added.
+Headless accessible controls and deterministic tests are implementation evidence,
+not installed-accessibility or E/Q qualification. Presence/native-presenter,
+All Work follow-up, memory, attachment, Evidence and independent build/review
+work remain outside this boundary.
+
 ### Bounded native speech-caption reader text scale - 2026-10-15
 
 The confirmed device-local [reader scale](Information_Display.md#bounded-native-reader-text-scale)

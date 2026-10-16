@@ -45,7 +45,8 @@ public sealed partial class WindowsSqliteConversationTests
         using (var viewer = HostActivity.BeginRoot(Fresh(f.Request.SessionId), HostActivityLayer.Desktop, HostOperation.Request))
         {
             var audits = f.Count("security_audit_events");
-            var metadata = new SavedDraftMetadataFilter(1, 0, 16384, 1, 4096);
+            var observed = (await f.Store.ReadSavedDraftPage(SessionListFilter.All, null, 1, () => true, f.Token)).Records[0];
+            var metadata = new SavedDraftMetadataFilter(1, 0, 16384, 1, 4096, observed.Source, observed.Profile);
             var metadataPage = await f.Store.ReadSavedDraftPage(SessionListFilter.All, null, 1, () => true, f.Token,
                 metadataFilter: metadata);
             metadataPage.Records.Should().HaveCount(25);
@@ -55,8 +56,16 @@ public sealed partial class WindowsSqliteConversationTests
             metadataTail.Records.Should().HaveCount(25, "signed filters survive cursor serialization");
             foreach (var alternate in new SavedDraftMetadataFilter?[]
             {
-                null, new(1, 0, 16384), new(2, 0, 16384, 1, 4096), new(1, 1, 16384, 1, 4096),
-                new(1, 0, 16383, 1, 4096), new(1, 0, 16384, 2, 4096), new(1, 0, 16384, 1, 4095),
+                null, new(1, 0, 16384, source: observed.Source, profile: observed.Profile),
+                new(2, 0, 16384, 1, 4096, observed.Source, observed.Profile),
+                new(1, 1, 16384, 1, 4096, observed.Source, observed.Profile),
+                new(1, 0, 16383, 1, 4096, observed.Source, observed.Profile),
+                new(1, 0, 16384, 2, 4096, observed.Source, observed.Profile),
+                new(1, 0, 16384, 1, 4095, observed.Source, observed.Profile),
+                new(1, 0, 16384, 1, 4096, Guid.NewGuid(), observed.Profile),
+                new(1, 0, 16384, 1, 4096, observed.Source, new(Guid.NewGuid())),
+                new(1, 0, 16384, 1, 4096, profile: observed.Profile),
+                new(1, 0, 16384, 1, 4096, source: observed.Source),
             })
             {
                 var switchedMetadata = () => f.Store.ReadSavedDraftPage(SessionListFilter.All, metadataPage.Next, 1,
@@ -66,13 +75,14 @@ public sealed partial class WindowsSqliteConversationTests
             var tamperedMetadata = () => f.Store.ReadSavedDraftPage(SessionListFilter.All, metadataPage.Next![..^1] + "x", 1,
                 () => true, f.Token, metadataFilter: metadata).AsTask();
             await tamperedMetadata.Should().ThrowAsync<InvalidDataException>();
+            var noSource = new SavedDraftMetadataFilter(null, null, null, source: Guid.NewGuid(), profile: observed.Profile);
             var zero = await f.Store.ReadSavedDraftPage(SessionListFilter.All, null, 1, () => true, f.Token,
-                metadataFilter: new(null, null, null, 0, 0));
+                metadataFilter: noSource);
             zero.Records.Should().BeEmpty();
             zero.Scanned.Should().Be(50);
             zero.Next.Should().NotBeNull();
             var zeroTail = await f.Store.ReadSavedDraftPage(SessionListFilter.All, zero.Next, 1, () => true, f.Token,
-                metadataFilter: new(null, null, null, 0, 0));
+                metadataFilter: noSource);
             zeroTail.Records.Should().BeEmpty();
             zeroTail.Scanned.Should().Be(21);
             zeroTail.Next.Should().BeNull();

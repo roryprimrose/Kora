@@ -2,6 +2,7 @@ using Avalonia.Automation.Peers;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
+using Avalonia.Threading;
 
 using AwesomeAssertions;
 
@@ -70,7 +71,6 @@ public sealed class SessionsListSearchTests
                 model.ListMinimumMetadataRevision = "1";
                 model.ListMaximumMetadataRevision = "1";
                 model.SelectedSessionRecord.Should().Be(selected, "editing a draft in ordinary list mode does not target or clear work");
-                model.CanSearchList.Should().BeTrue();
                 var complete = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
                 void OnChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs args)
                 {
@@ -78,9 +78,18 @@ public sealed class SessionsListSearchTests
                         && model.Status.StartsWith("Passive session metadata:", StringComparison.Ordinal)) { complete.TrySetResult(); }
                 }
                 model.PropertyChanged += OnChanged;
-                field.RaiseEvent(new KeyEventArgs { RoutedEvent = InputElement.KeyDownEvent, Key = Key.Enter });
-                await complete.Task.WaitAsync(f.Token);
-                model.PropertyChanged -= OnChanged;
+                try
+                {
+                    await DispatchWhenReady(model, () => model.CanSearchList, () =>
+                    {
+                        model.CanSearchList.Should().BeTrue();
+                        var key = new KeyEventArgs { RoutedEvent = InputElement.KeyDownEvent, Key = Key.Enter };
+                        field.RaiseEvent(key);
+                        key.Handled.Should().BeTrue();
+                    }, f.Token);
+                    await complete.Task.WaitAsync(TimeSpan.FromSeconds(30), f.Token);
+                }
+                finally { model.PropertyChanged -= OnChanged; }
                 field.IsFocused.Should().BeTrue();
                 model.Sessions.Should().ContainSingle().Which.Should().Be(selected);
                 model.SelectedSessionRecord.Should().Be(selected);
@@ -116,7 +125,8 @@ public sealed class SessionsListSearchTests
                 model.HistoryRecords.Should().BeEmpty();
                 model.Detail.Should().BeEmpty();
                 field.Focus().Should().BeTrue();
-                field.RaiseEvent(new KeyEventArgs { RoutedEvent = InputElement.KeyDownEvent, Key = Key.Escape });
+                await DispatchWhenReady(model, () => model.CanRead && model.CanEditListSearch,
+                    () => field.RaiseEvent(new KeyEventArgs { RoutedEvent = InputElement.KeyDownEvent, Key = Key.Escape }), f.Token);
                 window.IsVisible.Should().BeTrue();
                 field.IsFocused.Should().BeTrue();
                 model.ListQuery.Should().BeEmpty();
@@ -128,9 +138,14 @@ public sealed class SessionsListSearchTests
                 model.Sessions.Should().ContainSingle();
                 model.ListSearchKind = SessionListSearchKind.ExactId;
                 model.ListQuery = f.Request.SessionId.Value.ToString("D");
-                await model.SearchListAsync();
+                var exactSearch = Task.CompletedTask;
+                await DispatchWhenReady(model, () => model.CanSearchList,
+                    () => exactSearch = model.SearchListAsync(), f.Token);
+                await exactSearch;
+                model.Status.Should().StartWith("Passive session metadata:");
                 model.Sessions.Should().ContainSingle().Which.Authority.SessionId.Should().Be(f.Request.SessionId);
-                window.FindControl<Button>("ClearListSearch")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                await DispatchWhenReady(model, () => model.CanRead && model.CanEditListSearch,
+                    () => window.FindControl<Button>("ClearListSearch")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent)), f.Token);
                 field.IsFocused.Should().BeTrue();
                 model.ListQuery.Should().BeEmpty();
                 model.Sessions.Should().BeEmpty();
@@ -173,6 +188,31 @@ public sealed class SessionsListSearchTests
             model.Status.Should().Contain("metadata changed");
         }
         finally { model.Close(); }
+    }
+
+    private static async Task DispatchWhenReady(SessionsViewModel model, Func<bool> ready, Action action,
+        CancellationToken token)
+    {
+        var dispatched = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var active = true;
+        void TryDispatch()
+        {
+            if (!active || dispatched.Task.IsCompleted || !ready()) { return; }
+            try { action(); dispatched.TrySetResult(); }
+            catch (Exception exception) when (exception is not OutOfMemoryException)
+            { dispatched.TrySetException(exception); }
+        }
+        void Changed(object? sender, System.ComponentModel.PropertyChangedEventArgs args) =>
+            Dispatcher.UIThread.Post(TryDispatch, DispatcherPriority.Background);
+        // The real window's periodic passive refresh can refuse a search. Admit and dispatch
+        // in one UI turn, after notifications unwind, instead of racing an earlier readiness check.
+        model.PropertyChanged += Changed;
+        try
+        {
+            Dispatcher.UIThread.Post(TryDispatch, DispatcherPriority.Background);
+            await dispatched.Task.WaitAsync(TimeSpan.FromSeconds(30), token);
+        }
+        finally { active = false; model.PropertyChanged -= Changed; }
     }
 
     private sealed class Access : ISessionWorkspaceAccess, ICapabilityHostAccess, IEvidenceQueryAccess

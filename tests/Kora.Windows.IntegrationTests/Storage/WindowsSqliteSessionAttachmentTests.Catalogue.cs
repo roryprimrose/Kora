@@ -318,10 +318,12 @@ public sealed partial class WindowsSqliteSessionAttachmentTests
         using var root = HostActivity.BeginRoot(fixture.Request, HostActivityLayer.Application, HostOperation.Request);
         var saved = await WindowsSqliteConversationTests.Save(fixture,
             await fixture.Store.ReadConversationDraftAsync(fixture.Request.SessionId, fixture.Token), "PRIVATE_PENDING_DRAFT");
+        var observed = (await fixture.Store.ReadSavedDraftPage(SessionListFilter.All, null, 1, () => true, fixture.Token)).Records.Single();
         await Attach(fixture, Encoding.UTF8.GetBytes("authority segment fixture"));
         AppendCatalogueAuditReceipts(fixture, SessionAttachmentPage.MaximumAuditRows + 1);
         var query = new SessionListSearch(SessionListSearchKind.ExactId, SessionListFilter.All, saved.Session.SessionId.Value.ToString("D"));
-        var metadata = new SavedDraftMetadataFilter(saved.Draft.Revision, 1, 16384, 1, 4096);
+        var metadata = new SavedDraftMetadataFilter(saved.Draft.Revision, 1, 16384, 1, 4096,
+            observed.Source, observed.Profile);
         var first = await fixture.Store.ReadSavedDraftPage(SessionListFilter.All, null, 1, () => true, fixture.Token, query, metadata);
         first.AuthorityPending.Should().BeTrue();
         first.AuditScanned.Should().Be(4096);
@@ -336,8 +338,10 @@ public sealed partial class WindowsSqliteSessionAttachmentTests
         await wrongMetadata.Should().ThrowAsync<InvalidDataException>();
         foreach (var alternate in new SavedDraftMetadataFilter[]
         {
-            new(saved.Draft.Revision, 1, 16384, 2, 4096),
-            new(saved.Draft.Revision, 1, 16384, 1, 4095),
+            new(saved.Draft.Revision, 1, 16384, 2, 4096, observed.Source, observed.Profile),
+            new(saved.Draft.Revision, 1, 16384, 1, 4095, observed.Source, observed.Profile),
+            new(saved.Draft.Revision, 1, 16384, 1, 4096, Guid.NewGuid(), observed.Profile),
+            new(saved.Draft.Revision, 1, 16384, 1, 4096, observed.Source, new(Guid.NewGuid())),
         })
         {
             var wrongScalars = () => fixture.Store.ReadSavedDraftPage(SessionListFilter.All, first.Next, 1, () => true,
@@ -357,7 +361,7 @@ public sealed partial class WindowsSqliteSessionAttachmentTests
         fixture.Mutate("UPDATE security_audit_events SET envelope=json_set(envelope,'$.SessionGeneration.Value',99) WHERE sequence=1;");
         var irrelevantAuthority = () => fixture.Store.ReadSavedDraftPage(SessionListFilter.All, null, 1, () => true,
             fixture.Token, new(SessionListSearchKind.ExactId, SessionListFilter.All, Guid.NewGuid().ToString("D")),
-            new(long.MaxValue, 0, 0, 0, 0)).AsTask();
+            new(long.MaxValue, 0, 0, 0, 0, Guid.NewGuid(), new(Guid.NewGuid()))).AsTask();
         await irrelevantAuthority.Should().ThrowAsync<Exception>("even an unknown exact ID and impossible metadata match validate irrelevant prefix rows");
     }
 

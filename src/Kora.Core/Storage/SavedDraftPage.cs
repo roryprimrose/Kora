@@ -18,6 +18,7 @@ public sealed record SavedDraftPage(SessionListFilter Filter, ImmutableArray<Sav
         + "Changes behind the cursor require Refresh; any committed authority change invalidates continuation. "
         + "Name search is ordinal case-sensitive metadata only; exact canonical ID is a separate mode. "
         + "Optional exact positive saved revision and inclusive UTF-8 byte / Unicode scalar bounds filter validated metadata only; empty means Any. "
+        + "Optional exact observation source/device profile GUIDs are canonical lowercase D format; empty means Any. IDs are metadata/correlation only, not ownership, identity or authority. All predicates AND. "
         + "Query edits invalidate observations without reading; Search/Refresh explicitly starts again. "
         + "Opening an exact session never reloads, saves, submits, resumes or renews activity.";
 

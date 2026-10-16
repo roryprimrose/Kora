@@ -42,6 +42,15 @@ Choose **Browse**, literal case-sensitive **NameSubstring**, or canonical lowerc
 Optional labelled native **Exact saved revision**, **Minimum UTF-8 bytes**,
 **Maximum UTF-8 bytes**, **Minimum Unicode scalars** and **Maximum Unicode scalars**
 fields compose with every mode and lifecycle filter.
+Labelled, keyboard-focusable **Exact observation source GUID (Any if empty)** and
+**Exact device profile GUID (Any if empty)** fields AND with those criteria.
+Accessible names disclose exact canonical lowercase D-format input, empty Any,
+metadata-only scope and no-read typing. Malformed nonempty GUIDs visibly refuse
+Search/Refresh; no trimming, repair or fallback occurs. IDs are correlation metadata,
+not device ownership, identity or authority. GUID edits revoke the same page,
+selection, navigation, continuation and late callbacks without a store/body read.
+Clear and source/private/close revocation clear both fields. Zero matches remain
+an honest bounded observation, never an unavailable or aggregate result.
 Empty means Any; strict positive revision/inclusive bounded byte and scalar parsing and
 visible invalid-field refusal follow the [canonical metadata policy](Interaction_And_Sessions.md#saved-conversation-draft-catalogue--2026-10-13).
 Editing any field immediately revokes page, selection, exact navigation, Next

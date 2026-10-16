@@ -21,6 +21,10 @@ public sealed partial class SessionWorkspaceServiceTests
     [InlineData("scalar-minimum")]
     [InlineData("scalar-maximum")]
     [InlineData("scalar-scope")]
+    [InlineData("source")]
+    [InlineData("profile")]
+    [InlineData("source-scope")]
+    [InlineData("profile-scope")]
     [InlineData("browse-any")]
     public async Task SavedDraftMetadataFiltersAreForwardedAndUntrustedPagesCannotSubstituteThem(string boundary)
     {
@@ -28,7 +32,7 @@ public sealed partial class SessionWorkspaceServiceTests
         using var root = HostActivity.BeginRoot(f.Request, HostActivityLayer.Application, HostOperation.Request);
         var row = new SavedDraftSummary(Guid.NewGuid(), new(Guid.NewGuid()), f.Session, null,
             2, 4, 2, f.ControlRevision, 1, new string('a', 64));
-        var filter = boundary is "browse-any" ? SavedDraftMetadataFilter.Any : new SavedDraftMetadataFilter(2, 4, 4, 2, 2);
+        var filter = boundary is "browse-any" ? SavedDraftMetadataFilter.Any : new SavedDraftMetadataFilter(2, 4, 4, 2, 2, row.Source, row.Profile);
         f.DraftPage = new(SessionListFilter.All, boundary is "empty" ? [] : [row], null, 1, 0, false,
             MetadataFilter: boundary is "browse-any" ? null : filter);
         f.BeforeDraftRead = () =>
@@ -41,7 +45,11 @@ public sealed partial class SessionWorkspaceServiceTests
                 "maximum" => f.DraftPage with { Records = [row with { Utf8Bytes = 5 }] },
                 "scalar-minimum" => f.DraftPage with { Records = [row with { UnicodeScalars = 1 }] },
                 "scalar-maximum" => f.DraftPage with { Records = [row with { UnicodeScalars = 3 }] },
-                "scalar-scope" => f.DraftPage with { MetadataFilter = new(2, 4, 4) },
+                "scalar-scope" => f.DraftPage with { MetadataFilter = new(2, 4, 4, source: row.Source, profile: row.Profile) },
+                "source" => f.DraftPage with { Records = [row with { Source = Guid.NewGuid() }] },
+                "profile" => f.DraftPage with { Records = [row with { Profile = new(Guid.NewGuid()) }] },
+                "source-scope" => f.DraftPage with { MetadataFilter = new(2, 4, 4, 2, 2, profile: row.Profile) },
+                "profile-scope" => f.DraftPage with { MetadataFilter = new(2, 4, 4, 2, 2, source: row.Source) },
                 _ => f.DraftPage,
             };
         };

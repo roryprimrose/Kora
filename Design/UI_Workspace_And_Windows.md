@@ -344,7 +344,16 @@ Browsing no longer invokes cleanup. Confirmed policy, copy inventory, due-candid
 
 ### Delivered Passive Session-List Metadata Navigation - 2026-10-10
 
-The Sessions window now has a separate metadata query and explicit **NameSubstring** / **ExactId** modes. **Search session metadata**, **Next metadata search**, **Cancel** and **Clear** navigate across the persisted list, not just its currently loaded page. Enter searches; Escape clears only the focused query. This is not the adjacent exact-session lexical history search or Evidence filtering.
+The Sessions window now has a separate metadata query and explicit **Browse** / **NameSubstring** / **ExactId** modes. **Search session metadata**, **Next metadata search**, **Cancel** and **Clear** navigate across the persisted list, not just its currently loaded page. Enter searches; Escape clears the metadata query fields. This is not the adjacent exact-session lexical history search or Evidence filtering.
+
+Browse requires empty text and an explicit Search; it never reads on mode edits,
+selects a session implicitly or enumerates an unbounded inventory. Nonempty text
+in Browse is invalid. NameSubstring remains the initial mode and requires
+nonempty text; clearing text never implicitly switches modes. The accessible
+**Any / Named / Unnamed** combo AND-composes observed name-metadata availability
+with mode, lifecycle and ranges. Unnamed is absence of observed name metadata,
+not empty-name matching, revision zero, missing authority or historical deletion.
+NameSubstring + Unnamed and Unnamed + either name-revision bound match no rows.
 
 NameSubstring is literal ordinal, case-sensitive NFC name containment, with the existing [SessionName limits](../src/Kora.Core/Hosting/SessionName.cs). ExactId requires a nonempty canonical lowercase D GUID and uses the existing exact metadata lookup.
 Unknown/Removed IDs are unavailable, not a fallback inventory. All/Active/Done applies across the metadata scan; outside search it retains ordinary page-only filtering.
@@ -354,17 +363,18 @@ and maximum and name-metadata-revision minimum and maximum, AND-composed with
 the chosen mode and lifecycle. Empty means Any; values must be positive
 invariant decimal `Int64` integers with minimum <= maximum. Invalid bounds
 disable Search and show recovery guidance; no trimming, truncation or fallback.
-Generation can match unnamed rows by exact ID, but either name-revision bound
+Generation can match unnamed rows by Browse or exact ID, but either name-revision bound
 excludes unnamed rows rather than inventing revision zero. These observations
 are not freshness, historical completeness, session selection or action authority.
 All query fields have accessible names and keyboard Enter/Escape behavior.
 Editing retires query-bound results and exact selection, cancels in-flight
-search and never reads. Clear and privacy/close erase all four bounds.
+search and never reads. Clear and privacy/close erase all four bounds and reset
+name availability to Any.
 
-Each name-search click consumes at most 50 validated metadata rows plus the reader's one-row lookahead, returns at most 25 native matches and bounds complete serialized output to 64 KiB. Zero matches can still have Next.
+Each Browse/name-search click consumes at most 50 validated metadata rows plus the reader's one-row lookahead, returns at most 25 native matches and bounds complete serialized output to 64 KiB. Every source candidate is validated before filtering, even beyond the result limit. Zero matches can still have Next.
 Scanned/unnamed/nonmatching counts, result/byte limits and current end are explicit. A matching row deferred by an output limit is reconsidered on Next; no matching name or record is truncated or silently omitted.
 
-This is mutable canonical-ID keyset navigation, not a sequence-bounded history snapshot. Continuations bind exact query, mode, state filter, host/store lifetime and private admission revision. Renames, lifecycle/deletion and additions behind the cursor require a fresh Search.
+This is mutable canonical-ID keyset navigation, not a sequence-bounded history snapshot. Continuations bind exact query, mode, name availability, all numeric bounds, state filter, host/store lifetime and private admission revision. Renames, lifecycle/deletion and additions behind the cursor require a fresh Search.
 New later IDs may appear; an observed end is not a historical inventory claim. No schema, index, snapshot cache or new ownership authority is introduced.
 
 Results retain actual names, immutable IDs, lifecycle and optimistic generation/metadata revisions, including explicitly unnamed records. Selection is preserved only when its exact visible record remains unchanged.

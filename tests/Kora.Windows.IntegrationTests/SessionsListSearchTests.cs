@@ -30,6 +30,68 @@ public sealed class SessionsListSearchTests
         "ListMinimumMetadataRevision", "ListMaximumMetadataRevision"];
 
     [WindowsFact]
+    public async Task ExplicitBrowseAndAvailabilityAreAccessibleBoundedPassiveAndRetireSelectionWithoutReadsOnEdits()
+    {
+        await HeadlessSession.RunAsync(async () =>
+        {
+            using var f = new InteractionStorageFixture();
+            await f.InitializeAsync();
+            var access = new Access();
+            var service = new SessionWorkspaceService(f.Store, new(f.Tasks), access, NullLogger<SessionWorkspaceService>.Instance);
+            var named = await service.CreateAsync(new("Named passive session"), RequestOrigin.LocalUi, f.Token);
+            var sink = new WindowsSqliteEvidenceSink(f.Paths);
+            sink.Initialize();
+            var model = new SessionsViewModel(service,
+                new(new WindowsSqliteEvidenceReader(sink), access, f.Time, NullLogger<DurableEvidenceQuery>.Instance),
+                access, NullLogger<SessionsViewModel>.Instance);
+            var audits = f.Count("security_audit_events");
+            var tasks = f.Count("host_tasks");
+            var window = new SessionsWindow(model);
+            window.Show();
+            try
+            {
+                model.CanSearchList.Should().BeFalse("empty NameSubstring is not Browse");
+                model.ListSearchKind = SessionListSearchKind.Browse;
+                model.ListNameAvailability = SessionNameAvailability.Named;
+                model.Sessions.Should().BeEmpty("editing does not read");
+                model.CanSearchList.Should().BeTrue();
+                var combo = window.FindControl<ComboBox>("ListNameAvailability")!;
+                combo.Focus().Should().BeTrue();
+                combo.SelectedItem.Should().Be(SessionNameAvailability.Named);
+                ControlAutomationPeer.CreatePeerForElement(combo)!.GetName().Should().Contain("Any, Named or Unnamed")
+                    .And.Contain("not ownership");
+                await model.SearchListAsync();
+                model.Sessions.Should().ContainSingle().Which.Should().Be(named);
+                model.SelectedSessionRecord.Should().BeNull("Browse never implicitly selects");
+                await model.SelectAsync(named);
+                model.ListNameAvailability = SessionNameAvailability.Unnamed;
+                model.Sessions.Should().BeEmpty();
+                model.SelectedSessionRecord.Should().BeNull();
+                model.Detail.Should().BeEmpty();
+                await model.SearchListAsync();
+                model.Sessions.Should().ContainSingle().Which.Metadata.Should().BeNull();
+                model.SelectedSessionRecord.Should().BeNull();
+                model.ListMaximumMetadataRevision = "1";
+                await model.SearchListAsync();
+                model.Sessions.Should().BeEmpty("Unnamed and a name-revision bound are an empty conjunction");
+                model.Status.Should().Contain("1 unnamed");
+                model.ListQuery = "not empty";
+                model.CanSearchList.Should().BeFalse();
+                model.Status.Should().Contain("Browse requires empty query text");
+                model.ClearListSearch();
+                model.ListNameAvailability.Should().Be(SessionNameAvailability.Any);
+                model.ListQuery.Should().BeEmpty();
+                model.ListMaximumMetadataRevision.Should().BeEmpty();
+                model.Sessions.Should().BeEmpty("Clear never reads");
+                f.Count("security_audit_events").Should().Be(audits);
+                f.Count("host_tasks").Should().Be(tasks);
+            }
+            finally { window.Close(); }
+            model.ListNameAvailability.Should().Be(SessionNameAvailability.Any);
+        });
+    }
+
+    [WindowsFact]
     public async Task NativeMetadataSearchIsKeyboardAccessibleAndPreservesTheExactVisibleWorkHistoryAndMemorySubject()
     {
         await HeadlessSession.RunAsync(async () =>

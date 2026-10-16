@@ -106,6 +106,25 @@ scope is extended. No provider/device/experiment work or unrelated Rxx proof
 is required; installed accessibility and broader E/Q remain separate and
 unclaimed.
 
+### Bounded native session-list Browse and name availability - 2026-10-16
+
+The [passive session-list contract](Interaction_And_Sessions.md#delivered-passive-session-list-name-and-exact-id-search---2026-10-10)
+adds explicit empty-text Browse and Any/Named/Unnamed name-metadata availability,
+AND-composed with lifecycle and the merged generation/name-revision ranges.
+Browse reuses the canonical-ID ordered 50-row source scan, native 25-result and
+64 KiB page bounds and complete semantic digest-bound continuations; it never
+selects implicitly or becomes an unbounded inventory. NameSubstring remains
+nonempty literal search; revision bounds require Named metadata. Unnamed is not
+empty name, revision zero, missing authority or historical deletion.
+Full candidate validation, exact-ID mismatch rejection, cancellation,
+stale-admission fences and selection retirement remain mandatory.
+This is the consumed I subset of volatile passive metadata navigation, not
+ownership, permission, freshness, completeness or action authority. Deterministic
+portable/private-store/headless accessibility checks gate implementation; no
+device, network, provider, experiment or installed-native qualification is added.
+Saved drafts, Evidence, All Work, attachment ranges and sibling work remain
+unchanged; broader capability enablement and E/Q qualification remain separate.
+
 ### R26 retained attachment exact correlation and captured-time predicates - 2026-10-16
 
 The [retained catalogue contract](File_And_Folder_Ingestion.md#delivered-retained-attachment-metadata-catalogue---2026-10-11)

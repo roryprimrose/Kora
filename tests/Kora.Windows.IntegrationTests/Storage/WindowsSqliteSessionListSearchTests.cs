@@ -48,6 +48,20 @@ public sealed class WindowsSqliteSessionListSearchTests
             last.Authority.SessionId.Value.ToString("D"), null, 25, f.Token, 1, 1, 3, null);
         excluded.Records.Should().BeEmpty();
         excluded.Scanned.Should().Be(1);
+        var unnamed = await service.SearchListAsync(SessionListSearchKind.Browse, SessionListFilter.Active,
+            "", null, 25, f.Token, 1, 1, nameAvailability: SessionNameAvailability.Unnamed);
+        unnamed.Scanned.Should().Be(50);
+        unnamed.Next.Should().NotBeNull();
+        var remainingUnnamed = await service.SearchListAsync(SessionListSearchKind.Browse, SessionListFilter.Active,
+            "", unnamed.Next, 25, f.Token, 1, 1, nameAvailability: SessionNameAvailability.Unnamed);
+        unnamed.Records.Concat(remainingUnnamed.Records).Should().ContainSingle().Which.Authority.SessionId.Should().Be(f.Request.SessionId);
+        unnamed.Records.Concat(remainingUnnamed.Records).Single().Metadata.Should().BeNull();
+        remainingUnnamed.Next.Should().BeNull();
+        var excludedUnnamed = await service.SearchListAsync(SessionListSearchKind.Browse, SessionListFilter.Active,
+            "", null, 25, f.Token, 1, 1, 1, 1, SessionNameAvailability.Unnamed);
+        excludedUnnamed.Records.Should().BeEmpty();
+        excludedUnnamed.Scanned.Should().Be(50);
+        excludedUnnamed.Next.Should().NotBeNull();
         f.Count("security_audit_events").Should().Be(audits);
         f.Count("host_tasks").Should().Be(tasks);
         (await f.Store.ReadRetentionAsync(last.Authority.SessionId, f.Token)).Should().Be(clocks);

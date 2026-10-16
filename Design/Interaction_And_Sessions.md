@@ -573,11 +573,12 @@ claimed replaced by this increment.
 
 ### Delivered Passive Session-List Name and Exact-ID Search - 2026-10-10
 
-The [metadata-only policy](../src/Kora.Core/Storage/SessionListSearch.cs) and [Application read path](../src/Kora.Application/Hosting/SessionWorkspaceService.ListSearch.cs) navigate names or an explicitly selected exact immutable ID.
+The [metadata-only policy](../src/Kora.Core/Storage/SessionListSearch.cs) and [Application read path](../src/Kora.Application/Hosting/SessionWorkspaceService.ListSearch.cs) support explicit bounded Browse, names or an explicitly selected exact immutable ID.
 The separate [saved composer catalogue](#saved-conversation-draft-catalogue--2026-10-13) reuses this policy on authoritative saved-draft session metadata, not body content; it retains its stricter committed-head continuation invalidation and mandatory audit-prefix validation.
 The [All work overview](Work_Management.md#delivered-passive-cross-session-work-observation---2026-10-11) also reuses this exact policy, composing lifecycle and needs-answer filters over its own ten-session bounded canonical-ID scan. Both query modes scan rather than directly resolving an ID there; zero-match pages can have Next. Its volatile digest-bound continuation additionally binds needs-answer and the overview source epoch. Query editing never reads, and clear/close revoke private query/results without adding content/model or execution authority.
 They reuse the persisted private metadata reader, authoritative name/audit validation and unchanged admission revision, without task intent, activity renewal, grants, model calls, memory use or new storage/index authority.
 
+Browse requires exactly empty query text and uses the same canonical-ID ordered bounded source scan, not an unbounded inventory or implicit selection. Nonempty Browse text is rejected, not ignored or reinterpreted. NameSubstring still requires nonempty validated text; an empty name query never becomes Browse.
 Names use literal ordinal case-sensitive substring matching, including punctuation as ordinary characters. Queries reuse SessionName's NFC, single-line, no-control/format, no-surrounding-whitespace, 120-scalar/480-UTF-8-byte validation. Invalid text is rejected, never normalized, trimmed, truncated or reinterpreted as All.
 ExactId accepts only a nonempty canonical lowercase D GUID; a name that resembles an ID never supplies authority.
 
@@ -585,8 +586,14 @@ Name scans consume at most 50 metadata rows per click, with the existing bounded
 A byte/result limit preserves continuation before any deferred match. Scanned, unnamed and nonmatch counts and remaining/end scope distinguish an empty bounded result from exhaustion.
 
 All/Active/Done scopes search across pages. Native session-list search additionally
-AND-composes optional inclusive authority-generation and name-metadata-revision
-minimum/maximum predicates. The portable query owns positive `Int64` admission
+AND-composes explicit name-metadata availability **Any / Named / Unnamed** and
+optional inclusive authority-generation and name-metadata-revision
+minimum/maximum predicates. Availability describes only whether validated name
+metadata was observed: Unnamed is not an empty name, missing authority, revision
+zero or evidence of historical deletion. Named requires metadata; Any adds no
+availability restriction. NameSubstring naturally matches only Named, so
+NameSubstring + Unnamed is an empty conjunction, not a query-shape fallback.
+The portable query owns positive `Int64` admission
 and minimum <= maximum ordering. Native text uses invariant ASCII decimal digits
 only: empty means an absent bound, leading zeroes are admitted semantically,
 and zero, signs, whitespace, separators and overflow fail closed without searching.
@@ -594,17 +601,17 @@ Every complete candidate is validated before predicates can exclude it, includin
 rows beyond the result limit in the bounded source page.
 Generation applies to named and unnamed rows. Either name-revision bound requires
 validated name metadata; unnamed is never revision zero or an unknown match.
-Unnamed metadata never matches a name but remains available by exact ID without
+Unnamed metadata never matches a name but remains available by Browse or exact ID without
 name-revision predicates; Removed sessions never browse. Exact lookup still
 rejects a different returned session before applying any predicate.
 Canonical-ID ordering is deterministic and culture-independent.
-Continuations bind the exact query/mode/lifecycle and all four semantic numeric
+Continuations bind the exact query/mode/lifecycle/name availability and all four semantic numeric
 bounds, process-local service/store identity and private admission revision.
 They cannot silently restart on changed predicates, host/source or admission.
 
-Names, generations and name revisions in this search are volatile passive
+Names, name availability, generations and name revisions in this search are volatile passive
 metadata only: not session selection, ownership, permission, freshness,
-historical completeness or action authority. The numeric native controls do not
+historical completeness or action authority. The Browse, availability and numeric native controls do not
 extend the separate All Work or saved-draft catalogue interfaces.
 
 Mutable metadata has no committed historical sequence ceiling. Later renames/state/removal are observed only in subsequently read rows; earlier changes and additions behind the cursor require Search again. Later appended IDs can appear, and end describes only that observation. No finite atomic snapshot is fabricated.

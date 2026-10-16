@@ -173,6 +173,37 @@ The native observation-availability filter composes by AND with lifecycle, liter
 
 The separate native **Observed content** choice adds **Any**, **At least one observed queue receipt**, **At least one observed task**, or **At least one observed pending question**, AND-composed with every existing filter, including Browse (empty query), name, exact session ID, explicit availability and Needs answer. Positive choices require Observed availability and at least one retained record in that exact observation's corresponding array; queue receipts include terminal receipts and tasks include terminal/Unknown tasks, without inferring execution or completion. Missing work and all unavailable classifications never match positive choices. Omission counts are neither positive records nor proof of absence; an omitted-only group may be excluded without claiming no work/questions exist. Needs answer retains its existing conservative unavailable/omission behavior, independently of the new positive predicate. Complete-row output classification and admitted validation precede matching. The exact content choice is continuation-bound and uses the same cancellation, private/source invalidation and selection retirement; edits perform no I/O. Any has a real non-null native SelectedItem, not a blank nullable choice. No negative/empty/completed predicate, extra read, storage, schema, model context, authority or permission is introduced.
 
+Optional inclusive **minimum/maximum work metadata ranges** cover authority
+revision, queue revision, pending count, pending capacity, execution slots,
+observed current fixed reads, and omitted queue-receipt/task/pending-question
+counts. The [portable query contract](../src/Kora.Core/Storage/SessionWorkOverviewRanges.cs)
+owns AND composition and admission: authority revision, capacity and slots
+require positive Int64 bounds; queue revision and counts admit zero. Empty
+endpoints mean Any, and each minimum must be <= its maximum. Native text uses
+the shared strict ASCII unsigned-decimal parser, admitting semantic leading
+zeroes but refusing signs, whitespace, separators, non-ASCII digits and
+overflow without normalization or fallback. Bounds describe observed values,
+not configurable limits or grants.
+
+Every consumed observation's complete numeric, retained queue/task/question
+and dispatch metadata is validated before any observation predicate can exclude
+it. Invalid sources become explicitly ReadUnavailable, never a matching partial
+observation. Single-row output classification still precedes matching:
+SourceChanged, ReadUnavailable, OutputBound and missing work never match any
+active work-metadata range. All nine ranges AND-compose with lifecycle,
+Browse/name/exact-ID, Needs answer, availability and positive observed content;
+every endpoint joins semantic continuation identity. Explicit omission counts
+can match their own numeric ranges but cannot supply retained positive records
+or prove absence, completeness, success, freshness or authority. Zero is only
+an observed scalar, not an empty-work predicate or all-clear. No omitted records
+are fetched to satisfy a range. Native range edits and **Clear work metadata
+ranges** perform no read, retire rows/selection/continuation/late callbacks and
+retain the same admission/source fences. Accessible keyboard inputs remain
+editable during reads, disable on private closure and clear on close.
+The ten-session/64-KiB/ten-second budgets are unchanged, including continuation
+after zero matches and retry of byte-deferred IDs. No storage, background
+collection, model/provider/device operation or experiment is added.
+
 The optional private metadata query reuses [SessionListSearch](../src/Kora.Core/Storage/SessionListSearch.cs), the authoritative Sessions/saved-draft catalogue policy: explicit canonical exact session GUID or ordinal case-sensitive literal saved-name substring with unchanged SessionName validation. It filters the same ten-session canonical-ID scan before work observation, not a direct-ID lookup or body/history/memory search. Empty query means ordinary bounded overview; invalid nonempty text is refused without normalization, trimming or fallback. Search and Refresh start fresh; Next binds the query kind/value/filter digest, needs-answer filter, host, private admission revision and source epoch. Only the digest enters the volatile continuation; query text is never persisted, logged, tagged, sent to models or used as authority. Typing, mode/filter edits and Clear perform no read and revoke page/selection/continuation and late callbacks. Close/private closure clears query text too.
 
 Native navigation rereads one exact session through private owner/call/source admission and cannot resume/reorder/dispatch/cancel/enqueue, consume grants, renew activity or retarget voice/questions. Lifecycle/disposition/retention/hold changes invalidate rows and in-flight reads. Closure clears private page/filter/IDs and cancels late callbacks; browsing adds no cleanup or timer.

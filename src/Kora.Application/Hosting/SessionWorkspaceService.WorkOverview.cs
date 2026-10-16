@@ -22,13 +22,14 @@ public sealed partial class SessionWorkspaceService
 
     public async Task<SessionWorkOverviewPage> ReadWorkOverviewAsync(SessionListFilter filter, bool needsAnswer,
         SessionWorkOverviewCursor? cursor, CancellationToken token, SessionListSearch? query = null,
-        SessionWorkOverviewAvailability? availability = null, SessionWorkOverviewContent content = SessionWorkOverviewContent.Any)
+        SessionWorkOverviewAvailability? availability = null, SessionWorkOverviewContent content = SessionWorkOverviewContent.Any,
+        SessionWorkOverviewRanges ranges = default)
     {
         using var timeout = new CancellationTokenSource(WorkOverviewTimeout, overviewTime ?? TimeProvider.System);
         using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(token, timeout.Token);
         try
         {
-            var result = await ReadAsync(() => ReadWorkOverviewCoreAsync(filter, needsAnswer, cursor, query, availability, content, cancellation.Token),
+            var result = await ReadAsync(() => ReadWorkOverviewCoreAsync(filter, needsAnswer, cursor, query, availability, content, ranges, cancellation.Token),
                 cancellation.Token).WaitAsync(cancellation.Token).ConfigureAwait(false);
             cancellation.Token.ThrowIfCancellationRequested();
             return result;
@@ -41,10 +42,11 @@ public sealed partial class SessionWorkspaceService
 
     private async ValueTask<SessionWorkOverviewPage> ReadWorkOverviewCoreAsync(SessionListFilter filter, bool needsAnswer,
         SessionWorkOverviewCursor? cursor, SessionListSearch? query, SessionWorkOverviewAvailability? availability,
-        SessionWorkOverviewContent content, CancellationToken readToken)
+        SessionWorkOverviewContent content, SessionWorkOverviewRanges ranges, CancellationToken readToken)
     {
         SessionWorkOverviewFilter.Validate(availability);
         SessionWorkOverviewFilter.Validate(content);
+        ranges.Validate();
         if (!Enum.IsDefined(filter)) { throw new ArgumentOutOfRangeException(nameof(filter)); }
         if (query is not null && query.Filter != filter)
         {
@@ -54,7 +56,7 @@ public sealed partial class SessionWorkspaceService
         var epoch = Interlocked.Read(ref workOverviewEpoch);
         if (cursor is not null && (cursor.Host != workOverviewHost || cursor.AdmissionRevision != revision
             || cursor.SourceEpoch != epoch || cursor.After == Guid.Empty || cursor.Filter != filter
-            || cursor.NeedsAnswer != needsAnswer || cursor.Availability != availability || cursor.Content != content
+            || cursor.NeedsAnswer != needsAnswer || cursor.Availability != availability || cursor.Content != content || cursor.Ranges != ranges
             || !string.Equals(cursor.QueryDigest, query?.Digest, StringComparison.Ordinal)))
         {
             throw new ArgumentException("The overview continuation expired or belongs to another host/query/filter/source. Refresh.", nameof(cursor));
@@ -88,7 +90,7 @@ public sealed partial class SessionWorkspaceService
         {
             readToken.ThrowIfCancellationRequested();
             var id = entry.Authority.SessionId.Value;
-            var continuation = new SessionWorkOverviewCursor(workOverviewHost, revision, epoch, id, filter, needsAnswer, query?.Digest, availability, content);
+            var continuation = new SessionWorkOverviewCursor(workOverviewHost, revision, epoch, id, filter, needsAnswer, query?.Digest, availability, content, ranges);
             SessionWorkOverviewRow? row = null;
             if ((filter == SessionListFilter.All || entry.Authority.IsActive == (filter == SessionListFilter.Active))
                 && (query is null || query.Matches(entry)))
@@ -105,7 +107,7 @@ public sealed partial class SessionWorkspaceService
                     row = new(entry, SessionWorkOverviewAvailability.OutputBound, null);
                 }
                 var matches = SessionWorkOverviewFilter.Matches(availability, row, content);
-                if (!matches || needsAnswer && row.Work is { PendingQuestions.IsEmpty: true, OmittedQuestions: 0 })
+                if (!matches || !ranges.Matches(row) || needsAnswer && row.Work is { PendingQuestions.IsEmpty: true, OmittedQuestions: 0 })
                 {
                     nonmatches++;
                     scanned++;
@@ -147,19 +149,22 @@ public sealed partial class SessionWorkspaceService
             new(Guid.NewGuid()), parent.Request.Origin), HostActivityLayer.Application, HostOperation.Storage,
             [new ActivityLink(parent.Activity!.Context)]);
         SessionWorkSnapshot snapshot;
+        SessionWorkOverviewObservation work;
         try
         {
             snapshot = await ReadWorkAsync(entry.Authority.SessionId, token).WaitAsync(token).ConfigureAwait(false);
-            if (snapshot.Tasks.IsDefault || snapshot.Tasks.Length > SessionWorkSnapshot.MaximumRecords
-                || snapshot.PendingQuestions.IsDefault || snapshot.PendingQuestions.Length > SessionWorkSnapshot.MaximumRecords
-                || snapshot.QueueRecords.IsDefault || snapshot.OmittedTasks < 0 || snapshot.OmittedQuestions < 0
-                || snapshot.OmittedQueueRecords < 0
-                || snapshot.Tasks.Any(task => task.Task.Request.SessionId != entry.Authority.SessionId)
-                || snapshot.PendingQuestions.Any(question => question.Key.Request.SessionId != entry.Authority.SessionId)
-                || snapshot.QueueRecords.Any(record => record.Entry.Request.SessionId != entry.Authority.SessionId))
+            if (snapshot.Tasks.IsDefault || snapshot.QueueRecords.IsDefault)
             {
                 throw new InvalidDataException("Work overview records require bounded exact-session sources and explicit omissions.");
             }
+            // Validate the complete consumed projection before any observation predicate or output classification.
+            work = new(snapshot.AuthorityRevision, snapshot.ObservedAt,
+                snapshot.Queue.Revision, snapshot.PendingCount, snapshot.PendingCapacity, snapshot.ExecutionSlots,
+                snapshot.QueueRecords.Count(record => record.Entry.IsCurrent), snapshot.QueueRecords, snapshot.OmittedQueueRecords,
+                [.. snapshot.Tasks.Select(task => new SessionWorkOverviewTask(task.Task.Request, task.Generation,
+                    task.Task.Revision, task.Task.State, task.CurrentSource))], snapshot.OmittedTasks,
+                snapshot.PendingQuestions, snapshot.OmittedQuestions) { DispatchControl = snapshot.Queue.DispatchControl };
+            work.Validate(entry.Authority.SessionId);
         }
         catch (OperationCanceledException)
         {
@@ -183,12 +188,6 @@ public sealed partial class SessionWorkspaceService
             return new(entry, SessionWorkOverviewAvailability.SourceChanged, null);
         }
         // The admitted store owns policy/reasons. Do not recalculate eligibility or reinterpret omissions here.
-        var work = new SessionWorkOverviewObservation(snapshot.AuthorityRevision, snapshot.ObservedAt,
-            snapshot.Queue.Revision, snapshot.PendingCount, snapshot.PendingCapacity, snapshot.ExecutionSlots,
-            snapshot.QueueRecords.Count(record => record.Entry.IsCurrent), snapshot.QueueRecords, snapshot.OmittedQueueRecords,
-            [.. snapshot.Tasks.Select(task => new SessionWorkOverviewTask(task.Task.Request, task.Generation,
-                task.Task.Revision, task.Task.State, task.CurrentSource))], snapshot.OmittedTasks,
-            snapshot.PendingQuestions, snapshot.OmittedQuestions) { DispatchControl = snapshot.Queue.DispatchControl };
         observation.Complete(HostOperationOutcome.Completed);
         return new(entry, SessionWorkOverviewAvailability.Observed, work);
     }

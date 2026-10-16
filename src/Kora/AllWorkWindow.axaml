@@ -40,6 +40,29 @@
       </Grid>
       <controls:NamedTextBlock Text="{Binding QueryHint}" TextWrapping="Wrap"
                               AutomationProperties.Name="Metadata query validation and passive search scope" />
+      <Expander x:Name="WorkRanges" Header="Optional inclusive observed work metadata ranges" HorizontalAlignment="Stretch">
+        <StackPanel Spacing="6" IsEnabled="{Binding CanEdit}">
+          <controls:NamedTextBlock Text="{Binding RangeHint}" TextWrapping="Wrap"
+                                  AutomationProperties.Name="Work range validation; unavailable never matches ranges; omissions prove no absence, completeness, success or authority" />
+          <ScrollViewer MaxHeight="210" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto"
+                        AutomationProperties.Name="Nine optional inclusive work metadata ranges">
+            <ItemsControl ItemsSource="{Binding RangeInputs}">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                  <Grid ColumnDefinitions="240,*,*" ColumnSpacing="8" Margin="0,4">
+                    <TextBlock Text="{Binding Label}" VerticalAlignment="Center" />
+                    <TextBox Grid.Column="1" Text="{Binding Minimum, Mode=TwoWay}" PlaceholderText="Minimum (Any)"
+                             AutomationProperties.Name="{Binding MinimumLabel}" />
+                    <TextBox Grid.Column="2" Text="{Binding Maximum, Mode=TwoWay}" PlaceholderText="Maximum (Any)"
+                             AutomationProperties.Name="{Binding MaximumLabel}" />
+                  </Grid>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </ScrollViewer>
+          <Button x:Name="ClearRanges" Content="Clear work metadata _ranges" />
+        </StackPanel>
+      </Expander>
     </StackPanel>
     <controls:NamedTextBlock Grid.Row="2" Text="{Binding Status}" TextWrapping="Wrap"
                             AutomationProperties.Name="Bounded overview scope, scanned and omission markers; no global totals or all-clear" />

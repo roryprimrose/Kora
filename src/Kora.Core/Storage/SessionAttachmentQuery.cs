@@ -7,10 +7,20 @@ namespace Kora.Core.Storage;
 /// <summary>A query over retained slots, optionally including content-free removal provenance.</summary>
 public sealed record SessionAttachmentQuery
 {
+    [JsonConstructor]
+    private SessionAttachmentQuery(bool includeRemoved, string? exactSessionId, SessionAttachmentFilter filter,
+        string? exactMediaType, AttachmentCopyStatus? copyStatus, long? minimumStoredBytes, long? maximumStoredBytes)
+        : this(includeRemoved, exactSessionId, filter, null, exactMediaType, copyStatus,
+            minimumStoredBytes, maximumStoredBytes, null)
+    {
+    }
+
     public SessionAttachmentQuery(bool includeRemoved = false, string? exactSessionId = null,
         SessionAttachmentFilter filter = SessionAttachmentFilter.All, string? metadataText = null,
         string? exactMediaType = null, AttachmentCopyStatus? copyStatus = null,
-        long? minimumStoredBytes = null, long? maximumStoredBytes = null, string? exactDigest = null)
+        long? minimumStoredBytes = null, long? maximumStoredBytes = null, string? exactDigest = null,
+        string? exactObservationSource = null, string? exactDeviceProfile = null,
+        DateTimeOffset? capturedFromUtc = null, DateTimeOffset? capturedUntilUtc = null)
     {
         if (!Enum.IsDefined(filter)) { throw new InvalidDataException("Unknown attachment session lifecycle filter."); }
         Filter = filter;
@@ -24,6 +34,12 @@ public sealed record SessionAttachmentQuery
         MinimumStoredBytes = minimumStoredBytes;
         MaximumStoredBytes = maximumStoredBytes;
         ExactDigest = exactDigest;
+        ExactObservationSource = exactObservationSource is null ? null
+            : new SessionListSearch(SessionListSearchKind.ExactId, SessionListFilter.All, exactObservationSource).ExactId;
+        ExactDeviceProfile = exactDeviceProfile is null ? null
+            : new SessionListSearch(SessionListSearchKind.ExactId, SessionListFilter.All, exactDeviceProfile).ExactId;
+        CapturedFromUtc = capturedFromUtc;
+        CapturedUntilUtc = capturedUntilUtc;
         Validate();
     }
 
@@ -54,6 +70,17 @@ public sealed record SessionAttachmentQuery
     public string? MetadataText { get; }
     [JsonIgnore]
     public string? ExactDigest { get; }
+    [JsonIgnore]
+    public Guid? ExactObservationSource { get; }
+    [JsonIgnore]
+    public Guid? ExactDeviceProfile { get; }
+    [JsonIgnore]
+    public DateTimeOffset? CapturedFromUtc { get; }
+    [JsonIgnore]
+    public DateTimeOffset? CapturedUntilUtc { get; }
+    [JsonIgnore]
+    public bool HasCorrelationPredicates => ExactObservationSource is not null || ExactDeviceProfile is not null
+        || CapturedFromUtc is not null || CapturedUntilUtc is not null;
 
     public void Validate()
     {
@@ -66,6 +93,10 @@ public sealed record SessionAttachmentQuery
         { throw new InvalidDataException("Stored byte bounds must be within 0 through the local file maximum, inclusive, with minimum <= maximum."); }
         if (ExactMediaType is not null) { LocalFileMediaType.Validate(ExactMediaType); }
         if (ExactDigest is not null) { LocalFileDigest.Validate(ExactDigest); }
+        if (CapturedFromUtc is { Offset: var fromOffset } && fromOffset != TimeSpan.Zero
+            || CapturedUntilUtc is { Offset: var untilOffset } && untilOffset != TimeSpan.Zero
+            || CapturedFromUtc > CapturedUntilUtc)
+        { throw new InvalidDataException("Captured bounds must be canonical UTC with From <= Until. Empty means Any."); }
         if (MetadataText is null) { return; }
         LiteralMetadataQuery.Validate(MetadataText);
         if (MetadataText.Length == 0) { throw new InvalidDataException("A literal attachment metadata query must be nonempty."); }
@@ -77,6 +108,11 @@ public sealed record SessionAttachmentQuery
         row.Validate();
         return
         (IncludeRemoved || row.CopyStatus != AttachmentCopyStatus.Unavailable)
+        && (!HasCorrelationPredicates || row.CopyStatus == AttachmentCopyStatus.Confirmed
+            && (ExactObservationSource is not { } source || row.ObservationSource == source)
+            && (ExactDeviceProfile is not { } profile || row.Profile.Value == profile)
+            && (CapturedFromUtc is not { } from || row.CapturedAt >= from)
+            && (CapturedUntilUtc is not { } until || row.CapturedAt <= until))
         && (ExactDigest is null || row.CopyStatus == AttachmentCopyStatus.Confirmed
             && string.Equals(row.File.Digest, ExactDigest, StringComparison.Ordinal))
         && (CopyStatus is null || row.CopyStatus == CopyStatus)

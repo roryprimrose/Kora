@@ -15,7 +15,8 @@
                 IsEnabled="{Binding CanEdit}" />
       <Button x:Name="ClearQuery" Content="Clear _query (Browse)" IsEnabled="{Binding CanEdit}" />
     </WrapPanel>
-    <StackPanel Grid.Row="1" Spacing="6">
+    <ScrollViewer Grid.Row="1" MaxHeight="380" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+    <StackPanel Spacing="6">
       <WrapPanel>
         <ComboBox x:Name="AttachmentSessionFilter" ItemsSource="{Binding Filters}" SelectedItem="{Binding Filter, Mode=TwoWay}"
                   IsEnabled="{Binding CanEdit}" AutomationProperties.Name="Stored session lifecycle: All, Active, Done or Removed; independent of removed attachment slots" />
@@ -49,7 +50,25 @@
                HorizontalAlignment="Left" IsEnabled="{Binding CanEdit}"
                AutomationProperties.Name="Optional exact SHA-256 of a Confirmed retained copy; 64 lowercase hexadecimal characters, not all zero; typing performs no read" />
       <controls:NamedTextBlock Text="{Binding DigestHint}" TextWrapping="Wrap" />
+      <WrapPanel>
+        <TextBox x:Name="AttachmentObservationSource" Text="{Binding ObservationSourceText, Mode=TwoWay}" Width="460"
+                 PlaceholderText="Exact observation-source GUID (Any when empty)" IsEnabled="{Binding CanEdit}"
+                 AutomationProperties.Name="Optional exact retained observation-source GUID; lowercase D format; correlation only, not source consent; typing performs no read" />
+        <TextBox x:Name="AttachmentDeviceProfile" Text="{Binding DeviceProfileText, Mode=TwoWay}" Width="460"
+                 PlaceholderText="Exact device-profile GUID (Any when empty)" IsEnabled="{Binding CanEdit}"
+                 AutomationProperties.Name="Optional exact retained device-profile GUID; lowercase D format; correlation only, not ownership; typing performs no read" />
+      </WrapPanel>
+      <WrapPanel>
+        <TextBox x:Name="AttachmentCapturedFrom" Text="{Binding CapturedFromText, Mode=TwoWay}" Width="460"
+                 PlaceholderText="Captured From UTC (Any when empty)" IsEnabled="{Binding CanEdit}"
+                 AutomationProperties.Name="Optional inclusive retained Captured From canonical UTC; yyyy-MM-ddTHH:mm:ss.fffffff+00:00; typing performs no read" />
+        <TextBox x:Name="AttachmentCapturedUntil" Text="{Binding CapturedUntilText, Mode=TwoWay}" Width="460"
+                 PlaceholderText="Captured Until UTC (Any when empty)" IsEnabled="{Binding CanEdit}"
+                 AutomationProperties.Name="Optional inclusive retained Captured Until canonical UTC; yyyy-MM-ddTHH:mm:ss.fffffff+00:00; typing performs no read" />
+      </WrapPanel>
+      <controls:NamedTextBlock Text="{Binding CorrelationHint}" TextWrapping="Wrap" />
     </StackPanel>
+    </ScrollViewer>
     <controls:NamedTextBlock Grid.Row="2" Text="{Binding Status}" TextWrapping="Wrap"
                             AutomationProperties.Name="Content-free metadata scope and finite scan limitations; not full body verification" />
     <Grid Grid.Row="3" ColumnDefinitions="430,*" ColumnSpacing="12">
@@ -65,7 +84,7 @@
               <TextBlock Text="{Binding StorageRevision.Value, StringFormat='Storage revision: {0}'}" />
               <TextBlock Text="{Binding RetainedStoredBytes, StringFormat='Stored original bytes: {0}', TargetNullValue='Stored original bytes: unavailable (removed provenance; no size claim)'}" />
               <TextBlock Text="{Binding MediaType}" />
-              <TextBlock Text="{Binding CapturedAt, StringFormat='Captured UTC: {0:O}'}" />
+              <TextBlock Text="{Binding RetainedCapturedAt, StringFormat='Captured UTC: {0:O}', TargetNullValue='Captured UTC: unavailable (removed provenance)'}" />
               <TextBlock Text="{Binding RetainedDigest, StringFormat='Original digest header: {0}', TargetNullValue='Original digest: unavailable (removed provenance)'}" TextWrapping="Wrap" />
             </StackPanel>
           </DataTemplate>

@@ -87,7 +87,7 @@ public sealed partial class WindowsSqliteHostInteractionStore : ISessionAttachme
         {
             var pending = new SessionAttachmentPage(query, [], EncodeAttachmentCursor(new(query, identity, expires,
                 snapshot.AuthorityCeiling!.Value, snapshot.AuthorityCeilingDigest!, null, audit.Through, audit.Hash, profile, viewer,
-                AttachmentMetadataBinding(query), AttachmentDigestBinding(query))),
+                AttachmentMetadataBinding(query), AttachmentDigestBinding(query), AttachmentCorrelationBinding(query))),
                 now, snapshot.AuthorityCeiling.Value, snapshot.AuthorityCeilingDigest!, 0, false, audit.Scanned, true);
             pending.Validate();
             VerifyCatalogueSource(identity, admitted, token);
@@ -122,7 +122,7 @@ public sealed partial class WindowsSqliteHostInteractionStore : ISessionAttachme
         var more = (long)remaining.ExecuteScalar()! == 1;
         var next = more ? EncodeAttachmentCursor(new(query, identity, expires, snapshot.AuthorityCeiling!.Value,
             snapshot.AuthorityCeilingDigest!, after!.Value, audit.Through, audit.Hash, profile, viewer,
-            AttachmentMetadataBinding(query), AttachmentDigestBinding(query))) : null;
+            AttachmentMetadataBinding(query), AttachmentDigestBinding(query), AttachmentCorrelationBinding(query))) : null;
         var page = new SessionAttachmentPage(query, records.ToImmutable(), next, now,
             snapshot.AuthorityCeiling!.Value, snapshot.AuthorityCeilingDigest!, scanned,
             more && scanned == SessionAttachmentPage.MaximumScannedRows, audit.Scanned);
@@ -391,6 +391,12 @@ public sealed partial class WindowsSqliteHostInteractionStore : ISessionAttachme
     private string? AttachmentDigestBinding(SessionAttachmentQuery query) => query.ExactDigest is null ? null
         : Convert.ToHexStringLower(HMACSHA256.HashData(attachmentCursorKey, System.Text.Encoding.UTF8.GetBytes(query.ExactDigest)));
 
+    private string? AttachmentCorrelationBinding(SessionAttachmentQuery query) => !query.HasCorrelationPredicates ? null
+        : Convert.ToHexStringLower(HMACSHA256.HashData(attachmentCursorKey, JsonSerializer.SerializeToUtf8Bytes(new
+        {
+            query.ExactObservationSource, query.ExactDeviceProfile, query.CapturedFromUtc, query.CapturedUntilUtc
+        })));
+
     private AttachmentCursor DecodeAttachmentCursor(string text, SessionAttachmentQuery query, string identity,
         HostId<RequestIdentity> viewer, DateTimeOffset now)
     {
@@ -410,6 +416,7 @@ public sealed partial class WindowsSqliteHostInteractionStore : ISessionAttachme
                     minimumStoredBytes: query.MinimumStoredBytes, maximumStoredBytes: query.MaximumStoredBytes)
                 || !string.Equals(cursor.MetadataBinding, AttachmentMetadataBinding(query), StringComparison.Ordinal)
                 || !string.Equals(cursor.DigestBinding, AttachmentDigestBinding(query), StringComparison.Ordinal)
+                || !string.Equals(cursor.CorrelationBinding, AttachmentCorrelationBinding(query), StringComparison.Ordinal)
                 || !Same(cursor.Identity, identity) || cursor.Viewer != viewer || cursor.After == Guid.Empty
                 || cursor.ExpiresAt.Offset != TimeSpan.Zero || now >= cursor.ExpiresAt
                 || cursor.ExpiresAt > now.AddMinutes(SessionAttachmentPage.SnapshotMinutes))
@@ -426,5 +433,6 @@ public sealed partial class WindowsSqliteHostInteractionStore : ISessionAttachme
 
     private sealed record AttachmentCursor(SessionAttachmentQuery Query, string Identity, DateTimeOffset ExpiresAt,
         long Ceiling, string Digest, Guid? After, long AuditedThrough, string AuditedHash,
-        HostId<DeviceProfileIdentity> Profile, HostId<RequestIdentity> Viewer, string? MetadataBinding, string? DigestBinding);
+        HostId<DeviceProfileIdentity> Profile, HostId<RequestIdentity> Viewer, string? MetadataBinding, string? DigestBinding,
+        string? CorrelationBinding);
 }

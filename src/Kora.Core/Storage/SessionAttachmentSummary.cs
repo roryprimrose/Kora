@@ -6,11 +6,22 @@ namespace Kora.Core.Storage;
 
 /// <summary>Content-free exact retained slot metadata; never source consent or request authority.</summary>
 public sealed record SessionAttachmentSummary(
-    Guid ObservationSource, HostId<DeviceProfileIdentity> Profile, HostId<SessionIdentity> Session,
+    [property: System.Text.Json.Serialization.JsonIgnore] Guid ObservationSource,
+    [property: System.Text.Json.Serialization.JsonIgnore] HostId<DeviceProfileIdentity> Profile, HostId<SessionIdentity> Session,
     HostRevision SessionGeneration, HostRevision CapturedGeneration, HostRevision StorageRevision,
     AttachmentSessionState SessionState, [property: System.Text.Json.Serialization.JsonIgnore] LocalFileReference File, long StoredBytes, string MediaType,
-    DateTimeOffset CapturedAt, AttachmentCopyStatus CopyStatus)
+    [property: System.Text.Json.Serialization.JsonIgnore] DateTimeOffset CapturedAt, AttachmentCopyStatus CopyStatus)
 {
+    private bool HasRetainedMetadata => CopyStatus is AttachmentCopyStatus.Confirmed or AttachmentCopyStatus.Held
+        && SessionState is AttachmentSessionState.Active or AttachmentSessionState.Done;
+
+    [System.Text.Json.Serialization.JsonPropertyName("ObservationSource")]
+    public Guid? RetainedObservationSource => HasRetainedMetadata ? ObservationSource : null;
+    [System.Text.Json.Serialization.JsonPropertyName("Profile")]
+    public HostId<DeviceProfileIdentity>? RetainedProfile => HasRetainedMetadata ? Profile : null;
+    [System.Text.Json.Serialization.JsonPropertyName("CapturedAt")]
+    public DateTimeOffset? RetainedCapturedAt => HasRetainedMetadata ? CapturedAt : null;
+
     /// <summary>Removal provenance never serializes a prior digest, even before candidate validation.</summary>
     [System.Text.Json.Serialization.JsonPropertyName("File")]
     public SessionAttachmentFileMetadata FileMetadata => new(File.SourceId, File.RevisionId, File.ItemId, RetainedDigest);

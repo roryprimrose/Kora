@@ -34,6 +34,22 @@ do not depend on hosted management, and speech preferences do not qualify wake.
 
 ## Current Delivery
 
+### R26 retained attachment exact correlation and captured-time predicates - 2026-10-16
+
+The [retained catalogue contract](File_And_Folder_Ingestion.md#delivered-retained-attachment-metadata-catalogue---2026-10-11)
+adds optional exact observation-source/device-profile GUIDs and inclusive
+canonical UTC Captured bounds, AND-composed with Browse/literal/exact-session/
+lifecycle/type/copy-status/bytes/digest predicates. Shared canonical parsing,
+validation before exclusion, complete query-bound authenticated continuations,
+no-read edits and stale/cancellation/selection retirement remain mandatory.
+Only Confirmed copies match; unavailable/removed projections suppress prior
+source/profile/time, and no correlation field grants consent, ownership,
+session/file-read authority or current availability.
+Deterministic portable, private SQLite and headless native tests cover this
+bounded I subset. No unrelated Rxx completion, physical/provider/experiment
+proof or installed accessibility is required or claimed; broader R26/E/Q
+remain separate. No schema, body/path read, persistence or egress is added.
+
 ### Bounded native local-event exact correlation-ID filters - 2026-10-16
 
 The existing [loaded-event filters](Proactive_Interaction.md#native-content-free-loaded-event-filters)

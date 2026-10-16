@@ -386,6 +386,21 @@ Clear query, private/source revocation and close erase the volatile digest.
 Signed continuations bind a keyed fingerprint, never the query digest text;
 changed predicates or stale authority require a fresh explicit Search.
 
+Optionally enter an **exact observation-source GUID**, **exact device-profile
+GUID**, or inclusive **Captured From / Until UTC**, then Search or press Enter
+in the field. GUIDs use complete nonempty lowercase D format. Times use exactly
+`yyyy-MM-ddTHH:mm:ss.fffffff+00:00` (for example,
+`2026-10-16T00:00:00.0000000+00:00`), not `Z` or a local offset. Empty means Any;
+either endpoint may be omitted, equal endpoints are included, and From must be
+<= Until. Invalid input is not trimmed, converted or repaired.
+These predicates combine with every other filter and match only Confirmed
+retained copies. Held and removed slots never match; removed rows/details do
+not disclose prior source/profile/captured time. The fields are correlation
+metadata only, never source consent, profile ownership, session/file-read
+authority or proof of current availability. Editing reads nothing and retires
+results/details/navigation/continuation/pending work. Clear query, revocation
+and close erase all four fields; they are never saved, logged or sent out.
+
 The literal is limited to 256 UTF-16 units / 512 UTF-8 bytes of valid single-line Unicode without control/format characters. Empty disables literal filtering; invalid input disables Search with recovery guidance and never falls back. Query text is memory-only: not saved, audited, logged, exported or sent to a model/network. No matching retained metadata at the end is reported truthfully; an empty page with Next is not a whole-catalogue no-match.
 
 Choose **Stored session lifecycle: All (default), Active, Done or Removed** independently of Browse/ExactId and **Include removed slots**. All preserves existing behavior. Removed sessions can have only removed-slot provenance: enable Include removed slots to see it. An Active or Done session can also have a removed attachment slot; removing a slot does not remove its session. See the [canonical lifecycle contract and tests](../Design/File_And_Folder_Ingestion.md#delivered-retained-attachment-metadata-catalogue---2026-10-11).
@@ -401,7 +416,7 @@ cannot open a body. Unavailable tombstones can match exact Unavailable with
 Include removed slots and a matching lifecycle, but never match byte bounds,
 even 0..0. Their size is unavailable, not an original zero-byte-file claim.
 
-Typing performs no I/O. Mode, ID, literal, lifecycle, media-type/copy-status/byte filters and **Include removed slots** edits retire results, selection, navigation and continuation and cancel pending work; use Search again (or Enter in a query/byte field). **Clear query (Browse)** clears both volatile query fields without reading or changing the filters. Search never auto-selects or opens a match. Escape closes and clears private state. Source/privacy/ownership/control revocation also clears the copy-status/byte fields.
+Typing performs no I/O. Mode, ID, literal, lifecycle, media-type/copy-status/byte/digest/correlation filters and **Include removed slots** edits retire results, selection, navigation and continuation and cancel pending work; use Search again (or Enter in a text field). **Clear query (Browse)** clears volatile ID, literal, digest and correlation fields without reading or changing the remaining filters. Search never auto-selects or opens a match. Escape closes and clears private state. Source/privacy/ownership/control revocation also clears the copy-status/byte fields.
 
 - Each page has at most **16 rows / 64 KiB** and scans at most **64 slots**. **Next bounded page** may continue after zero matches; ExactId does not jump over unvalidated slots. **Include removed slots** shows content-free removal provenance; historical removed slots do not count toward the sixteen-live-file cap.
 - Typed authority is validated in bounded segments before rows are shown. **Authority validation pending** pages contain no attachments; use Next to continue. Reads have a five-second budget. Continuations expire after two minutes; any committed authority, storage/profile or query change requires Refresh.

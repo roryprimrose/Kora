@@ -34,7 +34,8 @@ public sealed partial class AttachmentCatalogueWindowTests
                 observedToken = token;
                 current = admitted;
                 return pending?.Task ?? Task.FromResult(new SessionAttachmentPage(query, query.Matches(summary) ? [summary] : [],
-                    "YQ==." + new string('b', 64), DateTimeOffset.UnixEpoch, 1, new string('b', 64), 1, false));
+                    query.Matches(summary) ? "YQ==." + new string('b', 64) : null,
+                    DateTimeOffset.UnixEpoch, 1, new string('b', 64), 1, false));
             }, (_, _, _) => throw new InvalidOperationException("No implicit navigation."),
                 new WindowsSqliteSessionWorkspaceTests.Access(), () => true, new CatalogueLogger());
             var revoked = 0;

@@ -1,4 +1,6 @@
 using System.Runtime.InteropServices;
+using System.Security.Cryptography;
+using System.Text;
 
 using Kora.Core.Commands;
 using Kora.Core.Hosting;
@@ -14,9 +16,25 @@ public sealed record LocalEventFilter(LocalEventCategory? Category = null, Local
     string MinimumRevision = "", string MaximumRevision = "",
     string MinimumGeneration = "", string MaximumGeneration = "",
     string ObservedFromUtc = "", string ObservedUntilUtc = "",
-    string ExpiresFromUtc = "", string ExpiresUntilUtc = "")
+    string ExpiresFromUtc = "", string ExpiresUntilUtc = "",
+    LocalEventQueueProfileFilter QueueProfile = default, SessionQueueCapabilityTarget? QueueTarget = null)
 {
     public bool IsValid => MetadataValid && TryGetBounds(out _);
+
+    public string Digest
+    {
+        get
+        {
+            if (!IsValid) { throw new InvalidDataException("An invalid local-event filter has no continuation identity."); }
+            return Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(string.Join('\n',
+                "local-event-filter-v1", Category?.ToString(), Reason?.ToString(), Source?.ToString(), Type?.ToString(),
+                Origin?.ToString(), QueueReason.Match.ToString(), QueueReason.Value?.ToString(),
+                SessionId, TaskId, SubjectId, MinimumRevision, MaximumRevision, MinimumGeneration, MaximumGeneration,
+                ObservedFromUtc, ObservedUntilUtc, ExpiresFromUtc, ExpiresUntilUtc,
+                QueueProfile.Match.ToString(), QueueProfile.Value is { } profile ? SessionQueueReadProfiles.CapabilityId(profile) : "",
+                QueueTarget?.Descriptor.Id))));
+        }
+    }
 
     private bool MetadataValid => (Category is null || Enum.IsDefined(Category.Value))
         && (Reason is null || Enum.IsDefined(Reason.Value))
@@ -24,7 +42,17 @@ public sealed record LocalEventFilter(LocalEventCategory? Category = null, Local
         && (Type is null || Enum.IsDefined(Type.Value))
         && (Origin is null || Enum.IsDefined(Origin.Value))
         && QueueReason.IsValid
+        && QueueProfile.IsValid && IsTargetValid
         && IsIdentity(SessionId) && IsIdentity(TaskId) && IsIdentity(SubjectId);
+
+    private bool IsTargetValid
+    {
+        get
+        {
+            try { _ = QueueTarget?.Descriptor; return true; }
+            catch (InvalidDataException) { return false; }
+        }
+    }
 
     private static bool IsIdentity(string? value) => value is not null
         && (value.Length == 0 || SessionCommand.ExactId(value, out var id)
@@ -76,6 +104,10 @@ public sealed record LocalEventFilter(LocalEventCategory? Category = null, Local
             && (bounds.ObservedUntil is not { } observedUntil || row.Event.ObservedAt <= observedUntil)
             && (bounds.ExpiresFrom is not { } expiresFrom || row.Event.ExpiresAt >= expiresFrom)
             && (bounds.ExpiresUntil is not { } expiresUntil || row.Event.ExpiresAt <= expiresUntil)
+            && (QueueProfile.Match == LocalEventQueueProfileMatch.Any
+                || (QueueProfile.Match == LocalEventQueueProfileMatch.Absent
+                    ? row.Event.QueueProfile is null : row.Event.QueueProfile == QueueProfile.Value))
+            && (QueueTarget is null || row.Event.QueueTarget is { } target && target == QueueTarget)
             && (QueueReason.Match == LocalEventQueueReasonMatch.Any
                 || (QueueReason.Match == LocalEventQueueReasonMatch.None
                     ? row.Event.QueueReason is null : row.Event.QueueReason == QueueReason.Value));

@@ -368,6 +368,10 @@ public sealed partial class LocalEventBrokerWindowTests
     [InlineData("type-filter")]
     [InlineData("origin-filter")]
     [InlineData("queue-filter")]
+    [InlineData("profile-filter")]
+    [InlineData("target-filter")]
+    [InlineData("profile-away-back")]
+    [InlineData("target-away-back")]
     [InlineData("session-id-filter")]
     [InlineData("task-id-filter")]
     [InlineData("subject-id-filter")]
@@ -412,6 +416,16 @@ public sealed partial class LocalEventBrokerWindowTests
             case "type-filter": viewer.LocalEventTypeFilter = null; break;
             case "origin-filter": viewer.LocalEventOriginFilter = RequestOrigin.LocalUi; break;
             case "queue-filter": viewer.LocalEventQueueReasonFilter = new(LocalEventQueueReasonMatch.None); break;
+            case "profile-filter": viewer.LocalEventQueueProfileFilter = new(LocalEventQueueProfileMatch.Absent); break;
+            case "target-filter": viewer.LocalEventQueueTargetFilter = new("capabilities.list"); break;
+            case "profile-away-back":
+                viewer.LocalEventQueueProfileFilter = new(LocalEventQueueProfileMatch.Absent);
+                viewer.LocalEventQueueProfileFilter = default;
+                break;
+            case "target-away-back":
+                viewer.LocalEventQueueTargetFilter = new("capabilities.list");
+                viewer.LocalEventQueueTargetFilter = null;
+                break;
             case "session-id-filter": viewer.LocalEventSessionIdFilter = f.Storage.Request.SessionId.Value.ToString("D"); break;
             case "task-id-filter": viewer.LocalEventTaskIdFilter = f.Storage.Request.TaskId.Value.ToString("D"); break;
             case "subject-id-filter": viewer.LocalEventSubjectIdFilter = Guid.NewGuid().ToString("D"); break;
@@ -516,6 +530,10 @@ public sealed partial class LocalEventBrokerWindowTests
     [InlineData("close")]
     [InlineData("failure")]
     [InlineData("cancel")]
+    [InlineData("profile-filter")]
+    [InlineData("target-filter")]
+    [InlineData("profile-away-back")]
+    [InlineData("target-away-back")]
     public async Task PendingExactActionCannotRestoreSelectionOrDetailAfterItsPresentationWasRetired(string change)
     {
         using var f = new Fixture();
@@ -548,6 +566,16 @@ public sealed partial class LocalEventBrokerWindowTests
             case "type-filter": viewer.LocalEventTypeFilter = null; break;
             case "origin-filter": viewer.LocalEventOriginFilter = RequestOrigin.LocalUi; break;
             case "queue-filter": viewer.LocalEventQueueReasonFilter = new(LocalEventQueueReasonMatch.None); break;
+            case "profile-filter": viewer.LocalEventQueueProfileFilter = new(LocalEventQueueProfileMatch.Absent); break;
+            case "target-filter": viewer.LocalEventQueueTargetFilter = new("capabilities.list"); break;
+            case "profile-away-back":
+                viewer.LocalEventQueueProfileFilter = new(LocalEventQueueProfileMatch.Absent);
+                viewer.LocalEventQueueProfileFilter = default;
+                break;
+            case "target-away-back":
+                viewer.LocalEventQueueTargetFilter = new("capabilities.list");
+                viewer.LocalEventQueueTargetFilter = null;
+                break;
             case "session-id-filter": viewer.LocalEventSessionIdFilter = f.Storage.Request.SessionId.Value.ToString("D"); break;
             case "task-id-filter": viewer.LocalEventTaskIdFilter = f.Storage.Request.TaskId.Value.ToString("D"); break;
             case "subject-id-filter": viewer.LocalEventSubjectIdFilter = Guid.NewGuid().ToString("D"); break;
@@ -728,7 +756,9 @@ public sealed partial class LocalEventBrokerWindowTests
                     ControlAutomationPeer.CreatePeerForElement(field)!.GetName().Should()
                         .Contain("complete lowercase D GUID").And.Contain("correlation only, never retargets or authorizes");
                 }
-                Control[] tabOrder = [category, reason, sourceFilter, type, origin, queue, sessionId, taskId, subjectId,
+                Control[] tabOrder = [category, reason, sourceFilter, type, origin, queue,
+                    window.FindControl<ComboBox>("LocalEventQueueProfileFilter")!, window.FindControl<ComboBox>("LocalEventQueueTargetFilter")!,
+                    sessionId, taskId, subjectId,
                     .. RangeFields(viewer, viewer.LocalEvents.Single().Event).Select(field => window.FindControl<TextBox>(field.Name)!), clear];
                 foreach (var next in tabOrder.Skip(1))
                 {

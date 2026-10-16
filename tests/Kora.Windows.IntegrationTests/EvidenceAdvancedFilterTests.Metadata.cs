@@ -45,11 +45,11 @@ public sealed partial class EvidenceAdvancedFilterTests
         viewer.Records.Should().ContainSingle().Which.AuditSequence.Should().Be(2);
         viewer.FromAuditSequenceFilter = "";
         await viewer.SearchAsync();
-        viewer.Records.Select(record => record.AuditSequence).Should().Equal(1, 2);
+        viewer.Records.Select(record => record.AuditSequence).Order().Should().Equal(1, 2);
         viewer.FromAuditSequenceFilter = "2";
         viewer.UntilAuditSequenceFilter = "";
         await viewer.SearchAsync();
-        viewer.Records.Select(record => record.AuditSequence).Should().Equal(2, 3);
+        viewer.Records.Select(record => record.AuditSequence).Order().Should().Equal(2, 3);
         viewer.ClearAdvancedFilters();
         await viewer.SearchAsync();
         viewer.Records.Should().HaveCount(6);

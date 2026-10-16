@@ -16,12 +16,13 @@ namespace Kora.Windows.IntegrationTests.Storage;
 public sealed partial class WindowsSqliteSessionAttachmentTests
 {
     [Theory]
-    [InlineData(false, false, false)]
-    [InlineData(true, false, false)]
-    [InlineData(true, true, false)]
-    [InlineData(true, true, true)]
+    [InlineData(false, false, false, false)]
+    [InlineData(true, false, false, false)]
+    [InlineData(true, true, false, false)]
+    [InlineData(true, true, true, false)]
+    [InlineData(true, true, true, true)]
     public async Task ExactCatalogueValidatesNonmatchingSlotsAndFindsMatchBeyondFirstBoundedScanWithoutGlobalCap(
-        bool includeRemoved, bool correlation, bool versions)
+        bool includeRemoved, bool correlation, bool versions, bool fileIds)
     {
         using var fixture = await Initialize();
         using var root = HostActivity.BeginRoot(fixture.Request, HostActivityLayer.Application, HostOperation.Request);
@@ -50,7 +51,10 @@ public sealed partial class WindowsSqliteSessionAttachmentTests
             minimumCapturedGeneration: versions ? retained.Generation.Value : null,
             maximumCapturedGeneration: versions ? retained.Generation.Value : null,
             minimumStorageRevision: versions ? retained.StorageRevision.Value : null,
-            maximumStorageRevision: versions ? retained.StorageRevision.Value : null);
+            maximumStorageRevision: versions ? retained.StorageRevision.Value : null,
+            exactFileSourceId: fileIds ? retained.File.Reference.SourceId.ToString("D") : null,
+            exactFileRevisionId: fileIds ? retained.File.Reference.RevisionId.ToString("D") : null,
+            exactFileItemId: fileIds ? retained.File.Reference.ItemId.ToString("D") : null);
         var clock = await fixture.Store.ReadRetentionAsync(target, fixture.Token);
         var tasks = fixture.Count("host_tasks");
         var audit = fixture.Count("security_audit_events");

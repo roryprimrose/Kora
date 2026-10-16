@@ -262,8 +262,14 @@ For Windows that default ranks installed Windows voices in this order:
 5. compatible neutral voice;
 6. compatible voice with unspecified gender.
 
+Kokoro voice choices match the current Windows profile UI language, ignoring
+regional culture: an English profile can choose both US and UK English voices,
+for example. Windows voice choices are unchanged. If Kokoro has no matching
+voices, none are offered. A saved Kokoro voice outside the profile language is
+unavailable, not replaced; choose a matching installed voice explicitly.
+
 Kora does not automatically select an unrelated language. An explicit voice
-selection is stored locally and remains selected while that voice is installed.
+selection is stored locally and remains selected while that voice is available.
 The provider/voice pair is persisted atomically. Qualified choices select that
 exact installed pair; an unqualified voice ID must be unique. A provider with
 no compatible advertised default can still be selected by choosing an exact

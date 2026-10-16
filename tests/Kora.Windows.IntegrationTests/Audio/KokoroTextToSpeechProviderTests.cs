@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.IO.Compression;
 using System.Net;
 using System.Security.Cryptography;
@@ -51,16 +52,22 @@ public sealed class KokoroTextToSpeechProviderTests : IDisposable
             TestContext.Current.CancellationToken);
 
         provider.IsInstalled.Should().BeTrue();
-        provider.GetVoices().Should().ContainSingle()
-            .Which.Should().BeEquivalentTo(
-                new SpeechVoice(
-                    "af_heart",
-                    "Heart",
-                    "en-US",
-                    SpeechVoiceGender.Female)
-                {
-                    ProviderId = SpeechProviderIds.Kokoro,
-                });
+        var previousCulture = CultureInfo.CurrentUICulture;
+        try
+        {
+            CultureInfo.CurrentUICulture = CultureInfo.GetCultureInfo("en-US");
+            provider.GetVoices().Should().ContainSingle()
+                .Which.Should().BeEquivalentTo(
+                    new SpeechVoice(
+                        "af_heart",
+                        "Heart",
+                        "en-US",
+                        SpeechVoiceGender.Female)
+                    {
+                        ProviderId = SpeechProviderIds.Kokoro,
+                    });
+        }
+        finally { CultureInfo.CurrentUICulture = previousCulture; }
         progress.Values.Select(item => item.Stage).Should().Contain(
         [
             SpeechProviderInstallStage.Downloading,
@@ -77,6 +84,69 @@ public sealed class KokoroTextToSpeechProviderTests : IDisposable
 
         provider.IsInstalled.Should().BeFalse();
         provider.GetVoices().Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task Voice_options_follow_profile_language_changes_without_changing_installed_assets()
+    {
+        byte[] model = [1, 2, 3, 4];
+        var voices = CreateVoiceArchive("voices/af_heart.npy", "voices/bf_emma.npy", "voices/ff_siwis.npy");
+        using var client = CreateClient(model, voices);
+        using var provider = CreateProvider(client, model, voices);
+        await provider.InstallAsync(new RecordingProgress<SpeechProviderInstallProgress>(), TestContext.Current.CancellationToken);
+
+        var previousCulture = CultureInfo.CurrentUICulture;
+        try
+        {
+            CultureInfo.CurrentUICulture = CultureInfo.GetCultureInfo("en-AU");
+            provider.GetVoices().Select(voice => voice.Id).Should().Equal("bf_emma", "af_heart");
+            CultureInfo.CurrentUICulture = CultureInfo.GetCultureInfo("fr-CA");
+            provider.GetVoices().Should().ContainSingle().Which.Id.Should().Be("ff_siwis");
+            CultureInfo.CurrentUICulture = CultureInfo.GetCultureInfo("de-DE");
+            provider.GetVoices().Should().BeEmpty();
+            provider.IsInstalled.Should().BeTrue();
+            CultureInfo.CurrentUICulture = CultureInfo.GetCultureInfo("en-GB");
+            provider.GetVoices().Should().HaveCount(2);
+        }
+        finally { CultureInfo.CurrentUICulture = previousCulture; }
+    }
+
+    [Theory]
+    [InlineData("en-AU", "af_heart", "bf_emma")]
+    [InlineData("en", "af_heart", "bf_emma")]
+    [InlineData("es-MX", "ef_dora")]
+    [InlineData("fr-CA", "ff_siwis")]
+    [InlineData("hi", "hf_alpha")]
+    [InlineData("it-CH", "if_sara")]
+    [InlineData("ja-JP", "jf_alpha")]
+    [InlineData("pt-PT", "pf_dora")]
+    [InlineData("zh-TW", "zf_xiaobei")]
+    [InlineData("de-DE")]
+    [InlineData("")]
+    public async Task Voice_options_match_only_the_profile_UI_language(string profileCulture, params string[] expectedVoiceIds)
+    {
+        byte[] model = [1, 2, 3, 4];
+        var voices = CreateVoiceArchive(
+            "voices/af_heart.npy", "voices/bf_emma.npy", "voices/ef_dora.npy",
+            "voices/ff_siwis.npy", "voices/hf_alpha.npy", "voices/if_sara.npy",
+            "voices/jf_alpha.npy", "voices/pf_dora.npy", "voices/zf_xiaobei.npy");
+        using var client = CreateClient(model, voices);
+        using var provider = CreateProvider(client, model, voices);
+        await provider.InstallAsync(new RecordingProgress<SpeechProviderInstallProgress>(), TestContext.Current.CancellationToken);
+
+        var previousUICulture = CultureInfo.CurrentUICulture;
+        var previousCulture = CultureInfo.CurrentCulture;
+        try
+        {
+            CultureInfo.CurrentUICulture = CultureInfo.GetCultureInfo(profileCulture);
+            CultureInfo.CurrentCulture = CultureInfo.GetCultureInfo(profileCulture.StartsWith("en", StringComparison.Ordinal) ? "fr-FR" : "en-US");
+            provider.GetVoices().Select(voice => voice.Id).Should().BeEquivalentTo(expectedVoiceIds);
+        }
+        finally
+        {
+            CultureInfo.CurrentUICulture = previousUICulture;
+            CultureInfo.CurrentCulture = previousCulture;
+        }
     }
 
     [Fact]
@@ -195,7 +265,7 @@ public sealed class KokoroTextToSpeechProviderTests : IDisposable
                 [VoicesUri.AbsolutePath] = voices,
             }));
 
-    private static byte[] CreateVoiceArchive(string entryName)
+    private static byte[] CreateVoiceArchive(params string[] entryNames)
     {
         using var stream = new MemoryStream();
         using (var archive = new ZipArchive(
@@ -203,11 +273,14 @@ public sealed class KokoroTextToSpeechProviderTests : IDisposable
                    ZipArchiveMode.Create,
                    leaveOpen: true))
         {
-            var entry = archive.CreateEntry(entryName);
+            foreach (var entryName in entryNames)
+            {
+                var entry = archive.CreateEntry(entryName);
 #pragma warning disable VSTHRD103 // In-memory test archive creation is synchronous.
-            using var entryStream = entry.Open();
+                using var entryStream = entry.Open();
 #pragma warning restore VSTHRD103
-            entryStream.Write([1, 2, 3]);
+                entryStream.Write([1, 2, 3]);
+            }
         }
 
         return stream.ToArray();

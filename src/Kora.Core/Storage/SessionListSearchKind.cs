@@ -8,5 +8,7 @@ public enum SessionListSearchKind
     /// <summary>One nonempty immutable session ID in canonical lowercase D format.</summary>
     ExactId,
     /// <summary>Explicit empty-text navigation over the existing bounded canonical-ID scan.</summary>
-    Browse
+    Browse,
+    /// <summary>Literal ordinal, case-sensitive equality with a complete validated name.</summary>
+    ExactName
 }

@@ -29,11 +29,11 @@ public sealed class SessionListSearch
         {
             if (value.Length != 0)
             {
-                throw new InvalidDataException("Browse requires empty query text. Select NameSubstring or ExactId to search text.");
+                throw new InvalidDataException("Browse requires empty query text. Select NameSubstring, ExactName or ExactId to search text.");
             }
             Value = value;
         }
-        else if (kind is SessionListSearchKind.NameSubstring)
+        else if (kind is SessionListSearchKind.NameSubstring or SessionListSearchKind.ExactName)
         {
             // A valid scalar occupies at most two UTF-16 units; bound validation work before parsing.
             if (value.Length > SessionName.MaximumScalars * 2)
@@ -95,7 +95,9 @@ public sealed class SessionListSearch
             && (MaximumMetadataRevision is not { } maximumRevision
                 || entry.Metadata is { } upperMetadata && upperMetadata.Revision.Value <= maximumRevision)
             && (Kind is SessionListSearchKind.Browse || (Kind is SessionListSearchKind.ExactId ? entry.Authority.SessionId.Value == exactId
-                : entry.Metadata?.Name.Value.Contains(Value, StringComparison.Ordinal) == true));
+                : Kind is SessionListSearchKind.ExactName
+                    ? string.Equals(entry.Metadata?.Name.Value, Value, StringComparison.Ordinal)
+                    : entry.Metadata?.Name.Value.Contains(Value, StringComparison.Ordinal) == true));
     }
 
     public static void ValidateEntry(SessionWorkspaceEntry entry)

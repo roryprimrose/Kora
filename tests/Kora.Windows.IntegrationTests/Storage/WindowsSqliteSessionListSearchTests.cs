@@ -12,8 +12,10 @@ namespace Kora.Windows.IntegrationTests.Storage;
 
 public sealed class WindowsSqliteSessionListSearchTests
 {
-    [WindowsFact]
-    public async Task PrivateMetadataSearchFindsNamesBeyondFiftyAndPreservesExactIdentityAuthorityAndClocks()
+    [Theory]
+    [InlineData(SessionListSearchKind.NameSubstring)]
+    [InlineData(SessionListSearchKind.ExactName)]
+    public async Task PrivateMetadataSearchFindsNamesBeyondFiftyAndPreservesExactIdentityAuthorityAndClocks(SessionListSearchKind kind)
     {
         using var f = new InteractionStorageFixture();
         await f.InitializeAsync();
@@ -34,11 +36,14 @@ public sealed class WindowsSqliteSessionListSearchTests
         var tasks = f.Count("host_tasks");
         var clocks = await f.Store.ReadRetentionAsync(last.Authority.SessionId, f.Token);
         using var root = HostActivity.BeginRoot(f.Request, HostActivityLayer.Application, HostOperation.Request);
-        var first = await service.SearchListAsync(SessionListSearchKind.NameSubstring, SessionListFilter.All, "café 🐈 100%_", null, 25, f.Token);
+        var value = kind is SessionListSearchKind.ExactName ? last.Metadata!.Name.Value : "café 🐈 100%_";
+        var first = await service.SearchListAsync(kind, SessionListFilter.All, value, null, 25, f.Token,
+            1, 1, 2, 2, SessionNameAvailability.Named);
         first.Scanned.Should().Be(50);
         first.Records.Should().BeEmpty();
         first.Next.Should().NotBeNull("nonmatching pages must not be confused with search exhaustion");
-        var next = await service.SearchListAsync(SessionListSearchKind.NameSubstring, SessionListFilter.All, "café 🐈 100%_", first.Next, 25, f.Token);
+        var next = await service.SearchListAsync(kind, SessionListFilter.All, value, first.Next, 25, f.Token,
+            1, 1, 2, 2, SessionNameAvailability.Named);
         next.Records.Should().Equal(duplicate, last);
         next.Next.Should().BeNull();
         var exact = await service.SearchListAsync(SessionListSearchKind.ExactId, SessionListFilter.All,
@@ -69,8 +74,10 @@ public sealed class WindowsSqliteSessionListSearchTests
         (await f.Tasks.ReadTaskAsync(f.Request.TaskId, f.Token))!.State.Should().Be(HostTaskState.IntentRecorded);
     }
 
-    [WindowsFact]
-    public async Task MutableSearchReportsRenamesStateRemovalAndNewAppendsWithoutInventingSnapshotChronology()
+    [Theory]
+    [InlineData(SessionListSearchKind.NameSubstring)]
+    [InlineData(SessionListSearchKind.ExactName)]
+    public async Task MutableSearchReportsRenamesStateRemovalAndNewAppendsWithoutInventingSnapshotChronology(SessionListSearchKind kind)
     {
         using var f = new InteractionStorageFixture();
         await f.InitializeAsync();
@@ -81,7 +88,7 @@ public sealed class WindowsSqliteSessionListSearchTests
         SessionListSearchPage first;
         using (var root = HostActivity.BeginRoot(f.Request, HostActivityLayer.Application, HostOperation.Request))
         {
-            first = await service.SearchListAsync(SessionListSearchKind.NameSubstring, SessionListFilter.All, "needle", null, 1, f.Token);
+            first = await service.SearchListAsync(kind, SessionListFilter.All, "needle", null, 1, f.Token);
         }
         first.Records.Should().Equal(created[0]);
         await service.RenameAsync(created[1].Authority.SessionId, new(1), 1, new("changed"), RequestOrigin.LocalUi, f.Token);
@@ -89,12 +96,12 @@ public sealed class WindowsSqliteSessionListSearchTests
         var added = await service.CreateAsync(new("needle"), RequestOrigin.LocalUi, f.Token);
         using (var root = HostActivity.BeginRoot(f.Request, HostActivityLayer.Application, HostOperation.Request))
         {
-            var next = await service.SearchListAsync(SessionListSearchKind.NameSubstring, SessionListFilter.All, "needle", first.Next, 50, f.Token);
+            var next = await service.SearchListAsync(kind, SessionListFilter.All, "needle", first.Next, 50, f.Token);
             next.Records.Should().Contain(entry => entry.Authority == done);
             next.Records.Should().NotContain(entry => entry.Authority.SessionId == created[1].Authority.SessionId);
             next.Records.Any(entry => entry.Authority.SessionId == added.Authority.SessionId).Should()
                 .Be(string.CompareOrdinal(added.Authority.SessionId.Value.ToString("D"), first.Next!.After.ToString("D")) > 0);
-            var fresh = await service.SearchListAsync(SessionListSearchKind.NameSubstring, SessionListFilter.Done, "needle", null, 50, f.Token);
+            var fresh = await service.SearchListAsync(kind, SessionListFilter.Done, "needle", null, 50, f.Token);
             fresh.Records.Should().ContainSingle().Which.Authority.Should().Be(done);
         }
         SessionDispositionPreview preview;
@@ -105,7 +112,7 @@ public sealed class WindowsSqliteSessionListSearchTests
         await service.ConfirmDispositionAsync(preview, RequestOrigin.LocalUi, () => true, f.Token);
         using (var root = HostActivity.BeginRoot(f.Request, HostActivityLayer.Application, HostOperation.Request))
         {
-            var gone = await service.SearchListAsync(SessionListSearchKind.NameSubstring, SessionListFilter.Done, "needle", null, 50, f.Token);
+            var gone = await service.SearchListAsync(kind, SessionListFilter.Done, "needle", null, 50, f.Token);
             gone.Records.Should().BeEmpty();
             var exactGone = () => service.SearchListAsync(SessionListSearchKind.ExactId, SessionListFilter.All,
                 done.SessionId.Value.ToString("D"), null, 1, f.Token);
@@ -140,7 +147,7 @@ public sealed class WindowsSqliteSessionListSearchTests
         if (mode is "cancel") { cancellation.Cancel(); }
         var service = WindowsSqliteSessionWorkspaceTests.Service(f, access);
         using var root = HostActivity.BeginRoot(f.Request, HostActivityLayer.Application, HostOperation.Request);
-        var read = () => service.SearchListAsync(SessionListSearchKind.NameSubstring, SessionListFilter.All,
+        var read = () => service.SearchListAsync(SessionListSearchKind.ExactName, SessionListFilter.All,
             "needle", null, 50, cancellation.Token);
         await read.Should().ThrowAsync<Exception>();
         if (mode is "replacement" or "missing") { File.Exists(f.DatabasePath).Should().BeFalse(); }

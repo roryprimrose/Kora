@@ -275,10 +275,12 @@ This is a passive bounded overview, not a conversation/composer, general provide
 
 ## Search the session list
 
-In **Sessions**, choose **NameSubstring** or **ExactId**, enter the metadata query, and use **Search session metadata** (or Enter). This searches the persisted list across bounded pages, not just the already loaded rows. It is separate from **Search exact history** and diagnostic Evidence.
+In **Sessions**, choose **Browse**, **NameSubstring**, **ExactId** or **ExactName**, enter the metadata query, and use **Search session metadata** (or Enter). This searches the persisted list across bounded pages, not just the already loaded rows. It is separate from **Search exact history** and diagnostic Evidence.
 
 - **NameSubstring** is literal, case-sensitive ordinal containment. `%`, `_` and punctuation are ordinary characters, not wildcards or SQL. Use NFC single-line Unicode, no control/format characters or surrounding whitespace, at most 120 scalars / 480 UTF-8 bytes. Invalid input is rejected without trimming, normalization or truncation.
 - **ExactId** requires the complete nonempty immutable ID in canonical lowercase `00000000-0000-0000-0000-000000000001` format. It looks up that one session, including unnamed metadata. Unknown/Removed IDs are unavailable, not a fallback list.
+- **ExactName** requires the complete canonical name with the same validation as NameSubstring, but matches only whole-name ordinal case-sensitive equality. It never trims, folds case or normalizes input. Duplicate names may return different session IDs; a GUID-shaped name is still only a name, never an ID or action target.
+- **Browse** requires exactly empty text and an explicit Search; it never selects implicitly. **Any / Named / Unnamed** filters observed name availability in every mode. Either name mode + Unnamed matches no rows; unavailable or malformed metadata fails closed, not as a fallback inventory.
 - **All / Active / Done** applies to the whole metadata search. Outside search it continues filtering only the ordinary current page.
 - Optional **Generation minimum/maximum** and **Name revision minimum/maximum**
   are inclusive and must all match alongside the query and lifecycle. Empty

@@ -195,12 +195,12 @@
       </StackPanel>
     </Expander>
     <WrapPanel>
-      <ComboBox ItemsSource="{Binding ListSearchKinds}" SelectedItem="{Binding ListSearchKind, Mode=TwoWay}"
-                IsEnabled="{Binding CanEditListSearch}" AutomationProperties.Name="Session metadata search mode: empty-text bounded Browse, literal ordinal case-sensitive NameSubstring or canonical lowercase exact immutable ID" />
+      <ComboBox x:Name="ListSearchKind" ItemsSource="{Binding ListSearchKinds}" SelectedItem="{Binding ListSearchKind, Mode=TwoWay}"
+                IsEnabled="{Binding CanEditListSearch}" AutomationProperties.Name="Session metadata search mode: empty-text bounded Browse, literal ordinal case-sensitive NameSubstring, whole-name ordinal case-sensitive ExactName or canonical lowercase exact immutable ID" />
       <ComboBox x:Name="ListNameAvailability" ItemsSource="{Binding ListNameAvailabilities}" SelectedItem="{Binding ListNameAvailability, Mode=TwoWay}"
                 IsEnabled="{Binding CanEditListSearch}" AutomationProperties.Name="Observed session name metadata availability: Any, Named or Unnamed; not ownership, deletion history or action authority" />
       <TextBox x:Name="ListQuery" Text="{Binding ListQuery, Mode=TwoWay}" Width="320"
-               IsEnabled="{Binding CanEditListSearch}" PlaceholderText="Empty for Browse; name substring or exact ID; Enter searches"
+               IsEnabled="{Binding CanEditListSearch}" PlaceholderText="Empty for Browse; name substring, exact name or exact ID; Enter searches"
                AutomationProperties.Name="Volatile session-list metadata query, not conversation-history search; NFC name limits, no silent truncation or normalization" />
       <TextBox x:Name="ListMinimumGeneration" Text="{Binding ListMinimumGeneration, Mode=TwoWay}" Width="190"
                IsEnabled="{Binding CanEditListSearch}" PlaceholderText="Generation minimum; Any"

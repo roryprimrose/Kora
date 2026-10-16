@@ -100,8 +100,8 @@ internal sealed partial class SessionsViewModel
 
     private string ListQueryHint => IsListQueryValid
         ? "Session metadata query changed. Search starts a fresh bounded scan; no history, action or name authority."
-        : "Invalid session metadata query. Browse requires empty query text. NameSubstring requires nonblank single-line NFC text, no control/format or surrounding whitespace, "
-            + "at most 120 scalars / 480 UTF-8 bytes. ExactId requires a nonempty canonical lowercase D GUID. "
+        : "Invalid session metadata query. Browse requires empty query text. NameSubstring and ExactName require nonblank single-line NFC text, no control/format or surrounding whitespace, "
+            + "at most 120 scalars / 480 UTF-8 bytes. ExactName matches the whole name with ordinal case-sensitive equality. ExactId requires a nonempty canonical lowercase D GUID. "
             + "Inclusive generation/name-revision bounds require positive decimal integers with minimum <= maximum; empty means Any. "
             + "Any/Named/Unnamed is observed name metadata only; name searches and name-revision bounds exclude unnamed rows. Nothing is normalized, truncated or searched.";
 

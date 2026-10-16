@@ -15,8 +15,10 @@ namespace Kora.Windows.IntegrationTests;
 
 public sealed partial class SessionsViewModelTests
 {
-    [Fact]
-    public async Task MetadataPublicationRechecksAdmissionAfterTheServiceReadFence()
+    [Theory]
+    [InlineData(SessionListSearchKind.NameSubstring)]
+    [InlineData(SessionListSearchKind.ExactName)]
+    public async Task MetadataPublicationRechecksAdmissionAfterTheServiceReadFence(SessionListSearchKind kind)
     {
         using var f = new InteractionStorageFixture();
         await f.InitializeAsync();
@@ -30,6 +32,7 @@ public sealed partial class SessionsViewModelTests
             access, NullLogger<SessionsViewModel>.Instance);
         try
         {
+            model.ListSearchKind = kind;
             model.ListQuery = "needle";
             var search = model.SearchListAsync();
             held.Completion.SetResult(new([new(new(f.Request.SessionId, new(1), true),
@@ -53,7 +56,8 @@ public sealed partial class SessionsViewModelTests
             && element.Attribute("Text")?.Value.Contains("ListQuery", StringComparison.Ordinal) == true);
         field.Attribute("MaxLength").Should().BeNull();
         field.Attribute("IsEnabled")!.Value.Should().Be("{Binding CanEditListSearch}");
-        source.Should().Contain("ListSearchKinds").And.Contain("Browse").And.Contain("NameSubstring").And.Contain("canonical lowercase exact immutable ID")
+        source.Should().Contain("ListSearchKinds").And.Contain("Browse").And.Contain("NameSubstring")
+            .And.Contain("whole-name ordinal case-sensitive ExactName").And.Contain("canonical lowercase exact immutable ID")
             .And.Contain("CanNextListSearch").And.Contain("including after zero matches")
             .And.Contain("CanCancelListSearch").And.Contain("Clear metadata search")
             .And.Contain("metadata-search scope across pages").And.Contain("HistoryQuery");
@@ -98,6 +102,19 @@ public sealed partial class SessionsViewModelTests
     [InlineData("browse-availability")]
     [InlineData("browse-source")]
     [InlineData("browse-close")]
+    [InlineData("exact-query")]
+    [InlineData("exact-kind")]
+    [InlineData("exact-selection")]
+    [InlineData("exact-source")]
+    [InlineData("exact-cancel")]
+    [InlineData("exact-close")]
+    [InlineData("exact-privacy")]
+    [InlineData("exact-revision")]
+    [InlineData("exact-availability")]
+    [InlineData("exact-minimum-generation")]
+    [InlineData("exact-maximum-generation")]
+    [InlineData("exact-minimum-name-revision")]
+    [InlineData("exact-maximum-name-revision")]
     public async Task MetadataSearchSuppressesLateResultsAfterQuerySelectionSourcePrivacyOrClosureChanges(string mode)
     {
         using var f = new InteractionStorageFixture();
@@ -111,7 +128,10 @@ public sealed partial class SessionsViewModelTests
             new(new WindowsSqliteEvidenceReader(sink), access, f.Time, NullLogger<DurableEvidenceQuery>.Instance),
             access, NullLogger<SessionsViewModel>.Instance);
         var browse = mode.StartsWith("browse-", StringComparison.Ordinal);
-        model.ListSearchKind = browse ? SessionListSearchKind.Browse : SessionListSearchKind.NameSubstring;
+        var exact = mode.StartsWith("exact-", StringComparison.Ordinal);
+        model.ListSearchKind = browse ? SessionListSearchKind.Browse
+            : exact ? SessionListSearchKind.ExactName : SessionListSearchKind.NameSubstring;
+        if (exact) { mode = mode["exact-".Length..]; }
         model.ListQuery = browse ? "" : "needle";
         model.ListMinimumGeneration = "1";
         model.ListMaximumGeneration = "1";

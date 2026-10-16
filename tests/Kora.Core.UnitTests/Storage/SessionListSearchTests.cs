@@ -44,7 +44,8 @@ public sealed class SessionListSearchTests
             query.ExactId.Should().Be(kind is SessionListSearchKind.ExactId ? Id : null);
             var expected = (filter is SessionListFilter.All || active == (filter is SessionListFilter.Active))
                 && (availability is SessionNameAvailability.Any || named == (availability is SessionNameAvailability.Named))
-                && (!revisionBound || named) && (kind is not SessionListSearchKind.NameSubstring || named);
+                && (!revisionBound || named)
+                && (kind is not (SessionListSearchKind.NameSubstring or SessionListSearchKind.ExactName) || named);
             query.Matches(Entry(named ? "café" : null, active)).Should().Be(expected);
             query.Matches(Entry(named ? "café" : null, active) with
                 { Authority = Entry().Authority with { Generation = new(2), IsActive = active } }).Should().BeFalse();
@@ -159,13 +160,15 @@ public sealed class SessionListSearchTests
             Metadata = Entry().Metadata! with { Revision = new(2) } };
         foreach (var kind in Enum.GetValues<SessionListSearchKind>())
         {
-            var value = kind is SessionListSearchKind.Browse ? "" : kind is SessionListSearchKind.ExactId ? Id.ToString("D") : "café";
+            var value = kind is SessionListSearchKind.Browse ? "" : kind is SessionListSearchKind.ExactId ? Id.ToString("D")
+                : kind is SessionListSearchKind.ExactName ? row.Metadata!.Name.Value : "café";
             var query = new SessionListSearch(kind, SessionListFilter.Active, value,
                 minimum, maximum, revisionMinimum, revisionMaximum);
             query.Matches(row).Should().Be(match);
             query.Matches(row with { Authority = row.Authority with { IsActive = false } }).Should().BeFalse();
             query.Matches(row with { Metadata = null }).Should().Be(
-                match && kind is not SessionListSearchKind.NameSubstring && revisionMinimum is null && revisionMaximum is null);
+                match && kind is not (SessionListSearchKind.NameSubstring or SessionListSearchKind.ExactName)
+                    && revisionMinimum is null && revisionMaximum is null);
             if (kind is SessionListSearchKind.Browse) { continue; }
             var wrongValue = kind is SessionListSearchKind.ExactId ? Guid.NewGuid().ToString("D") : "absent";
             new SessionListSearch(kind, SessionListFilter.All, wrongValue, minimum, maximum, revisionMinimum, revisionMaximum)
@@ -212,9 +215,79 @@ public sealed class SessionListSearchTests
     [InlineData("a\u200bb")]
     public void InvalidNamesAreDeniedWithoutNormalizationOrUnfilteredFallback(string? query)
     {
-        SessionListSearch.IsValid(SessionListSearchKind.NameSubstring, SessionListFilter.All, query!).Should().BeFalse();
-        var act = () => new SessionListSearch(SessionListSearchKind.NameSubstring, SessionListFilter.All, query!);
-        act.Should().Throw<Exception>();
+        foreach (var kind in new[] { SessionListSearchKind.NameSubstring, SessionListSearchKind.ExactName })
+        {
+            SessionListSearch.IsValid(kind, SessionListFilter.All, query!).Should().BeFalse();
+            var act = () => new SessionListSearch(kind, SessionListFilter.All, query!);
+            act.Should().Throw<Exception>();
+        }
+    }
+
+    [Theory]
+    [InlineData("café I_100% 🐈", true)]
+    [InlineData("CAFÉ I_100% 🐈", false)]
+    [InlineData("café ı_100% 🐈", false)]
+    [InlineData("café", false)]
+    [InlineData("%", false)]
+    [InlineData("🐈", false)]
+    [InlineData("prefix café I_100% 🐈", false)]
+    [InlineData("café I_100% 🐈 suffix", false)]
+    public void ExactNameRequiresWholeOrdinalEqualityWithoutSupplyingIdentity(string value, bool matches)
+    {
+        var previous = CultureInfo.CurrentCulture;
+        try
+        {
+            CultureInfo.CurrentCulture = new("tr-TR");
+            var search = new SessionListSearch(SessionListSearchKind.ExactName, SessionListFilter.All, value);
+            search.Matches(Entry()).Should().Be(matches);
+            search.Matches(Entry(id: Guid.NewGuid())).Should().Be(matches, "duplicate names do not identify a session");
+            search.Matches(Entry(null)).Should().BeFalse();
+            search.ExactId.Should().BeNull();
+            search.Value.Should().Be(value);
+        }
+        finally { CultureInfo.CurrentCulture = previous; }
+    }
+
+    [Fact]
+    public void ExactNameCursorBindsKindValueAndEveryPredicateWithoutIdInterpretation()
+    {
+        var query = new SessionListSearch(SessionListSearchKind.ExactName, SessionListFilter.All, Id.ToString("D"));
+        query.ExactId.Should().BeNull();
+        query.Matches(Entry(Id.ToString("D"), id: Guid.NewGuid())).Should().BeTrue();
+        query.Matches(Entry()).Should().BeFalse();
+        var cursor = new SessionListSearchCursor(Id, 1, Id, query.Digest);
+        cursor.Validate(Id, 1, new(query.Kind, query.Filter, query.Value));
+        foreach (var changed in new[]
+        {
+            new SessionListSearch(SessionListSearchKind.NameSubstring, query.Filter, query.Value),
+            new SessionListSearch(SessionListSearchKind.ExactId, query.Filter, query.Value),
+            new SessionListSearch(SessionListSearchKind.Browse, query.Filter, ""),
+            new SessionListSearch(query.Kind, query.Filter, "another"),
+            new SessionListSearch(query.Kind, SessionListFilter.Active, query.Value),
+            new SessionListSearch(query.Kind, query.Filter, query.Value, minimumGeneration: 1),
+            new SessionListSearch(query.Kind, query.Filter, query.Value, maximumGeneration: 1),
+            new SessionListSearch(query.Kind, query.Filter, query.Value, minimumMetadataRevision: 1),
+            new SessionListSearch(query.Kind, query.Filter, query.Value, maximumMetadataRevision: 1),
+            new SessionListSearch(query.Kind, query.Filter, query.Value, nameAvailability: SessionNameAvailability.Named),
+            new SessionListSearch(query.Kind, query.Filter, query.Value, nameAvailability: SessionNameAvailability.Unnamed)
+        })
+        {
+            changed.Digest.Should().NotBe(query.Digest);
+            var validate = () => cursor.Validate(Id, 1, changed);
+            validate.Should().Throw<ArgumentException>();
+        }
+    }
+
+    [Fact]
+    public void ExactNameAdmitsOnlyCanonicalNamesWithinScalarAndByteBounds()
+    {
+        var maximum = string.Concat(Enumerable.Repeat("🐈", 120));
+        SessionListSearch.IsValid(SessionListSearchKind.ExactName, SessionListFilter.All, maximum).Should().BeTrue();
+        foreach (var value in new[] { maximum + "a", new string('a', 121), new string('a', 100000),
+            new string((char)0xd800, 1), "a\u2028b", "a\u2029b", "a\0b" })
+        {
+            SessionListSearch.IsValid(SessionListSearchKind.ExactName, SessionListFilter.All, value).Should().BeFalse();
+        }
     }
 
     [Theory]

@@ -30,6 +30,73 @@ public sealed class SessionsListSearchTests
         "ListMinimumMetadataRevision", "ListMaximumMetadataRevision"];
 
     [WindowsFact]
+    public async Task ExactNameKeepsDuplicateNamesPassiveAndInvalidEditsRetireSelectionWithoutSearching()
+    {
+        await HeadlessSession.RunAsync(async () =>
+        {
+            using var f = new InteractionStorageFixture();
+            await f.InitializeAsync();
+            var access = new Access();
+            var service = new SessionWorkspaceService(f.Store, new(f.Tasks), access, NullLogger<SessionWorkspaceService>.Instance);
+            var first = await service.CreateAsync(new("café 100%_"), RequestOrigin.LocalUi, f.Token);
+            var second = await service.CreateAsync(new("café 100%_"), RequestOrigin.LocalUi, f.Token);
+            await service.CreateAsync(new("prefix café 100%_"), RequestOrigin.LocalUi, f.Token);
+            var sink = new WindowsSqliteEvidenceSink(f.Paths);
+            sink.Initialize();
+            var model = new SessionsViewModel(service,
+                new(new WindowsSqliteEvidenceReader(sink), access, f.Time, NullLogger<DurableEvidenceQuery>.Instance),
+                access, NullLogger<SessionsViewModel>.Instance);
+            var window = new SessionsWindow(model);
+            var audits = f.Count("security_audit_events");
+            var tasks = f.Count("host_tasks");
+            window.Show();
+            try
+            {
+                model.ListSearchKind = SessionListSearchKind.ExactName;
+                model.ListNameAvailability.Should().Be(SessionNameAvailability.Any);
+                foreach (var name in RangeControlNames)
+                {
+                    var range = window.FindControl<TextBox>(name)!;
+                    range.Focus().Should().BeTrue();
+                    range.Text.Should().BeEmpty();
+                    ControlAutomationPeer.CreatePeerForElement(range)!.GetName().Should().Contain("empty for Any");
+                }
+                model.ListQuery = "café 100%_";
+                model.Sessions.Should().BeEmpty("edits do not read");
+                await model.SearchListAsync();
+                model.Sessions.Should().BeEquivalentTo([first, second]);
+                model.SelectedSessionRecord.Should().BeNull("a name never selects even when it matches");
+                await model.SelectAsync(first);
+                model.ListQuery = "cafe\u0301 100%_";
+                model.ListQuery.Should().Be("cafe\u0301 100%_");
+                model.CanSearchList.Should().BeFalse();
+                model.Status.Should().Contain("ExactName").And.Contain("Nothing is normalized");
+                model.Sessions.Should().BeEmpty();
+                model.SelectedSessionRecord.Should().BeNull();
+                model.Detail.Should().BeEmpty();
+                model.CanCancelWork.Should().BeFalse();
+                model.ListQuery = new('a', 1000);
+                model.ListQuery.Length.Should().Be(1000);
+                model.CanSearchList.Should().BeFalse();
+                model.ListQuery = "CAFÉ 100%_";
+                await model.SearchListAsync();
+                model.Sessions.Should().BeEmpty("exact name is ordinal case-sensitive");
+                model.ListQuery = "café 100%_";
+                model.ListNameAvailability = SessionNameAvailability.Unnamed;
+                await model.SearchListAsync();
+                model.Sessions.Should().BeEmpty("ExactName plus Unnamed is an empty conjunction");
+                model.ClearListSearch();
+                model.ListNameAvailability.Should().Be(SessionNameAvailability.Any);
+                model.ListQuery.Should().BeEmpty();
+                model.CanSearchList.Should().BeFalse("clearing does not reinterpret ExactName as Browse");
+                f.Count("security_audit_events").Should().Be(audits);
+                f.Count("host_tasks").Should().Be(tasks);
+            }
+            finally { window.Close(); }
+        });
+    }
+
+    [WindowsFact]
     public async Task ExplicitBrowseAndAvailabilityAreAccessibleBoundedPassiveAndRetireSelectionWithoutReadsOnEdits()
     {
         await HeadlessSession.RunAsync(async () =>
@@ -91,8 +158,10 @@ public sealed class SessionsListSearchTests
         });
     }
 
-    [WindowsFact]
-    public async Task NativeMetadataSearchIsKeyboardAccessibleAndPreservesTheExactVisibleWorkHistoryAndMemorySubject()
+    [Theory]
+    [InlineData(SessionListSearchKind.NameSubstring)]
+    [InlineData(SessionListSearchKind.ExactName)]
+    public async Task NativeMetadataSearchIsKeyboardAccessibleAndPreservesTheExactVisibleWorkHistoryAndMemorySubject(SessionListSearchKind kind)
     {
         await HeadlessSession.RunAsync(async () =>
         {
@@ -127,7 +196,14 @@ public sealed class SessionsListSearchTests
             {
                 var field = window.FindControl<TextBox>("ListQuery")!;
                 field.Focus().Should().BeTrue();
-                model.ListQuery = "café";
+                var modes = window.FindControl<ComboBox>("ListSearchKind")!;
+                modes.Focus().Should().BeTrue();
+                ControlAutomationPeer.CreatePeerForElement(modes)!.GetName().Should()
+                    .Contain("whole-name ordinal case-sensitive ExactName");
+                model.ListSearchKinds.Should().Equal(SessionListSearchKind.NameSubstring, SessionListSearchKind.ExactId,
+                    SessionListSearchKind.Browse, SessionListSearchKind.ExactName);
+                model.ListSearchKind = kind;
+                model.ListQuery = kind is SessionListSearchKind.ExactName ? "Private café" : "café";
                 model.ListMinimumGeneration = "1";
                 model.ListMaximumGeneration = "1";
                 model.ListMinimumMetadataRevision = "1";
@@ -145,6 +221,7 @@ public sealed class SessionsListSearchTests
                     await DispatchWhenReady(model, () => model.CanSearchList, () =>
                     {
                         model.CanSearchList.Should().BeTrue();
+                        field.Focus().Should().BeTrue();
                         var key = new KeyEventArgs { RoutedEvent = InputElement.KeyDownEvent, Key = Key.Enter };
                         field.RaiseEvent(key);
                         key.Handled.Should().BeTrue();
@@ -220,8 +297,10 @@ public sealed class SessionsListSearchTests
         });
     }
 
-    [WindowsFact]
-    public async Task ChangedSelectedMetadataInvalidatesSearchAndStaleControlsOnPassiveWorkRefresh()
+    [Theory]
+    [InlineData(SessionListSearchKind.NameSubstring)]
+    [InlineData(SessionListSearchKind.ExactName)]
+    public async Task ChangedSelectedMetadataInvalidatesSearchAndStaleControlsOnPassiveWorkRefresh(SessionListSearchKind kind)
     {
         using var f = new InteractionStorageFixture();
         await f.InitializeAsync();
@@ -236,6 +315,7 @@ public sealed class SessionsListSearchTests
             access, NullLogger<SessionsViewModel>.Instance);
         try
         {
+            model.ListSearchKind = kind;
             model.ListQuery = "needle";
             await model.SearchListAsync();
             await model.SelectAsync(model.Sessions.Single());

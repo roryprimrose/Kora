@@ -34,6 +34,23 @@ do not depend on hosted management, and speech preferences do not qualify wake.
 
 ## Current Delivery
 
+### Bounded native session-list ExactName - 2026-10-16
+
+Built on freshly fetched main `afdee7f508bc2e186bf56ef5f65cb27711e83bd1`.
+The [passive session-list contract](Interaction_And_Sessions.md#delivered-passive-session-list-name-and-exact-id-search---2026-10-10)
+adds ExactName as a fourth native mode. Canonical SessionName admission and
+whole-name ordinal case-sensitive equality compose with lifecycle, observed
+name availability and inclusive generation/name-revision ranges. Kind, value
+and every predicate bind the semantic query digest and continuation identity.
+Full candidate validation, 50-row scans, 25 native matches, 64-KiB pages,
+cancellation/source-admission fences and exact selection/detail/action
+retirement remain unchanged. Names are volatile passive navigation metadata,
+never session identity, ownership, authority, approval, routing or mutation.
+This consumes the existing metadata-reader I subset with deterministic
+portable/private SQLite/headless accessibility tests; installed accessibility
+and broader E/Q qualification remain separate and unclaimed. No schema,
+external operation, experiment or sibling catalogue controls are added.
+
 ### Bounded exact-grant committed correlation metadata predicates - 2026-10-16
 
 Built on freshly fetched main `afdee7f508bc2e186bf56ef5f65cb27711e83bd1`.

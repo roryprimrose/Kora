@@ -547,6 +547,9 @@
               <TextBox x:Name="MemoryIdFilter" Text="{Binding MemoryIdFilter, Mode=TwoWay}"
                        IsEnabled="{Binding CanFilterMemories}" PlaceholderText="Exact memory GUID, or empty for Any"
                        AutomationProperties.Name="Exact memory GUID filter over listed metadata only; no content reads" />
+              <TextBox x:Name="MemoryScopeIdentityFilter" Text="{Binding MemoryScopeIdentityFilter, Mode=TwoWay}"
+                       IsEnabled="{Binding CanFilterMemories}" PlaceholderText="Exact memory scope identity GUID, or empty for Any"
+                       AutomationProperties.Name="Exact memory scope identity canonical D GUID or empty for Any; snapshot metadata only, not permission, ownership or scope authority" />
               <TextBlock Text="Inclusive ranges, combined with all metadata filters. Empty bounds mean Any. Revisions are positive decimal integers. UTC Created times use yyyy-MM-ddTHH:mm:ss.fffffff+00:00 (seven fractional digits)." TextWrapping="Wrap" />
               <TextBox x:Name="MemoryMinimumRevisionFilter" Text="{Binding MemoryMinimumRevisionFilter, Mode=TwoWay}"
                        IsEnabled="{Binding CanFilterMemories}" PlaceholderText="Minimum revision (inclusive), or empty for Any"

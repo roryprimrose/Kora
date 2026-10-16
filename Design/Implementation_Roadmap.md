@@ -95,6 +95,27 @@ storage schema, provider/device/network/experiment or sibling-domain changes.
 This consumed I subset does not claim installed accessibility, full Evidence,
 Ask Evidence or E/Q qualification, and requires no unrelated proof.
 
+### Bounded native selected-session memory scope identity predicate - 2026-10-16
+
+Built from freshly fetched canonical main `afdee7f508bc2e186bf56ef5f65cb27711e83bd1`.
+The [memory snapshot filter contract](Model_Providers_Memory_And_Knowledge.md#delivered-native-content-free-session-memory-filters---2026-10-14)
+adds optional exact scope identity GUID, AND-composed with exact memory ID,
+Scope kind, Review, Retention and inclusive revision/created-time ranges.
+Shared strict complete canonical D admission treats only empty as Any;
+complete-row validation precedes exclusion and invalid metadata rejects the
+whole result. Identity describes the admitted row, never permission, device/
+provider ownership, scope authority, content or mutation authority. Accessible
+native edits/Clear/Escape remain snapshot-only, with no store read, activity,
+logging or persistence, and retire selection, inspection, mutation readiness,
+drafts and stale callbacks under existing session/privacy/control fences.
+The consumed I subset is the existing bounded admitted metadata snapshot and
+portable/private SQLite/headless checks, including exact portable line/branch
+coverage. No schema, command syntax, runtime exposure, provider/device/network
+operation or experiment is added. Installed accessibility and broader R12/E/Q
+remain separate and unclaimed. Saved drafts (#282), Presence/native presenter,
+unknown build/performance work and sibling attachment file identities,
+exact-grant audit correlation/approval and Evidence trace metadata are unchanged.
+
 ### R26 retained attachment inclusive generation/revision predicates - 2026-10-16
 
 From canonical main `74cd8517e5b5412deea706d1125a9b6e156a49e9`, the

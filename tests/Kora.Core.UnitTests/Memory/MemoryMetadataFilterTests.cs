@@ -26,9 +26,11 @@ public sealed class MemoryMetadataFilterTests
         foreach (var review in reviews)
         foreach (var retention in retentions)
         foreach (var id in new[] { "", Identity.ToString("D").ToUpperInvariant(), Guid.NewGuid().ToString("D") })
+        foreach (var scopeIdentity in new[] { "", Identity.ToString("D").ToUpperInvariant(), Guid.NewGuid().ToString("D") })
         {
-            var filter = new MemoryMetadataFilter(id, scope, review, retention);
+            var filter = new MemoryMetadataFilter(id, scope, review, retention, scopeIdentity: scopeIdentity);
             filter.Id.Should().Be(id.Length == 0 ? null : Guid.Parse(id));
+            filter.ScopeIdentity.Should().Be(scopeIdentity.Length == 0 ? null : Guid.Parse(scopeIdentity));
             filter.Scope.Should().Be(scope);
             filter.Review.Should().Be(review);
             filter.Retention.Should().Be(retention);
@@ -38,6 +40,7 @@ public sealed class MemoryMetadataFilterTests
             {
                 var row = Row with { Scope = rowScope, Review = rowReview, Retention = rowRetention };
                 filter.Matches(row).Should().Be((id.Length == 0 || Guid.Parse(id) == row.Id)
+                    && (scopeIdentity.Length == 0 || Guid.Parse(scopeIdentity) == rowScope.Identity)
                     && (scope is null || scope == rowScope.Kind)
                     && (review is null || review == rowReview)
                     && (retention is null || retention == rowRetention));
@@ -50,11 +53,17 @@ public sealed class MemoryMetadataFilterTests
     {
         var missing = () => new MemoryMetadataFilter(null!);
         missing.Should().Throw<ArgumentNullException>();
+        var missingScopeIdentity = () => new MemoryMetadataFilter(scopeIdentity: null!);
+        missingScopeIdentity.Should().Throw<ArgumentNullException>();
         foreach (var id in new[] { "bad", " ", Guid.Empty.ToString("D"), Identity.ToString("N"),
-            Identity.ToString("B"), " " + Identity.ToString("D"), Identity.ToString("D") + "\n" })
+            Identity.ToString("B"), Identity.ToString("P"), Identity.ToString("X"),
+            " " + Identity.ToString("D"), Identity.ToString("D") + "\n", Identity.ToString("D") + " ",
+            Identity.ToString("D")[..35], Identity.ToString("D") + "0" })
         {
             var act = () => new MemoryMetadataFilter(id);
             act.Should().Throw<InvalidDataException>().WithMessage("*canonical D*Any*");
+            var scopeAct = () => MemoryMetadataFilter.Parse("", null, null, null, "", "", "", "", id);
+            scopeAct.Should().Throw<InvalidDataException>().WithMessage("*canonical D memory scope identity GUID*Any*");
         }
         foreach (var value in new[] { -1, 999 })
         {
@@ -81,7 +90,8 @@ public sealed class MemoryMetadataFilterTests
             new(scope: MemoryScopeKind.Source), new(review: MemoryReviewState.Rejected),
             new(retention: MemoryRetentionState.Forgotten), new(minimumRevision: 2),
             new(maximumRevision: 1), new(createdFromUtc: DateTimeOffset.UnixEpoch.AddTicks(1)),
-            new(createdUntilUtc: DateTimeOffset.UnixEpoch.AddTicks(-1))];
+            new(createdUntilUtc: DateTimeOffset.UnixEpoch.AddTicks(-1)),
+            new(scopeIdentity: Guid.NewGuid().ToString("D"))];
         foreach (var filter in filters)
         foreach (var row in malformed)
         {
@@ -110,7 +120,7 @@ public sealed class MemoryMetadataFilterTests
             {
                 var row = Row with { Revision = rowRevision, CreatedAt = created };
                 var filter = new MemoryMetadataFilter(Identity.ToString("D"), row.Scope.Kind, row.Review, row.Retention,
-                    minimum, maximum, from, until);
+                    minimum, maximum, from, until, row.Scope.Identity.ToString("D"));
                 filter.MinimumRevision.Should().Be(minimum);
                 filter.MaximumRevision.Should().Be(maximum);
                 filter.CreatedFromUtc.Should().Be(from);
@@ -121,12 +131,27 @@ public sealed class MemoryMetadataFilterTests
             }
         }
         var exact = new MemoryMetadataFilter(Identity.ToString("D"), Row.Scope.Kind, Row.Review, Row.Retention,
-            1, 1, Row.CreatedAt, Row.CreatedAt);
+            1, 1, Row.CreatedAt, Row.CreatedAt, Row.Scope.Identity.ToString("D"));
         exact.Matches(Row).Should().BeTrue();
         exact.Matches(Row with { Id = Guid.NewGuid() }).Should().BeFalse();
         exact.Matches(Row with { Scope = MemoryScope.Source(new(Identity)) }).Should().BeFalse();
+        exact.Matches(Row with { Scope = MemoryScope.Session(new(Guid.NewGuid())) }).Should().BeFalse();
         exact.Matches(Row with { Review = MemoryReviewState.Rejected }).Should().BeFalse();
         exact.Matches(Row with { Retention = MemoryRetentionState.Forgotten }).Should().BeFalse();
+    }
+
+    [Fact]
+    public void ScopeIdentityDescribesTheRowNotItsMemoryIdOrAuthority()
+    {
+        var other = Guid.Parse("abcdefab-1234-4567-89ab-abcdefabcdef");
+        var row = Row with { Scope = MemoryScope.Source(new(other)) };
+        var filter = MemoryMetadataFilter.Parse(Identity.ToString("D"), MemoryScopeKind.Source,
+            row.Review, row.Retention, "1", "1", "", "", other.ToString("D").ToUpperInvariant());
+        filter.ScopeIdentity.Should().Be(other);
+        filter.Matches(row).Should().BeTrue();
+        filter.Matches(Row).Should().BeFalse();
+        new MemoryMetadataFilter(scopeIdentity: Identity.ToString("D")).Matches(row).Should().BeFalse();
+        new MemoryMetadataFilter(scopeIdentity: other.ToString("D")).Matches(row).Should().BeTrue();
     }
 
     [Fact]

@@ -13,6 +13,7 @@ internal sealed partial class SessionsViewModel
     private long memoryListControl;
     private Kora.Core.Authorization.WorkSessionAuthorization? memorySource;
     private string memoryIdFilter = string.Empty;
+    private string memoryScopeIdentityFilter = string.Empty;
     private string memoryMinimumRevisionFilter = string.Empty;
     private string memoryMaximumRevisionFilter = string.Empty;
     private string memoryCreatedFromFilter = string.Empty;
@@ -51,6 +52,11 @@ internal sealed partial class SessionsViewModel
             memoryScopeFilter = value;
             ChangeMemoryFilters();
         }
+    }
+    public string MemoryScopeIdentityFilter
+    {
+        get => memoryScopeIdentityFilter;
+        set => ChangeMemoryRangeFilter(ref memoryScopeIdentityFilter, value);
     }
     public string MemoryMinimumRevisionFilter
     {
@@ -126,6 +132,7 @@ internal sealed partial class SessionsViewModel
     {
         if (notifying || !CanFilterMemories) { return; }
         memoryIdFilter = string.Empty;
+        memoryScopeIdentityFilter = string.Empty;
         memoryScopeFilter = null;
         memoryReviewFilter = null;
         memoryRetentionFilter = null;
@@ -164,7 +171,8 @@ internal sealed partial class SessionsViewModel
         try
         {
             var filter = MemoryMetadataFilter.Parse(memoryIdFilter, memoryScopeFilter, memoryReviewFilter, memoryRetentionFilter,
-                memoryMinimumRevisionFilter, memoryMaximumRevisionFilter, memoryCreatedFromFilter, memoryCreatedUntilFilter);
+                memoryMinimumRevisionFilter, memoryMaximumRevisionFilter, memoryCreatedFromFilter, memoryCreatedUntilFilter,
+                memoryScopeIdentityFilter);
             visibleMemoryRows = [.. memoryRows.Where(filter.Matches)];
             MemoryFilterStatus = $"{visibleMemoryRows.Count} of {memoryRows.Count} snapshot memories. Metadata only; select and inspect again before actions. List explicitly to refresh.";
         }
@@ -297,6 +305,7 @@ internal sealed partial class SessionsViewModel
         memoryListed = false;
         memorySource = null;
         memoryIdFilter = string.Empty;
+        memoryScopeIdentityFilter = string.Empty;
         memoryScopeFilter = null;
         memoryReviewFilter = null;
         memoryRetentionFilter = null;
@@ -325,6 +334,7 @@ internal sealed partial class SessionsViewModel
             OnPropertyChanged(nameof(CanDisableMemory));
             OnPropertyChanged(nameof(CanFilterMemories));
             OnPropertyChanged(nameof(MemoryIdFilter));
+            OnPropertyChanged(nameof(MemoryScopeIdentityFilter));
             OnPropertyChanged(nameof(MemoryMinimumRevisionFilter));
             OnPropertyChanged(nameof(MemoryMaximumRevisionFilter));
             OnPropertyChanged(nameof(MemoryCreatedFromFilter));

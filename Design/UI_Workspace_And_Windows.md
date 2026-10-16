@@ -242,7 +242,12 @@ headless focus/accessible-name checks are not installed screen-reader/DPI proof.
 The separate **Sessions > Session memories** surface exposes exact GUID plus
 **Scope**, **Review** and **Retention** metadata filters over its already-loaded
 bounded snapshot. Each enum starts with visibly selected **Any**; all predicates
-are AND. Scope is not permission or provider authority. Edits retire selection,
+are AND. The 2026-10-16 exact scope identity GUID field (empty for Any) and inclusive
+revision/created-time ranges compose with those predicates. Scope kind/identity
+are row metadata, not permission, ownership, scope or provider authority.
+The identity field has an explicit automation name and keyboard focus; Escape
+clears every filter in place, while Clear returns focus to the memory ID field.
+Edits retire selection,
 inspection, draft and pending callbacks without reads; explicit **List** alone
 refreshes the source. Undefined filters or malformed row metadata show no results
 and explicit recovery, not a partial list. See the

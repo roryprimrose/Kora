@@ -137,7 +137,13 @@ public sealed partial class SessionsViewModelTests
         document.Descendants().Should().NotContain(element =>
             element.Name.LocalName == "WebView" || element.Name.LocalName == "SelectableTextBlock");
         document.Descendants().Where(element => string.Equals(element.Name.LocalName, "TextBox", StringComparison.Ordinal))
-            .Should().HaveCount(31, "name, exact history ID, metadata/history/conversation queries, four conversation ranges, four session-list numeric bounds, three local-event correlation IDs and eight range bounds, memory GUID and four inclusive range filters, memory drafts and the exact-session memory-only composer are independent native inputs");
+            .Should().HaveCount(32, "name, exact history ID, metadata/history/conversation queries, four conversation ranges, four session-list numeric bounds, three local-event correlation IDs and eight range bounds, memory and scope identity GUIDs and four inclusive range filters, memory drafts and the exact-session memory-only composer are independent native inputs");
+        var scopeIdentity = document.Descendants().Single(element => element.Name.LocalName is "TextBox"
+            && element.Attribute("Text")?.Value == "{Binding MemoryScopeIdentityFilter, Mode=TwoWay}");
+        scopeIdentity.Attribute("MaxLength").Should().BeNull("invalid identities must be rejected, never truncated");
+        scopeIdentity.Attribute("IsEnabled")!.Value.Should().Be("{Binding CanFilterMemories}");
+        scopeIdentity.Attribute("AutomationProperties.Name")!.Value.Should()
+            .Contain("canonical D").And.Contain("Any").And.Contain("snapshot metadata only");
         foreach (var binding in new[] { "ConversationMinimumSequence", "ConversationMaximumSequence",
             "ConversationSubmittedFrom", "ConversationSubmittedThrough" })
         {

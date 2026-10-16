@@ -44,12 +44,14 @@ public sealed class SessionsMemoryFilterTests
         await using var f = await Fixture.Create();
         f.Model.CanFilterMemories.Should().BeFalse();
         f.Model.MemoryIdFilter = "not admitted before List";
+        f.Model.MemoryScopeIdentityFilter = "not admitted before List";
         f.Model.MemoryScopeFilter = MemoryScopeKind.Source;
         f.Model.MemoryMinimumRevisionFilter = "1";
         f.Model.MemoryMaximumRevisionFilter = "2";
         f.Model.MemoryCreatedFromFilter = "not admitted";
         f.Model.MemoryCreatedUntilFilter = "not admitted";
         f.Model.MemoryIdFilter.Should().BeEmpty();
+        f.Model.MemoryScopeIdentityFilter.Should().BeEmpty();
         f.Model.MemoryScopeFilter.Should().BeNull();
         AssertEmptyRanges(f.Model);
         f.Model.MemoryScopeChoice.Should().BeSameAs(f.Model.MemoryScopeFilters[0]);
@@ -91,14 +93,28 @@ public sealed class SessionsMemoryFilterTests
                     foreach (var row in snapshot)
                     {
                         f.Model.MemoryIdFilter = row.Id.ToString("D").ToUpperInvariant();
+                        f.Model.MemoryScopeIdentityFilter = row.Scope.Identity.ToString("D").ToUpperInvariant();
                         f.Model.MemoryRecords.Should().Equal(snapshot.Where(candidate =>
                             candidate.Id == row.Id && (review is null || candidate.Review == review)
+                            && candidate.Scope.Identity == row.Scope.Identity
                             && (scope is null || candidate.Scope.Kind == scope)
                             && (retention is null || candidate.Retention == retention)));
                     }
                     f.Model.MemoryIdFilter = string.Empty;
                 }
             }
+        }
+        f.Model.ClearMemoryFilters();
+        f.Model.MemoryScopeIdentityFilter = "abcdefab-1234-4567-89ab-abcdefabcdef";
+        f.Model.MemoryRecords.Should().BeEmpty();
+        f.Model.MemoryFilterStatus.Should().StartWith("0 of 6");
+        foreach (var input in new[] { "abc", " ", Guid.Empty.ToString("D"), snapshot[0].Scope.Identity.ToString("N"),
+            snapshot[0].Scope.Identity.ToString("B"), " " + snapshot[0].Scope.Identity.ToString("D"),
+            snapshot[0].Scope.Identity.ToString("D") + "\n" })
+        {
+            f.Model.MemoryScopeIdentityFilter = input;
+            f.Model.MemoryRecords.Should().BeEmpty();
+            f.Model.MemoryFilterStatus.Should().Contain("canonical D memory scope identity");
         }
         f.Model.ClearMemoryFilters();
         f.Model.MemoryIdFilter = "abcdefab-1234-4567-89ab-abcdefabcdef";
@@ -130,6 +146,7 @@ public sealed class SessionsMemoryFilterTests
         {
             f.Model.ClearMemoryFilters();
             f.Model.MemoryIdFilter = row.Id.ToString("D");
+            f.Model.MemoryScopeIdentityFilter = row.Scope.Identity.ToString("D");
             f.Model.MemoryScopeFilter = row.Scope.Kind;
             f.Model.MemoryReviewFilter = row.Review;
             f.Model.MemoryRetentionFilter = row.Retention;
@@ -189,6 +206,7 @@ public sealed class SessionsMemoryFilterTests
     [Theory]
     [InlineData("id")]
     [InlineData("scope")]
+    [InlineData("scopeIdentity")]
     [InlineData("review")]
     [InlineData("retention")]
     [InlineData("minimum")]
@@ -213,6 +231,7 @@ public sealed class SessionsMemoryFilterTests
         {
             case "id": f.Model.MemoryIdFilter = row.Id.ToString("D"); break;
             case "scope": f.Model.MemoryScopeFilter = row.Scope.Kind; break;
+            case "scopeIdentity": f.Model.MemoryScopeIdentityFilter = row.Scope.Identity.ToString("D"); break;
             case "review": f.Model.MemoryReviewFilter = row.Review; break;
             case "retention": f.Model.MemoryRetentionFilter = row.Retention; break;
             case "minimum": f.Model.MemoryMinimumRevisionFilter = row.Revision.ToString(CultureInfo.InvariantCulture); break;
@@ -316,6 +335,7 @@ public sealed class SessionsMemoryFilterTests
         await f.Model.ListMemoriesAsync();
         var row = f.Model.MemoryRecords.Single();
         f.Model.MemoryIdFilter = row.Id.ToString("D");
+        f.Model.MemoryScopeIdentityFilter = row.Scope.Identity.ToString("D");
         f.Model.MemoryScopeFilter = MemoryScopeKind.Session;
         f.Model.MemoryMinimumRevisionFilter = "1";
         f.Model.MemoryMaximumRevisionFilter = long.MaxValue.ToString(CultureInfo.InvariantCulture);
@@ -348,7 +368,7 @@ public sealed class SessionsMemoryFilterTests
             var refresh = f.Model.ListMemoriesAsync();
             await f.Store.Entered.Task.WaitAsync(f.Storage.Token);
             if (boundary is "cancel-close") { f.Model.Close(); }
-            else { f.Model.MemoryScopeFilter = MemoryScopeKind.Source; }
+            else { f.Model.MemoryScopeIdentityFilter = "abcdefab-1234-4567-89ab-abcdefabcdef"; }
             AssertRetired(f.Model);
             f.Store.Release.SetResult();
             await refresh;
@@ -388,6 +408,7 @@ public sealed class SessionsMemoryFilterTests
                 window.Activate();
                 window.UpdateLayout();
                 var id = window.FindControl<TextBox>("MemoryIdFilter")!;
+                var scopeIdentity = window.FindControl<TextBox>("MemoryScopeIdentityFilter")!;
                 var review = window.FindControl<ComboBox>("MemoryReviewFilter")!;
                 var scope = window.FindControl<ComboBox>("MemoryScopeFilter")!;
                 var retention = window.FindControl<ComboBox>("MemoryRetentionFilter")!;
@@ -413,6 +434,11 @@ public sealed class SessionsMemoryFilterTests
                 scopeSelection.Should().NotBeNull();
                 scopeSelection.GetSelection().Should().ContainSingle();
                 ControlAutomationPeer.CreatePeerForElement(id)!.GetName().Should().Contain("metadata only");
+                scopeIdentity.IsEnabled.Should().BeTrue();
+                scopeIdentity.Focus().Should().BeTrue();
+                ControlAutomationPeer.CreatePeerForElement(scopeIdentity)!.GetName().Should()
+                    .Contain("scope identity").And.Contain("canonical D").And.Contain("Any")
+                    .And.Contain("snapshot metadata only").And.Contain("not permission, ownership or scope authority");
                 ControlAutomationPeer.CreatePeerForElement(review)!.GetName().Should().Contain("Review").And.Contain("Any");
                 ControlAutomationPeer.CreatePeerForElement(retention)!.GetName().Should().Contain("Retention").And.Contain("Any");
                 ControlAutomationPeer.CreatePeerForElement(clear)!.GetName().Should().Contain("retire selection");
@@ -423,6 +449,16 @@ public sealed class SessionsMemoryFilterTests
                 id.Focus().Should().BeTrue();
                 var calls = f.Store.Calls;
                 var row = f.Model.MemoryRecords.Single();
+                scopeIdentity.Focus().Should().BeTrue();
+                scopeIdentity.Text = row.Scope.Identity.ToString("D").ToUpperInvariant();
+                f.Model.MemoryScopeIdentityFilter.Should().Be(scopeIdentity.Text);
+                f.Model.MemoryRecords.Should().Equal(row);
+                scopeIdentity.Text = "invalid";
+                f.Model.MemoryRecords.Should().BeEmpty();
+                scopeIdentity.RaiseEvent(new KeyEventArgs { RoutedEvent = InputElement.KeyDownEvent, Key = Key.Escape });
+                scopeIdentity.IsFocused.Should().BeTrue();
+                scopeIdentity.Text.Should().BeEmpty();
+                f.Model.MemoryRecords.Should().Equal(row);
                 string[] values = [row.Revision.ToString(CultureInfo.InvariantCulture),
                     row.Revision.ToString(CultureInfo.InvariantCulture),
                     row.CreatedAt.ToString("O", CultureInfo.InvariantCulture), row.CreatedAt.ToString("O", CultureInfo.InvariantCulture)];
@@ -456,9 +492,11 @@ public sealed class SessionsMemoryFilterTests
                 f.Model.MemoryRecords.Should().BeEmpty();
                 retention.SelectedIndex = 2;
                 f.Model.MemoryRetentionFilter.Should().Be(MemoryRetentionState.Enabled);
+                scopeIdentity.Text = "invalid";
                 clear.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
                 id.IsFocused.Should().BeTrue();
                 id.Text.Should().BeEmpty();
+                scopeIdentity.Text.Should().BeEmpty();
                 f.Model.MemoryReviewFilter.Should().BeNull();
                 f.Model.MemoryScopeFilter.Should().BeNull();
                 scope.SelectedIndex.Should().Be(0);
@@ -489,6 +527,7 @@ public sealed class SessionsMemoryFilterTests
 
     private static void AssertEmptyRanges(SessionsViewModel model)
     {
+        model.MemoryScopeIdentityFilter.Should().BeEmpty();
         model.MemoryMinimumRevisionFilter.Should().BeEmpty();
         model.MemoryMaximumRevisionFilter.Should().BeEmpty();
         model.MemoryCreatedFromFilter.Should().BeEmpty();
@@ -515,6 +554,7 @@ public sealed class SessionsMemoryFilterTests
             field.SetValue(f.Model, new[] { row, malformed });
             f.Model.ClearMemoryFilters();
             f.Model.MemoryScopeFilter = MemoryScopeKind.Source;
+            f.Model.MemoryScopeIdentityFilter = "abcdefab-1234-4567-89ab-abcdefabcdef";
             f.Model.MemoryMinimumRevisionFilter = long.MaxValue.ToString(CultureInfo.InvariantCulture);
             f.Model.MemoryCreatedFromFilter = DateTimeOffset.MaxValue.ToString("O", CultureInfo.InvariantCulture);
             f.Model.MemoryRecords.Should().BeEmpty();
@@ -532,6 +572,8 @@ public sealed class SessionsMemoryFilterTests
     [Theory]
     [InlineData(false, "scope")]
     [InlineData(true, "scope")]
+    [InlineData(false, "scopeIdentity")]
+    [InlineData(true, "scopeIdentity")]
     [InlineData(false, "minimum")]
     [InlineData(true, "minimum")]
     [InlineData(false, "maximum")]
@@ -557,6 +599,7 @@ public sealed class SessionsMemoryFilterTests
         switch (field)
         {
             case "scope": f.Model.MemoryScopeFilter = MemoryScopeKind.Session; break;
+            case "scopeIdentity": f.Model.MemoryScopeIdentityFilter = row.Scope.Identity.ToString("D"); break;
             case "minimum": f.Model.MemoryMinimumRevisionFilter = "1"; break;
             case "maximum": f.Model.MemoryMaximumRevisionFilter = row.Revision.ToString(CultureInfo.InvariantCulture); break;
             case "from": f.Model.MemoryCreatedFromFilter = row.CreatedAt.ToString("O", CultureInfo.InvariantCulture); break;

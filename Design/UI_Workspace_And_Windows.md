@@ -41,6 +41,19 @@ Clear/source/private/last-owner revocation empties ranges; the composer and
 saved baseline remain independent. [Headless range tests](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.ConversationRanges.cs)
 verify shared binding, inclusive composition, no-read edits, accessible names
 and invalid-input refusal, not installed accessibility qualification.
+Both views share labelled, keyboard-focusable **Exact request ID** and **Exact
+task ID** text fields. Accessible names identify canonical lowercase nonempty
+D GUID admission, empty as Any, AND composition and no-read editing. The
+[canonical correlation contract](Interaction_And_Sessions.md#delivered-passive-exact-conversation-lexical-search--2026-10-13)
+owns admission/matching; invalid fields remain visible for correction and fail
+before reading. Edits retire rows, selection, open/deferred search Details,
+continuation and late callbacks without reading. Clear/private/source/last-owner
+revocation empties both IDs, not the independent composer or saved baseline.
+IDs cannot retarget the host-resolved selection or confer authority.
+[Headless correlation tests](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.ConversationCorrelation.cs)
+cover shared controls, exact composition, retained Done, privacy and no-read
+invalid-input refusal; installed accessibility qualification is not claimed.
+
 The [compact projection](../src/Kora/CompactSessionWindow.axaml) exposes these same controls over the workspace's single query/filter/page/cursor and cancellation state. Opening either view, typing or changing the field filter reads nothing; closing one view retains the shared state until the last owner closes. [Headless shared-search tests](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.CompactSearch.cs) cover keyboard actions, retained Done, saved baseline and late-source revocation; [native field-filter tests](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.ConversationRole.cs) cover shared binding, accessible control names, zero/invalid filters and no-read selection/continuation revocation.
 Native-only query entry adds no activated/model descriptor or generic-global-search retarget. Headless binding tests do not qualify installed keyboard/accessibility/DPI or full R12/R14 runtime acceptance.
 

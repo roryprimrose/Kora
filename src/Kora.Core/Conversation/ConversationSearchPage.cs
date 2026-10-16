@@ -8,7 +8,7 @@ namespace Kora.Core.Conversation;
 public sealed record ConversationSearchPage(WorkSessionAuthorization Session, long HeadRevision, long Ceiling, string QueryDigest,
     ImmutableArray<ConversationMessage> Messages, int Scanned, ConversationSearchCursor? Next,
     ConversationSearchRole Role = ConversationSearchRole.All, ConversationTerminalFilter Terminal = default,
-    ConversationRangeFilter Range = default)
+    ConversationRangeFilter Range = default, ConversationCorrelationFilter Correlation = default)
 {
     public const int DefaultRecords = 25;
     public int OmittedMessages => 0;

@@ -62,6 +62,20 @@ the semantic query digest and explicit page/cursor identity. Changing any bound
 refuses continuation before reading. Metadata is passive: it cannot establish
 chronology authority, permission, ownership, model output or session read access.
 
+Optional **Exact request ID** and **Exact task ID** predicates AND with each
+other, lexical, USER/HOST, terminal and sequence/submitted-time predicates.
+The portable [correlation filter](../src/Kora.Core/Conversation/ConversationCorrelationFilter.cs)
+admits only complete canonical lowercase nonempty D-format GUIDs; empty
+means Any. No trimming, uppercase conversion, braces, partial ID or empty-GUID
+repair is performed. Invalid input fails explicitly before body reads. Each
+predicate joins the semantic digest and explicit page/cursor identity;
+changing either refuses continuation before reading. Every consumed message
+and its original request/session/task IDs are validated before exclusion,
+including nonmatching rows. The session is already host-resolved: these IDs
+are passive correlation metadata only, cannot retarget a session or task, and
+cannot establish identity, intent, ownership, permission, approval or execution
+authority. Original USER body bytes and separate typed HOST status are unchanged.
+
 The [conversation matcher](../src/Kora.Core/Conversation/ConversationSearch.cs) reuses `SessionHistorySearch` and the authoritative `LocalFileRetrievalPolicy` tokenizer: 1–256 UTF-16 characters / 512 strict UTF-8 bytes, 1–32 distinct lexical terms of at most 64 characters, NFC/invariant whole-word OR.
 Punctuation is a separator, not regex, wildcard or instruction syntax. Blank/malformed/unsupported queries fail explicitly, never inventory all bodies.
 

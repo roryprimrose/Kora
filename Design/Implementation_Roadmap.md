@@ -116,6 +116,27 @@ remain separate and unclaimed. Saved drafts (#282), Presence/native presenter,
 unknown build/performance work and sibling attachment file identities,
 exact-grant audit correlation/approval and Evidence trace metadata are unchanged.
 
+### Bounded selected-conversation exact correlation predicates - 2026-10-16
+
+Built on freshly fetched main `afdee7f508bc2e186bf56ef5f65cb27711e83bd1`.
+The [passive selected-conversation contract](Interaction_And_Sessions.md#delivered-passive-exact-conversation-lexical-search--2026-10-13)
+adds optional exact request/task IDs AND-composed with lexical, USER/HOST,
+typed terminal and sequence/submitted-time ranges. One portable policy admits
+canonical lowercase nonempty D GUIDs only; empty means Any, invalid input is
+never repaired. Both predicates bind digest/page/cursor identity; complete
+message and request validation precedes exclusion. Shared accessible Sessions/
+Compact controls preserve no-read edit, selection/detail retirement, cancellation,
+stale/private/source fences, original USER privacy and separate typed HOST status.
+Existing bounded scans/pages and host-resolved selected session remain unchanged.
+Correlation metadata cannot retarget a session/task or establish identity,
+intent, ownership, permission, approval or execution authority.
+This consumes the existing admitted conversation-page I subset and deterministic
+portable/private-storage/headless tests; exact portable coverage and Release
+analyzers gate delivery. No saved-draft, attachment, memory, grant, Evidence,
+Presence, All Work, local-event or session-name ownership is extended. No
+network/device/provider/experiment or unrelated proof is required or claimed;
+installed accessibility and broader E/Q qualification remain separate.
+
 ### R26 retained attachment inclusive generation/revision predicates - 2026-10-16
 
 From canonical main `74cd8517e5b5412deea706d1125a9b6e156a49e9`, the

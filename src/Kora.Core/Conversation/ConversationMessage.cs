@@ -31,6 +31,9 @@ public sealed record ConversationMessage(HostRequest Request, HostRevision Gener
             || Reason is { } reason && !Enum.IsDefined(reason)
             || (Revision == 1) != (Outcome is null))
         { throw new InvalidDataException("The conversation source, revision or terminal host status is invalid."); }
+        Request.RequestId.Validate();
+        Request.SessionId.Validate();
+        Request.TaskId.Validate();
         ConversationText.Validate(Body, submission: true);
     }
 }

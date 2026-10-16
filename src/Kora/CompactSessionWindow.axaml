@@ -41,6 +41,13 @@
           SelectedItem="{Binding ConversationRole, Mode=TwoWay}" IsEnabled="{Binding CanReadConversation}"
           AutomationProperties.Name="Shared conversation search field filter: All original USER and typed HOST fields, USER original body only, HOST outcome reason and task state only; editing does not read" />
       <TextBlock Text="Inclusive original-message ranges (empty means Any). Minimum must not exceed maximum; all ranges AND with the query, role and terminal predicates." TextWrapping="Wrap" />
+      <TextBlock Text="Exact request ID (empty means Any)" />
+      <TextBox x:Name="ConversationRequestId" Text="{Binding ConversationRequestId, Mode=TwoWay}" IsEnabled="{Binding CanReadConversation}"
+          AutomationProperties.Name="Shared exact conversation request ID; canonical lowercase nonempty D GUID, empty means Any; AND with all predicates; editing does not read" />
+      <TextBlock Text="Exact task ID (empty means Any)" />
+      <TextBox x:Name="ConversationTaskId" Text="{Binding ConversationTaskId, Mode=TwoWay}" IsEnabled="{Binding CanReadConversation}"
+          AutomationProperties.Name="Shared exact conversation task ID; canonical lowercase nonempty D GUID, empty means Any; AND with all predicates; editing does not read" />
+      <TextBlock Text="Request/task IDs are passive correlation metadata only. They cannot retarget a session or task, establish identity, intent, ownership, permission, approval or execution authority." TextWrapping="Wrap" />
       <TextBlock Text="Minimum message sequence" />
       <TextBox x:Name="ConversationMinimumSequence" Text="{Binding ConversationMinimumSequence, Mode=TwoWay}" IsEnabled="{Binding CanReadConversation}"
           AutomationProperties.Name="Shared inclusive minimum original message sequence; invariant decimal within conversation limits, empty means Any; editing does not read" />

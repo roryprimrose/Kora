@@ -25,6 +25,8 @@ public sealed partial class SessionsConversationTests
     [InlineData("maximum-sequence")]
     [InlineData("submitted-from")]
     [InlineData("submitted-through")]
+    [InlineData("request-id")]
+    [InlineData("task-id")]
     public async Task CriteriaEditsFenceLateDetailCallbacksWithoutClearingIndependentComposer(string edit)
     {
         using var f = new InteractionStorageFixture();
@@ -66,6 +68,8 @@ public sealed partial class SessionsConversationTests
     [InlineData("maximum-sequence")]
     [InlineData("submitted-from")]
     [InlineData("submitted-through")]
+    [InlineData("request-id")]
+    [InlineData("task-id")]
     public async Task SearchCriteriaEditRevokesMatchDetailsAndDeferredNavigationWithoutTouchingComposer(string edit)
     {
         using var f = new InteractionStorageFixture();
@@ -103,6 +107,8 @@ public sealed partial class SessionsConversationTests
     {
         switch (edit)
         {
+            case "request-id": model.ConversationRequestId = Guid.NewGuid().ToString("D"); break;
+            case "task-id": model.ConversationTaskId = Guid.NewGuid().ToString("D"); break;
             case "role": model.ConversationRole = ConversationSearchRole.HOST; break;
             case "outcome": model.ConversationOutcome = ModelTurnOutcome.Denied; break;
             case "reason": model.ConversationReason = ModelTurnReason.CallerCancelled; break;

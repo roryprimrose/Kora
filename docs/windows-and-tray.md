@@ -107,6 +107,18 @@ revokes results, selected Details and late callbacks without reading. Clear or
 private/source loss empties all four fields. These are passive original-message
 metadata, not generated output, session authority or access to hidden content.
 
+Optional **Exact request ID** and **Exact task ID** further narrow this same
+selected session, AND with every other predicate. Enter complete canonical
+lowercase nonempty D-format GUIDs, for example
+`aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa`, or leave empty for Any. Uppercase,
+whitespace, braces, partial IDs and the all-zero GUID explicitly fail before
+reading; input is never repaired. Next binds both IDs. Editing retires rows,
+selection/Details, continuation and late callbacks without reading; Clear or
+private/source loss empties both fields. These are passive correlation metadata
+only: they cannot retarget a session/task or establish identity, intent,
+ownership, permission, approval or execution authority. Composer and saved
+draft remain unchanged.
+
 Queries use 1–256 UTF-16 characters / 512 UTF-8 bytes and 1–32 distinct terms of at most 64 characters. NFC/invariant case and whole-word OR apply; punctuation separates words rather than becoming regex/wildcard/instruction syntax. Blank or invalid queries explicitly fail, never show every message. Typing alone does not search or save the query.
 
 Results are chronological exact messages, not generated answers, summaries or relevance ranking. Each read scans at most the existing 100-message session bound; default 25 / maximum 50 complete results, counters and cursor fit 64 KiB. **Next conversation matches** stays on the original generation/sequence ceiling/head; later append is excluded and changed terminal status requires fresh Search.

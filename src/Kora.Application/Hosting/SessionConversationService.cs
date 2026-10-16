@@ -30,8 +30,8 @@ public sealed partial class SessionConversationService(
     public Task<ConversationSearchPage> SearchAsync(HostId<SessionIdentity> session, string query,
         ConversationSearchCursor? cursor, int limit, CancellationToken token,
         ConversationSearchRole role = ConversationSearchRole.All, ConversationTerminalFilter terminal = default,
-        ConversationRangeFilter range = default) =>
-        workspace.SearchConversationAsync(session, query, cursor, limit, token, role, terminal, range);
+        ConversationRangeFilter range = default, ConversationCorrelationFilter correlation = default) =>
+        workspace.SearchConversationAsync(session, query, cursor, limit, token, role, terminal, range, correlation);
 
     public Task<AdmittedDetailContent> ReadDetailAsync(SessionWorkspaceEntry target, ConversationMessage expected,
         Func<bool> admitted, CancellationToken token) =>

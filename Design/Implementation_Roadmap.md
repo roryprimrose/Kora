@@ -87,6 +87,25 @@ Definitions management, installed accessibility and unrelated E/Q qualification
 remain separate and unclaimed. Saved drafts, Evidence, attachment, session Browse,
 Presence and peer conversation/grant/local-event predicates are unchanged.
 
+### Bounded selected-conversation sequence and submitted-time ranges - 2026-10-16
+
+The existing [passive exact-session conversation search](Interaction_And_Sessions.md#delivered-passive-exact-conversation-lexical-search--2026-10-13)
+adds optional inclusive original message-sequence and canonical UTC Submitted
+ranges, AND-composed with lexical, USER/HOST and typed terminal predicates.
+One portable policy owns strict parsing, ordered authoritative bounds and
+matching after complete candidate validation. Every bound joins semantic
+query/page/cursor identity; admitted bounded scans, whole-row byte budgets,
+snapshot revalidation and cancellation/stale-result fences remain unchanged.
+Sessions and Compact share volatile accessible controls with no-read edits,
+selection/detail retirement and private/source reset, not new authority,
+assistant output, body sources, persistence, SQL/indexes or egress.
+The consumed I subset is existing admitted conversation pages and deterministic
+portable/private-storage/headless tests. No excluded saved-draft, Evidence,
+attachment, Browse, Presence, grant-history, local-event or owned-definition
+scope is extended. No provider/device/experiment work or unrelated Rxx proof
+is required; installed accessibility and broader E/Q remain separate and
+unclaimed.
+
 ### R26 retained attachment exact correlation and captured-time predicates - 2026-10-16
 
 The [retained catalogue contract](File_And_Folder_Ingestion.md#delivered-retained-attachment-metadata-catalogue---2026-10-11)

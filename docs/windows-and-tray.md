@@ -95,6 +95,18 @@ navigation and Next in both views and fences late callbacks without reading.
 Explicit Search is required. Clear resets the role to All and terminal fields
 to Any; no query or filter is saved, logged or sent to a model.
 
+Optionally narrow further with inclusive **Minimum message sequence** and
+**Maximum message sequence** (decimal 1–100), and **Submitted from UTC** /
+**Submitted through UTC** (`yyyy-MM-ddTHH:mm:ss.fffffff+00:00`, for example
+`2026-10-16T00:00:00.0000000+00:00`). Empty fields mean Any. Minimum must not
+exceed maximum; equal endpoints include that original message. Use exact UTC
+format, not `Z`, local offsets or relative dates. Invalid ranges explicitly
+fail before reading, never silently broaden search. All ranges AND with the
+query, role and terminal predicates; Next binds the original ranges. Editing
+revokes results, selected Details and late callbacks without reading. Clear or
+private/source loss empties all four fields. These are passive original-message
+metadata, not generated output, session authority or access to hidden content.
+
 Queries use 1–256 UTF-16 characters / 512 UTF-8 bytes and 1–32 distinct terms of at most 64 characters. NFC/invariant case and whole-word OR apply; punctuation separates words rather than becoming regex/wildcard/instruction syntax. Blank or invalid queries explicitly fail, never show every message. Typing alone does not search or save the query.
 
 Results are chronological exact messages, not generated answers, summaries or relevance ranking. Each read scans at most the existing 100-message session bound; default 25 / maximum 50 complete results, counters and cursor fit 64 KiB. **Next conversation matches** stays on the original generation/sequence ceiling/head; later append is excluded and changed terminal status requires fresh Search.

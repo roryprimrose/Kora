@@ -121,9 +121,11 @@ public sealed partial class SessionWorkspaceServiceTests
         using var root = HostActivity.BeginRoot(f.Request, HostActivityLayer.Application, HostOperation.Request);
         ConversationSearchCursor? cursor = null;
         var records = new List<ConversationMessage>();
+        var range = new ConversationRangeFilter(1, ConversationText.MaximumSessionMessages,
+            DateTimeOffset.MinValue, DateTimeOffset.MaxValue);
         do
         {
-            var page = await f.Service.SearchConversationAsync(f.Session.SessionId, "word", cursor, 50, f.Token);
+            var page = await f.Service.SearchConversationAsync(f.Session.SessionId, "word", cursor, 50, f.Token, range: range);
             ConversationSearchPage.Serialize(page).Length.Should().BeLessThanOrEqualTo(ConversationText.MaximumPageUtf8Bytes);
             page.Messages.Length.Should().BeInRange(1, 2);
             page.Scanned.Should().Be(page.Messages.Length);

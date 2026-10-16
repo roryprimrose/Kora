@@ -9,6 +9,41 @@ namespace Kora.Windows.IntegrationTests.Storage;
 
 public sealed class WindowsSqliteConversationSearchTests
 {
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task OriginalRangesUsePrivateExactSessionReadAdmissionWithoutSavedDraftsOrHiddenSessions(bool done)
+    {
+        using var f = new InteractionStorageFixture();
+        await f.InitializeAsync();
+        await WindowsSqliteConversationTests.FinishInitial(f);
+        var session = f.Request.SessionId;
+        await WindowsSqliteConversationTests.Submit(f, session, "marker Denied");
+        var exact = await WindowsSqliteConversationTests.Submit(f, session, "marker Unavailable");
+        await WindowsSqliteConversationTests.Submit(f, session, "marker other");
+        await WindowsSqliteConversationTests.Save(f, await f.Store.ReadConversationDraftAsync(session, f.Token), "hidden draft marker");
+        var access = new WindowsSqliteSessionWorkspaceTests.Access();
+        var service = WindowsSqliteSessionWorkspaceTests.Service(f, access);
+        using var root = HostActivity.BeginRoot(f.Request, HostActivityLayer.Application, HostOperation.Request);
+        if (done) { await service.ChangeLifecycleAsync(session, new(1), false, RequestOrigin.LocalUi, f.Token); }
+        var retention = await f.Store.ReadRetentionAsync(session, f.Token);
+        var audit = WindowsSqliteConversationTests.AuditText(f);
+        var range = new ConversationRangeFilter(2, 2, exact.Message.SubmittedAt, exact.Message.SubmittedAt);
+        var page = await service.SearchConversationAsync(session, "marker", null, 25, f.Token,
+            ConversationSearchRole.All, new(ModelTurnOutcome.Unavailable, ModelTurnReason.UnregisteredModel), range);
+        page.Messages.Should().Equal(exact.Message);
+        page.Scanned.Should().Be(3);
+        page.Range.Should().Be(range);
+        page.Next.Should().BeNull();
+        (await service.SearchConversationAsync(session, "hidden draft", null, 25, f.Token, range: range)).Messages.Should().BeEmpty();
+        (await service.SearchConversationAsync(session, "marker", null, 25, f.Token, range: new(100))).Messages.Should().BeEmpty();
+        (await f.Store.ReadRetentionAsync(session, f.Token)).Should().Be(retention);
+        WindowsSqliteConversationTests.AuditText(f).Should().Be(audit);
+        access.CanInspect = false;
+        await service.Invoking(value => value.SearchConversationAsync(session, "marker", null, 25, f.Token, range: range))
+            .Should().ThrowAsync<InvalidOperationException>();
+    }
+
     [Fact]
     public async Task ActualTerminalPredicatesExcludePendingAndStatusMimickingUserWithoutActivityOrAuditMutation()
     {

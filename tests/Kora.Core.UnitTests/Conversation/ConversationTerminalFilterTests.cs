@@ -112,7 +112,7 @@ public sealed class ConversationTerminalFilterTests
         var message = Message();
         var filter = new ConversationTerminalFilter(message.Outcome, message.Reason, message.ExpectedTaskState);
         var cursor = new ConversationSearchCursor(new(message.Request.SessionId, new(1), 2, 1, 4),
-            new ConversationSearch("marker").Digest, ConversationSearchRole.HOST, filter);
+            new ConversationSearch("marker", ConversationSearchRole.HOST, filter).Digest, ConversationSearchRole.HOST, filter);
         var page = new ConversationSearchPage(new(message.Request.SessionId, new(1), true), 4, 2,
             cursor.QueryDigest, [message], 1, cursor, cursor.Role, filter);
         var serialized = ConversationSearchPage.Serialize(page);
@@ -120,7 +120,7 @@ public sealed class ConversationTerminalFilterTests
         actual.Terminal.Should().Be(filter);
         actual.Next.Should().Be(cursor);
         actual.Messages.Single().Should().Be(message);
-        new ConversationSearch("marker", terminal: filter).Digest.Should().Be(cursor.QueryDigest);
+        new ConversationSearch("marker", ConversationSearchRole.HOST, filter).Digest.Should().Be(cursor.QueryDigest);
     }
 
     private static ConversationMessage Message() => new(HostRequest.Create(RequestOrigin.LocalUi), new(1), 1, 2,

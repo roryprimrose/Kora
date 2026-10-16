@@ -43,6 +43,25 @@ Every defined enum value is selectable, including combinations with no possible
 retained terminal; undefined values explicitly fail before reading. All scanned
 rows are fully validated before exclusion, even for valid zero-match criteria.
 
+Optional inclusive **Minimum message sequence**, **Maximum message sequence**,
+**Submitted from UTC** and **Submitted through UTC** predicates AND with the
+lexical query, role and every terminal predicate. The portable
+[range filter](../src/Kora.Core/Conversation/ConversationRangeFilter.cs) owns
+parsing, validation and matching. Empty means Any. Sequences use strict invariant
+unsigned decimal input, bounded by 1 through `ConversationText.MaximumSessionMessages`
+(100); submitted times use exact round-trip `yyyy-MM-ddTHH:mm:ss.fffffff+00:00`,
+without trimming, offset conversion, `Z`, relative dates or timestamp repair.
+Each minimum must be <= its maximum; equal endpoints include the original
+message. Time bounds use the full representable UTC `DateTimeOffset` domain,
+not the current wall clock or a derived session timestamp. Sequence bounds
+beyond a snapshot's ceiling validly yield zero, not a wider or different read.
+Every consumed message is validated before range exclusion, including its body,
+original session/generation/sequence and typed HOST status.
+All four bounds join role/terminal predicates and normalized lexical terms in
+the semantic query digest and explicit page/cursor identity. Changing any bound
+refuses continuation before reading. Metadata is passive: it cannot establish
+chronology authority, permission, ownership, model output or session read access.
+
 The [conversation matcher](../src/Kora.Core/Conversation/ConversationSearch.cs) reuses `SessionHistorySearch` and the authoritative `LocalFileRetrievalPolicy` tokenizer: 1–256 UTF-16 characters / 512 strict UTF-8 bytes, 1–32 distinct lexical terms of at most 64 characters, NFC/invariant whole-word OR.
 Punctuation is a separator, not regex, wildcard or instruction syntax. Blank/malformed/unsupported queries fail explicitly, never inventory all bodies.
 
@@ -53,6 +72,9 @@ Continuations and pages bind the exact role and every terminal predicate, normal
 `OmittedMessages` and `UnavailableMessages` are zero because valid complete bodies fit and inaccessible/invalid sources fail the entire read rather than becoming success-shaped omissions. Exhausted snapshots are freshly revalidated through the provider under the same private admission/retention epoch before publication.
 
 Later append cannot expand a continuation's ceiling; terminal updates invalidate its original head revision and require fresh Search. Lifecycle, removal, retention/private/owner changes, query or any role/terminal-filter edits and Cancel/Clear revoke results, selected match/navigation, continuation and late callbacks. Editing performs no read; explicit Search is required. Clear resets the role to All and terminal predicates to Any.
+Range edits have the same cancellation, selected-detail retirement and stale
+callback fences. Clear, source/private revocation and last-owner close also
+empty all four range fields without touching composer or saved drafts.
 Search does not alter composer body/baseline, dirty-draft decisions, held submissions, saved drafts, question/voice focus, meaningful activity, cleanup, Keep, provider preferences or task/approval authority.
 
 Only admitted original messages appear as inert native USER/HOST rows, with no generated summary, semantic ranking, rich actions, copy/export, clipboard/speech, network/model calls or hidden context assembly.

@@ -21,6 +21,10 @@ public sealed partial class SessionsConversationTests
     [InlineData("outcome")]
     [InlineData("reason")]
     [InlineData("task-state")]
+    [InlineData("minimum-sequence")]
+    [InlineData("maximum-sequence")]
+    [InlineData("submitted-from")]
+    [InlineData("submitted-through")]
     public async Task CriteriaEditsFenceLateDetailCallbacksWithoutClearingIndependentComposer(string edit)
     {
         using var f = new InteractionStorageFixture();
@@ -58,6 +62,10 @@ public sealed partial class SessionsConversationTests
     [InlineData("outcome")]
     [InlineData("reason")]
     [InlineData("task-state")]
+    [InlineData("minimum-sequence")]
+    [InlineData("maximum-sequence")]
+    [InlineData("submitted-from")]
+    [InlineData("submitted-through")]
     public async Task SearchCriteriaEditRevokesMatchDetailsAndDeferredNavigationWithoutTouchingComposer(string edit)
     {
         using var f = new InteractionStorageFixture();
@@ -99,6 +107,10 @@ public sealed partial class SessionsConversationTests
             case "outcome": model.ConversationOutcome = ModelTurnOutcome.Denied; break;
             case "reason": model.ConversationReason = ModelTurnReason.CallerCancelled; break;
             case "task-state": model.ConversationTaskState = HostTaskState.Cancelled; break;
+            case "minimum-sequence": model.ConversationMinimumSequence = "1"; break;
+            case "maximum-sequence": model.ConversationMaximumSequence = "1"; break;
+            case "submitted-from": model.ConversationSubmittedFrom = "1970-01-01T00:00:00.0000000+00:00"; break;
+            case "submitted-through": model.ConversationSubmittedThrough = "9999-12-31T23:59:59.9999999+00:00"; break;
             default: model.ConversationQuery = "different"; break;
         }
     }

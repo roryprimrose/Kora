@@ -170,6 +170,10 @@ public sealed partial class SessionsConversationTests
     [InlineData("outcome")]
     [InlineData("reason")]
     [InlineData("task-state")]
+    [InlineData("minimum-sequence")]
+    [InlineData("maximum-sequence")]
+    [InlineData("submitted-from")]
+    [InlineData("submitted-through")]
     [InlineData("private")]
     [InlineData("control")]
     [InlineData("owner")]
@@ -214,6 +218,10 @@ public sealed partial class SessionsConversationTests
                 model.ConversationOutcome = ModelTurnOutcome.Unavailable;
                 model.ConversationReason = ModelTurnReason.UnregisteredModel;
                 model.ConversationTaskState = HostTaskState.Unavailable;
+                model.ConversationMinimumSequence = "1";
+                model.ConversationMaximumSequence = "100";
+                model.ConversationSubmittedFrom = "0001-01-01T00:00:00.0000000+00:00";
+                model.ConversationSubmittedThrough = "9999-12-31T23:59:59.9999999+00:00";
                 reader.Reads.Should().Be(0, "opening and typing never read bodies");
                 Click(compact, "SearchConversation");
                 var pending = compact.ConversationOperation;
@@ -229,6 +237,10 @@ public sealed partial class SessionsConversationTests
                     case "outcome": model.ConversationOutcome = ModelTurnOutcome.Denied; break;
                     case "reason": model.ConversationReason = ModelTurnReason.CallerCancelled; break;
                     case "task-state": model.ConversationTaskState = HostTaskState.Cancelled; break;
+                    case "minimum-sequence": model.ConversationMinimumSequence = "2"; break;
+                    case "maximum-sequence": model.ConversationMaximumSequence = "99"; break;
+                    case "submitted-from": model.ConversationSubmittedFrom = "1970-01-01T00:00:00.0000000+00:00"; break;
+                    case "submitted-through": model.ConversationSubmittedThrough = "1970-01-01T00:00:00.0000000+00:00"; break;
                     case "private": composed.Access.CanInspect = false; break;
                     case "control": composed.Access.ControlRevision++; break;
                     case "owner": owner.Revoke(); break;
@@ -241,7 +253,8 @@ public sealed partial class SessionsConversationTests
                         await model.RefreshWorkAsync();
                         break;
                 }
-                if (revoke is "cancel" or "escape" or "edit" or "role" or "outcome" or "reason" or "task-state" or "owner" or "selection" or "lifecycle")
+                var rangeEdit = revoke is "minimum-sequence" or "maximum-sequence" or "submitted-from" or "submitted-through";
+                if (rangeEdit || revoke is "cancel" or "escape" or "edit" or "role" or "outcome" or "reason" or "task-state" or "owner" or "selection" or "lifecycle")
                 { observed.IsCancellationRequested.Should().BeTrue(); }
                 reader.Reads.Should().Be(1, "query/filter edits must never schedule another read");
                 release.SetResult(snapshot);
@@ -249,9 +262,15 @@ public sealed partial class SessionsConversationTests
                 model.ConversationSearchMessages.Should().BeEmpty();
                 model.CanNextConversationSearch.Should().BeFalse();
                 model.CanCancelConversationSearch.Should().BeFalse();
-                model.ConversationQuery.Should().Be(revoke switch { "edit" => "new query", "role" or "outcome" or "reason" or "task-state" => "marker", _ => string.Empty });
+                model.ConversationQuery.Should().Be(rangeEdit ? "marker" : revoke switch { "edit" => "new query", "role" or "outcome" or "reason" or "task-state" => "marker", _ => string.Empty });
                 model.ConversationRole.Should().Be(revoke is "role" ? ConversationSearchRole.HOST : ConversationSearchRole.All);
-                var criteriaEdit = revoke is "edit" or "role" or "outcome" or "reason" or "task-state";
+                var criteriaEdit = rangeEdit || revoke is "edit" or "role" or "outcome" or "reason" or "task-state";
+                model.ConversationMinimumSequence.Should().Be(revoke is "minimum-sequence" ? "2" : criteriaEdit ? "1" : string.Empty);
+                model.ConversationMaximumSequence.Should().Be(revoke is "maximum-sequence" ? "99" : criteriaEdit ? "100" : string.Empty);
+                model.ConversationSubmittedFrom.Should().Be(revoke is "submitted-from" ? "1970-01-01T00:00:00.0000000+00:00"
+                    : criteriaEdit ? "0001-01-01T00:00:00.0000000+00:00" : string.Empty);
+                model.ConversationSubmittedThrough.Should().Be(criteriaEdit
+                    ? revoke is "submitted-through" ? "1970-01-01T00:00:00.0000000+00:00" : "9999-12-31T23:59:59.9999999+00:00" : string.Empty);
                 model.ConversationOutcome.Should().Be(revoke is "outcome" ? ModelTurnOutcome.Denied
                     : criteriaEdit ? ModelTurnOutcome.Unavailable : null);
                 model.ConversationReason.Should().Be(revoke is "reason" ? ModelTurnReason.CallerCancelled

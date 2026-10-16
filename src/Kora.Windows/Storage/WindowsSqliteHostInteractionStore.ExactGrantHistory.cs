@@ -142,7 +142,7 @@ public sealed partial class WindowsSqliteHostInteractionStore
             {
                 throw new InvalidDataException("The retained exact grant disagrees with its committed history.");
             }
-            if (entry is not null && query.Matches(entry.Audit))
+            if (entry is not null && query.Matches(entry))
             {
                 records.Add(entry);
                 var previousPosition = scannedThrough;

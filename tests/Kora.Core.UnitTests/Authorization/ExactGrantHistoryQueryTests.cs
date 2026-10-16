@@ -2,10 +2,12 @@ using AwesomeAssertions;
 
 using Kora.Core.Auditing;
 using Kora.Core.Authorization;
+using Kora.Core.Diagnostics;
+using Kora.Core.Hosting;
 
 namespace Kora.Core.UnitTests.Authorization;
 
-public sealed class ExactGrantHistoryQueryTests
+public sealed partial class ExactGrantHistoryQueryTests
 {
     [Theory]
     [InlineData("Requested", SecurityAuditOutcome.Requested)]
@@ -21,10 +23,10 @@ public sealed class ExactGrantHistoryQueryTests
         query.Outcome.Should().Be(outcome);
         query.ReasonCode.Should().Be("policy-denied");
         query.Matches(audit).Should().BeTrue();
-        query.Matches(audit.WithOutcome(outcome, "other-reason")).Should().BeFalse();
-        query.Matches(audit.WithOutcome(outcome)).Should().BeFalse();
+        query.Matches(audit with { Audit = audit.Audit.WithOutcome(outcome, "other-reason") }).Should().BeFalse();
+        query.Matches(audit with { Audit = audit.Audit.WithOutcome(outcome) }).Should().BeFalse();
         var other = outcome == SecurityAuditOutcome.Succeeded ? SecurityAuditOutcome.Requested : SecurityAuditOutcome.Succeeded;
-        query.Matches(audit.WithOutcome(other, "policy-denied")).Should().BeFalse();
+        query.Matches(audit with { Audit = audit.Audit.WithOutcome(other, "policy-denied") }).Should().BeFalse();
         new ExactGrantHistoryQuery(outcome).Matches(audit).Should().BeTrue();
         new ExactGrantHistoryQuery(reasonCode: "policy-denied").Matches(audit).Should().BeTrue();
         query.Digest.Should().HaveLength(64);
@@ -164,8 +166,12 @@ public sealed class ExactGrantHistoryQueryTests
         create.Should().Throw<InvalidDataException>();
     }
 
-    private static SecurityAuditEvent Audit(SecurityAuditOutcome outcome, string? reason,
+    private static ExactGrantHistoryEntry Audit(SecurityAuditOutcome outcome, string? reason,
         SecurityAuditInitiator initiator = SecurityAuditInitiator.LocalUser) =>
-        new(Guid.NewGuid(), SecurityAuditCategory.SecurityApproval, "approval.revoke-exact", outcome,
-            initiator, "task", reasonCode: reason);
+        new(HostRequest.Create(RequestOrigin.LocalUi), DateTimeOffset.UnixEpoch, DateTimeOffset.UnixEpoch.AddDays(90),
+            EvidenceSegmentStatus.Present,
+            new(Guid.NewGuid(), SecurityAuditCategory.SecurityApproval, "approval.revoke-exact", outcome,
+                initiator, "task", reasonCode: reason),
+            new(8, "security_audit_events", 1, new string('a', 64), new string('b', 32), new string('c', 16),
+                new(1), new(1), null, null, null, null, null, []), 0, 0);
 }

@@ -51,6 +51,24 @@ This consumed I subset changes no other catalogue/domain, storage schema,
 source read, provider or enabled runtime profile. Installed accessibility,
 broader R26 and E/Q remain separate and unclaimed; no experiment is required.
 
+### Bounded exact-grant committed history retention and UTC ranges - 2026-10-16
+
+Built on freshly fetched main `aee89d2380a25cd89c77ec032eafd2d7e5ecbc31`.
+The [one-exact-grant committed history](../docs/settings.md#exact-operation-grants)
+adds optional exact Present/ExpiredButPresent retention and inclusive canonical
+UTC Committed/Due From/Until ranges, AND-composed with outcome, exact reason
+and committed initiator. Core owns strict UTC/order admission and the full
+versioned continuation digest; complete envelope/prefix/provenance validation
+precedes exclusion, including nonmatches. Requested-review details remain
+undisclosed. Accessible native inputs preserve no-read edits, inert exact target,
+selection/review/continuation retirement, cancellation and stale-result fences.
+Existing 4096-row/5-second, 50-envelope/64-KiB and 15-minute ceilings remain.
+Focused portable/private SQLite/headless tests and exact portable line/branch
+coverage gate this consumed I subset. No grant/renew/revoke/target/approval/
+execution authority, schema, retention policy, model/device/provider/network
+operation or experiment is added. Broader R05 and installed accessibility/E/Q
+qualification remain separate and unclaimed; excluded peer scopes are unchanged.
+
 ### R26 retained attachment exact correlation and captured-time predicates - 2026-10-16
 
 The [retained catalogue contract](File_And_Folder_Ingestion.md#delivered-retained-attachment-metadata-catalogue---2026-10-11)

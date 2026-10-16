@@ -36,7 +36,8 @@ public sealed partial class ExactGrantsViewModel
             throw new InvalidOperationException("Exact history requires an explicit native viewer action, not an ambient model or historical request.");
         }
         var exact = inspectedHistoryTarget ?? throw new InvalidOperationException("Inspect one actual retained exact ID before reading history.");
-        var query = ExactGrantHistoryQuery.FromInput(HistoryOutcomeFilter, HistoryReasonCodeFilter, HistoryInitiatorFilter);
+        var query = ExactGrantHistoryQuery.FromInput(HistoryOutcomeFilter, HistoryReasonCodeFilter, HistoryInitiatorFilter,
+            HistoryRetentionFilter, HistoryCommittedFromUtc, HistoryCommittedUntilUtc, HistoryDueFromUtc, HistoryDueUntilUtc);
         using var linked = Begin(token);
         var revision = historyControlRevision;
         var admissionId = historyAdmissionId;
@@ -65,7 +66,7 @@ public sealed partial class ExactGrantsViewModel
                 || page.Records.Length > ExactGrantHistoryPage.MaximumRecords
                 || page.ScannedRows is < 0 or > ExactGrantHistoryPage.MaximumScannedRows
                 || page.NonmatchingRows < 0 || page.NonmatchingRows > page.ScannedRows
-                || page.Records.Any(row => !query.Matches(row.Audit))
+                || page.Records.Any(row => !query.Matches(row))
                 || ExactGrantHistoryPage.Serialize(page).Length > ExactGrantHistoryPage.MaximumBytes)
             {
                 throw new InvalidDataException("Exact history returned foreign metadata or exceeded its complete page bounds.");

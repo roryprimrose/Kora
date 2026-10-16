@@ -117,6 +117,23 @@
               <TextBox Text="{Binding HistoryDueUntilUtc}" PlaceholderText="yyyy-MM-ddTHH:mm:ss.fffffff+00:00"
                        AutomationProperties.Name="Exact grant history due until canonical UTC inclusive, empty means Any" MinWidth="280" />
             </StackPanel>
+            <StackPanel Margin="0,0,12,0">
+              <TextBlock Text="Exact committed audit correlation ID (empty means Any)" />
+              <TextBox Text="{Binding HistoryAuditCorrelationId}" PlaceholderText="canonical lowercase D GUID, or empty"
+                       AutomationProperties.Name="Exact grant history committed audit correlation ID, typing performs no read" MinWidth="300" />
+            </StackPanel>
+            <StackPanel Margin="0,0,12,0">
+              <TextBlock Text="Committed approval metadata" />
+              <ComboBox ItemsSource="{Binding HistoryApprovalFilters}" SelectedItem="{Binding HistoryApprovalFilter}"
+                        AutomationProperties.Name="Exact grant history committed approval metadata choice, Any by default" MinWidth="180" />
+            </StackPanel>
+            <StackPanel Margin="0,0,12,0">
+              <TextBlock Text="Exact committed approval ID (required only for Exact)" />
+              <TextBox Text="{Binding HistoryApprovalId}" PlaceholderText="canonical lowercase D GUID; otherwise empty"
+                       AutomationProperties.Name="Exact grant history committed approval ID, required only for Exact metadata choice" MinWidth="300" />
+            </StackPanel>
+            <TextBlock Text="Correlation metadata only, not authority. Absent means a validated committed event without an approval ID, not unknown."
+                       TextWrapping="Wrap" MaxWidth="400" />
           </WrapPanel>
           </ScrollViewer>
           <WrapPanel Grid.Row="1">

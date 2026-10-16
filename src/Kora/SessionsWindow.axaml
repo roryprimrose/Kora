@@ -419,6 +419,38 @@
             <TextBox x:Name="LocalEventSubjectIdFilter" Text="{Binding LocalEventSubjectIdFilter}" Width="300"
                      PlaceholderText="Any subject ID (empty)" IsEnabled="{Binding CanFilterLocalEvents}"
                      AutomationProperties.Name="Filter loaded local events by exact subject ID; empty for Any, complete lowercase D GUID; AND with all filters; clears selection; correlation only, never retargets or authorizes" />
+            <TextBlock Text="Local event minimum revision" VerticalAlignment="Center" />
+            <TextBox x:Name="LocalEventMinimumRevisionFilter" Text="{Binding LocalEventMinimumRevisionFilter}" Width="200"
+                     PlaceholderText="Any minimum (empty)" IsEnabled="{Binding CanFilterLocalEvents}"
+                     AutomationProperties.Name="Filter loaded local events by inclusive minimum event revision; positive Int64 decimal, empty Any; minimum must not exceed maximum; AND with all filters; no read; retires selection and details; metadata only, never authority" />
+            <TextBlock Text="Local event maximum revision" VerticalAlignment="Center" />
+            <TextBox x:Name="LocalEventMaximumRevisionFilter" Text="{Binding LocalEventMaximumRevisionFilter}" Width="200"
+                     PlaceholderText="Any maximum (empty)" IsEnabled="{Binding CanFilterLocalEvents}"
+                     AutomationProperties.Name="Filter loaded local events by inclusive maximum event revision; positive Int64 decimal, empty Any; minimum must not exceed maximum; AND with all filters; no read; retires selection and details; metadata only, never authority" />
+            <TextBlock Text="Local event minimum generation" VerticalAlignment="Center" />
+            <TextBox x:Name="LocalEventMinimumGenerationFilter" Text="{Binding LocalEventMinimumGenerationFilter}" Width="200"
+                     PlaceholderText="Any minimum (empty)" IsEnabled="{Binding CanFilterLocalEvents}"
+                     AutomationProperties.Name="Filter loaded local events by inclusive minimum generation; positive Int64 decimal, empty Any; minimum must not exceed maximum; AND with all filters; no read; retires selection and details; metadata only, never authority" />
+            <TextBlock Text="Local event maximum generation" VerticalAlignment="Center" />
+            <TextBox x:Name="LocalEventMaximumGenerationFilter" Text="{Binding LocalEventMaximumGenerationFilter}" Width="200"
+                     PlaceholderText="Any maximum (empty)" IsEnabled="{Binding CanFilterLocalEvents}"
+                     AutomationProperties.Name="Filter loaded local events by inclusive maximum generation; positive Int64 decimal, empty Any; minimum must not exceed maximum; AND with all filters; no read; retires selection and details; metadata only, never authority" />
+            <TextBlock Text="Local event observed from UTC" VerticalAlignment="Center" />
+            <TextBox x:Name="LocalEventObservedFromUtcFilter" Text="{Binding LocalEventObservedFromUtcFilter}" Width="320"
+                     PlaceholderText="Any from (empty)" IsEnabled="{Binding CanFilterLocalEvents}"
+                     AutomationProperties.Name="Filter loaded local events by inclusive observed-at from UTC; yyyy-MM-ddTHH:mm:ss.fffffff+00:00, empty Any; from must not exceed until; AND with all filters; no read; retires selection and details; metadata only, never authority" />
+            <TextBlock Text="Local event observed until UTC" VerticalAlignment="Center" />
+            <TextBox x:Name="LocalEventObservedUntilUtcFilter" Text="{Binding LocalEventObservedUntilUtcFilter}" Width="320"
+                     PlaceholderText="Any until (empty)" IsEnabled="{Binding CanFilterLocalEvents}"
+                     AutomationProperties.Name="Filter loaded local events by inclusive observed-at until UTC; yyyy-MM-ddTHH:mm:ss.fffffff+00:00, empty Any; from must not exceed until; AND with all filters; no read; retires selection and details; metadata only, never authority" />
+            <TextBlock Text="Local event expires from UTC" VerticalAlignment="Center" />
+            <TextBox x:Name="LocalEventExpiresFromUtcFilter" Text="{Binding LocalEventExpiresFromUtcFilter}" Width="320"
+                     PlaceholderText="Any from (empty)" IsEnabled="{Binding CanFilterLocalEvents}"
+                     AutomationProperties.Name="Filter loaded local events by inclusive expires-at from UTC; yyyy-MM-ddTHH:mm:ss.fffffff+00:00, empty Any; from must not exceed until; AND with all filters; no read; retires selection and details; metadata only, never authority" />
+            <TextBlock Text="Local event expires until UTC" VerticalAlignment="Center" />
+            <TextBox x:Name="LocalEventExpiresUntilUtcFilter" Text="{Binding LocalEventExpiresUntilUtcFilter}" Width="320"
+                     PlaceholderText="Any until (empty)" IsEnabled="{Binding CanFilterLocalEvents}"
+                     AutomationProperties.Name="Filter loaded local events by inclusive expires-at until UTC; yyyy-MM-ddTHH:mm:ss.fffffff+00:00, empty Any; from must not exceed until; AND with all filters; no read; retires selection and details; metadata only, never authority" />
             <Button x:Name="ClearLocalEventFilters" Content="Clear local event filters" IsEnabled="{Binding CanFilterLocalEvents}"
                     AutomationProperties.Name="Show all already-loaded local events and clear exact selection; no source read or quiet change" />
           </WrapPanel>
@@ -436,6 +468,8 @@
                   <TextBlock Text="{Binding Event.TaskId.Value, StringFormat='Task ID {0:D}'}" />
                   <TextBlock Text="{Binding Event.SubjectId, StringFormat='Subject ID {0:D}'}" />
                   <TextBlock Text="{Binding Event.Revision, StringFormat='Revision {0}'}" />
+                  <TextBlock Text="{Binding Event.Generation, StringFormat='Generation {0}'}" />
+                  <TextBlock Text="{Binding Event.ObservedAt, StringFormat='Observed at {0:O}'}" />
                   <TextBlock Text="{Binding Reason, StringFormat='Delivery state {0}'}" />
                   <TextBlock Text="{Binding Event.ExpiresAt, StringFormat='Original expiry {0:O}'}" />
                   <TextBlock Text="{Binding DeferredUntil, StringFormat='Deferred until {0:O}'}" />

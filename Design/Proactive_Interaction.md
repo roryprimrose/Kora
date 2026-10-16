@@ -115,7 +115,27 @@ an event carrying that task identity; a missing task never matches a subject
 ID or an empty/unknown identity. These are correlation metadata only: they
 never select or retarget a session/task, establish ownership/authority, or
 authorize navigation or actions.
-All/Any is unfiltered; all nine predicates compose
+Optional inclusive **minimum/maximum event revision**, **minimum/maximum
+generation**, **observed from/until UTC** and **expires from/until UTC**
+ranges compose with all nine existing predicates. The portable
+[`LocalEventFilter`](../src/Kora.Core/Interaction/LocalEventFilter.cs) owns
+admission, ordering and matching, reusing the shared strict decimal and
+canonical UTC parsers. Empty means Any independently at either end.
+Numeric bounds are positive Int64 ASCII decimals (leading zeroes allowed),
+without signs, separators, whitespace or overflow. UTC text is exactly
+`yyyy-MM-ddTHH:mm:ss.fffffff+00:00`, not `Z`, local time or a repaired offset.
+Minimum/from must be <= maximum/until for each independent range; equal
+endpoints are inclusive. These ranges compare `Revision`, `Generation`,
+`ObservedAt` and original `ExpiresAt`, never source/related revisions,
+deferral, current clock or summary text. Cross-field combinations with no
+possible row remain valid and truthfully match zero.
+Malformed/reversed ranges visibly fail closed until corrected or cleared.
+Revision, generation and timestamps are correlation/lifecycle metadata only;
+they cannot authorize navigation, dispatch, retry, review or maintenance, or
+establish current source authority. Displayed generation/observed/expiry
+values remain inert.
+
+All/Any is unfiltered; every selected predicate composes
 as a conjunction over only the already-loaded at-most-eight rows, in snapshot
 order. Unknown filter enums/discriminators are explicitly unavailable; every
 loaded event/view is fully validated before exclusion, including irrelevant

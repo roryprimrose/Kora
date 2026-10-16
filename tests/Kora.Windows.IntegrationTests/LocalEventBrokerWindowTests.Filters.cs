@@ -202,6 +202,7 @@ public sealed partial class LocalEventBrokerWindowTests
                 viewer.LocalEventSessionIdFilter = questionRow.Event.SessionId.Value.ToString("D");
                 viewer.LocalEventTaskIdFilter = questionRow.Event.TaskId!.Value.Value.ToString("D");
                 viewer.LocalEventSubjectIdFilter = questionRow.Event.SubjectId.ToString("D");
+                foreach (var (_, set, _, exact) in RangeFields(viewer, questionRow.Event)) { set(exact); }
                 viewer.LocalEvents.Should().Equal(rows);
                 viewer.LocalEventSubjectIdFilter = "invalid";
                 viewer.LocalEvents.Should().BeEmpty();
@@ -392,6 +393,8 @@ public sealed partial class LocalEventBrokerWindowTests
         viewer.SelectLocalEvent(viewer.LocalEvents.Single());
         await viewer.ReviewLocalEventAsync();
         viewer.Detail.Should().NotBeEmpty();
+        viewer.LocalEventMinimumRevisionFilter = "1";
+        viewer.LocalEventMinimumGenerationFilter = "1";
         viewer.LocalEventSourceFilter = LocalEventSource.LocalVersionQuestion;
         viewer.LocalEventTypeFilter = LocalEventType.UserAttention;
         viewer.SelectLocalEvent(viewer.LocalEvents.Single());
@@ -531,6 +534,10 @@ public sealed partial class LocalEventBrokerWindowTests
         viewer.SelectLocalEvent(viewer.LocalEvents.Single());
         await viewer.ReviewLocalEventAsync();
         viewer.Detail.Should().NotBeEmpty();
+        viewer.LocalEventMinimumRevisionFilter = "1";
+        viewer.LocalEventMinimumGenerationFilter = "1";
+        viewer.SelectLocalEvent(viewer.LocalEvents.Single());
+        await viewer.ReviewLocalEventAsync();
         source.Pause = true;
         var pending = viewer.ReviewLocalEventAsync();
         await source.Entered.Task;
@@ -578,6 +585,10 @@ public sealed partial class LocalEventBrokerWindowTests
         viewer.LocalEventTypeFilter = row.Event.Type;
         viewer.LocalEventOriginFilter = row.Event.Origin;
         viewer.LocalEventQueueReasonFilter = new(LocalEventQueueReasonMatch.None);
+        viewer.LocalEventMinimumRevisionFilter = "1";
+        viewer.LocalEventMinimumGenerationFilter = "1";
+        viewer.LocalEventObservedFromUtcFilter = row.Event.ObservedAt.ToString("O", System.Globalization.CultureInfo.InvariantCulture);
+        viewer.LocalEventExpiresUntilUtcFilter = row.Event.ExpiresAt.ToString("O", System.Globalization.CultureInfo.InvariantCulture);
         viewer.SelectLocalEvent(row);
         await viewer.ReviewLocalEventAsync();
         viewer.Detail.Should().NotBeEmpty();
@@ -717,12 +728,14 @@ public sealed partial class LocalEventBrokerWindowTests
                     ControlAutomationPeer.CreatePeerForElement(field)!.GetName().Should()
                         .Contain("complete lowercase D GUID").And.Contain("correlation only, never retargets or authorizes");
                 }
-                foreach (var next in new Control[] { reason, sourceFilter, type, origin, queue, sessionId, taskId, subjectId, clear })
+                Control[] tabOrder = [category, reason, sourceFilter, type, origin, queue, sessionId, taskId, subjectId,
+                    .. RangeFields(viewer, viewer.LocalEvents.Single().Event).Select(field => window.FindControl<TextBox>(field.Name)!), clear];
+                foreach (var next in tabOrder.Skip(1))
                 {
                     window.KeyPress(Key.Tab, RawInputModifiers.None, PhysicalKey.Tab, null);
                     window.FocusManager!.GetFocusedElement().Should().BeSameAs(next);
                 }
-                foreach (var previous in new Control[] { subjectId, taskId, sessionId, queue, origin, type, sourceFilter, reason, category })
+                foreach (var previous in tabOrder.Reverse().Skip(1))
                 {
                     window.KeyPress(Key.Tab, RawInputModifiers.Shift, PhysicalKey.Tab, null);
                     window.FocusManager!.GetFocusedElement().Should().BeSameAs(previous);

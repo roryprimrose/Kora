@@ -180,10 +180,18 @@ queue-eligibility-reason combos. Origin offers Any and every defined origin;
 queue reason distinctly offers Any, No queue reason / not applicable, and
 every exact eligibility reason. Three labelled, keyboard-accessible text fields
 add optional exact session/task/subject IDs: empty for Any, otherwise complete
-canonical lowercase `D` GUIDs only. All nine predicates are AND. Invalid input
+canonical lowercase `D` GUIDs only. Eight labelled, keyboard-focusable fields
+add inclusive minimum/maximum event revision and generation, observed from/until
+UTC, and expires from/until UTC ranges. Empty is Any; numeric bounds are positive
+Int64 decimals, UTC is exactly `yyyy-MM-ddTHH:mm:ss.fffffff+00:00`, and each
+minimum/from must be <= maximum/until. Accessible names disclose admission,
+inclusive/AND semantics, no-read edits and selection/detail retirement.
+The [portable loaded-event contract](Proactive_Interaction.md#native-content-free-loaded-event-filters)
+owns parsing and candidate validation. All selected predicates are AND. Invalid input
 visibly matches nothing, without repair; missing task IDs never match an exact
 task. IDs remain correlation metadata, never session/task targets or
-navigation/action authority. Edits do not read:
+navigation/action authority. Range metadata likewise cannot authorize navigation,
+dispatch, retry, review or maintenance. Edits do not read:
 they recompute loaded rows and retire exact selection/details and late callbacks.
 Zero matches is truthful; a question/maintenance null queue reason confers no
 success, eligibility, question-answering or maintenance-navigation authority.

@@ -125,6 +125,24 @@ device, network, provider, experiment or installed-native qualification is added
 Saved drafts, Evidence, All Work, attachment ranges and sibling work remain
 unchanged; broader capability enablement and E/Q qualification remain separate.
 
+### Bounded native local-event revision/generation/lifetime ranges - 2026-10-16
+
+The existing [loaded-event filter](Proactive_Interaction.md#native-content-free-loaded-event-filters)
+adds independent optional inclusive event revision, generation, observed-at
+and original expires-at ranges, AND-composed with category/reason/source/type/
+origin/queue-reason and exact session/task/subject IDs. Portable strict positive
+Int64/canonical UTC admission and per-range ordering reject malformed input
+without repair; complete event/view validation precedes exclusion. Native
+accessible fields only filter the loaded at-most-eight-row snapshot, without
+broker reads, and preserve selection/detail/action retirement, cancellation,
+revocation and stale-generation fences. These are correlation/lifecycle
+metadata, never navigation, dispatch, retry, review or maintenance authority.
+This bounded consumed I subset uses deterministic portable/headless tests;
+no real device, network, provider, experiment or new runtime profile is enabled.
+Installed accessibility, broader proactive functionality and E/Q qualification
+remain separate and unclaimed. Saved drafts, Evidence, attachments, session
+Browse, Presence/presenter and sibling metadata scopes are unchanged.
+
 ### R26 retained attachment exact correlation and captured-time predicates - 2026-10-16
 
 The [retained catalogue contract](File_And_Folder_Ingestion.md#delivered-retained-attachment-metadata-catalogue---2026-10-11)

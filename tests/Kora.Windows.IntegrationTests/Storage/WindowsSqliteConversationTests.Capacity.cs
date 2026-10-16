@@ -66,6 +66,14 @@ public sealed partial class WindowsSqliteConversationTests
                 new(1, 0, 16384, 1, 4096, observed.Source, new(Guid.NewGuid())),
                 new(1, 0, 16384, 1, 4096, profile: observed.Profile),
                 new(1, 0, 16384, 1, 4096, source: observed.Source),
+                new(1, 0, 16384, 1, 4096, observed.Source, observed.Profile, minimumSessionGeneration: 1),
+                new(1, 0, 16384, 1, 4096, observed.Source, observed.Profile, maximumSessionGeneration: long.MaxValue),
+                new(1, 0, 16384, 1, 4096, observed.Source, observed.Profile, minimumNameMetadataRevision: 1),
+                new(1, 0, 16384, 1, 4096, observed.Source, observed.Profile, maximumNameMetadataRevision: long.MaxValue),
+                new(1, 0, 16384, 1, 4096, observed.Source, observed.Profile, minimumControlRevision: 0),
+                new(1, 0, 16384, 1, 4096, observed.Source, observed.Profile, maximumControlRevision: long.MaxValue),
+                new(1, 0, 16384, 1, 4096, observed.Source, observed.Profile, minimumAuthorityCeiling: 1),
+                new(1, 0, 16384, 1, 4096, observed.Source, observed.Profile, maximumAuthorityCeiling: long.MaxValue),
             })
             {
                 var switchedMetadata = () => f.Store.ReadSavedDraftPage(SessionListFilter.All, metadataPage.Next, 1,
@@ -75,6 +83,26 @@ public sealed partial class WindowsSqliteConversationTests
             var tamperedMetadata = () => f.Store.ReadSavedDraftPage(SessionListFilter.All, metadataPage.Next![..^1] + "x", 1,
                 () => true, f.Token, metadataFilter: metadata).AsTask();
             await tamperedMetadata.Should().ThrowAsync<InvalidDataException>();
+            var ranges = new SavedDraftMetadataFilter(1, 0, 16384, 1, 4096, observed.Source, observed.Profile,
+                1, long.MaxValue, minimumControlRevision: 0, maximumControlRevision: long.MaxValue,
+                minimumAuthorityCeiling: 1, maximumAuthorityCeiling: long.MaxValue);
+            var rangePage = await f.Store.ReadSavedDraftPage(SessionListFilter.All, null, 1, () => true, f.Token,
+                metadataFilter: ranges);
+            rangePage.Records.Should().HaveCount(25);
+            var rangeTail = await f.Store.ReadSavedDraftPage(SessionListFilter.All, rangePage.Next, 1, () => true, f.Token,
+                metadataFilter: ranges);
+            rangeTail.Records.Should().HaveCount(25);
+            SavedDraftPage.Size(rangeTail).Should().BeLessThanOrEqualTo(SavedDraftPage.MaximumBytes);
+            var namedRanges = new SavedDraftMetadataFilter(null, null, null, minimumNameMetadataRevision: 1,
+                maximumNameMetadataRevision: long.MaxValue);
+            var namedPage = await f.Store.ReadSavedDraftPage(SessionListFilter.All, null, 1, () => true, f.Token,
+                metadataFilter: namedRanges);
+            namedPage.Records.Should().BeEmpty("only the last two canonical IDs have names");
+            namedPage.Scanned.Should().Be(50);
+            var namedTail = await f.Store.ReadSavedDraftPage(SessionListFilter.All, namedPage.Next, 1, () => true, f.Token,
+                metadataFilter: namedRanges);
+            namedTail.Records.Should().HaveCount(2);
+            namedTail.Next.Should().BeNull();
             var noSource = new SavedDraftMetadataFilter(null, null, null, source: Guid.NewGuid(), profile: observed.Profile);
             var zero = await f.Store.ReadSavedDraftPage(SessionListFilter.All, null, 1, () => true, f.Token,
                 metadataFilter: noSource);

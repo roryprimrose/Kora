@@ -13,6 +13,18 @@ are inclusive 0-4096, each with minimum <= maximum. Scalars are validated saved
 metadata, not UTF-16 code units or a new body read.
 Use decimal digits only: signs, whitespace, separators and overflow visibly refuse
 Search/Refresh, without repair or body reads.
+Optional **Minimum/Maximum session generation**, **Minimum/Maximum name metadata
+revision**, **Minimum/Maximum control revision** and **Minimum/Maximum authority
+ceiling** fields add inclusive ranges. Empty means Any; generation/name revision/
+ceiling are positive Int64 and control revision is nonnegative Int64, each with
+minimum <= maximum and the same decimal-only admission. Either name-revision
+bound excludes unnamed rows; unnamed is not revision zero.
+Optional exact observation-source/device-profile GUIDs use complete nonempty
+canonical lowercase D format (or empty Any), without trimming or repair.
+All predicates AND together. Generation, control revision, ceiling and digest
+are observed provenance only, not current authority, permission, body integrity,
+device ownership or navigation authority. Editing any of these fields performs
+no read and retires rows, exact selection and Next; Clear/revocation clears them.
 Typing performs no read. Query/mode/lifecycle/revision/byte/scalar edits cancel pending pages and invalidate the catalogue selection and exact navigation without changing the current composer. Use **Search / refresh metadata**, Next, Cancel, or **Clear query (Browse)** explicitly; Clear also empties the metadata fields without reading. A zero-match bounded page may still have Next; there is no global inventory count.
 
 Select one row and **Open exact session (no body load)**. Changed source/revision/privacy refuses with Refresh. The existing Sessions dirty-buffer Save/Discard/Cancel protection remains; an explicit Save that changes authority requires fresh catalogue observation.

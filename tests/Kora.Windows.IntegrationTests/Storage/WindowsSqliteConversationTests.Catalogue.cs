@@ -32,7 +32,9 @@ public sealed partial class WindowsSqliteConversationTests
         }
         using var viewer = HostActivity.BeginRoot(Fresh(f.Request.SessionId), HostActivityLayer.Desktop, HostOperation.Request);
         var observed = (await f.Store.ReadSavedDraftPage(SessionListFilter.All, null, 1, () => true, f.Token)).Records[0];
-        var filter = new SavedDraftMetadataFilter(1, 5, 5, 5, 5, observed.Source, observed.Profile);
+        var filter = new SavedDraftMetadataFilter(1, 5, 5, 5, 5, observed.Source, observed.Profile,
+            1, long.MaxValue, minimumControlRevision: 1, maximumControlRevision: 1,
+            minimumAuthorityCeiling: observed.AuthorityCeiling, maximumAuthorityCeiling: observed.AuthorityCeiling);
         var page = await f.Store.ReadSavedDraftPage(SessionListFilter.All, null, 1, () => true, f.Token, metadataFilter: filter);
         page.Next.Should().NotBeNull();
         var privateRead = () => f.Store.ReadSavedDraftPage(SessionListFilter.All, page.Next, 1, () => false, f.Token,
@@ -100,6 +102,16 @@ public sealed partial class WindowsSqliteConversationTests
             new(2, 4, 4, 1, 1, observed.Source, new(Guid.NewGuid())),
             new(null, null, null, source: Guid.NewGuid()),
             new(null, null, null, profile: new(Guid.NewGuid())),
+            new(2, 4, 4, 1, 1, observed.Source, observed.Profile,
+                1, 1, 1, 1, 1, 1, observed.AuthorityCeiling, observed.AuthorityCeiling),
+            new(null, null, null, minimumSessionGeneration: 2),
+            new(null, null, null, maximumSessionGeneration: 1),
+            new(null, null, null, minimumNameMetadataRevision: 2),
+            new(null, null, null, maximumNameMetadataRevision: 1),
+            new(null, null, null, minimumControlRevision: 2),
+            new(null, null, null, maximumControlRevision: 0),
+            new(null, null, null, minimumAuthorityCeiling: observed.AuthorityCeiling + 1),
+            new(null, null, null, maximumAuthorityCeiling: observed.AuthorityCeiling - 1),
         })
         {
             foreach (var lifecycle in Enum.GetValues<SessionListFilter>())
@@ -170,6 +182,18 @@ public sealed partial class WindowsSqliteConversationTests
         exact.Records.Should().ContainSingle().Which.Session.SessionId.Should().Be(second.Session.SessionId,
             "an ID-shaped name never establishes identity and an unnamed session remains exactly searchable");
         exact.Scanned.Should().Be(1);
+        foreach (var metadata in new SavedDraftMetadataFilter[]
+        {
+            new(null, null, null, minimumNameMetadataRevision: 1),
+            new(null, null, null, maximumNameMetadataRevision: long.MaxValue),
+        })
+        {
+            var unnamed = await f.Store.ReadSavedDraftPage(SessionListFilter.All, null, 1, () => true, f.Token,
+                new(SessionListSearchKind.ExactId, SessionListFilter.All, second.Session.SessionId.Value.ToString("D")), metadata);
+            unnamed.Records.Should().BeEmpty("unnamed is never revision zero or unknown revision");
+            unnamed.Scanned.Should().Be(1);
+            unnamed.Next.Should().BeNull();
+        }
         (await Read(SessionListSearchKind.NameSubstring, "PRIVATE_BODY_NEEDLE_88231")).Records.Should().BeEmpty();
         var unknown = await Read(SessionListSearchKind.ExactId, Guid.NewGuid().ToString("D"));
         unknown.Records.Should().BeEmpty();
@@ -339,7 +363,8 @@ public sealed partial class WindowsSqliteConversationTests
             new(SessionListSearchKind.ExactId, SessionListFilter.All, f.Request.SessionId.Value.ToString("D"))).AsTask();
         await queryRead.Should().ThrowAsync<Exception>("metadata queries retain every original source/provenance check");
         var metadataRead = () => f.Store.ReadSavedDraftPage(SessionListFilter.Done, null, 1, () => true, f.Token,
-            metadataFilter: new(long.MaxValue, 0, 0, 0, 0, Guid.NewGuid(), new(Guid.NewGuid()))).AsTask();
+            metadataFilter: new(long.MaxValue, 0, 0, 0, 0, Guid.NewGuid(), new(Guid.NewGuid()),
+                long.MaxValue, long.MaxValue, long.MaxValue, long.MaxValue, 0, 0, long.MaxValue, long.MaxValue)).AsTask();
         await metadataRead.Should().ThrowAsync<Exception>("irrelevant metadata rows never bypass validation");
     }
 

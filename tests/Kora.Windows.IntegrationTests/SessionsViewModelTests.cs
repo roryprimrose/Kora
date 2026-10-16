@@ -137,7 +137,7 @@ public sealed partial class SessionsViewModelTests
         document.Descendants().Should().NotContain(element =>
             element.Name.LocalName == "WebView" || element.Name.LocalName == "SelectableTextBlock");
         document.Descendants().Where(element => string.Equals(element.Name.LocalName, "TextBox", StringComparison.Ordinal))
-            .Should().HaveCount(23, "name, exact history ID, metadata/history/conversation queries, four conversation ranges, four session-list numeric bounds, three local-event correlation IDs, memory GUID and four inclusive range filters, memory drafts and the exact-session memory-only composer are independent native inputs");
+            .Should().HaveCount(31, "name, exact history ID, metadata/history/conversation queries, four conversation ranges, four session-list numeric bounds, three local-event correlation IDs and eight range bounds, memory GUID and four inclusive range filters, memory drafts and the exact-session memory-only composer are independent native inputs");
         foreach (var binding in new[] { "ConversationMinimumSequence", "ConversationMaximumSequence",
             "ConversationSubmittedFrom", "ConversationSubmittedThrough" })
         {
@@ -162,6 +162,18 @@ public sealed partial class SessionsViewModelTests
                 && string.Equals(element.Attribute("Text")?.Value, $"{{Binding {binding}, Mode=TwoWay}}", StringComparison.Ordinal));
             range.Attribute("MaxLength").Should().BeNull("malformed bounds are explicitly rejected, never truncated");
             range.Attribute("IsEnabled")!.Value.Should().Be("{Binding CanFilterMemories}");
+        }
+        foreach (var binding in new[] { "LocalEventMinimumRevisionFilter", "LocalEventMaximumRevisionFilter",
+            "LocalEventMinimumGenerationFilter", "LocalEventMaximumGenerationFilter",
+            "LocalEventObservedFromUtcFilter", "LocalEventObservedUntilUtcFilter",
+            "LocalEventExpiresFromUtcFilter", "LocalEventExpiresUntilUtcFilter" })
+        {
+            var range = document.Descendants().Single(element => element.Name.LocalName is "TextBox"
+                && string.Equals(element.Attribute("Text")?.Value, $"{{Binding {binding}}}", StringComparison.Ordinal));
+            range.Attribute("MaxLength").Should().BeNull("malformed bounds must be rejected, never truncated into valid input");
+            range.Attribute("IsEnabled")!.Value.Should().Be("{Binding CanFilterLocalEvents}");
+            range.Attribute("AutomationProperties.Name")!.Value.Should().Contain("inclusive")
+                .And.Contain("empty Any").And.Contain("AND with all filters").And.Contain("no read").And.Contain("never authority");
         }
         var conversationQuery = document.Descendants().Single(element => element.Name.LocalName is "TextBox"
             && element.Attribute("Text")?.Value.Contains("ConversationQuery", StringComparison.Ordinal) == true);

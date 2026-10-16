@@ -311,6 +311,12 @@ public sealed class WindowsSqliteEvidenceQueryTests
     [InlineData("envelope")]
     [InlineData("schema")]
     [InlineData("projection")]
+    [InlineData("trace-source")]
+    [InlineData("trace-version")]
+    [InlineData("trace-name")]
+    [InlineData("trace-kind")]
+    [InlineData("trace-flags")]
+    [InlineData("trace-missing-version")]
     [InlineData("journal")]
     [InlineData("unexpected")]
     [InlineData("acl")]
@@ -322,7 +328,8 @@ public sealed class WindowsSqliteEvidenceQueryTests
         using var inspection = HostActivity.BeginRoot(HostRequest.Create(RequestOrigin.LocalUi), HostActivityLayer.Desktop, HostOperation.Evidence);
         sink.WriteDiagnostic(Diagnostic(inspection, 1));
         var path = Path.Combine(fixture.LocalRoot, WindowsSqliteEvidenceSink.PartitionName, "evidence.db");
-        if (corruption is "envelope" or "schema" or "projection")
+        if (corruption is "envelope" or "schema" or "projection" or "trace-source" or "trace-version"
+            or "trace-name" or "trace-kind" or "trace-flags" or "trace-missing-version")
         {
             using var connection = new SqliteConnection(new SqliteConnectionStringBuilder { DataSource = path, Pooling = false }.ToString());
             connection.Open();
@@ -333,6 +340,12 @@ public sealed class WindowsSqliteEvidenceQueryTests
             {
                 "envelope" => "UPDATE application_log_events SET envelope='{}';",
                 "schema" => "CREATE TABLE unknown_schema(content TEXT);",
+                "trace-source" => "UPDATE application_log_events SET envelope=json_set(envelope,'$.Trace.Source','Unknown');",
+                "trace-version" => "UPDATE application_log_events SET envelope=json_set(envelope,'$.Trace.SourceVersion',' 1');",
+                "trace-name" => "UPDATE application_log_events SET envelope=json_set(envelope,'$.Trace.Name','request ');",
+                "trace-kind" => "UPDATE application_log_events SET envelope=json_set(envelope,'$.Trace.Kind',99);",
+                "trace-flags" => "UPDATE application_log_events SET envelope=json_set(envelope,'$.Trace.Flags',2);",
+                "trace-missing-version" => "UPDATE application_log_events SET envelope=json_remove(envelope,'$.Trace.SourceVersion');",
                 _ => "UPDATE application_log_events SET category='changed';",
             };
             command.ExecuteNonQuery();
@@ -353,6 +366,7 @@ public sealed class WindowsSqliteEvidenceQueryTests
             ContentAvailability = EvidenceContentAvailability.Omitted,
             EventName = "Does.Not.Match", ExceptionType = "Not.An.Exception",
             FromAuditSequence = 1, UntilAuditSequence = 1,
+            TraceSource = "nonmatching", TraceSourceVersionAvailability = TraceSourceVersionAvailability.Absent,
         }, null, TestContext.Current.CancellationToken);
         if (corruption is "acl" or "unexpected")
         {

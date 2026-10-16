@@ -656,6 +656,21 @@ metadata, never identity, authority, integrity proof or content restoration.
 No new navigation, export or model route is added; the broader mode below
 remains a target contract, not qualification.
 
+Advanced trace controls also offer exact source, operation name, defined
+ActivityKind and exact None/Recorded flags, each with a visible accessible Any.
+Source version has explicit Any/Absent/Present/Exact choices and a separate exact
+text field; text is required only for Exact. Absent requires an existing trace
+with null version, never an unknown/null trace. Exact source/version/name inputs
+are case-sensitive plain valid Unicode, bounded to 128 characters without
+surrounding whitespace or controls. All predicates AND after complete retained
+trace validation, bind continuations and retire stale results/selection on edits
+without reading. Clear advanced and close reset these controls. This is untrusted
+diagnostic correlation, not session selection, identity, intent, permission,
+approval or authority; no baggage, tags, paths, credentials, user or omitted
+content is exposed. Deterministic headless checks are not installed accessibility
+qualification; the detailed [Evidence contract](Information_Display.md#delivered-bounded-native-evidence-inspection)
+owns these semantics.
+
 Evidence mode provides a bounded local timeline/search over permitted session,
 diagnostic and security-audit records. It supports time range, source kind,
 severity, event/category, correlation, session, task, invocation, approval,

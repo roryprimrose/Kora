@@ -168,6 +168,9 @@ public sealed partial class DurableEvidenceQuery(
             || query.FromUtc > query.UntilUtc || query.Severity is { } severity && !Enum.IsDefined(severity)
             || query.AuditOutcome is { } outcome && !Enum.IsDefined(outcome)
             || query.Outcome is { } operationOutcome && !Enum.IsDefined(operationOutcome)
+            || query.ActivityKind is { } kind && !Enum.IsDefined(kind)
+            || query.TraceFlags is { } flags && !Enum.IsDefined(flags)
+            || !Enum.IsDefined(query.TraceSourceVersionAvailability)
             || !Enum.IsDefined(query.ContentAvailability))
         {
             throw new ArgumentException("The evidence source, limits, time range or typed filters are invalid.", nameof(query));
@@ -189,6 +192,13 @@ public sealed partial class DurableEvidenceQuery(
         W3C(query.TraceId, 32);
         W3C(query.SpanId, 16);
         W3C(query.ParentSpanId, 16);
+        TraceText(query.TraceSource);
+        TraceText(query.ActivityName);
+        TraceText(query.TraceSourceVersion);
+        if ((query.TraceSourceVersionAvailability == TraceSourceVersionAvailability.Exact) != (query.TraceSourceVersion is not null))
+        {
+            throw new ArgumentException("An exact trace source version requires a value, and other version choices forbid one.", nameof(query));
+        }
         Text(query.Text, 256);
         Text(query.Category, 256);
         Text(query.ActionId, 128);
@@ -238,6 +248,14 @@ public sealed partial class DurableEvidenceQuery(
             }
             EvidenceFieldPolicy.ValidateValue(property.Value);
             Text(property.Value.CanonicalValue, 1024);
+        }
+    }
+
+    private static void TraceText(string? value)
+    {
+        if (value is not null && !TraceSnapshot.IsValidMetadataText(value))
+        {
+            throw new ArgumentException("Trace predicates require bounded exact plain metadata.", nameof(value));
         }
     }
 

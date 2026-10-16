@@ -286,6 +286,15 @@ continuation-bound values are correlation only, never consent, profile
 ownership, session/file-read authority or current availability. The linked
 catalogue contract owns canonical parsing and bounded validation.
 
+Optional inclusive session-generation, captured-generation and storage-revision
+ranges also AND-compose with every retained attachment predicate. Positive
+`HostRevision` bounds require minimum <= maximum and match only Confirmed
+retained copies. Unavailable/Removed projections suppress former versions;
+these are correlation/version metadata, not source consent, session authority,
+currentness, file-read authority or proof a copy still exists. No session-list,
+saved draft or Evidence behavior changes. The linked catalogue contract owns
+strict parsing, full candidate validation and complete continuation identity.
+
 ## Current Implementation and Design Gap
 
 The [optional native enqueue prerequisite](Work_Management.md#delivered-optional-native-enqueue-prerequisite---2026-10-12) adds same-session bounded metadata-only choice to all six fixed profiles. It combines nonqueue tasks with already-observed queued pending/running/recent terminal tasks using actual host task metadata from the same atomic work read, never queue-entry revisions or history scans. None is the initial default; exact selected ID/revision flows through the original command/service/store with final stale-source refusal.

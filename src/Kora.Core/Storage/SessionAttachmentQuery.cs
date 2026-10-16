@@ -1,6 +1,7 @@
 using System.Text.Json.Serialization;
 
 using Kora.Core.Context;
+using Kora.Core.Hosting;
 
 namespace Kora.Core.Storage;
 
@@ -20,7 +21,10 @@ public sealed record SessionAttachmentQuery
         string? exactMediaType = null, AttachmentCopyStatus? copyStatus = null,
         long? minimumStoredBytes = null, long? maximumStoredBytes = null, string? exactDigest = null,
         string? exactObservationSource = null, string? exactDeviceProfile = null,
-        DateTimeOffset? capturedFromUtc = null, DateTimeOffset? capturedUntilUtc = null)
+        DateTimeOffset? capturedFromUtc = null, DateTimeOffset? capturedUntilUtc = null,
+        long? minimumSessionGeneration = null, long? maximumSessionGeneration = null,
+        long? minimumCapturedGeneration = null, long? maximumCapturedGeneration = null,
+        long? minimumStorageRevision = null, long? maximumStorageRevision = null)
     {
         if (!Enum.IsDefined(filter)) { throw new InvalidDataException("Unknown attachment session lifecycle filter."); }
         Filter = filter;
@@ -40,6 +44,12 @@ public sealed record SessionAttachmentQuery
             : new SessionListSearch(SessionListSearchKind.ExactId, SessionListFilter.All, exactDeviceProfile).ExactId;
         CapturedFromUtc = capturedFromUtc;
         CapturedUntilUtc = capturedUntilUtc;
+        MinimumSessionGeneration = minimumSessionGeneration;
+        MaximumSessionGeneration = maximumSessionGeneration;
+        MinimumCapturedGeneration = minimumCapturedGeneration;
+        MaximumCapturedGeneration = maximumCapturedGeneration;
+        MinimumStorageRevision = minimumStorageRevision;
+        MaximumStorageRevision = maximumStorageRevision;
         Validate();
     }
 
@@ -79,11 +89,30 @@ public sealed record SessionAttachmentQuery
     [JsonIgnore]
     public DateTimeOffset? CapturedUntilUtc { get; }
     [JsonIgnore]
+    public long? MinimumSessionGeneration { get; }
+    [JsonIgnore]
+    public long? MaximumSessionGeneration { get; }
+    [JsonIgnore]
+    public long? MinimumCapturedGeneration { get; }
+    [JsonIgnore]
+    public long? MaximumCapturedGeneration { get; }
+    [JsonIgnore]
+    public long? MinimumStorageRevision { get; }
+    [JsonIgnore]
+    public long? MaximumStorageRevision { get; }
+    [JsonIgnore]
+    public bool HasVersionPredicates => MinimumSessionGeneration is not null || MaximumSessionGeneration is not null
+        || MinimumCapturedGeneration is not null || MaximumCapturedGeneration is not null
+        || MinimumStorageRevision is not null || MaximumStorageRevision is not null;
+    [JsonIgnore]
     public bool HasCorrelationPredicates => ExactObservationSource is not null || ExactDeviceProfile is not null
         || CapturedFromUtc is not null || CapturedUntilUtc is not null;
 
     public void Validate()
     {
+        ValidateRange(MinimumSessionGeneration, MaximumSessionGeneration);
+        ValidateRange(MinimumCapturedGeneration, MaximumCapturedGeneration);
+        ValidateRange(MinimumStorageRevision, MaximumStorageRevision);
         if (!Enum.IsDefined(Filter)) { throw new InvalidDataException("Unknown attachment session lifecycle filter."); }
         if (CopyStatus is { } copy && !Enum.IsDefined(copy))
         { throw new InvalidDataException("Unknown attachment copy-status filter."); }
@@ -108,6 +137,10 @@ public sealed record SessionAttachmentQuery
         row.Validate();
         return
         (IncludeRemoved || row.CopyStatus != AttachmentCopyStatus.Unavailable)
+        && (!HasVersionPredicates || row.CopyStatus == AttachmentCopyStatus.Confirmed
+            && MatchesRange(row.SessionGeneration, MinimumSessionGeneration, MaximumSessionGeneration)
+            && MatchesRange(row.CapturedGeneration, MinimumCapturedGeneration, MaximumCapturedGeneration)
+            && MatchesRange(row.StorageRevision, MinimumStorageRevision, MaximumStorageRevision))
         && (!HasCorrelationPredicates || row.CopyStatus == AttachmentCopyStatus.Confirmed
             && (ExactObservationSource is not { } source || row.ObservationSource == source)
             && (ExactDeviceProfile is not { } profile || row.Profile.Value == profile)
@@ -134,5 +167,23 @@ public sealed record SessionAttachmentQuery
                 || row.File.ItemId.ToString("D").Contains(MetadataText, StringComparison.Ordinal)
                 || row.File.Digest.Contains(MetadataText, StringComparison.Ordinal)
                 || row.MediaType.Contains(MetadataText, StringComparison.Ordinal)));
+    }
+
+    private static bool MatchesRange(HostRevision value, long? minimum, long? maximum) =>
+        (minimum is null || value.Value >= minimum) && (maximum is null || value.Value <= maximum);
+
+    private static void ValidateRange(long? minimum, long? maximum)
+    {
+        try
+        {
+            if (minimum is { } lower) { _ = new HostRevision(lower); }
+            if (maximum is { } upper) { _ = new HostRevision(upper); }
+        }
+        catch (ArgumentOutOfRangeException exception)
+        {
+            throw new InvalidDataException("Generation/revision bounds must be positive decimal integers. Empty means Any.", exception);
+        }
+        if (minimum > maximum)
+        { throw new InvalidDataException("Generation/revision range minimum must be <= maximum. Empty means Any."); }
     }
 }

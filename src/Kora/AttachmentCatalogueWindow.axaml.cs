@@ -25,6 +25,9 @@ internal sealed partial class AttachmentCatalogueWindow : Window
             if (args.Key == Key.Enter && (AttachmentQueryText.IsFocused || AttachmentMetadataText.IsFocused
                 || AttachmentMinimumBytes.IsFocused || AttachmentMaximumBytes.IsFocused || AttachmentDigest.IsFocused
                 || AttachmentObservationSource.IsFocused || AttachmentDeviceProfile.IsFocused
+                || AttachmentMinimumSessionGeneration.IsFocused || AttachmentMaximumSessionGeneration.IsFocused
+                || AttachmentMinimumCapturedGeneration.IsFocused || AttachmentMaximumCapturedGeneration.IsFocused
+                || AttachmentMinimumStorageRevision.IsFocused || AttachmentMaximumStorageRevision.IsFocused
                 || AttachmentCapturedFrom.IsFocused || AttachmentCapturedUntil.IsFocused) && model.CanSearch)
             {
                 Operation = model.Refresh();

@@ -34,6 +34,23 @@ do not depend on hosted management, and speech preferences do not qualify wake.
 
 ## Current Delivery
 
+### R26 retained attachment inclusive generation/revision predicates - 2026-10-16
+
+From canonical main `74cd8517e5b5412deea706d1125a9b6e156a49e9`, the
+[retained catalogue contract](File_And_Folder_Ingestion.md#delivered-retained-attachment-metadata-catalogue---2026-10-11)
+adds optional inclusive session-generation, captured-generation and storage-
+revision ranges AND-composed with every existing predicate, including the
+merged digest/source/profile/captured-time behavior. Positive `HostRevision`
+admission, range ordering, validation before exclusion and complete cursor
+identity fail closed. Only Confirmed copies match; tombstone rows/details/
+serialization suppress former versions. No version grants consent, session/
+file-read authority, currentness or proof of current copy existence.
+No-read edits, selection retirement, cancellation/revocation and bounded
+complete-page behavior retain deterministic portable/SQLite/headless checks.
+This consumed I subset changes no other catalogue/domain, storage schema,
+source read, provider or enabled runtime profile. Installed accessibility,
+broader R26 and E/Q remain separate and unclaimed; no experiment is required.
+
 ### R26 retained attachment exact correlation and captured-time predicates - 2026-10-16
 
 The [retained catalogue contract](File_And_Folder_Ingestion.md#delivered-retained-attachment-metadata-catalogue---2026-10-11)

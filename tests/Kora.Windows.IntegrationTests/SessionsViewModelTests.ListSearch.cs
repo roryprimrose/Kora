@@ -53,7 +53,7 @@ public sealed partial class SessionsViewModelTests
             && element.Attribute("Text")?.Value.Contains("ListQuery", StringComparison.Ordinal) == true);
         field.Attribute("MaxLength").Should().BeNull();
         field.Attribute("IsEnabled")!.Value.Should().Be("{Binding CanEditListSearch}");
-        source.Should().Contain("ListSearchKinds").And.Contain("NameSubstring").And.Contain("canonical lowercase exact immutable ID")
+        source.Should().Contain("ListSearchKinds").And.Contain("Browse").And.Contain("NameSubstring").And.Contain("canonical lowercase exact immutable ID")
             .And.Contain("CanNextListSearch").And.Contain("including after zero matches")
             .And.Contain("CanCancelListSearch").And.Contain("Clear metadata search")
             .And.Contain("metadata-search scope across pages").And.Contain("HistoryQuery");
@@ -61,6 +61,10 @@ public sealed partial class SessionsViewModelTests
         code.Should().Contain("SearchList.Click +=").And.Contain("model.SearchListAsync(next: true)")
             .And.Contain("model.CancelListSearch()").And.Contain("model.ClearListSearch(); ListQuery.Focus();")
             .And.Contain("field.KeyDown +=").And.Contain("model.CanSearchList");
+        var availability = document.Descendants().Single(element =>
+            string.Equals(element.Attribute("ItemsSource")?.Value, "{Binding ListNameAvailabilities}", StringComparison.Ordinal));
+        availability.Attribute("SelectedItem")!.Value.Should().Be("{Binding ListNameAvailability, Mode=TwoWay}");
+        availability.Attribute("IsEnabled")!.Value.Should().Be("{Binding CanEditListSearch}");
         foreach (var name in new[] { "ListMinimumGeneration", "ListMaximumGeneration",
             "ListMinimumMetadataRevision", "ListMaximumMetadataRevision" })
         {
@@ -85,6 +89,15 @@ public sealed partial class SessionsViewModelTests
     [InlineData("maximum-generation")]
     [InlineData("minimum-name-revision")]
     [InlineData("maximum-name-revision")]
+    [InlineData("availability")]
+    [InlineData("browse")]
+    [InlineData("browse-cancel")]
+    [InlineData("browse-revision")]
+    [InlineData("browse-privacy")]
+    [InlineData("browse-selection")]
+    [InlineData("browse-availability")]
+    [InlineData("browse-source")]
+    [InlineData("browse-close")]
     public async Task MetadataSearchSuppressesLateResultsAfterQuerySelectionSourcePrivacyOrClosureChanges(string mode)
     {
         using var f = new InteractionStorageFixture();
@@ -97,7 +110,9 @@ public sealed partial class SessionsViewModelTests
         var model = new SessionsViewModel(service,
             new(new WindowsSqliteEvidenceReader(sink), access, f.Time, NullLogger<DurableEvidenceQuery>.Instance),
             access, NullLogger<SessionsViewModel>.Instance);
-        model.ListQuery = "needle";
+        var browse = mode.StartsWith("browse-", StringComparison.Ordinal);
+        model.ListSearchKind = browse ? SessionListSearchKind.Browse : SessionListSearchKind.NameSubstring;
+        model.ListQuery = browse ? "" : "needle";
         model.ListMinimumGeneration = "1";
         model.ListMaximumGeneration = "1";
         model.ListMinimumMetadataRevision = "1";
@@ -109,16 +124,18 @@ public sealed partial class SessionsViewModelTests
         model.CanEditListSearch.Should().BeTrue();
         if (mode is "query") { model.ListQuery = "another"; }
         if (mode is "kind") { model.ListSearchKind = SessionListSearchKind.ExactId; }
+        if (mode is "browse") { model.ListSearchKind = SessionListSearchKind.Browse; }
+        if (mode is "availability" or "browse-availability") { model.ListNameAvailability = SessionNameAvailability.Unnamed; }
         if (mode is "minimum-generation") { model.ListMinimumGeneration = "2"; }
         if (mode is "maximum-generation") { model.ListMaximumGeneration = "2"; }
         if (mode is "minimum-name-revision") { model.ListMinimumMetadataRevision = "2"; }
         if (mode is "maximum-name-revision") { model.ListMaximumMetadataRevision = "2"; }
-        if (mode is "selection") { await model.SelectAsync(new(new(new(Guid.NewGuid()), new(1), true), null)); }
-        if (mode is "source") { model.RevokeSessionList(); }
-        if (mode is "cancel") { model.CancelListSearch(); }
-        if (mode is "close") { model.Close(); }
-        if (mode is "privacy") { access.CanInspect = false; }
-        if (mode is "revision") { access.ControlRevision++; }
+        if (mode is "selection" or "browse-selection") { await model.SelectAsync(new(new(new(Guid.NewGuid()), new(1), true), null)); }
+        if (mode is "source" or "browse-source") { model.RevokeSessionList(); }
+        if (mode is "cancel" or "browse-cancel") { model.CancelListSearch(); }
+        if (mode is "close" or "browse-close") { model.Close(); }
+        if (mode is "privacy" or "browse-privacy") { access.CanInspect = false; }
+        if (mode is "revision" or "browse-revision") { access.ControlRevision++; }
         var entry = new SessionWorkspaceEntry(new(f.Request.SessionId, new(1), true),
             new(f.Request.SessionId, new(1), new("needle")));
         held.Completion.SetResult(new([entry], null));
@@ -135,6 +152,7 @@ public sealed partial class SessionsViewModelTests
         held.Reads.Should().Be(1);
         model.Close();
         model.ListQuery.Should().BeEmpty();
+        model.ListNameAvailability.Should().Be(SessionNameAvailability.Any);
         model.ListMinimumGeneration.Should().BeEmpty();
         model.ListMaximumGeneration.Should().BeEmpty();
         model.ListMinimumMetadataRevision.Should().BeEmpty();

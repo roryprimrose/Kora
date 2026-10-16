@@ -36,7 +36,8 @@ internal sealed partial class AllWorkViewModel(
     public IReadOnlyList<SessionWorkOverviewRow> Records => page?.Records ?? [];
     public SessionWorkOverviewRow? SelectedRecord => selected;
     public IReadOnlyList<SessionListFilter> Filters { get; } = Enum.GetValues<SessionListFilter>();
-    public IReadOnlyList<SessionListSearchKind> QueryKinds { get; } = Enum.GetValues<SessionListSearchKind>();
+    public IReadOnlyList<SessionListSearchKind> QueryKinds { get; } =
+        [SessionListSearchKind.NameSubstring, SessionListSearchKind.ExactId];
     public sealed record AvailabilityChoice(SessionWorkOverviewAvailability? Value, string Label)
     {
         public override string ToString() => Label;
@@ -91,7 +92,7 @@ internal sealed partial class AllWorkViewModel(
         get => queryKind;
         set
         {
-            if (!CanEdit || !Enum.IsDefined(value) || queryKind == value) { return; }
+            if (!CanEdit || !QueryKinds.Contains(value) || queryKind == value) { return; }
             Invalidate();
             queryKind = value;
             status = QueryHint;

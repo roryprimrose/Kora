@@ -13,14 +13,27 @@ public sealed class SessionListSearch
 
     public SessionListSearch(SessionListSearchKind kind, SessionListFilter filter, string value,
         long? minimumGeneration = null, long? maximumGeneration = null,
-        long? minimumMetadataRevision = null, long? maximumMetadataRevision = null)
+        long? minimumMetadataRevision = null, long? maximumMetadataRevision = null,
+        SessionNameAvailability nameAvailability = SessionNameAvailability.Any)
     {
         if (!Enum.IsDefined(kind) || !Enum.IsDefined(filter))
         {
             throw new ArgumentOutOfRangeException(nameof(kind), "Select a known query kind and lifecycle filter.");
         }
+        if (!Enum.IsDefined(nameAvailability))
+        {
+            throw new ArgumentOutOfRangeException(nameof(nameAvailability), "Select a known name-metadata availability.");
+        }
         ArgumentNullException.ThrowIfNull(value);
-        if (kind is SessionListSearchKind.NameSubstring)
+        if (kind is SessionListSearchKind.Browse)
+        {
+            if (value.Length != 0)
+            {
+                throw new InvalidDataException("Browse requires empty query text. Select NameSubstring or ExactId to search text.");
+            }
+            Value = value;
+        }
+        else if (kind is SessionListSearchKind.NameSubstring)
         {
             // A valid scalar occupies at most two UTF-16 units; bound validation work before parsing.
             if (value.Length > SessionName.MaximumScalars * 2)
@@ -41,6 +54,7 @@ public sealed class SessionListSearch
         }
         Kind = kind;
         Filter = filter;
+        NameAvailability = nameAvailability;
         MinimumGeneration = ValidateBound(minimumGeneration);
         MaximumGeneration = ValidateBound(maximumGeneration);
         MinimumMetadataRevision = ValidateBound(minimumMetadataRevision);
@@ -54,11 +68,12 @@ public sealed class SessionListSearch
             + MinimumGeneration?.ToString(CultureInfo.InvariantCulture) + "\n"
             + MaximumGeneration?.ToString(CultureInfo.InvariantCulture) + "\n"
             + MinimumMetadataRevision?.ToString(CultureInfo.InvariantCulture) + "\n"
-            + MaximumMetadataRevision?.ToString(CultureInfo.InvariantCulture))));
+            + MaximumMetadataRevision?.ToString(CultureInfo.InvariantCulture) + "\n" + NameAvailability.ToString())));
     }
 
     public SessionListSearchKind Kind { get; }
     public SessionListFilter Filter { get; }
+    public SessionNameAvailability NameAvailability { get; }
     public string Value { get; }
     public long? MinimumGeneration { get; }
     public long? MaximumGeneration { get; }
@@ -71,14 +86,16 @@ public sealed class SessionListSearch
     {
         ValidateEntry(entry);
         return (Filter is SessionListFilter.All || entry.Authority.IsActive == (Filter is SessionListFilter.Active))
+            && (NameAvailability is SessionNameAvailability.Any
+                || (entry.Metadata is not null) == (NameAvailability is SessionNameAvailability.Named))
             && (MinimumGeneration is not { } minimum || entry.Authority.Generation.Value >= minimum)
             && (MaximumGeneration is not { } maximum || entry.Authority.Generation.Value <= maximum)
             && (MinimumMetadataRevision is not { } minimumRevision
                 || entry.Metadata is { } lowerMetadata && lowerMetadata.Revision.Value >= minimumRevision)
             && (MaximumMetadataRevision is not { } maximumRevision
                 || entry.Metadata is { } upperMetadata && upperMetadata.Revision.Value <= maximumRevision)
-            && (Kind is SessionListSearchKind.ExactId ? entry.Authority.SessionId.Value == exactId
-                : entry.Metadata?.Name.Value.Contains(Value, StringComparison.Ordinal) == true);
+            && (Kind is SessionListSearchKind.Browse || (Kind is SessionListSearchKind.ExactId ? entry.Authority.SessionId.Value == exactId
+                : entry.Metadata?.Name.Value.Contains(Value, StringComparison.Ordinal) == true));
     }
 
     public static void ValidateEntry(SessionWorkspaceEntry entry)
@@ -102,9 +119,10 @@ public sealed class SessionListSearch
 
     public static SessionListSearch Parse(SessionListSearchKind kind, SessionListFilter filter, string value,
         string minimumGeneration = "", string maximumGeneration = "",
-        string minimumMetadataRevision = "", string maximumMetadataRevision = "") =>
+        string minimumMetadataRevision = "", string maximumMetadataRevision = "",
+        SessionNameAvailability nameAvailability = SessionNameAvailability.Any) =>
         new(kind, filter, value, OptionalUnsignedDecimal.Parse(minimumGeneration), OptionalUnsignedDecimal.Parse(maximumGeneration),
-            OptionalUnsignedDecimal.Parse(minimumMetadataRevision), OptionalUnsignedDecimal.Parse(maximumMetadataRevision));
+            OptionalUnsignedDecimal.Parse(minimumMetadataRevision), OptionalUnsignedDecimal.Parse(maximumMetadataRevision), nameAvailability);
 
     private static long? ValidateBound(long? value)
     {
@@ -118,9 +136,10 @@ public sealed class SessionListSearch
 
     public static bool IsValid(SessionListSearchKind kind, SessionListFilter filter, string value,
         string minimumGeneration = "", string maximumGeneration = "",
-        string minimumMetadataRevision = "", string maximumMetadataRevision = "")
+        string minimumMetadataRevision = "", string maximumMetadataRevision = "",
+        SessionNameAvailability nameAvailability = SessionNameAvailability.Any)
     {
-        try { _ = Parse(kind, filter, value, minimumGeneration, maximumGeneration, minimumMetadataRevision, maximumMetadataRevision); return true; }
+        try { _ = Parse(kind, filter, value, minimumGeneration, maximumGeneration, minimumMetadataRevision, maximumMetadataRevision, nameAvailability); return true; }
         catch (ArgumentException) { return false; }
         catch (InvalidDataException) { return false; }
     }

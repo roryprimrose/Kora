@@ -15,6 +15,74 @@ public sealed class SessionListSearchTests
 
     [Theory]
     [InlineData(null)]
+    [InlineData(" ")]
+    [InlineData("needle")]
+    [InlineData("aaaaaaaa-0000-0000-0000-000000000001")]
+    public void BrowseRequiresExplicitEmptyTextAndNeverReinterpretsIt(string? text)
+    {
+        SessionListSearch.IsValid(SessionListSearchKind.Browse, SessionListFilter.All, text!).Should().BeFalse();
+        var read = () => new SessionListSearch(SessionListSearchKind.Browse, SessionListFilter.All, text!);
+        read.Should().Throw<Exception>();
+    }
+
+    [Fact]
+    public void AvailabilityComposesWithEveryModeLifecycleAndRangeWithoutInventingUnnamedMetadata()
+    {
+        foreach (var kind in Enum.GetValues<SessionListSearchKind>())
+        foreach (var filter in Enum.GetValues<SessionListFilter>())
+        foreach (var availability in Enum.GetValues<SessionNameAvailability>())
+        foreach (var active in new[] { true, false })
+        foreach (var named in new[] { true, false })
+        foreach (var revisionBound in new[] { false, true })
+        {
+            var text = kind is SessionListSearchKind.Browse ? ""
+                : kind is SessionListSearchKind.ExactId ? Id.ToString("D") : "café";
+            var query = SessionListSearch.Parse(kind, filter, text, "1", "1",
+                revisionBound ? "1" : "", revisionBound ? "1" : "", availability);
+            query.Value.Should().Be(text);
+            query.NameAvailability.Should().Be(availability);
+            query.ExactId.Should().Be(kind is SessionListSearchKind.ExactId ? Id : null);
+            var expected = (filter is SessionListFilter.All || active == (filter is SessionListFilter.Active))
+                && (availability is SessionNameAvailability.Any || named == (availability is SessionNameAvailability.Named))
+                && (!revisionBound || named) && (kind is not SessionListSearchKind.NameSubstring || named);
+            query.Matches(Entry(named ? "café" : null, active)).Should().Be(expected);
+            query.Matches(Entry(named ? "café" : null, active) with
+                { Authority = Entry().Authority with { Generation = new(2), IsActive = active } }).Should().BeFalse();
+        }
+        SessionListSearch.IsValid(SessionListSearchKind.Browse, SessionListFilter.All, "",
+            nameAvailability: (SessionNameAvailability)99).Should().BeFalse();
+    }
+
+    [Fact]
+    public void BrowseAndEveryAvailabilityHaveDistinctSemanticCursorDigests()
+    {
+        var browse = new SessionListSearch(SessionListSearchKind.Browse, SessionListFilter.All, "");
+        browse.Digest.Should().Be(new SessionListSearch(browse.Kind, browse.Filter, "").Digest);
+        var cursor = new SessionListSearchCursor(Id, 1, Id, browse.Digest);
+        cursor.Validate(Id, 1, browse);
+        foreach (var changed in new[]
+        {
+            new SessionListSearch(SessionListSearchKind.NameSubstring, SessionListFilter.All, "café"),
+            new SessionListSearch(SessionListSearchKind.ExactId, SessionListFilter.All, Id.ToString("D")),
+            new SessionListSearch(SessionListSearchKind.Browse, SessionListFilter.Done, ""),
+            new SessionListSearch(SessionListSearchKind.Browse, SessionListFilter.All, "", minimumGeneration: 1),
+            new SessionListSearch(SessionListSearchKind.Browse, SessionListFilter.All, "", maximumGeneration: 1),
+            new SessionListSearch(SessionListSearchKind.Browse, SessionListFilter.All, "", minimumMetadataRevision: 1),
+            new SessionListSearch(SessionListSearchKind.Browse, SessionListFilter.All, "", maximumMetadataRevision: 1),
+            new SessionListSearch(SessionListSearchKind.Browse, SessionListFilter.All, "", nameAvailability: SessionNameAvailability.Named),
+            new SessionListSearch(SessionListSearchKind.Browse, SessionListFilter.All, "", nameAvailability: SessionNameAvailability.Unnamed)
+        })
+        {
+            changed.Digest.Should().NotBe(browse.Digest);
+            var validate = () => cursor.Validate(Id, 1, changed);
+            validate.Should().Throw<ArgumentException>();
+        }
+        new SessionListSearch(browse.Kind, browse.Filter, "", nameAvailability: SessionNameAvailability.Named).Digest.Should()
+            .NotBe(new SessionListSearch(browse.Kind, browse.Filter, "", nameAvailability: SessionNameAvailability.Unnamed).Digest);
+    }
+
+    [Theory]
+    [InlineData(null)]
     [InlineData("0")]
     [InlineData("-1")]
     [InlineData("+1")]
@@ -91,13 +159,14 @@ public sealed class SessionListSearchTests
             Metadata = Entry().Metadata! with { Revision = new(2) } };
         foreach (var kind in Enum.GetValues<SessionListSearchKind>())
         {
-            var value = kind is SessionListSearchKind.ExactId ? Id.ToString("D") : "café";
+            var value = kind is SessionListSearchKind.Browse ? "" : kind is SessionListSearchKind.ExactId ? Id.ToString("D") : "café";
             var query = new SessionListSearch(kind, SessionListFilter.Active, value,
                 minimum, maximum, revisionMinimum, revisionMaximum);
             query.Matches(row).Should().Be(match);
             query.Matches(row with { Authority = row.Authority with { IsActive = false } }).Should().BeFalse();
             query.Matches(row with { Metadata = null }).Should().Be(
-                match && kind is SessionListSearchKind.ExactId && revisionMinimum is null && revisionMaximum is null);
+                match && kind is not SessionListSearchKind.NameSubstring && revisionMinimum is null && revisionMaximum is null);
+            if (kind is SessionListSearchKind.Browse) { continue; }
             var wrongValue = kind is SessionListSearchKind.ExactId ? Guid.NewGuid().ToString("D") : "absent";
             new SessionListSearch(kind, SessionListFilter.All, wrongValue, minimum, maximum, revisionMinimum, revisionMaximum)
                 .Matches(row).Should().BeFalse();
@@ -122,9 +191,14 @@ public sealed class SessionListSearchTests
         if (mode is "owner") { row = row with { Metadata = row.Metadata! with { SessionId = new(Guid.NewGuid()) } }; }
         if (mode is "revision") { row = row with { Metadata = row.Metadata! with { Revision = default } }; }
         if (mode is "name") { row = row with { Metadata = row.Metadata! with { Name = null! } }; }
-        var query = new SessionListSearch(SessionListSearchKind.NameSubstring, SessionListFilter.Active, "absent", 50, 100, 50, 100);
-        var act = () => query.Matches(row);
-        act.Should().Throw<Exception>();
+        foreach (var kind in Enum.GetValues<SessionListSearchKind>())
+        {
+            var value = kind is SessionListSearchKind.Browse ? "" : kind is SessionListSearchKind.ExactId ? Id.ToString("D") : "absent";
+            var query = new SessionListSearch(kind, SessionListFilter.Active, value, 50, 100, 50, 100,
+                SessionNameAvailability.Unnamed);
+            var act = () => query.Matches(row);
+            act.Should().Throw<Exception>();
+        }
     }
 
     [Theory]

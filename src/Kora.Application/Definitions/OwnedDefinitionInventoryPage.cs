@@ -9,5 +9,8 @@ public sealed record OwnedDefinitionInventoryPage(
     internal string Query { get; init; } = string.Empty;
     internal OwnedDefinitionUseFilter Filter { get; init; }
     internal string Digest { get; init; } = string.Empty;
+    internal string Revision { get; init; } = string.Empty;
+    internal string ObservedFromUtc { get; init; } = string.Empty;
+    internal string ObservedUntilUtc { get; init; } = string.Empty;
     public int? NextOffset => Offset + Rows.Count < TotalMatches ? Offset + Rows.Count : null;
 }

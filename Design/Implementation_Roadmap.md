@@ -69,6 +69,24 @@ execution authority, schema, retention policy, model/device/provider/network
 operation or experiment is added. Broader R05 and installed accessibility/E/Q
 qualification remain separate and unclaimed; excluded peer scopes are unchanged.
 
+### Bounded native owned-definition revision and observation-time predicates - 2026-10-16
+
+The [owned metadata inventory](Definition_Management.md#bounded-owned-instruction-and-prompt-editor)
+AND-composes optional exact native owned-instruction revision and inclusive canonical
+UTC Observed From/Until with literal filename/display/source-ID query, use state and
+exact digest for Instructions and Prompts. Complete mapped candidates and revision
+syntax are validated before exclusion; unknown/unmapped rows gain no revision.
+Continuations bind every predicate and the immutable inventory; bounded complete
+UTF-8 pages, no-read edit/selection/review retirement, dirty draft preservation,
+late-callback cancellation fences and accessible Clear remain mandatory.
+Observation time is snapshot metadata only, never freshness, trust, approval,
+ownership or use authority. This consumes the existing inventory/editor I subset;
+no new execution, provider, persistence, source matrix or Definitions authority
+is enabled. Deterministic portable/headless checks cover this increment; full
+Definitions management, installed accessibility and unrelated E/Q qualification
+remain separate and unclaimed. Saved drafts, Evidence, attachment, session Browse,
+Presence and peer conversation/grant/local-event predicates are unchanged.
+
 ### R26 retained attachment exact correlation and captured-time predicates - 2026-10-16
 
 The [retained catalogue contract](File_And_Folder_Ingestion.md#delivered-retained-attachment-metadata-catalogue---2026-10-11)

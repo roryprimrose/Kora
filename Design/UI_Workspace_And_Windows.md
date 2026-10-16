@@ -352,7 +352,7 @@ Browsing no longer invokes cleanup. Confirmed policy, copy inventory, due-candid
 
 ### Delivered Passive Session-List Metadata Navigation - 2026-10-10
 
-The Sessions window now has a separate metadata query and explicit **Browse** / **NameSubstring** / **ExactId** modes. **Search session metadata**, **Next metadata search**, **Cancel** and **Clear** navigate across the persisted list, not just its currently loaded page. Enter searches; Escape clears the metadata query fields. This is not the adjacent exact-session lexical history search or Evidence filtering.
+The Sessions window now has a separate metadata query and explicit **Browse** / **NameSubstring** / **ExactId** / **ExactName** modes. **Search session metadata**, **Next metadata search**, **Cancel** and **Clear** navigate across the persisted list, not just its currently loaded page. Enter searches; Escape clears the metadata query fields. This is not the adjacent exact-session lexical history search or Evidence filtering.
 
 Browse requires empty text and an explicit Search; it never reads on mode edits,
 selects a session implicitly or enumerates an unbounded inventory. Nonempty text
@@ -361,9 +361,9 @@ nonempty text; clearing text never implicitly switches modes. The accessible
 **Any / Named / Unnamed** combo AND-composes observed name-metadata availability
 with mode, lifecycle and ranges. Unnamed is absence of observed name metadata,
 not empty-name matching, revision zero, missing authority or historical deletion.
-NameSubstring + Unnamed and Unnamed + either name-revision bound match no rows.
+Either name mode + Unnamed and Unnamed + either name-revision bound match no rows.
 
-NameSubstring is literal ordinal, case-sensitive NFC name containment, with the existing [SessionName limits](../src/Kora.Core/Hosting/SessionName.cs). ExactId requires a nonempty canonical lowercase D GUID and uses the existing exact metadata lookup.
+NameSubstring is literal ordinal, case-sensitive NFC name containment; ExactName requires whole-name ordinal, case-sensitive equality, with the same existing [SessionName limits](../src/Kora.Core/Hosting/SessionName.cs) and no normalization or trimming. ExactName scans the same bounded fully validated metadata, returns duplicate names as separate immutable IDs and never establishes identity or action authority. ExactId requires a nonempty canonical lowercase D GUID and uses the existing exact metadata lookup.
 Unknown/Removed IDs are unavailable, not a fallback inventory. All/Active/Done applies across the metadata scan; outside search it retains ordinary page-only filtering.
 
 Four optional native text controls add inclusive authority-generation minimum

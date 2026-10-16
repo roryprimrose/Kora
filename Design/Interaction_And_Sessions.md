@@ -579,7 +579,7 @@ The [All work overview](Work_Management.md#delivered-passive-cross-session-work-
 They reuse the persisted private metadata reader, authoritative name/audit validation and unchanged admission revision, without task intent, activity renewal, grants, model calls, memory use or new storage/index authority.
 
 Browse requires exactly empty query text and uses the same canonical-ID ordered bounded source scan, not an unbounded inventory or implicit selection. Nonempty Browse text is rejected, not ignored or reinterpreted. NameSubstring still requires nonempty validated text; an empty name query never becomes Browse.
-Names use literal ordinal case-sensitive substring matching, including punctuation as ordinary characters. Queries reuse SessionName's NFC, single-line, no-control/format, no-surrounding-whitespace, 120-scalar/480-UTF-8-byte validation. Invalid text is rejected, never normalized, trimmed, truncated or reinterpreted as All.
+NameSubstring uses literal ordinal case-sensitive substring matching, including punctuation as ordinary characters. The fourth native mode, ExactName, instead requires ordinal case-sensitive equality with the entire validated retained name. Both reuse SessionName's NFC, single-line, no-control/format, no-surrounding-whitespace, 120-scalar/480-UTF-8-byte validation. Invalid text is rejected, never normalized, trimmed, truncated or reinterpreted as All. ExactName is a bounded scan, not a unique-name lookup: duplicate names can return distinct immutable session IDs, and even a GUID-shaped name remains name text.
 ExactId accepts only a nonempty canonical lowercase D GUID; a name that resembles an ID never supplies authority.
 
 Name scans consume at most 50 metadata rows per click, with the existing bounded reader lookahead and five-second lease/SQLite progress and lock boundaries. Native results are limited to 25 records; the reusable workflow accepts 1–50 and caps the complete serialized page at 64 KiB.
@@ -591,8 +591,8 @@ optional inclusive authority-generation and name-metadata-revision
 minimum/maximum predicates. Availability describes only whether validated name
 metadata was observed: Unnamed is not an empty name, missing authority, revision
 zero or evidence of historical deletion. Named requires metadata; Any adds no
-availability restriction. NameSubstring naturally matches only Named, so
-NameSubstring + Unnamed is an empty conjunction, not a query-shape fallback.
+availability restriction. NameSubstring and ExactName naturally match only Named, so
+either name mode + Unnamed is an empty conjunction, not a query-shape fallback.
 The portable query owns positive `Int64` admission
 and minimum <= maximum ordering. Native text uses invariant ASCII decimal digits
 only: empty means an absent bound, leading zeroes are admitted semantically,
@@ -611,7 +611,7 @@ They cannot silently restart on changed predicates, host/source or admission.
 
 Names, name availability, generations and name revisions in this search are volatile passive
 metadata only: not session selection, ownership, permission, freshness,
-historical completeness or action authority. The Browse, availability and numeric native controls do not
+historical completeness or action authority. Selection and actions still require the host-resolved immutable SessionId and fresh authority; an exact name never supplies ownership, approval, routing or mutation authority. The ExactName, Browse, availability and numeric native controls do not
 extend the separate All Work or saved-draft catalogue interfaces.
 
 Mutable metadata has no committed historical sequence ceiling. Later renames/state/removal are observed only in subsequently read rows; earlier changes and additions behind the cursor require Search again. Later appended IDs can appear, and end describes only that observation. No finite atomic snapshot is fabricated.

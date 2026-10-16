@@ -51,6 +51,28 @@ portable/private SQLite/headless accessibility tests; installed accessibility
 and broader E/Q qualification remain separate and unclaimed. No schema,
 external operation, experiment or sibling catalogue controls are added.
 
+### Bounded exact-grant committed correlation metadata predicates - 2026-10-16
+
+Built on freshly fetched main `afdee7f508bc2e186bf56ef5f65cb27711e83bd1`.
+The [one-exact-grant committed history](../docs/settings.md#exact-operation-grants)
+adds optional exact committed audit correlation ID and explicit approval metadata
+Any/Present/Absent/Exact, AND-composed with outcome/reason/initiator/retention/
+committed-time/due-time. Core owns strict canonical lowercase nonempty D GUID
+admission, Exact-only approval ID and versioned digest/cursor identity. Exact
+matches only the committed event carrying that ID; Absent is validated absence,
+not unknown. Complete envelope/prefix/provenance validation precedes exclusion.
+Requested-review details remain undisclosed. Volatile named native controls
+preserve inert exact target, no-read edits, selection/review/continuation
+retirement, cancellation/stale fences and all existing admission ceilings.
+IDs remain correlation metadata only, not authority identity, approve/grant/
+renew/revoke/retarget or execution authorization. Deterministic portable/private
+SQLite/headless checks and exact 100% portable line/branch coverage gate this
+consumed I subset. No new production service, schema, retention policy, network/
+device/provider action or experiment is required; E/Q and installed accessibility
+remain separate and unclaimed. Saved drafts #282, Presence/native presenter,
+build/performance, attachment file identities, memory scope identity and Evidence
+trace metadata are unchanged.
+
 ### R26 retained attachment inclusive generation/revision predicates - 2026-10-16
 
 From canonical main `74cd8517e5b5412deea706d1125a9b6e156a49e9`, the

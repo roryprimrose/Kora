@@ -408,6 +408,14 @@
                       SelectedItem="{Binding LocalEventQueueReasonChoice}" IsEnabled="{Binding CanFilterLocalEvents}"
                       AutomationProperties.Name="Filter loaded local events by Any, No queue reason / not applicable, or exact queue eligibility reason; combines with all event filters and clears exact event selection; absence is not success or authority" />
             <TextBlock Text="Local event session ID" VerticalAlignment="Center" />
+            <ComboBox x:Name="LocalEventQueueProfileFilter" ItemsSource="{Binding LocalEventQueueProfileFilters}"
+                      SelectedItem="{Binding LocalEventQueueProfileChoice}" IsEnabled="{Binding CanFilterLocalEvents}"
+                      AutomationProperties.Name="Local event retained queue profile: Any, explicit Absent, or exact catalogue read; AND with all filters; no read; editing retires selection and details; historical metadata never authority"
+                      ToolTip.Tip="Absent means the complete validated event has no retained profile, never an omitted or truncated row. Exact profiles use canonical catalogue IDs." />
+            <ComboBox x:Name="LocalEventQueueTargetFilter" ItemsSource="{Binding LocalEventQueueTargetFilters}"
+                      SelectedItem="{Binding LocalEventQueueTargetChoice}" IsEnabled="{Binding CanFilterLocalEvents}"
+                      AutomationProperties.Name="Local event retained exact capability target: Any or exact catalogue descriptor ID; AND with all filters; no read; editing retires selection and details; historical metadata never authority"
+                      ToolTip.Tip="Exact matches only existing retained target metadata. This does not select a session, enqueue, dispatch, or establish readiness, ownership or permission." />
             <TextBox x:Name="LocalEventSessionIdFilter" Text="{Binding LocalEventSessionIdFilter}" Width="300"
                      PlaceholderText="Any session ID (empty)" IsEnabled="{Binding CanFilterLocalEvents}"
                      AutomationProperties.Name="Filter loaded local events by exact session ID; empty for Any, complete lowercase D GUID; AND with all filters; clears selection; correlation only, never retargets or authorizes" />

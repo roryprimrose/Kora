@@ -369,6 +369,14 @@ with no late-callback restoration or silent retarget. Matching/empty results
 are separate from authoritative source omissions and routine quiet status.
 All four exact enum predicates compose with AND; impossible source/type
 combinations show zero without changing the choices.
+The same contract now AND-composes explicit Any/Absent/exact retained queue
+profile and optional exact catalogue capability target with origin, queue
+reason, exact correlation IDs and revision/generation/lifetime ranges.
+Complete event/profile/target validation precedes exclusion; absence is never
+inferred from omitted output. Every predicate joins the versioned continuation
+digest and existing edit epochs. These are historical presentation metadata,
+not session selection, queue admission, readiness, ownership, permission or
+capability dispatch.
 No additional source read, persistence, activity renewal or authority is added.
 
 The [R13 four fixed-read profiles](Work_Management.md#delivered-fixed-first-page-read-profiles---2026-10-12)

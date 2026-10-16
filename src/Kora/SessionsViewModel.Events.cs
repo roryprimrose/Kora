@@ -4,6 +4,7 @@ using System.Text.Json;
 using Kora.Core.Hosting;
 using Kora.Core.Interaction;
 using Kora.Core.Diagnostics;
+using Kora.Core.Tools;
 
 namespace Kora;
 
@@ -13,6 +14,7 @@ internal sealed partial class SessionsViewModel
     private LocalEventView? selectedEvent;
     private LocalEventFilter eventFilter = new();
     private long eventFilterEpoch;
+    private string? LocalEventFilterDigest => eventFilter.IsValid ? eventFilter.Digest : null;
     private long eventSelectionEpoch;
     private bool eventDetailPresented;
     private Kora.Core.Authorization.WorkSessionAuthorization? eventAuthority;
@@ -104,6 +106,33 @@ internal sealed partial class SessionsViewModel
         [new(new()), new(new(LocalEventQueueReasonMatch.None)),
             .. Enum.GetValues<SessionQueueEligibility>().Select(value =>
                 new LocalEventQueueReasonFilterOption(new(LocalEventQueueReasonMatch.Exact, value)))];
+    public LocalEventQueueProfileFilter LocalEventQueueProfileFilter
+    {
+        get => eventFilter.QueueProfile;
+        set => ChangeLocalEventRange(eventFilter with { QueueProfile = value });
+    }
+    public SessionQueueCapabilityTarget? LocalEventQueueTargetFilter
+    {
+        get => eventFilter.QueueTarget;
+        set => ChangeLocalEventRange(eventFilter with { QueueTarget = value });
+    }
+    public IReadOnlyList<LocalEventQueueProfileFilterOption> LocalEventQueueProfileFilters { get; } =
+        [new(new()), new(new(LocalEventQueueProfileMatch.Absent)),
+            .. Enum.GetValues<SessionQueueReadProfile>().Select(value =>
+                new LocalEventQueueProfileFilterOption(new(LocalEventQueueProfileMatch.Exact, value)))];
+    public IReadOnlyList<LocalEventQueueTargetFilterOption> LocalEventQueueTargetFilters { get; } =
+        [new(null), .. ReadOnlyCapabilityCatalog.Descriptors.Select(value =>
+            new LocalEventQueueTargetFilterOption(new(value.Id)))];
+    public LocalEventQueueProfileFilterOption LocalEventQueueProfileChoice
+    {
+        get => LocalEventQueueProfileFilters.FirstOrDefault(option => option.Value == eventFilter.QueueProfile) ?? new(eventFilter.QueueProfile);
+        set { if (value is not null) { LocalEventQueueProfileFilter = value.Value; } }
+    }
+    public LocalEventQueueTargetFilterOption LocalEventQueueTargetChoice
+    {
+        get => LocalEventQueueTargetFilters.FirstOrDefault(option => option.Value == eventFilter.QueueTarget) ?? new(eventFilter.QueueTarget);
+        set { if (value is not null) { LocalEventQueueTargetFilter = value.Value; } }
+    }
     public string LocalEventSessionIdFilter
     {
         get => eventFilter.SessionId;
@@ -211,7 +240,7 @@ internal sealed partial class SessionsViewModel
         set { if (value is not null) { LocalEventQueueReasonFilter = value.Value; } }
     }
     public string LocalEventFilterStatus => !eventFilter.IsValid
-        ? "Unknown category, reason, source, type, origin or queue reason, invalid exact ID or invalid range filter; no results. IDs require complete nonempty lowercase D GUIDs. Revision/generation require positive Int64 decimals; UTC requires yyyy-MM-ddTHH:mm:ss.fffffff+00:00; inclusive minimum/from <= maximum/until. Empty means Any. Clear filters to recover."
+        ? "Unknown category, reason, source, type, origin, queue reason, queue profile or exact catalogue target, invalid exact ID or invalid range filter; no results. IDs require complete nonempty lowercase D GUIDs. Revision/generation require positive Int64 decimals; UTC requires yyyy-MM-ddTHH:mm:ss.fffffff+00:00; inclusive minimum/from <= maximum/until. Empty means Any. Clear filters to recover."
         : !EventSourceCurrent ? "No current bounded local-event snapshot. Refresh selected work; no empty source is inferred."
         : LocalEvents.Count.ToString(CultureInfo.InvariantCulture) + " of "
             + eventSnapshot!.Events.Count.ToString(CultureInfo.InvariantCulture)
@@ -258,6 +287,20 @@ internal sealed partial class SessionsViewModel
                 _ => Value.Value!.Value.ToString(),
             };
     }
+    internal sealed record LocalEventQueueProfileFilterOption(LocalEventQueueProfileFilter Value)
+    {
+        public override string ToString() => !Value.IsValid ? "Unknown"
+            : Value.Match switch
+            {
+                LocalEventQueueProfileMatch.Any => "Any",
+                LocalEventQueueProfileMatch.Absent => "Absent retained queue profile",
+                _ => SessionQueueReadProfiles.CapabilityId(Value.Value!.Value),
+            };
+    }
+    internal sealed record LocalEventQueueTargetFilterOption(SessionQueueCapabilityTarget? Value)
+    {
+        public override string ToString() => Value?.Id ?? "Any";
+    }
     public string RoutineQuietStatus => localEvents is { } broker
         ? "Quiet routine notices for this run: " + (broker.RoutineQuiet.Enabled ? "On" : "Off")
             + (broker.IsAvailable ? string.Empty : " (held/unavailable; refresh recovery, no confirmed change inferred)")
@@ -300,6 +343,7 @@ internal sealed partial class SessionsViewModel
         if (localEvents is null) { return; }
         var choiceEpoch = eventChoiceEpoch;
         var filterEpoch = eventFilterEpoch;
+        var filterDigest = LocalEventFilterDigest;
         if (!access.CanControl)
         {
             ClearLocalEvents();
@@ -308,6 +352,7 @@ internal sealed partial class SessionsViewModel
         LocalEventSnapshot observed;
         try
         {
+            // The retained source lease is independent of filters; only this pending publication binds their identity.
             observed = await localEvents.ObserveAsync(session,
                 () => !closed && selectionEpoch == epoch && eventChoiceEpoch == choiceEpoch
                     && selected?.Authority.SessionId == session, lifetime.Token);
@@ -323,6 +368,7 @@ internal sealed partial class SessionsViewModel
             return;
         }
         if (closed || selectionEpoch != epoch || eventChoiceEpoch != choiceEpoch || eventFilterEpoch != filterEpoch
+            || !string.Equals(LocalEventFilterDigest, filterDigest, StringComparison.Ordinal)
             || selected?.Authority.SessionId != session || !localEvents.IsCurrent(observed)) { return; }
         eventSnapshot = observed;
         eventAuthority = selected.Authority;
@@ -371,12 +417,15 @@ internal sealed partial class SessionsViewModel
         if (!LocalEvents.Contains(target)) { throw new InvalidOperationException("Select an exact visible host event under the current filters."); }
         var epoch = selectionEpoch;
         var filterEpoch = eventFilterEpoch;
+        var filterDigest = LocalEventFilterDigest;
         var result = await (localEvents ?? throw new InvalidOperationException("The local broker is unavailable."))
             .ExecuteNativeAsync(new(operation, target.Event.Id, target.Event.Revision),
                 () => !closed && selectionEpoch == epoch && eventFilterEpoch == filterEpoch
+                    && string.Equals(LocalEventFilterDigest, filterDigest, StringComparison.Ordinal)
                     && EventSourceCurrent && selectedEvent == target
                     && selected?.Authority.SessionId == target.Event.SessionId, lifetime.Token);
-        if (!EventSourceCurrent || selectionEpoch != epoch || eventFilterEpoch != filterEpoch || selectedEvent != target)
+        if (!EventSourceCurrent || selectionEpoch != epoch || eventFilterEpoch != filterEpoch || selectedEvent != target
+            || !string.Equals(LocalEventFilterDigest, filterDigest, StringComparison.Ordinal))
         {
             throw new OperationCanceledException("Local event presentation changed; no late selection or details are admitted.");
         }
@@ -417,6 +466,10 @@ internal sealed partial class SessionsViewModel
             OnPropertyChanged(nameof(LocalEventTypeFilter));
             OnPropertyChanged(nameof(LocalEventOriginFilter));
             OnPropertyChanged(nameof(LocalEventQueueReasonFilter));
+            OnPropertyChanged(nameof(LocalEventQueueProfileFilter));
+            OnPropertyChanged(nameof(LocalEventQueueTargetFilter));
+            OnPropertyChanged(nameof(LocalEventQueueProfileChoice));
+            OnPropertyChanged(nameof(LocalEventQueueTargetChoice));
             OnPropertyChanged(nameof(LocalEventSessionIdFilter));
             OnPropertyChanged(nameof(LocalEventTaskIdFilter));
             OnPropertyChanged(nameof(LocalEventSubjectIdFilter));

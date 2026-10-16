@@ -72,6 +72,7 @@
           <controls:NamedTextBlock Text="{Binding BatchInspection}" AutomationProperties.Name="Complete exact selected batch preview" TextWrapping="Wrap" />
         </ScrollViewer>
         <Grid Grid.Row="2" RowDefinitions="Auto,Auto,Auto,*" RowSpacing="8">
+          <ScrollViewer MaxHeight="180">
           <WrapPanel>
             <StackPanel Margin="0,0,12,0">
               <TextBlock Text="Committed event outcome" />
@@ -91,7 +92,33 @@
             </StackPanel>
             <Button Content="Clear history filters" Command="{Binding ClearHistoryFiltersCommand}"
                     AutomationProperties.Name="Clear exact history filters and retire rows continuation selection and reviews" />
+            <StackPanel Margin="0,0,12,0">
+              <TextBlock Text="Retained envelope state" />
+              <ComboBox ItemsSource="{Binding HistoryRetentionFilters}" SelectedItem="{Binding HistoryRetentionFilter}"
+                        AutomationProperties.Name="Exact grant history retention state filter, Any by default" MinWidth="180" />
+            </StackPanel>
+            <StackPanel Margin="0,0,12,0">
+              <TextBlock Text="Committed from UTC (inclusive)" />
+              <TextBox Text="{Binding HistoryCommittedFromUtc}" PlaceholderText="yyyy-MM-ddTHH:mm:ss.fffffff+00:00"
+                       AutomationProperties.Name="Exact grant history committed from canonical UTC inclusive, empty means Any" MinWidth="280" />
+            </StackPanel>
+            <StackPanel Margin="0,0,12,0">
+              <TextBlock Text="Committed until UTC (inclusive)" />
+              <TextBox Text="{Binding HistoryCommittedUntilUtc}" PlaceholderText="yyyy-MM-ddTHH:mm:ss.fffffff+00:00"
+                       AutomationProperties.Name="Exact grant history committed until canonical UTC inclusive, empty means Any" MinWidth="280" />
+            </StackPanel>
+            <StackPanel Margin="0,0,12,0">
+              <TextBlock Text="Due from UTC (inclusive)" />
+              <TextBox Text="{Binding HistoryDueFromUtc}" PlaceholderText="yyyy-MM-ddTHH:mm:ss.fffffff+00:00"
+                       AutomationProperties.Name="Exact grant history due from canonical UTC inclusive, empty means Any" MinWidth="280" />
+            </StackPanel>
+            <StackPanel Margin="0,0,12,0">
+              <TextBlock Text="Due until UTC (inclusive)" />
+              <TextBox Text="{Binding HistoryDueUntilUtc}" PlaceholderText="yyyy-MM-ddTHH:mm:ss.fffffff+00:00"
+                       AutomationProperties.Name="Exact grant history due until canonical UTC inclusive, empty means Any" MinWidth="280" />
+            </StackPanel>
           </WrapPanel>
+          </ScrollViewer>
           <WrapPanel Grid.Row="1">
             <Button Content="Read history for this exact grant ID" Command="{Binding ReadHistoryCommand}"
                     AutomationProperties.Name="Read passive committed history for this exact inspected grant ID" />

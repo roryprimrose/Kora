@@ -15,6 +15,7 @@ public sealed class ExactGrantsWindowContractTests
             "PreviewBatchCommand", "RevokeBatchCommand", "BatchInspection", "BatchReviewed",
             "ReadHistoryCommand", "NextHistoryCommand", "HistoryRows", "HistorySummary",
             "HistoryOutcomeFilter}", "HistoryInitiatorFilter}", "HistoryReasonCodeFilter", "ClearHistoryFiltersCommand",
+            "HistoryRetentionFilter}", "HistoryCommittedFromUtc", "HistoryCommittedUntilUtc", "HistoryDueFromUtc", "HistoryDueUntilUtc",
             "ScopeFilter}", "StatusFilter}", "ActionIdFilter", "OriginatingSessionFilter", "ClearFiltersCommand", "InventorySummary" })
         {
             var control = document.Descendants().Single(element => element.Attributes().Any(attribute =>

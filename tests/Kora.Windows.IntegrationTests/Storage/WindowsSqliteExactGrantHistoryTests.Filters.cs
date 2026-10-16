@@ -123,6 +123,11 @@ public sealed partial class WindowsSqliteExactGrantHistoryTests
     [InlineData(9)]
     [InlineData(10)]
     [InlineData(11)]
+    [InlineData(12)]
+    [InlineData(13)]
+    [InlineData(14)]
+    [InlineData(15)]
+    [InlineData(16)]
     public async Task AuthenticatedContinuationRejectsChangedFilterTupleExactInspectionViewerAdmissionControlCeilingAndDigest(int change)
     {
         using var f = new InteractionStorageFixture();
@@ -148,7 +153,14 @@ public sealed partial class WindowsSqliteExactGrantHistoryTests
         else if (change == 8) { f.Mutate("UPDATE security_audit_events SET hash=printf('%064d',1) WHERE sequence=" + first.AuditCeiling + ";"); }
         else if (change == 9) { f.Mutate("UPDATE authority_head SET sequence=0,hash=printf('%064d',0);"); }
         else if (change == 10) { f.Time.Now = f.Time.Now.AddMinutes(15); }
-        else { query = new(SecurityAuditOutcome.Denied, "exact-private-query", SecurityAuditInitiator.LocalUser); }
+        else if (change == 11) { query = new(SecurityAuditOutcome.Denied, "exact-private-query", SecurityAuditInitiator.LocalUser); }
+        else
+        {
+            query = new(SecurityAuditOutcome.Denied, "exact-private-query", SecurityAuditInitiator.VoiceCommand,
+                retention: change == 12 ? EvidenceSegmentStatus.Present : null,
+                committedFromUtc: change == 13 ? f.Time.Now : null, committedUntilUtc: change == 14 ? f.Time.Now : null,
+                dueFromUtc: change == 15 ? f.Time.Now : null, dueUntilUtc: change == 16 ? f.Time.Now : null);
+        }
         var read = () => ReadFiltered(f, inspected, query, viewer, first.Next, admission, revision);
         await read.Should().ThrowAsync<InvalidDataException>();
     }
@@ -292,7 +304,8 @@ public sealed partial class WindowsSqliteExactGrantHistoryTests
         var grant = await f.GrantAsync("perpetual");
         var inspected = (await f.Store.InspectExactGrantAsync(grant.Id, f.Token))!;
         f.Mutate(corruption);
-        var read = () => ReadFiltered(f, inspected, new(SecurityAuditOutcome.Denied, "not-present", SecurityAuditInitiator.ModelSuggestion));
+        var read = () => ReadFiltered(f, inspected, new(SecurityAuditOutcome.Denied, "not-present", SecurityAuditInitiator.ModelSuggestion,
+            EvidenceSegmentStatus.ExpiredButPresent, f.Time.Now, f.Time.Now, f.Time.Now, f.Time.Now));
         await read.Should().ThrowAsync<InvalidDataException>();
     }
 

@@ -375,6 +375,8 @@ public sealed partial class ExactGrantsViewModel : ObservableObject, IDisposable
         historyOutcomeFilter = "Any";
         historyInitiatorFilter = "Any";
         historyReasonCodeFilter = string.Empty;
+        historyRetentionFilter = "Any";
+        historyCommittedFromUtc = historyCommittedUntilUtc = historyDueFromUtc = historyDueUntilUtc = string.Empty;
         InventorySummary = "Closed. No retained query metadata or late private output is admitted.";
         OnPropertyChanged(nameof(ScopeFilter));
         OnPropertyChanged(nameof(StatusFilter));
@@ -383,6 +385,11 @@ public sealed partial class ExactGrantsViewModel : ObservableObject, IDisposable
         OnPropertyChanged(nameof(HistoryOutcomeFilter));
         OnPropertyChanged(nameof(HistoryInitiatorFilter));
         OnPropertyChanged(nameof(HistoryReasonCodeFilter));
+        OnPropertyChanged(nameof(HistoryRetentionFilter));
+        OnPropertyChanged(nameof(HistoryCommittedFromUtc));
+        OnPropertyChanged(nameof(HistoryCommittedUntilUtc));
+        OnPropertyChanged(nameof(HistoryDueFromUtc));
+        OnPropertyChanged(nameof(HistoryDueUntilUtc));
         Records = [];
         Reviewed = false;
         Message = "Closed. No late private output is admitted.";

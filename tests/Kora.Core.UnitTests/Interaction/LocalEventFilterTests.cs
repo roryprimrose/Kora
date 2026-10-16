@@ -5,7 +5,7 @@ using Kora.Core.Interaction;
 
 namespace Kora.Core.UnitTests.Interaction;
 
-public sealed class LocalEventFilterTests
+public sealed partial class LocalEventFilterTests
 {
     [Theory]
     [InlineData(null)]

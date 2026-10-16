@@ -134,6 +134,52 @@ internal sealed partial class SessionsViewModel
             ChangeLocalEventFilters();
         }
     }
+    public string LocalEventMinimumRevisionFilter
+    {
+        get => eventFilter.MinimumRevision;
+        set => ChangeLocalEventRange(eventFilter with { MinimumRevision = value });
+    }
+    public string LocalEventMaximumRevisionFilter
+    {
+        get => eventFilter.MaximumRevision;
+        set => ChangeLocalEventRange(eventFilter with { MaximumRevision = value });
+    }
+    public string LocalEventMinimumGenerationFilter
+    {
+        get => eventFilter.MinimumGeneration;
+        set => ChangeLocalEventRange(eventFilter with { MinimumGeneration = value });
+    }
+    public string LocalEventMaximumGenerationFilter
+    {
+        get => eventFilter.MaximumGeneration;
+        set => ChangeLocalEventRange(eventFilter with { MaximumGeneration = value });
+    }
+    public string LocalEventObservedFromUtcFilter
+    {
+        get => eventFilter.ObservedFromUtc;
+        set => ChangeLocalEventRange(eventFilter with { ObservedFromUtc = value });
+    }
+    public string LocalEventObservedUntilUtcFilter
+    {
+        get => eventFilter.ObservedUntilUtc;
+        set => ChangeLocalEventRange(eventFilter with { ObservedUntilUtc = value });
+    }
+    public string LocalEventExpiresFromUtcFilter
+    {
+        get => eventFilter.ExpiresFromUtc;
+        set => ChangeLocalEventRange(eventFilter with { ExpiresFromUtc = value });
+    }
+    public string LocalEventExpiresUntilUtcFilter
+    {
+        get => eventFilter.ExpiresUntilUtc;
+        set => ChangeLocalEventRange(eventFilter with { ExpiresUntilUtc = value });
+    }
+    private void ChangeLocalEventRange(LocalEventFilter value)
+    {
+        if (presentingEvents || !CanFilterLocalEvents || value == eventFilter) { return; }
+        eventFilter = value;
+        ChangeLocalEventFilters();
+    }
     public LocalEventFilterOption<LocalEventCategory> LocalEventCategoryChoice
     {
         get => LocalEventCategoryFilters.FirstOrDefault(option => option.Value == eventFilter.Category) ?? new(eventFilter.Category);
@@ -165,7 +211,7 @@ internal sealed partial class SessionsViewModel
         set { if (value is not null) { LocalEventQueueReasonFilter = value.Value; } }
     }
     public string LocalEventFilterStatus => !eventFilter.IsValid
-        ? "Unknown category, reason, source, type, origin or queue reason, or invalid exact ID filter; no results. IDs require complete nonempty lowercase D GUIDs, or empty for Any. Clear filters to recover."
+        ? "Unknown category, reason, source, type, origin or queue reason, invalid exact ID or invalid range filter; no results. IDs require complete nonempty lowercase D GUIDs. Revision/generation require positive Int64 decimals; UTC requires yyyy-MM-ddTHH:mm:ss.fffffff+00:00; inclusive minimum/from <= maximum/until. Empty means Any. Clear filters to recover."
         : !EventSourceCurrent ? "No current bounded local-event snapshot. Refresh selected work; no empty source is inferred."
         : LocalEvents.Count.ToString(CultureInfo.InvariantCulture) + " of "
             + eventSnapshot!.Events.Count.ToString(CultureInfo.InvariantCulture)
@@ -374,6 +420,14 @@ internal sealed partial class SessionsViewModel
             OnPropertyChanged(nameof(LocalEventSessionIdFilter));
             OnPropertyChanged(nameof(LocalEventTaskIdFilter));
             OnPropertyChanged(nameof(LocalEventSubjectIdFilter));
+            OnPropertyChanged(nameof(LocalEventMinimumRevisionFilter));
+            OnPropertyChanged(nameof(LocalEventMaximumRevisionFilter));
+            OnPropertyChanged(nameof(LocalEventMinimumGenerationFilter));
+            OnPropertyChanged(nameof(LocalEventMaximumGenerationFilter));
+            OnPropertyChanged(nameof(LocalEventObservedFromUtcFilter));
+            OnPropertyChanged(nameof(LocalEventObservedUntilUtcFilter));
+            OnPropertyChanged(nameof(LocalEventExpiresFromUtcFilter));
+            OnPropertyChanged(nameof(LocalEventExpiresUntilUtcFilter));
             OnPropertyChanged(nameof(LocalEventCategoryChoice));
             OnPropertyChanged(nameof(LocalEventReasonChoice));
             OnPropertyChanged(nameof(LocalEventSourceChoice));

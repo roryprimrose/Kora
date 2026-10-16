@@ -541,8 +541,28 @@ ExactId accepts only a nonempty canonical lowercase D GUID; a name that resemble
 Name scans consume at most 50 metadata rows per click, with the existing bounded reader lookahead and five-second lease/SQLite progress and lock boundaries. Native results are limited to 25 records; the reusable workflow accepts 1–50 and caps the complete serialized page at 64 KiB.
 A byte/result limit preserves continuation before any deferred match. Scanned, unnamed and nonmatch counts and remaining/end scope distinguish an empty bounded result from exhaustion.
 
-All/Active/Done scopes search across pages. Unnamed metadata never matches a name but remains available by exact ID; Removed sessions never browse. Canonical-ID ordering is deterministic and culture-independent.
-Continuations bind the exact query/mode/filter, process-local service/store identity and private admission revision. They cannot silently restart on a changed query, filter, host/source or admission.
+All/Active/Done scopes search across pages. Native session-list search additionally
+AND-composes optional inclusive authority-generation and name-metadata-revision
+minimum/maximum predicates. The portable query owns positive `Int64` admission
+and minimum <= maximum ordering. Native text uses invariant ASCII decimal digits
+only: empty means an absent bound, leading zeroes are admitted semantically,
+and zero, signs, whitespace, separators and overflow fail closed without searching.
+Every complete candidate is validated before predicates can exclude it, including
+rows beyond the result limit in the bounded source page.
+Generation applies to named and unnamed rows. Either name-revision bound requires
+validated name metadata; unnamed is never revision zero or an unknown match.
+Unnamed metadata never matches a name but remains available by exact ID without
+name-revision predicates; Removed sessions never browse. Exact lookup still
+rejects a different returned session before applying any predicate.
+Canonical-ID ordering is deterministic and culture-independent.
+Continuations bind the exact query/mode/lifecycle and all four semantic numeric
+bounds, process-local service/store identity and private admission revision.
+They cannot silently restart on changed predicates, host/source or admission.
+
+Names, generations and name revisions in this search are volatile passive
+metadata only: not session selection, ownership, permission, freshness,
+historical completeness or action authority. The numeric native controls do not
+extend the separate All Work or saved-draft catalogue interfaces.
 
 Mutable metadata has no committed historical sequence ceiling. Later renames/state/removal are observed only in subsequently read rows; earlier changes and additions behind the cursor require Search again. Later appended IDs can appear, and end describes only that observation. No finite atomic snapshot is fabricated.
 Exact missing/Removed IDs and unavailable/corrupt/ownership-denied/cancelled reads are explicit recovery states, never empty-success unfiltered inventories.

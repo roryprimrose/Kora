@@ -50,6 +50,21 @@ bounded I subset. No unrelated Rxx completion, physical/provider/experiment
 proof or installed accessibility is required or claimed; broader R26/E/Q
 remain separate. No schema, body/path read, persistence or egress is added.
 
+### Bounded native session-list numeric metadata ranges - 2026-10-16
+
+The existing [passive metadata search](Interaction_And_Sessions.md#delivered-passive-session-list-name-and-exact-id-search---2026-10-10)
+now AND-composes optional inclusive positive authority-generation and named
+metadata-revision ranges with name/exact-ID and lifecycle predicates.
+Portable admission/order rules, full candidate validation and semantic
+digest-bound cursors preserve exact-ID mismatch rejection, canonical ordering,
+bounded scans/serialized pages and unnamed semantics. Native accessible fields
+retain cancellation, stale-admission/result fences and selection retirement.
+This consumed I subset is deterministic metadata navigation only, not ownership,
+permission, freshness, historical completeness or action authority. Saved drafts,
+Evidence, All Work and other excluded peer scopes are not extended. No device,
+network, provider, experiment or new runtime capability is enabled; installed
+accessibility and broader E/Q qualification remain separate and unclaimed.
+
 ### Bounded native local-event exact correlation-ID filters - 2026-10-16
 
 The existing [loaded-event filters](Proactive_Interaction.md#native-content-free-loaded-event-filters)

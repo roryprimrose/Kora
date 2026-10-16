@@ -180,6 +180,18 @@
       <TextBox x:Name="ListQuery" Text="{Binding ListQuery, Mode=TwoWay}" Width="320"
                IsEnabled="{Binding CanEditListSearch}" PlaceholderText="Session name substring or exact ID; Enter searches"
                AutomationProperties.Name="Volatile session-list metadata query, not conversation-history search; NFC name limits, no silent truncation or normalization" />
+      <TextBox x:Name="ListMinimumGeneration" Text="{Binding ListMinimumGeneration, Mode=TwoWay}" Width="190"
+               IsEnabled="{Binding CanEditListSearch}" PlaceholderText="Generation minimum; Any"
+               AutomationProperties.Name="Session-list authority generation inclusive minimum; positive decimal or empty for Any; passive metadata, not authority" />
+      <TextBox x:Name="ListMaximumGeneration" Text="{Binding ListMaximumGeneration, Mode=TwoWay}" Width="190"
+               IsEnabled="{Binding CanEditListSearch}" PlaceholderText="Generation maximum; Any"
+               AutomationProperties.Name="Session-list authority generation inclusive maximum; positive decimal or empty for Any; passive metadata, not authority" />
+      <TextBox x:Name="ListMinimumMetadataRevision" Text="{Binding ListMinimumMetadataRevision, Mode=TwoWay}" Width="190"
+               IsEnabled="{Binding CanEditListSearch}" PlaceholderText="Name revision minimum; Any"
+               AutomationProperties.Name="Session-list name metadata revision inclusive minimum; positive decimal or empty for Any; unnamed never matches a revision bound" />
+      <TextBox x:Name="ListMaximumMetadataRevision" Text="{Binding ListMaximumMetadataRevision, Mode=TwoWay}" Width="190"
+               IsEnabled="{Binding CanEditListSearch}" PlaceholderText="Name revision maximum; Any"
+               AutomationProperties.Name="Session-list name metadata revision inclusive maximum; positive decimal or empty for Any; unnamed never matches a revision bound" />
       <Button x:Name="SearchList" Content="Search session _metadata" IsEnabled="{Binding CanSearchList}"
               AutomationProperties.Name="Search names or exact IDs across bounded session metadata pages, never target an action by name" />
       <Button x:Name="NextListSearch" Content="Next metadata search" IsEnabled="{Binding CanNextListSearch}"

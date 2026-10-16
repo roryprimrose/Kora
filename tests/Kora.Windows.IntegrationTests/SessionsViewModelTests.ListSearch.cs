@@ -60,7 +60,16 @@ public sealed partial class SessionsViewModelTests
         var code = Read("SessionsWindow.axaml.cs");
         code.Should().Contain("SearchList.Click +=").And.Contain("model.SearchListAsync(next: true)")
             .And.Contain("model.CancelListSearch()").And.Contain("model.ClearListSearch(); ListQuery.Focus();")
-            .And.Contain("ListQuery.KeyDown +=").And.Contain("model.CanSearchList");
+            .And.Contain("field.KeyDown +=").And.Contain("model.CanSearchList");
+        foreach (var name in new[] { "ListMinimumGeneration", "ListMaximumGeneration",
+            "ListMinimumMetadataRevision", "ListMaximumMetadataRevision" })
+        {
+            var range = document.Descendants().Single(element => string.Equals(
+                element.Attribute(XName.Get("Name", "http://schemas.microsoft.com/winfx/2006/xaml"))?.Value, name, StringComparison.Ordinal));
+            range.Attribute("Text")!.Value.Should().Be("{Binding " + name + ", Mode=TwoWay}");
+            range.Attribute("MaxLength").Should().BeNull();
+            range.Attribute("IsEnabled")!.Value.Should().Be("{Binding CanEditListSearch}");
+        }
     }
 
     [Theory]
@@ -72,6 +81,10 @@ public sealed partial class SessionsViewModelTests
     [InlineData("close")]
     [InlineData("privacy")]
     [InlineData("revision")]
+    [InlineData("minimum-generation")]
+    [InlineData("maximum-generation")]
+    [InlineData("minimum-name-revision")]
+    [InlineData("maximum-name-revision")]
     public async Task MetadataSearchSuppressesLateResultsAfterQuerySelectionSourcePrivacyOrClosureChanges(string mode)
     {
         using var f = new InteractionStorageFixture();
@@ -85,6 +98,10 @@ public sealed partial class SessionsViewModelTests
             new(new WindowsSqliteEvidenceReader(sink), access, f.Time, NullLogger<DurableEvidenceQuery>.Instance),
             access, NullLogger<SessionsViewModel>.Instance);
         model.ListQuery = "needle";
+        model.ListMinimumGeneration = "1";
+        model.ListMaximumGeneration = "1";
+        model.ListMinimumMetadataRevision = "1";
+        model.ListMaximumMetadataRevision = "1";
         model.CanSearchList.Should().BeTrue();
         var search = model.SearchListAsync();
         model.CanCancelListSearch.Should().BeTrue();
@@ -92,6 +109,10 @@ public sealed partial class SessionsViewModelTests
         model.CanEditListSearch.Should().BeTrue();
         if (mode is "query") { model.ListQuery = "another"; }
         if (mode is "kind") { model.ListSearchKind = SessionListSearchKind.ExactId; }
+        if (mode is "minimum-generation") { model.ListMinimumGeneration = "2"; }
+        if (mode is "maximum-generation") { model.ListMaximumGeneration = "2"; }
+        if (mode is "minimum-name-revision") { model.ListMinimumMetadataRevision = "2"; }
+        if (mode is "maximum-name-revision") { model.ListMaximumMetadataRevision = "2"; }
         if (mode is "selection") { await model.SelectAsync(new(new(new(Guid.NewGuid()), new(1), true), null)); }
         if (mode is "source") { model.RevokeSessionList(); }
         if (mode is "cancel") { model.CancelListSearch(); }
@@ -114,6 +135,10 @@ public sealed partial class SessionsViewModelTests
         held.Reads.Should().Be(1);
         model.Close();
         model.ListQuery.Should().BeEmpty();
+        model.ListMinimumGeneration.Should().BeEmpty();
+        model.ListMaximumGeneration.Should().BeEmpty();
+        model.ListMinimumMetadataRevision.Should().BeEmpty();
+        model.ListMaximumMetadataRevision.Should().BeEmpty();
     }
 
     private sealed class LateListAdmission : ISessionWorkspaceAccess, IEvidenceQueryAccess

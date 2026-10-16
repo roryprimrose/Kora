@@ -25,6 +25,9 @@ namespace Kora.Windows.IntegrationTests;
 [Collection(nameof(HeadlessUiTestGroup))]
 public sealed class SessionsListSearchTests
 {
+    private static readonly string[] RangeControlNames = ["ListMinimumGeneration", "ListMaximumGeneration",
+        "ListMinimumMetadataRevision", "ListMaximumMetadataRevision"];
+
     [WindowsFact]
     public async Task NativeMetadataSearchIsKeyboardAccessibleAndPreservesTheExactVisibleWorkHistoryAndMemorySubject()
     {
@@ -62,6 +65,10 @@ public sealed class SessionsListSearchTests
                 var field = window.FindControl<TextBox>("ListQuery")!;
                 field.Focus().Should().BeTrue();
                 model.ListQuery = "café";
+                model.ListMinimumGeneration = "1";
+                model.ListMaximumGeneration = "1";
+                model.ListMinimumMetadataRevision = "1";
+                model.ListMaximumMetadataRevision = "1";
                 model.SelectedSessionRecord.Should().Be(selected, "editing a draft in ordinary list mode does not target or clear work");
                 model.CanSearchList.Should().BeTrue();
                 var complete = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -85,22 +92,38 @@ public sealed class SessionsListSearchTests
                 model.CanNext.Should().BeFalse();
                 model.CanNextListSearch.Should().BeFalse();
                 ControlAutomationPeer.CreatePeerForElement(field)!.GetName().Should().Contain("not conversation-history");
+                foreach (var name in RangeControlNames)
+                {
+                    var range = window.FindControl<TextBox>(name)!;
+                    range.Focus().Should().BeTrue();
+                    range.Text.Should().Be("1");
+                    range.IsEnabled.Should().BeTrue();
+                    ControlAutomationPeer.CreatePeerForElement(range)!.GetName().Should().Contain("inclusive")
+                        .And.Contain("positive decimal or empty for Any");
+                }
                 window.FindControl<Button>("SearchList")!.IsEnabled.Should().BeTrue();
                 model.Status.Should().Contain("not an atomic snapshot").And.Contain("0 matching records omitted");
                 f.Count("security_audit_events").Should().Be(audits);
                 (await f.Tasks.ReadTaskAsync(f.Request.TaskId, f.Token)).Should().Be(task);
                 (await f.Store.ReadRetentionAsync(f.Request.SessionId, f.Token)).Should().Be(clock);
-                model.ListQuery = "no longer visible";
+                model.ListMinimumMetadataRevision = "2";
+                model.CanSearchList.Should().BeFalse();
+                model.Status.Should().Contain("minimum <= maximum");
                 model.SelectedSessionRecord.Should().BeNull();
                 model.PendingQuestions.Should().BeEmpty();
                 model.WorkRecords.Should().BeEmpty();
                 model.MemoryDraft.Should().BeEmpty();
                 model.HistoryRecords.Should().BeEmpty();
                 model.Detail.Should().BeEmpty();
+                field.Focus().Should().BeTrue();
                 field.RaiseEvent(new KeyEventArgs { RoutedEvent = InputElement.KeyDownEvent, Key = Key.Escape });
                 window.IsVisible.Should().BeTrue();
                 field.IsFocused.Should().BeTrue();
                 model.ListQuery.Should().BeEmpty();
+                model.ListMinimumGeneration.Should().BeEmpty();
+                model.ListMaximumGeneration.Should().BeEmpty();
+                model.ListMinimumMetadataRevision.Should().BeEmpty();
+                model.ListMaximumMetadataRevision.Should().BeEmpty();
                 await model.RefreshAsync();
                 model.Sessions.Should().ContainSingle();
                 model.ListSearchKind = SessionListSearchKind.ExactId;

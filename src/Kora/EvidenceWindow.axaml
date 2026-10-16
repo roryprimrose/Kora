@@ -45,6 +45,33 @@
                     AutomationProperties.Name="Scrollable advanced evidence filters">
       <StackPanel Spacing="8">
         <WrapPanel>
+          <TextBox x:Name="TraceSource" Text="{Binding TraceSourceFilter}" PlaceholderText="Exact trace source (max 128); empty = Any"
+                   Width="360" Margin="0,0,10,8" ContextMenu="{x:Null}" ContextFlyout="{x:Null}"
+                   AutomationProperties.Name="Exact trace source; empty means Any" />
+          <ComboBox x:Name="TraceVersionAvailability" ItemsSource="{Binding TraceVersionAvailabilities}" SelectedItem="{Binding TraceVersionAvailability, Mode=TwoWay}"
+                    MinWidth="150" Margin="0,0,10,8" AutomationProperties.Name="Trace source version: Any, Absent, Present or Exact" />
+          <TextBox x:Name="TraceSourceVersion" Text="{Binding TraceSourceVersionFilter}" PlaceholderText="Exact source version (max 128); Exact only"
+                   Width="360" Margin="0,0,10,8" ContextMenu="{x:Null}" ContextFlyout="{x:Null}"
+                   AutomationProperties.Name="Exact trace source version; required only with Exact; otherwise empty" />
+          <TextBox x:Name="ActivityName" Text="{Binding ActivityNameFilter}" PlaceholderText="Exact activity operation name (max 128); empty = Any"
+                   Width="360" Margin="0,0,10,8" ContextMenu="{x:Null}" ContextFlyout="{x:Null}"
+                   AutomationProperties.Name="Exact activity operation name; empty means Any" />
+          <ComboBox x:Name="ActivityKind" ItemsSource="{Binding ActivityKindChoices}" SelectedItem="{Binding ActivityKind, Mode=TwoWay}"
+                    MinWidth="150" Margin="0,0,10,8" AutomationProperties.Name="Exact ActivityKind; Any includes missing traces">
+            <ComboBox.ItemTemplate>
+              <DataTemplate><TextBlock x:DataType="local:EvidenceViewModel+ActivityKindChoice" Text="{Binding Label}" /></DataTemplate>
+            </ComboBox.ItemTemplate>
+          </ComboBox>
+          <ComboBox x:Name="TraceFlags" ItemsSource="{Binding TraceFlagsChoices}" SelectedItem="{Binding TraceFlags, Mode=TwoWay}"
+                    MinWidth="150" Margin="0,0,10,8" AutomationProperties.Name="Exact trace flags: Any, None or Recorded">
+            <ComboBox.ItemTemplate>
+              <DataTemplate><TextBlock x:DataType="local:EvidenceViewModel+TraceFlagsChoice" Text="{Binding Label}" /></DataTemplate>
+            </ComboBox.ItemTemplate>
+          </ComboBox>
+        </WrapPanel>
+        <TextBlock TextWrapping="Wrap"
+                   Text="Trace metadata is untrusted diagnostic correlation, never session selection, identity, intent, permission, approval or authority. Exact text is case-sensitive, without surrounding whitespace or controls. Version Absent requires a trace with no version; Present requires a version; Exact requires the version text. Other choices require empty version text. Missing traces match only Any. No baggage, tags or omitted content is searched. All filters compose with AND; edits read nothing and retire results. Clear advanced resets these filters to Any." />
+        <WrapPanel>
           <TextBox x:Name="ParentSpanId" Text="{Binding ParentSpanFilter}" PlaceholderText="Exact W3C parent span ID (16 lowercase hex)"
                    Width="360" Margin="0,0,10,8" ContextMenu="{x:Null}" ContextFlyout="{x:Null}"
                    AutomationProperties.Name="Exact W3C Parent Span ID correlation filter; empty means Any"

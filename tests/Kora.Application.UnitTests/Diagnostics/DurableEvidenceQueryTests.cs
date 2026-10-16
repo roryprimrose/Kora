@@ -15,7 +15,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 namespace Kora.Application.UnitTests.Diagnostics;
 
 [Collection("Host tracing")]
-public sealed class DurableEvidenceQueryTests
+public sealed partial class DurableEvidenceQueryTests
 {
     [Fact]
     public async Task Authority_source_preserves_typed_commit_metadata_and_explicit_separate_disclosure()

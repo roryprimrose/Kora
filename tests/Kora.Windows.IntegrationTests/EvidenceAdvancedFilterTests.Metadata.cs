@@ -297,11 +297,30 @@ public sealed partial class EvidenceAdvancedFilterTests
     [InlineData("untilSequence", "success")]
     [InlineData("untilSequence", "failure")]
     [InlineData("untilSequence", "cancel")]
+    [InlineData("traceSource", "success")]
+    [InlineData("traceSource", "failure")]
+    [InlineData("traceSource", "cancel")]
+    [InlineData("traceVersion", "success")]
+    [InlineData("traceVersion", "failure")]
+    [InlineData("traceVersion", "cancel")]
+    [InlineData("versionAvailability", "success")]
+    [InlineData("versionAvailability", "failure")]
+    [InlineData("versionAvailability", "cancel")]
+    [InlineData("activityName", "success")]
+    [InlineData("activityName", "failure")]
+    [InlineData("activityName", "cancel")]
+    [InlineData("activityKind", "success")]
+    [InlineData("activityKind", "failure")]
+    [InlineData("activityKind", "cancel")]
+    [InlineData("traceFlags", "success")]
+    [InlineData("traceFlags", "failure")]
+    [InlineData("traceFlags", "cancel")]
     public async Task EveryMetadataEditCancelsAndRetiresContinuationAndLateCallbacks(string field, string completion)
     {
         using var listener = WindowsDailyEvidenceReaderTests.Listen();
         var reader = new CapturingReader();
         var viewer = Viewer(reader);
+        if (field is "traceVersion") { viewer.TraceVersionAvailability = TraceSourceVersionAvailability.Exact; viewer.TraceSourceVersionFilter = "1"; }
         await viewer.SearchAsync();
         viewer.Select(viewer.Records[0]);
         reader.Held = new(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -315,6 +334,12 @@ public sealed partial class EvidenceAdvancedFilterTests
             case "exception": viewer.ExceptionTypeFilter = "System.IOException"; break;
             case "fromSequence": viewer.FromAuditSequenceFilter = "1"; break;
             case "untilSequence": viewer.UntilAuditSequenceFilter = "9223372036854775807"; break;
+            case "traceSource": viewer.TraceSourceFilter = "Kora.Core"; break;
+            case "traceVersion": viewer.TraceSourceVersionFilter = "2"; break;
+            case "versionAvailability": viewer.TraceVersionAvailability = TraceSourceVersionAvailability.Absent; break;
+            case "activityName": viewer.ActivityNameFilter = "request"; break;
+            case "activityKind": viewer.ActivityKind = EvidenceViewModel.ActivityKindChoices[1]; break;
+            case "traceFlags": viewer.TraceFlags = EvidenceViewModel.TraceFlagsChoices[1]; break;
         }
         reader.Token.IsCancellationRequested.Should().BeTrue();
         reader.Queries.Should().HaveCount(2);
@@ -338,6 +363,14 @@ public sealed partial class EvidenceAdvancedFilterTests
         reader.Queries[^1].ExceptionType.Should().Be(field is "exception" ? "System.IOException" : null);
         reader.Queries[^1].FromAuditSequence.Should().Be(field is "fromSequence" ? 1 : null);
         reader.Queries[^1].UntilAuditSequence.Should().Be(field is "untilSequence" ? long.MaxValue : null);
+        reader.Queries[^1].TraceSource.Should().Be(field is "traceSource" ? "Kora.Core" : null);
+        reader.Queries[^1].TraceSourceVersion.Should().Be(field is "traceVersion" ? "2" : null);
+        reader.Queries[^1].TraceSourceVersionAvailability.Should().Be(field is "traceVersion"
+            ? TraceSourceVersionAvailability.Exact : field is "versionAvailability"
+                ? TraceSourceVersionAvailability.Absent : TraceSourceVersionAvailability.Any);
+        reader.Queries[^1].ActivityName.Should().Be(field is "activityName" ? "request" : null);
+        reader.Queries[^1].ActivityKind.Should().Be(field is "activityKind" ? ActivityKind.Internal : null);
+        reader.Queries[^1].TraceFlags.Should().Be(field is "traceFlags" ? ActivityTraceFlags.None : null);
         viewer.Close();
         viewer.ParentSpanFilter.Should().BeEmpty();
         viewer.Outcome.Should().Be(EvidenceViewModel.OutcomeChoices[0]);
@@ -346,5 +379,11 @@ public sealed partial class EvidenceAdvancedFilterTests
         viewer.ExceptionTypeFilter.Should().BeEmpty();
         viewer.FromAuditSequenceFilter.Should().BeEmpty();
         viewer.UntilAuditSequenceFilter.Should().BeEmpty();
+        viewer.TraceSourceFilter.Should().BeEmpty();
+        viewer.TraceSourceVersionFilter.Should().BeEmpty();
+        viewer.TraceVersionAvailability.Should().Be(TraceSourceVersionAvailability.Any);
+        viewer.ActivityNameFilter.Should().BeEmpty();
+        viewer.ActivityKind.Should().Be(EvidenceViewModel.ActivityKindChoices[0]);
+        viewer.TraceFlags.Should().Be(EvidenceViewModel.TraceFlagsChoices[0]);
     }
 }

@@ -38,7 +38,14 @@ public sealed partial class EvidenceLiteralFindTests
                 var exceptionType = window.FindControl<TextBox>("ExceptionType")!;
                 var fromSequence = window.FindControl<TextBox>("FromAuditSequence")!;
                 var untilSequence = window.FindControl<TextBox>("UntilAuditSequence")!;
-                foreach (var control in new Control[] { parent, outcome, content, eventName, exceptionType, fromSequence, untilSequence })
+                var traceSource = window.FindControl<TextBox>("TraceSource")!;
+                var version = window.FindControl<TextBox>("TraceSourceVersion")!;
+                var availability = window.FindControl<ComboBox>("TraceVersionAvailability")!;
+                var activityName = window.FindControl<TextBox>("ActivityName")!;
+                var kind = window.FindControl<ComboBox>("ActivityKind")!;
+                var flags = window.FindControl<ComboBox>("TraceFlags")!;
+                foreach (var control in new Control[] { parent, outcome, content, eventName, exceptionType, fromSequence, untilSequence,
+                    traceSource, version, availability, activityName, kind, flags })
                 {
                     control.IsEffectivelyVisible.Should().BeTrue();
                     control.IsEnabled.Should().BeTrue();
@@ -51,6 +58,21 @@ public sealed partial class EvidenceLiteralFindTests
                 content.SelectedItem.Should().Be(EvidenceContentAvailability.Any);
                 outcome.GetVisualDescendants().OfType<TextBlock>().Select(block => block.Text).Should().Contain("Any");
                 content.GetVisualDescendants().OfType<TextBlock>().Select(block => block.Text).Should().Contain("Any");
+                foreach (var choice in new[] { availability, kind, flags })
+                {
+                    choice.SelectedItem.Should().NotBeNull();
+                    choice.GetVisualDescendants().OfType<TextBlock>().Select(block => block.Text).Should().Contain("Any");
+                    choice.Focus();
+                    PressKey(choice, Key.Down);
+                    choice.SelectedIndex.Should().Be(1);
+                }
+                viewer.TraceVersionAvailability.Should().Be(TraceSourceVersionAvailability.Absent);
+                viewer.ActivityKind.Value.Should().Be(System.Diagnostics.ActivityKind.Internal);
+                viewer.TraceFlags.Value.Should().Be(System.Diagnostics.ActivityTraceFlags.None);
+                traceSource.Text = "Kora.Core";
+                activityName.Text = "request";
+                availability.SelectedIndex = 3;
+                version.Text = "1";
                 await viewer.SearchAsync();
                 viewer.Select(viewer.Records[0]);
                 Match(viewer);
@@ -81,6 +103,12 @@ public sealed partial class EvidenceLiteralFindTests
                 query.ExceptionType.Should().Be(exceptionType.Text);
                 query.FromAuditSequence.Should().Be(1);
                 query.UntilAuditSequence.Should().Be(long.MaxValue);
+                query.TraceSource.Should().Be(traceSource.Text);
+                query.TraceSourceVersion.Should().Be(version.Text);
+                query.TraceSourceVersionAvailability.Should().Be(TraceSourceVersionAvailability.Exact);
+                query.ActivityName.Should().Be(activityName.Text);
+                query.ActivityKind.Should().Be(System.Diagnostics.ActivityKind.Internal);
+                query.TraceFlags.Should().Be(System.Diagnostics.ActivityTraceFlags.None);
                 Click(window, "ClearAdvanced");
                 parent.Text.Should().BeEmpty();
                 outcome.SelectedIndex.Should().Be(0);
@@ -89,6 +117,12 @@ public sealed partial class EvidenceLiteralFindTests
                 exceptionType.Text.Should().BeEmpty();
                 fromSequence.Text.Should().BeEmpty();
                 untilSequence.Text.Should().BeEmpty();
+                traceSource.Text.Should().BeEmpty();
+                version.Text.Should().BeEmpty();
+                activityName.Text.Should().BeEmpty();
+                availability.SelectedIndex.Should().Be(0);
+                kind.SelectedIndex.Should().Be(0);
+                flags.SelectedIndex.Should().Be(0);
                 reader.Queries.Should().HaveCount(2);
                 await viewer.SearchAsync();
                 reader.Queries[^1].ParentSpanId.Should().BeNull();
@@ -98,6 +132,12 @@ public sealed partial class EvidenceLiteralFindTests
                 reader.Queries[^1].ExceptionType.Should().BeNull();
                 reader.Queries[^1].FromAuditSequence.Should().BeNull();
                 reader.Queries[^1].UntilAuditSequence.Should().BeNull();
+                reader.Queries[^1].TraceSource.Should().BeNull();
+                reader.Queries[^1].TraceSourceVersion.Should().BeNull();
+                reader.Queries[^1].TraceSourceVersionAvailability.Should().Be(TraceSourceVersionAvailability.Any);
+                reader.Queries[^1].ActivityName.Should().BeNull();
+                reader.Queries[^1].ActivityKind.Should().BeNull();
+                reader.Queries[^1].TraceFlags.Should().BeNull();
             }
             finally { window.Close(); }
         });

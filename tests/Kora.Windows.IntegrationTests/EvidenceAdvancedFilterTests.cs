@@ -866,6 +866,13 @@ public sealed partial class EvidenceAdvancedFilterTests
             () => viewer.TraceFilter = new string('f', 32),
             () => viewer.SpanFilter = new string('f', 16),
             () => viewer.ParentSpanFilter = new string('f', 16),
+            () => viewer.TraceSourceFilter = "kora.application",
+            () => viewer.TraceSourceVersionFilter = "different",
+            () => { viewer.TraceSourceVersionFilter = ""; viewer.TraceVersionAvailability = TraceSourceVersionAvailability.Absent; },
+            () => viewer.ActivityNameFilter = "Different",
+            () => viewer.ActivityKind = EvidenceViewModel.ActivityKindChoices.Single(choice => choice.Value == System.Diagnostics.ActivityKind.Client),
+            () => viewer.TraceFlags = EvidenceViewModel.TraceFlagsChoices.Single(choice =>
+                choice.Value is not null && choice.Value != envelope.Trace!.Flags),
             () => viewer.Outcome = EvidenceViewModel.OutcomeChoices[1],
             () => viewer.ContentAvailability = EvidenceContentAvailability.Omitted,
             () => viewer.RequestFilter = Guid.NewGuid().ToString("D"),
@@ -893,6 +900,12 @@ public sealed partial class EvidenceAdvancedFilterTests
             viewer.TraceFilter = envelope.Trace!.TraceId;
             viewer.SpanFilter = envelope.Trace.SpanId;
             viewer.ParentSpanFilter = envelope.Trace.ParentSpanId!;
+            viewer.TraceSourceFilter = envelope.Trace.Source;
+            viewer.TraceSourceVersionFilter = envelope.Trace.SourceVersion!;
+            viewer.TraceVersionAvailability = TraceSourceVersionAvailability.Exact;
+            viewer.ActivityNameFilter = envelope.Trace.Name;
+            viewer.ActivityKind = EvidenceViewModel.ActivityKindChoices.Single(choice => choice.Value == envelope.Trace.Kind);
+            viewer.TraceFlags = EvidenceViewModel.TraceFlagsChoices.Single(choice => choice.Value == envelope.Trace.Flags);
             viewer.Outcome = EvidenceViewModel.OutcomeChoices[0];
             viewer.ContentAvailability = EvidenceContentAvailability.Present;
             viewer.RequestFilter = owner.RequestId.Value.ToString("D");

@@ -144,6 +144,21 @@ properties, user content or omitted bodies. Sequence is committed ordering
 metadata only, never authority, completeness, freshness, replay position or
 permission. Existing source distinctions, validation and page budgets remain.
 
+Native Evidence also offers exact trace source, activity operation name,
+ActivityKind and trace flags (None/Recorded), with visible Any choices. Trace
+source version offers Any/Absent/Present/Exact: Absent requires an existing trace
+with null version; an unknown/null trace never matches a set trace predicate.
+Exact version requires text; all other version choices require empty text.
+Source/version/name are case-sensitive, at most 128 characters, valid plain
+Unicode without surrounding whitespace or controls. These filters compose with
+all existing filters using AND, bind Next page, and reset with Clear advanced or
+close. Edits read nothing and retire old results/selection. Complete retained
+trace validation precedes filtering. Trace metadata is untrusted diagnostic
+correlation, not session selection, identity, intent, permission, approval or
+authority. No baggage, tags, user content, paths, credentials or omitted content
+is searched or restored. AuthorityAudit does not fabricate activity metadata.
+Installed accessibility qualification remains separate from deterministic tests.
+
 In **Evidence (read-only)**, select **AuthorityAudit** to inspect committed typed
 interaction-store security audit rows. This is a separate source from the
 diagnostic **Audit** projection and daily mirrors. **All** remains SQLite

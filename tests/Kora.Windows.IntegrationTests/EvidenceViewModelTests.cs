@@ -110,7 +110,7 @@ public sealed class EvidenceViewModelTests
         source.Should().Contain("DynamicResource").And.Contain("AutomationProperties.Name")
             .And.Contain("No copy, export, model, browser, deletion or execution.")
             .And.NotContain("WebView").And.NotContain("SelectableTextBlock").And.NotContain("MaxLength");
-        document.Descendants().Where(element => string.Equals(element.Name.LocalName, "TextBox", StringComparison.Ordinal)).Should().HaveCount(20);
+        document.Descendants().Where(element => string.Equals(element.Name.LocalName, "TextBox", StringComparison.Ordinal)).Should().HaveCount(23);
         source.Should().Contain("Advanced filters (optional)").And.Contain("Both time edges are inclusive");
         foreach (var binding in new[] { nameof(EvidenceViewModel.RequestFilter), nameof(EvidenceViewModel.InvocationFilter),
             nameof(EvidenceViewModel.ApprovalFilter), nameof(EvidenceViewModel.CorrelationFilter),
@@ -119,12 +119,16 @@ public sealed class EvidenceViewModelTests
             nameof(EvidenceViewModel.Severity), nameof(EvidenceViewModel.AuditOutcome), nameof(EvidenceViewModel.SpanFilter),
             nameof(EvidenceViewModel.ParentSpanFilter), nameof(EvidenceViewModel.EventNameFilter),
             nameof(EvidenceViewModel.ExceptionTypeFilter), nameof(EvidenceViewModel.FromAuditSequenceFilter),
-            nameof(EvidenceViewModel.UntilAuditSequenceFilter) })
+            nameof(EvidenceViewModel.UntilAuditSequenceFilter), nameof(EvidenceViewModel.TraceSourceFilter),
+            nameof(EvidenceViewModel.TraceSourceVersionFilter), nameof(EvidenceViewModel.ActivityNameFilter) })
         {
             source.Should().Contain("{Binding " + binding + "}");
         }
         source.Should().Contain("{Binding Outcome, Mode=TwoWay}")
-            .And.Contain("{Binding ContentAvailability, Mode=TwoWay}");
+            .And.Contain("{Binding ContentAvailability, Mode=TwoWay}")
+            .And.Contain("{Binding TraceVersionAvailability, Mode=TwoWay}")
+            .And.Contain("{Binding ActivityKind, Mode=TwoWay}")
+            .And.Contain("{Binding TraceFlags, Mode=TwoWay}");
         foreach (var field in document.Descendants().Where(element => string.Equals(element.Name.LocalName, "TextBox", StringComparison.Ordinal)))
         {
             field.Attribute("ContextMenu")!.Value.Should().Be("{x:Null}");

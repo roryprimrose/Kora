@@ -77,6 +77,24 @@ Saved-draft provenance (#282), Presence/native presenter, memory scope identity,
 exact-grant audit/approval, Evidence trace metadata and independent build/
 performance work are outside this increment.
 
+### Bounded native Evidence exact trace metadata predicates - 2026-10-16
+
+Based on freshly fetched main `afdee7f508bc2e186bf56ef5f65cb27711e83bd1`.
+The [Evidence inspector](Information_Display.md#delivered-bounded-native-evidence-inspection)
+adds optional exact source, source version, activity operation name, ActivityKind
+and trace-flags predicates, AND-composed with all merged filters. Source version
+has explicit Any/Absent/Present/Exact semantics; null trace is unknown, not absent
+version. Strict bounded exact text, defined kind/flags, full trace validation
+before exclusion and complete signed query identity preserve source compatibility,
+page-budget failure, cancellation/privacy, stale-result and selection retirement.
+Native visible non-null Any choices and read-free clear/edit behavior have
+deterministic portable, reader and headless accessibility checks. Trace metadata
+is untrusted diagnostic correlation only, never session selection, identity,
+intent, permission, approval or authority; no baggage/tags/content disclosure,
+storage schema, provider/device/network/experiment or sibling-domain changes.
+This consumed I subset does not claim installed accessibility, full Evidence,
+Ask Evidence or E/Q qualification, and requires no unrelated proof.
+
 ### R26 retained attachment inclusive generation/revision predicates - 2026-10-16
 
 From canonical main `74cd8517e5b5412deea706d1125a9b6e156a49e9`, the

@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Globalization;
 using System.Runtime.CompilerServices;
 
@@ -16,6 +17,12 @@ internal sealed partial class EvidenceViewModel
     private string traceFilter = string.Empty;
     private string spanFilter = string.Empty;
     private string parentSpanFilter = string.Empty;
+    private string traceSourceFilter = string.Empty;
+    private string traceSourceVersionFilter = string.Empty;
+    private TraceSourceVersionAvailability traceVersionAvailability;
+    private string activityNameFilter = string.Empty;
+    private ActivityKindChoice activityKind = ActivityKindChoices[0];
+    private TraceFlagsChoice traceFlags = TraceFlagsChoices[0];
     private OutcomeChoice outcome = OutcomeChoices[0];
     private EvidenceContentAvailability contentAvailability;
     private string requestFilter = string.Empty;
@@ -43,6 +50,19 @@ internal sealed partial class EvidenceViewModel
     public static IReadOnlyList<OutcomeChoice> OutcomeChoices { get; } =
         [new(null, "Any"), .. Enum.GetValues<HostOperationOutcome>().Select(value => new OutcomeChoice(value, value.ToString()))];
     public static IReadOnlyList<EvidenceContentAvailability> ContentAvailabilities { get; } = Enum.GetValues<EvidenceContentAvailability>();
+    public sealed record ActivityKindChoice(ActivityKind? Value, string Label)
+    {
+        public override string ToString() => Label;
+    }
+    public sealed record TraceFlagsChoice(ActivityTraceFlags? Value, string Label)
+    {
+        public override string ToString() => Label;
+    }
+    public static IReadOnlyList<ActivityKindChoice> ActivityKindChoices { get; } =
+        [new(null, "Any"), .. Enum.GetValues<ActivityKind>().Select(value => new ActivityKindChoice(value, value.ToString()))];
+    public static IReadOnlyList<TraceFlagsChoice> TraceFlagsChoices { get; } =
+        [new(null, "Any"), .. Enum.GetValues<ActivityTraceFlags>().Select(value => new TraceFlagsChoice(value, value.ToString()))];
+    public static IReadOnlyList<TraceSourceVersionAvailability> TraceVersionAvailabilities { get; } = Enum.GetValues<TraceSourceVersionAvailability>();
 
     public EvidenceSource Source { get => source; set => ChangeFilter(ref source, value); }
     public string SafeText { get => safeText; set => ChangeFilter(ref safeText, value); }
@@ -51,6 +71,12 @@ internal sealed partial class EvidenceViewModel
     public string TraceFilter { get => traceFilter; set => ChangeFilter(ref traceFilter, value); }
     public string SpanFilter { get => spanFilter; set => ChangeFilter(ref spanFilter, value); }
     public string ParentSpanFilter { get => parentSpanFilter; set => ChangeFilter(ref parentSpanFilter, value); }
+    public string TraceSourceFilter { get => traceSourceFilter; set => ChangeFilter(ref traceSourceFilter, value); }
+    public string TraceSourceVersionFilter { get => traceSourceVersionFilter; set => ChangeFilter(ref traceSourceVersionFilter, value); }
+    public TraceSourceVersionAvailability TraceVersionAvailability { get => traceVersionAvailability; set => ChangeFilter(ref traceVersionAvailability, value); }
+    public string ActivityNameFilter { get => activityNameFilter; set => ChangeFilter(ref activityNameFilter, value); }
+    public ActivityKindChoice ActivityKind { get => activityKind; set => ChangeFilter(ref activityKind, value); }
+    public TraceFlagsChoice TraceFlags { get => traceFlags; set => ChangeFilter(ref traceFlags, value); }
     public OutcomeChoice Outcome { get => outcome; set => ChangeFilter(ref outcome, value); }
     public EvidenceContentAvailability ContentAvailability { get => contentAvailability; set => ChangeFilter(ref contentAvailability, value); }
     public string RequestFilter { get => requestFilter; set => ChangeFilter(ref requestFilter, value); }
@@ -72,6 +98,12 @@ internal sealed partial class EvidenceViewModel
     public void ClearAdvancedFilters()
     {
         ParentSpanFilter = string.Empty;
+        TraceSourceFilter = string.Empty;
+        TraceSourceVersionFilter = string.Empty;
+        TraceVersionAvailability = TraceSourceVersionAvailability.Any;
+        ActivityNameFilter = string.Empty;
+        ActivityKind = ActivityKindChoices[0];
+        TraceFlags = TraceFlagsChoices[0];
         Outcome = OutcomeChoices[0];
         ContentAvailability = EvidenceContentAvailability.Any;
         RequestFilter = string.Empty;
@@ -113,6 +145,12 @@ internal sealed partial class EvidenceViewModel
         TraceId = string.IsNullOrEmpty(TraceFilter) ? null : TraceFilter,
         SpanId = string.IsNullOrEmpty(SpanFilter) ? null : SpanFilter,
         ParentSpanId = string.IsNullOrEmpty(ParentSpanFilter) ? null : ParentSpanFilter,
+        TraceSource = ExactText(TraceSourceFilter),
+        TraceSourceVersion = ExactText(TraceSourceVersionFilter),
+        TraceSourceVersionAvailability = TraceVersionAvailability,
+        ActivityName = ExactText(ActivityNameFilter),
+        ActivityKind = ActivityKind.Value,
+        TraceFlags = TraceFlags.Value,
         Outcome = Outcome.Value,
         ContentAvailability = ContentAvailability,
         RequestId = Identity<RequestIdentity>(RequestFilter),

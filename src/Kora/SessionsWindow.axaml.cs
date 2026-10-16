@@ -183,7 +183,7 @@ internal sealed partial class SessionsWindow : Window
         ListMemories.Click += async (_, _) => await model.ListMemoriesAsync();
         ProposeMemory.Click += async (_, _) => await model.ProposeMemoryAsync();
         ClearMemoryFilters.Click += (_, _) => { model.ClearMemoryFilters(); MemoryIdFilter.Focus(); };
-        foreach (var filter in new[] { MemoryIdFilter, MemoryMinimumRevisionFilter, MemoryMaximumRevisionFilter,
+        foreach (var filter in new[] { MemoryIdFilter, MemoryScopeIdentityFilter, MemoryMinimumRevisionFilter, MemoryMaximumRevisionFilter,
             MemoryCreatedFromFilter, MemoryCreatedUntilFilter })
         {
             filter.KeyDown += (_, args) =>

@@ -105,6 +105,24 @@ queue eligibility reason** offers Any, **No queue reason / not applicable**
 (`LocalEvent.QueueReason is null`), and every exact `SessionQueueEligibility`.
 Core's portable `LocalEventQueueReasonFilter` explicitly discriminates Any,
 None and Exact; null is never overloaded as both Any and not applicable.
+**Local event retained queue profile** offers **Any**, explicit **Absent
+retained queue profile**, and every exact canonical fixed-read catalogue ID:
+`application.get_version`, `capabilities.list`, `readiness.get`, `runtime.list`,
+`capabilities.get`, and `runtime.get_status`. Core's typed
+`LocalEventQueueProfileFilter` distinguishes Any/Absent/Exact without repairing
+unknown or partial state. **Local event retained exact capability target**
+offers Any or one exact current `SessionQueueCapabilityTarget` descriptor ID.
+Exact target matches only an event carrying that target; it is never inferred
+from a profile or the host-fixed runtime target. Absent matches only a complete
+validated event with no retained profile, including legacy queue observations,
+questions and maintenance; source omissions, quiet-hidden rows and output
+truncation cannot establish absence. Impossible profile/target/source
+combinations stay selected and match zero, not a broader replacement.
+The canonical queue catalogue and target descriptor own validation; complete
+event/profile/target/view validation precedes every exclusion, even for an
+invalid or nonmatching predicate. These are passive historical presentation
+metadata: they never select a session, admit work, establish current readiness,
+ownership or permission, or dispatch any capability.
 Optional **Local event session ID**, **Local event task ID** and **Local event
 subject ID** accept only complete nonempty canonical lowercase `D` GUID text;
 empty means Any. Admission reuses the host command exact-ID parser and checks
@@ -117,7 +135,7 @@ never select or retarget a session/task, establish ownership/authority, or
 authorize navigation or actions.
 Optional inclusive **minimum/maximum event revision**, **minimum/maximum
 generation**, **observed from/until UTC** and **expires from/until UTC**
-ranges compose with all nine existing predicates. The portable
+ranges compose with every existing predicate. The portable
 [`LocalEventFilter`](../src/Kora.Core/Interaction/LocalEventFilter.cs) owns
 admission, ordering and matching, reusing the shared strict decimal and
 canonical UTC parsers. Empty means Any independently at either end.
@@ -151,6 +169,11 @@ no choice is normalized, broadened or replaced to obtain a result.
 
 Filters are volatile native presentation choices, not persisted, logged,
 activity-tagged, audited or sent to model/tool/speech/clipboard/export routes.
+The versioned filter digest binds every predicate, including explicit profile
+presence and exact catalogue target, to pending observation/action continuation
+identity alongside the existing monotonic edit/selection epochs. Changing away
+and back cannot revive a stale callback. This eight-row local snapshot has no
+paged cursor; no new paging, persistence or source search is introduced.
 Every filter edit and explicit clear immediately recomputes visible rows and retires exact selection and
 event review detail, even if the same event remains visible. Review/Dismiss/
 Defer require separate selection of a currently visible exact ID/revision;

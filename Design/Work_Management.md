@@ -33,6 +33,13 @@ Denied/failed/cancelled/late/private-retired results cannot become successful da
 
 Work/AllWork, cancellation/move/requeue reviews and targeted local notices expose only closed profile/target metadata, not retained result bodies. Exact private status/Inspect reads the already-saved snapshot without rerunning it. Original notice suppression formats are unchanged; new targeted notice metadata is inert. The complete work projection stays 64 KiB.
 
+Native [loaded local-event predicates](Proactive_Interaction.md#native-content-free-loaded-event-filters)
+can match Any/explicit Absent/exact retained profile and an optional exact
+catalogue target. They validate complete historical metadata before exclusion
+and compose with all existing event filters without another read. Matching
+neither selects a session nor admits/dispatches work or establishes current
+readiness, ownership or permission; Work/All work predicates remain unchanged.
+
 Pause, FIFO/order lineage, fair manual batches, captured budgets, selected atomic cancellation, retention and no-replay recovery are unchanged. Reviewed expired replacement preserves the exact profile and descriptor target under separate fresh request/task IDs; it cannot retarget dependents or extend the old deadline.
 
 Maintained [portable contract tests](../tests/Kora.Core.UnitTests/Hosting/SessionQueueTargetedReadTests.cs) and [actual registry tests](../tests/Kora.Application.UnitTests/Tools/ReadOnlyCapabilityRegistryTests.cs) cover closed input/result binding.

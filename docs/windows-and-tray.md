@@ -185,12 +185,22 @@ ActivatedVoice and HostSystem, matching the original request origin exactly.
 **Local event queue eligibility reason** offers Any, **No queue reason / not
 applicable**, and each exact queue eligibility reason. Questions and maintenance
 have no queue reason; this absence is not queue success, eligibility or authority.
-All six filters combine with AND over only the
+**Local event retained queue profile** offers Any, explicit **Absent retained
+queue profile**, or an exact catalogue read (`application.get_version`,
+`capabilities.list`, `readiness.get`, `runtime.list`, `capabilities.get`, or
+`runtime.get_status`). **Local event retained exact capability target** offers
+Any or an exact catalogue descriptor ID. An exact target matches only retained
+target metadata, never an inferred runtime target. Absent means a complete
+validated event has no profile, not missing/truncated/quiet-hidden output.
+These historical choices never select a session, enqueue or dispatch a read,
+or establish current readiness, ownership or permission.
+All filters combine with AND, including exact IDs and revision/generation/
+observed/expiry ranges, over only the
 already-loaded bounded rows; impossible Source/Type pairs show zero without
 changing either choice. Use Tab/Shift+Tab to move between filters and arrow
 keys to choose an exact value.
 They do not read more sources or change quiet mode. **Clear local event
-filters** restores All/Any for all six filters. Each edit or clear removes your event selection
+filters** restores All/Any and clears optional values for every filter. Each edit or clear removes your event selection
 and event review detail, even if that event still matches. Select a visible
 exact event again before Review/Dismiss/Defer. Refresh and source/privacy
 changes also retire selection; no replacement is selected automatically.

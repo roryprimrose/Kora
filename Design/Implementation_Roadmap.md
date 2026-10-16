@@ -125,6 +125,26 @@ device, network, provider, experiment or installed-native qualification is added
 Saved drafts, Evidence, All Work, attachment ranges and sibling work remain
 unchanged; broader capability enablement and E/Q qualification remain separate.
 
+### Bounded local-event retained queue profile and target predicates - 2026-10-16
+
+Built on freshly fetched main `afdee7f508bc2e186bf56ef5f65cb27711e83bd1`.
+The [native loaded-event contract](Proactive_Interaction.md#native-content-free-loaded-event-filters)
+adds explicit Any/Absent/exact canonical fixed-read profile and optional exact
+catalogue capability target, AND-composed with all existing category/reason/
+source/type/origin/queue-reason/identity/revision/generation/lifetime predicates.
+Complete event/profile/target validation precedes exclusion; unknown/partial
+state fails closed, and absence is never inferred from source omissions or
+truncated output. Every predicate joins a versioned continuation digest and
+monotonic presentation epochs. Accessible volatile controls preserve no-read
+edits, selection/detail retirement, cancellation and stale/private-source
+fences. Exact target requires retained target metadata; no runtime target is
+inferred. This consumed I subset is historical presentation only, not session
+selection, queue admission, readiness, ownership, permission or dispatch.
+Deterministic portable/headless tests, exact portable coverage and Release
+analyzers gate implementation. Installed accessibility, broader R18 and E/Q
+qualification remain separate; no external runtime, authority expansion or
+experiment is added. All work and sibling metadata domains are unchanged.
+
 ### Bounded native local-event revision/generation/lifetime ranges - 2026-10-16
 
 The existing [loaded-event filter](Proactive_Interaction.md#native-content-free-loaded-event-filters)

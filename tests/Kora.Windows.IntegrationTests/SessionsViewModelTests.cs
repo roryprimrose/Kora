@@ -137,7 +137,16 @@ public sealed partial class SessionsViewModelTests
         document.Descendants().Should().NotContain(element =>
             element.Name.LocalName == "WebView" || element.Name.LocalName == "SelectableTextBlock");
         document.Descendants().Where(element => string.Equals(element.Name.LocalName, "TextBox", StringComparison.Ordinal))
-            .Should().HaveCount(19, "name, exact history ID, metadata/history/conversation queries, four session-list numeric bounds, three local-event correlation IDs, memory GUID and four inclusive range filters, memory drafts and the exact-session memory-only composer are independent native inputs");
+            .Should().HaveCount(23, "name, exact history ID, metadata/history/conversation queries, four conversation ranges, four session-list numeric bounds, three local-event correlation IDs, memory GUID and four inclusive range filters, memory drafts and the exact-session memory-only composer are independent native inputs");
+        foreach (var binding in new[] { "ConversationMinimumSequence", "ConversationMaximumSequence",
+            "ConversationSubmittedFrom", "ConversationSubmittedThrough" })
+        {
+            var range = document.Descendants().Single(element => element.Name.LocalName is "TextBox"
+                && string.Equals(element.Attribute("Text")?.Value, $"{{Binding {binding}, Mode=TwoWay}}", StringComparison.Ordinal));
+            range.Attribute("MaxLength").Should().BeNull("malformed conversation bounds must be rejected, not truncated");
+            range.Attribute("IsEnabled")!.Value.Should().Be("{Binding CanReadConversation}");
+            range.Attribute("AutomationProperties.Name")!.Value.Should().Contain("Inclusive").And.Contain("editing does not read");
+        }
         foreach (var property in new[] { "LocalEventSessionIdFilter", "LocalEventTaskIdFilter", "LocalEventSubjectIdFilter" })
         {
             var field = document.Descendants().Single(element => element.Name.LocalName is "TextBox"

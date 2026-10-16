@@ -160,6 +160,23 @@ Installed accessibility, broader proactive functionality and E/Q qualification
 remain separate and unclaimed. Saved drafts, Evidence, attachments, session
 Browse, Presence/presenter and sibling metadata scopes are unchanged.
 
+### Bounded saved-draft observed-provenance ranges - 2026-10-16
+
+The [saved-draft metadata catalogue](Interaction_And_Sessions.md#saved-conversation-draft-catalogue--2026-10-13)
+adds optional inclusive session-generation, named metadata-revision,
+control-revision and authority-ceiling bounds, AND-composed with the existing
+Browse/name/exact-ID, lifecycle, saved revision, bytes, scalars and merged exact
+source/profile predicates. Portable strict positive/nonnegative decimal
+admission, ordered ranges, validation before exclusion and complete signed
+continuation identity retain unnamed semantics and bounded metadata pages.
+Native accessible scrollable fields preserve no-read edit revocation, exact
+selection retirement, privacy/source/control fences and cancellation.
+This bounded I subset consumes existing catalogue contracts, not broad Rxx
+completion or unrelated proofs. Provenance never grants current authority,
+permission, body integrity, device ownership or navigation. No schema, body
+read, provider, network, device or experiment path is added. Full conversation,
+installed accessibility and broader E/Q qualification remain separate and unclaimed.
+
 ### R26 retained attachment exact correlation and captured-time predicates - 2026-10-16
 
 The [retained catalogue contract](File_And_Folder_Ingestion.md#delivered-retained-attachment-metadata-catalogue---2026-10-11)

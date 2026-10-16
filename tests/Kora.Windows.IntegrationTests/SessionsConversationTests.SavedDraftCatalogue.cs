@@ -60,6 +60,8 @@ public sealed partial class SessionsConversationTests
                 window.FindControl<ScrollableListBox>("DraftRecords")!.Bounds.Height.Should().BeGreaterThan(0);
                 foreach (var control in new[] { source, profile })
                 {
+                    control.BringIntoView();
+                    window.UpdateLayout();
                     control.Focusable.Should().BeTrue();
                     control.IsEffectivelyVisible.Should().BeTrue();
                     var location = control.TranslatePoint(default, window)!.Value;
@@ -239,8 +241,11 @@ public sealed partial class SessionsConversationTests
         var access = new WindowsSqliteSessionWorkspaceTests.Access();
         using var model = new SavedDraftCatalogueViewModel(WindowsSqliteSessionWorkspaceTests.Service(f, access),
             (_, _, _) => Task.FromResult(false), access, () => true, NullLogger<SavedDraftCatalogueViewModel>.Instance);
-        foreach (var field in new[] { "minimum", "maximum", "source", "profile" })
+        foreach (var field in new[] { "minimum", "maximum", "source", "profile",
+            "generation-minimum", "generation-maximum", "name-minimum", "name-maximum",
+            "control-minimum", "control-maximum", "ceiling-minimum", "ceiling-maximum" })
         {
+            model.ClearQuery();
             await model.Refresh();
             var row = model.Records[0];
             model.Select(row);
@@ -252,6 +257,14 @@ public sealed partial class SessionsConversationTests
                 case "minimum": model.MinimumScalarsText = "1"; break;
                 case "maximum": model.MaximumScalarsText = "4096"; break;
                 case "source": model.SourceText = row.Source.ToString("D"); break;
+                case "generation-minimum": model.MinimumSessionGenerationText = "1"; break;
+                case "generation-maximum": model.MaximumSessionGenerationText = "1"; break;
+                case "name-minimum": model.MinimumNameMetadataRevisionText = "1"; break;
+                case "name-maximum": model.MaximumNameMetadataRevisionText = "1"; break;
+                case "control-minimum": model.MinimumControlRevisionText = "0"; break;
+                case "control-maximum": model.MaximumControlRevisionText = "1"; break;
+                case "ceiling-minimum": model.MinimumAuthorityCeilingText = "1"; break;
+                case "ceiling-maximum": model.MaximumAuthorityCeilingText = "1"; break;
                 default: model.ProfileText = row.Profile.Value.ToString("D"); break;
             }
             reads.Should().Be(observedReads);
@@ -384,6 +397,14 @@ public sealed partial class SessionsConversationTests
     [InlineData("scalar-maximum")]
     [InlineData("source-field")]
     [InlineData("profile-field")]
+    [InlineData("generation-minimum")]
+    [InlineData("generation-maximum")]
+    [InlineData("name-revision-minimum")]
+    [InlineData("name-revision-maximum")]
+    [InlineData("control-minimum")]
+    [InlineData("control-maximum")]
+    [InlineData("ceiling-minimum")]
+    [InlineData("ceiling-maximum")]
     public async Task QueryEpochRevocationDuringExactDraftNavigationPreservesTheCurrentDirtyComposer(string boundary)
     {
         using var f = new InteractionStorageFixture();
@@ -418,6 +439,14 @@ public sealed partial class SessionsConversationTests
             else if (boundary is "scalar-maximum") { model.MaximumScalarsText = "1"; }
             else if (boundary is "source-field") { model.SourceText = Guid.NewGuid().ToString("D"); }
             else if (boundary is "profile-field") { model.ProfileText = Guid.NewGuid().ToString("D"); }
+            else if (boundary is "generation-minimum") { model.MinimumSessionGenerationText = "1"; }
+            else if (boundary is "generation-maximum") { model.MaximumSessionGenerationText = "1"; }
+            else if (boundary is "name-revision-minimum") { model.MinimumNameMetadataRevisionText = "1"; }
+            else if (boundary is "name-revision-maximum") { model.MaximumNameMetadataRevisionText = "1"; }
+            else if (boundary is "control-minimum") { model.MinimumControlRevisionText = "0"; }
+            else if (boundary is "control-maximum") { model.MaximumControlRevisionText = "1"; }
+            else if (boundary is "ceiling-minimum") { model.MinimumAuthorityCeilingText = "1"; }
+            else if (boundary is "ceiling-maximum") { model.MaximumAuthorityCeilingText = "1"; }
             else { model.Filter = SessionListFilter.Done; }
         };
         await model.Navigate();
@@ -445,6 +474,14 @@ public sealed partial class SessionsConversationTests
     [InlineData("failure")]
     [InlineData("source-field")]
     [InlineData("profile-field")]
+    [InlineData("generation-minimum")]
+    [InlineData("generation-maximum")]
+    [InlineData("name-revision-minimum")]
+    [InlineData("name-revision-maximum")]
+    [InlineData("control-minimum")]
+    [InlineData("control-maximum")]
+    [InlineData("ceiling-minimum")]
+    [InlineData("ceiling-maximum")]
     public async Task DraftQueryChangesRevokePendingPagesAndKeepLateCallbacksFromRestoringPrivateResults(string boundary)
     {
         using var f = new InteractionStorageFixture();
@@ -469,6 +506,14 @@ public sealed partial class SessionsConversationTests
         var observed = model.Records.Single();
         model.SourceText = observed.Source.ToString("D");
         model.ProfileText = observed.Profile.Value.ToString("D");
+        model.MinimumSessionGenerationText = "1";
+        model.MaximumSessionGenerationText = long.MaxValue.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        model.MinimumNameMetadataRevisionText = "1";
+        model.MaximumNameMetadataRevisionText = long.MaxValue.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        model.MinimumControlRevisionText = "0";
+        model.MaximumControlRevisionText = long.MaxValue.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        model.MinimumAuthorityCeilingText = "1";
+        model.MaximumAuthorityCeilingText = long.MaxValue.ToString(System.Globalization.CultureInfo.InvariantCulture);
         checkpoint.Read = () =>
         {
             checkpoint.Read = null;
@@ -484,6 +529,14 @@ public sealed partial class SessionsConversationTests
                 case "scalar-maximum": model.MaximumScalarsText = "2"; break;
                 case "source-field": model.SourceText = Guid.NewGuid().ToString("D"); break;
                 case "profile-field": model.ProfileText = Guid.NewGuid().ToString("D"); break;
+                case "generation-minimum": model.MinimumSessionGenerationText = "2"; break;
+                case "generation-maximum": model.MaximumSessionGenerationText = "1"; break;
+                case "name-revision-minimum": model.MinimumNameMetadataRevisionText = "2"; break;
+                case "name-revision-maximum": model.MaximumNameMetadataRevisionText = "1"; break;
+                case "control-minimum": model.MinimumControlRevisionText = "1"; break;
+                case "control-maximum": model.MaximumControlRevisionText = "1"; break;
+                case "ceiling-minimum": model.MinimumAuthorityCeilingText = "2"; break;
+                case "ceiling-maximum": model.MaximumAuthorityCeilingText = "1"; break;
                 case "private": access.CanInspect = false; model.SynchronizeAuthority(); break;
                 case "failure": throw new InvalidDataException("source failed");
                 case "source": model.Revoke(); break;
@@ -508,6 +561,14 @@ public sealed partial class SessionsConversationTests
             model.MaximumScalarsText.Should().BeEmpty();
             model.SourceText.Should().BeEmpty();
             model.ProfileText.Should().BeEmpty();
+            model.MinimumSessionGenerationText.Should().BeEmpty();
+            model.MaximumSessionGenerationText.Should().BeEmpty();
+            model.MinimumNameMetadataRevisionText.Should().BeEmpty();
+            model.MaximumNameMetadataRevisionText.Should().BeEmpty();
+            model.MinimumControlRevisionText.Should().BeEmpty();
+            model.MaximumControlRevisionText.Should().BeEmpty();
+            model.MinimumAuthorityCeilingText.Should().BeEmpty();
+            model.MaximumAuthorityCeilingText.Should().BeEmpty();
         }
         f.Count("conversation_messages").Should().Be(0);
     }

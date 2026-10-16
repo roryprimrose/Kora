@@ -26,13 +26,20 @@ public sealed partial class SessionWorkspaceServiceTests
     [InlineData("source-scope")]
     [InlineData("profile-scope")]
     [InlineData("browse-any")]
+    [InlineData("generation")]
+    [InlineData("name-revision")]
+    [InlineData("control-revision")]
+    [InlineData("ceiling")]
+    [InlineData("provenance-scope")]
     public async Task SavedDraftMetadataFiltersAreForwardedAndUntrustedPagesCannotSubstituteThem(string boundary)
     {
         using var f = new Fixture();
         using var root = HostActivity.BeginRoot(f.Request, HostActivityLayer.Application, HostOperation.Request);
-        var row = new SavedDraftSummary(Guid.NewGuid(), new(Guid.NewGuid()), f.Session, null,
+        var row = new SavedDraftSummary(Guid.NewGuid(), new(Guid.NewGuid()), f.Session,
+            new(f.Session.SessionId, new(1), new("private")),
             2, 4, 2, f.ControlRevision, 1, new string('a', 64));
-        var filter = boundary is "browse-any" ? SavedDraftMetadataFilter.Any : new SavedDraftMetadataFilter(2, 4, 4, 2, 2, row.Source, row.Profile);
+        var filter = boundary is "browse-any" ? SavedDraftMetadataFilter.Any : new SavedDraftMetadataFilter(2, 4, 4, 2, 2, row.Source, row.Profile,
+            row.Session.Generation.Value, row.Session.Generation.Value, 1, 1, f.ControlRevision, f.ControlRevision, 1, 1);
         f.DraftPage = new(SessionListFilter.All, boundary is "empty" ? [] : [row], null, 1, 0, false,
             MetadataFilter: boundary is "browse-any" ? null : filter);
         f.BeforeDraftRead = () =>
@@ -50,6 +57,11 @@ public sealed partial class SessionWorkspaceServiceTests
                 "profile" => f.DraftPage with { Records = [row with { Profile = new(Guid.NewGuid()) }] },
                 "source-scope" => f.DraftPage with { MetadataFilter = new(2, 4, 4, 2, 2, profile: row.Profile) },
                 "profile-scope" => f.DraftPage with { MetadataFilter = new(2, 4, 4, 2, 2, source: row.Source) },
+                "generation" => f.DraftPage with { Records = [row with { Session = row.Session with { Generation = new(row.Session.Generation.Value + 1) } }] },
+                "name-revision" => f.DraftPage with { Records = [row with { Metadata = null }] },
+                "control-revision" => f.DraftPage with { Records = [row with { ControlRevision = f.ControlRevision + 1 }] },
+                "ceiling" => f.DraftPage with { Records = [row with { AuthorityCeiling = 2 }] },
+                "provenance-scope" => f.DraftPage with { MetadataFilter = new(2, 4, 4, 2, 2, row.Source, row.Profile) },
                 _ => f.DraftPage,
             };
         };

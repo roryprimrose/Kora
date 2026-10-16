@@ -9,7 +9,7 @@ using Kora.Core.Storage;
 
 namespace Kora.Core.UnitTests.Storage;
 
-public sealed class SavedDraftMetadataFilterTests
+public sealed partial class SavedDraftMetadataFilterTests
 {
     private const string SourceId = "abcdef12-3456-7890-abcd-ef1234567890";
     private const string ProfileId = "fedcba98-7654-3210-fedc-ba9876543210";

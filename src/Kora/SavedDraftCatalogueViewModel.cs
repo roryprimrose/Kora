@@ -29,6 +29,14 @@ internal sealed partial class SavedDraftCatalogueViewModel(
     private string maximumScalarsText = string.Empty;
     private string sourceText = string.Empty;
     private string profileText = string.Empty;
+    private string minimumSessionGenerationText = string.Empty;
+    private string maximumSessionGenerationText = string.Empty;
+    private string minimumNameMetadataRevisionText = string.Empty;
+    private string maximumNameMetadataRevisionText = string.Empty;
+    private string minimumControlRevisionText = string.Empty;
+    private string maximumControlRevisionText = string.Empty;
+    private string minimumAuthorityCeilingText = string.Empty;
+    private string maximumAuthorityCeilingText = string.Empty;
     private bool disposed;
     private long epoch;
     private long controlRevision = access.ControlRevision;
@@ -108,6 +116,14 @@ internal sealed partial class SavedDraftCatalogueViewModel(
         get => profileText;
         set => EditMetadata(ref profileText, value);
     }
+    public string MinimumSessionGenerationText { get => minimumSessionGenerationText; set => EditMetadata(ref minimumSessionGenerationText, value); }
+    public string MaximumSessionGenerationText { get => maximumSessionGenerationText; set => EditMetadata(ref maximumSessionGenerationText, value); }
+    public string MinimumNameMetadataRevisionText { get => minimumNameMetadataRevisionText; set => EditMetadata(ref minimumNameMetadataRevisionText, value); }
+    public string MaximumNameMetadataRevisionText { get => maximumNameMetadataRevisionText; set => EditMetadata(ref maximumNameMetadataRevisionText, value); }
+    public string MinimumControlRevisionText { get => minimumControlRevisionText; set => EditMetadata(ref minimumControlRevisionText, value); }
+    public string MaximumControlRevisionText { get => maximumControlRevisionText; set => EditMetadata(ref maximumControlRevisionText, value); }
+    public string MinimumAuthorityCeilingText { get => minimumAuthorityCeilingText; set => EditMetadata(ref minimumAuthorityCeilingText, value); }
+    public string MaximumAuthorityCeilingText { get => maximumAuthorityCeilingText; set => EditMetadata(ref maximumAuthorityCeilingText, value); }
     private void EditMetadata(ref string field, string value)
     {
         if (!CanEditQuery || string.Equals(field, value, StringComparison.Ordinal)) { return; }
@@ -116,13 +132,15 @@ internal sealed partial class SavedDraftCatalogueViewModel(
         Notify();
     }
     private bool ValidMetadata => SavedDraftMetadataFilter.IsValid(revisionText, minimumBytesText, maximumBytesText,
-        minimumScalarsText, maximumScalarsText, sourceText, profileText);
+        minimumScalarsText, maximumScalarsText, sourceText, profileText,
+        minimumSessionGenerationText, maximumSessionGenerationText, minimumNameMetadataRevisionText, maximumNameMetadataRevisionText,
+        minimumControlRevisionText, maximumControlRevisionText, minimumAuthorityCeilingText, maximumAuthorityCeilingText);
     public string MetadataHint => ValidMetadata
         ? "Optional exact saved revision and inclusive UTF-8 byte / Unicode scalar ranges; empty means Any. Decimal digits only; byte bounds 0-"
             + Kora.Core.Conversation.ConversationText.MaximumUtf8Bytes.ToString(CultureInfo.InvariantCulture)
             + "; scalar bounds 0-" + Kora.Core.Conversation.ConversationText.MaximumUtf16Characters.ToString(CultureInfo.InvariantCulture)
-            + ". Optional exact observation source/device profile: nonempty canonical lowercase D-format GUIDs. Metadata/correlation only, not ownership, identity or authority. Empty means Any; no trimming or repair. Not code units or a body read."
-        : "Invalid metadata filter: Search/Refresh refused. Use positive revision and byte/scalar bounds within their conversation maxima, minimum <= maximum; no signs, whitespace, separators or overflow. Source/profile must be nonempty canonical lowercase D-format GUIDs or empty for Any; no braces, uppercase, whitespace or repair.";
+            + ". Inclusive session generation, named metadata revision and authority ceiling bounds are positive Int64; control revision bounds are nonnegative Int64. Named revision bounds exclude unnamed rows. Minimum <= maximum. Optional exact observation source/device profile: nonempty canonical lowercase D-format GUIDs. All are observed provenance only, not current authority, permission, body integrity, ownership or navigation authority. Empty means Any; no trimming or repair. Not code units or a body read."
+        : "Invalid metadata filter: Search/Refresh refused. Use positive saved revision, generation, named metadata revision and ceiling; nonnegative control revision; byte/scalar bounds within their conversation maxima; minimum <= maximum; no signs, whitespace, separators or overflow. Source/profile must be nonempty canonical lowercase D-format GUIDs or empty for Any; no braces, uppercase, whitespace or repair.";
     public bool CanEditQuery => !disposed && access.CanInspect && admitted();
     public bool CanSearch => CanRead && ValidMetadata
         && (mode == SavedDraftCatalogueMode.Browse || SessionListSearch.IsValid(QueryKind, filter, queryText));
@@ -135,7 +153,7 @@ internal sealed partial class SavedDraftCatalogueViewModel(
         : "Exact session " + selected.Session.SessionId.Value.ToString("D")
             + " | stored " + (selected.Session.IsActive ? "Active" : "Done")
             + " | generation " + selected.Session.Generation.Value.ToString(CultureInfo.InvariantCulture)
-            + " | metadata revision " + (selected.Metadata?.Revision.Value ?? 0).ToString(CultureInfo.InvariantCulture)
+            + " | metadata revision " + (selected.Metadata?.Revision.Value.ToString(CultureInfo.InvariantCulture) ?? "Unnamed (no name metadata)")
             + " | private name (inert): " + (selected.Metadata?.Name.Value ?? "Unnamed")
             + " | saved draft revision " + selected.DraftRevision.ToString(CultureInfo.InvariantCulture)
             + " | UTF-8 bytes " + selected.Utf8Bytes.ToString(CultureInfo.InvariantCulture)
@@ -156,7 +174,9 @@ internal sealed partial class SavedDraftCatalogueViewModel(
     {
         var query = mode == SavedDraftCatalogueMode.Browse ? null : new SessionListSearch(QueryKind, filter, queryText);
         var metadataFilter = SavedDraftMetadataFilter.Parse(revisionText, minimumBytesText, maximumBytesText,
-            minimumScalarsText, maximumScalarsText, sourceText, profileText);
+            minimumScalarsText, maximumScalarsText, sourceText, profileText,
+            minimumSessionGenerationText, maximumSessionGenerationText, minimumNameMetadataRevisionText, maximumNameMetadataRevisionText,
+            minimumControlRevisionText, maximumControlRevisionText, minimumAuthorityCeilingText, maximumAuthorityCeilingText);
         var cursor = next ? page?.Next ?? throw new InvalidOperationException("Refresh before Next.") : null;
         Clear();
         var result = await service.ReadSavedDraftCatalogue(filter, cursor, current, token, query, metadataFilter);
@@ -261,6 +281,14 @@ internal sealed partial class SavedDraftCatalogueViewModel(
         maximumScalarsText = string.Empty;
         sourceText = string.Empty;
         profileText = string.Empty;
+        minimumSessionGenerationText = string.Empty;
+        maximumSessionGenerationText = string.Empty;
+        minimumNameMetadataRevisionText = string.Empty;
+        maximumNameMetadataRevisionText = string.Empty;
+        minimumControlRevisionText = string.Empty;
+        maximumControlRevisionText = string.Empty;
+        minimumAuthorityCeilingText = string.Empty;
+        maximumAuthorityCeilingText = string.Empty;
     }
     public void Dispose()
     {
@@ -282,6 +310,10 @@ internal sealed partial class SavedDraftCatalogueViewModel(
             nameof(RevisionText), nameof(MinimumBytesText), nameof(MaximumBytesText), nameof(MetadataHint),
             nameof(MinimumScalarsText), nameof(MaximumScalarsText),
             nameof(SourceText), nameof(ProfileText),
+            nameof(MinimumSessionGenerationText), nameof(MaximumSessionGenerationText),
+            nameof(MinimumNameMetadataRevisionText), nameof(MaximumNameMetadataRevisionText),
+            nameof(MinimumControlRevisionText), nameof(MaximumControlRevisionText),
+            nameof(MinimumAuthorityCeilingText), nameof(MaximumAuthorityCeilingText),
             nameof(CanSearch), nameof(CanRead), nameof(CanNext), nameof(CanNavigate), nameof(CanCancel) })
         { OnPropertyChanged(name); }
     }

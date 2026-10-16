@@ -53,6 +53,16 @@ Choose **Browse**, literal case-sensitive **NameSubstring**, or canonical lowerc
 Optional labelled native **Exact saved revision**, **Minimum UTF-8 bytes**,
 **Maximum UTF-8 bytes**, **Minimum Unicode scalars** and **Maximum Unicode scalars**
 fields compose with every mode and lifecycle filter.
+Eight labelled, keyboard-focusable **Minimum/Maximum session generation**,
+**Minimum/Maximum name metadata revision**, **Minimum/Maximum control revision**
+and **Minimum/Maximum authority ceiling** fields add inclusive observed-provenance
+ranges. The query region scrolls independently so fields and bounded results
+remain reachable. Accessible names disclose empty Any, inclusive positive
+generation/name-revision/ceiling or nonnegative control revision, and no-read
+typing. Invalid or inverted ranges visibly refuse Search/Refresh; either named
+revision bound excludes unnamed rows. Edits, Clear and revocation follow the
+same selection/cursor/cancellation rules. These are observed provenance only,
+not current authority, permission, body integrity, ownership or navigation authority.
 Labelled, keyboard-focusable **Exact observation source GUID (Any if empty)** and
 **Exact device profile GUID (Any if empty)** fields AND with those criteria.
 Accessible names disclose exact canonical lowercase D-format input, empty Any,

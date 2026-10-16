@@ -113,6 +113,19 @@ The portable metadata filter owns this parsing once and reuses host identity
 validation for the typed profile. Source matches `SavedDraftSummary.Source`;
 profile matches `SavedDraftSummary.Profile.Value`, both exact. These IDs are
 metadata/correlation only, never device ownership, identity or authority.
+Optional inclusive **Minimum/Maximum session generation**,
+**Minimum/Maximum name metadata revision**, **Minimum/Maximum control revision**
+and **Minimum/Maximum authority ceiling** ranges AND with all these predicates.
+Empty means Any. The shared strict decimal admission accepts positive Int64
+generation, name revision and ceiling, and nonnegative Int64 control revision;
+each supplied minimum must be <= its supplied maximum. Leading decimal zeros
+retain their existing semantic value; no signs, whitespace, separators, overflow,
+clamping or repair are accepted. Either name-revision bound requires validated
+name metadata: unnamed rows never become revision-zero or unknown matches.
+Every `SavedDraftSummary` is validated before matching, including nonmatches.
+Session generation, control revision, ceiling and digest are observed provenance
+only, never current authority, permission, body integrity, device ownership or
+navigation authority. Exact selection still requires independent current admission.
 The filter digest binds all numeric and GUID predicates; the signed cursor binds
 the complete filter alongside every existing query/source/private/control/head
 and authority fence. Nonmatching source/profile criteria do not bypass validation
@@ -120,7 +133,7 @@ of any scanned saved-draft summary, metadata name or authority prefix.
 Metadata predicates apply only after existing source/authority-prefix and candidate
 metadata validation; irrelevant authority commits are still validated before disclosure.
 No body decoding or inference is added.
-Typing, query mode, lifecycle and revision/byte/scalar/source/profile filter edits immediately invalidate the catalogue page/cursor/selection/exact navigation and cancel pending callbacks without I/O or changing the current Sessions target/composer. **Search / refresh metadata** explicitly observes the new query; no first match is automatically selected. Clear and private/source/close revocation also clear the volatile metadata fields.
+Typing, query mode, lifecycle and revision/byte/scalar/source/profile/provenance-range filter edits immediately invalidate the catalogue page/cursor/selection/exact navigation and cancel pending callbacks without I/O or changing the current Sessions target/composer. **Search / refresh metadata** explicitly observes the new query; no first match is automatically selected. Clear and private/source/close revocation also clear the volatile metadata fields.
 Exact ID seeks the existing draft-row primary key after the same mandatory private source/authority validation. Missing/cleared/unretained/Removed/nonmatching targets end without falling back to a list; unavailable or broken authority remains a recovery failure, not a healthy empty inventory.
 
 Each click consumes at most 50 candidate draft slots and returns at most 25 complete rows / 64 KiB. Cleared/null/empty slots consume scan positions but are not saved-content results; never-saved sessions and question/parameter drafts are not sources.

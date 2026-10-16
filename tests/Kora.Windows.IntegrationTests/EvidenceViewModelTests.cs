@@ -110,14 +110,16 @@ public sealed class EvidenceViewModelTests
         source.Should().Contain("DynamicResource").And.Contain("AutomationProperties.Name")
             .And.Contain("No copy, export, model, browser, deletion or execution.")
             .And.NotContain("WebView").And.NotContain("SelectableTextBlock").And.NotContain("MaxLength");
-        document.Descendants().Where(element => string.Equals(element.Name.LocalName, "TextBox", StringComparison.Ordinal)).Should().HaveCount(16);
+        document.Descendants().Where(element => string.Equals(element.Name.LocalName, "TextBox", StringComparison.Ordinal)).Should().HaveCount(20);
         source.Should().Contain("Advanced filters (optional)").And.Contain("Both time edges are inclusive");
         foreach (var binding in new[] { nameof(EvidenceViewModel.RequestFilter), nameof(EvidenceViewModel.InvocationFilter),
             nameof(EvidenceViewModel.ApprovalFilter), nameof(EvidenceViewModel.CorrelationFilter),
             nameof(EvidenceViewModel.FromFilter), nameof(EvidenceViewModel.UntilFilter),
             nameof(EvidenceViewModel.EventIdFilter), nameof(EvidenceViewModel.CategoryFilter), nameof(EvidenceViewModel.ActionIdFilter),
             nameof(EvidenceViewModel.Severity), nameof(EvidenceViewModel.AuditOutcome), nameof(EvidenceViewModel.SpanFilter),
-            nameof(EvidenceViewModel.ParentSpanFilter) })
+            nameof(EvidenceViewModel.ParentSpanFilter), nameof(EvidenceViewModel.EventNameFilter),
+            nameof(EvidenceViewModel.ExceptionTypeFilter), nameof(EvidenceViewModel.FromAuditSequenceFilter),
+            nameof(EvidenceViewModel.UntilAuditSequenceFilter) })
         {
             source.Should().Contain("{Binding " + binding + "}");
         }

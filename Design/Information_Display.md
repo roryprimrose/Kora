@@ -338,6 +338,33 @@ The native form also consumes the existing `EvidenceQuery.EventId`, `Category` a
 Event ID uses canonical invariant signed Int32 decimal with zero/negative/boundary values; Category/ActionId retain 256/128-character limits and exact ordinal text, without domain action-name constraints
 ([query contract](../src/Kora.Core/Diagnostics/EvidenceQuery.cs), [parser](../src/Kora/EvidenceViewModel.Filters.cs), [admission](../src/Kora.Application/Diagnostics/DurableEvidenceQuery.cs)).
 
+Optional exact **Event name** (128 characters) and **Exception type** (256)
+match only retained diagnostic metadata with ordinal case-sensitive comparison.
+Empty native fields mean Any; nonempty values require bounded plain valid Unicode
+without surrounding whitespace or control characters. No trimming, case folding,
+substring matching, exception messages, stack traces, sensitive properties or
+omitted content are introduced. These are not activity names or authority fields.
+Optional **Audit sequence from/until** are inclusive positive Int64 bounds,
+canonical invariant decimal in the native controls, ordered when both are set.
+Either edge may be unset; null sequence never matches a set edge. Sequence is
+committed ordering metadata only, not authority, completeness, freshness, replay
+position or permission. Existing source support is unchanged: missing metadata
+does not match, including sequence on ordinary/daily logs and names on activity
+or authority records.
+
+All four predicates use the authoritative retained-metadata matcher, AND-compose
+with every existing search filter, and bind the serialized authenticated query
+fingerprint. Full record validation precedes exclusion. Existing scan/page budgets,
+explicit Present over-budget failure, privacy/cancellation and stale-result fences
+remain unchanged. Edits retire results, selection and continuation without reads;
+Clear advanced and close reset to accessible empty/Any. The advanced form scrolls
+within a bounded height rather than pushing the result controls out of the window.
+Navigation does not inherit
+search-only predicates. No schema/index, filter persistence/logging, export,
+content restoration, provider or execution path is added. Deterministic portable,
+real-reader and headless-control checks are I evidence; installed accessibility
+and E/Q qualification remain separate.
+
 Category projects diagnostic category on Log/Audit/DailyLog, activity source on Span/Link, and typed audit-category name on AuthorityAudit. Event ID supports All/Log/Audit/DailyLog/CombinedLog; ActionId supports All/Audit/AuthorityAudit.
 All remains SQLite-only; CombinedLog rejects ActionId because DailyLog cannot match it. Category rejects unavailable Session/Conversation; a citation under All narrows support to that source. Unsupported combinations fail before reading via existing native recovery
 ([SQLite](../src/Kora.Windows/Storage/WindowsSqliteEvidenceReader.cs), [Daily](../src/Kora.Windows/Storage/WindowsDailyEvidenceReader.cs), [Combined](../src/Kora.Windows/Storage/WindowsEvidenceReader.cs),

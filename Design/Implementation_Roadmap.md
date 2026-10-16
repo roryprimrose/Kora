@@ -100,6 +100,21 @@ Evidence, All Work and other excluded peer scopes are not extended. No device,
 network, provider, experiment or new runtime capability is enabled; installed
 accessibility and broader E/Q qualification remain separate and unclaimed.
 
+### Bounded native Evidence diagnostic names and sequence ranges - 2026-10-16
+
+The existing [Evidence inspector](Information_Display.md#delivered-bounded-native-evidence-inspection)
+adds optional exact retained event name/exception type and inclusive positive
+audit-sequence bounds, AND-composed through the authoritative retained-metadata
+matcher. Strict canonical native input, full-record validation before exclusion,
+null nonmatching and query-bound signed continuations preserve existing source,
+page-budget, cancellation/privacy, stale-result and selection-retirement behavior.
+Accessible empty/Any and Clear advanced remain read-free. Names are diagnostic
+metadata only; sequence is committed ordering, not authority, completeness,
+freshness, replay position or permission. Portable and deterministic real-reader/
+headless tests gate this consumed I subset. No storage schema, capture, provider,
+network/device, experiment, content restoration or execution route is added;
+Ask Evidence, installed accessibility and E/Q qualification remain separate.
+
 ### Bounded native local-event exact correlation-ID filters - 2026-10-16
 
 The existing [loaded-event filters](Proactive_Interaction.md#native-content-free-loaded-event-filters)

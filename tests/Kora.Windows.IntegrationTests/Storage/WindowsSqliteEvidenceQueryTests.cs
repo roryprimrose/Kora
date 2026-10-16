@@ -351,6 +351,8 @@ public sealed class WindowsSqliteEvidenceQueryTests
             SpanId = "0123456789abcdef",
             ParentSpanId = "0123456789abcdef", Outcome = HostOperationOutcome.Failed,
             ContentAvailability = EvidenceContentAvailability.Omitted,
+            EventName = "Does.Not.Match", ExceptionType = "Not.An.Exception",
+            FromAuditSequence = 1, UntilAuditSequence = 1,
         }, null, TestContext.Current.CancellationToken);
         if (corruption is "acl" or "unexpected")
         {

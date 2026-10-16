@@ -8,6 +8,39 @@ namespace Kora.Core.UnitTests.Diagnostics;
 
 public sealed class EvidenceMetadataPredicateTests
 {
+    [Fact]
+    public void ExactDiagnosticNamesAndInclusiveSequenceBoundsComposeWithEveryRetainedPredicate()
+    {
+        var record = new EvidenceRecord(new(EvidenceSource.Audit, new(Guid.NewGuid())), null, null,
+            EvidenceSegmentStatus.Present, null, null, null, null, null, null, null, null,
+            new Dictionary<string, EvidenceValue>(StringComparer.Ordinal), null, HostOperationOutcome.Completed, []);
+        foreach (var eventName in new[] { null, "Event.Name", "event.name" })
+        foreach (var exceptionType in new[] { null, "System.IOException", "system.ioexception" })
+        foreach (var sequence in new long?[] { null, 1, 2, 3, long.MaxValue })
+        foreach (var from in new long?[] { null, 1, 2, 3, long.MaxValue })
+        foreach (var until in new long?[] { null, 1, 2, 3, long.MaxValue })
+        foreach (var omitted in new[] { false, true })
+        {
+            var candidate = record with
+            {
+                EventName = eventName, ExceptionType = exceptionType, AuditSequence = sequence, ContentOmitted = omitted,
+            };
+            var query = new EvidenceQuery
+            {
+                EventName = "Event.Name", ExceptionType = "System.IOException",
+                FromAuditSequence = from, UntilAuditSequence = until,
+                Outcome = HostOperationOutcome.Completed, ContentAvailability = EvidenceContentAvailability.Present,
+            };
+            query.MatchesRetainedMetadata(candidate).Should().Be(
+                string.Equals(eventName, "Event.Name", StringComparison.Ordinal)
+                && string.Equals(exceptionType, "System.IOException", StringComparison.Ordinal)
+                && (from is null || sequence >= from) && (until is null || sequence <= until) && !omitted);
+            (query with { EventName = null, ExceptionType = null }).MatchesRetainedMetadata(candidate).Should().Be(
+                (from is null || sequence >= from) && (until is null || sequence <= until) && !omitted);
+            new EvidenceQuery().MatchesRetainedMetadata(candidate).Should().BeTrue();
+        }
+    }
+
     [Theory]
     [InlineData(null, false)]
     [InlineData("", false)]

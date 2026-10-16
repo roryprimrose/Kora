@@ -41,6 +41,8 @@
     </Grid>
     <Expander Grid.Row="3" Header="Advanced filters (optional)" IsExpanded="False"
               AutomationProperties.Name="Optional advanced evidence filters">
+      <ScrollViewer MaxHeight="280" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto"
+                    AutomationProperties.Name="Scrollable advanced evidence filters">
       <StackPanel Spacing="8">
         <WrapPanel>
           <TextBox x:Name="ParentSpanId" Text="{Binding ParentSpanFilter}" PlaceholderText="Exact W3C parent span ID (16 lowercase hex)"
@@ -77,6 +79,18 @@
                    ContextMenu="{x:Null}" ContextFlyout="{x:Null}" AutomationProperties.Name="Exact audit action ID filter" />
         </WrapPanel>
         <WrapPanel>
+          <TextBox x:Name="EventName" Text="{Binding EventNameFilter}" PlaceholderText="Exact event name (max 128); empty = Any" Width="360" Margin="0,0,10,8"
+                   ContextMenu="{x:Null}" ContextFlyout="{x:Null}" AutomationProperties.Name="Exact diagnostic event name; empty means Any" />
+          <TextBox x:Name="ExceptionType" Text="{Binding ExceptionTypeFilter}" PlaceholderText="Exact exception type (max 256); empty = Any" Width="360" Margin="0,0,10,8"
+                   ContextMenu="{x:Null}" ContextFlyout="{x:Null}" AutomationProperties.Name="Exact diagnostic exception type; empty means Any" />
+          <TextBox x:Name="FromAuditSequence" Text="{Binding FromAuditSequenceFilter}" PlaceholderText="Audit sequence from inclusive; empty = Any" Width="360" Margin="0,0,10,8"
+                   ContextMenu="{x:Null}" ContextFlyout="{x:Null}" AutomationProperties.Name="Inclusive positive audit sequence start; empty means Any" />
+          <TextBox x:Name="UntilAuditSequence" Text="{Binding UntilAuditSequenceFilter}" PlaceholderText="Audit sequence until inclusive; empty = Any" Width="360" Margin="0,0,10,8"
+                   ContextMenu="{x:Null}" ContextFlyout="{x:Null}" AutomationProperties.Name="Inclusive positive audit sequence end; empty means Any" />
+        </WrapPanel>
+        <TextBlock TextWrapping="Wrap"
+                   Text="Event name and exception type are exact case-sensitive diagnostic metadata, not messages, stack traces or content. Empty means Any; otherwise bounded plain text without surrounding whitespace or controls. Audit sequence bounds are inclusive positive canonical 64-bit integers, ordered from to until; empty means Any. Null metadata never matches an exact or range predicate. Sequence is committed ordering metadata only, not authority, completeness, freshness, replay position or permission. All predicates compose with AND. Clear advanced resets these fields to Any without reading." />
+        <WrapPanel>
           <TextBox Text="{Binding FromFilter}" PlaceholderText="From inclusive: 2026-10-10T00:00:00Z" Width="380" Margin="0,0,10,8"
                    ContextMenu="{x:Null}" ContextFlyout="{x:Null}" AutomationProperties.Name="Inclusive evidence time range start" />
           <TextBox Text="{Binding UntilFilter}" PlaceholderText="Until inclusive: ISO time with Z or offset" Width="380" Margin="0,0,10,8"
@@ -93,6 +107,7 @@
         <TextBlock TextWrapping="Wrap"
                    Text="Blank means unset; Clear advanced filters resets typed choices to Any and preserves the basic Trace ID and Span ID fields. Empty Span ID means Any; otherwise exactly 16 lowercase hexadecimal characters, not all zero, without trimming, repair or partial matching. All filters compose with AND. Event ID/category/action use empty-only unset; whitespace-only, noncanonical integers and surrounding text whitespace fail. Event IDs include zero and negative signed 32-bit values. Category/action compare exact case-sensitive text. Category is diagnostic category, activity source for Span/Link, or typed audit category for AuthorityAudit. Event ID/severity require All, Log, Audit, DailyLog or CombinedLog; action ID/audit outcome require All, Audit or AuthorityAudit. All remains SQLite-only; CombinedLog does not support action ID. Correlation is never identity, permission or audit authority. Both time edges are inclusive; ISO Z or explicit offsets normalize to UTC. SQLite/AuthorityAudit use commit time; DailyLog uses observation time; CombinedLog uses each source's own time, not an atomic snapshot. Changing any filter clears results; search again." />
       </StackPanel>
+      </ScrollViewer>
     </Expander>
     <controls:NamedTextBlock Grid.Row="4" Text="{Binding Status}" TextWrapping="Wrap"
                AutomationProperties.Name="Evidence status and storage limitations" />

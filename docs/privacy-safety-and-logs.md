@@ -132,6 +132,18 @@ effect/provider scheduler.
 
 ## Committed authority audit inspection
 
+Native Evidence also offers exact diagnostic Event name (max 128 characters)
+and Exception type (max 256), plus inclusive positive audit-sequence From/Until
+bounds. Empty means Any. Names are case-sensitive bounded plain text without
+surrounding whitespace or controls; sequences are canonical positive 64-bit
+decimal integers with ordered bounds. Missing metadata never matches a set
+predicate. All filters compose with AND; edits clear results/selection and cancel
+old reads without starting a new one. Clear advanced resets these fields.
+Event/exception names do not expose exception messages, stack traces, sensitive
+properties, user content or omitted bodies. Sequence is committed ordering
+metadata only, never authority, completeness, freshness, replay position or
+permission. Existing source distinctions, validation and page budgets remain.
+
 In **Evidence (read-only)**, select **AuthorityAudit** to inspect committed typed
 interaction-store security audit rows. This is a separate source from the
 diagnostic **Audit** projection and daily mirrors. **All** remains SQLite

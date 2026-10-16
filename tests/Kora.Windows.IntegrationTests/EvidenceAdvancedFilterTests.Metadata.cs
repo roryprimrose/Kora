@@ -3,8 +3,10 @@ using System.Diagnostics;
 using AwesomeAssertions;
 
 using Kora.Application.Diagnostics;
+using Kora.Core.Auditing;
 using Kora.Core.Diagnostics;
 using Kora.Core.Hosting;
+using Kora.Windows.IntegrationTests.Audio;
 using Kora.Windows.IntegrationTests.Storage;
 using Kora.Windows.Storage;
 
@@ -14,6 +16,134 @@ namespace Kora.Windows.IntegrationTests;
 
 public sealed partial class EvidenceAdvancedFilterTests
 {
+    [WindowsFact]
+    public async Task CommittedDiagnosticAuditSequenceUsesInclusiveEdgesAndNullMetadataDoesNotMatch()
+    {
+        using var fixture = new OwnedStorageFixture();
+        using var listener = WindowsDailyEvidenceReaderTests.Listen();
+        var sink = new WindowsSqliteEvidenceSink(fixture, timeProvider: new Clock());
+        var owner = HostRequest.Create(RequestOrigin.LocalUi);
+        using var root = HostActivity.BeginRoot(owner, HostActivityLayer.Application, HostOperation.Request);
+        for (var index = 0; index < 3; index++)
+        {
+            var audit = new SecurityAuditEvent(Guid.NewGuid(), SecurityAuditCategory.ApplicationExecution,
+                "host.query.version", SecurityAuditOutcome.Succeeded, SecurityAuditInitiator.LocalUser, "application.current");
+            using var producer = HostActivity.BeginAudit(owner, audit);
+            var envelope = WindowsDailyEvidenceReaderTests.Produce(owner, 1)[0] with
+            {
+                Trace = TraceSnapshot.Capture(producer.Activity), AuditCorrelationId = audit.CorrelationId,
+                EventName = "Event.Name", ExceptionType = "System.IOException",
+            };
+            sink.WriteAudit(new(envelope, audit));
+            sink.WriteDiagnostic(envelope);
+        }
+        var viewer = Viewer(new WindowsSqliteEvidenceReader(sink));
+        viewer.Source = EvidenceSource.All;
+        viewer.FromAuditSequenceFilter = "2";
+        viewer.UntilAuditSequenceFilter = "2";
+        await viewer.SearchAsync();
+        viewer.Records.Should().ContainSingle().Which.AuditSequence.Should().Be(2);
+        viewer.FromAuditSequenceFilter = "";
+        await viewer.SearchAsync();
+        viewer.Records.Select(record => record.AuditSequence).Order().Should().Equal(1, 2);
+        viewer.FromAuditSequenceFilter = "2";
+        viewer.UntilAuditSequenceFilter = "";
+        await viewer.SearchAsync();
+        viewer.Records.Select(record => record.AuditSequence).Order().Should().Equal(2, 3);
+        viewer.ClearAdvancedFilters();
+        await viewer.SearchAsync();
+        viewer.Records.Should().HaveCount(6);
+        viewer.Source = EvidenceSource.Span;
+        viewer.EventNameFilter = "Event.Name";
+        viewer.ExceptionTypeFilter = "System.IOException";
+        await viewer.SearchAsync();
+        viewer.Records.Should().BeEmpty();
+        viewer.Close();
+    }
+
+    [Theory]
+    [InlineData("0")]
+    [InlineData("-1")]
+    [InlineData("+1")]
+    [InlineData("01")]
+    [InlineData(" 1")]
+    [InlineData("1 ")]
+    [InlineData("1\n")]
+    [InlineData("1.0")]
+    [InlineData("1e1")]
+    [InlineData("1,000")]
+    [InlineData("\u0661")]
+    [InlineData("9223372036854775808")]
+    [InlineData(" ")]
+    public async Task NoncanonicalSequenceNeverReadsOrFallsBackToAny(string value)
+    {
+        using var listener = WindowsDailyEvidenceReaderTests.Listen();
+        var reader = new CapturingReader();
+        var viewer = Viewer(reader);
+        viewer.FromAuditSequenceFilter = value;
+        await viewer.SearchAsync();
+        viewer.Status.Should().Contain("failed");
+        viewer.FromAuditSequenceFilter = "";
+        viewer.UntilAuditSequenceFilter = value;
+        await viewer.SearchAsync();
+        viewer.Status.Should().Contain("failed");
+        viewer.UntilAuditSequenceFilter = "1";
+        viewer.FromAuditSequenceFilter = "2";
+        await viewer.SearchAsync();
+        viewer.Status.Should().Contain("failed");
+        reader.Queries.Should().BeEmpty();
+        viewer.ResultText.Should().BeEmpty();
+        viewer.Close();
+    }
+
+    [Theory]
+    [InlineData(EvidenceSource.All)]
+    [InlineData(EvidenceSource.Log)]
+    [InlineData(EvidenceSource.DailyLog)]
+    [InlineData(EvidenceSource.CombinedLog)]
+    public async Task RetainedDiagnosticNamesMatchExactlyWithoutReadingExceptionContent(EvidenceSource source)
+    {
+        using var fixture = new OwnedStorageFixture();
+        using var listener = WindowsDailyEvidenceReaderTests.Listen();
+        var sink = new WindowsSqliteEvidenceSink(fixture, timeProvider: new Clock());
+        var owner = HostRequest.Create(RequestOrigin.LocalUi);
+        DiagnosticEnvelope[] envelopes;
+        using (var producer = HostActivity.BeginRoot(owner, HostActivityLayer.Application, HostOperation.Request))
+        {
+            envelopes = WindowsDailyEvidenceReaderTests.Produce(owner, 3).Select((envelope, index) => envelope with
+            {
+                EventName = index == 0 ? null : "Event.Name",
+                ExceptionType = index == 2 ? "System.IOException" : null,
+                Trace = TraceSnapshot.Capture(producer.Activity),
+            }).ToArray();
+            foreach (var envelope in envelopes) { sink.WriteDiagnostic(envelope); }
+        }
+        WindowsDailyEvidenceReaderTests.Write(fixture, "kora-20261010.log", envelopes);
+        var viewer = Viewer(new WindowsEvidenceReader(new(sink), new(fixture)));
+        viewer.Source = source;
+        viewer.EventNameFilter = "Event.Name";
+        viewer.ExceptionTypeFilter = "System.IOException";
+        await viewer.SearchAsync();
+        viewer.Records.Should().HaveCount(source == EvidenceSource.CombinedLog ? 2 : 1)
+            .And.OnlyContain(record => record.EventName == "Event.Name" && record.ExceptionType == "System.IOException");
+        viewer.ResultText.Should().NotContain("ExceptionMessage").And.NotContain("StackTrace");
+        viewer.EventNameFilter = "event.name";
+        await viewer.SearchAsync();
+        viewer.Records.Should().BeEmpty();
+        viewer.EventNameFilter = "Event.Name";
+        viewer.ExceptionTypeFilter = "system.ioexception";
+        await viewer.SearchAsync();
+        viewer.Records.Should().BeEmpty();
+        viewer.ExceptionTypeFilter = "System.IOException";
+        viewer.FromAuditSequenceFilter = "1";
+        await viewer.SearchAsync();
+        viewer.Records.Should().BeEmpty();
+        viewer.ClearAdvancedFilters();
+        await viewer.SearchAsync();
+        viewer.Records.Should().HaveCount(source == EvidenceSource.CombinedLog ? 6 : 3);
+        viewer.Close();
+    }
+
     [Fact]
     public async Task MetadataContinuationRetainsExpiryAndFailsAfterRetentionRemovesItsCeiling()
     {
@@ -155,6 +285,18 @@ public sealed partial class EvidenceAdvancedFilterTests
     [InlineData("content", "success")]
     [InlineData("content", "failure")]
     [InlineData("content", "cancel")]
+    [InlineData("event", "success")]
+    [InlineData("event", "failure")]
+    [InlineData("event", "cancel")]
+    [InlineData("exception", "success")]
+    [InlineData("exception", "failure")]
+    [InlineData("exception", "cancel")]
+    [InlineData("fromSequence", "success")]
+    [InlineData("fromSequence", "failure")]
+    [InlineData("fromSequence", "cancel")]
+    [InlineData("untilSequence", "success")]
+    [InlineData("untilSequence", "failure")]
+    [InlineData("untilSequence", "cancel")]
     public async Task EveryMetadataEditCancelsAndRetiresContinuationAndLateCallbacks(string field, string completion)
     {
         using var listener = WindowsDailyEvidenceReaderTests.Listen();
@@ -169,6 +311,10 @@ public sealed partial class EvidenceAdvancedFilterTests
             case "parent": viewer.ParentSpanFilter = "0123456789abcdef"; break;
             case "outcome": viewer.Outcome = EvidenceViewModel.OutcomeChoices[1]; break;
             case "content": viewer.ContentAvailability = EvidenceContentAvailability.Omitted; break;
+            case "event": viewer.EventNameFilter = "Event.Name"; break;
+            case "exception": viewer.ExceptionTypeFilter = "System.IOException"; break;
+            case "fromSequence": viewer.FromAuditSequenceFilter = "1"; break;
+            case "untilSequence": viewer.UntilAuditSequenceFilter = "9223372036854775807"; break;
         }
         reader.Token.IsCancellationRequested.Should().BeTrue();
         reader.Queries.Should().HaveCount(2);
@@ -188,9 +334,17 @@ public sealed partial class EvidenceAdvancedFilterTests
         reader.Queries[^1].Outcome.Should().Be(field is "outcome" ? HostOperationOutcome.Completed : null);
         reader.Queries[^1].ContentAvailability.Should().Be(field is "content"
             ? EvidenceContentAvailability.Omitted : EvidenceContentAvailability.Any);
+        reader.Queries[^1].EventName.Should().Be(field is "event" ? "Event.Name" : null);
+        reader.Queries[^1].ExceptionType.Should().Be(field is "exception" ? "System.IOException" : null);
+        reader.Queries[^1].FromAuditSequence.Should().Be(field is "fromSequence" ? 1 : null);
+        reader.Queries[^1].UntilAuditSequence.Should().Be(field is "untilSequence" ? long.MaxValue : null);
         viewer.Close();
         viewer.ParentSpanFilter.Should().BeEmpty();
         viewer.Outcome.Should().Be(EvidenceViewModel.OutcomeChoices[0]);
         viewer.ContentAvailability.Should().Be(EvidenceContentAvailability.Any);
+        viewer.EventNameFilter.Should().BeEmpty();
+        viewer.ExceptionTypeFilter.Should().BeEmpty();
+        viewer.FromAuditSequenceFilter.Should().BeEmpty();
+        viewer.UntilAuditSequenceFilter.Should().BeEmpty();
     }
 }

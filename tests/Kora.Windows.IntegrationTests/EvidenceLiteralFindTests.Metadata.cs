@@ -27,10 +27,18 @@ public sealed partial class EvidenceLiteralFindTests
             {
                 window.GetLogicalDescendants().OfType<Expander>().Single().IsExpanded = true;
                 window.UpdateLayout();
+                var filters = window.GetLogicalDescendants().OfType<ScrollViewer>()
+                    .Single(control => control.MaxHeight == 280);
+                filters.Bounds.Height.Should().BeLessThanOrEqualTo(280);
+                filters.VerticalScrollBarVisibility.Should().Be(Avalonia.Controls.Primitives.ScrollBarVisibility.Auto);
                 var parent = window.FindControl<TextBox>("ParentSpanId")!;
                 var outcome = window.FindControl<ComboBox>("OperationOutcome")!;
                 var content = window.FindControl<ComboBox>("ContentAvailability")!;
-                foreach (var control in new Control[] { parent, outcome, content })
+                var eventName = window.FindControl<TextBox>("EventName")!;
+                var exceptionType = window.FindControl<TextBox>("ExceptionType")!;
+                var fromSequence = window.FindControl<TextBox>("FromAuditSequence")!;
+                var untilSequence = window.FindControl<TextBox>("UntilAuditSequence")!;
+                foreach (var control in new Control[] { parent, outcome, content, eventName, exceptionType, fromSequence, untilSequence })
                 {
                     control.IsEffectivelyVisible.Should().BeTrue();
                     control.IsEnabled.Should().BeTrue();
@@ -60,20 +68,36 @@ public sealed partial class EvidenceLiteralFindTests
                 content.SelectedIndex.Should().Be(1);
                 viewer.ContentAvailability.Should().Be(EvidenceContentAvailability.Present);
                 reader.Queries.Should().ContainSingle();
+                eventName.Text = "Event.Name";
+                exceptionType.Text = "System.IOException";
+                fromSequence.Text = "1";
+                untilSequence.Text = "9223372036854775807";
                 await viewer.SearchAsync();
                 var query = reader.Queries[^1];
                 query.ParentSpanId.Should().Be(parent.Text);
                 query.Outcome.Should().Be(HostOperationOutcome.Completed);
                 query.ContentAvailability.Should().Be(EvidenceContentAvailability.Present);
+                query.EventName.Should().Be(eventName.Text);
+                query.ExceptionType.Should().Be(exceptionType.Text);
+                query.FromAuditSequence.Should().Be(1);
+                query.UntilAuditSequence.Should().Be(long.MaxValue);
                 Click(window, "ClearAdvanced");
                 parent.Text.Should().BeEmpty();
                 outcome.SelectedIndex.Should().Be(0);
                 content.SelectedIndex.Should().Be(0);
+                eventName.Text.Should().BeEmpty();
+                exceptionType.Text.Should().BeEmpty();
+                fromSequence.Text.Should().BeEmpty();
+                untilSequence.Text.Should().BeEmpty();
                 reader.Queries.Should().HaveCount(2);
                 await viewer.SearchAsync();
                 reader.Queries[^1].ParentSpanId.Should().BeNull();
                 reader.Queries[^1].Outcome.Should().BeNull();
                 reader.Queries[^1].ContentAvailability.Should().Be(EvidenceContentAvailability.Any);
+                reader.Queries[^1].EventName.Should().BeNull();
+                reader.Queries[^1].ExceptionType.Should().BeNull();
+                reader.Queries[^1].FromAuditSequence.Should().BeNull();
+                reader.Queries[^1].UntilAuditSequence.Should().BeNull();
             }
             finally { window.Close(); }
         });

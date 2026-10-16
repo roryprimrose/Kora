@@ -27,6 +27,10 @@ internal sealed partial class EvidenceViewModel
     private string eventIdFilter = string.Empty;
     private string categoryFilter = string.Empty;
     private string actionIdFilter = string.Empty;
+    private string eventNameFilter = string.Empty;
+    private string exceptionTypeFilter = string.Empty;
+    private string fromAuditSequenceFilter = string.Empty;
+    private string untilAuditSequenceFilter = string.Empty;
     private EvidenceSeverity? severity;
     private SecurityAuditOutcome? auditOutcome;
 
@@ -58,6 +62,10 @@ internal sealed partial class EvidenceViewModel
     public string EventIdFilter { get => eventIdFilter; set => ChangeFilter(ref eventIdFilter, value); }
     public string CategoryFilter { get => categoryFilter; set => ChangeFilter(ref categoryFilter, value); }
     public string ActionIdFilter { get => actionIdFilter; set => ChangeFilter(ref actionIdFilter, value); }
+    public string EventNameFilter { get => eventNameFilter; set => ChangeFilter(ref eventNameFilter, value); }
+    public string ExceptionTypeFilter { get => exceptionTypeFilter; set => ChangeFilter(ref exceptionTypeFilter, value); }
+    public string FromAuditSequenceFilter { get => fromAuditSequenceFilter; set => ChangeFilter(ref fromAuditSequenceFilter, value); }
+    public string UntilAuditSequenceFilter { get => untilAuditSequenceFilter; set => ChangeFilter(ref untilAuditSequenceFilter, value); }
     public EvidenceSeverity? Severity { get => severity; set => ChangeFilter(ref severity, value); }
     public SecurityAuditOutcome? AuditOutcome { get => auditOutcome; set => ChangeFilter(ref auditOutcome, value); }
 
@@ -75,6 +83,10 @@ internal sealed partial class EvidenceViewModel
         EventIdFilter = string.Empty;
         CategoryFilter = string.Empty;
         ActionIdFilter = string.Empty;
+        EventNameFilter = string.Empty;
+        ExceptionTypeFilter = string.Empty;
+        FromAuditSequenceFilter = string.Empty;
+        UntilAuditSequenceFilter = string.Empty;
         Severity = null;
         AuditOutcome = null;
     }
@@ -114,7 +126,22 @@ internal sealed partial class EvidenceViewModel
         EventId = EventIdentifier(EventIdFilter),
         Category = ExactText(CategoryFilter),
         ActionId = ExactText(ActionIdFilter),
+        EventName = ExactText(EventNameFilter),
+        ExceptionType = ExactText(ExceptionTypeFilter),
+        FromAuditSequence = AuditSequence(FromAuditSequenceFilter),
+        UntilAuditSequence = AuditSequence(UntilAuditSequenceFilter),
     };
+
+    private static long? AuditSequence(string value)
+    {
+        if (string.IsNullOrEmpty(value)) { return null; }
+        if (!long.TryParse(value, NumberStyles.None, CultureInfo.InvariantCulture, out var sequence)
+            || sequence <= 0 || !string.Equals(value, sequence.ToString(CultureInfo.InvariantCulture), StringComparison.Ordinal))
+        {
+            throw new FormatException("Audit sequence requires a canonical invariant positive 64-bit integer.");
+        }
+        return sequence;
+    }
 
     private static int? EventIdentifier(string value)
     {

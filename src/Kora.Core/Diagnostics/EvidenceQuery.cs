@@ -19,6 +19,10 @@ public sealed record EvidenceQuery
     public string? ParentSpanId { get; init; }
     public HostOperationOutcome? Outcome { get; init; }
     public EvidenceContentAvailability ContentAvailability { get; init; }
+    public string? EventName { get; init; }
+    public string? ExceptionType { get; init; }
+    public long? FromAuditSequence { get; init; }
+    public long? UntilAuditSequence { get; init; }
     public DateTimeOffset? FromUtc { get; init; }
     public DateTimeOffset? UntilUtc { get; init; }
     public EvidenceSeverity? Severity { get; init; }
@@ -32,6 +36,10 @@ public sealed record EvidenceQuery
     public bool MatchesRetainedMetadata(EvidenceRecord record) =>
         (ParentSpanId is null || string.Equals(record.Trace?.ParentSpanId, ParentSpanId, StringComparison.Ordinal))
         && (Outcome is null || record.Outcome == Outcome)
+        && (EventName is null || string.Equals(record.EventName, EventName, StringComparison.Ordinal))
+        && (ExceptionType is null || string.Equals(record.ExceptionType, ExceptionType, StringComparison.Ordinal))
+        && (FromAuditSequence is null || record.AuditSequence >= FromAuditSequence)
+        && (UntilAuditSequence is null || record.AuditSequence <= UntilAuditSequence)
         && (ContentAvailability switch
         {
             EvidenceContentAvailability.Any => true,

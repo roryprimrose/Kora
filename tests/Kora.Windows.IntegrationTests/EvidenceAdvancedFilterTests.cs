@@ -148,6 +148,10 @@ public sealed partial class EvidenceAdvancedFilterTests
             viewer.EventIdFilter = "-2147483648";
             viewer.CategoryFilter = "Exact.Category";
             viewer.ActionIdFilter = "Exact Action / correlation";
+            viewer.EventNameFilter = "Event.Name";
+            viewer.ExceptionTypeFilter = "System.IOException";
+            viewer.FromAuditSequenceFilter = "1";
+            viewer.UntilAuditSequenceFilter = "9223372036854775807";
             await viewer.SearchAsync();
             var query = reader.Queries.Single();
             query.SessionId.Should().Be(request.SessionId);
@@ -166,6 +170,10 @@ public sealed partial class EvidenceAdvancedFilterTests
             query.EventId.Should().Be(int.MinValue);
             query.Category.Should().Be("Exact.Category");
             query.ActionId.Should().Be("Exact Action / correlation");
+            query.EventName.Should().Be("Event.Name");
+            query.ExceptionType.Should().Be("System.IOException");
+            query.FromAuditSequence.Should().Be(1);
+            query.UntilAuditSequence.Should().Be(long.MaxValue);
             viewer.CanNext.Should().BeTrue();
             viewer.Select(viewer.Records[0]);
             await viewer.NextAsync();
@@ -655,7 +663,8 @@ public sealed partial class EvidenceAdvancedFilterTests
     public async Task InvalidExactTextNeverReadsTheStore(string value)
     {
         using var listener = WindowsDailyEvidenceReaderTests.Listen();
-        foreach (var field in new[] { nameof(EvidenceViewModel.CategoryFilter), nameof(EvidenceViewModel.ActionIdFilter) })
+        foreach (var field in new[] { nameof(EvidenceViewModel.CategoryFilter), nameof(EvidenceViewModel.ActionIdFilter),
+            nameof(EvidenceViewModel.EventNameFilter), nameof(EvidenceViewModel.ExceptionTypeFilter) })
         {
             var reader = new CapturingReader();
             var viewer = Viewer(reader);
@@ -671,6 +680,8 @@ public sealed partial class EvidenceAdvancedFilterTests
     [Theory]
     [InlineData(nameof(EvidenceViewModel.CategoryFilter), 256)]
     [InlineData(nameof(EvidenceViewModel.ActionIdFilter), 128)]
+    [InlineData(nameof(EvidenceViewModel.EventNameFilter), 128)]
+    [InlineData(nameof(EvidenceViewModel.ExceptionTypeFilter), 256)]
     public async Task NativeExactTextPreservesTheAuthoritativeLimitWithoutTruncation(string field, int limit)
     {
         using var listener = WindowsDailyEvidenceReaderTests.Listen();
@@ -764,6 +775,10 @@ public sealed partial class EvidenceAdvancedFilterTests
         viewer.SpanFilter = "0123456789abcdef";
         viewer.CategoryFilter = "test";
         viewer.ActionIdFilter = "exact action";
+        viewer.EventNameFilter = "Event.Name";
+        viewer.ExceptionTypeFilter = "System.IOException";
+        viewer.FromAuditSequenceFilter = "1";
+        viewer.UntilAuditSequenceFilter = "2";
         await viewer.SearchAsync();
         viewer.Select(viewer.Records[0]);
         await viewer.ReadTraceAsync();
@@ -773,6 +788,10 @@ public sealed partial class EvidenceAdvancedFilterTests
         reader.Queries[^1].EventId.Should().BeNull();
         reader.Queries[^1].Category.Should().BeNull();
         reader.Queries[^1].ActionId.Should().BeNull();
+        reader.Queries[^1].EventName.Should().BeNull();
+        reader.Queries[^1].ExceptionType.Should().BeNull();
+        reader.Queries[^1].FromAuditSequence.Should().BeNull();
+        reader.Queries[^1].UntilAuditSequence.Should().BeNull();
         var reference = viewer.Records[0].Reference;
         await viewer.NavigateAsync(new(new string('a', 32), new string('b', 16), EvidenceSegmentStatus.Present, reference));
         reader.Queries[^1].Record.Should().Be(reference);
@@ -780,6 +799,10 @@ public sealed partial class EvidenceAdvancedFilterTests
         reader.Queries[^1].EventId.Should().BeNull();
         reader.Queries[^1].Category.Should().BeNull();
         reader.Queries[^1].ActionId.Should().BeNull();
+        reader.Queries[^1].EventName.Should().BeNull();
+        reader.Queries[^1].ExceptionType.Should().BeNull();
+        reader.Queries[^1].FromAuditSequence.Should().BeNull();
+        reader.Queries[^1].UntilAuditSequence.Should().BeNull();
         viewer.Close();
     }
 
@@ -828,7 +851,7 @@ public sealed partial class EvidenceAdvancedFilterTests
             envelope = WindowsDailyEvidenceReaderTests.Produce(owner, 1)[0] with
             {
                 Trace = TraceSnapshot.Capture(producer.Activity), AuditCorrelationId = audit.CorrelationId,
-                ApprovalId = audit.ApprovalId,
+                ApprovalId = audit.ApprovalId, EventName = "Event.Name", ExceptionType = "System.IOException",
             };
             sink.WriteAudit(new(envelope, audit));
             sink.WriteDiagnostic(envelope);
@@ -856,6 +879,10 @@ public sealed partial class EvidenceAdvancedFilterTests
             () => viewer.CategoryFilter = "Other.Category",
             () => viewer.ActionIdFilter = "other.action",
             () => viewer.AuditOutcome = SecurityAuditOutcome.Denied,
+            () => viewer.EventNameFilter = "event.name",
+            () => viewer.ExceptionTypeFilter = "system.ioexception",
+            () => { viewer.UntilAuditSequenceFilter = ""; viewer.FromAuditSequenceFilter = "2"; },
+            () => { viewer.FromAuditSequenceFilter = "2"; viewer.UntilAuditSequenceFilter = "2"; },
         ];
         foreach (var mismatch in mismatches)
         {
@@ -879,6 +906,10 @@ public sealed partial class EvidenceAdvancedFilterTests
             viewer.CategoryFilter = envelope.Category;
             viewer.ActionIdFilter = audit.ActionId;
             viewer.AuditOutcome = audit.Outcome;
+            viewer.EventNameFilter = envelope.EventName!;
+            viewer.ExceptionTypeFilter = envelope.ExceptionType!;
+            viewer.FromAuditSequenceFilter = "1";
+            viewer.UntilAuditSequenceFilter = "1";
             await viewer.SearchAsync();
             viewer.Records.Should().ContainSingle().Which.Audit.Should().BeEquivalentTo(audit);
             mismatch();
@@ -916,6 +947,8 @@ public sealed partial class EvidenceAdvancedFilterTests
             case nameof(EvidenceViewModel.EventIdFilter): viewer.EventIdFilter = value; break;
             case nameof(EvidenceViewModel.CategoryFilter): viewer.CategoryFilter = value; break;
             case nameof(EvidenceViewModel.ActionIdFilter): viewer.ActionIdFilter = value; break;
+            case nameof(EvidenceViewModel.EventNameFilter): viewer.EventNameFilter = value; break;
+            case nameof(EvidenceViewModel.ExceptionTypeFilter): viewer.ExceptionTypeFilter = value; break;
             default: throw new ArgumentException("Unknown test field.", nameof(field));
         }
     }

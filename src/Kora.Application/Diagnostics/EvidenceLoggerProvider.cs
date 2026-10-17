@@ -212,7 +212,11 @@ public sealed class EvidenceLoggerProvider : ILoggerProvider, ISupportExternalSc
         FanOut(identity, sink => writes.Add(sink, prepare((IDeferredEvidenceSink)sink)), ordinary: true, serialize: false);
         buffer!.Enqueue(() =>
         {
-            FanOut(identity, sink => writes[sink](), ordinary: true);
+            FanOut(identity, sink =>
+            {
+                // A preparation rejected by an explicitly unavailable ordinary policy already reported its gap.
+                if (writes.TryGetValue(sink, out var write)) { write(); }
+            }, ordinary: true);
             reportContextGap?.Invoke();
         });
     }

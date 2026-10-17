@@ -283,6 +283,8 @@ public sealed class WindowsSqliteEvidenceQueryTests
         using var fixture = new OwnedStorageFixture();
         var sink = new WindowsSqliteEvidenceSink(fixture);
         var health = new FileEvidenceHealth();
+        WindowsDailyEvidenceReaderTests.Write(fixture,
+            "kora-" + DateTime.Now.ToString("yyyyMMdd", System.Globalization.CultureInfo.InvariantCulture) + ".log", []);
         using var file = Kora.DailyFileLoggerFactory.Create(fixture, health);
         var daily = new Kora.FileEvidenceSink(file, health);
         await using var provider = new EvidenceLoggerProvider([daily, sink], daily, bufferDiagnostics: true);

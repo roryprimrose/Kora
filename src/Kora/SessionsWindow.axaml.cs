@@ -189,17 +189,18 @@ internal sealed partial class SessionsWindow : Window
         ListMemories.Click += async (_, _) => await model.ListMemoriesAsync();
         ProposeMemory.Click += async (_, _) => await model.ProposeMemoryAsync();
         ClearMemoryFilters.Click += (_, _) => { model.ClearMemoryFilters(); MemoryIdFilter.Focus(); };
-        foreach (var filter in new[] { MemoryIdFilter, MemoryScopeIdentityFilter, MemoryMinimumRevisionFilter, MemoryMaximumRevisionFilter,
-            MemoryCreatedFromFilter, MemoryCreatedUntilFilter })
+        foreach (var filter in new Control[] { MemoryIdFilter, MemoryScopeIdentityFilter, MemoryMinimumRevisionFilter, MemoryMaximumRevisionFilter,
+            MemoryCreatedFromFilter, MemoryCreatedUntilFilter, MemoryScopeFilter, MemoryReviewFilter, MemoryRetentionFilter, MemoryOrder })
         {
-            filter.KeyDown += (_, args) =>
+            filter.AddHandler(KeyDownEvent, (_, args) =>
             {
                 if (args.Key == Key.Escape)
                 {
                     args.Handled = true;
+                    if (filter is ComboBox choice) { choice.IsDropDownOpen = false; }
                     model.ClearMemoryFilters();
                 }
-            };
+            }, Avalonia.Interactivity.RoutingStrategies.Tunnel);
         }
         MemoryRecords.SelectionChanged += (_, _) =>
             model.SelectMemory(MemoryRecords.SelectedItem as Kora.Core.Commands.MemorySummary);

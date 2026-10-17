@@ -7,6 +7,7 @@ public sealed record OwnedDefinitionInventoryPage(
 {
     internal OwnedDefinitionInventory? Inventory { get; init; }
     internal string Query { get; init; } = string.Empty;
+    internal OwnedDefinitionInventoryQueryMode Mode { get; init; }
     internal OwnedDefinitionUseFilter Filter { get; init; }
     internal string Digest { get; init; } = string.Empty;
     internal string Revision { get; init; } = string.Empty;

@@ -39,7 +39,17 @@ legacy selection behavior, but are read-only rather than silently renamed by Sav
 **List** / **Refresh** explicitly enumerates the selected kind's existing bounded owned directory and runs the existing source-reconciliation pipeline. That refresh can read source files and reconcile revision preferences; typing a search or changing a use-state filter cannot.
 The inventory contains at most 128 filenames for the explicit Instruction or Prompt kind, in ordinal filename order. Its source is fixed to Kora-owned roaming data. No profile, bundled, skill, agent or additional-directory inventory is added.
 
-Use **Owned metadata search** for a literal, case-insensitive substring of the filename ID, already available display name or source-qualified artifact ID. An exact ID also matches; spaces and punctuation are literal, not wildcards, regex, paths or executable input.
+Use **Navigation mode** to choose **Literal** (default), **ExactOwnedId** or **ExactArtifactId** over the existing snapshot ([inventory matcher](../src/Kora.Application/Definitions/OwnedDefinitionInventory.cs)).
+
+- **Literal** retains ordinal-ignore-case substring matching over the filename (including extension), available display name or artifact ID. Spaces and punctuation are literal, not wildcards, regex, paths or executable input.
+- **ExactOwnedId** matches only the canonical owned **name ID**, not the filename extension, display name, artifact ID or path.
+  It reuses [owned name admission](../src/Kora.Core/ArtifactInvocation/OwnedInstructionNames.cs): at most 64 lowercase ASCII letters/digits/hyphens, no leading/trailing hyphen or reserved device name.
+  Legacy noncanonical/Unicode names remain available in Literal and existing explicit inspection, not exact canonical-name navigation.
+- **ExactArtifactId** matches only a mapped, revisioned row's existing validated artifact ID with ordinal case-sensitive equality.
+  It reuses [artifact identity admission](../src/Kora.Core/ArtifactInvocation/ArtifactDefinition.cs): nonempty, at most 128 lowercase ASCII letters/digits/dots/hyphens.
+  Unknown/unmapped rows cannot match, and names, display labels or correlation fields are not identity authority.
+
+Exact modes require a complete nonempty ID; invalid, uppercase, partial-grammar or whitespace-padded input is rejected, never repaired. A valid but absent ID gives zero matches. Neither exact mode opens a source or grants use authority ([mode tests](../tests/Kora.Application.UnitTests/Definitions/OwnedDefinitionInventoryTests.QueryModes.cs)).
 Queries accept at most 256 UTF-16 units / 512 UTF-8 bytes, with valid single-line Unicode and no control/format characters. Invalid queries show an error and no rows; they are never trimmed or truncated.
 
 **Exact SHA-256** is an optional artifact-digest predicate for both owned kinds. Empty means **Any**; otherwise enter exactly 64 lowercase hexadecimal characters. No whitespace, uppercase, prefixes or partial digests are accepted, and input is never trimmed, case-folded or repaired. It matches only the observed artifact digest with ordinal equality, not the native revision. Unmapped/unknown digests match only Any; an unknown use state can still have a known digest.
@@ -48,16 +58,22 @@ Queries accept at most 256 UTF-16 units / 512 UTF-8 bytes, with valid single-lin
 
 **Observed UTC From (inclusive)** and **Observed UTC Until (inclusive)** optionally bound the snapshot observation time. Empty means **Any** for that bound; nonempty input must be exact canonical UTC, for example `2026-10-12T00:00:00.0000000+00:00`. `Z`, nonzero offsets, missing fractional digits, whitespace and reversed ranges are rejected. Equal bounds include that exact instant. All rows in one inventory share its observation time, including unmapped rows; this is not source modification time, freshness, trust, approval, ownership or use authority.
 
-Literal query, use state, exact digest, exact native revision and both observed-time bounds are AND predicates. **Clear search** restores the empty query, **All** use filter and **Any** digest, revision and time bounds. Controls have accessible names and are keyboard focusable.
+The selected query mode, use state, exact digest, exact native revision and both observed-time bounds are AND predicates.
+**Clear search**, or **Escape** while focus is in the metadata toolbar, restores **Literal**, the empty query, **All** use filter and **Any** digest, revision and time bounds.
+Mode and query controls have explicit accessible labels and are keyboard focusable ([native controls](../src/Kora/OwnedInstructionEditorWindow.cs)).
 
 **All**, **UseEnabled**, **ReviewRequired** and **UnavailableOrUnknown** filter only observed catalogue metadata. Held/changed revisions share ReviewRequired; the inventory cannot infer why an approval is absent. Unmapped or unrevisioned files are unknown, never implicitly enabled.
 Rows disclose kind, filename ID, available display name, fixed source, artifact ID, digest, native revision and observed UTC. They contain no body/excerpt, description, attribution or full path.
-The complete visible label/details payload is at most 64 KiB UTF-8. Every enumerated filename and mapped metadata row, including native revision syntax, is validated before any predicate or offset can exclude it. **Next** exposes any omitted complete rows in deterministic pages bound to the original inventory and complete query/use/digest/revision/time state; editing any predicate restarts the visible page. Zero matches means zero matches, not unavailable or a fallback. No row is silently truncated.
+The complete visible label/details payload is at most 64 KiB UTF-8. Every enumerated filename and mapped metadata row, including native revision syntax, is validated before any predicate or offset can exclude it.
+**Next** exposes any omitted complete rows in deterministic pages bound to the original inventory and complete mode/query/use/digest/revision/time state; editing any predicate restarts the visible page.
+Zero matches means zero matches, not unavailable or a fallback. No row is silently truncated ([paging](../src/Kora.Application/Definitions/OwnedDefinitionInventory.cs)).
 
 **Observed catalogue use state; inspect revalidates disk and exact revision.** This is not disk-current freshness, compatibility or integrity proof. Select a row and explicitly **Inspect**: admission rechecks the original snapshot/kind/file ID/digest/native revision, not a newly looked-up same-name replacement.
 Changed, replaced, disappeared or expired choices refuse with Refresh/reselect recovery. Unknown rows cannot prove an exact match; explicitly enter their current filename ID for the existing admitted compatibility inspection. Exact `instructions inspect <id>` / `prompts inspect <id>` deliberately inspects the current ID, rather than claiming a historical row match.
 
 Search/filter/page changes never open the first result or save/discard/replace the open original or dirty draft. Editing any predicate immediately retires selection/details, the prior page/continuation, validation and pending review/use controls, even when the selected row would still match. Reselect and explicitly Inspect to restore exact use-review controls; late inspection/refresh/review callbacks cannot restore retired choices. The draft stays open. **Reload** still deliberately reloads the open original after its dirty-draft review.
+Changing mode follows the same retirement path without List/Refresh/Inspect, save/activation/delete/copy or draft loss.
+An open Compare retires, but a separately requested **Compare** can still show the admitted frozen historical baseline and exact unsaved raw draft; it does not establish current source state ([native lifecycle tests](../tests/Kora.Windows.IntegrationTests/ArtifactDiscovery/OwnedDefinitionEditorWindowTests.Inventory.cs)).
 Catalogue/use/source/call changes invalidate choices. Failed refresh clears availability and labels historical observations unavailable; it does not offer a last-good inventory as current. Privacy/ownership/closure clears query, rows, selection and private editor text, and late callbacks cannot repopulate it.
 Typed/current-name activated `list` focuses this same native filter route; no typed search grammar or voice-only approval is advertised. Filtering creates no index, persistence, model/network call, watcher restart, source write or activation. Predicate input remains private ephemeral metadata/correlation only: no logging, audit payload, activity renewal, speech, clipboard or export; it never grants use authority, admits a revision, overrides content identity or proves current disk integrity.
 

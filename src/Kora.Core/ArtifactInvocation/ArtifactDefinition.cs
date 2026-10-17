@@ -17,7 +17,7 @@ public sealed record ArtifactDefinition
         string digest,
         string content)
     {
-        Id = ValidateIdentifier(id, nameof(id), 128);
+        Id = ValidateId(id);
         if (!Enum.IsDefined(kind))
         {
             throw new ArgumentOutOfRangeException(nameof(kind));
@@ -62,6 +62,8 @@ public sealed record ArtifactDefinition
     public bool RequiresInstructionReview { get; init; }
     public string? OwnedInstructionRevision { get; init; }
     public OwnedPromptTemplate? PromptTemplate { get; init; }
+
+    public static string ValidateId(string id) => ValidateIdentifier(id, nameof(id), 128);
 
     private static string ValidateIdentifier(string value, string parameterName, int maximum)
     {

@@ -2,6 +2,8 @@
 
 using Kora.Application.Definitions;
 using Kora.Core.Artifacts;
+using Kora.Core.Diagnostics;
+using Kora.Core.Hosting;
 
 namespace Kora;
 
@@ -87,14 +89,16 @@ internal sealed partial class OwnedInstructionEditorController
         try
         {
             var query = opened.QueryInput.Text ?? string.Empty;
+            var mode = opened.QueryModeInput.SelectedItem is OwnedDefinitionInventoryQueryMode selectedMode
+                ? selectedMode : throw new InvalidOperationException("Select an explicit owned metadata navigation mode.");
             var filter = opened.UseStateInput.SelectedItem is OwnedDefinitionUseFilter value ? value : OwnedDefinitionUseFilter.All;
             var digest = opened.DigestInput.Text ?? string.Empty;
             var revision = opened.RevisionInput.Text ?? string.Empty;
             var from = opened.ObservedFromInput.Text ?? string.Empty;
             var until = opened.ObservedUntilInput.Text ?? string.Empty;
             var page = next && inventoryPage is { } previous
-                ? snapshot.Continue(previous, query, filter, digest, revision, from, until)
-                : snapshot.Page(query, filter, digest: digest, revision: revision, observedFromUtc: from, observedUntilUtc: until);
+                ? snapshot.Continue(previous, query, filter, digest, revision, from, until, mode)
+                : snapshot.Page(query, filter, digest: digest, revision: revision, observedFromUtc: from, observedUntilUtc: until, mode: mode);
             inventoryPage = page;
             opened.ShowInventory(page);
             if (selected is not null && (edited || !page.Rows.Contains(selected)))
@@ -105,7 +109,9 @@ internal sealed partial class OwnedInstructionEditorController
         }
         catch (Exception exception) when (exception is InvalidDataException or ArgumentException or InvalidOperationException)
         {
+            using var diagnostic = HostActivity.BeginOperation(HostActivityLayer.Desktop, HostOperation.Presentation, RequestOrigin.LocalUi);
             EditorFailed(logger, exception.GetType().Name);
+            diagnostic.Complete(HostOperationOutcome.Failed);
             inventoryPage = null; inventoryChoiceWithdrawn = true;
             opened.ClearInventory();
             opened.ReportInventory(exception.Message + " No truncation or partial match; draft retained.");

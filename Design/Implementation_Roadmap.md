@@ -34,6 +34,19 @@ do not depend on hosted management, and speech preferences do not qualify wake.
 
 ## Current Delivery
 
+### Bounded exact-grant committed request correlation predicates - 2026-10-17
+
+The [one-exact-grant history](../docs/settings.md#exact-operation-grants)
+adds optional exact committed HostRequest SessionId/RequestId/TaskId, AND-composed
+with every existing predicate. The [query](../src/Kora.Core/Authorization/ExactGrantHistoryQuery.cs)
+reuses strict canonical GUID parsing and binds each field in its versioned digest.
+Named [native fields](../src/Kora/ExactGrantsWindow.axaml) retain no-read edits,
+clear/reset, review retirement and existing bounded reader/admission fences.
+Only committed request metadata matches, never viewer/original-proposal authority.
+Deterministic Core/Application/private SQLite/headless tests cover this consumed
+I subset; no schema, log source, service, external action or E/Q qualification is
+added. Unavailable runtime/provider/egress/wake/profile-original writers stay disabled.
+
 ### Bounded native session-list ExactName - 2026-10-16
 
 Built on freshly fetched main `afdee7f508bc2e186bf56ef5f65cb27711e83bd1`.

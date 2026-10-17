@@ -180,7 +180,7 @@ public sealed partial class ExactGrantsViewModel : ObservableObject, IDisposable
             NotifyCommands();
         }
     }
-    public string Inspection => inspectedHistoryTarget is { } inspected ? Format(inspected)
+    public string Inspection => Selected is not null && inspectedHistoryTarget is { } inspected ? Format(inspected)
         : "Select one exact retained ID, then Inspect current record.";
 
     public Task RefreshAsync(CancellationToken token = default) => ReadPageAsync(null, token);
@@ -378,6 +378,7 @@ public sealed partial class ExactGrantsViewModel : ObservableObject, IDisposable
         historyRetentionFilter = "Any";
         historyCommittedFromUtc = historyCommittedUntilUtc = historyDueFromUtc = historyDueUntilUtc = string.Empty;
         historyAuditCorrelationId = historyApprovalId = string.Empty;
+        historySessionId = historyRequestId = historyTaskId = string.Empty;
         historyApprovalFilter = "Any";
         InventorySummary = "Closed. No retained query metadata or late private output is admitted.";
         OnPropertyChanged(nameof(ScopeFilter));
@@ -395,6 +396,9 @@ public sealed partial class ExactGrantsViewModel : ObservableObject, IDisposable
         OnPropertyChanged(nameof(HistoryAuditCorrelationId));
         OnPropertyChanged(nameof(HistoryApprovalFilter));
         OnPropertyChanged(nameof(HistoryApprovalId));
+        OnPropertyChanged(nameof(HistorySessionId));
+        OnPropertyChanged(nameof(HistoryRequestId));
+        OnPropertyChanged(nameof(HistoryTaskId));
         Records = [];
         Reviewed = false;
         Message = "Closed. No late private output is admitted.";

@@ -107,6 +107,11 @@ public sealed class SpeechCaptionWindowController : ObservableObject, IDisposabl
                 ClearAndHide();
                 return;
             }
+            if (presentation.IsReaderTypographyUpdatePending)
+            {
+                ClearAndHide();
+                return;
+            }
             presentation.EnsureReaderTypographyAvailable();
             if (!presentation.IsSpeechCaptionVisible || presentation.SpeechCaptionText is not { } text)
             {

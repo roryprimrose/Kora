@@ -106,7 +106,7 @@ public sealed partial class MainViewModelTests
         fixture.ViewModel.IsModelQuestionPending.Should().BeTrue();
         fixture.ViewModel.ResponseTitle.Should().Be("Session command blocked.");
         await fixture.ViewModel.CancelModelQuestionAsync();
-        fixture.ViewModel.PrepareGrantChange(new(GrantChangeOperation.Add,
+        await fixture.ViewModel.PrepareGrantChangeAsync(new(GrantChangeOperation.Add,
             BuiltInAction.LockMachine, ModelApprovalScope.Always));
         await fixture.RunAsync("session help");
         fixture.ViewModel.IsGrantChangePending.Should().BeTrue();

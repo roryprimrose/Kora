@@ -91,6 +91,7 @@ public sealed partial class SpeechCaptionDisplayTests
             using var fixture = new NativeUxFixtureSession(Path.GetTempPath(), silentCaption: true);
             await fixture.InitializeAsync();
             fixture.Main.ReaderTextScalePercent = percent;
+            await fixture.Main.AppearanceUpdate;
             Dispatcher.UIThread.RunJobs();
             var primary = Display(0, 0, 1920, 1080, 1, primary: true);
             var window = new SpeechCaptionWindow(fixture.Main);
@@ -109,6 +110,7 @@ public sealed partial class SpeechCaptionDisplayTests
             foreach (var scale in new[] { 200, 75, 100, percent })
             {
                 fixture.Main.ReaderTextScalePercent = scale;
+                await fixture.Main.AppearanceUpdate;
                 Dispatcher.UIThread.RunJobs();
                 body.FontSize.Should().Be(baseline * scale / 100d);
                 body.Text.Should().Be(fixture.SilentSpeech.ExactText);
@@ -117,6 +119,7 @@ public sealed partial class SpeechCaptionDisplayTests
             }
             await fixture.CompleteSyntheticCaptionAsync();
             fixture.Main.ReaderTextScalePercent = percent == 75 ? 200 : 75;
+            await fixture.Main.AppearanceUpdate;
             Dispatcher.UIThread.RunJobs();
             body.Text.Should().Be(fixture.SilentSpeech.ExactText);
             fixture.Main.SpeechCaptionLabel.Should().Be("PREVIOUS SPEECH");
@@ -125,6 +128,7 @@ public sealed partial class SpeechCaptionDisplayTests
             body.Text.Should().BeNullOrEmpty("source retirement must clear without waiting for a frame");
             body.FontSize.Should().Be(baseline);
             fixture.Main.ReaderTextScalePercent = 100;
+            await fixture.Main.AppearanceUpdate;
             Dispatcher.UIThread.RunJobs();
             controller.Refresh();
             body.Text.Should().BeNullOrEmpty();
@@ -195,6 +199,7 @@ public sealed partial class SpeechCaptionDisplayTests
             using var fixture = new NativeUxFixtureSession(Path.GetTempPath());
             await fixture.InitializeAsync();
             fixture.Main.ReaderTextScalePercent = 200;
+            await fixture.Main.AppearanceUpdate;
             Dispatcher.UIThread.RunJobs();
             var caption = new Caption { OnTypographyAdmission = fixture.Main.EnsureReaderTypographyAvailable,
                 ReaderTextScalePercent = fixture.Main.ReaderTextScalePercent };

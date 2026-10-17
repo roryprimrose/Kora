@@ -7,7 +7,7 @@ using Serilog.Parsing;
 
 namespace Kora;
 
-internal sealed class FileEvidenceSink(Serilog.Core.Logger logger, FileEvidenceHealth health) : IEvidenceSink, IEvidenceGapReporter
+internal sealed class FileEvidenceSink(Serilog.Core.Logger logger, FileEvidenceHealth health) : IDeferredEvidenceSink, IEvidenceGapReporter
 {
     private readonly MessageTemplateParser parser = new();
 
@@ -16,6 +16,25 @@ internal sealed class FileEvidenceSink(Serilog.Core.Logger logger, FileEvidenceH
     public void WriteDiagnostic(DiagnosticEnvelope envelope) => Write(envelope, audit: null);
 
     public void WriteAudit(AuditEnvelope envelope) => Write(envelope.Diagnostic, envelope.Audit);
+
+    public Action PrepareDiagnostic(DiagnosticEnvelope envelope)
+    {
+        var snapshot = envelope with
+        {
+            Properties = new System.Collections.ObjectModel.ReadOnlyDictionary<string, EvidenceValue>(
+                new Dictionary<string, EvidenceValue>(envelope.Properties, StringComparer.Ordinal)),
+            Scopes = envelope.Scopes.Select(scope =>
+                (IReadOnlyDictionary<string, EvidenceValue>)new System.Collections.ObjectModel.ReadOnlyDictionary<string, EvidenceValue>(
+                    new Dictionary<string, EvidenceValue>(scope, StringComparer.Ordinal))).ToArray(),
+        };
+        return () => WriteDiagnostic(snapshot);
+    }
+
+    public Action PrepareActivity(CompletedActivityEnvelope envelope)
+    {
+        var snapshot = envelope with { Links = envelope.Links.ToArray() };
+        return () => WriteActivity(snapshot);
+    }
 
     public void WriteActivity(CompletedActivityEnvelope envelope)
     {

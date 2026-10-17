@@ -10,6 +10,8 @@ public interface ISpeechCaptionPresentation : INotifyPropertyChanged
 {
     /// <summary>Gets the last confirmed reader percentage; revalidate before presentation.</summary>
     int ReaderTextScalePercent { get; }
+    /// <summary>Gets whether an owned preference write temporarily holds caption presentation.</summary>
+    bool IsReaderTypographyUpdatePending => false;
     /// <summary>Revalidates confirmed device-local reader evidence, throwing explicitly if unavailable.</summary>
     void EnsureReaderTypographyAvailable();
     /// <summary>Gets the currently observed private text, or <c>null</c>.</summary>

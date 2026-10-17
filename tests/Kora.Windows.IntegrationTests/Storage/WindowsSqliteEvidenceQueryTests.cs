@@ -278,6 +278,44 @@ public sealed class WindowsSqliteEvidenceQueryTests
     [Theory]
     [InlineData(EvidenceSource.Log)]
     [InlineData(EvidenceSource.CombinedLog)]
+    public async Task BufferedProductionSinksPreserveCallTimeHostCorrelationAfterScopeRetirement(EvidenceSource source)
+    {
+        using var fixture = new OwnedStorageFixture();
+        var sink = new WindowsSqliteEvidenceSink(fixture);
+        var health = new FileEvidenceHealth();
+        using var file = Kora.DailyFileLoggerFactory.Create(fixture, health);
+        var daily = new Kora.FileEvidenceSink(file, health);
+        await using var provider = new EvidenceLoggerProvider([daily, sink], daily, bufferDiagnostics: true);
+        var request = HostRequest.Create(RequestOrigin.LocalUi);
+        using (var producer = HostActivity.BeginRoot(request, HostActivityLayer.Application, HostOperation.Request))
+        {
+            var state = new Dictionary<string, object?>(StringComparer.Ordinal)
+            {
+                ["{OriginalFormat}"] = "Observed {Count}",
+                ["Count"] = 42,
+            };
+            provider.CreateLogger("buffered.fixture").Log(LogLevel.Information, new EventId(42),
+                state, null, static (_, _) => "unused");
+            state["Count"] = 99;
+            producer.Complete(HostOperationOutcome.Completed);
+        }
+        await provider.FlushAsync(TestContext.Current.CancellationToken);
+        using var inspection = HostActivity.BeginRoot(HostRequest.Create(RequestOrigin.LocalUi),
+            HostActivityLayer.Desktop, HostOperation.Evidence);
+        IEvidenceReader reader = source == EvidenceSource.CombinedLog
+            ? new WindowsEvidenceReader(new(sink), new(fixture)) : new WindowsSqliteEvidenceReader(sink);
+        var service = new DurableEvidenceQuery(reader, new Access(), TimeProvider.System,
+            NullLogger<DurableEvidenceQuery>.Instance);
+        var page = await service.QueryAsync(new EvidenceQuery { Source = source, EventId = 42 },
+            null, TestContext.Current.CancellationToken);
+        page.Status.Should().Be(source == EvidenceSource.CombinedLog ? EvidencePageStatus.Partial : EvidencePageStatus.Available);
+        page.Records.Should().HaveCount(source == EvidenceSource.CombinedLog ? 2 : 1);
+        page.Records.Should().OnlyContain(row => row.Host!.SessionId == request.SessionId);
+    }
+
+    [Theory]
+    [InlineData(EvidenceSource.Log)]
+    [InlineData(EvidenceSource.CombinedLog)]
     public async Task Real_query_logging_and_completed_spans_cannot_recursively_extend_a_page_snapshot(EvidenceSource source)
     {
         using var fixture = new OwnedStorageFixture();

@@ -17,9 +17,11 @@ public sealed partial class MainViewModel
     private McpServerConfigurationSummary? selectedMcpServer;
     private ArtifactSourceKind selectedArtifactDirectoryKind = ArtifactSourceKind.Skill;
     private bool artifactDirectoryControlActive;
+    public Task ArtifactChangeUpdate { get; private set; } = Task.CompletedTask;
 
     private void OnArtifactCatalogueChanged(object? sender, EventArgs args) =>
-        uiDispatcher.Post(ApplyArtifactCatalogueChange);
+        uiDispatcher.Post(() => new AsyncCommand(() => ArtifactChangeUpdate = ApplyArtifactCatalogueChangeAsync(),
+            HandleCommandException).Execute(null));
 
     private void OnArtifactCatalogueReloadFailed(
         object? sender,
@@ -32,14 +34,16 @@ public sealed partial class MainViewModel
     private void OnMcpServerConfigurationChanged(object? sender, EventArgs args) =>
         uiDispatcher.Post(() => RefreshArtifactDirectories(publishConfigurationChange: false));
 
-    private void ApplyArtifactCatalogueChange()
+    private async Task ApplyArtifactCatalogueChangeAsync()
     {
+        var cancellation = Task.CompletedTask;
+        var retirement = Task.CompletedTask;
         RefreshArtifactCommandOptions();
         var retiredInteraction = false;
         if (activeReasoningArtifact is { } running
             && !artifactCatalogue.IsCapturedRevisionCurrent(running.Id, running.Digest))
         {
-            activeReasoningCancellation?.Cancel();
+            cancellation = activeReasoningCancellation?.CancelAsync() ?? Task.CompletedTask;
             retiredInteraction = true;
         }
         if (pendingQuestionArtifact is { } question
@@ -51,7 +55,7 @@ public sealed partial class MainViewModel
         if (pendingModelActionArtifact is { } action
             && !artifactCatalogue.IsCurrent(action.Id, action.Digest))
         {
-            ClearPendingModelAction("artifact-revision-changed");
+            retirement = ClearPendingModelActionAsync("artifact-revision-changed");
             retiredInteraction = true;
         }
         if (retiredInteraction)
@@ -60,6 +64,7 @@ public sealed partial class MainViewModel
                 "Artifact changed.",
                 "The previous request, question, or approval was retired. Start a new request to use the reloaded artifact revision.");
         }
+        await Task.WhenAll(cancellation, retirement);
     }
 
     public AsyncCommand RefreshArtifactDirectoriesCommand { get; }

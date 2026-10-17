@@ -19,6 +19,7 @@ public sealed partial class MainViewModelTests
         await fixture.RunAsync("set display.speech-text to CurrentUtterance");
         fixture.TextToSpeech.ClearSpokenResponse();
         fixture.ViewModel.ReaderTextScalePercent = percent;
+        await fixture.ViewModel.AppearanceUpdate;
         fixture.TextToSpeech.SpeakGate = new(TaskCreationOptions.RunContinuationsAsynchronously);
         var response = fixture.RunAsync("show your window");
         await fixture.TextToSpeech.SpeakStarted.Task;
@@ -33,6 +34,7 @@ public sealed partial class MainViewModelTests
         foreach (var scale in new[] { percent, 200, 75, 100, percent })
         {
             fixture.ViewModel.ReaderTextScalePercent = scale;
+            await fixture.ViewModel.AppearanceUpdate;
             caption.EnsureReaderTypographyAvailable();
             caption.ReaderTextScalePercent.Should().Be(scale);
             caption.RefreshSpeechPlaybackFrame();
@@ -48,6 +50,7 @@ public sealed partial class MainViewModelTests
         caption.SpeechCaptionText.Should().Be(text);
         caption.SpeechCaptionLabel.Should().Be("PREVIOUS SPEECH");
         fixture.ViewModel.ReaderTextScalePercent = percent == 200 ? 75 : 200;
+        await fixture.ViewModel.AppearanceUpdate;
         caption.RefreshSpeechPlaybackFrame();
         caption.SpeechCaptionText.Should().Be(text);
         caption.SpeechCaptionPinLabel.Should().Be("Unpin");

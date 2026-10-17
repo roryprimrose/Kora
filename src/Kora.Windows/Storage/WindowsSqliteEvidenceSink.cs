@@ -14,7 +14,7 @@ using Microsoft.Data.Sqlite;
 
 namespace Kora.Windows.Storage;
 
-public sealed partial class WindowsSqliteEvidenceSink : IEvidenceSink
+public sealed partial class WindowsSqliteEvidenceSink : IDeferredEvidenceSink
 {
     internal const string PartitionName = "EvidenceStorageV1";
     internal const int MaximumEnvelopeBytes = 65536;
@@ -91,7 +91,9 @@ public sealed partial class WindowsSqliteEvidenceSink : IEvidenceSink
         using var connection = OpenDatabase(created);
     }
 
-    public void WriteDiagnostic(DiagnosticEnvelope envelope)
+    public void WriteDiagnostic(DiagnosticEnvelope envelope) => PrepareDiagnostic(envelope)();
+
+    public Action PrepareDiagnostic(DiagnosticEnvelope envelope)
     {
         ArgumentNullException.ThrowIfNull(envelope);
         ValidateDiagnostic(envelope);
@@ -101,7 +103,7 @@ public sealed partial class WindowsSqliteEvidenceSink : IEvidenceSink
         }
         var values = DiagnosticProjection(envelope);
         var payload = Serialize(envelope);
-        CommitEvidence(() => Write("application_log_events", values, payload, audit: false));
+        return () => CommitEvidence(() => Write("application_log_events", values, payload, audit: false));
     }
 
     public void WriteAudit(AuditEnvelope envelope)
@@ -115,13 +117,16 @@ public sealed partial class WindowsSqliteEvidenceSink : IEvidenceSink
         CommitEvidence(() => Write("security_audit_events", values, payload, audit: true));
     }
 
-    public void WriteActivity(CompletedActivityEnvelope envelope)
+    public void WriteActivity(CompletedActivityEnvelope envelope) => PrepareActivity(envelope)();
+
+    public Action PrepareActivity(CompletedActivityEnvelope envelope)
     {
         ArgumentNullException.ThrowIfNull(envelope);
         ValidateActivity(envelope);
         var values = ActivityProjection(envelope);
         var payload = Serialize(envelope);
-        CommitEvidence(() => WriteActivityCore(envelope, values, payload));
+        var snapshot = envelope with { Links = envelope.Links.ToArray() };
+        return () => CommitEvidence(() => WriteActivityCore(snapshot, values, payload));
     }
 
     private void WriteActivityCore(CompletedActivityEnvelope envelope, Dictionary<string, object> values, string payload)

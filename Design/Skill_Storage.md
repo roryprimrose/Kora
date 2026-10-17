@@ -128,6 +128,12 @@ than silently showing it as current. No content-bearing snapshot is persisted.
 
 Search is a literal ordinal-ignore-case substring over admitted declared name, metadata-qualified identity when name exists, and valid declared description, not bodies, path-fallback identities, files or roots. Queries share strict bounded validation; search exclusion clears private panes and requires explicit reselection, never opening the next row. Refresh/failure/source replacement/withdrawal/private close reset volatile navigation and fence late reads ([native controls](../src/Kora/SharedSkillSourcesWindow.axaml.cs), [controller](../src/Kora/SharedSkillSourcesWindowController.cs)); see [management search semantics](Definition_Management.md#delivered-native-skill-metadata-navigation).
 
+The same [authoritative snapshot query](../src/Kora.Application/Skills/SkillCatalogueSearch.cs) accepts optional exact bundled `DefinitionDigest` / `DeclaredResourceDigest` and shared `RevisionDigest`, AND-composed with every existing predicate. Empty means Any; nonempty input uses [canonical lowercase SHA-256 validation](../src/Kora.Core/ArtifactInvocation/ArtifactDigest.cs), not normalization or an unfiltered fallback.
+
+[Labelled native fields](../src/Kora/SharedSkillSourcesWindow.axaml) are volatile. Edits retire selected identity/text/hex and result mappings immediately; Clear restores empty/All without selection, and Escape closes privately. Generation fences reject stale discovery/recheck callbacks, including same-snapshot reselection ([window/controller](../src/Kora/SharedSkillSourcesWindowController.cs), [headless tests](../tests/Kora.Windows.IntegrationTests/SkillMetadataSearchWindowTests.cs)).
+
+Matching observes only a fully admitted immutable catalogue, without new reads, hidden-name inspection, hashing, discovery, recheck, reload, activation, invocation or grants. Digest equality does not establish authority, current filesystem integrity/freshness or a dependency closure. Complete candidate admission and source bounds remain unchanged ([bundled catalogue](../src/Kora.Core/Skills/SkillPackageCatalogue.cs), [shared catalogue](../src/Kora.Core/Skills/SharedSkillCatalogue.cs)).
+
 Registration is a validated versioned JSON preference under device-local
 `IApplicationDataPaths`, published only through the shared atomic preference
 store with bounded strict-UTF-8 read, serialized-byte validation before

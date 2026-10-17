@@ -11,7 +11,7 @@ public sealed class SharedSkillWindowContractTests
     {
         var document = XDocument.Parse(Read("SharedSkillSourcesWindow.axaml"));
         foreach (var name in new[] { "SourceSelector", "SharedStatus", "SharedPackageSelector", "SharedIdentity", "SharedSource", "UninspectedEntries",
-            "SharedQuery", "SharedFilter", "SearchSharedPackages", "ClearSharedSearch", "SharedSearchStatus" })
+            "SharedQuery", "SharedRevisionDigest", "SharedFilter", "SearchSharedPackages", "ClearSharedSearch", "SharedSearchStatus" })
         {
             var control = document.Descendants().Single(element => element.Attributes().Any(attribute =>
                 string.Equals(attribute.Name.LocalName, "Name", StringComparison.Ordinal)
@@ -20,7 +20,7 @@ public sealed class SharedSkillWindowContractTests
         }
         foreach (var source in document.Descendants().Where(element => element.Name.LocalName is "TextBox"
             && element.Attributes().Any(attribute => string.Equals(attribute.Name.LocalName, "Name", StringComparison.Ordinal)
-                && !string.Equals(attribute.Value, "SharedQuery", StringComparison.Ordinal))))
+                && attribute.Value is not ("SharedQuery" or "SharedRevisionDigest"))))
         {
             source.Attribute("IsReadOnly")!.Value.Should().Be("True");
             source.Attribute("IsUndoEnabled")!.Value.Should().Be("False");

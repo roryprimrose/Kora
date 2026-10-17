@@ -31,6 +31,12 @@
         <Button x:Name="SearchSharedPackages" Content="Search" AutomationProperties.Name="Search admitted shared metadata without reading the source" />
         <Button x:Name="ClearSharedSearch" Content="Clear" AutomationProperties.Name="Clear shared search and restore All without selecting a result" />
       </StackPanel>
+      <TextBlock Text="Exact snapshot revision digest: empty means Any; otherwise 64 lowercase hexadecimal characters. This does not recheck live content, inspect additional names or grant authority." TextWrapping="Wrap" />
+      <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8">
+        <Label Content="Revision digest" Target="{Binding #SharedRevisionDigest}" />
+        <TextBox x:Name="SharedRevisionDigest" Grid.Column="1" IsUndoEnabled="False"
+                 AutomationProperties.Name="Exact shared RevisionDigest, empty means Any, lowercase SHA-256" />
+      </Grid>
     </StackPanel>
     <controls:NamedTextBlock x:Name="SharedSearchStatus" Grid.Row="5" TextWrapping="Wrap"
                             AutomationProperties.Name="Shared metadata search results and validation" />

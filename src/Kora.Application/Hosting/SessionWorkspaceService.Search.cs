@@ -10,16 +10,16 @@ public sealed partial class SessionWorkspaceService
 {
     public Task<SessionHistorySearchPage> SearchHistoryAsync(HostId<SessionIdentity> session, string query,
         SessionHistorySearchCursor? cursor, int limit, CancellationToken token,
-        SessionHistoryMetadataFilter metadata = default) =>
+        SessionHistoryMetadataFilter metadata = default, SessionHistoryRangeFilter range = default) =>
         ReadAsync(async () =>
         {
             session.Validate();
             SessionHistoryPage.ValidateLimit(limit);
-            var search = new SessionHistorySearch(query, metadata);
+            var search = new SessionHistorySearch(query, metadata, range);
             cursor?.History.Validate(session);
             if (cursor is not null && !string.Equals(cursor.QueryDigest, search.Digest, StringComparison.Ordinal))
             {
-                throw new ArgumentException("The continuation belongs to another query or metadata predicate. Start a fresh search.", nameof(cursor));
+                throw new ArgumentException("The continuation belongs to another query, metadata or provenance predicate. Start a fresh search.", nameof(cursor));
             }
             var continuation = cursor?.History;
             var records = ImmutableArray.CreateBuilder<SessionHistoryEvent>();

@@ -9,11 +9,15 @@ public sealed class SessionHistorySearch
 {
     private readonly IReadOnlySet<string> terms;
     private readonly SessionHistoryMetadataFilter metadata;
+    private readonly SessionHistoryRangeFilter range;
 
-    public SessionHistorySearch(string query, SessionHistoryMetadataFilter metadata = default)
+    public SessionHistorySearch(string query, SessionHistoryMetadataFilter metadata = default,
+        SessionHistoryRangeFilter range = default)
     {
         metadata.Validate();
+        range.Validate();
         this.metadata = metadata;
+        this.range = range;
         if (!LocalFileRetrievalPolicy.TryQuery(query, out terms))
         {
             throw new ArgumentException("Use 1-256 characters / 512 UTF-8 bytes containing 1-32 distinct lexical terms of at most 64 characters.", nameof(query));
@@ -21,6 +25,8 @@ public sealed class SessionHistorySearch
         var canonical = string.Join('\n', terms.Order(StringComparer.Ordinal));
         // Preserve the shared lexical digest for conversation search and existing Any queries.
         if (metadata != default) { canonical = "receipt-metadata-v1\n" + metadata.CanonicalValues + "\n" + canonical; }
+        if (range != default)
+        { canonical = "receipt-provenance-v1\n" + range.CanonicalValues + "\n" + canonical; }
         Digest = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(canonical)));
     }
 
@@ -33,7 +39,7 @@ public sealed class SessionHistorySearch
         {
             return false;
         }
-        return metadata.Matches(record) && Fields(record).Any(field => MatchesText(field, token));
+        return range.Matches(record) && metadata.Matches(record) && Fields(record).Any(field => MatchesText(field, token));
     }
 
     public bool MatchesText(string text, CancellationToken token) =>

@@ -14,6 +14,56 @@ namespace Kora.Application.UnitTests.Hosting;
 public sealed partial class SessionWorkspaceServiceTests
 {
     [Fact]
+    public async Task Invalid_provenance_range_is_rejected_before_any_history_read()
+    {
+        using var f = new Fixture();
+        using var root = HostActivity.BeginRoot(f.Request, HostActivityLayer.Application, HostOperation.Request);
+        var reads = 0;
+        f.HistoryReader = (_, _, _) =>
+        {
+            reads++;
+            throw new InvalidOperationException("Invalid input must not reach storage.");
+        };
+        var act = () => f.Service.SearchHistoryAsync(f.Request.SessionId, "needle", null, 1, f.Token,
+            range: new(MinimumSequence: 2, MaximumSequence: 1));
+        await act.Should().ThrowAsync<InvalidDataException>();
+        reads.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task Provenance_ranges_bind_continuations_commands_and_consumed_counters_without_authority()
+    {
+        using var f = new Fixture();
+        using var root = HostActivity.BeginRoot(f.Request, HostActivityLayer.Application, HostOperation.Request);
+        SearchReader(f, [.. Enumerable.Range(1, 201).Select(i => SearchRecord(f, i) with
+            { AuditSequence = i == 201 ? 9 : null, SourceRevision = 0, Baseline = i == 1 })]);
+        var range = new SessionHistoryRangeFilter(201, 201, 1, 1, 0, 0, 9, 9);
+        var metadata = new SessionHistoryMetadataFilter(Kind: SessionHistoryKind.Question);
+        var first = await f.Service.SearchHistoryAsync(f.Request.SessionId, "absent needle", null, 50, f.Token, metadata, range);
+        first.Records.Should().BeEmpty();
+        first.Scanned.Should().Be(200);
+        first.Gaps.Should().Be(1);
+        first.OmittedMatches.Should().Be(0);
+        var last = await f.Service.SearchHistoryAsync(f.Request.SessionId, "NEEDLE absent", first.Next, 50, f.Token, metadata, range);
+        last.Records.Should().ContainSingle().Which.Sequence.Should().Be(201);
+        last.Next.Should().BeNull();
+        foreach (var changed in new[] { default, range with { MinimumSequence = null }, range with { MaximumSequence = null },
+            range with { MinimumGeneration = null }, range with { MaximumGeneration = null },
+            range with { MinimumSourceRevision = null }, range with { MaximumSourceRevision = null },
+            range with { MinimumAuditSequence = null }, range with { MaximumAuditSequence = null } })
+        {
+            var act = () => f.Service.SearchHistoryAsync(f.Request.SessionId, "needle absent", first.Next, 50, f.Token, metadata, changed);
+            await act.Should().ThrowAsync<ArgumentException>();
+        }
+        var command = new SessionCommand(SessionCommandOperation.HistorySearch, f.Request.SessionId.Value)
+            { HistoryQuery = "needle absent", HistoryMetadata = metadata, HistoryRange = range, HistorySearchCursor = first.Next };
+        (await f.Service.ExecuteCommandAsync(command, RequestOrigin.LocalUi, () => true, f.Token)).HistorySearch!.Records
+            .Should().ContainSingle().Which.Sequence.Should().Be(201);
+        f.TaskWrites.Should().BeEmpty();
+        f.ControlCalls.Should().Be(0);
+    }
+
+    [Fact]
     public async Task Complete_candidate_validation_stays_within_200_receipts_even_with_short_source_pages()
     {
         using var f = new Fixture();
@@ -86,6 +136,10 @@ public sealed partial class SessionWorkspaceServiceTests
     [InlineData("foreign")]
     [InlineData("future-generation")]
     [InlineData("enum")]
+    [InlineData("sequence")]
+    [InlineData("receipt-generation")]
+    [InlineData("source-revision")]
+    [InlineData("audit-sequence")]
     [InlineData("unavailable")]
     [InlineData("order")]
     [InlineData("default-records")]
@@ -105,6 +159,10 @@ public sealed partial class SessionWorkspaceServiceTests
             "foreign" => tail with { SessionId = new(Guid.NewGuid()) },
             "future-generation" => tail with { Generation = new(2) },
             "enum" => tail with { AnswerChannel = (RequestOrigin)999 },
+            "sequence" => tail with { Sequence = 0 },
+            "receipt-generation" => tail with { Generation = default },
+            "source-revision" => tail with { SourceRevision = -1 },
+            "audit-sequence" => tail with { AuditSequence = 0 },
             "unavailable" => tail with { Id = Guid.Empty, Availability = SessionHistoryAvailability.Unavailable },
             "order" => tail with { Sequence = 1 },
             _ => tail,
@@ -118,7 +176,7 @@ public sealed partial class SessionWorkspaceServiceTests
                 new(mode is "resolved-generation" ? 2 : 1), false,
                 mode is "resolved-snapshot" ? 52 : 51, [], null);
         var act = () => f.Service.SearchHistoryAsync(f.Request.SessionId, "needle", null, 1, f.Token,
-            new(Kind: SessionHistoryKind.Question));
+            new(Kind: SessionHistoryKind.Question), new(MaximumSequence: 1));
         await act.Should().ThrowAsync<InvalidDataException>();
         f.TaskWrites.Should().BeEmpty();
         f.ControlCalls.Should().Be(0);

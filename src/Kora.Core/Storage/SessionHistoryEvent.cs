@@ -18,8 +18,8 @@ public sealed record SessionHistoryEvent(
     public void Validate()
     {
         SessionId.Validate();
-        if (Id == Guid.Empty || Sequence <= 0 || SourceRevision < 0 || AuditSequence is <= 0
-            || Generation.Value <= 0 || !Enum.IsDefined(Kind) || !Enum.IsDefined(Availability)
+        ValidateProvenance(Sequence, Generation.Value, SourceRevision, AuditSequence);
+        if (Id == Guid.Empty || !Enum.IsDefined(Kind) || !Enum.IsDefined(Availability)
             || TaskState is { } state && !Enum.IsDefined(state)
             || Decision is { } decision && !Enum.IsDefined(decision)
             || QuestionStatus is { } status && !Enum.IsDefined(status)
@@ -30,5 +30,11 @@ public sealed record SessionHistoryEvent(
         {
             throw new InvalidDataException("History citation identity is invalid.");
         }
+    }
+
+    internal static void ValidateProvenance(long sequence, long generation, long sourceRevision, long? auditSequence)
+    {
+        if (sequence <= 0 || generation <= 0 || sourceRevision < 0 || auditSequence is <= 0)
+        { throw new InvalidDataException("Receipt sequence, generation and present audit sequence must be positive; source revision must be nonnegative."); }
     }
 }

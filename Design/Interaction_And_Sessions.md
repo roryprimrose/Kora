@@ -672,6 +672,14 @@ This delivers only passive session-list metadata navigation, not conversation/co
 
 ### Delivered Passive Exact-Session Lexical History Search - 2026-10-09
 
+The [inclusive receipt provenance policy](../src/Kora.Core/Storage/SessionHistoryRangeFilter.cs) adds optional lower/upper `Sequence`, `Generation`, `SourceRevision` and `AuditSequence` bounds AND-composed with every typed predicate and the existing lexical OR query.
+Sequence, generation and present audit sequence are positive; source revision may be zero, using the [receipt domain constraints](../src/Kora.Core/Storage/SessionHistoryEvent.cs). No timestamp is invented: the retained receipt has none.
+Only empty input means Any. The shared [unsigned decimal parser](../src/Kora.Core/Storage/OptionalUnsignedDecimal.cs) rejects whitespace, signs, separators and overflow; inverted or domain-invalid bounds fail explicitly. Missing audit sequence never satisfies a constrained audit range.
+Every active bound joins a versioned complete [semantic query digest](../src/Kora.Core/Storage/SessionHistorySearch.cs); default ranges preserve both shared lexical and existing typed-only identities.
+The [scan](../src/Kora.Application/Hosting/SessionWorkspaceService.Search.cs) still validates the entire candidate page before exclusion, including beyond the result limit, and re-resolves the final snapshot with unchanged scan, result and serialized-page ceilings.
+The [native range fields](../src/Kora/SessionsWindow.axaml) have visible inclusive minimum/maximum labels and explicit accessible names. Edits perform no reads and retire selected receipts, detail/actions, rows and continuation; Clear or Escape in any history query/range field restores all bounds and typed choices to Any.
+[Stale-result tests](../tests/Kora.Windows.IntegrationTests/SessionsViewModelTests.Search.cs) retain cancellation, exact-subject and privacy/source revision fences. Typed/voice grammar, conversation search and current authority remain unchanged.
+
 The bounded receipt-metadata increment (2026-10-16, from main
 `72fcebc7e44fb043a6a9c9d4cb89ee693eea2d8e`) adds optional exact
 `SessionHistoryKind`, `HostTaskState`, `HostInteractionOutcome` decision,

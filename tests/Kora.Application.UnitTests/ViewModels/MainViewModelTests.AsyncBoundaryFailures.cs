@@ -12,6 +12,45 @@ namespace Kora.Application.UnitTests.ViewModels;
 
 public sealed partial class MainViewModelTests
 {
+    [Fact]
+    public async Task ForcedDisposalJoinsEveryOwnedWorkerEvenWhenAnEarlierPreferenceWorkerFails()
+    {
+        var fixture = await Fixture.CreateInitializedAsync();
+        using var appearanceRelease = new ManualResetEventSlim();
+        using var auditRelease = new ManualResetEventSlim();
+        var appearanceEntered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var auditEntered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var token = TestContext.Current.CancellationToken;
+        fixture.AppearancePreferences.BeforeThemeSave = () =>
+        {
+            appearanceEntered.SetResult();
+            appearanceRelease.Wait(token);
+            throw new InvalidOperationException("Fixture appearance worker failure.");
+        };
+        fixture.ViewModel.ThemeMode = ApplicationThemeMode.Dark;
+        await appearanceEntered.Task.WaitAsync(token);
+        fixture.Audit.BeforeWrite = audit =>
+        {
+            if (audit.Category != SecurityAuditCategory.SecurityApproval || audit.Outcome != SecurityAuditOutcome.Requested) { return; }
+            auditEntered.SetResult();
+            auditRelease.Wait(token);
+        };
+        var preparation = fixture.ViewModel.PrepareGrantChangeAsync(
+            new(GrantChangeOperation.Add, BuiltInAction.LockMachine, ModelApprovalScope.Session));
+        await auditEntered.Task.WaitAsync(token);
+        var dispose = fixture.ViewModel.DisposeAsync().AsTask();
+        appearanceRelease.Set();
+        try
+        {
+            await fixture.ViewModel.AppearanceUpdate;
+            dispose.IsCompleted.Should().BeFalse("the outstanding required audit must be joined even after another worker fails");
+        }
+        finally { auditRelease.Set(); }
+        await preparation;
+        var closed = () => dispose;
+        await closed.Should().ThrowAsync<InvalidOperationException>();
+    }
+
     [Theory]
     [InlineData(false, "hide")]
     [InlineData(false, "lock")]

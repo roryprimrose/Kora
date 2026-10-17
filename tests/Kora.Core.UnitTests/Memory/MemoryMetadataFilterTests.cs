@@ -8,7 +8,7 @@ using Kora.Core.Memory;
 
 namespace Kora.Core.UnitTests.Memory;
 
-public sealed class MemoryMetadataFilterTests
+public sealed partial class MemoryMetadataFilterTests
 {
     private static readonly Guid Identity = Guid.Parse("12345678-1234-1234-1234-123456789abc");
     private static MemorySummary Row => new(Identity, 1, MemoryScope.Session(new(Identity)),
@@ -97,6 +97,11 @@ public sealed class MemoryMetadataFilterTests
         {
             var act = () => filter.Matches(row);
             act.Should().Throw<InvalidDataException>().WithMessage("*no results*List explicitly*");
+            foreach (var order in Enum.GetValues<MemorySnapshotOrder>())
+            {
+                var snapshot = () => filter.Apply([Row, row], order);
+                snapshot.Should().Throw<InvalidDataException>().WithMessage("*no results*List explicitly*");
+            }
         }
         var complete = Row with { Revision = long.MaxValue, CreatedAt = DateTimeOffset.MaxValue };
         new MemoryMetadataFilter().Matches(complete).Should().BeTrue();
@@ -128,6 +133,14 @@ public sealed class MemoryMetadataFilterTests
                 filter.Matches(row).Should().Be((minimum is null || rowRevision >= minimum)
                     && (maximum is null || rowRevision <= maximum) && (from is null || created >= from)
                     && (until is null || created <= until));
+                foreach (var order in Enum.GetValues<MemorySnapshotOrder>())
+                {
+                    filter.Apply([row], order).Should().Equal(new[] { row }.Where(candidate =>
+                        (minimum is null || candidate.Revision >= minimum)
+                        && (maximum is null || candidate.Revision <= maximum)
+                        && (from is null || candidate.CreatedAt >= from)
+                        && (until is null || candidate.CreatedAt <= until)));
+                }
             }
         }
         var exact = new MemoryMetadataFilter(Identity.ToString("D"), Row.Scope.Kind, Row.Review, Row.Retention,

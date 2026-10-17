@@ -237,6 +237,8 @@ permission; failures/recovery and omitted records remain explicit. There are
 up to 25 recent queue receipts and 50 nonqueue task/pending-question records
 each; use exact history/status for omitted retained records.
 
+The selected-work pane scrolls vertically at the minimum window size. Work actions, required questions and the History/Memory tabs retain their order; Tab/Shift+Tab and scrolling reach off-screen controls without invoking them ([native layout](../src/Kora/SessionsWindow.axaml)). See [session memory controls](commands.md#create-and-manage-reviewed-session-memories) for Source-default snapshot ordering.
+
 Selection and five-second idle refresh are passive and preserve focus.
 Use **Inspect selected work ID**, eligible **Cancel**, **Remove pending ID**
 or **Confirm clear displayed pending queue** for the exact displayed revisions.

@@ -2,14 +2,17 @@ using System.Collections.Immutable;
 using System.Diagnostics;
 using System.Globalization;
 
+using Avalonia;
 using Avalonia.Automation.Peers;
 using Avalonia.Automation.Provider;
 using Avalonia.Controls;
+using Avalonia.Controls.Presenters;
 using Avalonia.Headless;
 using Avalonia.Input;
 using Avalonia.Input.Raw;
 using Avalonia.Interactivity;
 using Avalonia.LogicalTree;
+using Avalonia.VisualTree;
 
 using AwesomeAssertions;
 
@@ -46,6 +49,7 @@ public sealed class SessionsMemoryFilterTests
         f.Model.MemoryIdFilter = "not admitted before List";
         f.Model.MemoryScopeIdentityFilter = "not admitted before List";
         f.Model.MemoryScopeFilter = MemoryScopeKind.Source;
+        f.Model.MemoryOrder = MemorySnapshotOrder.CreatedNewest;
         f.Model.MemoryMinimumRevisionFilter = "1";
         f.Model.MemoryMaximumRevisionFilter = "2";
         f.Model.MemoryCreatedFromFilter = "not admitted";
@@ -53,6 +57,11 @@ public sealed class SessionsMemoryFilterTests
         f.Model.MemoryIdFilter.Should().BeEmpty();
         f.Model.MemoryScopeIdentityFilter.Should().BeEmpty();
         f.Model.MemoryScopeFilter.Should().BeNull();
+        f.Model.MemoryOrder.Should().Be(MemorySnapshotOrder.Source);
+        f.Model.MemoryOrderChoice.Should().BeSameAs(f.Model.MemoryOrders[0]);
+        f.Model.MemoryOrders.Select(option => option.Value).Should().Equal(Enum.GetValues<MemorySnapshotOrder>());
+        f.Model.MemoryOrders.Select(option => option.ToString()).Should()
+            .Equal("Source order (default)", "Created oldest", "Created newest", "Revision lowest", "Revision highest");
         AssertEmptyRanges(f.Model);
         f.Model.MemoryScopeChoice.Should().BeSameAs(f.Model.MemoryScopeFilters[0]);
         foreach (var state in new[] { "proposed", "reviewed", "rejected", "enabled", "disabled", "forgotten" })
@@ -78,8 +87,10 @@ public sealed class SessionsMemoryFilterTests
         var logs = f.Logger.Messages.ToArray();
         var bytes = File.ReadAllBytes(f.Storage.DatabasePath);
         var clock = await f.Storage.Store.ReadRetentionAsync(f.Storage.Request.SessionId, f.Storage.Token);
+        foreach (var order in Enum.GetValues<MemorySnapshotOrder>())
         foreach (var scope in scopes)
         {
+            f.Model.MemoryOrder = order;
             f.Model.MemoryScopeFilter = scope;
             foreach (var review in reviews)
             {
@@ -87,23 +98,29 @@ public sealed class SessionsMemoryFilterTests
                 {
                     f.Model.MemoryReviewFilter = review;
                     f.Model.MemoryRetentionFilter = retention;
-                    f.Model.MemoryRecords.Should().Equal(snapshot.Where(row =>
+                    f.Model.MemoryRecords.Should().Equal(ExpectedOrder(snapshot.Where(row =>
                         (scope is null || row.Scope.Kind == scope)
-                        && (review is null || row.Review == review) && (retention is null || row.Retention == retention)));
+                        && (review is null || row.Review == review) && (retention is null || row.Retention == retention)), order));
                     foreach (var row in snapshot)
                     {
                         f.Model.MemoryIdFilter = row.Id.ToString("D").ToUpperInvariant();
                         f.Model.MemoryScopeIdentityFilter = row.Scope.Identity.ToString("D").ToUpperInvariant();
-                        f.Model.MemoryRecords.Should().Equal(snapshot.Where(candidate =>
+                        f.Model.MemoryRecords.Should().Equal(ExpectedOrder(snapshot.Where(candidate =>
                             candidate.Id == row.Id && (review is null || candidate.Review == review)
                             && candidate.Scope.Identity == row.Scope.Identity
                             && (scope is null || candidate.Scope.Kind == scope)
-                            && (retention is null || candidate.Retention == retention)));
+                            && (retention is null || candidate.Retention == retention)), order));
                     }
                     f.Model.MemoryIdFilter = string.Empty;
+                    f.Model.MemoryScopeIdentityFilter = string.Empty;
                 }
             }
         }
+        f.Model.MemoryOrder = (MemorySnapshotOrder)99;
+        f.Model.MemoryOrderChoice.Value.Should().Be((MemorySnapshotOrder)99);
+        f.Model.MemoryOrderChoice.ToString().Should().Be("Invalid order");
+        f.Model.MemoryRecords.Should().BeEmpty();
+        f.Model.MemoryFilterStatus.Should().Contain("Unknown memory snapshot order").And.Contain("Clear filters");
         f.Model.ClearMemoryFilters();
         f.Model.MemoryScopeIdentityFilter = "abcdefab-1234-4567-89ab-abcdefabcdef";
         f.Model.MemoryRecords.Should().BeEmpty();
@@ -154,6 +171,11 @@ public sealed class SessionsMemoryFilterTests
             f.Model.MemoryMaximumRevisionFilter = row.Revision.ToString(CultureInfo.InvariantCulture);
             f.Model.MemoryCreatedFromFilter = row.CreatedAt.ToString("O", CultureInfo.InvariantCulture);
             f.Model.MemoryCreatedUntilFilter = row.CreatedAt.ToString("O", CultureInfo.InvariantCulture);
+            foreach (var order in Enum.GetValues<MemorySnapshotOrder>())
+            {
+                f.Model.MemoryOrder = order;
+                f.Model.MemoryRecords.Should().Equal(row);
+            }
             f.Model.MemoryRecords.Should().Equal([row], "both revision and UTC endpoints are inclusive and AND with every exact predicate");
             f.Model.MemoryMinimumRevisionFilter = (row.Revision + 1).ToString(CultureInfo.InvariantCulture);
             f.Model.MemoryRecords.Should().BeEmpty();
@@ -214,6 +236,7 @@ public sealed class SessionsMemoryFilterTests
     [InlineData("from")]
     [InlineData("until")]
     [InlineData("clear")]
+    [InlineData("order")]
     public async Task FilterEditsRetireSelectionInspectionReplacementAndEveryMutationEligibility(string field)
     {
         await using var f = await Fixture.Create();
@@ -239,6 +262,7 @@ public sealed class SessionsMemoryFilterTests
             case "from": f.Model.MemoryCreatedFromFilter = row.CreatedAt.ToString("O", CultureInfo.InvariantCulture); break;
             case "until": f.Model.MemoryCreatedUntilFilter = row.CreatedAt.ToString("O", CultureInfo.InvariantCulture); break;
             case "clear": f.Model.ClearMemoryFilters(); break;
+            case "order": f.Model.MemoryOrder = MemorySnapshotOrder.CreatedNewest; break;
         }
         AssertRetired(f.Model);
         f.Model.MemoryRecords.Should().Equal([row], "even an unchanged visible exact identity cannot carry selection forward");
@@ -313,8 +337,10 @@ public sealed class SessionsMemoryFilterTests
         await f.CreateMemory("proposed");
         f.Model.MemoryRecords.Should().Equal([forgotten], "the listed source is frozen until an explicit action replaces it");
         f.Model.SelectMemory(forgotten);
+        f.Model.MemoryOrder = MemorySnapshotOrder.RevisionHighest;
         await f.Model.ListMemoriesAsync();
         f.Model.MemoryRecords.Should().Equal(forgotten);
+        f.Model.MemoryOrder.Should().Be(MemorySnapshotOrder.RevisionHighest);
         f.Model.MemoryIdFilter.Should().Be(forgotten.Id.ToString("D"));
         AssertRetired(f.Model, emptyDetail: false);
         f.Model.ClearMemoryFilters();
@@ -327,6 +353,7 @@ public sealed class SessionsMemoryFilterTests
     [InlineData("control")]
     [InlineData("close")]
     [InlineData("cancel")]
+    [InlineData("cancel-order")]
     [InlineData("cancel-close")]
     public async Task SessionPrivacyControlClosureAndCancelledListCannotPublishLateContentOrRetainFilters(string boundary)
     {
@@ -341,6 +368,7 @@ public sealed class SessionsMemoryFilterTests
         f.Model.MemoryMaximumRevisionFilter = long.MaxValue.ToString(CultureInfo.InvariantCulture);
         f.Model.MemoryCreatedFromFilter = DateTimeOffset.MinValue.ToString("O", CultureInfo.InvariantCulture);
         f.Model.MemoryCreatedUntilFilter = DateTimeOffset.MaxValue.ToString("O", CultureInfo.InvariantCulture);
+        f.Model.MemoryOrder = MemorySnapshotOrder.RevisionHighest;
         f.Model.SelectMemory(row);
         await f.Model.InspectMemoryAsync();
         if (boundary is "session") { await f.Model.SelectAsync(null); }
@@ -368,6 +396,7 @@ public sealed class SessionsMemoryFilterTests
             var refresh = f.Model.ListMemoriesAsync();
             await f.Store.Entered.Task.WaitAsync(f.Storage.Token);
             if (boundary is "cancel-close") { f.Model.Close(); }
+            else if (boundary is "cancel-order") { f.Model.MemoryOrder = MemorySnapshotOrder.CreatedNewest; }
             else { f.Model.MemoryScopeIdentityFilter = "abcdefab-1234-4567-89ab-abcdefabcdef"; }
             AssertRetired(f.Model);
             f.Store.Release.SetResult();
@@ -385,8 +414,14 @@ public sealed class SessionsMemoryFilterTests
             f.Model.CanFilterMemories.Should().BeFalse();
             f.Model.MemoryIdFilter.Should().BeEmpty();
             f.Model.MemoryScopeFilter.Should().BeNull();
+            f.Model.MemoryOrder.Should().Be(MemorySnapshotOrder.Source);
             AssertEmptyRanges(f.Model);
             AssertRetired(f.Model);
+            var calls = f.Store.Calls;
+            f.Model.MemoryOrder = MemorySnapshotOrder.CreatedNewest;
+            f.Model.ClearMemoryFilters();
+            f.Model.MemoryOrder.Should().Be(MemorySnapshotOrder.Source);
+            f.Store.Calls.Should().Be(calls, "closed or stale source controls cannot read or revive state");
         }
     }
 
@@ -396,23 +431,46 @@ public sealed class SessionsMemoryFilterTests
         await HeadlessSession.RunAsync(async () =>
         {
             await using var f = await Fixture.Create();
+            await WindowsSqliteTaskControlTests.WaitAsync(f.Storage);
+            await f.Model.RefreshWorkAsync();
             await f.CreateMemory("proposed");
             await f.Model.ListMemoriesAsync();
             var window = new SessionsWindow(f.Model);
+            window.Width = window.MinWidth;
+            window.Height = window.MinHeight;
             window.Show();
             try
             {
                 var tabs = window.GetLogicalDescendants().OfType<TabControl>().Single();
-                tabs.SelectedItem = tabs.Items.OfType<TabItem>().Single(tab =>
+                var memoryTab = tabs.Items.OfType<TabItem>().Single(tab =>
                     string.Equals(tab.Header?.ToString(), "Session memories", StringComparison.Ordinal));
+                tabs.SelectedItem = memoryTab;
                 window.Activate();
                 window.UpdateLayout();
+                AssertVisibleInWindow(memoryTab, window);
                 var id = window.FindControl<TextBox>("MemoryIdFilter")!;
                 var scopeIdentity = window.FindControl<TextBox>("MemoryScopeIdentityFilter")!;
                 var review = window.FindControl<ComboBox>("MemoryReviewFilter")!;
                 var scope = window.FindControl<ComboBox>("MemoryScopeFilter")!;
                 var retention = window.FindControl<ComboBox>("MemoryRetentionFilter")!;
+                var order = window.FindControl<ComboBox>("MemoryOrder")!;
                 var clear = window.FindControl<Button>("ClearMemoryFilters")!;
+                order.BringIntoView();
+                window.UpdateLayout();
+                order.IsEnabled.Should().BeTrue();
+                order.IsEffectivelyVisible.Should().BeTrue();
+                order.Bounds.Width.Should().BeGreaterThan(0).And.BeLessThan(window.ClientSize.Width);
+                var position = order.TranslatePoint(default, window)!.Value;
+                position.X.Should().BeGreaterThanOrEqualTo(0);
+                position.Y.Should().BeGreaterThanOrEqualTo(0);
+                (position.X + order.Bounds.Width).Should().BeLessThanOrEqualTo(window.ClientSize.Width);
+                (position.Y + order.Bounds.Height).Should().BeLessThanOrEqualTo(window.ClientSize.Height);
+                order.SelectedIndex.Should().Be(0);
+                order.SelectionBoxItem!.ToString().Should().Be("Source order (default)");
+                ControlAutomationPeer.CreatePeerForElement(order)!.GetName().Should()
+                    .Contain("Source order default").And.Contain("metadata only").And.Contain("not freshness or authority");
+                ControlAutomationPeer.CreatePeerForElement(order)!.GetProvider<ISelectionProvider>()!
+                    .GetSelection().Should().ContainSingle();
                 var rangeFields = RangeControlNames
                     .Select(name => window.FindControl<TextBox>(name)!).ToArray();
                 foreach (var range in rangeFields)
@@ -449,6 +507,26 @@ public sealed class SessionsMemoryFilterTests
                 id.Focus().Should().BeTrue();
                 var calls = f.Store.Calls;
                 var row = f.Model.MemoryRecords.Single();
+                foreach (var choice in new[] { order, scope, review, retention })
+                {
+                    f.Model.SelectMemory(row);
+                    await f.Model.InspectMemoryAsync();
+                    f.Model.MemoryDraft = "unsubmitted replacement";
+                    calls = f.Store.Calls;
+                    choice.Focus().Should().BeTrue();
+                    window.KeyPress(Key.Down, RawInputModifiers.None, PhysicalKey.ArrowDown, null);
+                    AssertRetired(f.Model);
+                    if (choice == order) { f.Model.MemoryOrder.Should().Be(MemorySnapshotOrder.CreatedOldest); }
+                    choice.IsDropDownOpen = true;
+                    window.KeyPress(Key.Escape, RawInputModifiers.None, PhysicalKey.Escape, null);
+                    choice.IsDropDownOpen.Should().BeFalse();
+                    choice.IsFocused.Should().BeTrue();
+                    f.Model.MemoryOrder.Should().Be(MemorySnapshotOrder.Source);
+                    order.SelectedIndex.Should().Be(0);
+                    f.Model.MemoryRecords.Should().Equal(row);
+                    AssertRetired(f.Model);
+                    f.Store.Calls.Should().Be(calls);
+                }
                 scopeIdentity.Focus().Should().BeTrue();
                 scopeIdentity.Text = row.Scope.Identity.ToString("D").ToUpperInvariant();
                 f.Model.MemoryScopeIdentityFilter.Should().Be(scopeIdentity.Text);
@@ -508,6 +586,69 @@ public sealed class SessionsMemoryFilterTests
                 id.Text.Should().BeEmpty();
                 f.Model.MemoryRecords.Should().ContainSingle();
                 f.Store.Calls.Should().Be(calls);
+                foreach (var size in new[] { new Size(900, 700), new Size(1180, 900) })
+                {
+                    window.Width = size.Width;
+                    window.Height = size.Height;
+                    window.UpdateLayout();
+                    Avalonia.Threading.Dispatcher.UIThread.RunJobs();
+                    window.UpdateLayout();
+                    AssertVisibleInWindow(memoryTab, window);
+                    foreach (var control in new Control[] { order, clear })
+                    {
+                        control.Focus().Should().BeTrue();
+                        AssertVisibleInWindow(control, window);
+                    }
+                    var pane = window.FindControl<ScrollViewer>("SelectedSessionWorkPane")!;
+                    pane.Viewport.Height.Should().BeGreaterThan(0);
+                    pane.Extent.Height.Should().BeGreaterThanOrEqualTo(960).And.BeLessThan(double.PositiveInfinity);
+                    pane.Viewport.Width.Should().BeLessThanOrEqualTo(window.ClientSize.Width);
+                    tabs.Bounds.Height.Should().BeGreaterThan(0);
+                    var actions = window.FindControl<WrapPanel>("SessionWorkActions")!;
+                    actions.Bounds.Width.Should().BeLessThanOrEqualTo(pane.Viewport.Width);
+                    var buttons = actions.GetLogicalDescendants().OfType<Button>().ToArray();
+                    buttons.Select(button => button.Name).Should().Equal("ReadQueue", "InspectWork", "CancelQueueEntry",
+                        "RemoveQueueEntry", "MoveQueueUp", "MoveQueueDown", "EnqueueVersion", "EnqueueCapabilities",
+                        "EnqueueReadiness", "EnqueueRuntimes", "EnqueueCapability", "EnqueueRuntimeStatus",
+                        "DispatchQueue", "PauseQueue", "ResumeQueue", "ClearQueue");
+                    foreach (var button in buttons)
+                    {
+                        if (button.IsEnabled) { button.Focus().Should().BeTrue(); }
+                        AssertVisibleInWindow(button, window);
+                    }
+                    var enabled = buttons.Where(button => button.IsEnabled).ToArray();
+                    enabled.Should().NotBeEmpty();
+                    enabled[0].Focus().Should().BeTrue();
+                    foreach (var button in enabled.Skip(1))
+                    {
+                        window.KeyPress(Key.Tab, RawInputModifiers.None, PhysicalKey.Tab, null);
+                        button.IsFocused.Should().BeTrue();
+                        window.UpdateLayout();
+                        AssertVisibleInWindow(button, window);
+                    }
+                    var questions = window.GetLogicalDescendants().OfType<ItemsControl>().Single(control =>
+                        Avalonia.Automation.AutomationProperties.GetName(control)
+                            ?.StartsWith("Pending questions remain visible", StringComparison.Ordinal) == true);
+                    f.Model.PendingQuestions.Should().NotBeEmpty();
+                    var questionFields = questions.GetVisualDescendants().OfType<TextBlock>().ToArray();
+                    questionFields.Should().NotBeEmpty();
+                    foreach (var field in questionFields) { AssertVisibleInWindow(field, window); }
+                    var nested = questions.GetVisualAncestors().OfType<ScrollViewer>().Skip(1).First();
+                    nested.Extent.Height.Should().BeGreaterThan(nested.Viewport.Height);
+                    var offset = nested.Offset.Y;
+                    var wheelPoint = questionFields[^1].TranslatePoint(new Rect(questionFields[^1].Bounds.Size).Center, window)!.Value;
+                    window.MouseWheel(wheelPoint, new Vector(0, 1), RawInputModifiers.None);
+                    window.UpdateLayout();
+                    nested.Offset.Y.Should().BeLessThan(offset);
+                    AssertVisibleInWindow(questionFields[^1], window);
+                    AssertVisibleInWindow(memoryTab, window);
+                    order.Focus().Should().BeTrue();
+                    AssertVisibleInWindow(order, window);
+                    window.KeyPress(Key.Tab, RawInputModifiers.None, PhysicalKey.Tab, null);
+                    window.KeyPress(Key.Tab, RawInputModifiers.Shift, PhysicalKey.Tab, null);
+                    order.IsFocused.Should().BeTrue();
+                    f.Store.Calls.Should().Be(calls);
+                }
             }
             finally { window.Close(); }
         });
@@ -523,6 +664,36 @@ public sealed class SessionsMemoryFilterTests
         model.CanAdmitMemory.Should().BeFalse();
         model.CanEditMemory.Should().BeFalse();
         model.CanDisableMemory.Should().BeFalse();
+    }
+
+    private static void AssertVisibleInWindow(Control control, Window window)
+    {
+        control.BringIntoView();
+        window.UpdateLayout();
+        // Scroll inner-to-outer using the updated descendant geometry at each native viewport.
+        foreach (var viewport in control.GetVisualAncestors().OfType<ScrollContentPresenter>())
+        {
+            viewport.BringDescendantIntoView(control, new Rect(control.Bounds.Size));
+            window.UpdateLayout();
+        }
+        var location = control.TranslatePoint(default, window)!.Value;
+        control.Bounds.Width.Should().BeGreaterThan(0);
+        control.Bounds.Height.Should().BeGreaterThan(0);
+        location.X.Should().BeGreaterThanOrEqualTo(0);
+        location.Y.Should().BeGreaterThanOrEqualTo(0);
+        (location.X + control.Bounds.Width).Should().BeLessThanOrEqualTo(window.ClientSize.Width);
+        (location.Y + control.Bounds.Height).Should().BeLessThanOrEqualTo(window.ClientSize.Height,
+            $"control {control.Name ?? control.GetType().Name} at {location} with bounds {control.Bounds}; ancestors "
+            + string.Join("; ", control.GetVisualAncestors().Select(visual => $"{visual.GetType().Name} {visual.Bounds}")));
+        foreach (var viewport in control.GetVisualAncestors().OfType<ScrollContentPresenter>())
+        {
+            var point = control.TranslatePoint(default, viewport)!.Value;
+            point.X.Should().BeGreaterThanOrEqualTo(0);
+            point.Y.Should().BeGreaterThanOrEqualTo(0);
+            (point.X + control.Bounds.Width).Should().BeLessThanOrEqualTo(viewport.Bounds.Width);
+            (point.Y + control.Bounds.Height).Should().BeLessThanOrEqualTo(viewport.Bounds.Height,
+                $"control {control.Name ?? control.GetType().Name} must be inside every enclosing scroll viewport");
+        }
     }
 
     private static void AssertEmptyRanges(SessionsViewModel model)
@@ -546,7 +717,7 @@ public sealed class SessionsMemoryFilterTests
         var calls = f.Store.Calls;
         var field = typeof(SessionsViewModel).GetField("memoryRows",
             System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!;
-        foreach (var malformed in new[] { row with { Id = Guid.Empty }, row with { Revision = 0 },
+        foreach (var malformed in new[] { row, row with { Id = Guid.Empty }, row with { Revision = 0 },
             row with { Scope = null! }, row with { Review = (MemoryReviewState)99 },
             row with { Retention = (MemoryRetentionState)99 },
             row with { CreatedAt = row.CreatedAt.ToOffset(TimeSpan.FromHours(-1)) } })
@@ -557,8 +728,9 @@ public sealed class SessionsMemoryFilterTests
             f.Model.MemoryScopeIdentityFilter = "abcdefab-1234-4567-89ab-abcdefabcdef";
             f.Model.MemoryMinimumRevisionFilter = long.MaxValue.ToString(CultureInfo.InvariantCulture);
             f.Model.MemoryCreatedFromFilter = DateTimeOffset.MaxValue.ToString("O", CultureInfo.InvariantCulture);
+            f.Model.MemoryOrder = MemorySnapshotOrder.CreatedNewest;
             f.Model.MemoryRecords.Should().BeEmpty();
-            f.Model.MemoryFilterStatus.Should().Contain("Invalid memory snapshot").And.Contain("List explicitly");
+            f.Model.MemoryFilterStatus.Should().Contain("memory snapshot").And.Contain("List explicitly");
             AssertRetired(f.Model);
         }
         f.Store.Calls.Should().Be(calls);
@@ -582,6 +754,8 @@ public sealed class SessionsMemoryFilterTests
     [InlineData(true, "from")]
     [InlineData(false, "until")]
     [InlineData(true, "until")]
+    [InlineData(false, "order")]
+    [InlineData(true, "order")]
     public async Task FilterEditFencesLateInspectionAndFailedRefreshWithoutRevivingDetailOrReadiness(bool fail, string field)
     {
         await using var f = await Fixture.Create();
@@ -604,6 +778,7 @@ public sealed class SessionsMemoryFilterTests
             case "maximum": f.Model.MemoryMaximumRevisionFilter = row.Revision.ToString(CultureInfo.InvariantCulture); break;
             case "from": f.Model.MemoryCreatedFromFilter = row.CreatedAt.ToString("O", CultureInfo.InvariantCulture); break;
             case "until": f.Model.MemoryCreatedUntilFilter = row.CreatedAt.ToString("O", CultureInfo.InvariantCulture); break;
+            case "order": f.Model.MemoryOrder = MemorySnapshotOrder.RevisionHighest; break;
         }
         AssertRetired(f.Model);
         f.Store.Calls.Should().Be(calls);
@@ -615,6 +790,21 @@ public sealed class SessionsMemoryFilterTests
         AssertEmptyRanges(f.Model);
         f.Model.Status.Should().Contain("unavailable/denied").And.Contain("Refresh durable state");
     }
+
+    private static IEnumerable<MemorySummary> ExpectedOrder(IEnumerable<MemorySummary> rows, MemorySnapshotOrder order) =>
+        order switch
+        {
+            MemorySnapshotOrder.Source => rows,
+            MemorySnapshotOrder.CreatedOldest => rows.OrderBy(row => row.CreatedAt)
+                .ThenBy(row => row.Id.ToString("D"), StringComparer.Ordinal),
+            MemorySnapshotOrder.CreatedNewest => rows.OrderByDescending(row => row.CreatedAt)
+                .ThenBy(row => row.Id.ToString("D"), StringComparer.Ordinal),
+            MemorySnapshotOrder.RevisionLowest => rows.OrderBy(row => row.Revision)
+                .ThenBy(row => row.Id.ToString("D"), StringComparer.Ordinal),
+            MemorySnapshotOrder.RevisionHighest => rows.OrderByDescending(row => row.Revision)
+                .ThenBy(row => row.Id.ToString("D"), StringComparer.Ordinal),
+            _ => throw new InvalidOperationException("Test requires a defined order."),
+        };
 
     private sealed class Fixture : IAsyncDisposable
     {

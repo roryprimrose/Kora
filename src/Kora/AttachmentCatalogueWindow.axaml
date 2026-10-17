@@ -79,6 +79,10 @@
                  AutomationProperties.Name="Optional inclusive retained Captured Until canonical UTC; yyyy-MM-ddTHH:mm:ss.fffffff+00:00; typing performs no read" />
       </WrapPanel>
       <controls:NamedTextBlock Text="{Binding CorrelationHint}" TextWrapping="Wrap" />
+      <ComboBox x:Name="AttachmentGenerationRelationship" ItemsSource="{Binding GenerationRelationships}"
+                SelectedItem="{Binding GenerationRelationship, Mode=TwoWay}" IsEnabled="{Binding CanEdit}"
+                AutomationProperties.Name="Retained captured to observed session generation relationship: Any, Same observed generation or Earlier observed generation; passive historical metadata only; changing performs no read" />
+      <controls:NamedTextBlock Text="{Binding GenerationRelationshipHint}" TextWrapping="Wrap" />
       <WrapPanel>
         <TextBox x:Name="AttachmentMinimumSessionGeneration" Text="{Binding MinimumSessionGenerationText, Mode=TwoWay}" Width="460"
                  PlaceholderText="Minimum session generation (Any)" IsEnabled="{Binding CanEdit}"

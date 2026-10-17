@@ -785,6 +785,13 @@ diagnostic/audit payload, model/tool/speech/export or activity renewal is added.
 This bounded I increment does not advance broader R26 or E/Q qualification;
 Presence/native-presenter and unrelated filter/review work remain separate.
 
+### R26 retained attachment observed-generation relationship - 2026-10-17
+
+The bounded [retained attachment generation relationship](File_And_Folder_Ingestion.md#delivered-retained-attachment-metadata-catalogue---2026-10-11) adds explicit Any / Same observed generation / Earlier observed generation, AND-composed with all existing predicates.
+Constrained choices require Confirmed copies; complete bounded validation, versioned authenticated continuations and native no-read retirement preserve the consumed I seam.
+[Core](../tests/Kora.Core.UnitTests/Storage/SessionAttachmentGenerationRelationshipTests.cs), [SQLite](../tests/Kora.Windows.IntegrationTests/Storage/WindowsSqliteSessionAttachmentTests.GenerationCatalogue.cs) and [headless native](../tests/Kora.Windows.IntegrationTests/AttachmentCatalogueWindowTests.Generation.cs) checks cover this passive historical metadata only.
+No currentness, authority, body/path read, schema/index, runtime/profile enablement, experiment or broader R26/E/Q qualification is claimed.
+
 ### R26 exact retained attachment SHA-256 predicate - 2026-10-16
 
 The [retained metadata catalogue](File_And_Folder_Ingestion.md#delivered-retained-attachment-metadata-catalogue---2026-10-11)

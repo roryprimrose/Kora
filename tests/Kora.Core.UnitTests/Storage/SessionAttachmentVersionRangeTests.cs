@@ -1,4 +1,4 @@
-using System.Text.Json;
+﻿using System.Text.Json;
 
 using AwesomeAssertions;
 
@@ -106,7 +106,7 @@ public sealed class SessionAttachmentVersionRangeTests
             query.Should().NotBe(new SessionAttachmentQuery(true));
             Query(field, lower, upper).Should().Be(query);
             var serialized = JsonSerializer.Serialize(query);
-            serialized.Should().NotContain("Generation").And.NotContain("Revision");
+            serialized.Should().NotContain("SessionGeneration").And.NotContain("CapturedGeneration").And.NotContain("StorageRevision");
             new SessionAttachmentPage(query, [], null, DateTimeOffset.UnixEpoch, 1, new string('b', 64), 1, false).Validate();
             new SessionAttachmentPage(query, [], "YQ==." + new string('b', 64), DateTimeOffset.UnixEpoch,
                 1, new string('b', 64), 64, true).Validate();

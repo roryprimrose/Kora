@@ -111,6 +111,18 @@ Deterministic [portable](../tests/Kora.Core.UnitTests/Storage/SessionAttachmentV
 and [headless native](../tests/Kora.Windows.IntegrationTests/AttachmentCatalogueWindowTests.Versions.cs)
 checks qualify only this bounded I subset, not installed accessibility or R26/E/Q.
 
+The explicit **Any (default) / Same observed generation / Earlier observed generation** predicate AND-composes with every existing retained metadata predicate. Same compares retained `CapturedGeneration == SessionGeneration`; Earlier compares `CapturedGeneration < SessionGeneration`.
+Both constrained choices require the existing **Confirmed** copy admission; Held and unavailable/removed projections never gain matches or reconstruct former provenance.
+This is a passive historical metadata relationship, not current session/device identity, freshness, staleness, completeness, consent, authority, source integrity or proof a copy exists.
+The authoritative [summary validation](../src/Kora.Core/Storage/SessionAttachmentSummary.cs) still requires positive generations and `CapturedGeneration <= SessionGeneration` before any [query exclusion](../src/Kora.Core/Storage/SessionAttachmentQuery.cs).
+Any preserves the existing unfiltered defaults. Undefined values, null/missing JSON choices and invalid native selection fail closed with explicit correction guidance. JSON carries the defined choice; authenticated continuation format 2 binds every choice, including Any, alongside all existing query/provenance/private-source/authority identities.
+A changed relationship requires fresh Search.
+The [private store](../src/Kora.Windows/Storage/WindowsSqliteHostInteractionStore.AttachmentCatalogue.cs) validates the complete existing bounded metadata batch, including envelopes/provenance after the sixteen-result limit.
+Its cursor advances only through the disclosed prefix, so later slots remain reachable; the original 64-slot scan, 16-row/64-KiB result, audit, timeout and expiry bounds remain unchanged.
+The [native picker](../src/Kora/AttachmentCatalogueWindow.axaml) visibly selects non-null Any, has an accessible name and performs no read on edits. Selection/details/navigation/actions/cursors and pending callbacks retire immediately. Clear query, Cancel, source/privacy/ownership revocation, Escape and disposal reset Any without a read.
+Deterministic [Core tests](../tests/Kora.Core.UnitTests/Storage/SessionAttachmentGenerationRelationshipTests.cs), [SQLite tests](../tests/Kora.Windows.IntegrationTests/Storage/WindowsSqliteSessionAttachmentTests.GenerationCatalogue.cs) and [headless native tests](../tests/Kora.Windows.IntegrationTests/AttachmentCatalogueWindowTests.Generation.cs) cover this bounded I consumer.
+No schema/index, reader authority, body/path read, picker, copy/remove/open/export/model/network route or E/Q enablement is added.
+
 The optional **exact observation-source GUID**, **exact device-profile GUID**
 and inclusive **Captured From / Until UTC** compose by AND with every existing
 predicate, including exact digest. IDs reuse `SessionListSearch` canonical

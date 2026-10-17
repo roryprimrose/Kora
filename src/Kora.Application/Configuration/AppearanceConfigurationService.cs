@@ -112,8 +112,7 @@ public sealed partial class AppearanceConfigurationService(
     public Task<AppearanceApplyResult> ApplyAsync(AppearanceProposal proposal, CancellationToken cancellationToken) =>
         Task.Run(() => Apply(proposal, cancellationToken), cancellationToken);
 
-    // The existing atomic preference boundary is synchronous. UI dispatch retains that contract;
-    // asynchronous callers may schedule it. Cancellation is admitted before the atomic write, never after commit.
+    // Cancellation is admitted before the atomic write, never after commit.
     public AppearanceApplyResult Apply(AppearanceProposal proposal) => Apply(proposal, CancellationToken.None);
 
     public AppearanceApplyResult Apply(AppearanceProposal proposal, CancellationToken cancellationToken)
@@ -133,6 +132,7 @@ public sealed partial class AppearanceConfigurationService(
                 Reload();
             }
             AppearanceOptionRegistry.Validate(proposal.Option, proposal.Value);
+            RequireEligibility(proposal);
             if (proposal.Option == AppearanceOption.ReaderTextScale)
             {
                 ValidateReaderAdmission(proposal.Initiator, proposal.OriginalOrigin, proposal.RemainsEligible);
@@ -162,12 +162,19 @@ public sealed partial class AppearanceConfigurationService(
             try
             {
                 cancellationToken.ThrowIfCancellationRequested();
+                RequireEligibility(proposal);
                 save[proposal.Option](proposal.Value);
             }
             catch (OperationCanceledException)
             {
                 activity.Complete(HostOperationOutcome.Cancelled);
                 auditLog.Write(audit.WithOutcome(SecurityAuditOutcome.Cancelled, "user-cancelled"));
+                throw;
+            }
+            catch (InvalidOperationException)
+            {
+                activity.Complete(HostOperationOutcome.Failed);
+                auditLog.Write(audit.WithOutcome(SecurityAuditOutcome.Denied, "appearance-admission-changed"));
                 throw;
             }
             catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
@@ -267,6 +274,14 @@ public sealed partial class AppearanceConfigurationService(
             or SecurityAuditInitiator.VoiceCommand))
         {
             throw new ArgumentOutOfRangeException(nameof(initiator), "Only local UI and deterministic user commands are admitted.");
+        }
+    }
+
+    private static void RequireEligibility(AppearanceProposal proposal)
+    {
+        if (proposal.RemainsEligible is { } eligible && !eligible())
+        {
+            throw new InvalidOperationException("The original appearance input is no longer eligible. Initiate a fresh change.");
         }
     }
 

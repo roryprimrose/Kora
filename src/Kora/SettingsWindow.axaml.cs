@@ -5,6 +5,7 @@ using Avalonia.Markup.Xaml;
 using Avalonia.Layout;
 
 using Kora.Application.ViewModels;
+using Kora.Application.Infrastructure;
 using Kora.Core.Commands;
 
 using Microsoft.Extensions.DependencyInjection;
@@ -251,23 +252,19 @@ public sealed partial class SettingsWindow : Window
 
     private void OnRevokeSessionApprovalClicked(
         object? sender,
-        Avalonia.Interactivity.RoutedEventArgs eventArgs)
-    {
-        if (sender is Button { Tag: BuiltInAction action }
-            && DataContext is MainViewModel viewModel)
-        {
-            viewModel.RevokeModelActionApproval(action, ModelApprovalScope.Session);
-        }
-    }
+        Avalonia.Interactivity.RoutedEventArgs eventArgs) => RevokeApproval(sender, ModelApprovalScope.Session);
 
     private void OnRevokeAlwaysApprovalClicked(
         object? sender,
-        Avalonia.Interactivity.RoutedEventArgs eventArgs)
+        Avalonia.Interactivity.RoutedEventArgs eventArgs) => RevokeApproval(sender, ModelApprovalScope.Always);
+
+    private void RevokeApproval(object? sender, ModelApprovalScope scope)
     {
         if (sender is Button { Tag: BuiltInAction action }
             && DataContext is MainViewModel viewModel)
         {
-            viewModel.RevokeModelActionApproval(action, ModelApprovalScope.Always);
+            new AsyncCommand(() => viewModel.RevokeModelActionApprovalAsync(action, scope),
+                exception => viewModel.ReportHostInteractionFailure("Grant revocation not confirmed. " + exception.Message)).Execute(null);
         }
     }
 }

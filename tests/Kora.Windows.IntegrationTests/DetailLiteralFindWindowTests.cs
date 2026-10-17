@@ -41,6 +41,7 @@ public sealed class DetailLiteralFindWindowTests
             try
             {
                 fixture.Main.ReaderTextScalePercent = percent;
+                await fixture.Main.AppearanceUpdate;
                 Required<CheckBox>(window, "ReadingTextToggle").IsChecked = true;
                 Required<TextBox>(window, "SearchInput").Text = content.Source;
                 Click(window, "FirstMatch");

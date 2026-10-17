@@ -29,6 +29,30 @@ unconfirmed marker. Reset affects only the named option. No preference change
 grants consent/approval, replays retired speech or enables a gated capability.
 Legacy process-local overrides are labelled separately below.
 
+Appearance controls persist preferences and requested/terminal audits on background workers, with confirmed values published back to the UI. Rapid edits retain only the latest pending absolute value for each option ([appearance workflow](../src/Kora.Application/ViewModels/MainViewModel.Appearance.cs)).
+
+Pending changes recheck their original private-host admission before persistence; handoff refuses during an active write and normal exit awaits it. A queued value is not a saved preference ([commit admission](../src/Kora.Application/Configuration/AppearanceConfigurationService.cs), [exit](../src/Kora.Application/ViewModels/MainViewModel.cs)).
+
+During an owned save, new reader admission waits for confirmation. Existing Evidence content keeps its last confirmed typography with private-content checks still active ([Evidence](../src/Kora/EvidenceWindow.axaml.cs)).
+
+Captions temporarily hide without reviving a retired source. Unavailable or failed preference evidence still retires presentation ([captions](../src/Kora/SpeechCaptionWindowController.cs)).
+
+Window placement, response-window options, muted-output fallback and legacy model-preference writes now await worker-side atomic persistence and required audits. Native changes coalesce by control, so a queued absolute position replaces an older queued position, not an unrelated option ([preference workflow](../src/Kora.Application/ViewModels/MainViewModel.Preferences.cs)).
+
+Model execution and reusable grants remain unavailable during a model-preference commit ([model gates](../src/Kora.Application/ViewModels/MainViewModel.Communication.cs)).
+
+An unconfirmed write holds model admission for the run; inspect saved state and receipts before restarting. No rollback or automatic retry is claimed ([preference admission](../src/Kora.Application/ViewModels/MainViewModel.Preferences.cs)).
+
+Response text and settings remain responsive while bounded audio endpoint discovery runs on a worker ([output discovery](../src/Kora.Application/ViewModels/MainViewModel.VoicePrivacy.cs)).
+
+Playback waits for discovery and rechecks privacy and response identity. Voice-only window reveal waits for the observed output fallback; a late result cannot reveal a newer or locked response ([response workflow](../src/Kora.Application/ViewModels/MainViewModel.cs)).
+
+Grant and power-proposal preparation awaits requested audit persistence before exposing an actionable proposal. Retirement removes UI authority immediately; grant publication and consequential dispatch still await successful terminal audit ([approval workflow](../src/Kora.Application/ViewModels/MainViewModel.cs)).
+
+New input, Hide, cancellation, concurrent revocation or changed admission can retire a preparation or continuation while its receipt is pending. A completed receipt cannot restore a newer revocation ([race tests](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.ApprovalResponsiveness.cs)).
+
+Voice-consent persistence runs on a worker. Withdrawal invalidates capture and starts device release before waiting for disk; a later explicit withdrawal is serialized after an earlier grant and cannot be overwritten by its late UI continuation ([consent workflow](../src/Kora.Application/ViewModels/MainViewModel.VoicePrivacy.cs)).
+
 ## Read-only audit shortening preview
 
 In **Settings > Logging**, explicitly select **Proposed audit retention days for

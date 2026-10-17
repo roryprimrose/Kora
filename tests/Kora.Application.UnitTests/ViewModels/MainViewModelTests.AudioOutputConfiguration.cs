@@ -18,6 +18,7 @@ public sealed partial class MainViewModelTests
     {
         fixture.AudioPreferences.OutputDeviceId = outputId;
         await fixture.ViewModel.RefreshCommand.ExecuteAsync();
+        await fixture.ViewModel.ResponseOutputUpdate;
     }
 
     [Fact]
@@ -183,6 +184,7 @@ public sealed partial class MainViewModelTests
         fixture.ViewModel.AudioOutputConfigurationStatus.Should().Contain("not confirmed");
         var privacy = fixture.PrivacyObservation.Current;
         fixture.PrivacyObservation.Publish(new(privacy, privacy, WindowsPrivacyChangeReason.DefaultSpeaker));
+        await fixture.ViewModel.TopologyRefresh;
         await fixture.ViewModel.ExecuteOutputDeviceCommandAsync(new(AppearanceCommandOperation.Clarify, Error: "Exact output syntax"), SecurityAuditInitiator.TypedCommand, TestContext.Current.CancellationToken);
         fixture.ViewModel.ResponseBody.Should().Be("Exact output syntax");
         fixture.TextToSpeech.OutputEnumerationException = null;
@@ -409,13 +411,13 @@ public sealed partial class MainViewModelTests
         fixture.Reasoner.Action = BuiltInAction.LockMachine;
         await fixture.ViewModel.InitializeAsync();
         await fixture.RunAsync("list output settings");
-        fixture.Reasoner.Gate = new();
+        fixture.Reasoner.DecisionGate = new(TaskCreationOptions.RunContinuationsAsynchronously);
         await fixture.RunAsync("lock this workstation please");
         var reasoning = fixture.ViewModel.ActiveReasoningTask!;
         fixture.Audit.BeforeWrite = item =>
         {
             if (string.Equals(item.ActionId, "configuration.audio-output", StringComparison.Ordinal)
-                && item.Outcome == SecurityAuditOutcome.Requested) { fixture.Reasoner.Gate.TrySetResult("Lock"); }
+                && item.Outcome == SecurityAuditOutcome.Requested) { fixture.Reasoner.DecisionGate.TrySetResult(); }
         };
         await fixture.RunAsync("reset speech.output-device");
         await reasoning;

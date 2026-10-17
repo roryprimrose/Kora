@@ -400,7 +400,7 @@ public sealed partial class MainWindow : Window
         positionSaveTimer.Stop();
         if (positionInitialized)
         {
-            _ = viewModel.SetPresencePosition(
+            viewModel.QueuePresencePosition(
                 new PresencePosition(Position.X, Position.Y));
         }
 
@@ -529,7 +529,7 @@ public sealed partial class MainWindow : Window
         HostRequestRunner.Run(RequestOrigin.LocalUi, () =>
         {
             positionSaveTimer.Stop();
-            _ = viewModel.SetPresencePosition(
+            viewModel.QueuePresencePosition(
                 new PresencePosition(Position.X, Position.Y));
         }, HostActivityLayer.Desktop, HostOperation.Policy);
     }

@@ -103,7 +103,11 @@ public sealed partial class MainViewModelTests
         if (pending is "question") { f.Reasoner.Question = new("Which exact option?", ["One", "Two"]); }
         else { f.Reasoner.Action = BuiltInAction.LockMachine; }
         await f.ViewModel.InitializeAsync();
-        if (pending is "grant") { await f.RunAsync("allow models to lock the machine this session"); }
+        if (pending is "grant")
+        {
+            await f.RunAsync("allow models to lock the machine this session");
+            await f.ViewModel.ActiveReasoningTask!;
+        }
         else { await f.RunAsync("please help with this workstation"); await f.ViewModel.ActiveReasoningTask!; }
         var body = f.ViewModel.ResponseBody;
         var title = f.ViewModel.ResponseTitle;

@@ -511,7 +511,23 @@ Source/draft remain intact, destination is disabled, and uncertain post-publicat
 The current host writes both ordinary diagnostics and typed audit events
 to those files and independent private-profile SQLite projections. Required
 capture/file/database failures are reported and fail admission explicitly,
-not silently swallowed. The bounded durable path currently covers exact
+not silently swallowed.
+
+Ordinary diagnostic and completed-activity persistence uses one bounded 1,024-entry background buffer. Buffer exhaustion refuses admission rather than blocking the UI or silently dropping a record. Recent ordinary evidence can lag while queued; abrupt termination can lose queued ordinary records ([writer](../src/Kora.Application/Diagnostics/BufferedEvidenceWriter.cs)).
+
+Capture freezes structured properties, scopes and host correlation before enqueueing; SQLite validates live diagnostic admission before preparing an owned payload ([capture](../src/Kora.Application/Diagnostics/EvidenceLoggerProvider.cs), [SQLite admission](../src/Kora.Windows/Storage/WindowsSqliteEvidenceSink.cs)).
+
+Background failures attempt independent sinks, report gaps and hold later admission; shutdown joins accepted writes. Capture admission does not hold its lifecycle lock during sink I/O ([provider lifecycle](../src/Kora.Application/Diagnostics/EvidenceLoggerProvider.cs)).
+
+Typed security audits are not fire-and-forget or ordinary buffered records. Asynchronous audit callers await durable delivery on a worker; synchronous authority callers retain their acknowledged-write contract ([audit await](../src/Kora.Application/Auditing/SecurityAuditLogExtensions.cs), [typed audit](../src/Kora.Application/Auditing/LoggerSecurityAuditLog.cs)).
+
+Approval preparation and retirement also await worker-side audit delivery. An unpublished requested approval is not actionable; retiring UI state is not a successful audit receipt. Failed required receipts close host input admission rather than admitting an effect or publishing a grant ([approval implementation](../src/Kora.Application/ViewModels/MainViewModel.cs)).
+
+Normal exit joins tracked grant preparation and persistence. Forced service disposal closes admission and joins owned writes without requiring a stopped UI dispatcher to resume ([lifecycle](../src/Kora.Application/ViewModels/MainViewModel.Appearance.cs)).
+
+An interrupted requested-only preparation never becomes an approval. Newer input, private closure and concurrent revocations fence late publication and dispatch ([blocked-boundary tests](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.ApprovalResponsiveness.cs)).
+
+The bounded durable path currently covers exact
 typed or activated-voice **version** commands: task intent, dispatch, terminal
 evidence and receipt are committed before completion. Startup marks intent-only
 work Interrupted and dispatched work without a verified receipt Unknown;

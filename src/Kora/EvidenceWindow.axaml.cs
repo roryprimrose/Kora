@@ -107,6 +107,17 @@ internal sealed partial class EvidenceWindow : Window
             updatingTypography = true;
             try
             {
+                if (typographyHost?.IsReaderTypographyUpdatePending == true)
+                {
+                    // Existing content keeps its last confirmed typography during an owned write.
+                    // New windows still require confirmed evidence at constructor admission.
+                    if (!model.EnsureFindAdmission() || !model.CanFind)
+                    {
+                        scaleBody(ReaderTextScaleSettings.DefaultPercent);
+                        scaleMatch(ReaderTextScaleSettings.DefaultPercent);
+                    }
+                    return;
+                }
                 try { typographyHost?.EnsureReaderTypographyAvailable(); }
                 catch (InvalidOperationException)
                 {

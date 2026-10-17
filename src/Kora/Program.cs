@@ -237,7 +237,7 @@ internal static class Program
             builder.SetMinimumLevel(LogLevel.Debug);
             var fileSink = new FileEvidenceSink(fileLogger, fileHealth);
             builder.AddProvider(new EvidenceLoggerProvider(
-                [fileSink, evidence], fileSink));
+                [fileSink, evidence], fileSink, bufferDiagnostics: true));
         });
         services.AddSingleton(ownershipBridge);
         services.AddSingleton<IInstanceHostCallbacks>(ownershipBridge);
@@ -490,6 +490,7 @@ internal static class Program
                 provider.GetRequiredService<IPreferenceStore>(),
                 provider.GetRequiredService<ILogger<LocalAppearancePreferences>>()));
         services.AddSingleton<AppearanceConfigurationService>();
+        services.AddSingleton<AuditedPreferenceWriter>();
         services.AddSingleton<ISpeechCatalog>(provider => provider.GetRequiredService<ITextToSpeechService>());
         services.AddSingleton<IAudioOutputDeviceCatalog>(provider => provider.GetRequiredService<ITextToSpeechService>());
         services.AddSingleton<ISpeechPlaybackService>(provider => provider.GetRequiredService<ITextToSpeechService>());

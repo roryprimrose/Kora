@@ -1124,10 +1124,10 @@ public sealed partial class MainViewModelTests : IDisposable
             changedProperties.Add(eventArgs.PropertyName);
         var position = new PresencePosition(-640, 240);
 
-        var changed = fixture.ViewModel.SetPresencePosition(
+        var changed = await fixture.ViewModel.SetPresencePositionAsync(
             position,
             SecurityAuditInitiator.VoiceCommand);
-        var unchanged = fixture.ViewModel.SetPresencePosition(
+        var unchanged = await fixture.ViewModel.SetPresencePositionAsync(
             position,
             SecurityAuditInitiator.VoiceCommand);
 
@@ -1150,9 +1150,10 @@ public sealed partial class MainViewModelTests : IDisposable
     {
         var fixture = await Fixture.CreateInitializedAsync();
 
-        var action = () => fixture.ViewModel.SetPresencePosition(null!);
+        var action = () => fixture.ViewModel.SetPresencePositionAsync(null!);
 
-        action.Should().Throw<ArgumentNullException>();
+        await action.Should().ThrowAsync<ArgumentNullException>();
+
     }
 
     [Theory]
@@ -1167,7 +1168,7 @@ public sealed partial class MainViewModelTests : IDisposable
             ? new UnauthorizedAccessException("denied")
             : new IOException("disk");
 
-        var changed = fixture.ViewModel.SetPresencePosition(
+        var changed = await fixture.ViewModel.SetPresencePositionAsync(
             new PresencePosition(100, 200));
 
         changed.Should().BeFalse();
@@ -1380,6 +1381,7 @@ public sealed partial class MainViewModelTests : IDisposable
         fixture.ViewModel.PresenceTimeoutSeconds = 15;
         fixture.ViewModel.ResponseTimeoutSeconds = 8;
         fixture.ViewModel.PresenceTimeoutSeconds = 20;
+        await fixture.ViewModel.AppearanceUpdate;
 
         fixture.ViewModel.PresenceTimeoutSeconds.Should().Be(20);
         fixture.ViewModel.ResponseTimeoutSeconds.Should().Be(8);
@@ -1401,16 +1403,16 @@ public sealed partial class MainViewModelTests : IDisposable
         fixture.ViewModel.PropertyChanged += (_, eventArgs) =>
             changedProperties.Add(eventArgs.PropertyName);
 
-        var alwaysShowChanged = fixture.ViewModel.SetResponseAlwaysVisible(
+        var alwaysShowChanged = await fixture.ViewModel.SetResponseAlwaysVisibleAsync(
             true,
             SecurityAuditInitiator.VoiceCommand);
-        var unchanged = fixture.ViewModel.SetResponseAlwaysVisible(
+        var unchanged = await fixture.ViewModel.SetResponseAlwaysVisibleAsync(
             true,
             SecurityAuditInitiator.VoiceCommand);
-        var topmostChanged = fixture.ViewModel.SetResponseWindowTopmost(
+        var topmostChanged = await fixture.ViewModel.SetResponseWindowTopmostAsync(
             false,
             SecurityAuditInitiator.VoiceCommand);
-        var positionChanged = fixture.ViewModel.SetResponseWindowPosition(
+        var positionChanged = await fixture.ViewModel.SetResponseWindowPositionAsync(
             new ResponseWindowPosition(120, -80),
             SecurityAuditInitiator.VoiceCommand);
 
@@ -1450,6 +1452,7 @@ public sealed partial class MainViewModelTests : IDisposable
 
         fixture.ViewModel.IsResponseAlwaysVisible = true;
         fixture.ViewModel.IsResponseWindowTopmost = false;
+        await fixture.ViewModel.PreferenceUpdate;
 
         fixture.AppearancePreferences.SavedResponseWindowSettings.Should().Be(
             new ResponseWindowSettings(
@@ -1463,9 +1466,9 @@ public sealed partial class MainViewModelTests : IDisposable
     {
         var fixture = await Fixture.CreateInitializedAsync();
 
-        var action = () => fixture.ViewModel.SetResponseWindowPosition(null!);
+        var action = () => fixture.ViewModel.SetResponseWindowPositionAsync(null!);
 
-        action.Should().Throw<ArgumentNullException>();
+        await action.Should().ThrowAsync<ArgumentNullException>();
     }
 
     [Theory]
@@ -1636,6 +1639,7 @@ public sealed partial class MainViewModelTests : IDisposable
         fixture.ViewModel.PresenceSpeechScaleAmountPercent = 150;
         fixture.ViewModel.IsPresenceSpeechScalingEnabled = false;
 
+        await fixture.ViewModel.AppearanceUpdate;
         fixture.AppearancePreferences.SavedPresenceDotDensityPercent.Should().Be(125);
         fixture.AppearancePreferences.SavedPresenceSpeechScaleAmountPercent.Should().Be(150);
         fixture.AppearancePreferences.SavedPresenceSpeechScalingEnabled.Should().BeFalse();
@@ -1643,6 +1647,7 @@ public sealed partial class MainViewModelTests : IDisposable
 
         fixture.ViewModel.IsPresenceSpeechScalingEnabled = true;
 
+        await fixture.ViewModel.AppearanceUpdate;
         fixture.AppearancePreferences.SavedPresenceSpeechScalingEnabled.Should().BeTrue();
         fixture.ViewModel.PresenceSpeechScaleAmountPercent.Should().Be(150);
     }
@@ -1787,8 +1792,8 @@ public sealed partial class MainViewModelTests : IDisposable
             : new IOException("disk");
 
         var changed = accessDenied
-            ? fixture.ViewModel.SetResponseAlwaysVisible(true)
-            : fixture.ViewModel.SetResponseWindowTopmost(false);
+            ? await fixture.ViewModel.SetResponseAlwaysVisibleAsync(true)
+            : await fixture.ViewModel.SetResponseWindowTopmostAsync(false);
 
         changed.Should().BeFalse();
         fixture.ViewModel.IsResponseAlwaysVisible.Should().BeFalse();
@@ -3969,6 +3974,7 @@ public sealed partial class MainViewModelTests : IDisposable
 
         fixture.ViewModel.FallbackToVisualWhenOutputMuted = true;
         fixture.ViewModel.FallbackToVisualWhenOutputMuted = true;
+        await fixture.ViewModel.PreferenceUpdate;
 
         fixture.OutputPreferences.SavedMutedOutputVisualFallback.Should().BeTrue();
         fixture.ViewModel.IsVisualResponseVisible.Should().BeTrue();
@@ -3984,6 +3990,7 @@ public sealed partial class MainViewModelTests : IDisposable
             SecurityAuditOutcome.Succeeded);
 
         fixture.ViewModel.FallbackToVisualWhenOutputMuted = false;
+        await fixture.ViewModel.PreferenceUpdate;
         fixture.OutputPreferences.SavedMutedOutputVisualFallback.Should().BeFalse();
         fixture.ViewModel.IsVisualResponseVisible.Should().BeTrue();
         fixture.ViewModel.OutputDeviceAvailabilityMessage.Should().Contain("Visual text is forced");
@@ -3997,6 +4004,7 @@ public sealed partial class MainViewModelTests : IDisposable
         fixture.OutputPreferences.SaveException = exception;
 
         fixture.ViewModel.FallbackToVisualWhenOutputMuted = false;
+        await fixture.ViewModel.PreferenceUpdate;
 
         fixture.ViewModel.FallbackToVisualWhenOutputMuted.Should().BeTrue();
         fixture.ViewModel.State.Should().Be(AssistantState.Failure);
@@ -4273,9 +4281,11 @@ public sealed partial class MainViewModelTests : IDisposable
         fixture.ViewModel.ConfiguredResponseMode = ResponseOutputMode.VoiceOnly;
         fixture.WindowActions.Clear();
         fixture.TextToSpeech.Voices = [];
+        var enumerations = fixture.TextToSpeech.OutputEnumerationCalls;
 
         await fixture.ViewModel.RefreshCommand.ExecuteAsync();
 
+        fixture.TextToSpeech.OutputEnumerationCalls.Should().Be(enumerations + 1);
         fixture.ViewModel.IsSpeechOutputAvailable.Should().BeFalse();
         fixture.ViewModel.IsSpeechResponseEnabled.Should().BeFalse();
         fixture.ViewModel.IsVisualResponseVisible.Should().BeTrue();
@@ -5059,7 +5069,7 @@ public sealed partial class MainViewModelTests : IDisposable
     public async Task Artifact_action_requires_single_use_revision_current_approval_despite_reusable_grant()
     {
         var fixture = await Fixture.CreateInitializedAsync();
-        fixture.ViewModel.PrepareGrantChange(new GrantChange(
+        await fixture.ViewModel.PrepareGrantChangeAsync(new GrantChange(
             GrantChangeOperation.Add, BuiltInAction.LockMachine, ModelApprovalScope.Session));
         await fixture.ViewModel.ConfirmGrantChangeAsync();
         fixture.Reasoner.Action = BuiltInAction.LockMachine;
@@ -5212,13 +5222,13 @@ public sealed partial class MainViewModelTests : IDisposable
     public async Task Revoking_a_session_grant_publishes_the_updated_grant_document()
     {
         var fixture = await Fixture.CreateInitializedAsync();
-        fixture.ViewModel.PrepareGrantChange(new GrantChange(
+        await fixture.ViewModel.PrepareGrantChangeAsync(new GrantChange(
             GrantChangeOperation.Add, BuiltInAction.LockMachine, ModelApprovalScope.Session));
         await fixture.ViewModel.ConfirmGrantChangeAsync();
         string? updatedDocument = null;
         fixture.ViewModel.GrantDocumentChanged += (_, document) => updatedDocument = document;
 
-        fixture.ViewModel.RevokeModelActionApproval(BuiltInAction.LockMachine, ModelApprovalScope.Session);
+        await fixture.ViewModel.RevokeModelActionApprovalAsync(BuiltInAction.LockMachine, ModelApprovalScope.Session);
 
         fixture.ViewModel.SessionAllowedModelActions.Should().BeEmpty();
         fixture.ViewModel.ResponseTitle.Should().Be("Session approval revoked.");
@@ -5229,15 +5239,15 @@ public sealed partial class MainViewModelTests : IDisposable
     public async Task Revoking_session_and_always_grants_needs_no_document_subscriber()
     {
         var fixture = await Fixture.CreateInitializedAsync();
-        fixture.ViewModel.PrepareGrantChange(new GrantChange(
+        await fixture.ViewModel.PrepareGrantChangeAsync(new GrantChange(
             GrantChangeOperation.Add, BuiltInAction.LockMachine, ModelApprovalScope.Session));
         await fixture.ViewModel.ConfirmGrantChangeAsync();
-        fixture.ViewModel.PrepareGrantChange(new GrantChange(
+        await fixture.ViewModel.PrepareGrantChangeAsync(new GrantChange(
             GrantChangeOperation.Add, BuiltInAction.ProposeRestart, ModelApprovalScope.Always));
         await fixture.ViewModel.ConfirmGrantChangeAsync();
 
-        fixture.ViewModel.RevokeModelActionApproval(BuiltInAction.LockMachine, ModelApprovalScope.Session);
-        fixture.ViewModel.RevokeModelActionApproval(BuiltInAction.ProposeRestart, ModelApprovalScope.Always);
+        await fixture.ViewModel.RevokeModelActionApprovalAsync(BuiltInAction.LockMachine, ModelApprovalScope.Session);
+        await fixture.ViewModel.RevokeModelActionApprovalAsync(BuiltInAction.ProposeRestart, ModelApprovalScope.Always);
 
         fixture.ViewModel.SessionAllowedModelActions.Should().BeEmpty();
         fixture.ViewModel.AlwaysAllowedModelActions.Should().BeEmpty();
@@ -5248,13 +5258,13 @@ public sealed partial class MainViewModelTests : IDisposable
     public async Task Revoking_always_grant_notifies_grant_document_subscribers()
     {
         var fixture = await Fixture.CreateInitializedAsync();
-        fixture.ViewModel.PrepareGrantChange(new GrantChange(
+        await fixture.ViewModel.PrepareGrantChangeAsync(new GrantChange(
             GrantChangeOperation.Add, BuiltInAction.LockMachine, ModelApprovalScope.Always));
         await fixture.ViewModel.ConfirmGrantChangeAsync();
         string? updatedDocument = null;
         fixture.ViewModel.GrantDocumentChanged += (_, document) => updatedDocument = document;
 
-        fixture.ViewModel.RevokeModelActionApproval(BuiltInAction.LockMachine, ModelApprovalScope.Always);
+        await fixture.ViewModel.RevokeModelActionApprovalAsync(BuiltInAction.LockMachine, ModelApprovalScope.Always);
 
         updatedDocument.Should().NotBeNull().And.Contain("No grants.");
     }
@@ -5265,7 +5275,7 @@ public sealed partial class MainViewModelTests : IDisposable
         var fixture = await Fixture.CreateInitializedAsync();
         var documents = new List<string>();
         fixture.ViewModel.GrantDocumentChanged += (_, markdown) => documents.Add(markdown);
-        fixture.ViewModel.PrepareGrantChange(new GrantChange(
+        await fixture.ViewModel.PrepareGrantChangeAsync(new GrantChange(
             GrantChangeOperation.Add, BuiltInAction.LockMachine, ModelApprovalScope.Session));
 
         await fixture.ViewModel.ConfirmGrantChangeAsync();
@@ -5351,15 +5361,18 @@ public sealed partial class MainViewModelTests : IDisposable
 
         fixture.ViewModel.LocalModelsEnabled = true;
         fixture.ViewModel.HostedModelsEnabled = false;
+        await fixture.ViewModel.PreferenceUpdate;
         fixture.Audit.Events.Should().BeEmpty();
         fixture.ViewModel.HostedModelExecutionDescription.Should().StartWith(
             "Hosted model use is blocked.");
 
         fixture.ViewModel.HostedModelsEnabled = true;
+        await fixture.ViewModel.PreferenceUpdate;
         fixture.ViewModel.HostedModelExecutionDescription.Should().StartWith(
             "Hosted model use is allowed,");
         fixture.ViewModel.HostedModelsEnabled = false;
 
+        await fixture.ViewModel.PreferenceUpdate;
         fixture.ViewModel.HostedModelsEnabled.Should().BeFalse();
         fixture.ViewModel.HostedModelExecutionDescription.Should().StartWith(
             "Hosted model use is blocked.");
@@ -5422,8 +5435,9 @@ public sealed partial class MainViewModelTests : IDisposable
         await fixture.RunAsync(command);
 
         fixture.ViewModel.ResponseTitle.Should().Be("Model settings could not be saved.");
-        fixture.ViewModel.LocalModelsEnabled.Should().Be(localModelsEnabled);
-        fixture.ViewModel.HostedModelsEnabled.Should().Be(hostedModelsEnabled);
+        fixture.ViewModel.LocalModelsEnabled.Should().BeFalse();
+        fixture.ViewModel.HostedModelsEnabled.Should().BeFalse();
+        fixture.ModelExecutionPreferences.Settings.Should().Be(new ModelExecutionSettings(localModelsEnabled, hostedModelsEnabled));
     }
 
     [Fact]
@@ -5460,6 +5474,7 @@ public sealed partial class MainViewModelTests : IDisposable
         try
         {
             fixture.ViewModel.LocalModelsEnabled = false;
+            await fixture.ViewModel.PreferenceUpdate;
         }
         finally
         {
@@ -5484,6 +5499,7 @@ public sealed partial class MainViewModelTests : IDisposable
         var reasoning = fixture.ViewModel.ActiveReasoningTask!;
 
         fixture.ViewModel.LocalModelsEnabled = false;
+        await fixture.ViewModel.PreferenceUpdate;
         await reasoning;
 
         fixture.ViewModel.LocalModelsEnabled.Should().BeFalse();
@@ -5511,14 +5527,16 @@ public sealed partial class MainViewModelTests : IDisposable
     }
 
     [Fact]
-    public async Task Failed_model_execution_save_keeps_the_effective_setting()
+    public async Task Failed_model_execution_save_retains_saved_state_but_holds_model_admission()
     {
         var fixture = await Fixture.CreateInitializedAsync();
         fixture.ModelExecutionPreferences.SaveFailure = new IOException("disk unavailable");
 
         fixture.ViewModel.LocalModelsEnabled = false;
+        await fixture.ViewModel.PreferenceUpdate;
 
-        fixture.ViewModel.LocalModelsEnabled.Should().BeTrue();
+        fixture.ViewModel.LocalModelsEnabled.Should().BeFalse();
+        fixture.ModelExecutionPreferences.Settings.LocalModelsEnabled.Should().BeTrue();
         fixture.ViewModel.ResponseTitle.Should().Be("Model settings could not be saved.");
         fixture.Audit.Events.Should().Contain(entry =>
             entry.ActionId == "configuration.model-execution"
@@ -5701,7 +5719,7 @@ public sealed partial class MainViewModelTests : IDisposable
 
         fixture.Session.LockCalls.Should().Be(2);
         fixture.ViewModel.IsModelActionApprovalPending.Should().BeFalse();
-        fixture.ViewModel.RevokeModelActionApproval(
+        await fixture.ViewModel.RevokeModelActionApprovalAsync(
             BuiltInAction.LockMachine, ModelApprovalScope.Always);
         fixture.ApprovalPreferences.Preferences.AlwaysAllowedActions.Should().BeEmpty();
     }
@@ -5800,12 +5818,12 @@ public sealed partial class MainViewModelTests : IDisposable
     {
         var fixture = await Fixture.CreateInitializedAsync();
         var action = BuiltInAction.LockMachine;
-        fixture.ViewModel.PrepareGrantChange(new GrantChange(GrantChangeOperation.Add, action, ModelApprovalScope.Session));
+        await fixture.ViewModel.PrepareGrantChangeAsync(new GrantChange(GrantChangeOperation.Add, action, ModelApprovalScope.Session));
         await fixture.ViewModel.ConfirmGrantChangeAsync();
         fixture.ViewModel.SessionAllowedModelActions.Should().ContainSingle(command => command.Action == action);
         fixture.ViewModel.GetGrantDocument().Should().Contain("**LockMachine**");
 
-        fixture.ViewModel.PrepareGrantChange(new GrantChange(GrantChangeOperation.Remove, action, ModelApprovalScope.Once));
+        await fixture.ViewModel.PrepareGrantChangeAsync(new GrantChange(GrantChangeOperation.Remove, action, ModelApprovalScope.Once));
         fixture.ViewModel.ResponseBody.Should().Contain("Remove Session grant");
         await fixture.ViewModel.ConfirmGrantChangeAsync();
         fixture.ViewModel.SessionAllowedModelActions.Should().BeEmpty();
@@ -5817,9 +5835,9 @@ public sealed partial class MainViewModelTests : IDisposable
     {
         var fixture = await Fixture.CreateInitializedAsync();
         var action = BuiltInAction.LockMachine;
-        fixture.ViewModel.PrepareGrantChange(new GrantChange(GrantChangeOperation.Add, action, ModelApprovalScope.Session));
+        await fixture.ViewModel.PrepareGrantChangeAsync(new GrantChange(GrantChangeOperation.Add, action, ModelApprovalScope.Session));
         await fixture.ViewModel.ConfirmGrantChangeAsync();
-        fixture.ViewModel.PrepareGrantChange(
+        await fixture.ViewModel.PrepareGrantChangeAsync(
             new GrantChange(GrantChangeOperation.Move, action, ModelApprovalScope.Session, ModelApprovalScope.Always));
         await fixture.ViewModel.ConfirmGrantChangeAsync();
 
@@ -5835,12 +5853,12 @@ public sealed partial class MainViewModelTests : IDisposable
     [InlineData(GrantChangeOperation.Remove, ModelApprovalScope.Session, null, "Grant change cannot be prepared.")]
     [InlineData(GrantChangeOperation.Move, ModelApprovalScope.Session, ModelApprovalScope.Always, "Grant change cannot be prepared.")]
     [InlineData(GrantChangeOperation.Add, ModelApprovalScope.Session, ModelApprovalScope.Always, "Grant change cannot be prepared.")]
-    public void Invalid_or_inapplicable_grant_changes_are_not_pending(
+    public async Task Invalid_or_inapplicable_grant_changes_are_not_pending(
         GrantChangeOperation operation, ModelApprovalScope scope, ModelApprovalScope? target, string title)
     {
         var fixture = new Fixture();
 
-        fixture.ViewModel.PrepareGrantChange(new GrantChange(operation, BuiltInAction.LockMachine, scope, target));
+        await fixture.ViewModel.PrepareGrantChangeAsync(new GrantChange(operation, BuiltInAction.LockMachine, scope, target));
 
         fixture.ViewModel.IsGrantChangePending.Should().BeFalse();
         fixture.ViewModel.ResponseTitle.Should().Be(title);
@@ -5864,11 +5882,11 @@ public sealed partial class MainViewModelTests : IDisposable
         var fixture = new Fixture();
         fixture.ApprovalPreferences.Save(new ModelApprovalPreferences(true, [BuiltInAction.LockMachine]));
         await fixture.ViewModel.InitializeAsync();
-        fixture.ViewModel.RevokeModelActionApproval(BuiltInAction.LockMachine, ModelApprovalScope.Session);
-        fixture.ViewModel.RevokeModelActionApproval(BuiltInAction.ShowVersion, ModelApprovalScope.Always);
+        await fixture.ViewModel.RevokeModelActionApprovalAsync(BuiltInAction.LockMachine, ModelApprovalScope.Session);
+        await fixture.ViewModel.RevokeModelActionApprovalAsync(BuiltInAction.ShowVersion, ModelApprovalScope.Always);
         fixture.ApprovalPreferences.SaveFailure = new IOException("disk unavailable");
 
-        fixture.ViewModel.RevokeModelActionApproval(BuiltInAction.LockMachine, ModelApprovalScope.Always);
+        await fixture.ViewModel.RevokeModelActionApprovalAsync(BuiltInAction.LockMachine, ModelApprovalScope.Always);
 
         fixture.ViewModel.AlwaysAllowedModelActions.Should()
             .ContainSingle(command => command.Action == BuiltInAction.LockMachine);
@@ -5876,31 +5894,31 @@ public sealed partial class MainViewModelTests : IDisposable
     }
 
     [Fact]
-    public void Invalid_grant_proposals_and_revocations_are_rejected()
+    public async Task Invalid_grant_proposals_and_revocations_are_rejected()
     {
         var fixture = new Fixture();
-        var nullProposal = () => fixture.ViewModel.PrepareGrantChange(null!);
-        var invalidAction = () => fixture.ViewModel.PrepareGrantChange(
+        var nullProposal = () => fixture.ViewModel.PrepareGrantChangeAsync(null!);
+        var invalidAction = () => fixture.ViewModel.PrepareGrantChangeAsync(
             new GrantChange(GrantChangeOperation.Add, (BuiltInAction)9999, ModelApprovalScope.Session));
-        var invalidOperation = () => fixture.ViewModel.PrepareGrantChange(
+        var invalidOperation = () => fixture.ViewModel.PrepareGrantChangeAsync(
             new GrantChange((GrantChangeOperation)9999, BuiltInAction.LockMachine, ModelApprovalScope.Session));
-        var invalidScope = () => fixture.ViewModel.PrepareGrantChange(
+        var invalidScope = () => fixture.ViewModel.PrepareGrantChangeAsync(
             new GrantChange(GrantChangeOperation.Add, BuiltInAction.LockMachine, (ModelApprovalScope)9999));
-        var invalidTarget = () => fixture.ViewModel.PrepareGrantChange(
+        var invalidTarget = () => fixture.ViewModel.PrepareGrantChangeAsync(
             new GrantChange(GrantChangeOperation.Move, BuiltInAction.LockMachine,
                 ModelApprovalScope.Session, ModelApprovalScope.Once));
-        var invalidRevoke = () => fixture.ViewModel.RevokeModelActionApproval(
+        var invalidRevoke = () => fixture.ViewModel.RevokeModelActionApprovalAsync(
             (BuiltInAction)9999, ModelApprovalScope.Session);
-        var invalidRevokeScope = () => fixture.ViewModel.RevokeModelActionApproval(
+        var invalidRevokeScope = () => fixture.ViewModel.RevokeModelActionApprovalAsync(
             BuiltInAction.LockMachine, (ModelApprovalScope)9999);
 
-        nullProposal.Should().Throw<ArgumentNullException>();
-        invalidAction.Should().Throw<ArgumentException>();
-        invalidOperation.Should().Throw<ArgumentException>();
-        invalidScope.Should().Throw<ArgumentException>();
-        invalidTarget.Should().Throw<ArgumentException>();
-        invalidRevoke.Should().Throw<ArgumentOutOfRangeException>();
-        invalidRevokeScope.Should().Throw<ArgumentOutOfRangeException>();
+        await nullProposal.Should().ThrowAsync<ArgumentNullException>();
+        await invalidAction.Should().ThrowAsync<ArgumentException>();
+        await invalidOperation.Should().ThrowAsync<ArgumentException>();
+        await invalidScope.Should().ThrowAsync<ArgumentException>();
+        await invalidTarget.Should().ThrowAsync<ArgumentException>();
+        await invalidRevoke.Should().ThrowAsync<ArgumentOutOfRangeException>();
+        await invalidRevokeScope.Should().ThrowAsync<ArgumentOutOfRangeException>();
     }
 
     [Fact]
@@ -5912,6 +5930,7 @@ public sealed partial class MainViewModelTests : IDisposable
 
         fixture.ViewModel.RequireAssistantNameForVoiceApproval = false;
 
+        await fixture.ViewModel.PreferenceUpdate;
         fixture.ViewModel.RequireAssistantNameForVoiceApproval.Should().BeTrue();
         fixture.ApprovalPreferences.Preferences.RequireAssistantNameForVoiceApproval.Should().BeTrue();
         fixture.ViewModel.ResponseTitle.Should().Be("Model approval settings could not be saved.");
@@ -5946,7 +5965,7 @@ public sealed partial class MainViewModelTests : IDisposable
         fixture.ApprovalPreferences.Save(new ModelApprovalPreferences(true, [BuiltInAction.LockMachine]));
         await fixture.ViewModel.InitializeAsync();
 
-        fixture.ViewModel.PrepareGrantChange(
+        await fixture.ViewModel.PrepareGrantChangeAsync(
             new GrantChange(GrantChangeOperation.Remove, BuiltInAction.LockMachine, ModelApprovalScope.Once));
 
         fixture.ViewModel.ResponseBody.Should().Contain("Remove Always grant for LockMachine.");
@@ -5962,16 +5981,16 @@ public sealed partial class MainViewModelTests : IDisposable
         var fixture = new Fixture();
         fixture.ApprovalPreferences.Save(new ModelApprovalPreferences(true, [BuiltInAction.LockMachine]));
         await fixture.ViewModel.InitializeAsync();
-        fixture.ViewModel.PrepareGrantChange(
+        await fixture.ViewModel.PrepareGrantChangeAsync(
             new GrantChange(GrantChangeOperation.Add, BuiltInAction.LockMachine, ModelApprovalScope.Session));
         await fixture.ViewModel.ConfirmGrantChangeAsync();
 
-        fixture.ViewModel.PrepareGrantChange(
+        await fixture.ViewModel.PrepareGrantChangeAsync(
             new GrantChange(GrantChangeOperation.Remove, BuiltInAction.LockMachine, ModelApprovalScope.Once));
         fixture.ViewModel.IsGrantChangePending.Should().BeFalse();
         fixture.ViewModel.ResponseTitle.Should().Be("Select the exact existing grant.");
 
-        fixture.ViewModel.PrepareGrantChange(
+        await fixture.ViewModel.PrepareGrantChangeAsync(
             new GrantChange(GrantChangeOperation.Remove, BuiltInAction.LockMachine, ModelApprovalScope.Always));
         await fixture.RunAsync("show task progress");
         fixture.ViewModel.IsGrantChangePending.Should().BeFalse();
@@ -5983,7 +6002,7 @@ public sealed partial class MainViewModelTests : IDisposable
     {
         var fixture = await Fixture.CreateInitializedAsync();
         fixture.ApprovalPreferences.SaveFailure = new IOException("disk unavailable");
-        fixture.ViewModel.PrepareGrantChange(
+        await fixture.ViewModel.PrepareGrantChangeAsync(
             new GrantChange(GrantChangeOperation.Add, BuiltInAction.LockMachine, ModelApprovalScope.Always));
 
         await fixture.ViewModel.ConfirmGrantChangeAsync();
@@ -6042,7 +6061,7 @@ public sealed partial class MainViewModelTests : IDisposable
         fixture.TextToSpeech.StopGate = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
 
         var confirming = fixture.ViewModel.ConfirmGrantChangeAsync();
-        fixture.ViewModel.PrepareGrantChange(new GrantChange(
+        await fixture.ViewModel.PrepareGrantChangeAsync(new GrantChange(
             GrantChangeOperation.Add, BuiltInAction.ProposeRestart, ModelApprovalScope.Session));
         fixture.TextToSpeech.StopGate.SetResult();
         await confirming.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
@@ -6064,7 +6083,7 @@ public sealed partial class MainViewModelTests : IDisposable
         await fixture.RunAsync("please lock this workstation");
         await fixture.ViewModel.ActiveReasoningTask!;
 
-        fixture.ViewModel.PrepareGrantChange(new GrantChange(
+        await fixture.ViewModel.PrepareGrantChangeAsync(new GrantChange(
             GrantChangeOperation.Add, BuiltInAction.ProposeRestart, ModelApprovalScope.Session));
 
         fixture.ViewModel.IsModelActionApprovalPending.Should().BeFalse();
@@ -6080,7 +6099,7 @@ public sealed partial class MainViewModelTests : IDisposable
         fixture.Probe.Status = new DependencyStatus(
             "local.inference", "Local model inference (Ollama)", DependencyReadiness.Ready, "Ready.");
         await fixture.ViewModel.InitializeAsync();
-        fixture.ViewModel.PrepareGrantChange(new GrantChange(
+        await fixture.ViewModel.PrepareGrantChangeAsync(new GrantChange(
             GrantChangeOperation.Add, BuiltInAction.ProposeRestart, ModelApprovalScope.Session));
         fixture.ViewModel.IsGrantChangePending.Should().BeTrue();
         await fixture.ViewModel.RejectPendingGrantChangeAsync();
@@ -6102,7 +6121,7 @@ public sealed partial class MainViewModelTests : IDisposable
         var fixture = new Fixture();
         fixture.ApprovalPreferences.Save(new ModelApprovalPreferences(true, [BuiltInAction.LockMachine]));
         await fixture.ViewModel.InitializeAsync();
-        fixture.ViewModel.PrepareGrantChange(new GrantChange(
+        await fixture.ViewModel.PrepareGrantChangeAsync(new GrantChange(
             GrantChangeOperation.Move, BuiltInAction.LockMachine,
             ModelApprovalScope.Always, ModelApprovalScope.Session));
 
@@ -6119,10 +6138,10 @@ public sealed partial class MainViewModelTests : IDisposable
     {
         var fixture = await Fixture.CreateInitializedAsync();
         var action = BuiltInAction.LockMachine;
-        fixture.ViewModel.PrepareGrantChange(
+        await fixture.ViewModel.PrepareGrantChangeAsync(
             new GrantChange(GrantChangeOperation.Add, action, ModelApprovalScope.Session));
         await fixture.ViewModel.ConfirmGrantChangeAsync();
-        fixture.ViewModel.PrepareGrantChange(
+        await fixture.ViewModel.PrepareGrantChangeAsync(
             new GrantChange(GrantChangeOperation.Add, action, ModelApprovalScope.Always));
         await fixture.ViewModel.ConfirmGrantChangeAsync();
 
@@ -6135,7 +6154,7 @@ public sealed partial class MainViewModelTests : IDisposable
         };
         foreach (var change in attempts)
         {
-            fixture.ViewModel.PrepareGrantChange(change);
+            await fixture.ViewModel.PrepareGrantChangeAsync(change);
             fixture.ViewModel.IsGrantChangePending.Should().BeFalse();
             fixture.ViewModel.ResponseTitle.Should().Be("Grant change cannot be prepared.");
         }
@@ -6150,9 +6169,9 @@ public sealed partial class MainViewModelTests : IDisposable
         var fixture = new Fixture();
         fixture.ApprovalPreferences.Save(new ModelApprovalPreferences(true, [BuiltInAction.LockMachine]));
         await fixture.ViewModel.InitializeAsync();
-        fixture.ViewModel.PrepareGrantChange(new GrantChange(
+        await fixture.ViewModel.PrepareGrantChangeAsync(new GrantChange(
             GrantChangeOperation.Remove, BuiltInAction.LockMachine, ModelApprovalScope.Always));
-        fixture.ViewModel.RevokeModelActionApproval(BuiltInAction.LockMachine, ModelApprovalScope.Always);
+        await fixture.ViewModel.RevokeModelActionApprovalAsync(BuiltInAction.LockMachine, ModelApprovalScope.Always);
 
         await fixture.ViewModel.ConfirmGrantChangeAsync();
 
@@ -6195,7 +6214,7 @@ public sealed partial class MainViewModelTests : IDisposable
         fixture.Voice.Microphones = [new MicrophoneDevice("mic", "Mic")];
         fixture.Voice.DefaultMicrophoneId = "mic";
         await fixture.ViewModel.InitializeAsync();
-        fixture.ViewModel.PrepareGrantChange(new GrantChange(
+        await fixture.ViewModel.PrepareGrantChangeAsync(new GrantChange(
             GrantChangeOperation.Add, BuiltInAction.LockMachine, ModelApprovalScope.Always));
 
         await fixture.RaiseActivatedTranscriptAsync("approve once", 0.9f);
@@ -6216,7 +6235,7 @@ public sealed partial class MainViewModelTests : IDisposable
         fixture.Voice.DefaultMicrophoneId = "mic";
         await fixture.ViewModel.InitializeAsync();
         var change = new GrantChange(GrantChangeOperation.Add, BuiltInAction.LockMachine, ModelApprovalScope.Always);
-        fixture.ViewModel.PrepareGrantChange(change);
+        await fixture.ViewModel.PrepareGrantChangeAsync(change);
 
         await fixture.RaiseActivatedTranscriptAsync("Kora, always allow this", 0.9f);
         fixture.ViewModel.ResponseTitle.Should().Be("Confirm the exact change once.");
@@ -7636,7 +7655,7 @@ public sealed partial class MainViewModelTests : IDisposable
     public async Task Starting_PowerShell_setup_supersedes_pending_grant_without_saving_it()
     {
         var fixture = await Fixture.CreateInitializedAsync();
-        fixture.ViewModel.PrepareGrantChange(new GrantChange(
+        await fixture.ViewModel.PrepareGrantChangeAsync(new GrantChange(
             GrantChangeOperation.Add, BuiltInAction.LockMachine, ModelApprovalScope.Always));
         fixture.ViewModel.IsGrantChangePending.Should().BeTrue();
 
@@ -7685,7 +7704,7 @@ public sealed partial class MainViewModelTests : IDisposable
         await fixture.ViewModel.ExitAsync();
         fixture.ViewModel.IsModelQuestionPending.Should().BeFalse();
 
-        fixture.ViewModel.PrepareGrantChange(new GrantChange(
+        await fixture.ViewModel.PrepareGrantChangeAsync(new GrantChange(
             GrantChangeOperation.Add, BuiltInAction.LockMachine, ModelApprovalScope.Always));
         await fixture.ViewModel.ExitAsync();
         fixture.ViewModel.IsGrantChangePending.Should().BeFalse();
@@ -7700,7 +7719,7 @@ public sealed partial class MainViewModelTests : IDisposable
         fixture.Probe.Status = new DependencyStatus(
             "local.inference", "Local model inference (Ollama)", DependencyReadiness.Ready, "Ready.");
         await fixture.ViewModel.InitializeAsync();
-        fixture.ViewModel.PrepareGrantChange(new GrantChange(
+        await fixture.ViewModel.PrepareGrantChangeAsync(new GrantChange(
             GrantChangeOperation.Add, BuiltInAction.ProposeRestart, ModelApprovalScope.Session));
         await fixture.ViewModel.ConfirmGrantChangeAsync();
         fixture.Reasoner.Action = BuiltInAction.LockMachine;
@@ -8520,9 +8539,10 @@ public sealed partial class MainViewModelTests : IDisposable
             OutputAdmission = new(audioStore, audioStore, new HostTaskCoordinator(audioStore));
             QueuePreferences.ReadFailure = queueReadFailure;
             QueueConfiguration = enableQueueConfiguration ? new(QueuePreferences, OutputAdmission, Audit ??= new FakeSecurityAuditLog()) : null;
+            var outputCatalog = new Kora.Application.Voice.BoundedAudioOutputCatalog(
+                TextToSpeech, NullLogger<Kora.Application.Voice.BoundedAudioOutputCatalog>.Instance);
             OutputConfiguration = enableOutputConfiguration ? new(
-                AudioPreferences, new Kora.Application.Voice.BoundedAudioOutputCatalog(
-                    TextToSpeech, NullLogger<Kora.Application.Voice.BoundedAudioOutputCatalog>.Instance),
+                AudioPreferences, outputCatalog,
                 OutputAdmission, Audit = new FakeSecurityAuditLog(), TextToSpeech) : null;
             VolumePreferences = new() { ReadFailure = volumeReadFailure };
             VolumeConfiguration = enablePlaybackVolume ? new(VolumePreferences, TextToSpeech, OutputAdmission, Audit ??= new FakeSecurityAuditLog()) : null;
@@ -8646,6 +8666,7 @@ public sealed partial class MainViewModelTests : IDisposable
                 new Kora.Tools.Clipboard.ClipboardRead(clipboard),
                 new Kora.Tools.Clipboard.ClipboardReuse(clipboard),
                 new Kora.Tools.Clipboard.ClipboardRevoke(clipboard),
+                new AuditedPreferenceWriter(Audit), outputCatalog,
                 microphoneCatalog, OutputConfiguration, VolumeConfiguration, enableResponseModeConfiguration
                     ? new ResponseModeConfigurationService(OutputPreferences, OutputAdmission, Audit, TextToSpeech) : null,
                 DiagnosticConfiguration,
@@ -8915,6 +8936,7 @@ public sealed partial class MainViewModelTests : IDisposable
 
         public sealed class FakeVoiceConsentPreferences : IVoiceConsentPreferences
         {
+            public Action<bool>? BeforeSave { get; set; }
             public bool? Consent { get; set; } = true;
 
             public Exception? Failure { get; set; }
@@ -8923,6 +8945,7 @@ public sealed partial class MainViewModelTests : IDisposable
 
             public void Save(bool consent)
             {
+                BeforeSave?.Invoke(consent);
                 if (Failure is { } error)
                 {
                     throw error;
@@ -9130,8 +9153,10 @@ public sealed partial class MainViewModelTests : IDisposable
 
         public async Task RunAsync(string command)
         {
+            await ViewModel.PreferenceUpdate;
             ViewModel.CommandText = command;
             await ViewModel.RunTypedCommand.ExecuteAsync();
+            await ViewModel.ResponseOutputUpdate;
         }
     }
 
@@ -9666,8 +9691,10 @@ public sealed partial class MainViewModelTests : IDisposable
         }
 
         public Action? BeforeOutputEnumeration { get; set; }
+        public int OutputEnumerationCalls { get; private set; }
         public IReadOnlyList<AudioOutputDevice> GetOutputDevices()
         {
+            OutputEnumerationCalls++;
             var callback = BeforeOutputEnumeration;
             BeforeOutputEnumeration = null;
             callback?.Invoke();
@@ -9782,6 +9809,7 @@ public sealed partial class MainViewModelTests : IDisposable
         public Exception? SaveException { get; set; }
 
         public Action? BeforePresencePreferenceSave { get; set; }
+        public Action? BeforeThemeSave { get; set; }
 
         public Action? BeforeResponseTimeoutPreferenceSave { get; set; }
 
@@ -9797,6 +9825,7 @@ public sealed partial class MainViewModelTests : IDisposable
 
         public void SaveThemeMode(ApplicationThemeMode mode)
         {
+            BeforeThemeSave?.Invoke();
             if (SaveException is not null)
             {
                 throw SaveException;

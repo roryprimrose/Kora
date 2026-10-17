@@ -59,6 +59,7 @@ public sealed partial class EvidenceLiteralFindTests
                 foreach (var scale in new[] { percent, 200, 75, 100, percent })
                 {
                     fixture.Main.ReaderTextScalePercent = scale;
+                    await fixture.Main.AppearanceUpdate;
                     Dispatcher.UIThread.RunJobs();
                     window.UpdateLayout();
                     body.FontSize.Should().Be(bodyFont * scale / 100d);
@@ -100,6 +101,7 @@ public sealed partial class EvidenceLiteralFindTests
                 finally { second.Close(); }
                 window.Close();
                 fixture.Main.ReaderTextScalePercent = percent == 75 ? 200 : 75;
+                await fixture.Main.AppearanceUpdate;
                 Dispatcher.UIThread.RunJobs();
                 body.Text.Should().BeEmpty();
                 match.Text.Should().BeEmpty();
@@ -121,6 +123,7 @@ public sealed partial class EvidenceLiteralFindTests
             using var fixture = new NativeUxFixtureSession(Path.GetTempPath());
             await fixture.InitializeAsync();
             fixture.Main.ReaderTextScalePercent = 200;
+            await fixture.Main.AppearanceUpdate;
             Dispatcher.UIThread.RunJobs();
             var reader = new Reader();
             var access = new Access();
@@ -149,6 +152,7 @@ public sealed partial class EvidenceLiteralFindTests
                 {
                     access.CanInspect = false;
                     fixture.Main.ReaderTextScalePercent = 75;
+                    await fixture.Main.AppearanceUpdate;
                     Dispatcher.UIThread.RunJobs();
                 }
                 viewer.IsFindCurrent(revision).Should().BeFalse();
@@ -181,6 +185,7 @@ public sealed partial class EvidenceLiteralFindTests
             using var fixture = new NativeUxFixtureSession(Path.GetTempPath());
             await fixture.InitializeAsync();
             fixture.Main.ReaderTextScalePercent = 200;
+            await fixture.Main.AppearanceUpdate;
             var reader = new Reader();
             var access = new Access();
             var viewer = Viewer(reader, access);
@@ -248,6 +253,7 @@ public sealed partial class EvidenceLiteralFindTests
             using var fixture = new NativeUxFixtureSession(Path.GetTempPath());
             await fixture.InitializeAsync();
             fixture.Main.ReaderTextScalePercent = 200;
+            await fixture.Main.AppearanceUpdate;
             Dispatcher.UIThread.RunJobs();
             var reader = new Reader();
             var viewer = Viewer(reader);
@@ -266,6 +272,7 @@ public sealed partial class EvidenceLiteralFindTests
                 File.WriteAllText(Path.Combine(fixture.LocalRoot, "Preferences", file),
                     state switch { "unconfirmed" => "1", "external" => "75", _ => state });
                 fixture.Main.ReaderTextScalePercent = 75;
+                await fixture.Main.AppearanceUpdate;
                 Dispatcher.UIThread.RunJobs();
                 window.IsVisible.Should().BeFalse();
                 viewer.CanQuery.Should().BeFalse();

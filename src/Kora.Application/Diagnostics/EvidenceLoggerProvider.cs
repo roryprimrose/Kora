@@ -7,22 +7,34 @@ using Microsoft.Extensions.Logging;
 
 namespace Kora.Application.Diagnostics;
 
-public sealed class EvidenceLoggerProvider : ILoggerProvider, ISupportExternalScope
+public sealed class EvidenceLoggerProvider : ILoggerProvider, ISupportExternalScope, IAsyncDisposable
 {
     private readonly IEvidenceSink[] sinks;
     private readonly IEvidenceGapReporter gaps;
     private readonly TimeProvider clock;
     private readonly ActivityListener listener;
+    private readonly BufferedEvidenceWriter? buffer;
     private readonly Lock captureGate = new();
+    private readonly Lock deliveryGate = new();
+    private readonly TaskCompletionSource capturesStopped = new(TaskCreationOptions.RunContinuationsAsynchronously);
+    private int captures;
     private bool disposed;
     private IExternalScopeProvider scopes = new LoggerExternalScopeProvider();
 
     public EvidenceLoggerProvider(IEnumerable<IEvidenceSink> sinks, IEvidenceGapReporter gaps,
-        TimeProvider? clock = null)
+        TimeProvider? clock = null, bool bufferDiagnostics = false)
     {
         this.sinks = sinks.ToArray();
         this.gaps = gaps;
         this.clock = clock ?? TimeProvider.System;
+        if (bufferDiagnostics)
+        {
+            if (this.sinks.Any(sink => sink is not IDeferredEvidenceSink))
+            {
+                throw new ArgumentException("Buffered sinks must support call-time evidence admission.", nameof(sinks));
+            }
+            buffer = new BufferedEvidenceWriter();
+        }
         HostActivity.ConfigureW3C();
         listener = new ActivityListener
         {
@@ -40,19 +52,65 @@ public sealed class EvidenceLoggerProvider : ILoggerProvider, ISupportExternalSc
 
     public void Dispose()
     {
+#pragma warning disable VSTHRD002 // ILoggerProvider requires synchronous disposal; desktop service teardown runs on a worker.
+        DisposeAsync().AsTask().GetAwaiter().GetResult();
+#pragma warning restore VSTHRD002
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        await StopCapture().ConfigureAwait(false);
+        if (buffer is not null) { await buffer.DisposeAsync().ConfigureAwait(false); }
+    }
+
+    public Task FlushAsync(CancellationToken cancellationToken = default) =>
+        buffer?.FlushAsync(cancellationToken) ?? Task.CompletedTask;
+
+    private Task StopCapture()
+    {
         lock (captureGate)
         {
-            if (disposed) { return; }
-            disposed = true;
-            listener.Dispose();
+            if (!disposed)
+            {
+                disposed = true;
+                listener.Dispose();
+            }
+            if (captures == 0) { capturesStopped.TrySetResult(); }
+#pragma warning disable VSTHRD003 // Completion is signalled by capture leases, never by dispatcher work.
+            return capturesStopped.Task;
+#pragma warning restore VSTHRD003
+        }
+    }
+
+    private CaptureLease? BeginCapture(bool required)
+    {
+        lock (captureGate)
+        {
+            if (disposed)
+            {
+                ObjectDisposedException.ThrowIf(required, this);
+                return null;
+            }
+            captures++;
+            return new CaptureLease(this);
+        }
+    }
+
+    private sealed class CaptureLease(EvidenceLoggerProvider owner) : IDisposable
+    {
+        public void Dispose()
+        {
+            lock (owner.captureGate)
+            {
+                if (--owner.captures == 0 && owner.disposed) { owner.capturesStopped.TrySetResult(); }
+            }
         }
     }
 
     private void CaptureActivity(Activity activity)
     {
-        // Removing a listener alone does not join callbacks already writing to owned storage.
-        using var capture = captureGate.EnterScope();
-        if (disposed) { return; }
+        using var capture = BeginCapture(required: false);
+        if (capture is null) { return; }
         var host = HostActivity.Current;
         if (host is null || !ReferenceEquals(host.Activity, activity))
         {
@@ -66,14 +124,21 @@ public sealed class EvidenceLoggerProvider : ILoggerProvider, ISupportExternalSc
             host.Outcome, activity.Links.Select(link =>
                 new ActivityLinkEnvelope(link.Context.TraceId.ToHexString(), link.Context.SpanId.ToHexString())).ToArray(),
             host.CorrelationId, host.ApprovalId);
-        FanOut(completed.EvidenceId, sink => sink.WriteActivity(completed), ordinary: true);
+        if (buffer is null)
+        {
+            FanOut(completed.EvidenceId, sink => sink.WriteActivity(completed), ordinary: true);
+        }
+        else
+        {
+            QueueOrdinary(completed.EvidenceId, sink => sink.PrepareActivity(completed));
+        }
     }
 
     private void Capture<TState>(string category, LogLevel level, EventId eventId,
         TState state, Exception? exception)
     {
-        using var capture = captureGate.EnterScope();
-        ObjectDisposedException.ThrowIf(disposed, this);
+        using var capture = BeginCapture(required: true);
+        buffer?.RequireHealthy();
         var identity = new HostId<EvidenceIdentity>(Guid.NewGuid());
         DiagnosticEnvelope envelope;
         EvidenceGap? contextGap = null;
@@ -117,6 +182,12 @@ public sealed class EvidenceLoggerProvider : ILoggerProvider, ISupportExternalSc
             throw;
         }
 
+        if (state is not TrustedAuditState && buffer is not null)
+        {
+            QueueOrdinary(identity, sink => sink.PrepareDiagnostic(envelope),
+                contextGap is null ? null : () => gaps.Report(contextGap));
+            return;
+        }
         FanOut(identity, sink =>
         {
             if (state is TrustedAuditState audit)
@@ -134,6 +205,22 @@ public sealed class EvidenceLoggerProvider : ILoggerProvider, ISupportExternalSc
         }
     }
 
+    private void QueueOrdinary(HostId<EvidenceIdentity> identity, Func<IDeferredEvidenceSink, Action> prepare,
+        Action? reportContextGap = null)
+    {
+        var writes = new Dictionary<IEvidenceSink, Action>();
+        FanOut(identity, sink => writes.Add(sink, prepare((IDeferredEvidenceSink)sink)), ordinary: true, serialize: false);
+        buffer!.Enqueue(() =>
+        {
+            FanOut(identity, sink =>
+            {
+                // A preparation rejected by an explicitly unavailable ordinary policy already reported its gap.
+                if (writes.TryGetValue(sink, out var write)) { write(); }
+            }, ordinary: true);
+            reportContextGap?.Invoke();
+        });
+    }
+
     private static ReadOnlyDictionary<string, EvidenceValue> CaptureProperties<TState>(TState state, bool missingHost)
     {
         var properties = new Dictionary<string, EvidenceValue>(EvidenceProperties.Capture(state), StringComparer.Ordinal);
@@ -147,7 +234,16 @@ public sealed class EvidenceLoggerProvider : ILoggerProvider, ISupportExternalSc
         return new ReadOnlyDictionary<string, EvidenceValue>(properties);
     }
 
-    private void FanOut(HostId<EvidenceIdentity> identity, Action<IEvidenceSink> write, bool ordinary)
+    private void FanOut(HostId<EvidenceIdentity> identity, Action<IEvidenceSink> write, bool ordinary, bool serialize = true)
+    {
+        if (serialize)
+        {
+            lock (deliveryGate) { Deliver(identity, write, ordinary); }
+        }
+        else { Deliver(identity, write, ordinary); }
+    }
+
+    private void Deliver(HostId<EvidenceIdentity> identity, Action<IEvidenceSink> write, bool ordinary)
     {
         var failures = new List<EvidenceGap>();
         var errors = new List<Exception>();

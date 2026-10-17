@@ -19,6 +19,35 @@ namespace Kora.Windows.IntegrationTests.Storage;
 public sealed class WindowsSqliteEvidenceSinkTests
 {
     [WindowsFact]
+    public async Task DeferredDiagnosticRequiresLiveAdmissionButPersistsAnOwnedSnapshotAfterTheScopeEnds()
+    {
+        using var fixture = new OwnedStorageFixture();
+        using var listener = Listen();
+        var sink = new WindowsSqliteEvidenceSink(fixture);
+        Action write;
+        DiagnosticEnvelope envelope;
+        using (var host = HostActivity.BeginRoot(Request(), HostActivityLayer.Application, HostOperation.Request))
+        {
+            envelope = Diagnostic(host);
+            var properties = new Dictionary<string, EvidenceValue>(envelope.Properties, StringComparer.Ordinal);
+            envelope = envelope with { Properties = properties };
+            write = sink.PrepareDiagnostic(envelope);
+            properties["Count"] = new(EvidenceValueKind.WholeNumber, "999");
+            host.Complete(HostOperationOutcome.Completed);
+        }
+        var lateAdmission = () => sink.PrepareDiagnostic(envelope);
+        lateAdmission.Should().Throw<InvalidOperationException>();
+        await Task.Run(write, TestContext.Current.CancellationToken);
+        using var connection = Open(fixture);
+        using var command = connection.CreateCommand();
+        command.CommandText = "SELECT envelope FROM application_log_events;";
+        var saved = JsonSerializer.Deserialize<DiagnosticEnvelope>((string)command.ExecuteScalar()!)!;
+        saved.Properties["Count"].Should().Be(new EvidenceValue(EvidenceValueKind.WholeNumber, "1"));
+        saved.Trace.Should().Be(envelope.Trace);
+        saved.Host.Should().Be(envelope.Host);
+    }
+
+    [WindowsFact]
     public void Repeated_trusted_writes_accept_interleaved_links_without_redecoding_unchanged_history()
     {
         using var fixture = new OwnedStorageFixture();

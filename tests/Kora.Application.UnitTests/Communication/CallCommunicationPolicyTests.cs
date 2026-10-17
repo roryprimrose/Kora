@@ -7,6 +7,33 @@ namespace Kora.Application.UnitTests.Communication;
 
 public sealed class CallCommunicationPolicyTests
 {
+    [Fact]
+    public async Task PresentationObservationDoesNotWaitForPreferencePersistence()
+    {
+        using var policy = new CallCommunicationPolicy(new Automatic(CallState.Clear));
+        using var release = new ManualResetEventSlim();
+        var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var token = TestContext.Current.CancellationToken;
+        var original = policy.Current;
+        var mutation = Task.Run(() => policy.SetSettings(new(true, false), RequestOrigin.LocalUi,
+            original.Revision, Eligible, _ =>
+            {
+                entered.SetResult();
+                release.Wait(token);
+                return true;
+            }), token);
+        try
+        {
+            await entered.Task.WaitAsync(token);
+            policy.Current.Should().BeSameAs(original);
+            mutation.IsCompleted.Should().BeFalse();
+        }
+        finally { release.Set(); }
+        (await mutation).Should().Be(CallMutationOutcome.Applied);
+        policy.Current.Revision.Should().Be(original.Revision + 1);
+        policy.Current.Settings.Should().Be(new CallAwareSettings(true, false));
+    }
+
     [Theory]
     [InlineData(CallState.Unavailable, false)]
     [InlineData(CallState.Clear, false)]

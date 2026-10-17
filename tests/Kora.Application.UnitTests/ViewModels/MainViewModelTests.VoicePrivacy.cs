@@ -2290,7 +2290,7 @@ public sealed partial class MainViewModelTests
         fixture.PrivacyObservation.Current = current;
         fixture.PrivacyObservation.Publish(new WindowsPrivacyChangedEventArgs(previous, current,
             reason));
-        return fixture.ViewModel.MicrophoneRefreshTask;
+        return fixture.ViewModel.TopologyRefresh;
     }
 
     [Fact]

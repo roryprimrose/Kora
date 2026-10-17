@@ -1246,6 +1246,10 @@ All also have exact get/status/reset and `list speech text settings` discovery.
 
 ### Bounded native reader text scale
 
+Appearance persistence runs off the dispatcher. During a known in-process save, new reader admission remains unavailable; existing Evidence content retains only its last confirmed typography and current private-content admission ([Evidence](../src/Kora/EvidenceWindow.axaml.cs)).
+
+Captions temporarily hide until confirmation and independent source eligibility, without resetting retirement/failure state ([captions](../src/Kora/SpeechCaptionWindowController.cs)).
+
 The delivered native reader preference is `appearance.reader-text-scale`: an absolute integer percentage, default **100**, inclusive **75–200**. It uses the appearance registry, exact `get`/`status`/`set`/`reset` and `list appearance settings`, and the native Settings Appearance editor. Relative or natural-language examples below remain proposed, not inferred commands ([registry](../src/Kora.Core/Configuration/AppearanceOptionRegistry.cs), [parser](../src/Kora.Application/Configuration/AppearanceCommand.cs)).
 
 Only content typography scales: shared DetailWindow Rendered blocks, exact Source and continuous text; native original file/folder and retained attachment source bodies; exact source citation/literal-match spans; native volatile clipboard snapshot source body; admitted complete immutable serialized Evidence page body and its inert focused literal-Find span; currently observed native speech-caption content text. Newly created windows inherit the confirmed preference. Repeated changes apply against each control's original font/line-height, never cumulatively ([binding](../src/Kora/NativeReaderTypography.cs), [detail](../src/Kora/DetailWindow.axaml.cs), [file](../src/Kora/LocalFilePreviewWindow.cs), [span](../src/Kora/LocalFilePreviewWindow.Citations.cs), [clipboard](../src/Kora/ClipboardPreviewWindow.cs), [Evidence](../src/Kora/EvidenceWindow.axaml.cs), [caption](../src/Kora/SpeechCaptionWindow.axaml.cs)).

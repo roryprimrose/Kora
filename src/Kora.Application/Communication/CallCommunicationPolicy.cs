@@ -21,16 +21,8 @@ public sealed class CallCommunicationPolicy : IDisposable
 
     public event EventHandler? Changed;
 
-    public CallPolicyObservation Current
-    {
-        get
-        {
-            lock (sync)
-            {
-                return current;
-            }
-        }
-    }
+    // Presentation reads an immutable observation; consequential admission still takes the commit lock.
+    public CallPolicyObservation Current => Volatile.Read(ref current);
 
     public void LoadSettings(CallAwareSettings settings)
     {
@@ -135,7 +127,7 @@ public sealed class CallCommunicationPolicy : IDisposable
     private CallMutationOutcome Publish(CallPolicyObservation observation)
     {
         if (observation == current) { return CallMutationOutcome.Unchanged; }
-        current = observation with { Revision = checked(current.Revision + 1) };
+        Volatile.Write(ref current, observation with { Revision = checked(current.Revision + 1) });
         Changed?.Invoke(this, EventArgs.Empty);
         return CallMutationOutcome.Applied;
     }

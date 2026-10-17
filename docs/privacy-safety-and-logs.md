@@ -132,6 +132,26 @@ effect/provider scheduler.
 
 ## Committed authority audit inspection
 
+Native Evidence's optional inclusive **Retained due UTC from / until** filters
+match only admitted retained `EvidenceRecord.DueUtc`, independently of existing
+commit/observation time bounds and AND with every other predicate
+([query](../src/Kora.Core/Diagnostics/EvidenceQuery.cs)).
+Only empty means Any; [canonical UTC parsing](../src/Kora.Core/Storage/OptionalCanonicalUtc.cs)
+requires `yyyy-MM-ddTHH:mm:ss.fffffff+00:00`, without trimming, repair or offset
+normalization. Malformed, whitespace, noncanonical, overflowing or reversed
+bounds fail before reading. Missing DueUtc is UNKNOWN, not a match for any
+constrained range; DailyLog contributes no due metadata.
+
+Due is a retained metadata deadline, not proof of physical deletion, current
+expiry, policy, authority or retention permission. Full source/record/provenance
+validation and existing bounded scan, page-byte, timeout, private/source and
+cancellation fences remain. Both bounds bind the complete versioned semantic
+digest/authenticated cursor; [native edits, Clear and Escape](../src/Kora/EvidenceViewModel.Filters.cs)
+read nothing and retire rows, selection/detail, continuation and stale callbacks.
+No body/path read, schema, retention write/prune/expiry/lifecycle, audit-write,
+logging/capture, device/provider/model/egress or qualification change is added
+([owner contract and deterministic tests](../Design/Information_Display.md#delivered-bounded-native-evidence-inspection)).
+
 Native Evidence's **Observed trace parent** selector offers **Any / Root / Child**.
 Root means a valid retained trace with null parent span ID; Child means a valid
 retained nonnull parent ID. A missing trace is unknown, never an observed root

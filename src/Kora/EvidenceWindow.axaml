@@ -134,6 +134,22 @@
                    ContextMenu="{x:Null}" ContextFlyout="{x:Null}" AutomationProperties.Name="Inclusive evidence time range end" />
         </WrapPanel>
         <StackPanel Orientation="Horizontal" Spacing="10">
+          <StackPanel>
+            <TextBlock Text="Retained due UTC from (inclusive)" />
+            <TextBox x:Name="FromDueUtc" Text="{Binding FromDueFilter}" PlaceholderText="yyyy-MM-ddTHH:mm:ss.fffffff+00:00" Width="380"
+                     ContextMenu="{x:Null}" ContextFlyout="{x:Null}"
+                     AutomationProperties.Name="Inclusive retained due UTC start; empty means Any" />
+          </StackPanel>
+          <StackPanel>
+            <TextBlock Text="Retained due UTC until (inclusive)" />
+            <TextBox x:Name="UntilDueUtc" Text="{Binding UntilDueFilter}" PlaceholderText="yyyy-MM-ddTHH:mm:ss.fffffff+00:00" Width="380"
+                     ContextMenu="{x:Null}" ContextFlyout="{x:Null}"
+                     AutomationProperties.Name="Inclusive retained due UTC end; empty means Any" />
+          </StackPanel>
+        </StackPanel>
+        <TextBlock TextWrapping="Wrap"
+                   Text="Due bounds independently filter retained metadata deadlines, AND with every other filter. Only empty means Any; otherwise exact UTC with seven fractional digits and +00:00, ordered inclusive bounds. No trimming, repair or offset normalization. Missing DueUtc is UNKNOWN and never matches a constrained range. DailyLog has no retained due deadline. Due is not proof of physical deletion, current expiry, policy, authority or retention permission. Edits and Clear read nothing; Escape closes and retires the viewer." />
+        <StackPanel Orientation="Horizontal" Spacing="10">
           <ComboBox ItemsSource="{Binding Severities}" SelectedItem="{Binding Severity}" PlaceholderText="Any severity"
                     MinWidth="180" AutomationProperties.Name="Optional exact diagnostic severity filter" />
           <ComboBox ItemsSource="{Binding AuditOutcomes}" SelectedItem="{Binding AuditOutcome}" PlaceholderText="Any audit outcome"

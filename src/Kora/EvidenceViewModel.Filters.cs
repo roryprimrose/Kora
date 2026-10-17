@@ -5,6 +5,7 @@ using System.Runtime.CompilerServices;
 using Kora.Core.Auditing;
 using Kora.Core.Diagnostics;
 using Kora.Core.Hosting;
+using Kora.Core.Storage;
 
 namespace Kora;
 
@@ -32,6 +33,8 @@ internal sealed partial class EvidenceViewModel
     private string correlationFilter = string.Empty;
     private string fromFilter = string.Empty;
     private string untilFilter = string.Empty;
+    private string fromDueFilter = string.Empty;
+    private string untilDueFilter = string.Empty;
     private string eventIdFilter = string.Empty;
     private string categoryFilter = string.Empty;
     private string actionIdFilter = string.Empty;
@@ -93,6 +96,8 @@ internal sealed partial class EvidenceViewModel
     public string CorrelationFilter { get => correlationFilter; set => ChangeFilter(ref correlationFilter, value); }
     public string FromFilter { get => fromFilter; set => ChangeFilter(ref fromFilter, value); }
     public string UntilFilter { get => untilFilter; set => ChangeFilter(ref untilFilter, value); }
+    public string FromDueFilter { get => fromDueFilter; set => ChangeFilter(ref fromDueFilter, value); }
+    public string UntilDueFilter { get => untilDueFilter; set => ChangeFilter(ref untilDueFilter, value); }
     public string EventIdFilter { get => eventIdFilter; set => ChangeFilter(ref eventIdFilter, value); }
     public string CategoryFilter { get => categoryFilter; set => ChangeFilter(ref categoryFilter, value); }
     public string ActionIdFilter { get => actionIdFilter; set => ChangeFilter(ref actionIdFilter, value); }
@@ -121,6 +126,8 @@ internal sealed partial class EvidenceViewModel
         CorrelationFilter = string.Empty;
         FromFilter = string.Empty;
         UntilFilter = string.Empty;
+        FromDueFilter = string.Empty;
+        UntilDueFilter = string.Empty;
         EventIdFilter = string.Empty;
         CategoryFilter = string.Empty;
         ActionIdFilter = string.Empty;
@@ -169,6 +176,8 @@ internal sealed partial class EvidenceViewModel
         CorrelationId = Identifier(CorrelationFilter),
         FromUtc = Timestamp(FromFilter),
         UntilUtc = Timestamp(UntilFilter),
+        FromDueUtc = OptionalCanonicalUtc.Parse(FromDueFilter),
+        UntilDueUtc = OptionalCanonicalUtc.Parse(UntilDueFilter),
         Severity = Severity,
         AuditOutcome = AuditOutcome,
         EventId = EventIdentifier(EventIdFilter),

@@ -34,6 +34,8 @@ public sealed record EvidenceQuery
     public long? UntilAuditSequence { get; init; }
     public DateTimeOffset? FromUtc { get; init; }
     public DateTimeOffset? UntilUtc { get; init; }
+    public DateTimeOffset? FromDueUtc { get; init; }
+    public DateTimeOffset? UntilDueUtc { get; init; }
     public EvidenceSeverity? Severity { get; init; }
     public int? EventId { get; init; }
     public string? Category { get; init; }
@@ -71,6 +73,8 @@ public sealed record EvidenceQuery
         && (ExceptionType is null || string.Equals(record.ExceptionType, ExceptionType, StringComparison.Ordinal))
         && (FromAuditSequence is null || record.AuditSequence >= FromAuditSequence)
         && (UntilAuditSequence is null || record.AuditSequence <= UntilAuditSequence)
+        && (FromDueUtc is null || record.DueUtc >= FromDueUtc)
+        && (UntilDueUtc is null || record.DueUtc <= UntilDueUtc)
         && (ContentAvailability switch
         {
             EvidenceContentAvailability.Any => true,

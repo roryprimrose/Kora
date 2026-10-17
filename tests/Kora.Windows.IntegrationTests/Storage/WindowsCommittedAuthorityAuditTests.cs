@@ -19,6 +19,43 @@ namespace Kora.Windows.IntegrationTests.Storage;
 public sealed class WindowsCommittedAuthorityAuditTests
 {
     [WindowsFact]
+    public async Task RetainedDueBoundsComposeWithExactCommittedAuthorityMetadataWithoutWriting()
+    {
+        using var fixture = new InteractionStorageFixture();
+        await fixture.InitializeAsync();
+        await fixture.GrantAsync("once");
+        var viewer = new Kora.EvidenceViewModel(Service(fixture), () => true,
+            NullLogger<Kora.EvidenceViewModel>.Instance) { Source = EvidenceSource.AuthorityAudit };
+        var bytes = SHA256.HashData(File.ReadAllBytes(fixture.DatabasePath));
+        await viewer.SearchAsync();
+        var selected = viewer.Records.First(record => record.ApprovalId != null);
+        viewer.FromDueFilter = selected.DueUtc!.Value.ToString("O", System.Globalization.CultureInfo.InvariantCulture);
+        viewer.UntilDueFilter = viewer.FromDueFilter;
+        viewer.FromFilter = selected.CommittedUtc!.Value.ToString("O", System.Globalization.CultureInfo.InvariantCulture);
+        viewer.UntilFilter = viewer.FromFilter;
+        viewer.RequestFilter = selected.Host!.RequestId.Value.ToString("D");
+        viewer.CorrelationFilter = selected.CorrelationId!.Value.ToString("D");
+        viewer.FromAuditSequenceFilter = selected.AuditSequence!.Value.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        viewer.UntilAuditSequenceFilter = viewer.FromAuditSequenceFilter;
+        viewer.ActionIdFilter = selected.Audit!.ActionId;
+        viewer.AuditOutcome = selected.Audit.Outcome;
+        viewer.TraceFilter = selected.AuthorityProvenance!.TraceId!;
+        viewer.SpanFilter = selected.AuthorityProvenance.SpanId!;
+        await viewer.SearchAsync();
+        viewer.Records.Should().ContainSingle().Which.Should().BeEquivalentTo(selected);
+        viewer.FromDueFilter = selected.DueUtc.Value.AddTicks(1).ToString("O", System.Globalization.CultureInfo.InvariantCulture);
+        viewer.UntilDueFilter = "";
+        await viewer.SearchAsync();
+        viewer.Records.Should().BeEmpty();
+        viewer.ClearAdvancedFilters();
+        viewer.UntilDueFilter = selected.DueUtc.Value.AddTicks(-1).ToString("O", System.Globalization.CultureInfo.InvariantCulture);
+        await viewer.SearchAsync();
+        viewer.Records.Should().NotContain(record => record.Reference == selected.Reference);
+        SHA256.HashData(File.ReadAllBytes(fixture.DatabasePath)).Should().Equal(bytes);
+        viewer.Close();
+    }
+
+    [WindowsFact]
     public async Task NativeAdvancedFiltersReadExactCommittedMetadataWithoutPromotingDiagnostics()
     {
         using var fixture = new InteractionStorageFixture();

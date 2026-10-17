@@ -44,7 +44,7 @@ public sealed partial class DurableEvidenceQuery(
             cancellationToken.ThrowIfCancellationRequested();
             var now = time.GetUtcNow();
             var fingerprint = Convert.ToHexString(SHA256.HashData(
-                JsonSerializer.SerializeToUtf8Bytes(new SemanticQuery(1, query), Format)));
+                JsonSerializer.SerializeToUtf8Bytes(new SemanticQuery(2, query), Format)));
             var continuation = cursor is null ? null : Decode(cursor, fingerprint, current.Request.SessionId, now);
             var unavailable = query.Source == EvidenceSource.All
                 ? new[] { EvidenceSource.Session, EvidenceSource.Conversation }
@@ -167,6 +167,9 @@ public sealed partial class DurableEvidenceQuery(
     {
         if (!Enum.IsDefined(query.Source) || query.Limit is < 1 or > EvidencePage.MaximumRecords
             || query.FromUtc > query.UntilUtc || query.Severity is { } severity && !Enum.IsDefined(severity)
+            || query.FromDueUtc > query.UntilDueUtc
+            || query.FromDueUtc is { Offset: var fromOffset } && fromOffset != TimeSpan.Zero
+            || query.UntilDueUtc is { Offset: var untilOffset } && untilOffset != TimeSpan.Zero
             || query.AuditOutcome is { } outcome && !Enum.IsDefined(outcome)
             || query.Outcome is { } operationOutcome && !Enum.IsDefined(operationOutcome)
             || query.ActivityKind is { } kind && !Enum.IsDefined(kind)

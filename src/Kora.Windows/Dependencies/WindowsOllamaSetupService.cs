@@ -27,10 +27,15 @@ public sealed class WindowsOllamaSetupService : ILocalModelSetup, IDisposable
     private bool disposed;
 
     public WindowsOllamaSetupService()
+        : this(new OllamaProcessRunner())
+    {
+    }
+
+    private WindowsOllamaSetupService(IOllamaProcessRunner processes)
         : this(new HttpClient(new HttpClientHandler { AllowAutoRedirect = false, UseProxy = false })
         {
             Timeout = TimeSpan.FromMinutes(30),
-        }, new OllamaProcessRunner())
+        }, processes)
     {
         ownsClient = true;
     }
@@ -39,6 +44,12 @@ public sealed class WindowsOllamaSetupService : ILocalModelSetup, IDisposable
         : this(client, new OllamaProcessRunner())
     {
     }
+#if DEBUG
+    public WindowsOllamaSetupService(Kora.Windows.Coordination.IDebugRecoveryWorkTracker recovery)
+        : this(new OllamaProcessRunner(recovery ?? throw new ArgumentNullException(nameof(recovery))))
+    {
+    }
+#endif
 
     internal WindowsOllamaSetupService(HttpClient client, IOllamaProcessRunner processes)
     {
@@ -320,6 +331,9 @@ public sealed class WindowsOllamaSetupService : ILocalModelSetup, IDisposable
         IProgress<LocalModelSetupProgress> progress,
         CancellationToken cancellationToken)
     {
+#if DEBUG
+        using var work = processes.BeginWork();
+#endif
         using var request = new HttpRequestMessage(HttpMethod.Post, PullUri)
         {
             Content = JsonContent.Create(new { name = Model, stream = true }),
@@ -382,6 +396,9 @@ public sealed class WindowsOllamaSetupService : ILocalModelSetup, IDisposable
         {
             throw new InvalidOperationException("Ollama model download ended without a success status.");
         }
+#if DEBUG
+        work.Complete();
+#endif
     }
 
     private static string FormatBytes(long bytes) =>
@@ -391,6 +408,9 @@ public sealed class WindowsOllamaSetupService : ILocalModelSetup, IDisposable
 
     private async Task VerifyGenerationAsync(CancellationToken cancellationToken)
     {
+#if DEBUG
+        using var work = processes.BeginWork();
+#endif
         using var request = new HttpRequestMessage(HttpMethod.Post, GenerateUri)
         {
             Content = JsonContent.Create(new { model = Model, prompt = "Respond with OK.", stream = false }),
@@ -416,5 +436,8 @@ public sealed class WindowsOllamaSetupService : ILocalModelSetup, IDisposable
         {
             throw new InvalidOperationException("Ollama did not return a completed, nonempty response from the pinned model.");
         }
+#if DEBUG
+        work.Complete();
+#endif
     }
 }

@@ -10,6 +10,51 @@ namespace Kora.Windows.IntegrationTests.Dependencies;
 
 public sealed class WindowsOllamaSetupServiceTests
 {
+#if DEBUG
+    [Fact]
+    public async Task Debug_recovery_hold_precedes_inference_and_is_completed_only_after_verification()
+    {
+        var processes = new FakeProcesses();
+        using var client = Client(request =>
+        {
+            if (request.Method == HttpMethod.Post)
+            {
+                processes.RecoveryBegun.Should().Be(1);
+                processes.RecoveryCompleted.Should().Be(0);
+            }
+            return request.RequestUri!.AbsolutePath switch
+            {
+                "/api/version" => Json("""{"version":"0.35.1"}"""),
+                "/api/tags" => Json(Tags(ApiDigest)),
+                "/api/generate" => Json("""{"model":"qwen3:1.7b","done":true,"response":"OK"}"""),
+                _ => throw new InvalidOperationException("Unexpected request."),
+            };
+        });
+        using var service = new WindowsOllamaSetupService(client, processes);
+        await service.InstallAsync(new RecordingProgress(), TestContext.Current.CancellationToken);
+        processes.RecoveryCompleted.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task Debug_recovery_failure_prevents_inference_network_dispatch()
+    {
+        var processes = new FakeProcesses { RecoveryFailure = new InvalidOperationException("Recovery unavailable.") };
+        using var client = Client(request =>
+        {
+            request.Method.Should().Be(HttpMethod.Get);
+            return request.RequestUri!.AbsolutePath switch
+            {
+                "/api/version" => Json("""{"version":"0.35.1"}"""),
+                "/api/tags" => Json(Tags(ApiDigest)),
+                _ => throw new InvalidOperationException("Unexpected request."),
+            };
+        });
+        using var service = new WindowsOllamaSetupService(client, processes);
+        var install = () => service.InstallAsync(new RecordingProgress(), TestContext.Current.CancellationToken);
+        await install.Should().ThrowAsync<InvalidOperationException>().WithMessage("Recovery unavailable.");
+        processes.RecoveryCompleted.Should().Be(0);
+    }
+#endif
     [Theory]
     [InlineData(true, OllamaInstallationState.ModelDetected)]
     [InlineData(false, OllamaInstallationState.ModelMissing)]
@@ -328,6 +373,24 @@ public sealed class WindowsOllamaSetupServiceTests
 
     private sealed class FakeProcesses : IOllamaProcessRunner
     {
+#if DEBUG
+        public int RecoveryBegun { get; private set; }
+        public int RecoveryCompleted { get; private set; }
+        public Exception? RecoveryFailure { get; init; }
+
+        public Kora.Windows.Coordination.IDebugRecoveryWork BeginWork()
+        {
+            if (RecoveryFailure is not null) { throw RecoveryFailure; }
+            RecoveryBegun++;
+            return new Work(this);
+        }
+
+        private sealed class Work(FakeProcesses owner) : Kora.Windows.Coordination.IDebugRecoveryWork
+        {
+            public void Complete() => owner.RecoveryCompleted++;
+            public void Dispose() { }
+        }
+#endif
         public bool Installed { get; init; }
         public int Stops { get; private set; }
 

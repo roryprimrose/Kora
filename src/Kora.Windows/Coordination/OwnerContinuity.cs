@@ -9,18 +9,31 @@ internal sealed class OwnerContinuity : IDisposable
     private readonly string path;
     private readonly string sid;
     private FileStream? marker;
+#if DEBUG
+    internal DebugOwnerRecovery DebugRecovery { get; }
+#endif
 
     internal OwnerContinuity(string sid, string? markerPath = null)
     {
         this.sid = sid;
         path = markerPath ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
             "Kora", "Coordination", "unclean-owner");
+#if DEBUG
+        DebugRecovery = new(path, sid, DebugOwnerRecovery.CurrentOwner());
+#endif
     }
 
+#if DEBUG
+    internal bool HasUncleanOwner => !DebugRecovery.CanStart;
+#else
     internal bool HasUncleanOwner => File.Exists(path);
+#endif
 
     internal void Begin()
     {
+#if DEBUG
+        DebugRecovery.Prepare();
+#endif
         if (File.Exists(path))
         {
             throw new InvalidOperationException(
@@ -32,6 +45,9 @@ internal sealed class OwnerContinuity : IDisposable
         marker = CoordinationNative.CreateUserContinuityFile(path, sid);
         marker.WriteByte(1);
         marker.Flush(flushToDisk: true);
+#if DEBUG
+        DebugRecovery.Begin();
+#endif
     }
 
     internal void End(bool safelyDisposed)
@@ -43,6 +59,9 @@ internal sealed class OwnerContinuity : IDisposable
 
         marker.Dispose();
         marker = null;
+#if DEBUG
+        DebugRecovery.End(safelyDisposed);
+#endif
         if (safelyDisposed)
         {
             File.Delete(path);

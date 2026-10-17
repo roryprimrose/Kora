@@ -4,6 +4,14 @@ namespace Kora.Windows.Dependencies;
 
 internal sealed class PowerShellProcessRunner : IPowerShellProcessRunner
 {
+#if DEBUG
+    private readonly Kora.Windows.Coordination.IDebugRecoveryWorkTracker? recovery;
+
+    internal PowerShellProcessRunner(Kora.Windows.Coordination.IDebugRecoveryWorkTracker? recovery = null)
+    {
+        this.recovery = recovery;
+    }
+#endif
     public IReadOnlyList<string> GetCandidatePaths() =>
     [
         Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles),
@@ -16,6 +24,11 @@ internal sealed class PowerShellProcessRunner : IPowerShellProcessRunner
 
     public async Task<string> GetVersionAsync(string executable, CancellationToken cancellationToken)
     {
+#if DEBUG
+        cancellationToken.ThrowIfCancellationRequested();
+        using var work = (recovery
+            ?? throw new InvalidOperationException("Debug verification requires host recovery tracking.")).BeginWork();
+#endif
         var start = CreateVersionStartInfo(executable);
         using var process = Process.Start(start)
             ?? throw new InvalidOperationException("PowerShell could not be started for verification.");
@@ -26,6 +39,9 @@ internal sealed class PowerShellProcessRunner : IPowerShellProcessRunner
             var output = process.StandardOutput.ReadToEndAsync(timeout.Token);
             var error = process.StandardError.ReadToEndAsync(timeout.Token);
             await process.WaitForExitAsync(timeout.Token);
+#if DEBUG
+            work.Complete();
+#endif
             var version = await output;
             var failure = await error;
             if (process.ExitCode != 0)
@@ -56,11 +72,18 @@ internal sealed class PowerShellProcessRunner : IPowerShellProcessRunner
             throw new FileNotFoundException("Windows Package Manager (winget) is required to install PowerShell 7.",
                 start.FileName);
         }
+#if DEBUG
+        using var work = (recovery
+            ?? throw new InvalidOperationException("Debug installation requires host recovery tracking.")).BeginWork();
+#endif
         using var process = Process.Start(start)
             ?? throw new InvalidOperationException("winget could not be started.");
         try
         {
             await process.WaitForExitAsync(cancellationToken);
+#if DEBUG
+            work.Complete();
+#endif
             return process.ExitCode;
         }
         catch (OperationCanceledException)

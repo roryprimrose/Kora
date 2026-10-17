@@ -16,8 +16,215 @@ using Microsoft.Data.Sqlite;
 
 namespace Kora.Windows.IntegrationTests.Storage;
 
-public sealed class WindowsSqliteEvidenceSinkTests
+public sealed partial class WindowsSqliteEvidenceSinkTests
 {
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Only_initial_integrity_admission_accepts_six_seconds_of_work(bool initialAdmission)
+    {
+        using var connection = IntegritySample();
+        var clock = new JumpClock();
+        var validate = () =>
+        {
+            var timeout = initialAdmission ? WindowsSqliteEvidenceSink.InitialIntegrityTimeout : TimeSpan.FromSeconds(5);
+            RestrictedSqliteDatabase.ValidateIntegrity(connection, timeout, clock, TestContext.Current.CancellationToken);
+        };
+
+        WindowsSqliteEvidenceSink.InitialIntegrityTimeout.Should().Be(TimeSpan.FromSeconds(30));
+        if (initialAdmission) { validate.Should().NotThrow(); }
+        else { validate.Should().Throw<SqliteException>().Which.SqliteErrorCode.Should().Be(SQLitePCL.raw.SQLITE_INTERRUPT); }
+        clock.TimestampReads.Should().BeGreaterThan(1);
+    }
+
+    [WindowsFact]
+    public void Initial_integrity_validation_still_interrupts_at_thirty_seconds()
+    {
+        using var connection = IntegritySample();
+        var clock = new ValidationClock(TimeSpan.FromSeconds(6));
+
+        var validate = () => RestrictedSqliteDatabase.ValidateIntegrity(connection,
+            WindowsSqliteEvidenceSink.InitialIntegrityTimeout, clock, TestContext.Current.CancellationToken);
+
+        validate.Should().Throw<SqliteException>().Which.SqliteErrorCode.Should().Be(SQLitePCL.raw.SQLITE_INTERRUPT);
+        clock.TimestampReads.Should().Be(6);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Integrity_validation_has_its_own_budget_and_still_rejects_corruption(bool corrupt)
+    {
+        using var connection = new SqliteConnection("Data Source=:memory:");
+        connection.Open();
+        using var command = connection.CreateCommand();
+        command.CommandText = """
+            CREATE TABLE sample(value INTEGER CHECK(value>0));
+            PRAGMA ignore_check_constraints=ON;
+            INSERT INTO sample VALUES($value);
+            PRAGMA ignore_check_constraints=OFF;
+            """;
+        command.Parameters.AddWithValue("$value", corrupt ? -1 : 1);
+        command.ExecuteNonQuery();
+        SQLitePCL.raw.sqlite3_progress_handler(connection.Handle, 1, _ => 1, null);
+
+        var validate = () => RestrictedSqliteDatabase.ValidateIntegrity(connection, TestContext.Current.CancellationToken);
+
+        if (corrupt) { validate.Should().Throw<InvalidDataException>().WithMessage("*integrity check*"); }
+        else { validate.Should().NotThrow(); }
+    }
+
+    [WindowsFact]
+    public void A_fresh_integrity_budget_does_not_override_cancellation()
+    {
+        using var connection = new SqliteConnection("Data Source=:memory:");
+        connection.Open();
+        using var cancellation = new CancellationTokenSource();
+        cancellation.Cancel();
+
+        var validate = () => RestrictedSqliteDatabase.ValidateIntegrity(connection, cancellation.Token);
+
+        validate.Should().Throw<OperationCanceledException>().Which.CancellationToken.Should().Be(cancellation.Token);
+    }
+
+    [WindowsFact]
+    public void Cold_start_validates_123000_activity_spans_without_skipping_history_or_exceeding_cache_bounds()
+    {
+        using var fixture = new OwnedStorageFixture();
+        using var listener = Listen();
+        using var host = HostActivity.BeginRoot(Request(), HostActivityLayer.Application, HostOperation.Request);
+        var now = DateTimeOffset.UtcNow;
+        var activity = new CompletedActivityEnvelope(new(Guid.NewGuid()), TraceSnapshot.Capture(host.Activity)!,
+            host.Request, now, now, HostOperationOutcome.Completed, []);
+        new WindowsSqliteEvidenceSink(fixture).WriteActivity(activity);
+        SeedEvidenceHistory(fixture, activity.EvidenceId.Value, 123000, "activity_spans");
+        var before = File.ReadAllBytes(DatabasePath(fixture));
+        var sink = new WindowsSqliteEvidenceSink(fixture);
+
+        sink.Initialize();
+
+        sink.PersistedEnvelopeDecodeCount.Should().Be(123000);
+        sink.PersistedEnvelopeCacheEntryCount.Should().BeLessThanOrEqualTo(WindowsSqliteEvidenceSink.MaximumCachedEnvelopeEntries);
+        sink.PersistedEnvelopeCacheEncodedBytes.Should().BeLessThanOrEqualTo(WindowsSqliteEvidenceSink.MaximumCachedEncodedPayloadBytes);
+        File.ReadAllBytes(DatabasePath(fixture)).Should().Equal(before);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Persisted_history_validation_has_fresh_SQLite_budgets_for_each_bounded_row(bool readOnly)
+    {
+        using var fixture = new OwnedStorageFixture();
+        var seed = Bootstrap();
+        new WindowsSqliteEvidenceSink(fixture).WriteDiagnostic(seed);
+        SeedDiagnosticHistory(fixture, seed, 2048);
+        var before = File.ReadAllBytes(DatabasePath(fixture));
+        var clock = new ValidationClock(TimeSpan.FromSeconds(1));
+        var sink = new WindowsSqliteEvidenceSink(fixture, timeProvider: clock);
+
+        if (readOnly)
+        {
+            using var lease = sink.AcquireReadLease(TestContext.Current.CancellationToken);
+            using var connection = sink.OpenReadOnly(TestContext.Current.CancellationToken);
+            using var command = connection.CreateCommand();
+            command.CommandText = "SELECT count(*) FROM application_log_events;";
+            command.ExecuteScalar().Should().Be(2048L);
+        }
+        else
+        {
+            sink.Initialize();
+            sink.PersistedEnvelopeDecodeCount.Should().Be(2048);
+        }
+
+        clock.TimestampReads.Should().BeGreaterThan(2048);
+        File.ReadAllBytes(DatabasePath(fixture)).Should().Equal(before);
+    }
+
+    [WindowsFact]
+    public void Validation_still_rejects_malformed_history_after_many_fresh_row_budgets()
+    {
+        using var fixture = new OwnedStorageFixture();
+        var seed = Bootstrap();
+        new WindowsSqliteEvidenceSink(fixture).WriteDiagnostic(seed);
+        SeedDiagnosticHistory(fixture, seed, 2048);
+        Mutate(fixture, "UPDATE application_log_events SET event_name='Rewritten' WHERE rowid=(SELECT max(rowid) FROM application_log_events);");
+        var before = File.ReadAllBytes(DatabasePath(fixture));
+        var clock = new ValidationClock(TimeSpan.FromSeconds(1));
+        var sink = new WindowsSqliteEvidenceSink(fixture, timeProvider: clock);
+
+        var initialize = () => sink.Initialize();
+
+        initialize.Should().Throw<InvalidDataException>().WithMessage("*correlation*");
+        clock.TimestampReads.Should().BeGreaterThan(2048);
+        File.ReadAllBytes(DatabasePath(fixture)).Should().Equal(before);
+    }
+
+    [WindowsFact]
+    public void History_validation_cancellation_releases_the_connection_without_changing_data()
+    {
+        using var fixture = new OwnedStorageFixture();
+        var seed = Bootstrap();
+        new WindowsSqliteEvidenceSink(fixture).WriteDiagnostic(seed);
+        SeedDiagnosticHistory(fixture, seed, 64);
+        var before = File.ReadAllBytes(DatabasePath(fixture));
+        using var cancellation = new CancellationTokenSource();
+        var clock = new ValidationClock(TimeSpan.FromSeconds(1), reads =>
+        {
+            if (reads == 8) { cancellation.Cancel(); }
+        });
+        var sink = new WindowsSqliteEvidenceSink(fixture, timeProvider: clock);
+        using (sink.AcquireReadLease(cancellation.Token))
+        {
+            var read = () =>
+            {
+                using var connection = sink.OpenReadOnly(cancellation.Token);
+            };
+
+            read.Should().Throw<OperationCanceledException>().Which.CancellationToken.Should().Be(cancellation.Token);
+        }
+
+        File.ReadAllBytes(DatabasePath(fixture)).Should().Equal(before);
+        new WindowsSqliteEvidenceSink(fixture).Initialize();
+    }
+
+    [WindowsFact]
+    public void Validation_query_budget_exhaustion_is_unavailable_not_corrupt_and_releases_the_connection()
+    {
+        using var fixture = new OwnedStorageFixture();
+        using var listener = Listen();
+        var audit = Audit();
+        using var host = HostActivity.BeginAudit(Request(), audit);
+        var diagnostic = Diagnostic(host);
+        new WindowsSqliteEvidenceSink(fixture).WriteAudit(new(diagnostic, audit));
+        SeedDiagnosticHistory(fixture, diagnostic, 2048, audit: true);
+        var before = File.ReadAllBytes(DatabasePath(fixture));
+        var sink = new WindowsSqliteEvidenceSink(fixture, timeProvider: new ValidationClock(TimeSpan.FromSeconds(6)));
+
+        var initialize = () => sink.Initialize();
+
+        var failure = initialize.Should().ThrowExactly<IOException>().WithMessage("*interrupted*").Which;
+        failure.InnerException.Should().BeOfType<SqliteException>().Which.SqliteErrorCode.Should().Be(SQLitePCL.raw.SQLITE_INTERRUPT);
+        File.ReadAllBytes(DatabasePath(fixture)).Should().Equal(before);
+        new WindowsSqliteEvidenceSink(fixture).Initialize();
+    }
+
+    [WindowsFact]
+    public void A_single_SQLite_query_retains_its_five_second_progress_budget()
+    {
+        using var connection = new SqliteConnection("Data Source=:memory:");
+        connection.Open();
+        RestrictedSqliteDatabase.ResetProgressBudget(connection, timeProvider: new ValidationClock(TimeSpan.FromSeconds(1)));
+        using var command = connection.CreateCommand();
+        command.CommandText = """
+            WITH RECURSIVE items(value) AS (SELECT 1 UNION ALL SELECT value+1 FROM items WHERE value<100000)
+            SELECT sum(value) FROM items;
+            """;
+
+        var query = () => command.ExecuteScalar();
+
+        query.Should().Throw<SqliteException>().Which.SqliteErrorCode.Should().Be(SQLitePCL.raw.SQLITE_INTERRUPT);
+    }
+
     [WindowsFact]
     public async Task DeferredDiagnosticRequiresLiveAdmissionButPersistsAnOwnedSnapshotAfterTheScopeEnds()
     {
@@ -729,11 +936,14 @@ public sealed class WindowsSqliteEvidenceSinkTests
         command.ExecuteNonQuery();
     }
 
-    private static void SeedDiagnosticHistory(OwnedStorageFixture fixture, DiagnosticEnvelope seed, int count)
+    private static void SeedDiagnosticHistory(OwnedStorageFixture fixture, DiagnosticEnvelope seed, int count, bool audit = false) =>
+        SeedEvidenceHistory(fixture, seed.EvidenceId.Value, count, audit ? "security_audit_events" : "application_log_events");
+
+    private static void SeedEvidenceHistory(OwnedStorageFixture fixture, Guid seedId, int count, string table)
     {
         using var connection = Open(fixture);
         using var columns = connection.CreateCommand();
-        columns.CommandText = "SELECT * FROM application_log_events LIMIT 0;";
+        columns.CommandText = $"SELECT * FROM {table} LIMIT 0;";
         string[] names;
         using (var reader = columns.ExecuteReader())
         {
@@ -744,13 +954,16 @@ public sealed class WindowsSqliteEvidenceSinkTests
         command.Transaction = transaction;
         var projection = names.Select(name => name switch
         {
+            "audit_sequence" => "NULL",
             "evidence_id" => "$id",
-            "envelope" => "json_set(envelope,'$.EvidenceId.Value',$id)",
+            "envelope" => string.Equals(table, "security_audit_events", StringComparison.Ordinal)
+                ? "json_set(envelope,'$.Diagnostic.EvidenceId.Value',$id)"
+                : "json_set(envelope,'$.EvidenceId.Value',$id)",
             _ => name,
         });
-        command.CommandText = $"INSERT INTO application_log_events SELECT {string.Join(',', projection)} "
-            + "FROM application_log_events WHERE evidence_id=$seed;";
-        command.Parameters.AddWithValue("$seed", seed.EvidenceId.Value.ToString("D"));
+        command.CommandText = $"INSERT INTO {table} SELECT {string.Join(',', projection)} "
+            + $"FROM {table} WHERE evidence_id=$seed;";
+        command.Parameters.AddWithValue("$seed", seedId.ToString("D"));
         var id = command.Parameters.Add("$id", SqliteType.Text);
         command.Prepare();
         for (var index = 1; index < count; index++)
@@ -779,6 +992,20 @@ public sealed class WindowsSqliteEvidenceSinkTests
         connection.Open();
         using var command = connection.CreateCommand();
         command.CommandText = "PRAGMA journal_mode=PERSIST; PRAGMA synchronous=FULL;";
+        command.ExecuteNonQuery();
+        return connection;
+    }
+
+    private static SqliteConnection IntegritySample()
+    {
+        var connection = new SqliteConnection("Data Source=:memory:");
+        connection.Open();
+        using var command = connection.CreateCommand();
+        command.CommandText = """
+            CREATE TABLE sample(value INTEGER CHECK(value>0));
+            WITH RECURSIVE items(value) AS (SELECT 1 UNION ALL SELECT value+1 FROM items WHERE value<4096)
+            INSERT INTO sample SELECT value FROM items;
+            """;
         command.ExecuteNonQuery();
         return connection;
     }
@@ -818,5 +1045,25 @@ public sealed class WindowsSqliteEvidenceSinkTests
     private sealed class FixedClock : TimeProvider
     {
         public override DateTimeOffset GetUtcNow() => new(2026, 10, 6, 0, 0, 0, TimeSpan.Zero);
+    }
+
+    private sealed class ValidationClock(TimeSpan step, Action<int>? onTimestamp = null) : TimeProvider
+    {
+        public int TimestampReads { get; private set; }
+        public override long TimestampFrequency => TimeSpan.TicksPerSecond;
+        public override long GetTimestamp()
+        {
+            TimestampReads++;
+            onTimestamp?.Invoke(TimestampReads);
+            return TimestampReads * step.Ticks;
+        }
+
+    }
+
+    private sealed class JumpClock : TimeProvider
+    {
+        public int TimestampReads { get; private set; }
+        public override long TimestampFrequency => TimeSpan.TicksPerSecond;
+        public override long GetTimestamp() => ++TimestampReads == 1 ? 0 : TimeSpan.FromSeconds(6).Ticks;
     }
 }

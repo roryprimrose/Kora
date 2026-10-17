@@ -260,10 +260,7 @@ public sealed class EvidenceLoggerProvider : ILoggerProvider, ISupportExternalSc
                 // sink. It must not break unrelated required audit/session authority on activity disposal.
                 requiredFailure |= !ordinary || exception is not DiagnosticRetentionUnavailableException;
                 errors.Add(exception);
-                failures.Add(new EvidenceGap(clock.GetUtcNow(), sink.Name,
-                    exception is Kora.Core.Storage.StorageAdmissionException
-                        ? EvidenceGapReason.StorageNotAdmitted : EvidenceGapReason.SinkFailure,
-                    identity, exception.GetType().FullName));
+                failures.Add(SinkGap(sink, identity, exception));
             }
         }
         var sinkFailureCount = errors.Count;
@@ -277,6 +274,12 @@ public sealed class EvidenceLoggerProvider : ILoggerProvider, ISupportExternalSc
                 new AggregateException(errors));
         }
     }
+
+    private EvidenceGap SinkGap(IEvidenceSink sink, HostId<EvidenceIdentity> identity, Exception exception) =>
+        new(clock.GetUtcNow(), sink.Name,
+            exception is Kora.Core.Storage.StorageAdmissionException
+                ? EvidenceGapReason.StorageNotAdmitted : EvidenceGapReason.SinkFailure,
+            identity, exception.GetType().FullName);
 
     private void ReportGap(EvidenceGap gap, List<Exception> errors)
     {

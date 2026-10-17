@@ -10,7 +10,8 @@ public sealed partial class WindowsSqliteEvidenceSink
         {
             // Retention may only open an already admitted partition, never create or replace one.
             using var lease = database.AcquireReadLease(cancellationToken);
-            using var connection = ValidateDatabase(database.Open(created: false, cancellationToken));
+            using var connection = ValidateDatabase(database.Open(created: false, cancellationToken),
+                cancellationToken: cancellationToken, validationTime: timeProvider);
             using var transaction = connection.BeginTransaction();
             checkpoint?.BeforeWrite(connection, transaction);
             using var command = connection.CreateCommand();

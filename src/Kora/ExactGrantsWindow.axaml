@@ -132,7 +132,22 @@
               <TextBox Text="{Binding HistoryApprovalId}" PlaceholderText="canonical lowercase D GUID; otherwise empty"
                        AutomationProperties.Name="Exact grant history committed approval ID, required only for Exact metadata choice" MinWidth="300" />
             </StackPanel>
-            <TextBlock Text="Correlation metadata only, not authority. Absent means a validated committed event without an approval ID, not unknown."
+            <StackPanel Margin="0,0,12,0">
+              <TextBlock Text="Exact committed request session ID (empty means Any)" />
+              <TextBox Text="{Binding HistorySessionId}" PlaceholderText="canonical lowercase D GUID, or empty"
+                       AutomationProperties.Name="Exact grant history committed request session ID, passive correlation only, typing performs no read" MinWidth="300" />
+            </StackPanel>
+            <StackPanel Margin="0,0,12,0">
+              <TextBlock Text="Exact committed request ID (empty means Any)" />
+              <TextBox Text="{Binding HistoryRequestId}" PlaceholderText="canonical lowercase D GUID, or empty"
+                       AutomationProperties.Name="Exact grant history committed request ID, passive correlation only, typing performs no read" MinWidth="300" />
+            </StackPanel>
+            <StackPanel Margin="0,0,12,0">
+              <TextBlock Text="Exact committed request task ID (empty means Any)" />
+              <TextBox Text="{Binding HistoryTaskId}" PlaceholderText="canonical lowercase D GUID, or empty"
+                       AutomationProperties.Name="Exact grant history committed request task ID, passive correlation only, typing performs no read" MinWidth="300" />
+            </StackPanel>
+            <TextBlock Text="Correlation metadata only, not authority or session selection. Request IDs match only the committed envelope, not the viewer or original grant proposal. Absent means a validated committed event without an approval ID, not unknown."
                        TextWrapping="Wrap" MaxWidth="400" />
           </WrapPanel>
           </ScrollViewer>

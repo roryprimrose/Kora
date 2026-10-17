@@ -389,6 +389,17 @@ Only authoritative retained audit entries with exact typed grant membership are 
 
 Requested review is not a committed grant change, and committed use is not proof an action executed. Stored creation/last-use/count metadata does not create missing rows. Unlinked reviews/failed attempts, exhaustive history, current applicability and execution remain unavailable or unknown. Expired-but-present is a retained deadline, not physical removal; the observed snapshot is not forensic or tamperproof evidence.
 
+**Exact committed request session ID**, **Exact committed request ID** and **Exact committed request task ID** are optional independent history fields. Empty means Any.
+Each nonempty value must be a nonzero canonical lowercase D GUID (exactly 36 characters); uppercase, whitespace, alternate forms, malformed and overlong values are refused without repair ([authoritative parser](../src/Kora.Core/Authorization/ExactGrantHistoryQuery.cs)).
+
+All three AND-compose with outcome/reason/initiator/retention/time/audit-correlation/approval filters and bind the complete continuation digest.
+They match only retained committed envelope `HostRequest` metadata, not your current viewer, the original grant proposal/origin, separately retained Requested review or other changes.
+Validation precedes exclusion; unavailable request metadata is not guessed ([committed reader](../src/Kora.Windows/Storage/WindowsSqliteHostInteractionStore.ExactGrantHistory.cs)).
+
+Typing or **Clear history filters** performs no read and immediately retires old rows/detail/Next and single/batch review.
+Clear restores all three to empty/Any; choose explicit **Read history for this exact grant ID** to validate and read again. Errors use the operation status, without echoing entered IDs.
+These are passive historical correlation, never session selection or approve/grant/revoke/renew/retarget/replay/execute authority ([history lifecycle](../src/Kora.Application/Interaction/ExactGrantsViewModel.HistoryFilters.cs)).
+
 Reading/selecting history does not execute, replay, export, copy, speak, approve or cancel anything, or renew session activity. It clears single/batch revocation review; **Inspect selected exact ID** again before a new explicit confirmation. Closing/privacy/ownership/control/selection changes clear held rows and suppress late output.
 
 Tick the separate **I reviewed EVERY displayed exact batch ID** confirmation and press **Confirm: revoke entire reviewed exact batch**. All unchanged Active targets and requested/terminal audit commit atomically, or NONE are revoked by the batch. A stale, missing, foreign, terminal or changed target requires fresh inventory/review. Reordering selection, changing pages or current control, privacy/ownership loss and closing the window invalidate the batch and late output.

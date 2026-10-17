@@ -21,6 +21,7 @@ public sealed record ExactGrantHistoryPage(
         + "Expired-but-present is a retained deadline, not physical removal. Gaps/retention and execution/applicability remain unknown. "
         + "Observed finite snapshot; not forensic or tamperproof evidence. No replay, export or new authority. "
         + "Audit correlation and approval IDs are committed correlation metadata only, not identity or execution authority. "
+        + "Request session/request/task IDs match only the committed envelope, not the current viewer or original grant proposal; no session selection. "
         + "Absent approval means validated metadata without an ID, not unknown.";
 
     public string Limitations => Disclosure;

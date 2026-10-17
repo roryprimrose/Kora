@@ -25,12 +25,17 @@
                             AutomationProperties.Name="Source availability and immutable revision status" />
     <StackPanel Grid.Row="4" Spacing="6">
       <TextBlock Text="Search this admitted source only: declared names, metadata-qualified IDs and valid declared descriptions. Literal ordinal-ignore-case substring, no trimming; no paths or instruction bodies." TextWrapping="Wrap" />
-      <StackPanel Orientation="Horizontal" Spacing="8">
+      <WrapPanel Orientation="Horizontal">
         <TextBox x:Name="SharedQuery" MinWidth="280" IsUndoEnabled="False" AutomationProperties.Name="Shared metadata query, at most 256 UTF-16 units and 512 UTF-8 bytes" />
         <ComboBox x:Name="SharedFilter" AutomationProperties.Name="Instruction-only compatibility filter; all invocation unavailable" />
         <Button x:Name="SearchSharedPackages" Content="Search" AutomationProperties.Name="Search admitted shared metadata without reading the source" />
-        <Button x:Name="ClearSharedSearch" Content="Clear" AutomationProperties.Name="Clear shared search and restore All without selecting a result" />
-      </StackPanel>
+        <Button x:Name="ClearSharedSearch" Content="Clear" AutomationProperties.Name="Clear shared search and restore All and source order without selecting a result" />
+      </WrapPanel>
+      <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8">
+        <Label Content="Order" Target="{Binding #SharedOrder}" />
+        <ComboBox x:Name="SharedOrder" Grid.Column="1" HorizontalAlignment="Stretch"
+                  AutomationProperties.Name="Shared metadata order; source default, ordinal names, unknown names last" />
+      </Grid>
       <TextBlock Text="Exact snapshot revision digest: empty means Any; otherwise 64 lowercase hexadecimal characters. This does not recheck live content, inspect additional names or grant authority." TextWrapping="Wrap" />
       <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8">
         <Label Content="Revision digest" Target="{Binding #SharedRevisionDigest}" />

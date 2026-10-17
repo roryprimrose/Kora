@@ -86,6 +86,12 @@ Deterministic Core/Application/private SQLite/headless tests cover this consumed
 I subset; no schema, log source, service, external action or E/Q qualification is
 added. Unavailable runtime/provider/egress/wake/profile-original writers stay disabled.
 
+### Passive immutable skill catalogue stable ordering - 2026-10-18
+
+The [admitted catalogue query](../src/Kora.Application/Skills/SkillCatalogueSearch.cs) adds Source-default and ordinal name ascending/descending views, unknown names last and exact canonical identity ascending ties. Existing literal/availability/compatibility/digest predicates compose unchanged after complete domain admission.
+
+[Native selectors and lifecycle tests](../tests/Kora.Windows.IntegrationTests/SkillMetadataSearchWindowTests.cs) cover read-free edits, private pane retirement, shared generation fences, Clear/Escape and layout. This consumes only existing I contracts; no persistence, resource/digest-byte change, authority/completeness or E/Q runtime claim is added ([storage boundary](Skill_Storage.md#delivered-bounded-r21-native-inspection)).
+
 ### Passive skill catalogue exact immutable digest filters - 2026-10-17
 
 The [existing skill metadata contract](Definition_Management.md#delivered-native-skill-metadata-navigation)

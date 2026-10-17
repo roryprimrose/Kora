@@ -104,6 +104,10 @@ The passive inspectors offer exact **Definition digest** / **Declared resource d
 
 Editing a filter clears selection/details without reading sources; choose **Search**, then explicitly select a result. **Clear** resets all filters without selecting; **Escape** closes and clears private fields. A digest match observes an admitted snapshot only: no live verification, reload, hidden-name search, execution or grant, and no freshness/integrity/authority promotion ([inspection contract](../Design/Skill_Storage.md#delivered-bounded-r21-native-inspection)).
 
+**Order** defaults to **Source order**. Choose **Name ascending (ordinal)** or **Name descending (ordinal)** for ordinal names, unknown names last in both directions, with exact canonical identity ascending as the tie-break. All existing filters still apply; incompatible rows are not hidden by ordering ([ordering contract](../Design/Skill_Storage.md#delivered-bounded-r21-native-inspection)).
+
+Order edits clear selection/private source panes without reading, discovering or rechecking; choose **Search** and explicitly reselect. **Clear** also restores Source order. Ordering is volatile presentation, not authority, catalogue completeness or runtime enablement ([native tests](../tests/Kora.Windows.IntegrationTests/SkillMetadataSearchWindowTests.cs)).
+
 **Current bounded:** [native owned-instruction editing](instruction-editor.md),
 exact Save/Delete review, Reload/Overwrite/Cancel conflicts and separate reviewed
 explicit use of the saved revision. Profile originals and other kinds remain read-only.

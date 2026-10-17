@@ -2,7 +2,7 @@ using Kora.Core.Hosting;
 
 namespace Kora.Core.Storage;
 
-/// <summary>Exact, content-free availability matching; null means Any, never unknown availability.</summary>
+/// <summary>Exact, content-free observation matching; absent predicates mean Any, never unknown availability.</summary>
 public static class SessionWorkOverviewFilter
 {
     public static void Validate(SessionWorkOverviewAvailability? availability)
@@ -30,19 +30,25 @@ public static class SessionWorkOverviewFilter
     }
 
     public static bool Matches(SessionWorkOverviewAvailability? availability, SessionWorkOverviewRow row,
-        SessionWorkOverviewContent content = SessionWorkOverviewContent.Any, HostTaskState? taskState = null)
+        SessionWorkOverviewContent content = SessionWorkOverviewContent.Any, HostTaskState? taskState = null,
+        SessionWorkOverviewTaskQuery taskQuery = default)
     {
         Validate(availability);
         Validate(content);
         ValidateTaskState(taskState);
+        taskQuery.Validate();
         if (!Enum.IsDefined(row.Availability))
         {
             throw new InvalidDataException("The observation row has undefined availability.");
         }
         row.Work?.Validate(row.Session.Authority.SessionId);
         if (availability is not null && availability != row.Availability) { return false; }
-        if (taskState is { } state && (row.Availability != SessionWorkOverviewAvailability.Observed
-            || row.Work is not { } observation || !observation.Tasks.Any(task => task.State == state))) { return false; }
+        if ((taskState is not null || taskQuery.TaskId is not null || taskQuery.RequestId is not null)
+            && (row.Availability != SessionWorkOverviewAvailability.Observed
+                || row.Work is not { } observation || !observation.Tasks.Any(task =>
+                    (taskState is null || task.State == taskState)
+                    && (taskQuery.TaskId is null || task.Request.TaskId.Value == taskQuery.TaskId)
+                    && (taskQuery.RequestId is null || task.Request.RequestId.Value == taskQuery.RequestId)))) { return false; }
         if (content == SessionWorkOverviewContent.Any) { return true; }
         if (row.Availability != SessionWorkOverviewAvailability.Observed || row.Work is not { } work) { return false; }
         return content switch

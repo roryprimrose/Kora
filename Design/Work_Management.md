@@ -182,6 +182,13 @@ The [native selector](../src/Kora/AllWorkWindow.axaml) is visibly labelled, keyb
 No command, mutation, retry, task cancellation, reorder, resume, provider/device action, persistence, schema or authority is added.
 [Core](../tests/Kora.Core.UnitTests/Storage/SessionWorkOverviewFilterTests.cs), [Application](../tests/Kora.Application.UnitTests/Hosting/SessionWorkspaceServiceTests.WorkOverviewTaskState.cs) and [native](../tests/Kora.Windows.IntegrationTests/AllWorkWindowTests.TaskState.cs) tests cover this bounded I subset, not E/Q qualification.
 
+Optional **Retained TaskId / Retained RequestId** reuse [strict canonical GUID admission](../src/Kora.Core/Hosting/OptionalCanonicalGuid.cs): empty means Any; present values require nonzero lowercase D format, without trimming, case repair or alternate forms.
+The [typed task query](../src/Kora.Core/Storage/SessionWorkOverviewTaskQuery.cs) and [single portable filter rule](../src/Kora.Core/Storage/SessionWorkOverviewFilter.cs) require both IDs and any constrained task state on the **same validated retained task observation**, never separate tasks. Every existing lifecycle/name/Needs answer/availability/content/range predicate still AND-composes.
+Only `row.Work.Tasks` counts; missing, unavailable, empty and omitted-only sources cannot supply a match or prove absence/exhaustive search. Whole candidate validation precedes exclusion, even after an early matching task ([Core tests](../tests/Kora.Core.UnitTests/Storage/SessionWorkOverviewTaskQueryTests.cs)).
+Matching establishes no current task/session selection, ownership, permission, approval or execution authority ([portable rule](../src/Kora.Core/Storage/SessionWorkOverviewFilter.cs)).
+Both semantic IDs bind [continuation](../src/Kora.Core/Storage/SessionWorkOverviewCursor.cs); the [reader](../src/Kora.Application/Hosting/SessionWorkspaceService.WorkOverview.cs) retains existing scan/serialized-page/counter/timeout/cancellation/source/private-control fences, with no extra read or new schema/authority.
+Named [native fields](../src/Kora/AllWorkWindow.axaml) perform read-free edits; **Clear task correlation** and Escape in either field clear both IDs while preserving independent filters. Edits retire rows/details/selection/navigation/action/cursor and stale callbacks; close/private closure clears volatile IDs ([native tests](../tests/Kora.Windows.IntegrationTests/AllWorkWindowTests.TaskQuery.cs)).
+
 Optional inclusive **minimum/maximum work metadata ranges** cover authority
 revision, queue revision, pending count, pending capacity, execution slots,
 observed current fixed reads, and omitted queue-receipt/task/pending-question

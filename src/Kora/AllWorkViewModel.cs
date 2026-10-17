@@ -72,7 +72,7 @@ internal sealed partial class AllWorkViewModel(
     public bool CanRead => !closed && !busy && access.CanInspect;
     public bool CanEdit => !closed && access.CanInspect;
     public bool CanSearch => CanEdit && (queryText.Length == 0 || SessionListSearch.IsValid(queryKind, filter, queryText))
-        && TryRanges(out _, out _);
+        && TryRanges(out _, out _) && TryTaskQuery(out _, out _);
     public bool CanNext => CanSearch && (busy ? hadNext : page?.Next is not null);
     public bool CanCancel => !closed && operation is not null;
     public bool CanNavigate => CanEdit && selected is { Availability: SessionWorkOverviewAvailability.Observed };
@@ -219,6 +219,13 @@ internal sealed partial class AllWorkViewModel(
 
     public Task RefreshAsync(bool next = false)
     {
+        if (!TryTaskQuery(out var taskQuery, out _))
+        {
+            Invalidate();
+            status = TaskQueryHint;
+            Notify();
+            return Task.CompletedTask;
+        }
         if (!TryRanges(out var ranges, out _))
         {
             Invalidate();
@@ -231,7 +238,7 @@ internal sealed partial class AllWorkViewModel(
             var cursor = next ? page?.Next ?? throw new InvalidOperationException("Refresh before Next.") : null;
             var query = queryText.Length == 0 ? null : new SessionListSearch(queryKind, filter, queryText);
             ClearPage();
-            var result = await service.ReadWorkOverviewAsync(filter, needsAnswer, cursor, token, query, availability, content, ranges, taskState);
+            var result = await service.ReadWorkOverviewAsync(filter, needsAnswer, cursor, token, query, availability, content, ranges, taskState, taskQuery);
             token.ThrowIfCancellationRequested();
             page = result;
             status = "This page: " + result.Records.Length.ToString(CultureInfo.InvariantCulture) + " groups; "
@@ -323,6 +330,8 @@ internal sealed partial class AllWorkViewModel(
         availability = null;
         content = SessionWorkOverviewContent.Any;
         taskState = null;
+        taskIdText = string.Empty;
+        requestIdText = string.Empty;
         queryText = string.Empty;
         queryKind = SessionListSearchKind.NameSubstring;
         needsAnswer = false;
@@ -346,6 +355,9 @@ internal sealed partial class AllWorkViewModel(
         OnPropertyChanged(nameof(SelectedContentChoice));
         OnPropertyChanged(nameof(TaskState));
         OnPropertyChanged(nameof(SelectedTaskStateChoice));
+        OnPropertyChanged(nameof(TaskIdText));
+        OnPropertyChanged(nameof(RequestIdText));
+        OnPropertyChanged(nameof(TaskQueryHint));
         OnPropertyChanged(nameof(QueryText));
         OnPropertyChanged(nameof(QueryKind));
         OnPropertyChanged(nameof(QueryHint));

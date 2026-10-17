@@ -170,6 +170,9 @@ public sealed partial class SessionWorkspaceServiceTests
     [InlineData("cancel", true)]
     [InlineData("cancel-timeout", true)]
     [InlineData("source", true)]
+    [InlineData("task-query-timeout", false)]
+    [InlineData("task-query-cancel", false)]
+    [InlineData("task-query-source", false)]
     public async Task OverviewFencesDeterministicInFlightCancellationTimeoutAndSourceRevocation(string mode, bool ranged)
     {
         using var f = new Fixture();
@@ -183,8 +186,11 @@ public sealed partial class SessionWorkspaceServiceTests
         var service = new SessionWorkspaceService(f, new(f), f, f.Logger, overviewTime: clock);
         using var cancellation = new CancellationTokenSource();
         var query = new SessionListSearch(SessionListSearchKind.NameSubstring, SessionListFilter.All, "needle");
+        var taskQuery = mode.StartsWith("task-query-", StringComparison.Ordinal)
+            ? new SessionWorkOverviewTaskQuery(OverviewTaskA, OverviewRequestA) : default;
+        mode = mode.Replace("task-query-", "", StringComparison.Ordinal);
         var pending = service.ReadWorkOverviewAsync(SessionListFilter.All, false, null, cancellation.Token, query,
-            ranges: ranged ? new(OmittedTasks: new(9, 9)) : default);
+            ranges: ranged ? new(OmittedTasks: new(9, 9)) : default, taskQuery: taskQuery);
         await entered.Task.WaitAsync(f.Token);
         if (mode is "source")
         {

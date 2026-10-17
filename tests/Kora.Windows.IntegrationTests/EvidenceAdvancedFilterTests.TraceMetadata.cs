@@ -25,21 +25,28 @@ public sealed partial class EvidenceAdvancedFilterTests
         using var listener = WindowsDailyEvidenceReaderTests.Listen();
         var sink = new WindowsSqliteEvidenceSink(fixture, timeProvider: new Clock());
         var owner = HostRequest.Create(RequestOrigin.LocalUi);
-        DiagnosticEnvelope[] envelopes;
+        var envelopes = new List<DiagnosticEnvelope>();
+        string parentId;
         using (var producer = HostActivity.BeginRoot(owner, HostActivityLayer.Application, HostOperation.Request))
         {
-            var trace = TraceSnapshot.Capture(producer.Activity)!;
-            envelopes = WindowsDailyEvidenceReaderTests.Produce(owner, 3).Select((envelope, index) => envelope with
+            parentId = TraceSnapshot.Capture(producer.Activity)!.SpanId;
+            var templates = WindowsDailyEvidenceReaderTests.Produce(owner, 3);
+            for (var index = 0; index < templates.Length; index++)
             {
-                Trace = index == 0 ? null : trace with { ParentSpanId = index == 1 ? null : new string('c', 16) },
-                Host = index == 0 ? null : envelope.Host,
-                Properties = index == 0 ? new Dictionary<string, EvidenceValue>(StringComparer.Ordinal)
+                using var child = index == 2 ? HostActivity.BeginChild(HostActivityLayer.Application, HostOperation.Request) : null;
+                var envelope = templates[index] with
                 {
-                    ["kora.bootstrap"] = new(EvidenceValueKind.Boolean, "false"),
-                    ["kora.evidence.gap"] = new(EvidenceValueKind.Text, "MissingHostContext"),
-                } : envelope.Properties,
-            }).ToArray();
-            foreach (var envelope in envelopes) { sink.WriteDiagnostic(envelope); }
+                    Trace = index == 0 ? null : TraceSnapshot.Capture(child?.Activity ?? producer.Activity),
+                    Host = index == 0 ? null : owner,
+                    Properties = index == 0 ? new Dictionary<string, EvidenceValue>(StringComparer.Ordinal)
+                    {
+                        ["kora.bootstrap"] = new(EvidenceValueKind.Boolean, "false"),
+                        ["kora.evidence.gap"] = new(EvidenceValueKind.Text, "MissingHostContext"),
+                    } : templates[index].Properties,
+                };
+                envelopes.Add(envelope);
+                sink.WriteDiagnostic(envelope);
+            }
         }
         WindowsDailyEvidenceReaderTests.Write(fixture, "kora-20261010.log", envelopes);
         var viewer = Viewer(new WindowsEvidenceReader(new(sink), new(fixture)));
@@ -52,7 +59,7 @@ public sealed partial class EvidenceAdvancedFilterTests
             viewer.Records.Should().HaveCount((choice.Value == TraceParentKind.Any ? 3 : 1) * copies);
             viewer.Records.Should().OnlyContain(record => choice.Value == TraceParentKind.Any
                 || record.Trace != null && (choice.Value == TraceParentKind.ObservedRoot) == (record.Trace.ParentSpanId == null));
-            viewer.ParentSpanFilter = new string('c', 16);
+            viewer.ParentSpanFilter = parentId;
             await viewer.SearchAsync();
             viewer.Records.Should().HaveCount(choice.Value == TraceParentKind.ObservedRoot ? 0 : copies);
             viewer.ParentSpanFilter = "";

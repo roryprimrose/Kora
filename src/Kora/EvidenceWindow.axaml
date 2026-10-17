@@ -76,6 +76,16 @@
                    Width="360" Margin="0,0,10,8" ContextMenu="{x:Null}" ContextFlyout="{x:Null}"
                    AutomationProperties.Name="Exact W3C Parent Span ID correlation filter; empty means Any"
                    ToolTip.Tip="Empty means Any. Otherwise exactly 16 lowercase hexadecimal characters, not all zero. No trimming or partial matching." />
+          <StackPanel Margin="0,0,10,8">
+            <TextBlock Text="Observed trace parent" />
+            <ComboBox x:Name="TraceParentKind" ItemsSource="{Binding TraceParentKindChoices}" SelectedItem="{Binding ParentKind, Mode=TwoWay}"
+                      MinWidth="150" AutomationProperties.Name="Observed trace parent: Any, Root or Child"
+                      ToolTip.Tip="Root requires a valid retained trace with no parent span ID. Child requires a valid retained parent span ID. Unknown traces match only Any; not complete trace or causality proof.">
+              <ComboBox.ItemTemplate>
+                <DataTemplate><TextBlock x:DataType="local:EvidenceViewModel+TraceParentKindChoice" Text="{Binding Label}" /></DataTemplate>
+              </ComboBox.ItemTemplate>
+            </ComboBox>
+          </StackPanel>
           <ComboBox x:Name="OperationOutcome" ItemsSource="{Binding OutcomeChoices}" SelectedItem="{Binding Outcome, Mode=TwoWay}"
                     MinWidth="150" Margin="0,0,10,8" AutomationProperties.Name="Exact host operation outcome; Any includes null outcomes">
             <ComboBox.ItemTemplate>
@@ -86,7 +96,7 @@
                     MinWidth="150" Margin="0,0,10,8" AutomationProperties.Name="Evidence content availability: Any, Present or Omitted" />
         </WrapPanel>
         <TextBlock TextWrapping="Wrap"
-                   Text="Parent Span ID is exact correlation metadata, not trace navigation. Host operation outcome matches the retained Outcome, not audit outcome; null outcomes match only Any. Content availability: Any, Present (ContentOmitted false), Omitted (true). These are metadata predicates, not integrity proof or body restoration. Every filter composes with AND; edits read nothing and retire prior results. Clear advanced resets these three filters to Any." />
+                   Text="Parent Span ID is exact correlation metadata, not trace navigation. Observed Root requires a valid trace with null parent; Child requires a valid parent. Unknown traces match only Any. This proves neither complete trace nor causality, current session, identity, approval, ownership or authority. Host operation outcome matches the retained Outcome, not audit outcome; null outcomes match only Any. Content availability: Any, Present (ContentOmitted false), Omitted (true). These are metadata predicates, not integrity proof or body restoration. Every filter composes with AND; edits read nothing and retire prior results. Clear advanced resets these filters to Any." />
         <WrapPanel>
           <TextBox Text="{Binding RequestFilter}" PlaceholderText="Exact request GUID" Width="300" Margin="0,0,10,8"
                    ContextMenu="{x:Null}" ContextFlyout="{x:Null}" AutomationProperties.Name="Exact request ID filter" />

@@ -323,6 +323,23 @@ never identity, authority or evidence-integrity claims. No new navigation, body
 restoration, export/clipboard, persistence, filter logging/tags/audit payload,
 schema/index/cache, model/tool/speech route or activity renewal is added.
 
+**Observed trace parent** adds visible accessible **Any / Root / Child** choices.
+Root (`ObservedRoot`) requires a valid retained trace with null `ParentSpanId`;
+Child (`ObservedChild`) requires a valid retained nonnull parent ID. A null trace
+is unknown and matches neither constrained choice. Full `TraceSnapshot`
+validation precedes exclusion in the [shared metadata predicate](../src/Kora.Core/Diagnostics/EvidenceQuery.cs).
+The choice AND-composes with exact parent ID and every existing filter; Root
+plus an exact parent ID therefore returns no matches, not a repaired query.
+It binds the versioned complete semantic query digest and authenticated
+continuation in [query admission](../src/Kora.Application/Diagnostics/DurableEvidenceQuery.cs).
+Existing scan/result/byte limits, source/privacy/cancellation/retention fences
+remain unchanged. Native edits, Clear advanced and Escape read nothing and
+retire rows, selection/detail, cursor and stale callbacks
+([native filters](../src/Kora/EvidenceViewModel.Filters.cs), [headless tests](../tests/Kora.Windows.IntegrationTests/EvidenceLiteralFindTests.Metadata.cs)).
+These are observed diagnostic correlation only, not complete traces, causality,
+current session, identity, authority, approval or ownership. No schema, trace
+tags/baggage, read authority, device/provider/model or runtime qualification is added.
+
 Advanced trace metadata filters add exact **Trace source**, **Activity operation
 name**, **ActivityKind**, and **Trace flags**, plus **Trace source version**
 with explicit **Any / Absent / Present / Exact** semantics. Empty source/name

@@ -232,8 +232,8 @@ To enable it:
 3. Select **Download**.
 4. Leave Kora running while it downloads, verifies, installs, and prepares
    approximately 219 MiB of assets.
-5. Explicitly select a ready **Installed speech provider** or an installed
-   voice identified by `provider / ID`.
+5. Choose an installed Kokoro voice under **Speech voice**, identified by
+   `provider / ID`. Choosing the voice also selects its provider.
 
 Kora pins the asset version, size, and SHA-256 digest. An incomplete, modified,
 or unexpected download is rejected rather than activated. After preparation,
@@ -253,6 +253,9 @@ Windows provider intact.
 
 Kora never silently downloads or substitutes a provider or voice. Without a
 saved voice choice it uses the selected provider's advertised default.
+The **Speech voice** selector combines ready voices from all installed providers;
+there is no separate provider selection in that card. **Reset speech voice**
+keeps the current provider and restores only its advertised compatible default.
 For Windows that default ranks installed Windows voices in this order:
 
 1. female voice matching the exact Windows profile locale;

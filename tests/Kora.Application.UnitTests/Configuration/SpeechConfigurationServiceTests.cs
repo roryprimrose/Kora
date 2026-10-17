@@ -17,6 +17,28 @@ namespace Kora.Application.UnitTests.Configuration;
 public sealed partial class SpeechConfigurationServiceTests(ITestOutputHelper output)
     : LoggingTestsBase<SpeechConfigurationService>(output)
 {
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Invalid_or_unreadable_selection_can_be_recovered_by_an_exact_voice_without_a_provider_control(bool unreadable)
+    {
+        using var fixture = new Fixture();
+        fixture.Preferences.LoadFailure = unreadable ? new IOException("unreadable") : new InvalidDataException("invalid");
+        fixture.Service.Reload();
+        fixture.Service.Get().IsAvailable.Should().BeFalse();
+        fixture.Service.Get().Recovery.Should().Contain("installed voice");
+        var reset = () => fixture.Reset(SpeechOption.Voice);
+        reset.Should().Throw<InvalidOperationException>().WithMessage("*Choose an installed voice*");
+
+        var voice = fixture.Catalog.Voices.Single(item => string.Equals(item.Id, "second", StringComparison.Ordinal));
+        var result = fixture.Apply(fixture.Propose(SpeechOption.Voice, voice.ConfigurationId));
+
+        result.Succeeded.Should().BeTrue();
+        result.State.IsAvailable.Should().BeTrue();
+        result.State.Recovery.Should().BeNull();
+        fixture.Preferences.Selection.Should().Be(new SpeechSelection(SpeechProviderIds.Kokoro, "second"));
+    }
+
     [Fact]
     public void Atomic_choice_reset_restart_and_notifications_share_one_revision()
     {

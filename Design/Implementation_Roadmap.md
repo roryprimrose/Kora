@@ -447,6 +447,18 @@ provider, memory-content or mutation authority. Full memory, installed
 accessibility, provider and E/Q qualification remain unchanged and unclaimed;
 unqualified recall/global catalogue/model consumers remain unavailable.
 
+### Bounded All Work exact observed task state - 2026-10-17
+
+The [All Work observation contract](Work_Management.md#delivered-passive-cross-session-work-observation---2026-10-11)
+also adds optional exact observed `HostTaskState`: explicit native Any plus defined
+states, AND-composed with all existing filters/ranges and bound to continuation.
+Only validated retained task records match; omitted/unavailable work proves no
+absence, completion, current dispatch, ownership or authority. Read-free edit
+retirement and existing bounded/private/source fences remain intact.
+[Deterministic tests](../tests/Kora.Application.UnitTests/Hosting/SessionWorkspaceServiceTests.WorkOverviewTaskState.cs)
+cover this consumed I subset; no model/runtime/provider/egress/wake/profile writer
+is enabled, and E/Q or installed qualification is not claimed.
+
 ### Bounded All Work retained observation metadata ranges - 2026-10-16
 
 Built on freshly fetched main `afdee7f508bc2e186bf56ef5f65cb27711e83bd1`.

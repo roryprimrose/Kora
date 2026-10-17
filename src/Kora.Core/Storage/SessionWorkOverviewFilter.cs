@@ -1,3 +1,5 @@
+using Kora.Core.Hosting;
+
 namespace Kora.Core.Storage;
 
 /// <summary>Exact, content-free availability matching; null means Any, never unknown availability.</summary>
@@ -19,16 +21,28 @@ public static class SessionWorkOverviewFilter
         }
     }
 
+    public static void ValidateTaskState(HostTaskState? taskState)
+    {
+        if (taskState is { } value && !Enum.IsDefined(value))
+        {
+            throw new ArgumentOutOfRangeException(nameof(taskState), "Select a defined observed task state or Any.");
+        }
+    }
+
     public static bool Matches(SessionWorkOverviewAvailability? availability, SessionWorkOverviewRow row,
-        SessionWorkOverviewContent content = SessionWorkOverviewContent.Any)
+        SessionWorkOverviewContent content = SessionWorkOverviewContent.Any, HostTaskState? taskState = null)
     {
         Validate(availability);
         Validate(content);
+        ValidateTaskState(taskState);
         if (!Enum.IsDefined(row.Availability))
         {
             throw new InvalidDataException("The observation row has undefined availability.");
         }
+        row.Work?.Validate(row.Session.Authority.SessionId);
         if (availability is not null && availability != row.Availability) { return false; }
+        if (taskState is { } state && (row.Availability != SessionWorkOverviewAvailability.Observed
+            || row.Work is not { } observation || !observation.Tasks.Any(task => task.State == state))) { return false; }
         if (content == SessionWorkOverviewContent.Any) { return true; }
         if (row.Availability != SessionWorkOverviewAvailability.Observed || row.Work is not { } work) { return false; }
         return content switch

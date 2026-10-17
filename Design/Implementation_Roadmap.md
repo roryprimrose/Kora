@@ -84,6 +84,13 @@ accessibility, runtime enablement and E/Q qualification remain separate and
 unclaimed; unrelated whole-Rxx, hardware/provider and retired proofs are not
 implementation prerequisites.
 
+### Bounded owned-inventory exact identity navigation - 2026-10-18
+
+The [owned metadata inventory](Definition_Management.md#bounded-owned-instruction-and-prompt-editor) adds explicit Literal (default), ExactOwnedId and ExactArtifactId modes over its admitted snapshot. Canonical owned-name/artifact admission is shared; exact artifact matches exclude unknown/unmapped rows.
+Modes AND-compose with existing predicates and bind continuation identity; accessible mode/Clear/Escape retires selection/review state without source reads or raw-draft loss ([tests](../tests/Kora.Application.UnitTests/Definitions/OwnedDefinitionInventoryTests.QueryModes.cs)).
+This consumes only the existing inventory/editor I subset. Historical Compare semantics remain separate; no profile writer, agent runtime, model/provider, schema or new enablement is added.
+Broader E/Q qualification remains separate ([native lifecycle](../tests/Kora.Windows.IntegrationTests/ArtifactDiscovery/OwnedDefinitionEditorWindowTests.Inventory.cs)).
+
 ### Bounded native session-list ExactName - 2026-10-16
 
 Built on freshly fetched main `afdee7f508bc2e186bf56ef5f65cb27711e83bd1`.

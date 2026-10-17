@@ -114,6 +114,37 @@ public sealed partial class OwnedDefinitionEditorWindowTests
             var reads = store.Reads;
             var lists = store.Lists;
             var writes = store.Writes;
+            native.QueryModeInput.Focus();
+            native.QueryModeInput.IsFocused.Should().BeTrue();
+            AutomationProperties.GetName(native.QueryModeInput).Should().Contain("Literal").And.Contain("ExactOwnedId").And.Contain("ExactArtifactId");
+            native.QueryModeInput.SelectedItem.Should().Be(OwnedDefinitionInventoryQueryMode.Literal);
+            native.QueryInput.Text = "enabled";
+            native.Files.SelectedItem = Rows()[0];
+            native.QueryModeInput.SelectedItem = OwnedDefinitionInventoryQueryMode.ExactOwnedId;
+            Rows().Should().ContainSingle().Which.Name.Should().Be("enabled");
+            native.Files.SelectedItem.Should().BeNull();
+            AutomationProperties.GetName(native.QueryInput).Should().Contain("no extension or path").And.Contain("case-sensitive");
+            foreach (var invalid in new[] { "Enabled", "enabled" + OwnedDefinitionKind.Extension(kind), "../enabled", "é", "" })
+            {
+                native.QueryInput.Text = invalid;
+                native.Files.ItemsSource.Should().BeNull();
+                native.NextPage.IsEnabled.Should().BeFalse();
+            }
+            native.QueryInput.Text = saved[0].Document.Definition.Id;
+            native.QueryModeInput.SelectedItem = OwnedDefinitionInventoryQueryMode.ExactArtifactId;
+            Rows().Should().ContainSingle().Which.Name.Should().Be("enabled");
+            AutomationProperties.GetName(native.QueryInput).Should().Contain("unknown or unmapped").And.Contain("case-sensitive");
+            native.QueryInput.Text = saved[0].Document.Definition.Id.ToUpperInvariant();
+            native.Files.ItemsSource.Should().BeNull();
+            native.QueryInput.Focus();
+            native.KeyPress(Key.Escape, RawInputModifiers.None, PhysicalKey.Escape, null);
+            native.QueryModeInput.SelectedItem.Should().Be(OwnedDefinitionInventoryQueryMode.Literal);
+            native.QueryInput.Text.Should().BeEmpty();
+            Rows().Should().HaveCount(3);
+            native.Source.Text.Should().BeNullOrEmpty();
+            store.Reads.Should().Be(reads);
+            store.Lists.Should().Be(lists);
+            store.Writes.Should().Be(writes);
             native.DigestInput.Text = saved[0].Document.Definition.Digest;
             Rows().Should().ContainSingle().Which.Name.Should().Be("enabled");
             native.DigestInput.Text = saved[1].Document.Definition.Digest;
@@ -205,6 +236,37 @@ public sealed partial class OwnedDefinitionEditorWindowTests
             await sourceRead.Task.WaitAsync(TestContext.Current.CancellationToken);
             await Run("list");
             var original = native.Source.Text;
+            foreach (var mode in new[] { OwnedDefinitionInventoryQueryMode.ExactOwnedId, OwnedDefinitionInventoryQueryMode.ExactArtifactId })
+            {
+                native.QueryInput.Text = mode == OwnedDefinitionInventoryQueryMode.ExactOwnedId ? "enabled" : saved[0].Document.Definition.Id;
+                store.ReadEntered = new(TaskCreationOptions.RunContinuationsAsynchronously);
+                store.ReleaseRead = new(TaskCreationOptions.RunContinuationsAsynchronously);
+                var pendingInspect = Run("inspect enabled");
+                await store.ReadEntered.Task.WaitAsync(TestContext.Current.CancellationToken);
+                reads = store.Reads;
+                native.QueryModeInput.SelectedItem = mode;
+                native.Files.SelectedItem.Should().BeNull();
+                native.ReviewUse.IsEnabled.Should().BeFalse();
+                store.Reads.Should().Be(reads);
+                store.ReleaseRead.TrySetResult();
+                await pendingInspect;
+                native.Source.Text.Should().Be(original, "mode changes retire late source reads");
+                store.ReleaseRead = null;
+                native.ClearSearch();
+                store.ListEntered = new(TaskCreationOptions.RunContinuationsAsynchronously);
+                store.ReleaseList = new(TaskCreationOptions.RunContinuationsAsynchronously);
+                var pendingRefresh = Run("list");
+                await store.ListEntered.Task.WaitAsync(TestContext.Current.CancellationToken);
+                native.QueryModeInput.SelectedItem = mode;
+                native.Files.ItemsSource.Should().BeNull();
+                store.ReleaseList.TrySetResult();
+                await pendingRefresh;
+                native.Files.ItemsSource.Should().BeNull("mode changes retire late refreshes");
+                native.Source.Text.Should().Be(original);
+                store.ReleaseList = null;
+                native.ClearSearch();
+                await Run("list");
+            }
             foreach (var (field, value) in new[]
             {
                 (native.DigestInput, saved[0].Document.Definition.Digest),
@@ -247,8 +309,34 @@ public sealed partial class OwnedDefinitionEditorWindowTests
                 field.Text = string.Empty;
                 await Run("list");
             }
+            native.NameInput.Text = saved[0].Name;
             native.Source.Text += "\nUnsaved private draft.";
             var draft = native.Source.Text;
+            reads = store.Reads;
+            lists = store.Lists;
+            writes = store.Writes;
+            foreach (var mode in new[] { OwnedDefinitionInventoryQueryMode.ExactOwnedId, OwnedDefinitionInventoryQueryMode.ExactArtifactId })
+            {
+                await Run("compare");
+                dialog.Should().NotBeNull("the historical baseline has the unchanged explicit owned name");
+                dialog!.IsVisible.Should().BeTrue();
+                var comparison = dialog;
+                native.Files.SelectedItem = Rows()[0];
+                native.QueryModeInput.SelectedItem = mode;
+                comparison.IsVisible.Should().BeFalse("metadata navigation retires the current historical comparison");
+                native.Files.SelectedItem.Should().BeNull();
+                native.Files.ItemsSource.Should().BeNull("an empty exact identity is invalid, not Browse");
+                native.ReviewUse.IsEnabled.Should().BeFalse();
+                native.DisableReviewedUse.IsEnabled.Should().BeFalse();
+                native.Source.Text.Should().Be(draft);
+                await Run("compare");
+                dialog!.IsVisible.Should().BeTrue("an explicitly requested historical comparison retains the frozen baseline and raw draft");
+                dialog.Close();
+                native.ClearSearch();
+            }
+            store.Reads.Should().Be(reads);
+            store.Lists.Should().Be(lists);
+            store.Writes.Should().Be(writes);
             foreach (var (field, value) in new[]
             {
                 (native.RevisionInput, saved[0].Revision),
@@ -306,6 +394,7 @@ public sealed partial class OwnedDefinitionEditorWindowTests
             Status().Should().Contain("Historical observations").And.Contain("unavailable");
             native.Source.Text.Should().Be(draft);
             native.QueryInput.Text = "private query";
+            native.QueryModeInput.SelectedItem = OwnedDefinitionInventoryQueryMode.ExactArtifactId;
             native.DigestInput.Text = saved[0].Document.Definition.Digest;
             native.RevisionInput.Text = saved[0].Revision;
             native.ObservedFromInput.Text = Utc(observed);
@@ -315,6 +404,7 @@ public sealed partial class OwnedDefinitionEditorWindowTests
             await Run("list");
             native.IsVisible.Should().BeFalse();
             native.QueryInput.Text.Should().BeEmpty();
+            native.QueryModeInput.SelectedItem.Should().Be(OwnedDefinitionInventoryQueryMode.Literal);
             native.DigestInput.Text.Should().BeEmpty();
             native.RevisionInput.Text.Should().BeEmpty();
             native.ObservedFromInput.Text.Should().BeEmpty();

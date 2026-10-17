@@ -114,6 +114,15 @@ public sealed partial class OwnedDefinitionEditorWindowTests
             var reads = store.Reads;
             var lists = store.Lists;
             var writes = store.Writes;
+            foreach (var order in Enum.GetValues<OwnedDefinitionInventoryOrder>())
+            {
+                native.Files.SelectedItem = Rows()[0];
+                native.OrderInput.SelectedItem = order;
+                Rows().Select(row => row.Name).Should().Equal(order is OwnedDefinitionInventoryOrder.FileNameDescending
+                    or OwnedDefinitionInventoryOrder.DisplayNameDescending ? InventoryNames.Reverse() : InventoryNames);
+                if (order is not OwnedDefinitionInventoryOrder.FileNameAscending) { native.Files.SelectedItem.Should().BeNull(); }
+            }
+            native.OrderInput.SelectedItem = OwnedDefinitionInventoryOrder.FileNameAscending;
             native.QueryModeInput.Focus();
             native.QueryModeInput.IsFocused.Should().BeTrue();
             AutomationProperties.GetName(native.QueryModeInput).Should().Contain("Literal").And.Contain("ExactOwnedId").And.Contain("ExactArtifactId");
@@ -236,32 +245,39 @@ public sealed partial class OwnedDefinitionEditorWindowTests
             await sourceRead.Task.WaitAsync(TestContext.Current.CancellationToken);
             await Run("list");
             var original = native.Source.Text;
-            foreach (var mode in new[] { OwnedDefinitionInventoryQueryMode.ExactOwnedId, OwnedDefinitionInventoryQueryMode.ExactArtifactId })
+            foreach (var (change, query) in new (Action Change, string Query)[]
             {
-                native.QueryInput.Text = mode == OwnedDefinitionInventoryQueryMode.ExactOwnedId ? "enabled" : saved[0].Document.Definition.Id;
+                (() => native.QueryModeInput.SelectedItem = OwnedDefinitionInventoryQueryMode.ExactOwnedId, "enabled"),
+                (() => native.QueryModeInput.SelectedItem = OwnedDefinitionInventoryQueryMode.ExactArtifactId, saved[0].Document.Definition.Id),
+                (() => native.OrderInput.SelectedItem = OwnedDefinitionInventoryOrder.FileNameDescending, "enabled"),
+                (() => native.OrderInput.SelectedItem = OwnedDefinitionInventoryOrder.DisplayNameAscending, "enabled"),
+                (() => native.OrderInput.SelectedItem = OwnedDefinitionInventoryOrder.DisplayNameDescending, "enabled"),
+            })
+            {
+                native.QueryInput.Text = query;
                 store.ReadEntered = new(TaskCreationOptions.RunContinuationsAsynchronously);
                 store.ReleaseRead = new(TaskCreationOptions.RunContinuationsAsynchronously);
                 var pendingInspect = Run("inspect enabled");
                 await store.ReadEntered.Task.WaitAsync(TestContext.Current.CancellationToken);
                 reads = store.Reads;
-                native.QueryModeInput.SelectedItem = mode;
+                change();
                 native.Files.SelectedItem.Should().BeNull();
                 native.ReviewUse.IsEnabled.Should().BeFalse();
                 store.Reads.Should().Be(reads);
                 store.ReleaseRead.TrySetResult();
                 await pendingInspect;
-                native.Source.Text.Should().Be(original, "mode changes retire late source reads");
+                native.Source.Text.Should().Be(original, "mode/order changes retire late source reads");
                 store.ReleaseRead = null;
                 native.ClearSearch();
                 store.ListEntered = new(TaskCreationOptions.RunContinuationsAsynchronously);
                 store.ReleaseList = new(TaskCreationOptions.RunContinuationsAsynchronously);
                 var pendingRefresh = Run("list");
                 await store.ListEntered.Task.WaitAsync(TestContext.Current.CancellationToken);
-                native.QueryModeInput.SelectedItem = mode;
+                change();
                 native.Files.ItemsSource.Should().BeNull();
                 store.ReleaseList.TrySetResult();
                 await pendingRefresh;
-                native.Files.ItemsSource.Should().BeNull("mode changes retire late refreshes");
+                native.Files.ItemsSource.Should().BeNull("mode/order changes retire late refreshes");
                 native.Source.Text.Should().Be(original);
                 store.ReleaseList = null;
                 native.ClearSearch();
@@ -534,6 +550,29 @@ public sealed partial class OwnedDefinitionEditorWindowTests
             }
             seen.Select(row => row.Name).Should().Equal(names);
             seen.Should().OnlyContain(row => row.Kind == kind && row.ObservedUseEnabled == false && row.NativeRevision != null);
+            var all = seen.ToArray();
+            foreach (var order in Enum.GetValues<OwnedDefinitionInventoryOrder>().Skip(1))
+            {
+                native.Files.SelectedItem = Rows()[0];
+                native.OrderInput.SelectedItem = order;
+                seen.Clear();
+                while (true)
+                {
+                    var page = Rows();
+                    page.Should().NotBeEmpty();
+                    page.Sum(row => System.Text.Encoding.UTF8.GetByteCount(row.Details) + System.Text.Encoding.UTF8.GetByteCount(row.ToString()))
+                        .Should().BeLessThanOrEqualTo(OwnedDefinitionInventory.MaximumDisplayUtf8Bytes);
+                    seen.AddRange(page);
+                    native.Files.SelectedItem.Should().BeNull();
+                    native.Source.Text.Should().BeNullOrEmpty();
+                    if (!native.NextPage.IsEnabled) { break; }
+                    native.NextPage.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                }
+                seen.Should().Equal(order is OwnedDefinitionInventoryOrder.FileNameDescending or OwnedDefinitionInventoryOrder.DisplayNameDescending
+                    ? all.Reverse() : all);
+            }
+            native.OrderInput.SelectedItem = OwnedDefinitionInventoryOrder.FileNameAscending;
+            Rows().Should().Equal(first);
             native.Files.SelectedItem = Rows()[0];
             native.DigestInput.Text = first[0].Digest;
             Rows().Should().ContainSingle().Which.Should().BeSameAs(first[0]);

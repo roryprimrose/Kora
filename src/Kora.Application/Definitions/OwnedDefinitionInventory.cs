@@ -51,7 +51,8 @@ public sealed class OwnedDefinitionInventory
 
     public OwnedDefinitionInventoryPage Page(string query, OwnedDefinitionUseFilter filter, int offset = 0, string digest = "",
         string revision = "", string observedFromUtc = "", string observedUntilUtc = "",
-        OwnedDefinitionInventoryQueryMode mode = OwnedDefinitionInventoryQueryMode.Literal)
+        OwnedDefinitionInventoryQueryMode mode = OwnedDefinitionInventoryQueryMode.Literal,
+        OwnedDefinitionInventoryOrder order = OwnedDefinitionInventoryOrder.FileNameAscending)
     {
         ValidateQuery(query, mode);
         ArgumentNullException.ThrowIfNull(digest);
@@ -63,6 +64,7 @@ public sealed class OwnedDefinitionInventory
         if (from > until)
         { throw new InvalidDataException("Observed UTC From must not be after Until."); }
         if (!Enum.IsDefined(filter)) { throw new ArgumentOutOfRangeException(nameof(filter)); }
+        if (!Enum.IsDefined(order)) { throw new ArgumentOutOfRangeException(nameof(order)); }
         var validated = Rows.Select(row =>
         {
             var size = Utf8.GetByteCount(row.Details) + Utf8.GetByteCount(row.ToString());
@@ -71,7 +73,7 @@ public sealed class OwnedDefinitionInventory
             if (row.NativeRevision is { } nativeRevision) { OwnedInstructionRevision.Validate(nativeRevision); }
             return (Row: row, Size: size);
         }).ToArray();
-        var matching = validated.Where(item => (filter switch
+        var filtered = validated.Where(item => (filter switch
         {
             OwnedDefinitionUseFilter.All => true,
             OwnedDefinitionUseFilter.UseEnabled => item.Row.ObservedUseEnabled is true,
@@ -89,7 +91,17 @@ public sealed class OwnedDefinitionInventory
                 _ => item.Row.CanonicalFileName.Contains(query, StringComparison.OrdinalIgnoreCase)
                 || item.Row.DisplayName?.Contains(query, StringComparison.OrdinalIgnoreCase) == true
                 || item.Row.ArtifactId?.Contains(query, StringComparison.OrdinalIgnoreCase) == true,
-            })).ToArray();
+            }));
+        // Sort the extensionless filename identity: appending the kind extension would reverse prefix pairs such as alpha/alpha-more.
+        var matching = (order switch
+        {
+            OwnedDefinitionInventoryOrder.FileNameAscending => filtered.OrderBy(item => item.Row.Name, StringComparer.Ordinal),
+            OwnedDefinitionInventoryOrder.FileNameDescending => filtered.OrderByDescending(item => item.Row.Name, StringComparer.Ordinal),
+            OwnedDefinitionInventoryOrder.DisplayNameAscending => filtered.OrderBy(item => item.Row.DisplayName is null)
+                .ThenBy(item => item.Row.DisplayName, StringComparer.Ordinal),
+            _ => filtered.OrderBy(item => item.Row.DisplayName is null)
+                .ThenByDescending(item => item.Row.DisplayName, StringComparer.Ordinal),
+        }).ThenBy(item => item.Row.Name, StringComparer.Ordinal).ToArray();
         if (offset < 0 || offset > matching.Length) { throw new ArgumentOutOfRangeException(nameof(offset)); }
         var visible = new List<OwnedDefinitionInventoryRow>();
         var bytes = 0;
@@ -100,22 +112,23 @@ public sealed class OwnedDefinitionInventory
             bytes += item.Size;
         }
         return new(Array.AsReadOnly(visible.ToArray()), offset, matching.Length, bytes)
-        { Inventory = this, Query = query, Mode = mode, Filter = filter, Digest = digest, Revision = revision,
+        { Inventory = this, Query = query, Mode = mode, Order = order, Filter = filter, Digest = digest, Revision = revision,
             ObservedFromUtc = observedFromUtc, ObservedUntilUtc = observedUntilUtc };
     }
 
     public OwnedDefinitionInventoryPage Continue(OwnedDefinitionInventoryPage page, string query,
         OwnedDefinitionUseFilter filter, string digest = "", string revision = "", string observedFromUtc = "", string observedUntilUtc = "",
-        OwnedDefinitionInventoryQueryMode mode = OwnedDefinitionInventoryQueryMode.Literal)
+        OwnedDefinitionInventoryQueryMode mode = OwnedDefinitionInventoryQueryMode.Literal,
+        OwnedDefinitionInventoryOrder order = OwnedDefinitionInventoryOrder.FileNameAscending)
     {
         ArgumentNullException.ThrowIfNull(page);
         if (!ReferenceEquals(page.Inventory, this) || !string.Equals(page.Query, query, StringComparison.Ordinal)
-            || page.Mode != mode || page.Filter != filter || !string.Equals(page.Digest, digest, StringComparison.Ordinal)
+            || page.Mode != mode || page.Order != order || page.Filter != filter || !string.Equals(page.Digest, digest, StringComparison.Ordinal)
             || !string.Equals(page.Revision, revision, StringComparison.Ordinal)
             || !string.Equals(page.ObservedFromUtc, observedFromUtc, StringComparison.Ordinal)
             || !string.Equals(page.ObservedUntilUtc, observedUntilUtc, StringComparison.Ordinal)
             || page.NextOffset is not { } next)
         { throw new InvalidOperationException("The inventory or complete filter changed, or no next page exists. Restart from the first page."); }
-        return Page(query, filter, next, digest, revision, observedFromUtc, observedUntilUtc, mode);
+        return Page(query, filter, next, digest, revision, observedFromUtc, observedUntilUtc, mode, order);
     }
 }

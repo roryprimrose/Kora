@@ -12,8 +12,8 @@ public sealed partial class OwnedDefinitionInventoryTests
     private static readonly DateTimeOffset Observed = new(2026, 10, 12, 0, 0, 0, TimeSpan.Zero);
     private static readonly string NativeRevision = new string('a', 64) + "." + new string('b', 48) + "." + new string('c', 48) + "." + new string('d', 64);
 
-    private static ArtifactDefinition Candidate(ArtifactKind kind, string name, bool enabled = false, bool revision = true) =>
-        new("owned." + name, kind, "Display " + name, "Private description must not project", "cmd-" + name,
+    private static ArtifactDefinition Candidate(ArtifactKind kind, string name, bool enabled = false, bool revision = true, string? displayName = null) =>
+        new("owned." + name, kind, displayName ?? "Display " + name, "Private description must not project", "cmd-" + name,
             ["spoken " + name], "kora-profile", "1", new string('a', 64), "Private body must not project")
         { OwnedInstructionName = name, OwnedInstructionRevision = revision ? NativeRevision : null,
             IsUseEnabled = enabled };

@@ -79,6 +79,12 @@ The [retained catalogue](File_And_Folder_Ingestion.md#selected-displayed-metadat
 
 This I increment has [portable tests](../tests/Kora.Application.UnitTests/Presentation/AttachmentMetadataFindStateTests.cs) and [native tests](../tests/Kora.Windows.IntegrationTests/AttachmentCatalogueWindowTests.Find.cs). No schema, capture, retention mutation, body/path/clipboard read or new authority is added. E/Q is separate; unqualified runtime/providers/egress/wake/profile writers stay unavailable.
 
+### Bounded owned-inventory stable metadata ordering - 2026-10-18
+
+The [owned inventory](Definition_Management.md#bounded-owned-instruction-and-prompt-editor) adds ordinal filename/display-name ascending/descending order before bounded pagination; filename ascending stays default. Keys/ties use extensionless owned filename IDs for prefix compatibility; missing display names stay last. Order binds continuation identity ([tests](../tests/Kora.Application.UnitTests/Definitions/OwnedDefinitionInventoryTests.Ordering.cs)).
+The accessible native selector/Clear/Escape reuses no-read retirement while retaining exact unsaved draft/frozen baseline and separately admitted historical Compare ([native tests](../tests/Kora.Windows.IntegrationTests/ArtifactDiscovery/OwnedDefinitionEditorWindowTests.InventoryOrdering.cs)). This consumes only existing inventory/editor I contracts; no persisted preference/schema, writer, runtime, model/provider/device or new authority is added.
+Unqualified runtime/agent/profile writers, providers, egress and wake remain unavailable. Installed/physical/hardware/acoustic/provider/containment and retired experiment evidence is not a prerequisite for this bounded implementation; E/RC qualification remains separate and unclaimed.
+
 ### Bounded exact-grant committed request correlation predicates - 2026-10-17
 
 The [one-exact-grant history](../docs/settings.md#exact-operation-grants)

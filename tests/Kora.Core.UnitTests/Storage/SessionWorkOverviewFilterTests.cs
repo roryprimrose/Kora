@@ -35,7 +35,9 @@ public sealed class SessionWorkOverviewFilterTests
                 SessionWorkOverviewFilter.Matches(null, row).Should().BeTrue("Any preserves the existing default");
             }
         }
-        var invalid = () => SessionWorkOverviewFilter.Validate((HostTaskState)99);
+        SessionWorkOverviewFilter.Validate(null);
+        SessionWorkOverviewFilter.ValidateTaskState(null);
+        var invalid = () => SessionWorkOverviewFilter.ValidateTaskState((HostTaskState)99);
         invalid.Should().Throw<ArgumentOutOfRangeException>();
         var invalidMatch = () => SessionWorkOverviewFilter.Matches(null,
             new(entry, SessionWorkOverviewAvailability.ReadUnavailable, null), taskState: (HostTaskState)(-1));

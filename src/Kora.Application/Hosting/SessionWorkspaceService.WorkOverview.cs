@@ -46,7 +46,7 @@ public sealed partial class SessionWorkspaceService
     {
         SessionWorkOverviewFilter.Validate(availability);
         SessionWorkOverviewFilter.Validate(content);
-        SessionWorkOverviewFilter.Validate(taskState);
+        SessionWorkOverviewFilter.ValidateTaskState(taskState);
         ranges.Validate();
         if (!Enum.IsDefined(filter)) { throw new ArgumentOutOfRangeException(nameof(filter)); }
         if (query is not null && query.Filter != filter)

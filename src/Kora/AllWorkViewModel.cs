@@ -190,7 +190,7 @@ internal sealed partial class AllWorkViewModel(
         get => taskState;
         set
         {
-            SessionWorkOverviewFilter.Validate(value);
+            SessionWorkOverviewFilter.ValidateTaskState(value);
             if (!CanEdit || taskState == value) { return; }
             Invalidate();
             taskState = value;

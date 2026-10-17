@@ -21,7 +21,7 @@ public static class SessionWorkOverviewFilter
         }
     }
 
-    public static void Validate(HostTaskState? taskState)
+    public static void ValidateTaskState(HostTaskState? taskState)
     {
         if (taskState is { } value && !Enum.IsDefined(value))
         {
@@ -34,7 +34,7 @@ public static class SessionWorkOverviewFilter
     {
         Validate(availability);
         Validate(content);
-        Validate(taskState);
+        ValidateTaskState(taskState);
         if (!Enum.IsDefined(row.Availability))
         {
             throw new InvalidDataException("The observation row has undefined availability.");

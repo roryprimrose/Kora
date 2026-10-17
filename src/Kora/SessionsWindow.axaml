@@ -241,7 +241,18 @@
       <Button x:Name="NextHistorySearch" Content="Next _search snapshot page" IsEnabled="{Binding CanNextHistorySearch}"
               AutomationProperties.Name="Continue bounded lexical scan even when the previous search page has no matches" />
       <Button x:Name="CancelHistorySearch" Content="Cancel search" IsEnabled="{Binding CanCancelHistorySearch}" />
-      <Button x:Name="ClearHistorySearch" Content="Clear query and results" IsEnabled="{Binding CanRead}" />
+      <Button x:Name="ClearHistorySearch" Content="Clear query, predicates and results" IsEnabled="{Binding CanRead}" />
+    </WrapPanel>
+    <WrapPanel>
+      <TextBox x:Name="HistoryRequestId" Text="{Binding HistoryRequestId, Mode=TwoWay}" Width="320"
+               IsEnabled="{Binding CanRead}" PlaceholderText="Retained RequestId; empty means Any"
+               AutomationProperties.Name="Exact retained receipt RequestId; empty means Any; nonempty canonical lowercase D GUID, no whitespace or repair; historical correlation only, not session identity or permission" />
+      <TextBox x:Name="HistoryTaskId" Text="{Binding HistoryTaskId, Mode=TwoWay}" Width="320"
+               IsEnabled="{Binding CanRead}" PlaceholderText="Retained TaskId; empty means Any"
+               AutomationProperties.Name="Exact retained receipt TaskId; empty means Any; nonempty canonical lowercase D GUID, no whitespace or repair; historical correlation only, not task selection, action or replay" />
+      <TextBox x:Name="HistorySourceId" Text="{Binding HistorySourceId, Mode=TwoWay}" Width="320"
+               IsEnabled="{Binding CanRead}" PlaceholderText="Retained SourceId; empty means Any"
+               AutomationProperties.Name="Exact retained receipt SourceId; empty means Any; nonempty canonical lowercase D GUID, no whitespace or repair; historical correlation only, not source ownership or approval authority" />
     </WrapPanel>
     <WrapPanel>
       <TextBlock Text="Receipt kind" VerticalAlignment="Center" />

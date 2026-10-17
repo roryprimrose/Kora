@@ -24,17 +24,24 @@ internal sealed partial class SessionsViewModel
     private string historyMaximumSourceRevision = string.Empty;
     private string historyMinimumAuditSequence = string.Empty;
     private string historyMaximumAuditSequence = string.Empty;
+    private string historyRequestId = string.Empty;
+    private string historyTaskId = string.Empty;
+    private string historySourceId = string.Empty;
 
-    public string HistoryMinimumSequence { get => historyMinimumSequence; set => EditHistoryRange(ref historyMinimumSequence, value); }
-    public string HistoryMaximumSequence { get => historyMaximumSequence; set => EditHistoryRange(ref historyMaximumSequence, value); }
-    public string HistoryMinimumGeneration { get => historyMinimumGeneration; set => EditHistoryRange(ref historyMinimumGeneration, value); }
-    public string HistoryMaximumGeneration { get => historyMaximumGeneration; set => EditHistoryRange(ref historyMaximumGeneration, value); }
-    public string HistoryMinimumSourceRevision { get => historyMinimumSourceRevision; set => EditHistoryRange(ref historyMinimumSourceRevision, value); }
-    public string HistoryMaximumSourceRevision { get => historyMaximumSourceRevision; set => EditHistoryRange(ref historyMaximumSourceRevision, value); }
-    public string HistoryMinimumAuditSequence { get => historyMinimumAuditSequence; set => EditHistoryRange(ref historyMinimumAuditSequence, value); }
-    public string HistoryMaximumAuditSequence { get => historyMaximumAuditSequence; set => EditHistoryRange(ref historyMaximumAuditSequence, value); }
+    public string HistoryRequestId { get => historyRequestId; set => EditHistoryInput(ref historyRequestId, value); }
+    public string HistoryTaskId { get => historyTaskId; set => EditHistoryInput(ref historyTaskId, value); }
+    public string HistorySourceId { get => historySourceId; set => EditHistoryInput(ref historySourceId, value); }
 
-    private void EditHistoryRange(ref string field, string value)
+    public string HistoryMinimumSequence { get => historyMinimumSequence; set => EditHistoryInput(ref historyMinimumSequence, value); }
+    public string HistoryMaximumSequence { get => historyMaximumSequence; set => EditHistoryInput(ref historyMaximumSequence, value); }
+    public string HistoryMinimumGeneration { get => historyMinimumGeneration; set => EditHistoryInput(ref historyMinimumGeneration, value); }
+    public string HistoryMaximumGeneration { get => historyMaximumGeneration; set => EditHistoryInput(ref historyMaximumGeneration, value); }
+    public string HistoryMinimumSourceRevision { get => historyMinimumSourceRevision; set => EditHistoryInput(ref historyMinimumSourceRevision, value); }
+    public string HistoryMaximumSourceRevision { get => historyMaximumSourceRevision; set => EditHistoryInput(ref historyMaximumSourceRevision, value); }
+    public string HistoryMinimumAuditSequence { get => historyMinimumAuditSequence; set => EditHistoryInput(ref historyMinimumAuditSequence, value); }
+    public string HistoryMaximumAuditSequence { get => historyMaximumAuditSequence; set => EditHistoryInput(ref historyMaximumAuditSequence, value); }
+
+    private void EditHistoryInput(ref string field, string value)
     {
         if (closed || !access.CanInspect || string.Equals(field, value, StringComparison.Ordinal)) { return; }
         field = value;
@@ -111,7 +118,7 @@ internal sealed partial class SessionsViewModel
         selectionEpoch++;
         historySearchRevision = access.ControlRevision;
         status = LocalFileRetrievalPolicy.TryQuery(historyQuery, out _)
-            ? "Query, metadata or inclusive provenance ranges changed; start a fresh exact-session search. Empty bounds mean Any; use ordered unsigned decimal bounds. Predicates are AND-composed passive citations only."
+            ? "Query, metadata, provenance ranges or retained correlation IDs changed; start a fresh exact-session search. Empty fields mean Any; use ordered unsigned decimal bounds and nonempty canonical lowercase D-format GUIDs without whitespace or repair. Predicates are AND-composed passive citations only."
             : "Enter 1-256 characters / 512 UTF-8 bytes containing 1-32 distinct whole words of at most 64 characters. Query/results are volatile.";
         OnPropertyChanged(nameof(Status));
         OnPropertyChanged(nameof(Detail));
@@ -144,6 +151,7 @@ internal sealed partial class SessionsViewModel
         var query = historyQuery;
         var metadata = historyMetadata;
         var range = HistoryRange();
+        var correlation = SessionHistoryCorrelationFilter.Parse(historyRequestId, historyTaskId, historySourceId);
         var revision = access.ControlRevision;
         historySearchRevision = revision;
         historySearch = null;
@@ -155,7 +163,7 @@ internal sealed partial class SessionsViewModel
         NotifyHistory();
         try
         {
-            var result = await service.SearchHistoryAsync(new(id), query, continuation, 25, cancellation.Token, metadata, range);
+            var result = await service.SearchHistoryAsync(new(id), query, continuation, 25, cancellation.Token, metadata, range, correlation);
             cancellation.Token.ThrowIfCancellationRequested();
             if (closed || selectionEpoch != epoch || !string.Equals(historySessionId, subjectText, StringComparison.Ordinal)
                 || !string.Equals(historyQuery, query, StringComparison.Ordinal) || historyMetadata != metadata
@@ -191,6 +199,9 @@ internal sealed partial class SessionsViewModel
         historyMaximumSourceRevision = string.Empty;
         historyMinimumAuditSequence = string.Empty;
         historyMaximumAuditSequence = string.Empty;
+        historyRequestId = string.Empty;
+        historyTaskId = string.Empty;
+        historySourceId = string.Empty;
         historySearchRevision = null;
         Detail = string.Empty;
     }
@@ -210,6 +221,9 @@ internal sealed partial class SessionsViewModel
             OnPropertyChanged(nameof(Detail));
         }
         OnPropertyChanged(nameof(HistoryQuery));
+        OnPropertyChanged(nameof(HistoryRequestId));
+        OnPropertyChanged(nameof(HistoryTaskId));
+        OnPropertyChanged(nameof(HistorySourceId));
         OnPropertyChanged(nameof(HistoryMinimumSequence));
         OnPropertyChanged(nameof(HistoryMaximumSequence));
         OnPropertyChanged(nameof(HistoryMinimumGeneration));

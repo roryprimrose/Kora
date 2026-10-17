@@ -14,6 +14,53 @@ namespace Kora.Application.UnitTests.Hosting;
 public sealed partial class SessionWorkspaceServiceTests
 {
     [Fact]
+    public async Task RetainedCorrelationComposesWithAllPredicatesAndBindsCommandContinuationsWithoutAuthority()
+    {
+        using var f = new Fixture();
+        using var root = HostActivity.BeginRoot(f.Request, HostActivityLayer.Application, HostOperation.Request);
+        var correlation = new SessionHistoryCorrelationFilter(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid());
+        var metadata = new SessionHistoryMetadataFilter(Kind: SessionHistoryKind.Question);
+        var range = new SessionHistoryRangeFilter(1, 201, 1, 1, 0, 0, 1, 1);
+        SearchReader(f, [.. Enumerable.Range(1, 201).Select(i => SearchRecord(f, i) with
+        {
+            RequestId = i == 201 ? correlation.RequestId : null,
+            TaskId = correlation.TaskId, SourceId = correlation.SourceId, SourceRevision = 0, AuditSequence = 1,
+            Baseline = i == 1,
+        })]);
+        var first = await f.Service.SearchHistoryAsync(f.Request.SessionId, "absent needle", null, 50, f.Token,
+            metadata, range, correlation);
+        first.Records.Should().BeEmpty();
+        first.Scanned.Should().Be(200);
+        first.Gaps.Should().Be(1);
+        first.OmittedMatches.Should().Be(0);
+        foreach (var changed in new[] { default, correlation with { RequestId = null }, correlation with { TaskId = null },
+            correlation with { SourceId = null }, correlation with { RequestId = Guid.NewGuid() },
+            correlation with { TaskId = Guid.NewGuid() }, correlation with { SourceId = Guid.NewGuid() } })
+        {
+            var act = () => f.Service.SearchHistoryAsync(f.Request.SessionId, "needle absent", first.Next, 50, f.Token,
+                metadata, range, changed);
+            await act.Should().ThrowAsync<ArgumentException>();
+        }
+        var command = new SessionCommand(SessionCommandOperation.HistorySearch, f.Request.SessionId.Value)
+        { HistoryQuery = "NEEDLE absent", HistoryMetadata = metadata, HistoryRange = range,
+            HistoryCorrelation = correlation, HistorySearchCursor = first.Next };
+        var result = (await f.Service.ExecuteCommandAsync(command, RequestOrigin.LocalUi, () => true, f.Token)).HistorySearch!;
+        result.Records.Should().ContainSingle().Which.Sequence.Should().Be(201);
+        result.Scanned.Should().Be(1);
+        result.Next.Should().BeNull();
+        foreach (var invalid in new[] { new SessionHistoryCorrelationFilter(Guid.Empty),
+            new(TaskId: Guid.Empty), new(SourceId: Guid.Empty) })
+        {
+            f.HistoryReader = (_, _, _) => throw new InvalidOperationException("Invalid predicates must not read.");
+            var act = () => f.Service.ExecuteCommandAsync(command with { HistoryCorrelation = invalid },
+                RequestOrigin.LocalUi, () => true, f.Token);
+            await act.Should().ThrowAsync<InvalidDataException>();
+        }
+        f.TaskWrites.Should().BeEmpty();
+        f.ControlCalls.Should().Be(0);
+    }
+
+    [Fact]
     public async Task Invalid_provenance_range_is_rejected_before_any_history_read()
     {
         using var f = new Fixture();
@@ -140,6 +187,9 @@ public sealed partial class SessionWorkspaceServiceTests
     [InlineData("receipt-generation")]
     [InlineData("source-revision")]
     [InlineData("audit-sequence")]
+    [InlineData("request-id")]
+    [InlineData("task-id")]
+    [InlineData("source-id")]
     [InlineData("unavailable")]
     [InlineData("order")]
     [InlineData("default-records")]
@@ -154,6 +204,7 @@ public sealed partial class SessionWorkspaceServiceTests
         using var f = new Fixture();
         using var root = HostActivity.BeginRoot(f.Request, HostActivityLayer.Application, HostOperation.Request);
         var tail = SearchRecord(f, 2, "nonmatching");
+        var source = Guid.NewGuid();
         tail = mode switch
         {
             "foreign" => tail with { SessionId = new(Guid.NewGuid()) },
@@ -163,6 +214,9 @@ public sealed partial class SessionWorkspaceServiceTests
             "receipt-generation" => tail with { Generation = default },
             "source-revision" => tail with { SourceRevision = -1 },
             "audit-sequence" => tail with { AuditSequence = 0 },
+            "request-id" => tail with { RequestId = Guid.Empty },
+            "task-id" => tail with { TaskId = Guid.Empty },
+            "source-id" => tail with { SourceId = Guid.Empty },
             "unavailable" => tail with { Id = Guid.Empty, Availability = SessionHistoryAvailability.Unavailable },
             "order" => tail with { Sequence = 1 },
             _ => tail,
@@ -171,12 +225,12 @@ public sealed partial class SessionWorkspaceServiceTests
             ? new(session, mode is "generation" ? default : new(1), false, mode is "negative-snapshot" ? -1 : 51,
                 mode is "default-records" ? default : mode is "too-many"
                     ? [.. Enumerable.Range(1, 51).Select(i => SearchRecord(f, i))]
-                    : [SearchRecord(f, 1), tail], null)
+                    : [SearchRecord(f, 1) with { SourceId = source }, tail], null)
             : new(mode is "resolved-session" ? new(Guid.NewGuid()) : session,
                 new(mode is "resolved-generation" ? 2 : 1), false,
                 mode is "resolved-snapshot" ? 52 : 51, [], null);
         var act = () => f.Service.SearchHistoryAsync(f.Request.SessionId, "needle", null, 1, f.Token,
-            new(Kind: SessionHistoryKind.Question), new(MaximumSequence: 1));
+            new(Kind: SessionHistoryKind.Question), new(MaximumSequence: 1), new(SourceId: source));
         await act.Should().ThrowAsync<InvalidDataException>();
         f.TaskWrites.Should().BeEmpty();
         f.ControlCalls.Should().Be(0);
@@ -286,8 +340,9 @@ public sealed partial class SessionWorkspaceServiceTests
         f.HistoryReader = (session, _, _) => new(mode is "foreign-page" ? new(Guid.NewGuid()) : session,
             mode is "generation" ? new(2) : new(1), false, mode is "snapshot" ? 3 : 2,
             mode is "order" ? [record, record] : [record], null);
+        var correlation = new SessionHistoryCorrelationFilter(record.RequestId, record.TaskId, Guid.NewGuid());
         var cursor = new SessionHistorySearchCursor(new(f.Request.SessionId, new(1), 2, 0),
-            new SessionHistorySearch("needle").Digest);
+            new SessionHistorySearch("needle", correlation: correlation).Digest);
         if (mode is "cursor") { cursor = cursor with { History = cursor.History with { SessionId = new(Guid.NewGuid()) } }; }
         if (mode is "privacy") { f.AfterHistoryRead = () => f.CanInspect = false; }
         if (mode is "revision") { f.AfterHistoryRead = f.AdvanceRevision; }
@@ -295,7 +350,7 @@ public sealed partial class SessionWorkspaceServiceTests
         if (mode is "cancel") { cancelled.Cancel(); }
         if (mode is "late-cancel") { f.AfterHistoryRead = cancelled.Cancel; }
         var act = () => f.Service.SearchHistoryAsync(f.Request.SessionId, mode is "query" ? "other" : "needle",
-            cursor, mode is "limit" ? 0 : 50, cancelled.Token);
+            cursor, mode is "limit" ? 0 : 50, cancelled.Token, correlation: correlation);
         await act.Should().ThrowAsync<Exception>();
         f.TaskWrites.Should().BeEmpty();
         f.ControlCalls.Should().Be(0);

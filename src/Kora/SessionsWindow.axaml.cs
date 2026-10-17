@@ -116,7 +116,8 @@ internal sealed partial class SessionsWindow : Window
         NextHistorySearch.Click += async (_, _) => await model.SearchHistoryAsync(next: true);
         CancelHistorySearch.Click += (_, _) => model.CancelHistorySearch();
         ClearHistorySearch.Click += (_, _) => { model.ClearHistorySearchInputs(); HistoryQuery.Focus(); };
-        foreach (var field in new[] { HistoryQuery, HistoryMinimumSequence, HistoryMaximumSequence,
+        foreach (var field in new[] { HistoryQuery, HistoryRequestId, HistoryTaskId, HistorySourceId,
+            HistoryMinimumSequence, HistoryMaximumSequence,
             HistoryMinimumGeneration, HistoryMaximumGeneration, HistoryMinimumSourceRevision,
             HistoryMaximumSourceRevision, HistoryMinimumAuditSequence, HistoryMaximumAuditSequence })
         {

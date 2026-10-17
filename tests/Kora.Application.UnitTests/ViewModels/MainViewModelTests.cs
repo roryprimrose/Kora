@@ -9734,6 +9734,14 @@ public sealed partial class MainViewModelTests : IDisposable
 
     private sealed class FakeAppearancePreferences : IAppearancePreferences
     {
+        public bool? NativePresenceRendererEnabled { get; private set; }
+        public bool? LoadNativePresenceRendererEnabled() => NativePresenceRendererEnabled;
+        public void SaveNativePresenceRendererEnabled(bool value)
+        {
+            ThrowIfSaveFails();
+            NativePresenceRendererEnabled = value;
+        }
+
         public int? ReaderTextScalePercent { get; private set; }
         public bool ReaderScalePending { get; private set; }
         public int? LoadReaderTextScalePercent() => ReaderScalePending

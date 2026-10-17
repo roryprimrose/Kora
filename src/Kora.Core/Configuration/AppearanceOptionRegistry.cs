@@ -38,6 +38,9 @@ public static class AppearanceOptionRegistry
             new(AppearanceOption.ReaderTextScale, "appearance.reader-text-scale", "Native reader text scale",
                 AppearanceValueType.Number, "percent", new AppearanceValue.Number(ReaderTextScaleSettings.DefaultPercent),
                 ReaderTextScaleSettings.MinimumPercent, ReaderTextScaleSettings.MaximumPercent, "configuration.reader-text-scale"),
+            new(AppearanceOption.NativePresenceRenderer, "appearance.native-presence-renderer", "Native presence renderer",
+                AppearanceValueType.Toggle, "boolean", new AppearanceValue.Toggle(false),
+                null, null, "configuration.native-presence-renderer"),
         ]);
 
     public static AppearanceOptionDescriptor Get(AppearanceOption option) =>
@@ -58,6 +61,7 @@ public static class AppearanceOptionRegistry
                 return;
             case (AppearanceOption.PresenceDisplay, AppearanceValue.Toggle):
             case (AppearanceOption.SpeechScaling, AppearanceValue.Toggle):
+            case (AppearanceOption.NativePresenceRenderer, AppearanceValue.Toggle):
                 return;
             case (AppearanceOption.PresenceTimeout, AppearanceValue.Number integer):
                 PresenceSettings.ValidateTimeoutSeconds(integer.Value);

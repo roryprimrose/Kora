@@ -95,6 +95,10 @@ public sealed partial class MainViewModel
         {
             switch (descriptor.Option, appearanceConfiguration.Get(descriptor.Option).Value)
             {
+                case (AppearanceOption.NativePresenceRenderer, AppearanceValue.Toggle boolean):
+                    if (SetProperty(ref isNativePresenceRenderer, boolean.Value, nameof(IsNativePresenceRenderer)))
+                        OnPropertyChanged(nameof(SelectedPresenceRenderer));
+                    break;
                 case (AppearanceOption.ReaderTextScale, AppearanceValue.Number integer):
                     SetProperty(ref readerTextScalePercent, integer.Value, nameof(ReaderTextScalePercent)); break;
                 case (AppearanceOption.Theme, AppearanceValue.Theme theme):
@@ -348,6 +352,8 @@ public sealed partial class MainViewModel
 
     private static string DescribeAppearanceState(AppearanceOptionState state) =>
         $"{state.Descriptor.Id} = {AppearanceCommand.Format(state.Value)} {state.Descriptor.Units}; revision {state.Revision}. "
-        + (state.IsSaved ? "Saved preference is effective on this device." : "Domain default is effective; no saved preference.")
+        + (state.IsSaved ? "Saved preference is effective on this device."
+            : state.Descriptor.Option == AppearanceOption.NativePresenceRenderer
+                ? "Startup choice is effective; no saved preference." : "Domain default is effective; no saved preference.")
         + $" {state.Descriptor.ApplicationTiming}.";
 }

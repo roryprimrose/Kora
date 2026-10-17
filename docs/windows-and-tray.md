@@ -592,9 +592,9 @@ Windows may initially place it under **Show hidden icons**. You can drag or pin
 the Kora icon into the always-visible notification area using normal Windows
 taskbar settings.
 
-- Single left-click: show and activate Kora after the Windows double-click
+- Single left-click: request Kora's presence immediately, without the Windows double-click
   interval.
-- Double-click: open or activate Settings.
+- Double-click: also open or activate Settings; the first click has already requested the presence.
 - Right-click: open the tray menu.
 
 The right-click menu contains:

@@ -88,7 +88,7 @@ public sealed class PresenceRendererTests
     }
 
     [Fact]
-    public async Task QuietCadenceIsSixTimesSlowerAndStateAndSpeechWakeImmediately()
+    public async Task MovingStatesKeepSmoothCadenceAndStateAndSpeechWakeImmediately()
     {
         await HeadlessSession.RunAsync(() =>
         {
@@ -102,8 +102,8 @@ public sealed class PresenceRendererTests
             scheduler.Advance(TimeSpan.FromSeconds(1));
             var before = control.InvalidationCount;
             scheduler.Advance(TimeSpan.FromMilliseconds(1980));
-            var quiet = control.InvalidationCount - before;
-            quiet.Should().Be(10);
+            var waiting = control.InvalidationCount - before;
+            waiting.Should().Be(60);
             before = control.InvalidationCount;
             control.State = AssistantState.Listening;
             control.InvalidationCount.Should().BeGreaterThan(before);
@@ -112,7 +112,7 @@ public sealed class PresenceRendererTests
             scheduler.Advance(TimeSpan.FromMilliseconds(1980));
             var active = control.InvalidationCount - before;
             active.Should().Be(60);
-            active.Should().Be(quiet * 6);
+            active.Should().Be(waiting);
             before = control.InvalidationCount;
             control.IsSpeaking = true;
             control.SpeechOutputLevel = 1;
@@ -123,6 +123,43 @@ public sealed class PresenceRendererTests
             scheduler.Advance(TimeSpan.FromSeconds(1));
             control.CurrentFrame.Scale.Should().Be(1);
             window.Close();
+        });
+    }
+
+    [Theory]
+    [InlineData(AssistantState.Information)]
+    [InlineData(AssistantState.Waiting)]
+    [InlineData(AssistantState.Success)]
+    [InlineData(AssistantState.Listening)]
+    [InlineData(AssistantState.Calculating)]
+    [InlineData(AssistantState.Executing)]
+    public async Task LowAndHighMovementSpeedsKeepThirtyThreeMillisecondCadence(AssistantState state)
+    {
+        await HeadlessSession.RunAsync(() =>
+        {
+            var scheduler = new RecordingScheduler();
+            using var control = new PresenceControl(scheduler)
+            {
+                IsPresentationEligible = true, State = state,
+            };
+            var window = Show(control);
+            try
+            {
+                foreach (var speed in new[] { PresenceSettings.MinimumMovementSpeedPercent, 50, 100,
+                    178, 179, 180, PresenceSettings.MaximumMovementSpeedPercent })
+                {
+                    control.MovementSpeedPercent = speed;
+                    scheduler.Advance(TimeSpan.FromSeconds(1));
+                    var before = control.InvalidationCount;
+                    scheduler.Advance(TimeSpan.FromMilliseconds(1980));
+                    (control.InvalidationCount - before).Should().Be(60, "motion speed {0} must not reduce frame rate", speed);
+                    scheduler.PendingCount.Should().Be(1);
+                }
+            }
+            finally
+            {
+                window.Close();
+            }
         });
     }
 

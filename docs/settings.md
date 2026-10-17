@@ -465,7 +465,7 @@ The tab groups **Appearance** controls first (theme, reader text scale and respo
 
 The existing controls and exact typed/activated-voice commands share one
 host-owned, typed appearance service. No model or network is needed. Enter
-**list appearance settings** to inspect the eleven admitted options, units,
+**list appearance settings** to inspect the twelve admitted options, units,
 defaults, bounds, scope and application timing.
 
 | ID | Default | Values / units |
@@ -481,6 +481,7 @@ defaults, bounds, scope and application timing.
 | `appearance.speech-scaling` | `true` | `true`, `false` (visual sizing only) |
 | `appearance.speech-scale-amount` | `100` | 0-200 percent |
 | `appearance.reader-text-scale` | `100` | 75-200 integer percent; native source/detail and complete serialized Evidence bodies only ([domain](../src/Kora.Core/Configuration/ReaderTextScaleSettings.cs)) |
+| `appearance.native-presence-renderer` | `false` | `false` = Avalonia; `true` = Native (experimental); an environment startup default applies only without a saved choice |
 
 Use **get appearance.theme**, **set appearance.theme to dark**, or
 **reset appearance.theme**; substitute another listed ID and its typed value.
@@ -498,6 +499,26 @@ The **Show presence** control and `appearance.presence-display` setting make
 the animated presence optional. It is displayed by default. Turning it off
 keeps the presence hidden across restarts while response, settings, approval
 and other interactive surfaces remain available.
+
+Under **Appearance > Presence appearance**, **Presence renderer** switches
+between **Avalonia** and **Native (experimental)** without restarting Kora's
+host services. Both use the same particle cloud. The presence briefly disappears
+while its window and rendering resources are replaced. Switching waits for
+startup, mouse gestures and presence-owned dialogs/file pickers to finish.
+Position, hidden/minimized state and the remaining inactivity timeout are
+retained; privacy and display eligibility are rechecked before showing it.
+The status below the selector distinguishes a saved/pending choice from an
+active or unavailable renderer. Failures are explicit and do not silently select
+the other backend. Uncertain retirement requires normal exit, not a storage or
+ownership reset. Native remains experimental; this does not qualify laptop
+rendering performance or full physical interaction.
+
+The saved renderer choice overrides `KORA_PRESENCE_RENDERER` on later startups.
+With no saved choice, unset/`avalonia` uses Avalonia and `native` opts into the
+native startup default. Invalid environment values are errors.
+`set appearance.native-presence-renderer to true/false` uses the same audited
+setting and runtime switch as the selector. Saving is not evidence that a
+deferred replacement has completed; inspect the renderer status.
 
 Use the field's **...** actions button and choose **Reset setting** to restore its default; opening the menu does not change the value ([actions menu](../src/Kora/Controls/SettingActionsButton.cs)).
 Reset affects only that field, not a whole group, profile or undo history. Updates revalidate the

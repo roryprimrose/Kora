@@ -317,13 +317,11 @@ public sealed class PresenceControl : Control, IDisposable
         {
             return PresenceRenderLoop.SpeechInterval;
         }
-        if (transitioning
-            || IsMotionEnabled && State is AssistantState.Listening or AssistantState.Calculating or AssistantState.Executing
-            || GetActivity() >= 0.5)
+        if (transitioning || GetActivity() > 0)
         {
             return PresenceRenderLoop.ActiveInterval;
         }
-        return GetActivity() > 0 ? PresenceRenderLoop.QuietInterval : null;
+        return null;
     }
 
     private void UpdateFrame(TimeSpan elapsed, bool resumed, bool isWake)

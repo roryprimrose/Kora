@@ -133,6 +133,7 @@ public sealed class AppearanceUiContractTests
             "ResponseTimeoutSeconds", "PresenceTimeoutSeconds", "PresenceSizePixels",
             "PresenceDotSizePercent", "PresenceDotDensityPercent", "PresenceMovementSpeedPercent",
             "IsPresenceSpeechScalingEnabled", "PresenceSpeechScaleAmountPercent",
+            "SelectedPresenceRenderer",
         })
         {
             var control = document.Descendants().Single(element => element.Attributes().Any(attribute =>

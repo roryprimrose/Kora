@@ -9,8 +9,6 @@ using Kora.Application.Visuals;
 using Kora.Controls;
 using Kora.Windows.Presentation;
 
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
 
 namespace Kora;
 
@@ -21,14 +19,13 @@ public sealed partial class MainWindow
 
     private void InitializeNativePresence()
     {
-        if (!PresenceRendererSelection.UseNative(
-            Environment.GetEnvironmentVariable(PresenceRendererSelection.EnvironmentVariable)))
+        if (!useNativePresence)
         {
             return;
         }
         nativePresence = new NativePresenceHost(CaptureNativePresence,
             () => viewModel.RefreshSpeechPlaybackFrame(), ReportNativePresenceFailure,
-            App.Services.GetRequiredService<ILogger<PresenceRenderWorker>>());
+            rendererLogger);
         presence.SetAnimationEnabled(false);
         presence.IsVisible = false;
         var panel = new Grid();
@@ -39,7 +36,7 @@ public sealed partial class MainWindow
         presence.PropertyChanged += OnNativeVisualInputChanged;
         viewModel.PropertyChanged += OnNativeViewModelChanged;
         viewModel.PrivacyClosureRequested += OnNativePrivacyClosure;
-        DesktopLog.Information(logger, "Opt-in native presence presenter selected; the Avalonia presenter remains the default");
+        DesktopLog.Information(logger, "Native presence presenter selected; the Avalonia presenter remains the default");
     }
 
     private PresenceRenderInputs? CaptureNativePresence()
@@ -70,17 +67,22 @@ public sealed partial class MainWindow
         }
     }
 
-    private void OnNativePrivacyClosure(object? sender, EventArgs args) => nativePresence?.Suspend();
+    private void OnNativePrivacyClosure(object? sender, EventArgs args)
+    {
+        nativePresence?.Suspend();
+        RefreshPresenceInput();
+    }
 
     private void ReportNativePresenceFailure(Exception exception)
     {
         nativePresenceFailed = true;
         nativePresence?.Suspend();
         DesktopLog.Error(logger, exception, "Presenting the opt-in native presence");
+        viewModel.ReportPresenceRendererStatus("Native renderer unavailable. Select Avalonia in Settings; no automatic fallback was performed.");
         HidePresenceWindow();
         viewModel.ReportHostInteractionFailure(
             "The native presence renderer is unavailable. Other presentation and audio services remain independent. "
-            + "Exit and restart with KORA_PRESENCE_RENDERER unset to use the existing renderer.");
+            + "Select Avalonia in Settings to replace the presence window, or exit normally.");
     }
 
     private void CloseNativePresence()

@@ -30,6 +30,52 @@ public sealed partial class AppearanceConfigurationServiceTests
         if (afterRequested) { fixture.Audit.Events.Last().Outcome.Should().Be(SecurityAuditOutcome.Denied); }
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Saved_renderer_wins_over_startup_default_and_explicit_changes_share_persistence_and_audit(bool startupNative)
+    {
+        var fixture = new Fixture();
+        fixture.Service.ConfigureNativePresenceStartupDefault(startupNative);
+        var before = fixture.Service.Get(AppearanceOption.NativePresenceRenderer);
+        before.Value.GetToggle().Should().Be(startupNative);
+        before.IsSaved.Should().BeFalse();
+        fixture.Service.Reload();
+        fixture.Service.Get(before.Descriptor.Option).Value.Should().Be(before.Value);
+        var result = fixture.Service.Apply(fixture.Service.Propose(before.Descriptor.Option,
+            new AppearanceValue.Toggle(!startupNative), before.Revision, SecurityAuditInitiator.LocalUser,
+            RequestOrigin.LocalUi, () => true),
+            TestContext.Current.CancellationToken);
+        result.Succeeded.Should().BeTrue();
+        fixture.Store.Text["presence-native-renderer-enabled.txt"].Should().Be((!startupNative).ToString());
+        fixture.Audit.Events.Select(item => item.Outcome).Should()
+            .Equal(SecurityAuditOutcome.Requested, SecurityAuditOutcome.Succeeded);
+        var restored = fixture.CreateService();
+        restored.ConfigureNativePresenceStartupDefault(startupNative);
+        restored.Get(before.Descriptor.Option).Value.GetToggle().Should().Be(!startupNative);
+        var lateOverride = () => restored.ConfigureNativePresenceStartupDefault(!startupNative);
+        lateOverride.Should().Throw<InvalidOperationException>();
+    }
+
+    [Fact]
+    public void Failed_renderer_save_does_not_change_choice_or_publish()
+    {
+        var fixture = new Fixture();
+        var before = fixture.Service.Get(AppearanceOption.NativePresenceRenderer);
+        fixture.Store.Failure = new IOException("fixture write failure");
+        var notifications = 0;
+        fixture.Service.Changed += (_, _) => notifications++;
+        var result = fixture.Service.Apply(fixture.Service.Propose(before.Descriptor.Option,
+            new AppearanceValue.Toggle(true), before.Revision, SecurityAuditInitiator.LocalUser,
+            RequestOrigin.LocalUi, () => true),
+            TestContext.Current.CancellationToken);
+        result.Succeeded.Should().BeFalse();
+        result.State.Should().Be(before);
+        notifications.Should().Be(0);
+        fixture.Store.Text.Should().NotContainKey("presence-native-renderer-enabled.txt");
+        fixture.Audit.Events[^1].Outcome.Should().Be(SecurityAuditOutcome.Failed);
+    }
+
     [Fact]
     public void Every_option_round_trips_resets_only_itself_and_keeps_existing_formats()
     {
@@ -65,8 +111,8 @@ public sealed partial class AppearanceConfigurationServiceTests
             foreach (var other in AppearanceOptionRegistry.Options)
                 fixture.Service.Get(other.Option).Value.Should().Be(other.Default);
         }
-        notifications.Should().Be(22);
-        fixture.Audit.Events.Should().HaveCount(44);
+        notifications.Should().Be(AppearanceOptionRegistry.Options.Count * 2);
+        fixture.Audit.Events.Should().HaveCount(AppearanceOptionRegistry.Options.Count * 4);
         fixture.Store.Text["appearance-theme.txt"].Should().Be("System");
         fixture.Store.Text["presence-display-enabled.txt"].Should().Be("True");
         fixture.Store.Text["presence-speech-scaling-enabled.txt"].Should().Be("True");

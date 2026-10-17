@@ -5,6 +5,7 @@
     xmlns:configuration="clr-namespace:Kora.Core.Configuration;assembly=Kora.Core"
     xmlns:controls="using:Kora.Controls"
     xmlns:local="using:Kora"
+    xmlns:viewModels="using:Kora.Application.ViewModels"
     Title="{Binding SettingsWindowTitle}"
     Icon="/Assets/Kora.ico"
     Width="1040"
@@ -215,6 +216,31 @@
 
             <Border Classes="settings-card">
               <Grid ColumnDefinitions="*,240,Auto" ColumnSpacing="24">
+                <StackPanel Spacing="4">
+                  <TextBlock Text="Presence renderer" Classes="settings-title" />
+                  <TextBlock
+                      Text="Changes immediately after startup, mouse gestures and owned dialogs finish. Native is experimental; both render the same particle cloud."
+                      Classes="settings-description"
+                      TextWrapping="Wrap" />
+                  <TextBlock Text="{Binding PresenceRendererStatus}"
+                      Classes="settings-description" TextWrapping="Wrap" />
+                </StackPanel>
+                <ComboBox Grid.Column="1"
+                    AutomationProperties.Name="Presence renderer"
+                    ItemsSource="{Binding PresenceRenderers}"
+                    SelectedItem="{Binding SelectedPresenceRenderer}"
+                    VerticalAlignment="Center" HorizontalAlignment="Stretch">
+                  <ComboBox.ItemTemplate>
+                    <DataTemplate x:DataType="viewModels:PresenceRendererChoice">
+                      <TextBlock Text="{Binding Name}" />
+                    </DataTemplate>
+                  </ComboBox.ItemTemplate>
+                </ComboBox>
+              </Grid>
+            </Border>
+
+            <Border Classes="settings-card">
+              <Grid ColumnDefinitions="*,240" ColumnSpacing="24">
                 <StackPanel Spacing="4">
                   <TextBlock Text="Presence timeout" Classes="settings-title" />
                   <TextBlock

@@ -1,6 +1,7 @@
 using AwesomeAssertions;
 using Kora.Application.Configuration;
 using Kora.Application.Infrastructure;
+using Kora.Application.ViewModels;
 using Kora.Core;
 using Kora.Core.Auditing;
 using Kora.Core.Configuration;
@@ -11,6 +12,32 @@ namespace Kora.Application.UnitTests.ViewModels;
 
 public sealed partial class MainViewModelTests
 {
+    [Fact]
+    public async Task Renderer_selector_uses_the_shared_audited_setting_and_does_not_claim_activation()
+    {
+        var fixture = await Fixture.CreateInitializedAsync();
+        fixture.ViewModel.PresenceRenderers.Select(item => item.Name).Should()
+            .Equal("Avalonia", "Native (experimental)");
+        var notifications = new List<string?>();
+        fixture.ViewModel.PropertyChanged += (_, args) => notifications.Add(args.PropertyName);
+        fixture.ViewModel.SelectedPresenceRenderer = fixture.ViewModel.PresenceRenderers[1];
+        fixture.ViewModel.IsNativePresenceRenderer.Should().BeTrue();
+        fixture.AppearancePreferences.NativePresenceRendererEnabled.Should().BeTrue();
+        notifications.Should().Contain(nameof(MainViewModel.IsNativePresenceRenderer))
+            .And.Contain(nameof(MainViewModel.SelectedPresenceRenderer));
+        fixture.ViewModel.PresenceRendererStatus.Should().NotContain("active.");
+        fixture.ViewModel.ReportPresenceRendererStatus("Native renderer active.");
+        fixture.ViewModel.PresenceRendererStatus.Should().Be("Native renderer active.");
+        fixture.AppearancePreferences.SaveException = new IOException("fixture save failure");
+        fixture.ViewModel.SelectedPresenceRenderer = fixture.ViewModel.PresenceRenderers[0];
+        fixture.ViewModel.SelectedPresenceRenderer.IsNative.Should().BeTrue();
+        fixture.Audit.Events.Should().Contain(item => item.ActionId == "configuration.native-presence-renderer"
+            && item.Outcome == SecurityAuditOutcome.Succeeded);
+        fixture.Audit.Events.Should().Contain(item => item.ActionId == "configuration.native-presence-renderer"
+            && item.Outcome == SecurityAuditOutcome.Failed);
+        fixture.Reasoner.Requests.Should().BeEmpty();
+    }
+
     [Fact]
     public async Task Actual_typed_commands_share_all_direct_appearance_controls_and_live_notifications_without_reasoning()
     {

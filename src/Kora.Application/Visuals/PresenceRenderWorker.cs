@@ -12,6 +12,7 @@ namespace Kora.Application.Visuals;
 
 public sealed partial class PresenceRenderWorker : IDisposable
 {
+    private const int DiagnosticTransitionLimit = 16;
     private readonly IPresenceRenderTarget target;
     private readonly Action<Action> dispatch;
     private readonly Action<Exception> reportFailure;
@@ -30,6 +31,15 @@ public sealed partial class PresenceRenderWorker : IDisposable
     private bool disposed;
     private bool hasVisibleFrame;
     private bool faulted;
+    private DiagnosticState? lastDiagnosticState;
+    private int diagnosticTransitions;
+    private bool diagnosticsLimited;
+    private long drawnFrames;
+    private long presentedFrames;
+
+    private readonly record struct DiagnosticState(bool Admitted, long Generation, AssistantState State,
+        bool RequestedVisible, bool ReducedMotion, double Width, double Height, double Scaling,
+        bool PositiveOpacityPresented);
 
     public PresenceRenderWorker(IPresenceRenderTarget target, Action<Action> dispatch,
         Action<Exception> reportFailure, ILogger<PresenceRenderWorker> logger)
@@ -127,6 +137,9 @@ public sealed partial class PresenceRenderWorker : IDisposable
                 PresenceRenderInputs? next;
                 long version;
                 bool shouldWait;
+                bool admitted;
+                bool positiveOpacityPresented;
+                Func<HostActivity> diagnosticContext;
                 lock (gate)
                 {
                     if (stopping)
@@ -136,6 +149,15 @@ public sealed partial class PresenceRenderWorker : IDisposable
                     next = inputs;
                     version = generation;
                     shouldWait = !enabled || pending || next is null;
+                    admitted = enabled;
+                    positiveOpacityPresented = hasVisibleFrame;
+                    diagnosticContext = failureContext;
+                }
+                if (next is not null)
+                {
+                    RecordDiagnosticTransition(new DiagnosticState(admitted, admitted ? version : 0, next.State,
+                        next.IsPresenceVisible, next.ReducedMotion, next.Width, next.Height, next.Scaling,
+                        positiveOpacityPresented), diagnosticContext);
                 }
                 if (shouldWait)
                 {
@@ -206,10 +228,7 @@ public sealed partial class PresenceRenderWorker : IDisposable
                 }
                 previous = current;
                 var frame = animation.Current;
-                cadence = current.IsSpeaking || visualChanged || inputChanged
-                    || current.State is AssistantState.Listening or AssistantState.Calculating or AssistantState.Executing
-                    || PresenceParticleField.GetActivity(current.State, current.MovementSpeed, !current.ReducedMotion) >= 0.5
-                    ? PresenceAnimation.FrameInterval : PresenceParticleField.QuietFrameInterval;
+                cadence = GetCadence(current, visualChanged, inputChanged);
                 var count = field.Project(particles, current.Density, current.DotSize, current.Width, current.Height, frame.Scale);
                 var factor = current.IsLightTheme ? 0.55 : 1;
                 target.Draw(particles.AsSpan(0, count), current.Width, current.Height, current.Scaling,
@@ -217,6 +236,7 @@ public sealed partial class PresenceRenderWorker : IDisposable
                     (byte)Math.Round(frame.Color.Blue * factor), frame.Opacity);
                 lock (gate)
                 {
+                    drawnFrames++;
                     if (!enabled || stopping || generation != version)
                     {
                         continue;
@@ -237,6 +257,7 @@ public sealed partial class PresenceRenderWorker : IDisposable
             try
             {
                 target.ReleaseDrawingResources();
+                RecordDiagnosticCompletion();
             }
             catch (Exception exception) when (exception is not OutOfMemoryException)
             {
@@ -244,6 +265,11 @@ public sealed partial class PresenceRenderWorker : IDisposable
             }
         }
     }
+
+    internal static TimeSpan GetCadence(PresenceRenderInputs current, bool visualChanged, bool inputChanged) =>
+        current.IsSpeaking || visualChanged || inputChanged
+            || PresenceParticleField.GetActivity(current.State, current.MovementSpeed, !current.ReducedMotion) > 0
+            ? PresenceAnimation.FrameInterval : PresenceParticleField.QuietFrameInterval;
 
     private void Present(long version, bool visible)
     {
@@ -260,6 +286,7 @@ public sealed partial class PresenceRenderWorker : IDisposable
                 lock (gate)
                 {
                     hasVisibleFrame = visible;
+                    presentedFrames++;
                 }
             }
         }
@@ -278,6 +305,49 @@ public sealed partial class PresenceRenderWorker : IDisposable
                 }
             }
         }
+    }
+
+    private void RecordDiagnosticTransition(DiagnosticState state, Func<HostActivity> context)
+    {
+        if (diagnosticsLimited || !logger.IsEnabled(LogLevel.Information) || lastDiagnosticState == state)
+        {
+            return;
+        }
+        using var activity = context();
+        if (diagnosticTransitions == DiagnosticTransitionLimit)
+        {
+            diagnosticsLimited = true;
+            RenderDiagnosticLimitReached(DiagnosticTransitionLimit);
+        }
+        else
+        {
+            lastDiagnosticState = state;
+            diagnosticTransitions++;
+            RenderTransition(diagnosticTransitions, state.Admitted, state.Generation, state.State,
+                state.RequestedVisible, state.ReducedMotion, state.Width, state.Height, state.Scaling,
+                state.PositiveOpacityPresented);
+        }
+        activity.Complete(HostOperationOutcome.Completed);
+    }
+
+    private void RecordDiagnosticCompletion()
+    {
+        if (!logger.IsEnabled(LogLevel.Information))
+        {
+            return;
+        }
+        Func<HostActivity> context;
+        long drawn;
+        long presented;
+        lock (gate)
+        {
+            context = failureContext;
+            drawn = drawnFrames;
+            presented = presentedFrames;
+        }
+        using var activity = context();
+        RenderCompleted(drawn, presented, diagnosticTransitions, diagnosticsLimited);
+        activity.Complete(HostOperationOutcome.Completed);
     }
 
     private void Fail(Exception exception)

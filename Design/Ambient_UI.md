@@ -158,13 +158,15 @@ authoritative playback envelope instead of waiting for a quiet-state poll.
 Active speech work keeps authoritative playback sampling awake at 16 ms,
 including synthesis before the actual playing envelope is available. Only that
 envelope drives speech sizing; a static non-playing frame does not invalidate.
-Actual speech playback retains the current-main 16-ms cadence; non-speaking
-colour/opacity/scale transitions, capture, calculating and execution use 33 ms.
-Settled non-speaking low-motion states without speech work use
-198 ms (six times fewer scheduled invalidations); high configured motion also
-uses 33 ms. The interval is always one of 16, 33 or 198 ms; a settled motionless
-failure requests no further frames.
-Elapsed-time motion retains the nominal velocity at either cadence and caps
+Actual speech playback retains the current-main 16-ms cadence. All nonzero
+particle motion and non-speaking colour/opacity/scale transitions use 33 ms,
+independent of movement speed. The speed setting changes velocity, not frame
+rate. The earlier 198-ms low-activity cadence produced stepped motion at lower
+speeds and is no longer used for visible particle movement. Settled motionless
+and reduced-motion states request no recurring drawing after transitions settle.
+This deliberately trades the old sixfold quiet-motion frame reduction for
+consistent smoothness; no battery or energy improvement is claimed.
+Elapsed-time motion retains the nominal velocity and caps
 delayed integration at 198 ms. Windows' animation preference is read at startup
 and each explicit show; reduced motion freezes the current particle arrangement
 without reseeding it. Colour, visibility and actual speech sizing remain separate.
@@ -212,14 +214,105 @@ playback and execution.
 
 ### Opt-in native presence renderer
 
-The existing Avalonia presence remains the default. `KORA_PRESENCE_RENDERER=native` selects the in-process buffered presenter for the owning process's next startup; unset it or use the exact value `avalonia` to retain the existing presenter. Unknown values fail explicitly, without a silent renderer fallback or preference-file changes
+The first left tray click requests reveal immediately, without waiting for the
+Windows double-click interval. A second click inside that interval also opens
+Settings; the first reveal is not undone. The timer only retires the click
+sequence. Privacy, display and instance-ownership gates still apply.
+The responsiveness target is under one second from the tray-handler entry to
+the first positive-opacity frame, preferably under 500 ms. The private-desktop
+fixture measures both renderers with a deliberately blocked scratch SQLite
+commit; these submission/state checks are not composed-pixel or physical-laptop
+latency qualification.
+
+The existing Avalonia presence remains the default. Settings > Appearance >
+Presence appearance > **Presence renderer** selects **Avalonia** or
+**Native (experimental)** at runtime. Both display the same particle-cloud style.
+The choice uses the shared audited appearance preference
+`appearance.native-presence-renderer` (`false` for Avalonia, `true` for native).
+A saved choice takes precedence over `KORA_PRESENCE_RENDERER`. Without a saved
+choice, the exact value `native` selects the native startup default; unset or
+`avalonia` retains Avalonia. Unknown environment values fail explicitly, even
+when a saved preference exists, without fallback or preference-file changes
 ([selection](../src/Kora/Controls/PresenceRendererSelection.cs)).
 
-The native path retains the Avalonia window for position, size, DPI observation, click-through/Ctrl-drag routing, timeout, privacy and shutdown. Its layered child surface cannot outlive the host window's native visibility. An `asInvoker`, `uiAccess=false` Windows 10 compatibility manifest permits layered child hosting; it does not request elevation
+Changing renderer defers until initial host startup, mouse-button gestures and
+presence-owned dialogs/file pickers finish. New choices replace pending choices;
+choosing the current renderer cancels a pending replacement. Only an actual
+replacement creates a linked presentation activity, not every waiting poll.
+The old window is hidden, its timers and input are stopped, its rendering worker
+is joined and its popup/root are retired before a replacement is constructed.
+The replacement uses the same host view model, preserves position,
+hidden/minimized state and the remaining inactivity deadline, and rechecks privacy
+and display eligibility before revealing. It never reruns host/provider/voice
+startup, changes microphone consent or replaces other application services.
+File and question surfaces resolve the current owner instead of retaining a
+retired window. Creation/presentation failures leave the new presence unavailable
+with an explicit settings status; there is no automatic renderer fallback.
+Uncertain old-window retirement prevents further replacement until normal exit
+([controller](../src/Kora/PresenceWindowController.cs),
+[window lifecycle](../src/Kora/MainWindow.RendererSwitch.cs)).
+
+The native path retains the Avalonia window for position, size, DPI observation, click-through/Ctrl-drag routing, timeout, privacy and shutdown. A same-process, same-UI-thread native popup is owned by that window, not parented as a child. The `asInvoker`, `uiAccess=false` Windows manifest does not request elevation
 ([host](../src/Kora/MainWindow.NativePresence.cs), [manifest](../src/Kora/app.manifest)).
 
-One rendering worker owns the particle field and reusable DIB resources. The UI presents at most one completed frame at a time and discards queued pixels after suspension or a geometry-generation change. Shutdown does not require draining UI callbacks. Rendering/presentation errors make the native presence unavailable and report restart recovery; the default renderer is not silently substituted
+The popup has a private window class without `CS_OWNDC` or `CS_CLASSDC`, uses
+per-pixel `UpdateLayeredWindow` only, and always passes pointer input through.
+It never uses constant-alpha initialization. In native mode the Avalonia shell
+is not forced into `WS_EX_LAYERED`: Avalonia 12.1.3 uses `CS_OWNDC`, which
+[Windows documents as incompatible with that style](https://learn.microsoft.com/en-us/windows/win32/winmsg/extended-window-styles).
+Instead the existing Ctrl/button/eligibility policy applies a real empty window
+region while passive and a full-footprint region during admitted Ctrl interaction.
+NULL is not an empty region. Successful region transfer gives Windows ownership;
+failed transfers release only the untransferred handle. Stable polling does not
+allocate regions, resize updates physical bounds, and reentrant native position
+notifications cannot commit an input mode before the outer transfer succeeds
+([input](../src/Kora.Windows/Presentation/WindowsPresenceWindowInput.cs),
+[regions](../src/Kora.Windows/Presentation/WindowsPresenceRegion.cs)).
+
+The default Avalonia input backend remains unchanged. Native selection happens
+before constructing either backend. Unknown/conflicting region ownership,
+foreign/thread-mismatched windows, forced layered shells and unavailable transparent
+backends fail explicitly, without native class-style resets or silent fallback.
+The inherited default backend's forced-layering contract is not claimed fixed by
+this opt-in native change.
+
+The layout control is only a host-owned geometry/lifetime adapter, not a native
+container. It resolves physical client coordinates to screen coordinates and
+reconciles popup movement after owner position notifications. Effective visibility,
+privacy admission and attachment generation are rechecked before queued presentation.
+Hide/minimize suspends presentation; restoration requires fresh admission. Detach
+joins the worker and destroys the popup; reattachment creates a fresh surface.
+Owner destruction is an OS safety net, not a replacement for explicit shutdown.
+No color key, alpha-1 background, separate renderer process or altered parent
+alpha is used. Region failure still hides the host in finally.
+
+The previous direct-child laptop build was invisible despite a visible,
+correctly positioned 300-by-300 child and root. That observation is historical,
+not a qualification of this owned-popup build. Native remains unqualified pending
+separately approved integrated appearance/input/normal-shutdown testing.
+Window visibility and successful submissions do not establish composed pixels.
+
+One rendering worker owns the particle field and reusable DIB resources. The UI presents at most one completed frame at a time and discards queued pixels after suspension or a geometry-generation change. Shutdown does not require draining UI callbacks. Rendering/presentation errors make the native presence unavailable and report explicit selection of Avalonia in Settings or normal-exit recovery; the default renderer is not silently substituted
 ([worker](../src/Kora.Application/Visuals/PresenceRenderWorker.cs)).
+
+The worker emits at most 16 content-free transition records (event 1), one explicit
+limit notice (event 2), and one terminal counter summary (event 3) per lifetime.
+Transitions describe admission, generation, state, requested visibility, reduced
+motion, dimensions/scaling and whether a positive-opacity frame was presented.
+They contain no text, paths, pixels, speech levels or provider data. Repeated
+frames do not produce repeated records. Writes run on the rendering worker,
+outside its state lock, using a new linked activity for the captured admission;
+ordinary evidence uses the upstream shared deferred-evidence path, with
+call-time sink admission and immutable snapshots before its bounded 1,024-item
+queue. File and SQLite delivery run on that worker; there is no separate
+immediate-file/projection queue. Queue exhaustion fails closed rather than
+dropping projections. Delivery failures remain explicit and sticky for
+subsequent admission and joined shutdown. A blocked ordinary diagnostic write
+does not delay the worker's first frame while queue admission remains available.
+Typed audit writes are not deferred. Existing error event 0 is
+unchanged. Positive frame opacity is not a DIB-pixel or compositor-visibility
+measurement. The cap can omit later transitions and the limit notice makes this
+explicit ([events](../src/Kora.Application/Visuals/PresenceRenderWorker.Logging.cs)).
 
 Speech visualization samples the existing host-owned playback frame while speech is active. Neither the presenter nor its worker owns microphone capture, synthesis, audio output, caption text or task state. Host privacy/visibility remains the admission boundary. Particle density, dot size, footprint, speed, theme, state transitions, visibility fades and speech-scale settings remain live inputs
 ([integration](../src/Kora/MainWindow.NativePresence.cs)).
@@ -227,21 +320,45 @@ Speech visualization samples the existing host-owned playback frame while speech
 Both presenters consume the Windows animation preference read during initialization and each show request. As in the default renderer, reduced motion freezes particle movement without disabling the independent speech-sizing setting; colour/visibility transitions still settle. The native buffer bounds each physical dimension to 4096 pixels; invalid geometry is explicitly unavailable
 ([inputs](../src/Kora.Application/Visuals/PresenceRenderInputs.cs)).
 
-The native path preserves #250's eligibility, seeded-prefix selection, motion rates and bounded elapsed-time integration. Static and fully faded frames stop recurring drawing; quiet motion uses the same 198-ms cadence and active animation uses 33 ms. A host-owned 16-ms sampler observes authoritative playback during speech work even before audio starts; it does not drive particle calculations or
+The native path preserves #250's eligibility, seeded-prefix selection, motion rates and bounded elapsed-time integration. Static and fully faded frames stop recurring drawing; all nonzero particle motion uses 33 ms even at low configured speed. The 198-ms value remains an elapsed-integration bound and native static backoff, not a moving-particle frame interval. A host-owned 16-ms sampler observes authoritative playback during speech work even before audio starts; it does not drive particle calculations or
 fabricate audio levels ([worker](../src/Kora.Application/Visuals/PresenceRenderWorker.cs), [host](../src/Kora/Controls/NativePresenceHost.cs)).
 
-To select the native presenter for one launch, set the environment only in the launching shell. Do not use `setx` or change device preferences:
+To select the native presenter for one manually approved launch, set the environment
+only on the child process. Do not use `setx` or change device preferences. Normal
+host startup can initialize previously consented microphone/provider services.
+An ownership refusal is not permission to reset state or retry automatically.
 
 ```powershell
-$env:KORA_PRESENCE_RENDERER = 'native'
-& .\src\Kora\bin\Release\net10.0-windows10.0.19041.0\Kora.exe
-Remove-Item Env:KORA_PRESENCE_RENDERER
+$executable = (Resolve-Path .\src\Kora\bin\Release\net10.0-windows10.0.19041.0\Kora.exe).Path
+$start = [Diagnostics.ProcessStartInfo]::new($executable)
+$start.UseShellExecute = $false
+$start.Environment['KORA_PRESENCE_RENDERER'] = 'native'
+[Diagnostics.Process]::Start($start)
 ```
+
+Inspect the tray Show action immediately, before the configured inactivity
+timeout. Check visible dots without a rectangular background, passive pointer
+passthrough and Ctrl-drag across the whole footprint. Close through normal
+application shutdown. A passing synthetic fixture does not qualify those physical
+observations, microphone/provider behavior or same-build renderer performance.
 
 This is an **I - Implementation** increment, not default enablement or **Q - RC** qualification. Earlier laptop results compare standalone prototypes, not integrated Kora. Before changing the default, check the integrated path on the laptop for composed appearance, DPI/display changes, Ctrl-drag, speech/caption alignment and representative longer-run resource use. Post-composition pixel fidelity
 and energy savings are not claimed ([evaluation scope](../experiments/presence-performance/REPORT.md)).
 
-The isolated fixture exercises the production worker and child host with synthetic inputs, no application service composition, devices, saved preferences, clipboard or network. It checks native submissions, resize/DPI projection, playback sampling, privacy-style suspension, reveal and disposal ([fixture](../tests/Kora.NativeUxFixture/NativeUx/NativePresenceFixture.cs)):
+The isolated fixture exercises the production worker, owned popup and region input
+on a disposable, never-activated desktop, avoiding unrelated active-desktop windows.
+The fixture thread exits before its desktop handle is released. No application
+service composition, devices, saved preferences, clipboard or network are used.
+Its Fluent shell starts at zero opacity and contains the hidden animation-disabled
+legacy sibling in a Grid. Synthetic Ctrl/button/cursor inputs replace physical
+input polling. It checks Hidden-to-Information/reduced-motion admission,
+positive-opacity presentation, owned-popup identity, a non-layered root, empty
+region passthrough to a synthetic underlying top level, full-footprint Ctrl
+routing, restored passthrough, screen-relative layout/movement, resize/DPI
+projection, playback sampling, hiding, reveal, detach/reattach and disposal.
+It does not compose MainWindow's view model/bindings or prove visible desktop
+pixels, physical Ctrl-drag, audio/captions or performance
+([fixture](../tests/Kora.NativeUxFixture/NativeUx/NativePresenceFixture.cs)):
 
 ```powershell
 dotnet build .\Kora.slnx --configuration Release --no-restore

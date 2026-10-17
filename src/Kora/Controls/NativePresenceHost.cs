@@ -1,7 +1,7 @@
 using Avalonia;
 using Avalonia.Controls;
-using Avalonia.Platform;
 using Avalonia.Threading;
+using Avalonia.VisualTree;
 
 using Kora.Application.Visuals;
 using Kora.Core;
@@ -15,61 +15,122 @@ internal sealed class NativePresenceHost(
     Func<PresenceRenderInputs?> capture,
     Action samplePlayback,
     Action<Exception> reportFailure,
-    ILogger<PresenceRenderWorker> logger) : NativeControlHost, IDisposable
+    ILogger<PresenceRenderWorker> logger) : Control, IDisposable
 {
     private readonly DispatcherTimer playbackTimer = new();
+    private readonly List<Visual> ancestors = [];
+    private TopLevel? topLevel;
     private WindowsPresenceRenderTarget? target;
     private PresenceRenderWorker? worker;
+    private long attachmentGeneration;
+    private long releasedFrames;
     private bool failed;
     private bool disposed;
-    internal long FramesPresented => target?.FramesPresented ?? 0;
-    internal bool CanInteract => !disposed && !failed && worker?.HasVisibleFrame == true
+    private bool positionUpdatePending;
+    internal long FramesPresented => releasedFrames + (target?.FramesPresented ?? 0);
+    internal nint NativeHandle => target?.Handle ?? 0;
+    internal bool CanInteract => CanPresent && worker?.HasVisibleFrame == true
         && capture() is { IsPresenceVisible: true, State: not AssistantState.Hidden };
+    private bool CanPresent => !disposed && !failed && topLevel is not null && IsEffectivelyVisible
+        && Opacity > 0 && Bounds.Width > 0 && Bounds.Height > 0
+        && ancestors.TrueForAll(static ancestor => ancestor.IsVisible && ancestor.Opacity > 0
+            && ancestor is not Window { WindowState: WindowState.Minimized });
 
-    protected override IPlatformHandle CreateNativeControlCore(IPlatformHandle parent)
+    protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
     {
-        target = new WindowsPresenceRenderTarget(parent.Handle);
+        base.OnAttachedToVisualTree(e);
+        ObjectDisposedException.ThrowIf(disposed, this);
+        topLevel = TopLevel.GetTopLevel(this)
+            ?? throw new InvalidOperationException("The native presence requires its host-owned top level.");
+        var parent = topLevel.TryGetPlatformHandle()
+            ?? throw new InvalidOperationException("The native presence host has no Windows handle.");
+        Interlocked.Increment(ref attachmentGeneration);
         try
         {
+            target = new WindowsPresenceRenderTarget(parent.Handle);
             worker = new PresenceRenderWorker(target, DispatchFrame, Fail, logger);
-        }
-        catch
-        {
-            target.Dispose();
-            throw;
-        }
-        playbackTimer.Interval = TimeSpan.FromMilliseconds(16);
-        playbackTimer.Tick += OnPlaybackTick;
-        Publish();
-        return new PlatformHandle(target.Handle, "HWND");
-    }
-
-    private void DispatchFrame(Action action) => Dispatcher.UIThread.Post(() =>
-    {
-        try
-        {
-            if (!disposed && capture() is null)
-            {
-                worker?.Suspend();
-            }
-            action();
         }
         catch (Exception exception) when (exception is not OutOfMemoryException)
         {
+            target?.Dispose();
+            target = null;
             Fail(exception);
+            return;
         }
-    }, DispatcherPriority.Render);
+        topLevel.ScalingChanged += OnHostScalingChanged;
+        if (topLevel is Window window) { window.PositionChanged += OnHostPositionChanged; }
+        foreach (var ancestor in this.GetVisualAncestors())
+        {
+            ancestors.Add(ancestor);
+            ancestor.PropertyChanged += OnAncestorPropertyChanged;
+        }
+        LayoutUpdated += OnLayoutUpdated;
+        playbackTimer.Interval = TimeSpan.FromMilliseconds(16);
+        playbackTimer.Tick += OnPlaybackTick;
+        Publish();
+    }
 
-    protected override void DestroyNativeControlCore(IPlatformHandle control) => Dispose();
-
-    protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
+    protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
     {
-        base.OnPropertyChanged(change);
-        if (change.Property == BoundsProperty)
+        ReleaseNativeResources();
+        base.OnDetachedFromVisualTree(e);
+    }
+
+    private void DispatchFrame(Action action)
+    {
+        var generation = Volatile.Read(ref attachmentGeneration);
+        Dispatcher.UIThread.Post(() =>
+        {
+            if (disposed || generation != Volatile.Read(ref attachmentGeneration)) { return; }
+            try
+            {
+                if (!CanPresent || capture() is null)
+                {
+                    worker?.Suspend();
+                }
+                action();
+            }
+            catch (Exception exception) when (exception is not OutOfMemoryException)
+            {
+                Fail(exception);
+            }
+        }, DispatcherPriority.Render);
+    }
+
+    private void OnHostScalingChanged(object? sender, EventArgs args) => Publish();
+    private void OnHostPositionChanged(object? sender, PixelPointEventArgs args)
+    {
+        if (positionUpdatePending) { return; }
+        positionUpdatePending = true;
+        var generation = attachmentGeneration;
+        Dispatcher.UIThread.Post(() =>
+        {
+            if (generation != attachmentGeneration) { return; }
+            positionUpdatePending = false;
+            Publish();
+        }, DispatcherPriority.Render);
+    }
+
+    private void OnAncestorPropertyChanged(object? sender, AvaloniaPropertyChangedEventArgs change)
+    {
+        if (change.Property == IsVisibleProperty || change.Property == OpacityProperty
+            || change.Property == BoundsProperty || change.Property == Window.WindowStateProperty)
         {
             Publish();
         }
     }
+
+    protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
+    {
+        base.OnPropertyChanged(change);
+        if (change.Property == IsVisibleProperty || change.Property == OpacityProperty
+            || change.Property == BoundsProperty)
+        {
+            Publish();
+        }
+    }
+
+    private void OnLayoutUpdated(object? sender, EventArgs args) => Publish();
 
     public void Refresh(bool sampleSpeech)
     {
@@ -77,7 +138,7 @@ internal sealed class NativePresenceHost(
         {
             return;
         }
-        if (sampleSpeech && CanSample(capture()))
+        if (CanPresent && sampleSpeech && CanSample(capture()))
         {
             playbackTimer.Start();
         }
@@ -98,7 +159,7 @@ internal sealed class NativePresenceHost(
     {
         try
         {
-            if (!CanSample(capture()))
+            if (!CanPresent || !CanSample(capture()))
             {
                 Suspend();
                 return;
@@ -124,12 +185,20 @@ internal sealed class NativePresenceHost(
         try
         {
             var inputs = capture();
-            if (inputs is null || Bounds.Width <= 0 || Bounds.Height <= 0)
+            if (!CanPresent || inputs is null)
             {
                 Suspend();
             }
             else
             {
+                if (topLevel!.ActualTransparencyLevel != WindowTransparencyLevel.Transparent)
+                {
+                    throw new InvalidOperationException("The native presence requires a transparent non-layered host backend.");
+                }
+                var origin = this.TranslatePoint(default, topLevel!)
+                    ?? throw new InvalidOperationException("The native presence has no host-relative position.");
+                target!.Move(checked((int)Math.Round(origin.X * topLevel!.RenderScaling)),
+                    checked((int)Math.Round(origin.Y * topLevel.RenderScaling)));
                 worker.Update(inputs);
             }
         }
@@ -156,10 +225,26 @@ internal sealed class NativePresenceHost(
         {
             return;
         }
+        ReleaseNativeResources();
+        disposed = true;
+    }
+
+    private void ReleaseNativeResources()
+    {
+        Interlocked.Increment(ref attachmentGeneration);
+        positionUpdatePending = false;
         playbackTimer.Stop();
         playbackTimer.Tick -= OnPlaybackTick;
+        LayoutUpdated -= OnLayoutUpdated;
+        foreach (var ancestor in ancestors) { ancestor.PropertyChanged -= OnAncestorPropertyChanged; }
+        ancestors.Clear();
+        if (topLevel is not null) { topLevel.ScalingChanged -= OnHostScalingChanged; }
+        if (topLevel is Window window) { window.PositionChanged -= OnHostPositionChanged; }
+        topLevel = null;
         worker?.Dispose();
         target?.Dispose();
-        disposed = true;
+        releasedFrames += target?.FramesPresented ?? 0;
+        worker = null;
+        target = null;
     }
 }

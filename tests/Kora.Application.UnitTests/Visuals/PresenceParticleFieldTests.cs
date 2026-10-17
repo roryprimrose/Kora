@@ -68,6 +68,24 @@ public sealed class PresenceParticleFieldTests
     }
 
     [Theory]
+    [InlineData(25)]
+    [InlineData(100)]
+    [InlineData(178)]
+    [InlineData(179)]
+    [InlineData(200)]
+    public void SmootherFrameCadencePreservesElapsedTimeMovement(int speed)
+    {
+        var smooth = new PresenceParticleField();
+        var stepped = new PresenceParticleField();
+        for (var index = 0; index < 6; index++)
+        {
+            smooth.Advance(AssistantState.Information, PresenceAnimation.FrameInterval, 100, speed, false);
+        }
+        stepped.Advance(AssistantState.Information, PresenceParticleField.QuietFrameInterval, 100, speed, false);
+        Project(smooth, 100).Should().Equal(Project(stepped, 100));
+    }
+
+    [Theory]
     [InlineData(double.NaN, 360, 1)]
     [InlineData(360, double.PositiveInfinity, 1)]
     [InlineData(0, 360, 1)]

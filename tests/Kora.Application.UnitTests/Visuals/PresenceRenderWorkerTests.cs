@@ -5,6 +5,7 @@ using AwesomeAssertions;
 
 using Kora.Application.Visuals;
 using Kora.Core;
+using Kora.Core.Configuration;
 using Kora.Core.Diagnostics;
 using Kora.Core.Hosting;
 using Kora.Core.Presentation;
@@ -16,6 +17,37 @@ namespace Kora.Application.UnitTests.Visuals;
 public sealed class PresenceRenderWorkerTests
 {
     private static readonly TimeSpan Deadline = TimeSpan.FromSeconds(5);
+
+    [Theory]
+    [InlineData(AssistantState.Information)]
+    [InlineData(AssistantState.Waiting)]
+    [InlineData(AssistantState.Success)]
+    [InlineData(AssistantState.Listening)]
+    [InlineData(AssistantState.Calculating)]
+    [InlineData(AssistantState.Executing)]
+    public void AllNonzeroMovementUsesThirtyThreeMillisecondsIndependentOfSpeed(AssistantState state)
+    {
+        for (var speed = PresenceSettings.MinimumMovementSpeedPercent;
+            speed <= PresenceSettings.MaximumMovementSpeedPercent; speed++)
+        {
+            var inputs = Inputs() with { State = state, MovementSpeed = speed };
+            PresenceRenderWorker.GetCadence(inputs, false, false).Should().Be(TimeSpan.FromMilliseconds(33),
+                "speed {0} changes velocity, not the frame interval", speed);
+        }
+    }
+
+    [Fact]
+    public void SettledStaticFramesRetainBackoffWhileVisualAndSpeechChangesRemainPrompt()
+    {
+        var inputs = Inputs() with { ReducedMotion = true };
+        PresenceRenderWorker.GetCadence(inputs, false, false).Should().Be(PresenceParticleField.QuietFrameInterval);
+        PresenceRenderWorker.GetCadence(inputs, true, false).Should().Be(PresenceAnimation.FrameInterval);
+        PresenceRenderWorker.GetCadence(inputs, false, true).Should().Be(PresenceAnimation.FrameInterval);
+        PresenceRenderWorker.GetCadence(inputs with { IsSpeaking = true }, false, false)
+            .Should().Be(PresenceAnimation.FrameInterval);
+        PresenceRenderWorker.GetCadence(Inputs() with { State = AssistantState.Failure }, false, false)
+            .Should().Be(PresenceParticleField.QuietFrameInterval);
+    }
 
     [Fact]
     public async Task WorkerDrawsOffCallerThreadAndDisposesWithoutExecutingQueuedPresentation()
@@ -215,7 +247,7 @@ public sealed class PresenceRenderWorkerTests
     internal static PresenceRenderInputs Inputs() => new(AssistantState.Calculating, false, 0, true, 100,
         100, 100, 100, false, false, true, 360, 360, 1);
 
-    private sealed class FakeTarget : IPresenceRenderTarget
+    internal sealed class FakeTarget : IPresenceRenderTarget
     {
         public int DrawingThread { get; private set; }
         public int ReleaseThread { get; private set; }
@@ -269,6 +301,7 @@ public sealed class PresenceRenderWorkerTests
         public void Log<TState>(Microsoft.Extensions.Logging.LogLevel logLevel, Microsoft.Extensions.Logging.EventId eventId,
             TState state, Exception? exception, Func<TState, Exception?, string> formatter)
         {
+            if (eventId.Id != 0) { return; }
             Request = HostActivity.Current?.Request;
             Links = Activity.Current?.Links.ToArray() ?? [];
         }

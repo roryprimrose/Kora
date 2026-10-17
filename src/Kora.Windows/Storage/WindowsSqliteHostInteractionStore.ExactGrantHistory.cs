@@ -115,6 +115,7 @@ public sealed partial class WindowsSqliteHostInteractionStore
         using var rows = command.ExecuteReader();
         var records = ImmutableArray.CreateBuilder<ExactGrantHistoryEntry>();
         var scannedThrough = after;
+        var validatedThrough = after?.CommittedTicks ?? 0;
         var scanned = 0;
         var nonmatching = 0;
         var outputBound = false;
@@ -128,12 +129,13 @@ public sealed partial class WindowsSqliteHostInteractionStore
             token.ThrowIfCancellationRequested();
             if (!admitted()) { throw new InvalidOperationException("Exact history read admission changed during scanning."); }
             var sequence = rows.GetInt64(0);
-            if (sequence != (scannedThrough?.CommittedTicks ?? 0) + 1 || rows.IsDBNull(4)
+            if (sequence != validatedThrough + 1 || rows.IsDBNull(4)
                 || !Same(rows.GetString(2), sequence == 1 ? EmptyHash : rows.IsDBNull(5) ? string.Empty : rows.GetString(5)))
             {
                 throw new InvalidDataException("The exact history prefix is oversized, missing or has an inconsistent predecessor.");
             }
             var audit = DecodeAuthorityAudit(sequence, rows.GetString(1), rows.GetString(2), rows.GetString(3), rows.GetString(4));
+            validatedThrough = sequence;
             scanned++;
             var position = new EvidencePosition(sequence, EvidenceSource.AuthorityAudit, rows.GetString(1), -1, rows.GetString(3));
             var entry = ExactHistoryEntry(audit, inspected.Grant.Id, sequence, rows.GetString(3), now);
@@ -142,9 +144,17 @@ public sealed partial class WindowsSqliteHostInteractionStore
             {
                 throw new InvalidDataException("The retained exact grant disagrees with its committed history.");
             }
-            if (entry is not null && query.Matches(entry))
+            var matches = entry is not null && query.Matches(entry);
+            // Validate the rest of this bounded prefix even after the output budget fills.
+            // The continuation remains at the last delivered position so no matching row is skipped.
+            if (outputBound)
             {
-                records.Add(entry);
+                if (!matches) { nonmatching++; }
+                continue;
+            }
+            if (matches)
+            {
+                records.Add(entry!);
                 var previousPosition = scannedThrough;
                 scannedThrough = position;
                 if (records.Count > ExactGrantHistoryPage.MaximumRecords
@@ -154,16 +164,16 @@ public sealed partial class WindowsSqliteHostInteractionStore
                     scannedThrough = previousPosition;
                     if (records.Count == 0) { throw new InvalidDataException("Exact history metadata exceeds the complete serialized page budget."); }
                     outputBound = true;
-                    break;
+                    continue;
                 }
             }
             else { nonmatching++; }
             scannedThrough = position;
-            if (records.Count == ExactGrantHistoryPage.MaximumRecords) { outputBound = true; break; }
+            if (records.Count == ExactGrantHistoryPage.MaximumRecords) { outputBound = true; }
         }
         var more = (scannedThrough?.CommittedTicks ?? 0) < snapshot.AuthorityCeiling;
         var limited = scanned == ExactGrantHistoryPage.MaximumScannedRows && more;
-        if (more && scanned < ExactGrantHistoryPage.MaximumScannedRows && !outputBound)
+        if (validatedThrough < snapshot.AuthorityCeiling && scanned < ExactGrantHistoryPage.MaximumScannedRows)
         {
             throw new InvalidDataException("The exact history snapshot contains a missing suffix.");
         }

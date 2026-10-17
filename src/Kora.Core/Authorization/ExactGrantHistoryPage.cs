@@ -22,7 +22,9 @@ public sealed record ExactGrantHistoryPage(
         + "Observed finite snapshot; not forensic or tamperproof evidence. No replay, export or new authority. "
         + "Audit correlation and approval IDs are committed correlation metadata only, not identity or execution authority. "
         + "Request session/request/task IDs match only the committed envelope, not the current viewer or original grant proposal; no session selection. "
-        + "Absent approval means validated metadata without an ID, not unknown.";
+        + "Absent approval means validated metadata without an ID, not unknown. "
+        + "Collateral counts describe other changes/requested grant references on the validated committed envelope only; "
+        + "they disclose no collateral identities/details and confer no execution, completeness, approval, grant, revoke or replay authority.";
 
     public string Limitations => Disclosure;
 

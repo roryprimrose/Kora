@@ -1369,6 +1369,15 @@ The [dedicated native history fields](../src/Kora/ExactGrantsWindow.axaml) are v
 Editing/clearing retires rows/detail/continuation and actionable reviews immediately without reading; explicit Read validates input.
 Existing cancellation, privacy, ownership, source and selection fences and scan/page/time limits remain unchanged ([filter lifecycle](../src/Kora.Application/Interaction/ExactGrantsViewModel.HistoryFilters.cs)).
 
+Optional inclusive **Other committed changes Min/Max** and **Other requested grant references Min/Max** AND-compose with every outcome/reason/initiator/retention/Committed/Due/audit-correlation/approval/request-session/request/task predicate ([query contract](../src/Kora.Core/Authorization/ExactGrantHistoryQuery.cs)).
+Empty means Any. Nonempty ASCII unsigned decimal input uses the shared parser and must fit the entry's nonnegative Int32 domain (0 through 2147483647); signs, whitespace, overflow and Min > Max fail without repair.
+There is no invented count cap or new persisted setting. All four bounds bind the versioned full-query digest and authenticated continuation ([entry](../src/Kora.Core/Authorization/ExactGrantHistoryEntry.cs), [decimal parser](../src/Kora.Core/Storage/OptionalUnsignedDecimal.cs)).
+
+Counts describe collateral change/review references on an already validated committed envelope, not collateral identities/details/disclosure, actual execution, completeness, authority or grant/revoke/approve/replay permission.
+Complete envelope/prefix/provenance and count validation precede filtering, including the remaining bounded prefix after the serialized result budget fills; continuation stays at the last delivered position ([reader](../src/Kora.Windows/Storage/WindowsSqliteHostInteractionStore.ExactGrantHistory.cs)).
+The explicit accessible [native Min/Max fields](../src/Kora/ExactGrantsWindow.axaml) remain volatile. Edit, Clear and Escape retire rows/detail/selection/continuation/review readiness without reading, retaining only the immutable inspected inert target.
+Cancellation/privacy/ownership/control/source/staleness fences remain in force; there are no new sources, schema, logging or audit mutations ([filter lifecycle](../src/Kora.Application/Interaction/ExactGrantsViewModel.HistoryFilters.cs), [read lifecycle](../src/Kora.Application/Interaction/ExactGrantsViewModel.History.cs)).
+
 Reading or selecting history never resumes/renews activity, executes/replays work or supplies approval/cancellation controls. History navigation clears actionable revocation review; inspect afresh before a new single/batch confirmation. Selection/source/privacy/ownership/control/close/cancellation changes retire private output and late callbacks.
 
 This subset has no global/provider/account/resource/skill/capability **revoke all** scan, model/tool execution, approval creation, editing/scope broadening, export, generic cross-grant history/voice/typed command or inferred allow/deny explanation. Named preferences are neither migrated nor promoted, and direct lock/power gates remain unchanged. The separately owned action-level permission design and full R05/A0–A4/release qualification remain open.

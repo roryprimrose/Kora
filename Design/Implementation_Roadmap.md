@@ -169,6 +169,11 @@ storage schema, provider/device/network/experiment or sibling-domain changes.
 This consumed I subset does not claim installed accessibility, full Evidence,
 Ask Evidence or E/Q qualification, and requires no unrelated proof.
 
+### Bounded native selected-session memory snapshot ordering - 2026-10-18
+
+The [memory filter contract](Model_Providers_Memory_And_Knowledge.md#delivered-native-content-free-session-memory-filters---2026-10-14) adds Source-default, Created oldest/newest and Revision lowest/highest ordering with canonical ordinal GUID ties over fully validated loaded metadata.
+This is consumed I only: no read, persistence, scope/authority expansion or provider/runtime enablement. Installed accessibility and broader memory E/Q remain unclaimed; no unrelated physical or retired experiment proof is required.
+
 ### Bounded native selected-session memory scope identity predicate - 2026-10-16
 
 Built from freshly fetched canonical main `afdee7f508bc2e186bf56ef5f65cb27711e83bd1`.

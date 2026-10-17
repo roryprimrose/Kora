@@ -166,6 +166,7 @@ public sealed partial class EvidenceAdvancedFilterTests
         {
             Source = EvidenceSource.Span, Limit = 1, TraceId = trace.TraceId, SpanId = trace.SpanId,
             ParentSpanId = trace.ParentSpanId, Outcome = HostOperationOutcome.Completed,
+            TraceParentKind = TraceParentKind.ObservedChild,
             ContentAvailability = EvidenceContentAvailability.Present,
         };
         clock.Now = Edge.AddDays(31);
@@ -204,6 +205,7 @@ public sealed partial class EvidenceAdvancedFilterTests
         viewer.TraceFilter = trace.TraceId;
         viewer.SpanFilter = trace.SpanId;
         viewer.ParentSpanFilter = trace.ParentSpanId!;
+        viewer.ParentKind = EvidenceViewModel.TraceParentKindChoices[2];
         viewer.SessionFilter = owner.SessionId.Value.ToString("D");
         viewer.TaskFilter = owner.TaskId.Value.ToString("D");
         viewer.RequestFilter = owner.RequestId.Value.ToString("D");

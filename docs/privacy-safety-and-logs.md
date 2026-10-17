@@ -132,6 +132,20 @@ effect/provider scheduler.
 
 ## Committed authority audit inspection
 
+Native Evidence's **Observed trace parent** selector offers **Any / Root / Child**.
+Root means a valid retained trace with null parent span ID; Child means a valid
+retained nonnull parent ID. A missing trace is unknown, never an observed root
+or child. The choice composes with every other filter, including exact Parent
+Span ID; Root with an exact parent ID has no matches. Full trace validation
+precedes exclusion, and Next is bound to the complete versioned query
+([predicate](../src/Kora.Core/Diagnostics/EvidenceQuery.cs), [query admission](../src/Kora.Application/Diagnostics/DurableEvidenceQuery.cs)).
+Editing, Clear advanced and Escape read nothing and retire results, selection,
+detail and continuation, including late callbacks. These are diagnostic
+observations, not complete traces, causality, current session, identity,
+authority, approval or ownership. Existing privacy/source/retention limits
+remain; no new read authority, storage schema, tags/baggage or model/device/
+provider path is added ([native contract](../Design/Information_Display.md#delivered-bounded-native-evidence-inspection)).
+
 Native Evidence also offers exact diagnostic Event name (max 128 characters)
 and Exception type (max 256), plus inclusive positive audit-sequence From/Until
 bounds. Empty means Any. Names are case-sensitive bounded plain text without

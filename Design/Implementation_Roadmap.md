@@ -67,6 +67,23 @@ writers remain unavailable; no installed/hardware/acoustic/provider/containment
 E/Q qualification is claimed
 ([storage boundary](Skill_Storage.md#delivered-bounded-r21-native-inspection)).
 
+### Bounded native Evidence observed parent kind - 2026-10-18
+
+Built on freshly fetched main `6f1afd471af8c48059f34d8392b811426127974e`.
+The [Evidence inspector](Information_Display.md#delivered-bounded-native-evidence-inspection)
+adds Any/ObservedRoot/ObservedChild retained trace predicates and visible
+accessible Any/Root/Child choices. Valid null parent is observed root; valid
+nonnull parent is child; null trace is unknown. Complete trace validation
+precedes exclusion, every filter composes with AND, and the versioned complete
+semantic digest binds authenticated continuation. Existing bounded reads,
+source/privacy/retention fences and no-read edit/Clear/Escape retirement remain.
+This consumes the existing Evidence I subset with deterministic portable,
+private SQLite and native headless checks. It adds no schema, authority,
+device/provider/model route, complete-trace or causality claim. Installed
+accessibility, runtime enablement and E/Q qualification remain separate and
+unclaimed; unrelated whole-Rxx, hardware/provider and retired proofs are not
+implementation prerequisites.
+
 ### Bounded native session-list ExactName - 2026-10-16
 
 Built on freshly fetched main `afdee7f508bc2e186bf56ef5f65cb27711e83bd1`.

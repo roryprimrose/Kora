@@ -17,6 +17,7 @@ internal sealed partial class EvidenceViewModel
     private string traceFilter = string.Empty;
     private string spanFilter = string.Empty;
     private string parentSpanFilter = string.Empty;
+    private TraceParentKindChoice traceParentKind = TraceParentKindChoices[0];
     private string traceSourceFilter = string.Empty;
     private string traceSourceVersionFilter = string.Empty;
     private TraceSourceVersionAvailability traceVersionAvailability;
@@ -63,6 +64,12 @@ internal sealed partial class EvidenceViewModel
     public static IReadOnlyList<TraceFlagsChoice> TraceFlagsChoices { get; } =
         [new(null, "Any"), .. Enum.GetValues<ActivityTraceFlags>().Select(value => new TraceFlagsChoice(value, value.ToString()))];
     public static IReadOnlyList<TraceSourceVersionAvailability> TraceVersionAvailabilities { get; } = Enum.GetValues<TraceSourceVersionAvailability>();
+    public sealed record TraceParentKindChoice(TraceParentKind Value, string Label)
+    {
+        public override string ToString() => Label;
+    }
+    public static IReadOnlyList<TraceParentKindChoice> TraceParentKindChoices { get; } =
+        [new(TraceParentKind.Any, "Any"), new(TraceParentKind.ObservedRoot, "Root"), new(TraceParentKind.ObservedChild, "Child")];
 
     public EvidenceSource Source { get => source; set => ChangeFilter(ref source, value); }
     public string SafeText { get => safeText; set => ChangeFilter(ref safeText, value); }
@@ -71,6 +78,7 @@ internal sealed partial class EvidenceViewModel
     public string TraceFilter { get => traceFilter; set => ChangeFilter(ref traceFilter, value); }
     public string SpanFilter { get => spanFilter; set => ChangeFilter(ref spanFilter, value); }
     public string ParentSpanFilter { get => parentSpanFilter; set => ChangeFilter(ref parentSpanFilter, value); }
+    public TraceParentKindChoice ParentKind { get => traceParentKind; set => ChangeFilter(ref traceParentKind, value); }
     public string TraceSourceFilter { get => traceSourceFilter; set => ChangeFilter(ref traceSourceFilter, value); }
     public string TraceSourceVersionFilter { get => traceSourceVersionFilter; set => ChangeFilter(ref traceSourceVersionFilter, value); }
     public TraceSourceVersionAvailability TraceVersionAvailability { get => traceVersionAvailability; set => ChangeFilter(ref traceVersionAvailability, value); }
@@ -98,6 +106,7 @@ internal sealed partial class EvidenceViewModel
     public void ClearAdvancedFilters()
     {
         ParentSpanFilter = string.Empty;
+        ParentKind = TraceParentKindChoices[0];
         TraceSourceFilter = string.Empty;
         TraceSourceVersionFilter = string.Empty;
         TraceVersionAvailability = TraceSourceVersionAvailability.Any;
@@ -145,6 +154,7 @@ internal sealed partial class EvidenceViewModel
         TraceId = string.IsNullOrEmpty(TraceFilter) ? null : TraceFilter,
         SpanId = string.IsNullOrEmpty(SpanFilter) ? null : SpanFilter,
         ParentSpanId = string.IsNullOrEmpty(ParentSpanFilter) ? null : ParentSpanFilter,
+        TraceParentKind = ParentKind.Value,
         TraceSource = ExactText(TraceSourceFilter),
         TraceSourceVersion = ExactText(TraceSourceVersionFilter),
         TraceSourceVersionAvailability = TraceVersionAvailability,

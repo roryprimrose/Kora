@@ -26,13 +26,16 @@ public sealed class EvidenceTracePredicateTests
         foreach (var kind in Enum.GetValues<ActivityKind>())
         foreach (var flags in Enum.GetValues<ActivityTraceFlags>())
         foreach (var availability in Enum.GetValues<TraceSourceVersionAvailability>())
+        foreach (var parent in new[] { null, new string('c', 16) })
+        foreach (var parentKind in Enum.GetValues<TraceParentKind>())
         {
-            var record = Record(Trace with { SourceVersion = version, Source = source, Name = name, Kind = kind, Flags = flags });
+            var record = Record(Trace with { SourceVersion = version, Source = source, Name = name, Kind = kind, Flags = flags, ParentSpanId = parent });
             var query = new EvidenceQuery
             {
                 TraceSource = "Kora.Core", ActivityName = "request", ActivityKind = ActivityKind.Internal,
                 TraceFlags = ActivityTraceFlags.None, TraceSourceVersionAvailability = availability,
                 TraceSourceVersion = availability == TraceSourceVersionAvailability.Exact ? "V" : null,
+                TraceParentKind = parentKind,
             };
             var versionMatches = availability switch
             {
@@ -44,7 +47,8 @@ public sealed class EvidenceTracePredicateTests
             query.MatchesRetainedMetadata(record).Should().Be(
                 string.Equals(source, "Kora.Core", StringComparison.Ordinal)
                 && string.Equals(name, "request", StringComparison.Ordinal) && kind == ActivityKind.Internal
-                && flags == ActivityTraceFlags.None && versionMatches);
+                && flags == ActivityTraceFlags.None && versionMatches
+                && (parentKind == TraceParentKind.Any || (parentKind == TraceParentKind.ObservedRoot) == (parent is null)));
             new EvidenceQuery().MatchesRetainedMetadata(record).Should().BeTrue();
         }
         EvidenceQuery[] predicates =
@@ -54,6 +58,8 @@ public sealed class EvidenceTracePredicateTests
             new() { TraceSourceVersionAvailability = TraceSourceVersionAvailability.Absent },
             new() { TraceSourceVersionAvailability = TraceSourceVersionAvailability.Present },
             new() { TraceSourceVersionAvailability = TraceSourceVersionAvailability.Exact, TraceSourceVersion = "1" },
+            new() { TraceParentKind = TraceParentKind.ObservedRoot },
+            new() { TraceParentKind = TraceParentKind.ObservedChild },
         ];
         foreach (var query in predicates) { query.MatchesRetainedMetadata(Record(null)).Should().BeFalse(); }
         new EvidenceQuery().MatchesRetainedMetadata(Record(null)).Should().BeTrue();
@@ -62,6 +68,9 @@ public sealed class EvidenceTracePredicateTests
             TraceSourceVersionAvailability = (TraceSourceVersionAvailability)99,
         }.MatchesRetainedMetadata(Record(Trace));
         invalid.Should().Throw<InvalidOperationException>();
+        var invalidParentKind = () => new EvidenceQuery { TraceParentKind = (TraceParentKind)99 }
+            .MatchesRetainedMetadata(Record(null));
+        invalidParentKind.Should().Throw<InvalidOperationException>();
         new EvidenceQuery { TraceSourceVersionAvailability = TraceSourceVersionAvailability.Exact, TraceSourceVersion = "1" }
             .MatchesRetainedMetadata(Record(Trace with { SourceVersion = "1" })).Should().BeTrue();
     }
@@ -91,11 +100,31 @@ public sealed class EvidenceTracePredicateTests
         ];
         foreach (var trace in invalid)
         {
-            var match = () => new EvidenceQuery { TraceSource = "nonmatching" }.MatchesRetainedMetadata(Record(trace));
-            match.Should().Throw<InvalidDataException>();
+            foreach (var parentKind in Enum.GetValues<TraceParentKind>())
+            {
+                var match = () => new EvidenceQuery { TraceSource = "nonmatching", TraceParentKind = parentKind }
+                    .MatchesRetainedMetadata(Record(trace));
+                match.Should().Throw<InvalidDataException>();
+            }
         }
+
         (Trace with { ParentSpanId = new string('c', 16), SourceVersion = new string('v', 128), Name = new string('n', 128) }).Validate();
         TraceSnapshot.IsValidMetadataText("Plain Unicode \u00e9 / metadata").Should().BeTrue();
+    }
+
+    [Theory]
+    [InlineData(TraceParentKind.Any, true, true)]
+    [InlineData(TraceParentKind.ObservedRoot, true, false)]
+    [InlineData(TraceParentKind.ObservedChild, false, true)]
+    public void ParentKindAndExactParentComposeWithoutRepairOrInference(TraceParentKind kind, bool root, bool child)
+    {
+        var parent = new string('c', 16);
+        var query = new EvidenceQuery { TraceParentKind = kind };
+        query.MatchesRetainedMetadata(Record(Trace)).Should().Be(root);
+        query.MatchesRetainedMetadata(Record(Trace with { ParentSpanId = parent })).Should().Be(child);
+        (query with { ParentSpanId = parent }).MatchesRetainedMetadata(Record(Trace)).Should().BeFalse();
+        (query with { ParentSpanId = parent }).MatchesRetainedMetadata(Record(Trace with { ParentSpanId = parent })).Should().Be(child);
+        (query with { ParentSpanId = new string('d', 16) }).MatchesRetainedMetadata(Record(Trace with { ParentSpanId = parent })).Should().BeFalse();
     }
 
     [Theory]

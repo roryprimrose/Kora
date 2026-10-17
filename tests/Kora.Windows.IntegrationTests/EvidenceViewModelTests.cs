@@ -129,6 +129,7 @@ public sealed class EvidenceViewModelTests
             .And.Contain("{Binding TraceVersionAvailability, Mode=TwoWay}")
             .And.Contain("{Binding ActivityKind, Mode=TwoWay}")
             .And.Contain("{Binding TraceFlags, Mode=TwoWay}");
+        source.Should().Contain("{Binding ParentKind, Mode=TwoWay}");
         foreach (var field in document.Descendants().Where(element => string.Equals(element.Name.LocalName, "TextBox", StringComparison.Ordinal)))
         {
             field.Attribute("ContextMenu")!.Value.Should().Be("{x:Null}");

@@ -43,7 +43,8 @@ public sealed partial class DurableEvidenceQuery(
             Validate(query);
             cancellationToken.ThrowIfCancellationRequested();
             var now = time.GetUtcNow();
-            var fingerprint = Convert.ToHexString(SHA256.HashData(JsonSerializer.SerializeToUtf8Bytes(query, Format)));
+            var fingerprint = Convert.ToHexString(SHA256.HashData(
+                JsonSerializer.SerializeToUtf8Bytes(new SemanticQuery(1, query), Format)));
             var continuation = cursor is null ? null : Decode(cursor, fingerprint, current.Request.SessionId, now);
             var unavailable = query.Source == EvidenceSource.All
                 ? new[] { EvidenceSource.Session, EvidenceSource.Conversation }
@@ -171,6 +172,7 @@ public sealed partial class DurableEvidenceQuery(
             || query.ActivityKind is { } kind && !Enum.IsDefined(kind)
             || query.TraceFlags is { } flags && !Enum.IsDefined(flags)
             || !Enum.IsDefined(query.TraceSourceVersionAvailability)
+            || !Enum.IsDefined(query.TraceParentKind)
             || !Enum.IsDefined(query.ContentAvailability))
         {
             throw new ArgumentException("The evidence source, limits, time range or typed filters are invalid.", nameof(query));
@@ -284,6 +286,8 @@ public sealed partial class DurableEvidenceQuery(
             throw new ArgumentException("The evidence W3C correlation filter is invalid.", nameof(value));
         }
     }
+
+    private sealed record SemanticQuery(int Version, EvidenceQuery Query);
 
     private sealed record Continuation(string Fingerprint, HostId<SessionIdentity> Session,
         DateTimeOffset ExpiresUtc, EvidenceReadCheckpoint Checkpoint);

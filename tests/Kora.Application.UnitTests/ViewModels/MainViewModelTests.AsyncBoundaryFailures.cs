@@ -13,6 +13,33 @@ namespace Kora.Application.UnitTests.ViewModels;
 public sealed partial class MainViewModelTests
 {
     [Fact]
+    public async Task SupersededResponseCannotBeSpokenAfterItsOutputDiscoveryCompletes()
+    {
+        var fixture = await Fixture.CreateInitializedAsync();
+        fixture.ViewModel.DefaultResponseMode = ResponseOutputMode.VoiceOnly;
+        fixture.TextToSpeech.ClearSpokenResponse();
+        using var release = new ManualResetEventSlim();
+        var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var token = TestContext.Current.CancellationToken;
+        fixture.TextToSpeech.BeforeOutputEnumeration = () =>
+        {
+            entered.SetResult();
+            release.Wait(token);
+        };
+        var command = fixture.RunAsync("what power action is pending");
+        try
+        {
+            await entered.Task.WaitAsync(token);
+            fixture.ViewModel.ReportHostInteractionFailure("A newer response superseded the discovery request.");
+            command.IsCompleted.Should().BeFalse();
+        }
+        finally { release.Set(); }
+        await command;
+        fixture.ViewModel.ResponseBody.Should().Be("A newer response superseded the discovery request.");
+        fixture.TextToSpeech.SpokenText.Should().BeNull();
+    }
+
+    [Fact]
     public async Task ForcedDisposalJoinsEveryOwnedWorkerEvenWhenAnEarlierPreferenceWorkerFails()
     {
         var fixture = await Fixture.CreateInitializedAsync();

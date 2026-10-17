@@ -23,6 +23,7 @@ internal sealed partial class AllWorkViewModel(
     private SessionListFilter filter;
     private SessionWorkOverviewAvailability? availability;
     private SessionWorkOverviewContent content;
+    private HostTaskState? taskState;
     private string queryText = string.Empty;
     private SessionListSearchKind queryKind;
     private bool needsAnswer;
@@ -61,6 +62,12 @@ internal sealed partial class AllWorkViewModel(
         new(SessionWorkOverviewContent.Task, "At least one observed task"),
         new(SessionWorkOverviewContent.PendingQuestion, "At least one observed pending question")
     ];
+    public sealed record TaskStateChoice(HostTaskState? Value, string Label)
+    {
+        public override string ToString() => Label;
+    }
+    public IReadOnlyList<TaskStateChoice> TaskStateChoices { get; } =
+        [new(null, "Any"), .. Enum.GetValues<HostTaskState>().Select(state => new TaskStateChoice(state, state.ToString()))];
     public string Status => status;
     public bool CanRead => !closed && !busy && access.CanInspect;
     public bool CanEdit => !closed && access.CanInspect;
@@ -178,6 +185,30 @@ internal sealed partial class AllWorkViewModel(
         }
     }
 
+    public HostTaskState? TaskState
+    {
+        get => taskState;
+        set
+        {
+            SessionWorkOverviewFilter.Validate(value);
+            if (!CanEdit || taskState == value) { return; }
+            Invalidate();
+            taskState = value;
+            status = "Observed task state changed. No read performed; Refresh. Only validated retained tasks match; "
+                + "unavailable or omitted records prove no absence, completion, current dispatch or authority.";
+            Notify();
+        }
+    }
+    public TaskStateChoice SelectedTaskStateChoice
+    {
+        get => TaskStateChoices.Single(choice => choice.Value == taskState);
+        set
+        {
+            ArgumentNullException.ThrowIfNull(value);
+            TaskState = value.Value;
+        }
+    }
+
     public void Select(SessionWorkOverviewRow? row)
     {
         if (closed || busy || row is not null && !Records.Contains(row)) { return; }
@@ -200,7 +231,7 @@ internal sealed partial class AllWorkViewModel(
             var cursor = next ? page?.Next ?? throw new InvalidOperationException("Refresh before Next.") : null;
             var query = queryText.Length == 0 ? null : new SessionListSearch(queryKind, filter, queryText);
             ClearPage();
-            var result = await service.ReadWorkOverviewAsync(filter, needsAnswer, cursor, token, query, availability, content, ranges);
+            var result = await service.ReadWorkOverviewAsync(filter, needsAnswer, cursor, token, query, availability, content, ranges, taskState);
             token.ThrowIfCancellationRequested();
             page = result;
             status = "This page: " + result.Records.Length.ToString(CultureInfo.InvariantCulture) + " groups; "
@@ -291,6 +322,7 @@ internal sealed partial class AllWorkViewModel(
         filter = SessionListFilter.All;
         availability = null;
         content = SessionWorkOverviewContent.Any;
+        taskState = null;
         queryText = string.Empty;
         queryKind = SessionListSearchKind.NameSubstring;
         needsAnswer = false;
@@ -312,6 +344,8 @@ internal sealed partial class AllWorkViewModel(
         OnPropertyChanged(nameof(SelectedAvailabilityChoice));
         OnPropertyChanged(nameof(Content));
         OnPropertyChanged(nameof(SelectedContentChoice));
+        OnPropertyChanged(nameof(TaskState));
+        OnPropertyChanged(nameof(SelectedTaskStateChoice));
         OnPropertyChanged(nameof(QueryText));
         OnPropertyChanged(nameof(QueryKind));
         OnPropertyChanged(nameof(QueryHint));

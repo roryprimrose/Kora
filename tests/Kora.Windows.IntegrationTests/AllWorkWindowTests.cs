@@ -212,6 +212,7 @@ public sealed partial class AllWorkWindowTests
     [InlineData("query")]
     [InlineData("availability")]
     [InlineData("content")]
+    [InlineData("task-state")]
     [InlineData("range-minimum")]
     [InlineData("range-maximum")]
     [InlineData("clear-ranges")]
@@ -238,12 +239,15 @@ public sealed partial class AllWorkWindowTests
         model.QueryText = f.Request.SessionId.Value.ToString("D");
         model.RangeInputs[0].Minimum = "1";
         await model.RefreshAsync();
+        model.TaskState = model.Records[0].Work!.Tasks[0].State;
+        await model.RefreshAsync();
         model.Select(model.Records.Single());
         var navigation = model.NavigateAsync();
         var admitted = await entered.Task.WaitAsync(f.Token);
         if (boundary is "query") { model.QueryText = "00000000-0000-0000-0000-000000000099"; }
         if (boundary is "availability") { model.Availability = SessionWorkOverviewAvailability.SourceChanged; }
         if (boundary is "content") { model.Content = SessionWorkOverviewContent.Task; }
+        if (boundary is "task-state") { model.TaskState = null; }
         if (boundary is "range-minimum") { model.RangeInputs[0].Minimum = "2"; }
         if (boundary is "range-maximum") { model.RangeInputs[1].Maximum = "0"; }
         if (boundary is "clear-ranges") { model.ClearRanges(); }
@@ -429,6 +433,7 @@ public sealed partial class AllWorkWindowTests
     [InlineData("clear-query")]
     [InlineData("availability")]
     [InlineData("content")]
+    [InlineData("task-state")]
     [InlineData("range-minimum")]
     [InlineData("range-maximum")]
     [InlineData("clear-ranges")]
@@ -448,6 +453,8 @@ public sealed partial class AllWorkWindowTests
         model.RangeInputs[0].Minimum = "1";
         await model.RefreshAsync();
         model.Records.Should().NotBeEmpty();
+        model.TaskState = model.Records[0].Work!.Tasks[0].State;
+        await model.RefreshAsync();
         held.Hold = true;
         var read = model.RefreshAsync();
         await held.Entered.Task.WaitAsync(f.Token);
@@ -464,6 +471,7 @@ public sealed partial class AllWorkWindowTests
         if (boundary is "clear-query") { model.ClearQuery(); }
         if (boundary is "availability") { model.Availability = SessionWorkOverviewAvailability.OutputBound; }
         if (boundary is "content") { model.Content = SessionWorkOverviewContent.PendingQuestion; }
+        if (boundary is "task-state") { model.TaskState = null; }
         if (boundary is "range-minimum") { model.RangeInputs[0].Minimum = "2"; }
         if (boundary is "range-maximum") { model.RangeInputs[1].Maximum = "0"; }
         if (boundary is "clear-ranges") { model.ClearRanges(); }
@@ -479,6 +487,7 @@ public sealed partial class AllWorkWindowTests
         model.QueryText.Should().BeEmpty();
         model.Availability.Should().BeNull();
         model.Content.Should().Be(SessionWorkOverviewContent.Any);
+        model.TaskState.Should().BeNull();
         model.RangeInputs.Should().OnlyContain(input => input.Minimum.Length == 0 && input.Maximum.Length == 0);
         held.Writes.Should().Be(0);
     }

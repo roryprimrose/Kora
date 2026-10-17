@@ -8,6 +8,68 @@ namespace Kora.Core.UnitTests.Storage;
 public sealed class SessionWorkOverviewFilterTests
 {
     [Fact]
+    public void ExactTaskStateRequiresAValidatedRetainedTaskAndAndComposesEveryPositiveChoice()
+    {
+        var request = HostRequest.Create(RequestOrigin.LocalUi);
+        var entry = new SessionWorkspaceEntry(new(request.SessionId, new(1), true), null);
+        foreach (var actual in Enum.GetValues<HostTaskState>())
+        {
+            var work = new SessionWorkOverviewObservation(1, DateTimeOffset.UnixEpoch, 0, 0, 8, 1, 0,
+                [], 9, [new(request, new(1), new(1), actual, false)], 9, [], 9);
+            foreach (var availability in Enum.GetValues<SessionWorkOverviewAvailability>())
+            {
+                var row = new SessionWorkOverviewRow(entry, availability, work);
+                foreach (var state in Enum.GetValues<HostTaskState>())
+                {
+                    foreach (var content in Enum.GetValues<SessionWorkOverviewContent>())
+                    {
+                        var expected = availability == SessionWorkOverviewAvailability.Observed && state == actual
+                            && content is SessionWorkOverviewContent.Any or SessionWorkOverviewContent.Task;
+                        SessionWorkOverviewFilter.Matches(null, row, content, state).Should().Be(expected);
+                        SessionWorkOverviewFilter.Matches(availability, row, content, state).Should().Be(expected);
+                        SessionWorkOverviewFilter.Matches(null, row with { Work = null }, content, state).Should().BeFalse();
+                        SessionWorkOverviewFilter.Matches(null, row with { Work = work with { Tasks = [] } }, content, state)
+                            .Should().BeFalse("omissions do not supply positive tasks");
+                    }
+                }
+                SessionWorkOverviewFilter.Matches(null, row).Should().BeTrue("Any preserves the existing default");
+            }
+        }
+        var invalid = () => SessionWorkOverviewFilter.Validate((HostTaskState)99);
+        invalid.Should().Throw<ArgumentOutOfRangeException>();
+        var invalidMatch = () => SessionWorkOverviewFilter.Matches(null,
+            new(entry, SessionWorkOverviewAvailability.ReadUnavailable, null), taskState: (HostTaskState)(-1));
+        invalidMatch.Should().Throw<ArgumentOutOfRangeException>();
+    }
+
+    [Fact]
+    public void CompleteObservationValidationPrecedesEvenAvailabilityAndStateExclusion()
+    {
+        var request = HostRequest.Create(RequestOrigin.LocalUi);
+        var entry = new SessionWorkspaceEntry(new(request.SessionId, new(1), true), null);
+        var task = new SessionWorkOverviewTask(request, new(1), new(1), HostTaskState.Succeeded, false);
+        var work = new SessionWorkOverviewObservation(1, DateTimeOffset.UnixEpoch, 0, 0, 8, 1, 0, [], 0,
+            [task], 0, [], 0);
+        SessionWorkOverviewObservation[] invalid =
+        [
+            work with { Tasks = [task, task with { State = (HostTaskState)99 }] },
+            work with { Tasks = [task, task with { Request = HostRequest.Create(RequestOrigin.LocalUi) }] },
+            work with { Tasks = [task, task with { Generation = default }] },
+            work with { Tasks = [task, task with { Revision = default }] },
+            work with { Tasks = [.. Enumerable.Repeat(task, SessionWorkSnapshot.MaximumRecords + 1)] },
+            work with { OmittedTasks = -1 }, work with { OmittedQuestions = -1 },
+            work with { Tasks = default }, work with { PendingQuestions = default }
+        ];
+        foreach (var observation in invalid)
+        {
+            var row = new SessionWorkOverviewRow(entry, SessionWorkOverviewAvailability.Observed, observation);
+            var match = () => SessionWorkOverviewFilter.Matches(SessionWorkOverviewAvailability.ReadUnavailable, row,
+                SessionWorkOverviewContent.QueueReceipt, HostTaskState.Failed);
+            match.Should().Throw<InvalidDataException>();
+        }
+    }
+
+    [Fact]
     public void PositiveContentRequiresRetainedObservedRecordsRegardlessOfOmissionsOrOtherContent()
     {
         var request = HostRequest.Create(RequestOrigin.LocalUi);

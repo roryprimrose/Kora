@@ -137,7 +137,7 @@ public sealed partial class SessionsViewModelTests
         document.Descendants().Should().NotContain(element =>
             element.Name.LocalName == "WebView" || element.Name.LocalName == "SelectableTextBlock");
         document.Descendants().Where(element => string.Equals(element.Name.LocalName, "TextBox", StringComparison.Ordinal))
-            .Should().HaveCount(34, "name, exact history ID, metadata/history/conversation queries, two conversation correlation IDs and four ranges, four session-list numeric bounds, three local-event correlation IDs and eight range bounds, memory and scope identity GUIDs and four inclusive range filters, memory drafts and the exact-session memory-only composer are independent native inputs");
+            .Should().HaveCount(42, "name, exact history ID, metadata/history/conversation queries, eight receipt provenance bounds, two conversation correlation IDs and four ranges, four session-list numeric bounds, three local-event correlation IDs and eight range bounds, memory and scope identity GUIDs and four inclusive range filters, memory drafts and the exact-session memory-only composer are independent native inputs");
         var scopeIdentity = document.Descendants().Single(element => element.Name.LocalName is "TextBox"
             && string.Equals(element.Attribute("Text")?.Value,
                 "{Binding MemoryScopeIdentityFilter, Mode=TwoWay}", StringComparison.Ordinal));
@@ -242,11 +242,15 @@ public sealed partial class SessionsViewModelTests
     private sealed class HeldStore : ISessionWorkspaceStore, ISessionHistoryStore
     {
         internal TaskCompletionSource<SessionHistoryPage> HistoryCompletion { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        internal int HistoryReads { get; private set; }
         public ValueTask<SessionHistoryPage> ReadHistoryAsync(HostId<SessionIdentity> session,
-            SessionHistoryCursor? cursor, int limit, CancellationToken cancellationToken) =>
-            cursor?.After == cursor?.Snapshot && cursor is not null
+            SessionHistoryCursor? cursor, int limit, CancellationToken cancellationToken)
+        {
+            HistoryReads++;
+            return cursor?.After == cursor?.Snapshot && cursor is not null
                 ? ValueTask.FromResult(new SessionHistoryPage(session, cursor.Generation, false, cursor.Snapshot, [], null))
                 : new(HistoryCompletion.Task);
+        }
         public ValueTask<SessionHistoryEvent?> ReadHistoryEventAsync(HostId<SessionIdentity> session,
             Guid eventId, CancellationToken cancellationToken) => throw new NotSupportedException();
         public ValueTask<SessionDispositionPreview> PreviewDispositionAsync(HostId<SessionIdentity> session,

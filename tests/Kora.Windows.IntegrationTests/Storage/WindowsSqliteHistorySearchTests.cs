@@ -15,6 +15,8 @@ public sealed class WindowsSqliteHistorySearchTests
     [InlineData("UPDATE session_history SET projection=json_set(projection,'$.AnswerChannel',999);")]
     [InlineData("UPDATE session_history SET digest=printf('%064d',0);")]
     [InlineData("DELETE FROM session_history;")]
+    [InlineData("UPDATE session_history SET projection=json_set(projection,'$.SourceRevision',-1);")]
+    [InlineData("UPDATE session_history SET projection=json_set(projection,'$.AuditSequence',0);")]
     public async Task Corrupt_or_unavailable_nonmatching_receipts_fail_before_metadata_exclusion(string mutation)
     {
         using var f = new InteractionStorageFixture();
@@ -24,7 +26,7 @@ public sealed class WindowsSqliteHistorySearchTests
         var service = WindowsSqliteSessionWorkspaceTests.Service(f, new());
         using var root = HostActivity.BeginRoot(f.Request, HostActivityLayer.Application, HostOperation.Request);
         var act = () => service.SearchHistoryAsync(f.Request.SessionId, "nonmatching", null, 1, f.Token,
-            new(Kind: SessionHistoryKind.Answer, Decision: HostInteractionOutcome.Approved));
+            new(Kind: SessionHistoryKind.Answer, Decision: HostInteractionOutcome.Approved), new(MaximumSequence: 1));
         await act.Should().ThrowAsync<InvalidDataException>();
     }
 
@@ -56,6 +58,19 @@ public sealed class WindowsSqliteHistorySearchTests
         next.Records.Should().OnlyContain(row => row.Sequence > first.Records[0].Sequence);
         var answer = (await service.SearchHistoryAsync(f.Request.SessionId, "finalword", null, 50, f.Token)).Records.Single();
         answer.Should().Be(history.Records.Single(row => row.Kind == SessionHistoryKind.Answer));
+        foreach (var missingAudit in history.Records.Where(row => row.AuditSequence is null))
+        {
+            var exact = new SessionHistoryRangeFilter(missingAudit.Sequence, missingAudit.Sequence, MinimumAuditSequence: 1);
+            (await service.SearchHistoryAsync(f.Request.SessionId, missingAudit.Kind.ToString(), null, 50, f.Token,
+                range: exact)).Records.Should().BeEmpty();
+        }
+        var range = new SessionHistoryRangeFilter(answer.Sequence, answer.Sequence,
+            answer.Generation.Value, answer.Generation.Value, answer.SourceRevision, answer.SourceRevision,
+            answer.AuditSequence, answer.AuditSequence);
+        (await service.SearchHistoryAsync(f.Request.SessionId, "absent finalword", null, 50, f.Token,
+            new(Kind: SessionHistoryKind.Answer), range)).Records.Should().ContainSingle().Which.Should().Be(answer);
+        (await service.SearchHistoryAsync(f.Request.SessionId, "finalword", null, 50, f.Token,
+            range: range with { MinimumSequence = answer.Sequence + 1, MaximumSequence = null })).Records.Should().BeEmpty();
         var metadata = new SessionHistoryMetadataFilter(Kind: SessionHistoryKind.Answer,
             QuestionStatus: QuestionStatus.Answered, AnswerChannel: RequestOrigin.LocalUi);
         (await service.SearchHistoryAsync(f.Request.SessionId, "absent finalword", null, 50, f.Token, metadata))

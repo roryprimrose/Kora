@@ -16,6 +16,34 @@ internal sealed partial class SessionsViewModel
     private CancellationTokenSource? historySearchCancellation;
     private SessionHistoryMetadataFilter historyMetadata;
     private long? historySearchRevision;
+    private string historyMinimumSequence = string.Empty;
+    private string historyMaximumSequence = string.Empty;
+    private string historyMinimumGeneration = string.Empty;
+    private string historyMaximumGeneration = string.Empty;
+    private string historyMinimumSourceRevision = string.Empty;
+    private string historyMaximumSourceRevision = string.Empty;
+    private string historyMinimumAuditSequence = string.Empty;
+    private string historyMaximumAuditSequence = string.Empty;
+
+    public string HistoryMinimumSequence { get => historyMinimumSequence; set => EditHistoryRange(ref historyMinimumSequence, value); }
+    public string HistoryMaximumSequence { get => historyMaximumSequence; set => EditHistoryRange(ref historyMaximumSequence, value); }
+    public string HistoryMinimumGeneration { get => historyMinimumGeneration; set => EditHistoryRange(ref historyMinimumGeneration, value); }
+    public string HistoryMaximumGeneration { get => historyMaximumGeneration; set => EditHistoryRange(ref historyMaximumGeneration, value); }
+    public string HistoryMinimumSourceRevision { get => historyMinimumSourceRevision; set => EditHistoryRange(ref historyMinimumSourceRevision, value); }
+    public string HistoryMaximumSourceRevision { get => historyMaximumSourceRevision; set => EditHistoryRange(ref historyMaximumSourceRevision, value); }
+    public string HistoryMinimumAuditSequence { get => historyMinimumAuditSequence; set => EditHistoryRange(ref historyMinimumAuditSequence, value); }
+    public string HistoryMaximumAuditSequence { get => historyMaximumAuditSequence; set => EditHistoryRange(ref historyMaximumAuditSequence, value); }
+
+    private void EditHistoryRange(ref string field, string value)
+    {
+        if (closed || !access.CanInspect || string.Equals(field, value, StringComparison.Ordinal)) { return; }
+        field = value;
+        RetireHistorySearch();
+    }
+
+    private SessionHistoryRangeFilter HistoryRange() => SessionHistoryRangeFilter.Parse(
+        historyMinimumSequence, historyMaximumSequence, historyMinimumGeneration, historyMaximumGeneration,
+        historyMinimumSourceRevision, historyMaximumSourceRevision, historyMinimumAuditSequence, historyMaximumAuditSequence);
 
     public IReadOnlyList<HistoryMetadataOption<SessionHistoryKind>> HistoryKinds { get; } =
         [new(null), .. Enum.GetValues<SessionHistoryKind>().Select(value => new HistoryMetadataOption<SessionHistoryKind>(value))];
@@ -83,7 +111,7 @@ internal sealed partial class SessionsViewModel
         selectionEpoch++;
         historySearchRevision = access.ControlRevision;
         status = LocalFileRetrievalPolicy.TryQuery(historyQuery, out _)
-            ? "Query or metadata changed; start a fresh exact-session lexical search. Predicates are AND-composed passive citations only."
+            ? "Query, metadata or inclusive provenance ranges changed; start a fresh exact-session search. Empty bounds mean Any; use ordered unsigned decimal bounds. Predicates are AND-composed passive citations only."
             : "Enter 1-256 characters / 512 UTF-8 bytes containing 1-32 distinct whole words of at most 64 characters. Query/results are volatile.";
         OnPropertyChanged(nameof(Status));
         OnPropertyChanged(nameof(Detail));
@@ -115,6 +143,7 @@ internal sealed partial class SessionsViewModel
             ?? throw new InvalidOperationException("No next search snapshot page; start a fresh search.") : null;
         var query = historyQuery;
         var metadata = historyMetadata;
+        var range = HistoryRange();
         var revision = access.ControlRevision;
         historySearchRevision = revision;
         historySearch = null;
@@ -126,7 +155,7 @@ internal sealed partial class SessionsViewModel
         NotifyHistory();
         try
         {
-            var result = await service.SearchHistoryAsync(new(id), query, continuation, 25, cancellation.Token, metadata);
+            var result = await service.SearchHistoryAsync(new(id), query, continuation, 25, cancellation.Token, metadata, range);
             cancellation.Token.ThrowIfCancellationRequested();
             if (closed || selectionEpoch != epoch || !string.Equals(historySessionId, subjectText, StringComparison.Ordinal)
                 || !string.Equals(historyQuery, query, StringComparison.Ordinal) || historyMetadata != metadata
@@ -154,6 +183,14 @@ internal sealed partial class SessionsViewModel
         historySearch = null;
         historyQuery = string.Empty;
         historyMetadata = default;
+        historyMinimumSequence = string.Empty;
+        historyMaximumSequence = string.Empty;
+        historyMinimumGeneration = string.Empty;
+        historyMaximumGeneration = string.Empty;
+        historyMinimumSourceRevision = string.Empty;
+        historyMaximumSourceRevision = string.Empty;
+        historyMinimumAuditSequence = string.Empty;
+        historyMaximumAuditSequence = string.Empty;
         historySearchRevision = null;
         Detail = string.Empty;
     }
@@ -173,6 +210,14 @@ internal sealed partial class SessionsViewModel
             OnPropertyChanged(nameof(Detail));
         }
         OnPropertyChanged(nameof(HistoryQuery));
+        OnPropertyChanged(nameof(HistoryMinimumSequence));
+        OnPropertyChanged(nameof(HistoryMaximumSequence));
+        OnPropertyChanged(nameof(HistoryMinimumGeneration));
+        OnPropertyChanged(nameof(HistoryMaximumGeneration));
+        OnPropertyChanged(nameof(HistoryMinimumSourceRevision));
+        OnPropertyChanged(nameof(HistoryMaximumSourceRevision));
+        OnPropertyChanged(nameof(HistoryMinimumAuditSequence));
+        OnPropertyChanged(nameof(HistoryMaximumAuditSequence));
         OnPropertyChanged(nameof(HistoryKindChoice));
         OnPropertyChanged(nameof(HistoryTaskStateChoice));
         OnPropertyChanged(nameof(HistoryDecisionChoice));

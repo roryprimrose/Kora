@@ -265,6 +265,35 @@
                 SelectedItem="{Binding HistoryAnswerChannelChoice, Mode=TwoWay}" IsEnabled="{Binding CanRead}"
                 AutomationProperties.Name="Exact historical answer channel; Any adds no restriction; not identity or authority" />
     </WrapPanel>
+    <TextBlock Text="Inclusive receipt provenance ranges: empty means Any. All bounds AND with lexical and typed predicates. Positive sequence/generation/audit; source revision may be zero. No timestamps or authority." TextWrapping="Wrap" />
+    <WrapPanel>
+      <TextBlock Text="Minimum receipt sequence" VerticalAlignment="Center" />
+      <TextBox x:Name="HistoryMinimumSequence" Text="{Binding HistoryMinimumSequence, Mode=TwoWay}" Width="140" IsEnabled="{Binding CanRead}"
+               AutomationProperties.Name="Minimum receipt sequence inclusive; positive decimal or empty for Any" />
+      <TextBlock Text="Maximum receipt sequence" VerticalAlignment="Center" />
+      <TextBox x:Name="HistoryMaximumSequence" Text="{Binding HistoryMaximumSequence, Mode=TwoWay}" Width="140" IsEnabled="{Binding CanRead}"
+               AutomationProperties.Name="Maximum receipt sequence inclusive; positive decimal or empty for Any" />
+      <TextBlock Text="Minimum receipt generation" VerticalAlignment="Center" />
+      <TextBox x:Name="HistoryMinimumGeneration" Text="{Binding HistoryMinimumGeneration, Mode=TwoWay}" Width="140" IsEnabled="{Binding CanRead}"
+               AutomationProperties.Name="Minimum receipt generation inclusive; positive decimal or empty for Any" />
+      <TextBlock Text="Maximum receipt generation" VerticalAlignment="Center" />
+      <TextBox x:Name="HistoryMaximumGeneration" Text="{Binding HistoryMaximumGeneration, Mode=TwoWay}" Width="140" IsEnabled="{Binding CanRead}"
+               AutomationProperties.Name="Maximum receipt generation inclusive; positive decimal or empty for Any" />
+    </WrapPanel>
+    <WrapPanel>
+      <TextBlock Text="Minimum source revision" VerticalAlignment="Center" />
+      <TextBox x:Name="HistoryMinimumSourceRevision" Text="{Binding HistoryMinimumSourceRevision, Mode=TwoWay}" Width="140" IsEnabled="{Binding CanRead}"
+               AutomationProperties.Name="Minimum receipt source revision inclusive; nonnegative decimal or empty for Any" />
+      <TextBlock Text="Maximum source revision" VerticalAlignment="Center" />
+      <TextBox x:Name="HistoryMaximumSourceRevision" Text="{Binding HistoryMaximumSourceRevision, Mode=TwoWay}" Width="140" IsEnabled="{Binding CanRead}"
+               AutomationProperties.Name="Maximum receipt source revision inclusive; nonnegative decimal or empty for Any" />
+      <TextBlock Text="Minimum audit sequence" VerticalAlignment="Center" />
+      <TextBox x:Name="HistoryMinimumAuditSequence" Text="{Binding HistoryMinimumAuditSequence, Mode=TwoWay}" Width="140" IsEnabled="{Binding CanRead}"
+               AutomationProperties.Name="Minimum receipt audit sequence inclusive; positive decimal or empty for Any; absent audit never matches a constrained range" />
+      <TextBlock Text="Maximum audit sequence" VerticalAlignment="Center" />
+      <TextBox x:Name="HistoryMaximumAuditSequence" Text="{Binding HistoryMaximumAuditSequence, Mode=TwoWay}" Width="140" IsEnabled="{Binding CanRead}"
+               AutomationProperties.Name="Maximum receipt audit sequence inclusive; positive decimal or empty for Any; absent audit never matches a constrained range" />
+    </WrapPanel>
     </StackPanel>
     </ScrollViewer>
     <Grid Grid.Row="4" ColumnDefinitions="320,*" ColumnSpacing="14">

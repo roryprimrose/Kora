@@ -772,6 +772,10 @@ choice performs no read and clears stale receipts/details/Next; explicitly
 Search again. Clear and query-field Escape also restore all choices to Any.
 These controls do not change conversation search or typed/voice command syntax.
 
+Use the labelled minimum/maximum **receipt sequence**, **receipt generation**, **source revision** and **audit sequence** fields for inclusive bounds. Empty means Any; source revision accepts zero, while sequence, generation and audit sequence must be positive ([range policy](../src/Kora.Core/Storage/SessionHistoryRangeFilter.cs)).
+Enter decimal digits only, with no whitespace, signs or separators; overflow, invalid or inverted bounds are rejected. Every range and typed choice must match alongside a lexical word; absent audit sequence cannot match a constrained audit range. No timestamp is available or fabricated ([receipt policy](../src/Kora.Core/Storage/SessionHistoryEvent.cs)).
+Editing a bound clears old rows, selected detail/actions and Next without reading; explicitly Search or press Enter again. Clear and Escape in any query/range field reset all history bounds and choices ([native workflow](../src/Kora/SessionsViewModel.Search.cs), [controls](../src/Kora/SessionsWindow.axaml.cs)).
+
 Escape in the query field clears query/results without closing the window. **Clear query and results** returns focus to that field; **Cancel search** suppresses pending results. Editing query/subject, closing, privacy/ownership loss or retention retirement invalidates late content. Search does not disable the focused field, replace pending-question targets or renew activity ([native controls](../src/Kora/SessionsWindow.axaml.cs), [deterministic recovery tests](../tests/Kora.Windows.IntegrationTests/SessionsHistorySearchTests.cs), [late-result tests](../tests/Kora.Windows.IntegrationTests/SessionsViewModelTests.Search.cs)). These headless checks are not physical keyboard, installed screen-reader or DPI qualification.
 
 ### Logical session disposition

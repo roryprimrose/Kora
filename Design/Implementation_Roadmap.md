@@ -156,6 +156,10 @@ installed accessibility and broader E/Q qualification remain separate.
 
 ### Bounded exact-session interaction-receipt metadata predicates - 2026-10-16
 
+The [receipt provenance range increment](Interaction_And_Sessions.md#delivered-passive-exact-session-lexical-history-search---2026-10-09), implemented from main `d6d249d06f16db8d18636e4a0a4a3257d69896bc`, adds inclusive sequence/generation/source-revision/audit-sequence bounds through the existing matcher, Application command path and labelled native fields.
+It consumes only the existing passive exact-session reader I subset: no timestamps, schema/service/profile, source read, current authority, task management, retry/replay, approval or external operation ([range policy](../src/Kora.Core/Storage/SessionHistoryRangeFilter.cs)).
+Strict shared parsing/domain validation, complete-page-before-exclusion validation, semantic cursor binding, counters and lifecycle re-resolution remain in the [production path](../src/Kora.Application/Hosting/SessionWorkspaceService.Search.cs). Installed accessibility, broader E/Q and unrelated experiments remain separate.
+
 Built from freshly fetched main `72fcebc7e44fb043a6a9c9d4cb89ee693eea2d8e`.
 The [older receipt HistorySearch](Interaction_And_Sessions.md#delivered-passive-exact-session-lexical-history-search---2026-10-09)
 AND-composes optional exact kind, task state, decision, question status and

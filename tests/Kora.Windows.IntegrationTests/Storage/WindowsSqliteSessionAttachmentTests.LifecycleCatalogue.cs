@@ -86,7 +86,8 @@ public sealed partial class WindowsSqliteSessionAttachmentTests
         await NewControl(fixture, target);
         await fixture.RunAsync(() => fixture.Store.ChangeIdleLifecycleAsync(fixture.Request, new(1), false, () => true, fixture.Token));
         await FinishControl(fixture);
-        var query = new SessionAttachmentQuery(includeRemoved, filter: SessionAttachmentFilter.Done);
+        var query = new SessionAttachmentQuery(includeRemoved, filter: SessionAttachmentFilter.Done, metadataText: "text/",
+            exactMediaType: "text/markdown");
         var first = await fixture.Store.ReadAttachmentPage(query, null, () => true, fixture.Token);
         first.Records.Should().BeEmpty();
         first.ScannedRows.Should().Be(64);

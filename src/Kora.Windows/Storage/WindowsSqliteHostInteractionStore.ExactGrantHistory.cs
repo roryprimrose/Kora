@@ -15,10 +15,16 @@ public sealed partial class WindowsSqliteHostInteractionStore
     private readonly byte[] exactHistoryCursorKey = RandomNumberGenerator.GetBytes(32);
 
     public async ValueTask<ExactGrantHistoryPage> ReadExactGrantHistoryAsync(ExactGrantInspection inspected,
-        HostRequest viewer, string? cursor, Func<bool> admitted, CancellationToken cancellationToken)
+        HostRequest viewer, ExactGrantHistoryQuery query, long controlRevision, Guid admissionId,
+        string? cursor, Func<bool> admitted, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(inspected);
         ArgumentNullException.ThrowIfNull(admitted);
+        ArgumentNullException.ThrowIfNull(query);
+        if (controlRevision <= 0 || admissionId == Guid.Empty)
+        {
+            throw new InvalidOperationException("Exact history requires a known native control revision and read admission identity.");
+        }
         inspected.Grant.Id.Validate();
         RequireLive(viewer);
         if (viewer.Origin != RequestOrigin.LocalUi || !admitted())
@@ -26,11 +32,11 @@ public sealed partial class WindowsSqliteHostInteractionStore
             throw new InvalidOperationException("Exact history requires current original native-user read admission.");
         }
         using var activity = HostActivity.BeginChild(HostActivityLayer.Windows, HostOperation.Evidence);
-        using var deadline = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        deadline.CancelAfter(TimeSpan.FromSeconds(ExactGrantHistoryPage.RequestSeconds));
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(ExactGrantHistoryPage.RequestSeconds), time);
+        using var deadline = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, timeout.Token);
         try
         {
-            var result = await Task.Run(() => ReadExactHistory(inspected, viewer, cursor, admitted, deadline.Token),
+            var result = await Task.Run(() => ReadExactHistory(inspected, viewer, query, controlRevision, admissionId, cursor, admitted, deadline.Token),
                 deadline.Token).ConfigureAwait(false);
             RequireLive(viewer);
             if (!admitted()) { throw new InvalidOperationException("No late private exact history is admitted."); }
@@ -51,7 +57,7 @@ public sealed partial class WindowsSqliteHostInteractionStore
     }
 
     private ExactGrantHistoryPage ReadExactHistory(ExactGrantInspection inspected, HostRequest viewer,
-        string? cursor, Func<bool> admitted, CancellationToken token)
+        ExactGrantHistoryQuery query, long controlRevision, Guid admissionId, string? cursor, Func<bool> admitted, CancellationToken token)
     {
         using var lease = database.AcquireReadLease(token);
         var identity = RequireInspectionIdentity();
@@ -62,7 +68,8 @@ public sealed partial class WindowsSqliteHostInteractionStore
         using var connection = database.OpenReadOnly(token);
         using var transaction = connection.BeginTransaction(deferred: true);
         var now = time.GetUtcNow();
-        var continuation = cursor is null ? null : DecodeExactHistoryCursor(cursor, inspected.Grant.Id, viewer.SessionId, identity, now);
+        var continuation = cursor is null ? null : DecodeExactHistoryCursor(cursor, inspected, viewer,
+            query, controlRevision, admissionId, identity, now);
         var snapshot = ReadAuditSnapshot(connection, identity, continuation?.Snapshot);
         var current = ReadExactGrant(connection, inspected.Grant.Id, identity);
         if (current is null)
@@ -109,11 +116,13 @@ public sealed partial class WindowsSqliteHostInteractionStore
         var records = ImmutableArray.CreateBuilder<ExactGrantHistoryEntry>();
         var scannedThrough = after;
         var scanned = 0;
+        var nonmatching = 0;
         var outputBound = false;
         var expires = continuation?.ExpiresAt ?? now.AddMinutes(ExactGrantHistoryPage.SnapshotMinutes);
         ExactGrantHistoryPage Page(bool more, bool limited) => new(current, records.ToImmutable(),
-            more ? EncodeExactHistoryCursor(new(inspected.Grant.Id, viewer.SessionId, identity, expires, snapshot, scannedThrough!)) : null,
-            now, snapshot.AuthorityCeiling.Value, snapshot.AuthorityCeilingDigest!, scannedThrough?.CommittedTicks ?? 0, scanned, limited);
+            more ? EncodeExactHistoryCursor(new(inspected.Grant.Id, GrantChange(inspected.Grant).Digest, viewer,
+                controlRevision, admissionId, query.Digest, identity, expires, snapshot, scannedThrough!)) : null,
+            now, snapshot.AuthorityCeiling.Value, snapshot.AuthorityCeilingDigest!, scannedThrough?.CommittedTicks ?? 0, scanned, limited, nonmatching);
         while (rows.Read())
         {
             token.ThrowIfCancellationRequested();
@@ -133,7 +142,7 @@ public sealed partial class WindowsSqliteHostInteractionStore
             {
                 throw new InvalidDataException("The retained exact grant disagrees with its committed history.");
             }
-            if (entry is not null)
+            if (entry is not null && query.Matches(entry))
             {
                 records.Add(entry);
                 var previousPosition = scannedThrough;
@@ -148,6 +157,7 @@ public sealed partial class WindowsSqliteHostInteractionStore
                     break;
                 }
             }
+            else { nonmatching++; }
             scannedThrough = position;
             if (records.Count == ExactGrantHistoryPage.MaximumRecords) { outputBound = true; break; }
         }
@@ -204,8 +214,9 @@ public sealed partial class WindowsSqliteHostInteractionStore
         return Convert.ToBase64String(bytes) + "." + Convert.ToBase64String(HMACSHA256.HashData(exactHistoryCursorKey, bytes));
     }
 
-    private ExactHistoryContinuation DecodeExactHistoryCursor(string cursor, HostId<ApprovalIdentity> id,
-        HostId<SessionIdentity> viewer, string identity, DateTimeOffset now)
+    private ExactHistoryContinuation DecodeExactHistoryCursor(string cursor, ExactGrantInspection inspected,
+        HostRequest viewer, ExactGrantHistoryQuery query, long controlRevision, Guid admissionId,
+        string identity, DateTimeOffset now)
     {
         try
         {
@@ -218,7 +229,9 @@ public sealed partial class WindowsSqliteHostInteractionStore
                 throw new InvalidDataException("The exact history cursor is not issued by this host store lifetime.");
             }
             var value = HostInteractionCodec.Decode<ExactHistoryContinuation>(Encoding.UTF8.GetString(bytes));
-            if (value.GrantId != id || value.Viewer != viewer || !Same(value.StoreIdentity, identity) || value.ExpiresAt <= now
+            if (value.GrantId != inspected.Grant.Id || !Same(value.InspectedDigest, GrantChange(inspected.Grant).Digest)
+                || value.Viewer != viewer || value.ControlRevision != controlRevision || value.AdmissionId != admissionId
+                || !Same(value.QueryDigest, query.Digest) || !Same(value.StoreIdentity, identity) || value.ExpiresAt <= now
                 || value.After.Source != EvidenceSource.AuthorityAudit || value.After.Ordinal != -1
                 || value.After.CommittedTicks <= 0 || value.After.CommittedTicks > value.Snapshot.AuthorityCeiling
                 || !IsHex(value.After.CommitDigest ?? string.Empty, 64))
@@ -230,6 +243,7 @@ public sealed partial class WindowsSqliteHostInteractionStore
         catch (FormatException exception) { throw new InvalidDataException("The exact history cursor is malformed.", exception); }
     }
 
-    private sealed record ExactHistoryContinuation(HostId<ApprovalIdentity> GrantId, HostId<SessionIdentity> Viewer,
+    private sealed record ExactHistoryContinuation(HostId<ApprovalIdentity> GrantId, string InspectedDigest, HostRequest Viewer,
+        long ControlRevision, Guid AdmissionId, string QueryDigest,
         string StoreIdentity, DateTimeOffset ExpiresAt, EvidenceSnapshot Snapshot, EvidencePosition After);
 }

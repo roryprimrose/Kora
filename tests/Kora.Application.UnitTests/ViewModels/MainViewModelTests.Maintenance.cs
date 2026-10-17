@@ -94,6 +94,7 @@ public sealed partial class MainViewModelTests
         if (pending is "grant")
         {
             await f.RunAsync("allow models to lock the machine this session");
+            await f.ViewModel.ActiveReasoningTask!;
         }
         else
         {

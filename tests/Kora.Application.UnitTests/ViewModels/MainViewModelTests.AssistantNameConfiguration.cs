@@ -30,7 +30,7 @@ public sealed partial class MainViewModelTests
         fixture.ViewModel.ModelQuestionChoices.Should().Equal(choices);
         store.Session.Should().Be(before);
         await fixture.ViewModel.CancelModelQuestionAsync();
-        fixture.ViewModel.PrepareGrantChange(new(GrantChangeOperation.Add,
+        await fixture.ViewModel.PrepareGrantChangeAsync(new(GrantChangeOperation.Add,
             BuiltInAction.LockMachine, ModelApprovalScope.Always));
         await fixture.RunAsync("set assistant name to Nova");
         fixture.ViewModel.IsGrantChangePending.Should().BeTrue();

@@ -14,7 +14,7 @@ using Neovolve.Logging.Xunit;
 
 namespace Kora.Windows.IntegrationTests.Audio;
 
-public sealed class ActivatedVoiceRecognitionTests(
+public sealed partial class ActivatedVoiceRecognitionTests(
     ITestOutputHelper output) : LoggingTestsBase<WindowsVoiceRecognitionService>(output)
 {
     private static readonly MicrophoneDevice Microphone = new("mic", "Synthetic microphone");
@@ -1106,6 +1106,7 @@ public sealed class ActivatedVoiceRecognitionTests(
     private sealed class ObserverSource : IWindowsPrivacySource
     {
         public event EventHandler<WindowsPrivacySignalEventArgs>? Changed;
+        public string? TopologyIdentity => null;
         public WindowsPrivacySnapshot Snapshot { get; set; } = Ready;
         public Action? BeforeRead { get; set; }
 
@@ -1123,7 +1124,7 @@ public sealed class ActivatedVoiceRecognitionTests(
         }
     }
 
-    private sealed class FakePrivacy : IWindowsPrivacyObservationService
+    internal sealed class FakePrivacy : IWindowsPrivacyObservationService
     {
         public event EventHandler<WindowsPrivacyChangedEventArgs>? Changed;
         public WindowsPrivacySnapshot Current { get; set; } = Ready;
@@ -1149,7 +1150,7 @@ public sealed class ActivatedVoiceRecognitionTests(
         }
     }
 
-    private sealed class FakeFactory : IActivatedCaptureFactory
+    internal sealed class FakeFactory : IActivatedCaptureFactory
     {
         public TaskCompletionSource<IActivatedCapture> OpenResult { get; set; } =
             new(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -1158,6 +1159,13 @@ public sealed class ActivatedVoiceRecognitionTests(
         public BlockingAudioStream? Stream { get; private set; }
         public MicrophoneDevice? SelectedMicrophone { get; private set; }
         public IReadOnlyList<string> Phrases { get; private set; } = [];
+        public TimeSpan SpeechStartWindow { get; private set; }
+        public Task<IActivatedCapture> OpenAsync(MicrophoneDevice microphone, IReadOnlyList<string> phrases,
+            BlockingAudioStream stream, Func<bool> canOpen, TimeSpan speechStartWindow)
+        {
+            SpeechStartWindow = speechStartWindow;
+            return OpenAsync(microphone, phrases, stream, canOpen);
+        }
 
         public Task<IActivatedCapture> OpenAsync(
             MicrophoneDevice microphone, IReadOnlyList<string> phrases, BlockingAudioStream stream, Func<bool> canOpen)
@@ -1176,7 +1184,7 @@ public sealed class ActivatedVoiceRecognitionTests(
         }
     }
 
-    private sealed class FakeCapture : IActivatedCapture
+    internal sealed class FakeCapture : IActivatedCapture
     {
         public event ActivatedAudioAvailable? DataAvailable;
         public event EventHandler<VoiceTranscriptEventArgs>? TranscriptRecognized;

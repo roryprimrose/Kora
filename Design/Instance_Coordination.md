@@ -19,18 +19,23 @@ Never treat caller-supplied label/path/version as authenticated identity: the Wi
 Debug/release or rebuilt developer binaries with the same semantic version but different content follow the different-build path.
 Unknown identity/protocol incompatibility reports an explicit error and prevents takeover.
 
-## Same Build Launch
+## Release and Same-Build Launch
 
 Before opening databases for migration, registering tray icons, starting providers/workers, or acquiring audio, the new process checks ownership.
-If the same build is active, send a bounded authenticated Activate Existing request.
+Release launches always send a bounded authenticated activation-only request when
+an owner exists, even when the existing owner is another version or a Debug build.
+They never request or accept ownership transfer. Debug launches activate the same
+build and retain the explicit different-build handoff described below.
 The existing process reveals its status/questions window, subject to Windows foreground restrictions and lock privacy.
 The new process exits after acknowledgement; it does not replay startup/task arguments, enable listening, duplicate tray icons, or execute work.
 If locked, acknowledge presence without displaying sensitive content; expose details only after unlock and user activation.
 Timeout is not proof the owner is dead: report an unreachable instance and exit without competing capture/execution.
+An older owner that does not support the explicit activation-only request reports
+an incompatibility; a Release candidate never falls back to a takeover request.
 
-## Different Build Launch
+## Different Debug Build Launch
 
-The incoming process remains a waiting startup candidate, without assistant services, recording, task tools, migrations, or a second assistant tray.
+An incoming different Debug build remains a waiting startup candidate, without assistant services, recording, task tools, migrations, or a second assistant tray.
 The active instance asks:
 
 > "Kora 0.3.0 Debug (commit abc123) wants to run instead of this release. Shut down this instance and allow that build to run?"
@@ -156,9 +161,32 @@ flag, selects that partition. Coordination alone uses the shared device-local
 non-sensitive dirty bit (no sessions, identities, tickets or grants), cleared
 only after verified clean disposal. It persists when the final mutex handle
 vanishes after a crash: mutex disappearance cannot prove orphaned workers or
-remote effects stopped. Crash/uncertain disposal therefore blocks takeover and
+remote effects stopped. Release crash/uncertain disposal therefore blocks takeover and
 return pending explicit manual reconciliation/removal of that marker; it never
 authorises killing or automatic recovery.
+
+Automatic recovery is compiled only under `#if DEBUG`. A Debug owner also writes
+a restricted, versioned `unclean-owner.debug-recovery` record with its PID,
+process creation time, Windows session and bounded outstanding external-work
+count. Atomic publication and a checksum reject partial or corrupted records.
+An explicit Debug launch may recover after acquiring the ownership/lifecycle
+mutexes, including abandoned mutexes, only when that record proves the previous
+process lifetime ended and no external work remains. PID reuse is distinguished
+by creation time; inaccessible/unknown lifetime is not death. The new host writes
+a typed recovery audit before normal audited no-replay task recovery and
+assistant admission.
+
+Debug dependency launchers record external work before starting PowerShell
+verification, installers, an owned Ollama server, model download or verification
+inference. A hold is released only after verified completion; disposing an
+incomplete hold preserves uncertainty and closes further external-work admission.
+An owned server retains its hold until its process has actually stopped. Live
+owners, outstanding/uncertain work, unsupported/corrupted records and legacy
+dirty bits without a recovery record still require explicit reconciliation.
+Reconciliation must account for both files named in the Debug blocker. No new
+recovery types, tracking hooks or automatic-recovery branches compile into Release.
+No crash-triggered relaunch, task replay, force-kill of unrelated processes or
+automatic return acceptance is introduced.
 
 Focused portable transaction/framing and uniquely named OS-object tests do not
 launch the assistant, display questions, capture audio, change session state or

@@ -22,6 +22,7 @@ public sealed partial class QuestionWindow : Window
     private readonly Dictionary<string, ToggleButton> choices = new(StringComparer.Ordinal);
     private readonly DispatcherTimer expiry = new() { Interval = TimeSpan.FromSeconds(1) };
     private bool refreshing;
+    private int foregroundAdmission;
 
     public QuestionWindow() => throw new InvalidOperationException("A trusted host question is required.");
 
@@ -62,6 +63,15 @@ public sealed partial class QuestionWindow : Window
         Required<Button>("SubmitAnswer").Click += async (_, _) => await RunInteractionAsync(state.SubmitAsync);
         Required<Button>("CancelQuestion").Click += async (_, _) => await RunInteractionAsync(state.CancelAsync);
         Required<Button>("CloseQuestion").Click += (_, _) => Close();
+        Required<Button>("AnswerByVoice").Click += async (_, _) => await RunInteractionAsync(() => state.AnswerByVoiceAsync());
+        Required<Button>("HearThenAnswer").Click += async (_, _) => await RunInteractionAsync(() => state.AnswerByVoiceAsync(afterPlayback: true));
+        Required<Button>("CancelReply").Click += (_, _) => state.StopVoiceReply();
+        state.BindVisibleVoicePresenter(() => Volatile.Read(ref foregroundAdmission) == 1);
+        Deactivated += (_, _) =>
+        {
+            Interlocked.Exchange(ref foregroundAdmission, 0);
+            state.StopVoiceReply();
+        };
         review.CopyingToClipboard += BlockClipboard;
         review.CuttingToClipboard += BlockClipboard;
         review.PastingFromClipboard += BlockClipboard;
@@ -71,7 +81,11 @@ public sealed partial class QuestionWindow : Window
             if (args.Key == Key.Escape) { args.Handled = true; Close(); }
         };
         state.PropertyChanged += OnStateChanged;
-        Activated += async (_, _) => await RunInteractionAsync(state.RefreshTargetAsync);
+        Activated += async (_, _) =>
+        {
+            Interlocked.Exchange(ref foregroundAdmission, 1);
+            await RunInteractionAsync(state.RefreshTargetAsync);
+        };
         expiry.Tick += OnExpiry;
         Opened += (_, _) =>
         {
@@ -81,6 +95,7 @@ public sealed partial class QuestionWindow : Window
         };
         Closed += (_, _) =>
         {
+            Interlocked.Exchange(ref foregroundAdmission, 0);
             expiry.Stop();
             expiry.Tick -= OnExpiry;
             state.PropertyChanged -= OnStateChanged;
@@ -156,6 +171,10 @@ public sealed partial class QuestionWindow : Window
         Required<Button>("SaveDraft").IsEnabled = state.CanSaveDraft;
         Required<Button>("SubmitAnswer").IsEnabled = state.CanSubmit;
         Required<Button>("CancelQuestion").IsEnabled = state.IsEditable;
+        Required<Button>("AnswerByVoice").IsEnabled = state.CanAnswerByVoice;
+        Required<Button>("HearThenAnswer").IsEnabled = state.CanAnswerByVoice;
+        Required<Button>("CancelReply").IsEnabled = state.IsVoiceReplyActive;
+        Required<TextBlock>("VoiceReplyStatus").Text = state.VoiceReplyStatus;
         Required<TextBlock>("QuestionStatus").Text = $"Revision {state.Key.Revision.Value}: {state.Status}";
         if (!string.Equals(review.Text, state.ReviewText, StringComparison.Ordinal))
         {

@@ -49,6 +49,8 @@ public sealed class NativeReaderTextScaleTests
             {
                 var reader = window.FindControl<TextBox>("ContentReader")!;
                 var originalFont = reader.FontSize;
+                var findSpan = window.FindControl<NamedTextBlock>("FindSpan")!;
+                var findFont = findSpan.FontSize;
                 var heading = window.FindControl<StackPanel>("RenderedDocument")!.Children.OfType<TextBlock>().First();
                 var headingFont = heading.FontSize;
                 var headingLineHeight = heading.LineHeight;
@@ -61,9 +63,11 @@ public sealed class NativeReaderTextScaleTests
                 foreach (var scale in new[] { percent, 200, 75, 100, percent })
                 {
                     fixture.Main.ReaderTextScalePercent = scale;
+                    await fixture.Main.AppearanceUpdate;
                     Dispatcher.UIThread.RunJobs();
                     window.UpdateLayout();
                     reader.FontSize.Should().Be(originalFont * scale / 100d);
+                    findSpan.FontSize.Should().Be(findFont * scale / 100d);
                     heading.FontSize.Should().Be(headingFont * scale / 100d);
                     heading.LineHeight.Should().Be(headingLineHeight * scale / 100d);
                     title.FontSize.Should().Be(titleFont);
@@ -83,11 +87,14 @@ public sealed class NativeReaderTextScaleTests
                 reader.SelectionStart = offset;
                 reader.SelectionEnd = offset + 6;
                 fixture.Main.ReaderTextScalePercent = percent == 200 ? 75 : 200;
+                await fixture.Main.AppearanceUpdate;
                 Dispatcher.UIThread.RunJobs();
                 window.UpdateLayout();
                 reader.SelectionStart.Should().Be(offset);
                 reader.SelectionEnd.Should().Be(offset + 6);
                 state.MatchStart.Should().Be(offset);
+                findSpan.Text.Should().Be("needle");
+                findSpan.FontSize.Should().Be(findFont * (percent == 200 ? 75 : 200) / 100d);
                 content.Source.Should().Be(source);
                 content.Digest.Should().Be(digest);
                 content.Utf8Bytes.Should().Be(Encoding.UTF8.GetByteCount(source));
@@ -96,6 +103,7 @@ public sealed class NativeReaderTextScaleTests
                 window.FindControl<CheckBox>("ReadingTextToggle")!.IsChecked = true;
                 reader.Text.Should().Be(result.SemanticText);
                 fixture.Main.ReaderTextScalePercent = percent;
+                await fixture.Main.AppearanceUpdate;
                 Dispatcher.UIThread.RunJobs();
                 var secondState = new DetailViewerState(content);
                 secondState.CompleteRender(secondState.Generation, result.SemanticText, result.Status, false);
@@ -171,6 +179,7 @@ public sealed class NativeReaderTextScaleTests
                 foreach (var scale in new[] { percent, 200, 75, 100, percent })
                 {
                     fixture.Main.ReaderTextScalePercent = scale;
+                    await fixture.Main.AppearanceUpdate;
                     Dispatcher.UIThread.RunJobs();
                     fileWindow.UpdateLayout();
                     clipboardWindow.UpdateLayout();
@@ -227,6 +236,7 @@ public sealed class NativeReaderTextScaleTests
                 spinner.Value.Should().Be(100);
                 spinner.Value = 75;
                 Dispatcher.UIThread.RunJobs();
+                await fixture.Main.AppearanceUpdate;
                 fixture.Main.ReaderTextScalePercent.Should().Be(75);
                 fixture.Main.EnsureReaderTypographyAvailable();
             }

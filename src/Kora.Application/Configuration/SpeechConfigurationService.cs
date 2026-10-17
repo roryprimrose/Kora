@@ -66,14 +66,14 @@ public sealed partial class SpeechConfigurationService(
                 InvalidSavedSelection(logger, exception);
                 selection = null;
                 saved = true;
-                error = "The saved speech selection is invalid. Reset speech.provider or choose an installed provider.";
+                error = "The saved speech selection is invalid. Choose an installed voice or use reset speech.provider.";
             }
             catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
             {
                 SelectionReadFailed(logger, exception);
                 selection = null;
                 saved = true;
-                error = "The saved speech selection could not be read. Repair local preference access and refresh, or explicitly choose/reset an installed provider.";
+                error = "The saved speech selection could not be read. Repair local preference access and refresh, or explicitly choose an installed voice.";
             }
             SpeechConfigurationState next;
             try
@@ -132,7 +132,7 @@ public sealed partial class SpeechConfigurationService(
             else if (value is null)
             {
                 selection = new(current.Selection?.ProviderId
-                    ?? throw new InvalidOperationException("Recover the speech provider first."), null);
+                    ?? throw new InvalidOperationException("Choose an installed voice before resetting the voice preference."), null);
             }
             else
             {

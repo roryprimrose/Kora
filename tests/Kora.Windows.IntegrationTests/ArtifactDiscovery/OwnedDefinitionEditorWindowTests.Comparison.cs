@@ -1,4 +1,4 @@
-using Avalonia.Controls;
+﻿using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.LogicalTree;
@@ -44,9 +44,9 @@ public sealed partial class OwnedDefinitionEditorWindowTests
             });
             await f.Run("Kora, " + f.Prefix + " compare");
             comparison.Should().NotBeNull();
-            var panes = comparison!.GetVisualDescendants().OfType<TextBox>().ToArray();
+            var panes = comparison!.GetVisualDescendants().OfType<TextBox>().Where(pane => pane.IsReadOnly).ToArray();
             panes.Should().HaveCount(2).And.OnlyContain(pane => pane.IsReadOnly && pane.AcceptsReturn && !pane.IsUndoEnabled);
-            panes[0].Text.Should().Be(f.Source?.Document.Text ?? "(missing/new baseline)");
+            panes[0].Text.Should().Be(f.Source?.Document.Text ?? string.Empty);
             panes[1].Text.Should().Be(draft);
             var summary = comparison.GetVisualDescendants().OfType<TextBlock>().First().Text;
             summary.Should().Contain("NOT canonical Save bytes").And.Contain("historical");
@@ -110,6 +110,16 @@ public sealed partial class OwnedDefinitionEditorWindowTests
             else { await operation; comparison.Should().NotBeNull(); }
             var displayed = comparison;
             var panes = comparison?.GetVisualDescendants().OfType<TextBox>().ToArray();
+            var finds = comparison?.GetVisualDescendants().OfType<OwnedComparisonFindPane>().ToArray();
+            if (finds is not null)
+            {
+                foreach (var pane in finds)
+                {
+                    FindQuery(pane).Text = "PRIVATE";
+                    FindClick(pane, "Find first");
+                    FindSpan(pane).Text.Should().Be("PRIVATE");
+                }
+            }
             var closed = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
             if (comparison is not null) { comparison.Closed += (_, _) => closed.TrySetResult(); }
             var editor = f.Editor!;
@@ -134,6 +144,19 @@ public sealed partial class OwnedDefinitionEditorWindowTests
                 await closed.Task.WaitAsync(TestContext.Current.CancellationToken);
                 displayed!.IsVisible.Should().BeFalse();
                 panes!.Should().OnlyContain(pane => pane.Text == string.Empty);
+                foreach (var pane in finds!)
+                {
+                    FindClick(pane, "Find first");
+                    FindClick(pane, "Find next");
+                    FindClick(pane, "Find previous");
+                    FindClick(pane, "Clear Find");
+                    FindSpan(pane).Text.Should().BeNull();
+                    FindOutcome(pane).Text.Should().BeNull();
+                    FindSource(pane).Text.Should().BeEmpty();
+                    FindQuery(pane).Text.Should().BeEmpty();
+                    FindButton(pane, "Find first").IsEnabled.Should().BeFalse();
+                    pane.Dispose();
+                }
             }
             if (change is "privacy") { await f.Session.Main.PrivacyClosureTask; editor.Source.Text.Should().BeEmpty(); }
             f.Store.Reads.Should().Be(0); f.Store.Lists.Should().Be(0); f.Store.Writes.Should().Be(0);
@@ -193,7 +216,7 @@ public sealed partial class OwnedDefinitionEditorWindowTests
             await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => { }, Avalonia.Threading.DispatcherPriority.Background);
             comparison.Should().NotBeNull();
             comparison!.IsVisible.Should().BeFalse();
-            panes!.Should().HaveCount(2).And.OnlyContain(pane => pane.Text == string.Empty && !pane.IsUndoEnabled);
+            panes!.Should().HaveCount(4).And.OnlyContain(pane => pane.Text == string.Empty && !pane.IsUndoEnabled);
             f.Editor!.Source.Text.Should().BeEmpty();
             f.Store.Reads.Should().Be(0); f.Store.Lists.Should().Be(0); f.Store.Writes.Should().Be(0);
         });

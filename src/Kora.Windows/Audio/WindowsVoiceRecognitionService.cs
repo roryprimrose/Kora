@@ -14,7 +14,7 @@ using NAudio.CoreAudioApi;
 
 namespace Kora.Windows.Audio;
 
-public sealed class WindowsVoiceRecognitionService : IActivatedVoiceRecognitionService
+public sealed class WindowsVoiceRecognitionService : IQuestionVoiceRecognitionService
 {
     private const float MinimumConfidence = 0.62f;
     private readonly Lock gate = new();
@@ -33,8 +33,11 @@ public sealed class WindowsVoiceRecognitionService : IActivatedVoiceRecognitionS
     private BlockingAudioStream? audioStream;
     private MicrophoneDevice? selectedMicrophone;
     private MicrophoneDevice? resultMicrophone;
-    private Timer? maximumCaptureTimer;
-    private Timer? emptySpeechTimer;
+    private ITimer? maximumCaptureTimer;
+    private ITimer? emptySpeechTimer;
+    private readonly TimeProvider time;
+    private bool replyCapture;
+    private Func<bool>? replyAdmission;
     private long generation;
     private bool captureAdmitted;
     private bool acceptingAudio;
@@ -64,12 +67,13 @@ public sealed class WindowsVoiceRecognitionService : IActivatedVoiceRecognitionS
         ILogger<WindowsVoiceRecognitionService> logger,
         IWindowsPrivacyObservationService? privacy,
         IActivatedCaptureFactory factory,
-        VoiceCaptureLimits limits)
+        VoiceCaptureLimits limits, TimeProvider? time = null)
     {
         this.logger = logger;
         this.privacy = privacy;
         this.factory = factory;
         this.limits = limits;
+        this.time = time ?? TimeProvider.System;
         ownsPrivacy = privacy is null;
         if (privacy is not null)
         {
@@ -84,6 +88,7 @@ public sealed class WindowsVoiceRecognitionService : IActivatedVoiceRecognitionS
     public event EventHandler<VoiceCaptureStateChangedEventArgs>? CaptureStateChanged;
 
     public event EventHandler<VoiceRecognitionCompletedEventArgs>? RecognitionCompleted;
+    public event EventHandler<VoiceCaptureStateChangedEventArgs>? ReplySpeechStarted;
 
     public event EventHandler<CapturePrivacyReceiptEventArgs>? CapturePrivacyMeasured;
 
@@ -164,16 +169,28 @@ public sealed class WindowsVoiceRecognitionService : IActivatedVoiceRecognitionS
         CancellationToken cancellationToken = default) =>
         BeginPushToTalkAsync(microphone, phrases, assistantName, cancellationToken);
 
-    public async Task BeginPushToTalkAsync(
+    public Task BeginReplyAsync(MicrophoneDevice microphone, IEnumerable<string> phrases,
+        Func<bool> isAdmitted, CancellationToken cancellationToken) =>
+        BeginCaptureAsync(microphone, phrases, isAdmitted, TimeSpan.FromSeconds(15), cancellationToken);
+
+    public Task BeginPushToTalkAsync(
         MicrophoneDevice microphone,
         IEnumerable<string> phrases,
         string? assistantName = null,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default) =>
+        BeginCaptureAsync(microphone, phrases, null, limits.EmptySpeechDeadline, cancellationToken);
+
+    private async Task BeginCaptureAsync(MicrophoneDevice microphone, IEnumerable<string> phrases,
+        Func<bool>? isAdmitted, TimeSpan speechStartWindow, CancellationToken cancellationToken)
     {
         ObjectDisposedException.ThrowIf(disposed, this);
         ArgumentNullException.ThrowIfNull(microphone);
         ArgumentNullException.ThrowIfNull(phrases);
         cancellationToken.ThrowIfCancellationRequested();
+        if (isAdmitted is not null && !isAdmitted())
+        {
+            throw new InvalidOperationException("The exact native question no longer admits reply capture.");
+        }
         var commandPhrases = phrases.Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
         long requestedGeneration;
         lock (gate)
@@ -194,6 +211,8 @@ public sealed class WindowsVoiceRecognitionService : IActivatedVoiceRecognitionS
             }
 
             requestedGeneration = Interlocked.Increment(ref generation);
+            replyCapture = isAdmitted is not null;
+            replyAdmission = isAdmitted;
             activationGeneration = requestedGeneration;
             transcriptPublicationReady = false;
             pendingTranscript = null;
@@ -240,8 +259,9 @@ public sealed class WindowsVoiceRecognitionService : IActivatedVoiceRecognitionS
                 {
                     var snapshot = observer.Refresh();
                     return CaptureGeneration == requestedGeneration && !openCancellation.IsCancellationRequested &&
-                        snapshot.TopologyRevision == beforeOpen.TopologyRevision && snapshot.CanCaptureFrom(microphone);
-                }), CancellationToken.None);
+                        snapshot.TopologyRevision == beforeOpen.TopologyRevision && snapshot.CanCaptureFrom(microphone)
+                        && (isAdmitted?.Invoke() ?? true);
+                }, speechStartWindow), CancellationToken.None);
             IActivatedCapture opened;
             try
             {
@@ -272,14 +292,18 @@ public sealed class WindowsVoiceRecognitionService : IActivatedVoiceRecognitionS
             {
                 RequireGeneration(requestedGeneration);
                 openCancellation.Token.ThrowIfCancellationRequested();
+                if (isAdmitted is not null && !isAdmitted())
+                {
+                    throw new InvalidOperationException("Question reply admission changed before recording.");
+                }
                 captureAdmitted = true;
                 acceptingAudio = true;
                 recordingStarted = false;
                 transcriptDelivered = false;
-                maximumCaptureTimer = new Timer(_ => EndBoundedCapture(requestedGeneration), null,
+                maximumCaptureTimer = time.CreateTimer(_ => EndBoundedCapture(requestedGeneration), null,
                     limits.MaximumCapture, Timeout.InfiniteTimeSpan);
-                emptySpeechTimer = new Timer(_ => AbandonEmptyCapture(requestedGeneration), null,
-                    limits.EmptySpeechDeadline, Timeout.InfiniteTimeSpan);
+                emptySpeechTimer = time.CreateTimer(_ => AbandonEmptyCapture(requestedGeneration), null,
+                    speechStartWindow, Timeout.InfiniteTimeSpan);
             }
 
             var starting = Task.Run(() =>
@@ -380,6 +404,7 @@ public sealed class WindowsVoiceRecognitionService : IActivatedVoiceRecognitionS
             buffersClearedTimestamp = Stopwatch.GetTimestamp();
             pendingTranscript = null;
             transcriptPublicationReady = false;
+            replyAdmission = null;
             // Initiate native release now; do not wait for UI dispatch or recognition cancellation.
             _ = capture?.ReleaseRecorder();
         }
@@ -611,6 +636,11 @@ public sealed class WindowsVoiceRecognitionService : IActivatedVoiceRecognitionS
         }
 
         var observed = privacy!.Refresh();
+        if (replyAdmission is { } admitted && !admitted())
+        {
+            InvalidateCapture();
+            return;
+        }
         lock (gate)
         {
             if (!captureAdmitted || generation != currentGeneration || !ReferenceEquals(sender, capture))
@@ -664,20 +694,25 @@ public sealed class WindowsVoiceRecognitionService : IActivatedVoiceRecognitionS
 
     private void OnSpeechDetected(object? sender, EventArgs eventArgs, long expected)
     {
+        bool reply;
         lock (gate)
         {
             if (captureAdmitted && generation == expected && ReferenceEquals(sender, capture))
             {
                 emptySpeechTimer?.Dispose();
+                reply = replyCapture;
             }
+            else { return; }
         }
+        if (reply) { Notify(ReplySpeechStarted, new VoiceCaptureStateChangedEventArgs(expected, true)); }
     }
 
     private void OnPrivacyChanged(object? sender, WindowsPrivacyChangedEventArgs eventArgs)
     {
         lock (gate)
         {
-            if (!eventArgs.Current.CanCapture || resultMicrophone is not null &&
+            if (replyCapture && eventArgs.Current != eventArgs.Previous
+                || !eventArgs.Current.CanCapture || resultMicrophone is not null &&
                 !eventArgs.Current.CanCaptureFrom(resultMicrophone))
             {
                 var recorder = capture ?? retiringCapture;

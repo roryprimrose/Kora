@@ -284,13 +284,13 @@ public sealed partial class WindowsSqliteHostInteractionStore
         if (json is null) { throw new InvalidDataException("The retained attachment descriptor is oversized or has an invalid stored type."); }
         var data = HostInteractionCodec.Decode<AttachmentData>(json);
         var owner = ReadCatalogueSession(connection, session, requireLatest: false);
+        data.Reference?.Validate();
         if (data.Request is null || data.Reference is null || data.Reference.Digest is null
             || data.Format != 1 || data.Profile != ReadMemoryProfile(connection) || data.Session != session
             || data.Request.SessionId != session || data.Request.Origin != RequestOrigin.LocalUi || data.Request.InvocationId is not null
             || data.Generation.Value <= 0 || data.ReviewId == Guid.Empty
-            || data.Reference.SourceId == Guid.Empty || data.Reference.RevisionId == Guid.Empty || data.Reference.ItemId == Guid.Empty
-            || !IsHex(data.Reference.Digest, 64) || data.CapturedAt.Offset != TimeSpan.Zero
-            || !Same(data.Projection, SessionFileAttachment.Projection) || data.MediaType is not ("text/plain" or "text/markdown") || revision <= 0
+            || data.CapturedAt.Offset != TimeSpan.Zero
+            || !Same(data.Projection, SessionFileAttachment.Projection) || !LocalFileMediaType.IsCanonical(data.MediaType) || revision <= 0
             || data.Generation.Value > owner.Authority.Generation.Value
             || (bytes is null) != (data.Metadata is null)
             || data.Metadata is null && !Same(bodyType, "null")

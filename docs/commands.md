@@ -5,7 +5,27 @@
 **Tray > Saved conversation drafts (metadata only)** is native-only; it has no typed/voice/model body query. Opening reads nothing. Explicit Refresh/Next/Cancel shows bounded saved composer metadata across retained All/Active/Done sessions, never a body preview or global count.
 Cleared/empty/never-saved and question/parameter drafts are not saved-content results.
 Its **Browse / NameSubstring / ExactId** modes search session metadata only. Name matching is literal, ordinal case-sensitive under the session-name bounds; exact IDs require canonical lowercase D format. ID-shaped names are not targets. Invalid/empty queries never become All.
-Typing performs no read. Query/mode/filter edits cancel pending pages and invalidate the catalogue selection without changing the current composer. Use **Search / refresh metadata**, Next, Cancel, or **Clear query (Browse)** explicitly. A zero-match bounded page may still have Next; there is no global inventory count.
+Optional **Exact saved revision**, **Minimum UTF-8 bytes**, **Maximum UTF-8 bytes**,
+**Minimum Unicode scalars** and **Maximum Unicode scalars**
+compose with every mode and All/Active/Done. Empty fields mean Any; revision must
+be a positive integer; byte bounds are inclusive 0-16384 and Unicode scalar bounds
+are inclusive 0-4096, each with minimum <= maximum. Scalars are validated saved
+metadata, not UTF-16 code units or a new body read.
+Use decimal digits only: signs, whitespace, separators and overflow visibly refuse
+Search/Refresh, without repair or body reads.
+Optional **Minimum/Maximum session generation**, **Minimum/Maximum name metadata
+revision**, **Minimum/Maximum control revision** and **Minimum/Maximum authority
+ceiling** fields add inclusive ranges. Empty means Any; generation/name revision/
+ceiling are positive Int64 and control revision is nonnegative Int64, each with
+minimum <= maximum and the same decimal-only admission. Either name-revision
+bound excludes unnamed rows; unnamed is not revision zero.
+Optional exact observation-source/device-profile GUIDs use complete nonempty
+canonical lowercase D format (or empty Any), without trimming or repair.
+All predicates AND together. Generation, control revision, ceiling and digest
+are observed provenance only, not current authority, permission, body integrity,
+device ownership or navigation authority. Editing any of these fields performs
+no read and retires rows, exact selection and Next; Clear/revocation clears them.
+Typing performs no read. Query/mode/lifecycle/revision/byte/scalar edits cancel pending pages and invalidate the catalogue selection and exact navigation without changing the current composer. Use **Search / refresh metadata**, Next, Cancel, or **Clear query (Browse)** explicitly; Clear also empties the metadata fields without reading. A zero-match bounded page may still have Next; there is no global inventory count.
 
 Select one row and **Open exact session (no body load)**. Changed source/revision/privacy refuses with Refresh. The existing Sessions dirty-buffer Save/Discard/Cancel protection remains; an explicit Save that changes authority requires fresh catalogue observation.
 **Reload saved draft**, Save and Submit are separate Sessions gestures. Done remains Done. See the [canonical scope and limitations](../Design/Interaction_And_Sessions.md#saved-conversation-draft-catalogue--2026-10-13).
@@ -141,6 +161,12 @@ Native **Sessions > Session memories** and exact typed/current-name activated co
 Use canonical nonempty D GUIDs and displayed positive revisions. Classes are `ExplicitFact`, `ResponsePreference`, `WorkflowPreference`, or `Decision`; classification is not secrecy detection. Values are bounded to 512 UTF-16 code units, 1,024 strict UTF-8 bytes and 2,048 serialized candidate bytes. Double a quote inside the final quoted value. No normalization, truncation or eviction occurs.
 
 After creation, list/select the metadata row, **Inspect exact memory**, explicitly accept/reject its exact content/classification, then separately **Admit reviewed revision**. Proposals and reviewed unadmitted bodies remain volatile; no body reaches disk before admission. The 128-identity bound includes durable shells/tombstones and current volatile proposals. Drafts and unadmitted bodies clear on native closure, session/ownership/privacy changes or restart.
+
+After **List selected session memories**, native filters narrow only that frozen exact active-session metadata snapshot: a complete nonempty canonical D memory GUID (case-insensitive, empty for Any), **Scope** (Any, Unknown, Session, DeviceProfile, Project, Source), **Review** (Any, Proposed, Reviewed, Admitted, Rejected) and **Retention** (Any, Pending, Enabled, Disabled, Forgotten). Any is visibly selected initially and after Clear. Filters combine with AND; invalid GUIDs or undefined enum values show no results with Clear recovery guidance. Invalid row metadata invalidates the entire result and requires explicit List refresh. Scope is metadata, not permission or provider authority: non-session kinds and Unknown truthfully match no valid rows in the current session-only inventory. There is no content or classification search: classification is available only through explicit inspection, not list metadata.
+
+**Exact memory scope identity GUID** optionally matches the listed row's scope identity, independently of memory ID. Enter a complete nonempty canonical D GUID (case-insensitive), or leave empty for Any; partial GUIDs, alternate formats and surrounding whitespace are invalid. It combines with every other predicate, including inclusive revision and Created UTC ranges. Scope identity is snapshot metadata, not permission, device/provider ownership, scope authority, content or mutation authority; it cannot navigate to another scope.
+
+Typing, changing or clearing filters does not read storage, inspect content, renew session activity or authorize an action. It retires selection, inspected content, the replacement draft and mutation eligibility, even when the same row remains visible. Select an exact visible result and inspect it again before mutation. **Clear memory filters** returns focus to the memory ID field; Escape in either GUID or any range field clears all filters and keeps field focus. **List** explicitly refreshes the full bounded snapshot, keeps current filters and retires prior selection/inspection/draft. Explicit proposal/mutation outcomes update the local metadata rows under those filters; hidden rows cannot retain selection. Session/private closure discards filters. These controls add no typed-command syntax or automatic recall.
 
 These controls are visual-only; values are not speech, transcript/history, preferences, diagnostics or provider context. There is no model-origin/conversational **Remember this** trigger, automatic review/admit/use/recall, context attachment, hosted transmission or broader memory scope. Stale/foreign/missing original intent and changed admission refuse; inspect durable state after a receipt failure rather than assuming rollback or retrying automatically.
 
@@ -763,6 +789,13 @@ file previews/shared skills or reconstruct captions. See the
 The separate native [selected-conversation search](windows-and-tray.md#search-one-exact-retained-conversation) searches actual retained USER bodies and typed HOST outcomes in the selected exact session. This older `session search` command remains Question/Answer/task receipt `HistorySearch`; it is not implicitly remapped to body search. Conversation query content stays native and adds no typed/voice/model descriptor or transcript entry.
 
 Search uses the [shared lexical query rules](../src/Kora.Core/Context/LocalFileRetrievalPolicy.cs): 1-256 UTF-16 characters, at most 512 strict UTF-8 bytes, 1-32 distinct words of at most 64 characters, NFC/invariant case and literal whole-word OR matching. Punctuation separates words, not operators, wildcards or regular expressions. Quotes inside the final quoted query are doubled.
+
+The native receipt-history controls additionally offer exact kind, task state,
+decision, question status and answer-channel choices, each with explicit Any.
+They AND-compose with the lexical query and bind the continuation digest; changed
+choices require fresh Search. This does not add typed/voice predicate syntax.
+See [native receipt search](windows-and-tray.md#bounded-passive-interaction-history)
+for no-read editing, Clear recovery and passive-only authority boundaries.
 
 The [bounded scan](../src/Kora.Application/Hosting/SessionWorkspaceService.Search.cs) reads only actual retained question/option labels, final answer/choices and typed kind/task-state/decision/question-status fields. Results stay in ascending session-local sequence, not relevance order. Each call scans at most 200 receipts and returns the requested 1-50 complete receipts within 64 KiB, including JSON overhead. A query-bound SHA-256 continuation preserves the original session/generation/ceiling; equivalent normalized term sets may continue, changed terms require a fresh search.
 

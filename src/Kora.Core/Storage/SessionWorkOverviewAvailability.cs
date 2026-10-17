@@ -1,6 +1,6 @@
 namespace Kora.Core.Storage;
 
-/// <summary>Explicit observation availability; unavailable rows are not empty work or filter nonmatches.</summary>
+/// <summary>Explicit observation availability; unavailable rows are never empty work.</summary>
 public enum SessionWorkOverviewAvailability
 {
     /// <summary>The exact session's independent work snapshot was observed.</summary>

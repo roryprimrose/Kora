@@ -24,7 +24,16 @@ internal sealed class EvidenceWindowController(
         }
         if (window is null)
         {
-            var opened = new EvidenceWindow(new(query, () => !disposed && access.CanInspect, logger));
+            EvidenceWindow opened;
+            var model = new EvidenceViewModel(query, () => !disposed && access.CanInspect, logger);
+            try { opened = new(model, main); }
+            catch (InvalidOperationException)
+            {
+                model.Close();
+                main.ReportHostInteractionFailure(
+                    "Evidence reader unavailable: reader text scale is unconfirmed or preference evidence changed. Inspect saved preference evidence before explicit repair.");
+                return;
+            }
             opened.Closed += (_, _) => { if (ReferenceEquals(window, opened)) { window = null; } };
             window = opened;
             opened.Show();

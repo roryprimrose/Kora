@@ -2,6 +2,8 @@ using AwesomeAssertions;
 
 using Kora.Application.Diagnostics;
 using Kora.Application.Hosting;
+using Kora.Core.Hosting;
+using Kora.Core.Interaction;
 using Kora.Core.Storage;
 using Kora.Windows.IntegrationTests.Storage;
 using Kora.Windows.Storage;
@@ -18,6 +20,21 @@ public sealed partial class SessionsViewModelTests
     [InlineData("cancel")]
     [InlineData("close")]
     [InlineData("privacy")]
+    [InlineData("kind")]
+    [InlineData("state")]
+    [InlineData("decision")]
+    [InlineData("question")]
+    [InlineData("channel")]
+    [InlineData("source")]
+    [InlineData("clear")]
+    [InlineData("minimum-sequence")]
+    [InlineData("maximum-sequence")]
+    [InlineData("minimum-generation")]
+    [InlineData("maximum-generation")]
+    [InlineData("minimum-source")]
+    [InlineData("maximum-source")]
+    [InlineData("minimum-audit")]
+    [InlineData("maximum-audit")]
     public async Task Native_search_suppresses_cancelled_or_late_content_and_has_explicit_recovery(string mode)
     {
         using var f = new InteractionStorageFixture();
@@ -32,6 +49,17 @@ public sealed partial class SessionsViewModelTests
             access, NullLogger<SessionsViewModel>.Instance);
         model.HistorySessionId = f.Request.SessionId.Value.ToString("D");
         model.HistoryQuery = "needle";
+        model.HistoryKindChoice = new(SessionHistoryKind.Question);
+        model.HistoryMinimumSequence = "1";
+        model.HistoryMinimumSequence = "1";
+        model.HistoryMaximumSequence = "9";
+        model.HistoryMinimumGeneration = "1";
+        model.HistoryMaximumGeneration = "9";
+        model.HistoryMinimumSourceRevision = "0";
+        model.HistoryMaximumSourceRevision = "9";
+        model.HistoryMinimumAuditSequence = "";
+        model.HistoryMaximumAuditSequence = "";
+        held.HistoryReads.Should().Be(0);
         var search = model.SearchHistoryAsync();
         model.CanCancelHistorySearch.Should().BeTrue();
         model.CanSearchHistory.Should().BeFalse();
@@ -40,6 +68,22 @@ public sealed partial class SessionsViewModelTests
         if (mode is "cancel") { model.CancelHistorySearch(); }
         if (mode is "close") { model.Close(); }
         if (mode is "privacy") { access.CanInspect = false; }
+        if (mode is "kind") { model.HistoryKindChoice = new(SessionHistoryKind.Answer); }
+        if (mode is "state") { model.HistoryTaskStateChoice = new(HostTaskState.Succeeded); }
+        if (mode is "decision") { model.HistoryDecisionChoice = new(HostInteractionOutcome.Answered); }
+        if (mode is "question") { model.HistoryQuestionStatusChoice = new(QuestionStatus.Answered); }
+        if (mode is "channel") { model.HistoryAnswerChannelChoice = new(RequestOrigin.LocalUi); }
+        if (mode is "source") { access.ControlRevision++; }
+        if (mode is "clear") { model.ClearHistorySearchInputs(); }
+        if (mode is "minimum-sequence") { model.HistoryMinimumSequence = "2"; }
+        if (mode is "maximum-sequence") { model.HistoryMaximumSequence = "1"; }
+        if (mode is "minimum-generation") { model.HistoryMinimumGeneration = "2"; }
+        if (mode is "maximum-generation") { model.HistoryMaximumGeneration = "1"; }
+        if (mode is "minimum-source") { model.HistoryMinimumSourceRevision = "1"; }
+        if (mode is "maximum-source") { model.HistoryMaximumSourceRevision = "0"; }
+        if (mode is "minimum-audit") { model.HistoryMinimumAuditSequence = "1"; }
+        if (mode is "maximum-audit") { model.HistoryMaximumAuditSequence = "1"; }
+        held.HistoryReads.Should().Be(1, "edits, clear and cancellation must not read storage");
         var record = new SessionHistoryEvent(Guid.NewGuid(), f.Request.SessionId, 1, new(1),
             SessionHistoryKind.Question, SessionHistoryAvailability.Available, null, null, null, 1,
             new('a', 64), null, false, "needle", [], null, [], null, null, null, null);
@@ -51,5 +95,18 @@ public sealed partial class SessionsViewModelTests
         model.SelectedHistoryRecord.Should().BeNull();
         held.ControlCalls.Should().Be(0);
         model.Close();
+        model.HistoryKindChoice.Value.Should().BeNull();
+        model.HistoryTaskStateChoice.Value.Should().BeNull();
+        model.HistoryDecisionChoice.Value.Should().BeNull();
+        model.HistoryQuestionStatusChoice.Value.Should().BeNull();
+        model.HistoryAnswerChannelChoice.Value.Should().BeNull();
+        model.HistoryMinimumSequence.Should().BeEmpty();
+        model.HistoryMaximumSequence.Should().BeEmpty();
+        model.HistoryMinimumGeneration.Should().BeEmpty();
+        model.HistoryMaximumGeneration.Should().BeEmpty();
+        model.HistoryMinimumSourceRevision.Should().BeEmpty();
+        model.HistoryMaximumSourceRevision.Should().BeEmpty();
+        model.HistoryMinimumAuditSequence.Should().BeEmpty();
+        model.HistoryMaximumAuditSequence.Should().BeEmpty();
     }
 }

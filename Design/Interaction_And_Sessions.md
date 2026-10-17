@@ -21,20 +21,82 @@ Windows login sessions, voice capture generations, provider/SDK conversations, a
 **Sessions > Exact-session conversation and composer > Search this conversation** reads original retained USER bodies and separate typed HOST outcome/reason/task-state fields in only the explicitly selected session. Active and retained Done are readable without Resume.
 This is not the older Question/Answer receipt `HistorySearch`, model history reasoning, global body search, an FTS index or retrieval upload.
 
+The optional exact **All / USER / HOST** field filter defaults to All. All searches the
+union of immutable original USER body and typed HOST outcome, reason and expected
+task-state strings; USER searches only the original body; HOST searches only those
+typed fields, never assistant prose or status-looking words in the USER body.
+The filter composes with the same literal query, selects matches rather than
+stored rows or page admission, and never rewrites a message's role. Every consumed
+chronological source row is validated before matching or exclusion. Zero matches
+are an exhausted observation when Next is absent, not unavailable content;
+undefined role values fail explicitly without reading.
+
+Optional exact typed **ModelTurnOutcome**, **ModelTurnReason** and expected
+**HostTaskState** selectors each include **Any**. The portable
+[terminal filter](../src/Kora.Core/Conversation/ConversationTerminalFilter.cs)
+owns validation and matching once. All selected predicates AND together and
+with the lexical query/role; only terminal HOST metadata can satisfy them.
+Nonterminal USER rows retain null outcome/reason, and status-looking USER text
+cannot supply metadata. USER-only plus any terminal predicate is valid and
+truthfully exhausts with zero, without changing role or clearing predicates.
+Every defined enum value is selectable, including combinations with no possible
+retained terminal; undefined values explicitly fail before reading. All scanned
+rows are fully validated before exclusion, even for valid zero-match criteria.
+
+Optional inclusive **Minimum message sequence**, **Maximum message sequence**,
+**Submitted from UTC** and **Submitted through UTC** predicates AND with the
+lexical query, role and every terminal predicate. The portable
+[range filter](../src/Kora.Core/Conversation/ConversationRangeFilter.cs) owns
+parsing, validation and matching. Empty means Any. Sequences use strict invariant
+unsigned decimal input, bounded by 1 through `ConversationText.MaximumSessionMessages`
+(100); submitted times use exact round-trip `yyyy-MM-ddTHH:mm:ss.fffffff+00:00`,
+without trimming, offset conversion, `Z`, relative dates or timestamp repair.
+Each minimum must be <= its maximum; equal endpoints include the original
+message. Time bounds use the full representable UTC `DateTimeOffset` domain,
+not the current wall clock or a derived session timestamp. Sequence bounds
+beyond a snapshot's ceiling validly yield zero, not a wider or different read.
+Every consumed message is validated before range exclusion, including its body,
+original session/generation/sequence and typed HOST status.
+All four bounds join role/terminal predicates and normalized lexical terms in
+the semantic query digest and explicit page/cursor identity. Changing any bound
+refuses continuation before reading. Metadata is passive: it cannot establish
+chronology authority, permission, ownership, model output or session read access.
+
+Optional **Exact request ID** and **Exact task ID** predicates AND with each
+other, lexical, USER/HOST, terminal and sequence/submitted-time predicates.
+The portable [correlation filter](../src/Kora.Core/Conversation/ConversationCorrelationFilter.cs)
+admits only complete canonical lowercase nonempty D-format GUIDs; empty
+means Any. No trimming, uppercase conversion, braces, partial ID or empty-GUID
+repair is performed. Invalid input fails explicitly before body reads. Each
+predicate joins the semantic digest and explicit page/cursor identity;
+changing either refuses continuation before reading. Every consumed message
+and its original request/session/task IDs are validated before exclusion,
+including nonmatching rows. The session is already host-resolved: these IDs
+are passive correlation metadata only, cannot retarget a session or task, and
+cannot establish identity, intent, ownership, permission, approval or execution
+authority. Original USER body bytes and separate typed HOST status are unchanged.
+
 The [conversation matcher](../src/Kora.Core/Conversation/ConversationSearch.cs) reuses `SessionHistorySearch` and the authoritative `LocalFileRetrievalPolicy` tokenizer: 1–256 UTF-16 characters / 512 strict UTF-8 bytes, 1–32 distinct lexical terms of at most 64 characters, NFC/invariant whole-word OR.
 Punctuation is a separator, not regex, wildcard or instruction syntax. Blank/malformed/unsupported queries fail explicitly, never inventory all bodies.
 
 The [passive workflow](../src/Kora.Application/Hosting/SessionWorkspaceService.ConversationSearch.cs) delegates to existing admitted conversation pages; no SQL, schema, body representation or persisted query is added.
 Each call scans at most the existing 100-message session bound, returns default 25 / maximum 50 complete messages and caps the complete serialized result, counters and continuation at 64 KiB. Bodies, original request/task IDs, source generation and chronological sequence stay unchanged.
 
-Continuations bind the normalized query digest and original session/generation/sequence ceiling/head revision. Nonmatches advance; a byte-deferred match remains for Next. `Scanned` counts consumed records.
+Continuations and pages bind the exact role and every terminal predicate, normalized query digest and original session/generation/sequence ceiling/head revision under existing private/retention admission. Nonmatches advance; a byte-deferred match remains for Next. `Scanned` counts consumed records.
 `OmittedMessages` and `UnavailableMessages` are zero because valid complete bodies fit and inaccessible/invalid sources fail the entire read rather than becoming success-shaped omissions. Exhausted snapshots are freshly revalidated through the provider under the same private admission/retention epoch before publication.
 
-Later append cannot expand a continuation's ceiling; terminal updates invalidate its original head revision and require fresh Search. Lifecycle, removal, retention/private/owner changes, query edits and Cancel/Clear revoke results and late callbacks.
+Later append cannot expand a continuation's ceiling; terminal updates invalidate its original head revision and require fresh Search. Lifecycle, removal, retention/private/owner changes, query or any role/terminal-filter edits and Cancel/Clear revoke results, selected match/navigation, continuation and late callbacks. Editing performs no read; explicit Search is required. Clear resets the role to All and terminal predicates to Any.
+Range edits have the same cancellation, selected-detail retirement and stale
+callback fences. Clear, source/private revocation and last-owner close also
+empty all four range fields without touching composer or saved drafts.
 Search does not alter composer body/baseline, dirty-draft decisions, held submissions, saved drafts, question/voice focus, meaningful activity, cleanup, Keep, provider preferences or task/approval authority.
 
 Only admitted original messages appear as inert native USER/HOST rows, with no generated summary, semantic ranking, rich actions, copy/export, clipboard/speech, network/model calls or hidden context assembly.
 Raw logs, attachments, memories, templates, accounts and credential-rejected bodies are not search sources. Query/body/excerpt/name/path never enter diagnostic messages, audit or activity tags. Installed accessibility, hardware, inference and physical-storage/STOP qualification remain gated.
+Query and filter values are volatile only: no persistence, logging, activity tags,
+audit payload, model context, speech, clipboard/export or activity renewal.
+Typed HOST chrome and original bodies remain unchanged; no generated output,
+receipt-history search, schema/index/cache or provider/runtime authority is added.
 
 ## Delivered exact-session conversation/composer foundation — 2026-10-12
 
@@ -45,13 +107,53 @@ All (default), Active and Done filters show exact immutable session ID, current 
 
 Browse remains the default. **NameSubstring** and **ExactId** reuse the authoritative [session metadata policy](../src/Kora.Core/Storage/SessionListSearch.cs): ordinal case-sensitive literal name matching, NFC/no-control/format/no-surrounding-whitespace, 120 scalars / 480 UTF-8 bytes; or a separate nonempty canonical lowercase D-format ID.
 An ID-shaped name is only a name. Unnamed sessions cannot match names but can match exact IDs. Invalid/empty queries never trim, normalize or fall back to Browse; **Clear query (Browse)** resets explicitly without reading.
-Typing, query mode and lifecycle filter edits immediately invalidate the catalogue page/cursor/selection and cancel pending callbacks without I/O or changing the current Sessions target/composer. **Search / refresh metadata** explicitly observes the new query; no first match is automatically selected.
+Optional **Exact saved revision**, **Minimum UTF-8 bytes**, **Maximum UTF-8 bytes**,
+**Minimum Unicode scalars** and **Maximum Unicode scalars**
+compose with Browse/name/exact-ID and All/Active/Done. The portable
+[metadata filter](../src/Kora.Core/Storage/SavedDraftMetadataFilter.cs) owns parsing,
+validation and matching: empty means Any, revision is a positive Int64, and
+inclusive byte bounds are 0 through `ConversationText.MaximumUtf8Bytes` (16384),
+with minimum <= maximum. Inclusive Unicode scalar bounds are 0 through
+`ConversationText.MaximumUtf16Characters` (4096), also with minimum <= maximum.
+Scalar matching uses only already exposed validated `SavedDraftSummary.UnicodeScalars`,
+never body reads, inference or code-unit filtering. Nonempty input accepts only invariant decimal digits;
+no signs, whitespace repair, separators, truncation or clamping. Invalid fields
+visibly refuse Search/Refresh. Zero byte or scalar bounds can truthfully match no nonempty draft.
+Optional **Exact observation source GUID** and **Exact device profile GUID** compose
+with every existing predicate using AND. Empty fields mean Any; nonempty fields
+must be complete nonempty canonical lowercase `D` GUIDs. Braces, uppercase,
+whitespace, trimming, partial matches, repair and reinterpretation are refused.
+The portable metadata filter owns this parsing once and reuses host identity
+validation for the typed profile. Source matches `SavedDraftSummary.Source`;
+profile matches `SavedDraftSummary.Profile.Value`, both exact. These IDs are
+metadata/correlation only, never device ownership, identity or authority.
+Optional inclusive **Minimum/Maximum session generation**,
+**Minimum/Maximum name metadata revision**, **Minimum/Maximum control revision**
+and **Minimum/Maximum authority ceiling** ranges AND with all these predicates.
+Empty means Any. The shared strict decimal admission accepts positive Int64
+generation, name revision and ceiling, and nonnegative Int64 control revision;
+each supplied minimum must be <= its supplied maximum. Leading decimal zeros
+retain their existing semantic value; no signs, whitespace, separators, overflow,
+clamping or repair are accepted. Either name-revision bound requires validated
+name metadata: unnamed rows never become revision-zero or unknown matches.
+Every `SavedDraftSummary` is validated before matching, including nonmatches.
+Session generation, control revision, ceiling and digest are observed provenance
+only, never current authority, permission, body integrity, device ownership or
+navigation authority. Exact selection still requires independent current admission.
+The filter digest binds all numeric and GUID predicates; the signed cursor binds
+the complete filter alongside every existing query/source/private/control/head
+and authority fence. Nonmatching source/profile criteria do not bypass validation
+of any scanned saved-draft summary, metadata name or authority prefix.
+Metadata predicates apply only after existing source/authority-prefix and candidate
+metadata validation; irrelevant authority commits are still validated before disclosure.
+No body decoding or inference is added.
+Typing, query mode, lifecycle and revision/byte/scalar/source/profile/provenance-range filter edits immediately invalidate the catalogue page/cursor/selection/exact navigation and cancel pending callbacks without I/O or changing the current Sessions target/composer. **Search / refresh metadata** explicitly observes the new query; no first match is automatically selected. Clear and private/source/close revocation also clear the volatile metadata fields.
 Exact ID seeks the existing draft-row primary key after the same mandatory private source/authority validation. Missing/cleared/unretained/Removed/nonmatching targets end without falling back to a list; unavailable or broken authority remains a recovery failure, not a healthy empty inventory.
 
 Each click consumes at most 50 candidate draft slots and returns at most 25 complete rows / 64 KiB. Cleared/null/empty slots consume scan positions but are not saved-content results; never-saved sessions and question/parameter drafts are not sources.
 Empty pages can have Next. End is an observation, not a global count or immutable inventory. Canonical-UUID keyset pages are mutable; changes behind the cursor require Refresh.
 
-Private signed continuation binds the store/profile/current run, native viewer, private control revision, query kind/digest (or Browse), state filter and last consumed exact ID. Complete typed audit-chain validation precedes disclosure in bounded existing 4096-commit segments; pending pages contain no draft rows.
+Private signed continuation binds the store/profile/current run, native viewer, private control revision, query kind/digest (or Browse), exact saved revision/byte/scalar bounds, state filter and last consumed exact ID. Complete typed audit-chain validation precedes disclosure in bounded existing 4096-commit segments; pending pages contain no draft rows.
 Any committed authority change invalidates continuation. Existing consolidated whole-store SQL provenance/retention checks remain costs, not per-click body decoding or a performance qualification.
 
 Metadata observes saved revision, body presence/length and current lifecycle; it does **not** verify body integrity or admit Reload/Submit. Exact navigation re-resolves the original metadata, generation, saved revision/presence and private source authority.
@@ -212,6 +314,46 @@ Native full-source inspection and the same lexical-lines citations remain availa
 
 Exact reviewed attachment removal revokes native view/search before atomic body/path-metadata removal and owned-journal verification. Session disposition and ordinary deletion inventory the same copies; live/Unknown work and uninventoried copies hold completion. Content-free provenance remains, original user files and unrelated/kept sessions/Perpetual grants do not change. No body is added to history, memory, preferences, models, logs or audit text.
 
+The separate [retained metadata catalogue](File_And_Folder_Ingestion.md#delivered-retained-attachment-metadata-catalogue---2026-10-11)
+also composes optional exact copy status and inclusive retained-byte bounds with
+ID/lifecycle/removal/type/literal predicates. Unavailable provenance has no
+original-size claim and never matches byte bounds. These volatile filters grant
+no session authority, source access or activity renewal; editing reads nothing
+and retires the original observation/navigation.
+
+An optional exact canonical SHA-256 predicate composes with the same catalogue
+filters but matches only Confirmed retained-copy metadata, never Held or removed
+slots. Unavailable provenance has no displayed/serialized historical digest.
+The volatile query is fingerprint-bound to signed continuations, not serialized
+as text; it grants no body integrity, session authority or new source access.
+
+Optional exact observation-source and device-profile GUIDs plus inclusive
+canonical UTC Captured bounds compose with those predicates only for Confirmed
+retained copies. Unavailable/Removed tombstones never match or disclose their
+prior source/profile/time in catalogue projections. These volatile, signed-
+continuation-bound values are correlation only, never consent, profile
+ownership, session/file-read authority or current availability. The linked
+catalogue contract owns canonical parsing and bounded validation.
+
+Optional inclusive session-generation, captured-generation and storage-revision
+ranges also AND-compose with every retained attachment predicate. Positive
+`HostRevision` bounds require minimum <= maximum and match only Confirmed
+retained copies. Unavailable/Removed projections suppress former versions;
+these are correlation/version metadata, not source consent, session authority,
+currentness, file-read authority or proof a copy still exists. No session-list,
+saved draft or Evidence behavior changes. The linked catalogue contract owns
+strict parsing, full candidate validation and complete continuation identity.
+
+Optional exact local-file source/revision/item IDs also AND-compose with every
+retained attachment predicate. Nonempty canonical lowercase D GUIDs match only
+Confirmed retained copies, never Held or unavailable/removed tombstones, even
+when former IDs agree. They are retained correlation metadata only, not source
+consent, current file identity, path disclosure, body integrity, file-read
+authority or proof a copy exists. Complete validation, private continuation
+binding, no-read edits and selection/detail retirement remain unchanged.
+Clear query, revocation/cancellation and close erase these volatile fields.
+The linked catalogue contract owns admission and deterministic evidence.
+
 ## Current Implementation and Design Gap
 
 The [optional native enqueue prerequisite](Work_Management.md#delivered-optional-native-enqueue-prerequisite---2026-10-12) adds same-session bounded metadata-only choice to all six fixed profiles. It combines nonqueue tasks with already-observed queued pending/running/recent terminal tasks using actual host task metadata from the same atomic work read, never queue-entry revisions or history scans. None is the initial default; exact selected ID/revision flows through the original command/service/store with final stale-source refusal.
@@ -241,6 +383,25 @@ question, execution or grant authority. Pending original questions remain
 separately bound; passive delivery/status never resumes, dispatches, retargets
 voice or updates meaningful activity. Session retirement removes owned broker
 receipts before deletion; restart reconstructs no source or effects from them.
+
+Native [loaded-event category/reason/source/type filters](Proactive_Interaction.md#native-content-free-loaded-event-filters)
+compose only over these bounded content-free rows. Editing or clearing a
+filter revokes exact event selection and review detail immediately; Review/
+Dismiss/Defer remain disabled until separate selection of a visible current
+event. Refresh and source/private/session/workspace changes retire selection,
+with no late-callback restoration or silent retarget. Matching/empty results
+are separate from authoritative source omissions and routine quiet status.
+All four exact enum predicates compose with AND; impossible source/type
+combinations show zero without changing the choices.
+The same contract now AND-composes explicit Any/Absent/exact retained queue
+profile and optional exact catalogue capability target with origin, queue
+reason, exact correlation IDs and revision/generation/lifetime ranges.
+Complete event/profile/target validation precedes exclusion; absence is never
+inferred from omitted output. Every predicate joins the versioned continuation
+digest and existing edit epochs. These are historical presentation metadata,
+not session selection, queue admission, readiness, ownership, permission or
+capability dispatch.
+No additional source read, persistence, activity renewal or authority is added.
 
 The [R13 four fixed-read profiles](Work_Management.md#delivered-fixed-first-page-read-profiles---2026-10-12)
 addresses existing immutable session IDs directly. Pending capacity, FIFO,
@@ -457,18 +618,46 @@ claimed replaced by this increment.
 
 ### Delivered Passive Session-List Name and Exact-ID Search - 2026-10-10
 
-The [metadata-only policy](../src/Kora.Core/Storage/SessionListSearch.cs) and [Application read path](../src/Kora.Application/Hosting/SessionWorkspaceService.ListSearch.cs) navigate names or an explicitly selected exact immutable ID.
+The [metadata-only policy](../src/Kora.Core/Storage/SessionListSearch.cs) and [Application read path](../src/Kora.Application/Hosting/SessionWorkspaceService.ListSearch.cs) support explicit bounded Browse, names or an explicitly selected exact immutable ID.
 The separate [saved composer catalogue](#saved-conversation-draft-catalogue--2026-10-13) reuses this policy on authoritative saved-draft session metadata, not body content; it retains its stricter committed-head continuation invalidation and mandatory audit-prefix validation.
+The [All work overview](Work_Management.md#delivered-passive-cross-session-work-observation---2026-10-11) also reuses this exact policy, composing lifecycle and needs-answer filters over its own ten-session bounded canonical-ID scan. Both query modes scan rather than directly resolving an ID there; zero-match pages can have Next. Its volatile digest-bound continuation additionally binds needs-answer, availability, positive observed content, all optional inclusive work-metadata range endpoints and the overview source epoch. Work ranges apply only to complete validated Observed metadata, never unavailable or output-bound projections. Query editing never reads, and clear/close revoke private query/results without adding content/model or execution authority.
 They reuse the persisted private metadata reader, authoritative name/audit validation and unchanged admission revision, without task intent, activity renewal, grants, model calls, memory use or new storage/index authority.
 
-Names use literal ordinal case-sensitive substring matching, including punctuation as ordinary characters. Queries reuse SessionName's NFC, single-line, no-control/format, no-surrounding-whitespace, 120-scalar/480-UTF-8-byte validation. Invalid text is rejected, never normalized, trimmed, truncated or reinterpreted as All.
+Browse requires exactly empty query text and uses the same canonical-ID ordered bounded source scan, not an unbounded inventory or implicit selection. Nonempty Browse text is rejected, not ignored or reinterpreted. NameSubstring still requires nonempty validated text; an empty name query never becomes Browse.
+NameSubstring uses literal ordinal case-sensitive substring matching, including punctuation as ordinary characters. The fourth native mode, ExactName, instead requires ordinal case-sensitive equality with the entire validated retained name. Both reuse SessionName's NFC, single-line, no-control/format, no-surrounding-whitespace, 120-scalar/480-UTF-8-byte validation. Invalid text is rejected, never normalized, trimmed, truncated or reinterpreted as All. ExactName is a bounded scan, not a unique-name lookup: duplicate names can return distinct immutable session IDs, and even a GUID-shaped name remains name text.
 ExactId accepts only a nonempty canonical lowercase D GUID; a name that resembles an ID never supplies authority.
 
 Name scans consume at most 50 metadata rows per click, with the existing bounded reader lookahead and five-second lease/SQLite progress and lock boundaries. Native results are limited to 25 records; the reusable workflow accepts 1–50 and caps the complete serialized page at 64 KiB.
 A byte/result limit preserves continuation before any deferred match. Scanned, unnamed and nonmatch counts and remaining/end scope distinguish an empty bounded result from exhaustion.
 
-All/Active/Done scopes search across pages. Unnamed metadata never matches a name but remains available by exact ID; Removed sessions never browse. Canonical-ID ordering is deterministic and culture-independent.
-Continuations bind the exact query/mode/filter, process-local service/store identity and private admission revision. They cannot silently restart on a changed query, filter, host/source or admission.
+All/Active/Done scopes search across pages. Native session-list search additionally
+AND-composes explicit name-metadata availability **Any / Named / Unnamed** and
+optional inclusive authority-generation and name-metadata-revision
+minimum/maximum predicates. Availability describes only whether validated name
+metadata was observed: Unnamed is not an empty name, missing authority, revision
+zero or evidence of historical deletion. Named requires metadata; Any adds no
+availability restriction. NameSubstring and ExactName naturally match only Named, so
+either name mode + Unnamed is an empty conjunction, not a query-shape fallback.
+The portable query owns positive `Int64` admission
+and minimum <= maximum ordering. Native text uses invariant ASCII decimal digits
+only: empty means an absent bound, leading zeroes are admitted semantically,
+and zero, signs, whitespace, separators and overflow fail closed without searching.
+Every complete candidate is validated before predicates can exclude it, including
+rows beyond the result limit in the bounded source page.
+Generation applies to named and unnamed rows. Either name-revision bound requires
+validated name metadata; unnamed is never revision zero or an unknown match.
+Unnamed metadata never matches a name but remains available by Browse or exact ID without
+name-revision predicates; Removed sessions never browse. Exact lookup still
+rejects a different returned session before applying any predicate.
+Canonical-ID ordering is deterministic and culture-independent.
+Continuations bind the exact query/mode/lifecycle/name availability and all four semantic numeric
+bounds, process-local service/store identity and private admission revision.
+They cannot silently restart on changed predicates, host/source or admission.
+
+Names, name availability, generations and name revisions in this search are volatile passive
+metadata only: not session selection, ownership, permission, freshness,
+historical completeness or action authority. Selection and actions still require the host-resolved immutable SessionId and fresh authority; an exact name never supplies ownership, approval, routing or mutation authority. The ExactName, Browse, availability and numeric native controls do not
+extend the separate All Work or saved-draft catalogue interfaces.
 
 Mutable metadata has no committed historical sequence ceiling. Later renames/state/removal are observed only in subsequently read rows; earlier changes and additions behind the cursor require Search again. Later appended IDs can appear, and end describes only that observation. No finite atomic snapshot is fabricated.
 Exact missing/Removed IDs and unavailable/corrupt/ownership-denied/cancelled reads are explicit recovery states, never empty-success unfiltered inventories.
@@ -482,6 +671,45 @@ Invalidated/changed selections clear their targets. Query/selection/source/priva
 This delivers only passive session-list metadata navigation, not conversation/composer, history lexical expansion, diagnostic Evidence filters, name-based model/voice routing, caption-monitor selection, providers or installed-native R14/A4 acceptance.
 
 ### Delivered Passive Exact-Session Lexical History Search - 2026-10-09
+
+The [inclusive receipt provenance policy](../src/Kora.Core/Storage/SessionHistoryRangeFilter.cs) adds optional lower/upper `Sequence`, `Generation`, `SourceRevision` and `AuditSequence` bounds AND-composed with every typed predicate and the existing lexical OR query.
+Sequence, generation and present audit sequence are positive; source revision may be zero, using the [receipt domain constraints](../src/Kora.Core/Storage/SessionHistoryEvent.cs). No timestamp is invented: the retained receipt has none.
+Only empty input means Any. The shared [unsigned decimal parser](../src/Kora.Core/Storage/OptionalUnsignedDecimal.cs) rejects whitespace, signs, separators and overflow; inverted or domain-invalid bounds fail explicitly. Missing audit sequence never satisfies a constrained audit range.
+Every active bound joins a versioned complete [semantic query digest](../src/Kora.Core/Storage/SessionHistorySearch.cs); default ranges preserve both shared lexical and existing typed-only identities.
+The [scan](../src/Kora.Application/Hosting/SessionWorkspaceService.Search.cs) still validates the entire candidate page before exclusion, including beyond the result limit, and re-resolves the final snapshot with unchanged scan, result and serialized-page ceilings.
+The [native range fields](../src/Kora/SessionsWindow.axaml) have visible inclusive minimum/maximum labels and explicit accessible names. Edits perform no reads and retire selected receipts, detail/actions, rows and continuation; Clear or Escape in any history query/range field restores all bounds and typed choices to Any.
+[Stale-result tests](../tests/Kora.Windows.IntegrationTests/SessionsViewModelTests.Search.cs) retain cancellation, exact-subject and privacy/source revision fences. Typed/voice grammar, conversation search and current authority remain unchanged.
+
+The bounded receipt-metadata increment (2026-10-16, from main
+`72fcebc7e44fb043a6a9c9d4cb89ee693eea2d8e`) adds optional exact
+`SessionHistoryKind`, `HostTaskState`, `HostInteractionOutcome` decision,
+`QuestionStatus` and `RequestOrigin` answer-channel predicates through the
+[portable policy](../src/Kora.Core/Storage/SessionHistoryMetadataFilter.cs),
+Application read path and native Sessions controls. Every specified predicate
+is AND-composed with the existing lexical OR query; absent means **Any**.
+A missing nullable field cannot satisfy an exact predicate. Undefined enum
+values are rejected, never coerced to Any. Contradictory combinations yield
+zero matches, not a broader query. Gap/redacted/unavailable receipts never match.
+Complete ordered exact-session pages, including nonmatches and tails beyond
+the result limit, are validated before filtering; source provenance remains
+validated by the admitted private reader. Baseline/gap/omission counters
+describe consumed receipts, not only matching receipts.
+
+Canonical typed values join the versioned query/cursor digest. Default Any
+queries retain their existing lexical identity; shared `LocalFileRetrievalPolicy`
+and `SessionHistorySearch.MatchesText` semantics and conversation search are
+unchanged. Native predicate edits are volatile, perform no reads, cancel old
+searches and retire rows, details and continuation. Clear/Escape restore Any.
+Exact subject, selection, source/private admission revision, closure and
+end-of-scan re-resolution fences still apply. Typed/activated text syntax is
+unchanged; these new choices are native controls and typed host API metadata,
+not model/voice-derived targeting.
+
+Historical states, decisions and answer channels are passive citations only.
+They cannot select a session/question/task, establish identity or authority,
+replay work, answer a question, approve or mutate anything. No schema/index,
+new capture, egress, runtime/provider call or enabled capability profile is
+added. Broader history and installed accessibility/E/Q remain unqualified.
 
 The [Application scan](../src/Kora.Application/Hosting/SessionWorkspaceService.Search.cs) consumes the delivered private ordered history reader, without a new schema, index, content capture or authority write. The [Core matcher](../src/Kora.Core/Storage/SessionHistorySearch.cs) reuses the selected-file lexical query/token rules: NFC invariant-case whole-word OR, 256 characters/512 UTF-8 bytes, 32 distinct terms/64 characters per term. Only committed question/option labels, final answer/choices and typed kind/task/decision/question-status metadata are searchable; bootstrap bodies, reasoning, full conversations/artifacts and volatile previews remain unavailable.
 
@@ -877,6 +1105,41 @@ Kora neither bypasses these requirements nor dictates credentials into a model.
 
 ## Conversational Voice Turns
 
+### Delivered bounded native-question increment
+
+The current implementation provides **Answer by voice** for the authoritative
+host's exact live foreground native question, plus the deliberately selected
+**Hear question, then answer by voice** action. The latter opens one reply only
+after successful playback of that same question. It is not a global automatic
+conversation mode or a Settings preference. Existing consent, listening hold,
+unlocked interactive Windows session, ownership/private-control revision,
+exact device/readiness, local recognizer and call-policy gates remain required;
+unknown state denies capture.
+
+One application-wide turn binds the original question key/revision,
+session/generation and unique visible presenter. Its accessible countdown allows
+15 seconds to start speech without extending on silence. The existing local
+single-utterance recognizer supplies one-second trailing silence and a 60-second
+maximum utterance; no PTT button-release substitute is used. Cancel/timeout leave
+the native question answerable. Target/foreground/session/control changes,
+question edits/expiry/answer, privacy/ownership/call/device loss, failures and
+closure synchronously retire admission and fence delayed callbacks. Capture
+returns to closed/ordinary explicit PTT readiness, not Wake Listening.
+
+Answers match only the exact schema, with no optional assistant-name stripping
+and no command, tool, composer or session-routing fallback. Proposal/approval
+questions are refused; approval readback specificity and grants are unchanged.
+No audio or raw-transcript archive, transcript/content logging, model/network
+effects, wake integration or during-TTS capture is added. Accepted structured
+answers retain the existing question persistence/audit policy. Maintained
+deterministic production-path tests validate this implementation independently
+of later hardware/acoustic/installed qualification.
+Host-resolved traces preserve same-request presentation parentage and link
+deferred reply/recovery causes; incoming correlation never selects the question
+or session and carries no transcript content.
+
+### Broader target behavior
+
 The activation name starts an unsolicited user turn; it is not required for
 every statement in an already established exchange. When Kora asks a
 host-owned question and that question becomes the unique foreground voice
@@ -1055,7 +1318,9 @@ Lifecycle is **Active** or **Done**; work state is separate: idle, queued, runni
 Done means archived, not "every action succeeded". Deleted is irreversible removal, not another browsable status.
 A terminal task result does not automatically mark the whole session Done.
 
-The [bounded reviewed-memory store](Model_Providers_Memory_And_Knowledge.md#delivered-session-only-durable-memory-storage---2026-10-09) retains only exact admitted session-owned candidates. Authoritative Done/retirement, disposition and retention invalidate their bodies/receipts with typed audit in the existing transaction and retain non-reusable tombstones. Restart reads data, not review/use or egress authority; native memory controls and broader scopes remain unavailable.
+The [bounded reviewed-memory store](Model_Providers_Memory_And_Knowledge.md#delivered-session-only-durable-memory-storage---2026-10-09) retains only exact admitted session-owned candidates. Authoritative Done/retirement, disposition and retention invalidate their bodies/receipts with typed audit in the existing transaction and retain non-reusable tombstones. Restart reads data, not review/use or egress authority; broader scope storage remains unavailable.
+
+The [native selected-session memory filters](Model_Providers_Memory_And_Knowledge.md#delivered-native-content-free-session-memory-filters---2026-10-14) combine exact memory GUID, optional exact scope identity GUID, Scope kind, Review, Retention and inclusive revision/created-time ranges with AND over the explicit bounded List snapshot. Scope identity uses complete canonical D GUID admission; empty means Any. Scope kind and identity are snapshot metadata, not permission, ownership, scope authority or a session/provider selector. Any is initially selected; defined non-session kinds truthfully yield zero rows, never cross-session reads. Every row's full metadata is validated before exclusion. Filter edits revoke selection, inspection, draft, mutation readiness and pending presentation under the existing source/session/control fences, with no store read or activity renewal. Explicit List refresh and separate fresh inspection remain necessary.
 
 Host-owned records include:
 

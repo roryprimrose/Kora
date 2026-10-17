@@ -29,6 +29,50 @@ unconfirmed marker. Reset affects only the named option. No preference change
 grants consent/approval, replays retired speech or enables a gated capability.
 Legacy process-local overrides are labelled separately below.
 
+Appearance controls persist preferences and requested/terminal audits on background workers, with confirmed values published back to the UI. Rapid edits retain only the latest pending absolute value for each option ([appearance workflow](../src/Kora.Application/ViewModels/MainViewModel.Appearance.cs)).
+
+Pending changes recheck their original private-host admission before persistence; handoff refuses during an active write and normal exit awaits it. A queued value is not a saved preference ([commit admission](../src/Kora.Application/Configuration/AppearanceConfigurationService.cs), [exit](../src/Kora.Application/ViewModels/MainViewModel.cs)).
+
+During an owned save, new reader admission waits for confirmation. Existing Evidence content keeps its last confirmed typography with private-content checks still active ([Evidence](../src/Kora/EvidenceWindow.axaml.cs)).
+
+Captions temporarily hide without reviving a retired source. Unavailable or failed preference evidence still retires presentation ([captions](../src/Kora/SpeechCaptionWindowController.cs)).
+
+Window placement, response-window options, muted-output fallback and legacy model-preference writes now await worker-side atomic persistence and required audits. Native changes coalesce by control, so a queued absolute position replaces an older queued position, not an unrelated option ([preference workflow](../src/Kora.Application/ViewModels/MainViewModel.Preferences.cs)).
+
+Model execution and reusable grants remain unavailable during a model-preference commit ([model gates](../src/Kora.Application/ViewModels/MainViewModel.Communication.cs)).
+
+An unconfirmed write holds model admission for the run; inspect saved state and receipts before restarting. No rollback or automatic retry is claimed ([preference admission](../src/Kora.Application/ViewModels/MainViewModel.Preferences.cs)).
+
+Response text and settings remain responsive while bounded audio endpoint discovery runs on a worker ([output discovery](../src/Kora.Application/ViewModels/MainViewModel.VoicePrivacy.cs)).
+
+Playback waits for discovery and rechecks privacy and response identity. Voice-only window reveal waits for the observed output fallback; a late result cannot reveal a newer or locked response ([response workflow](../src/Kora.Application/ViewModels/MainViewModel.cs)).
+
+Grant and power-proposal preparation awaits requested audit persistence before exposing an actionable proposal. Retirement removes UI authority immediately; grant publication and consequential dispatch still await successful terminal audit ([approval workflow](../src/Kora.Application/ViewModels/MainViewModel.cs)).
+
+New input, Hide, cancellation, concurrent revocation or changed admission can retire a preparation or continuation while its receipt is pending. A completed receipt cannot restore a newer revocation ([race tests](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.ApprovalResponsiveness.cs)).
+
+Voice-consent persistence runs on a worker. Withdrawal invalidates capture and starts device release before waiting for disk; a later explicit withdrawal is serialized after an earlier grant and cannot be overwritten by its late UI continuation ([consent workflow](../src/Kora.Application/ViewModels/MainViewModel.VoicePrivacy.cs)).
+
+## Read-only audit shortening preview
+
+In **Settings > Logging**, explicitly select **Proposed audit retention days for
+read-only preview**, then **Preview audit shortening impact only**. The value
+must be 30–365 days and shorter than the current confirmed saved/default value.
+Selecting or previewing does not Save or change existing records.
+
+The result separately reports required-authority audit and diagnostic-audit
+projection status, newly-due count and affected committed/proposed-due UTC
+ranges. Newly due means the proposed deadline is at or before the fixed preview
+cutoff while the original deadline is still later. Already-due records are not
+counted again. A complete zero has no range. Incomplete or Unavailable is not
+zero; no truncated count is shown. No event content or identities are displayed.
+
+Edits, Refresh, saved preference/store changes, private/lock/owner/desktop/call
+changes, cancellation, failure and closing Settings retire the preview. It also
+expires after 30 seconds; explicitly Preview again. There is no automatic scan.
+**Apply-now, audit deletion and pruning remain unavailable.** Existing future-only
+Save/Reset controls are separate and unchanged.
+
 ## Routine notice quiet mode is run-only
 
 In the already-open **Sessions** window, select an exact session and use **Quiet routine notices for this run**. This one choice suppresses first Work/Maintenance notices before fatigue accounting and hides their notice rows. **Turn routine quiet off** and **Reset routine quiet to Off** clear it. Default is Off on every Kora restart; there is no saved setting or scheduled duration.
@@ -333,7 +377,15 @@ For an explicit batch, select exact IDs from the current page with Ctrl/Shift, t
 
 After inspecting one actual retained record, **Read history for this exact grant ID** opens a separate read-only list. **Next bounded history page** scans the same finite committed snapshot, including zero-match pages. Limits are **50 envelopes / 64 KiB complete output**, **4096 scanned prefix rows / 5 seconds per request**, and **15 minutes** for the signed exact-ID/viewer/store continuation. Source, record, cursor or predecessor failures are explicit; refresh and inspect, never assume empty success.
 
-Only authoritative retained audit entries with exact typed grant membership are listed, including each atomic batch member's requested and committed revision/digest references. Rows show safe IDs, source/schema/sequence, time/deadline, action/outcome and original provenance, not scripts, parameters or provider/user bodies. Unrelated batch references are omitted with counts. Original sessions are provenance, not your current read authority.
+History has its own **Committed event outcome** filter: **Any**, Requested, Succeeded, Failed, Denied, Cancelled or Unknown. **Committed event initiator** offers **Any**, System, LocalUser, TypedCommand, VoiceCommand or ModelSuggestion. Empty **Exact ReasonCode** means any; otherwise it must be an exact case-sensitive canonical lowercase ASCII audit identifier (letters/digits/dots/hyphens, 1-128 characters). Unknown enums/labels, numeric enum input, whitespace/case repairs and overlong reasons are refused, never normalized or treated as Any. All three predicates are AND and match only the authoritative committed `SecurityAuditEvent`; they do not search formatted rows, request origin or separately retained Requested review details. A Requested review paired with a Denied terminal event matches Denied, not Requested. Every loaded entry and its provenance/prefix are validated before exclusion.
+
+Editing or clearing history filters performs no read. It immediately cancels old work and retires rows, Next, actionable inventory selection and single/batch review. Only the previously explicitly inspected inert exact target is retained; choose **Read history for this exact grant ID** again. **Clear history filters** restores Any/empty without reading. The summary distinguishes scanned prefix rows and nonmatching scanned rows; zero matches can still have Next. Continuation authenticates the outcome/reason/initiator digest, exact inspected grant digest/store identity, complete native viewer, read-admission identity/control revision, finite ceiling/digest and predecessor. Filter values stay volatile, never entering logs, preferences, database rows, activity tags, audit payloads, model/tool/speech context, clipboard or export. No review, approval or activity lifetime is renewed.
+
+Only authoritative retained audit entries with exact typed grant membership are listed, including each atomic batch member's requested and committed revision/digest references. Rows show safe IDs, source/schema/sequence, time/deadline, action/outcome, explicit committed event initiator and original provenance, not scripts, parameters or provider/user bodies. The committed initiator is separate from request origin; separately retained Requested-review initiators and reasons are not displayed. Unrelated batch references are omitted with counts. Original sessions are provenance, not your current read authority.
+
+**Retained envelope state** adds **Any**, **Present** or **ExpiredButPresent**; missing/unknown/unavailable segments are not complete committed envelopes. Optional **Committed from/until UTC** and **Due from/until UTC** bounds are inclusive and AND-composed with every other history predicate. Empty bounds mean Any. Nonempty bounds must be exactly `yyyy-MM-ddTHH:mm:ss.fffffff+00:00` (for example `2026-10-16T00:00:00.0000000+00:00`), with From <= Until independently for each range. `Z`, alternate offsets/precision, whitespace and repaired input are refused. Times come from the complete validated committed envelope, never Requested review or current grant creation time. Retention describes the retained deadline at the page's observation time, not deletion or current applicability. All five fields participate in the authenticated continuation query digest and the same passive edit/clear/cancellation/privacy rules above; they grant no grant, renewal, revocation, target, approval or execution authority.
+
+**Exact committed audit correlation ID** is optional; empty means Any. **Committed approval metadata** explicitly selects **Any**, **Present**, **Absent** or **Exact**. Exact requires **Exact committed approval ID**; that field must be empty for all other choices. Both IDs require a nonempty canonical lowercase hyphenated D GUID, for example `12345678-1234-1234-1234-123456789abc`. Zero GUIDs, alternate formats, uppercase, whitespace and repaired values are refused. These predicates AND-compose with outcome/reason/initiator/retention/time on complete validated committed envelopes, and every choice/ID binds the continuation digest. Exact approval matches only the committed event carrying that exact ID, not requested grant references or separately retained Requested review. Absent means a validated committed event with no approval ID, not unknown/unavailable metadata. The same passive edit/clear/retirement/cancellation/privacy rules apply. Audit correlation and approval IDs are committed correlation metadata only: they cannot identify authority by themselves, approve, grant, renew, revoke, retarget or authorize execution.
 
 Requested review is not a committed grant change, and committed use is not proof an action executed. Stored creation/last-use/count metadata does not create missing rows. Unlinked reviews/failed attempts, exhaustive history, current applicability and execution remain unavailable or unknown. Expired-but-present is a retained deadline, not physical removal; the observed snapshot is not forensic or tamperproof evidence.
 
@@ -393,7 +445,7 @@ defaults, bounds, scope and application timing.
 | `appearance.movement-speed` | `100` | 25-200 percent |
 | `appearance.speech-scaling` | `true` | `true`, `false` (visual sizing only) |
 | `appearance.speech-scale-amount` | `100` | 0-200 percent |
-| `appearance.reader-text-scale` | `100` | 75-200 integer percent; native source/detail bodies only ([domain](../src/Kora.Core/Configuration/ReaderTextScaleSettings.cs)) |
+| `appearance.reader-text-scale` | `100` | 75-200 integer percent; native source/detail and complete serialized Evidence bodies only ([domain](../src/Kora.Core/Configuration/ReaderTextScaleSettings.cs)) |
 
 Use **get appearance.theme**, **set appearance.theme to dark**, or
 **reset appearance.theme**; substitute another listed ID and its typed value.
@@ -423,11 +475,11 @@ Speech scaling changes only animation, not audio output or call policy.
 
 **Native reader text scale** in Settings > Appearance applies an absolute integer percentage immediately; select its exact ID for **Reset selected option** (100). Exact commands include `get/status appearance.reader-text-scale`, `set appearance.reader-text-scale to 75` (or 100/200), and `reset appearance.reader-text-scale`. Relative changes and number words are not inferred ([registry](../src/Kora.Core/Configuration/AppearanceOptionRegistry.cs), [parser](../src/Kora.Application/Configuration/AppearanceCommand.cs), [editor](../src/Kora/SettingsWindow.axaml)).
 
-It scales only shared native DetailWindow Rendered/Source/continuous text, file/folder/retained attachment source bodies and exact cited/literal-match spans, and the native clipboard snapshot source body. Trusted chrome, search inputs/results, identity/location labels, consent/approval/question/error controls and captions remain independently readable. Strings, bytes, digests and offsets are unchanged; the preference grants no content access/copy/export or persistence consent ([detail](../src/Kora/DetailWindow.axaml.cs), [file](../src/Kora/LocalFilePreviewWindow.cs), [span](../src/Kora/LocalFilePreviewWindow.Citations.cs), [clipboard](../src/Kora/ClipboardPreviewWindow.cs)).
+It scales only shared native DetailWindow Rendered/Source/continuous text, file/folder/retained attachment source bodies and exact cited/literal-match spans, the native clipboard snapshot source body, admitted complete serialized Evidence page bodies and their inert focused literal-Find spans, and the currently observed native speech-caption content text. New windows and live confirmed changes use original typography, never cumulative scaling. Trusted chrome, search inputs/result navigation, identity/location labels, consent/approval/question/error controls and caption labels, Pin/Unpin and display selector/status retain their own typography. Strings, bytes, digests and offsets are unchanged; the preference grants no content access/copy/export or persistence consent ([detail](../src/Kora/DetailWindow.axaml.cs), [file](../src/Kora/LocalFilePreviewWindow.cs), [span](../src/Kora/LocalFilePreviewWindow.Citations.cs), [clipboard](../src/Kora/ClipboardPreviewWindow.cs), [Evidence](../src/Kora/EvidenceWindow.axaml.cs), [caption](../src/Kora/SpeechCaptionWindow.axaml.cs)).
 
 Unlike the older appearance options, reader-scale writes retain an unconfirmed marker until exact readback and the success audit complete. Invalid or unconfirmed state blocks new scaled readers with an explicit error; inspect saved evidence and audit receipts before repair, never blindly retry. The prior confirmed UI value is not evidence of successful persistence ([workflow](../src/Kora.Application/Configuration/AppearanceConfigurationService.cs), [store](../src/Kora.Application/Configuration/LocalReaderTextScalePreferences.cs)).
 
-This is not global text scaling: inline guide/grant previews, compact responses/conversations, evidence/search/catalogues, captions and browser/HTML/diagram/image/PDF readers are excluded. Full accessibility, hardware and Windows DPI acceptance remain open; see the [bounded contract](../Design/Information_Display.md#bounded-native-reader-text-scale).
+Open Evidence readers and captions retire explicitly on unavailable preference evidence; source/private/call/window closure, replacement, interruption and failure/cancellation clear stale scaled content without reading or replaying again. Caption scaling changes neither caption enablement nor speech, exact playback identity, pin lifetime, native geometry/display choice or accessible labels. This is not global text scaling: inline guide/grant previews, compact responses/conversations, Evidence filters/query fields/navigation/provenance/status and incomplete pages, search/catalogues, caption chrome and browser/HTML/diagram/image/PDF readers are excluded. Full accessibility, hardware and Windows DPI acceptance remain open; see the [bounded contract](../Design/Information_Display.md#bounded-native-reader-text-scale).
 
 Response pinning, topmost behavior and window placement retain their existing
 direct controls but are not registered: their shared-file writes are outside
@@ -577,7 +629,9 @@ for the full lifecycle and recovery rules.
 | `windows-sapi` | Built-in Windows provider; installed SAPI voices, no download |
 | `kokoro` | Optional local assets, about 219 MiB; separate reviewed download and exact size/SHA-256 validation |
 
-**Installed speech provider and voice** selects ready choices.
+**Speech voice** has one selector containing ready installed voices from all
+providers. Each entry identifies its provider; choosing a voice selects that
+provider automatically, without a separate provider selector.
 **Speech provider assets (review only)** never changes selection; completing
 Download makes choices available immediately but does not select one.
 **Remove downloaded model** removes Kokoro assets only.
@@ -592,10 +646,12 @@ the paired option IDs are `speech.provider` and `speech.voice`.
 |---|---|
 | Select `provider / ID` | Exact installed voice; explicitly selects that provider |
 | No explicit voice | That provider's advertised compatible default; otherwise choose an exact voice |
-| Reset speech provider | Windows plus its advertised default |
 | Reset speech voice | Selected provider's advertised default only |
 | Preview / Stop | Explicit local identity phrase / cancel active speech |
 
+Provider selection/reset remains available through the exact `speech.provider`
+commands; the redundant provider selector and provider-reset button are not
+shown in this card.
 Reset never downloads or substitutes an unrelated voice. Invalid saved state
 or missing assets disables speech with recovery, not a silent provider fallback.
 Status reports desired/effective/default/saved/revision; stale/failed saves

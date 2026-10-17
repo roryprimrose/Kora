@@ -35,6 +35,8 @@ public sealed partial record SessionCommand(
     public SessionHistoryCursor? HistoryCursor { get; init; }
     public string? HistoryQuery { get; init; }
     public SessionHistorySearchCursor? HistorySearchCursor { get; init; }
+    public SessionHistoryMetadataFilter HistoryMetadata { get; init; }
+    public SessionHistoryRangeFilter HistoryRange { get; init; }
     public Guid? QuestionId { get; init; }
     public long TaskRevision { get; init; }
     public long QuestionRevision { get; init; }
@@ -204,7 +206,7 @@ public sealed partial record SessionCommand(
         }
     }
 
-    private static bool ExactId(string text, out Guid id) =>
+    internal static bool ExactId(string text, out Guid id) =>
         Guid.TryParseExact(text, "D", out id) && id != Guid.Empty;
 
     private static bool Revision(string text, bool positive, out long value) =>

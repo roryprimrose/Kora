@@ -13,12 +13,48 @@ Related: [Interaction and Sessions](Interaction_And_Sessions.md), [Work Manageme
 The shared USER/HOST row additionally exposes explicit [exact retained conversation Details](Information_Display.md#delivered-retained-original-user--typed-host-details---2026-10-14), including compact projections of that row. A separate passive native viewer displays the complete original USER body and separately typed HOST chrome; opening the surface or selecting metadata does not read or open Details. Existing private/source/selection revocation and Done semantics apply; no clipboard authority or installed qualification is added.
 
 The existing private selected-session conversation pane has distinct **Search this conversation**, **Next conversation matches**, **Cancel conversation search** and **Clear private conversation search** controls.
-Enter searches; Escape clears only search state without closing, moving question/voice focus or touching composer drafts. Editing the query revokes prior results but performs no automatic read.
+Enter searches; Escape clears only search state without closing, moving question/voice focus or touching composer drafts. The native keyboard-focusable **All / USER / HOST** selector composes with the query: All includes original USER and typed HOST fields, USER only the immutable body, HOST only outcome/reason/expected-task-state strings, never assistant prose. Editing either query or filter immediately clears prior rows, selected match/navigation and Next and cancels late callbacks without reading. Explicit Search observes the new criteria; Clear resets to All.
 
 Results use the same inert native original USER/separate HOST row template as chronological pages. Their request/task IDs and exact bodies are not reinterpreted as answers or executable actions. No result navigation to another session or automatic saved-draft reload occurs. Active and retained Done use the same admitted exact-session reader, snapshot continuation and final source validation.
 
 The [canonical search contract](Interaction_And_Sessions.md#delivered-passive-exact-conversation-lexical-search--2026-10-13) owns lexical/work/output bounds, counters and invalidation. Session/source/private changes clear query, rows and cursor and fence in-flight publication.
-The [compact projection](../src/Kora/CompactSessionWindow.axaml) exposes these same controls over the workspace's single query/page/cursor and cancellation state. Opening either view or typing reads nothing; closing one view retains the shared state until the last owner closes. [Headless shared-search tests](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.CompactSearch.cs) cover keyboard actions, retained Done, saved baseline and late-source revocation.
+Both views additionally expose labelled, keyboard-focusable **Terminal outcome**,
+**Terminal reason** and **Expected terminal task state** selectors with accessible
+names identifying their exact HOST enum and no-read edit behavior. Each defaults
+to **Any** and uses the same shared volatile typed filter. Predicates AND with
+query/role; USER-only with any predicate remains selected and truthfully yields
+zero. Editing any selector immediately revokes rows, selected navigation,
+continuation and delayed callbacks in both views without reading. Clear and
+source/private revocation reset all terminal selectors to Any. No body rewrite,
+assistant prose, generated output or receipt-history search is added.
+The [terminal-control tests](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.ConversationTerminal.cs)
+cover all defined choices/Any, shared binding, no-read revocation and explicit
+invalid-enum refusal; headless controls are not installed accessibility proof.
+Both views also share labelled, keyboard-focusable **Minimum message sequence**,
+**Maximum message sequence**, **Submitted from UTC** and **Submitted through UTC**
+text fields. Accessible names identify inclusive bounds, canonical input, empty
+as Any and no-read editing. The [canonical conversation range contract](Interaction_And_Sessions.md#delivered-passive-exact-conversation-lexical-search--2026-10-13)
+owns parsing and limits. Invalid input explicitly fails before reading; it is
+not repaired or interpreted as unrestricted. Edits retire rows, selected match,
+open/deferred search Details, continuation and late callbacks in both views.
+Clear/source/private/last-owner revocation empties ranges; the composer and
+saved baseline remain independent. [Headless range tests](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.ConversationRanges.cs)
+verify shared binding, inclusive composition, no-read edits, accessible names
+and invalid-input refusal, not installed accessibility qualification.
+Both views share labelled, keyboard-focusable **Exact request ID** and **Exact
+task ID** text fields. Accessible names identify canonical lowercase nonempty
+D GUID admission, empty as Any, AND composition and no-read editing. The
+[canonical correlation contract](Interaction_And_Sessions.md#delivered-passive-exact-conversation-lexical-search--2026-10-13)
+owns admission/matching; invalid fields remain visible for correction and fail
+before reading. Edits retire rows, selection, open/deferred search Details,
+continuation and late callbacks without reading. Clear/private/source/last-owner
+revocation empties both IDs, not the independent composer or saved baseline.
+IDs cannot retarget the host-resolved selection or confer authority.
+[Headless correlation tests](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.ConversationCorrelation.cs)
+cover shared controls, exact composition, retained Done, privacy and no-read
+invalid-input refusal; installed accessibility qualification is not claimed.
+
+The [compact projection](../src/Kora/CompactSessionWindow.axaml) exposes these same controls over the workspace's single query/filter/page/cursor and cancellation state. Opening either view, typing or changing the field filter reads nothing; closing one view retains the shared state until the last owner closes. [Headless shared-search tests](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.CompactSearch.cs) cover keyboard actions, retained Done, saved baseline and late-source revocation; [native field-filter tests](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.ConversationRole.cs) cover shared binding, accessible control names, zero/invalid filters and no-read selection/continuation revocation.
 Native-only query entry adds no activated/model descriptor or generic-global-search retarget. Headless binding tests do not qualify installed keyboard/accessibility/DPI or full R12/R14 runtime acceptance.
 
 ## Delivered exact-session native composer — 2026-10-12
@@ -27,6 +63,32 @@ Native-only query entry adds no activated/model descriptor or generic-global-sea
 
 Use **Tray > Saved conversation drafts (metadata only)**, then explicit Refresh. All retained saved-content rows are the default; Active/Done filters and Next consume bounded mutable metadata pages, not bodies.
 Choose **Browse**, literal case-sensitive **NameSubstring**, or canonical lowercase **ExactId**, then **Search / refresh metadata**. The private volatile field performs no read on typing; invalid/empty queries never fall back to All. **Clear query (Browse)** resets without reading.
+Optional labelled native **Exact saved revision**, **Minimum UTF-8 bytes**,
+**Maximum UTF-8 bytes**, **Minimum Unicode scalars** and **Maximum Unicode scalars**
+fields compose with every mode and lifecycle filter.
+Eight labelled, keyboard-focusable **Minimum/Maximum session generation**,
+**Minimum/Maximum name metadata revision**, **Minimum/Maximum control revision**
+and **Minimum/Maximum authority ceiling** fields add inclusive observed-provenance
+ranges. The query region scrolls independently so fields and bounded results
+remain reachable. Accessible names disclose empty Any, inclusive positive
+generation/name-revision/ceiling or nonnegative control revision, and no-read
+typing. Invalid or inverted ranges visibly refuse Search/Refresh; either named
+revision bound excludes unnamed rows. Edits, Clear and revocation follow the
+same selection/cursor/cancellation rules. These are observed provenance only,
+not current authority, permission, body integrity, ownership or navigation authority.
+Labelled, keyboard-focusable **Exact observation source GUID (Any if empty)** and
+**Exact device profile GUID (Any if empty)** fields AND with those criteria.
+Accessible names disclose exact canonical lowercase D-format input, empty Any,
+metadata-only scope and no-read typing. Malformed nonempty GUIDs visibly refuse
+Search/Refresh; no trimming, repair or fallback occurs. IDs are correlation metadata,
+not device ownership, identity or authority. GUID edits revoke the same page,
+selection, navigation, continuation and late callbacks without a store/body read.
+Clear and source/private/close revocation clear both fields. Zero matches remain
+an honest bounded observation, never an unavailable or aggregate result.
+Empty means Any; strict positive revision/inclusive bounded byte and scalar parsing and
+visible invalid-field refusal follow the [canonical metadata policy](Interaction_And_Sessions.md#saved-conversation-draft-catalogue--2026-10-13).
+Editing any field immediately revokes page, selection, exact navigation, Next
+and late callbacks without reading; Clear/source/privacy/close clears the fields.
 Query/mode/filter edits cancel pending callbacks and clear the observed page/cursor/selection immediately, leaving the existing Sessions composer/target untouched. Exact IDs remain distinct from ID-shaped names; empty scanned pages can still have Next. No result is automatically selected.
 Select one immutable row and **Open exact session (no body load)**. Exact private source/revision revalidation precedes selection in the existing Sessions owner; no second composer or body authority exists.
 
@@ -135,6 +197,28 @@ remain five minutes, never current defaults. Pre-dispatch question waits have th
 slot/active clock; their cards remain visible while history/evidence is read.
 Answer/review remains in the original separately owned Questions window.
 
+The [content-free loaded local-event inventory](Proactive_Interaction.md#native-content-free-loaded-event-filters)
+has keyboard-accessible category/reason/source/type and exact request-origin/
+queue-eligibility-reason combos. Origin offers Any and every defined origin;
+queue reason distinctly offers Any, No queue reason / not applicable, and
+every exact eligibility reason. Three labelled, keyboard-accessible text fields
+add optional exact session/task/subject IDs: empty for Any, otherwise complete
+canonical lowercase `D` GUIDs only. Eight labelled, keyboard-focusable fields
+add inclusive minimum/maximum event revision and generation, observed from/until
+UTC, and expires from/until UTC ranges. Empty is Any; numeric bounds are positive
+Int64 decimals, UTC is exactly `yyyy-MM-ddTHH:mm:ss.fffffff+00:00`, and each
+minimum/from must be <= maximum/until. Accessible names disclose admission,
+inclusive/AND semantics, no-read edits and selection/detail retirement.
+The [portable loaded-event contract](Proactive_Interaction.md#native-content-free-loaded-event-filters)
+owns parsing and candidate validation. All selected predicates are AND. Invalid input
+visibly matches nothing, without repair; missing task IDs never match an exact
+task. IDs remain correlation metadata, never session/task targets or
+navigation/action authority. Range metadata likewise cannot authorize navigation,
+dispatch, retry, review or maintenance. Edits do not read:
+they recompute loaded rows and retire exact selection/details and late callbacks.
+Zero matches is truthful; a question/maintenance null queue reason confers no
+success, eligibility, question-answering or maintenance-navigation authority.
+
 Native Inspect, eligible Cancel, Remove pending ID, confirmed pending Clear,
 six closed profile Enqueue buttons and manual fair Dispatch use the already admitted exact
 command/host workflows. Displayed IDs/generations/revisions and the captured
@@ -166,6 +250,33 @@ queue payload. There is no composer, model management, Ask Evidence, export,
 rich browser, new worker/effect/provider or full R14/A4 acceptance. Maintained
 headless focus/accessible-name checks are not installed screen-reader/DPI proof.
 
+### Delivered Session Memory Scope Metadata Filter - 2026-10-15
+
+The separate **Sessions > Session memories** surface exposes exact GUID plus
+**Scope**, **Review** and **Retention** metadata filters over its already-loaded
+bounded snapshot. Each enum starts with visibly selected **Any**; all predicates
+are AND. The 2026-10-16 exact scope identity GUID field (empty for Any) and inclusive
+revision/created-time ranges compose with those predicates. Scope kind/identity
+are row metadata, not permission, ownership, scope or provider authority.
+The identity field has an explicit automation name and keyboard focus; Escape
+clears every filter in place, while Clear returns focus to the memory ID field.
+Edits retire selection,
+inspection, draft and pending callbacks without reads; explicit **List** alone
+refreshes the source. Undefined filters or malformed row metadata show no results
+and explicit recovery, not a partial list. See the
+[memory filter contract](Model_Providers_Memory_And_Knowledge.md#delivered-native-content-free-session-memory-filters---2026-10-14).
+Headless keyboard/focus and automation checks are not installed accessibility qualification.
+
+The 2026-10-16 extension exposes inclusive revision minimum/maximum and Created
+From/Until UTC text fields, each empty for Any, with keyboard focus and explicit
+automation names. Revisions are positive decimal Int64 values; Created input uses
+`yyyy-MM-ddTHH:mm:ss.fffffff+00:00`. Equal endpoints are included; reversed or
+malformed ranges show validation recovery and no rows. All predicates compose
+with AND over the same frozen snapshot. Clear or Escape in any text filter clears
+all bounds without I/O. Edits still retire inspection, draft, selection, mutation
+readiness and pending callbacks, even when a row remains visible. No permission,
+provider, memory-content or mutation authority is added.
+
 ### Delivered Retained Session Attachment Catalogue - 2026-10-11
 
 **Tray > Retained session attachments** is a separate native metadata-only window, not the current-question recovery surface, All Work overview, model context or a conversation. Opening reads nothing. Refresh/Next/Cancel returns at most sixteen content-free summaries / 64 KiB, scanning sixty-four slots; optional removal provenance is independent of the sixteen retained-body cap.
@@ -177,15 +288,91 @@ Exact IDs, current stored lifecycle, capture/storage generations, source/revisio
 
 Selecting metadata grants nothing. **Open exact session/attachment** uses fresh existing private workspace and full stored-byte inspection, refusing stale/replaced/removed/held references rather than opening newer content. Current Done inspection stays Done and never resumes, dispatches, renews meaningful activity, triggers cleanup or retargets a current question.
 
+The exact-copy-status picker has a real selected **Any** item plus every defined
+status. Minimum/maximum retained stored-byte fields are optional, inclusive and
+strict invariant unsigned decimal; invalid or inverted bounds disable Search
+without repair. They compose with all existing filters, not navigation authority.
+Unavailable tombstone sizes are labelled unavailable, never displayed as an
+original zero-byte file; selected details omit their sentinel size. Byte bounds
+exclude tombstones even for 0..0. Search/Enter remains explicit; edits revoke
+page/selection/navigation/continuation/late callbacks without a read. Clear query
+preserves these filters; source/private/control revocation and close clear them.
+The [canonical metadata contract](File_And_Folder_Ingestion.md#delivered-retained-attachment-metadata-catalogue---2026-10-11)
+owns bounds and validation. Maintained headless focus/accessible-selection checks
+qualify this I subset, not installed screen-reader or native acceptance.
+
 Publisher/inspection revocation, lifecycle/disposition/retention, query/selection/private control, cancellation/close/disposal clear page and exact navigation immediately; asynchronous callbacks remain bound to the original owned window and selected reference. Existing native file reviews/controls must be quiescent before navigation. Full inert source/citation lifetime remains owned by the existing attachment controller.
+
+The optional, focusable **Exact SHA-256** field accepts exactly 64 lowercase
+hexadecimal characters, not all zero; empty disables it. It composes with every
+existing predicate and matches only Confirmed copies, not Held or removed slots.
+Typing reads nothing and retires rows, details, navigation and continuation.
+Search/Enter remains explicit; Clear query, revocation and close erase it.
+Unavailable rows/details never display the prior digest, including malformed
+objects. Headless accessible-name/focus checks do not claim installed accessibility.
 
 [Canonical limits and evidence](File_And_Folder_Ingestion.md#delivered-retained-attachment-metadata-catalogue---2026-10-11) qualify this consumer only; no managed knowledge, new source consent, body/capture/copy mutation, schema/index/cache, model/network or installed/native acceptance is claimed.
 
+Optional exact **observation-source / device-profile GUID** and inclusive
+**Captured From / Until UTC** fields compose with all catalogue predicates.
+IDs require nonempty lowercase D format; UTC requires
+`yyyy-MM-ddTHH:mm:ss.fffffff+00:00` and From <= Until. Empty means Any.
+Only Confirmed retained copies match; tombstone rows/details suppress prior
+source/profile/captured time. Correlation is not consent, ownership, session or
+file-read authority, or current availability. Search/Enter is explicit; typing
+reads nothing and retires results/details/navigation/continuation/late callbacks.
+Clear query, revocation and close erase these volatile fields. The filter area
+scrolls independently to retain access to rows and actions on smaller windows.
+The canonical metadata contract above owns strict admission and continuation
+binding; headless checks are not installed accessibility qualification.
+
+Six optional, focusable **minimum / maximum session-generation, captured-
+generation and storage-revision** fields AND-compose with every retained
+attachment predicate. Empty means Any; positive invariant decimal digits and
+minimum <= maximum are required. Only Confirmed retained copies match.
+Tombstone rows/details suppress former versions. Search/Enter is explicit;
+edits read nothing and retire results/details/selection/continuation and late
+callbacks. Clear query, revocation and close erase all six fields. The canonical
+metadata contract owns admission and complete continuation binding. Versions
+are correlation metadata only, not consent, session/file-read authority,
+currentness or proof a copy still exists; headless accessibility checks are not
+installed qualification.
+
+Three optional, focusable **exact local-file source / revision / item ID**
+fields AND-compose with every retained attachment predicate. Empty means Any;
+otherwise only nonempty canonical lowercase D-format GUIDs are admitted.
+Only Confirmed retained copies match; Held and unavailable/removed tombstones
+never match former IDs. IDs are correlation only, not consent, current file
+identity, path disclosure, body integrity, file-read authority or copy existence.
+Search/Enter is explicit; edits read nothing and retire page/details/selection/
+navigation/continuation and late callbacks. Clear query, revocation/cancellation
+and close erase all three fields. The canonical metadata contract owns complete
+candidate validation and continuation binding; headless accessible-name/focus
+tests do not qualify installed accessibility.
+
 ### Delivered Bounded Passive All Work / Attention Overview - 2026-10-11
+
+**Optional inclusive observed work metadata ranges** expands nine labelled,
+keyboard-focusable minimum/maximum pairs in a bounded scroll area, plus
+**Clear work metadata ranges** and accessible validation/recovery text.
+They use the [canonical admission/composition contract](Work_Management.md#delivered-passive-cross-session-work-observation---2026-10-11),
+not native policy copies. Blank endpoints visibly mean Any; invalid bounds
+disable Search/Refresh/Next without reading or falling back to Any.
+Every edit immediately retires private rows, selected details, navigation and
+continuation and cancels late callbacks; no input is disabled by a read.
+Only validated Observed work can satisfy any active range. Omissions remain
+explicit counts, never absence, completeness, success or authority claims.
+Clear reads nothing; close/private closure clears volatile endpoints and
+disables the controls. Installed screen-reader/DPI qualification remains
+separate from deterministic headless keyboard/accessibility checks.
+
+The separate **Observed content** native combo narrows the bounded observation to **Any**, **At least one observed queue receipt**, **At least one observed task**, or **At least one observed pending question**. It composes by AND with Browse/name/exact-ID, lifecycle, Needs answer and the unchanged explicit availability choice. Only retained metadata records in Observed rows satisfy positive choices; unavailable and omitted-only records cannot. Exclusion never proves absence, completion, authority or permission. The keyboard-focusable combo exposes a visible/accessibly selected non-null Any item and an accessible no-read/unavailable/omission warning, remains editable during reads and disables on private closure. Changes retire rows, selection, continuation and late callbacks without reading; close clears the volatile choice. See the [observed-content policy](Work_Management.md#delivered-passive-cross-session-work-observation---2026-10-11). Installed screen-reader qualification remains separate from deterministic headless accessibility checks.
 
 **Tray > Sessions > All work / attention overview** opens a separate owned native read-only window. Opening performs no reads or grants; manual Refresh/Next/Cancel scans at most ten canonical session IDs per click through admitted metadata and reads independent current `SessionWorkSnapshot` sources, plus bounded metadata lookahead.
 
 All/Active/Done is stored lifecycle; **Observed needs answer** filters observed pending-question metadata, not reply eligibility.
+
+The native **Observation availability** combo offers exactly **Any**, **Observed**, **Source changed**, **Read unavailable**, **Output bound**, composed by AND with lifecycle, literal metadata query and Needs answer. Matching is content-free, exact typed availability under the [portable policy](../src/Kora.Core/Storage/SessionWorkOverviewFilter.cs), never an empty-work predicate. Undefined values are refused. Editing reads nothing and revokes current rows, selection, continuation and late callbacks immediately; explicit Search/Refresh/Next binds the exact choice with existing private/source/query/head fences. The keyboard-focusable native combo has an accessible name explaining its choices and no-read/unavailable boundary, remains editable during reads, and is disabled by private closure. Opening visibly and accessibly selects the explicit **Any** item, rather than leaving a blank selection for the absent predicate. Choices are volatile, clear on close and add no persistence, telemetry, authority or export route. Zero matches remain a truthful bounded scan, not all-clear.
 
 One complete typed projection is limited to 64 KiB. It retains exact session IDs/generations/metadata revisions, per-session authority/queue revisions and observation time, confirmed fixed-profile slot/capacity limits, observed current fixed reads, all returned policy reasons/queue deadlines and up to fifty task/question records per session.
 
@@ -219,15 +406,37 @@ Browsing no longer invokes cleanup. Confirmed policy, copy inventory, due-candid
 
 ### Delivered Passive Session-List Metadata Navigation - 2026-10-10
 
-The Sessions window now has a separate metadata query and explicit **NameSubstring** / **ExactId** modes. **Search session metadata**, **Next metadata search**, **Cancel** and **Clear** navigate across the persisted list, not just its currently loaded page. Enter searches; Escape clears only the focused query. This is not the adjacent exact-session lexical history search or Evidence filtering.
+The Sessions window now has a separate metadata query and explicit **Browse** / **NameSubstring** / **ExactId** / **ExactName** modes. **Search session metadata**, **Next metadata search**, **Cancel** and **Clear** navigate across the persisted list, not just its currently loaded page. Enter searches; Escape clears the metadata query fields. This is not the adjacent exact-session lexical history search or Evidence filtering.
 
-NameSubstring is literal ordinal, case-sensitive NFC name containment, with the existing [SessionName limits](../src/Kora.Core/Hosting/SessionName.cs). ExactId requires a nonempty canonical lowercase D GUID and uses the existing exact metadata lookup.
+Browse requires empty text and an explicit Search; it never reads on mode edits,
+selects a session implicitly or enumerates an unbounded inventory. Nonempty text
+in Browse is invalid. NameSubstring remains the initial mode and requires
+nonempty text; clearing text never implicitly switches modes. The accessible
+**Any / Named / Unnamed** combo AND-composes observed name-metadata availability
+with mode, lifecycle and ranges. Unnamed is absence of observed name metadata,
+not empty-name matching, revision zero, missing authority or historical deletion.
+Either name mode + Unnamed and Unnamed + either name-revision bound match no rows.
+
+NameSubstring is literal ordinal, case-sensitive NFC name containment; ExactName requires whole-name ordinal, case-sensitive equality, with the same existing [SessionName limits](../src/Kora.Core/Hosting/SessionName.cs) and no normalization or trimming. ExactName scans the same bounded fully validated metadata, returns duplicate names as separate immutable IDs and never establishes identity or action authority. ExactId requires a nonempty canonical lowercase D GUID and uses the existing exact metadata lookup.
 Unknown/Removed IDs are unavailable, not a fallback inventory. All/Active/Done applies across the metadata scan; outside search it retains ordinary page-only filtering.
 
-Each name-search click consumes at most 50 validated metadata rows plus the reader's one-row lookahead, returns at most 25 native matches and bounds complete serialized output to 64 KiB. Zero matches can still have Next.
+Four optional native text controls add inclusive authority-generation minimum
+and maximum and name-metadata-revision minimum and maximum, AND-composed with
+the chosen mode and lifecycle. Empty means Any; values must be positive
+invariant decimal `Int64` integers with minimum <= maximum. Invalid bounds
+disable Search and show recovery guidance; no trimming, truncation or fallback.
+Generation can match unnamed rows by Browse or exact ID, but either name-revision bound
+excludes unnamed rows rather than inventing revision zero. These observations
+are not freshness, historical completeness, session selection or action authority.
+All query fields have accessible names and keyboard Enter/Escape behavior.
+Editing retires query-bound results and exact selection, cancels in-flight
+search and never reads. Clear and privacy/close erase all four bounds and reset
+name availability to Any.
+
+Each Browse/name-search click consumes at most 50 validated metadata rows plus the reader's one-row lookahead, returns at most 25 native matches and bounds complete serialized output to 64 KiB. Every source candidate is validated before filtering, even beyond the result limit. Zero matches can still have Next.
 Scanned/unnamed/nonmatching counts, result/byte limits and current end are explicit. A matching row deferred by an output limit is reconsidered on Next; no matching name or record is truncated or silently omitted.
 
-This is mutable canonical-ID keyset navigation, not a sequence-bounded history snapshot. Continuations bind exact query, mode, state filter, host/store lifetime and private admission revision. Renames, lifecycle/deletion and additions behind the cursor require a fresh Search.
+This is mutable canonical-ID keyset navigation, not a sequence-bounded history snapshot. Continuations bind exact query, mode, name availability, all numeric bounds, state filter, host/store lifetime and private admission revision. Renames, lifecycle/deletion and additions behind the cursor require a fresh Search.
 New later IDs may appear; an observed end is not a historical inventory claim. No schema, index, snapshot cache or new ownership authority is introduced.
 
 Results retain actual names, immutable IDs, lifecycle and optimistic generation/metadata revisions, including explicitly unnamed records. Selection is preserved only when its exact visible record remains unchanged.
@@ -237,6 +446,20 @@ Query/source/selection/privacy changes, cancellation and closure suppress late r
 Existing work refresh and memory proposal controls remain independent. Composer, model history, providers and installed-native qualification remain open.
 
 ### Delivered Passive Details Boundary
+
+Receipt-history search has five separately labelled native choices with explicit
+**Any**: receipt kind, task state, decision, question status and answer channel.
+They narrow only the older exact-session interaction receipts, not adjacent
+conversation, session-list or Evidence searches. All selected values AND-compose
+with the lexical OR query. Missing metadata is not an exact match. Editing any
+choice performs no read and retires old receipt selection/details/continuation;
+Search is explicit. Clear and query-field Escape restore every choice to Any
+and retain query focus. Source/private/subject changes and closure clear these
+volatile values and fence late callbacks. Accessible names distinguish each
+historical field from current identity, approval, question or task authority.
+The [receipt contract](Interaction_And_Sessions.md#delivered-passive-exact-session-lexical-history-search---2026-10-09)
+owns admission, digest, bounds and passive-only semantics; deterministic headless
+checks do not claim installed-native accessibility qualification.
 
 The [passive lexical increment](Interaction_And_Sessions.md#delivered-passive-exact-session-lexical-history-search---2026-10-09) adds exact-session query, Search/Next/Cancel/Clear controls beside the existing history ID. Enter searches; Escape clears within the focused field. Search results reuse the immutable receipt list and fresh detail viewer without changing selected work or pending-question identities. Complete 64 KiB results and explicit scanned/gap/omitted counts distinguish an empty bounded page from an exhausted snapshot ([controls](../src/Kora/SessionsWindow.axaml), [headless recovery](../tests/Kora.Windows.IntegrationTests/SessionsHistorySearchTests.cs)).
 
@@ -346,6 +569,7 @@ mutation. Rendered Markdown/HTML can explain those records but cannot provide
 their authoritative buttons, forms, selection, or dirty state.
 
 The delivered owned Instruction/Prompt editor adds per-kind metadata search and observed-use filters beside its existing native controls, not a new window or the planned full source/file-tree surface.
+Labelled keyboard-focusable exact digest/native revision and inclusive canonical UTC Observed From/Until fields AND-compose with the literal query and use state. Accessible names disclose empty Any and metadata-only scope. Every predicate edit retires prior selection/details/page/Next, validation and pending review callbacks without reading or replacing the open original/draft. Clear resets every field; snapshot observation time grants no freshness, trust, approval, ownership or use authority.
 List/Refresh reconciles the existing bounded source pipeline; query/filter/Next only projects its admitted immutable owned metadata snapshot. Complete labels/details are bounded to 64 KiB UTF-8 with explicit omissions and Next when needed.
 Selection alone never opens another file, grants use or retargets an unsaved draft. Inspect revalidates the original kind/filename/digest/native revision and catalogue/private epoch. Stale choices require Refresh/reselection; failed reload clears availability, while the original/draft remains subject to existing privacy guards.
 Private closure clears query/rows/selection/editor text and suppresses late publication. Keyboard-native controls and current exact List/Inspect commands share the editor; broader profile editing, source filters and accessibility/installed qualification remain deferred. See [owned inventory controls](../docs/instruction-editor.md#search-observed-owned-metadata).
@@ -459,6 +683,39 @@ A current native card uses the host's current ID/revision; historical copies lin
 Done-session conversation is readable without resume. Sending new work requires explicit Resume or New session; no silent lifecycle transition.
 
 ### Evidence Mode
+
+The delivered [bounded native inspector](Information_Display.md#delivered-bounded-native-evidence-inspection)
+has an optional exact **Span ID** field beside **Trace ID**. Empty means Any;
+nonempty means exactly 16 lowercase hexadecimal characters, not all zero,
+under the existing portable W3C policy. All existing filters compose with AND.
+Edits revoke the current page/selection/continuation without reading.
+Clear advanced preserves both basic W3C fields; emptying either unsets it,
+and close clears both. Span ID is correlation only, not session or audit
+authority. Advanced filters also offer exact **Parent Span ID**, explicit
+**Host operation outcome** (Any plus every retained host outcome; null only
+matches Any) and **Content availability** (Any/Present/Omitted, based solely on
+`ContentOmitted`). Parent input uses the same strict W3C policy; all predicates
+AND, with full record validation before exclusion. Clear advanced resets these
+three choices to Any while preserving basic Trace/Span. Visible accessible Any
+choices are real selections, not null placeholders. These are passive volatile
+metadata, never identity, authority, integrity proof or content restoration.
+No new navigation, export or model route is added; the broader mode below
+remains a target contract, not qualification.
+
+Advanced trace controls also offer exact source, operation name, defined
+ActivityKind and exact None/Recorded flags, each with a visible accessible Any.
+Source version has explicit Any/Absent/Present/Exact choices and a separate exact
+text field; text is required only for Exact. Absent requires an existing trace
+with null version, never an unknown/null trace. Exact source/version/name inputs
+are case-sensitive plain valid Unicode, bounded to 128 characters without
+surrounding whitespace or controls. All predicates AND after complete retained
+trace validation, bind continuations and retire stale results/selection on edits
+without reading. Clear advanced and close reset these controls. This is untrusted
+diagnostic correlation, not session selection, identity, intent, permission,
+approval or authority; no baggage, tags, paths, credentials, user or omitted
+content is exposed. Deterministic headless checks are not installed accessibility
+qualification; the detailed [Evidence contract](Information_Display.md#delivered-bounded-native-evidence-inspection)
+owns these semantics.
 
 Evidence mode provides a bounded local timeline/search over permitted session,
 diagnostic and security-audit records. It supports time range, source kind,
@@ -601,6 +858,17 @@ The text-only body-free summary is historical structural compatibility, never ap
 The durable hold withdraws all new selections without writing/deleting the source, preserves inspection/editing and already captured reasoning, and retires pending unadmitted choices without replay. Dirty drafts remain intact with an explicit Save/Reload prerequisite.
 Cancellation/stale review and failed audit/preference readback never invent completion or restore enablement. No-change reload/restart/restored bytes cannot re-enable use; fresh exact review is required. Profile-original editing and installed/accessibility qualification stay open.
 
+The owned editor's native **Exact SHA-256** field narrows observed artifact
+metadata for both owned kinds, ANDed with literal metadata query and use state.
+Empty means Any; otherwise exactly 64 lowercase hexadecimal characters are
+required by the shared portable artifact policy. No trimming, folding or partial
+matching occurs; unknown digests match only Any. Predicate edits perform no
+source/catalogue read and synchronously retire page/selection/details/continuation,
+validation and pending review/use controls, preserving the open draft and fencing
+late callbacks. Next binds the complete filter state and original inventory;
+zero matches is truthful. Digest never supplies use authority or disk integrity,
+and no additional source, persistence, export or activity renewal is introduced.
+
 The Skills surface lists source-qualified skills and revisions without reading
 arbitrary profile paths. Selecting a revision shows host-resolved identity,
 origin, compatibility, enablement, requested capabilities, registered
@@ -705,7 +973,11 @@ Storage failure is explicit; do not show a sent message, saved answer, or comple
 ## Accessibility and Degraded Operation
 
 Provide keyboard access and screen-reader labels for session lists/search, tabs/filters, composer, forms, Details/History, queue, Done/resume/delete, and all trusted cards.
+The [exact-grant history controls](../docs/settings.md#exact-operation-grants) additionally expose a focusable, named committed-event initiator selector: Any plus every defined typed initiator. It composes with committed outcome/exact reason, never Requested review or actionable inventory. Editing is passive and retires prior rows/continuation/selection/reviews without reading or renewing authority; only the explicitly inspected inert exact target remains.
+
+The same bounded scrollable area exposes named, keyboard-focusable optional committed audit correlation ID, explicit committed approval metadata Any/Present/Absent/Exact and Exact-only approval ID inputs. Defaults are Any/empty; Clear restores them without reading. Strict canonical GUID admission, AND composition and digest-bound continuation follow the [committed metadata contract](Security_Data_Flows.md#grant-types-and-inheritance). Absent is not unknown, and IDs are correlation metadata only, never authority or execution approval. Deterministic headless keyboard/binding checks are not installed accessibility qualification.
 Maintain intentional focus/tab order; a background update never moves focus to an affirmative action.
+The same exact-history panel includes a named Any/Present/ExpiredButPresent retention selector and four named, focusable inclusive canonical UTC bound fields. Empty bounds mean Any; From/Until ordering and canonical validation fail explicitly. The bounded scrollable filter area preserves keyboard traversal without consuming the history list. All predicates compose on validated committed envelopes, never Requested-review details or action authority. Deterministic headless focus/binding checks are implementation evidence, not installed screen-reader qualification.
 Use shared theme, text scaling, reduced motion, contrast, and multi-display/DPI rules; animation is never the only progress/attention signal.
 Missing voice/runtime/network does not remove the UI path. Native session/work controls remain deterministic; unavailable answer generation is explicitly labeled.
 Unavailable management inference offers native routing/task choices; it does not silently merge sessions or lose a queued request.

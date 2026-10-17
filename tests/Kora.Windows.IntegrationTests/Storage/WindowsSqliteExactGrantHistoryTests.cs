@@ -26,8 +26,8 @@ using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Kora.Windows.IntegrationTests.Storage;
 
-[Collection(nameof(DurableStorageCompositionTestGroup))]
-public sealed class WindowsSqliteExactGrantHistoryTests
+[Collection(nameof(HeadlessUiTestGroup))]
+public sealed partial class WindowsSqliteExactGrantHistoryTests
 {
     [Theory]
     [InlineData("once")]
@@ -390,19 +390,19 @@ public sealed class WindowsSqliteExactGrantHistoryTests
         var exact = (await f.Store.InspectExactGrantAsync(grant.Id, f.Token))!;
         var viewer = HostRequest.Create(RequestOrigin.LocalUi);
         var events = f.Count("security_audit_events");
-        var noHost = () => f.Store.ReadExactGrantHistoryAsync(exact, viewer, null, static () => true, f.Token).AsTask();
+        var noHost = () => f.Store.ReadExactGrantHistoryAsync(exact, viewer, ExactGrantHistoryQuery.Unfiltered, 1, viewer.RequestId.Value, null, static () => true, f.Token).AsTask();
         await noHost.Should().ThrowAsync<InvalidOperationException>();
         using var activity = HostActivity.BeginRoot(viewer, HostActivityLayer.Application, HostOperation.Evidence);
-        var foreign = () => f.Store.ReadExactGrantHistoryAsync(exact, f.Request, null, static () => true, f.Token).AsTask();
+        var foreign = () => f.Store.ReadExactGrantHistoryAsync(exact, f.Request, ExactGrantHistoryQuery.Unfiltered, 1, viewer.RequestId.Value, null, static () => true, f.Token).AsTask();
         await foreign.Should().ThrowAsync<InvalidOperationException>();
-        var denied = () => f.Store.ReadExactGrantHistoryAsync(exact, viewer, null, static () => false, f.Token).AsTask();
+        var denied = () => f.Store.ReadExactGrantHistoryAsync(exact, viewer, ExactGrantHistoryQuery.Unfiltered, 1, viewer.RequestId.Value, null, static () => false, f.Token).AsTask();
         await denied.Should().ThrowAsync<InvalidOperationException>();
         using var cancelled = new CancellationTokenSource();
         cancelled.Cancel();
-        var cancel = () => f.Store.ReadExactGrantHistoryAsync(exact, viewer, null, static () => true, cancelled.Token).AsTask();
+        var cancel = () => f.Store.ReadExactGrantHistoryAsync(exact, viewer, ExactGrantHistoryQuery.Unfiltered, 1, viewer.RequestId.Value, null, static () => true, cancelled.Token).AsTask();
         await cancel.Should().ThrowAsync<OperationCanceledException>();
         var calls = 0;
-        var late = () => f.Store.ReadExactGrantHistoryAsync(exact, viewer, null, () => ++calls < 4, f.Token).AsTask();
+        var late = () => f.Store.ReadExactGrantHistoryAsync(exact, viewer, ExactGrantHistoryQuery.Unfiltered, 1, viewer.RequestId.Value, null, () => ++calls < 4, f.Token).AsTask();
         await late.Should().ThrowAsync<InvalidOperationException>();
         f.Count("security_audit_events").Should().Be(events);
     }
@@ -472,7 +472,7 @@ public sealed class WindowsSqliteExactGrantHistoryTests
     {
         viewer ??= HostRequest.Create(RequestOrigin.LocalUi);
         using var activity = HostActivity.BeginRoot(viewer, HostActivityLayer.Application, HostOperation.Evidence);
-        return await f.Store.ReadExactGrantHistoryAsync(exact, viewer, cursor, static () => true, f.Token);
+        return await f.Store.ReadExactGrantHistoryAsync(exact, viewer, ExactGrantHistoryQuery.Unfiltered, 1, viewer.RequestId.Value, cursor, static () => true, f.Token);
     }
 
     private static async Task<OperationGrant[]> Grants(InteractionStorageFixture f, int count)

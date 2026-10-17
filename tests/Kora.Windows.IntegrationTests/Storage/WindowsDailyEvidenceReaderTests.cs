@@ -306,11 +306,12 @@ public sealed class WindowsDailyEvidenceReaderTests
         using var fixture = new OwnedStorageFixture();
         using var listener = Listen();
         var owner = HostRequest.Create(RequestOrigin.LocalUi);
-        Write(fixture, "kora-20261007.log", Produce(owner, 2));
+        var records = Produce(owner, 2);
+        Write(fixture, "kora-20261007.log", records);
         var reader = new WindowsDailyEvidenceReader(fixture);
         var service = Service(reader);
         using var inspection = Root();
-        var query = new EvidenceQuery { Source = EvidenceSource.DailyLog, Limit = 1 };
+        var query = new EvidenceQuery { Source = EvidenceSource.DailyLog, Limit = 1, SpanId = records[0].Trace!.SpanId };
         var first = await service.QueryAsync(query, null, TestContext.Current.CancellationToken);
         var path = Log(fixture);
         switch (operation)
@@ -378,7 +379,14 @@ public sealed class WindowsDailyEvidenceReaderTests
         }
         var service = Service(new WindowsDailyEvidenceReader(fixture));
         using var inspection = Root();
-        var page = await service.QueryAsync(new() { Source = EvidenceSource.DailyLog }, null, TestContext.Current.CancellationToken);
+        var page = await service.QueryAsync(new()
+        {
+            Source = EvidenceSource.DailyLog, SpanId = "0123456789abcdef", ParentSpanId = "0123456789abcdef",
+            Outcome = HostOperationOutcome.Unknown, ContentAvailability = EvidenceContentAvailability.Omitted,
+            EventName = "Does.Not.Match", ExceptionType = "Not.An.Exception",
+            FromAuditSequence = 1, UntilAuditSequence = 1,
+        },
+            null, TestContext.Current.CancellationToken);
         page.Status.Should().Be(expected);
         page.Records.Should().BeEmpty();
         page.Cursor.Should().BeNull();

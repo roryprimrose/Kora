@@ -1,6 +1,7 @@
 using Kora.Application.Communication;
 using Kora.Application.Configuration;
 using Kora.Application.Diagnostics;
+using Kora.Application.Infrastructure;
 using Kora.Core.Auditing;
 using Kora.Core.Commands;
 using Kora.Core.Communication;
@@ -70,7 +71,14 @@ public sealed partial class MainViewModel
         + "Reusable grants are ignored during protected calls. New speech/activation protection downgrades, "
         + "temporary exceptions and speak-once call exceptions are unavailable: exact trusted review is not implemented.";
 
-    public void BindCallOwnershipGate(Func<bool> gate) => callOwnershipEligible = gate;
+    public void BindCallOwnershipGate(Func<bool> gate, Func<long>? revision = null)
+    {
+        callOwnershipEligible = gate;
+        auditImpactControlRevision = checked(auditImpactControlRevision + 1);
+        auditImpactOwnerRevision = revision ?? (static () => 0);
+        auditImpactPreview?.Retire("Owner binding changed; preview retired.");
+        NotifyAuditImpactPreview();
+    }
 
     internal Task CallClosureTask => callClosureTask;
 
@@ -90,12 +98,24 @@ public sealed partial class MainViewModel
         var outcome = communicationPolicy.CheckMutation(OriginalOrigin(initiator), CallPolicyRevision,
             () => IsCallMutationHostEligible);
         if (outcome is null) { return true; }
-        var audit = StartAudit(SecurityAuditCategory.ConfigurationWrite, action,
-            OriginalOrigin(initiator) == RequestOrigin.ActivatedVoice ? SecurityAuditInitiator.VoiceCommand : initiator,
-            DeviceLocalPreferencesTarget);
-        CompleteAudit(audit, SecurityAuditOutcome.Denied, outcome.Value.ToString().ToLowerInvariant());
-        ReportCallMutation(outcome.Value, action, OriginalOrigin(initiator));
+        var origin = OriginalOrigin(initiator);
+        ReportCallMutation(outcome.Value, action, origin);
+        new AsyncCommand(() => DeniedMutationAudit = RecordDeniedMutationAsync(action, initiator, origin, outcome.Value),
+            HandleCommandException).Execute(null);
         return false;
+    }
+
+    public Task DeniedMutationAudit { get; private set; } = Task.CompletedTask;
+
+    private async Task RecordDeniedMutationAsync(string action, SecurityAuditInitiator initiator,
+        RequestOrigin origin, CallMutationOutcome outcome)
+    {
+        var begin = HostActivity.CaptureContinuation(HostActivityLayer.Application, HostOperation.Policy, origin);
+        using var activity = begin();
+        var audit = await StartAuditAsync(SecurityAuditCategory.ConfigurationWrite, action,
+            origin == RequestOrigin.ActivatedVoice ? SecurityAuditInitiator.VoiceCommand : initiator, DeviceLocalPreferencesTarget);
+        await CompleteAuditAsync(audit, SecurityAuditOutcome.Denied, outcome.ToString().ToLowerInvariant());
+        activity.Complete(HostOperationOutcome.Completed);
     }
 
     internal async Task SetManualCallAsync(bool active, RequestOrigin origin, long observedRevision,
@@ -204,6 +224,8 @@ public sealed partial class MainViewModel
 
     private async void OnCommunicationPolicyChanged(object? sender, EventArgs args)
     {
+        auditImpactPreview?.Retire("Call revision changed; preview retired.");
+        RetireQuestionVoiceReply();
         try
         {
             var observation = communicationPolicy.Current;
@@ -285,25 +307,25 @@ public sealed partial class MainViewModel
         var origin = OriginalOrigin();
         var revision = CallPolicyRevision;
         using var activity = HostActivity.BeginRoot(HostRequest.Create(origin), HostActivityLayer.Application, HostOperation.Policy);
-        var audit = StartAudit(SecurityAuditCategory.ConfigurationWrite, CallAwareConfigurationAction,
+        var audit = await StartAuditAsync(SecurityAuditCategory.ConfigurationWrite, CallAwareConfigurationAction,
             origin == RequestOrigin.ActivatedVoice ? SecurityAuditInitiator.VoiceCommand : SecurityAuditInitiator.LocalUser,
             DeviceLocalPreferencesTarget);
         CallMutationOutcome outcome;
         try
         {
-            outcome = communicationPolicy.SetSettings(settings, origin, revision,
+            outcome = await Task.Run(() => communicationPolicy.SetSettings(settings, origin, revision,
                 () => IsCallMutationHostEligible, value =>
                 {
                     callAwarePreferences.Save(value);
                     return true;
-                });
-            CompleteAudit(audit, outcome is CallMutationOutcome.Applied or CallMutationOutcome.Unchanged
+                }));
+            await CompleteAuditAsync(audit, outcome is CallMutationOutcome.Applied or CallMutationOutcome.Unchanged
                 ? SecurityAuditOutcome.Succeeded : SecurityAuditOutcome.Denied, outcome.ToString().ToLowerInvariant());
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
         {
             outcome = CallMutationOutcome.PersistenceFailed;
-            CompleteAudit(audit, SecurityAuditOutcome.Failed,
+            await CompleteAuditAsync(audit, SecurityAuditOutcome.Failed,
                 exception is UnauthorizedAccessException ? "access-denied" : "io-error");
             ApplicationLog.Error(logger, exception, "Saving call-aware settings");
             ShowFailure("The call-aware settings could not be saved.", exception.Message);
@@ -317,10 +339,14 @@ public sealed partial class MainViewModel
     }
 
     private bool CanReuseLegacyModelGrant(BuiltInAction action) =>
-        IsCallMutationHostEligible && communicationPolicy.Current.Authorization(true, true).AllowsReusableGrants
+        !auditEvidenceUnavailable && Volatile.Read(ref pendingAuditWrites) == 0
+        && !modelPreferenceWriteActive && !modelPreferencesUnavailable
+        && IsCallMutationHostEligible && communicationPolicy.Current.Authorization(true, true).AllowsReusableGrants
         && (sessionAllowedModelActions.Contains(action) || alwaysAllowedModelActions.Contains(action));
 
     private bool IsModelCallDispatchEligible(SecurityAuditInitiator initiator, long? observedCallRevision) =>
         initiator != SecurityAuditInitiator.ModelSuggestion
-        || IsCallMutationHostEligible && observedCallRevision is { } revision && revision == CallPolicyRevision;
+        || !auditEvidenceUnavailable && Volatile.Read(ref pendingAuditWrites) == 0
+            && !modelPreferenceWriteActive && !modelPreferencesUnavailable && IsCallMutationHostEligible
+            && observedCallRevision is { } revision && revision == CallPolicyRevision;
 }

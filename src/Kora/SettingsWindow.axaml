@@ -493,21 +493,13 @@
             <Border Classes="settings-card">
               <Grid ColumnDefinitions="*,300" ColumnSpacing="24">
                 <StackPanel Spacing="4">
-                  <TextBlock Text="Installed speech provider and voice" Classes="settings-title" />
+                  <TextBlock Text="Speech voice" Classes="settings-title" />
                   <TextBlock
                       Text="{Binding VoiceAvailabilityMessage}"
                       Classes="settings-description"
                       TextWrapping="Wrap" />
                 </StackPanel>
                 <StackPanel Grid.Column="1" Spacing="8">
-                  <ComboBox
-                      ItemsSource="{Binding InstalledSpeechProviders}"
-                      SelectedItem="{Binding SelectedInstalledSpeechProvider}"
-                      DisplayMemberBinding="{Binding Name}"
-                      PlaceholderText="Choose a ready installed provider" />
-                  <TextBlock Text="{Binding SpeechSettingStatus}" TextWrapping="Wrap" Classes="settings-description" />
-                  <Button Content="Reset speech provider" Command="{Binding ResetSpeechProviderCommand}" />
-                  <Button Content="Reset speech voice" Command="{Binding ResetSpeechVoiceCommand}" />
                   <ComboBox
                       ItemsSource="{Binding InstalledSpeechVoices}"
                       SelectedItem="{Binding SelectedVoice}"
@@ -522,6 +514,8 @@
                       </DataTemplate>
                     </ComboBox.ItemTemplate>
                   </ComboBox>
+                  <TextBlock Text="{Binding SpeechSettingStatus}" TextWrapping="Wrap" Classes="settings-description" />
+                  <Button Content="Reset speech voice" Command="{Binding ResetSpeechVoiceCommand}" />
                   <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
                     <Button Content="Preview" Command="{Binding PreviewVoiceCommand}" />
                     <Button Grid.Column="1" Content="Stop" Command="{Binding StopSpeechCommand}" />
@@ -820,6 +814,18 @@
                 <Button Content="Refresh audit retention only" Command="{Binding RefreshAuditRetentionCommand}" IsEnabled="{Binding CanChangeAuditRetentionNative}" />
                 <Button Content="Save future audit retention only" Command="{Binding SaveAuditRetentionCommand}" IsEnabled="{Binding CanChangeAuditRetentionNative}" />
                 <Button Content="Reset future audit retention to 90 days" Command="{Binding ResetAuditRetentionCommand}" IsEnabled="{Binding CanChangeAuditRetentionNative}" />
+                <TextBlock Text="Read-only shortening impact preview" Classes="settings-title" />
+                <TextBlock Text="Explicitly select shorter proposed days. Preview counts only committed records newly due at its fixed cutoff, separately by source. A preview lasts at most 30 seconds; edits, refresh, source or host changes retire it. It never saves, renews activity or changes any record. Apply-now and deletion remain unavailable."
+                           Classes="settings-description" TextWrapping="Wrap" />
+                <ComboBox ItemsSource="{Binding AuditRetentionChoices}" SelectedItem="{Binding ProposedAuditImpactDays}"
+                          IsEnabled="{Binding CanChangeAuditRetentionNative}"
+                          AutomationProperties.Name="Proposed audit retention days for read-only preview"
+                          AutomationProperties.HelpText="Select 30 through 365 days, shorter than current saved or default retention. Selecting does not save." />
+                <Button Content="Preview audit shortening impact only" Command="{Binding PreviewAuditImpactCommand}"
+                        IsEnabled="{Binding CanPreviewAuditImpact}"
+                        AutomationProperties.Name="Preview audit shortening impact only" />
+                <TextBlock Text="{Binding AuditImpactPreviewStatus}" Classes="settings-description" TextWrapping="Wrap"
+                           AutomationProperties.Name="Read-only audit impact preview status" />
               </StackPanel>
             </Border>
           </StackPanel>

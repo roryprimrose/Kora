@@ -15,6 +15,112 @@ namespace Kora.Application.UnitTests.Hosting;
 
 public sealed partial class SessionWorkspaceServiceTests
 {
+    [Theory]
+    [InlineData(SessionListSearchKind.NameSubstring, SessionListFilter.All, false, 1)]
+    [InlineData(SessionListSearchKind.NameSubstring, SessionListFilter.Active, true, 1)]
+    [InlineData(SessionListSearchKind.NameSubstring, SessionListFilter.Done, false, 0)]
+    [InlineData(SessionListSearchKind.ExactId, SessionListFilter.All, true, 1)]
+    [InlineData(SessionListSearchKind.ExactId, SessionListFilter.Active, false, 1)]
+    [InlineData(SessionListSearchKind.ExactId, SessionListFilter.Done, true, 0)]
+    public async Task OverviewMetadataQueryComposesFiltersAndScansPastEmptyPagesWithoutObservingNonmatches(
+        SessionListSearchKind kind, SessionListFilter filter, bool needsAnswer, int expected)
+    {
+        using var f = new Fixture();
+        using var root = HostActivity.BeginRoot(f.Request, HostActivityLayer.Application, HostOperation.Request);
+        var entries = Enumerable.Range(1, 12).Select(id => ListEntry(id,
+            id == 12 ? "Private café_100% target" : id == 11 ? null : "PRIVATE CAFÉ_100% target", id % 2 == 0)).ToImmutableArray();
+        OverviewReader(f, entries);
+        var observed = new List<HostId<SessionIdentity>>();
+        f.OverviewReader = (id, _) =>
+        {
+            observed.Add(id);
+            return Task.FromResult(OverviewSnapshot(entries.Single(entry => entry.Authority.SessionId == id), 1));
+        };
+        f.Logger.Enabled = true;
+        var query = new SessionListSearch(kind, filter,
+            kind == SessionListSearchKind.ExactId ? entries[^1].Authority.SessionId.Value.ToString("D") : "café_100%");
+        var first = await f.Service.ReadWorkOverviewAsync(filter, needsAnswer, null, f.Token, query);
+        first.Records.Should().BeEmpty();
+        first.Scanned.Should().Be(10);
+        first.Nonmatches.Should().Be(10);
+        first.Next!.QueryDigest.Should().Be(query.Digest);
+        observed.Should().BeEmpty();
+        var second = await f.Service.ReadWorkOverviewAsync(filter, needsAnswer, first.Next, f.Token, query);
+        second.Scanned.Should().Be(2);
+        second.Nonmatches.Should().Be(2 - expected);
+        second.Records.Should().HaveCount(expected);
+        second.Next.Should().BeNull();
+        observed.Should().HaveCount(expected);
+        if (expected == 1) { observed.Single().Should().Be(entries[^1].Authority.SessionId); }
+        f.Logger.Messages.Should().OnlyContain(message => !message.Contains(query.Value, StringComparison.Ordinal));
+        f.TaskWrites.Should().BeEmpty();
+        f.ControlCalls.Should().Be(0);
+    }
+
+    [Theory]
+    [InlineData("query")]
+    [InlineData("case")]
+    [InlineData("kind")]
+    [InlineData("clear")]
+    [InlineData("added")]
+    [InlineData("digest")]
+    [InlineData("query-filter")]
+    public async Task OverviewRejectsQueryContinuationMismatchBeforeReadingMetadata(string change)
+    {
+        using var f = new Fixture();
+        using var root = HostActivity.BeginRoot(f.Request, HostActivityLayer.Application, HostOperation.Request);
+        OverviewReader(f, [.. Enumerable.Range(1, 11).Select(id => ListEntry(id))]);
+        SessionListSearch? query = new(SessionListSearchKind.NameSubstring, SessionListFilter.All, "needle");
+        var first = await f.Service.ReadWorkOverviewAsync(SessionListFilter.All, false, null, f.Token,
+            change is "added" ? null : query);
+        var cursor = first.Next!;
+        query = change switch
+        {
+            "query" => new(SessionListSearchKind.NameSubstring, SessionListFilter.All, "other"),
+            "case" => new(SessionListSearchKind.NameSubstring, SessionListFilter.All, "Needle"),
+            "kind" => new(SessionListSearchKind.ExactId, SessionListFilter.All, ListEntry(11).Authority.SessionId.Value.ToString("D")),
+            "clear" => null,
+            "query-filter" => new(SessionListSearchKind.NameSubstring, SessionListFilter.Done, "needle"),
+            _ => query
+        };
+        if (change is "digest") { cursor = cursor with { QueryDigest = string.Empty }; }
+        var read = () => f.Service.ReadWorkOverviewAsync(SessionListFilter.All, false, cursor, f.Token, query);
+        await read.Should().ThrowAsync<ArgumentException>();
+        f.ListReads.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task QueryUsesMutableCanonicalKeysetAndFreshScanSeesBehindCursorChanges()
+    {
+        using var f = new Fixture();
+        using var root = HostActivity.BeginRoot(f.Request, HostActivityLayer.Application, HostOperation.Request);
+        var entries = Enumerable.Range(1, 11).Select(id => ListEntry(id, "other")).ToImmutableArray();
+        OverviewReader(f, entries);
+        var query = new SessionListSearch(SessionListSearchKind.NameSubstring, SessionListFilter.All, "needle");
+        var first = await f.Service.ReadWorkOverviewAsync(SessionListFilter.All, false, null, f.Token, query);
+        entries = entries.SetItem(0, ListEntry(1)).SetItem(10, ListEntry(11));
+        OverviewReader(f, entries);
+        var next = await f.Service.ReadWorkOverviewAsync(SessionListFilter.All, false, first.Next, f.Token, query);
+        next.Records.Single().Session.Should().Be(entries[^1]);
+        var fresh = await f.Service.ReadWorkOverviewAsync(SessionListFilter.All, false, null, f.Token, query);
+        fresh.Records.Single().Session.Should().Be(entries[0]);
+    }
+
+    [Fact]
+    public async Task ExactIdQueryCanMatchUnnamedMetadataAndKeepsUnavailableQuestionSourceExplicit()
+    {
+        using var f = new Fixture();
+        using var root = HostActivity.BeginRoot(f.Request, HostActivityLayer.Application, HostOperation.Request);
+        var entry = ListEntry(1, null);
+        OverviewReader(f, [entry]);
+        f.OverviewReader = (_, _) => throw new IOException("private source unavailable");
+        var query = new SessionListSearch(SessionListSearchKind.ExactId, SessionListFilter.All, entry.Authority.SessionId.Value.ToString("D"));
+        var page = await f.Service.ReadWorkOverviewAsync(SessionListFilter.All, true, null, f.Token, query);
+        page.Records.Single().Availability.Should().Be(SessionWorkOverviewAvailability.ReadUnavailable);
+        page.Nonmatches.Should().Be(0);
+        page.Scanned.Should().Be(1);
+    }
+
     [Fact]
     public async Task IndependentSourceActivitiesCarryOnlyTheirExactHostResolvedSessionAndContentFreeCounts()
     {
@@ -56,11 +162,15 @@ public sealed partial class SessionWorkspaceServiceTests
     }
 
     [Theory]
-    [InlineData("timeout")]
-    [InlineData("cancel")]
-    [InlineData("cancel-timeout")]
-    [InlineData("source")]
-    public async Task OverviewFencesDeterministicInFlightCancellationTimeoutAndSourceRevocation(string mode)
+    [InlineData("timeout", false)]
+    [InlineData("cancel", false)]
+    [InlineData("cancel-timeout", false)]
+    [InlineData("source", false)]
+    [InlineData("timeout", true)]
+    [InlineData("cancel", true)]
+    [InlineData("cancel-timeout", true)]
+    [InlineData("source", true)]
+    public async Task OverviewFencesDeterministicInFlightCancellationTimeoutAndSourceRevocation(string mode, bool ranged)
     {
         using var f = new Fixture();
         using var root = HostActivity.BeginRoot(f.Request, HostActivityLayer.Application, HostOperation.Request);
@@ -72,7 +182,9 @@ public sealed partial class SessionWorkspaceServiceTests
         var clock = new OverviewTime();
         var service = new SessionWorkspaceService(f, new(f), f, f.Logger, overviewTime: clock);
         using var cancellation = new CancellationTokenSource();
-        var pending = service.ReadWorkOverviewAsync(SessionListFilter.All, false, null, cancellation.Token);
+        var query = new SessionListSearch(SessionListSearchKind.NameSubstring, SessionListFilter.All, "needle");
+        var pending = service.ReadWorkOverviewAsync(SessionListFilter.All, false, null, cancellation.Token, query,
+            ranges: ranged ? new(OmittedTasks: new(9, 9)) : default);
         await entered.Task.WaitAsync(f.Token);
         if (mode is "source")
         {
@@ -195,6 +307,8 @@ public sealed partial class SessionWorkspaceServiceTests
     [InlineData("revision")]
     [InlineData("empty")]
     [InlineData("epoch")]
+    [InlineData("query-epoch")]
+    [InlineData("query-revision")]
     public async Task OverviewContinuationRejectsChangedQueryAdmissionOrSource(string mode)
     {
         using var f = new Fixture();
@@ -206,10 +320,21 @@ public sealed partial class SessionWorkspaceServiceTests
         if (mode is "revision") { f.AdvanceRevision(); }
         if (mode is "empty") { cursor = cursor with { After = Guid.Empty }; }
         if (mode is "epoch") { cursor = cursor with { SourceEpoch = cursor.SourceEpoch + 1 }; }
+        SessionListSearch? query = null;
+        if (mode is "query-epoch" or "query-revision")
+        {
+            query = new(SessionListSearchKind.NameSubstring, SessionListFilter.All, "needle");
+            cursor = (await f.Service.ReadWorkOverviewAsync(SessionListFilter.All, false, null, f.Token, query)).Next!;
+            if (mode is "query-epoch")
+            {
+                await f.Service.ChangeLifecycleAsync(f.Request.SessionId, new(1), false, RequestOrigin.LocalUi, f.Token);
+            }
+            else { f.AdvanceRevision(); }
+        }
         var act = () => (mode is "host" ? other.Service : f.Service).ReadWorkOverviewAsync(
-            mode is "filter" ? SessionListFilter.Done : SessionListFilter.All, mode is "needs", cursor, f.Token);
+            mode is "filter" ? SessionListFilter.Done : SessionListFilter.All, mode is "needs", cursor, f.Token, query);
         await act.Should().ThrowAsync<ArgumentException>();
-        f.ListReads.Should().Be(1);
+        f.ListReads.Should().Be(mode is "query-epoch" or "query-revision" ? 2 : 1);
     }
 
     [Theory]
@@ -330,8 +455,10 @@ public sealed partial class SessionWorkspaceServiceTests
         page.Records.Single().Availability.Should().Be(SessionWorkOverviewAvailability.ReadUnavailable);
     }
 
-    [Fact]
-    public async Task CompleteBudgetNeverSkipsAnUnconsumedSessionAndMarksAnOversizedSingleGroupUnavailable()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task CompleteBudgetNeverSkipsAnUnconsumedSessionAndMarksAnOversizedSingleGroupUnavailable(bool queried)
     {
         using var f = new Fixture();
         using var root = HostActivity.BeginRoot(f.Request, HostActivityLayer.Application, HostOperation.Request);
@@ -348,10 +475,11 @@ public sealed partial class SessionWorkspaceServiceTests
                 PendingQuestions = OverviewSnapshot(snapshot.Session, id == entries[2].Authority.SessionId ? 50 : 0).PendingQuestions });
         };
         var seen = new List<SessionWorkOverviewRow>();
+        var query = queried ? new SessionListSearch(SessionListSearchKind.NameSubstring, SessionListFilter.All, "needle") : null;
         SessionWorkOverviewCursor? cursor = null;
         do
         {
-            var page = await f.Service.ReadWorkOverviewAsync(SessionListFilter.All, false, cursor, f.Token);
+            var page = await f.Service.ReadWorkOverviewAsync(SessionListFilter.All, false, cursor, f.Token, query);
             SessionWorkOverviewPage.Serialize(page).Length.Should().BeLessThanOrEqualTo(65536);
             seen.AddRange(page.Records);
             cursor = page.Next;

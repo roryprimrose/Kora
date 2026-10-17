@@ -51,6 +51,21 @@ even when the gate fails. Non-destructive Windows integration tests are not
 physical audio, provider or installed acceptance; CI must never lock or restart
 its runner.
 
+To reproduce CI's Windows test scheduling after a locked `win-x64` build, run
+`.\eng\Run-WindowsIntegrationTests.ps1`. Its five concurrent, disjoint local shards
+cover heavy storage, other storage, definition UI, native UX fixtures, and all
+remaining UI/platform tests. Each shard retains its own TRX and console output;
+any nonzero shard exit fails the run. `-Shard <name>` selects exactly one existing
+shard; `-ListShards` lists the selected names and filters without running tests.
+CI isolates these same five shards on separate hosted Windows runners, retaining
+per-shard TRX and console artifacts. The unchanged required **Windows integration
+tests** check aggregates the matrix fail-closed: failure, cancellation, missing
+or skipped shards cannot pass. Payload/bootstrap fixtures still run once.
+This scheduling isolates competing test processes without removing tests or
+changing test/product or 30-minute Windows job timeouts. Run
+`.\eng\Test-WindowsIntegrationScheduling.ps1` for deterministic selection,
+partition and aggregate-gate checks.
+
 Documentation-only changes need local link/heading, exact example and availability
 checks. Changes to the embedded user guide also run its focused tests. They do
 not require device/provider trials. Preserve existing anchors or update their

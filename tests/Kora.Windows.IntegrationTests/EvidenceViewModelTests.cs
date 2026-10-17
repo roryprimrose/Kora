@@ -32,7 +32,7 @@ public sealed class EvidenceViewModelTests
         var viewer = new EvidenceViewModel(service, () => true, NullLogger<EvidenceViewModel>.Instance)
         {
             Source = EvidenceSource.Span, SessionFilter = request.SessionId.Value.ToString("D"),
-            TaskFilter = request.TaskId.Value.ToString("D"), TraceFilter = trace.TraceId, SafeText = "session.request",
+            TaskFilter = request.TaskId.Value.ToString("D"), TraceFilter = trace.TraceId, SpanFilter = trace.SpanId, SafeText = "session.request",
         };
         await viewer.SearchAsync();
         viewer.Records.Should().ContainSingle();
@@ -70,6 +70,7 @@ public sealed class EvidenceViewModelTests
         var service = new DurableEvidenceQuery(reader, access, TimeProvider.System, NullLogger<DurableEvidenceQuery>.Instance);
         var viewer = new EvidenceViewModel(service, () => access.CanInspect, NullLogger<EvidenceViewModel>.Instance);
         viewer.EventIdFilter = "0";
+        viewer.SpanFilter = "0123456789abcdef";
         viewer.CategoryFilter = "Exact.Category";
         viewer.ActionIdFilter = "Exact Action";
         var pending = viewer.SearchAsync();
@@ -77,6 +78,7 @@ public sealed class EvidenceViewModelTests
         reader.Calls.Should().Be(1);
         viewer.Close();
         viewer.EventIdFilter.Should().BeEmpty();
+        viewer.SpanFilter.Should().BeEmpty();
         viewer.CategoryFilter.Should().BeEmpty();
         viewer.ActionIdFilter.Should().BeEmpty();
         reader.Token.WaitHandle.SafeWaitHandle.IsClosed.Should().BeFalse();
@@ -108,16 +110,25 @@ public sealed class EvidenceViewModelTests
         source.Should().Contain("DynamicResource").And.Contain("AutomationProperties.Name")
             .And.Contain("No copy, export, model, browser, deletion or execution.")
             .And.NotContain("WebView").And.NotContain("SelectableTextBlock").And.NotContain("MaxLength");
-        document.Descendants().Where(element => string.Equals(element.Name.LocalName, "TextBox", StringComparison.Ordinal)).Should().HaveCount(13);
+        document.Descendants().Where(element => string.Equals(element.Name.LocalName, "TextBox", StringComparison.Ordinal)).Should().HaveCount(23);
         source.Should().Contain("Advanced filters (optional)").And.Contain("Both time edges are inclusive");
         foreach (var binding in new[] { nameof(EvidenceViewModel.RequestFilter), nameof(EvidenceViewModel.InvocationFilter),
             nameof(EvidenceViewModel.ApprovalFilter), nameof(EvidenceViewModel.CorrelationFilter),
             nameof(EvidenceViewModel.FromFilter), nameof(EvidenceViewModel.UntilFilter),
             nameof(EvidenceViewModel.EventIdFilter), nameof(EvidenceViewModel.CategoryFilter), nameof(EvidenceViewModel.ActionIdFilter),
-            nameof(EvidenceViewModel.Severity), nameof(EvidenceViewModel.AuditOutcome) })
+            nameof(EvidenceViewModel.Severity), nameof(EvidenceViewModel.AuditOutcome), nameof(EvidenceViewModel.SpanFilter),
+            nameof(EvidenceViewModel.ParentSpanFilter), nameof(EvidenceViewModel.EventNameFilter),
+            nameof(EvidenceViewModel.ExceptionTypeFilter), nameof(EvidenceViewModel.FromAuditSequenceFilter),
+            nameof(EvidenceViewModel.UntilAuditSequenceFilter), nameof(EvidenceViewModel.TraceSourceFilter),
+            nameof(EvidenceViewModel.TraceSourceVersionFilter), nameof(EvidenceViewModel.ActivityNameFilter) })
         {
             source.Should().Contain("{Binding " + binding + "}");
         }
+        source.Should().Contain("{Binding Outcome, Mode=TwoWay}")
+            .And.Contain("{Binding ContentAvailability, Mode=TwoWay}")
+            .And.Contain("{Binding TraceVersionAvailability, Mode=TwoWay}")
+            .And.Contain("{Binding ActivityKind, Mode=TwoWay}")
+            .And.Contain("{Binding TraceFlags, Mode=TwoWay}");
         foreach (var field in document.Descendants().Where(element => string.Equals(element.Name.LocalName, "TextBox", StringComparison.Ordinal)))
         {
             field.Attribute("ContextMenu")!.Value.Should().Be("{x:Null}");

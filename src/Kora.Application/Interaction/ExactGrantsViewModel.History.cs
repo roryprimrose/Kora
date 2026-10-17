@@ -36,8 +36,12 @@ public sealed partial class ExactGrantsViewModel
             throw new InvalidOperationException("Exact history requires an explicit native viewer action, not an ambient model or historical request.");
         }
         var exact = inspectedHistoryTarget ?? throw new InvalidOperationException("Inspect one actual retained exact ID before reading history.");
+        var query = ExactGrantHistoryQuery.FromInput(HistoryOutcomeFilter, HistoryReasonCodeFilter, HistoryInitiatorFilter,
+            HistoryRetentionFilter, HistoryCommittedFromUtc, HistoryCommittedUntilUtc, HistoryDueFromUtc, HistoryDueUntilUtc,
+            HistoryAuditCorrelationId, HistoryApprovalFilter, HistoryApprovalId);
         using var linked = Begin(token);
         var revision = historyControlRevision;
+        var admissionId = historyAdmissionId;
         var version = selectionVersion;
         var filters = filterVersion;
         // Passive navigation retires actionable review, never creates a revoke preview or adopts old request authority.
@@ -50,22 +54,25 @@ public sealed partial class ExactGrantsViewModel
         historyViewer = viewer;
         var active = true;
         bool Admitted() => active && !disposed && nativeAdmission() && access.CanInspect && access.ControlRevision == revision
-            && selectionVersion == version && ReferenceEquals(inspectedHistoryTarget, exact);
+            && selectionVersion == version && historyAdmissionId == admissionId && ReferenceEquals(inspectedHistoryTarget, exact);
         using var activity = HostActivity.BeginRoot(viewer, HostActivityLayer.Application, HostOperation.Evidence);
         try
         {
             RequireCurrent(revision, version, controlRequired: false, linked.Token);
-            var page = await store.ReadExactGrantHistoryAsync(exact, viewer, cursor, Admitted, linked.Token);
+            var page = await store.ReadExactGrantHistoryAsync(exact, viewer, query, revision, admissionId, cursor, Admitted, linked.Token);
             RequireCurrent(revision, version, controlRequired: false, linked.Token);
             if (page.Current is { } current && (current.Grant.Id != exact.Grant.Id
                     || !string.Equals(current.StoreIdentity, exact.StoreIdentity, StringComparison.Ordinal))
                 || page.Current is null && (!page.Records.IsEmpty || page.Next is not null)
                 || page.Records.Length > ExactGrantHistoryPage.MaximumRecords
+                || page.ScannedRows is < 0 or > ExactGrantHistoryPage.MaximumScannedRows
+                || page.NonmatchingRows < 0 || page.NonmatchingRows > page.ScannedRows
+                || page.Records.Any(row => !query.Matches(row))
                 || ExactGrantHistoryPage.Serialize(page).Length > ExactGrantHistoryPage.MaximumBytes)
             {
                 throw new InvalidDataException("Exact history returned foreign metadata or exceeded its complete page bounds.");
             }
-            inspectedHistoryTarget = page.Current;
+            if (page.Current is null) { inspectedHistoryTarget = null; }
             historyNext = page.Next;
             HistoryRows = page.Records.Select(FormatHistory).ToImmutableArray();
             HistorySummary = page.Current is null
@@ -76,6 +83,7 @@ public sealed partial class ExactGrantsViewModel
                     + "; ceiling SHA-256: " + page.AuditCeilingDigest + Environment.NewLine
                     + "Rows in this page: " + page.Records.Length.ToString(CultureInfo.InvariantCulture)
                     + "; scanned rows: " + page.ScannedRows.ToString(CultureInfo.InvariantCulture)
+                    + "; nonmatching scanned rows: " + page.NonmatchingRows.ToString(CultureInfo.InvariantCulture)
                     + "; scanned through sequence: " + page.ScannedThrough.ToString(CultureInfo.InvariantCulture)
                     + "; scan bound reached: " + page.ScanLimitReached
                     + "; continuation: " + (page.Next is null ? "none in this snapshot" : "more prefix to scan, including zero-match pages")
@@ -110,6 +118,7 @@ public sealed partial class ExactGrantsViewModel
     {
         inspectedHistoryTarget = null;
         historyViewer = null;
+        historyAdmissionId = Guid.Empty;
         historyNext = null;
         HistoryRows = [];
         HistorySummary = "Explicitly inspect one actual retained record, then read history for that exact grant ID.";
@@ -123,7 +132,8 @@ public sealed partial class ExactGrantsViewModel
                 + "; sequence: " + p.Sequence.ToString(CultureInfo.InvariantCulture))
             .AppendLine("Committed: " + entry.CommittedAt.ToString("O", CultureInfo.InvariantCulture)
                 + "; retention deadline: " + entry.DueAt.ToString("O", CultureInfo.InvariantCulture) + "; " + entry.Retention)
-            .AppendLine("Recorded action: " + entry.Audit.ActionId + "; terminal audit: " + entry.Audit.Outcome
+            .AppendLine("Recorded action: " + entry.Audit.ActionId + "; committed event outcome: " + entry.Audit.Outcome
+                + "; committed event initiator: " + entry.Audit.Initiator
                 + "; interaction: " + p.InteractionOutcome + "; reason: " + entry.Audit.ReasonCode)
             .AppendLine("Correlation ID: " + entry.Audit.CorrelationId.ToString("D") + "; commit SHA-256: " + p.CommitDigest)
             .AppendLine("Original request/session/task/invocation: " + entry.Request.RequestId.Value.ToString("D") + " / "

@@ -24,6 +24,7 @@ Drafts and unadmitted bodies are discarded on closure, session/privacy/ownership
 Uninventoried managed copies hold deletion acceptance. Broader scopes and provider use remain dependent work. Forgetting is not forensic erasure or
 removal of previously returned/exported/provider copies.
 Logs and Activities carry host IDs and typed outcomes, not memory content.
+Native GUID/Scope/Review/Retention filters use only metadata already returned by an explicit List for the selected exact active session. Scope is an exact metadata kind, never permission, session selection or provider authority; Any and every defined kind compose with AND without expanding the inventory. Invalid selectors or malformed row metadata fail closed with explicit recovery, not partial results. Query text and filter state are private and volatile: no storage/content read, persistence, logging, Activity, session-clock renewal or model context follows a filter edit. Edits and Clear retire selection, inspection, replacement draft and mutation eligibility; selection and inspection must be explicit again. Forgotten rows expose only existing content-free identity metadata. Classification is not listed or searched, and no secret-detection claim is made. Explicit List refresh and existing source/session/private closure remain authoritative; no cross-session/global inventory or content search is added.
 See the [authoritative proposal boundary](../Design/Model_Providers_Memory_And_Knowledge.md#delivered-original-user-session-memory-proposals---2026-10-10).
 
 ## Trusted local event privacy
@@ -130,6 +131,33 @@ separate fixed local-version queue/native work surface is not a general
 effect/provider scheduler.
 
 ## Committed authority audit inspection
+
+Native Evidence also offers exact diagnostic Event name (max 128 characters)
+and Exception type (max 256), plus inclusive positive audit-sequence From/Until
+bounds. Empty means Any. Names are case-sensitive bounded plain text without
+surrounding whitespace or controls; sequences are canonical positive 64-bit
+decimal integers with ordered bounds. Missing metadata never matches a set
+predicate. All filters compose with AND; edits clear results/selection and cancel
+old reads without starting a new one. Clear advanced resets these fields.
+Event/exception names do not expose exception messages, stack traces, sensitive
+properties, user content or omitted bodies. Sequence is committed ordering
+metadata only, never authority, completeness, freshness, replay position or
+permission. Existing source distinctions, validation and page budgets remain.
+
+Native Evidence also offers exact trace source, activity operation name,
+ActivityKind and trace flags (None/Recorded), with visible Any choices. Trace
+source version offers Any/Absent/Present/Exact: Absent requires an existing trace
+with null version; an unknown/null trace never matches a set trace predicate.
+Exact version requires text; all other version choices require empty text.
+Source/version/name are case-sensitive, at most 128 characters, valid plain
+Unicode without surrounding whitespace or controls. These filters compose with
+all existing filters using AND, bind Next page, and reset with Clear advanced or
+close. Edits read nothing and retire old results/selection. Complete retained
+trace validation precedes filtering. Trace metadata is untrusted diagnostic
+correlation, not session selection, identity, intent, permission, approval or
+authority. No baggage, tags, user content, paths, credentials or omitted content
+is searched or restored. AuthorityAudit does not fabricate activity metadata.
+Installed accessibility qualification remains separate from deterministic tests.
 
 In **Evidence (read-only)**, select **AuthorityAudit** to inspect committed typed
 interaction-store security audit rows. This is a separate source from the
@@ -402,6 +430,12 @@ the affected interaction. Native record review cannot supply missing script
 bytes, containment or deployment authority, and no action-name grants are
 migrated into exact grants. General effect dispatch remains gated.
 
+### Exact-grant history filters
+
+After explicit exact-record inspection, native history can filter the trusted committed event by defined audit outcome and exact bounded canonical ReasonCode. Any/empty defaults are unfiltered; both predicates match typed fields, never formatted text, diagnostic mirrors or a separately retained Requested review. Filter text remains volatile and is not logged, saved, sent to a model or included in activity tags. The authenticated continuation contains only its digest, not query text.
+
+Edits perform no read and retire rows/continuation, actionable selection and revocation/batch review, cancelling and suppressing late output. A fresh explicit Read retains the same inspected inert target and rechecks current-record/private-source admission. Signed continuations bind inspected identity/digest, store lifetime, complete viewer/read admission/control revision and finite audit ceiling/digest. Scanned/nonmatching counts and zero-match Next remain explicit within 4096 rows/5 seconds, 50 results/64 KiB and a 15-minute snapshot. Retention gaps fail closed; expired-but-present is not physical erasure. No execution proof, exhaustive/forensic history, replay, export, audit pruning, grant expansion or installed accessibility qualification is supplied.
+
 Failures, safety information, and unavailable speech are always visible. A
 VoiceOnly preference cannot hide:
 
@@ -477,7 +511,23 @@ Source/draft remain intact, destination is disabled, and uncertain post-publicat
 The current host writes both ordinary diagnostics and typed audit events
 to those files and independent private-profile SQLite projections. Required
 capture/file/database failures are reported and fail admission explicitly,
-not silently swallowed. The bounded durable path currently covers exact
+not silently swallowed.
+
+Ordinary diagnostic and completed-activity persistence uses one bounded 1,024-entry background buffer. Buffer exhaustion refuses admission rather than blocking the UI or silently dropping a record. Recent ordinary evidence can lag while queued; abrupt termination can lose queued ordinary records ([writer](../src/Kora.Application/Diagnostics/BufferedEvidenceWriter.cs)).
+
+Capture freezes structured properties, scopes and host correlation before enqueueing; SQLite validates live diagnostic admission before preparing an owned payload ([capture](../src/Kora.Application/Diagnostics/EvidenceLoggerProvider.cs), [SQLite admission](../src/Kora.Windows/Storage/WindowsSqliteEvidenceSink.cs)).
+
+Background failures attempt independent sinks, report gaps and hold later admission; shutdown joins accepted writes. Capture admission does not hold its lifecycle lock during sink I/O ([provider lifecycle](../src/Kora.Application/Diagnostics/EvidenceLoggerProvider.cs)).
+
+Typed security audits are not fire-and-forget or ordinary buffered records. Asynchronous audit callers await durable delivery on a worker; synchronous authority callers retain their acknowledged-write contract ([audit await](../src/Kora.Application/Auditing/SecurityAuditLogExtensions.cs), [typed audit](../src/Kora.Application/Auditing/LoggerSecurityAuditLog.cs)).
+
+Approval preparation and retirement also await worker-side audit delivery. An unpublished requested approval is not actionable; retiring UI state is not a successful audit receipt. Failed required receipts close host input admission rather than admitting an effect or publishing a grant ([approval implementation](../src/Kora.Application/ViewModels/MainViewModel.cs)).
+
+Normal exit joins tracked grant preparation and persistence. Forced service disposal closes admission and joins owned writes without requiring a stopped UI dispatcher to resume ([lifecycle](../src/Kora.Application/ViewModels/MainViewModel.Appearance.cs)).
+
+An interrupted requested-only preparation never becomes an approval. Newer input, private closure and concurrent revocations fence late publication and dispatch ([blocked-boundary tests](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.ApprovalResponsiveness.cs)).
+
+The bounded durable path currently covers exact
 typed or activated-voice **version** commands: task intent, dispatch, terminal
 evidence and receipt are committed before completion. Startup marks intent-only
 work Interrupted and dispatched work without a verified receipt Unknown;
@@ -519,6 +569,26 @@ snapshot; later records do not silently extend it. Each page includes stable
 including metadata. A record too large for one page is explicitly marked
 `ContentOmitted`; content is never silently truncated.
 
+**Literal Find** searches only the exact serialized page already displayed
+after a successful complete explicit Evidence read, including its literal JSON
+escapes, citations and disclosure. It performs no new query or storage read.
+Find first/next/previous is case-sensitive, preserves spaces, selects one
+nonoverlapping literal and never wraps. The focused inert match shows its
+end-exclusive UTF-16 location without changing the page or cited-record
+selection. No-match is page-local, not a retained-source search or all-clear.
+Incomplete/failed/unavailable/content-omitted results cannot enable Find.
+
+Queries must be nonempty well-formed one-line text, at most 256 UTF-16
+characters and 512 UTF-8 bytes, without controls or Unicode format/separator
+characters. Invalid input is rejected visibly, never truncated. The query
+is volatile and never saved, logged/audited as content, copied/exported,
+spoken or sent to a model. Clear clears query/match without reading.
+Every read, page replacement, filter/source edit, cancellation, failure,
+ownership/privacy invalidation and close clears Find; late results cannot
+restore it. These controls do not change typed audit authority or source
+availability. [Contract and tests](../Design/Information_Display.md#delivered-bounded-native-evidence-inspection)
+are bounded automated evidence, not installed accessibility qualification.
+
 Expand **Advanced filters (optional)** for exact request, invocation, approval
 and audit-correlation GUIDs, **From / Until** times, severity and typed audit
 outcome. Blank fields are unset. GUIDs require nonempty hyphenated form without
@@ -539,6 +609,17 @@ cancels an in-flight read and requires a fresh **Search / refresh**; old/late
 results cannot return. Next continues the exact immutable query. These rules
 are exercised by [native typed-filter and real-reader tests](../tests/Kora.Windows.IntegrationTests/EvidenceAdvancedFilterTests.cs)
 and [signed-cursor tests](../tests/Kora.Application.UnitTests/Diagnostics/DurableEvidenceQueryTests.cs).
+
+The basic **Span ID** field beside **Trace ID** uses the existing exact W3C
+predicate: empty means Any; otherwise exactly 16 lowercase hexadecimal
+characters, not all zero. No trimming, case folding, partial match or repair.
+It composes with all other filters using AND and is correlation only, never
+identity or audit authority. Editing/emptying performs no read and retires
+results, selection, Next and late callbacks. **Clear advanced filters**
+preserves both basic W3C fields; empty either explicitly to unset it. Close
+clears both. Zero matches mean only absence in the filtered admitted snapshot.
+This adds no ParentSpanId filter, navigation, persistence, export, clipboard,
+model/tool/speech route or filter-value telemetry.
 
 The same [native parser](../src/Kora/EvidenceViewModel.Filters.cs) also exposes **Event ID**, **Category** and **Audit action ID**. Only empty text unsets these three fields; whitespace-only/surrounding whitespace, controls, invalid Unicode and over-limit values fail without a read.
 Event ID is canonical invariant signed 32-bit decimal, including zero, negatives and both integer bounds; no `+`, leading zeros, rounding or overflow fallback.

@@ -74,7 +74,7 @@ public sealed partial class DurableEvidenceQuery(
                 if (Serialize(page).Length <= EvidencePage.MaximumBytes) { break; }
                 if (records.Count == 1)
                 {
-                    if (records[0].ContentOmitted)
+                    if (records[0].ContentOmitted || query.ContentAvailability == EvidenceContentAvailability.Present)
                     {
                         throw new InvalidDataException("Evidence metadata exceeds the serialized result budget.");
                     }
@@ -166,7 +166,12 @@ public sealed partial class DurableEvidenceQuery(
     {
         if (!Enum.IsDefined(query.Source) || query.Limit is < 1 or > EvidencePage.MaximumRecords
             || query.FromUtc > query.UntilUtc || query.Severity is { } severity && !Enum.IsDefined(severity)
-            || query.AuditOutcome is { } outcome && !Enum.IsDefined(outcome))
+            || query.AuditOutcome is { } outcome && !Enum.IsDefined(outcome)
+            || query.Outcome is { } operationOutcome && !Enum.IsDefined(operationOutcome)
+            || query.ActivityKind is { } kind && !Enum.IsDefined(kind)
+            || query.TraceFlags is { } flags && !Enum.IsDefined(flags)
+            || !Enum.IsDefined(query.TraceSourceVersionAvailability)
+            || !Enum.IsDefined(query.ContentAvailability))
         {
             throw new ArgumentException("The evidence source, limits, time range or typed filters are invalid.", nameof(query));
         }
@@ -186,9 +191,24 @@ public sealed partial class DurableEvidenceQuery(
         }
         W3C(query.TraceId, 32);
         W3C(query.SpanId, 16);
+        W3C(query.ParentSpanId, 16);
+        TraceText(query.TraceSource);
+        TraceText(query.ActivityName);
+        TraceText(query.TraceSourceVersion);
+        if ((query.TraceSourceVersionAvailability == TraceSourceVersionAvailability.Exact) != (query.TraceSourceVersion is not null))
+        {
+            throw new ArgumentException("An exact trace source version requires a value, and other version choices forbid one.", nameof(query));
+        }
         Text(query.Text, 256);
         Text(query.Category, 256);
         Text(query.ActionId, 128);
+        ExactText(query.EventName, 128);
+        ExactText(query.ExceptionType, 256);
+        if (query.FromAuditSequence is <= 0 || query.UntilAuditSequence is <= 0
+            || query.FromAuditSequence > query.UntilAuditSequence)
+        {
+            throw new ArgumentException("Audit sequence bounds require positive ordered 64-bit integers.", nameof(query));
+        }
         // All is the existing heterogeneous SQLite search; an exact citation narrows its source.
         var filterSource = query.Source == EvidenceSource.All ? query.Record?.Source ?? query.Source : query.Source;
         if (query.EventId is not null && filterSource is EvidenceSource.Span or EvidenceSource.Link
@@ -231,6 +251,23 @@ public sealed partial class DurableEvidenceQuery(
         }
     }
 
+    private static void TraceText(string? value)
+    {
+        if (value is not null && !TraceSnapshot.IsValidMetadataText(value))
+        {
+            throw new ArgumentException("Trace predicates require bounded exact plain metadata.", nameof(value));
+        }
+    }
+
+    private static void ExactText(string? value, int limit)
+    {
+        Text(value, limit);
+        if (value is not null && (value.Length == 0 || char.IsWhiteSpace(value[0]) || char.IsWhiteSpace(value[^1])))
+        {
+            throw new ArgumentException("Exact evidence metadata requires nonempty text without surrounding whitespace.", nameof(value));
+        }
+    }
+
     private static void Text(string? value, int limit)
     {
         if (value is not null && (value.Length > limit || value.Any(char.IsControl)))
@@ -242,8 +279,7 @@ public sealed partial class DurableEvidenceQuery(
 
     private static void W3C(string? value, int length)
     {
-        if (value is not null && (value.Length != length || value.All(character => character == '0')
-            || value.Any(character => character is not (>= '0' and <= '9' or >= 'a' and <= 'f'))))
+        if (value is not null && !TraceSnapshot.IsValidW3CId(value, length))
         {
             throw new ArgumentException("The evidence W3C correlation filter is invalid.", nameof(value));
         }

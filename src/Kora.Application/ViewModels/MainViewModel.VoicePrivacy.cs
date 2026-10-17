@@ -54,7 +54,7 @@ public sealed partial class MainViewModel
 
     public bool IsPrivacyPresentationHeld => Volatile.Read(ref privacyPresentationHeld) != 0;
 
-    private bool IsHostInputEligible => !lifecycleAdmissionClosed && !IsPrivacyPresentationHeld
+    private bool IsHostInputEligible => !auditEvidenceUnavailable && !lifecycleAdmissionClosed && !IsPrivacyPresentationHeld
         && sessionController.IsCurrentSessionUnlocked()
         && privacyObservation.Current.SessionState == WindowsSessionState.Unlocked;
 
@@ -63,6 +63,8 @@ public sealed partial class MainViewModel
     private void OnWindowsPrivacyChanged(object? sender, WindowsPrivacyChangedEventArgs eventArgs)
     {
         if (disposed) { return; }
+        auditImpactPreview?.Retire("Private/lock/desktop revision changed; preview retired.");
+        RetireQuestionVoiceReply();
         var snapshot = eventArgs.Current;
         var voicePrivacyChanged = (eventArgs.Reason & (WindowsPrivacyChangeReason.Power
             | WindowsPrivacyChangeReason.MicrophonePermission | WindowsPrivacyChangeReason.InputTopology
@@ -95,21 +97,7 @@ public sealed partial class MainViewModel
                 {
                     return;
                 }
-                RefreshOutputEndpoints();
-                if (snapshot.SessionState == WindowsSessionState.Locked && !voicePrivacyChanged
-                    && (eventArgs.Reason & WindowsPrivacyChangeReason.OutputTopology) != WindowsPrivacyChangeReason.Unknown
-                    && Interlocked.Read(ref automaticUnlockRecoveryRevision) >= 0
-                    && microphoneCatalogCurrent && catalogPrivacyRevision == eventArgs.Previous.TopologyRevision
-                    && privacyObservation.Current == snapshot
-                    && snapshot.MicrophoneAccess == eventArgs.Previous.MicrophoneAccess
-                    && string.Equals(snapshot.DefaultMicrophoneId, eventArgs.Previous.DefaultMicrophoneId, StringComparison.Ordinal)
-                    && snapshot.ActiveMicrophoneIds.SequenceEqual(eventArgs.Previous.ActiveMicrophoneIds, StringComparer.Ordinal))
-                {
-                    // Output-only revisions retain validated input metadata, not input admission or capture.
-                    catalogPrivacyRevision = snapshot.TopologyRevision;
-                    return;
-                }
-                _ = RefreshMicrophonesAsync();
+                TopologyRefresh = RefreshTopologyAsync(snapshot, eventArgs.Previous, eventArgs.Reason, voicePrivacyChanged);
             });
         }
         if (snapshot.SessionState == WindowsSessionState.Unlocked)
@@ -129,6 +117,30 @@ public sealed partial class MainViewModel
                 }
             });
         }
+    }
+
+    public Task TopologyRefresh { get; private set; } = Task.CompletedTask;
+
+    private async Task RefreshTopologyAsync(WindowsPrivacySnapshot snapshot, WindowsPrivacySnapshot previous,
+        WindowsPrivacyChangeReason reason, bool voicePrivacyChanged)
+    {
+        var begin = HostActivity.CaptureContinuation(HostActivityLayer.Application, HostOperation.Recovery);
+        using var activity = begin();
+        if (snapshot.SessionState == WindowsSessionState.Locked && !voicePrivacyChanged
+                    && (reason & WindowsPrivacyChangeReason.OutputTopology) != WindowsPrivacyChangeReason.Unknown
+                    && Interlocked.Read(ref automaticUnlockRecoveryRevision) >= 0
+                    && microphoneCatalogCurrent && catalogPrivacyRevision == previous.TopologyRevision
+                    && privacyObservation.Current == snapshot
+                    && snapshot.MicrophoneAccess == previous.MicrophoneAccess
+                    && string.Equals(snapshot.DefaultMicrophoneId, previous.DefaultMicrophoneId, StringComparison.Ordinal)
+                    && snapshot.ActiveMicrophoneIds.SequenceEqual(previous.ActiveMicrophoneIds, StringComparer.Ordinal))
+                {
+                    // Output-only revisions retain validated input metadata, not input admission or capture.
+                    catalogPrivacyRevision = snapshot.TopologyRevision;
+                }
+        else { await RefreshMicrophonesAsync(); }
+        if (!disposed && !lifecycleAdmissionClosed) { await RefreshOutputEndpointsAsync(); }
+        activity.Complete(HostOperationOutcome.Completed);
     }
 
     private void InvalidateUnavailableOutput()
@@ -153,15 +165,37 @@ public sealed partial class MainViewModel
         }
     }
 
-    private bool RefreshOutputEndpoints()
+    public Task<bool> OutputRefresh { get; private set; } = Task.FromResult(true);
+    private Task outputDiscoveryPersistence = Task.CompletedTask;
+
+    private Task<bool> RefreshOutputEndpointsAsync(CancellationToken token = default)
     {
+        if (!OutputRefresh.IsCompleted) { return OutputRefresh.WaitAsync(token); }
+        return OutputRefresh = DiscoverOutputEndpointsAsync(token);
+    }
+
+    private async Task<bool> DiscoverOutputEndpointsAsync(CancellationToken token)
+    {
+        var topology = privacyObservation.Current.TopologyRevision;
+        var previousOutput = selectedOutputDevice;
         try
         {
-            var previousOutput = selectedOutputDevice;
-            var devices = textToSpeech.GetOutputDevices();
-            systemDefaultOutputDevice = textToSpeech.GetDefaultOutputDevice();
-            outputConfiguration?.Observe(new(devices, systemDefaultOutputDevice));
-            var previous = SelectedOutputDevice;
+            var work = Task.Run(async () =>
+            {
+                var observed = await outputCatalog.RefreshAsync(token).ConfigureAwait(false);
+                if (disposed || lifecycleAdmissionClosed || privacyObservation.Current.TopologyRevision != topology)
+                {
+                    throw new InvalidOperationException("Output discovery lost its original host or topology. Refresh under current admission.");
+                }
+                outputConfiguration?.Observe(observed);
+                return observed;
+            }, token);
+            outputDiscoveryPersistence = work;
+            var snapshot = await work;
+            if (disposed || lifecycleAdmissionClosed || privacyObservation.Current.TopologyRevision != topology
+                || !string.Equals(selectedOutputDevice?.Id, previousOutput?.Id, StringComparison.Ordinal)) { return false; }
+            var devices = snapshot.Devices;
+            systemDefaultOutputDevice = snapshot.Default;
             suppressAudioDevicePreferenceSave = true;
             try
             {
@@ -181,8 +215,8 @@ public sealed partial class MainViewModel
             {
                 suppressAudioDevicePreferenceSave = false;
             }
-            UpdateOutputDeviceAvailability(selectedDeviceUnavailable: SelectedOutputDevice is not null
-                && !OutputDevices.Contains(SelectedOutputDevice));
+            UpdateOutputDeviceAvailability(selectedDeviceUnavailable: SelectedOutputDevice is null
+                || !OutputDevices.Contains(SelectedOutputDevice));
             PreviewVoiceCommand.NotifyCanExecuteChanged();
             OnPropertyChanged(nameof(IsSpeechOutputAvailable));
             NotifyOutputPolicyChanged();
@@ -194,23 +228,40 @@ public sealed partial class MainViewModel
         }
         catch (Exception exception) when (exception is not OutOfMemoryException)
         {
+            if (disposed || lifecycleAdmissionClosed) { return false; }
             InvalidateUnavailableOutput();
-            ApplicationLog.Error(logger, exception, "Refreshing Windows output endpoint availability");
-            ShowFailure("Audio output is unavailable.", exception.Message);
+            try { ApplicationLog.Error(logger, exception, "Refreshing Windows output endpoint availability"); }
+            finally { ShowFailure("Audio output is unavailable.", exception.Message); }
             return false;
+        }
+        finally
+        {
+            if (!disposed)
+            {
+                OnPropertyChanged(nameof(IsSpeechOutputAvailable));
+                NotifyOutputPolicyChanged();
+            }
         }
     }
 
     public void Dispose()
     {
-        if (disposed)
+        lock (auditPersistenceGate)
         {
-            return;
+            if (disposed) { return; }
+            disposed = true;
         }
-        disposed = true;
+        if (auditImpactPreview is not null)
+        {
+            auditImpactPreview.Changed -= OnAuditImpactPreviewChanged;
+            auditImpactPreview.Dispose();
+        }
         RetireWebResultDetails();
         RetireSpeechCaption();
         lifecycleAdmissionClosed = true;
+        questionVoiceReplies?.CloseAdmission();
+        RetireQuestionVoiceReply();
+        PropertyChanged -= OnQuestionVoiceReadinessChanged;
         // Refresh cancellation can release an awaiting caller before Dispose returns.
         HoldVoiceInput("Microphone closed · host disposed");
         microphoneRefreshCancellation?.Cancel();
@@ -322,8 +373,10 @@ public sealed partial class MainViewModel
     {
         try
         {
-            uiDispatcher.Post(() =>
+            var presentation = uiDispatcher.InvokeAsync(async () =>
             {
+                var actionRetirement = Task.CompletedTask;
+                var grantRetirement = Task.CompletedTask;
                 IsListening = false;
                 IsSpeaking = false;
                 activeSpokenText = null;
@@ -332,11 +385,11 @@ public sealed partial class MainViewModel
                 {
                     if (IsModelActionApprovalPending)
                     {
-                        ClearPendingModelAction("windows-privacy-transition");
+                        actionRetirement = ClearPendingModelActionAsync("windows-privacy-transition");
                     }
                     if (IsGrantChangePending)
                     {
-                        ClearPendingGrantChange("windows-privacy-transition");
+                        grantRetirement = ClearPendingGrantChangeAsync("windows-privacy-transition");
                     }
                     if (IsModelQuestionPending)
                     {
@@ -353,11 +406,12 @@ public sealed partial class MainViewModel
                     ShowInformation("Voice recovery is required.", reason + ". Refresh microphones and explicitly enable listening.");
                 }
                 NotifyVoiceEnablementChanged();
+                await Task.WhenAll(actionRetirement, grantRetirement);
             });
             // Capture release never waits for speech synthesis or the UI dispatcher.
             var captureClosure = voiceRecognition.StopAsync();
             var outputClosure = textToSpeech.StopAsync();
-            await Task.WhenAll(captureClosure, outputClosure);
+            await Task.WhenAll(captureClosure, outputClosure, presentation);
             await ClosePromptPreparation();
         }
         catch (Exception exception) when (exception is not OutOfMemoryException)
@@ -395,6 +449,7 @@ public sealed partial class MainViewModel
 
     private void HoldVoiceInput(string reason, WindowsSessionState? sessionState = null, bool restoreOnUnlock = false)
     {
+        RetireQuestionVoiceReply();
         long revision;
         lock (voiceReadinessGate)
         {
@@ -495,11 +550,18 @@ public sealed partial class MainViewModel
         }
     }
 
+    private Task consentPersistence = Task.CompletedTask;
+    private long consentRevision;
+
     public async Task SetVoiceConsentAsync(bool consent)
     {
+        if (disposed) { return; }
         if (!AdmitVoiceOptionMutation("configuration.voice-consent")) { return; }
         var origin = OriginalOrigin();
         var callRevision = CallPolicyRevision;
+        var revision = Interlocked.Increment(ref consentRevision);
+        var privacy = privacyObservation.Current.TopologyRevision;
+        var owner = auditImpactOwnerRevision();
 
         // Withdrawal closes capture even if persisting the preference subsequently fails.
         if (!consent)
@@ -509,10 +571,31 @@ public sealed partial class MainViewModel
             OnPropertyChanged(nameof(NeedsVoiceConsent));
             HoldVoiceInput("Microphone closed · ongoing voice consent withdrawn");
         }
+        var captureClosure = consent ? Task.CompletedTask : StopListeningAsync();
 
         try
         {
-            voiceConsentPreferences.Save(consent);
+            var previous = consentPersistence.IsCompleted ? Task.CompletedTask : consentPersistence;
+            var persist = Task.Run(async () =>
+            {
+#pragma warning disable VSTHRD003 // Serialise owned consent writes; the predecessor is a thread-pool operation, not dispatcher work.
+                // The predecessor's caller owns its failure; serialization must still persist a later explicit withdrawal.
+                await previous.ConfigureAwait(ConfigureAwaitOptions.SuppressThrowing);
+#pragma warning restore VSTHRD003
+                if (revision != Interlocked.Read(ref consentRevision))
+                {
+                    throw new OperationCanceledException("The voice-consent choice was superseded.");
+                }
+                if (consent && (!IsHostInputEligible || privacyObservation.Current.TopologyRevision != privacy
+                    || auditImpactOwnerRevision() != owner || CallPolicyRevision != callRevision))
+                {
+                    throw new InvalidOperationException("Voice-consent admission changed before persistence. Initiate a fresh choice.");
+                }
+                voiceConsentPreferences.Save(consent);
+            });
+            consentPersistence = persist;
+            await Task.WhenAll(persist, captureClosure);
+            if (disposed || revision != Interlocked.Read(ref consentRevision)) { return; }
             voiceConsent = consent;
             OnPropertyChanged(nameof(HasVoiceConsent));
             OnPropertyChanged(nameof(NeedsVoiceConsent));
@@ -523,14 +606,22 @@ public sealed partial class MainViewModel
             }
             else
             {
-                await StopListeningAsync();
                 ShowInformation("Voice consent declined or withdrawn.",
                     "The microphone remains closed across restart. Native and typed controls remain available.");
             }
         }
-        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        catch (OperationCanceledException)
         {
+            if (disposed) { return; }
+            ApplicationLog.Information(logger, "Voice-consent persistence was retired before commit");
+            if (revision != Interlocked.Read(ref consentRevision)) { return; }
+            HoldVoiceInput("Microphone closed · voice-consent choice retired");
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or InvalidOperationException)
+        {
+            if (disposed) { return; }
             ApplicationLog.Error(logger, exception, "Saving ongoing voice consent");
+            if (revision != Interlocked.Read(ref consentRevision)) { return; }
             ShowFailure("Voice consent could not be saved.",
                 "Capture remains closed. Review the storage error before restarting: " + exception.Message);
             HoldVoiceInput("Microphone closed · consent persistence failed");
@@ -539,6 +630,7 @@ public sealed partial class MainViewModel
 
     public async Task BeginPushToTalkAsync()
     {
+        RetireQuestionVoiceReply();
         if (lifecycleAdmissionClosed || IsBusy && !IsSpeaking
             || !IsHostInputEligible || !RefreshVoiceReadiness())
         {
@@ -886,7 +978,12 @@ public sealed partial class MainViewModel
     {
         if (instructionEditorShutdown is not null && !await instructionEditorShutdown()) { return false; }
         await ClosePromptPreparation();
-        if (lifecycleAdmissionClosed || !IsHandoffReviewQuiescent || IsBusy || IsWebPageRetrievalActive
+        if (lifecycleAdmissionClosed || applyingAppearance || drainingPreferences || preferenceWriteActive
+            || !consentPersistence.IsCompleted || Volatile.Read(ref activeApprovalPreparations) != 0
+            || !outputCatalog.IsQuiescent || !OutputRefresh.IsCompleted || !outputDiscoveryPersistence.IsCompleted
+            || Volatile.Read(ref pendingAuditWrites) != 0
+            || Volatile.Read(ref stoppingAudioOperations) != 0
+            || !IsHandoffReviewQuiescent || IsBusy || IsWebPageRetrievalActive
             || !clipboardPreview.IsQuiescent || filePreview?.IsQuiescent == false || sessionFiles?.IsQuiescent == false
             || IsLocalModelSetupActive || IsPowerShellSetupActive || IsSpeechProviderOperationActive
             || activeReasoningTask is { IsCompleted: false } || isModelActionDispatchActive

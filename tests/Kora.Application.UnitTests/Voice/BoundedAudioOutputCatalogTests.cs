@@ -11,6 +11,24 @@ namespace Kora.Application.UnitTests.Voice;
 public sealed class BoundedAudioOutputCatalogTests
 {
     [Fact]
+    public async Task CancelledWaitStillOwnsEnumerationUntilQuiescenceIsJoined()
+    {
+        var completion = new TaskCompletionSource<AudioOutputCatalogSnapshot>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var catalog = new BoundedAudioOutputCatalog(() => completion.Task, TimeProvider.System, NullLogger.Instance);
+        using var cancellation = new CancellationTokenSource();
+        var refresh = catalog.RefreshAsync(cancellation.Token);
+        await cancellation.CancelAsync();
+        var cancelled = () => refresh;
+        await cancelled.Should().ThrowAsync<OperationCanceledException>();
+        catalog.IsQuiescent.Should().BeFalse();
+        var join = catalog.WaitForQuiescenceAsync();
+        join.IsCompleted.Should().BeFalse();
+        completion.SetResult(new([], null));
+        await join;
+        catalog.IsQuiescent.Should().BeTrue();
+    }
+
+    [Fact]
     public async Task Five_second_metadata_deadline_cancellation_and_late_fault_never_accumulate_workers_or_publish_late_output()
     {
         var clock = new ReleaseFixture.Clock();

@@ -39,10 +39,25 @@ internal sealed class ExactGrantTestStore(AudioControlTestStore intents, ExactGr
     internal ExactGrantCursor? LastCursor { get; private set; }
     internal CancellationToken PageToken { get; private set; }
     internal int Pages { get; private set; }
+    internal int HistoryReads { get; private set; }
+    internal ExactGrantHistoryQuery? HistoryQuery { get; private set; }
+    internal ExactGrantInspection? HistoryExact { get; private set; }
+    internal long HistoryControlRevision { get; private set; }
+    internal Guid HistoryAdmissionId { get; private set; }
+    internal string? HistoryCursor { get; private set; }
+    internal CancellationToken HistoryToken { get; private set; }
 
     public ValueTask<ExactGrantHistoryPage> ReadExactGrantHistoryAsync(ExactGrantInspection inspected, HostRequest viewer,
+        ExactGrantHistoryQuery query, long controlRevision, Guid admissionId,
         string? cursor, Func<bool> admitted, CancellationToken cancellationToken)
     {
+        HistoryReads++;
+        HistoryQuery = query;
+        HistoryExact = inspected;
+        HistoryControlRevision = controlRevision;
+        HistoryAdmissionId = admissionId;
+        HistoryCursor = cursor;
+        HistoryToken = cancellationToken;
         HistoryViewer = viewer;
         HistoryAdmission = admitted;
         BeforeHistory?.Invoke();

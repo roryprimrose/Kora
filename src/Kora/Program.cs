@@ -105,6 +105,17 @@ internal static class Program
                                 throw new AuditRetentionUnavailableException(exception);
                             }
                             var diagnosticConfiguration = provider.GetRequiredService<DiagnosticRetentionConfigurationService>();
+#if DEBUG
+                            if (coordinator.RecoveredDebugOwner)
+                            {
+                                provider.GetRequiredService<Kora.Core.Auditing.ISecurityAuditLog>().Write(
+                                    new Kora.Core.Auditing.SecurityAuditEvent(startup.Request.RequestId.Value,
+                                        Kora.Core.Auditing.SecurityAuditCategory.ApplicationExecution,
+                                        "instance.debug-recovery", Kora.Core.Auditing.SecurityAuditOutcome.Succeeded,
+                                        Kora.Core.Auditing.SecurityAuditInitiator.System, "application.current",
+                                        reasonCode: "dead-owner-no-external-work"));
+                            }
+#endif
                             try { diagnosticConfiguration.Observe(); }
                             catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or InvalidDataException)
                             {
@@ -237,7 +248,7 @@ internal static class Program
             builder.SetMinimumLevel(LogLevel.Debug);
             var fileSink = new FileEvidenceSink(fileLogger, fileHealth);
             builder.AddProvider(new EvidenceLoggerProvider(
-                [fileSink, evidence], fileSink));
+                [fileSink, evidence], fileSink, bufferDiagnostics: true));
         });
         services.AddSingleton(ownershipBridge);
         services.AddSingleton<IInstanceHostCallbacks>(ownershipBridge);
@@ -389,6 +400,7 @@ internal static class Program
             provider.GetRequiredService<IUiDispatcher>(), provider.GetRequiredService<ISecurityAuditLog>(),
             provider.GetRequiredService<ILogger<MaintenanceViewModel>>()));
         services.AddSingleton<Kora.Application.Interaction.HostQuestionService>();
+        services.AddSingleton<Kora.Application.Interaction.HostQuestionReviewService>();
         services.AddSingleton<Kora.Application.Interaction.HostAuthorizationService>();
         services.AddSingleton<HostTaskCoordinator>();
         services.AddSingleton<DurableVersionQuery>();
@@ -402,7 +414,11 @@ internal static class Program
         services.AddSingleton<ISecurityAuditLog, LoggerSecurityAuditLog>();
         services.AddSingleton<IDependencyProbe, StorageDependencyProbe>();
         services.AddSingleton<IDependencyProbe, SqliteDependencyProbe>();
+#if DEBUG
+        services.AddSingleton(_ => new WindowsPowerShellSetupService(coordinator.DebugRecovery));
+#else
         services.AddSingleton<WindowsPowerShellSetupService>();
+#endif
         services.AddSingleton<IPowerShellSetup>(provider =>
             provider.GetRequiredService<WindowsPowerShellSetupService>());
         services.AddSingleton<IDependencyProbe>(provider =>
@@ -436,7 +452,11 @@ internal static class Program
         services.AddSingleton<Kora.Application.Definitions.PromptConversationSubmission>();
         services.AddSingleton<ModelProviderHandoffWorkflow>();
         services.AddSingleton<ModelHandoffPresentation>();
+#if DEBUG
+        services.AddSingleton<ILocalModelSetup>(_ => new WindowsOllamaSetupService(coordinator.DebugRecovery));
+#else
         services.AddSingleton<ILocalModelSetup, WindowsOllamaSetupService>();
+#endif
         services.AddSingleton<DependencySetupWorkflow>();
         services.AddKeyedSingleton(
             "ollama-reasoner",
@@ -471,6 +491,9 @@ internal static class Program
         services.AddSingleton<IAuditRetentionPreferences>(provider =>
             new LocalAuditRetentionPreferences(provider.GetRequiredService<IPreferenceStore>()));
         services.AddSingleton<AuditRetentionConfigurationService>();
+        services.AddSingleton<IAuditRetentionImpactReader>(provider =>
+            new WindowsSqliteAuditImpactReader(interactions, evidence, paths));
+        services.AddSingleton<AuditImpactPreviewService>();
         services.AddSingleton<IModelApprovalPreferences>(provider =>
             new LocalModelApprovalPreferences(
                 provider.GetRequiredService<IPreferenceStore>()));
@@ -486,6 +509,7 @@ internal static class Program
                 provider.GetRequiredService<IPreferenceStore>(),
                 provider.GetRequiredService<ILogger<LocalAppearancePreferences>>()));
         services.AddSingleton<AppearanceConfigurationService>();
+        services.AddSingleton<AuditedPreferenceWriter>();
         services.AddSingleton<ISpeechCatalog>(provider => provider.GetRequiredService<ITextToSpeechService>());
         services.AddSingleton<IAudioOutputDeviceCatalog>(provider => provider.GetRequiredService<ITextToSpeechService>());
         services.AddSingleton<ISpeechPlaybackService>(provider => provider.GetRequiredService<ITextToSpeechService>());

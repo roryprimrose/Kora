@@ -11,6 +11,12 @@ public sealed class WindowsPowerShellSetupService : IPowerShellSetup
         : this(new PowerShellProcessRunner())
     {
     }
+#if DEBUG
+    public WindowsPowerShellSetupService(Kora.Windows.Coordination.IDebugRecoveryWorkTracker recovery)
+        : this(new PowerShellProcessRunner(recovery ?? throw new ArgumentNullException(nameof(recovery))))
+    {
+    }
+#endif
 
     internal WindowsPowerShellSetupService(IPowerShellProcessRunner processes)
     {

@@ -28,9 +28,15 @@ public static class SpeechVoiceSelector
             && string.Equals(voice.Culture, profileCulture.Name, StringComparison.OrdinalIgnoreCase))
         ?? voices.FirstOrDefault(voice =>
             voice.Gender == gender
-            && IsSameLanguage(voice.Culture, profileCulture.TwoLetterISOLanguageName));
+            && MatchesLanguage(voice, profileCulture));
 
-    private static bool IsSameLanguage(string voiceCulture, string language) =>
-        string.Equals(voiceCulture, language, StringComparison.OrdinalIgnoreCase)
-        || voiceCulture.StartsWith($"{language}-", StringComparison.OrdinalIgnoreCase);
+    public static bool MatchesLanguage(SpeechVoice voice, CultureInfo profileCulture)
+    {
+        ArgumentNullException.ThrowIfNull(voice);
+        ArgumentNullException.ThrowIfNull(profileCulture);
+
+        var language = profileCulture.TwoLetterISOLanguageName;
+        return string.Equals(voice.Culture, language, StringComparison.OrdinalIgnoreCase)
+            || voice.Culture.StartsWith($"{language}-", StringComparison.OrdinalIgnoreCase);
+    }
 }

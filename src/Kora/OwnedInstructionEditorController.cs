@@ -76,7 +76,7 @@ internal sealed partial class OwnedInstructionEditorController(
         lifetime = new();
         window = new(action =>
         {
-            if (action is "Filter" or "Next") { FilterInventory(action is "Next"); }
+            if (action is "Filter" or "Next") { FilterInventory(action is "Next", edited: action is "Filter"); }
             else { _ = Run(action); }
         });
         window.Source.PropertyChanged += (_, change) =>
@@ -201,7 +201,7 @@ internal sealed partial class OwnedInstructionEditorController(
                     await Save(opened, delete: true, Eligible, token);
                     break;
                 case "Review use":
-                    if (Dirty || baseline is null || uncertain || Actions.IsSourceUnavailable)
+                    if (!opened.ReviewUse.IsEnabled || Dirty || baseline is null || uncertain || Actions.IsSourceUnavailable)
                     { throw new InvalidOperationException("Save/reload an exact clean revision before reviewing use."); }
                     var reviewed = baseline;
                     var reviewedSourceRevision = Interlocked.Read(ref sourceRevision);
@@ -285,7 +285,7 @@ internal sealed partial class OwnedInstructionEditorController(
 
     private async Task DisableUse(OwnedInstructionEditorWindow opened, Func<bool> eligible, CancellationToken token)
     {
-        if (Dirty || baseline is not { } reviewed || uncertain
+        if (!opened.DisableReviewedUse.IsEnabled || Dirty || baseline is not { } reviewed || uncertain
             || !string.Equals(selectedName, reviewed.Name, StringComparison.Ordinal)
             || !string.Equals(opened.NameInput.Text, reviewed.Name, StringComparison.Ordinal)
             || opened.Files.SelectedItem is OwnedDefinitionInventoryRow selection && !string.Equals(selection.Name, reviewed.Name, StringComparison.Ordinal))
@@ -348,6 +348,8 @@ internal sealed partial class OwnedInstructionEditorController(
             baseline = result.Current; originalText = baseline?.Document.Text ?? string.Empty;
             opened.Source.Text = originalText;
             uncertain = !reload.ReloadNow();
+            inventoryChoiceWithdrawn = false;
+            opened.SetUseReviewAvailable(baseline is not null && !uncertain);
             opened.Report("Draft abandoned by explicit Reload. Current disk source loaded; use remains revision-reviewed.");
             return false;
         }
@@ -358,6 +360,8 @@ internal sealed partial class OwnedInstructionEditorController(
         originalText = baseline?.Document.Text ?? string.Empty;
         opened.Source.Text = originalText;
         if (result.Deleted) { selectedName = null; }
+        inventoryChoiceWithdrawn = false;
+        opened.SetUseReviewAvailable(baseline is not null && !uncertain);
         opened.Report(result.Unchanged ? delete ? "Reviewed original already absent; no file deleted or use enabled."
             : "Exact original bytes and identity are unchanged. Existing reviewed use preserved; no file write."
             : result.Deleted ? "Owned original deleted and catalogue reconciled."
@@ -420,6 +424,8 @@ internal sealed partial class OwnedInstructionEditorController(
             }
         }
         uncertain = !reload.ReloadNow();
+        inventoryChoiceWithdrawn = false;
+        opened.SetUseReviewAvailable(loaded is not null && !uncertain);
         opened.Report(loaded is null ? "The owned original is missing; no file was written."
             : $"Owned kind {kind}; ID {name}; exact source revision {loaded.Revision}; digest {loaded.Document.Definition.Digest}; BOM={loaded.Document.HasBom}. "
                 + (uncertain ? "Use state unavailable; explicit Reload/recovery required."
@@ -443,7 +449,7 @@ internal sealed partial class OwnedInstructionEditorController(
         baseline = null; selectedName = null; originalText = string.Empty; uncertain = false;
         newDraft = false;
         opened.Source.Text = string.Empty; opened.NameInput.Text = string.Empty; opened.CopyNameInput.Text = string.Empty; opened.ClearInventory();
-        opened.QueryInput.Text = string.Empty; opened.UseStateInput.SelectedItem = OwnedDefinitionUseFilter.All;
+        opened.ClearSearch();
         opened.SelectKind(kind);
         return true;
     }

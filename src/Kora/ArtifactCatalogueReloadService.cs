@@ -64,7 +64,10 @@ internal sealed partial class ArtifactCatalogueReloadService : IDisposable
             {
                 return;
             }
-            timer = new(Reload, null, Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
+            using (ExecutionContext.SuppressFlow())
+            {
+                timer = new(Reload, null, Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
+            }
             configuration.Changed += OnConfigurationChanged;
             ConfigureWatchers();
         }
@@ -96,8 +99,14 @@ internal sealed partial class ArtifactCatalogueReloadService : IDisposable
         }
     }
 
-    private void OnDiskChanged(object sender, FileSystemEventArgs args)
+    private void OnDiskChanged(WatchTarget target, FileSystemEventArgs args)
     {
+        if (!AffectsTarget(target, args.FullPath, includeDirectory:
+            args.ChangeType != WatcherChangeTypes.Changed))
+        {
+            return;
+        }
+
         lock (gate)
         {
             if (!disposed)
@@ -107,38 +116,62 @@ internal sealed partial class ArtifactCatalogueReloadService : IDisposable
         }
     }
 
-    private void OnDiskRenamed(object sender, RenamedEventArgs args) => OnDiskChanged(sender, args);
+    private void OnDiskRenamed(WatchTarget target, RenamedEventArgs args)
+    {
+        if (!AffectsTarget(target, args.OldFullPath, includeDirectory: true))
+        {
+            OnDiskChanged(target, args);
+            return;
+        }
+
+        lock (gate)
+        {
+            if (!disposed)
+            {
+                ScheduleReload();
+            }
+        }
+    }
 
     private void ScheduleReload() => timer!.Change(DebounceDelay, Timeout.InfiniteTimeSpan);
 
     internal bool ReloadNow()
     {
+        var artifactCount = 0;
+        Exception? failure = null;
         lock (gate)
         {
-        if (disposed) { return false; }
-        try
-        {
-            var settings = preferences.Load();
-            var disk = Discovery(settings).Load();
-            var embedded = EmbeddedArtifactCatalogue.Load();
-            ArtifactDefinition[] candidates = [.. embedded.Artifacts, .. disk];
-            PublishReconciled(candidates);
-            mcpConfiguration.NotifyChanged();
-            ArtifactReloaded(logger, catalogue.Artifacts.Count);
-            return true;
+            if (disposed) { return false; }
+            try
+            {
+                var settings = preferences.Load();
+                var disk = Discovery(settings).Load();
+                var embedded = EmbeddedArtifactCatalogue.Load();
+                ArtifactDefinition[] candidates = [.. embedded.Artifacts, .. disk];
+                PublishReconciled(candidates);
+                artifactCount = catalogue.Artifacts.Count;
+            }
+            catch (Exception exception) when (exception is IOException
+                or UnauthorizedAccessException
+                or InvalidDataException
+                or ArgumentException
+                or NotSupportedException)
+            {
+                failure = exception;
+                HoldOwnedInstructions();
+            }
         }
-        catch (Exception exception) when (exception is IOException
-            or UnauthorizedAccessException
-            or InvalidDataException
-            or ArgumentException
-            or NotSupportedException)
+
+        if (failure is not null)
         {
-            ArtifactReloadFailed(logger, exception.GetType().Name);
-            HoldOwnedInstructions();
-            catalogue.ReportReloadFailure(exception);
+            ArtifactReloadFailed(logger, failure.GetType().Name);
+            catalogue.ReportReloadFailure(failure);
             return false;
         }
-        }
+
+        mcpConfiguration.NotifyChanged();
+        ArtifactReloaded(logger, artifactCount);
+        return true;
     }
 
     private void Reload(object? state) => ReloadNow();
@@ -182,9 +215,11 @@ internal sealed partial class ArtifactCatalogueReloadService : IDisposable
 
         var settings = preferences.Load();
         var discovery = Discovery(settings);
-        var targets = discovery.RootPaths
-            .Select(path => new WatchTarget(path, IsFile: false))
-            .Concat(mcpConfiguration.SourceFiles.Select(path => new WatchTarget(path, IsFile: true)))
+        var targets = discovery.WatchRoots
+            .Select(root => new WatchTarget(
+                root.Path, IsFile: false, root.Patterns, root.MaximumDepth, root.WatchAllFiles))
+            .Concat(mcpConfiguration.SourceFiles.Select(path =>
+                new WatchTarget(path, IsFile: true, [], MaximumDepth: 0, WatchAllFiles: false)))
             .Distinct()
             .ToArray();
         foreach (var target in targets)
@@ -211,14 +246,61 @@ internal sealed partial class ArtifactCatalogueReloadService : IDisposable
                     | NotifyFilters.CreationTime
                     | NotifyFilters.Size,
             };
-            watcher.Changed += OnDiskChanged;
-            watcher.Created += OnDiskChanged;
-            watcher.Deleted += OnDiskChanged;
-            watcher.Renamed += OnDiskRenamed;
+            watcher.Changed += (_, args) => OnDiskChanged(target, args);
+            watcher.Created += (_, args) => OnDiskChanged(target, args);
+            watcher.Deleted += (_, args) => OnDiskChanged(target, args);
+            watcher.Renamed += (_, args) => OnDiskRenamed(target, args);
             watcher.Error += OnWatcherError;
             watcher.EnableRaisingEvents = true;
             watchers.Add(watcher);
         }
+    }
+
+    private static bool AffectsTarget(WatchTarget target, string changedPath, bool includeDirectory)
+    {
+        var expected = Path.GetFullPath(target.Path);
+        var changed = Path.GetFullPath(changedPath);
+        if (string.Equals(expected, changed, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        var separator = Path.DirectorySeparatorChar.ToString();
+        if (expected.StartsWith(changed.TrimEnd(Path.DirectorySeparatorChar) + separator,
+            StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        if (target.IsFile
+            || !changed.StartsWith(expected.TrimEnd(Path.DirectorySeparatorChar) + separator,
+                StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        var relative = Path.GetRelativePath(expected, changed);
+        var segments = relative.Split(
+            [Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar],
+            StringSplitOptions.RemoveEmptyEntries);
+        if (segments.Length == 0)
+        {
+            return true;
+        }
+
+        var fileName = segments[^1];
+        var fileDepth = segments.Length - 1;
+        if (fileDepth <= target.MaximumDepth
+            && (target.WatchAllFiles || target.Patterns.Any(pattern =>
+                System.IO.Enumeration.FileSystemName.MatchesSimpleExpression(
+                    pattern, fileName, ignoreCase: true))))
+        {
+            return true;
+        }
+
+        return includeDirectory
+            && !Path.HasExtension(fileName)
+            && segments.Length <= target.MaximumDepth;
     }
 
     private static string? FindExistingDirectory(string? path)
@@ -273,7 +355,12 @@ internal sealed partial class ArtifactCatalogueReloadService : IDisposable
         }
     }
 
-    private sealed record WatchTarget(string Path, bool IsFile);
+    private sealed record WatchTarget(
+        string Path,
+        bool IsFile,
+        IReadOnlyList<string> Patterns,
+        int MaximumDepth,
+        bool WatchAllFiles);
 
     private WindowsDiskArtifactDiscovery Discovery(ArtifactDirectorySettings settings) =>
         new(paths, settings, ownedInstructions, profileRoamingRoot, ownedPrompts);

@@ -150,6 +150,25 @@ public sealed class WindowsSqliteEvidenceQueryTests
         var hostileSpan = await service.QueryAsync(new() { TraceId = root.TraceId, SpanId = foreign.SpanId },
             null, TestContext.Current.CancellationToken);
         hostileSpan.Records.Should().BeEmpty();
+        var exactSpan = await service.QueryAsync(new() { SpanId = foreign.SpanId },
+            null, TestContext.Current.CancellationToken);
+        exactSpan.Records.Should().HaveCount(2);
+        exactSpan.Records.Should().Contain(record => record.Reference.Source == EvidenceSource.Link && record.Reference.Id == childId)
+            .And.Contain(record => record.Reference.Source == EvidenceSource.Span && record.Host == other);
+        var targetPair = await service.QueryAsync(new() { TraceId = foreign.TraceId, SpanId = foreign.SpanId },
+            null, TestContext.Current.CancellationToken);
+        targetPair.Records.Select(record => record.Reference).Should().Equal(exactSpan.Records.Select(record => record.Reference));
+        var sourcePair = await service.QueryAsync(new() { TraceId = child.TraceId, SpanId = child.SpanId },
+            null, TestContext.Current.CancellationToken);
+        sourcePair.Records.Should().HaveCount(3).And.OnlyContain(record => record.Reference.Id == childId);
+        var parentOnly = await service.QueryAsync(new() { SpanId = root.SpanId },
+            null, TestContext.Current.CancellationToken);
+        parentOnly.Records.Should().ContainSingle().Which.Reference.Id.Should().Be(rootId);
+        parentOnly.Records[0].Retention.Should().Be(EvidenceSegmentStatus.ExpiredButPresent);
+        var noAuthority = await service.QueryAsync(new() { SpanId = foreign.SpanId, SessionId = request.SessionId },
+            null, TestContext.Current.CancellationToken);
+        noAuthority.Records.Should().ContainSingle().Which.Reference.Source.Should().Be(EvidenceSource.Link);
+        noAuthority.Records[0].RelatedSegments[0].Record.Should().BeNull();
         inspection.Request.SessionId.Should().NotBe(request.SessionId);
     }
 
@@ -162,13 +181,15 @@ public sealed class WindowsSqliteEvidenceQueryTests
         var sink = new WindowsSqliteEvidenceSink(fixture, timeProvider: clock);
         var request = HostRequest.Create(RequestOrigin.LocalUi);
         using var inspection = HostActivity.BeginRoot(request, HostActivityLayer.Desktop, HostOperation.Evidence);
+        string span;
         using (var producer = HostActivity.BeginRoot(HostRequest.Create(RequestOrigin.LocalUi), HostActivityLayer.Application, HostOperation.Request))
         {
+            span = TraceSnapshot.Capture(producer.Activity)!.SpanId;
             sink.WriteDiagnostic(Diagnostic(producer, 1));
             sink.WriteDiagnostic(Diagnostic(producer, 2));
         }
         var service = Service(sink, clock);
-        var query = new EvidenceQuery { Limit = 1, Source = EvidenceSource.Log };
+        var query = new EvidenceQuery { Limit = 1, Source = EvidenceSource.Log, SpanId = span };
         var first = await service.QueryAsync(query, null, TestContext.Current.CancellationToken);
         using (var producer = HostActivity.BeginRoot(HostRequest.Create(RequestOrigin.LocalUi), HostActivityLayer.Application, HostOperation.Request))
         {
@@ -178,7 +199,9 @@ public sealed class WindowsSqliteEvidenceQueryTests
         last.Cursor.Should().BeNull();
         last.Records.Single().Reference.Should().NotBe(first.Records.Single().Reference);
         var fresh = await service.QueryAsync(query with { Limit = 50 }, null, TestContext.Current.CancellationToken);
-        fresh.Records.Should().HaveCount(3);
+        fresh.Records.Should().HaveCount(2);
+        var anySpan = await service.QueryAsync(query with { Limit = 50, SpanId = null }, null, TestContext.Current.CancellationToken);
+        anySpan.Records.Should().HaveCount(3);
     }
 
     [Theory]
@@ -255,6 +278,46 @@ public sealed class WindowsSqliteEvidenceQueryTests
     [Theory]
     [InlineData(EvidenceSource.Log)]
     [InlineData(EvidenceSource.CombinedLog)]
+    public async Task BufferedProductionSinksPreserveCallTimeHostCorrelationAfterScopeRetirement(EvidenceSource source)
+    {
+        using var fixture = new OwnedStorageFixture();
+        var sink = new WindowsSqliteEvidenceSink(fixture);
+        var health = new FileEvidenceHealth();
+        WindowsDailyEvidenceReaderTests.Write(fixture,
+            "kora-" + DateTime.Now.ToString("yyyyMMdd", System.Globalization.CultureInfo.InvariantCulture) + ".log", []);
+        using var file = Kora.DailyFileLoggerFactory.Create(fixture, health);
+        var daily = new Kora.FileEvidenceSink(file, health);
+        await using var provider = new EvidenceLoggerProvider([daily, sink], daily, bufferDiagnostics: true);
+        var request = HostRequest.Create(RequestOrigin.LocalUi);
+        using (var producer = HostActivity.BeginRoot(request, HostActivityLayer.Application, HostOperation.Request))
+        {
+            var state = new Dictionary<string, object?>(StringComparer.Ordinal)
+            {
+                ["{OriginalFormat}"] = "Observed {Count}",
+                ["Count"] = 42,
+            };
+            provider.CreateLogger("buffered.fixture").Log(LogLevel.Information, new EventId(42),
+                state, null, static (_, _) => "unused");
+            state["Count"] = 99;
+            producer.Complete(HostOperationOutcome.Completed);
+        }
+        await provider.FlushAsync(TestContext.Current.CancellationToken);
+        using var inspection = HostActivity.BeginRoot(HostRequest.Create(RequestOrigin.LocalUi),
+            HostActivityLayer.Desktop, HostOperation.Evidence);
+        IEvidenceReader reader = source == EvidenceSource.CombinedLog
+            ? new WindowsEvidenceReader(new(sink), new(fixture)) : new WindowsSqliteEvidenceReader(sink);
+        var service = new DurableEvidenceQuery(reader, new Access(), TimeProvider.System,
+            NullLogger<DurableEvidenceQuery>.Instance);
+        var page = await service.QueryAsync(new EvidenceQuery { Source = source, EventId = 42 },
+            null, TestContext.Current.CancellationToken);
+        page.Status.Should().Be(source == EvidenceSource.CombinedLog ? EvidencePageStatus.Partial : EvidencePageStatus.Available);
+        page.Records.Should().HaveCount(source == EvidenceSource.CombinedLog ? 2 : 1);
+        page.Records.Should().OnlyContain(row => row.Host!.SessionId == request.SessionId);
+    }
+
+    [Theory]
+    [InlineData(EvidenceSource.Log)]
+    [InlineData(EvidenceSource.CombinedLog)]
     public async Task Real_query_logging_and_completed_spans_cannot_recursively_extend_a_page_snapshot(EvidenceSource source)
     {
         using var fixture = new OwnedStorageFixture();
@@ -288,6 +351,12 @@ public sealed class WindowsSqliteEvidenceQueryTests
     [InlineData("envelope")]
     [InlineData("schema")]
     [InlineData("projection")]
+    [InlineData("trace-source")]
+    [InlineData("trace-version")]
+    [InlineData("trace-name")]
+    [InlineData("trace-kind")]
+    [InlineData("trace-flags")]
+    [InlineData("trace-missing-version")]
     [InlineData("journal")]
     [InlineData("unexpected")]
     [InlineData("acl")]
@@ -299,7 +368,8 @@ public sealed class WindowsSqliteEvidenceQueryTests
         using var inspection = HostActivity.BeginRoot(HostRequest.Create(RequestOrigin.LocalUi), HostActivityLayer.Desktop, HostOperation.Evidence);
         sink.WriteDiagnostic(Diagnostic(inspection, 1));
         var path = Path.Combine(fixture.LocalRoot, WindowsSqliteEvidenceSink.PartitionName, "evidence.db");
-        if (corruption is "envelope" or "schema" or "projection")
+        if (corruption is "envelope" or "schema" or "projection" or "trace-source" or "trace-version"
+            or "trace-name" or "trace-kind" or "trace-flags" or "trace-missing-version")
         {
             using var connection = new SqliteConnection(new SqliteConnectionStringBuilder { DataSource = path, Pooling = false }.ToString());
             connection.Open();
@@ -310,6 +380,12 @@ public sealed class WindowsSqliteEvidenceQueryTests
             {
                 "envelope" => "UPDATE application_log_events SET envelope='{}';",
                 "schema" => "CREATE TABLE unknown_schema(content TEXT);",
+                "trace-source" => "UPDATE application_log_events SET envelope=json_set(envelope,'$.Trace.Source','Unknown');",
+                "trace-version" => "UPDATE application_log_events SET envelope=json_set(envelope,'$.Trace.SourceVersion',' 1');",
+                "trace-name" => "UPDATE application_log_events SET envelope=json_set(envelope,'$.Trace.Name','request ');",
+                "trace-kind" => "UPDATE application_log_events SET envelope=json_set(envelope,'$.Trace.Kind',99);",
+                "trace-flags" => "UPDATE application_log_events SET envelope=json_set(envelope,'$.Trace.Flags',2);",
+                "trace-missing-version" => "UPDATE application_log_events SET envelope=json_remove(envelope,'$.Trace.SourceVersion');",
                 _ => "UPDATE application_log_events SET category='changed';",
             };
             command.ExecuteNonQuery();
@@ -323,7 +399,15 @@ public sealed class WindowsSqliteEvidenceQueryTests
             new FileInfo(path).SetAccessControl(security);
         }
         var bytes = File.ReadAllBytes(path);
-        var invalid = async () => await Service(sink, new Clock()).QueryAsync(new(), null, TestContext.Current.CancellationToken);
+        var invalid = async () => await Service(sink, new Clock()).QueryAsync(new()
+        {
+            SpanId = "0123456789abcdef",
+            ParentSpanId = "0123456789abcdef", Outcome = HostOperationOutcome.Failed,
+            ContentAvailability = EvidenceContentAvailability.Omitted,
+            EventName = "Does.Not.Match", ExceptionType = "Not.An.Exception",
+            FromAuditSequence = 1, UntilAuditSequence = 1,
+            TraceSource = "nonmatching", TraceSourceVersionAvailability = TraceSourceVersionAvailability.Absent,
+        }, null, TestContext.Current.CancellationToken);
         if (corruption is "acl" or "unexpected")
         {
             await invalid.Should().ThrowAsync<UnauthorizedAccessException>();

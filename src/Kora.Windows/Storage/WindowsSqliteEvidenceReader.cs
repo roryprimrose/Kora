@@ -205,7 +205,8 @@ public sealed class WindowsSqliteEvidenceReader(WindowsSqliteEvidenceSink sink) 
             return new(new(position.Source, id), committed, due, retention, diagnostic.Host, diagnostic.Trace,
                 diagnostic.AuditCorrelationId, diagnostic.ApprovalId, diagnostic.Level, diagnostic.Category,
                 diagnostic.EventId, diagnostic.MessageTemplate, properties, audit?.Audit, null, related,
-                AuditSequence: row.IsDBNull(6) ? null : row.GetInt64(6));
+                AuditSequence: row.IsDBNull(6) ? null : row.GetInt64(6),
+                EventName: diagnostic.EventName, ExceptionType: diagnostic.ExceptionType);
         }
         var owner = position.Source == EvidenceSource.Link ? ReadOwner(connection, position.Id) : payload;
         var span = WindowsSqliteEvidenceSink.DecodeActivity(owner);
@@ -260,7 +261,8 @@ public sealed class WindowsSqliteEvidenceReader(WindowsSqliteEvidenceSink sink) 
 
     internal static bool Matches(EvidenceRecord record, EvidenceQuery query)
     {
-        if (query.Severity is { } severity && !string.Equals(record.Level, severity.ToString(), StringComparison.Ordinal)
+        if (!query.MatchesRetainedMetadata(record)
+            || query.Severity is { } severity && !string.Equals(record.Level, severity.ToString(), StringComparison.Ordinal)
             || query.EventId is { } eventId && record.EventId != eventId
             || query.Category is { } category && !string.Equals(record.Category, category, StringComparison.Ordinal)
             || query.ActionId is { } action && !string.Equals(record.Audit?.ActionId, action, StringComparison.Ordinal)

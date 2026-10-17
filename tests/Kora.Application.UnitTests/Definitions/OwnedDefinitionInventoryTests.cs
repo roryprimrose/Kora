@@ -7,18 +7,93 @@ using Kora.Core.Artifacts;
 
 namespace Kora.Application.UnitTests.Definitions;
 
-public sealed class OwnedDefinitionInventoryTests
+public sealed partial class OwnedDefinitionInventoryTests
 {
     private static readonly DateTimeOffset Observed = new(2026, 10, 12, 0, 0, 0, TimeSpan.Zero);
+    private static readonly string NativeRevision = new string('a', 64) + "." + new string('b', 48) + "." + new string('c', 48) + "." + new string('d', 64);
 
     private static ArtifactDefinition Candidate(ArtifactKind kind, string name, bool enabled = false, bool revision = true) =>
         new("owned." + name, kind, "Display " + name, "Private description must not project", "cmd-" + name,
             ["spoken " + name], "kora-profile", "1", new string('a', 64), "Private body must not project")
-        { OwnedInstructionName = name, OwnedInstructionRevision = revision ? new string('a', 64) + "." + new string('b', 48) : null,
+        { OwnedInstructionName = name, OwnedInstructionRevision = revision ? NativeRevision : null,
             IsUseEnabled = enabled };
 
     private static OwnedDefinitionInventory Inventory(ArtifactKind kind, IReadOnlyList<string> names,
         params ArtifactDefinition[] candidates) => new(kind, names, Array.AsReadOnly(candidates), 0, Observed);
+
+    [Theory]
+    [InlineData(ArtifactKind.Instruction)]
+    [InlineData(ArtifactKind.Prompt)]
+    public void ExactDigestComposesWithEveryUseStateAndLiteralMetadataFieldWithoutInferringUnknowns(ArtifactKind kind)
+    {
+        var digest = new string('a', 64);
+        var different = new ArtifactDefinition("owned.different", kind, "Display different", "Private", "different",
+            ["different"], "kora-profile", "1", new string('b', 64), "Private")
+            { OwnedInstructionName = "different", OwnedInstructionRevision = NativeRevision, IsUseEnabled = true };
+        var inventory = Inventory(kind, ["enabled", "held", "unknown", "unmapped", "different"],
+            Candidate(kind, "enabled", enabled: true), Candidate(kind, "held"),
+            Candidate(kind, "unknown", revision: false), different);
+        foreach (var filter in Enum.GetValues<OwnedDefinitionUseFilter>())
+        {
+            var any = inventory.Page("", filter);
+            inventory.Page("", filter, digest: "").Rows.Should().Equal(any.Rows);
+            var exact = inventory.Page("", filter, digest: digest);
+            exact.Rows.Should().Equal(any.Rows.Where(row => string.Equals(row.Digest, digest, StringComparison.Ordinal)));
+            exact.Rows.Should().NotContain(row => row.Name == "different" || row.Name == "unmapped");
+            foreach (var row in exact.Rows)
+            {
+                foreach (var query in new[] { row.CanonicalFileName.ToUpperInvariant(), row.DisplayName!, row.ArtifactId! })
+                {
+                    inventory.Page(query, filter, digest: digest).Rows.Should().ContainSingle().Which.Should().BeSameAs(row);
+                }
+            }
+            inventory.Page("not-present", filter, digest: digest).TotalMatches.Should().Be(0);
+            inventory.Page("", filter, digest: new string('c', 64)).Rows.Should().BeEmpty();
+        }
+        inventory.Page("", OwnedDefinitionUseFilter.UnavailableOrUnknown, digest: digest).Rows.Should().ContainSingle()
+            .Which.Name.Should().Be("unknown", "unknown use state does not mean an unknown digest");
+        inventory.Page("", OwnedDefinitionUseFilter.All, digest: new string('b', 64)).Rows.Should().ContainSingle()
+            .Which.Name.Should().Be("different", "NativeRevision is not the digest predicate");
+        inventory.Page("private", OwnedDefinitionUseFilter.All, digest: digest).Rows.Should().BeEmpty();
+        inventory.Page(" " + digest, OwnedDefinitionUseFilter.All).Rows.Should().BeEmpty();
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData(" ")]
+    [InlineData("\t")]
+    [InlineData("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA")]
+    [InlineData("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")]
+    [InlineData("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")]
+    [InlineData("gaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")]
+    [InlineData(" aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")]
+    [InlineData("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa ")]
+    [InlineData("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\n")]
+    public void InvalidDigestFailsEvenWithNoRowsOrAnExcludingQuery(string? digest)
+    {
+        var inventory = Inventory(ArtifactKind.Instruction, []);
+        ((Action)(() => inventory.Page("missing", OwnedDefinitionUseFilter.All, digest: digest!)))
+            .Should().Throw<ArgumentException>();
+    }
+
+    [Theory]
+    [InlineData(ArtifactKind.Instruction)]
+    [InlineData(ArtifactKind.Prompt)]
+    public void CompleteValidationPrecedesEveryExcludingPredicateAndOffset(ArtifactKind kind)
+    {
+        var oversized = Inventory(kind, ["example"], Candidate(kind, "example")
+            with { OwnedInstructionRevision = new string('a', 64 * 1024) });
+        foreach (var filter in Enum.GetValues<OwnedDefinitionUseFilter>())
+        {
+            ((Action)(() => oversized.Page("missing", filter, digest: new string('b', 64)))).Should().Throw<InvalidDataException>();
+        }
+        var invalidUnicode = Inventory(kind, ["example"], Candidate(kind, "example") with { OwnedInstructionRevision = "\ud800" });
+        ((Action)(() => invalidUnicode.Page("missing", OwnedDefinitionUseFilter.UseEnabled, digest: new string('b', 64))))
+            .Should().Throw<EncoderFallbackException>();
+        ((Action)(() => Inventory(kind, ["../invalid"], Candidate(kind, "example")))).Should().Throw<InvalidDataException>();
+        ((Action)(() => Inventory(kind, ["example"], Candidate(kind, "example"), Candidate(kind, "example"))))
+            .Should().Throw<InvalidOperationException>();
+    }
 
     [Theory]
     [InlineData(ArtifactKind.Instruction)]
@@ -73,8 +148,9 @@ public sealed class OwnedDefinitionInventoryTests
         var inventory = Inventory(kind, names.Reverse().ToArray(), names.Select(name => Candidate(kind, name)).ToArray());
         var page = inventory.Page("", OwnedDefinitionUseFilter.All);
         page.TotalMatches.Should().Be(count);
-        page.Rows.Select(row => row.Name).Should().Equal(names);
-        page.NextOffset.Should().BeNull();
+        page.Rows.Select(row => row.Name).Should().Equal(names.Take(page.Rows.Count));
+        if (page.Rows.Count == count) { page.NextOffset.Should().BeNull(); }
+        else { page.NextOffset.Should().Be(page.Rows.Count); }
         page.Offset.Should().Be(0);
         page.DisplayUtf8Bytes.Should().Be(page.Rows.Sum(row => Encoding.UTF8.GetByteCount(row.ToString()) + Encoding.UTF8.GetByteCount(row.Details)));
         page.DisplayUtf8Bytes.Should().BeLessThanOrEqualTo(OwnedDefinitionInventory.MaximumDisplayUtf8Bytes);
@@ -100,10 +176,21 @@ public sealed class OwnedDefinitionInventoryTests
         var candidates = names.Select((name, index) => new ArtifactDefinition(new string('a', 125) + index.ToString("D3", System.Globalization.CultureInfo.InvariantCulture),
             kind, new string('界', 128), "Private", "cmd-" + index.ToString(System.Globalization.CultureInfo.InvariantCulture),
             ["spoken " + index.ToString(System.Globalization.CultureInfo.InvariantCulture)], "kora-profile", "1", new string('a', 64), "Private")
-            { OwnedInstructionName = name, OwnedInstructionRevision = new string('b', 256) }).ToArray();
+            { OwnedInstructionName = name, OwnedInstructionRevision = NativeRevision }).ToArray();
         var inventory = Inventory(kind, names, candidates);
         var seen = new List<OwnedDefinitionInventoryRow>();
         var page = inventory.Page("", OwnedDefinitionUseFilter.All);
+        var digest = new string('a', 64);
+        var exactFirst = inventory.Page("", OwnedDefinitionUseFilter.All, digest: digest);
+        exactFirst.Rows.Should().Equal(page.Rows);
+        exactFirst.TotalMatches.Should().Be(128);
+        inventory.Continue(exactFirst, "", OwnedDefinitionUseFilter.All, digest).Offset.Should().Be(exactFirst.NextOffset!.Value);
+        ((Action)(() => inventory.Continue(exactFirst, "changed", OwnedDefinitionUseFilter.All, digest))).Should().Throw<InvalidOperationException>();
+        ((Action)(() => inventory.Continue(exactFirst, "", OwnedDefinitionUseFilter.ReviewRequired, digest))).Should().Throw<InvalidOperationException>();
+        ((Action)(() => inventory.Continue(exactFirst, "", OwnedDefinitionUseFilter.All, ""))).Should().Throw<InvalidOperationException>();
+        ((Action)(() => inventory.Continue(exactFirst, "", OwnedDefinitionUseFilter.All, new string('b', 64)))).Should().Throw<InvalidOperationException>();
+        ((Action)(() => Inventory(kind, names, candidates).Continue(exactFirst, "", OwnedDefinitionUseFilter.All, digest))).Should().Throw<InvalidOperationException>();
+        ((Action)(() => inventory.Continue(null!, "", OwnedDefinitionUseFilter.All, digest))).Should().Throw<ArgumentNullException>();
         page.NextOffset.Should().NotBeNull();
         while (true)
         {
@@ -121,6 +208,8 @@ public sealed class OwnedDefinitionInventoryTests
         seen.Should().Equal(inventory.Rows);
         inventory.Page("cmd-does-not-search-commands", OwnedDefinitionUseFilter.All).Rows.Should().BeEmpty();
         inventory.Page("", OwnedDefinitionUseFilter.All, 128).Rows.Should().BeEmpty();
+        var last = inventory.Page("", OwnedDefinitionUseFilter.All, 128, digest);
+        ((Action)(() => inventory.Continue(last, "", OwnedDefinitionUseFilter.All, digest))).Should().Throw<InvalidOperationException>();
     }
 
     [Theory]

@@ -57,7 +57,7 @@ internal sealed partial class EvidenceViewModel(
 
     public void Select(EvidenceRecord? record)
     {
-        if (closed || !canInspect()) { selected = null; Notify(); return; }
+        if (!EnsureFindAdmission()) { return; }
         if (record is not null && !Records.Contains(record))
         {
             throw new InvalidOperationException("Select only an admitted record from the current page.");
@@ -75,6 +75,7 @@ internal sealed partial class EvidenceViewModel(
         readCancellation = cancellation;
         var revision = filterRevision;
         busy = true;
+        ClearFind();
         Notify();
         try
         {
@@ -84,6 +85,7 @@ internal sealed partial class EvidenceViewModel(
             Clear("Reading a bounded evidence snapshot.");
             Notify();
             var result = await query.QueryAsync(target, cursor, cancellation.Token);
+            cancellation.Token.ThrowIfCancellationRequested();
             if (closed || revision != filterRevision || !canInspect()) { throw new OperationCanceledException("Evidence presentation retired."); }
             currentQuery = target;
             page = result;
@@ -120,7 +122,7 @@ internal sealed partial class EvidenceViewModel(
             if (closed || revision == filterRevision)
             {
                 Clear("Evidence query failed: " + exception.GetType().Name
-                    + ". Use nonempty hyphenated GUIDs, ISO timestamps with Z or an explicit offset, canonical signed 32-bit event IDs, and exact bounded category/action text without surrounding whitespace; verify range, typed choices and private storage access, then start a fresh search. No empty success or replacement database is claimed.");
+                    + ". Use nonempty hyphenated GUIDs, exact nonzero lowercase hexadecimal W3C trace (32) / span (16) IDs, ISO timestamps with Z or an explicit offset, canonical signed 32-bit event IDs, positive ordered 64-bit audit sequence bounds, and exact bounded category/action/event-name/exception-type/trace metadata text without surrounding whitespace or controls. Trace source version requires text only with Exact; Any, Absent and Present require empty text. Verify range, defined kind/flags choices and private storage access, then start a fresh search. No empty success or replacement database is claimed.");
             }
             Failure(logger, exception.GetType().Name);
             activity.Complete(HostOperationOutcome.Failed);
@@ -145,6 +147,7 @@ internal sealed partial class EvidenceViewModel(
         SessionFilter = string.Empty;
         TaskFilter = string.Empty;
         TraceFilter = string.Empty;
+        SpanFilter = string.Empty;
         ClearAdvancedFilters();
         Notify();
     }
@@ -156,6 +159,7 @@ internal sealed partial class EvidenceViewModel(
         currentQuery = null;
         resultText = string.Empty;
         status = message;
+        ClearFind();
     }
 
     private void Notify()
@@ -167,5 +171,6 @@ internal sealed partial class EvidenceViewModel(
         OnPropertyChanged(nameof(CanQuery));
         OnPropertyChanged(nameof(CanNext));
         OnPropertyChanged(nameof(CanReadTrace));
+        NotifyFind();
     }
 }

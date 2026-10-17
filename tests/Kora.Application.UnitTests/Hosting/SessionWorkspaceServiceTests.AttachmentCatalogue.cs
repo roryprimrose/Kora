@@ -9,6 +9,192 @@ namespace Kora.Application.UnitTests.Hosting;
 
 public sealed partial class SessionWorkspaceServiceTests
 {
+    [Fact]
+    public async Task FileReferenceQueryIsForwardedExactlyWithoutBodyReadsAndEveryIdMismatchRefuses()
+    {
+        using var fixture = new Fixture();
+        using var root = HostActivity.BeginRoot(fixture.Request, HostActivityLayer.Application, HostOperation.Request);
+        var row = CatalogueSummary(fixture);
+        SessionAttachmentQuery Query(int omitted = -1) => new(true, row.Session.Value.ToString("D"),
+            SessionAttachmentFilter.Active, "text/", row.MediaType, AttachmentCopyStatus.Confirmed, 0, row.StoredBytes,
+            row.File.Digest, row.ObservationSource.ToString("D"), row.Profile.Value.ToString("D"), row.CapturedAt, row.CapturedAt,
+            row.SessionGeneration.Value, row.SessionGeneration.Value, row.CapturedGeneration.Value, row.CapturedGeneration.Value,
+            row.StorageRevision.Value, row.StorageRevision.Value, omitted == 0 ? null : row.File.SourceId.ToString("D"),
+            omitted == 1 ? null : row.File.RevisionId.ToString("D"), omitted == 2 ? null : row.File.ItemId.ToString("D"));
+        var query = Query();
+        fixture.CataloguePage = new(query, [row], null, DateTimeOffset.UnixEpoch, 1, new string('a', 64), 1, false);
+        var audit = new FileAudit();
+        await using var files = FileService(fixture, FileAction(new FileCapture(), audit), audit);
+        var service = new SessionAttachmentCatalogueService(fixture.Service, files);
+        (await service.Read(query, null, () => true, fixture.Token)).Should().BeSameAs(fixture.CataloguePage);
+        fixture.ObservedAttachmentQuery.Should().BeSameAs(query);
+        for (var id = 0; id < 3; id++)
+        {
+            fixture.CataloguePage = fixture.CataloguePage with { Query = Query(id), Records = [] };
+            var mismatch = () => service.Read(query, null, () => true, fixture.Token);
+            await mismatch.Should().ThrowAsync<InvalidDataException>();
+        }
+        fixture.FileReads.Should().Be(0);
+        fixture.ControlCalls.Should().Be(0);
+        fixture.PassiveInspectionCalls.Should().Be(0);
+        fixture.TaskWrites.Should().BeEmpty();
+        audit.Events.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task CompleteVersionRangesAreForwardedWithoutBodyReadsAndEveryEndpointMismatchRefuses()
+    {
+        using var fixture = new Fixture();
+        using var root = HostActivity.BeginRoot(fixture.Request, HostActivityLayer.Application, HostOperation.Request);
+        var summary = CatalogueSummary(fixture);
+        SessionAttachmentQuery Query(int omitted = -1) => new(true, summary.Session.Value.ToString("D"),
+            SessionAttachmentFilter.Active, "text/", summary.MediaType, AttachmentCopyStatus.Confirmed, 0, summary.StoredBytes,
+            summary.File.Digest, summary.ObservationSource.ToString("D"), summary.Profile.Value.ToString("D"),
+            summary.CapturedAt, summary.CapturedAt, omitted == 0 ? null : summary.SessionGeneration.Value,
+            omitted == 1 ? null : summary.SessionGeneration.Value, omitted == 2 ? null : summary.CapturedGeneration.Value,
+            omitted == 3 ? null : summary.CapturedGeneration.Value, omitted == 4 ? null : summary.StorageRevision.Value,
+            omitted == 5 ? null : summary.StorageRevision.Value);
+        var query = Query();
+        fixture.CataloguePage = new(query, [summary], null, DateTimeOffset.UnixEpoch, 1, new string('a', 64), 1, false);
+        var audit = new FileAudit();
+        await using var files = FileService(fixture, FileAction(new FileCapture(), audit), audit);
+        var service = new SessionAttachmentCatalogueService(fixture.Service, files);
+        (await service.Read(query, null, () => true, fixture.Token)).Should().BeSameAs(fixture.CataloguePage);
+        fixture.ObservedAttachmentQuery.Should().BeSameAs(query);
+        for (var endpoint = 0; endpoint < 6; endpoint++)
+        {
+            fixture.CataloguePage = fixture.CataloguePage with { Query = Query(endpoint), Records = [] };
+            var mismatch = () => service.Read(query, null, () => true, fixture.Token);
+            await mismatch.Should().ThrowAsync<InvalidDataException>();
+        }
+        fixture.FileReads.Should().Be(0);
+        fixture.ControlCalls.Should().Be(0);
+        fixture.PassiveInspectionCalls.Should().Be(0);
+        fixture.TaskWrites.Should().BeEmpty();
+        audit.Events.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task ExactDigestPassesThroughVolatileQueryWithoutBodyReadsAndRejectsChangedPredicate()
+    {
+        using var fixture = new Fixture();
+        using var root = HostActivity.BeginRoot(fixture.Request, HostActivityLayer.Application, HostOperation.Request);
+        var summary = CatalogueSummary(fixture);
+        var query = new SessionAttachmentQuery(true, summary.Session.Value.ToString("D"), SessionAttachmentFilter.Active,
+            "text/", summary.MediaType, AttachmentCopyStatus.Confirmed, 0, summary.StoredBytes, summary.File.Digest);
+        fixture.CataloguePage = new(query, [summary], null, DateTimeOffset.UnixEpoch, 1, new string('a', 64), 1, false);
+        var audit = new FileAudit();
+        await using var files = FileService(fixture, FileAction(new FileCapture(), audit), audit);
+        var service = new SessionAttachmentCatalogueService(fixture.Service, files);
+        (await service.Read(query, null, () => true, fixture.Token)).Should().BeSameAs(fixture.CataloguePage);
+        fixture.ObservedAttachmentQuery.Should().BeSameAs(query);
+        foreach (var digest in new string?[] { null, new string('b', 64) })
+        {
+            fixture.CataloguePage = fixture.CataloguePage with
+            {
+                Query = new(true, query.ExactSessionId, query.Filter, "text/", summary.MediaType,
+                    AttachmentCopyStatus.Confirmed, 0, summary.StoredBytes, digest), Records = []
+            };
+            var mismatch = () => service.Read(query, null, () => true, fixture.Token);
+            await mismatch.Should().ThrowAsync<InvalidDataException>();
+        }
+        fixture.FileReads.Should().Be(0);
+        fixture.ControlCalls.Should().Be(0);
+        fixture.PassiveInspectionCalls.Should().Be(0);
+        fixture.TaskWrites.Should().BeEmpty();
+        audit.Events.Should().BeEmpty();
+    }
+
+    [Theory]
+    [InlineData(AttachmentCopyStatus.Confirmed)]
+    [InlineData(AttachmentCopyStatus.Held)]
+    [InlineData(AttachmentCopyStatus.Unavailable)]
+    public async Task CopyAndByteQueryIsForwardedExactlyAndMismatchRefusesWithoutBodyOrWrites(AttachmentCopyStatus copy)
+    {
+        using var fixture = new Fixture();
+        using var root = HostActivity.BeginRoot(fixture.Request, HostActivityLayer.Application, HostOperation.Request);
+        var summary = CatalogueSummary(fixture) with
+        { CopyStatus = copy, StoredBytes = copy == AttachmentCopyStatus.Unavailable ? 0 : 4 };
+        var query = new SessionAttachmentQuery(true, summary.Session.Value.ToString("D"), SessionAttachmentFilter.Active,
+            copyStatus: copy, minimumStoredBytes: copy == AttachmentCopyStatus.Unavailable ? null : 0, maximumStoredBytes: 4);
+        fixture.CataloguePage = new(query, query.Matches(summary) ? [summary] : [], null,
+            DateTimeOffset.UnixEpoch, 1, new string('a', 64), 1, false);
+        var audit = new FileAudit();
+        await using var files = FileService(fixture, FileAction(new FileCapture(), audit), audit);
+        var service = new SessionAttachmentCatalogueService(fixture.Service, files);
+        (await service.Read(query, null, () => true, fixture.Token)).Should().BeSameAs(fixture.CataloguePage);
+        fixture.ObservedAttachmentQuery.Should().BeSameAs(query);
+        foreach (var changed in new[]
+        {
+            new SessionAttachmentQuery(true, query.ExactSessionId, query.Filter, maximumStoredBytes: 4),
+            new(true, query.ExactSessionId, query.Filter, copyStatus: copy, maximumStoredBytes: 3),
+            new(true, query.ExactSessionId, query.Filter, copyStatus: copy, minimumStoredBytes: 1, maximumStoredBytes: 4)
+        })
+        {
+            fixture.CataloguePage = fixture.CataloguePage with { Query = changed, Records = [] };
+            var mismatch = () => service.Read(query, null, () => true, fixture.Token);
+            await mismatch.Should().ThrowAsync<InvalidDataException>();
+        }
+        fixture.FileReads.Should().Be(0);
+        fixture.ControlCalls.Should().Be(0);
+        fixture.PassiveInspectionCalls.Should().Be(0);
+        fixture.TaskWrites.Should().BeEmpty();
+        audit.Events.Should().BeEmpty();
+    }
+
+    [Theory]
+    [InlineData("text/plain")]
+    [InlineData("text/markdown")]
+    public async Task ExactMediaQueryPassesUnchangedAndRefusesMismatchedFilterWithoutBodyOrAuthority(string type)
+    {
+        using var fixture = new Fixture();
+        using var root = HostActivity.BeginRoot(fixture.Request, HostActivityLayer.Application, HostOperation.Request);
+        var summary = CatalogueSummary(fixture) with { MediaType = type };
+        var query = new SessionAttachmentQuery(true, summary.Session.Value.ToString("D"),
+            SessionAttachmentFilter.Active, "text/", type);
+        fixture.CataloguePage = new(query, [summary], null, DateTimeOffset.UnixEpoch, 1, new string('a', 64), 2, false);
+        var audit = new FileAudit();
+        await using var files = FileService(fixture, FileAction(new FileCapture(), audit), audit);
+        var service = new SessionAttachmentCatalogueService(fixture.Service, files);
+        (await service.Read(query, null, () => true, fixture.Token)).Records.Should().ContainSingle();
+        fixture.ObservedAttachmentQuery.Should().BeSameAs(query);
+        fixture.CataloguePage = fixture.CataloguePage with
+        {
+            Query = new(true, query.ExactSessionId, query.Filter, query.MetadataText),
+            Records = []
+        };
+        var mismatch = () => service.Read(query, null, () => true, fixture.Token);
+        await mismatch.Should().ThrowAsync<InvalidDataException>();
+        fixture.FileReads.Should().Be(0);
+        fixture.ControlCalls.Should().Be(0);
+        fixture.TaskWrites.Should().BeEmpty();
+        audit.Events.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task LiteralAttachmentQueryPassesThroughWithoutContentReadsAuthorityOrAuditAndRejectsMismatchedText()
+    {
+        using var fixture = new Fixture();
+        using var root = HostActivity.BeginRoot(fixture.Request, HostActivityLayer.Application, HostOperation.Request);
+        var summary = CatalogueSummary(fixture);
+        var query = new SessionAttachmentQuery(true, summary.Session.Value.ToString("D"),
+            SessionAttachmentFilter.Active, "text/");
+        fixture.CataloguePage = new(query, [summary], null, DateTimeOffset.UnixEpoch, 1, new string('a', 64), 2, false);
+        var audit = new FileAudit();
+        await using var files = FileService(fixture, FileAction(new FileCapture(), audit), audit);
+        var service = new SessionAttachmentCatalogueService(fixture.Service, files);
+        (await service.Read(query, null, () => true, fixture.Token)).Records.Should().ContainSingle();
+        fixture.ObservedAttachmentQuery.Should().BeSameAs(query);
+        fixture.CataloguePage = fixture.CataloguePage with { Query = new(true, query.ExactSessionId, query.Filter, "text") };
+        var mismatch = () => service.Read(query, null, () => true, fixture.Token);
+        await mismatch.Should().ThrowAsync<InvalidDataException>();
+        fixture.FileReads.Should().Be(0);
+        fixture.ControlCalls.Should().Be(0);
+        fixture.PassiveInspectionCalls.Should().Be(0);
+        fixture.TaskWrites.Should().BeEmpty();
+        audit.Events.Should().BeEmpty();
+    }
+
     [Theory]
     [InlineData(false, SessionAttachmentFilter.All)]
     [InlineData(true, SessionAttachmentFilter.Active)]

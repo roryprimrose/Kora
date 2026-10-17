@@ -15,7 +15,9 @@ public sealed class SpeechTextUiContractTests
         caption.Root!.Attribute("ShowActivated")!.Value.Should().Be("False");
         caption.Root.Attribute("ShowInTaskbar")!.Value.Should().Be("False");
         var text = caption.Descendants().Single(node => node.Name.LocalName is "TextBox");
-        text.Attribute("Text")!.Value.Should().Be("{Binding SpeechCaptionText, Mode=OneWay}");
+        text.Attribute("Text").Should().BeNull("only the revalidating controller may publish caption content");
+        text.Attribute(XNamespace.Get("http://schemas.microsoft.com/winfx/2006/xaml") + "Name")!
+            .Value.Should().Be("CaptionText");
         text.Attribute("IsReadOnly")!.Value.Should().Be("True");
         text.Attribute("AutomationProperties.Name")!.Value.Should().Be("Current spoken utterance");
         caption.Descendants().Single(node => node.Name.LocalName is "Button")

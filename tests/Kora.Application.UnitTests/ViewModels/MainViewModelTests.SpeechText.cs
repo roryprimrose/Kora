@@ -21,7 +21,7 @@ public sealed partial class MainViewModelTests
         await using var admission = fixture.OutputAdmission;
         await fixture.ViewModel.InitializeAsync();
         fixture.TextToSpeech.ClearSpokenResponse();
-        fixture.ViewModel.PrepareGrantChange(new(GrantChangeOperation.Add, BuiltInAction.LockMachine, ModelApprovalScope.Always));
+        await fixture.ViewModel.PrepareGrantChangeAsync(new(GrantChangeOperation.Add, BuiltInAction.LockMachine, ModelApprovalScope.Always));
         var title = fixture.ViewModel.ResponseTitle;
         var body = fixture.ViewModel.ResponseBody;
         var state = fixture.ViewModel.SpeechTextConfigurationStatus;
@@ -126,13 +126,13 @@ public sealed partial class MainViewModelTests
         var fixture = new Fixture(enableSpeechText: true);
         await using var admission = fixture.OutputAdmission;
         await fixture.ViewModel.InitializeAsync();
-        fixture.CaptionPreferences.AfterSave = () =>
-        {
-            fixture.ViewModel.PrepareGrantChange(new(GrantChangeOperation.Add,
+        var preparation = Task.CompletedTask;
+        fixture.CaptionPreferences.AfterSave = () => preparation =
+            fixture.ViewModel.PrepareGrantChangeAsync(new(GrantChangeOperation.Add,
                 BuiltInAction.LockMachine, ModelApprovalScope.Always));
-        };
         fixture.CaptionPreferences.Failure = new IOException();
         await fixture.RunAsync("set display.speech-text to CurrentUtterance");
+        await preparation;
         fixture.ViewModel.IsResponseInteractionPending.Should().BeTrue();
         fixture.ViewModel.IsVisualResponseVisible.Should().BeTrue();
         fixture.ViewModel.Transcript.Should().Contain("not confirmed");
@@ -456,6 +456,9 @@ public sealed partial class MainViewModelTests
         await using var admission = fixture.OutputAdmission;
         await fixture.ViewModel.InitializeAsync();
         await fixture.RunAsync("set display.speech-text to CurrentUtterance");
+        fixture.ViewModel.ReaderTextScalePercent = 200;
+        await fixture.ViewModel.AppearanceUpdate;
+        fixture.ViewModel.EnsureReaderTypographyAvailable();
         fixture.TextToSpeech.ClearSpokenResponse();
         fixture.TextToSpeech.SpeakGate = new(TaskCreationOptions.RunContinuationsAsynchronously);
         var response = fixture.RunAsync("show your window");

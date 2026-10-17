@@ -26,6 +26,16 @@ function Get-GitHubRecord {
     return $body.Groups[1].Value | ConvertFrom-Json
 }
 
+function Get-GitHubRecordAfterSuccessfulWrite {
+    param([string] $Path, [int] $MaximumAttempts = 6)
+    for ($attempt = 1; $attempt -le $MaximumAttempts; $attempt++) {
+        $record = Get-GitHubRecord $Path
+        if ($null -ne $record) { return $record }
+        if ($attempt -lt $MaximumAttempts) { Start-Sleep -Milliseconds 500 }
+    }
+    return $null
+}
+
 function Assert-TagSource {
     param($Reference, [string] $SourceRevision, [string] $Repository = $script:KoraRepository)
     $target = $Reference.object

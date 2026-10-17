@@ -12,6 +12,7 @@ internal sealed partial class OwnedInstructionEditorController
     private Func<bool>? inventoryEligibility;
     private bool inventoryChoiceWithdrawn;
     private long inventoryEpoch;
+    private long inventoryFilterRevision;
 
     private void OnInventoryChanged(object? sender, EventArgs args) =>
         RetireInventory("Catalogue observation changed. Refresh and reselect; the open original/draft is retained.");
@@ -33,6 +34,8 @@ internal sealed partial class OwnedInstructionEditorController
         inventory = null; inventoryPage = null; inventoryEligibility = null; inventoryChoiceWithdrawn = true;
         window?.ClearInventory();
         window?.ClearValidation();
+        window?.SetUseReviewAvailable(false);
+        window?.CancelReview();
         window?.ReportInventory(reason);
     }
 
@@ -40,20 +43,37 @@ internal sealed partial class OwnedInstructionEditorController
     {
         InvalidateInventory("Refreshing the admitted bounded owned filename inventory and existing source reconciliation.");
         var observedKind = kind;
+        var filterRevision = Interlocked.Read(ref inventoryFilterRevision);
         var files = await Actions.List(eligible, token);
-        if (!eligible()) { return; }
+        if (!eligible() || filterRevision != Interlocked.Read(ref inventoryFilterRevision)) { return; }
         if (!reload.ReloadNow()) { throw new IOException("The catalogue could not be reconciled."); }
         var epoch = Interlocked.Read(ref inventoryEpoch);
         var snapshot = await Actions.ObserveInventory(files, eligible, token);
-        if (!eligible() || kind != observedKind || epoch != Interlocked.Read(ref inventoryEpoch)) { return; }
+        if (!eligible() || kind != observedKind || epoch != Interlocked.Read(ref inventoryEpoch)
+            || filterRevision != Interlocked.Read(ref inventoryFilterRevision)) { return; }
         inventory = snapshot;
         inventoryEligibility = eligible;
         FilterInventory(next: false);
     }
 
-    private void FilterInventory(bool next)
+    private void FilterInventory(bool next, bool edited = false)
     {
         if (disposed || lifetime?.IsCancellationRequested != false || window is not { } opened) { return; }
+        var selected = opened.Files.SelectedItem as OwnedDefinitionInventoryRow;
+        if (edited)
+        {
+            Interlocked.Increment(ref inventoryFilterRevision);
+            Interlocked.Increment(ref inventoryEpoch);
+            Interlocked.Increment(ref sourceRevision);
+            inventoryPage = null;
+            inventoryChoiceWithdrawn = true;
+            opened.SetUseReviewAvailable(false);
+            opened.CancelReview();
+            opened.ClearInventory();
+            opened.ClearValidation();
+            opened.SetUseReviewAvailable(false);
+            opened.CancelReview();
+        }
         if (!ownsHost() || ownershipRevision() != windowOwnershipRevision || !main.CaptureInstructionEditorEligibility()())
         {
             OnPrivacyClosed(this, EventArgs.Empty);
@@ -66,19 +86,24 @@ internal sealed partial class OwnedInstructionEditorController
         }
         try
         {
-            var selected = opened.Files.SelectedItem as OwnedDefinitionInventoryRow;
-            var page = snapshot.Page(opened.QueryInput.Text ?? string.Empty,
-                opened.UseStateInput.SelectedItem is OwnedDefinitionUseFilter filter ? filter : OwnedDefinitionUseFilter.All,
-                next ? inventoryPage?.NextOffset ?? 0 : 0);
+            var query = opened.QueryInput.Text ?? string.Empty;
+            var filter = opened.UseStateInput.SelectedItem is OwnedDefinitionUseFilter value ? value : OwnedDefinitionUseFilter.All;
+            var digest = opened.DigestInput.Text ?? string.Empty;
+            var revision = opened.RevisionInput.Text ?? string.Empty;
+            var from = opened.ObservedFromInput.Text ?? string.Empty;
+            var until = opened.ObservedUntilInput.Text ?? string.Empty;
+            var page = next && inventoryPage is { } previous
+                ? snapshot.Continue(previous, query, filter, digest, revision, from, until)
+                : snapshot.Page(query, filter, digest: digest, revision: revision, observedFromUtc: from, observedUntilUtc: until);
             inventoryPage = page;
             opened.ShowInventory(page);
-            if (selected is not null && !page.Rows.Contains(selected))
+            if (selected is not null && (edited || !page.Rows.Contains(selected)))
             {
                 inventoryChoiceWithdrawn = true;
                 opened.ReportInventory("Selected inventory choice withdrawn by this filter/page. Open original and unsaved draft remain unchanged. Reselect explicitly; no first match is loaded.");
             }
         }
-        catch (Exception exception) when (exception is InvalidDataException or ArgumentException)
+        catch (Exception exception) when (exception is InvalidDataException or ArgumentException or InvalidOperationException)
         {
             EditorFailed(logger, exception.GetType().Name);
             inventoryPage = null; inventoryChoiceWithdrawn = true;

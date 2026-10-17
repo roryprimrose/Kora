@@ -15,7 +15,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 namespace Kora.Application.UnitTests.Diagnostics;
 
 [Collection("Host tracing")]
-public sealed class DurableEvidenceQueryTests
+public sealed partial class DurableEvidenceQueryTests
 {
     [Fact]
     public async Task Authority_source_preserves_typed_commit_metadata_and_explicit_separate_disclosure()
@@ -323,7 +323,12 @@ public sealed class DurableEvidenceQueryTests
     {
         using var listener = Listen();
         var fixture = new Fixture();
-        var missing = async () => await fixture.Service.QueryAsync(new(), null, TestContext.Current.CancellationToken);
+        var query = new EvidenceQuery
+        {
+            ParentSpanId = "0123456789abcdef", Outcome = HostOperationOutcome.Unknown,
+            ContentAvailability = EvidenceContentAvailability.Omitted,
+        };
+        var missing = async () => await fixture.Service.QueryAsync(query, null, TestContext.Current.CancellationToken);
         await missing.Should().ThrowAsync<InvalidOperationException>();
         using (var voice = HostActivity.BeginRoot(HostRequest.Create(RequestOrigin.ActivatedVoice), HostActivityLayer.Application, HostOperation.Request))
         {
@@ -398,7 +403,11 @@ public sealed class DurableEvidenceQueryTests
         using var listener = Listen();
         var fixture = new Fixture();
         fixture.Reader.Batch = Batch(2);
-        var query = new EvidenceQuery { Limit = 1 };
+        var query = new EvidenceQuery
+        {
+            Limit = 1, ParentSpanId = "0123456789abcdef", Outcome = HostOperationOutcome.Unknown,
+            ContentAvailability = EvidenceContentAvailability.Present,
+        };
         string cursor;
         using (var host = Root())
         {
@@ -470,6 +479,16 @@ public sealed class DurableEvidenceQueryTests
             original with { EventId = int.MaxValue },
             original with { Category = "Exact.Category" },
             original with { ActionId = "Exact Action / correlation" },
+            original with { SpanId = "0123456789abcdef" },
+            original with { ParentSpanId = "0123456789abcdef" },
+            original with { Source = EvidenceSource.Log },
+            .. Enum.GetValues<HostOperationOutcome>().Select(value => original with { Outcome = value }),
+            original with { ContentAvailability = EvidenceContentAvailability.Present },
+            original with { ContentAvailability = EvidenceContentAvailability.Omitted },
+            original with { EventName = "Event.Name" },
+            original with { ExceptionType = "System.IOException" },
+            original with { FromAuditSequence = 1 },
+            original with { UntilAuditSequence = long.MaxValue },
         ];
         foreach (var query in changed)
         {
@@ -524,6 +543,36 @@ public sealed class DurableEvidenceQueryTests
         }
     }
 
+    [Fact]
+    public async Task MetadataContinuationRejectsRemovalCaseChangesAndEitherSequenceEdge()
+    {
+        using var listener = Listen();
+        var fixture = new Fixture();
+        fixture.Reader.Batch = Batch(2);
+        var original = new EvidenceQuery
+        {
+            Limit = 1, EventName = "Event.Name", ExceptionType = "System.IOException",
+            FromAuditSequence = 1, UntilAuditSequence = long.MaxValue,
+        };
+        using var host = Root();
+        var cursor = (await fixture.Service.QueryAsync(original, null, TestContext.Current.CancellationToken)).Cursor!;
+        EvidenceQuery[] changes =
+        [
+            original with { EventName = null }, original with { EventName = "event.name" },
+            original with { ExceptionType = null }, original with { ExceptionType = "system.ioexception" },
+            original with { FromAuditSequence = null }, original with { FromAuditSequence = 2 },
+            original with { UntilAuditSequence = null }, original with { UntilAuditSequence = long.MaxValue - 1 },
+        ];
+        foreach (var changed in changes)
+        {
+            var read = () => fixture.Service.QueryAsync(changed, cursor, TestContext.Current.CancellationToken).AsTask();
+            await read.Should().ThrowAsync<InvalidDataException>();
+        }
+        fixture.Reader.Calls.Should().Be(1);
+        await fixture.Service.QueryAsync(original, cursor, TestContext.Current.CancellationToken);
+        fixture.Reader.Calls.Should().Be(2);
+    }
+
     [Theory]
     [InlineData(int.MinValue)]
     [InlineData(-1)]
@@ -575,9 +624,84 @@ public sealed class DurableEvidenceQueryTests
         link.Record!.Citation.Should().EndWith(":31");
     }
 
+    [Theory]
+    [InlineData("")]
+    [InlineData("0123456789abcde")]
+    [InlineData("0123456789abcdef0")]
+    [InlineData("0123456789ABCDEF")]
+    [InlineData("0123456789abcdeg")]
+    [InlineData("0000000000000000")]
+    [InlineData(" 0123456789abcdef")]
+    [InlineData("0123456789abcdef ")]
+    [InlineData("                ")]
+    [InlineData("\t")]
+    [InlineData("0123456789abcde\n")]
+    [InlineData("0x23456789abcdef")]
+    public async Task InvalidExactSpanIsRejectedByPortablePolicyBeforeReading(string span)
+    {
+        using var listener = Listen();
+        var fixture = new Fixture();
+        using var host = Root();
+        var read = () => fixture.Service.QueryAsync(new() { SpanId = span }, null,
+            TestContext.Current.CancellationToken).AsTask();
+        await read.Should().ThrowAsync<ArgumentException>();
+        fixture.Reader.Calls.Should().Be(0);
+        var parent = () => fixture.Service.QueryAsync(new() { ParentSpanId = span }, null,
+            TestContext.Current.CancellationToken).AsTask();
+        await parent.Should().ThrowAsync<ArgumentException>();
+        fixture.Reader.Calls.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task MetadataChoicesAreAdmittedForEverySourceWithoutInventingMissingFields()
+    {
+        using var listener = Listen();
+        using var host = Root();
+        foreach (var source in Enum.GetValues<EvidenceSource>())
+        foreach (var outcome in Enum.GetValues<HostOperationOutcome>())
+        foreach (var content in Enum.GetValues<EvidenceContentAvailability>())
+        {
+            var fixture = new Fixture();
+            var page = await fixture.Service.QueryAsync(new()
+            {
+                Source = source, ParentSpanId = "0123456789abcdef", Outcome = outcome, ContentAvailability = content,
+            }, null, TestContext.Current.CancellationToken);
+            page.Records.Should().BeEmpty();
+            page.Status.Should().Be(source is EvidenceSource.Session or EvidenceSource.Conversation
+                ? EvidencePageStatus.Unavailable : EvidencePageStatus.Available);
+        }
+    }
+
+    [Fact]
+    public async Task PresentContentCannotSilentlyBecomeOmittedToFitThePage()
+    {
+        using var listener = Listen();
+        using var host = Root();
+        var fixture = new Fixture();
+        fixture.Reader.Batch = Batch(1, new string('x', EvidencePage.MaximumBytes));
+        var read = () => fixture.Service.QueryAsync(new()
+        {
+            ContentAvailability = EvidenceContentAvailability.Present, EventName = "Event",
+            ExceptionType = "System.IOException", FromAuditSequence = 1, UntilAuditSequence = 1,
+        },
+            null, TestContext.Current.CancellationToken).AsTask();
+        await read.Should().ThrowAsync<InvalidDataException>();
+    }
+
     public static TheoryData<EvidenceQuery> InvalidFilters => new()
     {
+        new EvidenceQuery { EventName = "" }, new EvidenceQuery { ExceptionType = "" },
+        new EvidenceQuery { EventName = " Event" }, new EvidenceQuery { EventName = "Event " },
+        new EvidenceQuery { ExceptionType = " Type" }, new EvidenceQuery { ExceptionType = "Type " },
+        new EvidenceQuery { EventName = "E\nvent" }, new EvidenceQuery { ExceptionType = "Ty\0pe" },
+        new EvidenceQuery { EventName = "\ud800" }, new EvidenceQuery { ExceptionType = "\ud800" },
+        new EvidenceQuery { EventName = new string('x', 129) }, new EvidenceQuery { ExceptionType = new string('x', 257) },
+        new EvidenceQuery { FromAuditSequence = 0 }, new EvidenceQuery { UntilAuditSequence = 0 },
+        new EvidenceQuery { FromAuditSequence = -1 }, new EvidenceQuery { UntilAuditSequence = -1 },
+        new EvidenceQuery { FromAuditSequence = 2, UntilAuditSequence = 1 },
         new EvidenceQuery { Source = (EvidenceSource)99 }, new EvidenceQuery { Limit = 0 }, new EvidenceQuery { Limit = 51 },
+        new EvidenceQuery { Outcome = (HostOperationOutcome)99 },
+        new EvidenceQuery { ContentAvailability = (EvidenceContentAvailability)99 },
         new EvidenceQuery { FromUtc = DateTimeOffset.UnixEpoch.AddDays(1), UntilUtc = DateTimeOffset.UnixEpoch },
         new EvidenceQuery { Severity = (EvidenceSeverity)99 }, new EvidenceQuery { AuditOutcome = (SecurityAuditOutcome)99 },
         new EvidenceQuery { SessionId = default(HostId<SessionIdentity>) }, new EvidenceQuery { TaskId = default(HostId<TaskIdentity>) },
@@ -606,6 +730,22 @@ public sealed class DurableEvidenceQueryTests
     {
         var invalid = () => DurableEvidenceQuery.Validate(query);
         invalid.Should().Throw<Exception>();
+    }
+
+    [Fact]
+    public void NewMetadataPreservesSourceCompatibilityAndBoundaryValues()
+    {
+        foreach (var source in Enum.GetValues<EvidenceSource>())
+        foreach (var from in new long?[] { null, 1, long.MaxValue })
+        foreach (var until in new long?[] { null, long.MaxValue })
+        {
+            DurableEvidenceQuery.Validate(new()
+            {
+                Source = source, EventName = new string('e', 128), ExceptionType = new string('t', 256),
+                FromAuditSequence = from, UntilAuditSequence = until,
+            });
+            DurableEvidenceQuery.Validate(new() { Source = source, EventName = "Plain Unicode \u00e9", ExceptionType = "A / B" });
+        }
     }
 
     private static HostActivity Root() => HostActivity.BeginRoot(HostRequest.Create(RequestOrigin.LocalUi),

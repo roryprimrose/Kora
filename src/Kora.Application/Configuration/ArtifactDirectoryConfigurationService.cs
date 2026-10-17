@@ -16,8 +16,17 @@ public sealed class ArtifactDirectoryConfigurationService(
     {
         lock (gate)
         {
-            settings = preferences.Load();
+            settings = ReadCurrentCore();
             Changed?.Invoke(this, EventArgs.Empty);
+            return settings;
+        }
+    }
+
+    internal ArtifactDirectorySettings ReadCurrent()
+    {
+        lock (gate)
+        {
+            settings = ReadCurrentCore();
             return settings;
         }
     }
@@ -93,6 +102,7 @@ public sealed class ArtifactDirectoryConfigurationService(
             {
                 throw new InvalidDataException("Saved artifact source preferences did not match readback.");
             }
+
             settings = readBack;
         }
         catch (Exception exception) when (exception is IOException
@@ -111,6 +121,8 @@ public sealed class ArtifactDirectoryConfigurationService(
         Changed?.Invoke(this, EventArgs.Empty);
         return settings;
     }
+
+    private ArtifactDirectorySettings ReadCurrentCore() => preferences.Load();
 
     private static ArtifactDirectorySettings Replace(
         ArtifactDirectorySettings current,

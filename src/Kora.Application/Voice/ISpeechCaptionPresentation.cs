@@ -1,11 +1,19 @@
-﻿using Kora.Application.Infrastructure;
+﻿using System.ComponentModel;
+
+using Kora.Application.Infrastructure;
 using Kora.Core.Voice;
 
 namespace Kora.Application.Voice;
 
 /// <summary>The passive, already-admitted caption presentation consumed by the desktop.</summary>
-public interface ISpeechCaptionPresentation
+public interface ISpeechCaptionPresentation : INotifyPropertyChanged
 {
+    /// <summary>Gets the last confirmed reader percentage; revalidate before presentation.</summary>
+    int ReaderTextScalePercent { get; }
+    /// <summary>Gets whether an owned preference write temporarily holds caption presentation.</summary>
+    bool IsReaderTypographyUpdatePending => false;
+    /// <summary>Revalidates confirmed device-local reader evidence, throwing explicitly if unavailable.</summary>
+    void EnsureReaderTypographyAvailable();
     /// <summary>Gets the currently observed private text, or <c>null</c>.</summary>
     string? SpeechCaptionText { get; }
     /// <summary>Gets the current or successfully retained utterance label.</summary>

@@ -6,5 +6,7 @@ internal interface IWindowsPrivacySource : IDisposable
 {
     event EventHandler<WindowsPrivacySignalEventArgs>? Changed;
 
+    string? TopologyIdentity { get; }
+
     WindowsPrivacySnapshot Read();
 }

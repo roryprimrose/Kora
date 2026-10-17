@@ -9,16 +9,17 @@ namespace Kora.Application.Hosting;
 public sealed partial class SessionWorkspaceService
 {
     public Task<SessionHistorySearchPage> SearchHistoryAsync(HostId<SessionIdentity> session, string query,
-        SessionHistorySearchCursor? cursor, int limit, CancellationToken token) =>
+        SessionHistorySearchCursor? cursor, int limit, CancellationToken token,
+        SessionHistoryMetadataFilter metadata = default, SessionHistoryRangeFilter range = default) =>
         ReadAsync(async () =>
         {
             session.Validate();
             SessionHistoryPage.ValidateLimit(limit);
-            var search = new SessionHistorySearch(query);
+            var search = new SessionHistorySearch(query, metadata, range);
             cursor?.History.Validate(session);
             if (cursor is not null && !string.Equals(cursor.QueryDigest, search.Digest, StringComparison.Ordinal))
             {
-                throw new ArgumentException("The continuation belongs to another lexical query. Start a fresh search.", nameof(cursor));
+                throw new ArgumentException("The continuation belongs to another query, metadata or provenance predicate. Start a fresh search.", nameof(cursor));
             }
             var continuation = cursor?.History;
             var records = ImmutableArray.CreateBuilder<SessionHistoryEvent>();
@@ -29,23 +30,16 @@ public sealed partial class SessionWorkspaceService
             while (true)
             {
                 token.ThrowIfCancellationRequested();
+                var readLimit = Math.Min(SessionHistoryPage.MaximumRecords, SessionHistorySearchPage.MaximumScannedRecords - scanned);
                 var page = await History.ReadHistoryAsync(session, continuation,
-                    SessionHistoryPage.MaximumRecords, token).ConfigureAwait(false);
-                if (page.SessionId != session || continuation is not null
-                    && (page.Generation != continuation.Generation || page.Snapshot != continuation.Snapshot))
-                {
-                    throw new InvalidDataException("History search cannot cross exact session ownership.");
-                }
+                    readLimit, token).ConfigureAwait(false);
+                ValidateSearchHistoryPage(page, session, continuation, readLimit, token);
                 var after = continuation?.After ?? 0;
                 result = new(session, page.Generation, page.Disposed, page.Snapshot, records.ToImmutable(),
                     scanned, gaps, omitted, null);
                 foreach (var record in page.Records)
                 {
                     token.ThrowIfCancellationRequested();
-                    if (record.SessionId != session || record.Sequence <= after || record.Sequence > page.Snapshot)
-                    {
-                        throw new InvalidDataException("History search requires ordered exact-session receipts.");
-                    }
                     var next = new SessionHistorySearchCursor(new(session, page.Generation, page.Snapshot, record.Sequence), search.Digest);
                     if (search.Matches(record, token))
                     {
@@ -75,10 +69,34 @@ public sealed partial class SessionWorkspaceService
                 continuation = result.Next.History;
             }
             // Re-resolve the snapshot after scanning; lifecycle/retention changes cannot publish old content.
-            await History.ReadHistoryAsync(session, new(session, result.Generation, result.Snapshot, result.Snapshot),
-                1, token).ConfigureAwait(false);
+            var end = new SessionHistoryCursor(session, result.Generation, result.Snapshot, result.Snapshot);
+            var resolved = await History.ReadHistoryAsync(session, end, 1, token).ConfigureAwait(false);
+            ValidateSearchHistoryPage(resolved, session, end, 1, token);
             token.ThrowIfCancellationRequested();
             _ = SessionCommandResult.Serialize(new("observed", SessionHistorySearchPage.Scope) { HistorySearch = result });
             return result;
         }, token);
+
+    private static void ValidateSearchHistoryPage(SessionHistoryPage page, HostId<SessionIdentity> session,
+        SessionHistoryCursor? cursor, int limit, CancellationToken token)
+    {
+        if (page.SessionId != session || page.Generation.Value <= 0 || page.Snapshot < 0
+            || page.Records.IsDefault || page.Records.Length > limit
+            || cursor is not null && (page.Generation != cursor.Generation || page.Snapshot != cursor.Snapshot))
+        {
+            throw new InvalidDataException("History search cannot cross exact session ownership or snapshot bounds.");
+        }
+        var after = cursor?.After ?? 0;
+        foreach (var record in page.Records)
+        {
+            token.ThrowIfCancellationRequested();
+            record.Validate();
+            if (record.SessionId != session || record.Sequence <= after || record.Sequence > page.Snapshot
+                || record.Generation.Value > page.Generation.Value)
+            {
+                throw new InvalidDataException("History search requires ordered exact-session receipts.");
+            }
+            after = record.Sequence;
+        }
+    }
 }

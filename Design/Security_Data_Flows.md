@@ -1,11 +1,37 @@
 # Security and Data Flows
 
+## Private retained attachment metadata search boundary
+
+The [retained-slot catalogue](File_And_Folder_Ingestion.md#delivered-retained-attachment-metadata-catalogue---2026-10-11) permits native bounded literal search only over already exposed Session/source/revision/item IDs, digest and media type. It does not search hidden descriptor filenames/paths or removed-slot metadata. The shared strict literal policy preserves exact case/spaces and fails closed on malformed/oversized input.
+The query remains volatile and excluded from query/page serialization, audit/logging, tags/Baggage, persistence, export, transcripts and model/network context. Run-local authenticated continuations contain only a keyed query fingerprint; source/profile/viewer/authority/expiry bounds and full validation of irrelevant records remain mandatory. No content read, original-path access, index, permission, consent, activity renewal or authority expansion is added. Query/source/private changes and cancellation/close fence late results and exact navigation; unknown/corrupt/unsupported state is not empty success.
+
+Native attachment revocation is nonblocking and bound to the originating inspection lifetime; body invalidation additionally binds its exact view revision. Delayed notifications cannot cancel a newly admitted explicit inspection or close its new retained/recovery view. Current-lifetime session/private revocation still clears all its views and pending work; changing views alone does not supersede that revocation.
+
+Optional exact local-file source/revision/item IDs use the shared nonempty
+canonical lowercase D-GUID policy and match only Confirmed retained copies.
+Every complete summary is validated before exclusion. Exact predicates cannot
+reconstruct or expose former IDs from unavailable/removed tombstones; Held
+copies never match. These volatile IDs are keyed-continuation-bound correlation
+metadata only, never source consent, current file identity, path disclosure,
+body integrity, file-read authority or proof a copy exists. Existing provenance
+and separately admitted full-byte navigation remain unchanged.
+
+## All work private metadata query boundary
+
+The [bounded All work overview](Work_Management.md#delivered-passive-cross-session-work-observation---2026-10-11) reuses the authoritative Sessions/saved-draft metadata query policy, never content search. Literal saved-name substrings and canonical exact GUIDs are private navigation data, not intent, identity or authority. Typing performs no read; explicit Search/Refresh/Next uses existing private metadata admission and independently admitted per-session work observations. Ten-session scans, fifty task/question records per session, complete 64 KiB projection, canonical-ID ordering, timeout/cancellation and explicit unavailable/nonmatch/omission counts remain unchanged.
+Only the query digest enters a volatile host/admission/source-epoch/filter-bound continuation; query text never enters persistence, logs, Activity tags/Baggage or model context. Edits clear stale selection/page/continuation and fence late results; private closure clears text too. Empty pages with Next are not all-clear, and mutable keysets are not atomic global snapshots. Exact navigation repeats private admission and grants no resume, activity renewal, queue action, question/voice retarget, provider/worker/resource, network or execution authority. This does not qualify global work/body search or installed accessibility.
+
 ## Owned definition metadata navigation boundary
 
 The [owned editor inventory](../docs/instruction-editor.md#search-observed-owned-metadata) projects only admitted existing per-kind bounded filenames and coherent catalogue metadata. Names/queries are private user metadata, never content-free audit labels, paths or authority.
 List/Refresh retains existing native source/session/host admission and reconciliation; search/filter/page operations perform no source I/O, activation, preference write, model/network call or watcher restart. Body/description/attribution/full paths never enter the row projection, logs, Activity tags or Baggage.
 Selected rows bind original kind/canonical filename/source-qualified artifact ID/digest/native revision plus catalogue and private ownership epoch. Actual Inspect repeats admission and native exact readback, refusing stale/changed/replaced/disappeared choices without showing a newer same-name revision.
 Unknown/unmapped/unrevisioned state is never enabled by inference. Reload failure removes availability and labels historical observations unavailable; private closure clears metadata and text and fences late callbacks. Dirty drafts are not implicitly discarded by metadata changes. This is no profile/bundled-as-owned reader, writer or model-tool extension.
+
+## Native admitted Detail literal Find boundary
+
+The [Detail Find contract](Information_Display.md#native-admitted-text-literal-find) operates only on the frozen in-memory text already admitted into an open viewer, including original USER and a separate already-displayed typed HOST target. It calls the shared snapshot literal policy; it never resolves another record, reads storage/source/clipboard, queries a model/provider or changes admission.
+Queries and one exact match are volatile presentation only: no persistence, logging, export, clipboard transfer, egress, audit-body data or new schema. Existing trusted admission/revocation remains authoritative; every Find gesture and final match/focus publication fails closed on source/private loss or closed/replaced content. Cancel/Clear release navigation state; closure releases private presentation, without managed-memory zeroization or qualification claims. Existing independently admitted copy policy remains unchanged and retained conversation copy is blocked.
 
 ## Exact-session conversation retention boundary
 
@@ -163,6 +189,18 @@ Perpetual grants remain independent. Restart restores observation only,
 projects interrupted/unknown tasks and never dispatches a saved queue.
 
 ## Passive Committed Authority Audit Inspection
+
+Native Evidence literal Find consumes only the already-admitted immutable
+serialized page in memory, never a new source read or authority decision.
+Its bounded query and exact inert match are volatile: no query content enters
+logs, typed audit, persistence, clipboard/export, speech, model context,
+activity identity/tags or baggage. Filter/source/page/read changes, failures,
+incomplete results, cancellation, private ownership/privacy revocation and
+close retire the query and match; revision/admission checks refuse late
+publication/focus. Matching a diagnostic `SecurityAudit` property or audit
+text confers no authority. The existing trusted typed commit/correlation
+distinction is unchanged. See the
+[bounded Find contract](Information_Display.md#delivered-bounded-native-evidence-inspection).
 
 The native inspector's separate **AuthorityAudit** source reads real typed
 schema-v3 interaction-store commits through the initialized store's shared
@@ -650,6 +688,8 @@ closed. Returned snapshots cannot be retroactively erased; subsequent use
 re-resolves current state. Actual-store tests are not forensic/power-loss or
 experiment/native-runtime isolation qualification.
 
+The [native content-free memory filters](Model_Providers_Memory_And_Knowledge.md#delivered-native-content-free-session-memory-filters---2026-10-14) operate only on the frozen metadata returned by explicit List for the selected exact active session. GUID and defined Review/Retention state selectors add no storage/content reads, inspection, host activity, clock renewal, persistence, query logging or model context. Classification is absent from the admitted summary and is not searchable. Filter changes/Clear retire exact selection, inspection, replacement draft and mutation eligibility; fresh visible selection and inspection precede action. Full List bounds, exact session/generation/control admission, cancellation and source/private closure are unchanged. Forgotten identity remains content-free; no recall, global catalogue, secret detection, authority or egress expansion is delivered.
+
 The [bounded RT2 observation](../experiments/r02-runtime-lifecycle-proof/EVIDENCE.md)
 passes its 20 safe tests but leaves all-path runtime admission **Blocked**.
 Native initialization launches PowerShell/console-host descendants and creates
@@ -718,6 +758,14 @@ The passive exact-ID history continuation reads only the initialized private rea
 Complete output is bounded to 50 envelopes / 64 KiB, prefix scanning to 4096 rows / 5 seconds, with a signed exact-ID/current-viewer/store-lifetime/sequence-digest ceiling and predecessor cursor expiring after 15 minutes. Unrelated change references are omitted with counts; zero-match scans progress. Changed/missing sources, current exact records, cursors or predecessors and invalid schemas/hashes fail closed without unfiltered fallback, new files, migration or audit rewrite.
 
 Only actually retained creation/use/change/revocation outcomes and separately retained requested review are shown. Stored counts/times, requested attempts and committed consumes do not prove execution, exhaustive history, cancellation or rollback. Expired-but-present deadlines, scan bounds, unavailable records and unknown gaps/retention are disclosed; forensic/tamperproof/physical-erasure claims remain unavailable. History has no egress, replay, scope, approval or cancellation route and never renews meaningful activity; navigation retires actionable review and lifecycle/privacy/ownership loss clears late private output.
+
+Exact-history filters observe only `ExactGrantHistoryEntry.Audit`: typed `SecurityAuditOutcome`, exact `ReasonCode` and optional exact `SecurityAuditInitiator`, with Any/empty defaults and AND composition. Native initiator choices are Any plus every defined enum, with labels and typed options owned by Core. Core shares the audit event's canonical 1-128 lowercase ASCII identifier policy; undefined enums/labels, numeric parsing, whitespace/case repairs and arbitrary message search are refused. Neither request origin nor separately retained Requested review details supply a predicate or additional disclosure. Exact membership, current-grant reconciliation and every bounded prefix schema/hash/predecessor check precede filtering, including excluded rows.
+
+Optional exact committed audit correlation ID and explicit committed approval metadata Any/Present/Absent/Exact predicates compose with every outcome/reason/initiator/retention/time predicate. Core requires canonical lowercase nonempty D GUID input; Exact requires an ID, and all other approval choices require no ID. Complete validated committed events alone can match: Exact compares only `Audit.ApprovalId`, never grant membership, requested batch references or Requested review. Absent means validated committed metadata without an approval ID, never unknown. Both IDs and the explicit choice bind the versioned query digest and authenticated continuation; no raw predicate enters cursor payloads or other disclosure channels. They are committed correlation metadata only, cannot identify authority by themselves and cannot approve, grant, renew, revoke, retarget or authorize execution. No admission ceiling, exact membership, authority/privacy/resource fence or audit disclosure is weakened.
+
+History continuation additionally authenticates the outcome/reason/initiator digest, exact inspected grant digest, complete native viewer, positive control revision and host-owned read-admission identity. Edits cancel old work and retire rows/cursors/actionable selection/single and batch review without reading; they retain only the explicitly inspected inert target for a new explicit Read. Scanned/nonmatching counts disclose progress, including zero-match pages, without changing 4096-row/5-second, 50-result/64-KiB, 15-minute or ceiling/digest limits. Filter values are volatile and never logged, persisted, tagged, included in audit payloads or admitted to model/tool/speech/clipboard/export context; they renew no activity or review/approval. No schema/index/cache, retention, authority, approval, egress or forensic qualification changes.
+
+Exact-history retention/time predicates additionally observe the complete validated envelope: Any/Present/ExpiredButPresent and independent inclusive Committed/Due UTC ranges. Missing/unknown/unavailable retention cannot match a complete envelope. Nonempty native bounds reuse the shared strict round-trip `O` UTC parser (`+00:00`, seven fractional digits); typed bounds require zero offset, and each From must be <= Until. Equality is included. The versioned digest binds all bounds and retention along with outcome/reason/committed initiator. Prefix decoding/hash/provenance/current-grant reconciliation still precede exclusion; Requested-review details remain undisclosed. Deadline state is observed at each page's read time, not a new retention policy, proof of deletion or action authority. No grant/renew/revoke/target/approval/execution authority, schema, storage writes, egress or admission-ceiling change is introduced.
 
 Subsequent consumes through `HostAuthorizationService` reject every retained revoked target. Already-running work remains unknown unless actual receipts prove otherwise; revocation never claims physical cancellation or rollback. No model/tool dispatch, named-preference promotion, new approvals, grant edits, global revoke-all, Perpetual expiry/eviction or direct lock/power gate change is delivered.
 
@@ -1338,6 +1386,16 @@ Existing bytes/hashes/relationships/citations/deadlines and every grant record/
 validity/scope remain. Lost evidence or corrupt/unconfirmed preference holds
 new required audit/authority commits and refuses startup writes, never defaults
 to 90. Explicit saved-state/receipt inspection and repair precede refresh.
+The native [read-only shortening preview](User_Configuration.md#read-only-audit-shortening-impact-preview)
+observes newly due committed rows at one fixed cutoff without a durable intent,
+activity renewal or audit/approval authority. Required authority and independently
+typed diagnostic audit projections remain distinct. Only bounded counts and
+committed/proposed-due ranges leave the reader; no audit content or identity is
+returned. Private query-only snapshots, saved/readback/policy and host/control
+revisions fence publication. Source limits are Incomplete without partial counts;
+corrupt/unknown sources are Unavailable, not zero. Edits, refresh, store/preference,
+privacy/owner/desktop/call changes, cancellation/failure/close/timeout retire the
+result and fence late callbacks. Notifications never start a scan.
 No apply-now, audit pruning, session/history/approval/task/question deletion,
 ordinary/file policy or cleanup-schedule change is authorized by this option.
 Store history, artifacts and indexes under verified private LocalApplicationData permissions; deletion covers caches, indexes, blobs, journals/recoverable copies and outstanding dispatch authority, not independently stored perpetual grants.

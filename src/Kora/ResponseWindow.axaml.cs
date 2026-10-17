@@ -365,7 +365,7 @@ public sealed partial class ResponseWindow : Window
     private void OnPositionSaveTimer(object? sender, EventArgs eventArgs)
     {
         positionSaveTimer.Stop();
-        _ = viewModel.SetResponseWindowPosition(
+        viewModel.QueueResponseWindowPosition(
             new ResponseWindowPosition(Position.X, Position.Y));
     }
 

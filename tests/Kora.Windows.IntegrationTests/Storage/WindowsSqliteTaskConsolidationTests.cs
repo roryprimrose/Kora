@@ -8,7 +8,6 @@ using Microsoft.Data.Sqlite;
 
 namespace Kora.Windows.IntegrationTests.Storage;
 
-[Collection(nameof(DurableStorageCompositionTestGroup))]
 public sealed class WindowsSqliteTaskConsolidationTests
 {
     [Theory]

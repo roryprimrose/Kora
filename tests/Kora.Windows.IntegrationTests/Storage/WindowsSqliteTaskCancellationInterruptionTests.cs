@@ -14,7 +14,6 @@ using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Kora.Windows.IntegrationTests.Storage;
 
-[Collection(nameof(DurableStorageCompositionTestGroup))]
 public sealed class WindowsSqliteTaskCancellationInterruptionTests
 {
     private const string RootVariable = "KORA_TASK_CANCEL_CHILD_ROOT";

@@ -33,6 +33,13 @@ Denied/failed/cancelled/late/private-retired results cannot become successful da
 
 Work/AllWork, cancellation/move/requeue reviews and targeted local notices expose only closed profile/target metadata, not retained result bodies. Exact private status/Inspect reads the already-saved snapshot without rerunning it. Original notice suppression formats are unchanged; new targeted notice metadata is inert. The complete work projection stays 64 KiB.
 
+Native [loaded local-event predicates](Proactive_Interaction.md#native-content-free-loaded-event-filters)
+can match Any/explicit Absent/exact retained profile and an optional exact
+catalogue target. They validate complete historical metadata before exclusion
+and compose with all existing event filters without another read. Matching
+neither selects a session nor admits/dispatches work or establishes current
+readiness, ownership or permission; Work/All work predicates remain unchanged.
+
 Pause, FIFO/order lineage, fair manual batches, captured budgets, selected atomic cancellation, retention and no-replay recovery are unchanged. Reviewed expired replacement preserves the exact profile and descriptor target under separate fresh request/task IDs; it cannot retarget dependents or extend the old deadline.
 
 Maintained [portable contract tests](../tests/Kora.Core.UnitTests/Hosting/SessionQueueTargetedReadTests.cs) and [actual registry tests](../tests/Kora.Application.UnitTests/Tools/ReadOnlyCapabilityRegistryTests.cs) cover closed input/result binding.
@@ -161,6 +168,43 @@ Stored Active/Done, exact immutable IDs/generations/metadata revisions, authorit
 No duplicate readiness/blocked policy, provider resource contention, ETA, unread durability or full-scope count is invented. Bodies/history/memory/attachments/diagnostic text do not enter this projection.
 
 All/Active/Done and observed needs-answer are bounded scan/snapshot filters. Nonmatches advance the query-bound cursor, including zero-match pages; byte-deferred IDs do not. Omissions/unavailable/oversized groups are explicit, never empty-success or all-clear. Pages are independently observed mutable keysets, not globally atomic; behind-cursor changes require Refresh.
+
+The native observation-availability filter composes by AND with lifecycle, literal metadata query and Needs answer: **Any**, **Observed**, **Source changed**, **Read unavailable**, **Output bound**. Any is a volatile absent predicate; each other choice matches exactly the defined `SessionWorkOverviewAvailability` on the already validated row through [the portable filter policy](../src/Kora.Core/Storage/SessionWorkOverviewFilter.cs). Undefined values fail explicitly. All returned scanned metadata is validated before any exclusion or byte deferral, and admitted work snapshots are validated before availability exclusion. A complete single-session projection exceeding the output ceiling is classified OutputBound before matching. Unavailable rows are never inferred to have no queue, tasks or questions. The exact availability joins all existing cursor/query/lifecycle/NeedsAnswer/host/private/source fences. Editing performs no read and immediately revokes rows, selection, continuation and late callbacks. Zero matches are only this bounded observation, not all-clear. Choices are volatile and cleared on close; no persistence, logging, telemetry tags, audit payload, model/tool/speech/clipboard/export, authority renewal, schema/index/cache, mutation, resume, answer, queue action or aggregation is added.
+
+The separate native **Observed content** choice adds **Any**, **At least one observed queue receipt**, **At least one observed task**, or **At least one observed pending question**, AND-composed with every existing filter, including Browse (empty query), name, exact session ID, explicit availability and Needs answer. Positive choices require Observed availability and at least one retained record in that exact observation's corresponding array; queue receipts include terminal receipts and tasks include terminal/Unknown tasks, without inferring execution or completion. Missing work and all unavailable classifications never match positive choices. Omission counts are neither positive records nor proof of absence; an omitted-only group may be excluded without claiming no work/questions exist. Needs answer retains its existing conservative unavailable/omission behavior, independently of the new positive predicate. Complete-row output classification and admitted validation precede matching. The exact content choice is continuation-bound and uses the same cancellation, private/source invalidation and selection retirement; edits perform no I/O. Any has a real non-null native SelectedItem, not a blank nullable choice. No negative/empty/completed predicate, extra read, storage, schema, model context, authority or permission is introduced.
+
+Optional inclusive **minimum/maximum work metadata ranges** cover authority
+revision, queue revision, pending count, pending capacity, execution slots,
+observed current fixed reads, and omitted queue-receipt/task/pending-question
+counts. The [portable query contract](../src/Kora.Core/Storage/SessionWorkOverviewRanges.cs)
+owns AND composition and admission: authority revision, capacity and slots
+require positive Int64 bounds; queue revision and counts admit zero. Empty
+endpoints mean Any, and each minimum must be <= its maximum. Native text uses
+the shared strict ASCII unsigned-decimal parser, admitting semantic leading
+zeroes but refusing signs, whitespace, separators, non-ASCII digits and
+overflow without normalization or fallback. Bounds describe observed values,
+not configurable limits or grants.
+
+Every consumed observation's complete numeric, retained queue/task/question
+and dispatch metadata is validated before any observation predicate can exclude
+it. Invalid sources become explicitly ReadUnavailable, never a matching partial
+observation. Single-row output classification still precedes matching:
+SourceChanged, ReadUnavailable, OutputBound and missing work never match any
+active work-metadata range. All nine ranges AND-compose with lifecycle,
+Browse/name/exact-ID, Needs answer, availability and positive observed content;
+every endpoint joins semantic continuation identity. Explicit omission counts
+can match their own numeric ranges but cannot supply retained positive records
+or prove absence, completeness, success, freshness or authority. Zero is only
+an observed scalar, not an empty-work predicate or all-clear. No omitted records
+are fetched to satisfy a range. Native range edits and **Clear work metadata
+ranges** perform no read, retire rows/selection/continuation/late callbacks and
+retain the same admission/source fences. Accessible keyboard inputs remain
+editable during reads, disable on private closure and clear on close.
+The ten-session/64-KiB/ten-second budgets are unchanged, including continuation
+after zero matches and retry of byte-deferred IDs. No storage, background
+collection, model/provider/device operation or experiment is added.
+
+The optional private metadata query reuses [SessionListSearch](../src/Kora.Core/Storage/SessionListSearch.cs), the authoritative Sessions/saved-draft catalogue policy: explicit canonical exact session GUID or ordinal case-sensitive literal saved-name substring with unchanged SessionName validation. It filters the same ten-session canonical-ID scan before work observation, not a direct-ID lookup or body/history/memory search. Empty query means ordinary bounded overview; invalid nonempty text is refused without normalization, trimming or fallback. Search and Refresh start fresh; Next binds the query kind/value/filter digest, needs-answer filter, host, private admission revision and source epoch. Only the digest enters the volatile continuation; query text is never persisted, logged, tagged, sent to models or used as authority. Typing, mode/filter edits and Clear perform no read and revoke page/selection/continuation and late callbacks. Close/private closure clears query text too.
 
 Native navigation rereads one exact session through private owner/call/source admission and cannot resume/reorder/dispatch/cancel/enqueue, consume grants, renew activity or retarget voice/questions. Lifecycle/disposition/retention/hold changes invalidate rows and in-flight reads. Closure clears private page/filter/IDs and cancels late callbacks; browsing adds no cleanup or timer.
 

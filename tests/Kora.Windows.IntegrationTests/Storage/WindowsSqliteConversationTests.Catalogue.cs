@@ -15,6 +15,151 @@ namespace Kora.Windows.IntegrationTests.Storage;
 public sealed partial class WindowsSqliteConversationTests
 {
     [Fact]
+    public async Task ExactGuidPredicatesCannotOverridePrivateControlSourceOrProfileFences()
+    {
+        using var f = new InteractionStorageFixture();
+        await f.InitializeAsync();
+        await FinishInitial(f);
+        for (var index = 0; index <= SavedDraftPage.MaximumRecords; index++)
+        {
+            if (index != 0)
+            {
+                f.Request = InteractionStorageFixture.NewRequest();
+                await f.AdmitAsync(newSession: true);
+                await FinishInitial(f);
+            }
+            await Save(f, await f.Store.ReadConversationDraftAsync(f.Request.SessionId, f.Token), "saved");
+        }
+        using var viewer = HostActivity.BeginRoot(Fresh(f.Request.SessionId), HostActivityLayer.Desktop, HostOperation.Request);
+        var observed = (await f.Store.ReadSavedDraftPage(SessionListFilter.All, null, 1, () => true, f.Token)).Records[0];
+        var filter = new SavedDraftMetadataFilter(1, 5, 5, 5, 5, observed.Source, observed.Profile,
+            1, long.MaxValue, minimumControlRevision: 1, maximumControlRevision: 1,
+            minimumAuthorityCeiling: observed.AuthorityCeiling, maximumAuthorityCeiling: observed.AuthorityCeiling);
+        var page = await f.Store.ReadSavedDraftPage(SessionListFilter.All, null, 1, () => true, f.Token, metadataFilter: filter);
+        page.Next.Should().NotBeNull();
+        var privateRead = () => f.Store.ReadSavedDraftPage(SessionListFilter.All, page.Next, 1, () => false, f.Token,
+            metadataFilter: filter).AsTask();
+        await privateRead.Should().ThrowAsync<InvalidOperationException>();
+        var controlRead = () => f.Store.ReadSavedDraftPage(SessionListFilter.All, page.Next, 2, () => true, f.Token,
+            metadataFilter: filter).AsTask();
+        await controlRead.Should().ThrowAsync<InvalidDataException>();
+        using var cancellation = new CancellationTokenSource();
+        cancellation.Cancel();
+        var cancelled = () => f.Store.ReadSavedDraftPage(SessionListFilter.All, page.Next, 1, () => true, cancellation.Token,
+            metadataFilter: filter).AsTask();
+        await cancelled.Should().ThrowAsync<OperationCanceledException>();
+        f.Reopen();
+        await f.Store.InitializeAsync(f.Token);
+        var oldCursor = () => f.Store.ReadSavedDraftPage(SessionListFilter.All, page.Next, 1, () => true, f.Token,
+            metadataFilter: filter).AsTask();
+        await oldCursor.Should().ThrowAsync<InvalidDataException>();
+        var oldSelection = () => f.Store.ResolveSavedDraft(observed, () => true, f.Token).AsTask();
+        await oldSelection.Should().ThrowAsync<InvalidOperationException>();
+        var oldSource = await f.Store.ReadSavedDraftPage(SessionListFilter.All, null, 1, () => true, f.Token, metadataFilter: filter);
+        oldSource.Records.Should().BeEmpty("the previous run GUID remains an exact metadata predicate, not authority");
+        oldSource.Next.Should().BeNull();
+        oldSource.Scanned.Should().Be(26);
+        var current = (await f.Store.ReadSavedDraftPage(SessionListFilter.All, null, 1, () => true, f.Token)).Records[0];
+        current.Source.Should().NotBe(observed.Source);
+        current.Profile.Should().Be(observed.Profile);
+        f.Mutate("UPDATE memory_profile SET profile_id='11111111-1111-1111-1111-111111111111';");
+        var changedProfile = () => f.Store.ReadSavedDraftPage(SessionListFilter.All, null, 1, () => true, f.Token,
+            metadataFilter: filter).AsTask();
+        await changedProfile.Should().ThrowAsync<InvalidDataException>("a nonmatching profile cannot hide changed source authority");
+        f.Count("conversation_messages").Should().Be(0);
+    }
+
+    [Fact]
+    public async Task SavedDraftRevisionByteAndScalarRangesComposeWithEveryMetadataQueryAndLifecycleWithoutBodyReads()
+    {
+        using var f = new InteractionStorageFixture();
+        await f.InitializeAsync();
+        await FinishInitial(f);
+        var saved = await Save(f, await f.Store.ReadConversationDraftAsync(f.Request.SessionId, f.Token), "🙂");
+        saved = await Save(f, saved, "🙂");
+        var service = WindowsSqliteSessionWorkspaceTests.Service(f, new());
+        await service.RenameAsync(saved.Session.SessionId, new(1), 0, new("private needle"),
+            RequestOrigin.LocalUi, f.Token);
+        using var viewer = HostActivity.BeginRoot(Fresh(f.Request.SessionId), HostActivityLayer.Desktop, HostOperation.Request);
+        var observed = (await f.Store.ReadSavedDraftPage(SessionListFilter.All, null, 1, () => true, f.Token)).Records.Single();
+        foreach (var filter in new[]
+        {
+            SavedDraftMetadataFilter.Any, new(2, null, null), new(null, 4, null),
+            new(null, null, 4), new(2, 4, 4), new(null, 0, 16384),
+            new(1, null, null), new(null, 5, null), new(null, null, 3), new(null, 0, 0),
+            new(2, 4, 4, 1, 1), new(null, null, null, 1, null), new(null, null, null, null, 1),
+            new(2, 4, 4, 0, 4096), new(null, null, null, 2, null), new(null, null, null, null, 0),
+            new(2, 4, 4, 0, 0), new(null, null, null, 4096, 4096),
+            new(null, null, null, source: observed.Source),
+            new(null, null, null, profile: observed.Profile),
+            new(2, 4, 4, 1, 1, observed.Source, observed.Profile),
+            new(1, 4, 4, 1, 1, observed.Source, observed.Profile),
+            new(2, 5, null, 1, 1, observed.Source, observed.Profile),
+            new(2, null, 3, 1, 1, observed.Source, observed.Profile),
+            new(2, 4, 4, 2, null, observed.Source, observed.Profile),
+            new(2, 4, 4, null, 0, observed.Source, observed.Profile),
+            new(2, 4, 4, 1, 1, Guid.NewGuid(), observed.Profile),
+            new(2, 4, 4, 1, 1, observed.Source, new(Guid.NewGuid())),
+            new(null, null, null, source: Guid.NewGuid()),
+            new(null, null, null, profile: new(Guid.NewGuid())),
+            new(2, 4, 4, 1, 1, observed.Source, observed.Profile,
+                1, 1, 1, 1, 1, 1, observed.AuthorityCeiling, observed.AuthorityCeiling),
+            new(null, null, null, minimumSessionGeneration: 2),
+            new(null, null, null, maximumSessionGeneration: 1),
+            new(null, null, null, minimumNameMetadataRevision: 2),
+            new(null, null, null, maximumNameMetadataRevision: 1),
+            new(null, null, null, minimumControlRevision: 2),
+            new(null, null, null, maximumControlRevision: 0),
+            new(null, null, null, minimumAuthorityCeiling: observed.AuthorityCeiling + 1),
+            new(null, null, null, maximumAuthorityCeiling: observed.AuthorityCeiling - 1),
+        })
+        {
+            foreach (var lifecycle in Enum.GetValues<SessionListFilter>())
+            {
+                foreach (var kind in new SessionListSearchKind?[] { null, SessionListSearchKind.NameSubstring, SessionListSearchKind.ExactId })
+                {
+                    var query = kind is null ? null : new SessionListSearch(kind.Value, lifecycle,
+                        kind == SessionListSearchKind.NameSubstring ? "needle" : saved.Session.SessionId.Value.ToString("D"));
+                    var page = await f.Store.ReadSavedDraftPage(lifecycle, null, 1, () => true, f.Token, query, filter);
+                    page.MetadataFilter.Should().Be(filter);
+                    page.Scanned.Should().Be(1);
+                    page.Next.Should().BeNull();
+                    var matches = lifecycle != SessionListFilter.Done && filter.Matches(observed);
+                    page.Records.Length.Should().Be(matches ? 1 : 0);
+                    JsonSerializer.Serialize(page).Should().NotContain("\"Body\"").And.NotContain("🙂");
+                }
+            }
+        }
+        saved = await Save(f, saved, new string('é', 4096));
+        var bytes = Encoding.UTF8.GetByteCount(saved.Draft.Body!);
+        var boundary = await f.Store.ReadSavedDraftPage(SessionListFilter.All, null, 1, () => true, f.Token,
+            metadataFilter: new(saved.Draft.Revision, bytes, bytes, 4096, 4096));
+        var boundaryRow = boundary.Records.Should().ContainSingle().Which;
+        boundaryRow.Utf8Bytes.Should().Be(bytes);
+        boundaryRow.UnicodeScalars.Should().Be(4096);
+        var control = Fresh(saved.Session.SessionId);
+        using (var root = HostActivity.BeginRoot(control, HostActivityLayer.Application, HostOperation.Request))
+        {
+            await f.Store.RecordControlIntentAsync(control, f.Token);
+            await f.Store.ChangeIdleLifecycleAsync(control, new(1), false, () => true, f.Token);
+            var task = (await f.Tasks.ReadTaskAsync(control.TaskId, f.Token))!;
+            await f.Tasks.CommitAsync(task.Next(HostTaskState.Succeeded), task.Revision.Value, f.Token);
+        }
+        foreach (var lifecycle in Enum.GetValues<SessionListFilter>())
+        {
+            foreach (var kind in new SessionListSearchKind?[] { null, SessionListSearchKind.NameSubstring, SessionListSearchKind.ExactId })
+            {
+                var query = kind is null ? null : new SessionListSearch(kind.Value, lifecycle,
+                    kind == SessionListSearchKind.NameSubstring ? "needle" : saved.Session.SessionId.Value.ToString("D"));
+                var page = await f.Store.ReadSavedDraftPage(lifecycle, null, 1, () => true, f.Token, query,
+                    new(saved.Draft.Revision, bytes, bytes, 4096, 4096, observed.Source, observed.Profile));
+                page.Records.Length.Should().Be(lifecycle == SessionListFilter.Active ? 0 : 1);
+                page.Records.Should().OnlyContain(row => !row.Session.IsActive && row.UnicodeScalars == 4096);
+            }
+        }
+    }
+
+    [Fact]
     public async Task SavedDraftSearchUsesOnlyCurrentNameOrSeparateExactIdentityNeverBodyOrImplicitRetargeting()
     {
         using var f = new InteractionStorageFixture();
@@ -37,6 +182,18 @@ public sealed partial class WindowsSqliteConversationTests
         exact.Records.Should().ContainSingle().Which.Session.SessionId.Should().Be(second.Session.SessionId,
             "an ID-shaped name never establishes identity and an unnamed session remains exactly searchable");
         exact.Scanned.Should().Be(1);
+        foreach (var metadata in new SavedDraftMetadataFilter[]
+        {
+            new(null, null, null, minimumNameMetadataRevision: 1),
+            new(null, null, null, maximumNameMetadataRevision: long.MaxValue),
+        })
+        {
+            var unnamed = await f.Store.ReadSavedDraftPage(SessionListFilter.All, null, 1, () => true, f.Token,
+                new(SessionListSearchKind.ExactId, SessionListFilter.All, second.Session.SessionId.Value.ToString("D")), metadata);
+            unnamed.Records.Should().BeEmpty("unnamed is never revision zero or unknown revision");
+            unnamed.Scanned.Should().Be(1);
+            unnamed.Next.Should().BeNull();
+        }
         (await Read(SessionListSearchKind.NameSubstring, "PRIVATE_BODY_NEEDLE_88231")).Records.Should().BeEmpty();
         var unknown = await Read(SessionListSearchKind.ExactId, Guid.NewGuid().ToString("D"));
         unknown.Records.Should().BeEmpty();
@@ -136,7 +293,8 @@ public sealed partial class WindowsSqliteConversationTests
         await FinishInitial(f);
         var saved = await Save(f, await f.Store.ReadConversationDraftAsync(f.Request.SessionId, f.Token), "ordinary saved draft");
         using var viewer = HostActivity.BeginRoot(Fresh(f.Request.SessionId), HostActivityLayer.Desktop, HostOperation.Request);
-        var exact = (await f.Store.ReadSavedDraftPage(SessionListFilter.All, null, 1, () => true, f.Token)).Records.Single();
+        var exact = (await f.Store.ReadSavedDraftPage(SessionListFilter.All, null, 1, () => true, f.Token,
+            metadataFilter: new(saved.Draft.Revision, 1, 16384, 1, 4096))).Records.Single();
         if (boundary is "clear" or "replace") { await Save(f, saved, boundary is "clear" ? null : "new saved draft"); }
         if (boundary is "rename")
         {
@@ -165,12 +323,18 @@ public sealed partial class WindowsSqliteConversationTests
     [InlineData("task")]
     [InlineData("null-save")]
     [InlineData("session")]
+    [InlineData("name")]
     public async Task SavedDraftCatalogueReportsBrokenAuthorityAsUnavailableNotEmpty(string boundary)
     {
         using var f = new InteractionStorageFixture();
         await f.InitializeAsync();
         await FinishInitial(f);
         await Save(f, await f.Store.ReadConversationDraftAsync(f.Request.SessionId, f.Token), "ordinary saved draft");
+        if (boundary is "name")
+        {
+            await WindowsSqliteSessionWorkspaceTests.Service(f, new()).RenameAsync(f.Request.SessionId,
+                new(1), 0, new("valid name"), RequestOrigin.LocalUi, f.Token);
+        }
         using (var connection = f.OpenRaw())
         {
             using var command = connection.CreateCommand();
@@ -187,6 +351,7 @@ public sealed partial class WindowsSqliteConversationTests
                 "version" => "UPDATE conversation_drafts SET payload=json_set(payload,'$.Version',2);",
                 "null-save" => "UPDATE conversation_drafts SET payload=json_set(payload,'$.Body',NULL);",
                 "session" => "DELETE FROM work_sessions;",
+                "name" => "UPDATE session_metadata SET name=' invalid name ';",
                 _ => "DELETE FROM host_tasks WHERE task_id=(SELECT json_extract(envelope,'$.Request.TaskId.Value') FROM security_audit_events WHERE sequence=(SELECT audit_sequence FROM conversation_drafts));",
             };
             command.ExecuteNonQuery();
@@ -197,6 +362,10 @@ public sealed partial class WindowsSqliteConversationTests
         var queryRead = () => f.Store.ReadSavedDraftPage(SessionListFilter.All, null, 1, () => true, f.Token,
             new(SessionListSearchKind.ExactId, SessionListFilter.All, f.Request.SessionId.Value.ToString("D"))).AsTask();
         await queryRead.Should().ThrowAsync<Exception>("metadata queries retain every original source/provenance check");
+        var metadataRead = () => f.Store.ReadSavedDraftPage(SessionListFilter.Done, null, 1, () => true, f.Token,
+            metadataFilter: new(long.MaxValue, 0, 0, 0, 0, Guid.NewGuid(), new(Guid.NewGuid()),
+                long.MaxValue, long.MaxValue, long.MaxValue, long.MaxValue, 0, 0, long.MaxValue, long.MaxValue)).AsTask();
+        await metadataRead.Should().ThrowAsync<Exception>("irrelevant metadata rows never bypass validation");
     }
 
     [Fact]

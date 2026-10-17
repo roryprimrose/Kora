@@ -6,19 +6,67 @@
     Width="1120" Height="760" MinWidth="850" MinHeight="600"
     Background="{DynamicResource KoraWindowBackgroundBrush}"
     Foreground="{DynamicResource KoraForegroundBrush}" WindowStartupLocation="CenterScreen">
-  <Grid Margin="24" RowDefinitions="Auto,Auto,*,Auto" RowSpacing="12">
+  <Grid Margin="24" RowDefinitions="Auto,Auto,Auto,*,Auto" RowSpacing="12">
     <WrapPanel>
-      <Button x:Name="Refresh" Content="_Refresh overview" IsEnabled="{Binding CanEdit}" />
+      <Button x:Name="Refresh" Content="_Refresh overview" IsEnabled="{Binding CanSearch}" />
       <Button x:Name="Next" Content="_Next session page" IsEnabled="{Binding CanNext}" />
       <Button x:Name="CancelRead" Content="_Cancel read" IsEnabled="{Binding CanCancel}" />
       <ComboBox ItemsSource="{Binding Filters}" SelectedItem="{Binding Filter, Mode=TwoWay}"
                 IsEnabled="{Binding CanEdit}" AutomationProperties.Name="Stored lifecycle filter, independent of task and queue state" />
+      <ComboBox x:Name="ObservationAvailability" ItemsSource="{Binding AvailabilityChoices}"
+                SelectedItem="{Binding SelectedAvailabilityChoice, Mode=TwoWay}"
+                IsEnabled="{Binding CanEdit}"
+                AutomationProperties.Name="Observation availability filter: Any, Observed, Source changed, Read unavailable, Output bound; changing performs no read; unavailable is not empty work">
+        <ComboBox.ItemTemplate><DataTemplate><TextBlock Text="{Binding Label}" /></DataTemplate></ComboBox.ItemTemplate>
+      </ComboBox>
+      <ComboBox x:Name="ObservedContent" ItemsSource="{Binding ContentChoices}"
+                SelectedItem="{Binding SelectedContentChoice, Mode=TwoWay}"
+                IsEnabled="{Binding CanEdit}"
+                AutomationProperties.Name="Observed content filter: Any, at least one observed queue receipt, task, or pending question; changing performs no read; unavailable never matches positive choices; omissions prove no absence or completion">
+        <ComboBox.ItemTemplate><DataTemplate><TextBlock Text="{Binding Label}" /></DataTemplate></ComboBox.ItemTemplate>
+      </ComboBox>
       <CheckBox Content="Observed needs _answer" IsChecked="{Binding NeedsAnswer, Mode=TwoWay}"
                 IsEnabled="{Binding CanEdit}" AutomationProperties.Name="Pending-question metadata in scanned snapshots only; unavailable sources remain explicit, never a fresh reply target" />
     </WrapPanel>
-    <controls:NamedTextBlock Grid.Row="1" Text="{Binding Status}" TextWrapping="Wrap"
+    <StackPanel Grid.Row="1" Spacing="6">
+      <Grid ColumnDefinitions="Auto,*,Auto,Auto" ColumnSpacing="8">
+        <ComboBox ItemsSource="{Binding QueryKinds}" SelectedItem="{Binding QueryKind, Mode=TwoWay}"
+                  IsEnabled="{Binding CanEdit}" AutomationProperties.Name="Private metadata query mode: literal saved name substring or exact session ID" />
+        <TextBox x:Name="MetadataQuery" Grid.Column="1" Text="{Binding QueryText, Mode=TwoWay}"
+                 IsEnabled="{Binding CanEdit}" PlaceholderText="Optional private session metadata query"
+                 AutomationProperties.Name="Private session metadata query; typing performs no read; Enter searches, Escape clears" />
+        <Button x:Name="Search" Grid.Column="2" Content="_Search metadata" IsEnabled="{Binding CanSearch}" />
+        <Button x:Name="ClearQuery" Grid.Column="3" Content="C_lear query" IsEnabled="{Binding CanEdit}" />
+      </Grid>
+      <controls:NamedTextBlock Text="{Binding QueryHint}" TextWrapping="Wrap"
+                              AutomationProperties.Name="Metadata query validation and passive search scope" />
+      <Expander x:Name="WorkRanges" Header="Optional inclusive observed work metadata ranges" HorizontalAlignment="Stretch">
+        <StackPanel Spacing="6" IsEnabled="{Binding CanEdit}">
+          <controls:NamedTextBlock Text="{Binding RangeHint}" TextWrapping="Wrap"
+                                  AutomationProperties.Name="Work range validation; unavailable never matches ranges; omissions prove no absence, completeness, success or authority" />
+          <ScrollViewer MaxHeight="210" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto"
+                        AutomationProperties.Name="Nine optional inclusive work metadata ranges">
+            <ItemsControl ItemsSource="{Binding RangeInputs}">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                  <Grid ColumnDefinitions="240,*,*" ColumnSpacing="8" Margin="0,4">
+                    <TextBlock Text="{Binding Label}" VerticalAlignment="Center" />
+                    <TextBox Grid.Column="1" Text="{Binding Minimum, Mode=TwoWay}" PlaceholderText="Minimum (Any)"
+                             AutomationProperties.Name="{Binding MinimumLabel}" />
+                    <TextBox Grid.Column="2" Text="{Binding Maximum, Mode=TwoWay}" PlaceholderText="Maximum (Any)"
+                             AutomationProperties.Name="{Binding MaximumLabel}" />
+                  </Grid>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </ScrollViewer>
+          <Button x:Name="ClearRanges" Content="Clear work metadata _ranges" />
+        </StackPanel>
+      </Expander>
+    </StackPanel>
+    <controls:NamedTextBlock Grid.Row="2" Text="{Binding Status}" TextWrapping="Wrap"
                             AutomationProperties.Name="Bounded overview scope, scanned and omission markers; no global totals or all-clear" />
-    <Grid Grid.Row="2" ColumnDefinitions="360,*" ColumnSpacing="12">
+    <Grid Grid.Row="3" ColumnDefinitions="360,*" ColumnSpacing="12">
       <controls:ScrollableListBox x:Name="Records" ItemsSource="{Binding Records}" SelectedItem="{Binding SelectedRecord, Mode=OneWay}"
                AutomationProperties.Name="Independent work grouped by exact immutable session; selection is passive and grants nothing">
         <ListBox.ItemTemplate>
@@ -63,7 +111,7 @@
                              AutomationProperties.Name="Exact observation provenance, stored lifecycle, queue/task states, deadlines and pending-question metadata; no bodies or authority" />
       </ScrollViewer>
     </Grid>
-    <WrapPanel Grid.Row="3">
+    <WrapPanel Grid.Row="4">
       <Button x:Name="Navigate" Content="Open exact _session with fresh passive read" IsEnabled="{Binding CanNavigate}"
               AutomationProperties.Name="Navigate this immutable session ID through Sessions private workspace admission; no resume, dispatch, cancel, enqueue or question retarget" />
       <Button x:Name="CloseView" Content="_Close" />

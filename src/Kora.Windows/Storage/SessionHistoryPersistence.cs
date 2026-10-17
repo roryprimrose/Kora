@@ -139,19 +139,10 @@ internal static class SessionHistoryPersistence
         var digest = reader.GetString(4);
         var projectionJson = reader.GetString(5);
         var projection = HostInteractionCodec.Decode<SessionHistoryEvent>(projectionJson);
-        if (projection.Id == Guid.Empty || projection.Sequence <= 0 || projection.SourceRevision < 0
-            || projection.AuditSequence is <= 0
-            || !Same(projection.Id.ToString("D"), reader.GetString(0))
+        projection.Validate();
+        if (!Same(projection.Id.ToString("D"), reader.GetString(0))
             || !Same(projection.SessionId.Value.ToString("D"), reader.GetString(1))
-            || projection.Sequence != reader.GetInt64(2) || !Same(projection.ProvenanceDigest, digest)
-            || digest.Length != 64 || digest.Any(character => !Uri.IsHexDigit(character))
-            || projection.Generation.Value <= 0 || !Enum.IsDefined(projection.Kind) || !Enum.IsDefined(projection.Availability)
-            || projection.TaskState is { } state && !Enum.IsDefined(state)
-            || projection.Decision is { } decision && !Enum.IsDefined(decision)
-            || projection.QuestionStatus is { } questionStatus && !Enum.IsDefined(questionStatus)
-            || projection.AnswerChannel is { } channel && channel is not (RequestOrigin.LocalUi or RequestOrigin.ActivatedVoice)
-            || projection.Options.IsDefault || projection.Choices.IsDefault
-            || projection.RequestId == Guid.Empty || projection.TaskId == Guid.Empty || projection.SourceId == Guid.Empty)
+            || projection.Sequence != reader.GetInt64(2) || !Same(projection.ProvenanceDigest, digest))
         {
             throw new InvalidDataException("History citation identity is invalid.");
         }

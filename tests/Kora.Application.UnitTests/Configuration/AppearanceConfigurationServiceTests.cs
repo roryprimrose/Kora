@@ -12,6 +12,24 @@ namespace Kora.Application.UnitTests.Configuration;
 
 public sealed partial class AppearanceConfigurationServiceTests
 {
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void AppearanceCommitRechecksEligibilityBeforeAndAfterRequestedAudit(bool afterRequested)
+    {
+        var fixture = new Fixture();
+        var state = fixture.Service.Get(AppearanceOption.Theme);
+        var eligible = afterRequested;
+        fixture.Audit.BeforeRequested = () => eligible = false;
+        var proposal = fixture.Service.Propose(AppearanceOption.Theme, new AppearanceValue.Theme(ApplicationThemeMode.Dark),
+            state.Revision, SecurityAuditInitiator.LocalUser, RequestOrigin.LocalUi, () => eligible);
+        var apply = () => fixture.Service.Apply(proposal);
+        apply.Should().Throw<InvalidOperationException>();
+        fixture.Store.Writes.Should().Be(0);
+        fixture.Audit.Events.Should().HaveCount(afterRequested ? 2 : 0);
+        if (afterRequested) { fixture.Audit.Events.Last().Outcome.Should().Be(SecurityAuditOutcome.Denied); }
+    }
+
     [Fact]
     public void Every_option_round_trips_resets_only_itself_and_keeps_existing_formats()
     {

@@ -188,7 +188,10 @@ internal sealed partial class NativeUxFixtureSession : IApplicationDataPaths, ID
             new AppearanceConfigurationService(appearances, Audit, NullLogger<AppearanceConfigurationService>.Instance),
             new SpeechConfigurationService(new LocalTextToSpeechPreferences(this, NullLogger<LocalTextToSpeechPreferences>.Instance),
                 speech, Audit, NullLogger<SpeechConfigurationService>.Instance),
-            clipboard, new(clipboard), new(clipboard), new(clipboard), speechTextConfiguration: captionConfiguration,
+            clipboard, new(clipboard), new(clipboard), new(clipboard), new AuditedPreferenceWriter(Audit),
+            new Kora.Application.Voice.BoundedAudioOutputCatalog(speech,
+                NullLogger<Kora.Application.Voice.BoundedAudioOutputCatalog>.Instance),
+            speechTextConfiguration: captionConfiguration,
             webPageGet: webPageGet);
         Main.BindCallOwnershipGate(() => Access.Open);
         Main.BindClipboardOwnershipGate(static () => false);

@@ -93,6 +93,104 @@ Broader multi-session proactive conversation, detector-driven speech,
 configurable reminders/quiet hours and installed accessibility/release
 acceptance remain gated. All R02 experiment evidence is retained unchanged.
 
+## Native content-free loaded-event filters
+
+The existing Sessions list has **Local event category** (All, Work, Failure,
+Attention, Maintenance) and **Local event reason** (All plus every exact
+`LocalEventReason` value), **Local event source** (All plus every exact
+`LocalEventSource` value), and **Local event type** (All plus every exact
+`LocalEventType` value). **Local event request origin** offers Any plus every
+defined `RequestOrigin`, matching `LocalEvent.Origin` exactly. **Local event
+queue eligibility reason** offers Any, **No queue reason / not applicable**
+(`LocalEvent.QueueReason is null`), and every exact `SessionQueueEligibility`.
+Core's portable `LocalEventQueueReasonFilter` explicitly discriminates Any,
+None and Exact; null is never overloaded as both Any and not applicable.
+**Local event retained queue profile** offers **Any**, explicit **Absent
+retained queue profile**, and every exact canonical fixed-read catalogue ID:
+`application.get_version`, `capabilities.list`, `readiness.get`, `runtime.list`,
+`capabilities.get`, and `runtime.get_status`. Core's typed
+`LocalEventQueueProfileFilter` distinguishes Any/Absent/Exact without repairing
+unknown or partial state. **Local event retained exact capability target**
+offers Any or one exact current `SessionQueueCapabilityTarget` descriptor ID.
+Exact target matches only an event carrying that target; it is never inferred
+from a profile or the host-fixed runtime target. Absent matches only a complete
+validated event with no retained profile, including legacy queue observations,
+questions and maintenance; source omissions, quiet-hidden rows and output
+truncation cannot establish absence. Impossible profile/target/source
+combinations stay selected and match zero, not a broader replacement.
+The canonical queue catalogue and target descriptor own validation; complete
+event/profile/target/view validation precedes every exclusion, even for an
+invalid or nonmatching predicate. These are passive historical presentation
+metadata: they never select a session, admit work, establish current readiness,
+ownership or permission, or dispatch any capability.
+Optional **Local event session ID**, **Local event task ID** and **Local event
+subject ID** accept only complete nonempty canonical lowercase `D` GUID text;
+empty means Any. Admission reuses the host command exact-ID parser and checks
+canonical text without trimming, case folding or partial matching. Invalid
+input visibly matches nothing until corrected or explicitly cleared.
+IDs are displayed in canonical lowercase `D` form. Exact task ID matches only
+an event carrying that task identity; a missing task never matches a subject
+ID or an empty/unknown identity. These are correlation metadata only: they
+never select or retarget a session/task, establish ownership/authority, or
+authorize navigation or actions.
+Optional inclusive **minimum/maximum event revision**, **minimum/maximum
+generation**, **observed from/until UTC** and **expires from/until UTC**
+ranges compose with every existing predicate. The portable
+[`LocalEventFilter`](../src/Kora.Core/Interaction/LocalEventFilter.cs) owns
+admission, ordering and matching, reusing the shared strict decimal and
+canonical UTC parsers. Empty means Any independently at either end.
+Numeric bounds are positive Int64 ASCII decimals (leading zeroes allowed),
+without signs, separators, whitespace or overflow. UTC text is exactly
+`yyyy-MM-ddTHH:mm:ss.fffffff+00:00`, not `Z`, local time or a repaired offset.
+Minimum/from must be <= maximum/until for each independent range; equal
+endpoints are inclusive. These ranges compare `Revision`, `Generation`,
+`ObservedAt` and original `ExpiresAt`, never source/related revisions,
+deferral, current clock or summary text. Cross-field combinations with no
+possible row remain valid and truthfully match zero.
+Malformed/reversed ranges visibly fail closed until corrected or cleared.
+Revision, generation and timestamps are correlation/lifecycle metadata only;
+they cannot authorize navigation, dispatch, retry, review or maintenance, or
+establish current source authority. Displayed generation/observed/expiry
+values remain inert.
+
+All/Any is unfiltered; every selected predicate composes
+as a conjunction over only the already-loaded at-most-eight rows, in snapshot
+order. Unknown filter enums/discriminators are explicitly unavailable; every
+loaded event/view is fully validated before exclusion, including irrelevant
+rows. Invalid metadata fails rather than becoming an empty match. This is not source search:
+there is no additional read, index, persistence, query logging, event body,
+command/model/tool/speech route, activity renewal or new authority.
+Source and Type are exact authoritative enums, not summary-text matches.
+Origin and queue reason are also exact metadata, not summary-text matches.
+Questions and maintenance have no queue reason: this absence is not queue
+success, eligibility or authority, and grants no answer/navigation action.
+Impossible source/type pairs remain selected and truthfully match zero;
+no choice is normalized, broadened or replaced to obtain a result.
+
+Filters are volatile native presentation choices, not persisted, logged,
+activity-tagged, audited or sent to model/tool/speech/clipboard/export routes.
+The versioned filter digest binds every predicate, including explicit profile
+presence and exact catalogue target, to pending observation/action continuation
+identity alongside the existing monotonic edit/selection epochs. Changing away
+and back cannot revive a stale callback. This eight-row local snapshot has no
+paged cursor; no new paging, persistence or source search is introduced.
+Every filter edit and explicit clear immediately recomputes visible rows and retires exact selection and
+event review detail, even if the same event remains visible. Review/Dismiss/
+Defer require separate selection of a currently visible exact ID/revision;
+binding updates never select a replacement. A mutation whose resulting reason
+no longer matches also withdraws selection without discarding other loaded
+rows. Refresh retires selection at entry. Source/private/session/workspace
+revision changes, closure, failure, cancellation and late callbacks cannot
+restore withdrawn selection or publish stale event detail.
+
+Matching counts and **No matching loaded events** describe only the filtered
+snapshot. The broker's bounded omissions, quiet-hidden/suppressed counts and
+unavailable reasons remain independently authoritative; zero matches is not
+an empty source or an inferred success. Quiet policy, fatigue accounting,
+original deadlines and required questions remain unchanged. Deterministic
+domain/native tests cover this bounded implementation; installed accessibility,
+broader proactive conversation and E/Q qualification remain separate.
+
 ## Delivered run-only routine notice quiet mode - 2026-10-10
 
 In an already-open **Sessions** selected work surface, **Quiet routine notices for this run**, **Turn routine quiet off**, and **Reset routine quiet to Off** control one combined Work/Maintenance choice. Default is Off on every process start; On lasts until explicitly cleared/reset or Kora restarts. No quiet preference, timer, scheduling, network check or consent is saved.

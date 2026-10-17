@@ -2,12 +2,158 @@ using System.Text.Json;
 
 using AwesomeAssertions;
 
+using Kora.Core.Context;
 using Kora.Core.Storage;
 
 namespace Kora.Core.UnitTests.Storage;
 
 public sealed class SessionAttachmentQueryTests
 {
+    [Theory]
+    [InlineData(LocalFileMediaType.PlainText)]
+    [InlineData(LocalFileMediaType.Markdown)]
+    public void ExactMediaTypesComposeWithEveryLifecycleIdRemovalAndLiteralWithoutInferringPaths(string type)
+    {
+        LocalFileMediaType.Validate(type);
+        foreach (var filter in Enum.GetValues<SessionAttachmentFilter>())
+        foreach (var state in Enum.GetValues<AttachmentSessionState>())
+        foreach (var copy in Enum.GetValues<AttachmentCopyStatus>())
+        foreach (var includeRemoved in new[] { false, true })
+        foreach (var exact in new[] { false, true })
+        foreach (var literal in new string?[] { null, "text/", "TEXT/" })
+        {
+            if (state == AttachmentSessionState.Removed && copy != AttachmentCopyStatus.Unavailable) { continue; }
+            var row = SessionAttachmentSummaryTests.Summary() with
+            {
+                MediaType = type, SessionState = state, CopyStatus = copy,
+                StoredBytes = copy == AttachmentCopyStatus.Unavailable ? 0 : 1
+            };
+            row.Validate();
+            var query = new SessionAttachmentQuery(includeRemoved, exact ? row.Session.Value.ToString("D") : null,
+                filter, literal, type);
+            var matchesState = filter == SessionAttachmentFilter.All || string.Equals(filter.ToString(), state.ToString(), StringComparison.Ordinal);
+            var matchesLiteral = !string.Equals(literal, "TEXT/", StringComparison.Ordinal);
+            query.Matches(row).Should().Be(matchesState && copy != AttachmentCopyStatus.Unavailable && matchesLiteral);
+            query.Matches(row with { MediaType = string.Equals(type, LocalFileMediaType.PlainText, StringComparison.Ordinal)
+                ? LocalFileMediaType.Markdown : LocalFileMediaType.PlainText }).Should().BeFalse();
+            query.Matches(row with { Session = new(Guid.NewGuid()) }).Should()
+                .Be(!exact && matchesState && copy != AttachmentCopyStatus.Unavailable && matchesLiteral);
+            var restored = JsonSerializer.Deserialize<SessionAttachmentQuery>(JsonSerializer.Serialize(query))!;
+            restored.ExactMediaType.Should().Be(type);
+            restored.MetadataText.Should().BeNull();
+            var page = new SessionAttachmentPage(query, [], null, DateTimeOffset.UnixEpoch, 1, new string('a', 64), 64, false);
+            page.Validate();
+            if (!query.Matches(row))
+            {
+                (page with { Records = [row] }).Invoking(value => value.Validate()).Should().Throw<InvalidDataException>();
+            }
+        }
+        var empty = new SessionAttachmentPage(new(true, exactMediaType: type), [], "YQ==." + new string('a', 64),
+            DateTimeOffset.UnixEpoch, 1, new string('a', 64), 64, true);
+        empty.Validate();
+        (empty with { Next = null, ScanLimitReached = false }).Validate();
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("All")]
+    [InlineData("TEXT/PLAIN")]
+    [InlineData(" text/plain")]
+    [InlineData("text/plain ")]
+    [InlineData("text/plain; charset=utf-8")]
+    [InlineData("text/html")]
+    [InlineData("application/pdf")]
+    [InlineData("text/*")]
+    [InlineData(".md")]
+    [InlineData("C:\\Synthetic\\source.md")]
+    [InlineData("text/plain\n")]
+    [InlineData("text/markdown\u200b")]
+    public void UndefinedOrMalformedMediaTypeNeverBecomesAll(string type)
+    {
+        ((Action)(() => LocalFileMediaType.Validate(type))).Should().Throw<InvalidDataException>();
+        ((Action)(() => _ = new SessionAttachmentQuery(exactMediaType: type))).Should().Throw<InvalidDataException>();
+        var query = new SessionAttachmentQuery();
+        typeof(SessionAttachmentQuery).GetProperty(nameof(SessionAttachmentQuery.ExactMediaType))!.SetValue(query, type);
+        query.Invoking(value => value.Validate()).Should().Throw<InvalidDataException>();
+        query.Invoking(value => value.Matches(SessionAttachmentSummaryTests.Summary())).Should().Throw<InvalidDataException>();
+        new SessionAttachmentPage(query, [], null, DateTimeOffset.UnixEpoch, 1, new string('a', 64), 0, false)
+            .Invoking(value => value.Validate()).Should().Throw<InvalidDataException>();
+        ((Action)(() => JsonSerializer.Deserialize<SessionAttachmentQuery>(JsonSerializer.Serialize(query))))
+            .Should().Throw<InvalidDataException>();
+    }
+
+    [Fact]
+    public void NullMeansAllOnlyInQueryAndSerializedFilterMustBeExplicit()
+    {
+        LocalFileMediaType.IsCanonical(null).Should().BeFalse();
+        ((Action)(() => LocalFileMediaType.Validate(null!))).Should().Throw<InvalidDataException>();
+        ((Action)(() => JsonSerializer.Deserialize<SessionAttachmentQuery>(
+            "{\"IncludeRemoved\":true,\"ExactSessionId\":null,\"Filter\":0}"))).Should().Throw<JsonException>();
+        var row = SessionAttachmentSummaryTests.Summary() with { CopyStatus = AttachmentCopyStatus.Unavailable, StoredBytes = 0 };
+        new SessionAttachmentQuery(true).Matches(row).Should().BeTrue();
+        new SessionAttachmentQuery(true, exactMediaType: LocalFileMediaType.Markdown).Matches(row).Should().BeFalse();
+        (row with { MediaType = null! }).Invoking(value => value.Validate()).Should().Throw<InvalidDataException>();
+    }
+
+    [Fact]
+    public void LiteralMetadataMatchesOnlyExposedIdsDigestAndMediaTypeWithoutSerialization()
+    {
+        var row = SessionAttachmentSummaryTests.Summary();
+        var fields = new[] { row.Session.Value.ToString("D"), row.File.SourceId.ToString("D"),
+            row.File.RevisionId.ToString("D"), row.File.ItemId.ToString("D"), row.File.Digest, row.MediaType };
+        foreach (var field in fields)
+        {
+            var text = field[..8];
+            var query = new SessionAttachmentQuery(true, row.Session.Value.ToString("D"),
+                SessionAttachmentFilter.Done, text);
+            query.Matches(row).Should().BeTrue();
+            query.Matches(row with { CopyStatus = AttachmentCopyStatus.Held }).Should().BeTrue();
+            query.Matches(row with { CopyStatus = AttachmentCopyStatus.Unavailable, StoredBytes = 0 }).Should().BeFalse();
+            query.Matches(row with { SessionState = AttachmentSessionState.Active }).Should().BeFalse();
+            query.Matches(row with { Session = new(Guid.NewGuid()) }).Should().BeFalse();
+            query.MetadataText.Should().Be(text);
+            var json = JsonSerializer.Serialize(query);
+            json.Should().NotContain("MetadataText");
+            JsonSerializer.Deserialize<SessionAttachmentQuery>(json)!.MetadataText.Should().BeNull();
+            (query == new SessionAttachmentQuery(true, query.ExactSessionId, query.Filter, text + "x")).Should().BeFalse();
+        }
+        foreach (var text in new[] { "TEXT/", " text/", "text/ ", "*", "%", "_", "Synthetic",
+            "private content", row.Profile.Value.ToString("D"), row.ObservationSource.ToString("D") })
+        {
+            new SessionAttachmentQuery(metadataText: text).Matches(row).Should().BeFalse();
+        }
+        foreach (var text in new[] { new string('a', 256), new string('é', 256),
+            string.Concat(Enumerable.Repeat("😀", 128)), " " })
+        {
+            new SessionAttachmentQuery(metadataText: text).Validate();
+        }
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("\n")]
+    [InlineData("\t")]
+    [InlineData("\u200b")]
+    [InlineData("\u2028")]
+    [InlineData("\u2029")]
+    public void LiteralMetadataRejectsInvalidInputRatherThanBrowsing(string text) =>
+        ((Action)(() => _ = new SessionAttachmentQuery(metadataText: text))).Should().Throw<InvalidDataException>();
+
+    [Fact]
+    public void LiteralMetadataRejectsSizeAndMalformedUnicodeAndAllowsFiniteEmptyPages()
+    {
+        foreach (var text in new[] { new string('a', 257), new string('界', 171), new string('\ud800', 1) })
+        {
+            ((Action)(() => _ = new SessionAttachmentQuery(metadataText: text))).Should().Throw<InvalidDataException>();
+        }
+        var row = SessionAttachmentSummaryTests.Summary();
+        var page = new SessionAttachmentPage(new(true, metadataText: "unmatched"), [], "YQ==." + new string('a', 64),
+            DateTimeOffset.UnixEpoch, 1, new string('a', 64), 64, true);
+        page.Validate();
+        (page with { Records = [row] }).Invoking(value => value.Validate()).Should().Throw<InvalidDataException>();
+        (page with { Next = null, ScanLimitReached = false }).Validate();
+    }
+
     [Fact]
     public void MalformedInMemoryFilterIsRejectedEvenOnAnEmptyPage()
     {
@@ -73,7 +219,7 @@ public sealed class SessionAttachmentQueryTests
         ((Action)(() => _ = new SessionAttachmentQuery(filter: (SessionAttachmentFilter)filter)))
             .Should().Throw<InvalidDataException>();
         ((Action)(() => JsonSerializer.Deserialize<SessionAttachmentQuery>(
-            "{\"IncludeRemoved\":false,\"ExactSessionId\":null,\"Filter\":" + filter + "}")))
+            "{\"IncludeRemoved\":false,\"ExactSessionId\":null,\"ExactMediaType\":null,\"CopyStatus\":null,\"MinimumStoredBytes\":null,\"MaximumStoredBytes\":null,\"Filter\":" + filter + "}")))
             .Should().Throw<InvalidDataException>();
     }
 

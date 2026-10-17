@@ -11,6 +11,20 @@ public sealed partial class BoundedAudioOutputCatalog
     private readonly ILogger logger;
     private Task<AudioOutputCatalogSnapshot>? pending;
 
+    public bool IsQuiescent { get { lock (gate) { return pending is null || pending.IsCompleted; } } }
+
+    public async Task WaitForQuiescenceAsync()
+    {
+        Task<AudioOutputCatalogSnapshot>? operation;
+        lock (gate) { operation = pending; }
+        if (operation is not null)
+        {
+#pragma warning disable VSTHRD003 // Join the owned discovery worker; it never requires the UI dispatcher.
+            await operation.ConfigureAwait(false);
+#pragma warning restore VSTHRD003
+        }
+    }
+
     public BoundedAudioOutputCatalog(IAudioOutputDeviceCatalog catalog, ILogger<BoundedAudioOutputCatalog> logger)
         : this(() => Task.Run(() => new AudioOutputCatalogSnapshot(
             catalog.GetOutputDevices(), catalog.GetDefaultOutputDevice())), TimeProvider.System, logger) { }

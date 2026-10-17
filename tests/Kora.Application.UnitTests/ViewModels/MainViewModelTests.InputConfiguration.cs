@@ -225,7 +225,7 @@ public sealed partial class MainViewModelTests
         await f.RunAsync("list input settings");
         f.ViewModel.IsModelQuestionPending.Should().BeTrue();
         await f.ViewModel.CancelModelQuestionAsync();
-        f.ViewModel.PrepareGrantChange(new(GrantChangeOperation.Add, BuiltInAction.LockMachine, ModelApprovalScope.Always));
+        await f.ViewModel.PrepareGrantChangeAsync(new(GrantChangeOperation.Add, BuiltInAction.LockMachine, ModelApprovalScope.Always));
         await f.RunAsync("reset speech.input-device");
         f.ViewModel.IsGrantChangePending.Should().BeTrue();
         await f.ViewModel.RejectPendingGrantChangeAsync();

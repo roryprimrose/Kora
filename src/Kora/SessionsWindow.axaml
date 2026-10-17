@@ -52,6 +52,42 @@
         <TextBox x:Name="ConversationQuery" Text="{Binding ConversationQuery, Mode=TwoWay}" IsEnabled="{Binding CanReadConversation}"
             PlaceholderText="Search retained USER words or typed HOST outcome/reason/task state in only this exact selected session"
             AutomationProperties.Name="Private exact-session conversation lexical query; memory-only, not composer input, a model instruction or global search" />
+         <ComboBox x:Name="ConversationRole" ItemsSource="{Binding ConversationRoles}"
+            SelectedItem="{Binding ConversationRole, Mode=TwoWay}" IsEnabled="{Binding CanReadConversation}"
+            AutomationProperties.Name="Conversation search field filter: All original USER and typed HOST fields, USER original body only, HOST outcome reason and task state only; editing does not read" />
+        <TextBlock Text="Inclusive original-message ranges (empty means Any). Minimum must not exceed maximum; all ranges AND with the query, role and terminal predicates." TextWrapping="Wrap" />
+        <TextBlock Text="Exact request ID (empty means Any)" />
+        <TextBox x:Name="ConversationRequestId" Text="{Binding ConversationRequestId, Mode=TwoWay}" IsEnabled="{Binding CanReadConversation}"
+            AutomationProperties.Name="Exact conversation request ID; canonical lowercase nonempty D GUID, empty means Any; AND with all predicates; editing does not read" />
+        <TextBlock Text="Exact task ID (empty means Any)" />
+        <TextBox x:Name="ConversationTaskId" Text="{Binding ConversationTaskId, Mode=TwoWay}" IsEnabled="{Binding CanReadConversation}"
+            AutomationProperties.Name="Exact conversation task ID; canonical lowercase nonempty D GUID, empty means Any; AND with all predicates; editing does not read" />
+        <TextBlock Text="Request/task IDs are passive correlation metadata only. They cannot retarget a session or task, establish identity, intent, ownership, permission, approval or execution authority." TextWrapping="Wrap" />
+        <TextBlock Text="Minimum message sequence" />
+        <TextBox x:Name="ConversationMinimumSequence" Text="{Binding ConversationMinimumSequence, Mode=TwoWay}" IsEnabled="{Binding CanReadConversation}"
+            AutomationProperties.Name="Inclusive minimum original message sequence; invariant decimal within conversation limits, empty means Any; editing does not read" />
+        <TextBlock Text="Maximum message sequence" />
+        <TextBox x:Name="ConversationMaximumSequence" Text="{Binding ConversationMaximumSequence, Mode=TwoWay}" IsEnabled="{Binding CanReadConversation}"
+            AutomationProperties.Name="Inclusive maximum original message sequence; invariant decimal within conversation limits, empty means Any; editing does not read" />
+        <TextBlock Text="Submitted from UTC (yyyy-MM-ddTHH:mm:ss.fffffff+00:00)" />
+        <TextBox x:Name="ConversationSubmittedFrom" Text="{Binding ConversationSubmittedFrom, Mode=TwoWay}" IsEnabled="{Binding CanReadConversation}"
+            AutomationProperties.Name="Inclusive submitted from canonical UTC time; yyyy-MM-ddTHH:mm:ss.fffffff+00:00, empty means Any; editing does not read" />
+        <TextBlock Text="Submitted through UTC (yyyy-MM-ddTHH:mm:ss.fffffff+00:00)" />
+        <TextBox x:Name="ConversationSubmittedThrough" Text="{Binding ConversationSubmittedThrough, Mode=TwoWay}" IsEnabled="{Binding CanReadConversation}"
+            AutomationProperties.Name="Inclusive submitted through canonical UTC time; yyyy-MM-ddTHH:mm:ss.fffffff+00:00, empty means Any; editing does not read" />
+        <TextBlock Text="Exact terminal HOST predicates (Any means unrestricted). USER-only with any predicate yields zero; all predicates AND with the query and role." TextWrapping="Wrap" />
+        <TextBlock Text="Terminal outcome" />
+        <ComboBox x:Name="ConversationOutcome" ItemsSource="{Binding ConversationOutcomes}"
+            SelectedItem="{Binding ConversationOutcomeChoice, Mode=TwoWay}" IsEnabled="{Binding CanReadConversation}"
+            AutomationProperties.Name="Exact terminal HOST ModelTurnOutcome; Any or one defined outcome; editing does not read" />
+        <TextBlock Text="Terminal reason" />
+        <ComboBox x:Name="ConversationReason" ItemsSource="{Binding ConversationReasons}"
+            SelectedItem="{Binding ConversationReasonChoice, Mode=TwoWay}" IsEnabled="{Binding CanReadConversation}"
+            AutomationProperties.Name="Exact terminal HOST ModelTurnReason; Any or one defined reason; editing does not read" />
+        <TextBlock Text="Expected terminal task state" />
+        <ComboBox x:Name="ConversationTaskState" ItemsSource="{Binding ConversationTaskStates}"
+            SelectedItem="{Binding ConversationTaskStateChoice, Mode=TwoWay}" IsEnabled="{Binding CanReadConversation}"
+            AutomationProperties.Name="Exact terminal HOST expected HostTaskState; Any or one defined state; editing does not read" />
         <WrapPanel>
           <Button x:Name="SearchConversation" Content="Search this conversation" IsEnabled="{Binding CanSearchConversation}" />
           <Button x:Name="NextConversationSearch" Content="Next conversation matches" IsEnabled="{Binding CanNextConversationSearch}" />
@@ -159,13 +195,27 @@
       </StackPanel>
     </Expander>
     <WrapPanel>
-      <ComboBox ItemsSource="{Binding ListSearchKinds}" SelectedItem="{Binding ListSearchKind, Mode=TwoWay}"
-                IsEnabled="{Binding CanEditListSearch}" AutomationProperties.Name="Session metadata search mode: literal ordinal case-sensitive NameSubstring or canonical lowercase exact immutable ID" />
+      <ComboBox x:Name="ListSearchKind" ItemsSource="{Binding ListSearchKinds}" SelectedItem="{Binding ListSearchKind, Mode=TwoWay}"
+                IsEnabled="{Binding CanEditListSearch}" AutomationProperties.Name="Session metadata search mode: empty-text bounded Browse, literal ordinal case-sensitive NameSubstring, whole-name ordinal case-sensitive ExactName or canonical lowercase exact immutable ID" />
+      <ComboBox x:Name="ListNameAvailability" ItemsSource="{Binding ListNameAvailabilities}" SelectedItem="{Binding ListNameAvailability, Mode=TwoWay}"
+                IsEnabled="{Binding CanEditListSearch}" AutomationProperties.Name="Observed session name metadata availability: Any, Named or Unnamed; not ownership, deletion history or action authority" />
       <TextBox x:Name="ListQuery" Text="{Binding ListQuery, Mode=TwoWay}" Width="320"
-               IsEnabled="{Binding CanEditListSearch}" PlaceholderText="Session name substring or exact ID; Enter searches"
+               IsEnabled="{Binding CanEditListSearch}" PlaceholderText="Empty for Browse; name substring, exact name or exact ID; Enter searches"
                AutomationProperties.Name="Volatile session-list metadata query, not conversation-history search; NFC name limits, no silent truncation or normalization" />
+      <TextBox x:Name="ListMinimumGeneration" Text="{Binding ListMinimumGeneration, Mode=TwoWay}" Width="190"
+               IsEnabled="{Binding CanEditListSearch}" PlaceholderText="Generation minimum; Any"
+               AutomationProperties.Name="Session-list authority generation inclusive minimum; positive decimal or empty for Any; passive metadata, not authority" />
+      <TextBox x:Name="ListMaximumGeneration" Text="{Binding ListMaximumGeneration, Mode=TwoWay}" Width="190"
+               IsEnabled="{Binding CanEditListSearch}" PlaceholderText="Generation maximum; Any"
+               AutomationProperties.Name="Session-list authority generation inclusive maximum; positive decimal or empty for Any; passive metadata, not authority" />
+      <TextBox x:Name="ListMinimumMetadataRevision" Text="{Binding ListMinimumMetadataRevision, Mode=TwoWay}" Width="190"
+               IsEnabled="{Binding CanEditListSearch}" PlaceholderText="Name revision minimum; Any"
+               AutomationProperties.Name="Session-list name metadata revision inclusive minimum; positive decimal or empty for Any; unnamed never matches a revision bound" />
+      <TextBox x:Name="ListMaximumMetadataRevision" Text="{Binding ListMaximumMetadataRevision, Mode=TwoWay}" Width="190"
+               IsEnabled="{Binding CanEditListSearch}" PlaceholderText="Name revision maximum; Any"
+               AutomationProperties.Name="Session-list name metadata revision inclusive maximum; positive decimal or empty for Any; unnamed never matches a revision bound" />
       <Button x:Name="SearchList" Content="Search session _metadata" IsEnabled="{Binding CanSearchList}"
-              AutomationProperties.Name="Search names or exact IDs across bounded session metadata pages, never target an action by name" />
+              AutomationProperties.Name="Browse or search names or exact IDs across bounded session metadata pages, never select implicitly or target an action by name" />
       <Button x:Name="NextListSearch" Content="Next metadata search" IsEnabled="{Binding CanNextListSearch}"
               AutomationProperties.Name="Continue the query-bound mutable metadata scan, including after zero matches; not an atomic history snapshot" />
       <Button x:Name="CancelListSearch" Content="Cancel metadata search" IsEnabled="{Binding CanCancelListSearch}" />
@@ -192,6 +242,57 @@
               AutomationProperties.Name="Continue bounded lexical scan even when the previous search page has no matches" />
       <Button x:Name="CancelHistorySearch" Content="Cancel search" IsEnabled="{Binding CanCancelHistorySearch}" />
       <Button x:Name="ClearHistorySearch" Content="Clear query and results" IsEnabled="{Binding CanRead}" />
+    </WrapPanel>
+    <WrapPanel>
+      <TextBlock Text="Receipt kind" VerticalAlignment="Center" />
+      <ComboBox x:Name="HistoryKind" ItemsSource="{Binding HistoryKinds}"
+                SelectedItem="{Binding HistoryKindChoice, Mode=TwoWay}" IsEnabled="{Binding CanRead}"
+                AutomationProperties.Name="Exact receipt kind; Any adds no restriction; passive history only" />
+      <TextBlock Text="Task state" VerticalAlignment="Center" />
+      <ComboBox x:Name="HistoryTaskState" ItemsSource="{Binding HistoryTaskStates}"
+                SelectedItem="{Binding HistoryTaskStateChoice, Mode=TwoWay}" IsEnabled="{Binding CanRead}"
+                AutomationProperties.Name="Exact historical task state; Any adds no restriction; no task selection or replay" />
+      <TextBlock Text="Decision" VerticalAlignment="Center" />
+      <ComboBox x:Name="HistoryDecision" ItemsSource="{Binding HistoryDecisions}"
+                SelectedItem="{Binding HistoryDecisionChoice, Mode=TwoWay}" IsEnabled="{Binding CanRead}"
+                AutomationProperties.Name="Exact historical decision; Any adds no restriction; no approval authority" />
+      <TextBlock Text="Question status" VerticalAlignment="Center" />
+      <ComboBox x:Name="HistoryQuestionStatus" ItemsSource="{Binding HistoryQuestionStatuses}"
+                SelectedItem="{Binding HistoryQuestionStatusChoice, Mode=TwoWay}" IsEnabled="{Binding CanRead}"
+                AutomationProperties.Name="Exact historical question status; Any adds no restriction; no question selection or answer" />
+      <TextBlock Text="Answer channel" VerticalAlignment="Center" />
+      <ComboBox x:Name="HistoryAnswerChannel" ItemsSource="{Binding HistoryAnswerChannels}"
+                SelectedItem="{Binding HistoryAnswerChannelChoice, Mode=TwoWay}" IsEnabled="{Binding CanRead}"
+                AutomationProperties.Name="Exact historical answer channel; Any adds no restriction; not identity or authority" />
+    </WrapPanel>
+    <TextBlock Text="Inclusive receipt provenance ranges: empty means Any. All bounds AND with lexical and typed predicates. Positive sequence/generation/audit; source revision may be zero. No timestamps or authority." TextWrapping="Wrap" />
+    <WrapPanel>
+      <TextBlock Text="Minimum receipt sequence" VerticalAlignment="Center" />
+      <TextBox x:Name="HistoryMinimumSequence" Text="{Binding HistoryMinimumSequence, Mode=TwoWay}" Width="140" IsEnabled="{Binding CanRead}"
+               AutomationProperties.Name="Minimum receipt sequence inclusive; positive decimal or empty for Any" />
+      <TextBlock Text="Maximum receipt sequence" VerticalAlignment="Center" />
+      <TextBox x:Name="HistoryMaximumSequence" Text="{Binding HistoryMaximumSequence, Mode=TwoWay}" Width="140" IsEnabled="{Binding CanRead}"
+               AutomationProperties.Name="Maximum receipt sequence inclusive; positive decimal or empty for Any" />
+      <TextBlock Text="Minimum receipt generation" VerticalAlignment="Center" />
+      <TextBox x:Name="HistoryMinimumGeneration" Text="{Binding HistoryMinimumGeneration, Mode=TwoWay}" Width="140" IsEnabled="{Binding CanRead}"
+               AutomationProperties.Name="Minimum receipt generation inclusive; positive decimal or empty for Any" />
+      <TextBlock Text="Maximum receipt generation" VerticalAlignment="Center" />
+      <TextBox x:Name="HistoryMaximumGeneration" Text="{Binding HistoryMaximumGeneration, Mode=TwoWay}" Width="140" IsEnabled="{Binding CanRead}"
+               AutomationProperties.Name="Maximum receipt generation inclusive; positive decimal or empty for Any" />
+    </WrapPanel>
+    <WrapPanel>
+      <TextBlock Text="Minimum source revision" VerticalAlignment="Center" />
+      <TextBox x:Name="HistoryMinimumSourceRevision" Text="{Binding HistoryMinimumSourceRevision, Mode=TwoWay}" Width="140" IsEnabled="{Binding CanRead}"
+               AutomationProperties.Name="Minimum receipt source revision inclusive; nonnegative decimal or empty for Any" />
+      <TextBlock Text="Maximum source revision" VerticalAlignment="Center" />
+      <TextBox x:Name="HistoryMaximumSourceRevision" Text="{Binding HistoryMaximumSourceRevision, Mode=TwoWay}" Width="140" IsEnabled="{Binding CanRead}"
+               AutomationProperties.Name="Maximum receipt source revision inclusive; nonnegative decimal or empty for Any" />
+      <TextBlock Text="Minimum audit sequence" VerticalAlignment="Center" />
+      <TextBox x:Name="HistoryMinimumAuditSequence" Text="{Binding HistoryMinimumAuditSequence, Mode=TwoWay}" Width="140" IsEnabled="{Binding CanRead}"
+               AutomationProperties.Name="Minimum receipt audit sequence inclusive; positive decimal or empty for Any; absent audit never matches a constrained range" />
+      <TextBlock Text="Maximum audit sequence" VerticalAlignment="Center" />
+      <TextBox x:Name="HistoryMaximumAuditSequence" Text="{Binding HistoryMaximumAuditSequence, Mode=TwoWay}" Width="140" IsEnabled="{Binding CanRead}"
+               AutomationProperties.Name="Maximum receipt audit sequence inclusive; positive decimal or empty for Any; absent audit never matches a constrained range" />
     </WrapPanel>
     </StackPanel>
     </ScrollViewer>
@@ -339,6 +440,88 @@
           </WrapPanel>
           <controls:NamedTextBlock Text="{Binding LocalEventStatus}" TextWrapping="Wrap"
                                   AutomationProperties.Name="Trusted visual local event status, fatigue, deferral and no replay reasons; no speech or focus change" />
+          <WrapPanel>
+            <TextBlock Text="Local event category" VerticalAlignment="Center" />
+            <ComboBox x:Name="LocalEventCategoryFilter" ItemsSource="{Binding LocalEventCategoryFilters}"
+                      SelectedItem="{Binding LocalEventCategoryChoice}" IsEnabled="{Binding CanFilterLocalEvents}"
+                      AutomationProperties.Name="Filter loaded local events by authoritative category; All, Work, Failure, Attention or Maintenance; clears exact event selection" />
+            <TextBlock Text="Local event reason" VerticalAlignment="Center" />
+            <ComboBox x:Name="LocalEventReasonFilter" ItemsSource="{Binding LocalEventReasonFilters}"
+                      SelectedItem="{Binding LocalEventReasonChoice}" IsEnabled="{Binding CanFilterLocalEvents}"
+                      AutomationProperties.Name="Filter loaded local events by exact delivery reason or All; combines with category, source and type and clears exact event selection" />
+            <TextBlock Text="Local event source" VerticalAlignment="Center" />
+            <ComboBox x:Name="LocalEventSourceFilter" ItemsSource="{Binding LocalEventSourceFilters}"
+                      SelectedItem="{Binding LocalEventSourceChoice}" IsEnabled="{Binding CanFilterLocalEvents}"
+                      AutomationProperties.Name="Filter loaded local events by exact authoritative source or All; combines with category, reason and type and clears exact event selection" />
+            <TextBlock Text="Local event type" VerticalAlignment="Center" />
+            <ComboBox x:Name="LocalEventTypeFilter" ItemsSource="{Binding LocalEventTypeFilters}"
+                      SelectedItem="{Binding LocalEventTypeChoice}" IsEnabled="{Binding CanFilterLocalEvents}"
+                      AutomationProperties.Name="Filter loaded local events by exact authoritative type or All; combines with category, reason and source and clears exact event selection" />
+            <TextBlock Text="Local event request origin" VerticalAlignment="Center" />
+            <ComboBox x:Name="LocalEventOriginFilter" ItemsSource="{Binding LocalEventOriginFilters}"
+                      SelectedItem="{Binding LocalEventOriginChoice}" IsEnabled="{Binding CanFilterLocalEvents}"
+                      AutomationProperties.Name="Filter loaded local events by exact request origin or Any; combines with all event filters and clears exact event selection" />
+            <TextBlock Text="Local event queue eligibility reason" VerticalAlignment="Center" />
+            <ComboBox x:Name="LocalEventQueueReasonFilter" ItemsSource="{Binding LocalEventQueueReasonFilters}"
+                      SelectedItem="{Binding LocalEventQueueReasonChoice}" IsEnabled="{Binding CanFilterLocalEvents}"
+                      AutomationProperties.Name="Filter loaded local events by Any, No queue reason / not applicable, or exact queue eligibility reason; combines with all event filters and clears exact event selection; absence is not success or authority" />
+            <TextBlock Text="Local event session ID" VerticalAlignment="Center" />
+            <ComboBox x:Name="LocalEventQueueProfileFilter" ItemsSource="{Binding LocalEventQueueProfileFilters}"
+                      SelectedItem="{Binding LocalEventQueueProfileChoice}" IsEnabled="{Binding CanFilterLocalEvents}"
+                      AutomationProperties.Name="Local event retained queue profile: Any, explicit Absent, or exact catalogue read; AND with all filters; no read; editing retires selection and details; historical metadata never authority"
+                      ToolTip.Tip="Absent means the complete validated event has no retained profile, never an omitted or truncated row. Exact profiles use canonical catalogue IDs." />
+            <ComboBox x:Name="LocalEventQueueTargetFilter" ItemsSource="{Binding LocalEventQueueTargetFilters}"
+                      SelectedItem="{Binding LocalEventQueueTargetChoice}" IsEnabled="{Binding CanFilterLocalEvents}"
+                      AutomationProperties.Name="Local event retained exact capability target: Any or exact catalogue descriptor ID; AND with all filters; no read; editing retires selection and details; historical metadata never authority"
+                      ToolTip.Tip="Exact matches only existing retained target metadata. This does not select a session, enqueue, dispatch, or establish readiness, ownership or permission." />
+            <TextBox x:Name="LocalEventSessionIdFilter" Text="{Binding LocalEventSessionIdFilter}" Width="300"
+                     PlaceholderText="Any session ID (empty)" IsEnabled="{Binding CanFilterLocalEvents}"
+                     AutomationProperties.Name="Filter loaded local events by exact session ID; empty for Any, complete lowercase D GUID; AND with all filters; clears selection; correlation only, never retargets or authorizes" />
+            <TextBlock Text="Local event task ID" VerticalAlignment="Center" />
+            <TextBox x:Name="LocalEventTaskIdFilter" Text="{Binding LocalEventTaskIdFilter}" Width="300"
+                     PlaceholderText="Any task ID (empty)" IsEnabled="{Binding CanFilterLocalEvents}"
+                     AutomationProperties.Name="Filter loaded local events by exact task ID; empty for Any, complete lowercase D GUID; missing tasks never match; AND with all filters; clears selection; correlation only, never retargets or authorizes" />
+            <TextBlock Text="Local event subject ID" VerticalAlignment="Center" />
+            <TextBox x:Name="LocalEventSubjectIdFilter" Text="{Binding LocalEventSubjectIdFilter}" Width="300"
+                     PlaceholderText="Any subject ID (empty)" IsEnabled="{Binding CanFilterLocalEvents}"
+                     AutomationProperties.Name="Filter loaded local events by exact subject ID; empty for Any, complete lowercase D GUID; AND with all filters; clears selection; correlation only, never retargets or authorizes" />
+            <TextBlock Text="Local event minimum revision" VerticalAlignment="Center" />
+            <TextBox x:Name="LocalEventMinimumRevisionFilter" Text="{Binding LocalEventMinimumRevisionFilter}" Width="200"
+                     PlaceholderText="Any minimum (empty)" IsEnabled="{Binding CanFilterLocalEvents}"
+                     AutomationProperties.Name="Filter loaded local events by inclusive minimum event revision; positive Int64 decimal, empty Any; minimum must not exceed maximum; AND with all filters; no read; retires selection and details; metadata only, never authority" />
+            <TextBlock Text="Local event maximum revision" VerticalAlignment="Center" />
+            <TextBox x:Name="LocalEventMaximumRevisionFilter" Text="{Binding LocalEventMaximumRevisionFilter}" Width="200"
+                     PlaceholderText="Any maximum (empty)" IsEnabled="{Binding CanFilterLocalEvents}"
+                     AutomationProperties.Name="Filter loaded local events by inclusive maximum event revision; positive Int64 decimal, empty Any; minimum must not exceed maximum; AND with all filters; no read; retires selection and details; metadata only, never authority" />
+            <TextBlock Text="Local event minimum generation" VerticalAlignment="Center" />
+            <TextBox x:Name="LocalEventMinimumGenerationFilter" Text="{Binding LocalEventMinimumGenerationFilter}" Width="200"
+                     PlaceholderText="Any minimum (empty)" IsEnabled="{Binding CanFilterLocalEvents}"
+                     AutomationProperties.Name="Filter loaded local events by inclusive minimum generation; positive Int64 decimal, empty Any; minimum must not exceed maximum; AND with all filters; no read; retires selection and details; metadata only, never authority" />
+            <TextBlock Text="Local event maximum generation" VerticalAlignment="Center" />
+            <TextBox x:Name="LocalEventMaximumGenerationFilter" Text="{Binding LocalEventMaximumGenerationFilter}" Width="200"
+                     PlaceholderText="Any maximum (empty)" IsEnabled="{Binding CanFilterLocalEvents}"
+                     AutomationProperties.Name="Filter loaded local events by inclusive maximum generation; positive Int64 decimal, empty Any; minimum must not exceed maximum; AND with all filters; no read; retires selection and details; metadata only, never authority" />
+            <TextBlock Text="Local event observed from UTC" VerticalAlignment="Center" />
+            <TextBox x:Name="LocalEventObservedFromUtcFilter" Text="{Binding LocalEventObservedFromUtcFilter}" Width="320"
+                     PlaceholderText="Any from (empty)" IsEnabled="{Binding CanFilterLocalEvents}"
+                     AutomationProperties.Name="Filter loaded local events by inclusive observed-at from UTC; yyyy-MM-ddTHH:mm:ss.fffffff+00:00, empty Any; from must not exceed until; AND with all filters; no read; retires selection and details; metadata only, never authority" />
+            <TextBlock Text="Local event observed until UTC" VerticalAlignment="Center" />
+            <TextBox x:Name="LocalEventObservedUntilUtcFilter" Text="{Binding LocalEventObservedUntilUtcFilter}" Width="320"
+                     PlaceholderText="Any until (empty)" IsEnabled="{Binding CanFilterLocalEvents}"
+                     AutomationProperties.Name="Filter loaded local events by inclusive observed-at until UTC; yyyy-MM-ddTHH:mm:ss.fffffff+00:00, empty Any; from must not exceed until; AND with all filters; no read; retires selection and details; metadata only, never authority" />
+            <TextBlock Text="Local event expires from UTC" VerticalAlignment="Center" />
+            <TextBox x:Name="LocalEventExpiresFromUtcFilter" Text="{Binding LocalEventExpiresFromUtcFilter}" Width="320"
+                     PlaceholderText="Any from (empty)" IsEnabled="{Binding CanFilterLocalEvents}"
+                     AutomationProperties.Name="Filter loaded local events by inclusive expires-at from UTC; yyyy-MM-ddTHH:mm:ss.fffffff+00:00, empty Any; from must not exceed until; AND with all filters; no read; retires selection and details; metadata only, never authority" />
+            <TextBlock Text="Local event expires until UTC" VerticalAlignment="Center" />
+            <TextBox x:Name="LocalEventExpiresUntilUtcFilter" Text="{Binding LocalEventExpiresUntilUtcFilter}" Width="320"
+                     PlaceholderText="Any until (empty)" IsEnabled="{Binding CanFilterLocalEvents}"
+                     AutomationProperties.Name="Filter loaded local events by inclusive expires-at until UTC; yyyy-MM-ddTHH:mm:ss.fffffff+00:00, empty Any; from must not exceed until; AND with all filters; no read; retires selection and details; metadata only, never authority" />
+            <Button x:Name="ClearLocalEventFilters" Content="Clear local event filters" IsEnabled="{Binding CanFilterLocalEvents}"
+                    AutomationProperties.Name="Show all already-loaded local events and clear exact selection; no source read or quiet change" />
+          </WrapPanel>
+          <controls:NamedTextBlock Text="{Binding LocalEventFilterStatus}" TextWrapping="Wrap"
+                                  AutomationProperties.Name="Matching loaded local-event counts and empty filter results; bounded source omissions and quiet status are separate" />
           <controls:ScrollableListBox x:Name="EventRecords" MaxHeight="130" ItemsSource="{Binding LocalEvents}"
                    SelectedItem="{Binding SelectedLocalEvent, Mode=OneWay}"
                    AutomationProperties.Name="Content-free exact host event IDs and revisions; pending questions remain independent">
@@ -347,7 +530,12 @@
                 <StackPanel>
                   <TextBlock Text="{Binding DisplaySummary}" TextWrapping="Wrap" />
                   <TextBlock Text="{Binding Event.Id, StringFormat='Exact event {0}'}" />
+                  <TextBlock Text="{Binding Event.SessionId.Value, StringFormat='Session ID {0:D}'}" />
+                  <TextBlock Text="{Binding Event.TaskId.Value, StringFormat='Task ID {0:D}'}" />
+                  <TextBlock Text="{Binding Event.SubjectId, StringFormat='Subject ID {0:D}'}" />
                   <TextBlock Text="{Binding Event.Revision, StringFormat='Revision {0}'}" />
+                  <TextBlock Text="{Binding Event.Generation, StringFormat='Generation {0}'}" />
+                  <TextBlock Text="{Binding Event.ObservedAt, StringFormat='Observed at {0:O}'}" />
                   <TextBlock Text="{Binding Reason, StringFormat='Delivery state {0}'}" />
                   <TextBlock Text="{Binding Event.ExpiresAt, StringFormat='Original expiry {0:O}'}" />
                   <TextBlock Text="{Binding DeferredUntil, StringFormat='Deferred until {0:O}'}" />
@@ -413,6 +601,44 @@
                          TextWrapping="Wrap" />
               <Button x:Name="ListMemories" Content="_List selected session memories" IsEnabled="{Binding CanReadMemories}"
                       AutomationProperties.Name="List exact active selected session memory identity, revision, scope, review, retention and creation time only" />
+              <TextBlock Text="Filter only the frozen listed metadata. No content search or classification filter. Edits clear selection, inspection and replacement draft; select and inspect an exact visible result again. List explicitly to refresh." TextWrapping="Wrap" />
+              <TextBox x:Name="MemoryIdFilter" Text="{Binding MemoryIdFilter, Mode=TwoWay}"
+                       IsEnabled="{Binding CanFilterMemories}" PlaceholderText="Exact memory GUID, or empty for Any"
+                       AutomationProperties.Name="Exact memory GUID filter over listed metadata only; no content reads" />
+              <TextBox x:Name="MemoryScopeIdentityFilter" Text="{Binding MemoryScopeIdentityFilter, Mode=TwoWay}"
+                       IsEnabled="{Binding CanFilterMemories}" PlaceholderText="Exact memory scope identity GUID, or empty for Any"
+                       AutomationProperties.Name="Exact memory scope identity canonical D GUID or empty for Any; snapshot metadata only, not permission, ownership or scope authority" />
+              <TextBlock Text="Inclusive ranges, combined with all metadata filters. Empty bounds mean Any. Revisions are positive decimal integers. UTC Created times use yyyy-MM-ddTHH:mm:ss.fffffff+00:00 (seven fractional digits)." TextWrapping="Wrap" />
+              <TextBox x:Name="MemoryMinimumRevisionFilter" Text="{Binding MemoryMinimumRevisionFilter, Mode=TwoWay}"
+                       IsEnabled="{Binding CanFilterMemories}" PlaceholderText="Minimum revision (inclusive), or empty for Any"
+                       AutomationProperties.Name="Minimum memory revision inclusive; positive decimal or empty for Any; metadata only" />
+              <TextBox x:Name="MemoryMaximumRevisionFilter" Text="{Binding MemoryMaximumRevisionFilter, Mode=TwoWay}"
+                       IsEnabled="{Binding CanFilterMemories}" PlaceholderText="Maximum revision (inclusive), or empty for Any"
+                       AutomationProperties.Name="Maximum memory revision inclusive; positive decimal or empty for Any; metadata only" />
+              <TextBox x:Name="MemoryCreatedFromFilter" Text="{Binding MemoryCreatedFromFilter, Mode=TwoWay}"
+                       IsEnabled="{Binding CanFilterMemories}" PlaceholderText="Created From UTC (inclusive), or empty for Any"
+                       AutomationProperties.Name="Memory Created From UTC inclusive; yyyy-MM-ddTHH:mm:ss.fffffff+00:00 or empty for Any; metadata only" />
+              <TextBox x:Name="MemoryCreatedUntilFilter" Text="{Binding MemoryCreatedUntilFilter, Mode=TwoWay}"
+                       IsEnabled="{Binding CanFilterMemories}" PlaceholderText="Created Until UTC (inclusive), or empty for Any"
+                       AutomationProperties.Name="Memory Created Until UTC inclusive; yyyy-MM-ddTHH:mm:ss.fffffff+00:00 or empty for Any; metadata only" />
+              <WrapPanel>
+                <TextBlock Text="Scope" VerticalAlignment="Center" />
+                <ComboBox x:Name="MemoryScopeFilter" ItemsSource="{Binding MemoryScopeFilters}"
+                          SelectedItem="{Binding MemoryScopeChoice, Mode=TwoWay}"
+                          IsEnabled="{Binding CanFilterMemories}" AutomationProperties.Name="Memory Scope filter; Any or a defined scope kind; metadata only, not permission" />
+                <TextBlock Text="Review" VerticalAlignment="Center" />
+                <ComboBox x:Name="MemoryReviewFilter" ItemsSource="{Binding MemoryReviewFilters}"
+                          SelectedItem="{Binding MemoryReviewChoice, Mode=TwoWay}"
+                          IsEnabled="{Binding CanFilterMemories}" AutomationProperties.Name="Memory Review filter; Any or a defined review state" />
+                <TextBlock Text="Retention" VerticalAlignment="Center" />
+                <ComboBox x:Name="MemoryRetentionFilter" ItemsSource="{Binding MemoryRetentionFilters}"
+                          SelectedItem="{Binding MemoryRetentionChoice, Mode=TwoWay}"
+                          IsEnabled="{Binding CanFilterMemories}" AutomationProperties.Name="Memory Retention filter; Any or a defined retention state" />
+                <Button x:Name="ClearMemoryFilters" Content="_Clear memory filters"
+                        IsEnabled="{Binding CanFilterMemories}" AutomationProperties.Name="Clear memory filters and retire selection, inspection and replacement draft" />
+              </WrapPanel>
+              <controls:NamedTextBlock Text="{Binding MemoryFilterStatus}" TextWrapping="Wrap"
+                                       AutomationProperties.Name="Local memory metadata filter results or validation recovery" />
               <ListBox x:Name="MemoryRecords" MaxHeight="160" ItemsSource="{Binding MemoryRecords}"
                        SelectedItem="{Binding SelectedMemory, Mode=OneWay}" IsEnabled="{Binding CanReadMemories}"
                        AutomationProperties.Name="Content-free memory inventory; selection is passive">

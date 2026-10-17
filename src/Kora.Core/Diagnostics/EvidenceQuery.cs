@@ -1,3 +1,5 @@
+using System.Diagnostics;
+
 using Kora.Core.Auditing;
 using Kora.Core.Hosting;
 
@@ -16,6 +18,19 @@ public sealed record EvidenceQuery
     public Guid? CorrelationId { get; init; }
     public string? TraceId { get; init; }
     public string? SpanId { get; init; }
+    public string? ParentSpanId { get; init; }
+    public string? TraceSource { get; init; }
+    public TraceSourceVersionAvailability TraceSourceVersionAvailability { get; init; }
+    public string? TraceSourceVersion { get; init; }
+    public string? ActivityName { get; init; }
+    public ActivityKind? ActivityKind { get; init; }
+    public ActivityTraceFlags? TraceFlags { get; init; }
+    public HostOperationOutcome? Outcome { get; init; }
+    public EvidenceContentAvailability ContentAvailability { get; init; }
+    public string? EventName { get; init; }
+    public string? ExceptionType { get; init; }
+    public long? FromAuditSequence { get; init; }
+    public long? UntilAuditSequence { get; init; }
     public DateTimeOffset? FromUtc { get; init; }
     public DateTimeOffset? UntilUtc { get; init; }
     public EvidenceSeverity? Severity { get; init; }
@@ -25,4 +40,35 @@ public sealed record EvidenceQuery
     public SecurityAuditOutcome? AuditOutcome { get; init; }
     public EvidencePropertyFilter? Property { get; init; }
     public string? Text { get; init; }
+
+    public bool MatchesRetainedMetadata(EvidenceRecord record)
+    {
+        record.Trace?.Validate();
+        return (TraceSource is null || string.Equals(record.Trace?.Source, TraceSource, StringComparison.Ordinal))
+        && (ActivityName is null || string.Equals(record.Trace?.Name, ActivityName, StringComparison.Ordinal))
+        && (ActivityKind is null || record.Trace?.Kind == ActivityKind)
+        && (TraceFlags is null || record.Trace?.Flags == TraceFlags)
+        && (TraceSourceVersionAvailability switch
+        {
+            TraceSourceVersionAvailability.Any => true,
+            TraceSourceVersionAvailability.Absent => record.Trace is { SourceVersion: null },
+            TraceSourceVersionAvailability.Present => record.Trace?.SourceVersion is not null,
+            TraceSourceVersionAvailability.Exact => record.Trace is { SourceVersion: { } version }
+                && string.Equals(version, TraceSourceVersion, StringComparison.Ordinal),
+            _ => throw new InvalidOperationException("The trace source version availability is invalid."),
+        })
+        && (ParentSpanId is null || string.Equals(record.Trace?.ParentSpanId, ParentSpanId, StringComparison.Ordinal))
+        && (Outcome is null || record.Outcome == Outcome)
+        && (EventName is null || string.Equals(record.EventName, EventName, StringComparison.Ordinal))
+        && (ExceptionType is null || string.Equals(record.ExceptionType, ExceptionType, StringComparison.Ordinal))
+        && (FromAuditSequence is null || record.AuditSequence >= FromAuditSequence)
+        && (UntilAuditSequence is null || record.AuditSequence <= UntilAuditSequence)
+        && (ContentAvailability switch
+        {
+            EvidenceContentAvailability.Any => true,
+            EvidenceContentAvailability.Present => !record.ContentOmitted,
+            EvidenceContentAvailability.Omitted => record.ContentOmitted,
+            _ => throw new InvalidOperationException("The evidence content availability is invalid."),
+        });
+    }
 }

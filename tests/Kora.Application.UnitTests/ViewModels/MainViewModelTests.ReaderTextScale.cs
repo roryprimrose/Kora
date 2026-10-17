@@ -20,6 +20,7 @@ public sealed partial class MainViewModelTests
         fixture.ViewModel.ReaderTextScaleMaximum.Should().Be(200);
         fixture.ViewModel.ReaderTextScalePercent.Should().Be(100);
         fixture.ViewModel.ReaderTextScalePercent = percent;
+        await fixture.ViewModel.AppearanceUpdate;
         fixture.ViewModel.ReaderTextScalePercent.Should().Be(percent);
         fixture.ViewModel.EnsureReaderTypographyAvailable();
         fixture.ViewModel.SelectedAppearanceOption = AppearanceOptionRegistry.Get(AppearanceOption.ReaderTextScale);
@@ -51,6 +52,7 @@ public sealed partial class MainViewModelTests
             _ => null,
         };
         fixture.ViewModel.ReaderTextScalePercent = string.Equals(failure, "range", StringComparison.Ordinal) ? 201 : 75;
+        await fixture.ViewModel.AppearanceUpdate;
         fixture.ViewModel.ReaderTextScalePercent.Should().Be(100);
         fixture.ViewModel.ResponseTitle.Should().Be("Native reader text scale is unavailable.");
         fixture.ViewModel.AppearanceSettingStatus.Should().Contain("not confirmed");

@@ -22,6 +22,13 @@ public sealed class AuditRetentionConfigurationService(
 
     public event EventHandler? Changed;
     public AuditRetentionState Get() { lock (gate) { return state; } }
+    // Preview must not invert configuration's synchronous Changed -> preview retirement lock order.
+    public AuditRetentionState GetObservation() => Volatile.Read(ref state);
+    public bool IsCurrentObservation(AuditRetentionState observed)
+    {
+        return !Volatile.Read(ref applying) && !Volatile.Read(ref publishing)
+            && Volatile.Read(ref state) == observed && observed.Effective is { } expected && policy.Effective == expected;
+    }
 
     public void Observe()
     {

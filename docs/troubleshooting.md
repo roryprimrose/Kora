@@ -20,6 +20,27 @@ no cloud fallback. Missing inference opens the Readiness tab on startup.
 PowerShell has its own setup task, but an unhealthy PowerShell installation
 does not block local reasoning or the C# built-in commands.
 
+## Another instance or an unclean exit blocks startup
+
+A secondary Release launch asks the authenticated existing owner to show Kora,
+then exits after acknowledgement, regardless of build/version. It does not
+start another assistant or offer a takeover. Debug launches retain explicit
+different-build handoff. Locked-session privacy is unchanged. If the owner is
+busy, unreachable or too old to support activation-only requests, resolve or
+close it explicitly; the new Release process does not bypass ownership.
+
+Release still requires explicit reconciliation after an unverified exit.
+Only Debug builds compile automatic recovery: a user-initiated launch can
+recover when the restricted `unclean-owner.debug-recovery` record proves the
+previous process lifetime ended and no tracked external work remains. Normal
+audited task recovery then records Interrupted/Unknown outcomes without replay.
+Missing legacy recovery metadata, malformed records, inaccessible process
+identity and outstanding/uncertain external work remain explicit blockers.
+Reconcile installers, owned runtimes and uncertain effects before manually
+removing the exact marker/recovery files named by the native error. Do not clear
+a live owner's files, terminate unrelated services or treat a process-name
+snapshot as proof of resource quiescence. No automatic restart is enabled.
+
 ## Private durable storage cannot reopen after interruption
 
 The consolidated private task/question/authority-audit database and independent evidence database retain their
@@ -36,6 +57,24 @@ files and review the reported storage failure with support. Do not copy a
 journal from another database. Daily JSON diagnostics remain an independent
 source when SQLite is unavailable. These recovery checks are not a guarantee
 against physical power loss or a complete backup/restore workflow.
+
+Persisted evidence is fully validated before admission. Initial evidence-store
+admission allows up to 30 seconds for its SQLite integrity check; normal reads,
+writes and migrations retain five-second integrity budgets. Large histories use
+fresh five-second SQLite progress budgets for schema checks and each row
+advance, independently of time spent in earlier validation phases or decoding
+earlier bounded envelopes. Audit-sequence and
+foreign-key queries remain separately bounded, and cancellation stops validation.
+An interrupted validation means evidence is unavailable, not proven corrupt or
+successfully validated. Retain the database and journal; do not delete them to
+work around the failure.
+
+If the UI stalls while recording presentation updates, completed desktop
+activities use the shared bounded off-UI evidence buffer rather than
+hashing the entire evidence database on the UI thread. Required audit
+writes retain acknowledged durable delivery. Queue exhaustion or persistence failure stops
+admission with explicit evidence gaps; it is not permission to discard
+activity records, weaken tamper checks or clear the ownership marker.
 
 The validated upgrade freezes and retains the legacy task ledger before
 consolidating complete IDs/events with existing questions, generations,

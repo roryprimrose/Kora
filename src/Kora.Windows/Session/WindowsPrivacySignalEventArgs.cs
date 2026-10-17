@@ -6,7 +6,8 @@ internal sealed class WindowsPrivacySignalEventArgs(
     WindowsSessionState? sessionState = null,
     bool topologyChanged = false,
     WindowsPrivacyChangeReason reason = WindowsPrivacyChangeReason.Unknown,
-    PrivacyObservation? observation = null) : EventArgs
+    PrivacyObservation? observation = null,
+    string? topologyIdentity = null) : EventArgs
 {
     public WindowsSessionState? SessionState { get; } = sessionState;
 
@@ -15,4 +16,6 @@ internal sealed class WindowsPrivacySignalEventArgs(
     public WindowsPrivacyChangeReason Reason { get; } = reason;
 
     public PrivacyObservation Observation { get; } = observation ?? PrivacyObservation.Create();
+
+    public string? TopologyIdentity { get; } = topologyIdentity;
 }

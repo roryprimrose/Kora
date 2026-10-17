@@ -64,19 +64,23 @@ internal sealed partial class SessionsWindow : Window
         NextListSearch.Click += async (_, _) => await model.SearchListAsync(next: true);
         CancelListSearch.Click += (_, _) => model.CancelListSearch();
         ClearListSearch.Click += (_, _) => { model.ClearListSearch(); ListQuery.Focus(); };
-        ListQuery.KeyDown += async (_, args) =>
+        foreach (var field in new[] { ListQuery, ListMinimumGeneration, ListMaximumGeneration,
+            ListMinimumMetadataRevision, ListMaximumMetadataRevision })
         {
-            if (args.Key == Key.Enter && model.CanSearchList)
+            field.KeyDown += async (_, args) =>
             {
-                args.Handled = true;
-                await model.SearchListAsync();
-            }
-            else if (args.Key == Key.Escape)
-            {
-                args.Handled = true;
-                model.ClearListSearch();
-            }
-        };
+                if (args.Key == Key.Enter && model.CanSearchList)
+                {
+                    args.Handled = true;
+                    await model.SearchListAsync();
+                }
+                else if (args.Key == Key.Escape)
+                {
+                    args.Handled = true;
+                    model.ClearListSearch();
+                }
+            };
+        }
         Records.SelectionChanged += async (_, _) =>
         {
             await model.SelectAsync(Records.SelectedItem as SessionWorkspaceEntry);
@@ -111,20 +115,25 @@ internal sealed partial class SessionsWindow : Window
         SearchHistory.Click += async (_, _) => await model.SearchHistoryAsync();
         NextHistorySearch.Click += async (_, _) => await model.SearchHistoryAsync(next: true);
         CancelHistorySearch.Click += (_, _) => model.CancelHistorySearch();
-        ClearHistorySearch.Click += (_, _) => { model.HistoryQuery = string.Empty; HistoryQuery.Focus(); };
-        HistoryQuery.KeyDown += async (_, args) =>
+        ClearHistorySearch.Click += (_, _) => { model.ClearHistorySearchInputs(); HistoryQuery.Focus(); };
+        foreach (var field in new[] { HistoryQuery, HistoryMinimumSequence, HistoryMaximumSequence,
+            HistoryMinimumGeneration, HistoryMaximumGeneration, HistoryMinimumSourceRevision,
+            HistoryMaximumSourceRevision, HistoryMinimumAuditSequence, HistoryMaximumAuditSequence })
         {
-            if (args.Key == Key.Enter && model.CanSearchHistory)
+            field.KeyDown += async (_, args) =>
             {
-                args.Handled = true;
-                await model.SearchHistoryAsync();
-            }
-            else if (args.Key == Key.Escape)
-            {
-                args.Handled = true;
-                model.HistoryQuery = string.Empty;
-            }
-        };
+                if (args.Key == Key.Enter && model.CanSearchHistory)
+                {
+                    args.Handled = true;
+                    await model.SearchHistoryAsync();
+                }
+                else if (args.Key == Key.Escape)
+                {
+                    args.Handled = true;
+                    model.ClearHistorySearchInputs();
+                }
+            };
+        }
         HistoryRecords.SelectionChanged += (_, _) =>
             model.SelectHistoryRecord(HistoryRecords.SelectedItem as SessionHistoryEvent);
         OpenHistoryDetail.Click += async (_, _) => await model.OpenHistoryDetailAsync();
@@ -163,6 +172,7 @@ internal sealed partial class SessionsWindow : Window
         ClearQueue.Click += async (_, _) => await model.ClearQueueAsync();
         EventRecords.SelectionChanged += (_, _) =>
             model.SelectLocalEvent(EventRecords.SelectedItem as Kora.Core.Interaction.LocalEventView);
+        ClearLocalEventFilters.Click += (_, _) => model.ClearLocalEventFilters();
         ReviewLocalEvent.Click += async (_, _) => await model.ReviewLocalEventAsync();
         DismissLocalEvent.Click += async (_, _) => await model.DismissLocalEventAsync();
         DeferLocalEvent.Click += async (_, _) => await model.DeferLocalEventAsync();
@@ -177,6 +187,19 @@ internal sealed partial class SessionsWindow : Window
         ConfirmDisposition.Click += async (_, _) => await model.ConfirmDispositionAsync();
         ListMemories.Click += async (_, _) => await model.ListMemoriesAsync();
         ProposeMemory.Click += async (_, _) => await model.ProposeMemoryAsync();
+        ClearMemoryFilters.Click += (_, _) => { model.ClearMemoryFilters(); MemoryIdFilter.Focus(); };
+        foreach (var filter in new[] { MemoryIdFilter, MemoryScopeIdentityFilter, MemoryMinimumRevisionFilter, MemoryMaximumRevisionFilter,
+            MemoryCreatedFromFilter, MemoryCreatedUntilFilter })
+        {
+            filter.KeyDown += (_, args) =>
+            {
+                if (args.Key == Key.Escape)
+                {
+                    args.Handled = true;
+                    model.ClearMemoryFilters();
+                }
+            };
+        }
         MemoryRecords.SelectionChanged += (_, _) =>
             model.SelectMemory(MemoryRecords.SelectedItem as Kora.Core.Commands.MemorySummary);
         InspectMemory.Click += async (_, _) => await model.InspectMemoryAsync();

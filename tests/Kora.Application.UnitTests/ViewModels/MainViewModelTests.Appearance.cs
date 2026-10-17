@@ -48,6 +48,7 @@ public sealed partial class MainViewModelTests
         fixture.ViewModel.PresenceSizePixels.Should().Be(PresenceSettings.DefaultSizePixels);
         fixture.ViewModel.PresenceDisplayDescription.Should().Contain("Show the animated presence");
         fixture.ViewModel.IsPresenceDisplayEnabled = false;
+        await fixture.ViewModel.AppearanceUpdate;
         fixture.ViewModel.IsPresenceDisplayEnabled.Should().BeFalse();
         fixture.ViewModel.PresenceDisplayDescription.Should().Contain("hidden");
         fixture.AppearancePreferences.SavedPresenceDisplayEnabled.Should().BeFalse();
@@ -56,6 +57,7 @@ public sealed partial class MainViewModelTests
         fixture.ViewModel.PresenceSizePixels = 400;
         fixture.ViewModel.PresenceDotSizePercent = 120;
         fixture.ViewModel.PresenceMovementSpeedPercent = 120;
+        await fixture.ViewModel.AppearanceUpdate;
         fixture.Reasoner.Requests.Should().BeEmpty();
         fixture.AppearancePreferences.SavedPresencePosition.Should().BeNull();
         fixture.AppearancePreferences.SavedResponseWindowSettings.Should().BeNull();
@@ -98,6 +100,7 @@ public sealed partial class MainViewModelTests
         await fixture.RunAsync("reset appearance.audio");
         fixture.ViewModel.ResponseTitle.Should().Contain("Clarify");
         fixture.ViewModel.ThemeMode = ApplicationThemeMode.Dark;
+        await fixture.ViewModel.AppearanceUpdate;
         fixture.AppearancePreferences.SaveException = new IOException("owned fixture failure");
         await fixture.RunAsync("reset appearance.theme");
         fixture.ViewModel.State.Should().Be(AssistantState.Failure);

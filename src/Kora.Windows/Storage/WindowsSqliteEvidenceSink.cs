@@ -14,12 +14,13 @@ using Microsoft.Data.Sqlite;
 
 namespace Kora.Windows.Storage;
 
-public sealed partial class WindowsSqliteEvidenceSink : IEvidenceSink
+public sealed partial class WindowsSqliteEvidenceSink : IDeferredEvidenceSink
 {
     internal const string PartitionName = "EvidenceStorageV1";
     internal const int MaximumEnvelopeBytes = 65536;
-    internal const int MaximumCachedEnvelopeEntries = 16384;
-    internal const int MaximumCachedEncodedPayloadBytes = 32 * 1024 * 1024;
+    internal const int MaximumCachedEnvelopeEntries = 65536;
+    internal const int MaximumCachedEncodedPayloadBytes = 64 * 1024 * 1024;
+    internal static readonly TimeSpan InitialIntegrityTimeout = TimeSpan.FromSeconds(30);
     private const int ApplicationId = 1263489586;
     private const string BootstrapProperty = "kora.bootstrap";
     private const string ContextGapProperty = "kora.evidence.gap";
@@ -52,6 +53,7 @@ public sealed partial class WindowsSqliteEvidenceSink : IEvidenceSink
     private readonly TimeProvider timeProvider;
     private readonly ISqliteTransactionCheckpoint? checkpoint;
     private readonly EnvelopeValidationCache validationCache = new();
+    private byte[]? validatedDatabaseDigest;
 
     internal long PersistedEnvelopeDecodeCount => validationCache.DecodeCount;
     internal int PersistedEnvelopeCacheEntryCount => validationCache.EntryCount;
@@ -72,7 +74,7 @@ public sealed partial class WindowsSqliteEvidenceSink : IEvidenceSink
             new(1, 2, Schema, (connection, _, token) =>
             {
                 token.ThrowIfCancellationRequested();
-                ValidateDatabase(connection, legacy: true);
+                ValidateDatabase(connection, legacy: true, cancellationToken: token, validationTime: timeProvider);
             }));
         this.retentionPolicy = retentionPolicy ?? new EvidenceRetentionPolicy();
         this.diagnosticPolicy = diagnosticPolicy;
@@ -87,10 +89,12 @@ public sealed partial class WindowsSqliteEvidenceSink : IEvidenceSink
     public void Initialize()
     {
         using var lease = database.AcquireLease(out var created);
-        using var connection = OpenDatabase(created);
+        using var connection = OpenDatabase(created, InitialIntegrityTimeout);
     }
 
-    public void WriteDiagnostic(DiagnosticEnvelope envelope)
+    public void WriteDiagnostic(DiagnosticEnvelope envelope) => PrepareDiagnostic(envelope)();
+
+    public Action PrepareDiagnostic(DiagnosticEnvelope envelope)
     {
         ArgumentNullException.ThrowIfNull(envelope);
         ValidateDiagnostic(envelope);
@@ -100,7 +104,7 @@ public sealed partial class WindowsSqliteEvidenceSink : IEvidenceSink
         }
         var values = DiagnosticProjection(envelope);
         var payload = Serialize(envelope);
-        CommitEvidence(() => Write("application_log_events", values, payload, audit: false));
+        return () => CommitEvidence(() => Write("application_log_events", values, payload, audit: false));
     }
 
     public void WriteAudit(AuditEnvelope envelope)
@@ -114,13 +118,16 @@ public sealed partial class WindowsSqliteEvidenceSink : IEvidenceSink
         CommitEvidence(() => Write("security_audit_events", values, payload, audit: true));
     }
 
-    public void WriteActivity(CompletedActivityEnvelope envelope)
+    public void WriteActivity(CompletedActivityEnvelope envelope) => PrepareActivity(envelope)();
+
+    public Action PrepareActivity(CompletedActivityEnvelope envelope)
     {
         ArgumentNullException.ThrowIfNull(envelope);
         ValidateActivity(envelope);
         var values = ActivityProjection(envelope);
         var payload = Serialize(envelope);
-        CommitEvidence(() => WriteActivityCore(envelope, values, payload));
+        var snapshot = envelope with { Links = envelope.Links.ToArray() };
+        return () => CommitEvidence(() => WriteActivityCore(snapshot, values, payload));
     }
 
     private void WriteActivityCore(CompletedActivityEnvelope envelope, Dictionary<string, object> values, string payload)
@@ -141,6 +148,7 @@ public sealed partial class WindowsSqliteEvidenceSink : IEvidenceSink
         checkpoint?.BeforeCommit(connection, transaction);
         database.VerifyFiles();
         transaction.Commit();
+        TrustCommittedDatabase();
     }
 
     private static void CommitEvidence(Action commit)
@@ -167,6 +175,7 @@ public sealed partial class WindowsSqliteEvidenceSink : IEvidenceSink
         checkpoint?.BeforeCommit(connection, transaction);
         database.VerifyFiles();
         transaction.Commit();
+        TrustCommittedDatabase();
     }
 
     private static void Insert(SqliteConnection connection, SqliteTransaction transaction, string table,
@@ -187,19 +196,34 @@ public sealed partial class WindowsSqliteEvidenceSink : IEvidenceSink
         command.ExecuteNonQuery();
     }
 
-    private SqliteConnection OpenDatabase(bool created)
+    private SqliteConnection OpenDatabase(bool created, TimeSpan? integrityTimeout = null)
     {
-        var connection = database.Open(created);
-        var validated = ValidateDatabase(connection, cache: validationCache);
-        RestrictedSqliteDatabase.ResetProgressBudget(validated);
-        return validated;
+        var connection = integrityTimeout is { } timeout ? database.Open(created, timeout) : database.Open(created);
+        var observedDigest = database.ComputeDatabaseDigest();
+        if (validatedDatabaseDigest is null
+            || !CryptographicOperations.FixedTimeEquals(validatedDatabaseDigest, observedDigest))
+        {
+            ValidateDatabase(connection, cache: validationCache, validationTime: timeProvider);
+            var validatedDigest = database.ComputeDatabaseDigest();
+            if (!CryptographicOperations.FixedTimeEquals(observedDigest, validatedDigest))
+            {
+                connection.Dispose();
+                throw new InvalidDataException("The evidence database changed while its persisted envelopes were being validated.");
+            }
+            validatedDatabaseDigest = validatedDigest;
+        }
+        RestrictedSqliteDatabase.ResetProgressBudget(connection);
+        return connection;
     }
+
+    private void TrustCommittedDatabase() => validatedDatabaseDigest = database.ComputeDatabaseDigest();
 
     internal FileStream AcquireReadLease(CancellationToken cancellationToken) => database.AcquireReadLease(cancellationToken);
 
     internal SqliteConnection OpenReadOnly(CancellationToken cancellationToken)
     {
-        var connection = ValidateDatabase(database.OpenReadOnly(cancellationToken));
+        var connection = ValidateDatabase(database.OpenReadOnly(cancellationToken),
+            cancellationToken: cancellationToken, validationTime: timeProvider);
         RestrictedSqliteDatabase.ResetProgressBudget(connection, cancellationToken);
         return connection;
     }
@@ -211,14 +235,18 @@ public sealed partial class WindowsSqliteEvidenceSink : IEvidenceSink
         auditPolicy is null ? retentionPolicy.AuditDue(committed) : auditPolicy.Due(committed);
 
     private static SqliteConnection ValidateDatabase(SqliteConnection connection, bool legacy = false,
-        EnvelopeValidationCache? cache = null)
+        EnvelopeValidationCache? cache = null, TimeProvider? validationTime = null,
+        CancellationToken cancellationToken = default)
     {
         try
         {
-            ValidateRows(connection, "application_log_events", cache, legacy);
-            ValidateRows(connection, "security_audit_events", cache);
-            ValidateRows(connection, "activity_spans", cache, legacy);
+            ValidateRows(connection, "application_log_events", cache, legacy, validationTime, cancellationToken);
+            ValidateRows(connection, "security_audit_events", cache, false, validationTime, cancellationToken);
+            ValidateRows(connection, "activity_spans", cache, legacy, validationTime, cancellationToken);
+            cancellationToken.ThrowIfCancellationRequested();
+            RestrictedSqliteDatabase.ResetProgressBudget(connection, validationTime, cancellationToken);
             ValidateAuditSequence(connection);
+            RestrictedSqliteDatabase.ResetProgressBudget(connection, validationTime, cancellationToken);
             using var foreignKeys = connection.CreateCommand();
             foreignKeys.CommandText = "PRAGMA foreign_key_check;";
             using var violations = foreignKeys.ExecuteReader();
@@ -226,7 +254,15 @@ public sealed partial class WindowsSqliteEvidenceSink : IEvidenceSink
             {
                 throw new InvalidDataException("The evidence store contains orphan activity links.");
             }
+            cancellationToken.ThrowIfCancellationRequested();
+            RestrictedSqliteDatabase.ResetProgressBudget(connection, cancellationToken);
             return connection;
+        }
+        catch (SqliteException exception) when (exception.SqliteErrorCode == SQLitePCL.raw.SQLITE_INTERRUPT)
+        {
+            connection.Dispose();
+            cancellationToken.ThrowIfCancellationRequested();
+            throw new IOException("Persisted evidence validation was interrupted before completion. Evidence remains unavailable; no corruption or successful validation is inferred.", exception);
         }
         catch (Exception exception) when (exception is JsonException or ArgumentException or SqliteException)
         {
@@ -241,8 +277,10 @@ public sealed partial class WindowsSqliteEvidenceSink : IEvidenceSink
     }
 
     private static void ValidateRows(SqliteConnection connection, string table, EnvelopeValidationCache? cache,
-        bool legacy = false)
+        bool legacy, TimeProvider? validationTime, CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+        RestrictedSqliteDatabase.ResetProgressBudget(connection, validationTime, cancellationToken);
         var activities = string.Equals(table, "activity_spans", StringComparison.Ordinal);
         using var command = connection.CreateCommand();
         command.CommandText = activities
@@ -251,9 +289,10 @@ public sealed partial class WindowsSqliteEvidenceSink : IEvidenceSink
         using var linkCommand = connection.CreateCommand();
         linkCommand.CommandText = "SELECT * FROM activity_links ORDER BY evidence_id,ordinal;";
         using var links = activities ? linkCommand.ExecuteReader() : null;
-        var hasLink = links?.Read() ?? false;
+        var hasLink = links is not null && ReadValidationRow(links, connection, validationTime, cancellationToken);
+        RestrictedSqliteDatabase.ResetProgressBudget(connection, validationTime, cancellationToken);
         using var rows = command.ExecuteReader();
-        while (rows.Read())
+        while (ReadValidationRow(rows, connection, validationTime, cancellationToken))
         {
             var payload = rows.GetString(rows.GetOrdinal("envelope"));
             var bytes = Encoding.UTF8.GetBytes(payload);
@@ -275,7 +314,7 @@ public sealed partial class WindowsSqliteEvidenceSink : IEvidenceSink
                 {
                     throw new InvalidDataException("Activity links require an owning activity table.");
                 }
-                ValidateLinks(rows, activity, links, ref hasLink);
+                ValidateLinks(rows, activity, links, ref hasLink, connection, validationTime, cancellationToken);
             }
 
             foreach (var pair in validated.Projection)
@@ -300,6 +339,15 @@ public sealed partial class WindowsSqliteEvidenceSink : IEvidenceSink
         {
             throw new InvalidDataException("The evidence store contains orphan activity links.");
         }
+    }
+
+    private static bool ReadValidationRow(SqliteDataReader reader, SqliteConnection connection,
+        TimeProvider? validationTime, CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        // Bound each SQLite advance independently of total history and bounded managed envelope decoding.
+        RestrictedSqliteDatabase.ResetProgressBudget(connection, validationTime, cancellationToken);
+        return reader.Read();
     }
 
     private static ValidatedProjection DecodeProjection(string table, string payload)
@@ -433,7 +481,8 @@ public sealed partial class WindowsSqliteEvidenceSink : IEvidenceSink
     }
 
     private static void ValidateLinks(SqliteDataReader row, CompletedActivityEnvelope envelope,
-        SqliteDataReader links, ref bool hasLink)
+        SqliteDataReader links, ref bool hasLink, SqliteConnection connection,
+        TimeProvider? validationTime, CancellationToken cancellationToken)
     {
         var index = 0;
         while (hasLink && string.Equals(links.GetString(links.GetOrdinal("evidence_id")),
@@ -459,7 +508,7 @@ public sealed partial class WindowsSqliteEvidenceSink : IEvidenceSink
                 }
             }
             index++;
-            hasLink = links.Read();
+            hasLink = ReadValidationRow(links, connection, validationTime, cancellationToken);
         }
         if (index != envelope.Links.Count)
         {
@@ -668,26 +717,12 @@ public sealed partial class WindowsSqliteEvidenceSink : IEvidenceSink
         {
             throw new InvalidDataException("An activity trace is required.");
         }
-        ValidateW3C(trace.TraceId, 32);
-        ValidateW3C(trace.SpanId, 16);
-        if (trace.ParentSpanId is not null)
-        {
-            ValidateW3C(trace.ParentSpanId, 16);
-        }
-        if (!Enum.IsDefined(trace.Kind) || trace.Flags is not (ActivityTraceFlags.None or ActivityTraceFlags.Recorded)
-            || trace.Source is not ("Kora.Core" or "Kora.Application" or "Kora.Windows" or "Kora.Desktop"))
-        {
-            throw new InvalidDataException("An activity source, kind or trace flags are invalid.");
-        }
-        Bounded(trace.Source, 128);
-        OptionalBounded(trace.SourceVersion, 128);
-        Bounded(trace.Name, 128);
+        trace.Validate();
     }
 
     private static void ValidateW3C(string value, int length)
     {
-        if (value is null || value.Length != length || value.All(character => character == '0')
-            || value.Any(character => character is not (>= '0' and <= '9' or >= 'a' and <= 'f')))
+        if (!TraceSnapshot.IsValidW3CId(value, length))
         {
             throw new InvalidDataException("A W3C correlation identifier is invalid.");
         }

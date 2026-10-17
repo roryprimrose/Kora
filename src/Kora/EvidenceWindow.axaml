@@ -11,7 +11,7 @@
     Background="{DynamicResource KoraWindowBackgroundBrush}"
     Foreground="{DynamicResource KoraForegroundBrush}"
     WindowStartupLocation="CenterScreen">
-  <Grid Margin="24" RowDefinitions="Auto,Auto,Auto,Auto,Auto,*,Auto" RowSpacing="12">
+  <Grid Margin="24" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,*,Auto" RowSpacing="12">
     <TextBlock Text="Evidence - SQLite; DailyLog; opt-in CombinedLog ordinary diagnostics" FontSize="20" FontWeight="SemiBold" />
     <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="10">
       <ComboBox ItemsSource="{Binding Sources}" SelectedItem="{Binding Source}" MinWidth="130"
@@ -24,20 +24,69 @@
       <Button x:Name="Next" Content="Next page" IsEnabled="{Binding CanNext}" />
       <Button x:Name="Trace" Content="Read selected trace" IsEnabled="{Binding CanReadTrace}" />
     </StackPanel>
-    <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="10">
-      <TextBox Text="{Binding SessionFilter}" PlaceholderText="Session GUID (correlation filter only)" Width="300"
+    <Grid Grid.Row="2" ColumnDefinitions="*,*,*,*" ColumnSpacing="10">
+      <TextBox Text="{Binding SessionFilter}" PlaceholderText="Session GUID (correlation filter only)"
                ContextMenu="{x:Null}" ContextFlyout="{x:Null}"
                AutomationProperties.Name="Session correlation filter" />
-      <TextBox Text="{Binding TaskFilter}" PlaceholderText="Task GUID" Width="300"
+      <TextBox Grid.Column="1" Text="{Binding TaskFilter}" PlaceholderText="Task GUID"
                ContextMenu="{x:Null}" ContextFlyout="{x:Null}"
                AutomationProperties.Name="Task correlation filter" />
-      <TextBox Text="{Binding TraceFilter}" PlaceholderText="W3C trace ID" Width="300"
+      <TextBox Grid.Column="2" Text="{Binding TraceFilter}" PlaceholderText="W3C trace ID"
                ContextMenu="{x:Null}" ContextFlyout="{x:Null}"
                AutomationProperties.Name="Trace correlation filter" />
-    </StackPanel>
+      <TextBox x:Name="SpanId" Grid.Column="3" Text="{Binding SpanFilter}" PlaceholderText="Exact W3C span ID (16 lowercase hex)"
+               ContextMenu="{x:Null}" ContextFlyout="{x:Null}"
+               AutomationProperties.Name="Exact W3C Span ID correlation filter; empty means Any"
+               ToolTip.Tip="Empty means Any. Otherwise exactly 16 lowercase hexadecimal characters, not all zero. No trimming or partial matching." />
+    </Grid>
     <Expander Grid.Row="3" Header="Advanced filters (optional)" IsExpanded="False"
               AutomationProperties.Name="Optional advanced evidence filters">
+      <ScrollViewer MaxHeight="280" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto"
+                    AutomationProperties.Name="Scrollable advanced evidence filters">
       <StackPanel Spacing="8">
+        <WrapPanel>
+          <TextBox x:Name="TraceSource" Text="{Binding TraceSourceFilter}" PlaceholderText="Exact trace source (max 128); empty = Any"
+                   Width="360" Margin="0,0,10,8" ContextMenu="{x:Null}" ContextFlyout="{x:Null}"
+                   AutomationProperties.Name="Exact trace source; empty means Any" />
+          <ComboBox x:Name="TraceVersionAvailability" ItemsSource="{Binding TraceVersionAvailabilities}" SelectedItem="{Binding TraceVersionAvailability, Mode=TwoWay}"
+                    MinWidth="150" Margin="0,0,10,8" AutomationProperties.Name="Trace source version: Any, Absent, Present or Exact" />
+          <TextBox x:Name="TraceSourceVersion" Text="{Binding TraceSourceVersionFilter}" PlaceholderText="Exact source version (max 128); Exact only"
+                   Width="360" Margin="0,0,10,8" ContextMenu="{x:Null}" ContextFlyout="{x:Null}"
+                   AutomationProperties.Name="Exact trace source version; required only with Exact; otherwise empty" />
+          <TextBox x:Name="ActivityName" Text="{Binding ActivityNameFilter}" PlaceholderText="Exact activity operation name (max 128); empty = Any"
+                   Width="360" Margin="0,0,10,8" ContextMenu="{x:Null}" ContextFlyout="{x:Null}"
+                   AutomationProperties.Name="Exact activity operation name; empty means Any" />
+          <ComboBox x:Name="ActivityKind" ItemsSource="{Binding ActivityKindChoices}" SelectedItem="{Binding ActivityKind, Mode=TwoWay}"
+                    MinWidth="150" Margin="0,0,10,8" AutomationProperties.Name="Exact ActivityKind; Any includes missing traces">
+            <ComboBox.ItemTemplate>
+              <DataTemplate><TextBlock x:DataType="local:EvidenceViewModel+ActivityKindChoice" Text="{Binding Label}" /></DataTemplate>
+            </ComboBox.ItemTemplate>
+          </ComboBox>
+          <ComboBox x:Name="TraceFlags" ItemsSource="{Binding TraceFlagsChoices}" SelectedItem="{Binding TraceFlags, Mode=TwoWay}"
+                    MinWidth="150" Margin="0,0,10,8" AutomationProperties.Name="Exact trace flags: Any, None or Recorded">
+            <ComboBox.ItemTemplate>
+              <DataTemplate><TextBlock x:DataType="local:EvidenceViewModel+TraceFlagsChoice" Text="{Binding Label}" /></DataTemplate>
+            </ComboBox.ItemTemplate>
+          </ComboBox>
+        </WrapPanel>
+        <TextBlock TextWrapping="Wrap"
+                   Text="Trace metadata is untrusted diagnostic correlation, never session selection, identity, intent, permission, approval or authority. Exact text is case-sensitive, without surrounding whitespace or controls. Version Absent requires a trace with no version; Present requires a version; Exact requires the version text. Other choices require empty version text. Missing traces match only Any. No baggage, tags or omitted content is searched. All filters compose with AND; edits read nothing and retire results. Clear advanced resets these filters to Any." />
+        <WrapPanel>
+          <TextBox x:Name="ParentSpanId" Text="{Binding ParentSpanFilter}" PlaceholderText="Exact W3C parent span ID (16 lowercase hex)"
+                   Width="360" Margin="0,0,10,8" ContextMenu="{x:Null}" ContextFlyout="{x:Null}"
+                   AutomationProperties.Name="Exact W3C Parent Span ID correlation filter; empty means Any"
+                   ToolTip.Tip="Empty means Any. Otherwise exactly 16 lowercase hexadecimal characters, not all zero. No trimming or partial matching." />
+          <ComboBox x:Name="OperationOutcome" ItemsSource="{Binding OutcomeChoices}" SelectedItem="{Binding Outcome, Mode=TwoWay}"
+                    MinWidth="150" Margin="0,0,10,8" AutomationProperties.Name="Exact host operation outcome; Any includes null outcomes">
+            <ComboBox.ItemTemplate>
+              <DataTemplate><TextBlock x:DataType="local:EvidenceViewModel+OutcomeChoice" Text="{Binding Label}" /></DataTemplate>
+            </ComboBox.ItemTemplate>
+          </ComboBox>
+          <ComboBox x:Name="ContentAvailability" ItemsSource="{Binding ContentAvailabilities}" SelectedItem="{Binding ContentAvailability, Mode=TwoWay}"
+                    MinWidth="150" Margin="0,0,10,8" AutomationProperties.Name="Evidence content availability: Any, Present or Omitted" />
+        </WrapPanel>
+        <TextBlock TextWrapping="Wrap"
+                   Text="Parent Span ID is exact correlation metadata, not trace navigation. Host operation outcome matches the retained Outcome, not audit outcome; null outcomes match only Any. Content availability: Any, Present (ContentOmitted false), Omitted (true). These are metadata predicates, not integrity proof or body restoration. Every filter composes with AND; edits read nothing and retire prior results. Clear advanced resets these three filters to Any." />
         <WrapPanel>
           <TextBox Text="{Binding RequestFilter}" PlaceholderText="Exact request GUID" Width="300" Margin="0,0,10,8"
                    ContextMenu="{x:Null}" ContextFlyout="{x:Null}" AutomationProperties.Name="Exact request ID filter" />
@@ -57,6 +106,18 @@
                    ContextMenu="{x:Null}" ContextFlyout="{x:Null}" AutomationProperties.Name="Exact audit action ID filter" />
         </WrapPanel>
         <WrapPanel>
+          <TextBox x:Name="EventName" Text="{Binding EventNameFilter}" PlaceholderText="Exact event name (max 128); empty = Any" Width="360" Margin="0,0,10,8"
+                   ContextMenu="{x:Null}" ContextFlyout="{x:Null}" AutomationProperties.Name="Exact diagnostic event name; empty means Any" />
+          <TextBox x:Name="ExceptionType" Text="{Binding ExceptionTypeFilter}" PlaceholderText="Exact exception type (max 256); empty = Any" Width="360" Margin="0,0,10,8"
+                   ContextMenu="{x:Null}" ContextFlyout="{x:Null}" AutomationProperties.Name="Exact diagnostic exception type; empty means Any" />
+          <TextBox x:Name="FromAuditSequence" Text="{Binding FromAuditSequenceFilter}" PlaceholderText="Audit sequence from inclusive; empty = Any" Width="360" Margin="0,0,10,8"
+                   ContextMenu="{x:Null}" ContextFlyout="{x:Null}" AutomationProperties.Name="Inclusive positive audit sequence start; empty means Any" />
+          <TextBox x:Name="UntilAuditSequence" Text="{Binding UntilAuditSequenceFilter}" PlaceholderText="Audit sequence until inclusive; empty = Any" Width="360" Margin="0,0,10,8"
+                   ContextMenu="{x:Null}" ContextFlyout="{x:Null}" AutomationProperties.Name="Inclusive positive audit sequence end; empty means Any" />
+        </WrapPanel>
+        <TextBlock TextWrapping="Wrap"
+                   Text="Event name and exception type are exact case-sensitive diagnostic metadata, not messages, stack traces or content. Empty means Any; otherwise bounded plain text without surrounding whitespace or controls. Audit sequence bounds are inclusive positive canonical 64-bit integers, ordered from to until; empty means Any. Null metadata never matches an exact or range predicate. Sequence is committed ordering metadata only, not authority, completeness, freshness, replay position or permission. All predicates compose with AND. Clear advanced resets these fields to Any without reading." />
+        <WrapPanel>
           <TextBox Text="{Binding FromFilter}" PlaceholderText="From inclusive: 2026-10-10T00:00:00Z" Width="380" Margin="0,0,10,8"
                    ContextMenu="{x:Null}" ContextFlyout="{x:Null}" AutomationProperties.Name="Inclusive evidence time range start" />
           <TextBox Text="{Binding UntilFilter}" PlaceholderText="Until inclusive: ISO time with Z or offset" Width="380" Margin="0,0,10,8"
@@ -71,12 +132,39 @@
                   AutomationProperties.Name="Unset all advanced evidence filters without reading" />
         </StackPanel>
         <TextBlock TextWrapping="Wrap"
-                   Text="Blank means unset; Clear advanced filters resets typed choices to Any. Event ID/category/action use empty-only unset; whitespace-only, noncanonical integers and surrounding text whitespace fail. Event IDs include zero and negative signed 32-bit values. Category/action compare exact case-sensitive text. Category is diagnostic category, activity source for Span/Link, or typed audit category for AuthorityAudit. Event ID/severity require All, Log, Audit, DailyLog or CombinedLog; action ID/audit outcome require All, Audit or AuthorityAudit. All remains SQLite-only; CombinedLog does not support action ID. Correlation is never identity, permission or audit authority. Both time edges are inclusive; ISO Z or explicit offsets normalize to UTC. SQLite/AuthorityAudit use commit time; DailyLog uses observation time; CombinedLog uses each source's own time, not an atomic snapshot. Changing any filter clears results; search again." />
+                   Text="Blank means unset; Clear advanced filters resets typed choices to Any and preserves the basic Trace ID and Span ID fields. Empty Span ID means Any; otherwise exactly 16 lowercase hexadecimal characters, not all zero, without trimming, repair or partial matching. All filters compose with AND. Event ID/category/action use empty-only unset; whitespace-only, noncanonical integers and surrounding text whitespace fail. Event IDs include zero and negative signed 32-bit values. Category/action compare exact case-sensitive text. Category is diagnostic category, activity source for Span/Link, or typed audit category for AuthorityAudit. Event ID/severity require All, Log, Audit, DailyLog or CombinedLog; action ID/audit outcome require All, Audit or AuthorityAudit. All remains SQLite-only; CombinedLog does not support action ID. Correlation is never identity, permission or audit authority. Both time edges are inclusive; ISO Z or explicit offsets normalize to UTC. SQLite/AuthorityAudit use commit time; DailyLog uses observation time; CombinedLog uses each source's own time, not an atomic snapshot. Changing any filter clears results; search again." />
       </StackPanel>
+      </ScrollViewer>
     </Expander>
     <controls:NamedTextBlock Grid.Row="4" Text="{Binding Status}" TextWrapping="Wrap"
                AutomationProperties.Name="Evidence status and storage limitations" />
-    <Grid Grid.Row="5" ColumnDefinitions="320,*" ColumnSpacing="14">
+    <StackPanel Grid.Row="5" Spacing="6">
+      <TextBlock TextWrapping="Wrap"
+                 Text="Literal Find in this exact serialized page only: case-sensitive, unchanged spaces, nonoverlapping, no wrap or occurrence count. No retained-source search. Ctrl+F focuses query; Enter finds first; F3 / Shift+F3 moves next / previous. Query is volatile; no copy/paste." />
+      <StackPanel Orientation="Horizontal" Spacing="8">
+        <TextBox x:Name="LiteralQuery" Text="{Binding FindQuery}" Width="380" AcceptsReturn="False"
+                 IsEnabled="{Binding CanFind}"
+                 PlaceholderText="{Binding FindQueryHint}"
+                 ContextMenu="{x:Null}" ContextFlyout="{x:Null}"
+                 AutomationProperties.Name="Case-sensitive literal Find in this exact serialized Evidence page only" />
+        <Button x:Name="FindFirst" Content="Find first" IsEnabled="{Binding CanFind}"
+                AutomationProperties.Name="Find first literal in this Evidence page; no wrap" />
+        <Button x:Name="FindNext" Content="Find next" IsEnabled="{Binding CanMoveFind}"
+                AutomationProperties.Name="Find next literal in this Evidence page; no wrap" />
+        <Button x:Name="FindPrevious" Content="Find previous" IsEnabled="{Binding CanMoveFind}"
+                AutomationProperties.Name="Find previous literal in this Evidence page; no wrap" />
+        <Button x:Name="ClearLiteral" Content="Clear literal Find"
+                AutomationProperties.Name="Clear volatile Evidence Find query and match without reading" />
+      </StackPanel>
+      <controls:NamedTextBlock x:Name="FindOutcome" Text="{Binding FindStatus}" TextWrapping="Wrap"
+                              AutomationProperties.Name="Evidence literal Find outcome and exact UTF-16 location" />
+      <ScrollViewer MaxHeight="80" IsVisible="{Binding HasFindSelection}">
+        <controls:NamedTextBlock x:Name="LiteralMatch" Text="{Binding FindMatchText}" Focusable="True"
+                                IsVisible="{Binding HasFindSelection}" FontFamily="Consolas" TextWrapping="Wrap"
+                                AutomationProperties.Name="Exact inert Evidence literal selection in current serialized page" />
+      </ScrollViewer>
+    </StackPanel>
+    <Grid Grid.Row="6" ColumnDefinitions="320,*" ColumnSpacing="14">
       <Grid RowDefinitions="*,Auto,*">
         <controls:ScrollableListBox x:Name="Records" ItemsSource="{Binding Records}" AutomationProperties.Name="Cited evidence records">
           <ListBox.ItemTemplate>
@@ -98,11 +186,11 @@
         </controls:ScrollableListBox>
       </Grid>
       <ScrollViewer Grid.Column="1" HorizontalScrollBarVisibility="Disabled">
-        <controls:NamedTextBlock Text="{Binding ResultText}" TextWrapping="Wrap" FontFamily="Consolas"
+        <controls:NamedTextBlock x:Name="EvidenceBody" Text="{Binding ResultText}" TextWrapping="Wrap" FontFamily="Consolas"
                    AutomationProperties.Name="Bounded structured evidence result, read only, no copy or export" />
       </ScrollViewer>
     </Grid>
-    <StackPanel Grid.Row="6" Orientation="Horizontal" Spacing="10">
+    <StackPanel Grid.Row="7" Orientation="Horizontal" Spacing="10">
       <Button x:Name="OpenSegment" Content="Open selected segment" IsEnabled="{Binding CanQuery}" />
       <Button x:Name="CloseView" Content="Close" />
       <TextBlock Text="No copy, export, model, browser, deletion or execution." VerticalAlignment="Center" />

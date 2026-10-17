@@ -46,6 +46,18 @@ Find and exact-source viewing stay passive. Reopening the same unchanged record 
 
 These conversation Details grant **no clipboard/export disclosure authority**. Copy exact source, selection, Ctrl+C and automatic copy remain blocked, even after disclosure confirmation; other admitted viewer origins retain their existing policy. There is no generated content, provider call, model tool or network operation ([copy policy](../src/Kora.Application/Presentation/DetailViewerState.cs)).
 
+### Find a literal in open Details
+
+Type a query in **Literal Find** (`Ctrl+F`), then choose **Find first** or press Enter. **Next** (`F3`) starts after the match end; **Previous** (`Shift+F3`) finds the last match ending at or before its start. Find is case-sensitive with unchanged spaces, nonoverlapping and **does not wrap**. At a direction boundary the match hides; you can reverse direction using the retained cursor. A no-match result is distinct from an unavailable or rejected query.
+
+Queries must wholly fit 256 UTF-16 characters / 512 UTF-8 bytes: nonempty well-formed one-line text without unsafe controls. Nothing is normalized or truncated. Only one inert match with an exact end-exclusive UTF-16 location is focused; the complete displayed text and origin stay unchanged.
+
+Find uses only the current frozen in-memory reader projection, never another source read. **Exact source** switches to the admitted source and resets Find. In retained conversation Details, **Find separate typed HOST observation** searches only the separate already-displayed HOST chrome, not the original USER body. Switching targets resets Find.
+
+**Cancel Find** releases the match/cursor and retains the query; **Clear literal Find** also releases the query. Both return focus to the query. Query edits reset navigation. Escape closes Details; private/source loss, replacement or closure clears text and prevents old controls from publishing a match. The match follows the reader text scale and has native accessibility names/status.
+
+There is no Find clipboard/paste/export, logging, persistence, provider or network operation, broader Detail opening authority or installed/accessibility/hardware qualification. See the [admitted-text contract](../Design/Information_Display.md#native-admitted-text-literal-find).
+
 ### New request with a fresh session
 
 Open **Tray > New request (fresh session only)** or **Sessions > New request (fresh target)**. Reopening activates the same window and preserves its isolated memory draft. Relatedness inference is unavailable: this entry never continues the selected, named, recent or Done session and never changes question/approval/voice focus.
@@ -71,6 +83,41 @@ Dirty means the current body differs exactly from its last confirmed saved memor
 
 Select an exact session in **Sessions**, then use **Search this conversation** in its conversation pane or **Compact selected-session conversation**. Both views share one private query, result page, continuation and cancellation state; edits and actions in either are reflected in the other ([shared search state](../src/Kora/SessionsViewModel.ConversationSearch.cs), [compact controls](../src/Kora/CompactSessionWindow.axaml)). Search matches whole lexical words in original retained **USER** messages or separate typed **HOST** outcome/reason/task-state fields.
 It never searches other sessions, saved draft bodies, Question/Answer receipts, logs, attachments, memories or accounts ([admitted reader](../src/Kora.Application/Hosting/SessionWorkspaceService.ConversationSearch.cs)).
+
+Choose **All**, **USER** or **HOST** for the lexical fields, then optionally select
+an exact **Terminal outcome**, **Terminal reason** and **Expected terminal task
+state**. Each terminal selector defaults to **Any**. Selected predicates all AND
+with the query and role, matching only terminal HOST metadata, never status-like
+words in USER text. USER-only with any terminal predicate is valid and yields
+zero without changing your selections; incompatible defined combinations also
+truthfully yield zero. Editing any field immediately clears results, selected
+navigation and Next in both views and fences late callbacks without reading.
+Explicit Search is required. Clear resets the role to All and terminal fields
+to Any; no query or filter is saved, logged or sent to a model.
+
+Optionally narrow further with inclusive **Minimum message sequence** and
+**Maximum message sequence** (decimal 1–100), and **Submitted from UTC** /
+**Submitted through UTC** (`yyyy-MM-ddTHH:mm:ss.fffffff+00:00`, for example
+`2026-10-16T00:00:00.0000000+00:00`). Empty fields mean Any. Minimum must not
+exceed maximum; equal endpoints include that original message. Use exact UTC
+format, not `Z`, local offsets or relative dates. Invalid ranges explicitly
+fail before reading, never silently broaden search. All ranges AND with the
+query, role and terminal predicates; Next binds the original ranges. Editing
+revokes results, selected Details and late callbacks without reading. Clear or
+private/source loss empties all four fields. These are passive original-message
+metadata, not generated output, session authority or access to hidden content.
+
+Optional **Exact request ID** and **Exact task ID** further narrow this same
+selected session, AND with every other predicate. Enter complete canonical
+lowercase nonempty D-format GUIDs, for example
+`aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa`, or leave empty for Any. Uppercase,
+whitespace, braces, partial IDs and the all-zero GUID explicitly fail before
+reading; input is never repaired. Next binds both IDs. Editing retires rows,
+selection/Details, continuation and late callbacks without reading; Clear or
+private/source loss empties both fields. These are passive correlation metadata
+only: they cannot retarget a session/task or establish identity, intent,
+ownership, permission, approval or execution authority. Composer and saved
+draft remain unchanged.
 
 Queries use 1–256 UTF-16 characters / 512 UTF-8 bytes and 1–32 distinct terms of at most 64 characters. NFC/invariant case and whole-word OR apply; punctuation separates words rather than becoming regex/wildcard/instruction syntax. Blank or invalid queries explicitly fail, never show every message. Typing alone does not search or save the query.
 
@@ -140,6 +187,42 @@ defer uses the [same broker as commands](commands.md#trusted-local-events).
 No question target, voice output, task/approval deadline, grant or dispatch
 changes. Maintenance Check/Open remains in its native window.
 
+**Local event category** offers All, Work, Failure, Attention and Maintenance.
+**Local event reason** offers All and each exact delivery reason shown by the
+broker. **Local event source** offers All, LocalVersionQueue,
+LocalVersionQuestion and CachedMaintenance. **Local event type** offers All,
+Queued, Current, Completed, Failed, Blocked, Unknown, UserAttention and
+MaintenanceAvailable. **Local event request origin** offers Any, LocalUi,
+ActivatedVoice and HostSystem, matching the original request origin exactly.
+**Local event queue eligibility reason** offers Any, **No queue reason / not
+applicable**, and each exact queue eligibility reason. Questions and maintenance
+have no queue reason; this absence is not queue success, eligibility or authority.
+**Local event retained queue profile** offers Any, explicit **Absent retained
+queue profile**, or an exact catalogue read (`application.get_version`,
+`capabilities.list`, `readiness.get`, `runtime.list`, `capabilities.get`, or
+`runtime.get_status`). **Local event retained exact capability target** offers
+Any or an exact catalogue descriptor ID. An exact target matches only retained
+target metadata, never an inferred runtime target. Absent means a complete
+validated event has no profile, not missing/truncated/quiet-hidden output.
+These historical choices never select a session, enqueue or dispatch a read,
+or establish current readiness, ownership or permission.
+All filters combine with AND, including exact IDs and revision/generation/
+observed/expiry ranges, over only the
+already-loaded bounded rows; impossible Source/Type pairs show zero without
+changing either choice. Use Tab/Shift+Tab to move between filters and arrow
+keys to choose an exact value.
+They do not read more sources or change quiet mode. **Clear local event
+filters** restores All/Any and clears optional values for every filter. Each edit or clear removes your event selection
+and event review detail, even if that event still matches. Select a visible
+exact event again before Review/Dismiss/Defer. Refresh and source/privacy
+changes also retire selection; no replacement is selected automatically.
+
+**No matching loaded events** means only that these filters match no loaded
+row. Broker omissions and routine quiet hidden/suppressed counts remain
+separate; this does not mean there are no other events or pending questions.
+Filters are native, content-free and memory-only: no new command, speech,
+model/tool route, saved preference or meaningful activity renewal.
+
 **Quiet routine notices for this run** turns off first **Work and Maintenance** notice deliveries and hides their notice rows together. **Turn routine quiet off** or **Reset routine quiet to Off** clears it; Kora also starts Off after restart. Status shows the choice, all omitted rows, routine rows hidden and sources suppressed without presentation. Nothing is saved as a quiet preference.
 
 Failures, Attention, required questions/approvals, authoritative work/status, citations and recovery stay available. Quiet never speaks or changes focus, capture, grants, dispatch or deadlines.
@@ -179,22 +262,42 @@ Open **Tray > Sessions > All work / attention overview**, then **Refresh overvie
 
 - Each click scans at most ten session identities. The complete page stays within 64 KiB; each independent session source retains the existing fifty task/question bounds and recent queue receipt limit. Scanned/nonmatching/unavailable groups, omitted records and end/byte-limit markers are visible. Next works after zero matches and never skips a byte-deferred session.
 - **All / Active / Done** is the stored session lifecycle, not a task state. **Observed needs answer** means pending-question metadata at that snapshot; unavailable sources remain visible. Question IDs are not freshly admitted reply targets.
+- Optional **NameSubstring / ExactId** and **Search metadata** (or Enter in the field) narrow the bounded scan using the same [session-list query rules](#search-the-session-list). Names are literal case-sensitive saved-name substrings; exact GUIDs require nonempty canonical lowercase D format. Both modes scan at most ten session identities per click here, not the Sessions direct-ID lookup. Empty query browses; invalid nonempty text is rejected without fallback. Typing performs no read. Search and Refresh start fresh with the current query, All/Active/Done and Needs answer filters; Next continues that exact admitted query/filter/source epoch, even after zero matches.
+- **Clear query** (or Escape in its field) discards volatile query/results/selection/continuation without reading and keeps keyboard focus in the field. A second Escape outside the field closes the window. Query/mode/filter edits revoke pending reads and stale navigation; names are never routing or permission authority. Query text is not saved, logged or sent to a model.
+- Expand **Optional inclusive observed work metadata ranges** to set minimum/maximum authority revision, queue revision, pending count/capacity, execution slots, observed current fixed reads, or omitted queue-receipt/task/pending-question counts. Empty means Any; endpoints are inclusive and minimum must not exceed maximum. Enter ASCII decimal Int64 only, without signs, whitespace or separators. Authority revision, capacity and slots must be positive; queue revision and counts may be zero. Invalid bounds show recovery and disable Search/Refresh/Next without reading or falling back to Any. **Clear work metadata ranges** clears just these bounds and results without reading.
+- Ranges AND-compose with lifecycle, Browse/name/exact-ID, Needs answer, **Observation availability** and positive **Observed content** choices. Only validated **Observed** work matches an active range; Source changed, Read unavailable and Output bound never do. Matching an omission count supplies no retained records and proves no absence, completeness, success or authority. Zero is just the observed scalar, not all-clear. Edits retire rows/selection/continuation and late callbacks, remain available during reads, and clear on close/private closure.
 - Select a group to read exact IDs/generations, source revisions/UTC time, fixed-profile slots/capacity, observed current fixed reads, queue/task states, scheduler reasons and captured deadlines. Full private bodies, history, attachments, memory and diagnostic text are not collected.
 - Pages are **not globally atomic**. No global counts, all-clear, ETA, unread tracking or actual provider/resource contention is claimed. Refresh for mutations/new IDs behind the cursor.
 - **Open exact session with fresh passive read** navigates the immutable ID through fresh private workspace reads. It never resumes, dispatches, enqueues, reprioritizes, cancels, renews activity, consumes grants or retargets voice/questions. Inspect/cancel authority is not renewed; reply only in the original Questions window.
-- Storage has a ten-second total timeout. Privacy, ownership, retained-source, lifecycle/disposition or retention/hold changes reject or clear observations; stale work is never relabelled current. Close clears rows, filters, IDs and continuation and suppresses late callbacks. Browsing causes no cleanup/background heartbeat.
+- Storage has a ten-second total timeout. Privacy, ownership, retained-source, lifecycle/disposition or retention/hold changes reject or clear observations; stale work is never relabelled current. Close clears query text/mode, rows, filters, IDs and continuation and suppresses late callbacks. Browsing causes no cleanup/background heartbeat.
 
 This is a passive bounded overview, not a conversation/composer, general provider manager, Stop all, permission-tier feature or installed-native acceptance proof.
 
 ## Search the session list
 
-In **Sessions**, choose **NameSubstring** or **ExactId**, enter the metadata query, and use **Search session metadata** (or Enter). This searches the persisted list across bounded pages, not just the already loaded rows. It is separate from **Search exact history** and diagnostic Evidence.
+In **Sessions**, choose **Browse**, **NameSubstring**, **ExactId** or **ExactName**, enter the metadata query, and use **Search session metadata** (or Enter). This searches the persisted list across bounded pages, not just the already loaded rows. It is separate from **Search exact history** and diagnostic Evidence.
 
 - **NameSubstring** is literal, case-sensitive ordinal containment. `%`, `_` and punctuation are ordinary characters, not wildcards or SQL. Use NFC single-line Unicode, no control/format characters or surrounding whitespace, at most 120 scalars / 480 UTF-8 bytes. Invalid input is rejected without trimming, normalization or truncation.
 - **ExactId** requires the complete nonempty immutable ID in canonical lowercase `00000000-0000-0000-0000-000000000001` format. It looks up that one session, including unnamed metadata. Unknown/Removed IDs are unavailable, not a fallback list.
+- **ExactName** requires the complete canonical name with the same validation as NameSubstring, but matches only whole-name ordinal case-sensitive equality. It never trims, folds case or normalizes input. Duplicate names may return different session IDs; a GUID-shaped name is still only a name, never an ID or action target.
+- **Browse** requires exactly empty text and an explicit Search; it never selects implicitly. **Any / Named / Unnamed** filters observed name availability in every mode. Either name mode + Unnamed matches no rows; unavailable or malformed metadata fails closed, not as a fallback inventory.
 - **All / Active / Done** applies to the whole metadata search. Outside search it continues filtering only the ordinary current page.
+- Optional **Generation minimum/maximum** and **Name revision minimum/maximum**
+  are inclusive and must all match alongside the query and lifecycle. Empty
+  means Any. Enter positive decimal integers up to `9223372036854775807`;
+  signs, whitespace, separators, zero, overflow or reversed ranges are invalid.
+  Generation can match named or unnamed rows. Either name-revision bound
+  excludes unnamed rows: unnamed is never revision zero. These native
+  session-list controls do not extend All Work or the saved-draft catalogue.
 - **Next metadata search** continues even after zero matches. Each click scans at most 50 rows plus one bounded lookahead, displays at most 25 matches and retains complete records within 64 KiB. Counts and output/scan limits are explicit; deferred matches are not silently skipped.
 - **Cancel metadata search** suppresses late results. **Clear metadata search** (or Escape in its field) discards the volatile query/results. **Refresh** returns to ordinary list paging. Query, mode, state, privacy, source or host changes require a fresh Search.
+
+Enter in any query/range field searches; Escape or Clear erases all bounds.
+Editing performs no read and retires prior search results/selection. Numeric
+predicates are bound into Next; changed bounds require a fresh Search.
+Names, generations and revisions are volatile passive metadata, not session
+selection, ownership, permission, freshness, historical completeness or action
+authority.
 
 Names can duplicate or change. Every result still shows its actual name, immutable ID, Active/Done state, generation and metadata revision; unnamed metadata stays visibly unnamed. Actions use exact observed IDs/revisions, never names.
 Unchanged visible selection retains selected work, original question identities, history and memory drafts; a disappeared or changed subject clears stale controls and details.
@@ -320,15 +423,82 @@ the response window visible; idle presence still uses its own timeout.
 
 Open **Tray > Retained session attachments**, then choose **Search / refresh metadata**. Opening alone reads nothing; listing never opens a picker, original file path or attachment body. It shows only already retained private Session slots.
 
-Default **Browse** preserves the removal filter. For one session, choose **ExactId**, enter its nonempty canonical lowercase D-format UUID, then explicitly Search or press Enter in the query field. Uppercase, empty, noncanonical, control-containing or oversized input is invalid, never Browse. No session names, filenames, original paths, bodies, excerpts or digests are searched.
+Default **Browse** preserves the removal filter. For one session, choose **ExactId**, enter its nonempty canonical lowercase D-format UUID, then explicitly Search or press Enter in the query field. Uppercase, empty, noncanonical, control-containing or oversized input is invalid, never Browse.
+
+Optionally enter a **literal metadata query** in the separate field, then Search or press Enter there. It matches a case-sensitive literal substring of already displayed Session/source/revision/item IDs, digest or media type, independently of ExactId and lifecycle. For example, `text/` matches retained text types; `TEXT/`, spaces and `*` are not normalized or wildcards. Names, paths, profile IDs, bodies, excerpts and OCR are never searched. Removed slots never match a literal, even with Include removed slots; clear the literal to browse their ordinary provenance. Held metadata can match but cannot open a body.
+
+Optionally enter **Exact local-file source GUID**, **revision GUID**, or **item
+GUID**, then Search or press Enter in that field. Empty means Any; otherwise
+use a complete nonempty canonical lowercase D-format GUID. No trimming, case
+conversion, zero GUID, alias or fallback is accepted. These independent exact
+predicates AND-compose with every other attachment filter and match only
+Confirmed retained copies, never Held or unavailable/removed tombstones or their
+former IDs. They are retained correlation metadata only: not source consent,
+current file identity, path disclosure, body integrity, file-read authority or
+proof a copy exists. Typing reads nothing and clears rows/details/selection/
+continuation and late work. Clear query, Cancel, private/source revocation and
+close erase these volatile fields. Exact inspection remains a separate action
+with fresh private admission and full stored-byte/hash/provenance validation.
+
+Optionally enter **Exact SHA-256**, then Search or press Enter in that field.
+Use exactly 64 lowercase hexadecimal characters, not all zero; empty means Any.
+Spaces, uppercase, prefixes and wildcards are invalid, never normalized.
+It combines with every other filter and matches only Confirmed retained copies,
+not Held or Unavailable. It does not read bytes or reverify body integrity.
+Removed provenance never displays its prior digest. Typing performs no read and
+immediately clears results, details, selection/navigation and continuation.
+Clear query, private/source revocation and close erase the volatile digest.
+Signed continuations bind a keyed fingerprint, never the query digest text;
+changed predicates or stale authority require a fresh explicit Search.
+
+Optionally enter an **exact observation-source GUID**, **exact device-profile
+GUID**, or inclusive **Captured From / Until UTC**, then Search or press Enter
+in the field. GUIDs use complete nonempty lowercase D format. Times use exactly
+`yyyy-MM-ddTHH:mm:ss.fffffff+00:00` (for example,
+`2026-10-16T00:00:00.0000000+00:00`), not `Z` or a local offset. Empty means Any;
+either endpoint may be omitted, equal endpoints are included, and From must be
+<= Until. Invalid input is not trimmed, converted or repaired.
+These predicates combine with every other filter and match only Confirmed
+retained copies. Held and removed slots never match; removed rows/details do
+not disclose prior source/profile/captured time. The fields are correlation
+metadata only, never source consent, profile ownership, session/file-read
+authority or proof of current availability. Editing reads nothing and retires
+results/details/navigation/continuation/pending work. Clear query, revocation
+and close erase all four fields; they are never saved, logged or sent out.
+
+Optionally enter inclusive **minimum / maximum session generation**, **captured
+generation** and **storage revision**, then Search or press Enter. Empty means
+Any; each endpoint may be omitted. Use positive invariant decimal digits from
+1 through 9223372036854775807 with minimum <= maximum. Equal endpoints are
+included; signs, whitespace, separators, zero and overflow are invalid, not
+repaired. These ranges combine with every other filter and match only Confirmed
+retained copies, never Held or removed slots. Removed rows/details do not expose
+former versions. Versions are retained correlation metadata only, never source
+consent, session/file-read authority, currentness or proof a copy still exists.
+Editing performs no read and retires results/details/navigation/continuation/
+pending work. Clear query, revocation and close erase all six volatile fields.
+Signed continuations bind every endpoint; changing one requires fresh Search.
+
+The literal is limited to 256 UTF-16 units / 512 UTF-8 bytes of valid single-line Unicode without control/format characters. Empty disables literal filtering; invalid input disables Search with recovery guidance and never falls back. Query text is memory-only: not saved, audited, logged, exported or sent to a model/network. No matching retained metadata at the end is reported truthfully; an empty page with Next is not a whole-catalogue no-match.
 
 Choose **Stored session lifecycle: All (default), Active, Done or Removed** independently of Browse/ExactId and **Include removed slots**. All preserves existing behavior. Removed sessions can have only removed-slot provenance: enable Include removed slots to see it. An Active or Done session can also have a removed attachment slot; removing a slot does not remove its session. See the [canonical lifecycle contract and tests](../Design/File_And_Folder_Ingestion.md#delivered-retained-attachment-metadata-catalogue---2026-10-11).
 
-Typing performs no I/O. Mode, ID, lifecycle filter and **Include removed slots** edits retire results, selection and continuation and cancel pending work; use Search again. **Clear query (Browse)** clears the volatile ID without reading or changing either filter. Search never auto-selects or opens a match. Escape closes and clears private state. Source/privacy/ownership/lifecycle revocation clears the query too.
+Choose **Exact retained media type: All (default), text/plain or text/markdown** independently of the other filters, then Search. Only the already validated retained type is matched exactly; no filename, extension or path inference occurs. Removed tombstones match only All, even with Include removed slots. Held metadata can match but cannot open a body. Undefined, differently cased, spaced or parameterized types are invalid, never All. No matching retained metadata is reported truthfully at the end of the bounded observation, not as a global total.
+
+Choose **Exact copy status: Any (default), Confirmed, Held or Unavailable** and
+optionally enter inclusive **minimum / maximum retained stored bytes**. Empty
+means Any; nonempty bounds accept only invariant decimal digits, from 0 through
+262144, with minimum <= maximum. Signs, whitespace, separators and overflow are
+invalid, never repaired. All filters combine by AND. Held metadata may match but
+cannot open a body. Unavailable tombstones can match exact Unavailable with
+Include removed slots and a matching lifecycle, but never match byte bounds,
+even 0..0. Their size is unavailable, not an original zero-byte-file claim.
+
+Typing performs no I/O. Mode, ID, literal, lifecycle, media-type/copy-status/byte/digest/correlation/version-range filters and **Include removed slots** edits retire results, selection, navigation and continuation and cancel pending work; use Search again (or Enter in a text field). **Clear query (Browse)** clears volatile ID, literal, digest, correlation and version-range fields without reading or changing the remaining filters. Search never auto-selects or opens a match. Escape closes and clears private state. Source/privacy/ownership/control revocation also clears the copy-status/byte fields.
 
 - Each page has at most **16 rows / 64 KiB** and scans at most **64 slots**. **Next bounded page** may continue after zero matches; ExactId does not jump over unvalidated slots. **Include removed slots** shows content-free removal provenance; historical removed slots do not count toward the sixteen-live-file cap.
 - Typed authority is validated in bounded segments before rows are shown. **Authority validation pending** pages contain no attachments; use Next to continue. Reads have a five-second budget. Continuations expire after two minutes; any committed authority, storage/profile or query change requires Refresh.
-- Rows show exact Session ID, current Active/Done/Removed lifecycle, generations, storage revision, source/revision/item/digest headers, byte count/type/captured UTC and copy certification. No filename, path, excerpt or original source metadata appears.
+- Rows show exact Session ID, current Active/Done/Removed lifecycle, retained generations, storage revision, source/revision/item/digest headers, byte count/type/captured UTC and copy certification. Unavailable rows/details suppress former generations/revision, digest, source/profile and captured time. No filename, path, excerpt or original source metadata appears.
 - **Confirmed** is stored copy certification, not a body-integrity check or current file access. **Held** means replacement disclosure is not certified. **Unavailable** means the slot is removed. Held/removed slots cannot open a body here; use existing exact-session copy recovery where allowed.
 
 Select a confirmed row and choose **Open exact session/attachment**. Kora re-resolves that exact current Session/generation/storage/reference through existing private inspection, then validates actual stored UTF-8 bytes, digest and provenance. A stale/replaced/removed/held selection refuses; it never silently opens a newer file.
@@ -347,6 +517,19 @@ committed typed interaction-store audits, separately from diagnostic **Audit**,
 filter/page/citation display, without copying, export, execution or approval
 controls. [Privacy, limits and source distinctions](privacy-safety-and-logs.md#committed-authority-audit-inspection)
 describe its snapshot and recovery behavior.
+
+After an explicit successful complete Evidence Search/Next/trace/segment read,
+use **Find first**, **Find next**, **Find previous**, or **Clear literal Find**.
+This native Find scans only the current serialized page in memory, not retained
+sources or bodies. Ctrl+F focuses its query; Enter finds first; F3/Shift+F3 moves
+next/previous. One inert exact literal is focused with its UTF-16 location;
+case and spaces are exact, matches do not overlap or wrap, and page-local
+no-match is not an all-clear. The full page and selected citation stay unchanged.
+The volatile query has no copy/paste, export, speech, model or persistence route.
+All reads, filter/source edits, replacement, failures/cancellation and private
+closure clear it. Failed/unavailable/incomplete pages cannot enable Find.
+See [query bounds and retirement](privacy-safety-and-logs.md#logs); installed
+accessibility and general Ask Evidence/export remain unqualified/unavailable.
 
 Expand **Advanced filters (optional)** for exact request/invocation/approval/
 audit-correlation IDs, inclusive ISO times with `Z` or explicit offset,
@@ -579,6 +762,20 @@ does not restore text, names, authority, approvals or work.
 
 **Search exact history** uses the same exact-ID field. Enter lexical words in the volatile query field and press Enter or the Search button. Results use the existing receipt list; select a match and use **Open immutable receipt details** for fresh resolution. **Next search snapshot page** continues even after an empty page; status reports scanned receipts, gaps and oversized matching omissions. Search defaults to 25 results, scans at most 200 receipts/call and bounds complete output to 64 KiB ([workflow](../src/Kora/SessionsViewModel.Search.cs)).
 
+Optionally narrow receipt **kind**, **task state**, **decision**, **question
+status** and **answer channel** using the labelled choices. Each starts at
+**Any**; every selected exact value must match along with at least one lexical
+word. Missing metadata does not match an exact value, and contradictory choices
+can yield no matches. These historical values do not select a question/task,
+identify a user, confer approval or answer/replay/mutate anything. Editing a
+choice performs no read and clears stale receipts/details/Next; explicitly
+Search again. Clear and query-field Escape also restore all choices to Any.
+These controls do not change conversation search or typed/voice command syntax.
+
+Use the labelled minimum/maximum **receipt sequence**, **receipt generation**, **source revision** and **audit sequence** fields for inclusive bounds. Empty means Any; source revision accepts zero, while sequence, generation and audit sequence must be positive ([range policy](../src/Kora.Core/Storage/SessionHistoryRangeFilter.cs)).
+Enter decimal digits only, with no whitespace, signs or separators; overflow, invalid or inverted bounds are rejected. Every range and typed choice must match alongside a lexical word; absent audit sequence cannot match a constrained audit range. No timestamp is available or fabricated ([receipt policy](../src/Kora.Core/Storage/SessionHistoryEvent.cs)).
+Editing a bound clears old rows, selected detail/actions and Next without reading; explicitly Search or press Enter again. Clear and Escape in any query/range field reset all history bounds and choices ([native workflow](../src/Kora/SessionsViewModel.Search.cs), [controls](../src/Kora/SessionsWindow.axaml.cs)).
+
 Escape in the query field clears query/results without closing the window. **Clear query and results** returns focus to that field; **Cancel search** suppresses pending results. Editing query/subject, closing, privacy/ownership loss or retention retirement invalidates late content. Search does not disable the focused field, replace pending-question targets or renew activity ([native controls](../src/Kora/SessionsWindow.axaml.cs), [deterministic recovery tests](../tests/Kora.Windows.IntegrationTests/SessionsHistorySearchTests.cs), [late-result tests](../tests/Kora.Windows.IntegrationTests/SessionsViewModelTests.Search.cs)). These headless checks are not physical keyboard, installed screen-reader or DPI qualification.
 
 ### Logical session disposition
@@ -659,7 +856,17 @@ Close clears the window's text, unsaved choices and review. Only **Save draft** 
 
 The original five-minute expiry keeps running while hidden. Reopening does not extend expiry or inactivity, and never creates another intent/question, approval, grant or dispatch. Privacy/ownership loss, changed authority, expiry, cancellation, completed/Unknown work, storage/audit failure and host disposal withdraw recovery and end that wait.
 
-After restart or completion, this route reports **Unavailable**. Inspect retained read-only status and start a fresh review; Kora never replays the old task or resumes Done. Pending/history metadata cannot turn another saved question into active controls. General question recovery, approvals, provider handoff, full composer and prefix-free voice remain separate. Headless checks are not installed screen-reader/DPI acceptance.
+The live foreground card also offers **Answer by voice** and the separately
+chosen **Hear question, then answer by voice**. These require existing voice
+consent/readiness and do not enable listening. The accessible status/countdown
+and **Cancel reply** remain visible during the one-question turn. The microphone
+stays closed during playback; 15 seconds are allowed to begin speech afterwards.
+Timeout/Cancel reply leave native answer controls available. Closing, hiding,
+editing, duplicate presentation or changing the admitted target retires capture;
+returning never resumes it. Only **Show local version** or its schema option
+number answers this card. See [bounded voice reply behavior](voice-and-audio.md#answer-one-native-question-by-voice).
+
+After restart or completion, this route reports **Unavailable**. Inspect retained read-only status and start a fresh review; Kora never replays the old task or resumes Done. Pending/history metadata cannot turn another saved question into active controls. General question recovery, approvals, provider handoff and full composer remain separate. Headless checks are not installed screen-reader/DPI acceptance.
 
 Choose **Documentation**, select a guide page, then **Open details** to read
 that exact page in a separate native window. Its host-owned title, provenance,
@@ -702,11 +909,13 @@ that surface. Kora remains available in the background until you choose
 
 Installed and developer builds share a SID-scoped ownership domain. Ownership
 is checked before application services, migration, tray or audio initialization.
-A validated same-build launch activates the existing owner and forwards no task
+A Release launch activates the existing owner, even for a different version or
+Debug build, and exits after acknowledgement. It never requests a takeover.
+A Debug launch activates the same build. Neither forwards task
 arguments. An unreachable, incompatible or unverifiable owner is a blocker,
 not permission to run a second assistant.
 
-A different build remains a waiting candidate without microphone, model,
+A different Debug build remains a waiting candidate without microphone, model,
 network work or a second assistant tray. The original presents a native
 question with independently verified build/content and process identities.
 Decline, expiry, lock or candidate death leaves ownership unchanged. Current
@@ -717,9 +926,15 @@ After a safely released replacement exits, the original process acts only as a
 native lifecycle supervisor and offers an explicit return. It has no assistant,
 speech or capture services. Accept revalidates the exact original bytes and
 normal ownership/readiness; decline or dismissal never restarts automatically.
-An unclean-owner marker blocks crash takeover/return when orphaned work cannot
-be reconciled; process death alone is not proof of worker quiescence. Follow the
-native blocker rather than deleting it without checking interrupted work.
+Release retains the strict unclean-owner blocker after an unverified exit.
+Debug-only automatic recovery can proceed on an explicit launch when its
+versioned recovery record proves the previous owner is dead and no external work
+remains. Legacy markers without that record, unknown process lifetime and
+uncertain external work still block recovery. Process death alone is not proof of
+worker quiescence. Follow the native blocker rather than deleting files without
+checking interrupted work. Recovery never replays tasks or automatically
+relaunches Kora. An older owner without activation-only protocol support reports
+an error instead of a Release takeover.
 
 Developer builds use `%LOCALAPPDATA%\Kora\Development`, separate from installed
 release data and microphone consent. Handoff does not transfer consent,

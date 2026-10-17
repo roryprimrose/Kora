@@ -209,6 +209,10 @@ Configuration never speaks, persists content, logs text, opens capture, changes
 output mode/call policy or substitutes for required native recovery.
 See [bounded delivery and separate proposals](Information_Display.md#delivered-bounded-local-utterance-slice-r25).
 
+Caption preference failures explicitly report **not confirmed** in the transcript while original owning/private presentation admission remains current; captions stay unavailable pending explicit repair ([presentation](../src/Kora.Application/ViewModels/MainViewModel.SpeechText.cs)).
+
+A required review or tracked approval preparation retains its panel. Failure presentation never waits for that preparation or replaces its review during durable audit ([deterministic audit-order regressions](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.CaptionFailureOrdering.cs)).
+
 ### Delivered bounded caption UX options (R25) - 2026-10-09
 
 The same schema-1 native/exact typed/current-name ACTIVATED workflow now exposes:

@@ -325,8 +325,9 @@
       <ScrollViewer Grid.Column="1" x:Name="SelectedSessionWorkPane" VerticalScrollBarVisibility="Auto"
                     HorizontalScrollBarVisibility="Disabled"
                     AutomationProperties.Name="Selected-session work, actions, required questions and history or memories; scroll for every section">
-      <!-- Reserve usable work, question and tab extents when the window viewport is smaller than the action/status rows. -->
-      <Grid MinHeight="960" RowDefinitions="Auto,2*,Auto,*,*" RowSpacing="10">
+      <!-- Keep star rows bounded during scroll measurement while reserving usable work, question and tab extents. -->
+      <Grid Height="{Binding #SelectedSessionWorkPane.Bounds.Height}" MinHeight="960"
+            RowDefinitions="Auto,2*,Auto,*,*" RowSpacing="10">
         <controls:NamedTextBlock Text="{Binding WorkStatus}" TextWrapping="Wrap"
                                 AutomationProperties.Name="Selected exact session work snapshot, revisions, observation time, capacity and gaps" />
         <controls:ScrollableListBox Grid.Row="1" x:Name="WorkRecords" ItemsSource="{Binding WorkRecords}"

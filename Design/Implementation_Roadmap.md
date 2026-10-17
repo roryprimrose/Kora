@@ -47,6 +47,26 @@ Deterministic Core/Application/private SQLite/headless tests cover this consumed
 I subset; no schema, log source, service, external action or E/Q qualification is
 added. Unavailable runtime/provider/egress/wake/profile-original writers stay disabled.
 
+### Passive skill catalogue exact immutable digest filters - 2026-10-17
+
+The [existing skill metadata contract](Definition_Management.md#delivered-native-skill-metadata-navigation)
+adds optional exact bundled definition/declared-resource digests and shared
+revision digest, AND-composed with literal and availability/compatibility filters.
+Empty means Any; canonical lowercase SHA-256 admission and ordinal equality
+reject malformed input without normalization or unfiltered fallback.
+
+The consumed I subset is the existing admitted immutable catalogue/query/native
+inspectors. Read-free edits/Clear, private selection/source retirement, Escape
+and generation/closure fencing have
+[portable](../tests/Kora.Application.UnitTests/Skills/SkillCatalogueSearchTests.cs)
+and [headless](../tests/Kora.Windows.IntegrationTests/SkillMetadataSearchWindowTests.cs)
+tests. No service/schema, resource-byte changes, hidden-name inspection, live
+reads/recheck, activation, invocation, grants or model/egress route is added;
+digest equality is observation only. Unqualified runtime/model/profile-original
+writers remain unavailable; no installed/hardware/acoustic/provider/containment
+E/Q qualification is claimed
+([storage boundary](Skill_Storage.md#delivered-bounded-r21-native-inspection)).
+
 ### Bounded native session-list ExactName - 2026-10-16
 
 Built on freshly fetched main `afdee7f508bc2e186bf56ef5f65cb27711e83bd1`.

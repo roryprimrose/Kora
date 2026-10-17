@@ -92,6 +92,8 @@ public sealed class SharedSkillDiscoveryServiceTests : IDisposable
             foreach (var query in new[] { "", "TEST", "local", "nonmatch" })
             {
                 SkillCatalogueSearch.Shared(catalogue, query, filter);
+                SkillCatalogueSearch.Shared(catalogue, query, filter, catalogue.Packages[0].RevisionDigest);
+                SkillCatalogueSearch.Shared(catalogue, query, filter, new string('0', 64));
             }
         }
         fixture.Reader.Scans.Should().Be(scans);

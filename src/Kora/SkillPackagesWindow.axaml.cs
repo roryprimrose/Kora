@@ -1,4 +1,5 @@
 using Avalonia.Controls;
+using Avalonia.Input;
 using Avalonia.Markup.Xaml;
 using Avalonia.Media;
 
@@ -24,7 +25,7 @@ public sealed partial class SkillPackagesWindow : Window
         this.catalogue = catalogue;
         this.renderer = renderer;
         AvaloniaXamlLoader.Load(this);
-        this.FindControl<Button>("SharedSources")!.Click += (_, _) => sharedSources?.Invoke();
+        this.FindControl<Button>("SharedSources")!.Click += (_, _) => { if (!closed) { sharedSources?.Invoke(); } };
         this.FindControl<Button>("SharedSources")!.IsEnabled = sharedSources is not null;
         var selector = this.FindControl<ComboBox>("PackageSelector")!;
         var filter = this.FindControl<ComboBox>("PackageFilter")!;
@@ -33,10 +34,20 @@ public sealed partial class SkillPackagesWindow : Window
         this.FindControl<Button>("SearchPackages")!.Click += (_, _) => Search();
         this.FindControl<Button>("ClearPackageSearch")!.Click += (_, _) =>
         {
+            RetireSearch();
             this.FindControl<TextBox>("PackageQuery")!.Text = string.Empty;
+            this.FindControl<TextBox>("PackageDefinitionDigest")!.Text = string.Empty;
+            this.FindControl<TextBox>("PackageDeclaredResourceDigest")!.Text = string.Empty;
             filter.SelectedIndex = 0;
             Search();
         };
+        foreach (var name in new[] { "PackageQuery", "PackageDefinitionDigest", "PackageDeclaredResourceDigest" })
+        {
+            this.FindControl<TextBox>(name)!.PropertyChanged += (_, change) =>
+            { if (change.Property == TextBox.TextProperty) { RetireSearch(); } };
+        }
+        filter.SelectionChanged += (_, _) => RetireSearch();
+        KeyDown += (_, args) => { if (args.Key == Key.Escape) { Close(); args.Handled = true; } };
         selector.SelectionChanged += (_, _) =>
         {
             if (!updatingResults) { ShowPackage(); }
@@ -47,6 +58,8 @@ public sealed partial class SkillPackagesWindow : Window
             results = [];
             selector.ItemsSource = Array.Empty<string>();
             this.FindControl<TextBox>("PackageQuery")!.Text = string.Empty;
+            this.FindControl<TextBox>("PackageDefinitionDigest")!.Text = string.Empty;
+            this.FindControl<TextBox>("PackageDeclaredResourceDigest")!.Text = string.Empty;
             filter.SelectedIndex = 0;
             this.FindControl<TextBlock>("PackageSearchStatus")!.Text = string.Empty;
             ClearSelection();
@@ -72,17 +85,27 @@ public sealed partial class SkillPackagesWindow : Window
         {
             var matching = SkillCatalogueSearch.Bundled(catalogue,
                 this.FindControl<TextBox>("PackageQuery")!.Text ?? string.Empty,
-                (SkillInvocationFilter)this.FindControl<ComboBox>("PackageFilter")!.SelectedIndex);
+                (SkillInvocationFilter)this.FindControl<ComboBox>("PackageFilter")!.SelectedIndex,
+                this.FindControl<TextBox>("PackageDefinitionDigest")!.Text ?? string.Empty,
+                this.FindControl<TextBox>("PackageDeclaredResourceDigest")!.Text ?? string.Empty);
             SetResults(matching, selected);
             this.FindControl<TextBlock>("PackageSearchStatus")!.Text =
                 $"{results.Count} of {catalogue.Packages.Count} admitted bundled snapshots. Invocation remains unavailable."
                 + (selected is not null && SelectedPackage is null ? " Selection excluded; private source panes cleared. Select a result explicitly." : string.Empty);
         }
-        catch (Exception exception) when (exception is InvalidDataException or ArgumentOutOfRangeException)
+        catch (Exception exception) when (exception is InvalidDataException or ArgumentException)
         {
             SetResults([], null);
             this.FindControl<TextBlock>("PackageSearchStatus")!.Text = $"Search rejected: {exception.Message} No results or selection published.";
         }
+    }
+
+    private void RetireSearch()
+    {
+        if (closed) { return; }
+        SetResults([], null);
+        this.FindControl<TextBlock>("PackageSearchStatus")!.Text =
+            "Filters edited; selection and private source panes cleared. Choose Search to filter admitted snapshots without reading resources.";
     }
 
     private void SetResults(IReadOnlyList<SkillPackageSnapshot> matching, SkillPackageSnapshot? selected)

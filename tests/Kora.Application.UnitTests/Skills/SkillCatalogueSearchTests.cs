@@ -12,6 +12,78 @@ namespace Kora.Application.UnitTests.Skills;
 public sealed class SkillCatalogueSearchTests
 {
     private static readonly string[] Dependencies = ["kora.test.adapter"];
+
+    [Fact]
+    public void BundledDigestsComposeExactlyWithEveryExistingPredicateAcrossTheFullBound()
+    {
+        var catalogue = BundledCatalogue(SkillPackageCatalogue.MaximumPackages);
+        var last = catalogue.Packages[^1];
+        var bytes = last.Files.Select(file => file.Bytes.ToArray()).ToArray();
+        SkillCatalogueSearch.Bundled(catalogue, "", SkillInvocationFilter.All, "", "").Should().Equal(catalogue.Packages);
+        SkillCatalogueSearch.Bundled(catalogue, "", SkillInvocationFilter.All, last.DefinitionDigest)
+            .Should().ContainSingle().Which.Should().BeSameAs(last);
+        SkillCatalogueSearch.Bundled(catalogue, "", SkillInvocationFilter.All, declaredResourceDigest: last.DeclaredResourceDigest)
+            .Should().ContainSingle().Which.Should().BeSameAs(last);
+        SkillCatalogueSearch.Bundled(catalogue, "NAME 7", SkillInvocationFilter.Unavailable,
+            last.DefinitionDigest, last.DeclaredResourceDigest).Should().Equal(last);
+        SkillCatalogueSearch.Bundled(catalogue, "Name 0", SkillInvocationFilter.All,
+            last.DefinitionDigest, last.DeclaredResourceDigest).Should().BeEmpty();
+        SkillCatalogueSearch.Bundled(catalogue, "", SkillInvocationFilter.Available,
+            last.DefinitionDigest, last.DeclaredResourceDigest).Should().BeEmpty();
+        SkillCatalogueSearch.Bundled(catalogue, "", SkillInvocationFilter.All,
+            catalogue.Packages[0].DefinitionDigest, last.DeclaredResourceDigest).Should().BeEmpty();
+        SkillCatalogueSearch.Bundled(catalogue, "", SkillInvocationFilter.All, new string('0', 64)).Should().BeEmpty();
+        SkillCatalogueSearch.Bundled(catalogue, "", SkillInvocationFilter.All, declaredResourceDigest: new string('0', 64))
+            .Should().BeEmpty();
+        for (var index = 0; index < bytes.Length; index++) { last.Files[index].Bytes.ToArray().Should().Equal(bytes[index]); }
+        last.IsAvailableForInvocation.Should().BeFalse();
+    }
+
+    [Fact]
+    public void SharedDigestMatchesOnlyExactAdmittedRevisionIncludingUnavailableRowsWithoutMetadataExpansion()
+    {
+        var source = Source();
+        var valid = Snapshot(source, "one", "one", "Description");
+        var unavailable = SharedSkillSnapshot.Parse(source.Id, "hidden-name\\SKILL.md", [0xff], true);
+        var catalogue = new SharedSkillCatalogue(source, [valid, unavailable]);
+        SkillCatalogueSearch.Shared(catalogue, "", SkillInstructionFilter.All, "").Should().Equal(catalogue.Packages);
+        SkillCatalogueSearch.Shared(catalogue, "ONE", SkillInstructionFilter.Compatible, valid.RevisionDigest).Should().Equal(valid);
+        SkillCatalogueSearch.Shared(catalogue, "missing", SkillInstructionFilter.All, valid.RevisionDigest).Should().BeEmpty();
+        SkillCatalogueSearch.Shared(catalogue, "", SkillInstructionFilter.Incompatible, valid.RevisionDigest).Should().BeEmpty();
+        SkillCatalogueSearch.Shared(catalogue, "", SkillInstructionFilter.Incompatible, unavailable.RevisionDigest)
+            .Should().ContainSingle().Which.Should().BeSameAs(unavailable);
+        SkillCatalogueSearch.Shared(catalogue, "hidden-name", SkillInstructionFilter.All, unavailable.RevisionDigest).Should().BeEmpty();
+        SkillCatalogueSearch.Shared(catalogue, "", SkillInstructionFilter.All, new string('0', 64)).Should().BeEmpty();
+        var replacement = new SharedSkillSource(Guid.NewGuid(), source.ProfileRelativeRoot, source.DirectoryIdentity);
+        var replacementSnapshot = Snapshot(replacement, "one", "one", "Description");
+        SkillCatalogueSearch.Shared(new(replacement, [replacementSnapshot]), "", SkillInstructionFilter.All, valid.RevisionDigest)
+            .Should().ContainSingle().Which.Should().BeSameAs(replacementSnapshot);
+        unavailable.Bytes.ToArray().Should().Equal([0xff]);
+        valid.IsAvailableForInvocation.Should().BeFalse();
+        unavailable.IsAvailableForInvocation.Should().BeFalse();
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData(" ")]
+    [InlineData("a")]
+    [InlineData("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA")]
+    [InlineData("gaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")]
+    [InlineData("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")]
+    [InlineData("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")]
+    [InlineData(" aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")]
+    [InlineData("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\n")]
+    public void MalformedDigestsRejectBeforeExclusionEvenWithNoSharedCandidates(string? digest)
+    {
+        var bundled = BundledCatalogue(1);
+        var empty = new SharedSkillCatalogue(Source(), []);
+        ((Action)(() => SkillCatalogueSearch.Bundled(bundled, "no match", SkillInvocationFilter.Available, digest!)))
+            .Should().Throw<ArgumentException>();
+        ((Action)(() => SkillCatalogueSearch.Bundled(bundled, "no match", SkillInvocationFilter.Available,
+            new string('0', 64), digest!))).Should().Throw<ArgumentException>();
+        ((Action)(() => SkillCatalogueSearch.Shared(empty, "no match", SkillInstructionFilter.Compatible, digest!)))
+            .Should().Throw<ArgumentException>();
+    }
     [Fact]
     public void BundledSearchUsesWholeBoundedMetadataAndExactObjectsWithoutRuntimePromotion()
     {
@@ -98,6 +170,8 @@ public sealed class SkillCatalogueSearchTests
         var catalogue = new SharedSkillCatalogue(source, packages);
         SkillCatalogueSearch.Shared(catalogue, "", SkillInstructionFilter.All).Should().Equal(packages);
         SkillCatalogueSearch.Shared(catalogue, "NAME31", SkillInstructionFilter.All)
+            .Should().ContainSingle().Which.Should().BeSameAs(packages[^1]);
+        SkillCatalogueSearch.Shared(catalogue, "NAME31", SkillInstructionFilter.Compatible, packages[^1].RevisionDigest)
             .Should().ContainSingle().Which.Should().BeSameAs(packages[^1]);
         ((Action)(() => _ = new SharedSkillCatalogue(source, packages.Append(Snapshot(source, "extra", "extra", "extra")).ToArray())))
             .Should().Throw<InvalidDataException>();

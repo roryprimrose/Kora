@@ -1,4 +1,4 @@
-using Kora.Core.Artifacts;
+﻿using Kora.Core.Artifacts;
 
 namespace Kora.Application.Definitions;
 
@@ -45,5 +45,5 @@ public sealed class OwnedDraftComparison
         + "Source panes preserve all metadata, attribution and newlines; BOM is disclosed above, not inserted into text. "
         + "Raw draft is NOT canonical Save bytes. Separately labelled prepared-Save structural observation:\n"
         + Validation.Summary + "\n"
-        + "No disk read/reload, mutation, activation, consent, approval or review-use token. No semantic safety, current disk integrity or diff patch claim. Close only.";
+        + "No disk read/reload, mutation, activation, consent, approval or review-use token. No semantic safety, current disk integrity or diff patch claim. Pane-local literal Find and Close only.";
 }

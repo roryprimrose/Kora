@@ -174,10 +174,14 @@ internal sealed class OwnedInstructionEditorWindow : Window
     {
         if (!IsVisible || !current()) { return; }
         activeComparison?.Close();
-        var dialog = new Window { Title = $"Passive owned {comparison.Validation.Kind} comparison", Width = 1000, Height = 720 };
+        var dialog = new Window
+        {
+            Title = $"Passive owned {comparison.Validation.Kind} comparison",
+            Width = 1000, Height = 720, MinWidth = 640, MinHeight = 500,
+        };
         var root = new DockPanel { Margin = new(12) };
         var explanation = new TextBlock { Text = comparison.Summary, TextWrapping = TextWrapping.Wrap };
-        var disclosure = new ScrollViewer { Content = explanation, MaxHeight = 260 };
+        var disclosure = new ScrollViewer { Content = explanation, MaxHeight = 180 };
         DockPanel.SetDock(disclosure, Dock.Top);
         root.Children.Add(disclosure);
         var close = new Button { Content = "Close", Margin = new(0, 10) };
@@ -185,23 +189,31 @@ internal sealed class OwnedInstructionEditorWindow : Window
         DockPanel.SetDock(close, Dock.Bottom);
         root.Children.Add(close);
         var sources = new Grid { ColumnDefinitions = new("*,*") };
-        var before = ComparisonPane("Frozen inspected baseline", comparison.Original?.Document.Text ?? "(missing/new baseline)", out var original);
-        var after = ComparisonPane("Exact raw memory draft (not prepared Save bytes)", comparison.Draft, out var draft);
+        Func<bool>? eligibility = current;
+        bool Current() => IsVisible && dialog.IsVisible && eligibility?.Invoke() == true;
+        var before = new OwnedComparisonFindPane("Frozen inspected baseline", comparison.Original?.Document.Text, Current, dialog.Close);
+        var after = new OwnedComparisonFindPane("Exact raw memory draft (not prepared Save bytes)", comparison.Draft, Current, dialog.Close);
         Grid.SetColumn(after, 1);
         sources.Children.Add(before); sources.Children.Add(after);
         root.Children.Add(sources);
         dialog.Content = root;
         activeComparison = dialog;
         var timer = new Avalonia.Threading.DispatcherTimer { Interval = TimeSpan.FromMilliseconds(250) };
-        Func<bool>? eligibility = current;
-        EventHandler tick = (_, _) => { if (eligibility?.Invoke() != true) { dialog.Close(); } };
+        EventHandler tick = (_, _) => { if (!Current()) { dialog.Close(); } };
         timer.Tick += tick;
+        EventHandler ownerClosed = (_, _) => dialog.Close();
+        Closed += ownerClosed;
+        dialog.KeyDown += (_, key) =>
+        {
+            if (key.Key == Avalonia.Input.Key.Escape) { key.Handled = true; dialog.Close(); }
+        };
         dialog.Closed += (_, _) =>
         {
             timer.Stop();
             timer.Tick -= tick;
+            Closed -= ownerClosed;
             eligibility = null;
-            original.Text = string.Empty; draft.Text = string.Empty; explanation.Text = string.Empty;
+            before.Dispose(); after.Dispose(); explanation.Text = string.Empty;
             dialog.Content = null;
             if (ReferenceEquals(activeComparison, dialog)) { activeComparison = null; }
         };
@@ -213,32 +225,6 @@ internal sealed class OwnedInstructionEditorWindow : Window
             dialog.Close();
         }
         else if (dialog.IsVisible) { timer.Start(); }
-    }
-
-    private static DockPanel ComparisonPane(string label, string text, out TextBox source)
-    {
-        var panel = new DockPanel { Margin = new(4) };
-        var heading = new TextBlock { Text = label, TextWrapping = TextWrapping.Wrap };
-        DockPanel.SetDock(heading, Dock.Top);
-        panel.Children.Add(heading);
-        source = new TextBox
-        {
-            Text = text, IsReadOnly = true, AcceptsReturn = true, TextWrapping = TextWrapping.NoWrap,
-            FontFamily = new("Consolas"), ContextMenu = null, IsUndoEnabled = false,
-        };
-        source.CopyingToClipboard += (_, args) => args.Handled = true;
-        source.CuttingToClipboard += (_, args) => args.Handled = true;
-        source.PastingFromClipboard += (_, args) => args.Handled = true;
-        source.AddHandler(ContextRequestedEvent, (_, args) => args.Handled = true, Avalonia.Interactivity.RoutingStrategies.Tunnel);
-        // Read-only selection is not clipboard/export authority.
-        source.AddHandler(KeyDownEvent, (_, key) =>
-        {
-            if ((key.KeyModifiers & (Avalonia.Input.KeyModifiers.Control | Avalonia.Input.KeyModifiers.Meta)) != Avalonia.Input.KeyModifiers.None
-                && key.Key is Avalonia.Input.Key.C or Avalonia.Input.Key.X or Avalonia.Input.Key.V or Avalonia.Input.Key.Insert)
-            { key.Handled = true; }
-        }, Avalonia.Interactivity.RoutingStrategies.Tunnel);
-        panel.Children.Add(source);
-        return panel;
     }
 
     internal async Task<int> Choose(string title, string details, string? original, string? proposed,

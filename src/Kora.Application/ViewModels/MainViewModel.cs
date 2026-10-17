@@ -3224,7 +3224,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
                 if (Voices.Count > 0) { setupTitle = "Speech output is unavailable."; }
                 setupBody += Environment.NewLine + speechRecovery;
             }
-            PresentResponse(AssistantState.Information, setupTitle, setupBody);
+            PresentResponse(AssistantState.Information, setupTitle, setupBody, refreshOutput: false);
             OnPropertyChanged(nameof(MicrophoneTopologyRevision));
             ApplicationLog.EnvironmentRefreshCompleted(
                 logger,

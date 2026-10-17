@@ -4281,9 +4281,11 @@ public sealed partial class MainViewModelTests : IDisposable
         fixture.ViewModel.ConfiguredResponseMode = ResponseOutputMode.VoiceOnly;
         fixture.WindowActions.Clear();
         fixture.TextToSpeech.Voices = [];
+        var enumerations = fixture.TextToSpeech.OutputEnumerationCalls;
 
         await fixture.ViewModel.RefreshCommand.ExecuteAsync();
 
+        fixture.TextToSpeech.OutputEnumerationCalls.Should().Be(enumerations + 1);
         fixture.ViewModel.IsSpeechOutputAvailable.Should().BeFalse();
         fixture.ViewModel.IsSpeechResponseEnabled.Should().BeFalse();
         fixture.ViewModel.IsVisualResponseVisible.Should().BeTrue();
@@ -9689,8 +9691,10 @@ public sealed partial class MainViewModelTests : IDisposable
         }
 
         public Action? BeforeOutputEnumeration { get; set; }
+        public int OutputEnumerationCalls { get; private set; }
         public IReadOnlyList<AudioOutputDevice> GetOutputDevices()
         {
+            OutputEnumerationCalls++;
             var callback = BeforeOutputEnumeration;
             BeforeOutputEnumeration = null;
             callback?.Invoke();

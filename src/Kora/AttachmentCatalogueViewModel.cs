@@ -1,4 +1,4 @@
-using System.Globalization;
+﻿using System.Globalization;
 using System.Text.Json;
 
 using Kora.Application.Infrastructure;
@@ -24,6 +24,7 @@ internal sealed partial class AttachmentCatalogueViewModel(
     private SessionAttachmentFilter filter;
     private string mediaType = "All";
     private AttachmentCopyStatusChoice copyStatus = new(null);
+    private AttachmentGenerationRelationshipChoice? generationRelationship = new(AttachmentGenerationRelationship.Any);
     private string minimumBytesText = string.Empty;
     private string maximumBytesText = string.Empty;
     private AttachmentCatalogueMode mode;
@@ -76,6 +77,22 @@ internal sealed partial class AttachmentCatalogueViewModel(
     public IReadOnlyList<string> MediaTypes { get; } = ["All", LocalFileMediaType.PlainText, LocalFileMediaType.Markdown];
     public IReadOnlyList<AttachmentCopyStatusChoice> CopyStatuses { get; } =
         [new(null), .. Enum.GetValues<AttachmentCopyStatus>().Select(value => new AttachmentCopyStatusChoice(value))];
+    public IReadOnlyList<AttachmentGenerationRelationshipChoice> GenerationRelationships { get; } =
+        [.. Enum.GetValues<AttachmentGenerationRelationship>().Select(value => new AttachmentGenerationRelationshipChoice(value))];
+    public AttachmentGenerationRelationshipChoice? GenerationRelationship
+    {
+        get => generationRelationship;
+        set
+        {
+            if (!CanEdit || generationRelationship == value) { return; }
+            InvalidateQuery();
+            generationRelationship = value;
+            Notify();
+        }
+    }
+    public string GenerationRelationshipHint => ValidVersions
+        ? "Any preserves all filters. Same observed generation: retained CapturedGeneration = observed SessionGeneration; Earlier observed generation: CapturedGeneration < SessionGeneration. Constrained choices match only Confirmed copies. Passive historical metadata only, not current session/device identity, freshness, completeness, consent, authority, source integrity or proof a copy exists. Changing performs no read."
+        : "Invalid generation relationship or version range. Choose Any, Same observed generation or Earlier observed generation and correct the positive inclusive ranges. No fallback or read.";
     public AttachmentCopyStatusChoice CopyStatus
     {
         get => copyStatus;
@@ -306,7 +323,9 @@ internal sealed partial class AttachmentCatalogueViewModel(
         minimumCapturedGeneration: OptionalUnsignedDecimal.Parse(minimumCapturedGenerationText),
         maximumCapturedGeneration: OptionalUnsignedDecimal.Parse(maximumCapturedGenerationText),
         minimumStorageRevision: OptionalUnsignedDecimal.Parse(minimumStorageRevisionText),
-        maximumStorageRevision: OptionalUnsignedDecimal.Parse(maximumStorageRevisionText));
+        maximumStorageRevision: OptionalUnsignedDecimal.Parse(maximumStorageRevisionText),
+        generationRelationship: generationRelationship?.Relationship
+            ?? throw new InvalidDataException("Choose Any, Same observed generation or Earlier observed generation."));
     private bool ValidVersions
     {
         get
@@ -405,7 +424,7 @@ internal sealed partial class AttachmentCatalogueViewModel(
             versions.MinimumCapturedGeneration, versions.MaximumCapturedGeneration,
             versions.MinimumStorageRevision, versions.MaximumStorageRevision,
             fileReference.ExactFileSourceId?.ToString("D"), fileReference.ExactFileRevisionId?.ToString("D"),
-            fileReference.ExactFileItemId?.ToString("D"));
+            fileReference.ExactFileItemId?.ToString("D"), versions.GenerationRelationship);
         var cursor = next ? page?.Next ?? throw new InvalidOperationException("Refresh before Next.") : null;
         Clear();
         var result = await read(query, cursor, current, token);
@@ -493,7 +512,7 @@ internal sealed partial class AttachmentCatalogueViewModel(
         epoch++;
         operation?.Cancel();
         Clear();
-        status = "Query/mode/session lifecycle/media type/copy status/byte bounds/digest/correlation/version ranges/file-reference IDs/removal filter edited. Page, continuation and selection cleared; explicit Search/Refresh required.";
+        status = "Query/mode/session lifecycle/media type/copy status/byte bounds/digest/correlation/version ranges/generation relationship/file-reference IDs/removal filter edited. Page, continuation and selection cleared; explicit Search/Refresh required.";
     }
 
     internal void SynchronizeAuthority()
@@ -553,6 +572,7 @@ internal sealed partial class AttachmentCatalogueViewModel(
 
     private void ClearCorrelation()
     {
+        generationRelationship = GenerationRelationships[0];
         observationSourceText = string.Empty;
         deviceProfileText = string.Empty;
         capturedFromText = string.Empty;
@@ -607,6 +627,8 @@ internal sealed partial class AttachmentCatalogueViewModel(
         OnPropertyChanged(nameof(MinimumStorageRevisionText));
         OnPropertyChanged(nameof(MaximumStorageRevisionText));
         OnPropertyChanged(nameof(VersionHint));
+        OnPropertyChanged(nameof(GenerationRelationship));
+        OnPropertyChanged(nameof(GenerationRelationshipHint));
         OnPropertyChanged(nameof(FileSourceIdText));
         OnPropertyChanged(nameof(FileRevisionIdText));
         OnPropertyChanged(nameof(FileItemIdText));

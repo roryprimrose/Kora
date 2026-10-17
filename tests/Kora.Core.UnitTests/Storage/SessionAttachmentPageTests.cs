@@ -1,4 +1,4 @@
-using System.Collections.Immutable;
+﻿using System.Collections.Immutable;
 using System.Text.Json;
 
 using AwesomeAssertions;
@@ -91,6 +91,7 @@ public sealed class SessionAttachmentPageTests
         var maximum = new SessionAttachmentPage(new(), records, Cursor(3000),
             DateTimeOffset.MaxValue.ToUniversalTime(), long.MaxValue, "0123456789abcdef" + new string('f', 48), 64, true, 4096);
         maximum.Validate();
+        (maximum with { Query = new(true) }).Validate();
         JsonSerializer.SerializeToUtf8Bytes(maximum).Length.Should().BeLessThan(SessionAttachmentPage.MaximumBytes);
         JsonSerializer.Serialize(maximum).Should().NotContain("private content").And.NotContain("Synthetic").And.NotContain("CanonicalPath");
         (maximum with { Records = [], ScannedRows = 64 }).Validate();

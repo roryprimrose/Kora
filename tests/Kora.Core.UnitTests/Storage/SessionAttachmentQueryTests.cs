@@ -1,4 +1,4 @@
-using System.Text.Json;
+﻿using System.Text.Json;
 
 using AwesomeAssertions;
 
@@ -219,7 +219,7 @@ public sealed class SessionAttachmentQueryTests
         ((Action)(() => _ = new SessionAttachmentQuery(filter: (SessionAttachmentFilter)filter)))
             .Should().Throw<InvalidDataException>();
         ((Action)(() => JsonSerializer.Deserialize<SessionAttachmentQuery>(
-            "{\"IncludeRemoved\":false,\"ExactSessionId\":null,\"ExactMediaType\":null,\"CopyStatus\":null,\"MinimumStoredBytes\":null,\"MaximumStoredBytes\":null,\"Filter\":" + filter + "}")))
+            "{\"IncludeRemoved\":false,\"ExactSessionId\":null,\"ExactMediaType\":null,\"CopyStatus\":null,\"MinimumStoredBytes\":null,\"MaximumStoredBytes\":null,\"GenerationRelationship\":0,\"Filter\":" + filter + "}")))
             .Should().Throw<InvalidDataException>();
     }
 

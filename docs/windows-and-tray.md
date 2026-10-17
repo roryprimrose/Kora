@@ -482,6 +482,22 @@ Editing performs no read and retires results/details/navigation/continuation/
 pending work. Clear query, revocation and close erase all six volatile fields.
 Signed continuations bind every endpoint; changing one requires fresh Search.
 
+Choose **Retained captured to observed session generation relationship: Any
+(default), Same observed generation or Earlier observed generation**, then
+Search. Same compares retained CapturedGeneration with the equal observed
+SessionGeneration; Earlier requires CapturedGeneration to be smaller. Both
+constrained choices match only Confirmed copies, never Held or unavailable/
+removed slots. Any preserves the other filters and existing defaults; all
+predicates combine by AND.
+This is passive historical metadata, not current session/device identity,
+freshness, staleness, completeness, consent, authority, source integrity or
+proof a copy exists. Changing reads nothing and immediately clears results,
+selection/details/navigation/continuation and pending callbacks. Clear query,
+Cancel, source/privacy/ownership revocation and close reset Any without a read.
+Invalid selection disables Search and requires a defined choice; no fallback
+is applied. Continuations bind the choice and cannot be reused after a change.
+See the [owning metadata contract](../Design/File_And_Folder_Ingestion.md#delivered-retained-attachment-metadata-catalogue---2026-10-11).
+
 The literal is limited to 256 UTF-16 units / 512 UTF-8 bytes of valid single-line Unicode without control/format characters. Empty disables literal filtering; invalid input disables Search with recovery guidance and never falls back. Query text is memory-only: not saved, audited, logged, exported or sent to a model/network. No matching retained metadata at the end is reported truthfully; an empty page with Next is not a whole-catalogue no-match.
 
 Choose **Stored session lifecycle: All (default), Active, Done or Removed** independently of Browse/ExactId and **Include removed slots**. All preserves existing behavior. Removed sessions can have only removed-slot provenance: enable Include removed slots to see it. An Active or Done session can also have a removed attachment slot; removing a slot does not remove its session. See the [canonical lifecycle contract and tests](../Design/File_And_Folder_Ingestion.md#delivered-retained-attachment-metadata-catalogue---2026-10-11).
@@ -497,7 +513,9 @@ cannot open a body. Unavailable tombstones can match exact Unavailable with
 Include removed slots and a matching lifecycle, but never match byte bounds,
 even 0..0. Their size is unavailable, not an original zero-byte-file claim.
 
-Typing performs no I/O. Mode, ID, literal, lifecycle, media-type/copy-status/byte/digest/correlation/version-range filters and **Include removed slots** edits retire results, selection, navigation and continuation and cancel pending work; use Search again (or Enter in a text field). **Clear query (Browse)** clears volatile ID, literal, digest, correlation and version-range fields without reading or changing the remaining filters. Search never auto-selects or opens a match. Escape closes and clears private state. Source/privacy/ownership/control revocation also clears the copy-status/byte fields.
+Typing performs no I/O. Mode, ID, literal, lifecycle, media-type/copy-status/byte/digest/correlation/version-range/generation-relationship filters and **Include removed slots** edits retire results, selection, navigation and continuation and cancel pending work; use Search again (or Enter in a text field).
+**Clear query (Browse)** clears volatile ID, literal, digest, correlation and version-range fields and resets the generation relationship to Any without reading or changing the remaining filters.
+Search never auto-selects or opens a match. Escape closes and clears private state. Source/privacy/ownership/control revocation also clears the copy-status/byte fields.
 
 - Each page has at most **16 rows / 64 KiB** and scans at most **64 slots**. **Next bounded page** may continue after zero matches; ExactId does not jump over unvalidated slots. **Include removed slots** shows content-free removal provenance; historical removed slots do not count toward the sixteen-live-file cap.
 - Typed authority is validated in bounded segments before rows are shown. **Authority validation pending** pages contain no attachments; use Next to continue. Reads have a five-second budget. Continuations expire after two minutes; any committed authority, storage/profile or query change requires Refresh.

@@ -24,11 +24,6 @@ public readonly record struct ConversationCorrelationFilter(
 
     private static HostId<T>? ParseOptional<T>(string text)
     {
-        ArgumentNullException.ThrowIfNull(text);
-        if (text.Length == 0) { return null; }
-        if (!Guid.TryParseExact(text, "D", out var value) || value == Guid.Empty
-            || !string.Equals(text, value.ToString("D"), StringComparison.Ordinal))
-        { throw new InvalidDataException("Enter a nonempty canonical lowercase D-format GUID; empty means Any. No whitespace or repair."); }
-        return new(value);
+        return OptionalCanonicalGuid.Parse(text) is { } value ? new(value) : null;
     }
 }

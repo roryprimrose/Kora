@@ -189,6 +189,10 @@ installed accessibility and broader E/Q qualification remain separate.
 
 ### Bounded exact-session interaction-receipt metadata predicates - 2026-10-16
 
+The [retained receipt correlation increment](Interaction_And_Sessions.md#delivered-passive-exact-session-lexical-history-search---2026-10-09) adds optional exact RequestId/TaskId/SourceId predicates to older receipt HistorySearch, AND-composed with all merged lexical OR, typed metadata and provenance ranges.
+It consumes only the existing private exact-session reader I subset. Shared strict canonical GUID parsing, complete-page validation, bound semantic cursors, native no-read retirement and final snapshot admission remain in the [production path](../src/Kora.Application/Hosting/SessionWorkspaceService.Search.cs).
+Historical IDs add no session/permission/ownership/approval/task/replay/source authority, timestamp or current state. Providers, egress, wake, executors and profile-original writers remain unavailable; no unqualified enablement or broader E/Q/installed-accessibility claim is made ([owning boundary](Interaction_And_Sessions.md#delivered-passive-exact-session-lexical-history-search---2026-10-09)).
+
 The [receipt provenance range increment](Interaction_And_Sessions.md#delivered-passive-exact-session-lexical-history-search---2026-10-09), implemented from main `d6d249d06f16db8d18636e4a0a4a3257d69896bc`, adds inclusive sequence/generation/source-revision/audit-sequence bounds through the existing matcher, Application command path and labelled native fields.
 It consumes only the existing passive exact-session reader I subset: no timestamps, schema/service/profile, source read, current authority, task management, retry/replay, approval or external operation ([range policy](../src/Kora.Core/Storage/SessionHistoryRangeFilter.cs)).
 Strict shared parsing/domain validation, complete-page-before-exclusion validation, semantic cursor binding, counters and lifecycle re-resolution remain in the [production path](../src/Kora.Application/Hosting/SessionWorkspaceService.Search.cs). Installed accessibility, broader E/Q and unrelated experiments remain separate.

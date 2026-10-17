@@ -10,14 +10,17 @@ public sealed class SessionHistorySearch
     private readonly IReadOnlySet<string> terms;
     private readonly SessionHistoryMetadataFilter metadata;
     private readonly SessionHistoryRangeFilter range;
+    private readonly SessionHistoryCorrelationFilter correlation;
 
     public SessionHistorySearch(string query, SessionHistoryMetadataFilter metadata = default,
-        SessionHistoryRangeFilter range = default)
+        SessionHistoryRangeFilter range = default, SessionHistoryCorrelationFilter correlation = default)
     {
         metadata.Validate();
         range.Validate();
+        correlation.Validate();
         this.metadata = metadata;
         this.range = range;
+        this.correlation = correlation;
         if (!LocalFileRetrievalPolicy.TryQuery(query, out terms))
         {
             throw new ArgumentException("Use 1-256 characters / 512 UTF-8 bytes containing 1-32 distinct lexical terms of at most 64 characters.", nameof(query));
@@ -27,6 +30,8 @@ public sealed class SessionHistorySearch
         if (metadata != default) { canonical = "receipt-metadata-v1\n" + metadata.CanonicalValues + "\n" + canonical; }
         if (range != default)
         { canonical = "receipt-provenance-v1\n" + range.CanonicalValues + "\n" + canonical; }
+        if (correlation != default)
+        { canonical = "receipt-correlation-v1\n" + correlation.CanonicalValues + "\n" + canonical; }
         Digest = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(canonical)));
     }
 
@@ -35,11 +40,13 @@ public sealed class SessionHistorySearch
     public bool Matches(SessionHistoryEvent record, CancellationToken token)
     {
         token.ThrowIfCancellationRequested();
+        record.Validate();
         if (record.Availability is SessionHistoryAvailability.Gap or SessionHistoryAvailability.Redacted or SessionHistoryAvailability.Unavailable)
         {
             return false;
         }
-        return range.Matches(record) && metadata.Matches(record) && Fields(record).Any(field => MatchesText(field, token));
+        return correlation.Matches(record) && range.Matches(record) && metadata.Matches(record)
+            && Fields(record).Any(field => MatchesText(field, token));
     }
 
     public bool MatchesText(string text, CancellationToken token) =>

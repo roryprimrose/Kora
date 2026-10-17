@@ -37,6 +37,7 @@ public sealed partial record SessionCommand(
     public SessionHistorySearchCursor? HistorySearchCursor { get; init; }
     public SessionHistoryMetadataFilter HistoryMetadata { get; init; }
     public SessionHistoryRangeFilter HistoryRange { get; init; }
+    public SessionHistoryCorrelationFilter HistoryCorrelation { get; init; }
     public Guid? QuestionId { get; init; }
     public long TaskRevision { get; init; }
     public long QuestionRevision { get; init; }

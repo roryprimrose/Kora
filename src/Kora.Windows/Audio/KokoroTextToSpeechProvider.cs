@@ -170,6 +170,7 @@ public sealed class KokoroTextToSpeechProvider : IDisposable
             .Select(CreateSpeechVoice)
             .Where(voice => voice is not null)
             .Cast<SpeechVoice>()
+            .Where(voice => SpeechVoiceSelector.MatchesLanguage(voice, CultureInfo.CurrentUICulture))
             .OrderBy(voice => voice.Culture, StringComparer.Ordinal)
             .ThenBy(voice => voice.Name, StringComparer.OrdinalIgnoreCase)
             .ToArray();

@@ -6,7 +6,7 @@ namespace Kora.Windows.IntegrationTests;
 public sealed class SpeechConfigurationUiContractTests
 {
     [Fact]
-    public void Ready_selection_and_asset_review_are_separate_with_explicit_resets_and_live_status()
+    public void One_cross_provider_voice_selector_keeps_asset_review_resets_and_live_status_separate()
     {
         var directory = new DirectoryInfo(AppContext.BaseDirectory);
         while (directory is not null && !File.Exists(Path.Combine(directory.FullName, ".github", "copilot-instructions.md")))
@@ -16,13 +16,25 @@ public sealed class SpeechConfigurationUiContractTests
         var root = directory?.FullName ?? throw new InvalidOperationException("The repository source root is unavailable.");
         var document = XDocument.Load(Path.Combine(root, "src", "Kora", "SettingsWindow.axaml"));
         var controls = document.Descendants().ToArray();
-        var selected = controls.Single(control => string.Equals(control.Attribute("SelectedItem")?.Value,
-            "{Binding SelectedInstalledSpeechProvider}", StringComparison.Ordinal));
-        selected.Attribute("ItemsSource")!.Value.Should().Be("{Binding InstalledSpeechProviders}");
+        controls.Any(control => string.Equals(control.Attribute("SelectedItem")?.Value,
+            "{Binding SelectedInstalledSpeechProvider}", StringComparison.Ordinal)).Should().BeFalse();
+        controls.Any(control => string.Equals(control.Attribute("Command")?.Value,
+            "{Binding ResetSpeechProviderCommand}", StringComparison.Ordinal)).Should().BeFalse();
         var voice = controls.Single(control => string.Equals(control.Attribute("SelectedItem")?.Value,
             "{Binding SelectedVoice}", StringComparison.Ordinal));
         voice.Attribute("ItemsSource")!.Value.Should().Be("{Binding InstalledSpeechVoices}");
-        foreach (var command in new[] { "ResetSpeechProviderCommand", "ResetSpeechVoiceCommand", "ResetSummarySentencesCommand", "ResetSummaryWordsCommand" })
+        var voiceCard = voice.Ancestors().First(control => string.Equals(control.Name.LocalName, "Border", StringComparison.Ordinal));
+        voiceCard.Descendants().Count(control => string.Equals(control.Name.LocalName, "ComboBox", StringComparison.Ordinal))
+            .Should().Be(1);
+        voiceCard.Descendants().Any(control => string.Equals(control.Attribute("Text")?.Value,
+            "Speech voice", StringComparison.Ordinal)).Should().BeTrue();
+        voice.Descendants().Any(control => string.Equals(control.Attribute("Text")?.Value,
+            "{Binding ConfigurationId}", StringComparison.Ordinal)).Should().BeTrue();
+        var assetProvider = controls.Single(control => string.Equals(control.Attribute("SelectedItem")?.Value,
+            "{Binding SelectedSpeechProvider}", StringComparison.Ordinal));
+        assetProvider.Attribute("ItemsSource")!.Value.Should().Be("{Binding SpeechProviders}");
+        foreach (var command in new[] { "ResetSpeechVoiceCommand", "ResetSummarySentencesCommand", "ResetSummaryWordsCommand",
+            "DownloadSpeechProviderCommand", "RemoveSpeechProviderCommand", "PreviewVoiceCommand", "StopSpeechCommand" })
         {
             controls.Any(control => string.Equals(control.Attribute("Command")?.Value,
                 "{Binding " + command + "}", StringComparison.Ordinal)).Should().BeTrue();

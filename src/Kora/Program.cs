@@ -105,6 +105,17 @@ internal static class Program
                                 throw new AuditRetentionUnavailableException(exception);
                             }
                             var diagnosticConfiguration = provider.GetRequiredService<DiagnosticRetentionConfigurationService>();
+#if DEBUG
+                            if (coordinator.RecoveredDebugOwner)
+                            {
+                                provider.GetRequiredService<Kora.Core.Auditing.ISecurityAuditLog>().Write(
+                                    new Kora.Core.Auditing.SecurityAuditEvent(startup.Request.RequestId.Value,
+                                        Kora.Core.Auditing.SecurityAuditCategory.ApplicationExecution,
+                                        "instance.debug-recovery", Kora.Core.Auditing.SecurityAuditOutcome.Succeeded,
+                                        Kora.Core.Auditing.SecurityAuditInitiator.System, "application.current",
+                                        reasonCode: "dead-owner-no-external-work"));
+                            }
+#endif
                             try { diagnosticConfiguration.Observe(); }
                             catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or InvalidDataException)
                             {
@@ -403,7 +414,11 @@ internal static class Program
         services.AddSingleton<ISecurityAuditLog, LoggerSecurityAuditLog>();
         services.AddSingleton<IDependencyProbe, StorageDependencyProbe>();
         services.AddSingleton<IDependencyProbe, SqliteDependencyProbe>();
+#if DEBUG
+        services.AddSingleton(_ => new WindowsPowerShellSetupService(coordinator.DebugRecovery));
+#else
         services.AddSingleton<WindowsPowerShellSetupService>();
+#endif
         services.AddSingleton<IPowerShellSetup>(provider =>
             provider.GetRequiredService<WindowsPowerShellSetupService>());
         services.AddSingleton<IDependencyProbe>(provider =>
@@ -437,7 +452,11 @@ internal static class Program
         services.AddSingleton<Kora.Application.Definitions.PromptConversationSubmission>();
         services.AddSingleton<ModelProviderHandoffWorkflow>();
         services.AddSingleton<ModelHandoffPresentation>();
+#if DEBUG
+        services.AddSingleton<ILocalModelSetup>(_ => new WindowsOllamaSetupService(coordinator.DebugRecovery));
+#else
         services.AddSingleton<ILocalModelSetup, WindowsOllamaSetupService>();
+#endif
         services.AddSingleton<DependencySetupWorkflow>();
         services.AddKeyedSingleton(
             "ollama-reasoner",

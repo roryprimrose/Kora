@@ -629,7 +629,9 @@ for the full lifecycle and recovery rules.
 | `windows-sapi` | Built-in Windows provider; installed SAPI voices, no download |
 | `kokoro` | Optional local assets, about 219 MiB; separate reviewed download and exact size/SHA-256 validation |
 
-**Installed speech provider and voice** selects ready choices.
+**Speech voice** has one selector containing ready installed voices from all
+providers. Each entry identifies its provider; choosing a voice selects that
+provider automatically, without a separate provider selector.
 **Speech provider assets (review only)** never changes selection; completing
 Download makes choices available immediately but does not select one.
 **Remove downloaded model** removes Kokoro assets only.
@@ -644,10 +646,12 @@ the paired option IDs are `speech.provider` and `speech.voice`.
 |---|---|
 | Select `provider / ID` | Exact installed voice; explicitly selects that provider |
 | No explicit voice | That provider's advertised compatible default; otherwise choose an exact voice |
-| Reset speech provider | Windows plus its advertised default |
 | Reset speech voice | Selected provider's advertised default only |
 | Preview / Stop | Explicit local identity phrase / cancel active speech |
 
+Provider selection/reset remains available through the exact `speech.provider`
+commands; the redundant provider selector and provider-reset button are not
+shown in this card.
 Reset never downloads or substitutes an unrelated voice. Invalid saved state
 or missing assets disables speech with recovery, not a silent provider fallback.
 Status reports desired/effective/default/saved/revision; stale/failed saves

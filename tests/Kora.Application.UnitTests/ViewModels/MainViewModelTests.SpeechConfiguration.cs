@@ -12,6 +12,37 @@ namespace Kora.Application.UnitTests.ViewModels;
 public sealed partial class MainViewModelTests
 {
     [Fact]
+    public async Task Cross_provider_voice_picker_selects_and_resets_without_provider_controls()
+    {
+        var fixture = new Fixture();
+        fixture.TextToSpeech.Providers = [CreateWindowsProvider(), CreateKokoroProvider(true)];
+        fixture.TextToSpeech.Voices =
+        [
+            new("female", "Windows", "en-US", SpeechVoiceGender.Female),
+            CreateKokoroVoice("af_heart", "Heart"),
+            CreateKokoroVoice("af_sky", "Sky"),
+        ];
+        await fixture.ViewModel.InitializeAsync();
+
+        fixture.ViewModel.InstalledSpeechVoices.Should().HaveCount(3);
+        fixture.ViewModel.SelectedVoice = fixture.ViewModel.InstalledSpeechVoices.Single(voice =>
+            string.Equals(voice.Id, "af_sky", StringComparison.Ordinal));
+        fixture.Preferences.SavedProviderId.Should().Be(SpeechProviderIds.Kokoro);
+        fixture.Preferences.SavedVoiceId.Should().Be("af_sky");
+        await fixture.ViewModel.ResetSpeechVoiceCommand.ExecuteAsync();
+        fixture.Preferences.ProviderId.Should().Be(SpeechProviderIds.Kokoro);
+        fixture.Preferences.VoiceId.Should().BeNull();
+        fixture.ViewModel.SelectedVoice!.Id.Should().Be("af_heart");
+
+        fixture.ViewModel.SelectedVoice = fixture.ViewModel.InstalledSpeechVoices.Single(voice =>
+            string.Equals(voice.Id, "female", StringComparison.Ordinal));
+        fixture.Preferences.SavedProviderId.Should().Be(SpeechProviderIds.Windows);
+        fixture.Preferences.SavedVoiceId.Should().Be("female");
+        fixture.TextToSpeech.InstallProviderCalls.Should().Be(0);
+        fixture.TextToSpeech.RemoveProviderCalls.Should().Be(0);
+    }
+
+    [Fact]
     public async Task Installed_provider_voice_discovery_exact_commands_and_UI_share_saved_effective_state()
     {
         var fixture = new Fixture();

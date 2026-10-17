@@ -905,11 +905,13 @@ that surface. Kora remains available in the background until you choose
 
 Installed and developer builds share a SID-scoped ownership domain. Ownership
 is checked before application services, migration, tray or audio initialization.
-A validated same-build launch activates the existing owner and forwards no task
+A Release launch activates the existing owner, even for a different version or
+Debug build, and exits after acknowledgement. It never requests a takeover.
+A Debug launch activates the same build. Neither forwards task
 arguments. An unreachable, incompatible or unverifiable owner is a blocker,
 not permission to run a second assistant.
 
-A different build remains a waiting candidate without microphone, model,
+A different Debug build remains a waiting candidate without microphone, model,
 network work or a second assistant tray. The original presents a native
 question with independently verified build/content and process identities.
 Decline, expiry, lock or candidate death leaves ownership unchanged. Current
@@ -920,9 +922,15 @@ After a safely released replacement exits, the original process acts only as a
 native lifecycle supervisor and offers an explicit return. It has no assistant,
 speech or capture services. Accept revalidates the exact original bytes and
 normal ownership/readiness; decline or dismissal never restarts automatically.
-An unclean-owner marker blocks crash takeover/return when orphaned work cannot
-be reconciled; process death alone is not proof of worker quiescence. Follow the
-native blocker rather than deleting it without checking interrupted work.
+Release retains the strict unclean-owner blocker after an unverified exit.
+Debug-only automatic recovery can proceed on an explicit launch when its
+versioned recovery record proves the previous owner is dead and no external work
+remains. Legacy markers without that record, unknown process lifetime and
+uncertain external work still block recovery. Process death alone is not proof of
+worker quiescence. Follow the native blocker rather than deleting files without
+checking interrupted work. Recovery never replays tasks or automatically
+relaunches Kora. An older owner without activation-only protocol support reports
+an error instead of a Release takeover.
 
 Developer builds use `%LOCALAPPDATA%\Kora\Development`, separate from installed
 release data and microphone consent. Handoff does not transfer consent,

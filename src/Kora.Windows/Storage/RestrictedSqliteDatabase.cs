@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using System.Globalization;
 
 using Kora.Core.Dependencies;
@@ -9,6 +8,7 @@ namespace Kora.Windows.Storage;
 
 internal sealed partial class RestrictedSqliteDatabase
 {
+    private static readonly TimeSpan DefaultProgressTimeout = TimeSpan.FromSeconds(5);
     private readonly RestrictedStorageDirectory directory;
     private readonly string databasePath;
     private readonly string journalPath;
@@ -136,8 +136,8 @@ internal sealed partial class RestrictedSqliteDatabase
             using var settings = connection.CreateCommand();
             settings.CommandText = "PRAGMA query_only=ON; PRAGMA temp_store=MEMORY;";
             settings.ExecuteNonQuery();
-            ValidateSchema(connection);
-            ValidateIntegrity(connection);
+            ValidateSchema(connection, cancellationToken: cancellationToken);
+            ValidateIntegrity(connection, cancellationToken);
             VerifyFiles();
             cancellationToken.ThrowIfCancellationRequested();
             return connection;
@@ -146,6 +146,10 @@ internal sealed partial class RestrictedSqliteDatabase
         {
             connection.Dispose();
             cancellationToken.ThrowIfCancellationRequested();
+            if (exception.SqliteErrorCode == SQLitePCL.raw.SQLITE_INTERRUPT)
+            {
+                throw new IOException("The private evidence database read or validation was interrupted before completion.", exception);
+            }
             throw new InvalidDataException("The private evidence database could not be read or validated.", exception);
         }
         catch
@@ -155,8 +159,12 @@ internal sealed partial class RestrictedSqliteDatabase
         }
     }
 
-    internal SqliteConnection Open(bool created, CancellationToken cancellationToken = default)
+    internal SqliteConnection Open(bool created, CancellationToken cancellationToken = default) =>
+        Open(created, DefaultProgressTimeout, cancellationToken);
+
+    internal SqliteConnection Open(bool created, TimeSpan integrityTimeout, CancellationToken cancellationToken = default)
     {
+        ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(integrityTimeout, TimeSpan.Zero);
         cancellationToken.ThrowIfCancellationRequested();
         if (created)
         {
@@ -189,7 +197,7 @@ internal sealed partial class RestrictedSqliteDatabase
             if (!created)
             {
                 Migrate(connection, cancellationToken);
-                ValidateSchema(connection);
+                ValidateSchema(connection, cancellationToken: cancellationToken);
             }
             if (created)
             {
@@ -200,15 +208,19 @@ internal sealed partial class RestrictedSqliteDatabase
                 create.ExecuteNonQuery();
                 VerifyFiles();
                 transaction.Commit();
-                ValidateSchema(connection);
+                ValidateSchema(connection, cancellationToken: cancellationToken);
             }
-            ValidateIntegrity(connection);
+            ValidateIntegrity(connection, integrityTimeout, cancellationToken: cancellationToken);
             return connection;
         }
         catch (SqliteException exception)
         {
             connection.Dispose();
             cancellationToken.ThrowIfCancellationRequested();
+            if (exception.SqliteErrorCode == SQLitePCL.raw.SQLITE_INTERRUPT)
+            {
+                throw new IOException("The private SQLite database open or validation was interrupted before completion.", exception);
+            }
             throw new InvalidDataException("The private SQLite database could not be opened or validated.", exception);
         }
         catch
@@ -218,8 +230,14 @@ internal sealed partial class RestrictedSqliteDatabase
         }
     }
 
-    private static void ValidateIntegrity(SqliteConnection connection)
+    internal static void ValidateIntegrity(SqliteConnection connection, CancellationToken cancellationToken = default) =>
+        ValidateIntegrity(connection, DefaultProgressTimeout, cancellationToken: cancellationToken);
+
+    internal static void ValidateIntegrity(SqliteConnection connection, TimeSpan timeout, TimeProvider? timeProvider = null,
+        CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+        ResetProgressBudget(connection, timeout, timeProvider, cancellationToken);
         using var integrity = connection.CreateCommand();
         integrity.CommandText = "PRAGMA quick_check;";
         using var reader = integrity.ExecuteReader();
@@ -227,6 +245,7 @@ internal sealed partial class RestrictedSqliteDatabase
         {
             throw new InvalidDataException("The private SQLite database failed its integrity check.");
         }
+        cancellationToken.ThrowIfCancellationRequested();
     }
 
     internal void VerifyFiles()
@@ -249,12 +268,22 @@ internal sealed partial class RestrictedSqliteDatabase
     }
 
     internal static void ResetProgressBudget(SqliteConnection connection,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default) =>
+        ResetProgressBudget(connection, TimeProvider.System, cancellationToken);
+
+    internal static void ResetProgressBudget(SqliteConnection connection,
+        TimeProvider? timeProvider, CancellationToken cancellationToken = default) =>
+        ResetProgressBudget(connection, DefaultProgressTimeout, timeProvider, cancellationToken);
+
+    private static void ResetProgressBudget(SqliteConnection connection, TimeSpan timeout,
+        TimeProvider? timeProvider, CancellationToken cancellationToken)
     {
-        var started = Stopwatch.GetTimestamp();
+        ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(timeout, TimeSpan.Zero);
+        var clock = timeProvider ?? TimeProvider.System;
+        var started = clock.GetTimestamp();
         SQLitePCL.raw.sqlite3_progress_handler(connection.Handle, 1000,
             _ => cancellationToken.IsCancellationRequested
-                || Stopwatch.GetElapsedTime(started) >= TimeSpan.FromSeconds(5) ? 1 : 0, null);
+                || clock.GetElapsedTime(started) >= timeout ? 1 : 0, null);
     }
 
     private void Migrate(SqliteConnection connection, CancellationToken token)
@@ -279,21 +308,24 @@ internal sealed partial class RestrictedSqliteDatabase
         using var command = connection.CreateCommand();
         command.CommandText = "PRAGMA user_version;";
         if (Convert.ToInt64(command.ExecuteScalar(), CultureInfo.InvariantCulture) != step.FromVersion) { return; }
-        ValidateSchema(connection, step.FromVersion, step.PreviousSchema);
-        ValidateIntegrity(connection);
+        ValidateSchema(connection, step.FromVersion, step.PreviousSchema, token);
+        ValidateIntegrity(connection, token);
         using var transaction = connection.BeginTransaction();
         step.Apply(connection, transaction, token);
         command.Transaction = transaction;
         command.CommandText = $"PRAGMA user_version={step.ToVersion};";
         command.ExecuteNonQuery();
-        ValidateSchema(connection, step.ToVersion, nextSchema);
+        ValidateSchema(connection, step.ToVersion, nextSchema, token);
         VerifyFiles();
         token.ThrowIfCancellationRequested();
         transaction.Commit();
     }
 
-    private void ValidateSchema(SqliteConnection connection, int? version = null, IReadOnlyList<string>? expectedSchema = null)
+    private void ValidateSchema(SqliteConnection connection, int? version = null, IReadOnlyList<string>? expectedSchema = null,
+        CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+        ResetProgressBudget(connection, cancellationToken);
         using var command = connection.CreateCommand();
         command.CommandText = "PRAGMA application_id;";
         if (Convert.ToInt64(command.ExecuteScalar(), CultureInfo.InvariantCulture) != applicationId)

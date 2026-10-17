@@ -493,21 +493,13 @@
             <Border Classes="settings-card">
               <Grid ColumnDefinitions="*,300" ColumnSpacing="24">
                 <StackPanel Spacing="4">
-                  <TextBlock Text="Installed speech provider and voice" Classes="settings-title" />
+                  <TextBlock Text="Speech voice" Classes="settings-title" />
                   <TextBlock
                       Text="{Binding VoiceAvailabilityMessage}"
                       Classes="settings-description"
                       TextWrapping="Wrap" />
                 </StackPanel>
                 <StackPanel Grid.Column="1" Spacing="8">
-                  <ComboBox
-                      ItemsSource="{Binding InstalledSpeechProviders}"
-                      SelectedItem="{Binding SelectedInstalledSpeechProvider}"
-                      DisplayMemberBinding="{Binding Name}"
-                      PlaceholderText="Choose a ready installed provider" />
-                  <TextBlock Text="{Binding SpeechSettingStatus}" TextWrapping="Wrap" Classes="settings-description" />
-                  <Button Content="Reset speech provider" Command="{Binding ResetSpeechProviderCommand}" />
-                  <Button Content="Reset speech voice" Command="{Binding ResetSpeechVoiceCommand}" />
                   <ComboBox
                       ItemsSource="{Binding InstalledSpeechVoices}"
                       SelectedItem="{Binding SelectedVoice}"
@@ -522,6 +514,8 @@
                       </DataTemplate>
                     </ComboBox.ItemTemplate>
                   </ComboBox>
+                  <TextBlock Text="{Binding SpeechSettingStatus}" TextWrapping="Wrap" Classes="settings-description" />
+                  <Button Content="Reset speech voice" Command="{Binding ResetSpeechVoiceCommand}" />
                   <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
                     <Button Content="Preview" Command="{Binding PreviewVoiceCommand}" />
                     <Button Grid.Column="1" Content="Stop" Command="{Binding StopSpeechCommand}" />

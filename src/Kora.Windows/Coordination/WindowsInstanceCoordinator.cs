@@ -67,6 +67,10 @@ public sealed class WindowsInstanceCoordinator : IInstanceCoordinator
     public string? FailureReason { get; private set; }
 
     public InstanceBuildIdentity BuildIdentity => original.Identity.Build;
+#if DEBUG
+    public IDebugRecoveryWorkTracker DebugRecovery => continuity.DebugRecovery;
+    public bool RecoveredDebugOwner => continuity.DebugRecovery.Recovered;
+#endif
 
     public static void ReportStartupFailure(string message)
     {
@@ -89,14 +93,22 @@ public sealed class WindowsInstanceCoordinator : IInstanceCoordinator
     {
         try
         {
+#if DEBUG
+            if (!DebugOwnerRecovery.AcquireForRecovery(startupGate, StartupTimeout))
+#else
             if (!Acquire(startupGate, StartupTimeout, allowAbandoned: false))
+#endif
             {
                 return Deny("Another lifecycle transition is pending. Try again after it finishes.");
             }
 
             try
             {
+#if DEBUG
+                if (DebugOwnerRecovery.AcquireForRecovery(owner, TimeSpan.Zero))
+#else
                 if (Acquire(owner, TimeSpan.Zero, allowAbandoned: false))
+#endif
                 {
                     ownsMutex = true;
                     if (!prompt.IsEligible())
@@ -138,15 +150,21 @@ public sealed class WindowsInstanceCoordinator : IInstanceCoordinator
         {
             timeout.CancelAfter(StartupTimeout);
         }
-        Send(pipe, new InstanceMessage(InstanceProtocol.Version, "Start"), timeout.Token);
+#if !DEBUG
+        timeout.CancelAfter(StartupTimeout);
+#endif
+        Send(pipe, new InstanceMessage(InstanceProtocol.Version, InstanceLaunchPolicy.RequestKind), timeout.Token);
         var response = Receive(pipe, timeout.Token);
         if (string.Equals(response.Kind, "Activated", StringComparison.Ordinal))
         {
-            return existing.Identity.Build.IsSameBuild(original.Identity.Build)
+            return InstanceLaunchPolicy.AcceptsActivation(existing.Identity.Build.IsSameBuild(original.Identity.Build))
                 ? InstanceStartupDisposition.ActivatedExisting
                 : Deny("The existing instance returned an incompatible activation acknowledgement.");
         }
 
+#if !DEBUG
+        return Deny("The existing instance did not acknowledge activation. No new assistant or build handoff was started.");
+#else
         if (!string.Equals(response.Kind, "Transfer", StringComparison.Ordinal) || existing.Identity.Build.IsSameBuild(original.Identity.Build) ||
             response.Epoch == Guid.Empty || response.Transaction == Guid.Empty || response.Ticket.Length != 64)
         {
@@ -177,6 +195,7 @@ public sealed class WindowsInstanceCoordinator : IInstanceCoordinator
 
         StartServer();
         return InstanceStartupDisposition.Owner;
+#endif
     }
 
     private InstanceStartupDisposition Deny(string reason)
@@ -247,11 +266,8 @@ public sealed class WindowsInstanceCoordinator : IInstanceCoordinator
                 return;
             }
 
-            if (!string.Equals(request.Kind, "Start", StringComparison.Ordinal) || request.Epoch != Guid.Empty || request.Transaction != Guid.Empty ||
-                request.Ticket.Length != 0)
-            {
-                throw new InvalidDataException("Unsupported or stale lifecycle request.");
-            }
+            var activateOnly = InstanceLaunchPolicy.RequiresActivation(request,
+                original.Identity.Build.IsSameBuild(peer.Identity.Build), peer.Identity.Build.IsDebug);
 
             if (!ownsMutex || !callbacks.IsReady)
             {
@@ -260,7 +276,7 @@ public sealed class WindowsInstanceCoordinator : IInstanceCoordinator
                 return;
             }
 
-            if (original.Identity.Build.IsSameBuild(peer.Identity.Build))
+            if (activateOnly)
             {
                 if (prompt.IsEligible())
                 {
@@ -695,7 +711,11 @@ public sealed class WindowsInstanceCoordinator : IInstanceCoordinator
 
     private bool OwnerAvailable()
     {
+#if DEBUG
+        if (!DebugOwnerRecovery.AcquireForRecovery(owner, TimeSpan.Zero))
+#else
         if (!Acquire(owner, TimeSpan.Zero, allowAbandoned: false))
+#endif
         {
             return false;
         }
@@ -771,7 +791,7 @@ public sealed class WindowsInstanceCoordinator : IInstanceCoordinator
     private static bool IsLifecycleFailure(Exception exception) =>
         exception is IOException or InvalidOperationException or UnauthorizedAccessException or
             System.ComponentModel.Win32Exception or OperationCanceledException or TimeoutException or
-            System.Text.Json.JsonException or ArgumentException or BadImageFormatException;
+            System.Text.Json.JsonException or ArgumentException or BadImageFormatException or InvalidDataException;
 
     private void StopServer()
     {

@@ -852,7 +852,7 @@ of the topic contract or acceptance fixtures.
 | R20 | Select and admit one read-only MCP connector and bundled integration skill | R06/R10/R11; E: connector profile |
 | R21 | Shared-source enablement/invocation and bounded common reload across all supported definition kinds; reconcile owned/profile files, UI/voice lookup, and dependent revisions without automatically activating changes | R05/R06/R10/R11; E: source/format profile |
 | R22 | Owned editing/copy/Disable/Validate/search and prompt v2 required literal native fields/complete expanded preview/separate fresh admission delivered. Generation unavailable; source-preserving holds require fresh review. Next: deferred profile originals/forks, skill/agent formats, refinement and expanded applicability. Full matrix/runtime unqualified | R05/R10/R12/R14/R20/R21 |
-| R22 bounded Compare | Explicit same-kind owned frozen-baseline/raw-draft native [Compare](../docs/instruction-editor.md#compare-the-open-draft-without-saving); historical memory only, Close-only, no disk reload/mutation/activation/clipboard/model authority. No algorithmic patch, profile writer or expanded qualification | Existing owned editor / Validate |
+| R22 bounded Compare | Owned frozen-baseline/raw-draft [Compare](../docs/instruction-editor.md#compare-the-open-draft-without-saving), independent bounded private ordinal literal Find, exact UTF-16 locations, no wrap; absent baseline is not searchable. Historical memory only; no reload/mutation/clipboard/model authority or expanded qualification | Existing editor / Validate / Core literal Find |
 | R23 | Slice B/C and manifest-scoped release regression | Q: R19 and included R20-R22 scope |
 
 Partial packages may progress in parallel once their consumed I subset exists.

@@ -7,4 +7,5 @@ public sealed record SessionWorkOverviewCursor(
     Guid Host, long AdmissionRevision, long SourceEpoch, Guid After, SessionListFilter Filter, bool NeedsAnswer,
     string? QueryDigest = null, SessionWorkOverviewAvailability? Availability = null,
     SessionWorkOverviewContent Content = SessionWorkOverviewContent.Any,
-    SessionWorkOverviewRanges Ranges = default, HostTaskState? TaskState = null);
+    SessionWorkOverviewRanges Ranges = default, HostTaskState? TaskState = null,
+    SessionWorkOverviewTaskQuery TaskQuery = default);

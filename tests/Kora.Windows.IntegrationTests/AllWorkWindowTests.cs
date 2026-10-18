@@ -216,6 +216,9 @@ public sealed partial class AllWorkWindowTests
     [InlineData("range-minimum")]
     [InlineData("range-maximum")]
     [InlineData("clear-ranges")]
+    [InlineData("task-id")]
+    [InlineData("request-id")]
+    [InlineData("clear-task-query")]
     [InlineData("revision")]
     [InlineData("close")]
     public async Task ExactNavigationAdmissionDoesNotSurviveQueryOrPrivateLifetimeChanges(string boundary)
@@ -239,7 +242,10 @@ public sealed partial class AllWorkWindowTests
         model.QueryText = f.Request.SessionId.Value.ToString("D");
         model.RangeInputs[0].Minimum = "1";
         await model.RefreshAsync();
-        model.TaskState = model.Records[0].Work!.Tasks[0].State;
+        var retained = model.Records[0].Work!.Tasks[0];
+        model.TaskState = retained.State;
+        model.TaskIdText = retained.Request.TaskId.Value.ToString("D");
+        model.RequestIdText = retained.Request.RequestId.Value.ToString("D");
         await model.RefreshAsync();
         model.Select(model.Records.Single());
         var navigation = model.NavigateAsync();
@@ -251,6 +257,9 @@ public sealed partial class AllWorkWindowTests
         if (boundary is "range-minimum") { model.RangeInputs[0].Minimum = "2"; }
         if (boundary is "range-maximum") { model.RangeInputs[1].Maximum = "0"; }
         if (boundary is "clear-ranges") { model.ClearRanges(); }
+        if (boundary is "task-id") { model.TaskIdText = "00000000-0000-0000-0000-000000000099"; }
+        if (boundary is "request-id") { model.RequestIdText = "00000000-0000-0000-0000-000000000099"; }
+        if (boundary is "clear-task-query") { model.ClearTaskQuery(); }
         if (boundary is "revision") { access.ControlRevision++; }
         if (boundary is "close") { model.Close(); }
         admitted().Should().BeFalse();
@@ -488,6 +497,8 @@ public sealed partial class AllWorkWindowTests
         model.Availability.Should().BeNull();
         model.Content.Should().Be(SessionWorkOverviewContent.Any);
         model.TaskState.Should().BeNull();
+        model.TaskIdText.Should().BeEmpty();
+        model.RequestIdText.Should().BeEmpty();
         model.RangeInputs.Should().OnlyContain(input => input.Minimum.Length == 0 && input.Maximum.Length == 0);
         held.Writes.Should().Be(0);
     }

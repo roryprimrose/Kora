@@ -49,6 +49,14 @@ deadline metadata, not deletion/current-expiry/policy/permission proof.
 E/Q, installed accessibility and unqualified providers/egress/wake/executors/
 profile writers remain separate and unavailable.
 
+### Bounded All Work same-retained-task correlation - 2026-10-18
+
+The [All Work contract](Work_Management.md#delivered-passive-cross-session-work-observation---2026-10-11) adds optional exact retained TaskId/RequestId with strict canonical GUID admission.
+The [portable rule](../src/Kora.Core/Storage/SessionWorkOverviewFilter.cs) requires both IDs and constrained task state on the same validated retained task, AND with all existing predicates. Omissions/unavailable work prove no absence, exhaustive search or authority.
+The [reader](../src/Kora.Application/Hosting/SessionWorkspaceService.WorkOverview.cs) retains bounded scans/pages/counters/timeouts and complete cursor/source/private/cancellation fences; named [native fields](../src/Kora/AllWorkWindow.axaml) retire results and stale callbacks without reading on edit/Clear/Escape.
+This consumes existing observation/query/reader/native I contracts, with [deterministic tests](../tests/Kora.Application.UnitTests/Hosting/SessionWorkspaceServiceTests.WorkOverviewTaskQuery.cs), not broad Rxx or physical qualification.
+No schema/read authority or task/body/network/device/dispatch operation is added; unqualified runtime/provider/egress/wake/profile writers remain unavailable and no E/Q enablement is claimed ([boundary](Work_Management.md#delivered-passive-cross-session-work-observation---2026-10-11)).
+
 ### Bounded exact-grant committed request correlation predicates - 2026-10-17
 
 The [one-exact-grant history](../docs/settings.md#exact-operation-grants)

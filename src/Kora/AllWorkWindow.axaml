@@ -49,6 +49,24 @@
       </Grid>
       <controls:NamedTextBlock Text="{Binding QueryHint}" TextWrapping="Wrap"
                               AutomationProperties.Name="Metadata query validation and passive search scope" />
+      <Grid ColumnDefinitions="*,*,Auto" ColumnSpacing="8">
+        <StackPanel>
+          <TextBlock Text="Retained TaskId (Any when empty)" />
+          <TextBox x:Name="RetainedTaskId" Text="{Binding TaskIdText, Mode=TwoWay}" IsEnabled="{Binding CanEdit}"
+                   PlaceholderText="Optional exact retained TaskId"
+                   AutomationProperties.Name="Exact retained TaskId; empty means Any; lowercase D GUID; typing performs no read; Escape clears both correlation IDs" />
+        </StackPanel>
+        <StackPanel Grid.Column="1">
+          <TextBlock Text="Retained RequestId (Any when empty)" />
+          <TextBox x:Name="RetainedRequestId" Text="{Binding RequestIdText, Mode=TwoWay}" IsEnabled="{Binding CanEdit}"
+                   PlaceholderText="Optional exact retained RequestId"
+                   AutomationProperties.Name="Exact retained RequestId; empty means Any; lowercase D GUID; typing performs no read; Escape clears both correlation IDs" />
+        </StackPanel>
+        <Button x:Name="ClearTaskQuery" Grid.Column="2" Content="Clear task correlation" IsEnabled="{Binding CanEdit}"
+                AutomationProperties.Name="Clear both retained task correlation IDs without reading; preserve independent filters" />
+      </Grid>
+      <controls:NamedTextBlock Text="{Binding TaskQueryHint}" TextWrapping="Wrap"
+                              AutomationProperties.Name="Same retained task correlation validation and passive scope; omissions prove no absence or authority" />
       <Expander x:Name="WorkRanges" Header="Optional inclusive observed work metadata ranges" HorizontalAlignment="Stretch">
         <StackPanel Spacing="6" IsEnabled="{Binding CanEdit}">
           <controls:NamedTextBlock Text="{Binding RangeHint}" TextWrapping="Wrap"

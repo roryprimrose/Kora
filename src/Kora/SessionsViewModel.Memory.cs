@@ -213,7 +213,7 @@ internal sealed partial class SessionsViewModel
         get => MemorySourceCurrent ? memoryDraft : string.Empty;
         set
         {
-            if (!CanProposeMemory || notifying || memoryDraft == value) { return; }
+            if (!CanProposeMemory || notifying || string.Equals(memoryDraft, value, StringComparison.Ordinal)) { return; }
             RetireMemoryBatch();
             memoryDraft = value;
             OnPropertyChanged();

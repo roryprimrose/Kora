@@ -234,7 +234,7 @@ internal sealed partial class SessionsWindow : Window
         };
         System.ComponentModel.PropertyChangedEventHandler memoryBatchChanged = (_, args) =>
         {
-            if (args.PropertyName != nameof(SessionsViewModel.MemoryBatchSelection)) { return; }
+            if (!string.Equals(args.PropertyName, nameof(SessionsViewModel.MemoryBatchSelection), StringComparison.Ordinal)) { return; }
             synchronizingMemoryBatch = true;
             try
             {

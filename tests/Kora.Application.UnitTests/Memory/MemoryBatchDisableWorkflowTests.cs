@@ -155,19 +155,19 @@ public sealed class MemoryBatchDisableWorkflowTests
         var actions = new Actions();
         using var workflow = new MemoryBatchDisableWorkflow(actions);
         var review = await workflow.ReviewAsync(actions.Session, actions.Selection, () => true, Token);
-        if (fault == "read") { actions.OnInspect = () => throw new IOException("read unavailable"); }
+        if (fault is "read") { actions.OnInspect = () => throw new IOException("read unavailable"); }
         else
         {
             actions.FailAt = 1;
             actions.Fault = fault;
         }
         var result = await workflow.ConfirmAsync(review, () => true, Token);
-        var index = fault == "read" ? 0 : 1;
+        var index = fault is "read" ? 0 : 1;
         result.Items[index].State.Should().Be(MemoryBatchDisableState.Unavailable);
         result.Items.Skip(index + 1).Should().OnlyContain(item => item.State == MemoryBatchDisableState.NotAttempted);
-        actions.Attempts.Should().Be(fault == "read" ? 0 : 2);
+        actions.Attempts.Should().Be(fault is "read" ? 0 : 2);
         if (fault is "unknown-commit" or "cancel-unknown-commit") { actions.Disabled.Should().HaveCount(2); }
-        else if (fault != "read") { result.Items[0].State.Should().Be(MemoryBatchDisableState.Succeeded); }
+        else if (fault is not "read") { result.Items[0].State.Should().Be(MemoryBatchDisableState.Succeeded); }
     }
 
     [Theory]
@@ -184,7 +184,7 @@ public sealed class MemoryBatchDisableWorkflowTests
         using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(Token);
         var admitted = true;
         var review = await workflow.ReviewAsync(actions.Session, actions.Selection, () => admitted, Token);
-        if (fault == "cancel-before") { await cancellation.CancelAsync(); }
+        if (fault is "cancel-before") { await cancellation.CancelAsync(); }
         else
         {
             actions.AfterCompleted = () =>
@@ -200,7 +200,7 @@ public sealed class MemoryBatchDisableWorkflowTests
             };
         }
         var result = await workflow.ConfirmAsync(review, () => true, cancellation.Token);
-        if (fault == "cancel-before")
+        if (fault is "cancel-before")
         {
             result.Items.Select(item => item.State).Should().Equal(MemoryBatchDisableState.Cancelled,
                 MemoryBatchDisableState.NotAttempted, MemoryBatchDisableState.NotAttempted);
@@ -209,8 +209,8 @@ public sealed class MemoryBatchDisableWorkflowTests
         else
         {
             result.Items[0].State.Should().Be(MemoryBatchDisableState.Succeeded);
-            result.Items[1].State.Should().Be(fault == "cancel-after" ? MemoryBatchDisableState.NotAttempted
-                : fault == "cancel-returned" ? MemoryBatchDisableState.Cancelled : MemoryBatchDisableState.Unavailable);
+            result.Items[1].State.Should().Be(fault is "cancel-after" ? MemoryBatchDisableState.NotAttempted
+                : fault is "cancel-returned" ? MemoryBatchDisableState.Cancelled : MemoryBatchDisableState.Unavailable);
             actions.Disabled.Should().ContainSingle();
             actions.Attempts.Should().Be(1);
         }
@@ -233,7 +233,7 @@ public sealed class MemoryBatchDisableWorkflowTests
             case "reselect": await workflow.ReviewAsync(actions.Session, actions.Selection.Take(1).ToArray(), () => true, Token); break;
             case "dispose": workflow.Dispose(); break;
         }
-        var act = () => (fault == "other-owner" ? other : workflow).ConfirmAsync(review, () => true, Token);
+        var act = () => (fault is "other-owner" ? other : workflow).ConfirmAsync(review, () => true, Token);
         await act.Should().ThrowAsync<InvalidOperationException>();
         actions.Disabled.Should().BeEmpty();
     }
@@ -287,7 +287,7 @@ public sealed class MemoryBatchDisableWorkflowTests
             }
         };
         var act = () => workflow.ReviewAsync(actions.Session, actions.Selection, () => admitted, cancellation.Token);
-        if (fault == "cancel") { await act.Should().ThrowAsync<OperationCanceledException>(); }
+        if (fault is "cancel") { await act.Should().ThrowAsync<OperationCanceledException>(); }
         else { await act.Should().ThrowAsync<InvalidOperationException>(); }
         actions.Inspections.Should().ContainSingle();
         actions.Disabled.Should().BeEmpty();
@@ -393,16 +393,16 @@ public sealed class MemoryBatchDisableWorkflowTests
             var fail = Attempts++ == FailAt;
             if (PendingDisable is { } pending) { await pending(); }
             if (fail && Fault is "audit" or "commit") { throw new IOException("required write unavailable"); }
-            if (fail && Fault == "cancel-unconfirmed") { throw new OperationCanceledException(token); }
+            if (fail && Fault is "cancel-unconfirmed") { throw new OperationCanceledException(token); }
             if (fail && Failure is { } result) { completed(result); return; }
-            if (fail && Fault == "missing-readback") { return; }
+            if (fail && Fault is "missing-readback") { return; }
             var updated = record with { Revision = new(record.Revision.Value + 1), Retention = MemoryRetentionState.Disabled };
             Rows[record.Id.Value] = updated;
             Disabled.Add(record.Id.Value);
-            if (fail && Fault == "unknown-commit") { throw new IOException("commit result unknown"); }
-            if (fail && Fault == "cancel-unknown-commit") { throw new OperationCanceledException(token); }
+            if (fail && Fault is "unknown-commit") { throw new IOException("commit result unknown"); }
+            if (fail && Fault is "cancel-unknown-commit") { throw new OperationCanceledException(token); }
             completed(new(MemoryOutcome.Succeeded, MemoryReason.None,
-                fail && Fault == "wrong-readback" ? record : updated));
+                fail && Fault is "wrong-readback" ? record : updated));
             AfterCompleted?.Invoke();
         }
     }

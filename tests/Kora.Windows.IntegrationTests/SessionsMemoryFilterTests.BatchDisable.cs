@@ -6,6 +6,7 @@ using Avalonia.Interactivity;
 using Avalonia.LogicalTree;
 using AwesomeAssertions;
 using Kora.Core.Memory;
+using Kora.Windows.IntegrationTests.Audio;
 
 namespace Kora.Windows.IntegrationTests;
 
@@ -41,7 +42,7 @@ public sealed partial class SessionsMemoryFilterTests
         f.Logger.Messages.Should().NotContain(message => message.Contains("private exact value", StringComparison.Ordinal));
     }
 
-    [WindowsTheory]
+    [Theory]
     [InlineData("selection")]
     [InlineData("single")]
     [InlineData("filter")]
@@ -128,7 +129,10 @@ public sealed partial class SessionsMemoryFilterTests
                 }
                 var calls = f.Store.Calls;
                 list.SelectedIndex = 0;
-                list.Focus().Should().BeTrue();
+                list.BringIntoView();
+                window.UpdateLayout();
+                var first = (ListBoxItem)list.ContainerFromIndex(0)!;
+                first.Focus().Should().BeTrue();
                 window.KeyPress(Key.Down, RawInputModifiers.Shift, PhysicalKey.ArrowDown, null);
                 list.SelectedItems!.Count.Should().Be(2);
                 f.Model.MemoryBatchSelection.Should().HaveCount(2);
@@ -138,11 +142,11 @@ public sealed partial class SessionsMemoryFilterTests
                 await window.MemoryBatchOperation;
                 detail.Text.Should().Contain("Review 2 exact").And.Contain("private exact value").And.Contain("Decision");
                 confirm.IsEnabled.Should().BeTrue();
-                list.Focus().Should().BeTrue();
+                first.Focus().Should().BeTrue();
                 window.KeyPress(Key.Escape, RawInputModifiers.None, PhysicalKey.Escape, null);
                 confirm.IsEnabled.Should().BeFalse();
                 detail.Text.Should().BeEmpty();
-                list.SelectedItems.Should().BeEmpty();
+                list.SelectedItems!.Count.Should().Be(0);
                 list.SelectedIndex = 1;
                 review.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
                 await window.MemoryBatchOperation;

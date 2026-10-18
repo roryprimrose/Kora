@@ -8,17 +8,17 @@ internal sealed partial class SessionsViewModel
 {
     private MemoryBatchDisableWorkflow? memoryBatchWorkflow;
     private MemoryBatchDisableReview? memoryBatchReview;
-    private IReadOnlyList<MemorySummary> memoryBatchSelection = [];
+    private MemorySummary[] memoryBatchSelection = [];
     private string memoryBatchDetail = string.Empty;
     private long memoryBatchEpoch;
     private CancellationTokenSource? memoryBatchCancellation;
 
     public IReadOnlyList<MemorySummary> MemoryBatchSelection => MemorySourceCurrent ? memoryBatchSelection : [];
     public string MemoryBatchDetail => MemorySourceCurrent ? memoryBatchDetail : string.Empty;
-    public bool CanReviewMemoryBatch => CanReadMemories && MemorySourceCurrent && memoryBatchSelection.Count > 0;
+    public bool CanReviewMemoryBatch => CanReadMemories && MemorySourceCurrent && memoryBatchSelection.Length > 0;
     public bool CanConfirmMemoryBatch => CanReadMemories && MemorySourceCurrent && memoryBatchReview is not null;
     public bool CanCancelMemoryBatch => MemorySourceCurrent
-        && (memoryBatchReview is not null || memoryBatchCancellation is not null || memoryBatchSelection.Count > 0);
+        && (memoryBatchReview is not null || memoryBatchCancellation is not null || memoryBatchSelection.Length > 0);
 
     public void SelectMemoryBatch(IReadOnlyList<MemorySummary> selection)
     {
@@ -47,7 +47,8 @@ internal sealed partial class SessionsViewModel
         var review = await workflow.ReviewAsync(authority.SessionId, selection, Eligible, lifetime.Token);
         if (!Eligible()) { throw new OperationCanceledException("The selected memory subset changed."); }
         var text = new StringBuilder()
-            .AppendLine($"Review {review.Records.Length} exact enabled session memories for DISABLE only.")
+            .AppendLine(System.Globalization.CultureInfo.InvariantCulture,
+                $"Review {review.Records.Length} exact enabled session memories for DISABLE only.")
             .AppendLine(MemoryBatchDisableOutcome.Disclosure);
         foreach (var record in review.Records)
         {

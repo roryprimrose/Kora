@@ -15,8 +15,8 @@ internal sealed partial class MemoryManagementService
         {
             throw new MemoryBatchDisableConflictException();
         }
-        return result.Inspected ?? throw new InvalidOperationException(
-            "The selected memory revision is no longer available. List and review again.");
+        // ExecuteAsync's exact Inspect arm always supplies the record; missing/stale arms throw above.
+        return result.Inspected!;
     }
 
     async Task IMemoryBatchDisableActions.DisableAsync(HostId<SessionIdentity> session, MemoryRecord record,

@@ -8,6 +8,19 @@ namespace Kora.Application.UnitTests.Memory;
 
 public sealed partial class MemoryAdmissionServiceTests
 {
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task VolatileExactRecordFenceSharesTheSameDisableTransition(bool changed)
+    {
+        using var fixture = new Fixture();
+        using var root = fixture.Root();
+        var record = await fixture.Admitted();
+        var expected = changed ? record with { Candidate = new(MemoryContentClass.Decision, "different reviewed content") } : record;
+        var result = await fixture.Service.DisableAsync(record.Id, record.Revision, Token, expected);
+        result.Outcome.Should().Be(changed ? MemoryOutcome.RevisionConflict : MemoryOutcome.Succeeded);
+    }
+
     [Fact]
     public async Task BatchUsesIndividualAuthoritativeTransitionsAuditsAndExactSessionControlIntents()
     {
@@ -27,11 +40,12 @@ public sealed partial class MemoryAdmissionServiceTests
         result.Items.Should().OnlyContain(item => item.State == MemoryBatchDisableState.Succeeded);
         fixture.Stored.Values.Count(record => record.Retention == MemoryRetentionState.Disabled).Should().Be(2);
         fixture.Stored.Values.Count(record => record.Retention == MemoryRetentionState.Enabled).Should().Be(1);
-        fixture.Audits.Where(audit => audit.ActionId == "memory.disable" && audit.Outcome == SecurityAuditOutcome.Succeeded)
+        fixture.Audits.Where(audit => string.Equals(audit.ActionId, "memory.disable", StringComparison.Ordinal)
+                && audit.Outcome == SecurityAuditOutcome.Succeeded)
             .Should().HaveCount(2);
         fixture.ControlIntents.Should().OnlyContain(intent => intent.Request.SessionId == fixture.Session.SessionId);
         fixture.ControlIntents.Select(intent => intent.Request.RequestId).Should().OnlyHaveUniqueItems();
-        fixture.Messages.Should().NotContain(message => message.Contains(Candidate.Value, StringComparison.Ordinal));
+        fixture.Messages.Should().NotContain(message => message.Contains(Candidate.Value!, StringComparison.Ordinal));
     }
 
     [Theory]
@@ -70,7 +84,7 @@ public sealed partial class MemoryAdmissionServiceTests
         };
         var result = await workflow.ConfirmAsync(review, () => fixture.ControlRevision == control, cancellation.Token);
         fixture.Stored.Values.Count(record => record.Retention == MemoryRetentionState.Disabled).Should().Be(1);
-        if (fault == "unknown")
+        if (fault is "unknown")
         {
             result.Items[0].State.Should().Be(MemoryBatchDisableState.Unavailable);
             result.Items.Skip(1).Should().OnlyContain(item => item.State == MemoryBatchDisableState.NotAttempted);

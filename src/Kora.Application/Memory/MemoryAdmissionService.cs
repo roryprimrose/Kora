@@ -101,7 +101,7 @@ internal sealed partial class MemoryAdmissionService(
                 if (storage is not null)
                 {
                     return await ExecuteStoredAsync(operation, id, expected, scope!, candidate, origin, accept,
-                        destination, before!, issuer, control, lifecycle, session, requested, continuation, activity, token, exactRecord)
+                        destination, before!, issuer, control, lifecycle, session, requested, continuation, activity, exactRecord, token)
                         .ConfigureAwait(false);
                 }
                 lock (stateGate)
@@ -172,7 +172,7 @@ internal sealed partial class MemoryAdmissionService(
         HostRevision expected, MemoryScope scope, MemoryCandidate? candidate, MemoryProposalOrigin origin,
         bool accept, MemoryDestination destination, MemoryBoundary boundary, HostActivity issuer, long control,
         long lifecycle, SessionWorkspaceEntry session, SecurityAuditEvent requested, Func<HostActivity> continuation,
-        HostActivity activity, CancellationToken token, MemoryRecord? exactRecord)
+        HostActivity activity, MemoryRecord? exactRecord, CancellationToken token)
     {
         MemoryRecord? original = null;
         lock (stateGate) { original = id is { } identity ? records.GetValueOrDefault(identity) : null; }

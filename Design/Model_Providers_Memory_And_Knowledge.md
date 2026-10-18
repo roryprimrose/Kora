@@ -445,7 +445,7 @@ The [native memory region](../src/Kora/SessionsWindow.axaml) retains the existin
 
 Confirmation re-inspects the entire exact subset before any disable. Every step then revalidates admission and the complete reviewed record at the authoritative transaction, using the [existing per-record disable/action/audit](../src/Kora.Application/Memory/MemoryAdmissionService.cs). No direct storage writes or new batch commit bypass exist.
 
-Application is sequential, **not atomic-all**. The [typed results](../src/Kora.Application/Memory/MemoryBatchDisableReview.cs) report each selected ID/revision as Succeeded, Conflict, Unavailable, Cancelled or NotAttempted, retaining the individual action result where confirmed. The first conflict or uncertain operation stops the sequence; earlier committed disables cannot roll back.
+Application is sequential, **not atomic-all**. The [typed results](../src/Kora.Application/Memory/MemoryBatchDisableOutcome.cs) report each selected ID/revision as Succeeded, Conflict, Unavailable, Cancelled or NotAttempted, retaining the individual action result where confirmed. The first conflict or uncertain operation stops the sequence; earlier committed disables cannot roll back.
 
 An unavailable commit result is not proof that nothing changed. A returned committed success remains Succeeded even if a later cancellation or presentation fence fails. No automatic retry or rollback follows; inspect durable state manually before any fresh selection/review ([orchestration and failure tests](../tests/Kora.Application.UnitTests/Memory/MemoryAdmissionServiceTests.BatchDisable.cs)).
 
@@ -453,7 +453,9 @@ The [presentation delegate](../src/Kora/SessionsViewModel.MemoryBatch.cs) retire
 
 This consumes the existing management/admission/store I subset only. Batch admit, forget, candidate acceptance, broader scope, recall, provider/model disclosure, retention deletion, grants and export are absent. E/Q and unqualified provider/runtime/egress/wake/profile writers remain separate and unavailable ([delivery policy](Implementation_Roadmap.md#delivery-and-qualification-dependency-policy)).
 
-The [portable workflow regressions](../tests/Kora.Application.UnitTests/Memory/MemoryBatchDisableWorkflowTests.cs) and [native regressions](../tests/Kora.Windows.IntegrationTests/SessionsMemoryFilterTests.BatchDisable.cs) are authored; build, test execution and exact portable line/branch coverage are pending the serial validation permit. Their presence is not a passing validation or release-readiness claim.
+The [portable workflow regressions](../tests/Kora.Application.UnitTests/Memory/MemoryBatchDisableWorkflowTests.cs) and [native regressions](../tests/Kora.Windows.IntegrationTests/SessionsMemoryFilterTests.BatchDisable.cs) passed local deterministic validation on 2026-10-19 under the serial permit. Release/analyzers reported zero warnings/errors; all four portable suites and five serial Windows shards passed.
+
+The complete local full-suite run passed 14,338 tests with no failures/skips. Portable aggregate coverage was exactly 28,393/28,393 lines and 19,772/19,772 branches, raw rates 1/1, without new exclusions or reduced thresholds. Earlier compiler/analyzer, native keyboard-focus and additive native field-count failures were retained and repaired; this is not hosted/integrated-main, E/Q or release acceptance.
 
 ### Delivered Original-User Session Memory Proposals - 2026-10-10
 

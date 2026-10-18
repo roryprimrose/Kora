@@ -11,13 +11,13 @@ internal sealed class MemoryBatchDisableWorkflow(IMemoryBatchDisableActions acti
     private readonly Lock stateGate = new();
     private long revision;
     private MemoryBatchDisableReview? current;
-    private Func<bool>? reviewAdmission;
+    private Func<bool> reviewAdmission = static () => false;
     private bool disposed;
     private bool applying;
 
     internal void Retire()
     {
-        lock (stateGate) { revision++; current = null; reviewAdmission = null; }
+        lock (stateGate) { revision++; current = null; reviewAdmission = static () => false; }
     }
 
     internal async Task<MemoryBatchDisableReview> ReviewAsync(HostId<SessionIdentity> session,
@@ -32,7 +32,7 @@ internal sealed class MemoryBatchDisableWorkflow(IMemoryBatchDisableActions acti
             ObjectDisposedException.ThrowIf(disposed, this);
             if (applying) { throw new InvalidOperationException("A disable sequence is already applying."); }
             current = null;
-            reviewAdmission = null;
+            reviewAdmission = static () => false;
             epoch = ++revision;
         }
         bool Eligible() => IsCurrent(epoch) && admitted() && !token.IsCancellationRequested;
@@ -77,9 +77,8 @@ internal sealed class MemoryBatchDisableWorkflow(IMemoryBatchDisableActions acti
                 throw new InvalidOperationException("The one-shot review was retired or consumed. Select and review again.");
             }
             current = null;
-            originalAdmission = reviewAdmission
-                ?? throw new InvalidOperationException("The original review admission is unavailable.");
-            reviewAdmission = null;
+            originalAdmission = reviewAdmission;
+            reviewAdmission = static () => false;
             applying = true;
             epoch = revision;
         }
@@ -193,7 +192,7 @@ internal sealed class MemoryBatchDisableWorkflow(IMemoryBatchDisableActions acti
 
     public void Dispose()
     {
-        lock (stateGate) { disposed = true; revision++; current = null; reviewAdmission = null; }
+        lock (stateGate) { disposed = true; revision++; current = null; reviewAdmission = static () => false; }
         GC.SuppressFinalize(this);
     }
 }

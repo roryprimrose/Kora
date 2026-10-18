@@ -34,6 +34,14 @@ do not depend on hosted management, and speech preferences do not qualify wake.
 
 ## Current Delivery
 
+### Bounded exact sparse session-provider copy implementation - 2026-10-19
+
+The [session-provider copy contract](Model_Providers_Memory_And_Knowledge.md#exact-sparse-session-provider-copy-implementation---2026-10-19) adds explicit native/typed/current-name activated review of a source's exact sparse overrides for a distinct active destination. Complete old/new policy and effective/unavailable disclosure precedes separate expiring one-shot confirmation; null inheritance is never flattened into a source effective tuple.
+
+The existing Application review action, strict sparse/domain rules and private destination audit/save/readback/terminal writer remain authoritative. Both policy/lifecycle/app/private/account/catalogue snapshots are fenced; each destination transaction boundary rereads the exact source, and uncertain outcomes retain destination-only holds without retry. Source authority, credentials/grants/identities, app defaults, runtime/provider execution and network are not transferred or enabled.
+
+Deterministic workflow, command, native and private SQLite tests are authored. Current-head build/test/exact portable line-and-branch coverage validation is pending the coordinator's serial permit; no READY or proof claim is made. This consumes the merged session-provider configuration I subset only. Broader provider/runtime/egress E/Q qualification remains unavailable and is not an implementation prerequisite.
+
 ### Bounded exact immutable LocalFile Find count and ordinal - 2026-10-18
 
 The existing [native current-source Find](File_And_Folder_Ingestion.md#exact-immutable-localfile-occurrence-count-and-ordinal---2026-10-18) reports an accessible exact total and selected ordinal only for its admitted displayed immutable file, never corpus/retrieval/live disk.

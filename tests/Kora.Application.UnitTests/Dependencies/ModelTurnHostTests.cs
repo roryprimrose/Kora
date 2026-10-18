@@ -554,7 +554,7 @@ public sealed partial class ModelTurnHostTests : IDisposable
             return ValueTask.FromResult(result);
         }
         public ValueTask<SessionProviderProfile> CommitProviderProfile(HostRequest request, SessionProviderProfile expected,
-            Kora.Core.Providers.SessionProviderOverrides desired, Func<bool> admitted, CancellationToken token) => throw new NotSupportedException();
+            Kora.Core.Providers.SessionProviderOverrides desired, Func<bool> admitted, CancellationToken token, SessionProviderProfile? source = null) => throw new NotSupportedException();
         internal ModelTurnHost Production()
         {
             var host = new ModelTurnHost(this, this, this, registry, this, this, Time,

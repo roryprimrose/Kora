@@ -157,6 +157,15 @@
       <StackPanel Spacing="6">
         <controls:NamedTextBlock Text="{Binding ProviderStatus}" TextWrapping="Wrap"
             AutomationProperties.Name="Exact selected session saved sparse fields, inherited flags, effective unavailable or resolved tuple, account and catalogue provenance; no generation or authentication" />
+        <TextBlock Text="Copy only exact sparse overrides from another admitted session. Null fields keep inheriting; source credentials, grants and authority never transfer. The selected session is the explicit destination. Review complete old/new values, then Confirm separately." TextWrapping="Wrap" />
+        <WrapPanel>
+          <ComboBox ItemsSource="{Binding ProviderCopySources}" SelectedItem="{Binding ProviderCopySource, Mode=TwoWay}"
+              IsEnabled="{Binding CanInspectProviders}" Width="400"
+              AutomationProperties.Name="Explicit exact source session for sparse provider copy; destination is the selected active session">
+            <ComboBox.ItemTemplate><DataTemplate><TextBlock Text="{Binding Authority}" TextWrapping="Wrap" /></DataTemplate></ComboBox.ItemTemplate>
+          </ComboBox>
+          <Button x:Name="ReviewProviderCopy" Content="Review exact sparse provider copy to selected session" IsEnabled="{Binding CanReviewProviderCopy}" />
+        </WrapPanel>
         <WrapPanel>
           <Button x:Name="RefreshProviders" Content="Refresh exact session provider status" IsEnabled="{Binding CanInspectProviders}" />
           <ComboBox ItemsSource="{Binding ProviderServices}" SelectedItem="{Binding ProviderService, Mode=TwoWay}"

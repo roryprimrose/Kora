@@ -180,6 +180,7 @@ internal sealed partial class SessionsViewModel
 
     private void RetireMemorySelection()
     {
+        RetireMemoryBatch();
         selectedMemory = null;
         inspectedMemory = null;
         memoryMutationReady = false;
@@ -210,12 +211,26 @@ internal sealed partial class SessionsViewModel
     public string MemoryDraft
     {
         get => MemorySourceCurrent ? memoryDraft : string.Empty;
-        set { if (!CanProposeMemory || notifying) { return; } memoryDraft = value; OnPropertyChanged(); }
+        set
+        {
+            if (!CanProposeMemory || notifying || memoryDraft == value) { return; }
+            RetireMemoryBatch();
+            memoryDraft = value;
+            OnPropertyChanged();
+            NotifyMemoryBatch();
+        }
     }
     public MemoryContentClass MemoryClass
     {
         get => memoryClass;
-        set { if (!CanReadMemories || notifying) { return; } memoryClass = value; OnPropertyChanged(); }
+        set
+        {
+            if (!CanReadMemories || notifying || memoryClass == value) { return; }
+            RetireMemoryBatch();
+            memoryClass = value;
+            OnPropertyChanged();
+            NotifyMemoryBatch();
+        }
     }
     public IReadOnlyList<MemoryContentClass> MemoryClasses { get; } =
         [MemoryContentClass.ExplicitFact, MemoryContentClass.ResponsePreference, MemoryContentClass.WorkflowPreference, MemoryContentClass.Decision];
@@ -248,6 +263,7 @@ internal sealed partial class SessionsViewModel
 
     private Task RunMemoryAsync(MemoryCommandOperation operation, bool accept = false) => RunAsync(async () =>
     {
+        RetireMemoryBatch();
         var subject = RequireSelected().Authority.SessionId;
         var authority = RequireSelected().Authority;
         var control = access.ControlRevision;
@@ -372,6 +388,7 @@ internal sealed partial class SessionsViewModel
             OnPropertyChanged(nameof(MemoryOrder));
             OnPropertyChanged(nameof(MemoryOrderChoice));
             OnPropertyChanged(nameof(MemoryFilterStatus));
+            NotifyMemoryBatch();
         }
         finally { notifying = previous; }
     }

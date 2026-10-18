@@ -437,6 +437,24 @@ The [command-level transition matrix and mutation-boundary tests](../tests/Kora.
 Provider ranking/prompt attachment, cross-session/global/device-profile/project/source recall, hosted disclosure, and model-facing **Remember this**/proposal triggers remain separate, undelivered workstreams.
 The original 2026-10-09 surface had no create/propose route. The bounded original-user extension below supersedes that gap only; arbitrary conversation and model responses still cannot trigger creation.
 
+### Bounded Selected-Subset Session Memory Disable - 2026-10-18
+
+The [Application workflow](../src/Kora.Application/Memory/MemoryBatchDisableWorkflow.cs) adds original-user review and separate one-shot confirmation of a finite, explicitly selected subset, bounded by the existing [memory identity limit](../src/Kora.Core/Memory/MemoryPolicy.cs). Only enabled admitted records in one exact active session qualify; there is no automatic Select All.
+
+The [native memory region](../src/Kora/SessionsWindow.axaml) retains the existing single-record controls. A separate keyboard Ctrl/Shift multi-selector is passive. Explicit Review inspects every selected exact ID/revision and displays the complete content, classification and count before Confirm becomes available. Reviewing does not accept candidates or grant retention/disclosure authority.
+
+Confirmation re-inspects the entire exact subset before any disable. Every step then revalidates admission and the complete reviewed record at the authoritative transaction, using the [existing per-record disable/action/audit](../src/Kora.Application/Memory/MemoryAdmissionService.cs). No direct storage writes or new batch commit bypass exist.
+
+Application is sequential, **not atomic-all**. The [typed results](../src/Kora.Application/Memory/MemoryBatchDisableReview.cs) report each selected ID/revision as Succeeded, Conflict, Unavailable, Cancelled or NotAttempted, retaining the individual action result where confirmed. The first conflict or uncertain operation stops the sequence; earlier committed disables cannot roll back.
+
+An unavailable commit result is not proof that nothing changed. A returned committed success remains Succeeded even if a later cancellation or presentation fence fails. No automatic retry or rollback follows; inspect durable state manually before any fresh selection/review ([orchestration and failure tests](../tests/Kora.Application.UnitTests/Memory/MemoryAdmissionServiceTests.BatchDisable.cs)).
+
+The [presentation delegate](../src/Kora/SessionsViewModel.MemoryBatch.cs) retires review on reselection, memory edits, filters/order/source refresh, session/generation/privacy/control changes, cancellation and closure. Cancel also stops remaining steps; it cannot erase a committed action. Outcome text is content-free, and private/source closure suppresses stale content rather than reviving a prior review.
+
+This consumes the existing management/admission/store I subset only. Batch admit, forget, candidate acceptance, broader scope, recall, provider/model disclosure, retention deletion, grants and export are absent. E/Q and unqualified provider/runtime/egress/wake/profile writers remain separate and unavailable ([delivery policy](Implementation_Roadmap.md#delivery-and-qualification-dependency-policy)).
+
+The [portable workflow regressions](../tests/Kora.Application.UnitTests/Memory/MemoryBatchDisableWorkflowTests.cs) and [native regressions](../tests/Kora.Windows.IntegrationTests/SessionsMemoryFilterTests.BatchDisable.cs) are authored; build, test execution and exact portable line/branch coverage are pending the serial validation permit. Their presence is not a passing validation or release-readiness claim.
+
 ### Delivered Original-User Session Memory Proposals - 2026-10-10
 
 Native **Sessions > Session memories > New session memory from draft** and exact `memory propose <session-id> <class> "<exact value>"` typed/activated input reuse the [same management workflow](../src/Kora.Application/Memory/MemoryManagementService.cs) and authoritative admission policy. No existing memory ID is supplied. The host issues identity, initial revision and exact request/session/source lineage.

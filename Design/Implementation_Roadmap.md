@@ -58,6 +58,14 @@ Missing/incompatible sources, changed identity/private/control/editor epochs and
 ([portable cases](../tests/Kora.Application.UnitTests/Definitions/InstructionEditorTests.Rebase.cs), [native cases](../tests/Kora.Windows.IntegrationTests/ArtifactDiscovery/OwnedDefinitionEditorWindowTests.Rebase.cs)).
 This consumes only the existing owned reader, parser, admission and editor I subset. Deterministic builds/tests and exact portable line/branch coverage gate implementation readiness; current-head receipts record their outcomes separately. No runtime/profile-original writer enablement or E/Q qualification is claimed.
 
+### Bounded selected-subset session memory disable implementation - 2026-10-18
+
+The [memory contract](Model_Providers_Memory_And_Knowledge.md#bounded-selected-subset-session-memory-disable---2026-10-18) adds explicit complete-content review/count and separate one-shot confirmation of a bounded selected enabled subset in one exact active session. Full preflight precedes sequential authoritative per-record disables; partial/unknown outcomes stop without retry or rollback.
+
+The [Application orchestration](../src/Kora.Application/Memory/MemoryBatchDisableWorkflow.cs) and [memory-only native region](../src/Kora/SessionsWindow.axaml) preserve single-record actions and retire stale private/session/source/edit receipts. [Deterministic tests](../tests/Kora.Application.UnitTests/Memory/MemoryBatchDisableWorkflowTests.cs) are authored, not yet executed: build/tests and exact 100% portable line AND branch proof await the serial permit.
+
+This is an existing management I-subset increment, not batch admission/forget/review acceptance, scope promotion, recall, model disclosure, retention deletion, grants or export. No E/Q or installed/hardware/provider qualification is claimed; unqualified capability profiles remain unavailable ([policy](#delivery-and-qualification-dependency-policy)).
+
 ### Bounded native Evidence retained due ranges - 2026-10-18
 
 The [existing Evidence inspector](Information_Display.md#delivered-bounded-native-evidence-inspection)

@@ -36,8 +36,9 @@ internal sealed partial class MemoryAdmissionService(
         MemoryCandidate? replacement, CancellationToken token) =>
         ExecuteAsync(MemoryOperation.Edit, id, revision, null, replacement, MemoryProposalOrigin.User, false, MemoryDestination.Unknown, token);
 
-    internal Task<MemoryResult> DisableAsync(HostId<MemoryIdentity> id, HostRevision revision, CancellationToken token) =>
-        ExecuteAsync(MemoryOperation.Disable, id, revision, null, null, MemoryProposalOrigin.Unknown, false, MemoryDestination.Unknown, token);
+    internal Task<MemoryResult> DisableAsync(HostId<MemoryIdentity> id, HostRevision revision, CancellationToken token,
+        MemoryRecord? exactRecord = null) =>
+        ExecuteAsync(MemoryOperation.Disable, id, revision, null, null, MemoryProposalOrigin.Unknown, false, MemoryDestination.Unknown, token, exactRecord);
 
     internal Task<MemoryResult> ForgetAsync(HostId<MemoryIdentity> id, HostRevision revision, CancellationToken token) =>
         ExecuteAsync(MemoryOperation.Forget, id, revision, null, null, MemoryProposalOrigin.Unknown, false, MemoryDestination.Unknown, token);
@@ -48,7 +49,7 @@ internal sealed partial class MemoryAdmissionService(
 
     private async Task<MemoryResult> ExecuteAsync(MemoryOperation operation, HostId<MemoryIdentity>? id,
         HostRevision expected, MemoryScope? scope, MemoryCandidate? candidate, MemoryProposalOrigin origin,
-        bool accept, MemoryDestination destination, CancellationToken token)
+        bool accept, MemoryDestination destination, CancellationToken token, MemoryRecord? exactRecord = null)
     {
         var issuer = HostActivity.Current;
         if (issuer is null || issuer.Activity!.IsStopped || issuer.Outcome != HostOperationOutcome.Unknown)
@@ -100,7 +101,7 @@ internal sealed partial class MemoryAdmissionService(
                 if (storage is not null)
                 {
                     return await ExecuteStoredAsync(operation, id, expected, scope!, candidate, origin, accept,
-                        destination, before!, issuer, control, lifecycle, session, requested, continuation, activity, token)
+                        destination, before!, issuer, control, lifecycle, session, requested, continuation, activity, token, exactRecord)
                         .ConfigureAwait(false);
                 }
                 lock (stateGate)
@@ -120,8 +121,10 @@ internal sealed partial class MemoryAdmissionService(
                     else
                     {
                         current = id is { } identity ? records.GetValueOrDefault(identity) : null;
-                        result = Transition(operation, current, expected, scope!, candidate, origin,
-                            accept, destination, before, request);
+                        result = exactRecord is not null && current != exactRecord
+                            ? new(MemoryOutcome.RevisionConflict, MemoryReason.RevisionMismatch)
+                            : Transition(operation, current, expected, scope!, candidate, origin,
+                                accept, destination, before, request);
                         // Audit must succeed before publishing the new state or use receipt.
                         CompleteAudit(requested, result, continuation);
                         var unchanged = id is not { } known || ReferenceEquals(records.GetValueOrDefault(known), current);
@@ -169,7 +172,7 @@ internal sealed partial class MemoryAdmissionService(
         HostRevision expected, MemoryScope scope, MemoryCandidate? candidate, MemoryProposalOrigin origin,
         bool accept, MemoryDestination destination, MemoryBoundary boundary, HostActivity issuer, long control,
         long lifecycle, SessionWorkspaceEntry session, SecurityAuditEvent requested, Func<HostActivity> continuation,
-        HostActivity activity, CancellationToken token)
+        HostActivity activity, CancellationToken token, MemoryRecord? exactRecord)
     {
         MemoryRecord? original = null;
         lock (stateGate) { original = id is { } identity ? records.GetValueOrDefault(identity) : null; }
@@ -197,7 +200,9 @@ internal sealed partial class MemoryAdmissionService(
                     }
                 }
                 original = id is { } identity ? records.GetValueOrDefault(identity) : null;
-                var value = !Admitted() || session.Authority.SessionId != boundary.Session
+                var value = exactRecord is not null && (original != exactRecord || !rows.Contains(exactRecord))
+                    ? new MemoryResult(MemoryOutcome.RevisionConflict, MemoryReason.RevisionMismatch)
+                    : !Admitted() || session.Authority.SessionId != boundary.Session
                     || !session.Authority.IsActive || session.Authority.Generation != boundary.Generation
                     ? new MemoryResult(MemoryOutcome.Denied, MemoryReason.AuthorityClosed)
                     : Transition(operation, original, expected, scope, candidate, origin, accept, destination,

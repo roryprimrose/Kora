@@ -34,6 +34,22 @@ do not depend on hosted management, and speech preferences do not qualify wake.
 
 ## Current Delivery
 
+### Bounded fixed local diagnostics queue plan implementation - 2026-10-19
+
+The [queue contract](Work_Management.md#bounded-fixed-local-diagnostics-queue-plan---2026-10-19)
+adds explicit native selection of up to four existing no-argument diagnostics profiles,
+complete exact-session/capacity/deadline/control review and separate one-shot confirmation.
+Each planned item uses the same authoritative single enqueue action, with explicit None
+prerequisite and fresh host IDs. Sequential/possibly partial outcomes stop at uncertainty;
+earlier pending commits remain queued, with no retry, rollback or implicit dispatch.
+
+This consumes only the merged session/queue/profile/admission/audit/limits I subset.
+Implementation, deterministic tests and native wiring are authored; builds, test execution,
+maintained native checks and exact-source raw 100% portable line/branch proof are pending
+the separately admitted serial validation lane. This is not READY or qualification evidence.
+No model/provider/network/executor or background pump is added; E/Q, installed/hardware and
+physical/provider/containment qualification remain separate and unclaimed.
+
 ### Bounded exact immutable LocalFile Find count and ordinal - 2026-10-18
 
 The existing [native current-source Find](File_And_Folder_Ingestion.md#exact-immutable-localfile-occurrence-count-and-ordinal---2026-10-18) reports an accessible exact total and selected ordinal only for its admitted displayed immutable file, never corpus/retrieval/live disk.

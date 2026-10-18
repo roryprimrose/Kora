@@ -633,7 +633,8 @@ A byte/result limit preserves continuation before any deferred match. Scanned, u
 All/Active/Done scopes search across pages. Native session-list search additionally
 AND-composes explicit name-metadata availability **Any / Named / Unnamed** and
 optional inclusive authority-generation and name-metadata-revision
-minimum/maximum predicates. Availability describes only whether validated name
+minimum/maximum predicates, plus optional inclusive name-length bounds in Unicode scalars
+([query policy](../src/Kora.Core/Storage/SessionListSearch.cs)). Availability describes only whether validated name
 metadata was observed: Unnamed is not an empty name, missing authority, revision
 zero or evidence of historical deletion. Named requires metadata; Any adds no
 availability restriction. NameSubstring and ExactName naturally match only Named, so
@@ -646,11 +647,14 @@ Every complete candidate is validated before predicates can exclude it, includin
 rows beyond the result limit in the bounded source page.
 Generation applies to named and unnamed rows. Either name-revision bound requires
 validated name metadata; unnamed is never revision zero or an unknown match.
+Name-length bounds reuse the count admitted by [SessionName](../src/Kora.Core/Hosting/SessionName.cs), not UTF-16 units, UTF-8 bytes or grapheme clusters.
+Only positive ASCII decimal values through `SessionName.MaximumScalars` are valid; empty means Any, leading zeroes are semantic, and zero, signs, whitespace, overflow, out-of-domain or inverted bounds fail explicitly.
+Either length bound requires validated named metadata: unnamed is unknown, not length zero, even for Browse or ExactId. Length bounds AND-compose with every mode, lifecycle, availability, generation and name-revision predicate ([scalar and combination tests](../tests/Kora.Core.UnitTests/Storage/SessionListSearchTests.cs)).
 Unnamed metadata never matches a name but remains available by Browse or exact ID without
-name-revision predicates; Removed sessions never browse. Exact lookup still
+name-revision or name-length predicates; Removed sessions never browse. Exact lookup still
 rejects a different returned session before applying any predicate.
 Canonical-ID ordering is deterministic and culture-independent.
-Continuations bind the exact query/mode/lifecycle/name availability and all four semantic numeric
+Continuations bind the exact query/mode/lifecycle/name availability and all six semantic numeric
 bounds, process-local service/store identity and private admission revision.
 They cannot silently restart on changed predicates, host/source or admission.
 
@@ -664,6 +668,8 @@ Exact missing/Removed IDs and unavailable/corrupt/ownership-denied/cancelled rea
 
 The [native surface](UI_Workspace_And_Windows.md#delivered-passive-session-list-metadata-navigation---2026-10-10) distinguishes metadata search from history and Evidence. Typing in ordinary list mode preserves selected work; unchanged exact visible results retain work/history/memory presentation without renewing inspected cancellation authority.
 Invalidated/changed selections clear their targets. Query/selection/source/privacy epochs, cancellation and close fence late content.
+The two accessible [native scalar-length fields](../src/Kora/SessionsWindow.axaml) share Enter/Search, Clear/Escape and no-read edit retirement of prior search rows, detail, exact selection, actions and cursor; private closure clears their input.
+No unset-bound consumer or serialized result shape changes ([native tests](../tests/Kora.Windows.IntegrationTests/SessionsListSearchTests.cs), [no-I/O and late-result tests](../tests/Kora.Windows.IntegrationTests/SessionsViewModelTests.ListSearch.cs)).
 
 [Core rules/cursors/bytes](../tests/Kora.Core.UnitTests/Storage/SessionListSearchTests.cs), [bounded workflow failures](../tests/Kora.Application.UnitTests/Hosting/SessionWorkspaceServiceTests.ListSearch.cs), [actual private SQLite boundaries](../tests/Kora.Windows.IntegrationTests/Storage/WindowsSqliteSessionListSearchTests.cs),
 [late callbacks](../tests/Kora.Windows.IntegrationTests/SessionsViewModelTests.ListSearch.cs) and [headless native preservation](../tests/Kora.Windows.IntegrationTests/SessionsListSearchTests.cs) are the maintained evidence.

@@ -11,6 +11,8 @@ internal sealed partial class SessionsViewModel
     private string listMaximumGeneration = string.Empty;
     private string listMinimumMetadataRevision = string.Empty;
     private string listMaximumMetadataRevision = string.Empty;
+    private string listMinimumNameLength = string.Empty;
+    private string listMaximumNameLength = string.Empty;
     private SessionListSearchKind listSearchKind;
     private SessionNameAvailability listNameAvailability;
     private SessionListSearchPage? listSearch;
@@ -52,6 +54,16 @@ internal sealed partial class SessionsViewModel
     {
         get => listMaximumMetadataRevision;
         set => ChangeListRange(ref listMaximumMetadataRevision, value);
+    }
+    public string ListMinimumNameLength
+    {
+        get => listMinimumNameLength;
+        set => ChangeListRange(ref listMinimumNameLength, value);
+    }
+    public string ListMaximumNameLength
+    {
+        get => listMaximumNameLength;
+        set => ChangeListRange(ref listMaximumNameLength, value);
     }
 
     private void ChangeListRange(ref string field, string value)
@@ -96,14 +108,16 @@ internal sealed partial class SessionsViewModel
     public bool CanCancelListSearch => !closed && listSearchCancellation is not null;
 
     private bool IsListQueryValid => SessionListSearch.IsValid(listSearchKind, sessionFilter, listQuery,
-        listMinimumGeneration, listMaximumGeneration, listMinimumMetadataRevision, listMaximumMetadataRevision, listNameAvailability);
+        listMinimumGeneration, listMaximumGeneration, listMinimumMetadataRevision, listMaximumMetadataRevision,
+        listNameAvailability, listMinimumNameLength, listMaximumNameLength);
 
     private string ListQueryHint => IsListQueryValid
         ? "Session metadata query changed. Search starts a fresh bounded scan; no history, action or name authority."
         : "Invalid session metadata query. Browse requires empty query text. NameSubstring and ExactName require nonblank single-line NFC text, no control/format or surrounding whitespace, "
             + "at most 120 scalars / 480 UTF-8 bytes. ExactName matches the whole name with ordinal case-sensitive equality. ExactId requires a nonempty canonical lowercase D GUID. "
             + "Inclusive generation/name-revision bounds require positive decimal integers with minimum <= maximum; empty means Any. "
-            + "Any/Named/Unnamed is observed name metadata only; name searches and name-revision bounds exclude unnamed rows. Nothing is normalized, truncated or searched.";
+            + $"Inclusive name-length bounds require positive decimal integers up to {Kora.Core.Hosting.SessionName.MaximumScalars} Unicode scalars with minimum <= maximum; empty means Any. "
+            + "Any/Named/Unnamed is observed name metadata only; name searches, name-revision and name-length bounds exclude unnamed rows. Nothing is normalized, truncated or searched.";
 
     public void CancelListSearch() => listSearchCancellation?.Cancel();
 
@@ -143,14 +157,16 @@ internal sealed partial class SessionsViewModel
         var selection = selectionEpoch;
         var admission = access.ControlRevision;
         var query = SessionListSearch.Parse(listSearchKind, sessionFilter, listQuery,
-            listMinimumGeneration, listMaximumGeneration, listMinimumMetadataRevision, listMaximumMetadataRevision, listNameAvailability);
+            listMinimumGeneration, listMaximumGeneration, listMinimumMetadataRevision, listMaximumMetadataRevision,
+            listNameAvailability, listMinimumNameLength, listMaximumNameLength);
         using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(lifetime.Token);
         listSearchCancellation = cancellation;
         NotifyListSearch();
         try
         {
             var result = await service.SearchListAsync(query.Kind, query.Filter, query.Value, cursor, 25, cancellation.Token,
-                query.MinimumGeneration, query.MaximumGeneration, query.MinimumMetadataRevision, query.MaximumMetadataRevision, query.NameAvailability);
+                query.MinimumGeneration, query.MaximumGeneration, query.MinimumMetadataRevision, query.MaximumMetadataRevision,
+                query.NameAvailability, query.MinimumNameLength, query.MaximumNameLength);
             cancellation.Token.ThrowIfCancellationRequested();
             if (closed || epoch != listSearchEpoch || selection != selectionEpoch
                 || !access.CanInspect || admission != access.ControlRevision)
@@ -212,6 +228,8 @@ internal sealed partial class SessionsViewModel
         listMaximumGeneration = string.Empty;
         listMinimumMetadataRevision = string.Empty;
         listMaximumMetadataRevision = string.Empty;
+        listMinimumNameLength = string.Empty;
+        listMaximumNameLength = string.Empty;
     }
 
     private void NotifyListSearch()
@@ -221,6 +239,8 @@ internal sealed partial class SessionsViewModel
         OnPropertyChanged(nameof(ListMaximumGeneration));
         OnPropertyChanged(nameof(ListMinimumMetadataRevision));
         OnPropertyChanged(nameof(ListMaximumMetadataRevision));
+        OnPropertyChanged(nameof(ListMinimumNameLength));
+        OnPropertyChanged(nameof(ListMaximumNameLength));
         OnPropertyChanged(nameof(ListSearchKind));
         OnPropertyChanged(nameof(ListNameAvailability));
         OnPropertyChanged(nameof(CanEditListSearch));

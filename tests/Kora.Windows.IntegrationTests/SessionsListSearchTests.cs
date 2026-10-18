@@ -29,6 +29,86 @@ public sealed class SessionsListSearchTests
     private static readonly string[] RangeControlNames = ["ListMinimumGeneration", "ListMaximumGeneration",
         "ListMinimumMetadataRevision", "ListMaximumMetadataRevision"];
 
+    [Theory]
+    [InlineData("ListMinimumNameLength")]
+    [InlineData("ListMaximumNameLength")]
+    public async Task NativeScalarLengthFieldsAreAccessibleUntruncatedAndRetireSearchSelectionActionsAndCursorWithoutReads(string fieldName)
+    {
+        await HeadlessSession.RunAsync(async () =>
+        {
+            using var f = new InteractionStorageFixture();
+            await f.InitializeAsync();
+            var access = new Access();
+            var service = new SessionWorkspaceService(f.Store, new(f.Tasks), access, NullLogger<SessionWorkspaceService>.Instance);
+            for (var index = 0; index < 26; index++)
+            {
+                await service.CreateAsync(new("é\U0001F408"), RequestOrigin.LocalUi, f.Token);
+            }
+            var sink = new WindowsSqliteEvidenceSink(f.Paths);
+            sink.Initialize();
+            var model = new SessionsViewModel(service,
+                new(new WindowsSqliteEvidenceReader(sink), access, f.Time, NullLogger<DurableEvidenceQuery>.Instance),
+                access, NullLogger<SessionsViewModel>.Instance);
+            var audits = f.Count("security_audit_events");
+            var tasks = f.Count("host_tasks");
+            var window = new SessionsWindow(model);
+            window.Show();
+            try
+            {
+                model.ListSearchKind = SessionListSearchKind.Browse;
+                model.ListMinimumNameLength = "2";
+                model.ListMaximumNameLength = "2";
+                var minimum = window.FindControl<TextBox>("ListMinimumNameLength")!;
+                var maximum = window.FindControl<TextBox>("ListMaximumNameLength")!;
+                foreach (var range in new[] { minimum, maximum })
+                {
+                    range.Focus().Should().BeTrue();
+                    range.MaxLength.Should().Be(0);
+                    range.Text.Should().Be("2");
+                    range.IsEnabled.Should().BeTrue();
+                    ControlAutomationPeer.CreatePeerForElement(range)!.GetName().Should()
+                        .Contain("Unicode scalars inclusive").And.Contain("empty for Any").And.Contain("unnamed never matches");
+                }
+                var search = Task.CompletedTask;
+                await DispatchWhenReady(model, () => model.CanSearchList, () => search = model.SearchListAsync(), f.Token);
+                await search;
+                model.Sessions.Should().HaveCount(25);
+                model.SelectedSessionRecord.Should().BeNull("a scalar count is not an identity");
+                model.CanNextListSearch.Should().BeTrue();
+                await model.SelectAsync(model.Sessions[0]);
+                model.Detail.Should().NotBeEmpty();
+                var field = window.FindControl<TextBox>(fieldName)!;
+                field.Text = new('9', 1000);
+                Dispatcher.UIThread.RunJobs();
+                field.Text.Should().HaveLength(1000);
+                model.CanSearchList.Should().BeFalse();
+                model.Status.Should().Contain("name-length").And.Contain("Unicode scalars");
+                model.Sessions.Should().BeEmpty();
+                model.SelectedSessionRecord.Should().BeNull();
+                model.Detail.Should().BeEmpty();
+                model.WorkRecords.Should().BeEmpty();
+                model.HistoryRecords.Should().BeEmpty();
+                model.CanCancelWork.Should().BeFalse();
+                model.CanNextListSearch.Should().BeFalse();
+                var escape = new KeyEventArgs { RoutedEvent = InputElement.KeyDownEvent, Key = Key.Escape };
+                field.RaiseEvent(escape);
+                escape.Handled.Should().BeTrue();
+                model.ListMinimumNameLength.Should().BeEmpty();
+                model.ListMaximumNameLength.Should().BeEmpty();
+                model.Sessions.Should().BeEmpty("Escape clears without a read");
+                model.ListMinimumNameLength = "1";
+                model.ListMaximumNameLength = "2";
+                window.FindControl<Button>("ClearListSearch")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                model.ListMinimumNameLength.Should().BeEmpty();
+                model.ListMaximumNameLength.Should().BeEmpty();
+                model.Sessions.Should().BeEmpty("Clear clears without a read");
+                f.Count("security_audit_events").Should().Be(audits);
+                f.Count("host_tasks").Should().Be(tasks);
+            }
+            finally { window.Close(); }
+        });
+    }
+
     [WindowsFact]
     public async Task ExactNameKeepsDuplicateNamesPassiveAndInvalidEditsRetireSelectionWithoutSearching()
     {

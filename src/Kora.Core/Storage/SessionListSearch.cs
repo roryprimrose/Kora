@@ -14,7 +14,8 @@ public sealed class SessionListSearch
     public SessionListSearch(SessionListSearchKind kind, SessionListFilter filter, string value,
         long? minimumGeneration = null, long? maximumGeneration = null,
         long? minimumMetadataRevision = null, long? maximumMetadataRevision = null,
-        SessionNameAvailability nameAvailability = SessionNameAvailability.Any)
+        SessionNameAvailability nameAvailability = SessionNameAvailability.Any,
+        long? minimumNameLength = null, long? maximumNameLength = null)
     {
         if (!Enum.IsDefined(kind) || !Enum.IsDefined(filter))
         {
@@ -59,7 +60,10 @@ public sealed class SessionListSearch
         MaximumGeneration = ValidateBound(maximumGeneration);
         MinimumMetadataRevision = ValidateBound(minimumMetadataRevision);
         MaximumMetadataRevision = ValidateBound(maximumMetadataRevision);
-        if (minimumGeneration > maximumGeneration || minimumMetadataRevision > maximumMetadataRevision)
+        MinimumNameLength = ValidateNameLengthBound(minimumNameLength);
+        MaximumNameLength = ValidateNameLengthBound(maximumNameLength);
+        if (minimumGeneration > maximumGeneration || minimumMetadataRevision > maximumMetadataRevision
+            || minimumNameLength > maximumNameLength)
         {
             throw new InvalidDataException("Session metadata range minimum must be <= maximum. Empty means Any.");
         }
@@ -68,7 +72,10 @@ public sealed class SessionListSearch
             + MinimumGeneration?.ToString(CultureInfo.InvariantCulture) + "\n"
             + MaximumGeneration?.ToString(CultureInfo.InvariantCulture) + "\n"
             + MinimumMetadataRevision?.ToString(CultureInfo.InvariantCulture) + "\n"
-            + MaximumMetadataRevision?.ToString(CultureInfo.InvariantCulture) + "\n" + NameAvailability.ToString())));
+            + MaximumMetadataRevision?.ToString(CultureInfo.InvariantCulture) + "\n" + NameAvailability.ToString()
+            + (MinimumNameLength is null && MaximumNameLength is null ? string.Empty
+                : "\nname-scalars\n" + MinimumNameLength?.ToString(CultureInfo.InvariantCulture) + "\n"
+                    + MaximumNameLength?.ToString(CultureInfo.InvariantCulture)))));
     }
 
     public SessionListSearchKind Kind { get; }
@@ -79,6 +86,8 @@ public sealed class SessionListSearch
     public long? MaximumGeneration { get; }
     public long? MinimumMetadataRevision { get; }
     public long? MaximumMetadataRevision { get; }
+    public long? MinimumNameLength { get; }
+    public long? MaximumNameLength { get; }
     public Guid? ExactId => Kind is SessionListSearchKind.ExactId ? exactId : null;
     public string Digest { get; }
 
@@ -94,6 +103,10 @@ public sealed class SessionListSearch
                 || entry.Metadata is { } lowerMetadata && lowerMetadata.Revision.Value >= minimumRevision)
             && (MaximumMetadataRevision is not { } maximumRevision
                 || entry.Metadata is { } upperMetadata && upperMetadata.Revision.Value <= maximumRevision)
+            && (MinimumNameLength is not { } minimumLength
+                || entry.Metadata is { } lowerName && lowerName.Name.GetScalarCount() >= minimumLength)
+            && (MaximumNameLength is not { } maximumLength
+                || entry.Metadata is { } upperName && upperName.Name.GetScalarCount() <= maximumLength)
             && (Kind is SessionListSearchKind.Browse || (Kind is SessionListSearchKind.ExactId ? entry.Authority.SessionId.Value == exactId
                 : Kind is SessionListSearchKind.ExactName
                     ? string.Equals(entry.Metadata?.Name.Value, Value, StringComparison.Ordinal)
@@ -122,9 +135,20 @@ public sealed class SessionListSearch
     public static SessionListSearch Parse(SessionListSearchKind kind, SessionListFilter filter, string value,
         string minimumGeneration = "", string maximumGeneration = "",
         string minimumMetadataRevision = "", string maximumMetadataRevision = "",
-        SessionNameAvailability nameAvailability = SessionNameAvailability.Any) =>
+        SessionNameAvailability nameAvailability = SessionNameAvailability.Any,
+        string minimumNameLength = "", string maximumNameLength = "") =>
         new(kind, filter, value, OptionalUnsignedDecimal.Parse(minimumGeneration), OptionalUnsignedDecimal.Parse(maximumGeneration),
-            OptionalUnsignedDecimal.Parse(minimumMetadataRevision), OptionalUnsignedDecimal.Parse(maximumMetadataRevision), nameAvailability);
+            OptionalUnsignedDecimal.Parse(minimumMetadataRevision), OptionalUnsignedDecimal.Parse(maximumMetadataRevision), nameAvailability,
+            OptionalUnsignedDecimal.Parse(minimumNameLength), OptionalUnsignedDecimal.Parse(maximumNameLength));
+
+    private static long? ValidateNameLengthBound(long? value)
+    {
+        if (value is <= 0 or > SessionName.MaximumScalars)
+        {
+            throw new InvalidDataException($"Session name-length bounds must be positive decimal integers up to {SessionName.MaximumScalars}. Empty means Any.");
+        }
+        return value;
+    }
 
     private static long? ValidateBound(long? value)
     {
@@ -139,9 +163,11 @@ public sealed class SessionListSearch
     public static bool IsValid(SessionListSearchKind kind, SessionListFilter filter, string value,
         string minimumGeneration = "", string maximumGeneration = "",
         string minimumMetadataRevision = "", string maximumMetadataRevision = "",
-        SessionNameAvailability nameAvailability = SessionNameAvailability.Any)
+        SessionNameAvailability nameAvailability = SessionNameAvailability.Any,
+        string minimumNameLength = "", string maximumNameLength = "")
     {
-        try { _ = Parse(kind, filter, value, minimumGeneration, maximumGeneration, minimumMetadataRevision, maximumMetadataRevision, nameAvailability); return true; }
+        try { _ = Parse(kind, filter, value, minimumGeneration, maximumGeneration, minimumMetadataRevision, maximumMetadataRevision,
+            nameAvailability, minimumNameLength, maximumNameLength); return true; }
         catch (ArgumentException) { return false; }
         catch (InvalidDataException) { return false; }
     }

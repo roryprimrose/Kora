@@ -65,7 +65,7 @@ internal sealed partial class SessionsWindow : Window
         CancelListSearch.Click += (_, _) => model.CancelListSearch();
         ClearListSearch.Click += (_, _) => { model.ClearListSearch(); ListQuery.Focus(); };
         foreach (var field in new[] { ListQuery, ListMinimumGeneration, ListMaximumGeneration,
-            ListMinimumMetadataRevision, ListMaximumMetadataRevision })
+            ListMinimumMetadataRevision, ListMaximumMetadataRevision, ListMinimumNameLength, ListMaximumNameLength })
         {
             field.KeyDown += async (_, args) =>
             {

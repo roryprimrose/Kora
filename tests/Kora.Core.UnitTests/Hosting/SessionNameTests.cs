@@ -25,9 +25,13 @@ public sealed class SessionNameTests
     [Fact]
     public void Scalar_byte_and_utf16_boundaries_are_authoritative()
     {
-        new SessionName(new('a', 120)).Value.Should().HaveLength(120);
+        var ascii = new SessionName(new('a', SessionName.MaximumScalars));
+        ascii.GetScalarCount().Should().Be(SessionName.MaximumScalars);
+        ascii.Value.Should().HaveLength(120);
         var supplementary = string.Concat(Enumerable.Repeat("\U0001F600", 120));
-        new SessionName(supplementary).Value.Should().Be(supplementary);
+        var name = new SessionName(supplementary);
+        name.Value.Should().Be(supplementary);
+        name.GetScalarCount().Should().Be(SessionName.MaximumScalars);
         new SessionName("é 日本語").Value.Should().Be("é 日本語");
         var scalars = () => new SessionName(new('a', 121));
         scalars.Should().Throw<InvalidDataException>();
@@ -40,4 +44,14 @@ public sealed class SessionNameTests
         var missing = () => new SessionName(null!);
         missing.Should().Throw<ArgumentNullException>();
     }
+
+    [Theory]
+    [InlineData("a", 1)]
+    [InlineData("é", 1)]
+    [InlineData("\U0001F600", 1)]
+    [InlineData("日本語", 3)]
+    [InlineData("q\u0301", 2)]
+    [InlineData("\U00010400é", 2)]
+    public void AdmittedScalarCountIsNeitherUtf16BytesNorGraphemeCount(string text, int count) =>
+        new SessionName(text).GetScalarCount().Should().Be(count);
 }

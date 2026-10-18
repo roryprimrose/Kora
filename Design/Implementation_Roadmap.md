@@ -370,6 +370,22 @@ scope is extended. No provider/device/experiment work or unrelated Rxx proof
 is required; installed accessibility and broader E/Q remain separate and
 unclaimed.
 
+### Bounded native session-list Unicode-scalar name-length ranges - 2026-10-18
+
+**I - Implementation:** [Session-list query policy](../src/Kora.Core/Storage/SessionListSearch.cs) appends optional inclusive name-length minimum/maximum bounds to Browse, NameSubstring, ExactName and ExactId, AND-composed with lifecycle, name availability and existing generation/name-revision ranges.
+The count and maximum come from [SessionName admission](../src/Kora.Core/Hosting/SessionName.cs); empty means Any, positive ASCII decimal values within that domain are valid, and unnamed never matches a constrained length. Unset callers and result serialization remain unchanged.
+Both predicates join the semantic authenticated continuation; bounded scan/page/byte/counter and complete-candidate validation stay in the [existing workflow](../src/Kora.Application/Hosting/SessionWorkspaceService.ListSearch.cs).
+Two accessible [session-list-only native fields](../src/Kora/SessionsWindow.axaml) retire stale search rows/detail/selection/actions/cursor without reads, reset through Clear/Escape and suppress late publication through the [existing native lifecycle](../src/Kora/SessionsViewModel.ListSearch.cs).
+Maintained evidence:
+
+- [Scalar edges and combinations](../tests/Kora.Core.UnitTests/Storage/SessionListSearchTests.cs) and [workflow bounds/corruption/cancellation](../tests/Kora.Application.UnitTests/Hosting/SessionWorkspaceServiceTests.ListSearch.cs).
+- [Private SQLite](../tests/Kora.Windows.IntegrationTests/Storage/WindowsSqliteSessionListSearchTests.cs) and [late callbacks/no-I/O](../tests/Kora.Windows.IntegrationTests/SessionsViewModelTests.ListSearch.cs).
+- [Native accessibility/retirement](../tests/Kora.Windows.IntegrationTests/SessionsListSearchTests.cs).
+
+**E - Enablement / Q - Qualification:** This is passive metadata navigation only, not name-based identity, ownership, permission, currentness or action authority.
+No runtime, model, provider, egress or hardware capability is enabled; installed-native/accessibility qualification and broad Rxx evidence remain separate and unclaimed ([owning boundary](Interaction_And_Sessions.md#delivered-passive-session-list-name-and-exact-id-search---2026-10-10)).
+All Work, saved drafts, conversation/history search, memory and sibling regions are unchanged.
+
 ### Bounded native session-list Browse and name availability - 2026-10-16
 
 The [passive session-list contract](Interaction_And_Sessions.md#delivered-passive-session-list-name-and-exact-id-search---2026-10-10)

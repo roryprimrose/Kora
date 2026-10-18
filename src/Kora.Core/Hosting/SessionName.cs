@@ -9,6 +9,7 @@ public sealed record SessionName
 {
     public const int MaximumScalars = 120;
     public const int MaximumUtf8Bytes = 480;
+    private readonly int scalarCount;
 
     public SessionName(string value)
     {
@@ -36,7 +37,10 @@ public sealed record SessionName
             throw new InvalidDataException("A session name must be NFC Unicode within 120 scalars and 480 UTF-8 bytes.");
         }
         Value = value;
+        scalarCount = scalars;
     }
 
     public string Value { get; }
+
+    public int GetScalarCount() => scalarCount;
 }

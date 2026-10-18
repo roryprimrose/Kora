@@ -134,6 +134,14 @@ The same [authoritative snapshot query](../src/Kora.Application/Skills/SkillCata
 
 Matching observes only a fully admitted immutable catalogue, without new reads, hidden-name inspection, hashing, discovery, recheck, reload, activation, invocation or grants. Digest equality does not establish authority, current filesystem integrity/freshness or a dependency closure. Complete candidate admission and source bounds remain unchanged ([bundled catalogue](../src/Kora.Core/Skills/SkillPackageCatalogue.cs), [shared catalogue](../src/Kora.Core/Skills/SharedSkillCatalogue.cs)).
 
+The volatile **Order** selector defaults to **Source order**, preserving admitted catalogue order. **Name ascending (ordinal)** and **Name descending (ordinal)** sort known names using ordinal comparison; unknown names remain last in both directions, never inferred from paths or empty strings ([ordering policy](../src/Kora.Application/Skills/SkillCatalogueSearch.cs)).
+
+Equal names, including unknown names, use ascending ordinal exact manifest ID (bundled) or `SourceQualifiedIdentity` (shared), even in descending name order. Equal exact keys retain source order. Complete immutable catalogue admission precedes filtering/ordering; incompatible entries remain visible under All ([catalogue query tests](../tests/Kora.Application.UnitTests/Skills/SkillCatalogueSearchTests.cs)).
+
+Ordering AND-composes with literal, availability/compatibility and exact digest predicates. Order edits immediately retire results, selection, private source panes and shared generation callbacks without I/O; Search reapplies the view without selecting. Clear restores Source order/empty/All; Escape/private closure clear volatile state ([native lifecycle tests](../tests/Kora.Windows.IntegrationTests/SkillMetadataSearchWindowTests.cs)).
+
+Order is presentation only, not authority, completeness, live freshness or E/Q runtime qualification. It adds no persistence or resource format and changes no resource/digest bytes; runtime invocation remains unavailable ([snapshot policy](../src/Kora.Core/Skills/SkillPackageSnapshot.cs), [shared policy](../src/Kora.Core/Skills/SharedSkillSnapshot.cs)).
+
 Registration is a validated versioned JSON preference under device-local
 `IApplicationDataPaths`, published only through the shared atomic preference
 store with bounded strict-UTF-8 read, serialized-byte validation before

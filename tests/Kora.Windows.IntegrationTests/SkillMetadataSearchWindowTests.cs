@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Text;
 using System.Text.Json;
 
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Automation;
 using Avalonia.Input;
@@ -25,8 +26,178 @@ namespace Kora.Windows.IntegrationTests;
 public sealed class SkillMetadataSearchWindowTests
 {
     private static readonly string[] BundledDigestFields = ["PackageDefinitionDigest", "PackageDeclaredResourceDigest"];
+    private static readonly int[] OrderEdits = [1, 2, 0];
+    private static readonly string[] BundledOrderLayout = ["PackageOrder", "SearchPackages", "ClearPackageSearch"];
+    private static readonly string[] SharedOrderLayout = ["SharedOrder", "SearchSharedPackages", "ClearSharedSearch"];
     private static readonly string[] SharedButtons = ["RegisterSource", "RefreshSources", "DiscoverSource", "VerifyRevision",
         "UnregisterSource", "SearchSharedPackages", "ClearSharedSearch"];
+
+    [WindowsFact]
+    public async Task BundledOrderingIsAccessibleReadFreeAndRetiresPrivateReadersOnEveryEdit()
+    {
+        await HeadlessSession.RunAsync(() =>
+        {
+            var catalogue = EmbeddedSkillCatalogue.Load();
+            var callbacks = 0;
+            var window = new SkillPackagesWindow(catalogue, new(NullLogger<NativeDetailRenderer>.Instance), () => callbacks++);
+            window.Show();
+            try
+            {
+                var order = window.FindControl<ComboBox>("PackageOrder")!;
+                AssertOrderSelector(window, order);
+                order.SelectedIndex.Should().Be(0);
+                foreach (var mode in OrderEdits)
+                {
+                    var selector = window.FindControl<ComboBox>("PackageSelector")!;
+                    selector.SelectedIndex = 0;
+                    var oldTabs = window.FindControl<TabControl>("SourceTabs")!.Items.OfType<TabItem>().ToArray();
+                    var oldReaders = oldTabs.SelectMany(tab => ((DockPanel)tab.Content!).Children.OfType<TextBox>()).ToArray();
+                    order.SelectedIndex = mode;
+                    window.SelectedPackage.Should().BeNull();
+                    selector.Items.Should().BeEmpty();
+                    oldTabs.Should().OnlyContain(tab => tab.Content == null);
+                    oldReaders.Should().OnlyContain(reader => reader.Text == string.Empty);
+                    window.FindControl<TextBlock>("PackageIdentity")!.Text.Should().BeEmpty();
+                    Click(window, "SearchPackages");
+                    selector.SelectedIndex.Should().Be(-1);
+                    var expected = SkillCatalogueSearch.Bundled(catalogue, "", SkillInvocationFilter.All,
+                        order: (SkillCatalogueOrder)mode);
+                    for (var index = 0; index < expected.Count; index++)
+                    {
+                        selector.SelectedIndex = index;
+                        window.SelectedPackage.Should().BeSameAs(expected[index]);
+                    }
+                }
+                order.SelectedIndex = -1;
+                Click(window, "SearchPackages");
+                window.FindControl<TextBlock>("PackageSearchStatus")!.Text.Should().StartWith("Search rejected:");
+                window.SelectedPackage.Should().BeNull();
+                Click(window, "ClearPackageSearch");
+                order.SelectedIndex.Should().Be(0);
+                window.FindControl<ComboBox>("PackageSelector")!.SelectedIndex.Should().Be(-1);
+                order.SelectedIndex = 2;
+                window.RaiseEvent(new KeyEventArgs { RoutedEvent = InputElement.KeyDownEvent, Key = Key.Escape });
+                order.SelectedIndex.Should().Be(0);
+                Click(window, "SearchPackages");
+                callbacks.Should().Be(0);
+                window.FindControl<TabControl>("SourceTabs")!.Items.Should().BeEmpty();
+            }
+            finally { window.Close(); }
+        });
+    }
+
+    [WindowsFact]
+    public async Task SharedOrderingKeepsUnknownRowsAndRetiresGenerationWithoutAnySourceManagementCalls()
+    {
+        await HeadlessSession.RunAsync(() =>
+        {
+            var calls = 0;
+            Task Callback() { calls++; return Task.CompletedTask; }
+            var window = new SharedSkillSourcesWindow(Callback, Callback, Callback, Callback, Callback);
+            window.Show();
+            try
+            {
+                var source = Source();
+                var unknown = SharedSkillSnapshot.Parse(source.Id, "private\\SKILL.md", [0xff], true, ["private\\hidden.ps1"]);
+                var z = Snapshot(source, "z", "z", "Description");
+                var a = Snapshot(source, "a", "a", "Description");
+                var catalogue = new SharedSkillCatalogue(source, [unknown, z, a]);
+                window.SetSources([source]);
+                window.FindControl<ComboBox>("SourceSelector")!.SelectedIndex = 0;
+                window.SetCatalogue(catalogue);
+                var order = window.FindControl<ComboBox>("SharedOrder")!;
+                var selector = window.FindControl<ComboBox>("SharedPackageSelector")!;
+                AssertOrderSelector(window, order);
+                order.SelectedIndex.Should().Be(0);
+                foreach (var mode in OrderEdits)
+                {
+                    selector.SelectedIndex = 0;
+                    var generation = window.CatalogueGeneration;
+                    order.SelectedIndex = mode;
+                    window.CatalogueGeneration.Should().BeGreaterThan(generation);
+                    window.SelectedSource.Should().BeSameAs(source);
+                    selector.Items.Should().BeEmpty();
+                    AssertPrivatePanesEmpty(window);
+                    Click(window, "SearchSharedPackages");
+                    selector.SelectedIndex.Should().Be(-1);
+                    var expected = mode switch { 1 => new[] { a, z, unknown }, 2 => new[] { z, a, unknown }, _ => new[] { unknown, z, a } };
+                    for (var index = 0; index < expected.Length; index++)
+                    {
+                        selector.SelectedIndex = index;
+                        window.SelectedPackage.Should().BeSameAs(expected[index]);
+                    }
+                }
+                window.SetBusy(true);
+                order.IsEnabled.Should().BeFalse();
+                window.SetBusy(false);
+                order.IsEnabled.Should().BeTrue();
+                order.SelectedIndex = -1;
+                Click(window, "SearchSharedPackages");
+                window.FindControl<TextBlock>("SharedSearchStatus")!.Text.Should().StartWith("Search rejected:");
+                AssertPrivatePanesEmpty(window);
+                Click(window, "ClearSharedSearch");
+                order.SelectedIndex.Should().Be(0);
+                selector.SelectedIndex.Should().Be(-1);
+                order.SelectedIndex = 2;
+                window.ClearCatalogue();
+                AssertReset(window);
+                window.SetCatalogue(catalogue);
+                order.SelectedIndex = 1;
+                window.SetSources([source]);
+                AssertReset(window);
+                window.FindControl<ComboBox>("SourceSelector")!.SelectedIndex = 0;
+                window.SetCatalogue(catalogue);
+                order.SelectedIndex = 2;
+                window.RaiseEvent(new KeyEventArgs { RoutedEvent = InputElement.KeyDownEvent, Key = Key.Escape });
+                AssertReset(window);
+                Click(window, "SearchSharedPackages");
+                calls.Should().Be(0);
+            }
+            finally { window.Close(); }
+        });
+    }
+
+    [Theory]
+    [InlineData(700)]
+    [InlineData(1050)]
+    public async Task OrderSelectorsAndSearchActionsRemainReachableAtSupportedWidths(int width)
+    {
+        await HeadlessSession.RunAsync(() =>
+        {
+            var bundled = new SkillPackagesWindow(EmbeddedSkillCatalogue.Load(), new(NullLogger<NativeDetailRenderer>.Instance));
+            var shared = SharedWindow();
+            foreach (var window in new Window[] { bundled, shared })
+            {
+                window.Width = width;
+                window.Show();
+                try
+                {
+                    window.UpdateLayout();
+                    var isBundled = ReferenceEquals(window, bundled);
+                    foreach (var name in isBundled ? BundledOrderLayout : SharedOrderLayout)
+                    {
+                        var control = window.FindControl<Control>(name)!;
+                        var position = control.TranslatePoint(default, window)!.Value;
+                        control.Bounds.Width.Should().BeGreaterThan(0);
+                        control.Bounds.Height.Should().BeGreaterThan(0);
+                        position.X.Should().BeGreaterThanOrEqualTo(0);
+                        position.Y.Should().BeGreaterThanOrEqualTo(0);
+                        (position.X + control.Bounds.Width).Should().BeLessThanOrEqualTo(window.ClientSize.Width);
+                        (position.Y + control.Bounds.Height).Should().BeLessThanOrEqualTo(window.ClientSize.Height);
+                    }
+                }
+                finally { window.Close(); }
+            }
+        });
+    }
+
+    private static void AssertOrderSelector(Window window, ComboBox selector)
+    {
+        selector.Items.Should().Equal("Source order", "Name ascending (ordinal)", "Name descending (ordinal)");
+        AutomationProperties.GetName(selector).Should().Contain("source default").And.Contain("unknown names last");
+        selector.Focusable.Should().BeTrue();
+        window.GetVisualDescendants().OfType<Label>().Should().ContainSingle(label => ReferenceEquals(label.Target, selector));
+    }
 
     [WindowsFact]
     public async Task BundledExactDigestFieldsAreLabelledReadFreeAndRetireEveryOriginalSourceImmediately()
@@ -172,13 +343,19 @@ public sealed class SkillMetadataSearchWindowTests
     }
 
     [Theory]
-    [InlineData("discover")]
-    [InlineData("verify")]
-    [InlineData("discover-failure")]
-    [InlineData("verify-failure")]
-    [InlineData("close")]
-    [InlineData("privacy")]
-    public async Task PendingSharedReadsCannotPublishAfterDigestEditReselectionOrPrivateClosure(string operation)
+    [InlineData("discover", false)]
+    [InlineData("verify", false)]
+    [InlineData("discover-failure", false)]
+    [InlineData("verify-failure", false)]
+    [InlineData("close", false)]
+    [InlineData("privacy", false)]
+    [InlineData("discover", true)]
+    [InlineData("verify", true)]
+    [InlineData("discover-failure", true)]
+    [InlineData("verify-failure", true)]
+    [InlineData("close", true)]
+    [InlineData("privacy", true)]
+    public async Task PendingSharedReadsCannotPublishAfterNavigationEditReselectionOrPrivateClosure(string operation, bool editOrder)
     {
         await HeadlessSession.RunAsync(async () =>
         {
@@ -212,7 +389,8 @@ public sealed class SkillMetadataSearchWindowTests
                 var finished = WhenEnabled(search);
                 var generation = view.CatalogueGeneration;
                 var input = view.FindControl<TextBox>("SharedRevisionDigest")!;
-                input.Text = snapshot.RevisionDigest;
+                if (editOrder) { view.FindControl<ComboBox>("SharedOrder")!.SelectedIndex = 2; }
+                else { input.Text = snapshot.RevisionDigest; }
                 view.CatalogueGeneration.Should().BeGreaterThan(generation);
                 AssertPrivatePanesEmpty(view);
                 if (operation is "verify" or "verify-failure")
@@ -244,8 +422,9 @@ public sealed class SkillMetadataSearchWindowTests
                 else
                 {
                     await finished.WaitAsync(fixture.Token);
-                    input.Text.Should().Be(snapshot.RevisionDigest);
-                    view.FindControl<TextBlock>("SharedStatus")!.Text.Should().Be("Filters edited. No source read or revision recheck performed.");
+                    input.Text.Should().Be(editOrder ? string.Empty : snapshot.RevisionDigest);
+                    view.FindControl<ComboBox>("SharedOrder")!.SelectedIndex.Should().Be(editOrder ? 2 : 0);
+                    view.FindControl<TextBlock>("SharedStatus")!.Text.Should().Be("Filters or order edited. No source read or revision recheck performed.");
                     if (operation is "discover" or "discover-failure")
                     {
                         view.SelectedPackage.Should().BeNull();
@@ -324,7 +503,7 @@ public sealed class SkillMetadataSearchWindowTests
                 window.SelectedPackage.Should().BeSameAs(catalogue.Packages[0]);
                 query.Text = catalogue.Packages[^1].Manifest.Id.ToUpperInvariant();
                 window.SelectedPackage.Should().BeNull();
-                window.FindControl<TextBlock>("PackageSearchStatus")!.Text.Should().Contain("Filters edited");
+                window.FindControl<TextBlock>("PackageSearchStatus")!.Text.Should().Contain("Filters or order edited");
                 Click(window, "SearchPackages");
                 window.SelectedPackage.Should().BeNull();
                 tabs.Items.Should().BeEmpty();
@@ -410,6 +589,7 @@ public sealed class SkillMetadataSearchWindowTests
                 selector.Items.Should().HaveCount(2);
                 calls.Should().Be(1);
                 window.FindControl<ComboBox>("SharedFilter")!.SelectedIndex.Should().Be(0);
+                window.FindControl<ComboBox>("SharedOrder")!.SelectedIndex.Should().Be(0);
             }
             finally { window.Close(); }
         });
@@ -567,16 +747,19 @@ public sealed class SkillMetadataSearchWindowTests
             var first = window ?? throw new InvalidOperationException("The admitted bundled window did not open.");
             first.FindControl<TextBox>("PackageQuery")!.Text = "private query";
             first.FindControl<TextBox>("PackageDefinitionDigest")!.Text = new string('a', 64);
+            first.FindControl<ComboBox>("PackageOrder")!.SelectedIndex = 2;
             await fixture.Main.SetAllowVoiceActivationDuringCallsAsync(false);
             first.IsVisible.Should().BeFalse();
             first.FindControl<TextBox>("PackageQuery")!.Text.Should().BeEmpty();
             first.FindControl<TextBox>("PackageDefinitionDigest")!.Text.Should().BeEmpty();
             first.SelectedPackage.Should().BeNull();
+            first.FindControl<ComboBox>("PackageOrder")!.SelectedIndex.Should().Be(0);
             controller.Open();
             var second = window ?? throw new InvalidOperationException("The admitted bundled window did not reopen.");
             second.Should().NotBeSameAs(first);
             second.FindControl<TextBox>("PackageQuery")!.Text = "another private query";
             second.FindControl<TextBox>("PackageDeclaredResourceDigest")!.Text = new string('b', 64);
+            second.FindControl<ComboBox>("PackageOrder")!.SelectedIndex = 1;
             var closed = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
             second.Closed += (_, _) => closed.TrySetResult();
             fixture.Access.SetOpen(false);
@@ -587,6 +770,7 @@ public sealed class SkillMetadataSearchWindowTests
             second.FindControl<TextBox>("PackageQuery")!.Text.Should().BeEmpty();
             second.FindControl<TextBox>("PackageDeclaredResourceDigest")!.Text.Should().BeEmpty();
             second.SelectedPackage.Should().BeNull();
+            second.FindControl<ComboBox>("PackageOrder")!.SelectedIndex.Should().Be(0);
         });
     }
 

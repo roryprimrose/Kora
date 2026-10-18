@@ -37,6 +37,9 @@ public sealed partial class SharedSkillSourcesWindow : Window
         var filter = this.FindControl<ComboBox>("SharedFilter")!;
         filter.ItemsSource = new[] { "All", "Instruction-compatible", "Instruction-incompatible" };
         filter.SelectedIndex = 0;
+        var order = this.FindControl<ComboBox>("SharedOrder")!;
+        order.ItemsSource = new[] { "Source order", "Name ascending (ordinal)", "Name descending (ordinal)" };
+        order.SelectedIndex = 0;
         this.FindControl<Button>("SearchSharedPackages")!.Click += (_, _) => Search();
         this.FindControl<Button>("ClearSharedSearch")!.Click += (_, _) =>
         {
@@ -44,6 +47,7 @@ public sealed partial class SharedSkillSourcesWindow : Window
             this.FindControl<TextBox>("SharedQuery")!.Text = string.Empty;
             this.FindControl<TextBox>("SharedRevisionDigest")!.Text = string.Empty;
             filter.SelectedIndex = 0;
+            order.SelectedIndex = 0;
             Search();
         };
         foreach (var name in new[] { "SharedQuery", "SharedRevisionDigest" })
@@ -52,6 +56,7 @@ public sealed partial class SharedSkillSourcesWindow : Window
             { if (change.Property == TextBox.TextProperty) { RetireSearch(); } };
         }
         filter.SelectionChanged += (_, _) => RetireSearch();
+        order.SelectionChanged += (_, _) => RetireSearch();
         KeyDown += (_, args) => { if (args.Key == Key.Escape) { Close(); args.Handled = true; } };
         this.FindControl<ComboBox>("SourceSelector")!.SelectionChanged += (_, _) => ClearCatalogue();
         this.FindControl<ComboBox>("SharedPackageSelector")!.SelectionChanged += (_, _) =>
@@ -99,6 +104,7 @@ public sealed partial class SharedSkillSourcesWindow : Window
         this.FindControl<TextBox>("SharedQuery")!.Text = string.Empty;
         this.FindControl<TextBox>("SharedRevisionDigest")!.Text = string.Empty;
         this.FindControl<ComboBox>("SharedFilter")!.SelectedIndex = 0;
+        this.FindControl<ComboBox>("SharedOrder")!.SelectedIndex = 0;
         SetResults(value.Packages, null);
         var selector = this.FindControl<ComboBox>("SharedPackageSelector")!;
         selector.SelectedIndex = value.Packages.Count == 0 ? -1 : 0;
@@ -117,6 +123,7 @@ public sealed partial class SharedSkillSourcesWindow : Window
         this.FindControl<TextBox>("SharedQuery")!.IsEnabled = !busy;
         this.FindControl<TextBox>("SharedRevisionDigest")!.IsEnabled = !busy;
         this.FindControl<ComboBox>("SharedFilter")!.IsEnabled = !busy;
+        this.FindControl<ComboBox>("SharedOrder")!.IsEnabled = !busy;
     }
 
     internal void SetWithdrawalBusy(bool busy) => this.FindControl<Button>("UnregisterSource")!.IsEnabled = !busy;
@@ -129,6 +136,7 @@ public sealed partial class SharedSkillSourcesWindow : Window
         this.FindControl<TextBox>("SharedQuery")!.Text = string.Empty;
         this.FindControl<TextBox>("SharedRevisionDigest")!.Text = string.Empty;
         this.FindControl<ComboBox>("SharedFilter")!.SelectedIndex = 0;
+        this.FindControl<ComboBox>("SharedOrder")!.SelectedIndex = 0;
         this.FindControl<TextBlock>("SharedSearchStatus")!.Text = string.Empty;
         this.FindControl<ComboBox>("SharedPackageSelector")!.ItemsSource = Array.Empty<string>();
         ClearSelection();
@@ -185,7 +193,8 @@ public sealed partial class SharedSkillSourcesWindow : Window
             var matching = SkillCatalogueSearch.Shared(catalogue,
                 this.FindControl<TextBox>("SharedQuery")!.Text ?? string.Empty,
                 (SkillInstructionFilter)this.FindControl<ComboBox>("SharedFilter")!.SelectedIndex,
-                this.FindControl<TextBox>("SharedRevisionDigest")!.Text ?? string.Empty);
+                this.FindControl<TextBox>("SharedRevisionDigest")!.Text ?? string.Empty,
+                (SkillCatalogueOrder)this.FindControl<ComboBox>("SharedOrder")!.SelectedIndex);
             SetResults(matching, selected);
             this.FindControl<TextBlock>("SharedSearchStatus")!.Text =
                 $"{results.Count} of {catalogue.Packages.Count} admitted snapshots from the exact selected source. All invocation unavailable."
@@ -203,9 +212,9 @@ public sealed partial class SharedSkillSourcesWindow : Window
         if (closed) { return; }
         CatalogueGeneration++;
         SetResults([], null);
-        Report("Filters edited. No source read or revision recheck performed.");
+        Report("Filters or order edited. No source read or revision recheck performed.");
         this.FindControl<TextBlock>("SharedSearchStatus")!.Text =
-            "Filters edited; selection and private source panes cleared. Choose Search to filter admitted snapshots without reading the source.";
+            "Filters or order edited; selection and private source panes cleared. Choose Search to filter and order admitted snapshots without reading the source.";
     }
 
     private void SetResults(IReadOnlyList<SharedSkillSnapshot> matching, SharedSkillSnapshot? selected)

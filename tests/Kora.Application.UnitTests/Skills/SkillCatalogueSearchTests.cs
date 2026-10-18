@@ -13,6 +13,101 @@ public sealed class SkillCatalogueSearchTests
 {
     private static readonly string[] Dependencies = ["kora.test.adapter"];
 
+    [Theory]
+    [InlineData(SkillCatalogueOrder.Source)]
+    [InlineData(SkillCatalogueOrder.NameAscending)]
+    [InlineData(SkillCatalogueOrder.NameDescending)]
+    public void BundledOrderUsesOrdinalNamesAndAlwaysAscendingExactManifestIdentity(SkillCatalogueOrder order)
+    {
+        var admitted = BundledCatalogue(8, ["same", "same", "a", "A", "Z", "\u00e9", "\u754c", "\ud83d\ude00"]);
+        var catalogue = new SkillPackageCatalogue(admitted.Packages.Reverse().Select(package => package.Files[0].ResourceId).ToArray(),
+            admitted.Packages.SelectMany(package => package.Files).ToArray());
+        var sourceOrder = catalogue.Packages.ToArray();
+        var expected = order switch
+        {
+            SkillCatalogueOrder.NameAscending => new[] { 3, 4, 2, 0, 1, 5, 6, 7 },
+            SkillCatalogueOrder.NameDescending => new[] { 7, 6, 5, 0, 1, 2, 4, 3 },
+            _ => new[] { 7, 6, 5, 4, 3, 2, 1, 0 },
+        };
+        var result = SkillCatalogueSearch.Bundled(catalogue, "", SkillInvocationFilter.All, order: order);
+        result.Should().Equal(expected.Select(index => sourceOrder[7 - index]));
+        result.Should().OnlyContain(package => !package.IsAvailableForInvocation);
+        var selected = sourceOrder[6];
+        SkillCatalogueSearch.Bundled(catalogue, "SAME", SkillInvocationFilter.Unavailable,
+            selected.DefinitionDigest, selected.DeclaredResourceDigest, order).Should().Equal(selected);
+        SkillCatalogueSearch.Bundled(catalogue, "SAME", SkillInvocationFilter.Available,
+            selected.DefinitionDigest, selected.DeclaredResourceDigest, order).Should().BeEmpty();
+        SkillCatalogueSearch.Bundled(catalogue, "absent", SkillInvocationFilter.All,
+            selected.DefinitionDigest, selected.DeclaredResourceDigest, order).Should().BeEmpty();
+        catalogue.Packages.Should().Equal(sourceOrder);
+    }
+
+    [Theory]
+    [InlineData(SkillCatalogueOrder.Source)]
+    [InlineData(SkillCatalogueOrder.NameAscending)]
+    [InlineData(SkillCatalogueOrder.NameDescending)]
+    public void SharedOrderKeepsUnknownNamesLastWithoutInferringOrHidingIncompatibleRows(SkillCatalogueOrder order)
+    {
+        var source = Source();
+        var unknownZ = SharedSkillSnapshot.Parse(source.Id, "z\\SKILL.md", [0xff], true);
+        var unknownA = Snapshot(source, "a", "\u754c", "Unknown name");
+        var highVersion = SharedSkillSnapshot.Parse(source.Id, "same-z\\SKILL.md",
+            Encoding.UTF8.GetBytes("---\nname: same\nversion: 2.0.0\ndescription: Description\n---\nprivate-body"), false);
+        var lowVersion = Snapshot(source, "same-a", "same", "Description", "```powershell\nrun.exe\n```");
+        var first = Snapshot(source, "first", "alpha", "Description");
+        var catalogue = new SharedSkillCatalogue(source, [unknownZ, highVersion, unknownA, lowVersion, first]);
+        var expected = order switch
+        {
+            SkillCatalogueOrder.NameAscending => new[] { first, lowVersion, highVersion, unknownA, unknownZ },
+            SkillCatalogueOrder.NameDescending => new[] { lowVersion, highVersion, first, unknownA, unknownZ },
+            _ => new[] { unknownZ, highVersion, unknownA, lowVersion, first },
+        };
+        SkillCatalogueSearch.Shared(catalogue, "", SkillInstructionFilter.All, order: order).Should().Equal(expected);
+        SkillCatalogueSearch.Shared(catalogue, "SAME", SkillInstructionFilter.Incompatible, lowVersion.RevisionDigest, order)
+            .Should().Equal(lowVersion);
+        SkillCatalogueSearch.Shared(catalogue, "SAME", SkillInstructionFilter.Compatible, lowVersion.RevisionDigest, order)
+            .Should().BeEmpty();
+        SkillCatalogueSearch.Shared(catalogue, "", SkillInstructionFilter.Incompatible, unknownZ.RevisionDigest, order)
+            .Should().Equal(unknownZ);
+        SkillCatalogueSearch.Shared(catalogue, "z", SkillInstructionFilter.All, unknownZ.RevisionDigest, order).Should().BeEmpty();
+        SkillCatalogueSearch.Shared(new(source, []), "", SkillInstructionFilter.All, order: order).Should().BeEmpty();
+        unknownA.Name.Should().BeNull();
+        unknownZ.Name.Should().BeNull();
+        catalogue.Packages.Should().Equal(unknownZ, highVersion, unknownA, lowVersion, first);
+        catalogue.Packages.Should().OnlyContain(package => !package.IsAvailableForInvocation);
+    }
+
+    [Theory]
+    [InlineData(-1)]
+    [InlineData(3)]
+    [InlineData(int.MaxValue)]
+    public void UndefinedOrdersRejectEvenWhenOtherPredicatesExcludeEveryCandidate(int value)
+    {
+        ((Action)(() => SkillCatalogueSearch.Bundled(BundledCatalogue(1), "missing", SkillInvocationFilter.Available,
+            order: (SkillCatalogueOrder)value))).Should().Throw<ArgumentOutOfRangeException>();
+        ((Action)(() => SkillCatalogueSearch.Shared(new(Source(), []), "missing", SkillInstructionFilter.Compatible,
+            order: (SkillCatalogueOrder)value))).Should().Throw<ArgumentOutOfRangeException>();
+    }
+
+    [Fact]
+    public void CompleteCatalogueAdmissionRejectsInvalidExcludedCandidatesBeforeOrderingCanRun()
+    {
+        var source = Source();
+        var valid = Snapshot(source, "one", "one", "Description");
+        var foreign = Snapshot(Source(), "two", "two", "Description");
+        ((Action)(() => SkillCatalogueSearch.Shared(new(source, [valid, foreign]), "one",
+            SkillInstructionFilter.Compatible, valid.RevisionDigest, SkillCatalogueOrder.NameAscending)))
+            .Should().Throw<InvalidDataException>();
+        ((Action)(() => SkillCatalogueSearch.Shared(new(source, [valid, null!]), "one",
+            SkillInstructionFilter.Compatible, valid.RevisionDigest, SkillCatalogueOrder.NameDescending)))
+            .Should().Throw<InvalidDataException>();
+        var bundled = BundledCatalogue(2);
+        ((Action)(() => SkillCatalogueSearch.Bundled(new(
+            bundled.Packages.Select(package => package.Files[0].ResourceId).ToArray(),
+            bundled.Packages[0].Files.ToArray()), "Name 0", SkillInvocationFilter.All,
+            order: SkillCatalogueOrder.NameAscending))).Should().Throw<InvalidDataException>();
+    }
+
     [Fact]
     public void BundledDigestsComposeExactlyWithEveryExistingPredicateAcrossTheFullBound()
     {
@@ -202,7 +297,7 @@ public sealed class SkillCatalogueSearchTests
         SharedSkillSnapshot.Parse(source.Id, path + "\\SKILL.md",
             Encoding.UTF8.GetBytes($"---\nname: {name}\nversion: 1.0.0\ndescription: {description}\n---\n{body}"), false);
 
-    private static SkillPackageCatalogue BundledCatalogue(int count)
+    private static SkillPackageCatalogue BundledCatalogue(int count, string[]? names = null)
     {
         var resources = new List<SkillResourceSnapshot>();
         var manifests = new List<string>();
@@ -214,7 +309,7 @@ public sealed class SkillCatalogueSearchTests
             var entryName = "scripts\\entry" + id + ".ps1";
             var text = JsonSerializer.Serialize(new
             {
-                schemaVersion = 1, id = "kora.test" + id, version = "1.0.0", name = "Name " + id,
+                schemaVersion = 1, id = "kora.test" + id, version = "1.0.0", name = names is null ? "Name " + id : names[index],
                 description = "Description " + id, action = "test.action" + id, entryPoint = entryName,
                 parameterContract = "test.v1", runtime = "powershell7", dependencies = Dependencies,
                 helperLoadOrder = Array.Empty<string>(),

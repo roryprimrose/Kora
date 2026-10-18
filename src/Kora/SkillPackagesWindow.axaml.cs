@@ -31,6 +31,9 @@ public sealed partial class SkillPackagesWindow : Window
         var filter = this.FindControl<ComboBox>("PackageFilter")!;
         filter.ItemsSource = new[] { "All", "Runtime unavailable", "Runtime available" };
         filter.SelectedIndex = 0;
+        var order = this.FindControl<ComboBox>("PackageOrder")!;
+        order.ItemsSource = new[] { "Source order", "Name ascending (ordinal)", "Name descending (ordinal)" };
+        order.SelectedIndex = 0;
         this.FindControl<Button>("SearchPackages")!.Click += (_, _) => Search();
         this.FindControl<Button>("ClearPackageSearch")!.Click += (_, _) =>
         {
@@ -39,6 +42,7 @@ public sealed partial class SkillPackagesWindow : Window
             this.FindControl<TextBox>("PackageDefinitionDigest")!.Text = string.Empty;
             this.FindControl<TextBox>("PackageDeclaredResourceDigest")!.Text = string.Empty;
             filter.SelectedIndex = 0;
+            order.SelectedIndex = 0;
             Search();
         };
         foreach (var name in new[] { "PackageQuery", "PackageDefinitionDigest", "PackageDeclaredResourceDigest" })
@@ -47,6 +51,7 @@ public sealed partial class SkillPackagesWindow : Window
             { if (change.Property == TextBox.TextProperty) { RetireSearch(); } };
         }
         filter.SelectionChanged += (_, _) => RetireSearch();
+        order.SelectionChanged += (_, _) => RetireSearch();
         KeyDown += (_, args) => { if (args.Key == Key.Escape) { Close(); args.Handled = true; } };
         selector.SelectionChanged += (_, _) =>
         {
@@ -61,6 +66,7 @@ public sealed partial class SkillPackagesWindow : Window
             this.FindControl<TextBox>("PackageDefinitionDigest")!.Text = string.Empty;
             this.FindControl<TextBox>("PackageDeclaredResourceDigest")!.Text = string.Empty;
             filter.SelectedIndex = 0;
+            order.SelectedIndex = 0;
             this.FindControl<TextBlock>("PackageSearchStatus")!.Text = string.Empty;
             ClearSelection();
         };
@@ -87,7 +93,8 @@ public sealed partial class SkillPackagesWindow : Window
                 this.FindControl<TextBox>("PackageQuery")!.Text ?? string.Empty,
                 (SkillInvocationFilter)this.FindControl<ComboBox>("PackageFilter")!.SelectedIndex,
                 this.FindControl<TextBox>("PackageDefinitionDigest")!.Text ?? string.Empty,
-                this.FindControl<TextBox>("PackageDeclaredResourceDigest")!.Text ?? string.Empty);
+                this.FindControl<TextBox>("PackageDeclaredResourceDigest")!.Text ?? string.Empty,
+                (SkillCatalogueOrder)this.FindControl<ComboBox>("PackageOrder")!.SelectedIndex);
             SetResults(matching, selected);
             this.FindControl<TextBlock>("PackageSearchStatus")!.Text =
                 $"{results.Count} of {catalogue.Packages.Count} admitted bundled snapshots. Invocation remains unavailable."
@@ -105,7 +112,7 @@ public sealed partial class SkillPackagesWindow : Window
         if (closed) { return; }
         SetResults([], null);
         this.FindControl<TextBlock>("PackageSearchStatus")!.Text =
-            "Filters edited; selection and private source panes cleared. Choose Search to filter admitted snapshots without reading resources.";
+            "Filters or order edited; selection and private source panes cleared. Choose Search to filter and order admitted snapshots without reading resources.";
     }
 
     private void SetResults(IReadOnlyList<SkillPackageSnapshot> matching, SkillPackageSnapshot? selected)

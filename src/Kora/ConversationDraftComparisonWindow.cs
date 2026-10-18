@@ -10,6 +10,9 @@ namespace Kora;
 
 internal sealed class ConversationDraftComparisonWindow : Window
 {
+    private bool opening = true;
+    private Action? finishOpening;
+
     internal ConversationDraftComparisonWindow(Window owner, SessionsViewModel model, ConversationDraftComparison comparison)
     {
         Title = "Passive exact-session composer comparison";
@@ -25,15 +28,25 @@ internal sealed class ConversationDraftComparisonWindow : Window
         root.Children.Add(close);
         var panes = new Grid { ColumnDefinitions = new("*,*") };
         bool Current() => owner.IsVisible && IsVisible && comparison.Available;
-        var before = new SnapshotComparisonFindPane(comparison.BaselineLabel, comparison.SavedBody, Current, Close);
-        var after = new SnapshotComparisonFindPane("Exact raw frozen unsaved composer memory buffer", comparison.Buffer, Current, Close);
+        var before = new SnapshotComparisonFindPane(comparison.BaselineLabel, comparison.SavedBody, Current, Retire);
+        var after = new SnapshotComparisonFindPane("Exact raw frozen unsaved composer memory buffer", comparison.Buffer, Current, Retire);
         Grid.SetColumn(after, 1);
         panes.Children.Add(before); panes.Children.Add(after);
         root.Children.Add(panes);
         Content = root;
         var timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(250) };
-        EventHandler tick = (_, _) => { if (!Current()) { Close(); } };
-        EventHandler retired = (_, _) => Close();
+        void Erase()
+        {
+            before.Dispose(); after.Dispose();
+            explanation.Text = string.Empty;
+            comparison.Dispose();
+        }
+        EventHandler tick = (_, _) => { if (!Current()) { Retire(); } };
+        EventHandler retired = (_, _) =>
+        {
+            Erase();
+            Retire();
+        };
         timer.Tick += tick;
         model.ComposerComparisonRetired += retired;
         owner.Closed += retired;
@@ -47,17 +60,28 @@ internal sealed class ConversationDraftComparisonWindow : Window
             timer.Tick -= tick;
             model.ComposerComparisonRetired -= retired;
             owner.Closed -= retired;
-            before.Dispose(); after.Dispose();
-            explanation.Text = string.Empty;
+            finishOpening = null;
+            Erase();
             Content = null;
-            comparison.Dispose();
             model.CloseComposerComparison(comparison);
         };
-        Opened += (_, _) =>
+        finishOpening = () =>
         {
-            // Reentrant opening callbacks may revoke ownership before Show finishes.
             if (!Current()) { Hide(); Close(); }
             else { timer.Start(); }
         };
+    }
+
+    internal void Open(Window owner)
+    {
+        Show(owner);
+        opening = false;
+        finishOpening?.Invoke();
+    }
+
+    private void Retire()
+    {
+        // Erasure is synchronous; native disposal must not interrupt Avalonia's Show initialization.
+        if (!opening) { Close(); }
     }
 }

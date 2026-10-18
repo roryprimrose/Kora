@@ -3,6 +3,7 @@
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
+using Avalonia.LogicalTree;
 using Avalonia.VisualTree;
 
 using AwesomeAssertions;
@@ -331,22 +332,23 @@ public sealed partial class SessionsConversationTests
                 using var opened = Window.WindowOpenedEvent.AddClassHandler<ConversationDraftComparisonWindow>((value, _) =>
                 {
                     dialog = value;
-                    panes = value.GetVisualDescendants().OfType<SnapshotComparisonFindPane>().ToArray();
-                    if (boundary == "opening") { model.ComposerBody = "changed during opening"; }
+                    panes = value.GetLogicalDescendants().OfType<SnapshotComparisonFindPane>().ToArray();
+                    if (boundary is "opening") { model.ComposerBody = "changed during opening"; }
                 });
                 CompareClick(window, "CompareComposer");
                 dialog.Should().NotBeNull();
-                if (boundary != "opening")
+                if (boundary is not "opening")
                 {
+                    panes = dialog!.GetVisualDescendants().OfType<SnapshotComparisonFindPane>().ToArray();
                     var match = panes[1].GetVisualDescendants().OfType<NamedTextBlock>().Single(block => block.Focusable);
                     match.PropertyChanged += (_, args) =>
                     {
-                        if (boundary == "match" && args.Property == TextBlock.TextProperty && match.Text == "PRIVATE")
+                        if (boundary is "match" && args.Property == TextBlock.TextProperty && match.Text is "PRIVATE")
                         { model.ComposerBody = "changed during publication"; }
                     };
                     match.GotFocus += (_, _) =>
                     {
-                        if (boundary == "focus") { model.ComposerBody = "changed during focus"; }
+                        if (boundary is "focus") { model.ComposerBody = "changed during focus"; }
                     };
                     CompareQuery(panes[1]).Text = "PRIVATE";
                     CompareClick(panes[1], "Find first");
@@ -377,8 +379,8 @@ public sealed partial class SessionsConversationTests
         pane.GetVisualDescendants().OfType<TextBox>().Single(box => !box.IsReadOnly);
     private static void CompareClick(Control root, string nameOrCaption)
     {
-        var button = root.FindControl<Button>(nameOrCaption)
-            ?? root.GetVisualDescendants().OfType<Button>().Single(value => Equals(value.Content, nameOrCaption));
+        var button = root.GetVisualDescendants().OfType<Button>().Single(value =>
+            string.Equals(value.Name, nameOrCaption, StringComparison.Ordinal) || Equals(value.Content, nameOrCaption));
         button.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
     }
 }

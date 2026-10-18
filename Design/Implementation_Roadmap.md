@@ -47,7 +47,7 @@ The explicit [native composer Compare](Interaction_And_Sessions.md#passive-obser
 
 The [portable snapshot](../src/Kora.Application/Presentation/ConversationDraftComparison.cs) and [shared inert pane](../src/Kora/SnapshotComparisonFindPane.cs) preserve existing owned-definition Compare and uncounted Core literal Find. Edit/source/selection/generation/private/operation/close fences retire snapshots and queries without auto-Compare ([tests](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.ComposerComparison.cs)).
 
-This consumes only the existing composer/draft/text/pane I subset. No source/schema/provider/runtime/egress/wake/profile writer is enabled. E/Q, installed-native/accessibility and physical/hardware/acoustic/provider/containment qualification remain separate and unclaimed; local validation is pending the coordinator's exclusive machine permit.
+This consumes only the existing composer/draft/text/pane I subset. No source/schema/provider/runtime/egress/wake/profile writer is enabled. E/Q, installed-native/accessibility and physical/hardware/acoustic/provider/containment qualification remain separate and unclaimed ([delivery policy](#delivery-and-qualification-dependency-policy)).
 
 ### Bounded native Evidence retained due ranges - 2026-10-18
 

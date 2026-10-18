@@ -51,8 +51,7 @@ internal sealed partial class SessionsWindow : Window
             if (IsVisible && model.CompareComposer() is { } comparison)
             {
                 var dialog = new ConversationDraftComparisonWindow(this, model, comparison);
-                dialog.Show(this);
-                if (!IsVisible || !comparison.Available) { dialog.Hide(); dialog.Close(); }
+                dialog.Open(this);
             }
         };
         SaveConversationDraft.Click += async (_, _) => await (ConversationOperation = model.SaveConversationDraftAsync());

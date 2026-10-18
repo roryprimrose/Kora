@@ -361,6 +361,11 @@ Session list/switch/new/Done/delete and pending question controls are reachable 
 Failures include actionable information and truthful state, not a success indicator or a silent device fallback.
 Voice readiness must not prevent local settings, task management, basic output, or setup; model-dependent answering remains unavailable when its provider is not ready.
 
+## Native clipboard Find count
+
+The existing native clipboard preview offers explicit complete nonoverlapping literal count and selected ordinal over only its already-admitted immutable capture. Enter/First, F3/Next and Shift+F3/Previous retain exact case/spaces, bounded one-line validation and no wrap; edits clear count and match immediately without a new read ([clipboard owner](Security_Data_Flows.md#delivered-r07-local-clipboard-preview---2026-10-07)).
+The count is presentation, not source authority, disclosure permission or model approval. Invalid queries remain explicit rejection, not zero; private/owner/source loss clears the state and fences retained callbacks. No clipboard transfer or automatic action is added ([native Find](../src/Kora/ClipboardPreviewWindow.Find.cs), [headless contracts](../tests/Kora.Windows.IntegrationTests/ClipboardLiteralFindWindowTests.cs)).
+
 ## Release Gate
 
 Test first launch with zero/one/multiple endpoints, duplicate names, absent speech assets, privacy denial, intentionally muted input, and no model/network/TTS.

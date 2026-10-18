@@ -868,6 +868,11 @@ The [clipboard contract](Security_Data_Flows.md#delivered-r07-local-clipboard-pr
 One inert focused case-sensitive span, unchanged spaces, bounded strict Unicode, nonoverlap/no wrap and exact capture/view/privacy/owner/call fences apply. No clipboard read/write/reuse/revoke query route, provider/egress/context/history/index/persistence, timer or activity renewal is added.
 [Portable](../tests/Kora.Core.UnitTests/Context/ClipboardLiteralFindTests.cs) and [headless native/controller](../tests/Kora.Windows.IntegrationTests/ClipboardLiteralFindWindowTests.cs) evidence is bounded to this consumer; no experiment, installed/privacy, hardware/acoustic or inference qualification gate is closed.
 
+### Clipboard literal count and ordinal increment - 2026-10-18
+
+Explicit native Find now reports the complete nonoverlapping count and selected ordinal for only the admitted immutable clipboard capture. Edits clear count and match without reads; counted Previous follows the forward sequence, with no wrap or overlapping alternatives ([clipboard contract](Security_Data_Flows.md#delivered-r07-local-clipboard-preview---2026-10-07)).
+This bounded implementation adds no source/disclosure/model authority or runtime enablement. Deterministic [Core](../tests/Kora.Core.UnitTests/Context/ClipboardLiteralFindTests.cs) and [headless lifecycle/keyboard/viewport](../tests/Kora.Windows.IntegrationTests/ClipboardLiteralFindWindowTests.cs) checks remain distinct from installed-native and RC qualification.
+
 ### R26 native current-source literal Find increment - 2026-10-12
 
 The shared private original-file viewer delivers native First/Next/Previous/Clear for one exact case-sensitive literal span in the currently inspected immutable single file, captured-folder selector item or revalidated retained Session attachment. Query spaces/case stay exact; nonoverlapping cursor steps never wrap or build all-occurrence indexes/counts.

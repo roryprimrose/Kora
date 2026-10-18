@@ -32,6 +32,7 @@ internal sealed partial class SessionsViewModel
         set
         {
             if (closed || !access.CanInspect || conversationBusy || protectingComposer) { return; }
+            RetireComposerComparison();
             composerBody = value;
             clearDraftReviewed = false;
             NotifyConversation();
@@ -100,6 +101,7 @@ internal sealed partial class SessionsViewModel
     public void DiscardComposerBuffer()
     {
         if (!CanReadConversation) { return; }
+        RetireComposerComparison();
         composerBody = string.Empty;
         composerBaseline = string.Empty;
         clearDraftReviewed = false;
@@ -117,6 +119,7 @@ internal sealed partial class SessionsViewModel
         { throw new OperationCanceledException("Conversation source or exact selected generation changed."); }
         conversationPage = page;
         savedConversationDraft = draft;
+        savedConversationDraftControlRevision = access.ControlRevision;
         catalogueDraft = null;
         conversationSourceHeld = false;
         clearDraftReviewed = false;
@@ -134,6 +137,7 @@ internal sealed partial class SessionsViewModel
         if (!live() || saved.Session != target.Authority || !string.Equals(saved.Draft.Body, body, StringComparison.Ordinal))
         { throw new IOException("Saved draft receipt is unconfirmed; inspect exact durable revision."); }
         savedConversationDraft = saved;
+        savedConversationDraftControlRevision = access.ControlRevision;
         conversationSourceHeld = false;
         composerBaseline = body;
         clearDraftReviewed = false;
@@ -152,6 +156,7 @@ internal sealed partial class SessionsViewModel
         await VerifyCatalogueReload(live, lifetime.Token);
         if (!live() || saved.Session != target.Authority) { throw new OperationCanceledException("The draft target changed."); }
         savedConversationDraft = saved;
+        savedConversationDraftControlRevision = access.ControlRevision;
         conversationSourceHeld = false;
         composerBody = saved.Draft.Body ?? string.Empty;
         composerBaseline = composerBody;
@@ -162,6 +167,7 @@ internal sealed partial class SessionsViewModel
     public void ReviewClearConversationDraft()
     {
         if (!CanReviewClearConversationDraft) { return; }
+        RetireComposerComparison();
         clearDraftReviewed = true;
         conversationStatus = "Review clear of saved body for " + ComposerTarget
             + ". Only this exact saved revision will be removed; the memory buffer and submitted messages stay unchanged.";
@@ -177,6 +183,7 @@ internal sealed partial class SessionsViewModel
         if (!live() || saved.Session != target.Authority || saved.Draft.Body is not null)
         { throw new IOException("Draft clear receipt is unconfirmed; inspect durable state without retry."); }
         savedConversationDraft = saved;
+        savedConversationDraftControlRevision = access.ControlRevision;
         composerBaseline = string.Empty;
         conversationStatus = "Exact saved draft cleared; memory-only edits remain, with no implicit save or submission.";
     });
@@ -197,6 +204,7 @@ internal sealed partial class SessionsViewModel
 
     internal async Task<bool> ProtectComposerAsync()
     {
+        RetireComposerComparison();
         if (protectingComposer) { return false; }
         if (!ComposerDirty) { return true; }
         var target = RequireSelected();
@@ -219,6 +227,7 @@ internal sealed partial class SessionsViewModel
             if (!Live() || saved.Session != target.Authority || !string.Equals(saved.Draft.Body, body, StringComparison.Ordinal))
             { throw new IOException("Saved draft receipt is unconfirmed; inspect exact durable revision."); }
             savedConversationDraft = saved;
+            savedConversationDraftControlRevision = access.ControlRevision;
             composerBaseline = body;
             return true;
         }
@@ -234,6 +243,7 @@ internal sealed partial class SessionsViewModel
         bool submission = false, bool sourceRead = false, long? searchDetailEpoch = null)
     {
         if (!CanReadConversation) { return; }
+        RetireComposerComparison();
         var target = RequireSelected();
         var epoch = selectionEpoch;
         var revision = access.ControlRevision;
@@ -303,12 +313,14 @@ internal sealed partial class SessionsViewModel
 
     private void ClearConversation()
     {
+        RetireComposerComparison();
         if (selected is { } target) { revokeConversationDetails?.Invoke(target.Authority.SessionId); }
         catalogueDraft = null;
         ClearConversationSearch();
         composerBody = string.Empty;
         composerBaseline = string.Empty;
         savedConversationDraft = null;
+        savedConversationDraftControlRevision = 0;
         conversationPage = null;
         conversationHeld = false;
         conversationSourceHeld = false;
@@ -318,11 +330,12 @@ internal sealed partial class SessionsViewModel
 
     private void NotifyConversation()
     {
+        CheckComposerComparison();
         NotifyConversationSearch();
         foreach (var name in new[] { nameof(ComposerBody), nameof(ComposerDirty), nameof(ComposerTarget),
             nameof(ConversationMessages), nameof(ConversationStatus), nameof(SavedConversationDraftReview), nameof(CanReadConversation), nameof(CanNextConversation),
             nameof(CanOpenConversationDetails), nameof(CanCompose), nameof(CanSaveConversationDraft), nameof(CanReloadConversationDraft),
-            nameof(CanReviewClearConversationDraft), nameof(CanClearConversationDraft), nameof(CanSubmitConversation) })
+            nameof(CanReviewClearConversationDraft), nameof(CanClearConversationDraft), nameof(CanSubmitConversation), nameof(CanCompareComposer) })
         { OnPropertyChanged(name); }
     }
 }

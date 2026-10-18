@@ -358,18 +358,27 @@ public sealed partial class SessionsConversationTests
     }
 
     private sealed class SearchReader(
-        Func<HostId<SessionIdentity>, ConversationCursor?, int, CancellationToken, ValueTask<ConversationPage>> read)
+        Func<HostId<SessionIdentity>, ConversationCursor?, int, CancellationToken, ValueTask<ConversationPage>> read,
+        Func<HostId<SessionIdentity>, CancellationToken, ValueTask<ConversationDraftSnapshot>>? readDraft = null)
         : ISessionWorkspaceStore, ISessionConversationStore
     {
         internal int Reads { get; private set; }
+        internal int DraftReads { get; private set; }
+        internal bool DenyReads { get; set; }
         public ValueTask<ConversationPage> ReadConversationPageAsync(HostId<SessionIdentity> session, ConversationCursor? cursor,
             int limit, CancellationToken token)
         {
             Reads++;
+            if (DenyReads) { throw new IOException("Synthetic source-read denial."); }
             return read(session, cursor, limit, token);
         }
 
-        public ValueTask<ConversationDraftSnapshot> ReadConversationDraftAsync(HostId<SessionIdentity> session, CancellationToken token) => throw new NotSupportedException();
+        public ValueTask<ConversationDraftSnapshot> ReadConversationDraftAsync(HostId<SessionIdentity> session, CancellationToken token)
+        {
+            DraftReads++;
+            if (DenyReads) { throw new IOException("Synthetic draft-read denial."); }
+            return (readDraft ?? throw new NotSupportedException())(session, token);
+        }
         public ValueTask<ConversationMessage> ReadConversationMessageAsync(HostId<SessionIdentity> session, HostId<RequestIdentity> request, CancellationToken token) => throw new NotSupportedException();
         public ValueTask<HostTaskRecord> RecordConversationCredentialRejectionAsync(HostRequest request, HostRevision generation, Func<bool> admitted, CancellationToken token) => throw new NotSupportedException();
         public ValueTask<ConversationDraftSnapshot> CommitConversationDraftAsync(HostRequest control, ConversationDraftSnapshot expected, string? body, Func<bool> admitted, CancellationToken token) => throw new NotSupportedException();

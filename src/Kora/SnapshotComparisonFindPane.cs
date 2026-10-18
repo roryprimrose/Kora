@@ -10,8 +10,9 @@ using Kora.Core.Context;
 
 namespace Kora;
 
-internal sealed class OwnedComparisonFindPane : DockPanel, IDisposable
+internal sealed class SnapshotComparisonFindPane : DockPanel, IDisposable
 {
+    private readonly NamedTextBlock heading;
     private readonly TextBox source;
     private readonly TextBox query;
     private readonly NamedTextBlock outcome = new() { TextWrapping = TextWrapping.Wrap };
@@ -27,18 +28,19 @@ internal sealed class OwnedComparisonFindPane : DockPanel, IDisposable
     private long generation;
     private bool disposed;
 
-    internal OwnedComparisonFindPane(string label, string? text, Func<bool> current, Action retire)
+    internal SnapshotComparisonFindPane(string label, string? text, Func<bool> current, Action retire)
     {
         this.text = text;
         this.current = current;
         this.retire = retire;
         Margin = new(4);
         var chrome = new StackPanel { Spacing = 6 };
-        chrome.Children.Add(new NamedTextBlock
+        heading = new NamedTextBlock
         {
             Text = label + (text is null ? " (missing/new baseline; no searchable source)" : string.Empty),
             TextWrapping = TextWrapping.Wrap,
-        });
+        };
+        chrome.Children.Add(heading);
         chrome.Children.Add(new NamedTextBlock
         {
             Text = "Case-sensitive ordinal literal Find; exact spaces, one nonoverlapping match, no wrap or count. "
@@ -208,6 +210,13 @@ internal sealed class OwnedComparisonFindPane : DockPanel, IDisposable
         ClearMatch();
         query.Text = string.Empty;
         source.Text = string.Empty;
+        heading.Text = string.Empty;
+        AutomationProperties.SetName(source, "Retired comparison source");
+        AutomationProperties.SetName(query, "Retired comparison query");
+        AutomationProperties.SetName(outcome, "Retired comparison Find outcome");
+        AutomationProperties.SetName(span, "Retired comparison match");
+        foreach (var button in new[] { first, next, previous, clear })
+        { AutomationProperties.SetName(button, "Retired comparison action"); }
         first.IsEnabled = clear.IsEnabled = query.IsEnabled = false;
         RemoveHandler(KeyDownEvent, OnKeyDown);
         // Clipboard/context blockers stay on a retained retired control; they hold no private source.

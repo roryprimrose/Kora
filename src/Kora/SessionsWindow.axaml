@@ -116,6 +116,8 @@
             PlaceholderText="Original message: up to 4096 UTF-16 characters and 16384 UTF-8 bytes; invalid or oversized text is rejected, not truncated"
             AutomationProperties.Name="Memory-only exact-session conversation draft; not a question answer or approval" />
         <WrapPanel>
+          <Button x:Name="CompareComposer" Content="Compare observed saved draft / memory buffer" IsEnabled="{Binding CanCompareComposer}"
+              AutomationProperties.Name="Explicit passive comparison of historical observed saved revision and exact raw composer memory; no read, save or submit" />
           <Button x:Name="SaveConversationDraft" Content="Explicitly Save draft" IsEnabled="{Binding CanSaveConversationDraft}" />
           <Button x:Name="ReloadConversationDraft" Content="Reload saved draft" IsEnabled="{Binding CanReloadConversationDraft}" />
           <Button x:Name="DiscardComposer" Content="Discard memory buffer only" IsEnabled="{Binding CanReadConversation}" />

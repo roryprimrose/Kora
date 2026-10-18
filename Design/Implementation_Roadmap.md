@@ -41,6 +41,14 @@ Both LocalFile and clipboard counted adapters consume the [shared forward nonove
 Exhaustion preserves total/anchor ordinal without wrap or a current-match/focus claim; invalid input rejects before retained read, and async exact-source/privacy/generation/cancellation fences still gate disclosure ([portable tests](../tests/Kora.Core.UnitTests/Context/LocalFileLiteralFindTests.cs), [native tests](../tests/Kora.Windows.IntegrationTests/LocalFileLiteralFindWindowTests.cs)).
 This consumes only the merged immutable-source/shared-Find/native I subset. No extra read, persisted count/index, model/provider/device/clipboard-write/authority change is added; E/Q and installed accessibility remain separate, and unqualified runtime/provider/egress/wake/profile-original writers remain unavailable ([contract](File_And_Folder_Ingestion.md#exact-immutable-localfile-occurrence-count-and-ordinal---2026-10-18)).
 
+### Bounded observed saved-draft / composer Compare - 2026-10-18
+
+The explicit [native composer Compare](Interaction_And_Sessions.md#passive-observed-saved-draft--composer-compare---2026-10-18) freezes historical observed saved revision/exact session/generation and exact raw unsaved memory without source I/O, mutation, activity renewal or authority. Missing bodies stay absent; complete text uses ConversationText admission, never normalization/truncation.
+
+The [portable snapshot](../src/Kora.Application/Presentation/ConversationDraftComparison.cs) and [shared inert pane](../src/Kora/SnapshotComparisonFindPane.cs) preserve existing owned-definition Compare and uncounted Core literal Find. Edit/source/selection/generation/private/operation/close fences retire snapshots and queries without auto-Compare ([tests](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.ComposerComparison.cs)).
+
+This consumes only the existing composer/draft/text/pane I subset. No source/schema/provider/runtime/egress/wake/profile writer is enabled. E/Q, installed-native/accessibility and physical/hardware/acoustic/provider/containment qualification remain separate and unclaimed; local validation is pending the coordinator's exclusive machine permit.
+
 ### Bounded native Evidence retained due ranges - 2026-10-18
 
 The [existing Evidence inspector](Information_Display.md#delivered-bounded-native-evidence-inspection)

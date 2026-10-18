@@ -72,6 +72,7 @@ public sealed partial class SkillPackagesWindow : Window
             order.SelectedIndex = 0;
             this.FindControl<TextBlock>("PackageSearchStatus")!.Text = string.Empty;
             ClearSelection();
+            IdentityFinder.Dispose();
         };
         Search();
         selector.SelectedIndex = 0;

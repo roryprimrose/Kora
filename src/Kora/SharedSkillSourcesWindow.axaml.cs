@@ -65,7 +65,7 @@ public sealed partial class SharedSkillSourcesWindow : Window
         this.FindControl<ComboBox>("SourceSelector")!.SelectionChanged += (_, _) => ClearCatalogue();
         this.FindControl<ComboBox>("SharedPackageSelector")!.SelectionChanged += (_, _) =>
         { if (!updatingResults) { ShowSelectedPackage(); } };
-        Closed += (_, _) => { closed = true; ClearPrivateContent(); };
+        Closed += (_, _) => { closed = true; ClearPrivateContent(); IdentityFinder.Dispose(); };
     }
 
     internal IReadOnlyList<SharedSkillSource> RegisteredSources => Array.AsReadOnly(sources.ToArray());

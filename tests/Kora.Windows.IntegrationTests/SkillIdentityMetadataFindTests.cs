@@ -20,6 +20,10 @@ namespace Kora.Windows.IntegrationTests;
 [Collection(nameof(HeadlessUiTestGroup))]
 public sealed class SkillIdentityMetadataFindTests
 {
+    private static readonly string[] BundledQueryFields = ["PackageQuery", "PackageDefinitionDigest", "PackageDeclaredResourceDigest"];
+    private static readonly string[] BundledSelectors = ["PackageFilter", "PackageOrder"];
+    private static readonly string[] SharedAbsentQueries = ["BodyOnlySecret", "HiddenOnlySecret", "missing"];
+
     [WindowsFact]
     public async Task BundledFindUsesOnlyRenderedIdentityAndRetiresOnSelectionSearchEditsAndClose()
     {
@@ -35,12 +39,13 @@ public sealed class SkillIdentityMetadataFindTests
                 var pane = window.FindControl<IdentityMetadataFindPane>("IdentityFind")!;
                 var identity = window.FindControl<TextBlock>("PackageIdentity")!.Text!;
                 var selected = window.SelectedPackage;
+                var catalogueQuery = window.FindControl<TextBox>("PackageQuery")!.Text;
                 Find(pane, "Bundled");
                 Match(pane).Text.Should().Be("Bundled");
                 pane.FindControl<TextBlock>("IdentityFindLocation")!.Text.Should().Be("UTF-16 [0, 7); end exclusive.");
                 Status(pane).Text.Should().Contain($"[{identity.IndexOf("Bundled", StringComparison.Ordinal)},");
                 window.SelectedPackage.Should().BeSameAs(selected);
-                window.FindControl<TextBox>("PackageQuery")!.Text.Should().BeEmpty();
+                window.FindControl<TextBox>("PackageQuery")!.Text.Should().Be(catalogueQuery);
                 Find(pane, "BUNDLED FIRST-PARTY SOURCE");
                 Status(pane).Text.Should().StartWith("No literal match");
                 var sourceLine = selected!.Files.SelectMany(file => file.Text.Split('\n'))
@@ -49,7 +54,7 @@ public sealed class SkillIdentityMetadataFindTests
                 Find(pane, sourceLine);
                 Status(pane).Text.Should().StartWith("No literal match");
                 AssertPrivateInteraction(pane);
-                foreach (var name in new[] { "PackageQuery", "PackageDefinitionDigest", "PackageDeclaredResourceDigest" })
+                foreach (var name in BundledQueryFields)
                 {
                     Click(window, "SearchPackages");
                     window.FindControl<ComboBox>("PackageSelector")!.SelectedIndex = 0;
@@ -60,7 +65,7 @@ public sealed class SkillIdentityMetadataFindTests
                 }
                 Click(window, "ClearPackageSearch");
                 var selector = window.FindControl<ComboBox>("PackageSelector")!;
-                foreach (var name in new[] { "PackageFilter", "PackageOrder" })
+                foreach (var name in BundledSelectors)
                 {
                     selector.SelectedIndex = 0;
                     Find(pane, "Bundled");
@@ -89,6 +94,8 @@ public sealed class SkillIdentityMetadataFindTests
                 Find(pane, "Bundled");
                 window.Close();
                 AssertRetired(pane);
+                pane.Admit("retired identity", () => true);
+                AssertRetired(pane);
                 callbacks.Should().Be(0);
             }
             finally { window.Close(); }
@@ -115,7 +122,7 @@ public sealed class SkillIdentityMetadataFindTests
                 window.SetCatalogue(catalogue);
                 var pane = window.FindControl<IdentityMetadataFindPane>("IdentityFind")!;
                 var identity = window.FindControl<TextBlock>("SharedIdentity")!.Text!;
-                foreach (var query in new[] { "BodyOnlySecret", "HiddenOnlySecret", "missing" })
+                foreach (var query in SharedAbsentQueries)
                 {
                     Find(pane, query);
                     Status(pane).Text.Should().StartWith("No literal match");

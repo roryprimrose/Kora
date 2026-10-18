@@ -8,10 +8,11 @@ using Kora.Core.Context;
 
 namespace Kora.Controls;
 
-public sealed partial class IdentityMetadataFindPane : UserControl
+public sealed partial class IdentityMetadataFindPane : UserControl, IDisposable
 {
     private AdmittedMetadataFindState? state;
     private bool rendering;
+    private bool disposed;
 
     public IdentityMetadataFindPane()
     {
@@ -56,8 +57,16 @@ public sealed partial class IdentityMetadataFindPane : UserControl
     internal void Admit(string displayedIdentity, Func<bool> current)
     {
         Retire();
+        if (disposed) { return; }
         state = new(displayedIdentity, current);
         Render();
+    }
+
+    public void Dispose()
+    {
+        disposed = true;
+        Retire();
+        GC.SuppressFinalize(this);
     }
 
     internal void Retire()
@@ -100,7 +109,7 @@ public sealed partial class IdentityMetadataFindPane : UserControl
             // Focus must not remain on a retired private match or disabled query.
             var hasMatch = state?.Match is not null;
             if ((!available && Query.IsFocused) || (!hasMatch && Match.IsFocused))
-            { TopLevel.GetTopLevel(this)?.FocusManager?.ClearFocus(); }
+            { TopLevel.GetTopLevel(this)?.FocusManager?.Focus(null); }
             Query.Text = state?.Query ?? string.Empty;
             Query.IsEnabled = available;
             Button("IdentityFindFirst").IsEnabled = available;

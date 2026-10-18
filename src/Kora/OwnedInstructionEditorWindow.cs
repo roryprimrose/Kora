@@ -8,7 +8,7 @@ using Kora.Core.Artifacts;
 
 namespace Kora;
 
-internal sealed class OwnedInstructionEditorWindow : Window
+internal sealed partial class OwnedInstructionEditorWindow : Window
 {
     internal readonly ComboBox Files = new() { Width = 240 };
     internal readonly TextBox QueryInput = new() { Width = 240, PlaceholderText = "Literal filename, display name or artifact substring" };
@@ -64,7 +64,7 @@ internal sealed class OwnedInstructionEditorWindow : Window
         controls.Children.Add(Files);
         controls.Children.Add(NameInput);
         controls.Children.Add(CopyNameInput);
-        foreach (var action in new[] { "List", "Refresh", "Create", "Inspect", "Validate", "Compare", "Save", "Save as new copy", "Reload", "Delete" })
+        foreach (var action in new[] { "List", "Refresh", "Create", "Inspect", "Validate", "Compare", "Rebase", "Save", "Save as new copy", "Reload", "Delete" })
         {
             var button = new Button { Content = action, Margin = new(3) };
             button.Click += (_, _) => run(action);
@@ -201,6 +201,7 @@ internal sealed class OwnedInstructionEditorWindow : Window
     }
     internal void ClearPrivateText()
     {
+        CancelRebaseReview();
         ClearInventory(); ClearSearch();
         SetUseReviewAvailable(false);
         Source.Text = string.Empty; NameInput.Text = string.Empty; CopyNameInput.Text = string.Empty;

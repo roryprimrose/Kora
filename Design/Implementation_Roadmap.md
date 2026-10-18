@@ -49,6 +49,15 @@ The [portable snapshot](../src/Kora.Application/Presentation/ConversationDraftCo
 
 This consumes only the existing composer/draft/text/pane I subset. No source/schema/provider/runtime/egress/wake/profile writer is enabled. E/Q, installed-native/accessibility and physical/hardware/acoustic/provider/containment qualification remain separate and unclaimed ([delivery policy](#delivery-and-qualification-dependency-policy)).
 
+### Bounded owned draft source-preserving Rebase - 2026-10-18
+
+The [owned definition contract](Definition_Management.md#bounded-owned-instruction-and-prompt-editor) adds explicit Rebase of an already open instruction/prompt draft, not an automatic merge or source writer.
+The [typed admitted workflow](../src/Kora.Application/Definitions/OwnedInstructionEditorActions.Rebase.cs) freezes the old baseline, explicitly observed latest source and complete raw draft, reuses shared structural validation, and rereads the exact source revision on confirmation.
+The [private native review](../src/Kora/OwnedInstructionRebaseReviewWindow.cs) discloses all three bodies and exact identity/byte truth; Cancel retains the previous baseline/draft. Confirmation adopts only latest baseline in memory, preserves raw text and retires old editor validation/use-review eligibility ([lifecycle](../src/Kora/OwnedInstructionEditorController.Rebase.cs)).
+Missing/incompatible sources, changed identity/private/control/editor epochs and uncertain publication fail closed. Ordinary Save remains separate with full exact confirmation and can conflict again
+([portable cases](../tests/Kora.Application.UnitTests/Definitions/InstructionEditorTests.Rebase.cs), [native cases](../tests/Kora.Windows.IntegrationTests/ArtifactDiscovery/OwnedDefinitionEditorWindowTests.Rebase.cs)).
+This consumes only the existing owned reader, parser, admission and editor I subset. Deterministic builds/tests and exact portable line/branch coverage gate implementation readiness; current-head receipts record their outcomes separately. No runtime/profile-original writer enablement or E/Q qualification is claimed.
+
 ### Bounded native Evidence retained due ranges - 2026-10-18
 
 The [existing Evidence inspector](Information_Display.md#delivered-bounded-native-evidence-inspection)

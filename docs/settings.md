@@ -84,6 +84,20 @@ This does not change speech/listening/captions, call/privacy policy, approval au
 
 ## Per-session retention status and hold
 
+### Read-only hypothetical policy preview
+
+In native **Settings > Session Retention**, refresh the confirmed future policy, choose separate proposed archive/deletion days, then select **Preview hypothetical session retention only**. Choosing days alone does nothing. The proposal must have archive before deletion, within the existing 1-365 day policy bounds ([proposal controls](../src/Kora/SettingsWindow.axaml)).
+
+Complete separates hypothetical newly due archive/delete counts from already-due recorded deadlines and kept, work-held, unknown-hold and removed exclusions. Deletion takes precedence over archive.
+Question status is not read from private payloads, so retained questions are conservatively excluded as unknown. These are not cleanup eligibility or storage-removal forecasts ([aggregation and metadata reader](../src/Kora.Windows/Storage/WindowsSqliteHostInteractionStore.RetentionPlanner.cs)).
+
+Incomplete or Unavailable means **no aggregate**, not zero. The bounded metadata scan has finite candidate/encoded-byte/time limits.
+It expires and retires on edits, source/policy/preference or private/owner/control changes, refresh, close, cancellation or timeout. Explicitly Preview again; there is no automatic replay ([planner lifecycle](../src/Kora.Application/Configuration/SessionRetentionPlannerService.cs)).
+
+Preview never saves/resets policy, changes recorded deadlines, archives/deletes/holds sessions or revokes sources. Current policy remains future-only. This implementation is awaiting permitted build/test and exact portable coverage validation, not E/Q qualification ([implementation boundary](../Design/User_Configuration.md#read-only-hypothetical-session-retention-planner)).
+
+### Exact existing session controls
+
 These are **Sessions** controls, not global preferences:
 
 | Control | Scope |

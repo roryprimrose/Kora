@@ -758,6 +758,12 @@ This consumes the existing preference/typography/Evidence I subset; no global
 UI scaling, model/runtime route, voice inference, installed accessibility or
 broader E/Q qualification is claimed.
 
+### Bounded native session retention impact planner implementation - 2026-10-18
+
+The [read-only session planner](User_Configuration.md#read-only-hypothetical-session-retention-planner) adds explicit proposal/preview controls, content-free hypothetical-versus-recorded due counts and conservative exclusions. Bounded metadata and exact source/preference/policy/admission revisions fence results; incomplete/unavailable observations expose no aggregate.
+
+Consumed I is existing policy/private authority and native lifetime. No apply-now, mutation, cleanup, revocation, schema/index/cache/scanner or broader runtime is enabled. Test execution and exact100% portable line/branch proof await the coordinator permit; this is not READY or E/Q-qualified ([planner source](../src/Kora.Application/Configuration/SessionRetentionPlannerService.cs)).
+
 ### Bounded read-only audit shortening impact preview - 2026-10-15
 
 [Native Settings preview](User_Configuration.md#read-only-audit-shortening-impact-preview)

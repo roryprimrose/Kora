@@ -1,4 +1,4 @@
-using Kora.Core.Configuration;
+﻿using Kora.Core.Configuration;
 
 namespace Kora.Core.Storage;
 
@@ -7,6 +7,9 @@ public sealed class SessionRetentionPolicy
     private readonly Lock gate = new();
     private SessionRetentionSettings settings = SessionRetentionSettings.Default;
     private bool available = true;
+    private long revision;
+
+    public long Revision { get { lock (gate) { return revision; } } }
 
     public SessionRetentionSettings Settings
     {
@@ -23,8 +26,8 @@ public sealed class SessionRetentionPolicy
     public void Activate(SessionRetentionSettings value)
     {
         value.Validate();
-        lock (gate) { settings = value; available = true; }
+        lock (gate) { settings = value; available = true; revision = checked(revision + 1); }
     }
 
-    public void HoldUnavailable() { lock (gate) { available = false; } }
+    public void HoldUnavailable() { lock (gate) { available = false; revision = checked(revision + 1); } }
 }

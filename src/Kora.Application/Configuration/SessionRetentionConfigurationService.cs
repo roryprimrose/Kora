@@ -1,4 +1,4 @@
-using Kora.Application.Communication;
+﻿using Kora.Application.Communication;
 using Kora.Core.Auditing;
 using Kora.Core.Configuration;
 using Kora.Core.Hosting;
@@ -14,27 +14,58 @@ public sealed class SessionRetentionConfigurationService(
     private SessionRetentionSettings? observed;
     private bool available;
     private bool applying;
+    private long revision;
+
+    public event EventHandler? Changed;
+
+    public SessionRetentionConfigurationObservation GetObservation()
+    {
+        lock (gate)
+        {
+            if (!available || applying || preferences.Load() != observed || preferences.ReadBack() != observed)
+            {
+                throw new InvalidOperationException("Refresh confirmed session retention before requesting a preview.");
+            }
+            var policyRevision = policy.Revision;
+            var settings = policy.Settings;
+            if (policyRevision != policy.Revision || settings != (observed ?? SessionRetentionSettings.Default))
+            {
+                throw new InvalidDataException("The session-retention policy changed during observation.");
+            }
+            return new(observed, settings, revision, policyRevision);
+        }
+    }
+
+    public bool IsCurrentObservation(SessionRetentionConfigurationObservation value) =>
+        GetObservation() == value;
 
     public bool Available { get { lock (gate) { return available; } } }
     public SessionRetentionSettings Settings => policy.Settings;
 
     public void Observe()
     {
-        lock (gate)
+        try
         {
-            if (applying) { throw new InvalidOperationException("Session-retention preference is committing."); }
-            available = false;
-            policy.HoldUnavailable();
-            observed = preferences.Load();
-            policy.Activate(observed ?? SessionRetentionSettings.Default);
-            available = true;
+            lock (gate)
+            {
+                if (applying) { throw new InvalidOperationException("Session-retention preference is committing."); }
+                revision = checked(revision + 1);
+                available = false;
+                policy.HoldUnavailable();
+                observed = preferences.Load();
+                policy.Activate(observed ?? SessionRetentionSettings.Default);
+                available = true;
+            }
         }
+        finally { Changed?.Invoke(this, EventArgs.Empty); }
     }
 
     public async Task<bool> SaveAsync(SessionRetentionSettings? value, CallCommunicationPolicy callPolicy,
         long callRevision, Func<bool> eligible, CancellationToken token)
     {
         value?.Validate();
+        lock (gate) { revision = checked(revision + 1); }
+        Changed?.Invoke(this, EventArgs.Empty);
         try
         {
             var accepted = await admission.RunAsync(RequestOrigin.LocalUi, eligible, (request, _) =>
@@ -111,6 +142,13 @@ public sealed class SessionRetentionConfigurationService(
             lock (gate) { available = false; policy.HoldUnavailable(); }
             throw;
         }
-        finally { lock (gate) { applying = false; } }
+        finally
+        {
+            lock (gate) { applying = false; }
+            Changed?.Invoke(this, EventArgs.Empty);
+        }
     }
 }
+
+public sealed record SessionRetentionConfigurationObservation(SessionRetentionSettings? Saved,
+    SessionRetentionSettings Effective, long PreferenceRevision, long PolicyRevision);

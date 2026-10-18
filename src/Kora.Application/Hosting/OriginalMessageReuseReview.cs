@@ -60,11 +60,13 @@ public sealed class OriginalMessageReuseReview : IDisposable
     public string Attribution => Available
         ? "Historical retained original USER text only; copying content does not resume or replay its task or HOST outcome."
             + "\nSource session " + source!.Authority.SessionId.Value.ToString("D")
-            + " | generation " + source.Authority.Generation.Value.ToString(CultureInfo.InvariantCulture)
+            + " | current generation " + source.Authority.Generation.Value.ToString(CultureInfo.InvariantCulture)
+            + " | metadata revision " + (source.Metadata?.Revision.Value ?? 0).ToString(CultureInfo.InvariantCulture)
             + " | " + (source.Authority.IsActive ? "Active" : "Done")
             + "\nOriginal request " + content!.ConversationMessage!.Request.RequestId.Value.ToString("D")
             + " | original task " + content.ConversationMessage.Request.TaskId.Value.ToString("D")
             + "\nUSER sequence " + content.ConversationMessage.Sequence.ToString(CultureInfo.InvariantCulture)
+            + " | original submitted generation " + content.ConversationMessage.Generation.Value.ToString(CultureInfo.InvariantCulture)
             + " | immutable record revision " + content.Reference.Revision.ToString(CultureInfo.InvariantCulture)
             + "\nSubmitted UTC " + content.ConversationMessage.SubmittedAt.ToString("O", CultureInfo.InvariantCulture)
             + "\nConfirm copies the complete exact body to a private New request memory buffer only. "

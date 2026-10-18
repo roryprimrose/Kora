@@ -44,6 +44,7 @@ public sealed partial class NewRequestComposerTests
                 .And.Contain(original.Request.RequestId.Value.ToString("D"))
                 .And.Contain(original.Request.TaskId.Value.ToString("D"))
                 .And.Contain("USER sequence 7").And.Contain("record revision 2")
+                .And.Contain("original submitted generation 1").And.Contain("metadata revision 0")
                 .And.Contain(active ? "Active" : "Done").And.NotContain("HOST Unavailable");
             f.Creates.Should().Be(0);
             f.Writes.Should().Be(0);
@@ -105,6 +106,23 @@ public sealed partial class NewRequestComposerTests
         f.Creates.Should().Be(0);
         f.Writes.Should().Be(0);
         review.Available.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task HistoricalSubmissionGenerationIsNotRelabelledAsCurrentSourceGeneration()
+    {
+        using var f = new Fixture();
+        var original = Original(f, active: false);
+        f.Entry = f.Entry! with { Authority = f.Entry!.Authority with { Generation = new(2) } };
+        using var root = HostActivity.BeginRoot(original.Request, HostActivityLayer.Desktop, HostOperation.Request);
+        using var review = await ReviewOriginal(f, original);
+        review.Attribution.Should().Contain("current generation 2").And.Contain("original submitted generation 1")
+            .And.Contain("Done");
+        (await review.ConfirmAsync(false, TestContext.Current.CancellationToken)).Should().BeTrue();
+        f.Composer.Body.Should().Be(original.Body);
+        original.Generation.Value.Should().Be(1);
+        f.Entry!.Authority.Generation.Value.Should().Be(2);
+        f.Writes.Should().Be(0);
     }
 
     [Theory]

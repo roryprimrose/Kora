@@ -794,6 +794,8 @@ file previews/shared skills or reconstruct captions. See the
 
 The separate native [selected-conversation search](windows-and-tray.md#search-one-exact-retained-conversation) searches actual retained USER bodies and typed HOST outcomes in the selected exact session. This older `session search` command remains Question/Answer/task receipt `HistorySearch`; it is not implicitly remapped to body search. Conversation query content stays native and adds no typed/voice/model descriptor or transcript entry.
 
+Native transcript search additionally accepts optional inclusive observed message Generation (positive Int64) and Revision (1-2) min/max, AND with its existing predicates. Empty means Any; strict decimal input is not trimmed or repaired. This adds no command syntax, routing, submission or hidden body read ([range contract](../src/Kora.Core/Conversation/ConversationRangeFilter.cs)).
+
 Search uses the [shared lexical query rules](../src/Kora.Core/Context/LocalFileRetrievalPolicy.cs): 1-256 UTF-16 characters, at most 512 strict UTF-8 bytes, 1-32 distinct words of at most 64 characters, NFC/invariant case and literal whole-word OR matching. Punctuation separates words, not operators, wildcards or regular expressions. Quotes inside the final quoted query are doubled.
 
 The native receipt-history controls additionally offer exact kind, task state,

@@ -281,7 +281,7 @@ public sealed partial class SessionWorkspaceServiceTests
             if (change is "negative-ceiling") { return page with { Ceiling = -1 }; }
             if (change is "gap") { return page with { Messages = [] }; }
             if (change is "generation" && f.Reads > 2) { return page with { Session = page.Session with { Generation = new(2) } }; }
-            if (change is "head" && f.Reads > 2) { return page with { HeadRevision = page.HeadRevision + 1 }; }
+            if (change is "head" && f.Reads > 2) { return page with { HeadRevision = page.HeadRevision - 1 }; }
             if (change is "row-owner") { return page with { Messages = [page.Messages[0] with { Request = HostRequest.Create(RequestOrigin.LocalUi) }] }; }
             if (change is "row-generation") { return page with { Messages = [page.Messages[0] with { Generation = new(2) }] }; }
             if (change is "sequence") { return page with { Messages = [page.Messages[0] with { Sequence = 2 }] }; }

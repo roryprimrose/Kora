@@ -17,6 +17,10 @@ internal sealed partial class SessionsViewModel
     private string conversationMaximumSequence = string.Empty;
     private string conversationSubmittedFrom = string.Empty;
     private string conversationSubmittedThrough = string.Empty;
+    private string conversationMinimumGeneration = string.Empty;
+    private string conversationMaximumGeneration = string.Empty;
+    private string conversationMinimumRevision = string.Empty;
+    private string conversationMaximumRevision = string.Empty;
     private string conversationRequestId = string.Empty;
     private string conversationTaskId = string.Empty;
     private ConversationSearchPage? conversationSearchPage;
@@ -73,6 +77,26 @@ internal sealed partial class SessionsViewModel
         get => conversationSubmittedThrough;
         set => EditConversationRange(ref conversationSubmittedThrough, value);
     }
+    public string ConversationMinimumGeneration
+    {
+        get => conversationMinimumGeneration;
+        set => EditConversationRange(ref conversationMinimumGeneration, value);
+    }
+    public string ConversationMaximumGeneration
+    {
+        get => conversationMaximumGeneration;
+        set => EditConversationRange(ref conversationMaximumGeneration, value);
+    }
+    public string ConversationMinimumRevision
+    {
+        get => conversationMinimumRevision;
+        set => EditConversationRange(ref conversationMinimumRevision, value);
+    }
+    public string ConversationMaximumRevision
+    {
+        get => conversationMaximumRevision;
+        set => EditConversationRange(ref conversationMaximumRevision, value);
+    }
 
     private void EditConversationRange(ref string field, string value)
     {
@@ -91,6 +115,10 @@ internal sealed partial class SessionsViewModel
         conversationMaximumSequence = string.Empty;
         conversationSubmittedFrom = string.Empty;
         conversationSubmittedThrough = string.Empty;
+        conversationMinimumGeneration = string.Empty;
+        conversationMaximumGeneration = string.Empty;
+        conversationMinimumRevision = string.Empty;
+        conversationMaximumRevision = string.Empty;
         conversationRequestId = string.Empty;
         conversationTaskId = string.Empty;
     }
@@ -198,6 +226,10 @@ internal sealed partial class SessionsViewModel
         var maximumSequence = conversationMaximumSequence;
         var submittedFrom = conversationSubmittedFrom;
         var submittedThrough = conversationSubmittedThrough;
+        var minimumGeneration = conversationMinimumGeneration;
+        var maximumGeneration = conversationMaximumGeneration;
+        var minimumRevision = conversationMinimumRevision;
+        var maximumRevision = conversationMaximumRevision;
         var requestId = conversationRequestId;
         var taskId = conversationTaskId;
         conversationSearchTarget = target;
@@ -218,12 +250,13 @@ internal sealed partial class SessionsViewModel
         {
             if (next && cursor is null) { throw new ArgumentException("CursorMismatch", nameof(next)); }
             ConversationRangeFilter range;
-            try { range = ConversationRangeFilter.Parse(minimumSequence, maximumSequence, submittedFrom, submittedThrough); }
+            try { range = ConversationRangeFilter.Parse(minimumSequence, maximumSequence, submittedFrom, submittedThrough,
+                minimumGeneration, maximumGeneration, minimumRevision, maximumRevision); }
             catch (InvalidDataException exception)
             {
                 conversationSearchStatus = "InvalidRange. Use ordered inclusive sequence bounds 1-"
                     + ConversationText.MaximumSessionMessages.ToString(CultureInfo.InvariantCulture)
-                    + " and canonical UTC yyyy-MM-ddTHH:mm:ss.fffffff+00:00; empty means Any. Correct the fields and explicitly Search.";
+                    + ", positive observed message generation, revision 1-2 and canonical UTC yyyy-MM-ddTHH:mm:ss.fffffff+00:00; unsigned decimal only, empty means Any. Correct the fields and explicitly Search.";
                 Failure(logger, exception.GetType().Name);
                 activity.Complete(HostOperationOutcome.Failed);
                 return;
@@ -268,7 +301,7 @@ internal sealed partial class SessionsViewModel
                 {
                     ArgumentException => "InvalidQuery, InvalidRole, InvalidTerminalFilter, InvalidRange, InvalidCorrelation or CursorMismatch. Request/task IDs require canonical lowercase nonempty D GUIDs (empty means Any). Use ordered inclusive sequence bounds 1-"
                         + ConversationText.MaximumSessionMessages.ToString(CultureInfo.InvariantCulture)
-                        + " and canonical UTC yyyy-MM-ddTHH:mm:ss.fffffff+00:00 (empty means Any). Select defined roles and Any or exact typed terminal values; use 1-256 UTF-16 characters / 512 UTF-8 bytes with 1-32 distinct lexical terms of at most 64 characters; start fresh Search.",
+                        + ", positive observed message generation, revision 1-2 and canonical UTC yyyy-MM-ddTHH:mm:ss.fffffff+00:00 (empty means Any). Select defined roles and Any or exact typed terminal values; use 1-256 UTF-16 characters / 512 UTF-8 bytes with 1-32 distinct lexical terms of at most 64 characters; start fresh Search.",
                     ConversationSnapshotChangedException => "Snapshot changed. No search content; start a fresh Search.",
                     OperationCanceledException => "Search cancelled. No search content or successful observation inferred.",
                     _ => "Exact conversation search unavailable. No search content; refresh the selected source and start fresh Search.",
@@ -303,6 +336,8 @@ internal sealed partial class SessionsViewModel
             nameof(ConversationRequestId), nameof(ConversationTaskId),
             nameof(ConversationMinimumSequence), nameof(ConversationMaximumSequence),
             nameof(ConversationSubmittedFrom), nameof(ConversationSubmittedThrough),
+            nameof(ConversationMinimumGeneration), nameof(ConversationMaximumGeneration),
+            nameof(ConversationMinimumRevision), nameof(ConversationMaximumRevision),
             nameof(ConversationReason), nameof(ConversationTaskState), nameof(ConversationOutcomeChoice),
             nameof(ConversationReasonChoice), nameof(ConversationTaskStateChoice), nameof(ConversationSearchStatus),
             nameof(ConversationSearchMessages), nameof(CanSearchConversation), nameof(CanNextConversationSearch),

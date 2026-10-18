@@ -28,7 +28,8 @@ public sealed class WindowsSqliteConversationSearchTests
         if (done) { await service.ChangeLifecycleAsync(session, new(1), false, RequestOrigin.LocalUi, f.Token); }
         var retention = await f.Store.ReadRetentionAsync(session, f.Token);
         var audit = WindowsSqliteConversationTests.AuditText(f);
-        var range = new ConversationRangeFilter(2, 2, exact.Message.SubmittedAt, exact.Message.SubmittedAt);
+        var range = new ConversationRangeFilter(2, 2, exact.Message.SubmittedAt, exact.Message.SubmittedAt,
+            exact.Message.Generation.Value, exact.Message.Generation.Value, exact.Message.Revision, exact.Message.Revision);
         var page = await service.SearchConversationAsync(session, "marker", null, 25, f.Token,
             ConversationSearchRole.All, new(ModelTurnOutcome.Unavailable, ModelTurnReason.UnregisteredModel), range);
         page.Messages.Should().Equal(exact.Message);
@@ -61,12 +62,17 @@ public sealed class WindowsSqliteConversationSearchTests
         var terminal = new ConversationTerminalFilter(ModelTurnOutcome.Unavailable, ModelTurnReason.UnregisteredModel, HostTaskState.Unavailable);
         foreach (var role in Enum.GetValues<ConversationSearchRole>())
         {
-            var page = await service.SearchConversationAsync(session, "Unavailable", null, 25, f.Token, role, terminal);
+            var range = new ConversationRangeFilter(MinimumGeneration: 1, MaximumGeneration: long.MaxValue, MinimumRevision: 2, MaximumRevision: 2);
+            var page = await service.SearchConversationAsync(session, "Unavailable", null, 25, f.Token, role, terminal, range);
             page.Messages.Should().HaveCount(role == ConversationSearchRole.USER ? 0 : 1);
             page.Scanned.Should().Be(2);
             page.Role.Should().Be(role);
             page.Terminal.Should().Be(terminal);
             page.Next.Should().BeNull();
+            var pendingOnly = await service.SearchConversationAsync(session, "marker", null, 25, f.Token, role,
+                range: range with { MinimumRevision = 1, MaximumRevision = 1 });
+            pendingOnly.Messages.Should().HaveCount(role == ConversationSearchRole.HOST ? 0 : 1);
+            pendingOnly.Messages.Should().OnlyContain(message => message.Revision == 1);
         }
         (await service.SearchConversationAsync(session, "marker", null, 25, f.Token, ConversationSearchRole.All,
             terminal with { Outcome = ModelTurnOutcome.Denied })).Messages.Should().BeEmpty();

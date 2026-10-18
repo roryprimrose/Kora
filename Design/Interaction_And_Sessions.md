@@ -80,6 +80,10 @@ The [conversation matcher](../src/Kora.Core/Conversation/ConversationSearch.cs) 
 Punctuation is a separator, not regex, wildcard or instruction syntax. Blank/malformed/unsupported queries fail explicitly, never inventory all bodies.
 
 The [passive workflow](../src/Kora.Application/Hosting/SessionWorkspaceService.ConversationSearch.cs) delegates to existing admitted conversation pages; no SQL, schema, body representation or persisted query is added.
+Optional inclusive observed message Generation and Revision min/max join the [range filter](../src/Kora.Core/Conversation/ConversationRangeFilter.cs), AND-composed with lexical, role, terminal, correlation, sequence and submitted-UTC bounds.
+Generation is positive Int64; Revision is 1 or 2, using the same [domain rule](../src/Kora.Core/Conversation/ConversationMessageProvenance.cs) as message validation. Empty means Any; strict unsigned decimal input never trims, accepts signs/overflow or repairs inverted bounds.
+These are retained message values, not current session generation or proof that unknown/omitted evidence is absent. The version-2 complete semantic digest and explicit range identity bind every bound to continuation; omitted bounds preserve prior search semantics.
+The workflow validates each complete source page and every message before exclusion or result-limit/byte-budget stopping, including rows beyond the requested result limit, and validates the final snapshot page before publication ([tests](../tests/Kora.Application.UnitTests/Hosting/SessionWorkspaceServiceTests.ConversationRanges.cs)).
 Each call scans at most the existing 100-message session bound, returns default 25 / maximum 50 complete messages and caps the complete serialized result, counters and continuation at 64 KiB. Bodies, original request/task IDs, source generation and chronological sequence stay unchanged.
 
 Continuations and pages bind the exact role and every terminal predicate, normalized query digest and original session/generation/sequence ceiling/head revision under existing private/retention admission. Nonmatches advance; a byte-deferred match remains for Next. `Scanned` counts consumed records.
@@ -88,7 +92,7 @@ Continuations and pages bind the exact role and every terminal predicate, normal
 Later append cannot expand a continuation's ceiling; terminal updates invalidate its original head revision and require fresh Search. Lifecycle, removal, retention/private/owner changes, query or any role/terminal-filter edits and Cancel/Clear revoke results, selected match/navigation, continuation and late callbacks. Editing performs no read; explicit Search is required. Clear resets the role to All and terminal predicates to Any.
 Range edits have the same cancellation, selected-detail retirement and stale
 callback fences. Clear, source/private revocation and last-owner close also
-empty all four range fields without touching composer or saved drafts.
+empty all sequence/time and generation/revision range fields without touching composer or saved drafts.
 Search does not alter composer body/baseline, dirty-draft decisions, held submissions, saved drafts, question/voice focus, meaningful activity, cleanup, Keep, provider preferences or task/approval authority.
 
 Only admitted original messages appear as inert native USER/HOST rows, with no generated summary, semantic ranking, rich actions, copy/export, clipboard/speech, network/model calls or hidden context assembly.

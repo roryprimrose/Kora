@@ -60,6 +60,18 @@
       <TextBlock Text="Submitted through UTC (yyyy-MM-ddTHH:mm:ss.fffffff+00:00)" />
       <TextBox x:Name="ConversationSubmittedThrough" Text="{Binding ConversationSubmittedThrough, Mode=TwoWay}" IsEnabled="{Binding CanReadConversation}"
           AutomationProperties.Name="Shared inclusive submitted through canonical UTC time; yyyy-MM-ddTHH:mm:ss.fffffff+00:00, empty means Any; editing does not read" />
+      <TextBlock Text="Minimum observed message generation" />
+      <TextBox x:Name="ConversationMinimumGeneration" Text="{Binding ConversationMinimumGeneration, Mode=TwoWay}" IsEnabled="{Binding CanReadConversation}"
+          AutomationProperties.Name="Shared inclusive minimum observed message generation; positive unsigned decimal, empty means Any; editing does not read" />
+      <TextBlock Text="Maximum observed message generation" />
+      <TextBox x:Name="ConversationMaximumGeneration" Text="{Binding ConversationMaximumGeneration, Mode=TwoWay}" IsEnabled="{Binding CanReadConversation}"
+          AutomationProperties.Name="Shared inclusive maximum observed message generation; positive unsigned decimal, empty means Any; editing does not read" />
+      <TextBlock Text="Minimum observed message revision (1-2)" />
+      <TextBox x:Name="ConversationMinimumRevision" Text="{Binding ConversationMinimumRevision, Mode=TwoWay}" IsEnabled="{Binding CanReadConversation}"
+          AutomationProperties.Name="Shared inclusive minimum observed message revision; unsigned decimal 1-2, empty means Any; editing does not read" />
+      <TextBlock Text="Maximum observed message revision (1-2)" />
+      <TextBox x:Name="ConversationMaximumRevision" Text="{Binding ConversationMaximumRevision, Mode=TwoWay}" IsEnabled="{Binding CanReadConversation}"
+          AutomationProperties.Name="Shared inclusive maximum observed message revision; unsigned decimal 1-2, empty means Any; editing does not read" />
       <TextBlock Text="Exact terminal HOST predicates (Any means unrestricted). USER-only with any predicate yields zero; all predicates AND with the query and role." TextWrapping="Wrap" />
       <TextBlock Text="Terminal outcome" />
       <ComboBox x:Name="ConversationOutcome" ItemsSource="{Binding ConversationOutcomes}"

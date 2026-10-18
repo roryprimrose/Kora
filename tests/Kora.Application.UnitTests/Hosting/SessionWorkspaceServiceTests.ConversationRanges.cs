@@ -1,3 +1,5 @@
+using System.Collections.Immutable;
+
 using AwesomeAssertions;
 
 using Kora.Core.Conversation;
@@ -18,6 +20,7 @@ public sealed partial class SessionWorkspaceServiceTests
         f.Messages = Enumerable.Range(1, ConversationText.MaximumSessionMessages).Select(index =>
             Message(f, index, "marker") with { SubmittedAt = DateTimeOffset.UnixEpoch.AddTicks(index) }).ToArray();
         var range = new ConversationRangeFilter(2, 99, f.Messages[2].SubmittedAt, f.Messages[97].SubmittedAt);
+        range = range with { MinimumGeneration = 1, MaximumGeneration = long.MaxValue, MinimumRevision = 2, MaximumRevision = 2 };
         var terminal = new ConversationTerminalFilter(ModelTurnOutcome.Unavailable);
         using var root = HostActivity.BeginRoot(f.Request, HostActivityLayer.Application, HostOperation.Request);
         var results = new List<ConversationMessage>();
@@ -46,12 +49,14 @@ public sealed partial class SessionWorkspaceServiceTests
     {
         using var f = new ConversationFixture();
         f.Messages = [Message(f, 1, "marker"), Message(f, 2, "marker")];
-        var range = new ConversationRangeFilter(1, 2, DateTimeOffset.MinValue, DateTimeOffset.MaxValue);
+        var range = new ConversationRangeFilter(1, 2, DateTimeOffset.MinValue, DateTimeOffset.MaxValue, 1, long.MaxValue, 1, 2);
         using var root = HostActivity.BeginRoot(f.Request, HostActivityLayer.Application, HostOperation.Request);
         var first = await f.Service.SearchConversationAsync(f.Session.SessionId, "marker", null, 1, f.Token, range: range);
         var reads = f.Reads;
         foreach (var changed in new[] { range with { MinimumSequence = 2 }, range with { MaximumSequence = 1 },
-            range with { SubmittedFrom = DateTimeOffset.UnixEpoch }, range with { SubmittedThrough = DateTimeOffset.UnixEpoch }, default })
+            range with { SubmittedFrom = DateTimeOffset.UnixEpoch }, range with { SubmittedThrough = DateTimeOffset.UnixEpoch },
+            range with { MinimumGeneration = 2 }, range with { MaximumGeneration = 1 },
+            range with { MinimumRevision = 2 }, range with { MaximumRevision = 1 }, default })
         {
             await f.Service.Invoking(service => service.SearchConversationAsync(f.Session.SessionId,
                 "marker", first.Next, 1, f.Token, range: changed)).Should().ThrowAsync<ArgumentException>();
@@ -68,6 +73,54 @@ public sealed partial class SessionWorkspaceServiceTests
         next.Next.Should().BeNull();
     }
 
+    [Theory]
+    [InlineData("body", false)]
+    [InlineData("generation", false)]
+    [InlineData("revision", false)]
+    [InlineData("owner", false)]
+    [InlineData("default", false)]
+    [InlineData("oversized", false)]
+    [InlineData("next", false)]
+    [InlineData("generation-zero", false)]
+    [InlineData("head-negative", false)]
+    [InlineData("head-large", false)]
+    [InlineData("body", true)]
+    [InlineData("next", true)]
+    public async Task FullSourcePageIncludingRowsBeyondResultLimitAndFinalFenceMustValidate(string invalid, bool final)
+    {
+        using var f = new ConversationFixture();
+        f.Messages = [Message(f, 1, "marker"), Message(f, 2, "marker")];
+        f.AfterRead = page =>
+        {
+            if (final != (f.Reads == 2)) { return page; }
+            var row = page.Messages[^1];
+            return invalid switch
+            {
+                "default" => page with { Messages = default },
+                "oversized" => page with { Messages = Enumerable.Repeat(row, 51).ToImmutableArray() },
+                "next" => page with { Next = new(f.Session.SessionId, new(1), 2, 0, 4) },
+                "generation-zero" => page with { Session = page.Session with { Generation = default } },
+                "head-negative" => page with { HeadRevision = -1 },
+                "head-large" => page with { HeadRevision = 5 },
+                _ => page with
+                {
+                    Messages = page.Messages.SetItem(page.Messages.Length - 1, invalid switch
+                    {
+                        "body" => row with { Body = "\ud800" },
+                        "generation" => row with { Generation = new(2) },
+                        "revision" => row with { Revision = 1 },
+                        _ => row with { Request = Kora.Core.Hosting.HostRequest.Create(Kora.Core.Hosting.RequestOrigin.LocalUi) },
+                    })
+                },
+            };
+        };
+        using var root = HostActivity.BeginRoot(f.Request, HostActivityLayer.Application, HostOperation.Request);
+        await f.Service.Invoking(service => service.SearchConversationAsync(f.Session.SessionId,
+            "marker", null, 1, f.Token, range: new(MaximumGeneration: 1, MaximumRevision: 2)))
+            .Should().ThrowAsync<Exception>();
+        f.TaskWrites.Should().BeEmpty();
+        f.ControlCalls.Should().Be(0);
+    }
     [Theory]
     [InlineData("body")]
     [InlineData("time")]
@@ -88,5 +141,17 @@ public sealed partial class SessionWorkspaceServiceTests
         await f.Service.Invoking(service => service.SearchConversationAsync(f.Session.SessionId,
             "absent", null, 25, f.Token, range: new(99))).Should().ThrowAsync<Exception>();
         f.TaskWrites.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task ValidButDifferentSourceCeilingStillRefusesContinuation()
+    {
+        using var f = new ConversationFixture();
+        f.Messages = [Message(f, 1, "marker"), Message(f, 2, "marker")];
+        using var root = HostActivity.BeginRoot(f.Request, HostActivityLayer.Application, HostOperation.Request);
+        var first = await f.Service.SearchConversationAsync(f.Session.SessionId, "marker", null, 1, f.Token);
+        f.AfterRead = page => page with { Ceiling = 3 };
+        await f.Service.Invoking(service => service.SearchConversationAsync(f.Session.SessionId,
+            "marker", first.Next, 1, f.Token)).Should().ThrowAsync<InvalidDataException>();
     }
 }

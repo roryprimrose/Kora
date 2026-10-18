@@ -85,6 +85,12 @@ The [owned inventory](Definition_Management.md#bounded-owned-instruction-and-pro
 The accessible native selector/Clear/Escape reuses no-read retirement while retaining exact unsaved draft/frozen baseline and separately admitted historical Compare ([native tests](../tests/Kora.Windows.IntegrationTests/ArtifactDiscovery/OwnedDefinitionEditorWindowTests.InventoryOrdering.cs)). This consumes only existing inventory/editor I contracts; no persisted preference/schema, writer, runtime, model/provider/device or new authority is added.
 Unqualified runtime/agent/profile writers, providers, egress and wake remain unavailable. Installed/physical/hardware/acoustic/provider/containment and retired experiment evidence is not a prerequisite for this bounded implementation; E/RC qualification remains separate and unclaimed.
 
+### Bounded original-conversation observed provenance ranges - 2026-10-18
+
+The [transcript search](Interaction_And_Sessions.md) adds optional inclusive observed message Generation/Revision min/max, using shared message-domain validation and strict decimal admission. All predicates AND-compose; the versioned full-query digest and range identity bind continuation.
+Complete source pages, including beyond-limit rows and final snapshot pages, validate before publication. Shared accessible native fields retain read-free edit/Clear/Escape retirement without draft mutation ([tests](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.ConversationRanges.cs)).
+I consumes only existing admitted transcript search, not older interaction-receipt HistorySearch. E/Q remain separate: no runtime, model/provider, egress, wake or profile writer is enabled or qualified; unrelated hardware/installed/acoustic/containment and retired proofs are not implementation prerequisites.
+
 ### Bounded exact-grant committed request correlation predicates - 2026-10-17
 
 The [one-exact-grant history](../docs/settings.md#exact-operation-grants)

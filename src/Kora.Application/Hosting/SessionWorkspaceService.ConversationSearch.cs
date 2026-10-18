@@ -29,13 +29,8 @@ public sealed partial class SessionWorkspaceService
                 token.ThrowIfCancellationRequested();
                 var page = await ReadConversationPageAsync(session, continuation,
                     ConversationText.MaximumPageRecords, token).ConfigureAwait(false);
-                if (page.Session.SessionId != session || page.Ceiling is < 0 or > ConversationText.MaximumSessionMessages
-                    || continuation is not null && (page.Session.Generation != continuation.Generation
-                        || page.Ceiling != continuation.Ceiling || page.HeadRevision != continuation.HeadRevision))
-                { throw new InvalidDataException("Conversation search source does not match its exact snapshot."); }
+                ValidateConversationSearchPage(page, session, continuation, ConversationText.MaximumPageRecords, token);
                 var after = continuation?.After ?? 0;
-                if (page.Messages.IsEmpty && after < page.Ceiling)
-                { throw new InvalidDataException("The exact conversation snapshot has an unavailable sequence gap."); }
                 ConversationSearchCursor? Next(long sequence) => sequence < page.Ceiling
                     ? new(new(session, page.Session.Generation, page.Ceiling, sequence, page.HeadRevision),
                         search.Digest, search.Role, search.Terminal, search.Range, search.Correlation) : null;
@@ -44,10 +39,6 @@ public sealed partial class SessionWorkspaceService
                 foreach (var message in page.Messages)
                 {
                     token.ThrowIfCancellationRequested();
-                    message.Validate();
-                    if (message.Request.SessionId != session || message.Generation.Value > page.Session.Generation.Value
-                        || message.Sequence != after + 1 || message.Sequence > page.Ceiling)
-                    { throw new InvalidDataException("Conversation search requires exact ordered immutable messages."); }
                     if (search.Matches(message, token))
                     {
                         var candidate = result with { Messages = records.ToImmutable().Add(message),
@@ -76,7 +67,36 @@ public sealed partial class SessionWorkspaceService
             var current = await ReadConversationPageAsync(session, fence, 1, token).ConfigureAwait(false);
             if (current.Session != result.Session || current.Ceiling != result.Ceiling || current.HeadRevision != result.HeadRevision)
             { throw new ConversationSnapshotChangedException(); }
+            ValidateConversationSearchPage(current, session, fence, 1, token);
             token.ThrowIfCancellationRequested();
             return result;
         }, token);
+
+    private static void ValidateConversationSearchPage(ConversationPage page, HostId<SessionIdentity> session,
+        ConversationCursor? cursor, int limit, CancellationToken token)
+    {
+        if (page.Session.SessionId != session || page.Session.Generation.Value <= 0
+            || page.Ceiling is < 0 or > ConversationText.MaximumSessionMessages
+            || page.HeadRevision < page.Ceiling || page.HeadRevision > page.Ceiling * 2
+            || page.Messages.IsDefault || page.Messages.Length > limit
+            || cursor is not null && (page.Session.Generation != cursor.Generation
+                || page.Ceiling != cursor.Ceiling || page.HeadRevision != cursor.HeadRevision))
+        { throw new InvalidDataException("Conversation search source does not match its exact snapshot."); }
+        var after = cursor?.After ?? 0;
+        if (page.Messages.IsEmpty && after < page.Ceiling)
+        { throw new InvalidDataException("The exact conversation snapshot has an unavailable sequence gap."); }
+        foreach (var message in page.Messages)
+        {
+            token.ThrowIfCancellationRequested();
+            message.Validate();
+            if (message.Request.SessionId != session || message.Generation.Value > page.Session.Generation.Value
+                || message.Sequence != after + 1 || message.Sequence > page.Ceiling)
+            { throw new InvalidDataException("Conversation search requires exact ordered immutable messages."); }
+            after = message.Sequence;
+        }
+        var expected = after < page.Ceiling
+            ? new ConversationCursor(session, page.Session.Generation, page.Ceiling, after, page.HeadRevision) : null;
+        if (page.Next != expected)
+        { throw new InvalidDataException("Conversation search requires an exact source continuation."); }
+    }
 }

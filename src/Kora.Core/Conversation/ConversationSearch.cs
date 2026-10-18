@@ -25,7 +25,7 @@ public sealed class ConversationSearch
         Range = range;
         Correlation = correlation;
         Digest = Convert.ToHexStringLower(SHA256.HashData(JsonSerializer.SerializeToUtf8Bytes(
-            new { lexical.Digest, Role, Terminal, Range, Correlation })));
+            new { Version = 2, lexical.Digest, Role, Terminal, Range, Correlation })));
     }
 
     public ConversationSearchRole Role { get; }

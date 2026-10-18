@@ -137,7 +137,7 @@ public sealed partial class SessionsViewModelTests
         document.Descendants().Should().NotContain(element =>
             element.Name.LocalName == "WebView" || element.Name.LocalName == "SelectableTextBlock");
         document.Descendants().Where(element => string.Equals(element.Name.LocalName, "TextBox", StringComparison.Ordinal))
-            .Should().HaveCount(47, "name, exact history ID, metadata/history/conversation queries, three retained receipt correlation IDs, eight receipt provenance bounds, two conversation correlation IDs and four ranges, six session-list numeric bounds, three local-event correlation IDs and eight range bounds, memory and scope identity GUIDs and four inclusive range filters, memory drafts and the exact-session memory-only composer are independent native inputs");
+            .Should().HaveCount(51, "name, exact history ID, metadata/history/conversation queries, three retained receipt correlation IDs, eight receipt provenance bounds, two conversation correlation IDs and eight ranges, six session-list numeric bounds, three local-event correlation IDs and eight range bounds, memory and scope identity GUIDs and four inclusive range filters, memory drafts and the exact-session memory-only composer are independent native inputs");
         foreach (var binding in new[] { "HistoryRequestId", "HistoryTaskId", "HistorySourceId" })
         {
             var field = document.Descendants().Single(element => element.Name.LocalName is "TextBox"

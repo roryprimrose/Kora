@@ -3,6 +3,7 @@ using System.Globalization;
 
 using Avalonia.Automation;
 using Avalonia.Controls;
+using Avalonia.Input;
 
 using AwesomeAssertions;
 
@@ -26,12 +27,14 @@ public sealed partial class SessionsConversationTests
             var snapshot = await f.Store.ReadConversationPageAsync(f.Request.SessionId, null, 50, f.Token);
             var messages = Enumerable.Range(1, 30).Select(index => snapshot.Messages[0] with
             {
-                Sequence = index, SubmittedAt = DateTimeOffset.UnixEpoch.AddTicks(index),
+                Sequence = index,
+                SubmittedAt = DateTimeOffset.UnixEpoch.AddTicks(index),
             }).ToImmutableArray();
             var reader = new SearchReader((_, cursor, limit, _) => ValueTask.FromResult(snapshot with
             {
                 Messages = messages.Where(message => message.Sequence > (cursor?.After ?? 0)).Take(limit).ToImmutableArray(),
-                Ceiling = 30, HeadRevision = 60,
+                Ceiling = 30,
+                HeadRevision = 60,
             }));
             await using var composed = new Composition(f, conversationReader: reader);
             var model = composed.Model;
@@ -51,10 +54,13 @@ public sealed partial class SessionsConversationTests
                 foreach (var (name, value) in new[]
                 {
                     ("ConversationMinimumSequence", "1"), ("ConversationMaximumSequence", "30"),
+                    ("ConversationMinimumGeneration", "1"), ("ConversationMaximumGeneration", "9223372036854775807"),
+                    ("ConversationMinimumRevision", "1"), ("ConversationMaximumRevision", "2"),
                     ("ConversationSubmittedFrom", DateTimeOffset.UnixEpoch.AddTicks(1).ToString("O", CultureInfo.InvariantCulture)),
                     ("ConversationSubmittedThrough", DateTimeOffset.UnixEpoch.AddTicks(30).ToString("O", CultureInfo.InvariantCulture)),
                 })
                 {
+                    model.ConversationQuery = "marker";
                     await model.SearchConversationAsync();
                     model.CanNextConversationSearch.Should().BeTrue();
                     var results = workspace.FindControl<ListBox>("ConversationSearchResults")!;
@@ -75,7 +81,22 @@ public sealed partial class SessionsConversationTests
                     results.SelectedItem.Should().BeNull();
                     sharedResults.SelectedItem.Should().BeNull();
                     model.CanNextConversationSearch.Should().BeFalse();
+                    if (name.Contains("Generation", StringComparison.Ordinal) || name.Contains("Revision", StringComparison.Ordinal))
+                    {
+                        foreach (var source in new[] { control, shared })
+                        {
+                            source.Text = value;
+                            var escape = new KeyEventArgs { RoutedEvent = InputElement.KeyDownEvent, Key = Key.Escape };
+                            source.RaiseEvent(escape);
+                            escape.Handled.Should().BeTrue();
+                            source.Text.Should().BeEmpty();
+                            reader.Reads.Should().Be(reads);
+                            compact.IsVisible.Should().BeTrue();
+                            workspace.IsVisible.Should().BeTrue();
+                        }
+                    }
                 }
+                model.ConversationQuery = "marker";
                 model.ConversationMinimumSequence = "2";
                 model.ConversationMaximumSequence = "29";
                 model.ConversationSubmittedFrom = DateTimeOffset.UnixEpoch.AddTicks(3).ToString("O", CultureInfo.InvariantCulture);
@@ -98,14 +119,56 @@ public sealed partial class SessionsConversationTests
                 model.ConversationMaximumSequence.Should().BeEmpty();
                 model.ConversationSubmittedFrom.Should().BeEmpty();
                 model.ConversationSubmittedThrough.Should().BeEmpty();
+                model.ConversationMinimumGeneration.Should().BeEmpty();
+                model.ConversationMaximumGeneration.Should().BeEmpty();
+                model.ConversationMinimumRevision.Should().BeEmpty();
+                model.ConversationMaximumRevision.Should().BeEmpty();
                 model.ComposerBody.Should().Be("independent dirty");
                 (await f.Store.ReadRetentionAsync(f.Request.SessionId, f.Token)).Should().Be(retention);
                 WindowsSqliteConversationTests.AuditText(f).Should().Be(audit);
             }
+
             finally { owner.Revoke(); }
         });
     }
 
+    [Theory]
+    [InlineData("0", "", "", "")]
+    [InlineData("", "0", "", "")]
+    [InlineData("2", "1", "", "")]
+    [InlineData("+1", "", "", "")]
+    [InlineData("", " 1", "", "")]
+    [InlineData("9223372036854775808", "", "", "")]
+    [InlineData("", "", "0", "")]
+    [InlineData("", "", "", "3")]
+    [InlineData("", "", "2", "1")]
+    [InlineData("", "", "", "2 ")]
+    public async Task InvalidNativeProvenanceFailsWithoutReadsOrDraftMutation(string minimum, string maximum, string revisionFrom, string revisionThrough)
+    {
+        using var f = new InteractionStorageFixture();
+        await f.InitializeAsync();
+        await WindowsSqliteConversationTests.FinishInitial(f);
+        var reader = new SearchReader((_, _, _, _) => throw new InvalidOperationException("must not read"));
+        await using var composed = new Composition(f, conversationReader: reader);
+        var model = composed.Model;
+        await model.RefreshAsync();
+        await model.SelectAsync(model.Sessions.Single());
+        model.ComposerBody = "independent draft";
+        model.ConversationQuery = "marker";
+        model.ConversationMinimumGeneration = minimum;
+        model.ConversationMaximumGeneration = maximum;
+        model.ConversationMinimumRevision = revisionFrom;
+        model.ConversationMaximumRevision = revisionThrough;
+        await model.SearchConversationAsync();
+        reader.Reads.Should().Be(0);
+        model.ConversationSearchMessages.Should().BeEmpty();
+        model.ConversationSearchStatus.Should().Contain("InvalidRange").And.Contain("revision 1-2");
+        model.ConversationMinimumGeneration.Should().Be(minimum);
+        model.ConversationMaximumGeneration.Should().Be(maximum);
+        model.ConversationMinimumRevision.Should().Be(revisionFrom);
+        model.ConversationMaximumRevision.Should().Be(revisionThrough);
+        model.ComposerBody.Should().Be("independent draft");
+    }
     [Theory]
     [InlineData("0", "", "", "")]
     [InlineData("", "101", "", "")]

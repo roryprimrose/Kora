@@ -104,8 +104,13 @@ format, not `Z`, local offsets or relative dates. Invalid ranges explicitly
 fail before reading, never silently broaden search. All ranges AND with the
 query, role and terminal predicates; Next binds the original ranges. Editing
 revokes results, selected Details and late callbacks without reading. Clear or
-private/source loss empties all four fields. These are passive original-message
+private/source loss empties these fields. These are passive original-message
 metadata, not generated output, session authority or access to hidden content.
+
+Both views also expose **Minimum observed message generation**, **Maximum observed message generation**, **Minimum observed message revision (1-2)** and **Maximum observed message revision (1-2)**.
+Use positive unsigned decimal Int64 generation and revision 1 or 2; empty means Any. Bounds are inclusive, minimum cannot exceed maximum, and signs, whitespace and overflow fail without repair before any body read.
+All four AND with the other predicates and bind Next. Edits, Clear and Escape retire results, selection/Details, continuation and stale callbacks without reading; Clear or private/source loss empties the fields without changing the composer or saved draft.
+They describe observed retained message metadata, not current session authority or proof of absent unknown/omitted evidence ([range policy](../src/Kora.Core/Conversation/ConversationRangeFilter.cs), [shared controls](../src/Kora/SessionsViewModel.ConversationSearch.cs)).
 
 Optional **Exact request ID** and **Exact task ID** further narrow this same
 selected session, AND with every other predicate. Enter complete canonical

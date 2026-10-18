@@ -10,6 +10,78 @@ namespace Kora.Core.UnitTests.Conversation;
 
 public sealed class ConversationRangeFilterTests
 {
+    [Theory]
+    [InlineData(1, 1)]
+    [InlineData(2, 2)]
+    [InlineData(long.MaxValue, 1)]
+    [InlineData(long.MaxValue, 2)]
+    public void ObservedProvenanceUsesInclusiveDomainBoundsForBothRoles(long generation, long revision)
+    {
+        var message = Message() with { Generation = new(generation), Revision = revision,
+            Outcome = revision == 1 ? null : ModelTurnOutcome.Unavailable,
+            Reason = revision == 1 ? null : ModelTurnReason.UnregisteredModel };
+        message.Validate();
+        var range = new ConversationRangeFilter(MinimumGeneration: generation, MaximumGeneration: generation,
+            MinimumRevision: revision, MaximumRevision: revision);
+        var token = TestContext.Current.CancellationToken;
+        new ConversationSearch("marker", ConversationSearchRole.USER, range: range).Matches(message, token).Should().BeTrue();
+        new ConversationSearch(message.ExpectedTaskState.ToString(), ConversationSearchRole.HOST, range: range)
+            .Matches(message, token).Should().BeTrue();
+        foreach (var excluded in new[] { range with { MinimumGeneration = long.MaxValue, MaximumGeneration = null },
+            range with { MinimumGeneration = null, MaximumGeneration = 1 },
+            range with { MinimumRevision = 2, MaximumRevision = null },
+            range with { MinimumRevision = null, MaximumRevision = 1 } })
+        {
+            excluded.Validate();
+            new ConversationSearch("marker", range: excluded).Matches(message, token).Should().Be(
+                (excluded.MinimumGeneration is not { } minGen || generation >= minGen)
+                && (excluded.MaximumGeneration is not { } maxGen || generation <= maxGen)
+                && (excluded.MinimumRevision is not { } minRev || revision >= minRev)
+                && (excluded.MaximumRevision is not { } maxRev || revision <= maxRev));
+        }
+    }
+
+    [Fact]
+    public void ProvenanceBoundsRejectInvalidDomainValuesAndBindEveryEndpoint()
+    {
+        foreach (var invalid in new[] {
+            new ConversationRangeFilter(MinimumGeneration: 0), new ConversationRangeFilter(MaximumGeneration: -1),
+            new ConversationRangeFilter(MinimumGeneration: 2, MaximumGeneration: 1),
+            new ConversationRangeFilter(MinimumRevision: 0), new ConversationRangeFilter(MinimumRevision: 3),
+            new ConversationRangeFilter(MaximumRevision: 0), new ConversationRangeFilter(MaximumRevision: 3),
+            new ConversationRangeFilter(MinimumRevision: 2, MaximumRevision: 1) })
+        { new Action(() => _ = new ConversationSearch("marker", range: invalid)).Should().Throw<ArgumentException>(); }
+        var range = ConversationRangeFilter.Parse("", "", "", "", "01", long.MaxValue.ToString(CultureInfo.InvariantCulture), "01", "02");
+        range.Should().Be(new ConversationRangeFilter(MinimumGeneration: 1, MaximumGeneration: long.MaxValue,
+            MinimumRevision: 1, MaximumRevision: 2));
+        var search = new ConversationSearch("marker", range: range);
+        foreach (var changed in new[] { range with { MinimumGeneration = 2 }, range with { MaximumGeneration = 2 },
+            range with { MinimumRevision = 2 }, range with { MaximumRevision = 1 }, default })
+        { new ConversationSearch("marker", range: changed).Digest.Should().NotBe(search.Digest); }
+        new ConversationSearch("MARKER marker", range: range).Digest.Should().Be(search.Digest);
+        new Action(() => new ConversationSearch("absent", range: new(MinimumGeneration: 2)).Matches(
+            Message() with { Generation = default }, TestContext.Current.CancellationToken)).Should().Throw<InvalidDataException>();
+    }
+
+    [Theory]
+    [InlineData(" ")]
+    [InlineData(" 1")]
+    [InlineData("1 ")]
+    [InlineData("+1")]
+    [InlineData("-1")]
+    [InlineData("1.0")]
+    [InlineData("1e1")]
+    [InlineData("9223372036854775808")]
+    [InlineData("unknown")]
+    [InlineData("\uff10\uff11")]
+    public void EveryProvenanceInputUsesStrictUnsignedDecimal(string invalid)
+    {
+        new Action(() => ConversationRangeFilter.Parse("", "", "", "", invalid)).Should().Throw<InvalidDataException>();
+        new Action(() => ConversationRangeFilter.Parse("", "", "", "", "", invalid)).Should().Throw<InvalidDataException>();
+        new Action(() => ConversationRangeFilter.Parse("", "", "", "", "", "", invalid)).Should().Throw<InvalidDataException>();
+        new Action(() => ConversationRangeFilter.Parse("", "", "", "", "", "", "", invalid)).Should().Throw<InvalidDataException>();
+    }
+
     [Fact]
     public void InclusiveBoundsComposeWithoutChangingOriginalFieldsOrRole()
     {

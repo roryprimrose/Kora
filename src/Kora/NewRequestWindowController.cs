@@ -7,7 +7,7 @@ using Kora.Core.Storage;
 
 namespace Kora;
 
-internal sealed class NewRequestWindowController(
+internal sealed partial class NewRequestWindowController(
     MainViewModel main, SessionWorkspaceService workspace, ISessionWorkspaceAccess access,
     Func<NewRequestComposer> create, SessionsWindowController sessions) : IDisposable
 {
@@ -24,14 +24,20 @@ internal sealed class NewRequestWindowController(
 
     internal void Open()
     {
+        CancelOriginalReuse();
+        OpenCore();
+    }
+
+    private bool OpenCore(NewRequestComposer? seedTarget = null)
+    {
         if (disposed || !access.CanInspect)
         {
             main.ReportHostInteractionFailure("New request unavailable: live private desktop ownership is required.");
-            return;
+            return false;
         }
         if (window is null)
         {
-            var state = create();
+            var state = seedTarget ?? create();
             var opened = new NewRequestWindow(new(state), () => Navigate(state),
                 exception => main.ReportHostInteractionFailure("New request native navigation/closing failed; memory edits remain recoverable unless privacy revoked. No implicit Save or selection. Failure type: " + exception.GetType().Name));
             opened.Closed += (_, _) =>
@@ -40,9 +46,18 @@ internal sealed class NewRequestWindowController(
             };
             composer = state;
             window = opened;
-            opened.Show();
+            try { opened.OpenPrivate(); }
+            catch
+            {
+                if (ReferenceEquals(window, opened)) { window = null; composer = null; }
+                opened.ClosePrivate();
+                throw;
+            }
         }
-        window.Activate();
+        var exactWindow = window;
+        exactWindow?.Activate();
+        return !disposed && access.CanInspect && exactWindow is { IsVisible: true }
+            && ReferenceEquals(window, exactWindow) && (seedTarget is null || ReferenceEquals(composer, seedTarget));
     }
 
     private async Task Navigate(NewRequestComposer state)
@@ -61,15 +76,21 @@ internal sealed class NewRequestWindowController(
             Dispatcher.UIThread.Invoke(() => RevokeSession(session));
             return;
         }
+        if (reuseSource == session) { CancelOriginalReuse(); }
         if (composer?.Creation?.Request.SessionId == session) { window?.ClosePrivate(); }
     }
 
-    private void PrivacyClosed(object? sender, EventArgs args) => window?.ClosePrivate();
+    private void PrivacyClosed(object? sender, EventArgs args)
+    {
+        CancelOriginalReuse();
+        window?.ClosePrivate();
+    }
 
     public void Dispose()
     {
         if (disposed) { return; }
         disposed = true;
+        CancelOriginalReuse();
         main.PrivacyClosureRequested -= PrivacyClosed;
         workspace.SessionLifecycleChanged -= RevokeSession;
         workspace.SessionRetired -= RevokeSession;

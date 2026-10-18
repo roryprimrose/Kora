@@ -203,6 +203,7 @@ public sealed partial class App : Avalonia.Application
                 () => Services.GetRequiredService<NewRequestComposer>(), sessionsWindow);
             newRequestWindow.Bind();
             sessionsWindow.OpenNewRequest = newRequestWindow.Open;
+            sessionsWindow.ReviewOriginalMessageReuse = newRequestWindow.ReviewOriginalReuseAsync;
             savedDraftCatalogue = new(viewModel, Services.GetRequiredService<SessionWorkspaceService>(), sessionsWindow,
                 Services.GetRequiredService<Kora.Core.Storage.ISessionWorkspaceAccess>(),
                 Services.GetRequiredService<ILogger<SavedDraftCatalogueViewModel>>());

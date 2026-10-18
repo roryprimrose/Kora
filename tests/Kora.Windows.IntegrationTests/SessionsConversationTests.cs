@@ -245,7 +245,8 @@ public sealed partial class SessionsConversationTests
             Func<Kora.Core.Presentation.AdmittedDetailContent, Func<bool>,
                 Func<CancellationToken, Task<Kora.Core.Presentation.AdmittedDetailContent>>, CancellationToken, Task<string>>? openDetail = null,
             ISessionWorkspaceStore? conversationReader = null,
-            Action<HostId<SessionIdentity>>? revokeDetails = null)
+            Action<HostId<SessionIdentity>>? revokeDetails = null,
+            Func<SessionWorkspaceEntry, Kora.Core.Conversation.ConversationMessage, Func<bool>, CancellationToken, Task<string>>? reuseOriginal = null)
         {
             var workspace = WindowsSqliteSessionWorkspaceTests.Service(f, Access);
             Workspace = workspace;
@@ -270,7 +271,8 @@ public sealed partial class SessionsConversationTests
             sink.Initialize();
             Model = new(workspace, new DurableEvidenceQuery(new WindowsSqliteEvidenceReader(sink), Access, f.Time,
                 NullLogger<DurableEvidenceQuery>.Instance), Access, NullLogger<SessionsViewModel>.Instance,
-                conversation: conversation, openConversationDetail: openDetail, revokeConversationDetails: revokeDetails);
+                conversation: conversation, openConversationDetail: openDetail, revokeConversationDetails: revokeDetails,
+                reviewOriginalMessageReuse: reuseOriginal);
         }
         public async ValueTask DisposeAsync()
         {

@@ -9,6 +9,7 @@ internal sealed partial class NewRequestWindow : Window
     private readonly NewRequestViewModel model;
     private bool privateClose;
     private bool choosing;
+    private bool openingPrivate;
     private Window? discardDialog;
     internal Task Operation { get; private set; } = Task.CompletedTask;
     internal Func<Task<ComposerDraftDecision>>? DecideDraft { get; set; }
@@ -68,7 +69,15 @@ internal sealed partial class NewRequestWindow : Window
         privateClose = true;
         model.Dispose();
         discardDialog?.Close();
-        Close();
+        if (!openingPrivate) { Close(); }
+    }
+
+    internal void OpenPrivate()
+    {
+        openingPrivate = true;
+        try { Show(); }
+        finally { openingPrivate = false; }
+        if (privateClose) { Hide(); Close(); }
     }
 
     private async Task ProtectClose()

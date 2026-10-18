@@ -416,6 +416,10 @@ public sealed partial class NewRequestComposerTests : IDisposable
         internal Action? AfterSave { get; set; }
         internal Func<Task>? SaveWait { get; set; }
         internal string? SaveFault { get; set; }
+        internal ConversationMessage? ReuseOriginal { get; set; }
+        internal int OriginalReads { get; private set; }
+        internal Action? BeforeOriginalRead { get; set; }
+        internal Func<Task>? OriginalReadWait { get; set; }
 
         internal Fixture(bool enabledLogger = false)
         {
@@ -523,7 +527,11 @@ public sealed partial class NewRequestComposerTests : IDisposable
         public ValueTask<SessionWorkspaceEntry> RenameSessionAsync(HostRequest request, HostRevision generation, long revision, SessionName name, Func<bool> admitted, CancellationToken token) => throw new NotSupportedException();
         public ValueTask<SessionPage<Kora.Core.Interaction.HostQuestionRecord>> ReadQuestionPageAsync(HostId<SessionIdentity> session, Guid? after, int limit, CancellationToken token) => throw new NotSupportedException();
         public ValueTask<SessionPage<HostTaskRecord>> ReadTaskPageAsync(HostId<SessionIdentity> session, Guid? after, int limit, CancellationToken token) => throw new NotSupportedException();
-        public ValueTask<WorkSessionAuthorization> ChangeIdleLifecycleAsync(HostRequest request, HostRevision generation, bool active, Func<bool> admitted, CancellationToken token) => throw new NotSupportedException();
+        public ValueTask<WorkSessionAuthorization> ChangeIdleLifecycleAsync(HostRequest request, HostRevision generation, bool active, Func<bool> admitted, CancellationToken token)
+        {
+            Entry = Entry! with { Authority = Entry!.Authority with { Generation = new(generation.Value + 1), IsActive = active } };
+            return ValueTask.FromResult(Entry.Authority);
+        }
         public ValueTask<ConversationDraftSnapshot> ReadConversationDraftAsync(HostId<SessionIdentity> session, CancellationToken token)
         {
             OnDraftRead?.Invoke();
@@ -554,8 +562,15 @@ public sealed partial class NewRequestComposerTests : IDisposable
             };
         }
         public ValueTask<ConversationPage> ReadConversationPageAsync(HostId<SessionIdentity> session, ConversationCursor? cursor, int limit, CancellationToken token) => throw new NotSupportedException();
-        public ValueTask<ConversationMessage> ReadConversationMessageAsync(HostId<SessionIdentity> session,
-            HostId<RequestIdentity> request, CancellationToken token) => throw new NotSupportedException();
+        public async ValueTask<ConversationMessage> ReadConversationMessageAsync(HostId<SessionIdentity> session,
+            HostId<RequestIdentity> request, CancellationToken token)
+        {
+            OriginalReads++;
+            if (OriginalReadWait is { } wait) { await wait(); }
+            BeforeOriginalRead?.Invoke();
+            token.ThrowIfCancellationRequested();
+            return ReuseOriginal ?? throw new InvalidDataException("Original is omitted, private, tombstoned or unavailable.");
+        }
     }
 
     private sealed class AccessState : ISessionWorkspaceAccess

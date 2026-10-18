@@ -34,6 +34,21 @@ do not depend on hosted management, and speech preferences do not qualify wake.
 
 ## Current Delivery
 
+### Bounded native Evidence retained due ranges - 2026-10-18
+
+The [existing Evidence inspector](Information_Display.md#delivered-bounded-native-evidence-inspection)
+adds optional inclusive FromDueUtc/UntilDueUtc, independently AND-composed with
+commit/observation time and every existing predicate. Shared canonical UTC
+admission rejects repair; UNKNOWN due metadata cannot match a constrained range.
+Both bounds bind the complete versioned query digest/authenticated cursor.
+Labelled native fields retain no-read edit/Clear/Escape and stale-result fences
+([deterministic tests](../tests/Kora.Windows.IntegrationTests/EvidenceAdvancedFilterTests.Due.cs)).
+This consumes the existing Evidence I subset only: no schema, retention writes,
+pruning, expiry/lifecycle, capture, body/path read or authority change. Due is
+deadline metadata, not deletion/current-expiry/policy/permission proof.
+E/Q, installed accessibility and unqualified providers/egress/wake/executors/
+profile writers remain separate and unavailable.
+
 ### Bounded exact-grant committed request correlation predicates - 2026-10-17
 
 The [one-exact-grant history](../docs/settings.md#exact-operation-grants)

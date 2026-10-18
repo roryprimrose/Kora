@@ -122,7 +122,7 @@ internal sealed partial class EvidenceViewModel(
             if (closed || revision == filterRevision)
             {
                 Clear("Evidence query failed: " + exception.GetType().Name
-                    + ". Use nonempty hyphenated GUIDs, exact nonzero lowercase hexadecimal W3C trace (32) / span (16) IDs, ISO timestamps with Z or an explicit offset, canonical signed 32-bit event IDs, positive ordered 64-bit audit sequence bounds, and exact bounded category/action/event-name/exception-type/trace metadata text without surrounding whitespace or controls. Trace source version requires text only with Exact; Any, Absent and Present require empty text. Verify range, defined kind/flags choices and private storage access, then start a fresh search. No empty success or replacement database is claimed.");
+                    + ". Use nonempty hyphenated GUIDs, exact nonzero lowercase hexadecimal W3C trace (32) / span (16) IDs, ISO timestamps with Z or an explicit offset, canonical signed 32-bit event IDs, positive ordered 64-bit audit sequence bounds, and exact bounded category/action/event-name/exception-type/trace metadata text without surrounding whitespace or controls. Due bounds require ordered canonical UTC yyyy-MM-ddTHH:mm:ss.fffffff+00:00; only empty means Any. Trace source version requires text only with Exact; Any, Absent and Present require empty text. Verify range, defined kind/flags choices and private storage access, then start a fresh search. No empty success or replacement database is claimed.");
             }
             Failure(logger, exception.GetType().Name);
             activity.Complete(HostOperationOutcome.Failed);

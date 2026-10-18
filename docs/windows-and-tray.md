@@ -300,11 +300,15 @@ In **Sessions**, choose **Browse**, **NameSubstring**, **ExactId** or **ExactNam
   excludes unnamed rows: unnamed is never revision zero. These native
   session-list controls do not extend All Work or the saved-draft catalogue.
 - **Next metadata search** continues even after zero matches. Each click scans at most 50 rows plus one bounded lookahead, displays at most 25 matches and retains complete records within 64 KiB. Counts and output/scan limits are explicit; deferred matches are not silently skipped.
+- Optional **Name scalar minimum/maximum** count Unicode scalars, not UTF-16 units or displayed grapheme clusters. Empty means Any; enter positive ASCII decimal values within the authoritative `SessionName.MaximumScalars` limit (currently 120) ([name policy](../src/Kora.Core/Hosting/SessionName.cs)).
+  Both ends are inclusive; zero, signs, whitespace, separators, overflow, values beyond the name limit and reversed ranges are invalid ([query validation](../src/Kora.Core/Storage/SessionListSearch.cs)).
+- Either scalar bound excludes unnamed metadata: unknown is not zero. These bounds must match alongside mode, lifecycle, availability, generation and name revision; they do not extend All Work or saved drafts ([combination tests](../tests/Kora.Core.UnitTests/Storage/SessionListSearchTests.cs)).
 - **Cancel metadata search** suppresses late results. **Clear metadata search** (or Escape in its field) discards the volatile query/results. **Refresh** returns to ordinary list paging. Query, mode, state, privacy, source or host changes require a fresh Search.
 
 Enter in any query/range field searches; Escape or Clear erases all bounds.
 Editing performs no read and retires prior search results/selection. Numeric
 predicates are bound into Next; changed bounds require a fresh Search.
+This includes both name-length fields: editing retires prior search rows, detail, exact selection, actions and cursor without reading; Clear/Escape resets both bounds ([native checks](../tests/Kora.Windows.IntegrationTests/SessionsListSearchTests.cs), [read-count checks](../tests/Kora.Windows.IntegrationTests/SessionsViewModelTests.ListSearch.cs)).
 Names, generations and revisions are volatile passive metadata, not session
 selection, ownership, permission, freshness, historical completeness or action
 authority.

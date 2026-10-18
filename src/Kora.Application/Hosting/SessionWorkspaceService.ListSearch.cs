@@ -12,12 +12,13 @@ public sealed partial class SessionWorkspaceService
         string query, SessionListSearchCursor? cursor, int limit, CancellationToken token,
         long? minimumGeneration = null, long? maximumGeneration = null,
         long? minimumMetadataRevision = null, long? maximumMetadataRevision = null,
-        SessionNameAvailability nameAvailability = SessionNameAvailability.Any) =>
+        SessionNameAvailability nameAvailability = SessionNameAvailability.Any,
+        long? minimumNameLength = null, long? maximumNameLength = null) =>
         ReadAsync(async () =>
         {
             token.ThrowIfCancellationRequested();
             var search = new SessionListSearch(kind, filter, query, minimumGeneration, maximumGeneration,
-                minimumMetadataRevision, maximumMetadataRevision, nameAvailability);
+                minimumMetadataRevision, maximumMetadataRevision, nameAvailability, minimumNameLength, maximumNameLength);
             SessionListSearchPage.ValidateLimit(limit);
             cursor?.Validate(listSearchHost, access.ControlRevision, search);
             if (search.ExactId is { } id)

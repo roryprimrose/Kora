@@ -214,6 +214,12 @@
       <TextBox x:Name="ListMaximumMetadataRevision" Text="{Binding ListMaximumMetadataRevision, Mode=TwoWay}" Width="190"
                IsEnabled="{Binding CanEditListSearch}" PlaceholderText="Name revision maximum; Any"
                AutomationProperties.Name="Session-list name metadata revision inclusive maximum; positive decimal or empty for Any; unnamed never matches a revision bound" />
+      <TextBox x:Name="ListMinimumNameLength" Text="{Binding ListMinimumNameLength, Mode=TwoWay}" Width="190"
+               IsEnabled="{Binding CanEditListSearch}" PlaceholderText="Name scalar minimum; Any"
+               AutomationProperties.Name="Session-list name length in Unicode scalars inclusive minimum; positive decimal within session-name limits or empty for Any; unnamed never matches a length bound" />
+      <TextBox x:Name="ListMaximumNameLength" Text="{Binding ListMaximumNameLength, Mode=TwoWay}" Width="190"
+               IsEnabled="{Binding CanEditListSearch}" PlaceholderText="Name scalar maximum; Any"
+               AutomationProperties.Name="Session-list name length in Unicode scalars inclusive maximum; positive decimal within session-name limits or empty for Any; unnamed never matches a length bound" />
       <Button x:Name="SearchList" Content="Search session _metadata" IsEnabled="{Binding CanSearchList}"
               AutomationProperties.Name="Browse or search names or exact IDs across bounded session metadata pages, never select implicitly or target an action by name" />
       <Button x:Name="NextListSearch" Content="Next metadata search" IsEnabled="{Binding CanNextListSearch}"

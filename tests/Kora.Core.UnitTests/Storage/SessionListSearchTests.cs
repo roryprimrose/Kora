@@ -14,6 +14,112 @@ public sealed class SessionListSearchTests
         new(new(new(id ?? Id), new(1), active), name is null ? null : new(new(id ?? Id), new(1), new(name)));
 
     [Theory]
+    [InlineData("a", 1)]
+    [InlineData("é", 1)]
+    [InlineData("\U0001F408", 1)]
+    [InlineData("日本語", 3)]
+    [InlineData("q\u0301", 2)]
+    [InlineData("\U00010400é", 2)]
+    public void NameLengthIsInclusiveAndComposesWithEveryModeLifecycleAvailabilityAndRevision(string name, long count)
+    {
+        foreach (var kind in Enum.GetValues<SessionListSearchKind>())
+        foreach (var filter in Enum.GetValues<SessionListFilter>())
+        foreach (var availability in Enum.GetValues<SessionNameAvailability>())
+        foreach (var active in new[] { true, false })
+        foreach (var revisionBound in new[] { false, true })
+        foreach (var lengths in new (long? Minimum, long? Maximum, bool Matches)[]
+            { (null, null, true), (count, null, true), (null, count, true),
+              (count, count, true), (count + 1, null, false), (null, count - 1 == 0 ? null : count - 1, count == 1) })
+        {
+            var value = kind is SessionListSearchKind.Browse ? ""
+                : kind is SessionListSearchKind.ExactId ? Id.ToString("D") : name;
+            var query = new SessionListSearch(kind, filter, value, 1, 1,
+                revisionBound ? 1 : null, revisionBound ? 1 : null, availability, lengths.Minimum, lengths.Maximum);
+            var lifecycle = filter is SessionListFilter.All || active == (filter is SessionListFilter.Active);
+            query.Matches(Entry(name, active)).Should().Be(lifecycle && lengths.Matches
+                && availability is not SessionNameAvailability.Unnamed);
+            query.Matches(Entry(null, active)).Should().Be(lifecycle && !revisionBound
+                && lengths.Minimum is null && lengths.Maximum is null
+                && availability is not SessionNameAvailability.Named
+                && kind is not (SessionListSearchKind.NameSubstring or SessionListSearchKind.ExactName));
+        }
+    }
+
+    [Fact]
+    public void MaximumScalarNamesAndSemanticLengthDigestsReuseAuthoritativeAdmission()
+    {
+        var maximum = string.Concat(Enumerable.Repeat("\U0001F408", SessionName.MaximumScalars));
+        var query = SessionListSearch.Parse(SessionListSearchKind.Browse, SessionListFilter.All, "",
+            minimumNameLength: "0001", maximumNameLength: SessionName.MaximumScalars.ToString(CultureInfo.InvariantCulture));
+        query.MinimumNameLength.Should().Be(1);
+        query.MaximumNameLength.Should().Be(SessionName.MaximumScalars);
+        query.Matches(Entry(maximum)).Should().BeTrue();
+        query.Digest.Should().Be(new SessionListSearch(query.Kind, query.Filter, "",
+            minimumNameLength: 1, maximumNameLength: SessionName.MaximumScalars).Digest);
+        var exact = new SessionListSearch(query.Kind, query.Filter, "",
+            minimumNameLength: SessionName.MaximumScalars, maximumNameLength: SessionName.MaximumScalars);
+        exact.Matches(Entry(maximum)).Should().BeTrue();
+        exact.Matches(Entry(maximum[..^2])).Should().BeFalse();
+        var unfiltered = new SessionListSearch(query.Kind, query.Filter, "");
+        unfiltered.MinimumNameLength.Should().BeNull();
+        unfiltered.MaximumNameLength.Should().BeNull();
+        unfiltered.Digest.Should().Be(SessionListSearch.Parse(query.Kind, query.Filter, "").Digest);
+        foreach (var changed in new[] { query, exact,
+            new SessionListSearch(query.Kind, query.Filter, "", minimumNameLength: 1),
+            new SessionListSearch(query.Kind, query.Filter, "", maximumNameLength: 1) })
+        {
+            changed.Digest.Should().NotBe(unfiltered.Digest);
+            var cursor = new SessionListSearchCursor(Id, 1, Id, unfiltered.Digest);
+            var validate = () => cursor.Validate(Id, 1, changed);
+            validate.Should().Throw<ArgumentException>();
+        }
+        new SessionListSearch(query.Kind, query.Filter, "", minimumNameLength: 1).Digest.Should()
+            .NotBe(new SessionListSearch(query.Kind, query.Filter, "", maximumNameLength: 1).Digest);
+        SessionListSearch.IsValid(query.Kind, query.Filter, "", minimumNameLength: "2", maximumNameLength: "1").Should().BeFalse();
+        SessionListSearch.IsValid(query.Kind, query.Filter, "", minimumNameLength: "1", maximumNameLength: "1").Should().BeTrue();
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("0")]
+    [InlineData("-1")]
+    [InlineData("+1")]
+    [InlineData(" 1")]
+    [InlineData("1 ")]
+    [InlineData("1.0")]
+    [InlineData("1,000")]
+    [InlineData("1e2")]
+    [InlineData("١")]
+    [InlineData("１２")]
+    [InlineData("9223372036854775808")]
+    public void EachNameLengthTextBoundRejectsInvalidInputExplicitly(string? text)
+    {
+        foreach (var minimum in new[] { true, false })
+        {
+            SessionListSearch.IsValid(SessionListSearchKind.Browse, SessionListFilter.All, "",
+                minimumNameLength: minimum ? text! : "", maximumNameLength: minimum ? "" : text!).Should().BeFalse();
+            var parse = () => SessionListSearch.Parse(SessionListSearchKind.Browse, SessionListFilter.All, "",
+                minimumNameLength: minimum ? text! : "", maximumNameLength: minimum ? "" : text!);
+            parse.Should().Throw<Exception>();
+        }
+    }
+
+    [Fact]
+    public void TypedNameLengthBoundsRejectZeroNegativeBeyondMaximumAndInversion()
+    {
+        foreach (var invalid in new long[] { -1, 0, SessionName.MaximumScalars + 1, long.MaxValue })
+        foreach (var minimum in new[] { true, false })
+        {
+            var create = () => new SessionListSearch(SessionListSearchKind.Browse, SessionListFilter.All, "",
+                minimumNameLength: minimum ? invalid : null, maximumNameLength: minimum ? null : invalid);
+            create.Should().Throw<InvalidDataException>();
+        }
+        var inverted = () => new SessionListSearch(SessionListSearchKind.Browse, SessionListFilter.All, "",
+            minimumNameLength: 2, maximumNameLength: 1);
+        inverted.Should().Throw<InvalidDataException>();
+    }
+
+    [Theory]
     [InlineData(null)]
     [InlineData(" ")]
     [InlineData("needle")]
@@ -198,7 +304,7 @@ public sealed class SessionListSearchTests
         {
             var value = kind is SessionListSearchKind.Browse ? "" : kind is SessionListSearchKind.ExactId ? Id.ToString("D") : "absent";
             var query = new SessionListSearch(kind, SessionListFilter.Active, value, 50, 100, 50, 100,
-                SessionNameAvailability.Unnamed);
+                SessionNameAvailability.Unnamed, 1, 1);
             var act = () => query.Matches(row);
             act.Should().Throw<Exception>();
         }

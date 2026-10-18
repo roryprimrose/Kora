@@ -56,7 +56,7 @@ The [typed admitted workflow](../src/Kora.Application/Definitions/OwnedInstructi
 The [private native review](../src/Kora/OwnedInstructionRebaseReviewWindow.cs) discloses all three bodies and exact identity/byte truth; Cancel retains the previous baseline/draft. Confirmation adopts only latest baseline in memory, preserves raw text and retires old editor validation/use-review eligibility ([lifecycle](../src/Kora/OwnedInstructionEditorController.Rebase.cs)).
 Missing/incompatible sources, changed identity/private/control/editor epochs and uncertain publication fail closed. Ordinary Save remains separate with full exact confirmation and can conflict again
 ([portable cases](../tests/Kora.Application.UnitTests/Definitions/InstructionEditorTests.Rebase.cs), [native cases](../tests/Kora.Windows.IntegrationTests/ArtifactDiscovery/OwnedDefinitionEditorWindowTests.Rebase.cs)).
-This consumes only the existing owned reader, parser, admission and editor I subset. Deterministic checks and exact portable line/branch coverage remain pending the serial validation permit; no passing validation, runtime/profile-original writer enablement or E/Q qualification is claimed.
+This consumes only the existing owned reader, parser, admission and editor I subset. Deterministic builds/tests and exact portable line/branch coverage gate implementation readiness; current-head receipts record their outcomes separately. No runtime/profile-original writer enablement or E/Q qualification is claimed.
 
 ### Bounded native Evidence retained due ranges - 2026-10-18
 

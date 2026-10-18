@@ -222,6 +222,7 @@ A same-ID/same-format external edit or replacement still changes revision; obser
 
 Confirmation adopts only the latest baseline in editor memory and preserves the entire raw draft. It clears prior editor validation/comparison and use-review eligibility; it grants no use, permission, approval or runtime authority. Cancel, Escape or closing the review preserves the prior baseline and draft.
 Source/control/catalogue, draft/ID/kind/selection/input, ownership, call/privacy and editor-lifetime changes withdraw the proposal; retired windows clear bodies and reject late confirmation ([native regression cases](../tests/Kora.Windows.IntegrationTests/ArtifactDiscovery/OwnedDefinitionEditorWindowTests.Rebase.cs)).
+Opening-time withdrawal clears private content immediately and completes closure after Avalonia finishes showing the window, so reentrant opening callbacks cannot leave the retired review visible.
 
 Rebase writes no source, revision preferences or use state and performs no automatic catalogue reload. Ordinary correlated host control intent/terminal receipts remain. It cannot resolve an uncertain Save by assumption: use the existing explicit exact reread/reconciliation recovery contract.
 **Save** remains a separate ordinary full exact confirmation and optimistic comparison against the adopted baseline, and can conflict again ([portable regression cases](../tests/Kora.Application.UnitTests/Definitions/InstructionEditorTests.Rebase.cs)).

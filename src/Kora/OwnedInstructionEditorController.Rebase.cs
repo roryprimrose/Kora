@@ -1,4 +1,5 @@
-﻿using Kora.Core.Artifacts;
+﻿using Kora.Application.Definitions;
+using Kora.Core.Artifacts;
 
 namespace Kora;
 

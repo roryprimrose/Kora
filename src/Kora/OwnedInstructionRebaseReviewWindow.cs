@@ -16,6 +16,8 @@ internal sealed class OwnedInstructionRebaseReviewWindow : Window
     private readonly TextBlock explanation;
     private readonly DispatcherTimer timer = new() { Interval = TimeSpan.FromMilliseconds(250) };
     private Func<bool>? current;
+    private bool withdrawalQueued;
+    private readonly TaskCompletionSource withdrawal = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
     internal OwnedInstructionRebaseReviewWindow(OwnedDraftRebase proposal, Func<bool> eligible)
     {
@@ -33,7 +35,7 @@ internal sealed class OwnedInstructionRebaseReviewWindow : Window
         confirm.Click += (_, _) =>
         {
             if (current is null) { return; }
-            if (Current()) { Close(true); } else { Close(); }
+            if (Current()) { Close(true); } else { Withdraw(); }
         };
         var cancel = new Button { Content = "Cancel" };
         cancel.Click += (_, _) => { if (current is not null) { Close(); } };
@@ -52,13 +54,24 @@ internal sealed class OwnedInstructionRebaseReviewWindow : Window
         AddHandler(ContextRequestedEvent, (_, args) => args.Handled = true, RoutingStrategies.Tunnel);
         AddHandler(KeyDownEvent, BlockTransferKeys, RoutingStrategies.Tunnel);
         timer.Tick += OnTick;
-        Opened += (_, _) => { if (Current()) { timer.Start(); } else { Close(); } };
+        Opened += (_, _) => { if (Current()) { timer.Start(); } else { Withdraw(); } };
         Closed += (_, _) => Retire();
         KeyDown += (_, key) => { if (key.Key == Key.Escape) { key.Handled = true; Close(); } };
     }
 
     private bool Current() => current?.Invoke() == true;
-    private void OnTick(object? sender, EventArgs args) { if (!Current()) { Close(); } }
+    private void OnTick(object? sender, EventArgs args) { if (!Current()) { Withdraw(); } }
+
+    internal Task Withdrawal => withdrawal.Task;
+
+    internal void Withdraw()
+    {
+        Retire();
+        if (withdrawalQueued) { return; }
+        withdrawalQueued = true;
+        // Avalonia can finish making a window visible after a reentrant close in Opened.
+        Dispatcher.UIThread.Post(() => { Hide(); Close(); withdrawal.TrySetResult(); });
+    }
 
     private void AddBody(Grid panes, int column, string label, string text)
     {

@@ -142,7 +142,7 @@ public sealed partial class OwnedDefinitionEditorWindowTests
                 case "copy": editor.CopyNameInput.Text = "other"; break;
                 case "catalogue-aba":
                     var prior = f.Catalogue.Candidates;
-                    f.Catalogue.Publish([]);
+                    f.Catalogue.Publish([.. prior.Select(item => item with { IsUseEnabled = false })]);
                     f.Catalogue.Publish(prior);
                     break;
                 case "failure": f.Catalogue.ReportReloadFailure(new IOException("Unavailable")); break;
@@ -288,13 +288,14 @@ public sealed partial class OwnedDefinitionEditorWindowTests
         Task operation;
         if (native)
         {
+            var editor = fixture.Editor ?? throw new InvalidOperationException("The native editor must be open.");
             var completed = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-            foreach (var block in fixture.Editor!.GetVisualDescendants().OfType<TextBlock>())
+            foreach (var block in editor.GetVisualDescendants().OfType<TextBlock>())
             {
                 block.PropertyChanged += (_, _) =>
                 { if (fixture.Status.Contains("baseline adopted in memory", StringComparison.Ordinal)) { completed.TrySetResult(); } };
             }
-            RebaseClick(fixture.Editor, "Rebase");
+            RebaseClick(editor, "Rebase");
             operation = completed.Task;
         }
         else { operation = fixture.Run("Kora, " + fixture.Prefix + " rebase"); }

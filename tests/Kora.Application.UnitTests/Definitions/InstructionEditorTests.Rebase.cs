@@ -1,5 +1,6 @@
 ﻿using AwesomeAssertions;
 
+using Kora.Application.Definitions;
 using Kora.Core.Artifacts;
 using Kora.Core.Diagnostics;
 using Kora.Core.Hosting;
@@ -197,7 +198,7 @@ public sealed partial class InstructionEditorTests
                 case "generation": f.Control.Authority = f.Control.Authority! with { Generation = new(2) }; break;
                 case "catalogue-aba":
                     var prior = f.Catalogue.Candidates;
-                    f.Catalogue.Publish([]);
+                    f.Catalogue.Publish([.. prior.Select(item => item with { IsUseEnabled = false })]);
                     f.Catalogue.Publish(prior);
                     break;
                 case "failure-aba":

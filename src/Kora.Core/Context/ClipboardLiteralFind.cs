@@ -6,38 +6,21 @@ public static class ClipboardLiteralFind
         ClipboardSnapshot snapshot, string query, SnapshotFindDirection direction,
         ClipboardLiteralMatch? selected = null)
     {
-        var match = Find(snapshot, query, direction, selected);
-        var count = 0;
-        var ordinal = 0;
-        var selectedOrdinal = 0;
-        ClipboardLiteralMatch? previous = null;
-        var current = Find(snapshot, query, SnapshotFindDirection.First);
-        while (current is not null)
-        {
-            count++;
-            if (current == selected)
-            {
-                selectedOrdinal = count;
-                if (direction == SnapshotFindDirection.Previous)
-                {
-                    // Reverse navigation follows the counted forward sequence, not overlapping alternatives.
-                    match = previous;
-                    ordinal = count - 1;
-                }
-            }
-            if (current == match) { ordinal = count; }
-            previous = current;
-            current = Find(snapshot, query, SnapshotFindDirection.Next, current);
-        }
-        if (direction != SnapshotFindDirection.First && selectedOrdinal == 0)
-        {
-            throw new InvalidDataException("The selected literal span is not in this clipboard snapshot's nonoverlapping sequence.");
-        }
-        return (match, count, match is null ? selectedOrdinal : ordinal);
+        ValidateSource(snapshot, direction, selected);
+        var result = SnapshotLiteralFind.FindCounted(snapshot.Text, query, direction, selected?.Span);
+        return (result.Match is null ? null : new(snapshot, result.Match), result.Count, result.Ordinal);
     }
 
     public static ClipboardLiteralMatch? Find(ClipboardSnapshot snapshot, string query,
         SnapshotFindDirection direction, ClipboardLiteralMatch? selected = null)
+    {
+        ValidateSource(snapshot, direction, selected);
+        var span = SnapshotLiteralFind.Find(snapshot.Text, query, direction, selected?.Span);
+        return span is null ? null : new(snapshot, span);
+    }
+
+    private static void ValidateSource(ClipboardSnapshot snapshot, SnapshotFindDirection direction,
+        ClipboardLiteralMatch? selected)
     {
         ArgumentNullException.ThrowIfNull(snapshot);
         if (direction != SnapshotFindDirection.First && selected is not null
@@ -45,7 +28,5 @@ public static class ClipboardLiteralFind
         {
             throw new InvalidDataException("Literal Find cannot navigate a different clipboard snapshot.");
         }
-        var span = SnapshotLiteralFind.Find(snapshot.Text, query, direction, selected?.Span);
-        return span is null ? null : new(snapshot, span);
     }
 }

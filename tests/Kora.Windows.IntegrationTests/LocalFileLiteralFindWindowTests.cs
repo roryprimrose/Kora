@@ -61,7 +61,7 @@ public sealed class LocalFileLiteralFindWindowTests
                 {
                     query.Text = "ALPHA";
                     await Press(window, "Find first");
-                    Status(window).Text.Should().Be("No literal match in this exact original file.");
+                    Status(window).Text.Should().Contain("No literal match").And.Contain("total 0; selected ordinal 0");
                     FileSelector(window).SelectedItem.Should().BeSameAs(file);
                     FileSelector(window).SelectedItem = folder.Files[1];
                     file = folder.Files[1];
@@ -71,6 +71,9 @@ public sealed class LocalFileLiteralFindWindowTests
                 await Press(window, "Find first");
                 var match = Match(window)!;
                 match.Text.Should().Be("alpha");
+                Status(window).Text.Should().Contain("Literal match 1 of 2").And.Contain("this exact immutable original file only");
+                ControlAutomationPeer.CreatePeerForElement(Status(window))!.GetName().Should().Contain("Literal match 1 of 2")
+                    .And.Contain("not ranked retrieval");
                 match.IsFocused.Should().BeTrue();
                 var start = file.Text.IndexOf("alpha", StringComparison.Ordinal);
                 Location(window).Text.Should().Contain($"UTF-16 [{start}, {start + 5})")
@@ -85,14 +88,19 @@ public sealed class LocalFileLiteralFindWindowTests
                     string.Equals(box.Text, file.Text, StringComparison.Ordinal));
                 Source(window).Text.Should().Be(file.Text);
                 await Press(window, "Find next");
+                Status(window).Text.Should().Contain("Literal match 2 of 2");
                 Location(window).Text.Should().Contain($"UTF-16 [{start + 6}, {start + 11})");
                 await Press(window, "Find next");
                 Status(window).Text.Should().Contain("End of forward direction").And.NotContain("No literal match");
+                Status(window).Text.Should().Contain("Total 2").And.Contain("anchor ordinal 2")
+                    .And.Contain("no current match selected or focus claimed");
                 Match(window).Should().BeNull();
                 await Press(window, "Find previous");
+                Status(window).Text.Should().Contain("Literal match 1 of 2");
                 Location(window).Text.Should().Contain($"UTF-16 [{start}, {start + 5})");
                 await Press(window, "Find previous");
                 Status(window).Text.Should().Contain("End of backward direction");
+                Status(window).Text.Should().Contain("Total 2").And.Contain("anchor ordinal 1");
                 await Press(window, "Find first");
                 query.Text = " .*? ";
                 Match(window).Should().BeNull();
@@ -105,6 +113,57 @@ public sealed class LocalFileLiteralFindWindowTests
                 Button(window, "Find next").IsEnabled.Should().BeFalse();
                 failures.Should().BeEmpty();
                 reads.Should().Be(string.Equals(surface, "retained", StringComparison.Ordinal) ? 7 : 0);
+            }
+            finally { window.ClearAndClose(); }
+        });
+    }
+
+    [Theory]
+    [InlineData("", "a", 0)]
+    [InlineData("alpha", "missing", 0)]
+    [InlineData("aaaaaXaa", "aa", 3)]
+    public async Task NativeCountUsesCompleteForwardSequenceAndReversesItWithoutOverlappingAlternatives(
+        string text, string query, int count)
+    {
+        await HeadlessSession.RunAsync(async () =>
+        {
+            var file = Folder(text).Files[0];
+            var failures = new List<string>();
+            var window = new LocalFilePreviewWindow(failures.Add);
+            window.ShowRevision(file, (_, _, _) => throw new InvalidOperationException("No ranked retrieval."),
+                () => true, () => Task.CompletedTask);
+            window.Show();
+            window.UpdateLayout();
+            try
+            {
+                Query(window).Text = query;
+                Query(window).Focus().Should().BeTrue();
+                await Press(window, "Find first");
+                if (count == 0)
+                {
+                    Status(window).Text.Should().Contain("total 0; selected ordinal 0");
+                    Match(window).Should().BeNull();
+                    Query(window).IsFocused.Should().BeTrue();
+                    Button(window, "Find next").IsEnabled.Should().BeFalse();
+                    Button(window, "Find previous").IsEnabled.Should().BeFalse();
+                }
+                else
+                {
+                    await Press(window, "Find next");
+                    await Press(window, "Find next");
+                    Status(window).Text.Should().Contain("Literal match 3 of 3");
+                    Location(window).Text.Should().Contain("UTF-16 [6, 8)");
+                    await Press(window, "Find previous");
+                    Status(window).Text.Should().Contain("Literal match 2 of 3");
+                    Location(window).Text.Should().Contain("UTF-16 [2, 4)");
+                    await Press(window, "Find previous");
+                    Location(window).Text.Should().Contain("UTF-16 [0, 2)");
+                    await Press(window, "Find previous");
+                    Status(window).Text.Should().Contain("Total 3").And.Contain("anchor ordinal 1")
+                        .And.Contain("no current match selected or focus claimed");
+                    Match(window).Should().BeNull();
+                }
+                failures.Should().BeEmpty();
             }
             finally { window.ClearAndClose(); }
         });
@@ -150,8 +209,10 @@ public sealed class LocalFileLiteralFindWindowTests
                 var query = Query(window);
                 query.Text = "alpha";
                 query.Focus().Should().BeTrue();
+                var status = Status(window);
                 var pending = Press(window, "Find first");
                 await entered.Task;
+                status.Text.Should().BeNull();
                 switch (change)
                 {
                     case "query": query.Text = "alpha "; query.Text = "alpha"; break;
@@ -174,6 +235,7 @@ public sealed class LocalFileLiteralFindWindowTests
                 await pending;
                 window.UpdateLayout();
                 Match(window).Should().BeNull();
+                (status.Text ?? string.Empty).Should().NotContain("Literal match ").And.NotContain("Total ");
                 query.IsFocused.Should().Be(change is "query" or "mode" or "ranked-query" or "ranked-search" or "cancel" or "clear" or "revoked");
                 failures.Should().BeEmpty();
             }
@@ -188,6 +250,9 @@ public sealed class LocalFileLiteralFindWindowTests
     [InlineData("failure")]
     [InlineData("no-reader")]
     [InlineData("invalid-query")]
+    [InlineData("over-utf16")]
+    [InlineData("over-utf8")]
+    [InlineData("malformed")]
     public async Task CurrentInvalidOrUnavailableSourceFailsExplicitlyWithoutMatchOrFallback(string failure)
     {
         await HeadlessSession.RunAsync(async () =>
@@ -216,14 +281,21 @@ public sealed class LocalFileLiteralFindWindowTests
             window.UpdateLayout();
             try
             {
-                Query(window).Text = string.Equals(failure, "invalid-query", StringComparison.Ordinal) ? "SECRET_QUERY\n" : "alpha";
+                Query(window).Text = failure switch
+                {
+                    "invalid-query" => "SECRET_QUERY\n",
+                    "over-utf16" => new('x', 257),
+                    "over-utf8" => new('界', 171),
+                    "malformed" => new('\ud800', 1),
+                    _ => "alpha",
+                };
                 Button(window, "Find first").Command!.Execute(null);
                 await failed.Task;
                 Match(window).Should().BeNull();
                 Status(window).Text.Should().Contain("unavailable").And.NotContain("No literal match");
                 failures.Should().ContainSingle().Which.Should().NotContain("SECRET_QUERY").And.NotContain(file.Text)
                     .And.NotContain(file.Review.Metadata.CanonicalPath);
-                reads.Should().Be(failure is "no-reader" or "invalid-query" ? 0 : 1);
+                reads.Should().Be(failure is "no-reader" or "invalid-query" or "over-utf16" or "over-utf8" or "malformed" ? 0 : 1);
             }
             finally { window.ClearAndClose(); }
         });

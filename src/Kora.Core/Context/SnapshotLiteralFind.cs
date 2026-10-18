@@ -5,6 +5,39 @@ namespace Kora.Core.Context;
 
 public static class SnapshotLiteralFind
 {
+    public static (SnapshotLiteralSpan? Match, int Count, int Ordinal) FindCounted(
+        string text, string query, SnapshotFindDirection direction, SnapshotLiteralSpan? selected = null)
+    {
+        var match = Find(text, query, direction, selected);
+        var count = 0;
+        var ordinal = 0;
+        var selectedOrdinal = 0;
+        SnapshotLiteralSpan? previous = null;
+        var current = Find(text, query, SnapshotFindDirection.First);
+        while (current is not null)
+        {
+            count++;
+            if (current == selected)
+            {
+                selectedOrdinal = count;
+                if (direction == SnapshotFindDirection.Previous)
+                {
+                    // Reverse navigation follows the counted forward sequence, not overlapping alternatives.
+                    match = previous;
+                    ordinal = count - 1;
+                }
+            }
+            if (current == match) { ordinal = count; }
+            previous = current;
+            current = Find(text, query, SnapshotFindDirection.Next, current);
+        }
+        if (direction != SnapshotFindDirection.First && selectedOrdinal == 0)
+        {
+            throw new InvalidDataException("The selected literal span is not in this exact text's nonoverlapping sequence.");
+        }
+        return (match, count, match is null ? selectedOrdinal : ordinal);
+    }
+
     public static bool IsValidQuery(string query) =>
         LocalFileRetrievalPolicy.IsBoundedQuery(query)
         && !query.EnumerateRunes().Any(rune => Rune.GetUnicodeCategory(rune) is UnicodeCategory.Control

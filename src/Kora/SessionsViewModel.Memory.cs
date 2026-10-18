@@ -21,6 +21,7 @@ internal sealed partial class SessionsViewModel
     private MemoryScopeKind? memoryScopeFilter;
     private MemoryReviewState? memoryReviewFilter;
     private MemoryRetentionState? memoryRetentionFilter;
+    private MemorySnapshotOrder memoryOrder;
     private bool memoryMutationReady;
     private long memoryEpoch;
     private MemorySummary? selectedMemory;
@@ -33,6 +34,27 @@ internal sealed partial class SessionsViewModel
         && selected?.Authority.IsActive == true && (memorySource is null
             || selected.Authority == memorySource && access.ControlRevision == memoryListControl);
     public bool CanFilterMemories => MemorySourceCurrent && memoryListed;
+    public MemorySnapshotOrder MemoryOrder
+    {
+        get => memoryOrder;
+        set
+        {
+            if (notifying || !CanFilterMemories || value == memoryOrder) { return; }
+            memoryOrder = value;
+            ChangeMemoryFilters();
+        }
+    }
+    public IReadOnlyList<MemoryOrderOption> MemoryOrders { get; } =
+        [new(MemorySnapshotOrder.Source, "Source order (default)"),
+            new(MemorySnapshotOrder.CreatedOldest, "Created oldest"),
+            new(MemorySnapshotOrder.CreatedNewest, "Created newest"),
+            new(MemorySnapshotOrder.RevisionLowest, "Revision lowest"),
+            new(MemorySnapshotOrder.RevisionHighest, "Revision highest")];
+    public MemoryOrderOption MemoryOrderChoice
+    {
+        get => MemoryOrders.FirstOrDefault(option => option.Value == memoryOrder) ?? new(memoryOrder, "Invalid order");
+        set { if (value is not null) { MemoryOrder = value.Value; } }
+    }
     public string MemoryIdFilter
     {
         get => memoryIdFilter;
@@ -136,6 +158,7 @@ internal sealed partial class SessionsViewModel
         memoryScopeFilter = null;
         memoryReviewFilter = null;
         memoryRetentionFilter = null;
+        memoryOrder = MemorySnapshotOrder.Source;
         ClearMemoryRangeFilters();
         ChangeMemoryFilters();
     }
@@ -173,7 +196,7 @@ internal sealed partial class SessionsViewModel
             var filter = MemoryMetadataFilter.Parse(memoryIdFilter, memoryScopeFilter, memoryReviewFilter, memoryRetentionFilter,
                 memoryMinimumRevisionFilter, memoryMaximumRevisionFilter, memoryCreatedFromFilter, memoryCreatedUntilFilter,
                 memoryScopeIdentityFilter);
-            visibleMemoryRows = [.. memoryRows.Where(filter.Matches)];
+            visibleMemoryRows = filter.Apply(memoryRows, memoryOrder);
             MemoryFilterStatus = $"{visibleMemoryRows.Count} of {memoryRows.Count} snapshot memories. Metadata only; select and inspect again before actions. List explicitly to refresh.";
         }
         catch (InvalidDataException exception)
@@ -309,6 +332,7 @@ internal sealed partial class SessionsViewModel
         memoryScopeFilter = null;
         memoryReviewFilter = null;
         memoryRetentionFilter = null;
+        memoryOrder = MemorySnapshotOrder.Source;
         ClearMemoryRangeFilters();
         MemoryFilterStatus = "List explicitly before filtering metadata.";
         RetireMemorySelection();
@@ -345,6 +369,8 @@ internal sealed partial class SessionsViewModel
             OnPropertyChanged(nameof(MemoryRetentionFilter));
             OnPropertyChanged(nameof(MemoryReviewChoice));
             OnPropertyChanged(nameof(MemoryRetentionChoice));
+            OnPropertyChanged(nameof(MemoryOrder));
+            OnPropertyChanged(nameof(MemoryOrderChoice));
             OnPropertyChanged(nameof(MemoryFilterStatus));
         }
         finally { notifying = previous; }
@@ -353,5 +379,10 @@ internal sealed partial class SessionsViewModel
     internal sealed record MemoryFilterOption<T>(T? Value) where T : struct, Enum
     {
         public override string ToString() => Value?.ToString() ?? "Any";
+    }
+
+    internal sealed record MemoryOrderOption(MemorySnapshotOrder Value, string Label)
+    {
+        public override string ToString() => Label;
     }
 }

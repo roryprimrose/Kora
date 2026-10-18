@@ -322,7 +322,12 @@
           </DataTemplate>
         </ListBox.ItemTemplate>
       </controls:ScrollableListBox>
-      <Grid Grid.Column="1" RowDefinitions="Auto,2*,Auto,*,*" RowSpacing="10">
+      <ScrollViewer Grid.Column="1" x:Name="SelectedSessionWorkPane" VerticalScrollBarVisibility="Auto"
+                    HorizontalScrollBarVisibility="Disabled"
+                    AutomationProperties.Name="Selected-session work, actions, required questions and history or memories; scroll for every section">
+      <!-- Keep star rows bounded during scroll measurement while reserving usable work, question and tab extents. -->
+      <Grid Height="{Binding #SelectedSessionWorkPane.Bounds.Height}" MinHeight="960"
+            RowDefinitions="Auto,2*,Auto,*,*" RowSpacing="10">
         <controls:NamedTextBlock Text="{Binding WorkStatus}" TextWrapping="Wrap"
                                 AutomationProperties.Name="Selected exact session work snapshot, revisions, observation time, capacity and gaps" />
         <controls:ScrollableListBox Grid.Row="1" x:Name="WorkRecords" ItemsSource="{Binding WorkRecords}"
@@ -339,7 +344,7 @@
             </DataTemplate>
           </ListBox.ItemTemplate>
         </controls:ScrollableListBox>
-        <WrapPanel Grid.Row="2">
+        <WrapPanel Grid.Row="2" x:Name="SessionWorkActions">
           <Button x:Name="ReadQueue" Content="Refresh selected _work" IsEnabled="{Binding CanRefreshWork}"
                   AutomationProperties.Name="Passively refresh selected exact session work; no meaningful activity or dispatch" />
           <Button x:Name="InspectWork" Content="_Inspect selected work ID" IsEnabled="{Binding CanInspectWork}"
@@ -613,6 +618,13 @@
               <Button x:Name="ListMemories" Content="_List selected session memories" IsEnabled="{Binding CanReadMemories}"
                       AutomationProperties.Name="List exact active selected session memory identity, revision, scope, review, retention and creation time only" />
               <TextBlock Text="Filter only the frozen listed metadata. No content search or classification filter. Edits clear selection, inspection and replacement draft; select and inspect an exact visible result again. List explicitly to refresh." TextWrapping="Wrap" />
+              <WrapPanel>
+                <TextBlock Text="Snapshot order" VerticalAlignment="Center" />
+                <ComboBox x:Name="MemoryOrder" ItemsSource="{Binding MemoryOrders}"
+                          SelectedItem="{Binding MemoryOrderChoice, Mode=TwoWay}"
+                          IsEnabled="{Binding CanFilterMemories}"
+                          AutomationProperties.Name="Memory snapshot order; Source order default, Created oldest or newest, Revision lowest or highest; metadata only, not freshness or authority; edits retire selection and inspection" />
+              </WrapPanel>
               <TextBox x:Name="MemoryIdFilter" Text="{Binding MemoryIdFilter, Mode=TwoWay}"
                        IsEnabled="{Binding CanFilterMemories}" PlaceholderText="Exact memory GUID, or empty for Any"
                        AutomationProperties.Name="Exact memory GUID filter over listed metadata only; no content reads" />
@@ -693,6 +705,7 @@
         </TabItem>
         </TabControl>
       </Grid>
+      </ScrollViewer>
     </Grid>
     <WrapPanel Grid.Row="5">
       <Button x:Name="NextQuestions" Content="Next questions" IsEnabled="{Binding CanNextQuestions}" />

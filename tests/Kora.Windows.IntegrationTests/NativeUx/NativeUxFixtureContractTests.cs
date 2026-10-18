@@ -470,15 +470,30 @@ public sealed partial class NativeUxFixtureContractTests
                 records.UpdateLayout();
                 var pending = viewer.WorkRecords.Single(record => record.Queue?.Entry.State == SessionQueueState.Pending);
                 var provider = peer.GetProvider<Avalonia.Automation.Provider.IScrollProvider>()!;
-                provider.VerticallyScrollable.Should().BeTrue();
-                foreach (var percent in new double[] { 0, 25, 50, 75, 100 })
+                foreach (var size in new[] { new Avalonia.Size(900, 700), new Avalonia.Size(1180, 900) })
                 {
-                    provider.SetScrollPercent(-1, percent);
+                    window.Width = size.Width;
+                    window.Height = size.Height;
+                    Avalonia.Threading.Dispatcher.UIThread.RunJobs();
+                    window.UpdateLayout();
+                    records.Bounds.Height.Should().BeGreaterThan(0).And.BeLessThan(window.ClientSize.Height);
+                    var pane = window.FindControl<ScrollViewer>("SelectedSessionWorkPane")!;
+                    pane.Viewport.Height.Should().BeGreaterThan(0);
+                    pane.Extent.Height.Should().Be(960, "the inner star grid must have a finite measurement");
+                    var visibleHeight = Math.Min(records.Bounds.Height, pane.Viewport.Height);
+                    records.BringIntoView(new Avalonia.Rect(0, records.Bounds.Height - visibleHeight,
+                        records.Bounds.Width, visibleHeight));
                     records.UpdateLayout();
-                    if (records.ContainerFromItem(pending) is not null) { break; }
+                    provider.VerticallyScrollable.Should().BeTrue();
+                    foreach (var percent in new double[] { 0, 25, 50, 75, 100 })
+                    {
+                        provider.SetScrollPercent(-1, percent);
+                        records.UpdateLayout();
+                        if (records.ContainerFromItem(pending) is not null) { break; }
+                    }
+                    records.ContainerFromItem(pending).Should().NotBeNull($"the work viewport must remain usable (bounds {records.Bounds}, scroll {provider.VerticalScrollPercent}, view {provider.VerticalViewSize}; ancestors {string.Join(';', records.GetVisualAncestors().OfType<Control>().Select(control => control.GetType().Name + ':' + control.Bounds))})");
+                    Descendants(peer).Should().Contain(child => child.GetName().Contains(pending.TaskId.ToString("D"), StringComparison.Ordinal));
                 }
-                records.ContainerFromItem(pending).Should().NotBeNull($"the work viewport must remain usable (bounds {records.Bounds}, scroll {provider.VerticalScrollPercent}, view {provider.VerticalViewSize}; ancestors {string.Join(';', records.GetVisualAncestors().OfType<Control>().Select(control => control.GetType().Name + ':' + control.Bounds))})");
-                Descendants(peer).Should().Contain(child => child.GetName().Contains(pending.TaskId.ToString("D"), StringComparison.Ordinal));
             }
 
             finally { window.Close(); }

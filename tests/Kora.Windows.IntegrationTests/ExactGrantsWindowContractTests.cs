@@ -18,9 +18,11 @@ public sealed class ExactGrantsWindowContractTests
             "HistoryRetentionFilter}", "HistoryCommittedFromUtc", "HistoryCommittedUntilUtc", "HistoryDueFromUtc", "HistoryDueUntilUtc",
             "HistoryAuditCorrelationId", "HistoryApprovalFilter}", "HistoryApprovalId",
             "HistorySessionId", "HistoryRequestId", "HistoryTaskId",
+            "HistoryMinimumOtherChanges", "HistoryMaximumOtherChanges",
+            "HistoryMinimumOtherRequestedGrants", "HistoryMaximumOtherRequestedGrants",
             "ScopeFilter}", "StatusFilter}", "ActionIdFilter", "OriginatingSessionFilter", "ClearFiltersCommand", "InventorySummary" })
         {
-            var control = document.Descendants().Single(element => element.Attributes().Any(attribute =>
+            var control = document.Descendants().Where(element => !string.Equals(element.Name.LocalName, "KeyBinding", StringComparison.Ordinal)).Single(element => element.Attributes().Any(attribute =>
                 attribute.Value.Contains("{Binding " + binding, StringComparison.Ordinal)));
             control.Attribute("AutomationProperties.Name")!.Value.Should().NotBeNullOrWhiteSpace();
         }

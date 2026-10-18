@@ -380,6 +380,7 @@ public sealed partial class ExactGrantsViewModel : ObservableObject, IDisposable
         historyAuditCorrelationId = historyApprovalId = string.Empty;
         historySessionId = historyRequestId = historyTaskId = string.Empty;
         historyApprovalFilter = "Any";
+        ClearHistoryCollateralInputs();
         InventorySummary = "Closed. No retained query metadata or late private output is admitted.";
         OnPropertyChanged(nameof(ScopeFilter));
         OnPropertyChanged(nameof(StatusFilter));

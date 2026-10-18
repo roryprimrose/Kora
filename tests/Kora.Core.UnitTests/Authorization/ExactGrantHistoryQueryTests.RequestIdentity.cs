@@ -45,7 +45,7 @@ public sealed partial class ExactGrantHistoryQueryTests
             }
         }
         digests.Should().HaveCount(27);
-        var canonical = "exact-grant-history-query-v5\nany\n\nany\nany\n\n\n\n\n\n0\n\n\n\n";
+        var canonical = "exact-grant-history-query-v6\nany\n\nany\nany\n\n\n\n\n\n0\n\n\n\n\n\n\n\n";
         ExactGrantHistoryQuery.Unfiltered.Digest.Should().Be(
             Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(canonical))));
         ExactGrantHistoryQuery.FromInput("Any", "").Should().Be(ExactGrantHistoryQuery.Unfiltered);

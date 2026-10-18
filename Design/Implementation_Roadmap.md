@@ -57,6 +57,22 @@ The [reader](../src/Kora.Application/Hosting/SessionWorkspaceService.WorkOvervie
 This consumes existing observation/query/reader/native I contracts, with [deterministic tests](../tests/Kora.Application.UnitTests/Hosting/SessionWorkspaceServiceTests.WorkOverviewTaskQuery.cs), not broad Rxx or physical qualification.
 No schema/read authority or task/body/network/device/dispatch operation is added; unqualified runtime/provider/egress/wake/profile writers remain unavailable and no E/Q enablement is claimed ([boundary](Work_Management.md#delivered-passive-cross-session-work-observation---2026-10-11)).
 
+### Bounded exact-grant collateral count ranges - 2026-10-18
+
+The existing [one-exact-grant history](User_Configuration.md#delivered-native-exact-operation-grants--2026-10-10)
+adds optional inclusive nonnegative Int32 Min/Max ranges for other committed
+changes and requested grant references, AND-composed with every existing predicate.
+The [query](../src/Kora.Core/Authorization/ExactGrantHistoryQuery.cs) owns strict
+shared-decimal admission and versioned full-query digest; the
+[reader](../src/Kora.Windows/Storage/WindowsSqliteHostInteractionStore.ExactGrantHistory.cs)
+validates the bounded prefix even beyond a full result budget.
+Accessible [native fields](../src/Kora/ExactGrantsWindow.axaml) retain read-free
+edit/Clear/Escape retirement and all admission fences. Counts add no collateral
+identity/detail disclosure, execution/completeness proof or authority.
+This consumes only the existing ExactGrants I subset; no service/schema/source,
+logging/audit mutation or runtime/provider/egress/wake/profile-writer enablement
+is added. Broader installed/native/hardware/provider E/Q qualification is unchanged.
+
 ### Bounded exact-grant committed request correlation predicates - 2026-10-17
 
 The [one-exact-grant history](../docs/settings.md#exact-operation-grants)

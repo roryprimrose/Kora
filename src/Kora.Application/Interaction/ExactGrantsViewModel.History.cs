@@ -38,7 +38,8 @@ public sealed partial class ExactGrantsViewModel
         var exact = inspectedHistoryTarget ?? throw new InvalidOperationException("Inspect one actual retained exact ID before reading history.");
         var query = ExactGrantHistoryQuery.FromInput(HistoryOutcomeFilter, HistoryReasonCodeFilter, HistoryInitiatorFilter,
             HistoryRetentionFilter, HistoryCommittedFromUtc, HistoryCommittedUntilUtc, HistoryDueFromUtc, HistoryDueUntilUtc,
-            HistoryAuditCorrelationId, HistoryApprovalFilter, HistoryApprovalId, HistorySessionId, HistoryRequestId, HistoryTaskId);
+            HistoryAuditCorrelationId, HistoryApprovalFilter, HistoryApprovalId, HistorySessionId, HistoryRequestId, HistoryTaskId,
+            HistoryMinimumOtherChanges, HistoryMaximumOtherChanges, HistoryMinimumOtherRequestedGrants, HistoryMaximumOtherRequestedGrants);
         using var linked = Begin(token);
         var revision = historyControlRevision;
         var admissionId = historyAdmissionId;

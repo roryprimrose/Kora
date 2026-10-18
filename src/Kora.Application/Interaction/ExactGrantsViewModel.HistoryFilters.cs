@@ -21,6 +21,10 @@ public sealed partial class ExactGrantsViewModel
     private string historySessionId = string.Empty;
     private string historyRequestId = string.Empty;
     private string historyTaskId = string.Empty;
+    private string historyMinimumOtherChanges = string.Empty;
+    private string historyMaximumOtherChanges = string.Empty;
+    private string historyMinimumOtherRequestedGrants = string.Empty;
+    private string historyMaximumOtherRequestedGrants = string.Empty;
     private Guid historyAdmissionId;
 
     public static ImmutableArray<string> HistoryOutcomeFilters { get; } =
@@ -158,6 +162,53 @@ public sealed partial class ExactGrantsViewModel
         }
     }
 
+    public string HistoryMinimumOtherChanges
+    {
+        get => historyMinimumOtherChanges;
+        set
+        {
+            ObjectDisposedException.ThrowIf(disposed, this);
+            if (SetProperty(ref historyMinimumOtherChanges, value)) { HistoryFiltersChanged(); }
+        }
+    }
+    public string HistoryMaximumOtherChanges
+    {
+        get => historyMaximumOtherChanges;
+        set
+        {
+            ObjectDisposedException.ThrowIf(disposed, this);
+            if (SetProperty(ref historyMaximumOtherChanges, value)) { HistoryFiltersChanged(); }
+        }
+    }
+    public string HistoryMinimumOtherRequestedGrants
+    {
+        get => historyMinimumOtherRequestedGrants;
+        set
+        {
+            ObjectDisposedException.ThrowIf(disposed, this);
+            if (SetProperty(ref historyMinimumOtherRequestedGrants, value)) { HistoryFiltersChanged(); }
+        }
+    }
+    public string HistoryMaximumOtherRequestedGrants
+    {
+        get => historyMaximumOtherRequestedGrants;
+        set
+        {
+            ObjectDisposedException.ThrowIf(disposed, this);
+            if (SetProperty(ref historyMaximumOtherRequestedGrants, value)) { HistoryFiltersChanged(); }
+        }
+    }
+
+    private void ClearHistoryCollateralInputs()
+    {
+        historyMinimumOtherChanges = historyMaximumOtherChanges = string.Empty;
+        historyMinimumOtherRequestedGrants = historyMaximumOtherRequestedGrants = string.Empty;
+        OnPropertyChanged(nameof(HistoryMinimumOtherChanges));
+        OnPropertyChanged(nameof(HistoryMaximumOtherChanges));
+        OnPropertyChanged(nameof(HistoryMinimumOtherRequestedGrants));
+        OnPropertyChanged(nameof(HistoryMaximumOtherRequestedGrants));
+    }
+
     public void ClearHistoryFilters()
     {
         ObjectDisposedException.ThrowIf(disposed, this);
@@ -172,6 +223,7 @@ public sealed partial class ExactGrantsViewModel
         historyAuditCorrelationId = historyApprovalId = string.Empty;
         historySessionId = historyRequestId = historyTaskId = string.Empty;
         historyApprovalFilter = "Any";
+        ClearHistoryCollateralInputs();
         OnPropertyChanged(nameof(HistoryOutcomeFilter));
         OnPropertyChanged(nameof(HistoryInitiatorFilter));
         OnPropertyChanged(nameof(HistoryReasonCodeFilter));
@@ -199,7 +251,7 @@ public sealed partial class ExactGrantsViewModel
         historyControlRevision = revision;
         historyAdmissionId = Guid.NewGuid();
         HistorySummary = "History filters changed. Read explicitly for the inspected exact ID; typing performs no read. "
-            + "Outcome, initiator, exact canonical reason, retention, inclusive UTC ranges and audit/approval/request correlation metadata match the complete committed envelope, "
+            + "Outcome, initiator, exact canonical reason, retention, inclusive UTC/count ranges and audit/approval/request correlation metadata match the complete committed envelope, "
             + "not separately retained Requested review.";
         Message = "History filters changed. Rows, continuation and actionable selection/reviews retired. Fresh explicit Read required.";
         OnPropertyChanged(nameof(Inspection));

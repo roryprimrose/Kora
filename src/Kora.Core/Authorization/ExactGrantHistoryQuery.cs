@@ -17,7 +17,9 @@ public sealed record ExactGrantHistoryQuery
         DateTimeOffset? committedFromUtc = null, DateTimeOffset? committedUntilUtc = null,
         DateTimeOffset? dueFromUtc = null, DateTimeOffset? dueUntilUtc = null,
         Guid? auditCorrelationId = null, ExactGrantHistoryApproval approval = ExactGrantHistoryApproval.Any,
-        Guid? approvalId = null, Guid? sessionId = null, Guid? requestId = null, Guid? taskId = null)
+        Guid? approvalId = null, Guid? sessionId = null, Guid? requestId = null, Guid? taskId = null,
+        int? minimumOtherChanges = null, int? maximumOtherChanges = null,
+        int? minimumOtherRequestedGrants = null, int? maximumOtherRequestedGrants = null)
     {
         if (outcome is { } value && !Enum.IsDefined(value))
         {
@@ -33,6 +35,12 @@ public sealed record ExactGrantHistoryQuery
         }
         ValidateRange(committedFromUtc, committedUntilUtc);
         ValidateRange(dueFromUtc, dueUntilUtc);
+        ValidateCountRange(minimumOtherChanges, maximumOtherChanges);
+        ValidateCountRange(minimumOtherRequestedGrants, maximumOtherRequestedGrants);
+        MinimumOtherChanges = minimumOtherChanges;
+        MaximumOtherChanges = maximumOtherChanges;
+        MinimumOtherRequestedGrants = minimumOtherRequestedGrants;
+        MaximumOtherRequestedGrants = maximumOtherRequestedGrants;
         if (auditCorrelationId == Guid.Empty || approvalId == Guid.Empty || !Enum.IsDefined(approval)
             || (approval == ExactGrantHistoryApproval.Exact) != approvalId.HasValue)
         {
@@ -56,7 +64,7 @@ public sealed record ExactGrantHistoryQuery
         DueFromUtc = dueFromUtc;
         DueUntilUtc = dueUntilUtc;
         ReasonCode = reasonCode is null ? null : SecurityAuditEvent.ValidateReasonCode(reasonCode);
-        var canonical = "exact-grant-history-query-v5\n"
+        var canonical = "exact-grant-history-query-v6\n"
             + (outcome is { } typed ? ((int)typed).ToString(CultureInfo.InvariantCulture) : "any")
             + "\n" + (reasonCode ?? string.Empty)
             + "\n" + (initiator is { } origin ? ((int)origin).ToString(CultureInfo.InvariantCulture) : "any")
@@ -70,7 +78,11 @@ public sealed record ExactGrantHistoryQuery
             + "\n" + approvalId?.ToString("D")
             + "\n" + sessionId?.ToString("D")
             + "\n" + requestId?.ToString("D")
-            + "\n" + taskId?.ToString("D");
+            + "\n" + taskId?.ToString("D")
+            + "\n" + minimumOtherChanges?.ToString(CultureInfo.InvariantCulture)
+            + "\n" + maximumOtherChanges?.ToString(CultureInfo.InvariantCulture)
+            + "\n" + minimumOtherRequestedGrants?.ToString(CultureInfo.InvariantCulture)
+            + "\n" + maximumOtherRequestedGrants?.ToString(CultureInfo.InvariantCulture);
         Digest = Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(canonical)));
     }
 
@@ -89,6 +101,10 @@ public sealed record ExactGrantHistoryQuery
     public Guid? SessionId { get; }
     public Guid? RequestId { get; }
     public Guid? TaskId { get; }
+    public int? MinimumOtherChanges { get; }
+    public int? MaximumOtherChanges { get; }
+    public int? MinimumOtherRequestedGrants { get; }
+    public int? MaximumOtherRequestedGrants { get; }
     public string Digest { get; }
     public static ImmutableArray<ExactGrantHistoryInitiatorOption> InitiatorOptions { get; } =
         [new(null), .. Enum.GetValues<SecurityAuditInitiator>().Select(value => new ExactGrantHistoryInitiatorOption(value))];
@@ -99,7 +115,9 @@ public sealed record ExactGrantHistoryQuery
     public static ExactGrantHistoryQuery FromInput(string outcome, string reasonCode, string initiator = "Any",
         string retention = "Any", string committedFromUtc = "", string committedUntilUtc = "",
         string dueFromUtc = "", string dueUntilUtc = "", string auditCorrelationId = "",
-        string approval = "Any", string approvalId = "", string sessionId = "", string requestId = "", string taskId = "")
+        string approval = "Any", string approvalId = "", string sessionId = "", string requestId = "", string taskId = "",
+        string minimumOtherChanges = "", string maximumOtherChanges = "",
+        string minimumOtherRequestedGrants = "", string maximumOtherRequestedGrants = "")
     {
         SecurityAuditOutcome? parsed = outcome switch
         {
@@ -134,7 +152,27 @@ public sealed record ExactGrantHistoryQuery
             OptionalCanonicalUtc.Parse(committedFromUtc), OptionalCanonicalUtc.Parse(committedUntilUtc),
             OptionalCanonicalUtc.Parse(dueFromUtc), OptionalCanonicalUtc.Parse(dueUntilUtc),
             ParseOptionalId(auditCorrelationId), parsedApproval, ParseOptionalId(approvalId),
-            ParseOptionalId(sessionId), ParseOptionalId(requestId), ParseOptionalId(taskId));
+            ParseOptionalId(sessionId), ParseOptionalId(requestId), ParseOptionalId(taskId),
+            ParseCount(minimumOtherChanges), ParseCount(maximumOtherChanges),
+            ParseCount(minimumOtherRequestedGrants), ParseCount(maximumOtherRequestedGrants));
+    }
+
+    private static int? ParseCount(string text)
+    {
+        var value = OptionalUnsignedDecimal.Parse(text);
+        if (value > int.MaxValue)
+        {
+            throw new InvalidDataException("Collateral counts must fit the nonnegative Int32 entry domain. Empty means Any.");
+        }
+        return (int?)value;
+    }
+
+    private static void ValidateCountRange(int? minimum, int? maximum)
+    {
+        if (minimum < 0 || maximum < 0 || minimum > maximum)
+        {
+            throw new InvalidDataException("Collateral count bounds must be nonnegative with Min <= Max. Empty means Any.");
+        }
     }
 
     private static Guid? ParseOptionalId(string text)
@@ -163,7 +201,8 @@ public sealed record ExactGrantHistoryQuery
     {
         ArgumentNullException.ThrowIfNull(entry);
         // Storage validates the complete envelope and provenance before exclusion; reject invalid projected metadata too.
-        if (entry.Request is null || entry.Audit is null || entry.Audit.ApprovalId == Guid.Empty
+        if (entry.OtherChanges < 0 || entry.OtherRequestedGrants < 0
+            || entry.Request is null || entry.Audit is null || entry.Audit.ApprovalId == Guid.Empty
             || entry.CommittedAt.Offset != TimeSpan.Zero || entry.DueAt.Offset != TimeSpan.Zero
             || entry.DueAt < entry.CommittedAt
             || entry.Retention is not EvidenceSegmentStatus.Present and not EvidenceSegmentStatus.ExpiredButPresent)
@@ -179,6 +218,10 @@ public sealed record ExactGrantHistoryQuery
             && (CommittedUntilUtc is not { } committedUntil || entry.CommittedAt <= committedUntil)
             && (DueFromUtc is not { } dueFrom || entry.DueAt >= dueFrom)
             && (DueUntilUtc is not { } dueUntil || entry.DueAt <= dueUntil)
+            && (MinimumOtherChanges is not { } minimumChanges || entry.OtherChanges >= minimumChanges)
+            && (MaximumOtherChanges is not { } maximumChanges || entry.OtherChanges <= maximumChanges)
+            && (MinimumOtherRequestedGrants is not { } minimumRequested || entry.OtherRequestedGrants >= minimumRequested)
+            && (MaximumOtherRequestedGrants is not { } maximumRequested || entry.OtherRequestedGrants <= maximumRequested)
             && (SessionId is not { } session || session == entry.Request.SessionId.Value)
             && (RequestId is not { } request || request == entry.Request.RequestId.Value)
             && (TaskId is not { } task || task == entry.Request.TaskId.Value)

@@ -5,6 +5,9 @@
         xmlns:controls="using:Kora.Controls"
         x:Class="Kora.ExactGrantsWindow" x:DataType="vm:ExactGrantsViewModel"
         Title="Exact operation grants" Width="1050" Height="780" MinWidth="650" MinHeight="480">
+  <Window.KeyBindings>
+    <KeyBinding Gesture="Escape" Command="{Binding ClearHistoryFiltersCommand}" />
+  </Window.KeyBindings>
   <Grid Margin="20" RowDefinitions="Auto,Auto,*,Auto,Auto" RowSpacing="12">
     <StackPanel Spacing="8">
       <TextBlock Text="Exact operation grants — retained host-issued metadata, not legacy named-action preferences"
@@ -147,7 +150,27 @@
               <TextBox Text="{Binding HistoryTaskId}" PlaceholderText="canonical lowercase D GUID, or empty"
                        AutomationProperties.Name="Exact grant history committed request task ID, passive correlation only, typing performs no read" MinWidth="300" />
             </StackPanel>
-            <TextBlock Text="Correlation metadata only, not authority or session selection. Request IDs match only the committed envelope, not the viewer or original grant proposal. Absent means a validated committed event without an approval ID, not unknown."
+            <StackPanel Margin="0,0,12,0">
+              <TextBlock Text="Other committed changes Min (inclusive)" />
+              <TextBox Text="{Binding HistoryMinimumOtherChanges}" PlaceholderText="nonnegative integer; empty means Any"
+                       AutomationProperties.Name="Exact grant history other committed changes Min inclusive, empty means Any, typing performs no read" MinWidth="220" />
+            </StackPanel>
+            <StackPanel Margin="0,0,12,0">
+              <TextBlock Text="Other committed changes Max (inclusive)" />
+              <TextBox Text="{Binding HistoryMaximumOtherChanges}" PlaceholderText="nonnegative integer; empty means Any"
+                       AutomationProperties.Name="Exact grant history other committed changes Max inclusive, empty means Any, typing performs no read" MinWidth="220" />
+            </StackPanel>
+            <StackPanel Margin="0,0,12,0">
+              <TextBlock Text="Other requested grant references Min (inclusive)" />
+              <TextBox Text="{Binding HistoryMinimumOtherRequestedGrants}" PlaceholderText="nonnegative integer; empty means Any"
+                       AutomationProperties.Name="Exact grant history other requested grant references Min inclusive, empty means Any, typing performs no read" MinWidth="220" />
+            </StackPanel>
+            <StackPanel Margin="0,0,12,0">
+              <TextBlock Text="Other requested grant references Max (inclusive)" />
+              <TextBox Text="{Binding HistoryMaximumOtherRequestedGrants}" PlaceholderText="nonnegative integer; empty means Any"
+                       AutomationProperties.Name="Exact grant history other requested grant references Max inclusive, empty means Any, typing performs no read" MinWidth="220" />
+            </StackPanel>
+            <TextBlock Text="Collateral counts concern only the validated committed envelope, not identities, details, execution, completeness or authority. Correlation metadata only, not authority or session selection. Request IDs match only the committed envelope, not the viewer or original grant proposal. Absent means a validated committed event without an approval ID, not unknown."
                        TextWrapping="Wrap" MaxWidth="400" />
           </WrapPanel>
           </ScrollViewer>

@@ -91,14 +91,16 @@ internal sealed partial class OwnedInstructionEditorController
             var query = opened.QueryInput.Text ?? string.Empty;
             var mode = opened.QueryModeInput.SelectedItem is OwnedDefinitionInventoryQueryMode selectedMode
                 ? selectedMode : throw new InvalidOperationException("Select an explicit owned metadata navigation mode.");
+            var order = opened.OrderInput.SelectedItem is OwnedDefinitionInventoryOrder selectedOrder
+                ? selectedOrder : throw new InvalidOperationException("Select an explicit owned metadata order.");
             var filter = opened.UseStateInput.SelectedItem is OwnedDefinitionUseFilter value ? value : OwnedDefinitionUseFilter.All;
             var digest = opened.DigestInput.Text ?? string.Empty;
             var revision = opened.RevisionInput.Text ?? string.Empty;
             var from = opened.ObservedFromInput.Text ?? string.Empty;
             var until = opened.ObservedUntilInput.Text ?? string.Empty;
             var page = next && inventoryPage is { } previous
-                ? snapshot.Continue(previous, query, filter, digest, revision, from, until, mode)
-                : snapshot.Page(query, filter, digest: digest, revision: revision, observedFromUtc: from, observedUntilUtc: until, mode: mode);
+                ? snapshot.Continue(previous, query, filter, digest, revision, from, until, mode, order)
+                : snapshot.Page(query, filter, digest: digest, revision: revision, observedFromUtc: from, observedUntilUtc: until, mode: mode, order: order);
             inventoryPage = page;
             opened.ShowInventory(page);
             if (selected is not null && (edited || !page.Rows.Contains(selected)))

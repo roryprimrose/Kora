@@ -17,6 +17,11 @@ internal sealed class OwnedInstructionEditorWindow : Window
         Width = 180, ItemsSource = Enum.GetValues<OwnedDefinitionInventoryQueryMode>(),
         SelectedItem = OwnedDefinitionInventoryQueryMode.Literal,
     };
+    internal readonly ComboBox OrderInput = new()
+    {
+        Width = 210, ItemsSource = Enum.GetValues<OwnedDefinitionInventoryOrder>(),
+        SelectedItem = OwnedDefinitionInventoryOrder.FileNameAscending,
+    };
     internal readonly TextBox DigestInput = new() { Width = 300, PlaceholderText = "Exact SHA-256 (empty means Any)" };
     internal readonly TextBox RevisionInput = new() { Width = 300, PlaceholderText = "Exact native revision (empty means Any)" };
     internal readonly TextBox ObservedFromInput = new() { Width = 300, PlaceholderText = "yyyy-MM-ddTHH:mm:ss.fffffff+00:00" };
@@ -74,6 +79,9 @@ internal sealed class OwnedInstructionEditorWindow : Window
         panel.Children.Add(controls);
         var search = new WrapPanel { Orientation = Orientation.Horizontal };
         search.Children.Add(new TextBlock { Text = "Owned metadata search: ", VerticalAlignment = VerticalAlignment.Center });
+        search.Children.Add(new TextBlock { Text = "Order: ", VerticalAlignment = VerticalAlignment.Center });
+        AutomationProperties.SetName(OrderInput, "Owned metadata order: FileNameAscending (default), FileNameDescending, DisplayNameAscending or DisplayNameDescending; ordinal extensionless owned filename IDs; absent display names last; filename ascending ties; metadata only");
+        search.Children.Add(OrderInput);
         search.Children.Add(new TextBlock { Text = "Navigation mode: ", VerticalAlignment = VerticalAlignment.Center });
         AutomationProperties.SetName(QueryModeInput, "Owned metadata navigation mode: Literal, ExactOwnedId or ExactArtifactId; metadata only");
         search.Children.Add(QueryModeInput);
@@ -94,7 +102,7 @@ internal sealed class OwnedInstructionEditorWindow : Window
         search.Children.Add(ObservedUntilInput);
         search.Children.Add(NextPage);
         var clear = new Button { Content = "Clear search", Margin = new(3) };
-        AutomationProperties.SetName(clear, "Clear all owned metadata predicates; Literal mode, empty query, All use state, Any digest, revision and observed UTC bounds");
+        AutomationProperties.SetName(clear, "Clear all owned metadata predicates and order; FileNameAscending, Literal mode, empty query, All use state, Any digest, revision and observed UTC bounds");
         clear.Click += (_, _) => { ClearSearch(); run("Filter"); };
         search.Children.Add(clear);
         QueryInput.PropertyChanged += (_, change) => { if (change.Property == TextBox.TextProperty) { run("Filter"); } };
@@ -103,6 +111,7 @@ internal sealed class OwnedInstructionEditorWindow : Window
         ObservedFromInput.PropertyChanged += (_, change) => { if (change.Property == TextBox.TextProperty) { run("Filter"); } };
         ObservedUntilInput.PropertyChanged += (_, change) => { if (change.Property == TextBox.TextProperty) { run("Filter"); } };
         UseStateInput.SelectionChanged += (_, _) => run("Filter");
+        OrderInput.SelectionChanged += (_, _) => run("Filter");
         QueryModeInput.SelectionChanged += (_, _) =>
         {
             var label = QueryModeInput.SelectedItem switch
@@ -152,6 +161,7 @@ internal sealed class OwnedInstructionEditorWindow : Window
     internal void Report(string text) => status.Text = text;
     internal void ClearSearch()
     {
+        OrderInput.SelectedItem = OwnedDefinitionInventoryOrder.FileNameAscending;
         QueryModeInput.SelectedItem = OwnedDefinitionInventoryQueryMode.Literal;
         QueryInput.Text = string.Empty; UseStateInput.SelectedItem = OwnedDefinitionUseFilter.All; DigestInput.Text = string.Empty;
         RevisionInput.Text = string.Empty; ObservedFromInput.Text = string.Empty; ObservedUntilInput.Text = string.Empty;

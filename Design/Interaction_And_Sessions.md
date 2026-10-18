@@ -298,6 +298,20 @@ scaffolding or rejected runtimes. Generic conversation generation, global/
 voice routing, model history assembly, execution, hardware/native accessibility,
 provider/authentication and full R12/R14/RC acceptance remain separately gated.
 
+### Passive observed saved-draft / composer Compare - 2026-10-18
+
+**Sessions > Exact-session conversation and composer > Compare observed saved draft / memory buffer** explicitly freezes the already observed saved body and current raw memory buffer. It requires an observed draft for the exact selected session/generation under the same private control epoch; it never reads an unobserved baseline ([admission](../src/Kora/SessionsViewModel.ComposerComparison.cs)).
+
+The left label names the exact session ID, generation and observed saved revision as historical, **not current disk**. A missing saved body is an absent baseline, not empty/equal. The right preserves all spaces, newlines and Unicode. Both complete bodies pass authoritative [ConversationText](../src/Kora.Core/Conversation/ConversationText.cs) validation; invalid/oversize text is refused, never normalized or truncated.
+
+Only ordinal equality/difference of those frozen bodies is reported: no semantic safety, durable freshness, Save or Submit claim. Compare does not change composer body/baseline/dirty or unsaved-close decisions, saved revision, activity, audit, task/grant/approval authority or existing draft operations ([portable state](../src/Kora.Application/Presentation/ConversationDraftComparison.cs)).
+
+The native window offers only pane-local existing literal Find and Close/Escape. It reuses the [inert source/transfer-blocking pane](../src/Kora/SnapshotComparisonFindPane.cs), independently of owned-artifact serialization. No source read/reload/save/submit/clear, clipboard, model or network action is added; neither automatic Compare nor snapshot refresh occurs ([window](../src/Kora/ConversationDraftComparisonWindow.cs)).
+
+Composer edits (including through compact shared controls), source/selection/generation/private control changes, read/save/reload/clear/submit and dirty-close protection retire the snapshots/window/queries. Replacement, owner close/disposal and reentrant opening/match/focus callbacks clear retained controls and fence resurrection ([native tests](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.ComposerComparison.cs), [portable tests](../tests/Kora.Application.UnitTests/Presentation/ConversationDraftComparisonTests.cs)).
+
+This consumes only the existing composer/observed-draft/text/pane I subset. No schema, provider, runtime, egress, wake, profile writer or new authority is enabled; installed-native/accessibility, physical/hardware/acoustic/provider and RC qualification remain separate ([delivery policy](Implementation_Roadmap.md#delivery-and-qualification-dependency-policy)).
+
 ## Delivered explicit expanded-prompt submission — 2026-10-13
 The native owned-v2 prompt form can independently review an exact existing Active target and explicitly retain its current expanded USER text through the same `SessionConversationService`, screening, atomic message/task/audit and provider-neutral admission. Preview and old Use remain nonpersisting. No new schema, separate form-value storage, source-authority inheritance or draft import is introduced.
 The final confirmation names immutable target identity/revisions and displays the entire body, with private readable SQLite/retention and unavailable-generation disclosure. Source provenance is volatile only. Cancel writes no message; stale target/source/private admission refuses, and uncertain COMMIT requires exact receipt inspection without replay. See [prompt controls](../docs/instruction-editor.md#submit-an-expanded-request-to-one-exact-session).

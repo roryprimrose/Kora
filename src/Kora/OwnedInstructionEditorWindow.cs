@@ -229,8 +229,8 @@ internal sealed class OwnedInstructionEditorWindow : Window
         var sources = new Grid { ColumnDefinitions = new("*,*") };
         Func<bool>? eligibility = current;
         bool Current() => IsVisible && dialog.IsVisible && eligibility?.Invoke() == true;
-        var before = new OwnedComparisonFindPane("Frozen inspected baseline", comparison.Original?.Document.Text, Current, dialog.Close);
-        var after = new OwnedComparisonFindPane("Exact raw memory draft (not prepared Save bytes)", comparison.Draft, Current, dialog.Close);
+        var before = new SnapshotComparisonFindPane("Frozen inspected baseline", comparison.Original?.Document.Text, Current, dialog.Close);
+        var after = new SnapshotComparisonFindPane("Exact raw memory draft (not prepared Save bytes)", comparison.Draft, Current, dialog.Close);
         Grid.SetColumn(after, 1);
         sources.Children.Add(before); sources.Children.Add(after);
         root.Children.Add(sources);

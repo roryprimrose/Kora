@@ -46,6 +46,14 @@ internal sealed partial class SessionsWindow : Window
                 }
             };
         }
+        CompareComposer.Click += (_, _) =>
+        {
+            if (IsVisible && model.CompareComposer() is { } comparison)
+            {
+                var dialog = new ConversationDraftComparisonWindow(this, model, comparison);
+                dialog.Open(this);
+            }
+        };
         SaveConversationDraft.Click += async (_, _) => await (ConversationOperation = model.SaveConversationDraftAsync());
         ReloadConversationDraft.Click += async (_, _) => await (ConversationOperation = model.ReloadConversationDraftAsync());
         DiscardComposer.Click += (_, _) => model.DiscardComposerBuffer();

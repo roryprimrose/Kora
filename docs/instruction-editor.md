@@ -153,13 +153,13 @@ Validation makes no owned-store List/Read/Write, source reload, revision-prefere
 
 The [passive comparison](../src/Kora/OwnedInstructionEditorWindow.cs) shows the whole frozen historical original on the left and exact raw memory draft on the right in inert read-only native source panes. Missing/new baselines are labelled explicitly. BOM is separate metadata, not a visible inserted character; all original metadata, attribution, whitespace and newlines remain in the panes.
 
-Each [pane-local Find](../src/Kora/OwnedComparisonFindPane.cs) has its own private query, **Find first**, **Find next**, **Find previous** and **Clear Find**. Missing/new baselines have no searchable source; their Find controls are disabled, not backed by placeholder text. An empty but present raw draft is searchable and truthfully yields no match for a valid query.
+Each [pane-local Find](../src/Kora/SnapshotComparisonFindPane.cs) has its own private query, **Find first**, **Find next**, **Find previous** and **Clear Find**. Missing/new baselines have no searchable source; their Find controls are disabled, not backed by placeholder text. An empty but present raw draft is searchable and truthfully yields no match for a valid query.
 
 [Literal Find policy](../src/Kora.Core/Context/SnapshotLiteralFind.cs): case-sensitive ordinal text with exact spaces; no regex, normalization, case folding, forward overlap, wrap or count. Queries require nonempty, well-formed one-line text without unsafe controls, at most 256 UTF-16 characters and 512 UTF-8 bytes. Invalid input is reported without truncation or repair.
 
 One inert match shows zero-based end-exclusive UTF-16 `[start, end)`. No-match and direction-end outcomes differ. At an end, the cursor permits reversing but no old match stays visible. Query edits retire outcome/match/cursor; restart with **Find first** ([tests](../tests/Kora.Windows.IntegrationTests/ArtifactDiscovery/OwnedDefinitionEditorWindowTests.ComparisonFind.cs)).
 
-Within each pane: **Ctrl+F** focuses query, **Enter** finds first, **F3** next, **Shift+F3** previous; **Escape** closes Compare. Tab reaches native controls and the exact match. Full source is not selected, shortened or rewritten. Query/status keeps native typography; the match follows source monospace, not global scaling ([controls](../src/Kora/OwnedComparisonFindPane.cs)).
+Within each pane: **Ctrl+F** focuses query, **Enter** finds first, **F3** next, **Shift+F3** previous; **Escape** closes Compare. Tab reaches native controls and the exact match. Full source is not selected, shortened or rewritten. Query/status keeps native typography; the match follows source monospace, not global scaling ([controls](../src/Kora/SnapshotComparisonFindPane.cs)).
 
 The [shared comparison rules](../src/Kora.Core/ArtifactInvocation/ArtifactSourceComparison.cs) report exact UTF-8 digest/byte equality and changed parsed fields, not a line diff or patch. The raw draft uses the baseline's inherited BOM policy. Each complete pane is bounded to 65536 UTF-8 bytes including BOM. Invalid Unicode and over-budget drafts are rejected without shortening or replacing the editor buffer.
 

@@ -9,6 +9,7 @@ internal sealed partial class SessionsWindow : Window
 {
     private readonly SessionsPresentationOwner owner;
     internal Task ConversationOperation { get; private set; } = Task.CompletedTask;
+    internal Task MemoryBatchOperation { get; private set; } = Task.CompletedTask;
     internal void ClosePrivate()
     {
         owner.Revoke();
@@ -223,6 +224,37 @@ internal sealed partial class SessionsWindow : Window
         EditMemory.Click += async (_, _) => await model.EditMemoryAsync();
         DisableMemory.Click += async (_, _) => await model.DisableMemoryAsync();
         ForgetMemory.Click += async (_, _) => await model.ForgetMemoryAsync();
+        var synchronizingMemoryBatch = false;
+        MemoryBatchRecords.SelectionChanged += (_, _) =>
+        {
+            if (!synchronizingMemoryBatch)
+            {
+                model.SelectMemoryBatch(MemoryBatchRecords.SelectedItems?.OfType<Kora.Core.Commands.MemorySummary>().ToArray() ?? []);
+            }
+        };
+        System.ComponentModel.PropertyChangedEventHandler memoryBatchChanged = (_, args) =>
+        {
+            if (!string.Equals(args.PropertyName, nameof(SessionsViewModel.MemoryBatchSelection), StringComparison.Ordinal)) { return; }
+            synchronizingMemoryBatch = true;
+            try
+            {
+                if (model.MemoryBatchSelection.Count == 0) { MemoryBatchRecords.SelectedItems?.Clear(); }
+            }
+            finally { synchronizingMemoryBatch = false; }
+        };
+        model.PropertyChanged += memoryBatchChanged;
+        Closed += (_, _) => model.PropertyChanged -= memoryBatchChanged;
+        ReviewMemoryBatch.Click += async (_, _) => await (MemoryBatchOperation = model.ReviewMemoryBatchAsync());
+        ConfirmMemoryBatch.Click += async (_, _) => await (MemoryBatchOperation = model.ConfirmMemoryBatchAsync());
+        CancelMemoryBatch.Click += (_, _) => model.CancelMemoryBatch();
+        MemoryBatchRecords.KeyDown += (_, args) =>
+        {
+            if (args.Key == Key.Escape)
+            {
+                args.Handled = true;
+                model.CancelMemoryBatch();
+            }
+        };
         CloseView.Click += (_, _) => Close();
         Closed += (_, _) =>
         {

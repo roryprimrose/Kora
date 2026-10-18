@@ -36,7 +36,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 namespace Kora.Windows.IntegrationTests;
 
 [Collection(nameof(HeadlessUiTestGroup))]
-public sealed class SessionsMemoryFilterTests
+public sealed partial class SessionsMemoryFilterTests
 {
     private static readonly string[] RangeControlNames = ["MemoryMinimumRevisionFilter", "MemoryMaximumRevisionFilter",
         "MemoryCreatedFromFilter", "MemoryCreatedUntilFilter"];
@@ -881,6 +881,7 @@ public sealed class SessionsMemoryFilterTests
         internal int Calls { get; private set; }
         internal bool Hold { get; set; }
         internal bool Fail { get; set; }
+        internal Action<MemoryResult>? AfterTransaction { get; set; }
         internal TaskCompletionSource Entered { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         internal TaskCompletionSource Release { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         public async ValueTask<MemoryBoundary> ReadMemoryBoundaryAsync(HostRequest request, long controlRevision, CancellationToken token)
@@ -891,11 +892,13 @@ public sealed class SessionsMemoryFilterTests
             return await inner.ReadMemoryBoundaryAsync(request, controlRevision, token);
         }
 
-        public ValueTask<MemoryResult> TransactMemoryAsync(HostRequest request, MemoryBoundary boundary,
+        public async ValueTask<MemoryResult> TransactMemoryAsync(HostRequest request, MemoryBoundary boundary,
             Func<ImmutableArray<MemoryRecord>, MemoryStorageCommit> transition, Func<bool> admitted, CancellationToken token)
         {
             Calls++;
-            return inner.TransactMemoryAsync(request, boundary, transition, admitted, token);
+            var result = await inner.TransactMemoryAsync(request, boundary, transition, admitted, token);
+            AfterTransaction?.Invoke(result);
+            return result;
         }
     }
 

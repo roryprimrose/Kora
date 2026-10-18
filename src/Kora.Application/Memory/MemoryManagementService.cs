@@ -10,7 +10,7 @@ using Microsoft.Extensions.Logging;
 namespace Kora.Application.Memory;
 
 /// <summary>Original-user session proposals and management only. No use, model tool or disclosure entry point.</summary>
-internal sealed class MemoryManagementService : IAsyncDisposable
+internal sealed partial class MemoryManagementService : IAsyncDisposable, IMemoryBatchDisableActions
 {
     private readonly SessionWorkspaceService sessions;
     private readonly ManagementAccess access;
@@ -69,7 +69,8 @@ internal sealed class MemoryManagementService : IAsyncDisposable
     }
 
     internal async Task<MemoryCommandResult> ExecuteAsync(MemoryCommand command, RequestOrigin origin,
-        Func<bool> admission, CancellationToken token)
+        Func<bool> admission, CancellationToken token, MemoryRecord? exactDisable = null,
+        Action<MemoryResult>? completed = null)
     {
         ArgumentNullException.ThrowIfNull(command);
         ArgumentNullException.ThrowIfNull(admission);
@@ -137,8 +138,16 @@ internal sealed class MemoryManagementService : IAsyncDisposable
                     id.Validate();
                     var revision = new HostRevision(command.Revision);
                     var record = rows.FirstOrDefault(row => row.Id == id);
-                    if (record is null) { result = new("NotFound", "No such memory belongs to the exact active session."); }
-                    else if (record.Revision != revision) { result = new("RevisionConflict", "Inspect the exact current revision before a fresh action."); }
+                    if (record is null)
+                    {
+                        result = new("NotFound", "No such memory belongs to the exact active session.");
+                        completed?.Invoke(new(MemoryOutcome.NotFound, MemoryReason.Missing));
+                    }
+                    else if (record.Revision != revision)
+                    {
+                        result = new("RevisionConflict", "Inspect the exact current revision before a fresh action.");
+                        completed?.Invoke(new(MemoryOutcome.RevisionConflict, MemoryReason.RevisionMismatch));
+                    }
                     else if (command.Operation == MemoryCommandOperation.Inspect)
                     {
                         lock (stateGate) { inspections[id] = (record, control); }
@@ -163,11 +172,12 @@ internal sealed class MemoryManagementService : IAsyncDisposable
                             MemoryCommandOperation.Review => Admission.ReviewAsync(id, revision, command.Accept, token),
                             MemoryCommandOperation.Admit => Admission.AdmitAsync(id, revision, token),
                             MemoryCommandOperation.Edit => Admission.EditAsync(id, revision, command.Candidate, token),
-                            MemoryCommandOperation.Disable => Admission.DisableAsync(id, revision, token),
+                            MemoryCommandOperation.Disable => Admission.DisableAsync(id, revision, token, exactDisable),
                             MemoryCommandOperation.Forget => Admission.ForgetAsync(id, revision, token),
                             _ => throw new InvalidOperationException("Unsupported memory management operation."),
                         };
                         var changed = await mutation.ConfigureAwait(false);
+                        completed?.Invoke(changed);
                         lock (stateGate) { inspections.Remove(id); }
                         result = new(changed.Outcome.ToString(), changed.Reason.ToString())
                         { Memories = changed.Record is { } updated ? [Summary(updated)] : [] };

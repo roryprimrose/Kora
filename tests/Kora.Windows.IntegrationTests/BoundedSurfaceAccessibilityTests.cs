@@ -174,12 +174,13 @@ public sealed class BoundedSurfaceAccessibilityTests
                 var filter = window.FindControl<ComboBox>("PackageFilter")!;
                 var search = window.FindControl<Button>("SearchPackages")!;
                 var clear = window.FindControl<Button>("ClearPackageSearch")!;
+                var order = window.FindControl<ComboBox>("PackageOrder")!;
                 var definition = window.FindControl<TextBox>("PackageDefinitionDigest")!;
                 var resources = window.FindControl<TextBox>("PackageDeclaredResourceDigest")!;
                 ReadCycle(window, selector, reverse: false).Select(Describe)
-                    .Should().Equal(new Control[] { selected, reader, query, filter, search, clear, definition, resources, selector }.Select(Describe));
+                    .Should().Equal(new Control[] { selected, reader, query, filter, search, clear, order, definition, resources, selector }.Select(Describe));
                 ReadCycle(window, selector, reverse: true).Select(Describe)
-                    .Should().Equal(new Control[] { resources, definition, clear, search, filter, query, reader, selected, selector }.Select(Describe));
+                    .Should().Equal(new Control[] { resources, definition, order, clear, search, filter, query, reader, selected, selector }.Select(Describe));
                 reader.IsReadOnly.Should().BeTrue();
             }
             finally { window.Close(); }
@@ -265,10 +266,11 @@ public sealed class BoundedSurfaceAccessibilityTests
                 var filter = window.FindControl<ComboBox>("PackageFilter")!;
                 var search = window.FindControl<Button>("SearchPackages")!;
                 var clear = window.FindControl<Button>("ClearPackageSearch")!;
+                var order = window.FindControl<ComboBox>("PackageOrder")!;
                 var definition = window.FindControl<TextBox>("PackageDefinitionDigest")!;
                 var resources = window.FindControl<TextBox>("PackageDeclaredResourceDigest")!;
-                var expected = reverse ? new Control[] { resources, definition, clear, search, filter, query, source, tab, selector }
-                    : [tab, source, query, filter, search, clear, definition, resources, selector];
+                var expected = reverse ? new Control[] { resources, definition, order, clear, search, filter, query, source, tab, selector }
+                    : [tab, source, query, filter, search, clear, order, definition, resources, selector];
                 ReadCycle(window, selector, reverse).Select(Describe).Should().Equal(expected.Select(Describe));
                 ReadCycle(window, selector, reverse).Select(Describe).Should().Equal(expected.Select(Describe));
                 source.IsReadOnly.Should().BeTrue();

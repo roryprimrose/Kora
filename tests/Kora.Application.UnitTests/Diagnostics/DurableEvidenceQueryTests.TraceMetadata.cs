@@ -34,6 +34,8 @@ public sealed partial class DurableEvidenceQueryTests
             query with { ActivityName = null }, query with { ActivityName = "Request" },
             query with { ActivityKind = null }, query with { ActivityKind = ActivityKind.Client },
             query with { TraceFlags = null }, query with { TraceFlags = ActivityTraceFlags.Recorded },
+            query with { TraceParentKind = TraceParentKind.ObservedRoot },
+            query with { TraceParentKind = TraceParentKind.ObservedChild },
         ];
         foreach (var value in changed)
         {
@@ -45,6 +47,7 @@ public sealed partial class DurableEvidenceQueryTests
         foreach (var availability in Enum.GetValues<TraceSourceVersionAvailability>())
         foreach (var kind in Enum.GetValues<ActivityKind>())
         foreach (var flags in Enum.GetValues<ActivityTraceFlags>())
+        foreach (var parentKind in Enum.GetValues<TraceParentKind>())
         {
             DurableEvidenceQuery.Validate(query with
             {
@@ -52,6 +55,7 @@ public sealed partial class DurableEvidenceQueryTests
                 TraceSourceVersion = availability == TraceSourceVersionAvailability.Exact ? new string('v', 128) : null,
                 TraceSource = new string('s', 128), ActivityName = new string('n', 128),
                 ActivityKind = kind, TraceFlags = flags,
+                TraceParentKind = parentKind,
             });
         }
     }
@@ -79,6 +83,7 @@ public sealed partial class DurableEvidenceQueryTests
         [
             new() { ActivityKind = (ActivityKind)99 }, new() { TraceFlags = (ActivityTraceFlags)2 },
             new() { TraceSourceVersionAvailability = (TraceSourceVersionAvailability)99 },
+            new() { TraceParentKind = (TraceParentKind)99 },
             new() { TraceSourceVersionAvailability = TraceSourceVersionAvailability.Exact },
             new() { TraceSourceVersion = "1" },
             new() { TraceSourceVersionAvailability = TraceSourceVersionAvailability.Absent, TraceSourceVersion = "1" },

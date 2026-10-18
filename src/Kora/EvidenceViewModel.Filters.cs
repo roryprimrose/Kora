@@ -5,6 +5,7 @@ using System.Runtime.CompilerServices;
 using Kora.Core.Auditing;
 using Kora.Core.Diagnostics;
 using Kora.Core.Hosting;
+using Kora.Core.Storage;
 
 namespace Kora;
 
@@ -17,6 +18,7 @@ internal sealed partial class EvidenceViewModel
     private string traceFilter = string.Empty;
     private string spanFilter = string.Empty;
     private string parentSpanFilter = string.Empty;
+    private TraceParentKindChoice traceParentKind = TraceParentKindChoices[0];
     private string traceSourceFilter = string.Empty;
     private string traceSourceVersionFilter = string.Empty;
     private TraceSourceVersionAvailability traceVersionAvailability;
@@ -31,6 +33,8 @@ internal sealed partial class EvidenceViewModel
     private string correlationFilter = string.Empty;
     private string fromFilter = string.Empty;
     private string untilFilter = string.Empty;
+    private string fromDueFilter = string.Empty;
+    private string untilDueFilter = string.Empty;
     private string eventIdFilter = string.Empty;
     private string categoryFilter = string.Empty;
     private string actionIdFilter = string.Empty;
@@ -63,6 +67,12 @@ internal sealed partial class EvidenceViewModel
     public static IReadOnlyList<TraceFlagsChoice> TraceFlagsChoices { get; } =
         [new(null, "Any"), .. Enum.GetValues<ActivityTraceFlags>().Select(value => new TraceFlagsChoice(value, value.ToString()))];
     public static IReadOnlyList<TraceSourceVersionAvailability> TraceVersionAvailabilities { get; } = Enum.GetValues<TraceSourceVersionAvailability>();
+    public sealed record TraceParentKindChoice(TraceParentKind Value, string Label)
+    {
+        public override string ToString() => Label;
+    }
+    public static IReadOnlyList<TraceParentKindChoice> TraceParentKindChoices { get; } =
+        [new(TraceParentKind.Any, "Any"), new(TraceParentKind.ObservedRoot, "Root"), new(TraceParentKind.ObservedChild, "Child")];
 
     public EvidenceSource Source { get => source; set => ChangeFilter(ref source, value); }
     public string SafeText { get => safeText; set => ChangeFilter(ref safeText, value); }
@@ -71,6 +81,7 @@ internal sealed partial class EvidenceViewModel
     public string TraceFilter { get => traceFilter; set => ChangeFilter(ref traceFilter, value); }
     public string SpanFilter { get => spanFilter; set => ChangeFilter(ref spanFilter, value); }
     public string ParentSpanFilter { get => parentSpanFilter; set => ChangeFilter(ref parentSpanFilter, value); }
+    public TraceParentKindChoice ParentKind { get => traceParentKind; set => ChangeFilter(ref traceParentKind, value); }
     public string TraceSourceFilter { get => traceSourceFilter; set => ChangeFilter(ref traceSourceFilter, value); }
     public string TraceSourceVersionFilter { get => traceSourceVersionFilter; set => ChangeFilter(ref traceSourceVersionFilter, value); }
     public TraceSourceVersionAvailability TraceVersionAvailability { get => traceVersionAvailability; set => ChangeFilter(ref traceVersionAvailability, value); }
@@ -85,6 +96,8 @@ internal sealed partial class EvidenceViewModel
     public string CorrelationFilter { get => correlationFilter; set => ChangeFilter(ref correlationFilter, value); }
     public string FromFilter { get => fromFilter; set => ChangeFilter(ref fromFilter, value); }
     public string UntilFilter { get => untilFilter; set => ChangeFilter(ref untilFilter, value); }
+    public string FromDueFilter { get => fromDueFilter; set => ChangeFilter(ref fromDueFilter, value); }
+    public string UntilDueFilter { get => untilDueFilter; set => ChangeFilter(ref untilDueFilter, value); }
     public string EventIdFilter { get => eventIdFilter; set => ChangeFilter(ref eventIdFilter, value); }
     public string CategoryFilter { get => categoryFilter; set => ChangeFilter(ref categoryFilter, value); }
     public string ActionIdFilter { get => actionIdFilter; set => ChangeFilter(ref actionIdFilter, value); }
@@ -98,6 +111,7 @@ internal sealed partial class EvidenceViewModel
     public void ClearAdvancedFilters()
     {
         ParentSpanFilter = string.Empty;
+        ParentKind = TraceParentKindChoices[0];
         TraceSourceFilter = string.Empty;
         TraceSourceVersionFilter = string.Empty;
         TraceVersionAvailability = TraceSourceVersionAvailability.Any;
@@ -112,6 +126,8 @@ internal sealed partial class EvidenceViewModel
         CorrelationFilter = string.Empty;
         FromFilter = string.Empty;
         UntilFilter = string.Empty;
+        FromDueFilter = string.Empty;
+        UntilDueFilter = string.Empty;
         EventIdFilter = string.Empty;
         CategoryFilter = string.Empty;
         ActionIdFilter = string.Empty;
@@ -145,6 +161,7 @@ internal sealed partial class EvidenceViewModel
         TraceId = string.IsNullOrEmpty(TraceFilter) ? null : TraceFilter,
         SpanId = string.IsNullOrEmpty(SpanFilter) ? null : SpanFilter,
         ParentSpanId = string.IsNullOrEmpty(ParentSpanFilter) ? null : ParentSpanFilter,
+        TraceParentKind = ParentKind.Value,
         TraceSource = ExactText(TraceSourceFilter),
         TraceSourceVersion = ExactText(TraceSourceVersionFilter),
         TraceSourceVersionAvailability = TraceVersionAvailability,
@@ -159,6 +176,8 @@ internal sealed partial class EvidenceViewModel
         CorrelationId = Identifier(CorrelationFilter),
         FromUtc = Timestamp(FromFilter),
         UntilUtc = Timestamp(UntilFilter),
+        FromDueUtc = OptionalCanonicalUtc.Parse(FromDueFilter),
+        UntilDueUtc = OptionalCanonicalUtc.Parse(UntilDueFilter),
         Severity = Severity,
         AuditOutcome = AuditOutcome,
         EventId = EventIdentifier(EventIdFilter),

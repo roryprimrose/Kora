@@ -1,4 +1,4 @@
-using System.Text.Json.Serialization;
+﻿using System.Text.Json.Serialization;
 
 using Kora.Core.Context;
 using Kora.Core.Hosting;
@@ -10,9 +10,10 @@ public sealed record SessionAttachmentQuery
 {
     [JsonConstructor]
     private SessionAttachmentQuery(bool includeRemoved, string? exactSessionId, SessionAttachmentFilter filter,
-        string? exactMediaType, AttachmentCopyStatus? copyStatus, long? minimumStoredBytes, long? maximumStoredBytes)
+        string? exactMediaType, AttachmentCopyStatus? copyStatus, long? minimumStoredBytes, long? maximumStoredBytes,
+        AttachmentGenerationRelationship generationRelationship)
         : this(includeRemoved, exactSessionId, filter, null, exactMediaType, copyStatus,
-            minimumStoredBytes, maximumStoredBytes, null)
+            minimumStoredBytes, maximumStoredBytes, null, generationRelationship: generationRelationship)
     {
     }
 
@@ -25,10 +26,12 @@ public sealed record SessionAttachmentQuery
         long? minimumSessionGeneration = null, long? maximumSessionGeneration = null,
         long? minimumCapturedGeneration = null, long? maximumCapturedGeneration = null,
         long? minimumStorageRevision = null, long? maximumStorageRevision = null,
-        string? exactFileSourceId = null, string? exactFileRevisionId = null, string? exactFileItemId = null)
+        string? exactFileSourceId = null, string? exactFileRevisionId = null, string? exactFileItemId = null,
+        AttachmentGenerationRelationship generationRelationship = AttachmentGenerationRelationship.Any)
     {
         if (!Enum.IsDefined(filter)) { throw new InvalidDataException("Unknown attachment session lifecycle filter."); }
         Filter = filter;
+        GenerationRelationship = generationRelationship;
         IncludeRemoved = includeRemoved;
         ExactSessionId = exactSessionId;
         ExactId = exactSessionId is null ? null
@@ -113,19 +116,25 @@ public sealed record SessionAttachmentQuery
     public Guid? ExactFileRevisionId { get; }
     [JsonIgnore]
     public Guid? ExactFileItemId { get; }
+    [JsonRequired]
+    [JsonInclude]
+    public AttachmentGenerationRelationship GenerationRelationship { get; private init; }
     [JsonIgnore]
     public bool HasFileReferencePredicates => ExactFileSourceId is not null || ExactFileRevisionId is not null
         || ExactFileItemId is not null;
     [JsonIgnore]
     public bool HasVersionPredicates => MinimumSessionGeneration is not null || MaximumSessionGeneration is not null
         || MinimumCapturedGeneration is not null || MaximumCapturedGeneration is not null
-        || MinimumStorageRevision is not null || MaximumStorageRevision is not null;
+        || MinimumStorageRevision is not null || MaximumStorageRevision is not null
+        || GenerationRelationship != AttachmentGenerationRelationship.Any;
     [JsonIgnore]
     public bool HasCorrelationPredicates => ExactObservationSource is not null || ExactDeviceProfile is not null
         || CapturedFromUtc is not null || CapturedUntilUtc is not null;
 
     public void Validate()
     {
+        if (!Enum.IsDefined(GenerationRelationship))
+        { throw new InvalidDataException("Unknown observed generation relationship. Choose Any, Same observed generation or Earlier observed generation."); }
         ValidateRange(MinimumSessionGeneration, MaximumSessionGeneration);
         ValidateRange(MinimumCapturedGeneration, MaximumCapturedGeneration);
         ValidateRange(MinimumStorageRevision, MaximumStorageRevision);
@@ -158,6 +167,11 @@ public sealed record SessionAttachmentQuery
             && (ExactFileRevisionId is not { } fileRevision || row.File.RevisionId == fileRevision)
             && (ExactFileItemId is not { } fileItem || row.File.ItemId == fileItem))
         && (!HasVersionPredicates || row.CopyStatus == AttachmentCopyStatus.Confirmed
+            && (GenerationRelationship == AttachmentGenerationRelationship.Any
+                || GenerationRelationship == AttachmentGenerationRelationship.SameObservedGeneration
+                    && row.CapturedGeneration == row.SessionGeneration
+                || GenerationRelationship == AttachmentGenerationRelationship.EarlierObservedGeneration
+                    && row.CapturedGeneration.Value < row.SessionGeneration.Value)
             && MatchesRange(row.SessionGeneration, MinimumSessionGeneration, MaximumSessionGeneration)
             && MatchesRange(row.CapturedGeneration, MinimumCapturedGeneration, MaximumCapturedGeneration)
             && MatchesRange(row.StorageRevision, MinimumStorageRevision, MaximumStorageRevision))

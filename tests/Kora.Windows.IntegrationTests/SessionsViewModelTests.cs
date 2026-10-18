@@ -137,7 +137,16 @@ public sealed partial class SessionsViewModelTests
         document.Descendants().Should().NotContain(element =>
             element.Name.LocalName == "WebView" || element.Name.LocalName == "SelectableTextBlock");
         document.Descendants().Where(element => string.Equals(element.Name.LocalName, "TextBox", StringComparison.Ordinal))
-            .Should().HaveCount(42, "name, exact history ID, metadata/history/conversation queries, eight receipt provenance bounds, two conversation correlation IDs and four ranges, four session-list numeric bounds, three local-event correlation IDs and eight range bounds, memory and scope identity GUIDs and four inclusive range filters, memory drafts and the exact-session memory-only composer are independent native inputs");
+            .Should().HaveCount(45, "name, exact history ID, metadata/history/conversation queries, three retained receipt correlation IDs, eight receipt provenance bounds, two conversation correlation IDs and four ranges, four session-list numeric bounds, three local-event correlation IDs and eight range bounds, memory and scope identity GUIDs and four inclusive range filters, memory drafts and the exact-session memory-only composer are independent native inputs");
+        foreach (var binding in new[] { "HistoryRequestId", "HistoryTaskId", "HistorySourceId" })
+        {
+            var field = document.Descendants().Single(element => element.Name.LocalName is "TextBox"
+                && string.Equals(element.Attribute("Text")?.Value, $"{{Binding {binding}, Mode=TwoWay}}", StringComparison.Ordinal));
+            field.Attribute("MaxLength").Should().BeNull("malformed retained IDs must be rejected, never truncated into valid IDs");
+            field.Attribute("IsEnabled")!.Value.Should().Be("{Binding CanRead}");
+            field.Attribute("AutomationProperties.Name")!.Value.Should().Contain("canonical lowercase D GUID")
+                .And.Contain("empty means Any").And.Contain("historical correlation only");
+        }
         var scopeIdentity = document.Descendants().Single(element => element.Name.LocalName is "TextBox"
             && string.Equals(element.Attribute("Text")?.Value,
                 "{Binding MemoryScopeIdentityFilter, Mode=TwoWay}", StringComparison.Ordinal));

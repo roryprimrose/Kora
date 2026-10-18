@@ -209,6 +209,10 @@ Configuration never speaks, persists content, logs text, opens capture, changes
 output mode/call policy or substitutes for required native recovery.
 See [bounded delivery and separate proposals](Information_Display.md#delivered-bounded-local-utterance-slice-r25).
 
+Caption preference failures explicitly report **not confirmed** in the transcript while original owning/private presentation admission remains current; captions stay unavailable pending explicit repair ([presentation](../src/Kora.Application/ViewModels/MainViewModel.SpeechText.cs)).
+
+A required review or tracked approval preparation retains its panel. Failure presentation never waits for that preparation or replaces its review during durable audit ([deterministic audit-order regressions](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.CaptionFailureOrdering.cs)).
+
 ### Delivered bounded caption UX options (R25) - 2026-10-09
 
 The same schema-1 native/exact typed/current-name ACTIVATED workflow now exposes:
@@ -1353,6 +1357,17 @@ Native committed-history outcome, exact canonical reason and Any/defined initiat
 Optional exact retained-envelope state (Any/Present/ExpiredButPresent) and inclusive Committed/Due UTC From/Until ranges now compose with those committed-event predicates. Strict canonical UTC text, zero-offset typed bounds and independent range ordering are owned by Core; every field binds the continuation digest. Only complete validated envelopes are filtered, never separately retained Requested review details. These are volatile passive metadata controls, not retention policy or grant/renew/revoke/target/approval/execution authority. The same no-read edits, inert exact-target preservation, retirement and admission ceilings apply.
 
 Optional exact committed audit correlation ID and explicit approval metadata Any/Present/Absent/Exact now AND-compose with all those predicates. Core owns strict nonempty lowercase D GUID admission, Exact-only required approval ID and digest identity. Exact matches only the committed event's approval ID; Absent is validated lack of an ID, not unknown. These IDs are correlation metadata, never authority identity, grant/renew/revoke/retarget, approval or execution authorization. Requested-review details remain undisclosed. See the [native controls and input rules](../docs/settings.md#exact-operation-grants); no new settings persistence or authority route exists.
+
+Optional exact committed `HostRequest.SessionId`, `RequestId` and `TaskId` AND-compose with every existing history predicate.
+Empty text means Any; nonempty input uses the same strict lowercase nonempty D GUID parser, without normalization.
+Each field participates independently in the versioned authenticated query digest ([query contract](../src/Kora.Core/Authorization/ExactGrantHistoryQuery.cs)).
+
+These fields match only retained committed `ExactGrantHistoryEntry.Request` metadata, never the viewer, original grant proposal/origin, separately retained Requested review or unrelated changes.
+Complete envelope, prefix and provenance validation still precedes exclusion. Missing or malformed committed request metadata fails closed, not as an empty match ([reader](../src/Kora.Windows/Storage/WindowsSqliteHostInteractionStore.ExactGrantHistory.cs)).
+
+The [dedicated native history fields](../src/Kora/ExactGrantsWindow.axaml) are volatile passive correlation controls, not session selection, authority, approval, grant, revoke, renew, retarget, replay or execution.
+Editing/clearing retires rows/detail/continuation and actionable reviews immediately without reading; explicit Read validates input.
+Existing cancellation, privacy, ownership, source and selection fences and scan/page/time limits remain unchanged ([filter lifecycle](../src/Kora.Application/Interaction/ExactGrantsViewModel.HistoryFilters.cs)).
 
 Reading or selecting history never resumes/renews activity, executes/replays work or supplies approval/cancellation controls. History navigation clears actionable revocation review; inspect afresh before a new single/batch confirmation. Selection/source/privacy/ownership/control/close/cancellation changes retire private output and late callbacks.
 

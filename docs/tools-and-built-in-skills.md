@@ -100,6 +100,10 @@ changes require a new eligible UI request, not a later approval click.
 selection, and bounded native shared-profile registration/inspection/recheck/
 withdrawal. See [shared-profile commands](commands.md#inspect-shared-profile-skills-locally).
 
+The passive inspectors offer exact **Definition digest** / **Declared resource digest** (bundled) and **Revision digest** (shared) filters alongside literal metadata and availability/compatibility filters. Empty means Any; otherwise enter exactly 64 lowercase hexadecimal characters. Invalid input is rejected, not trimmed or treated as an unfiltered search ([filter contract](../Design/Definition_Management.md#delivered-native-skill-metadata-navigation)).
+
+Editing a filter clears selection/details without reading sources; choose **Search**, then explicitly select a result. **Clear** resets all filters without selecting; **Escape** closes and clears private fields. A digest match observes an admitted snapshot only: no live verification, reload, hidden-name search, execution or grant, and no freshness/integrity/authority promotion ([inspection contract](../Design/Skill_Storage.md#delivered-bounded-r21-native-inspection)).
+
 **Current bounded:** [native owned-instruction editing](instruction-editor.md),
 exact Save/Delete review, Reload/Overwrite/Cancel conflicts and separate reviewed
 explicit use of the saved revision. Profile originals and other kinds remain read-only.

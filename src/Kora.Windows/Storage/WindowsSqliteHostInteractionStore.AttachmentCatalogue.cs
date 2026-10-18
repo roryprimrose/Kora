@@ -1,4 +1,4 @@
-using System.Collections.Immutable;
+﻿using System.Collections.Immutable;
 using System.Security.Cryptography;
 using System.Text.Json;
 
@@ -106,12 +106,13 @@ public sealed partial class WindowsSqliteHostInteractionStore : ISessionAttachme
         var records = ImmutableArray.CreateBuilder<SessionAttachmentSummary>();
         var scanned = 0;
         var after = continuation?.After;
-        while (scanned < SessionAttachmentPage.MaximumScannedRows && records.Count < SessionAttachmentPage.MaximumRecords
-            && rows.Read())
+        while (scanned < SessionAttachmentPage.MaximumScannedRows && rows.Read())
         {
             RequireCatalogueAdmission(admitted, token);
             var summary = DecodeCatalogueRow(connection, rows, admitted, token);
             scanned++;
+            // Validate the complete bounded batch, but never advance past an undisclosed result.
+            if (records.Count == SessionAttachmentPage.MaximumRecords) { continue; }
             after = summary.Session.Value;
             if (query.Matches(summary)) { records.Add(summary); }
         }
@@ -391,10 +392,10 @@ public sealed partial class WindowsSqliteHostInteractionStore : ISessionAttachme
     private string? AttachmentDigestBinding(SessionAttachmentQuery query) => query.ExactDigest is null ? null
         : Convert.ToHexStringLower(HMACSHA256.HashData(attachmentCursorKey, System.Text.Encoding.UTF8.GetBytes(query.ExactDigest)));
 
-    private string? AttachmentCorrelationBinding(SessionAttachmentQuery query) =>
-        !query.HasCorrelationPredicates && !query.HasVersionPredicates && !query.HasFileReferencePredicates ? null
-        : Convert.ToHexStringLower(HMACSHA256.HashData(attachmentCursorKey, JsonSerializer.SerializeToUtf8Bytes(new
+    private string AttachmentCorrelationBinding(SessionAttachmentQuery query) =>
+        Convert.ToHexStringLower(HMACSHA256.HashData(attachmentCursorKey, JsonSerializer.SerializeToUtf8Bytes(new
         {
+            Version = 2, query.GenerationRelationship,
             query.ExactObservationSource, query.ExactDeviceProfile, query.CapturedFromUtc, query.CapturedUntilUtc,
             query.MinimumSessionGeneration, query.MaximumSessionGeneration,
             query.MinimumCapturedGeneration, query.MaximumCapturedGeneration,
@@ -416,9 +417,10 @@ public sealed partial class WindowsSqliteHostInteractionStore : ISessionAttachme
                 throw new FormatException("Invalid continuation authentication.");
             }
             var cursor = HostInteractionCodec.Decode<AttachmentCursor>(System.Text.Encoding.UTF8.GetString(bytes));
-            if (cursor.Query is null || cursor.Query != new SessionAttachmentQuery(query.IncludeRemoved, query.ExactSessionId, query.Filter,
+            if (cursor.Version != 2 || cursor.Query is null || cursor.Query != new SessionAttachmentQuery(query.IncludeRemoved, query.ExactSessionId, query.Filter,
                     exactMediaType: query.ExactMediaType, copyStatus: query.CopyStatus,
-                    minimumStoredBytes: query.MinimumStoredBytes, maximumStoredBytes: query.MaximumStoredBytes)
+                    minimumStoredBytes: query.MinimumStoredBytes, maximumStoredBytes: query.MaximumStoredBytes,
+                    generationRelationship: query.GenerationRelationship)
                 || !string.Equals(cursor.MetadataBinding, AttachmentMetadataBinding(query), StringComparison.Ordinal)
                 || !string.Equals(cursor.DigestBinding, AttachmentDigestBinding(query), StringComparison.Ordinal)
                 || !string.Equals(cursor.CorrelationBinding, AttachmentCorrelationBinding(query), StringComparison.Ordinal)
@@ -439,5 +441,5 @@ public sealed partial class WindowsSqliteHostInteractionStore : ISessionAttachme
     private sealed record AttachmentCursor(SessionAttachmentQuery Query, string Identity, DateTimeOffset ExpiresAt,
         long Ceiling, string Digest, Guid? After, long AuditedThrough, string AuditedHash,
         HostId<DeviceProfileIdentity> Profile, HostId<RequestIdentity> Viewer, string? MetadataBinding, string? DigestBinding,
-        string? CorrelationBinding);
+        string? CorrelationBinding, [property: System.Text.Json.Serialization.JsonRequired] int Version = 2);
 }

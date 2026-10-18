@@ -37,12 +37,23 @@ public sealed class OwnedDefinitionInventory
     public ArtifactKind Kind { get; }
     public ReadOnlyCollection<OwnedDefinitionInventoryRow> Rows { get; }
 
-    public static void ValidateQuery(string query) => LiteralMetadataQuery.Validate(query);
+    public static void ValidateQuery(string query, OwnedDefinitionInventoryQueryMode mode = OwnedDefinitionInventoryQueryMode.Literal)
+    {
+        LiteralMetadataQuery.Validate(query);
+        switch (mode)
+        {
+            case OwnedDefinitionInventoryQueryMode.Literal: break;
+            case OwnedDefinitionInventoryQueryMode.ExactOwnedId: OwnedInstructionNames.WriteName(query); break;
+            case OwnedDefinitionInventoryQueryMode.ExactArtifactId: ArtifactDefinition.ValidateId(query); break;
+            default: throw new ArgumentOutOfRangeException(nameof(mode));
+        }
+    }
 
     public OwnedDefinitionInventoryPage Page(string query, OwnedDefinitionUseFilter filter, int offset = 0, string digest = "",
-        string revision = "", string observedFromUtc = "", string observedUntilUtc = "")
+        string revision = "", string observedFromUtc = "", string observedUntilUtc = "",
+        OwnedDefinitionInventoryQueryMode mode = OwnedDefinitionInventoryQueryMode.Literal)
     {
-        ValidateQuery(query);
+        ValidateQuery(query, mode);
         ArgumentNullException.ThrowIfNull(digest);
         if (digest.Length != 0) { ArtifactDigest.Validate(digest); }
         ArgumentNullException.ThrowIfNull(revision);
@@ -70,9 +81,15 @@ public sealed class OwnedDefinitionInventory
             && (revision.Length == 0 || string.Equals(item.Row.NativeRevision, revision, StringComparison.Ordinal))
             && (from is null || item.Row.ObservedUtc >= from)
             && (until is null || item.Row.ObservedUtc <= until)
-            && (item.Row.CanonicalFileName.Contains(query, StringComparison.OrdinalIgnoreCase)
+            && (mode switch
+            {
+                OwnedDefinitionInventoryQueryMode.ExactOwnedId => string.Equals(item.Row.Name, query, StringComparison.Ordinal),
+                OwnedDefinitionInventoryQueryMode.ExactArtifactId => item.Row.NativeRevision is not null
+                    && string.Equals(item.Row.ArtifactId, query, StringComparison.Ordinal),
+                _ => item.Row.CanonicalFileName.Contains(query, StringComparison.OrdinalIgnoreCase)
                 || item.Row.DisplayName?.Contains(query, StringComparison.OrdinalIgnoreCase) == true
-                || item.Row.ArtifactId?.Contains(query, StringComparison.OrdinalIgnoreCase) == true)).ToArray();
+                || item.Row.ArtifactId?.Contains(query, StringComparison.OrdinalIgnoreCase) == true,
+            })).ToArray();
         if (offset < 0 || offset > matching.Length) { throw new ArgumentOutOfRangeException(nameof(offset)); }
         var visible = new List<OwnedDefinitionInventoryRow>();
         var bytes = 0;
@@ -83,21 +100,22 @@ public sealed class OwnedDefinitionInventory
             bytes += item.Size;
         }
         return new(Array.AsReadOnly(visible.ToArray()), offset, matching.Length, bytes)
-        { Inventory = this, Query = query, Filter = filter, Digest = digest, Revision = revision,
+        { Inventory = this, Query = query, Mode = mode, Filter = filter, Digest = digest, Revision = revision,
             ObservedFromUtc = observedFromUtc, ObservedUntilUtc = observedUntilUtc };
     }
 
     public OwnedDefinitionInventoryPage Continue(OwnedDefinitionInventoryPage page, string query,
-        OwnedDefinitionUseFilter filter, string digest = "", string revision = "", string observedFromUtc = "", string observedUntilUtc = "")
+        OwnedDefinitionUseFilter filter, string digest = "", string revision = "", string observedFromUtc = "", string observedUntilUtc = "",
+        OwnedDefinitionInventoryQueryMode mode = OwnedDefinitionInventoryQueryMode.Literal)
     {
         ArgumentNullException.ThrowIfNull(page);
         if (!ReferenceEquals(page.Inventory, this) || !string.Equals(page.Query, query, StringComparison.Ordinal)
-            || page.Filter != filter || !string.Equals(page.Digest, digest, StringComparison.Ordinal)
+            || page.Mode != mode || page.Filter != filter || !string.Equals(page.Digest, digest, StringComparison.Ordinal)
             || !string.Equals(page.Revision, revision, StringComparison.Ordinal)
             || !string.Equals(page.ObservedFromUtc, observedFromUtc, StringComparison.Ordinal)
             || !string.Equals(page.ObservedUntilUtc, observedUntilUtc, StringComparison.Ordinal)
             || page.NextOffset is not { } next)
         { throw new InvalidOperationException("The inventory or complete filter changed, or no next page exists. Restart from the first page."); }
-        return Page(query, filter, next, digest, revision, observedFromUtc, observedUntilUtc);
+        return Page(query, filter, next, digest, revision, observedFromUtc, observedUntilUtc, mode);
     }
 }

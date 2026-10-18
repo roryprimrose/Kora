@@ -18,6 +18,9 @@ public sealed partial class ExactGrantsViewModel
     private string historyAuditCorrelationId = string.Empty;
     private string historyApprovalFilter = "Any";
     private string historyApprovalId = string.Empty;
+    private string historySessionId = string.Empty;
+    private string historyRequestId = string.Empty;
+    private string historyTaskId = string.Empty;
     private Guid historyAdmissionId;
 
     public static ImmutableArray<string> HistoryOutcomeFilters { get; } =
@@ -127,6 +130,34 @@ public sealed partial class ExactGrantsViewModel
         }
     }
 
+    public string HistorySessionId
+    {
+        get => historySessionId;
+        set
+        {
+            ObjectDisposedException.ThrowIf(disposed, this);
+            if (SetProperty(ref historySessionId, value)) { HistoryFiltersChanged(); }
+        }
+    }
+    public string HistoryRequestId
+    {
+        get => historyRequestId;
+        set
+        {
+            ObjectDisposedException.ThrowIf(disposed, this);
+            if (SetProperty(ref historyRequestId, value)) { HistoryFiltersChanged(); }
+        }
+    }
+    public string HistoryTaskId
+    {
+        get => historyTaskId;
+        set
+        {
+            ObjectDisposedException.ThrowIf(disposed, this);
+            if (SetProperty(ref historyTaskId, value)) { HistoryFiltersChanged(); }
+        }
+    }
+
     public void ClearHistoryFilters()
     {
         ObjectDisposedException.ThrowIf(disposed, this);
@@ -139,6 +170,7 @@ public sealed partial class ExactGrantsViewModel
         historyDueFromUtc = string.Empty;
         historyDueUntilUtc = string.Empty;
         historyAuditCorrelationId = historyApprovalId = string.Empty;
+        historySessionId = historyRequestId = historyTaskId = string.Empty;
         historyApprovalFilter = "Any";
         OnPropertyChanged(nameof(HistoryOutcomeFilter));
         OnPropertyChanged(nameof(HistoryInitiatorFilter));
@@ -151,6 +183,9 @@ public sealed partial class ExactGrantsViewModel
         OnPropertyChanged(nameof(HistoryAuditCorrelationId));
         OnPropertyChanged(nameof(HistoryApprovalFilter));
         OnPropertyChanged(nameof(HistoryApprovalId));
+        OnPropertyChanged(nameof(HistorySessionId));
+        OnPropertyChanged(nameof(HistoryRequestId));
+        OnPropertyChanged(nameof(HistoryTaskId));
         HistoryFiltersChanged();
     }
 
@@ -164,7 +199,7 @@ public sealed partial class ExactGrantsViewModel
         historyControlRevision = revision;
         historyAdmissionId = Guid.NewGuid();
         HistorySummary = "History filters changed. Read explicitly for the inspected exact ID; typing performs no read. "
-            + "Outcome, initiator, exact canonical reason, retention, inclusive UTC ranges and correlation/approval metadata match the complete committed envelope, "
+            + "Outcome, initiator, exact canonical reason, retention, inclusive UTC ranges and audit/approval/request correlation metadata match the complete committed envelope, "
             + "not separately retained Requested review.";
         Message = "History filters changed. Rows, continuation and actionable selection/reviews retired. Fresh explicit Read required.";
         OnPropertyChanged(nameof(Inspection));

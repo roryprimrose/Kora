@@ -299,6 +299,28 @@ as empty success. **Clear advanced filters** unsets the optional fields/choices
 without reading. Malformed values, invalid ranges and undefined enum values
 never fall back to an unfiltered read.
 
+Optional **Retained due UTC from / until** fields filter `EvidenceRecord.DueUtc`
+independently of committed/observed-time bounds; all predicates compose with AND
+in the [authoritative metadata query](../src/Kora.Core/Diagnostics/EvidenceQuery.cs).
+Edges are inclusive. Only empty means Any; the shared
+[OptionalCanonicalUtc parser](../src/Kora.Core/Storage/OptionalCanonicalUtc.cs)
+requires exact `yyyy-MM-ddTHH:mm:ss.fffffff+00:00`. Whitespace, nonzero offsets,
+`Z`, noncanonical fractions, overflow and reversed ranges fail, never normalize.
+Missing DueUtc is UNKNOWN and never matches a constrained due range; DailyLog
+has no retained due deadline, including its independent part of CombinedLog.
+
+Due is retained deadline metadata, not proof of physical deletion, current
+expiry, policy, authority or retention permission. Complete source, record and
+provenance validation precedes exclusion; scan/page-byte/time limits and private,
+source, cancellation and snapshot fences remain unchanged. Both bounds bind the
+versioned complete semantic digest and authenticated continuation
+([admission](../src/Kora.Application/Diagnostics/DurableEvidenceQuery.cs)).
+The [labelled native fields](../src/Kora/EvidenceWindow.axaml) use existing no-read
+edit/Clear/Escape retirement of rows, selection/detail, cursor and stale callbacks
+([headless tests](../tests/Kora.Windows.IntegrationTests/EvidenceLiteralFindTests.Due.cs)).
+No body/path read, schema, retention write/prune/expiry/lifecycle or log capture
+change is added; this is bounded I delivery, not E/Q or provider enablement.
+
 Advanced filters also expose exact **Parent Span ID**, **Host operation outcome**
 and **Content availability**. Only an empty parent span field means Any;
 nonempty input uses the same portable W3C validator as Trace/Span IDs (16
@@ -322,6 +344,23 @@ close reset all three to Any. They are volatile correlation/presentation metadat
 never identity, authority or evidence-integrity claims. No new navigation, body
 restoration, export/clipboard, persistence, filter logging/tags/audit payload,
 schema/index/cache, model/tool/speech route or activity renewal is added.
+
+**Observed trace parent** adds visible accessible **Any / Root / Child** choices.
+Root (`ObservedRoot`) requires a valid retained trace with null `ParentSpanId`;
+Child (`ObservedChild`) requires a valid retained nonnull parent ID. A null trace
+is unknown and matches neither constrained choice. Full `TraceSnapshot`
+validation precedes exclusion in the [shared metadata predicate](../src/Kora.Core/Diagnostics/EvidenceQuery.cs).
+The choice AND-composes with exact parent ID and every existing filter; Root
+plus an exact parent ID therefore returns no matches, not a repaired query.
+It binds the versioned complete semantic query digest and authenticated
+continuation in [query admission](../src/Kora.Application/Diagnostics/DurableEvidenceQuery.cs).
+Existing scan/result/byte limits, source/privacy/cancellation/retention fences
+remain unchanged. Native edits, Clear advanced and Escape read nothing and
+retire rows, selection/detail, cursor and stale callbacks
+([native filters](../src/Kora/EvidenceViewModel.Filters.cs), [headless tests](../tests/Kora.Windows.IntegrationTests/EvidenceLiteralFindTests.Metadata.cs)).
+These are observed diagnostic correlation only, not complete traces, causality,
+current session, identity, authority, approval or ownership. No schema, trace
+tags/baggage, read authority, device/provider/model or runtime qualification is added.
 
 Advanced trace metadata filters add exact **Trace source**, **Activity operation
 name**, **ActivityKind**, and **Trace flags**, plus **Trace source version**

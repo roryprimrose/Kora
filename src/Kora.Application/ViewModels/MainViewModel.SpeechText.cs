@@ -233,6 +233,7 @@ public sealed partial class MainViewModel : ISpeechCaptionPresentation
         var service = speechTextConfiguration!;
         var origin = OriginalOrigin(initiator);
         var eligible = CaptureAudioControlEligibility(origin);
+        var presentationEligible = CapturePreferenceEligibility(initiator);
         var callRevision = CallPolicyRevision;
         speechTextControlActive = true;
         OnPropertyChanged(nameof(CanChangeSpeechText));
@@ -274,10 +275,14 @@ public sealed partial class MainViewModel : ISpeechCaptionPresentation
         {
             service.HoldUnavailable();
             ApplicationLog.Error(logger, exception, "Inspecting or saving speech-text presentation preference");
-            if (!disposed)
+            if (presentationEligible())
             {
-                if (IsSpeaking || IsResponseInteractionPending) { Transcript = "Speech-text preference not confirmed. Captions remain off."; }
-                else { ShowFailure("Speech-text preference not confirmed.", "Captions remain off. Inspect saved state and audit receipts before explicit repair."); }
+                Transcript = "Speech-text preference not confirmed. Captions remain off.";
+                // A requested audit can still be preparing the required panel. Do not wait on or replace that owned preparation.
+                if (!IsSpeaking && !IsResponseInteractionPending && Volatile.Read(ref activeApprovalPreparations) == 0)
+                {
+                    ShowFailure("Speech-text preference not confirmed.", "Captions remain off. Inspect saved state and audit receipts before explicit repair.");
+                }
             }
         }
         finally { speechTextControlActive = false; SynchronizeSpeechTextConfiguration(); }

@@ -1,4 +1,4 @@
-using System.Collections.Immutable;
+﻿using System.Collections.Immutable;
 
 namespace Kora.Core.Storage;
 
@@ -31,7 +31,7 @@ public sealed record SessionAttachmentPage(
                 && Query.ExactDigest is null && !Query.HasCorrelationPredicates && !Query.HasVersionPredicates && !Query.HasFileReferencePredicates
                 && Query.CopyStatus is null && Query.MinimumStoredBytes is null && Query.MaximumStoredBytes is null
                 && Query.Filter == SessionAttachmentFilter.All
-                && ScannedRows != Records.Length
+                && ScannedRows != Records.Length && Records.Length < MaximumRecords
             || ObservedAt.Offset != TimeSpan.Zero || AuthorityCeiling < 0
             || AuthorityDigest is null || AuthorityDigest.Length != 64
             || AuthorityDigest.Any(c => c is not (>= '0' and <= '9' or >= 'a' and <= 'f'))

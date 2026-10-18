@@ -15,6 +15,109 @@ namespace Kora.Windows.IntegrationTests;
 public sealed partial class EvidenceAdvancedFilterTests
 {
     [Theory]
+    [InlineData(EvidenceSource.All)]
+    [InlineData(EvidenceSource.Log)]
+    [InlineData(EvidenceSource.DailyLog)]
+    [InlineData(EvidenceSource.CombinedLog)]
+    public async Task ObservedParentKindUsesOnlyValidatedRetainedTraceAndComposesWithExactParent(EvidenceSource source)
+    {
+        using var fixture = new OwnedStorageFixture();
+        using var listener = WindowsDailyEvidenceReaderTests.Listen();
+        var sink = new WindowsSqliteEvidenceSink(fixture, timeProvider: new Clock());
+        var owner = HostRequest.Create(RequestOrigin.LocalUi);
+        var envelopes = new List<DiagnosticEnvelope>();
+        string parentId;
+        using (var producer = HostActivity.BeginRoot(owner, HostActivityLayer.Application, HostOperation.Request))
+        {
+            parentId = TraceSnapshot.Capture(producer.Activity)!.SpanId;
+            var templates = WindowsDailyEvidenceReaderTests.Produce(owner, 3);
+            for (var index = 0; index < templates.Length; index++)
+            {
+                using var child = index == 2 ? HostActivity.BeginChild(HostActivityLayer.Application, HostOperation.Request) : null;
+                var envelope = templates[index] with
+                {
+                    Trace = index == 0 ? null : TraceSnapshot.Capture(child?.Activity ?? producer.Activity),
+                    Host = index == 0 ? null : owner,
+                    Properties = index == 0 ? new Dictionary<string, EvidenceValue>(StringComparer.Ordinal)
+                    {
+                        ["kora.bootstrap"] = new(EvidenceValueKind.Boolean, "false"),
+                        ["kora.evidence.gap"] = new(EvidenceValueKind.Text, "MissingHostContext"),
+                    } : templates[index].Properties,
+                };
+                envelopes.Add(envelope);
+                sink.WriteDiagnostic(envelope);
+            }
+        }
+        WindowsDailyEvidenceReaderTests.Write(fixture, "kora-20261010.log", envelopes);
+        var viewer = Viewer(new WindowsEvidenceReader(new(sink), new(fixture)));
+        viewer.Source = source;
+        foreach (var choice in EvidenceViewModel.TraceParentKindChoices)
+        {
+            viewer.ParentKind = choice;
+            await viewer.SearchAsync();
+            var copies = source == EvidenceSource.CombinedLog ? 2 : 1;
+            viewer.Records.Should().HaveCount((choice.Value == TraceParentKind.Any ? 3 : 1) * copies);
+            viewer.Records.Should().OnlyContain(record => choice.Value == TraceParentKind.Any
+                || record.Trace != null && (choice.Value == TraceParentKind.ObservedRoot) == (record.Trace.ParentSpanId == null));
+            viewer.ParentSpanFilter = parentId;
+            await viewer.SearchAsync();
+            viewer.Records.Should().HaveCount(choice.Value == TraceParentKind.ObservedRoot ? 0 : copies);
+            viewer.ParentSpanFilter = "";
+        }
+        viewer.Close();
+    }
+
+    [Theory]
+    [InlineData(TraceParentKind.ObservedRoot)]
+    [InlineData(TraceParentKind.ObservedChild)]
+    public async Task ParentKindEditsRetireInFlightContinuationWithoutReadingOrPublishingLateResults(TraceParentKind kind)
+    {
+        using var listener = WindowsDailyEvidenceReaderTests.Listen();
+        var reader = new CapturingReader();
+        var viewer = Viewer(reader);
+        await viewer.SearchAsync();
+        viewer.Select(viewer.Records[0]);
+        reader.Held = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        var pending = viewer.NextAsync();
+        viewer.ParentKind = EvidenceViewModel.TraceParentKindChoices.Single(choice => choice.Value == kind);
+        reader.Token.IsCancellationRequested.Should().BeTrue();
+        reader.Queries.Should().HaveCount(2);
+        viewer.Records.Should().BeEmpty();
+        viewer.Segments.Should().BeEmpty();
+        viewer.ResultText.Should().BeEmpty();
+        viewer.CanNext.Should().BeFalse();
+        viewer.CanReadTrace.Should().BeFalse();
+        reader.Held.SetResult(Batch());
+        await pending;
+        viewer.Records.Should().BeEmpty();
+        viewer.Status.Should().StartWith("Filters changed");
+        reader.Held = null;
+        await viewer.SearchAsync();
+        reader.Queries[^1].TraceParentKind.Should().Be(kind);
+        reader.Checkpoints[^1].Should().BeNull();
+        await viewer.NextAsync();
+        reader.Queries[^1].Should().BeSameAs(reader.Queries[^2]);
+        viewer.ClearAdvancedFilters();
+        viewer.ParentKind.Value.Should().Be(TraceParentKind.Any);
+        viewer.Records.Should().BeEmpty();
+        viewer.CanNext.Should().BeFalse();
+        viewer.Close();
+    }
+
+    [Fact]
+    public async Task InvalidNativeParentKindFailsBeforeAnyRead()
+    {
+        using var listener = WindowsDailyEvidenceReaderTests.Listen();
+        var reader = new CapturingReader();
+        var viewer = Viewer(reader);
+        viewer.ParentKind = new((TraceParentKind)99, "Invalid");
+        await viewer.SearchAsync();
+        reader.Queries.Should().BeEmpty();
+        viewer.Status.Should().Contain("failed");
+        viewer.Close();
+    }
+
+    [Theory]
     [InlineData(" ")]
     [InlineData(" x")]
     [InlineData("x ")]
@@ -161,6 +264,7 @@ public sealed partial class EvidenceAdvancedFilterTests
         await File.WriteAllTextAsync(Path.Combine(fixture.LocalRoot, "Logs", "kora-20261010.log"),
             outer.ToJsonString() + "\n", new UTF8Encoding(false), TestContext.Current.CancellationToken);
         var viewer = Viewer(new WindowsDailyEvidenceReader(fixture));
+        viewer.ParentKind = EvidenceViewModel.TraceParentKindChoices[2];
         viewer.Source = EvidenceSource.DailyLog;
         viewer.TraceSourceFilter = "nonmatching";
         await viewer.SearchAsync();

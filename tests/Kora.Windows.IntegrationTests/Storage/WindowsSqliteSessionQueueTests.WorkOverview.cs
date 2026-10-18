@@ -105,6 +105,21 @@ public sealed partial class WindowsSqliteSessionQueueTests
         } while (cursor is not null);
         ranged.Select(row => row.Session).Should().Equal(rows.Where(ranges.Matches).Select(row => row.Session));
         ranged.Should().NotBeEmpty().And.OnlyContain(row => row.Work!.OmittedTasks == target.OmittedTasks);
+        foreach (var state in Enum.GetValues<HostTaskState>())
+        {
+            var matching = new List<SessionWorkOverviewRow>();
+            do
+            {
+                var page = await service.ReadWorkOverviewAsync(SessionListFilter.All, false, cursor, f.Token, taskState: state);
+                page.Scanned.Should().BeInRange(1, 10);
+                SessionWorkOverviewPage.Serialize(page).Length.Should().BeLessThanOrEqualTo(65536);
+                matching.AddRange(page.Records);
+                cursor = page.Next;
+                if (cursor is not null) { cursor.TaskState.Should().Be(state); }
+            } while (cursor is not null);
+            matching.Select(row => row.Session).Should().Equal(
+                rows.Where(row => row.Work!.Tasks.Any(task => task.State == state)).Select(row => row.Session));
+        }
         f.Count("security_audit_events").Should().Be(audits);
         f.Count("host_tasks").Should().Be(tasks);
         (await f.Store.ReadRetentionAsync(f.Request.SessionId, f.Token)).Should().Be(retention);

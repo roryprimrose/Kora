@@ -2,6 +2,7 @@ using System.Text.Json;
 using System.Collections.ObjectModel;
 
 using Avalonia.Controls;
+using Avalonia.Input;
 using Avalonia.Markup.Xaml;
 
 using Kora.Application.Skills;
@@ -28,21 +29,30 @@ public sealed partial class SharedSkillSourcesWindow : Window
         this.FindControl<TextBox>("SharedSource")!.ContextFlyout = null;
         this.FindControl<TextBox>("UninspectedEntries")!.ContextMenu = null;
         this.FindControl<TextBox>("UninspectedEntries")!.ContextFlyout = null;
-        this.FindControl<Button>("RegisterSource")!.Click += async (_, _) => await register();
-        this.FindControl<Button>("RefreshSources")!.Click += async (_, _) => await refresh();
-        this.FindControl<Button>("DiscoverSource")!.Click += async (_, _) => await discover();
-        this.FindControl<Button>("VerifyRevision")!.Click += async (_, _) => await verify();
-        this.FindControl<Button>("UnregisterSource")!.Click += async (_, _) => await unregister();
+        this.FindControl<Button>("RegisterSource")!.Click += async (_, _) => { if (!closed) { await register(); } };
+        this.FindControl<Button>("RefreshSources")!.Click += async (_, _) => { if (!closed) { await refresh(); } };
+        this.FindControl<Button>("DiscoverSource")!.Click += async (_, _) => { if (!closed) { await discover(); } };
+        this.FindControl<Button>("VerifyRevision")!.Click += async (_, _) => { if (!closed) { await verify(); } };
+        this.FindControl<Button>("UnregisterSource")!.Click += async (_, _) => { if (!closed) { await unregister(); } };
         var filter = this.FindControl<ComboBox>("SharedFilter")!;
         filter.ItemsSource = new[] { "All", "Instruction-compatible", "Instruction-incompatible" };
         filter.SelectedIndex = 0;
         this.FindControl<Button>("SearchSharedPackages")!.Click += (_, _) => Search();
         this.FindControl<Button>("ClearSharedSearch")!.Click += (_, _) =>
         {
+            RetireSearch();
             this.FindControl<TextBox>("SharedQuery")!.Text = string.Empty;
+            this.FindControl<TextBox>("SharedRevisionDigest")!.Text = string.Empty;
             filter.SelectedIndex = 0;
             Search();
         };
+        foreach (var name in new[] { "SharedQuery", "SharedRevisionDigest" })
+        {
+            this.FindControl<TextBox>(name)!.PropertyChanged += (_, change) =>
+            { if (change.Property == TextBox.TextProperty) { RetireSearch(); } };
+        }
+        filter.SelectionChanged += (_, _) => RetireSearch();
+        KeyDown += (_, args) => { if (args.Key == Key.Escape) { Close(); args.Handled = true; } };
         this.FindControl<ComboBox>("SourceSelector")!.SelectionChanged += (_, _) => ClearCatalogue();
         this.FindControl<ComboBox>("SharedPackageSelector")!.SelectionChanged += (_, _) =>
         { if (!updatingResults) { ShowSelectedPackage(); } };
@@ -85,7 +95,9 @@ public sealed partial class SharedSkillSourcesWindow : Window
         if (closed || SelectedSource != value.Source)
         { throw new InvalidOperationException("The exact selected source inspection is no longer current."); }
         catalogue = value;
+        CatalogueGeneration++;
         this.FindControl<TextBox>("SharedQuery")!.Text = string.Empty;
+        this.FindControl<TextBox>("SharedRevisionDigest")!.Text = string.Empty;
         this.FindControl<ComboBox>("SharedFilter")!.SelectedIndex = 0;
         SetResults(value.Packages, null);
         var selector = this.FindControl<ComboBox>("SharedPackageSelector")!;
@@ -103,6 +115,7 @@ public sealed partial class SharedSkillSourcesWindow : Window
         this.FindControl<ComboBox>("SourceSelector")!.IsEnabled = !busy;
         this.FindControl<ComboBox>("SharedPackageSelector")!.IsEnabled = !busy;
         this.FindControl<TextBox>("SharedQuery")!.IsEnabled = !busy;
+        this.FindControl<TextBox>("SharedRevisionDigest")!.IsEnabled = !busy;
         this.FindControl<ComboBox>("SharedFilter")!.IsEnabled = !busy;
     }
 
@@ -114,6 +127,7 @@ public sealed partial class SharedSkillSourcesWindow : Window
         catalogue = null;
         results = [];
         this.FindControl<TextBox>("SharedQuery")!.Text = string.Empty;
+        this.FindControl<TextBox>("SharedRevisionDigest")!.Text = string.Empty;
         this.FindControl<ComboBox>("SharedFilter")!.SelectedIndex = 0;
         this.FindControl<TextBlock>("SharedSearchStatus")!.Text = string.Empty;
         this.FindControl<ComboBox>("SharedPackageSelector")!.ItemsSource = Array.Empty<string>();
@@ -170,17 +184,28 @@ public sealed partial class SharedSkillSourcesWindow : Window
         {
             var matching = SkillCatalogueSearch.Shared(catalogue,
                 this.FindControl<TextBox>("SharedQuery")!.Text ?? string.Empty,
-                (SkillInstructionFilter)this.FindControl<ComboBox>("SharedFilter")!.SelectedIndex);
+                (SkillInstructionFilter)this.FindControl<ComboBox>("SharedFilter")!.SelectedIndex,
+                this.FindControl<TextBox>("SharedRevisionDigest")!.Text ?? string.Empty);
             SetResults(matching, selected);
             this.FindControl<TextBlock>("SharedSearchStatus")!.Text =
                 $"{results.Count} of {catalogue.Packages.Count} admitted snapshots from the exact selected source. All invocation unavailable."
                 + (selected is not null && SelectedPackage is null ? " Selection excluded; private source panes cleared. Select a result explicitly." : string.Empty);
         }
-        catch (Exception exception) when (exception is InvalidDataException or ArgumentOutOfRangeException)
+        catch (Exception exception) when (exception is InvalidDataException or ArgumentException)
         {
             SetResults([], null);
             this.FindControl<TextBlock>("SharedSearchStatus")!.Text = $"Search rejected: {exception.Message} No results or selection published.";
         }
+    }
+
+    private void RetireSearch()
+    {
+        if (closed) { return; }
+        CatalogueGeneration++;
+        SetResults([], null);
+        Report("Filters edited. No source read or revision recheck performed.");
+        this.FindControl<TextBlock>("SharedSearchStatus")!.Text =
+            "Filters edited; selection and private source panes cleared. Choose Search to filter admitted snapshots without reading the source.";
     }
 
     private void SetResults(IReadOnlyList<SharedSkillSnapshot> matching, SharedSkillSnapshot? selected)

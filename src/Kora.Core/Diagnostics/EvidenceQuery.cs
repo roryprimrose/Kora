@@ -19,6 +19,7 @@ public sealed record EvidenceQuery
     public string? TraceId { get; init; }
     public string? SpanId { get; init; }
     public string? ParentSpanId { get; init; }
+    public TraceParentKind TraceParentKind { get; init; }
     public string? TraceSource { get; init; }
     public TraceSourceVersionAvailability TraceSourceVersionAvailability { get; init; }
     public string? TraceSourceVersion { get; init; }
@@ -33,6 +34,8 @@ public sealed record EvidenceQuery
     public long? UntilAuditSequence { get; init; }
     public DateTimeOffset? FromUtc { get; init; }
     public DateTimeOffset? UntilUtc { get; init; }
+    public DateTimeOffset? FromDueUtc { get; init; }
+    public DateTimeOffset? UntilDueUtc { get; init; }
     public EvidenceSeverity? Severity { get; init; }
     public int? EventId { get; init; }
     public string? Category { get; init; }
@@ -44,7 +47,14 @@ public sealed record EvidenceQuery
     public bool MatchesRetainedMetadata(EvidenceRecord record)
     {
         record.Trace?.Validate();
-        return (TraceSource is null || string.Equals(record.Trace?.Source, TraceSource, StringComparison.Ordinal))
+        return (TraceParentKind switch
+        {
+            TraceParentKind.Any => true,
+            TraceParentKind.ObservedRoot => record.Trace is { ParentSpanId: null },
+            TraceParentKind.ObservedChild => record.Trace?.ParentSpanId is not null,
+            _ => throw new InvalidOperationException("The trace parent kind is invalid."),
+        })
+        && (TraceSource is null || string.Equals(record.Trace?.Source, TraceSource, StringComparison.Ordinal))
         && (ActivityName is null || string.Equals(record.Trace?.Name, ActivityName, StringComparison.Ordinal))
         && (ActivityKind is null || record.Trace?.Kind == ActivityKind)
         && (TraceFlags is null || record.Trace?.Flags == TraceFlags)
@@ -63,6 +73,8 @@ public sealed record EvidenceQuery
         && (ExceptionType is null || string.Equals(record.ExceptionType, ExceptionType, StringComparison.Ordinal))
         && (FromAuditSequence is null || record.AuditSequence >= FromAuditSequence)
         && (UntilAuditSequence is null || record.AuditSequence <= UntilAuditSequence)
+        && (FromDueUtc is null || record.DueUtc >= FromDueUtc)
+        && (UntilDueUtc is null || record.DueUtc <= UntilDueUtc)
         && (ContentAvailability switch
         {
             EvidenceContentAvailability.Any => true,

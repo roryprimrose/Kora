@@ -25,7 +25,8 @@ internal sealed partial class SharedSkillSourcesWindowController(
         if (window is not null) { window.Activate(); return; }
         lifetime = new();
         window = new(() => RunAsync(RegisterAsync), () => RunAsync(RefreshAsync),
-            () => RunAsync(DiscoverAsync), () => RunAsync(VerifyAsync), () => RunAsync(UnregisterAsync, supersede: true));
+            () => RunAsync(DiscoverAsync, fenceCatalogue: true), () => RunAsync(VerifyAsync, fenceCatalogue: true),
+            () => RunAsync(UnregisterAsync, supersede: true));
         window.Closed += OnClosed;
         main.PrivacyClosureRequested += OnPrivacyClosed;
         main.PropertyChanged += OnMainChanged;
@@ -39,7 +40,7 @@ internal sealed partial class SharedSkillSourcesWindowController(
     private bool CurrentWindow(SharedSkillSourcesWindow opened, CancellationToken token) =>
         Eligible() && ReferenceEquals(window, opened) && !token.IsCancellationRequested;
 
-    private async Task RunAsync(Func<CancellationToken, Task> operation, bool supersede = false)
+    private async Task RunAsync(Func<CancellationToken, Task> operation, bool supersede = false, bool fenceCatalogue = false)
     {
         if (busy && !supersede || window is null || lifetime is null || !Eligible()) { return; }
         var opened = window;
@@ -50,6 +51,7 @@ internal sealed partial class SharedSkillSourcesWindowController(
         busy = true;
         opened.SetBusy(true);
         opened.SetWithdrawalBusy(supersede);
+        long? inspectionGeneration = null;
         try
         {
             if (supersede)
@@ -58,11 +60,15 @@ internal sealed partial class SharedSkillSourcesWindowController(
                 if (previous is not null) { await previous.CancelAsync(); }
             }
             token.ThrowIfCancellationRequested();
-            await operation(token);
+            var pending = operation(token);
+            // Discovery first retires its old catalogue synchronously; fence the ensuing read.
+            if (fenceCatalogue) { inspectionGeneration = opened.CatalogueGeneration; }
+            await pending;
         }
         catch (OperationCanceledException)
         {
-            if (ReferenceEquals(window, opened) && ReferenceEquals(activeOperation, currentOperation))
+            if (ReferenceEquals(window, opened) && ReferenceEquals(activeOperation, currentOperation)
+                && (inspectionGeneration is null || inspectionGeneration == opened.CatalogueGeneration))
             {
                 opened.ClearCatalogue();
                 opened.Report("Operation cancelled. A source mutation may already be durable; refresh registrations. No successful receipt claimed.");
@@ -72,7 +78,8 @@ internal sealed partial class SharedSkillSourcesWindowController(
         {
             // Exception messages can include profile paths or package content.
             InspectionFailed(logger, exception.GetType().Name);
-            if (!ReferenceEquals(window, opened) || !ReferenceEquals(activeOperation, currentOperation)) { return; }
+            if (!ReferenceEquals(window, opened) || !ReferenceEquals(activeOperation, currentOperation)
+                || inspectionGeneration is { } generation && generation != opened.CatalogueGeneration) { return; }
             opened.ClearCatalogue();
             var reason = exception is SharedSkillUnavailableException unavailable ? unavailable.ReasonCode
                 : exception is InvalidDataException ? "invalid-registration-or-format" : "host-or-storage-unavailable";
@@ -137,8 +144,10 @@ internal sealed partial class SharedSkillSourcesWindowController(
     {
         if (window is not { } opened || opened.SelectedSource is not { } source || opened.SelectedPackage is not { } snapshot)
         { window?.Report("List and select an immutable package revision first."); return; }
+        var generation = opened.CatalogueGeneration;
         var current = await discovery.IsCurrentAsync(snapshot, source, () => CurrentWindow(opened, token), token);
-        if (CurrentWindow(opened, token) && opened.SelectedSource == source && opened.SelectedPackage == snapshot)
+        if (CurrentWindow(opened, token) && opened.SelectedSource == source && opened.SelectedPackage == snapshot
+            && opened.CatalogueGeneration == generation)
         {
             window?.Report(current
                 ? "Exact source/revision still matches the bounded recheck. This is not enablement, approval, execution or future freshness."

@@ -17,6 +17,9 @@ public sealed class WindowsSqliteHistorySearchTests
     [InlineData("DELETE FROM session_history;")]
     [InlineData("UPDATE session_history SET projection=json_set(projection,'$.SourceRevision',-1);")]
     [InlineData("UPDATE session_history SET projection=json_set(projection,'$.AuditSequence',0);")]
+    [InlineData("UPDATE session_history SET projection=json_set(projection,'$.RequestId','00000000-0000-0000-0000-000000000000');")]
+    [InlineData("UPDATE session_history SET projection=json_set(projection,'$.TaskId','00000000-0000-0000-0000-000000000000');")]
+    [InlineData("UPDATE session_history SET projection=json_set(projection,'$.SourceId','00000000-0000-0000-0000-000000000000');")]
     public async Task Corrupt_or_unavailable_nonmatching_receipts_fail_before_metadata_exclusion(string mutation)
     {
         using var f = new InteractionStorageFixture();
@@ -26,7 +29,8 @@ public sealed class WindowsSqliteHistorySearchTests
         var service = WindowsSqliteSessionWorkspaceTests.Service(f, new());
         using var root = HostActivity.BeginRoot(f.Request, HostActivityLayer.Application, HostOperation.Request);
         var act = () => service.SearchHistoryAsync(f.Request.SessionId, "nonmatching", null, 1, f.Token,
-            new(Kind: SessionHistoryKind.Answer, Decision: HostInteractionOutcome.Approved), new(MaximumSequence: 1));
+            new(Kind: SessionHistoryKind.Answer, Decision: HostInteractionOutcome.Approved), new(MaximumSequence: 1),
+            new(SourceId: Guid.NewGuid()));
         await act.Should().ThrowAsync<InvalidDataException>();
     }
 
@@ -58,6 +62,35 @@ public sealed class WindowsSqliteHistorySearchTests
         next.Records.Should().OnlyContain(row => row.Sequence > first.Records[0].Sequence);
         var answer = (await service.SearchHistoryAsync(f.Request.SessionId, "finalword", null, 50, f.Token)).Records.Single();
         answer.Should().Be(history.Records.Single(row => row.Kind == SessionHistoryKind.Answer));
+        answer.RequestId.Should().NotBeNull();
+        answer.TaskId.Should().NotBeNull();
+        answer.SourceId.Should().NotBeNull();
+        var correlation = new SessionHistoryCorrelationFilter(answer.RequestId, answer.TaskId, answer.SourceId);
+        for (var mask = 0; mask < 8; mask++)
+        {
+            var filter = new SessionHistoryCorrelationFilter((mask & 1) != 0 ? answer.RequestId : null,
+                (mask & 2) != 0 ? answer.TaskId : null, (mask & 4) != 0 ? answer.SourceId : null);
+            (await service.SearchHistoryAsync(f.Request.SessionId, "absent finalword", null, 50, f.Token,
+                new(Kind: SessionHistoryKind.Answer), new(answer.Sequence, answer.Sequence), filter))
+                .Records.Should().ContainSingle().Which.Should().Be(answer);
+        }
+        foreach (var filter in new[] { correlation with { RequestId = Guid.NewGuid() },
+            correlation with { TaskId = Guid.NewGuid() }, correlation with { SourceId = Guid.NewGuid() } })
+        {
+            (await service.SearchHistoryAsync(f.Request.SessionId, "finalword", null, 50, f.Token, correlation: filter))
+                .Records.Should().BeEmpty();
+        }
+        foreach (var missing in history.Records)
+        {
+            foreach (var filter in new[] {
+                missing.RequestId is null ? new SessionHistoryCorrelationFilter(answer.RequestId) : default,
+                missing.TaskId is null ? new SessionHistoryCorrelationFilter(TaskId: answer.TaskId) : default,
+                missing.SourceId is null ? new SessionHistoryCorrelationFilter(SourceId: answer.SourceId) : default }.Where(x => x != default))
+            {
+                (await service.SearchHistoryAsync(f.Request.SessionId, missing.Kind.ToString(), null, 50, f.Token,
+                    range: new(missing.Sequence, missing.Sequence), correlation: filter)).Records.Should().BeEmpty();
+            }
+        }
         foreach (var missingAudit in history.Records.Where(row => row.AuditSequence is null))
         {
             var exact = new SessionHistoryRangeFilter(missingAudit.Sequence, missingAudit.Sequence, MinimumAuditSequence: 1);
@@ -93,7 +126,7 @@ public sealed class WindowsSqliteHistorySearchTests
         foreach (var origin in new[] { RequestOrigin.LocalUi, RequestOrigin.ActivatedVoice })
         {
             var command = SessionCommand.Parse($"Nova, session search {f.Request.SessionId.Value:D} limit 50 \"finalword\"", "Nova")!;
-            (await service.ExecuteCommandAsync(command, origin, () => true, f.Token)).HistorySearch!.Records
+            (await service.ExecuteCommandAsync(command with { HistoryCorrelation = correlation }, origin, () => true, f.Token)).HistorySearch!.Records
                 .Should().ContainSingle();
         }
         (await f.Store.ReadRetentionAsync(f.Request.SessionId, f.Token)).Should().Be(clock);
@@ -117,10 +150,11 @@ public sealed class WindowsSqliteHistorySearchTests
         await WindowsSqliteSessionWorkspaceTests.FinishAsync(f, HostTaskState.Succeeded);
         var service = WindowsSqliteSessionWorkspaceTests.Service(f, new());
         using var root = HostActivity.BeginRoot(f.Request, HostActivityLayer.Application, HostOperation.Request);
-        var before = await service.SearchHistoryAsync(f.Request.SessionId, "question task", null, 1, f.Token);
+        var correlation = new SessionHistoryCorrelationFilter(f.Request.RequestId.Value, f.Request.TaskId.Value);
+        var before = await service.SearchHistoryAsync(f.Request.SessionId, "question task", null, 1, f.Token, correlation: correlation);
         var preview = await service.PreviewDispositionAsync(f.Request.SessionId, new(1), 0, f.Token);
         await service.ConfirmDispositionAsync(preview, RequestOrigin.LocalUi, () => true, f.Token);
-        var after = await service.SearchHistoryAsync(f.Request.SessionId, "question task", null, 50, f.Token);
+        var after = await service.SearchHistoryAsync(f.Request.SessionId, "question task", null, 50, f.Token, correlation: correlation);
         after.Disposed.Should().BeTrue();
         after.Records.Should().BeEmpty();
         after.Gaps.Should().Be(after.Scanned);
@@ -129,15 +163,15 @@ public sealed class WindowsSqliteHistorySearchTests
         filtered.Records.Should().BeEmpty();
         filtered.Gaps.Should().Be(after.Gaps);
         filtered.Scanned.Should().Be(after.Scanned);
-        var stale = () => service.SearchHistoryAsync(f.Request.SessionId, "question task", before.Next, 50, f.Token);
+        var stale = () => service.SearchHistoryAsync(f.Request.SessionId, "question task", before.Next, 50, f.Token, correlation: correlation);
         await stale.Should().ThrowAsync<InvalidOperationException>();
-        var foreign = () => service.SearchHistoryAsync(new(Guid.NewGuid()), "question task", before.Next, 50, f.Token);
+        var foreign = () => service.SearchHistoryAsync(new(Guid.NewGuid()), "question task", before.Next, 50, f.Token, correlation: correlation);
         await foreign.Should().ThrowAsync<ArgumentException>();
         var unknown = () => service.SearchHistoryAsync(new(Guid.NewGuid()), "question task", null, 50, f.Token);
         await unknown.Should().ThrowAsync<InvalidDataException>();
         using var cancelled = new CancellationTokenSource();
         cancelled.Cancel();
-        var cancel = () => service.SearchHistoryAsync(f.Request.SessionId, "question", null, 50, cancelled.Token);
+        var cancel = () => service.SearchHistoryAsync(f.Request.SessionId, "question", null, 50, cancelled.Token, correlation: correlation);
         await cancel.Should().ThrowAsync<OperationCanceledException>();
     }
 }

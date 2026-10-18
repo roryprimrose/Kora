@@ -25,6 +25,15 @@
                 AutomationProperties.Name="Observed content filter: Any, at least one observed queue receipt, task, or pending question; changing performs no read; unavailable never matches positive choices; omissions prove no absence or completion">
         <ComboBox.ItemTemplate><DataTemplate><TextBlock Text="{Binding Label}" /></DataTemplate></ComboBox.ItemTemplate>
       </ComboBox>
+      <StackPanel>
+        <TextBlock Text="Observed task state" />
+        <ComboBox x:Name="ObservedTaskState" ItemsSource="{Binding TaskStateChoices}"
+                  SelectedItem="{Binding SelectedTaskStateChoice, Mode=TwoWay}"
+                  IsEnabled="{Binding CanEdit}"
+                  AutomationProperties.Name="Observed task state: Any or exact defined HostTaskState; changing performs no read; only validated retained observed tasks match; omissions prove no absence, completion, current dispatch, ownership or authority">
+          <ComboBox.ItemTemplate><DataTemplate><TextBlock Text="{Binding Label}" /></DataTemplate></ComboBox.ItemTemplate>
+        </ComboBox>
+      </StackPanel>
       <CheckBox Content="Observed needs _answer" IsChecked="{Binding NeedsAnswer, Mode=TwoWay}"
                 IsEnabled="{Binding CanEdit}" AutomationProperties.Name="Pending-question metadata in scanned snapshots only; unavailable sources remain explicit, never a fresh reply target" />
     </WrapPanel>

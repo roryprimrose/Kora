@@ -34,6 +34,78 @@ do not depend on hosted management, and speech preferences do not qualify wake.
 
 ## Current Delivery
 
+### Bounded native Evidence retained due ranges - 2026-10-18
+
+The [existing Evidence inspector](Information_Display.md#delivered-bounded-native-evidence-inspection)
+adds optional inclusive FromDueUtc/UntilDueUtc, independently AND-composed with
+commit/observation time and every existing predicate. Shared canonical UTC
+admission rejects repair; UNKNOWN due metadata cannot match a constrained range.
+Both bounds bind the complete versioned query digest/authenticated cursor.
+Labelled native fields retain no-read edit/Clear/Escape and stale-result fences
+([deterministic tests](../tests/Kora.Windows.IntegrationTests/EvidenceAdvancedFilterTests.Due.cs)).
+This consumes the existing Evidence I subset only: no schema, retention writes,
+pruning, expiry/lifecycle, capture, body/path read or authority change. Due is
+deadline metadata, not deletion/current-expiry/policy/permission proof.
+E/Q, installed accessibility and unqualified providers/egress/wake/executors/
+profile writers remain separate and unavailable.
+
+### Bounded exact-grant committed request correlation predicates - 2026-10-17
+
+The [one-exact-grant history](../docs/settings.md#exact-operation-grants)
+adds optional exact committed HostRequest SessionId/RequestId/TaskId, AND-composed
+with every existing predicate. The [query](../src/Kora.Core/Authorization/ExactGrantHistoryQuery.cs)
+reuses strict canonical GUID parsing and binds each field in its versioned digest.
+Named [native fields](../src/Kora/ExactGrantsWindow.axaml) retain no-read edits,
+clear/reset, review retirement and existing bounded reader/admission fences.
+Only committed request metadata matches, never viewer/original-proposal authority.
+Deterministic Core/Application/private SQLite/headless tests cover this consumed
+I subset; no schema, log source, service, external action or E/Q qualification is
+added. Unavailable runtime/provider/egress/wake/profile-original writers stay disabled.
+
+### Passive skill catalogue exact immutable digest filters - 2026-10-17
+
+The [existing skill metadata contract](Definition_Management.md#delivered-native-skill-metadata-navigation)
+adds optional exact bundled definition/declared-resource digests and shared
+revision digest, AND-composed with literal and availability/compatibility filters.
+Empty means Any; canonical lowercase SHA-256 admission and ordinal equality
+reject malformed input without normalization or unfiltered fallback.
+
+The consumed I subset is the existing admitted immutable catalogue/query/native
+inspectors. Read-free edits/Clear, private selection/source retirement, Escape
+and generation/closure fencing have
+[portable](../tests/Kora.Application.UnitTests/Skills/SkillCatalogueSearchTests.cs)
+and [headless](../tests/Kora.Windows.IntegrationTests/SkillMetadataSearchWindowTests.cs)
+tests. No service/schema, resource-byte changes, hidden-name inspection, live
+reads/recheck, activation, invocation, grants or model/egress route is added;
+digest equality is observation only. Unqualified runtime/model/profile-original
+writers remain unavailable; no installed/hardware/acoustic/provider/containment
+E/Q qualification is claimed
+([storage boundary](Skill_Storage.md#delivered-bounded-r21-native-inspection)).
+
+### Bounded native Evidence observed parent kind - 2026-10-18
+
+Built on freshly fetched main `6f1afd471af8c48059f34d8392b811426127974e`.
+The [Evidence inspector](Information_Display.md#delivered-bounded-native-evidence-inspection)
+adds Any/ObservedRoot/ObservedChild retained trace predicates and visible
+accessible Any/Root/Child choices. Valid null parent is observed root; valid
+nonnull parent is child; null trace is unknown. Complete trace validation
+precedes exclusion, every filter composes with AND, and the versioned complete
+semantic digest binds authenticated continuation. Existing bounded reads,
+source/privacy/retention fences and no-read edit/Clear/Escape retirement remain.
+This consumes the existing Evidence I subset with deterministic portable,
+private SQLite and native headless checks. It adds no schema, authority,
+device/provider/model route, complete-trace or causality claim. Installed
+accessibility, runtime enablement and E/Q qualification remain separate and
+unclaimed; unrelated whole-Rxx, hardware/provider and retired proofs are not
+implementation prerequisites.
+
+### Bounded owned-inventory exact identity navigation - 2026-10-18
+
+The [owned metadata inventory](Definition_Management.md#bounded-owned-instruction-and-prompt-editor) adds explicit Literal (default), ExactOwnedId and ExactArtifactId modes over its admitted snapshot. Canonical owned-name/artifact admission is shared; exact artifact matches exclude unknown/unmapped rows.
+Modes AND-compose with existing predicates and bind continuation identity; accessible mode/Clear/Escape retires selection/review state without source reads or raw-draft loss ([tests](../tests/Kora.Application.UnitTests/Definitions/OwnedDefinitionInventoryTests.QueryModes.cs)).
+This consumes only the existing inventory/editor I subset. Historical Compare semantics remain separate; no profile writer, agent runtime, model/provider, schema or new enablement is added.
+Broader E/Q qualification remains separate ([native lifecycle](../tests/Kora.Windows.IntegrationTests/ArtifactDiscovery/OwnedDefinitionEditorWindowTests.Inventory.cs)).
+
 ### Bounded native session-list ExactName - 2026-10-16
 
 Built on freshly fetched main `afdee7f508bc2e186bf56ef5f65cb27711e83bd1`.
@@ -112,6 +184,11 @@ storage schema, provider/device/network/experiment or sibling-domain changes.
 This consumed I subset does not claim installed accessibility, full Evidence,
 Ask Evidence or E/Q qualification, and requires no unrelated proof.
 
+### Bounded native selected-session memory snapshot ordering - 2026-10-18
+
+The [memory filter contract](Model_Providers_Memory_And_Knowledge.md#delivered-native-content-free-session-memory-filters---2026-10-14) adds Source-default, Created oldest/newest and Revision lowest/highest ordering with canonical ordinal GUID ties over fully validated loaded metadata.
+This is consumed I only: no read, persistence, scope/authority expansion or provider/runtime enablement. Installed accessibility and broader memory E/Q remain unclaimed; no unrelated physical or retired experiment proof is required.
+
 ### Bounded native selected-session memory scope identity predicate - 2026-10-16
 
 Built from freshly fetched canonical main `afdee7f508bc2e186bf56ef5f65cb27711e83bd1`.
@@ -155,6 +232,10 @@ network/device/provider/experiment or unrelated proof is required or claimed;
 installed accessibility and broader E/Q qualification remain separate.
 
 ### Bounded exact-session interaction-receipt metadata predicates - 2026-10-16
+
+The [retained receipt correlation increment](Interaction_And_Sessions.md#delivered-passive-exact-session-lexical-history-search---2026-10-09) adds optional exact RequestId/TaskId/SourceId predicates to older receipt HistorySearch, AND-composed with all merged lexical OR, typed metadata and provenance ranges.
+It consumes only the existing private exact-session reader I subset. Shared strict canonical GUID parsing, complete-page validation, bound semantic cursors, native no-read retirement and final snapshot admission remain in the [production path](../src/Kora.Application/Hosting/SessionWorkspaceService.Search.cs).
+Historical IDs add no session/permission/ownership/approval/task/replay/source authority, timestamp or current state. Providers, egress, wake, executors and profile-original writers remain unavailable; no unqualified enablement or broader E/Q/installed-accessibility claim is made ([owning boundary](Interaction_And_Sessions.md#delivered-passive-exact-session-lexical-history-search---2026-10-09)).
 
 The [receipt provenance range increment](Interaction_And_Sessions.md#delivered-passive-exact-session-lexical-history-search---2026-10-09), implemented from main `d6d249d06f16db8d18636e4a0a4a3257d69896bc`, adds inclusive sequence/generation/source-revision/audit-sequence bounds through the existing matcher, Application command path and labelled native fields.
 It consumes only the existing passive exact-session reader I subset: no timestamps, schema/service/profile, source read, current authority, task management, retry/replay, approval or external operation ([range policy](../src/Kora.Core/Storage/SessionHistoryRangeFilter.cs)).
@@ -392,6 +473,18 @@ Malformed input explicitly fails closed. This is metadata only, not permission,
 provider, memory-content or mutation authority. Full memory, installed
 accessibility, provider and E/Q qualification remain unchanged and unclaimed;
 unqualified recall/global catalogue/model consumers remain unavailable.
+
+### Bounded All Work exact observed task state - 2026-10-17
+
+The [All Work observation contract](Work_Management.md#delivered-passive-cross-session-work-observation---2026-10-11)
+also adds optional exact observed `HostTaskState`: explicit native Any plus defined
+states, AND-composed with all existing filters/ranges and bound to continuation.
+Only validated retained task records match; omitted/unavailable work proves no
+absence, completion, current dispatch, ownership or authority. Read-free edit
+retirement and existing bounded/private/source fences remain intact.
+[Deterministic tests](../tests/Kora.Application.UnitTests/Hosting/SessionWorkspaceServiceTests.WorkOverviewTaskState.cs)
+cover this consumed I subset; no model/runtime/provider/egress/wake/profile writer
+is enabled, and E/Q or installed qualification is not claimed.
 
 ### Bounded All Work retained observation metadata ranges - 2026-10-16
 
@@ -711,6 +804,13 @@ No schema/index/cache, content/path read, mutation, aggregate/persistence,
 diagnostic/audit payload, model/tool/speech/export or activity renewal is added.
 This bounded I increment does not advance broader R26 or E/Q qualification;
 Presence/native-presenter and unrelated filter/review work remain separate.
+
+### R26 retained attachment observed-generation relationship - 2026-10-17
+
+The bounded [retained attachment generation relationship](File_And_Folder_Ingestion.md#delivered-retained-attachment-metadata-catalogue---2026-10-11) adds explicit Any / Same observed generation / Earlier observed generation, AND-composed with all existing predicates.
+Constrained choices require Confirmed copies; complete bounded validation, versioned authenticated continuations and native no-read retirement preserve the consumed I seam.
+[Core](../tests/Kora.Core.UnitTests/Storage/SessionAttachmentGenerationRelationshipTests.cs), [SQLite](../tests/Kora.Windows.IntegrationTests/Storage/WindowsSqliteSessionAttachmentTests.GenerationCatalogue.cs) and [headless native](../tests/Kora.Windows.IntegrationTests/AttachmentCatalogueWindowTests.Generation.cs) checks cover this passive historical metadata only.
+No currentness, authority, body/path read, schema/index, runtime/profile enablement, experiment or broader R26/E/Q qualification is claimed.
 
 ### R26 exact retained attachment SHA-256 predicate - 2026-10-16
 

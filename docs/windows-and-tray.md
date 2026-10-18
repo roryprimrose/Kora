@@ -237,6 +237,8 @@ permission; failures/recovery and omitted records remain explicit. There are
 up to 25 recent queue receipts and 50 nonqueue task/pending-question records
 each; use exact history/status for omitted retained records.
 
+The selected-work pane scrolls vertically at the minimum window size. Work actions, required questions and the History/Memory tabs retain their order; Tab/Shift+Tab and scrolling reach off-screen controls without invoking them ([native layout](../src/Kora/SessionsWindow.axaml)). See [session memory controls](commands.md#create-and-manage-reviewed-session-memories) for Source-default snapshot ordering.
+
 Selection and five-second idle refresh are passive and preserve focus.
 Use **Inspect selected work ID**, eligible **Cancel**, **Remove pending ID**
 or **Confirm clear displayed pending queue** for the exact displayed revisions.
@@ -267,6 +269,9 @@ Open **Tray > Sessions > All work / attention overview**, then **Refresh overvie
 - Expand **Optional inclusive observed work metadata ranges** to set minimum/maximum authority revision, queue revision, pending count/capacity, execution slots, observed current fixed reads, or omitted queue-receipt/task/pending-question counts. Empty means Any; endpoints are inclusive and minimum must not exceed maximum. Enter ASCII decimal Int64 only, without signs, whitespace or separators. Authority revision, capacity and slots must be positive; queue revision and counts may be zero. Invalid bounds show recovery and disable Search/Refresh/Next without reading or falling back to Any. **Clear work metadata ranges** clears just these bounds and results without reading.
 - Ranges AND-compose with lifecycle, Browse/name/exact-ID, Needs answer, **Observation availability** and positive **Observed content** choices. Only validated **Observed** work matches an active range; Source changed, Read unavailable and Output bound never do. Matching an omission count supplies no retained records and proves no absence, completeness, success or authority. Zero is just the observed scalar, not all-clear. Edits retire rows/selection/continuation and late callbacks, remain available during reads, and clear on close/private closure.
 - Select a group to read exact IDs/generations, source revisions/UTC time, fixed-profile slots/capacity, observed current fixed reads, queue/task states, scheduler reasons and captured deadlines. Full private bodies, history, attachments, memory and diagnostic text are not collected.
+- **Observed task state** offers **Any** plus every defined task state, independently AND-composed with all filters above. Only a validated retained task with that exact state matches, including Unknown/Unavailable.
+  Missing, unavailable, empty or omitted-only observations cannot match a positive state or prove absence, completion, current dispatch, ownership or authority ([contract](../Design/Work_Management.md#delivered-passive-cross-session-work-observation---2026-10-11)).
+- State edits perform no read and retire results/details/navigation/Next and late callbacks. **Clear query** and Escape in its field retire those results without changing independent filters; close clears the volatile state to Any. The labelled accessible selector grants no task/provider/device action ([native controls](../src/Kora/AllWorkWindow.axaml)).
 - Pages are **not globally atomic**. No global counts, all-clear, ETA, unread tracking or actual provider/resource contention is claimed. Refresh for mutations/new IDs behind the cursor.
 - **Open exact session with fresh passive read** navigates the immutable ID through fresh private workspace reads. It never resumes, dispatches, enqueues, reprioritizes, cancels, renews activity, consumes grants or retargets voice/questions. Inspect/cancel authority is not renewed; reply only in the original Questions window.
 - Storage has a ten-second total timeout. Privacy, ownership, retained-source, lifecycle/disposition or retention/hold changes reject or clear observations; stale work is never relabelled current. Close clears query text/mode, rows, filters, IDs and continuation and suppresses late callbacks. Browsing causes no cleanup/background heartbeat.
@@ -479,6 +484,22 @@ Editing performs no read and retires results/details/navigation/continuation/
 pending work. Clear query, revocation and close erase all six volatile fields.
 Signed continuations bind every endpoint; changing one requires fresh Search.
 
+Choose **Retained captured to observed session generation relationship: Any
+(default), Same observed generation or Earlier observed generation**, then
+Search. Same compares retained CapturedGeneration with the equal observed
+SessionGeneration; Earlier requires CapturedGeneration to be smaller. Both
+constrained choices match only Confirmed copies, never Held or unavailable/
+removed slots. Any preserves the other filters and existing defaults; all
+predicates combine by AND.
+This is passive historical metadata, not current session/device identity,
+freshness, staleness, completeness, consent, authority, source integrity or
+proof a copy exists. Changing reads nothing and immediately clears results,
+selection/details/navigation/continuation and pending callbacks. Clear query,
+Cancel, source/privacy/ownership revocation and close reset Any without a read.
+Invalid selection disables Search and requires a defined choice; no fallback
+is applied. Continuations bind the choice and cannot be reused after a change.
+See the [owning metadata contract](../Design/File_And_Folder_Ingestion.md#delivered-retained-attachment-metadata-catalogue---2026-10-11).
+
 The literal is limited to 256 UTF-16 units / 512 UTF-8 bytes of valid single-line Unicode without control/format characters. Empty disables literal filtering; invalid input disables Search with recovery guidance and never falls back. Query text is memory-only: not saved, audited, logged, exported or sent to a model/network. No matching retained metadata at the end is reported truthfully; an empty page with Next is not a whole-catalogue no-match.
 
 Choose **Stored session lifecycle: All (default), Active, Done or Removed** independently of Browse/ExactId and **Include removed slots**. All preserves existing behavior. Removed sessions can have only removed-slot provenance: enable Include removed slots to see it. An Active or Done session can also have a removed attachment slot; removing a slot does not remove its session. See the [canonical lifecycle contract and tests](../Design/File_And_Folder_Ingestion.md#delivered-retained-attachment-metadata-catalogue---2026-10-11).
@@ -494,7 +515,9 @@ cannot open a body. Unavailable tombstones can match exact Unavailable with
 Include removed slots and a matching lifecycle, but never match byte bounds,
 even 0..0. Their size is unavailable, not an original zero-byte-file claim.
 
-Typing performs no I/O. Mode, ID, literal, lifecycle, media-type/copy-status/byte/digest/correlation/version-range filters and **Include removed slots** edits retire results, selection, navigation and continuation and cancel pending work; use Search again (or Enter in a text field). **Clear query (Browse)** clears volatile ID, literal, digest, correlation and version-range fields without reading or changing the remaining filters. Search never auto-selects or opens a match. Escape closes and clears private state. Source/privacy/ownership/control revocation also clears the copy-status/byte fields.
+Typing performs no I/O. Mode, ID, literal, lifecycle, media-type/copy-status/byte/digest/correlation/version-range/generation-relationship filters and **Include removed slots** edits retire results, selection, navigation and continuation and cancel pending work; use Search again (or Enter in a text field).
+**Clear query (Browse)** clears volatile ID, literal, digest, correlation and version-range fields and resets the generation relationship to Any without reading or changing the remaining filters.
+Search never auto-selects or opens a match. Escape closes and clears private state. Source/privacy/ownership/control revocation also clears the copy-status/byte fields.
 
 - Each page has at most **16 rows / 64 KiB** and scans at most **64 slots**. **Next bounded page** may continue after zero matches; ExactId does not jump over unvalidated slots. **Include removed slots** shows content-free removal provenance; historical removed slots do not count toward the sixteen-live-file cap.
 - Typed authority is validated in bounded segments before rows are shown. **Authority validation pending** pages contain no attachments; use Next to continue. Reads have a five-second budget. Continuations expire after two minutes; any committed authority, storage/profile or query change requires Refresh.
@@ -776,7 +799,11 @@ Use the labelled minimum/maximum **receipt sequence**, **receipt generation**, *
 Enter decimal digits only, with no whitespace, signs or separators; overflow, invalid or inverted bounds are rejected. Every range and typed choice must match alongside a lexical word; absent audit sequence cannot match a constrained audit range. No timestamp is available or fabricated ([receipt policy](../src/Kora.Core/Storage/SessionHistoryEvent.cs)).
 Editing a bound clears old rows, selected detail/actions and Next without reading; explicitly Search or press Enter again. Clear and Escape in any query/range field reset all history bounds and choices ([native workflow](../src/Kora/SessionsViewModel.Search.cs), [controls](../src/Kora/SessionsWindow.axaml.cs)).
 
-Escape in the query field clears query/results without closing the window. **Clear query and results** returns focus to that field; **Cancel search** suppresses pending results. Editing query/subject, closing, privacy/ownership loss or retention retirement invalidates late content. Search does not disable the focused field, replace pending-question targets or renew activity ([native controls](../src/Kora/SessionsWindow.axaml.cs), [deterministic recovery tests](../tests/Kora.Windows.IntegrationTests/SessionsHistorySearchTests.cs), [late-result tests](../tests/Kora.Windows.IntegrationTests/SessionsViewModelTests.Search.cs)). These headless checks are not physical keyboard, installed screen-reader or DPI qualification.
+The **Retained RequestId**, **Retained TaskId** and **Retained SourceId** fields optionally require exact retained receipt IDs. Empty means Any; otherwise enter a nonzero lowercase D-format GUID, with no whitespace, uppercase, braces or other repair ([shared parser](../src/Kora.Core/Hosting/OptionalCanonicalGuid.cs)).
+All specified IDs, ranges and typed choices must match alongside at least one lexical word; missing receipt IDs never match a constrained field. These are historical correlation only, not current/session identity, permissions, ownership, approval, task selection/action/replay or source authority ([receipt matcher](../src/Kora.Core/Storage/SessionHistorySearch.cs)).
+Editing an ID performs no read and retires results, Next, selection and detail/actions. Clear or Escape in any query, ID or range field resets all predicates. Explicit Search/Enter starts again under the existing cancellation/privacy/source/control fences; no timestamp or unknown current state is added ([native workflow](../src/Kora/SessionsViewModel.Search.cs)).
+
+Escape in the query field clears query/results without closing the window. **Clear query, predicates and results** returns focus to that field; **Cancel search** suppresses pending results. Editing query/subject, closing, privacy/ownership loss or retention retirement invalidates late content. Search does not disable the focused field, replace pending-question targets or renew activity ([native controls](../src/Kora/SessionsWindow.axaml.cs), [deterministic recovery tests](../tests/Kora.Windows.IntegrationTests/SessionsHistorySearchTests.cs), [late-result tests](../tests/Kora.Windows.IntegrationTests/SessionsViewModelTests.Search.cs)). These headless checks are not physical keyboard, installed screen-reader or DPI qualification.
 
 ### Logical session disposition
 

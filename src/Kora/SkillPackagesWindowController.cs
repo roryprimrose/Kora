@@ -47,7 +47,9 @@ internal sealed partial class SkillPackagesWindowController : IDisposable
             if (window is null)
             {
                 var catalogue = EmbeddedSkillCatalogue.Load();
-                window = new(catalogue, renderer, sharedSources.Open);
+                var revision = viewModel.CallPolicyRevision;
+                window = new(catalogue, renderer, sharedSources.Open,
+                    () => isCurrentHost() && viewModel.CanRevealPrivatePresentation && viewModel.CallPolicyRevision == revision);
                 window.Closed += OnClosed;
                 InspectionAdmitted(logger, catalogue.Packages.Count, false);
             }

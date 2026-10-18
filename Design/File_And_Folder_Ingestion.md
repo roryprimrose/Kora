@@ -21,7 +21,7 @@ Related: [Architecture](Architecture.md), [Security and Data Flows](Security_Dat
 
 Select an admitted row, then use **Find first / next / previous / Clear Find** in its details pane. Unlike catalogue filtering, Find searches the entire displayed `SelectedDetails` JSON, frozen on selection. It excludes other rows, hidden backing fields, descriptors, names, paths, bytes and current sources ([native owner](../src/Kora/AttachmentCatalogueViewModel.cs)).
 
-The [navigation state](../src/Kora.Application/Presentation/AttachmentMetadataFindState.cs) reuses [Core `SnapshotLiteralFind`](../src/Kora.Core/Context/SnapshotLiteralFind.cs) unchanged: bounded well-formed one-line query, ordinal case/space-sensitive literals, one nonoverlapping UTF-16 span, no normalization, count or wrap. Invalid queries are explicit, not successful no-match results.
+The [shared admitted-metadata navigation state](../src/Kora.Application/Presentation/AdmittedMetadataFindState.cs), renamed without behavior changes for reuse by skill identity inspectors, reuses [Core `SnapshotLiteralFind`](../src/Kora.Core/Context/SnapshotLiteralFind.cs) unchanged: bounded well-formed one-line query, ordinal case/space-sensitive literals, one nonoverlapping UTF-16 span, no normalization, count or wrap. Invalid queries are explicit, not successful no-match results.
 
 Only the existing content-free projection is searchable, within the existing page budget. Unavailable `StoredBytes` is removed before display/snapshot capture; tombstone-suppressed metadata stays suppressed. Raw backing fields are not searched ([projection](../src/Kora/AttachmentCatalogueViewModel.cs), [retained fields](../src/Kora.Core/Storage/SessionAttachmentSummary.cs)).
 

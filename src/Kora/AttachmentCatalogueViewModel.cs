@@ -21,7 +21,7 @@ internal sealed partial class AttachmentCatalogueViewModel(
     private SessionAttachmentPage? page;
     private SessionAttachmentSummary? selected;
     private string selectedDetails = string.Empty;
-    private AttachmentMetadataFindState? metadataFind;
+    private AdmittedMetadataFindState? metadataFind;
     private CancellationTokenSource? operation;
     private bool includeRemoved;
     private SessionAttachmentFilter filter;
@@ -81,7 +81,7 @@ internal sealed partial class AttachmentCatalogueViewModel(
     public bool CanNavigateMetadataFind => CurrentFind()?.CanNavigate == true;
     public bool HasMetadataFindMatch => CurrentFind()?.Match is not null;
 
-    private AttachmentMetadataFindState? CurrentFind()
+    private AdmittedMetadataFindState? CurrentFind()
     {
         SynchronizeAuthority();
         return metadataFind;

@@ -88,6 +88,12 @@ This consumes only the existing ExactGrants I subset; no service/schema/source,
 logging/audit mutation or runtime/provider/egress/wake/profile-writer enablement
 is added. Broader installed/native/hardware/provider E/Q qualification is unchanged.
 
+### Bundled and shared skill selected-identity metadata literal Find - 2026-10-18
+
+The [bounded inspection increment](Skill_Storage.md#selected-displayed-identity-metadata-literal-find---2026-10-18) adds private First/Next/Previous/Clear over only frozen, already displayed selected identity text. It shares the renamed [attachment navigation state](../src/Kora.Application/Presentation/AdmittedMetadataFindState.cs) and unchanged Core Find, with read-free retirement and no catalogue filtering or source discovery.
+
+The [native tests](../tests/Kora.Windows.IntegrationTests/SkillIdentityMetadataFindTests.cs) cover identity-only scope, private controls and retirement; existing [portable state tests](../tests/Kora.Application.UnitTests/Presentation/AttachmentMetadataFindStateTests.cs) retain attachment behavior. I consumes only merged inspection and literal-Find contracts; no runtime/model/provider/egress/wake/profile writer enablement or E/Q qualification is claimed.
+
 ### Retained attachment selected-metadata literal Find - 2026-10-18
 
 The [retained catalogue](File_And_Folder_Ingestion.md#selected-displayed-metadata-literal-find---2026-10-18) adds private First/Next/Previous/Clear over only the frozen displayed selected metadata. Shared Core matching is unchanged. Read-free edits, tombstone suppression and selection/operation/privacy/control/source/close retirement preserve authority and filters.

@@ -720,11 +720,14 @@
                       AutomationProperties.Name="Create only a volatile Proposed Pending user candidate in the exact active selected session; no review, admission, recall or transmission" />
               <Button x:Name="EditMemory" Content="Replace exact revision; return to Proposed/Pending" IsEnabled="{Binding CanEditMemory}"
                       AutomationProperties.Name="Edit clears earlier review and use; replacement stays volatile until new inspect, review and admission" />
-              <TextBlock Text="Selected-subset DISABLE only. Select enabled rows with Ctrl/Shift and arrow keys; no automatic Select All."
+              <TextBlock Text="Explicit selected-subset DISABLE or irreversible FORGET. Admitted enabled rows support either; disabled rows support forget. Select with Ctrl/Shift and arrow keys; no automatic Select All. Forget removes application content, keeps a non-reusable identity tombstone, and does not promise physical or forensic erasure."
                          TextWrapping="Wrap" />
+              <ComboBox x:Name="MemoryBatchOperationChoice" ItemsSource="{Binding MemoryBatchOperations}"
+                        SelectedItem="{Binding MemoryBatchOperation, Mode=TwoWay}" IsEnabled="{Binding CanReadMemories}"
+                        AutomationProperties.Name="Selected-subset operation: Disable or irreversible Forget; changing operation retires review and selection" />
               <ListBox x:Name="MemoryBatchRecords" MaxHeight="160" ItemsSource="{Binding MemoryRecords}"
                        SelectionMode="Multiple" IsEnabled="{Binding CanFilterMemories}"
-                       AutomationProperties.Name="Explicit memory disable subset; keyboard Ctrl or Shift multi-selection; selection does not inspect or approve">
+                       AutomationProperties.Name="Explicit memory subset; keyboard Ctrl or Shift multi-selection; only visible exact rows; selection does not inspect or approve">
                 <ListBox.ItemTemplate>
                   <DataTemplate>
                     <StackPanel>
@@ -736,15 +739,15 @@
                 </ListBox.ItemTemplate>
               </ListBox>
               <WrapPanel>
-                <Button x:Name="ReviewMemoryBatch" Content="Review selected disable subset"
+                <Button x:Name="ReviewMemoryBatch" Content="{Binding MemoryBatchReviewLabel}"
                         IsEnabled="{Binding CanReviewMemoryBatch}"
-                        AutomationProperties.Name="Inspect every exact selected enabled session memory and classification; no mutation" />
-                <Button x:Name="ConfirmMemoryBatch" Content="Confirm sequential DISABLE"
+                        AutomationProperties.Name="Inspect every exact selected eligible session memory and classification for the chosen operation; no mutation" />
+                <Button x:Name="ConfirmMemoryBatch" Content="{Binding MemoryBatchConfirmLabel}"
                         IsEnabled="{Binding CanConfirmMemoryBatch}"
-                        AutomationProperties.Name="One-shot confirm only the displayed exact subset; sequential disables can partially commit; no rollback or automatic retry" />
-                <Button x:Name="CancelMemoryBatch" Content="Cancel disable review or remaining steps"
+                        AutomationProperties.Name="One-shot confirm only the displayed operation and exact subset; sequential actions can partially commit; Forget irreversibly removes application content, not physical or forensic erasure; no rollback or automatic retry" />
+                <Button x:Name="CancelMemoryBatch" Content="Cancel review or remaining steps"
                         IsEnabled="{Binding CanCancelMemoryBatch}"
-                        AutomationProperties.Name="Retire disable receipt and cancel remaining work; already committed individual actions cannot roll back" />
+                        AutomationProperties.Name="Retire review and private bodies and cancel remaining work; already committed individual actions cannot roll back" />
               </WrapPanel>
               <TextBox x:Name="MemoryBatchDetail" Text="{Binding MemoryBatchDetail, Mode=OneWay}" IsReadOnly="True" AcceptsReturn="True"
                        TextWrapping="Wrap" MaxHeight="240" ScrollViewer.VerticalScrollBarVisibility="Auto"

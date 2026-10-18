@@ -3,6 +3,10 @@ using Kora.Application.Memory;
 using Kora.Core.Commands;
 using Kora.Core.Hosting;
 using Kora.Core.Memory;
+using MemoryBatchDisableWorkflow = Kora.Application.Memory.MemoryBatchWorkflow;
+using MemoryBatchDisableState = Kora.Application.Memory.MemoryBatchState;
+using MemoryBatchDisableOutcome = Kora.Application.Memory.MemoryBatchOutcome;
+using IMemoryBatchDisableActions = Kora.Application.Memory.IMemoryBatchActions;
 
 namespace Kora.Application.UnitTests.Memory;
 
@@ -148,6 +152,7 @@ public sealed class MemoryBatchDisableWorkflowTests
     [InlineData("unknown-commit")]
     [InlineData("missing-readback")]
     [InlineData("wrong-readback")]
+    [InlineData("unexpected")]
     [InlineData("cancel-unconfirmed")]
     [InlineData("cancel-unknown-commit")]
     public async Task FailuresNeverBecomeSuccessOrRetryAndUnknownCommitRemainsUnavailable(string fault)
@@ -339,8 +344,9 @@ public sealed class MemoryBatchDisableWorkflowTests
         actions.Attempts.Should().Be(3);
     }
 
-    private sealed class Actions : IMemoryBatchDisableActions
+    internal sealed class Actions : IMemoryBatchDisableActions
     {
+        internal MemoryBatchOperation Operation { get; set; }
         internal HostId<SessionIdentity> Session { get; } = new(Guid.NewGuid());
         internal Dictionary<Guid, MemoryRecord> Rows { get; } = [];
         internal List<Guid> Inspections { get; } = [];
@@ -384,19 +390,32 @@ public sealed class MemoryBatchDisableWorkflowTests
             return Task.FromResult(ReturnNull ? null! : Rows[selection.Id]);
         }
 
-        public async Task DisableAsync(HostId<SessionIdentity> session, MemoryRecord record, Func<bool> admitted,
+        public async Task ApplyAsync(MemoryBatchOperation operation, HostId<SessionIdentity> session, MemoryRecord record, Func<bool> admitted,
             Action<MemoryResult> completed, CancellationToken token)
         {
+            operation.Should().Be(Operation);
             session.Should().Be(Session);
             token.ThrowIfCancellationRequested();
             admitted().Should().BeTrue();
             var fail = Attempts++ == FailAt;
             if (PendingDisable is { } pending) { await pending(); }
             if (fail && Fault is "audit" or "commit") { throw new IOException("required write unavailable"); }
+            if (fail && Fault is "unexpected") { throw new NotSupportedException("required transition unavailable"); }
             if (fail && Fault is "cancel-unconfirmed") { throw new OperationCanceledException(token); }
             if (fail && Failure is { } result) { completed(result); return; }
             if (fail && Fault is "missing-readback") { return; }
-            var updated = record with { Revision = new(record.Revision.Value + 1), Retention = MemoryRetentionState.Disabled };
+            if (Rows[record.Id.Value] != record)
+            {
+                completed(new(MemoryOutcome.RevisionConflict, MemoryReason.RevisionMismatch));
+                return;
+            }
+            var updated = operation == MemoryBatchOperation.Disable
+                ? record with { Revision = new(record.Revision.Value + 1), Retention = MemoryRetentionState.Disabled }
+                : record with
+                {
+                    Revision = new(record.Revision.Value + 1), Retention = MemoryRetentionState.Forgotten,
+                    Candidate = null, Receipt = null,
+                };
             Rows[record.Id.Value] = updated;
             Disabled.Add(record.Id.Value);
             if (fail && Fault is "unknown-commit") { throw new IOException("commit result unknown"); }

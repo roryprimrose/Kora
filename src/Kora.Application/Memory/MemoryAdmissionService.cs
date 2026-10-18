@@ -40,8 +40,9 @@ internal sealed partial class MemoryAdmissionService(
         MemoryRecord? exactRecord = null) =>
         ExecuteAsync(MemoryOperation.Disable, id, revision, null, null, MemoryProposalOrigin.Unknown, false, MemoryDestination.Unknown, token, exactRecord);
 
-    internal Task<MemoryResult> ForgetAsync(HostId<MemoryIdentity> id, HostRevision revision, CancellationToken token) =>
-        ExecuteAsync(MemoryOperation.Forget, id, revision, null, null, MemoryProposalOrigin.Unknown, false, MemoryDestination.Unknown, token);
+    internal Task<MemoryResult> ForgetAsync(HostId<MemoryIdentity> id, HostRevision revision, CancellationToken token,
+        MemoryRecord? exactRecord = null) =>
+        ExecuteAsync(MemoryOperation.Forget, id, revision, null, null, MemoryProposalOrigin.Unknown, false, MemoryDestination.Unknown, token, exactRecord);
 
     internal Task<MemoryResult> UseAsync(HostId<MemoryIdentity> id, HostRevision revision,
         MemoryDestination destination, CancellationToken token) =>

@@ -280,6 +280,7 @@ public sealed partial class OwnedDefinitionEditorWindowTests
 
     private sealed class ValidationStore(IOwnedInstructionStore inner) : IOwnedInstructionStore
     {
+        internal Func<string, CancellationToken, Task<OwnedInstructionSnapshot?>>? ReadOverride;
         internal bool DenyAccess;
         internal int Reads;
         internal int Lists;
@@ -289,7 +290,7 @@ public sealed partial class OwnedDefinitionEditorWindowTests
         public Task<IReadOnlyList<string>> List(CancellationToken token)
         { Lists++; RequireAccess(); return inner.List(token); }
         public Task<OwnedInstructionSnapshot?> Read(string name, CancellationToken token)
-        { Reads++; RequireAccess(); return inner.Read(name, token); }
+        { Reads++; RequireAccess(); return ReadOverride is { } read ? read(name, token) : inner.Read(name, token); }
         public Task<InstructionWriteResult> Write(string name, OwnedInstructionSnapshot? expected, ArtifactFileDocument? replacement,
             Func<bool> eligible, Func<Func<InstructionWriteResult>, Task<InstructionWriteResult>> commit, CancellationToken token)
         { Writes++; RequireAccess(); return inner.Write(name, expected, replacement, eligible, commit, token); }

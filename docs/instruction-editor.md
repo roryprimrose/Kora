@@ -9,7 +9,7 @@ No AI model, hosted account or network is involved in editing.
 
 | Kind/source/channel | This increment |
 |---|---|
-| Kora-owned instructions | Native single-file create/list/inspect/edit/Validate/Save/Save as new copy/reload/Delete, separate explicit-use review and exact native v1 Disable reviewed use |
+| Kora-owned instructions | Native single-file create/list/inspect/edit/Validate/Rebase/Save/Save as new copy/reload/Delete, separate explicit-use review and exact native v1 Disable reviewed use |
 | Kora-owned prompts | The same editor/reviews; v1 literal requests and v2 bounded required `${input:name}` text with private expanded preview and separate request admission; no instruction/system authority |
 | Registered profile instructions | Existing read/selection only; no original writer or fork |
 | Skills and agents | Existing bounded readers only; authoring is a separate follow-on |
@@ -193,6 +193,8 @@ Kora checks disk immediately before publication. A detected changed, replaced or
 - **Overwrite with Kora changes**: explicitly review replacing the observed conflict with Kora's exact bytes.
 - **Cancel (keep draft)**: leave the draft intact and write no owned definition file.
 
+Use the separate **Rebase** action when you want to retain the complete raw draft while explicitly changing its inspected baseline, rather than discarding it with Reload ([rebase lifecycle](../src/Kora/OwnedInstructionEditorController.Rebase.cs)).
+
 Another detected change before the final comparison prompts again. There is no automatic merge or retry.
 You have chosen optimistic saving: an edit arriving after that final comparison but before complete-byte
 atomic replacement may be overwritten. This narrow content race does not allow writes through links,
@@ -203,6 +205,26 @@ Closing the dirty editor or exiting Kora offers **Save / Discard / Cancel**.
 Privacy closure clears private editor text and retires pending actions; cancelled or failed ordinary publication
 may already have changed disk. In that case Kora holds further writes/use until explicit Reload/reconciliation,
 does not claim rollback, and reports recovery instead of false success.
+
+## Rebase the open draft without saving
+
+**Rebase**, `instructions rebase` or `prompts rebase` (including the current assistant-name prefix) acts only on the already open same-kind supported owned source.
+It accepts no ID/body argument, does not open a source implicitly, and rejects new/missing baselines, changed ID/kind and uncertain publication or unavailable source state ([controller](../src/Kora/OwnedInstructionEditorController.Rebase.cs)).
+
+The explicit action reads the latest exact owned source and freezes three separate complete bodies: the old inspected baseline, the newly observed source, and the exact raw unsaved draft.
+The [native review](../src/Kora/OwnedInstructionRebaseReviewWindow.cs) labels them separately and discloses filenames, kind, owned/artifact IDs, revisions, source digests/byte counts/BOMs, exact revision/byte equality and shared changed-field observations.
+
+The draft is never merged, trimmed, canonicalized or replaced by prepared Save bytes. Structurally invalid, empty or whitespace-only raw text remains reviewable within the existing complete comparison bound; invalid Unicode or over-budget text is rejected without truncation.
+Shared Save preparation provides a separately labelled structural observation against the latest baseline, not semantic approval ([typed observation](../src/Kora.Application/Definitions/OwnedDraftRebase.cs)).
+
+**Adopt latest baseline only** explicitly rereads the source and requires the exact observed revision, including native file/directory identity and byte digest. Missing/deleted, incompatible, wrong-kind or mismatched-ID sources fail closed.
+A same-ID/same-format external edit or replacement still changes revision; observed catalogue/control ABA retires review. A change and restoration of an identical revision with no observed invalidation cannot be detected as historical change ([workflow](../src/Kora.Application/Definitions/OwnedInstructionEditorActions.Rebase.cs)).
+
+Confirmation adopts only the latest baseline in editor memory and preserves the entire raw draft. It clears prior editor validation/comparison and use-review eligibility; it grants no use, permission, approval or runtime authority. Cancel, Escape or closing the review preserves the prior baseline and draft.
+Source/control/catalogue, draft/ID/kind/selection/input, ownership, call/privacy and editor-lifetime changes withdraw the proposal; retired windows clear bodies and reject late confirmation ([native regression cases](../tests/Kora.Windows.IntegrationTests/ArtifactDiscovery/OwnedDefinitionEditorWindowTests.Rebase.cs)).
+
+Rebase writes no source, revision preferences or use state and performs no automatic catalogue reload. Ordinary correlated host control intent/terminal receipts remain. It cannot resolve an uncertain Save by assumption: use the existing explicit exact reread/reconciliation recovery contract.
+**Save** remains a separate ordinary full exact confirmation and optimistic comparison against the adopted baseline, and can conflict again ([portable regression cases](../tests/Kora.Application.UnitTests/Definitions/InstructionEditorTests.Rebase.cs)).
 
 ## Saving is not applying
 

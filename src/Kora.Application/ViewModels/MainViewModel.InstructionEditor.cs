@@ -46,11 +46,12 @@ public sealed partial class MainViewModel
             "copy" => "Save as new copy",
             "validate" => "Validate",
             "compare" => "Compare",
+            "rebase" => "Rebase",
             "disable" or "stop-use" => "Disable reviewed use",
             _ => null,
         };
         if (operation is null)
-        { ReportHostInteractionFailure("Use instructions/prompts editor/list/create/edit/inspect/validate/compare/save/copy/reload/delete/activate/disable/stop-use/cancel. Body text and paths are not editor commands."); return; }
+        { ReportHostInteractionFailure("Use instructions/prompts editor/list/create/edit/inspect/validate/compare/rebase/save/copy/reload/delete/activate/disable/stop-use/cancel. Body text and paths are not editor commands."); return; }
         if (operation is "Create" or "Inspect" or "Save as new copy" ? words.Length != 3 : words.Length != 2)
         { ReportHostInteractionFailure("Use an exact bounded owned ID; editor commands do not accept body text or paths."); return; }
         if ((prompt ? OwnedPromptEditorRequested : OwnedInstructionEditorRequested) is { } handler)

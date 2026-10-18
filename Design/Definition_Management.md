@@ -284,7 +284,7 @@ or count as user activity/approval.
 ### Bounded owned instruction and prompt editor
 
 Native tray and exact `instructions` or `prompts` followed by
-`editor/list/create/edit/inspect/validate/save/copy/reload/delete/activate/disable/stop-use/cancel` control routes share the same admitted actions, native review
+`editor/list/create/edit/inspect/validate/compare/rebase/save/copy/reload/delete/activate/disable/stop-use/cancel` control routes share the same admitted actions, native review
 and writer. Activated controls focus the same native editor; voice-only approval
 and body dictation/refinement are not implemented. No model/network is needed.
 Create and inspect use an explicit bounded ID; mutations target the open original.
@@ -324,6 +324,16 @@ Already captured immutable requests are not mutated by later source edits; ordin
 Independent [pane-local literal Find](../src/Kora/SnapshotComparisonFindPane.cs) reuses the authoritative [Core snapshot policy](../src/Kora.Core/Context/SnapshotLiteralFind.cs): bounded private queries, ordinal case-sensitive First/Next/Previous without wrap, exact UTF-16 locations and explicit invalid/no-match outcomes. Missing baselines are labelled absences, never searchable fabricated source.
 Query edits retire cursor/match; Clear resets that pane. Close, owner/private/eligibility retirement and replacement release queries, matches, source and callbacks. Keyboard/automation stays inert; Find grants no clipboard, persistence or other authority ([lifecycle tests](../tests/Kora.Windows.IntegrationTests/ArtifactDiscovery/OwnedDefinitionEditorWindowTests.ComparisonFindLifetime.cs)).
 No source read/reload, mutation, use-state change, approval, clipboard/export/model authority or line-diff patch is added. Epoch changes retire the display; private closure clears buffers. Structural errors remain explicit, over-budget/invalid Unicode is rejected without truncation. Existing independently confirmed Save/conflict races are unchanged. See the [bounded Compare contract](../docs/instruction-editor.md#compare-the-open-draft-without-saving).
+
+**Explicit source-preserving owned draft Rebase** adds native and exact `instructions rebase` / `prompts rebase` observation/review of an already open supported baseline.
+The [admitted workflow](../src/Kora.Application/Definitions/OwnedInstructionEditorActions.Rebase.cs) explicitly reads latest, validates exact kind/owned/artifact identity with the existing Save parser, and freezes old/latest/raw independently. It never merges or writes a definition.
+The [three-body review](../src/Kora/OwnedInstructionRebaseReviewWindow.cs) shows complete inert source and exact names, kind, revisions, digests, BOM/byte counts and shared change/equality truth.
+Shared prepared-Save validation is separately labelled; structurally invalid bounded raw drafts remain verbatim, while over-budget/invalid Unicode is rejected rather than shortened ([observation](../src/Kora.Application/Definitions/OwnedDraftRebase.cs)).
+Confirmation explicitly rereads latest and requires the frozen exact revision before adopting only that baseline in memory. Cancel retains the previous baseline/raw draft; source, control, private, ownership, input and editor generations fence both review and late adoption.
+Old editor validation/comparison and use-review eligibility retire; no use is enabled or revision preference rewritten ([editor lifecycle](../src/Kora/OwnedInstructionEditorController.Rebase.cs)).
+Deleted/missing, wrong-ID/kind or incompatible latest sources fail closed. An observed catalogue/control ABA invalidates review; an unobserved change restoring identical revision cannot prove history. Uncertain publication is not reconciled by Rebase.
+Future Save remains separately admitted, fully confirmed and optimistic, and can conflict again ([deterministic cases](../tests/Kora.Application.UnitTests/Definitions/InstructionEditorTests.Rebase.cs)).
+This consumes only the existing owned reader/admission/parser/editor I subset. No profile-original writer, grant, runtime/provider/egress enablement or E/Q qualification is added; Reload/Overwrite/Compare/SaveCopy retain their existing semantics ([user contract](../docs/instruction-editor.md#rebase-the-open-draft-without-saving)).
 
 **Owned metadata inventory/search** extends this same native editor, not the future full Definitions source matrix. Explicit List/Refresh reuses admitted per-kind filename enumeration and existing reconciliation; an immutable projection includes only those owned filenames and coherent observed catalogue metadata.
 Literal filename/display-name/source-qualified-ID search uses the existing 256 UTF-16 / 512 UTF-8 query ceilings without lexical tokenization, regex or path resolution. Invalid controls/Unicode/oversize input requires correction, never trimming. All/UseEnabled/ReviewRequired/UnavailableOrUnknown reflects only actually known observed use state.

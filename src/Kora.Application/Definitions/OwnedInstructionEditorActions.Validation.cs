@@ -32,23 +32,29 @@ public sealed partial class OwnedInstructionEditorActions
         return admission.Run(Current, async (request, session, current, admitted) =>
             await admission.Publish(request, session, current, () =>
             {
-                ArtifactFileDocument? proposed = null;
-                string? failure = null;
-                try { proposed = PrepareSave(name, original, draft); }
-                catch (InvalidDataException exception)
-                {
-                    failure = exception.Message;
-                    DraftRejected(diagnosticLogger, "unsupported-structure");
-                }
-                catch (ArgumentException)
-                {
-                    // Catalogue collision exceptions can contain a private declared spoken name.
-                    failure = "The proposal collides with observed artifact IDs, slash commands or spoken names, or the bounded catalogue is full.";
-                    DraftRejected(diagnosticLogger, "catalogue-collision");
-                }
-                return observe(new OwnedDraftValidation(name, Kind, original?.Document.HasBom ?? false,
-                    proposed, failure, candidates, failureRevision, unavailable));
+                return observe(ObserveDraftStructure(name, original, draft, diagnosticLogger, candidates, failureRevision, unavailable));
             }, admitted).ConfigureAwait(false), token);
+    }
+
+    private OwnedDraftValidation ObserveDraftStructure(string name, OwnedInstructionSnapshot? original, string draft,
+        ILogger diagnosticLogger, IReadOnlyList<ArtifactDefinition> candidates, long failureRevision, bool unavailable)
+    {
+        ArtifactFileDocument? proposed = null;
+        string? failure = null;
+        try { proposed = PrepareSave(name, original, draft); }
+        catch (InvalidDataException exception)
+        {
+            failure = exception.Message;
+            DraftRejected(diagnosticLogger, "unsupported-structure");
+        }
+        catch (ArgumentException)
+        {
+            // Catalogue collision exceptions can contain a private declared spoken name.
+            failure = "The proposal collides with observed artifact IDs, slash commands or spoken names, or the bounded catalogue is full.";
+            DraftRejected(diagnosticLogger, "catalogue-collision");
+        }
+        return new OwnedDraftValidation(name, Kind, original?.Document.HasBom ?? false,
+            proposed, failure, candidates, failureRevision, unavailable);
     }
 
     public bool IsDraftValidationCurrent(OwnedDraftValidation observation) =>

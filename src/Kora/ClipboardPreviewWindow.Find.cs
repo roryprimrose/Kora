@@ -89,7 +89,7 @@ internal sealed partial class ClipboardPreviewWindow
         actions.Children.Add(clear);
         chrome.Children.Add(new NamedTextBlock
         {
-            Text = "Native literal Find only: exact case and spaces, one nonoverlapping match, no wrap or occurrence count. "
+            Text = "Native literal Find only: exact case and spaces, complete nonoverlapping count in this snapshot, no wrap. "
                 + "Enter finds first; F3 finds next; Shift+F3 finds previous; Ctrl+F focuses the query. No clipboard copy/paste.",
             TextWrapping = TextWrapping.Wrap,
         });
@@ -119,16 +119,18 @@ internal sealed partial class ClipboardPreviewWindow
         var operation = matchGeneration;
         bool Current() => EnsureFindCurrent(generation) && operation == matchGeneration
             && ReferenceEquals(findSource, snapshot) && string.Equals(findQuery!.Text ?? string.Empty, query, StringComparison.Ordinal);
-        var match = ClipboardLiteralFind.Find(snapshot, query, direction, selected);
+        var (match, count, ordinal) = ClipboardLiteralFind.FindCounted(snapshot, query, direction, selected);
         if (!Current()) { return; }
         findMatch = match ?? (direction == SnapshotFindDirection.First ? null : selected);
         findNext!.IsEnabled = findMatch is not null;
         findPrevious!.IsEnabled = findMatch is not null;
-        findStatus!.Text = match is null
+        var outcome = match is null
             ? direction == SnapshotFindDirection.First ? "No literal match in this exact clipboard snapshot."
                 : direction == SnapshotFindDirection.Next ? "End of forward direction; no wrap. Earlier matches may remain."
                     : "End of backward direction; no wrap. Later matches may remain."
             : $"One exact literal match: UTF-16 [{match.Span.Start}, {match.Span.Start + match.Span.Length}); end exclusive.";
+        findStatus!.Text = count == 0 ? $"0 matches; {outcome}"
+            : $"{count} matches; match {ordinal}/{count}; {outcome}";
         if (!Current() || match is null) { return; }
         findSpan!.Text = snapshot.Text.Substring(match.Span.Start, match.Span.Length);
         findSpan.IsVisible = true;

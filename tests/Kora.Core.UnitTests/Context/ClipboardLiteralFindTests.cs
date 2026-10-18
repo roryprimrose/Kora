@@ -8,6 +8,74 @@ namespace Kora.Core.UnitTests.Context;
 public sealed class ClipboardLiteralFindTests
 {
     [Theory]
+    [InlineData("alpha", "missing", 0)]
+    [InlineData("alpha", "alpha", 1)]
+    [InlineData("alpha ALPHA alpha", "alpha", 2)]
+    [InlineData("aaaaaaa", "aaa", 2)]
+    [InlineData("aaaaaXaa", "aa", 3)]
+    [InlineData("e\u0301 é é", "é", 2)]
+    [InlineData("\r\n🙂\r\n🙂", "🙂", 2)]
+    [InlineData(" .*?  .*? ", " .*? ", 2)]
+    public void CountedFindTraversesOneCompleteNonoverlappingSequenceBothWays(string text, string query, int expected)
+    {
+        var snapshot = Snapshot(text);
+        var result = ClipboardLiteralFind.FindCounted(snapshot, query, SnapshotFindDirection.First);
+        result.Count.Should().Be(expected);
+        result.Ordinal.Should().Be(expected == 0 ? 0 : 1);
+        if (expected == 0) { result.Match.Should().BeNull(); return; }
+        var matches = new List<ClipboardLiteralMatch>();
+        while (result.Match is not null)
+        {
+            matches.Add(result.Match);
+            result.Match.Source.Should().BeSameAs(snapshot);
+            snapshot.Text.Substring(result.Match.Span.Start, result.Match.Span.Length).Should().Be(query);
+            result.Count.Should().Be(expected);
+            result.Ordinal.Should().Be(matches.Count);
+            result = ClipboardLiteralFind.FindCounted(snapshot, query, SnapshotFindDirection.Next, matches[^1]);
+        }
+        matches.Should().HaveCount(expected);
+        result.Ordinal.Should().Be(expected);
+        result.Count.Should().Be(expected);
+        for (var index = matches.Count - 1; index >= 0; index--)
+        {
+            result = ClipboardLiteralFind.FindCounted(snapshot, query, SnapshotFindDirection.Previous, matches[index]);
+            result.Count.Should().Be(expected);
+            result.Ordinal.Should().Be(index == 0 ? 1 : index);
+            result.Match.Should().Be(index == 0 ? null : matches[index - 1]);
+        }
+        ClipboardLiteralFind.FindCounted(snapshot, query, SnapshotFindDirection.First, matches[^1]).Ordinal.Should().Be(1);
+    }
+
+    [Fact]
+    public void CountedFindUsesCompleteMaximumSnapshotAndAuthoritativeMaximumQuery()
+    {
+        var snapshot = Snapshot(new('a', ClipboardSnapshot.MaximumUtf8Bytes));
+        var result = ClipboardLiteralFind.FindCounted(snapshot, "a", SnapshotFindDirection.First);
+        result.Count.Should().Be(ClipboardSnapshot.MaximumUtf8Bytes);
+        var query = new string('é', 256);
+        ClipboardLiteralFind.FindCounted(Snapshot(query + query), query, SnapshotFindDirection.First).Count.Should().Be(2);
+        var supplementary = string.Concat(Enumerable.Repeat("🙂", 128));
+        ClipboardLiteralFind.FindCounted(Snapshot(supplementary), supplementary, SnapshotFindDirection.First)
+            .Match!.Span.Length.Should().Be(256);
+        var nullSnapshot = () => ClipboardLiteralFind.FindCounted(null!, "a", SnapshotFindDirection.First);
+        nullSnapshot.Should().Throw<ArgumentNullException>();
+        var invalidDirection = () => ClipboardLiteralFind.FindCounted(snapshot, "a", (SnapshotFindDirection)99);
+        invalidDirection.Should().Throw<ArgumentOutOfRangeException>();
+    }
+
+    [Fact]
+    public void CountedFindRejectsOverlappingAlternativeOutsideCanonicalSequence()
+    {
+        var snapshot = Snapshot("aaaaaXaa");
+        var selected = new ClipboardLiteralMatch(snapshot, new(3, 2));
+        foreach (var direction in new[] { SnapshotFindDirection.Next, SnapshotFindDirection.Previous })
+        {
+            var find = () => ClipboardLiteralFind.FindCounted(snapshot, "aa", direction, selected);
+            find.Should().Throw<InvalidDataException>();
+        }
+    }
+
+    [Theory]
     [InlineData("a A a", "A", 2)]
     [InlineData(" a  a ", " a ", 0)]
     [InlineData("x .*?[a] x", ".*?[a]", 2)]
@@ -52,6 +120,8 @@ public sealed class ClipboardLiteralFindTests
     {
         var find = () => ClipboardLiteralFind.Find(Snapshot("source"), query, SnapshotFindDirection.First);
         find.Should().Throw<InvalidDataException>();
+        var counted = () => ClipboardLiteralFind.FindCounted(Snapshot("source"), query, SnapshotFindDirection.First);
+        counted.Should().Throw<InvalidDataException>();
     }
 
     [Fact]
@@ -65,6 +135,11 @@ public sealed class ClipboardLiteralFindTests
         SnapshotLiteralFind.IsValidQuery(string.Concat(Enumerable.Repeat("🙂", 128))).Should().BeTrue();
         SnapshotLiteralFind.IsValidQuery(new string('\ud800', 1)).Should().BeFalse();
         SnapshotLiteralFind.IsValidQuery(new string('\udc00', 1)).Should().BeFalse();
+        foreach (var invalidQuery in new[] { new string('x', 257), new string('界', 171), new string('\ud800', 1), new string('\udc00', 1) })
+        {
+            var counted = () => ClipboardLiteralFind.FindCounted(Snapshot("source"), invalidQuery, SnapshotFindDirection.First);
+            counted.Should().Throw<InvalidDataException>();
+        }
         var nullText = () => SnapshotLiteralFind.Find(null!, "a", SnapshotFindDirection.First);
         nullText.Should().Throw<ArgumentNullException>();
         var nullSnapshot = () => ClipboardLiteralFind.Find(null!, "a", SnapshotFindDirection.First);
@@ -105,6 +180,8 @@ public sealed class ClipboardLiteralFindTests
         {
             var find = () => ClipboardLiteralFind.Find(snapshot, "abc", direction, selected);
             find.Should().Throw<InvalidDataException>();
+            var counted = () => ClipboardLiteralFind.FindCounted(snapshot, "abc", direction, selected);
+            counted.Should().Throw<InvalidDataException>();
         }
     }
 

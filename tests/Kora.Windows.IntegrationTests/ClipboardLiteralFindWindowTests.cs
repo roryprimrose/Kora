@@ -1,5 +1,6 @@
 using System.Diagnostics;
 
+using Avalonia;
 using Avalonia.Automation;
 using Avalonia.Automation.Peers;
 using Avalonia.Controls;
@@ -23,6 +24,40 @@ namespace Kora.Windows.IntegrationTests;
 [Collection(nameof(HeadlessUiTestGroup))]
 public sealed class ClipboardLiteralFindWindowTests
 {
+    [Theory]
+    [InlineData(640, 480)]
+    [InlineData(760, 600)]
+    public async Task CountAndOrdinalRemainReachableAtSmallViewportAndReverseCanonicalOverlaps(int width, int height)
+    {
+        await HeadlessSession.RunAsync(async () =>
+        {
+            var window = new ClipboardPreviewWindow(_ => throw new InvalidOperationException("Unexpected Find failure"));
+            window.Show(Snapshot("aaaaaXaa"), UnexpectedMutation, UnexpectedMutation, () => true);
+            try
+            {
+                window.Width = width;
+                window.Height = height;
+                Query(window).Text = "aa";
+                await Press(window, "Find first");
+                Status(window).Text.Should().Contain("3 matches; match 1/3;").And.Contain("[0, 2)");
+                await Press(window, "Find next");
+                Status(window).Text.Should().Contain("3 matches; match 2/3;").And.Contain("[2, 4)");
+                await Press(window, "Find next");
+                Status(window).Text.Should().Contain("3 matches; match 3/3;").And.Contain("[6, 8)");
+                await Press(window, "Find previous");
+                Status(window).Text.Should().Contain("3 matches; match 2/3;").And.Contain("[2, 4)");
+                var location = Status(window).TranslatePoint(default, window)!.Value;
+                location.Y.Should().BeGreaterThanOrEqualTo(0);
+                (location.Y + Status(window).Bounds.Height).Should().BeLessThanOrEqualTo(window.ClientSize.Height);
+                Source(window).GetVisualAncestors().OfType<ScrollViewer>().Single().Viewport.Height.Should().BeGreaterThan(0);
+                Query(window).Text = "aa ";
+                Status(window).Text.Should().BeNull();
+                Match(window).Text.Should().BeNull();
+            }
+            finally { window.ClearAndClose(); }
+        });
+    }
+
     [Fact]
     public async Task NativeFindPreservesSnapshotAndFocusesOnlyOneInertExactSpanWithoutReuseOrClipboardIo()
     {
@@ -33,6 +68,8 @@ public sealed class ClipboardLiteralFindWindowTests
                 ShouldListenTo = source => source.Name.StartsWith("Kora.", StringComparison.Ordinal),
                 Sample = (ref ActivityCreationOptions<ActivityContext> _) => ActivitySamplingResult.AllData,
             };
+            var activities = 0;
+            listener.ActivityStarted = _ => activities++;
             ActivitySource.AddActivityListener(listener);
             var reader = new Reader();
             using var broker = new ClipboardSnapshotBroker(reader, TimeProvider.System, NullLogger<ClipboardSnapshotBroker>.Instance);
@@ -52,23 +89,27 @@ public sealed class ClipboardLiteralFindWindowTests
                 await Press(window, "Find first");
                 Match(window).Text.Should().Be("alpha");
                 Match(window).IsFocused.Should().BeTrue();
-                Status(window).Text.Should().Contain("UTF-16 [6, 11)");
+                Status(window).Text.Should().Contain("2 matches; match 1/2;").And.Contain("UTF-16 [6, 11)");
                 var peer = ControlAutomationPeer.CreatePeerForElement(Match(window))!;
                 peer.GetAutomationControlType().Should().Be(AutomationControlType.Text);
                 peer.GetName().Should().Contain("Exact inert clipboard literal match").And.Contain("alpha");
                 window.GetVisualDescendants().OfType<TextBox>().Should().ContainSingle();
                 Source(window).Text.Should().Be(snapshot.Text);
                 await Press(window, "Find next");
-                Status(window).Text.Should().Contain("UTF-16 [12, 17)");
+                Status(window).Text.Should().Contain("2 matches; match 2/2;").And.Contain("UTF-16 [12, 17)");
                 await Press(window, "Find next");
-                Status(window).Text.Should().Contain("End of forward direction").And.NotContain("No literal match");
+                Status(window).Text.Should().Contain("2 matches; match 2/2;").And.Contain("End of forward direction").And.NotContain("No literal match");
                 Match(window).IsVisible.Should().BeFalse();
                 await Press(window, "Find previous");
                 Status(window).Text.Should().Contain("UTF-16 [6, 11)");
                 await Press(window, "Find previous");
                 Status(window).Text.Should().Contain("End of backward direction");
+                var beforeEditing = activities;
                 query.Text = "ALPHA";
+                activities.Should().Be(beforeEditing);
+                reader.Calls.Should().Be(1);
                 Match(window).Text.Should().BeNull();
+                Status(window).Text.Should().BeNull();
                 Button(window, "Find next").IsEnabled.Should().BeFalse();
                 await Press(window, "Find first");
                 Match(window).Text.Should().Be("ALPHA");
@@ -77,7 +118,7 @@ public sealed class ClipboardLiteralFindWindowTests
                 Match(window).Text.Should().Be(" .*? ");
                 query.Text = "not found";
                 await Press(window, "Find first");
-                Status(window).Text.Should().Be("No literal match in this exact clipboard snapshot.");
+                Status(window).Text.Should().Be("0 matches; No literal match in this exact clipboard snapshot.");
                 Click(window, "Clear literal Find");
                 query.Text.Should().BeNull();
                 Status(window).Text.Should().BeNull();
@@ -121,6 +162,7 @@ public sealed class ClipboardLiteralFindWindowTests
                 await failed.Task;
                 Query(window).Text.Should().Be(query);
                 Status(window).Text.Should().Contain("rejected").And.Contain("nothing was truncated");
+                Status(window).Text.Should().NotContain("0 matches").And.NotContain("match 1/");
                 Match(window).Text.Should().BeNull();
                 Button(window, "Find next").IsEnabled.Should().BeFalse();
                 failures.Should().ContainSingle().Which.Should().BeOfType<InvalidDataException>();
@@ -161,6 +203,7 @@ public sealed class ClipboardLiteralFindWindowTests
             var old = views[0];
             var query = Query(old);
             var span = Match(old);
+            var status = Status(old);
             var clear = Button(old, "Clear literal Find");
             var lateFind = (AsyncCommand)Button(old, "Find first").Command!;
             var lateReuse = (AsyncCommand)Button(old, "Reuse this exact snapshot ID").Command!;
@@ -168,6 +211,7 @@ public sealed class ClipboardLiteralFindWindowTests
             query.Text = "alpha";
             await lateFind.ExecuteAsync();
             span.Text.Should().Be("alpha");
+            status.Text.Should().Contain("2 matches; match 1/2;");
             switch (change)
             {
                 case "privacy":
@@ -183,6 +227,7 @@ public sealed class ClipboardLiteralFindWindowTests
             // A gesture must fail closed before the existing privacy timer gets a turn.
             await lateFind.ExecuteAsync();
             span.Text.Should().BeNull();
+            status.Text.Should().BeNull();
             query.Text.Should().BeNull();
             old.Content.Should().BeNull();
             if (change is "replacement" or "same-id-version") { current!.Text.Should().Be("new source"); }
@@ -222,6 +267,7 @@ public sealed class ClipboardLiteralFindWindowTests
             window.Show(Snapshot("alpha"), UnexpectedMutation, UnexpectedMutation, () => ++checks < loseAt);
             var query = Query(window);
             var span = Match(window);
+            var status = Status(window);
             query.Text = "alpha";
             checks = 0;
             var command = (AsyncCommand)Button(window, "Find first").Command!;
@@ -229,6 +275,7 @@ public sealed class ClipboardLiteralFindWindowTests
             window.Content.Should().BeNull();
             query.Text.Should().BeNull();
             span.Text.Should().BeNull();
+            status.Text.Should().BeNull();
             await command.ExecuteAsync();
             window.Content.Should().BeNull();
             failures.Should().BeEmpty();
@@ -248,6 +295,7 @@ public sealed class ClipboardLiteralFindWindowTests
             window.Show(Snapshot("alpha alpha"), UnexpectedMutation, UnexpectedMutation, () => eligible);
             var query = Query(window);
             var span = Match(window);
+            var status = Status(window);
             query.Text = "alpha";
             query.Focus().Should().BeTrue();
             var changed = false;
@@ -267,6 +315,7 @@ public sealed class ClipboardLiteralFindWindowTests
                 await Press(window, "Find first");
                 span.Text.Should().BeNull();
                 span.IsVisible.Should().BeFalse();
+                status.Text.Should().BeNull();
                 if (change is "focus-loss")
                 {
                     eligible.Should().BeFalse();
@@ -301,8 +350,9 @@ public sealed class ClipboardLiteralFindWindowTests
                 query.IsFocused.Should().BeTrue();
                 RaiseKey(query, Key.Enter).Handled.Should().BeTrue();
                 Match(window).Text.Should().Be("alpha");
+                Status(window).Text.Should().Contain("2 matches; match 1/2;");
                 RaiseKey(window, Key.F3).Handled.Should().BeTrue();
-                Status(window).Text.Should().Contain("[6, 11)");
+                Status(window).Text.Should().Contain("2 matches; match 2/2;").And.Contain("[6, 11)");
                 RaiseKey(window, Key.F3, KeyModifiers.Shift).Handled.Should().BeTrue();
                 Status(window).Text.Should().Contain("[0, 5)");
                 foreach (var target in new Control[] { query, Match(window), Source(window) })

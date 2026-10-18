@@ -134,8 +134,30 @@
         </ListBox.ItemTemplate>
       </controls:ScrollableListBox>
       <ScrollViewer Grid.Column="1" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
-        <controls:NamedTextBlock Text="{Binding SelectedDetails}" TextWrapping="Wrap"
+      <StackPanel x:Name="MetadataFindPanel" Spacing="6">
+        <controls:NamedTextBlock Text="Find only in selected displayed metadata: exact case/spaces, one nonoverlapping match, no wrap. Enter: First; F3: Next; Shift+F3: Previous; Escape: Clear. No file/body/clipboard read or copy." TextWrapping="Wrap" />
+        <TextBox x:Name="MetadataFindQuery" Text="{Binding MetadataFindQuery, Mode=TwoWay}"
+                 PlaceholderText="Private one-line Find"
+                 AcceptsReturn="False" IsUndoEnabled="False" IsEnabled="{Binding CanFindMetadata}"
+                 AutomationProperties.Name="Private one-line case-sensitive literal Find in selected displayed metadata only; typing performs no read" />
+        <WrapPanel>
+          <Button x:Name="MetadataFindFirst" Content="Find first" IsEnabled="{Binding CanFindMetadata}"
+                  AutomationProperties.Name="Find first literal in selected metadata only; no wrap" />
+          <Button x:Name="MetadataFindNext" Content="Find next" IsEnabled="{Binding CanNavigateMetadataFind}"
+                  AutomationProperties.Name="Find next literal in selected metadata only; no wrap" />
+          <Button x:Name="MetadataFindPrevious" Content="Find previous" IsEnabled="{Binding CanNavigateMetadataFind}"
+                  AutomationProperties.Name="Find previous literal in selected metadata only; no wrap" />
+          <Button x:Name="MetadataFindClear" Content="Clear Find" IsEnabled="{Binding CanFindMetadata}"
+                  AutomationProperties.Name="Clear private metadata Find query, match and status; no read" />
+        </WrapPanel>
+        <controls:NamedTextBlock x:Name="MetadataFindStatus" Text="{Binding MetadataFindStatus}" TextWrapping="Wrap"
+                                AutomationProperties.Name="Metadata literal Find outcome and exact UTF-16 coordinates" />
+        <controls:NamedTextBlock x:Name="MetadataFindSpan" Text="{Binding MetadataFindMatch}" TextWrapping="Wrap"
+                                IsVisible="{Binding HasMetadataFindMatch}" Focusable="True"
+                                AutomationProperties.Name="Exact inert selected metadata literal match" />
+        <controls:NamedTextBlock x:Name="MetadataDetails" Text="{Binding SelectedDetails}" TextWrapping="Wrap"
           AutomationProperties.Name="Selected exact session generation, storage revision, source, revision, item and digest headers; no body integrity claim" />
+      </StackPanel>
       </ScrollViewer>
     </Grid>
     <WrapPanel Grid.Row="4">

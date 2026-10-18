@@ -17,6 +17,20 @@ Related: [Architecture](Architecture.md), [Security and Data Flows](Security_Dat
 
 ### Delivered Retained Attachment Metadata Catalogue - 2026-10-11
 
+#### Selected displayed metadata literal Find - 2026-10-18
+
+Select an admitted row, then use **Find first / next / previous / Clear Find** in its details pane. Unlike catalogue filtering, Find searches the entire displayed `SelectedDetails` JSON, frozen on selection. It excludes other rows, hidden backing fields, descriptors, names, paths, bytes and current sources ([native owner](../src/Kora/AttachmentCatalogueViewModel.cs)).
+
+The [navigation state](../src/Kora.Application/Presentation/AttachmentMetadataFindState.cs) reuses [Core `SnapshotLiteralFind`](../src/Kora.Core/Context/SnapshotLiteralFind.cs) unchanged: bounded well-formed one-line query, ordinal case/space-sensitive literals, one nonoverlapping UTF-16 span, no normalization, count or wrap. Invalid queries are explicit, not successful no-match results.
+
+Only the existing content-free projection is searchable, within the existing page budget. Unavailable `StoredBytes` is removed before display/snapshot capture; tombstone-suppressed metadata stays suppressed. Raw backing fields are not searched ([projection](../src/Kora/AttachmentCatalogueViewModel.cs), [retained fields](../src/Kora.Core/Storage/SessionAttachmentSummary.cs)).
+
+Typing and Clear retire match, coordinates and status without I/O. Selection, filter/page/refresh/operation start, cancellation, privacy/admission/control/source changes and disposal retire old Find state and private strings. Find queues no work. Stale controls cannot recover retired snapshots ([native tests](../tests/Kora.Windows.IntegrationTests/AttachmentCatalogueWindowTests.Find.cs)).
+
+The [controls](../src/Kora/AttachmentCatalogueWindow.axaml) expose query, buttons, status/coordinates and an inert exact match span. Enter finds First; F3/Shift+F3 navigate; Escape clears Find without closing. Transfer/context gestures are blocked here. Find cannot select/open/resume a session or change catalogue queries, storage, capture, retention, clipboard or action authority.
+
+This bounded I increment has [portable tests](../tests/Kora.Application.UnitTests/Presentation/AttachmentMetadataFindStateTests.cs) and the native tests above. It makes no installed accessibility, runtime/provider, egress, wake, profile-writer, E-enablement or Q-RC qualification claim; unavailable capabilities stay unavailable.
+
 **Tray > Retained session attachments** opens a separate native, content-free catalogue. Opening performs no read; explicit Refresh/Next/Cancel observes already retained private Session slots. It never opens a picker, reopens an original path, reads new file data, captures, replaces, removes, exports or ingests model context.
 
 The native **Browse / ExactId** query increment reuses `SessionListSearch` as the sole nonempty canonical lowercase D-GUID policy. ExactId filters only fully validated slots; it never selects session authority or skips irrelevant/corrupt records or audit-prefix admission.

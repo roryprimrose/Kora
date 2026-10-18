@@ -2,6 +2,7 @@
 using System.Text.Json;
 
 using Kora.Application.Infrastructure;
+using Kora.Application.Presentation;
 using Kora.Core.Context;
 using Kora.Core.Diagnostics;
 using Kora.Core.Hosting;
@@ -19,6 +20,8 @@ internal sealed partial class AttachmentCatalogueViewModel(
     private readonly HostRequest viewer = HostRequest.Create(RequestOrigin.LocalUi);
     private SessionAttachmentPage? page;
     private SessionAttachmentSummary? selected;
+    private string selectedDetails = string.Empty;
+    private AttachmentMetadataFindState? metadataFind;
     private CancellationTokenSource? operation;
     private bool includeRemoved;
     private SessionAttachmentFilter filter;
@@ -45,6 +48,7 @@ internal sealed partial class AttachmentCatalogueViewModel(
     private string fileRevisionIdText = string.Empty;
     private string fileItemIdText = string.Empty;
     private bool disposed;
+    private bool synchronizingAuthority;
     private long epoch;
     private long controlRevision = access.ControlRevision;
     private string status = "Refresh explicitly. Opening never captures a file. " + SessionAttachmentPage.Scope;
@@ -56,12 +60,49 @@ internal sealed partial class AttachmentCatalogueViewModel(
     {
         get
         {
-            if (selected is null) { return string.Empty; }
-            var details = JsonSerializer.SerializeToNode(selected)!.AsObject();
-            if (selected.CopyStatus == AttachmentCopyStatus.Unavailable)
-            { details.Remove(nameof(SessionAttachmentSummary.StoredBytes)); }
-            return details.ToJsonString();
+            SynchronizeAuthority();
+            return selectedDetails;
         }
+    }
+    public string MetadataFindQuery
+    {
+        get => CurrentFind()?.Query ?? string.Empty;
+        set
+        {
+            var find = CurrentFind();
+            if (find is not null && string.Equals(find.Query, value, StringComparison.Ordinal)) { return; }
+            find?.Edit(value);
+            NotifyFind();
+        }
+    }
+    public string MetadataFindStatus => CurrentFind()?.Status ?? string.Empty;
+    public string MetadataFindMatch => CurrentFind()?.ExactMatch ?? string.Empty;
+    public bool CanFindMetadata => CurrentFind()?.Available == true;
+    public bool CanNavigateMetadataFind => CurrentFind()?.CanNavigate == true;
+    public bool HasMetadataFindMatch => CurrentFind()?.Match is not null;
+
+    private AttachmentMetadataFindState? CurrentFind()
+    {
+        SynchronizeAuthority();
+        return metadataFind;
+    }
+
+    public void FindMetadata(SnapshotFindDirection direction)
+    {
+        CurrentFind()?.Find(direction);
+        NotifyFind();
+    }
+
+    public void ClearMetadataFind()
+    {
+        CurrentFind()?.Clear();
+        NotifyFind();
+    }
+
+    internal void MetadataFindFocusUnavailable()
+    {
+        CurrentFind()?.ReportFocusUnavailable();
+        NotifyFind();
     }
     public string Status => status;
     public bool CanEdit => !disposed && access.CanInspect && admitted();
@@ -401,7 +442,20 @@ internal sealed partial class AttachmentCatalogueViewModel(
     {
         if (!CanRead || summary is not null && !Records.Contains(summary)) { return; }
         var previous = selected;
+        RetireFind();
         selected = summary;
+        selectedDetails = string.Empty;
+        if (summary is not null)
+        {
+            var details = JsonSerializer.SerializeToNode(summary)!.AsObject();
+            if (summary.CopyStatus == AttachmentCopyStatus.Unavailable)
+            { details.Remove(nameof(SessionAttachmentSummary.StoredBytes)); }
+            selectedDetails = details.ToJsonString();
+            var originalEpoch = epoch;
+            var originalControl = access.ControlRevision;
+            metadataFind = new(selectedDetails, () => CanRead && epoch == originalEpoch
+                && access.ControlRevision == originalControl && ReferenceEquals(selected, summary));
+        }
         if (previous is not null && !ReferenceEquals(previous, summary)) { SelectionRevoked?.Invoke(previous); }
         Notify();
     }
@@ -459,6 +513,7 @@ internal sealed partial class AttachmentCatalogueViewModel(
     private async Task Run(Func<Func<bool>, CancellationToken, Task> action)
     {
         if (!CanRead) { return; }
+        RetireFind();
         var originalEpoch = epoch;
         var control = access.ControlRevision;
         using var cancellation = new CancellationTokenSource();
@@ -517,9 +572,15 @@ internal sealed partial class AttachmentCatalogueViewModel(
 
     internal void SynchronizeAuthority()
     {
+        if (disposed || synchronizingAuthority) { return; }
         if (controlRevision == access.ControlRevision && CanEdit) { return; }
-        controlRevision = access.ControlRevision;
-        Revoke();
+        synchronizingAuthority = true;
+        try
+        {
+            controlRevision = access.ControlRevision;
+            Revoke();
+        }
+        finally { synchronizingAuthority = false; }
     }
 
     internal void Revoke()
@@ -542,6 +603,8 @@ internal sealed partial class AttachmentCatalogueViewModel(
 
     private void Clear()
     {
+        RetireFind();
+        selectedDetails = string.Empty;
         var previous = selected;
         page = null;
         selected = null;
@@ -590,6 +653,7 @@ internal sealed partial class AttachmentCatalogueViewModel(
 
     private void Notify()
     {
+        NotifyFind();
         OnPropertyChanged(nameof(Records));
         OnPropertyChanged(nameof(SelectedRecord));
         OnPropertyChanged(nameof(SelectedDetails));
@@ -634,5 +698,21 @@ internal sealed partial class AttachmentCatalogueViewModel(
         OnPropertyChanged(nameof(FileItemIdText));
         OnPropertyChanged(nameof(FileReferenceHint));
         OnPropertyChanged(nameof(QueryHint));
+    }
+
+    private void RetireFind()
+    {
+        metadataFind?.Dispose();
+        metadataFind = null;
+    }
+
+    private void NotifyFind()
+    {
+        OnPropertyChanged(nameof(MetadataFindQuery));
+        OnPropertyChanged(nameof(MetadataFindStatus));
+        OnPropertyChanged(nameof(MetadataFindMatch));
+        OnPropertyChanged(nameof(CanFindMetadata));
+        OnPropertyChanged(nameof(CanNavigateMetadataFind));
+        OnPropertyChanged(nameof(HasMetadataFindMatch));
     }
 }

@@ -431,6 +431,16 @@ the response window visible; idle presence still uses its own timeout.
 
 ## Retained session attachments (metadata only)
 
+### Find within selected displayed metadata
+
+Read a catalogue page and select a row. Use **Private one-line Find** in its details pane: **Find first** (Enter), **Find next** (F3), **Find previous** (Shift+F3). Only that frozen displayed text is searched: exact case/spaces, no overlap or wrap, explicit invalid input ([state](../src/Kora.Application/Presentation/AttachmentMetadataFindState.cs)).
+
+Status gives UTF-16 start/end-exclusive coordinates and a focusable inert exact match span. At a boundary the span hides; reverse using the last cursor without wrapping. **Clear Find**, or Escape here, clears query/match/status without closing or reading ([controls](../src/Kora/AttachmentCatalogueWindow.axaml), [gestures](../src/Kora/AttachmentCatalogueWindow.axaml.cs)).
+
+Find cannot change filters/selection, open/resume a session, read files/bodies/paths or copy/paste/export metadata. Hidden and tombstone-suppressed metadata are excluded. Selection/filter/page/refresh/operation/cancellation, privacy/control/source revocation and close erase old Find state; each row needs a new Find ([lifecycle](../src/Kora/AttachmentCatalogueViewModel.cs)).
+
+### Catalogue reading and filters
+
 Open **Tray > Retained session attachments**, then choose **Search / refresh metadata**. Opening alone reads nothing; listing never opens a picker, original file path or attachment body. It shows only already retained private Session slots.
 
 Default **Browse** preserves the removal filter. For one session, choose **ExactId**, enter its nonempty canonical lowercase D-format UUID, then explicitly Search or press Enter in the query field. Uppercase, empty, noncanonical, control-containing or oversized input is invalid, never Browse.

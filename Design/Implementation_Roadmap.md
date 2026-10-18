@@ -73,6 +73,12 @@ This consumes only the existing ExactGrants I subset; no service/schema/source,
 logging/audit mutation or runtime/provider/egress/wake/profile-writer enablement
 is added. Broader installed/native/hardware/provider E/Q qualification is unchanged.
 
+### Retained attachment selected-metadata literal Find - 2026-10-18
+
+The [retained catalogue](File_And_Folder_Ingestion.md#selected-displayed-metadata-literal-find---2026-10-18) adds private First/Next/Previous/Clear over only the frozen displayed selected metadata. Shared Core matching is unchanged. Read-free edits, tombstone suppression and selection/operation/privacy/control/source/close retirement preserve authority and filters.
+
+This I increment has [portable tests](../tests/Kora.Application.UnitTests/Presentation/AttachmentMetadataFindStateTests.cs) and [native tests](../tests/Kora.Windows.IntegrationTests/AttachmentCatalogueWindowTests.Find.cs). No schema, capture, retention mutation, body/path/clipboard read or new authority is added. E/Q is separate; unqualified runtime/providers/egress/wake/profile writers stay unavailable.
+
 ### Bounded exact-grant committed request correlation predicates - 2026-10-17
 
 The [one-exact-grant history](../docs/settings.md#exact-operation-grants)

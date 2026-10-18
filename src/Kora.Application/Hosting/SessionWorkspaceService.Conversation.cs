@@ -14,6 +14,32 @@ public sealed partial class SessionWorkspaceService
     public Task<ConversationDraftSnapshot> ReadConversationDraftAsync(HostId<SessionIdentity> session, CancellationToken token) =>
         ReadAsync(() => Conversations.ReadConversationDraftAsync(session, token), token);
 
+    internal Task<ConversationDraftSnapshot> ReadConversationDraftForRecoveryAsync(SessionWorkspaceEntry target,
+        Func<bool> admitted, CancellationToken token) =>
+        ReadAsync(async () =>
+        {
+            var request = HostActivity.RequireCurrent().Request;
+            var control = access.ControlRevision;
+            void RequireCurrent()
+            {
+                token.ThrowIfCancellationRequested();
+                if (request.Origin != RequestOrigin.LocalUi || request.InvocationId is not null
+                    || request.SessionId != target.Authority.SessionId || !access.CanControl
+                    || access.ControlRevision != control || !admitted())
+                { throw new InvalidOperationException("Draft recovery requires unchanged exact-session native private control."); }
+            }
+            RequireCurrent();
+            var before = await store.ReadMetadataAsync(target.Authority.SessionId, token).ConfigureAwait(false);
+            RequireCurrent();
+            if (before != target) { throw new InvalidOperationException("The exact draft recovery session source changed. Refresh explicitly."); }
+            var draft = await Conversations.ReadConversationDraftAsync(target.Authority.SessionId, token).ConfigureAwait(false);
+            var after = await store.ReadMetadataAsync(target.Authority.SessionId, token).ConfigureAwait(false);
+            RequireCurrent();
+            if (after != target) { throw new InvalidOperationException("The draft recovery session generation or metadata changed."); }
+            Kora.Application.Presentation.ConversationDraftRecoveryReview.RequireObservation(target, draft);
+            return draft with { ExpectedTarget = target };
+        }, token);
+
     public Task<ConversationPage> ReadConversationPageAsync(HostId<SessionIdentity> session,
         ConversationCursor? cursor, int limit, CancellationToken token) =>
         ReadAsync(() => Conversations.ReadConversationPageAsync(session, cursor, limit, token), token);

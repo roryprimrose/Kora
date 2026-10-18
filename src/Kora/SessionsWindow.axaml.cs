@@ -49,6 +49,7 @@ internal sealed partial class SessionsWindow : Window
         }
         CompareComposer.Click += (_, _) =>
         {
+            model.CancelConversationDraftRecovery();
             if (IsVisible && model.CompareComposer() is { } comparison)
             {
                 var dialog = new ConversationDraftComparisonWindow(this, model, comparison);
@@ -56,6 +57,9 @@ internal sealed partial class SessionsWindow : Window
             }
         };
         SaveConversationDraft.Click += async (_, _) => await (ConversationOperation = model.SaveConversationDraftAsync());
+        RecoverConversationDraft.Click += async (_, _) => await (ConversationOperation = model.ReviewConversationDraftRecoveryAsync(
+            (review, token) => ConversationDraftRecoveryWindow.ReviewAsync(this, model, review, token), () => IsVisible));
+        Closed += (_, _) => model.CancelConversationDraftRecovery();
         ReloadConversationDraft.Click += async (_, _) => await (ConversationOperation = model.ReloadConversationDraftAsync());
         DiscardComposer.Click += (_, _) => model.DiscardComposerBuffer();
         ReviewClearConversationDraft.Click += (_, _) => model.ReviewClearConversationDraft();

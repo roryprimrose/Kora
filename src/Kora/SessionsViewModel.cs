@@ -97,6 +97,7 @@ internal sealed partial class SessionsViewModel(
 
     internal void RevokeSessionList()
     {
+        RetireDraftRecovery();
         RetireComposerComparison();
         savedConversationDraftControlRevision = 0;
         ClearLocalEvents();
@@ -499,6 +500,7 @@ internal sealed partial class SessionsViewModel(
     {
         if (busy && !(passive && dispatchingQueue) && !(dispatchControl && dispatchingQueue) || closed || passive && refreshingWork
             || routineNoticeControl && changingRoutineQuiet || dispatchControl && changingQueueControl) { return; }
+        RetireDraftRecovery();
         var subject = selected?.Authority.SessionId;
         var epoch = selectionEpoch;
         var clearedPresentation = false;

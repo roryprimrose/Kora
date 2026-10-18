@@ -21,6 +21,8 @@ internal sealed partial class SessionsViewModel
     internal Func<Task<ComposerDraftDecision>>? DecideComposerDraft { get; set; }
     internal void ReportComposerCloseFailure(Exception exception)
     {
+        RetireDraftRecovery();
+        draftSaveUnconfirmed = true;
         Failure(logger, exception.GetType().Name);
         conversationStatus = "Draft save/close is unconfirmed; the memory buffer remains open. Inspect saved revision before another decision.";
         NotifyConversation();
@@ -33,6 +35,8 @@ internal sealed partial class SessionsViewModel
         {
             if (closed || !access.CanInspect || conversationBusy || protectingComposer) { return; }
             RetireComposerComparison();
+            RetireDraftRecovery();
+            composerBufferRevision++;
             composerBody = value;
             clearDraftReviewed = false;
             NotifyConversation();
@@ -91,7 +95,7 @@ internal sealed partial class SessionsViewModel
     }, sourceRead: true, searchDetailEpoch:
         ConversationSearchMessages.Any(record => ReferenceEquals(record, message)) ? conversationSearchEpoch : null);
     public bool CanCompose => CanReadConversation && access.CanControl && selected?.Authority.IsActive == true
-        && !conversationHeld && !conversationSourceHeld;
+        && !conversationHeld && !conversationSourceHeld && !draftSaveUnconfirmed;
     public bool CanSaveConversationDraft => CanCompose && savedConversationDraft is not null;
     public bool CanReloadConversationDraft => CanReadConversation
         && (savedConversationDraft?.Draft.Body is not null || catalogueDraft is not null);
@@ -102,6 +106,7 @@ internal sealed partial class SessionsViewModel
     {
         if (!CanReadConversation) { return; }
         RetireComposerComparison();
+        RetireDraftRecovery();
         composerBody = string.Empty;
         composerBaseline = string.Empty;
         clearDraftReviewed = false;
@@ -122,6 +127,7 @@ internal sealed partial class SessionsViewModel
         savedConversationDraftControlRevision = access.ControlRevision;
         catalogueDraft = null;
         conversationSourceHeld = false;
+        draftSaveUnconfirmed = false;
         clearDraftReviewed = false;
         conversationStatus = "Observed " + page.Messages.Length.ToString(CultureInfo.InvariantCulture)
             + " exact immutable user messages. Host status is not an assistant answer. "
@@ -143,7 +149,7 @@ internal sealed partial class SessionsViewModel
         clearDraftReviewed = false;
         conversationStatus = "Exact draft explicitly saved at revision " + saved.Draft.Revision.ToString(CultureInfo.InvariantCulture)
             + ". Not a submitted message, task dispatch, approval or retention heartbeat.";
-    });
+    }, draftWrite: true);
 
     public Task ReloadConversationDraftAsync() => RunConversationAsync(async (target, live) =>
     {
@@ -158,6 +164,7 @@ internal sealed partial class SessionsViewModel
         savedConversationDraft = saved;
         savedConversationDraftControlRevision = access.ControlRevision;
         conversationSourceHeld = false;
+        draftSaveUnconfirmed = false;
         composerBody = saved.Draft.Body ?? string.Empty;
         composerBaseline = composerBody;
         clearDraftReviewed = false;
@@ -168,6 +175,7 @@ internal sealed partial class SessionsViewModel
     {
         if (!CanReviewClearConversationDraft) { return; }
         RetireComposerComparison();
+        RetireDraftRecovery();
         clearDraftReviewed = true;
         conversationStatus = "Review clear of saved body for " + ComposerTarget
             + ". Only this exact saved revision will be removed; the memory buffer and submitted messages stay unchanged.";
@@ -186,7 +194,7 @@ internal sealed partial class SessionsViewModel
         savedConversationDraftControlRevision = access.ControlRevision;
         composerBaseline = string.Empty;
         conversationStatus = "Exact saved draft cleared; memory-only edits remain, with no implicit save or submission.";
-    });
+    }, draftWrite: true);
 
     public Task SubmitConversationAsync() => RunConversationAsync(async (target, live) =>
     {
@@ -205,6 +213,7 @@ internal sealed partial class SessionsViewModel
     internal async Task<bool> ProtectComposerAsync()
     {
         RetireComposerComparison();
+        RetireDraftRecovery();
         if (protectingComposer) { return false; }
         if (!ComposerDirty) { return true; }
         var target = RequireSelected();
@@ -221,6 +230,8 @@ internal sealed partial class SessionsViewModel
             if (!Live() || decision == ComposerDraftDecision.Cancel) { return false; }
             if (decision == ComposerDraftDecision.Discard)
             { composerBody = string.Empty; composerBaseline = string.Empty; return true; }
+            if (draftSaveUnconfirmed || conversationSourceHeld)
+            { throw new InvalidOperationException("Reconcile the exact saved draft source before saving uncertain composer state."); }
             var draft = savedConversationDraft ?? await conversation!.ReadDraftAsync(target.Authority.SessionId, lifetime.Token);
             var saved = await conversation!.SaveDraftAsync(draft, body,
                 () => Live() && access.CanControl, lifetime.Token);
@@ -231,6 +242,11 @@ internal sealed partial class SessionsViewModel
             composerBaseline = body;
             return true;
         }
+        catch (Exception exception) when (exception is not OutOfMemoryException)
+        {
+            draftSaveUnconfirmed |= exception is not (ConversationDraftConflictException or ConversationCredentialException);
+            throw;
+        }
         finally
         {
             protectingComposer = false;
@@ -240,10 +256,11 @@ internal sealed partial class SessionsViewModel
     }
 
     private async Task RunConversationAsync(Func<Kora.Core.Storage.SessionWorkspaceEntry, Func<bool>, Task> operation,
-        bool submission = false, bool sourceRead = false, long? searchDetailEpoch = null)
+        bool submission = false, bool sourceRead = false, long? searchDetailEpoch = null, bool draftWrite = false)
     {
         if (!CanReadConversation) { return; }
         RetireComposerComparison();
+        RetireDraftRecovery();
         var target = RequireSelected();
         var epoch = selectionEpoch;
         var revision = access.ControlRevision;
@@ -256,12 +273,16 @@ internal sealed partial class SessionsViewModel
             new(Guid.NewGuid()), RequestOrigin.LocalUi), HostActivityLayer.Desktop, HostOperation.Request);
         try
         {
+            if ((draftWrite || submission) && (draftSaveUnconfirmed || conversationSourceHeld))
+            { throw new InvalidOperationException("Explicitly read/reconcile the exact saved source before another draft write or submission."); }
             await operation(target, Live);
             if (!Live()) { throw new OperationCanceledException("Private conversation presentation was revoked."); }
             activity.Complete(HostOperationOutcome.Completed);
         }
         catch (Exception exception) when (exception is not OutOfMemoryException)
         {
+            draftSaveUnconfirmed |= draftWrite
+                && exception is not (ConversationDraftConflictException or ConversationCredentialException);
             var searchNavigationRevoked = searchDetailEpoch is { } searchEpoch && searchEpoch != conversationSearchEpoch && Live();
             if (searchNavigationRevoked)
             {
@@ -314,6 +335,7 @@ internal sealed partial class SessionsViewModel
     private void ClearConversation()
     {
         RetireComposerComparison();
+        RetireDraftRecovery();
         if (selected is { } target) { revokeConversationDetails?.Invoke(target.Authority.SessionId); }
         catalogueDraft = null;
         ClearConversationSearch();
@@ -324,6 +346,7 @@ internal sealed partial class SessionsViewModel
         conversationPage = null;
         conversationHeld = false;
         conversationSourceHeld = false;
+        draftSaveUnconfirmed = false;
         clearDraftReviewed = false;
         conversationStatus = "Private conversation cleared. Explicitly read an exact session before restoring saved data.";
     }
@@ -331,11 +354,13 @@ internal sealed partial class SessionsViewModel
     private void NotifyConversation()
     {
         CheckComposerComparison();
+        CheckDraftRecovery();
         NotifyConversationSearch();
         foreach (var name in new[] { nameof(ComposerBody), nameof(ComposerDirty), nameof(ComposerTarget),
             nameof(ConversationMessages), nameof(ConversationStatus), nameof(SavedConversationDraftReview), nameof(CanReadConversation), nameof(CanNextConversation),
             nameof(CanOpenConversationDetails), nameof(CanCompose), nameof(CanSaveConversationDraft), nameof(CanReloadConversationDraft),
-            nameof(CanReviewClearConversationDraft), nameof(CanClearConversationDraft), nameof(CanSubmitConversation), nameof(CanCompareComposer) })
+            nameof(CanReviewClearConversationDraft), nameof(CanClearConversationDraft), nameof(CanSubmitConversation), nameof(CanCompareComposer),
+            nameof(CanRecoverConversationDraft) })
         { OnPropertyChanged(name); }
     }
 }

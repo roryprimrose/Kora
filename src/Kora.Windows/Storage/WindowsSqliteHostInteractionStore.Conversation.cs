@@ -130,7 +130,7 @@ public sealed partial class WindowsSqliteHostInteractionStore : ISessionConversa
                     || expected.ExpectedTarget is { } target
                         && target != new SessionWorkspaceEntry(session.Authority, ReadMetadata(connection, control.SessionId))
                     || expected.Draft.SessionId != control.SessionId || body is null && previous.Body is null)
-                { throw new InvalidOperationException("Review the exact Active session, saved draft body and revision before saving or clearing."); }
+                { throw new ConversationDraftConflictException(); }
                 database.RequireEmptyArtifactInventory();
                 Execute(connection, transaction, "PRAGMA secure_delete=ON; PRAGMA journal_size_limit=0;");
                 var draft = new SavedConversationDraft(control.SessionId, checked(previous.Revision + 1), body);

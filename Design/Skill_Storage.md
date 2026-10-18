@@ -48,6 +48,20 @@ Credentials remain in the protected credential facility, never either skill part
 
 ### Delivered bounded R21 native inspection
 
+#### Selected displayed identity metadata literal Find - 2026-10-18
+
+The [bundled inspector](../src/Kora/SkillPackagesWindow.axaml.cs) and [shared inspector](../src/Kora/SharedSkillSourcesWindow.axaml.cs) freeze only their already displayed `PackageIdentity` / `SharedIdentity` text after selection. Shared identity includes only the path already explicitly displayed; no additional filename, path or content is disclosed by Find.
+
+The [private controls](../src/Kora/Controls/IdentityMetadataFindPane.axaml) expose query, First/Next/Previous/Clear, outcome with exact UTF-16 half-open location and one inert exact match. Enter finds First; F3/Shift+F3 navigate; Escape clears within Find without closing. Transfer/context gestures are blocked. Source tabs/bodies, uninspected entries, hidden fields, other packages and live files are not searched.
+
+The [authoritative state](../src/Kora.Application/Presentation/AdmittedMetadataFindState.cs) is the attachment state renamed without behavior changes. It consumes unchanged [Core matching](../src/Kora.Core/Context/SnapshotLiteralFind.cs): strict bounded well-formed one-line literals, case/space-sensitive ordinal comparison, no normalization/count/wrap. Invalid input is rejected explicitly; zero match claims only absence within that frozen identity text.
+
+Selection, filter/search/order/catalogue replacement, source changes, operation/busy start, cancellation/failure, admission/privacy/control revision change and close retire private Find state ([native tests](../tests/Kora.Windows.IntegrationTests/SkillIdentityMetadataFindTests.cs)).
+
+Busy completion never readmits an old Find snapshot. A catalogue delivered while busy leaves selection empty for explicit inspection. After rechecking an existing selection, use catalogue **Clear**, then select again to admit Find; retained stale controls alone cannot recover text ([window](../src/Kora/SharedSkillSourcesWindow.axaml.cs), [control](../src/Kora/Controls/IdentityMetadataFindPane.axaml.cs)).
+
+This bounded I increment adds no read/recheck/write, invocation, activation, model/tool/egress/session authority, activity renewal or catalogue filter change. Matches do not establish live validity, integrity, approval or execution readiness. Existing invocation remains unavailable; E/Q and unqualified runtime/provider/wake/profile writers remain unchanged ([inspector controllers](../src/Kora/SharedSkillSourcesWindowController.cs)).
+
 The tray **Skill packages > Shared profile sources (read only)** is a separate
 host-only route, not a model tool, slash artifact, import or executable loader.
 Opening it loads only registrations. **Choose and register profile root**

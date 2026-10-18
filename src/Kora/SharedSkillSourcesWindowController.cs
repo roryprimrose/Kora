@@ -24,9 +24,11 @@ internal sealed partial class SharedSkillSourcesWindowController(
         if (!Eligible()) { main.ReportHostInteractionFailure("Shared skill inspection requires the owning unlocked host."); return; }
         if (window is not null) { window.Activate(); return; }
         lifetime = new();
+        var revision = main.CallPolicyRevision;
         window = new(() => RunAsync(RegisterAsync), () => RunAsync(RefreshAsync),
             () => RunAsync(DiscoverAsync, fenceCatalogue: true), () => RunAsync(VerifyAsync, fenceCatalogue: true),
-            () => RunAsync(UnregisterAsync, supersede: true));
+            () => RunAsync(UnregisterAsync, supersede: true),
+            () => Eligible() && main.CallPolicyRevision == revision);
         window.Closed += OnClosed;
         main.PrivacyClosureRequested += OnPrivacyClosed;
         main.PropertyChanged += OnMainChanged;

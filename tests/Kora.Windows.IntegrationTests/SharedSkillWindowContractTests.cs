@@ -11,7 +11,7 @@ public sealed class SharedSkillWindowContractTests
     {
         var document = XDocument.Parse(Read("SharedSkillSourcesWindow.axaml"));
         foreach (var name in new[] { "SourceSelector", "SharedStatus", "SharedPackageSelector", "SharedIdentity", "SharedSource", "UninspectedEntries",
-            "SharedQuery", "SharedRevisionDigest", "SharedFilter", "SearchSharedPackages", "ClearSharedSearch", "SharedSearchStatus" })
+            "SharedQuery", "SharedRevisionDigest", "SharedFilter", "SearchSharedPackages", "ClearSharedSearch", "SharedSearchStatus", "IdentityFind" })
         {
             var control = document.Descendants().Single(element => element.Attributes().Any(attribute =>
                 string.Equals(attribute.Name.LocalName, "Name", StringComparison.Ordinal)

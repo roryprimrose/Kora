@@ -2,7 +2,7 @@ using Kora.Core.Context;
 
 namespace Kora.Application.Presentation;
 
-public sealed class AttachmentMetadataFindState(string admittedDetails, Func<bool> current) : IDisposable
+public sealed class AdmittedMetadataFindState(string admittedDetails, Func<bool> current) : IDisposable
 {
     private string snapshot = admittedDetails;
     private Func<bool>? admission = current;

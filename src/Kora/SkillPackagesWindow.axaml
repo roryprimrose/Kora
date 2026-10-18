@@ -9,7 +9,8 @@
     WindowStartupLocation="CenterOwner"
     Background="{DynamicResource KoraWindowBackgroundBrush}"
     Foreground="{DynamicResource KoraForegroundBrush}">
-  <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto,*" Margin="20" RowSpacing="12">
+  <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+  <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,*" Margin="20" RowSpacing="12">
     <StackPanel Orientation="Horizontal" Spacing="12">
       <TextBlock Text="Skill packages - read-only embedded source review"
                  FontSize="20" FontWeight="SemiBold" TextWrapping="Wrap" />
@@ -44,7 +45,10 @@
               AutomationProperties.Name="Select an inspection-only bundled skill package" />
     <controls:NamedTextBlock x:Name="PackageIdentity" Grid.Row="4" TextWrapping="Wrap"
                AutomationProperties.Name="Exact package identities, unavailable invocation and transitive disclosure" />
-    <controls:NavigableTabControl x:Name="SourceTabs" Grid.Row="5"
+    <controls:IdentityMetadataFindPane x:Name="IdentityFind" Grid.Row="5"
+                                     AutomationProperties.Name="Find in selected displayed bundled identity metadata only" />
+    <controls:NavigableTabControl x:Name="SourceTabs" Grid.Row="6" MinHeight="160" MaxHeight="360"
                 AutomationProperties.Name="Every declared immutable package file including manifest and shared helper" />
   </Grid>
+  </ScrollViewer>
 </Window>

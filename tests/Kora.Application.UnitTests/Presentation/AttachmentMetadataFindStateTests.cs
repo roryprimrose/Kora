@@ -10,7 +10,7 @@ public sealed class AttachmentMetadataFindStateTests
     [Fact]
     public void FindNavigatesExactImmutableTextWithoutWrapAndRetainsOnlyBoundaryCursor()
     {
-        using var state = new AttachmentMetadataFindState("😀 Aa Aa aa", () => true);
+        using var state = new AdmittedMetadataFindState("😀 Aa Aa aa", () => true);
         state.Available.Should().BeTrue();
         state.Query.Should().BeEmpty();
         state.Status.Should().BeEmpty();
@@ -61,7 +61,7 @@ public sealed class AttachmentMetadataFindStateTests
     [InlineData("\u2029")]
     public void FindRejectsInvalidQueryExplicitly(string query)
     {
-        using var state = new AttachmentMetadataFindState(query, () => true);
+        using var state = new AdmittedMetadataFindState(query, () => true);
         state.Edit(query);
         state.Find(SnapshotFindDirection.First);
         state.Status.Should().StartWith("Invalid");
@@ -77,7 +77,7 @@ public sealed class AttachmentMetadataFindStateTests
         var suffix = maximum + unicode + " e\u0301 é";
         var text = new string('z', SessionPageBudget - suffix.Length) + suffix;
         text.Length.Should().Be(SessionPageBudget);
-        using var state = new AttachmentMetadataFindState(text, () => true);
+        using var state = new AdmittedMetadataFindState(text, () => true);
         foreach (var query in new[] { maximum, unicode, "e\u0301", "é", " " })
         {
             state.Edit(query);
@@ -102,7 +102,7 @@ public sealed class AttachmentMetadataFindStateTests
     public void RevocationAndDisposalEraseSnapshotQueryMatchStatusAndDenyRetainedActions()
     {
         var admitted = true;
-        using var state = new AttachmentMetadataFindState("private", () => admitted);
+        using var state = new AdmittedMetadataFindState("private", () => admitted);
         state.Edit("private");
         state.Find(SnapshotFindDirection.First);
         state.ReportFocusUnavailable();
@@ -132,12 +132,34 @@ public sealed class AttachmentMetadataFindStateTests
     public void RevocationDuringFindCannotPublishComputedMatch()
     {
         var calls = 0;
-        using var state = new AttachmentMetadataFindState("private", () => ++calls < 3);
+        using var state = new AdmittedMetadataFindState("private", () => ++calls < 3);
         state.Edit("private");
         state.Find(SnapshotFindDirection.First);
         state.Query.Should().BeEmpty();
         state.Status.Should().BeEmpty();
         state.Match.Should().BeNull();
+    }
+
+    [Fact]
+    public void IndependentInspectorSnapshotsCannotRecoverRetiredIdentityThroughRetainedCallbacks()
+    {
+        var selected = true;
+        using var oldIdentity = new AdmittedMetadataFindState("Source: already-displayed\\SKILL.md | Aa Aa", () => selected);
+        oldIdentity.Edit("Aa");
+        oldIdentity.Find(SnapshotFindDirection.First);
+        oldIdentity.ExactMatch.Should().Be("Aa");
+        selected = false;
+        oldIdentity.Available.Should().BeFalse();
+        selected = true;
+        using var replacement = new AdmittedMetadataFindState("Replacement identity | Aa", () => selected);
+        replacement.Edit("Aa");
+        replacement.Find(SnapshotFindDirection.First);
+        oldIdentity.Edit("already-displayed");
+        oldIdentity.Find(SnapshotFindDirection.First);
+        oldIdentity.ExactMatch.Should().BeEmpty();
+        oldIdentity.Query.Should().BeEmpty();
+        replacement.ExactMatch.Should().Be("Aa");
+        replacement.Match.Should().Be(new SnapshotLiteralSpan(23, 2));
     }
 
     private const int SessionPageBudget = Kora.Core.Storage.SessionAttachmentPage.MaximumBytes;

@@ -14,16 +14,19 @@ public sealed partial class SkillPackagesWindow : Window
 {
     private readonly SkillPackageCatalogue catalogue;
     private readonly NativeDetailRenderer renderer;
+    private readonly Func<bool> current;
     private IReadOnlyList<SkillPackageSnapshot> results = [];
     private bool updatingResults;
     private bool closed;
 
     public SkillPackagesWindow() => throw new InvalidOperationException("Use the host-owned immutable skill inspection route.");
 
-    internal SkillPackagesWindow(SkillPackageCatalogue catalogue, NativeDetailRenderer renderer, Action? sharedSources = null)
+    internal SkillPackagesWindow(SkillPackageCatalogue catalogue, NativeDetailRenderer renderer, Action? sharedSources = null,
+        Func<bool>? current = null)
     {
         this.catalogue = catalogue;
         this.renderer = renderer;
+        this.current = current ?? (() => false);
         AvaloniaXamlLoader.Load(this);
         this.FindControl<Button>("SharedSources")!.Click += (_, _) => { if (!closed) { sharedSources?.Invoke(); } };
         this.FindControl<Button>("SharedSources")!.IsEnabled = sharedSources is not null;
@@ -52,7 +55,7 @@ public sealed partial class SkillPackagesWindow : Window
         }
         filter.SelectionChanged += (_, _) => RetireSearch();
         order.SelectionChanged += (_, _) => RetireSearch();
-        KeyDown += (_, args) => { if (args.Key == Key.Escape) { Close(); args.Handled = true; } };
+        KeyDown += (_, args) => { if (args.Key == Key.Escape && !args.Handled) { Close(); args.Handled = true; } };
         selector.SelectionChanged += (_, _) =>
         {
             if (!updatingResults) { ShowPackage(); }
@@ -86,6 +89,7 @@ public sealed partial class SkillPackagesWindow : Window
     private void Search()
     {
         if (closed) { return; }
+        IdentityFinder.Retire();
         var selected = SelectedPackage;
         try
         {
@@ -132,6 +136,7 @@ public sealed partial class SkillPackagesWindow : Window
 
     private void ClearSelection()
     {
+        IdentityFinder.Retire();
         this.FindControl<TextBlock>("PackageIdentity")!.Text = string.Empty;
         var tabs = this.FindControl<TabControl>("SourceTabs")!;
         foreach (var tab in tabs.Items.OfType<TabItem>())
@@ -147,7 +152,7 @@ public sealed partial class SkillPackagesWindow : Window
     private void ShowPackage()
     {
         ClearSelection();
-        if (SelectedPackage is not { } package) { return; }
+        if (closed || SelectedPackage is not { } package) { return; }
         this.FindControl<TextBlock>("PackageIdentity")!.Text =
             $"Bundled first-party source | {package.Manifest.Id} | {package.Manifest.Version}\n"
             + $"Action: {package.Manifest.Action}; entry: {package.Manifest.EntryPoint}; parameter contract: {package.Manifest.ParameterContract}\n"
@@ -158,7 +163,11 @@ public sealed partial class SkillPackagesWindow : Window
             + $"Declared resources: {package.DeclaredResourceDigest}\n"
             + $"{SkillPackageSnapshot.UnavailableReason}\n{SkillPackageSnapshot.TransitiveGaps}\n{SkillPackageSnapshot.TransitiveDisclosure}";
         this.FindControl<TabControl>("SourceTabs")!.ItemsSource = CreateSourceTabs(catalogue, package, renderer);
+        IdentityFinder.Admit(this.FindControl<TextBlock>("PackageIdentity")!.Text!,
+            () => !closed && current() && ReferenceEquals(SelectedPackage, package));
     }
+
+    private IdentityMetadataFindPane IdentityFinder => this.FindControl<IdentityMetadataFindPane>("IdentityFind")!;
 
     internal static TabItem[] CreateSourceTabs(SkillPackageCatalogue catalogue, SkillPackageSnapshot package,
         NativeDetailRenderer renderer) => package.Files.Select(file =>

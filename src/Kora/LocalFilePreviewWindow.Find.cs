@@ -73,8 +73,9 @@ internal sealed partial class LocalFilePreviewWindow
         panel.Children.Add(new NamedTextBlock
         {
             Text = "Literal Find: case-sensitive, unchanged spaces, nonoverlapping, no wrap. First starts at zero; "
-                + "Next starts after the match end; Previous finds the last match ending before or at its start. "
-                + "One exact match only, no occurrence count. Native only; ranked search below is unchanged.",
+                + "Next starts after the match end; Previous reverses that same forward sequence. "
+                + "Total and selected ordinal cover this exact immutable original file only, not other files, "
+                + "ranked retrieval or live disk. Native only; ranked search below is unchanged.",
             TextWrapping = Avalonia.Media.TextWrapping.Wrap,
         });
         panel.Children.Add(query);
@@ -102,8 +103,9 @@ internal sealed partial class LocalFilePreviewWindow
             findStatus!.Text = "Literal Find stale or unavailable; inspect the exact source again. No match or focus claimed.";
         }
         if (!Current()) { throw new InvalidOperationException("The displayed exact source is stale."); }
-        // Validate before any retained read. This scan allocates at most one bounded identity/span, never an index.
-        var match = LocalFileLiteralFind.Find(file, query, direction, selected);
+        // Validate and count the displayed immutable source before any retained read; never retain an occurrence index.
+        var result = LocalFileLiteralFind.FindCounted(file, query, direction, selected);
+        var match = result.Match;
         using var cancellation = new CancellationTokenSource();
         finding = cancellation;
         try
@@ -121,11 +123,14 @@ internal sealed partial class LocalFilePreviewWindow
             findMatch = match ?? (direction == LocalFileFindDirection.First ? null : selected);
             findNext!.IsEnabled = findMatch is not null;
             findPrevious!.IsEnabled = findMatch is not null;
-            findStatus!.Text = match is null
-                ? direction == LocalFileFindDirection.First ? "No literal match in this exact original file."
-                    : direction == LocalFileFindDirection.Next ? "End of forward direction; no wrap. Earlier matches may remain."
-                        : "End of backward direction; no wrap. Later matches may remain."
-                : "One exact case-sensitive literal match; nonoverlapping; no wrap.";
+            findStatus!.Text = match is not null
+                ? $"Literal match {result.Ordinal} of {result.Count} in this exact immutable original file only; "
+                    + "case-sensitive; nonoverlapping; no wrap."
+                : direction == LocalFileFindDirection.First
+                    ? "No literal match in this exact immutable original file only; total 0; selected ordinal 0. No match or focus claimed."
+                    : (direction == LocalFileFindDirection.Next ? "End of forward direction" : "End of backward direction")
+                        + $"; no wrap. Total {result.Count} in this exact immutable original file only; "
+                        + $"anchor ordinal {result.Ordinal}; no current match selected or focus claimed.";
             if (match is null) { return; }
             citedLocation!.Text = DescribeItem(file) + "\n"
                 + $"Literal match: UTF-16 [{match.Start}, {match.Start + match.Length}) of {file.Text.Length}; end exclusive. "

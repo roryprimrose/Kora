@@ -465,9 +465,19 @@ Experiment equivalence is limited to deterministic exact citation resolution and
 
 The one-line literal uses case-sensitive `StringComparison.Ordinal`, without trimming, normalization, token OR, regex, wildcard, fuzzy or semantic interpretation. Spaces and metacharacters are preserved. Shared 256 UTF-16 / 512 strict UTF-8 bounds apply; malformed Unicode, control/format characters and line/paragraph separators reject explicitly. No query enters typed/PTT transcripts.
 
-First scans from zero. Next starts after the selected match's exclusive end; Previous finds the last match ending at or before its start. Matches are nonoverlapping relative to that cursor and never wrap. Next/Previous require a match; exhaustion retains the cursor but clears the span and says **End of direction**, not global NoMatch. First alone can report no match in the exact file.
+First scans from zero. Next starts after the selected match's exclusive end; Previous reverses the same counted forward nonoverlapping sequence, not an overlapping alternative. Next/Previous require a canonical match; exhaustion retains the anchor ordinal and total but clears the span and claims no current match or focus. First alone reports zero matches ([shared policy](../src/Kora.Core/Context/SnapshotLiteralFind.cs)).
 
-One span is selected per action, with the unchanged query's UTF-16 length. No all-occurrence collection, index or count is built. The existing inert `NamedTextBlock` panel shows literal labels, original end-exclusive UTF-16 offsets and exact source/revision/item/original-byte digest, not a ranked citation or heading. Complete original source remains unchanged and non-selectable below.
+One span is selected per action, with the unchanged query's UTF-16 length. No all-occurrence collection or index is built. The inert panel shows literal labels, original end-exclusive UTF-16 offsets and exact source/revision/item/original-byte digest, not a ranked citation or heading. Complete source remains unchanged and non-selectable below ([window](../src/Kora/LocalFilePreviewWindow.Find.cs)).
+
+### Exact immutable LocalFile occurrence count and ordinal - 2026-10-18
+
+Explicit Find now reports an accessible exact total and selected ordinal for only the admitted, currently displayed immutable `LocalFileRevision`. It does not count other folder items, retained attachments, corpus/retrieval results or live disk. Empty and no-match originals report total 0 and selected ordinal 0 ([window tests](../tests/Kora.Windows.IntegrationTests/LocalFileLiteralFindWindowTests.cs)).
+
+The [LocalFile adapter](../src/Kora.Core/Context/LocalFileLiteralFind.cs) and [clipboard adapter](../src/Kora.Core/Context/ClipboardLiteralFind.cs) reuse one [authoritative counted rule](../src/Kora.Core/Context/SnapshotLiteralFind.cs). For `aaaaaXaa` / `aa`, the forward sequence starts at 0, 2, 6 and Previous from 6 selects 2, not 3. Ordinary uncounted Find and ranked retrieval remain unchanged ([policy tests](../tests/Kora.Core.UnitTests/Context/LocalFileLiteralFindTests.cs)).
+
+Totals are scanned from displayed immutable text without an index, cache, count persistence or an extra read. Query and canonical cursor admission precede retained reads. Publication still awaits the existing asynchronous full-source validation, exact identity/body, generation, privacy, cancellation and focus fences ([window](../src/Kora/LocalFilePreviewWindow.Find.cs), [tests](../tests/Kora.Windows.IntegrationTests/LocalFileLiteralFindWindowTests.cs)).
+
+This consumes the existing immutable-source, shared literal policy and native Find I subset only. It adds no model/provider/device/clipboard-write/authority path. E/Q and installed accessibility qualification remain separate; unqualified runtime/provider/egress/wake/profile-original writers remain unavailable ([delivery policy](Implementation_Roadmap.md#delivery-and-qualification-dependency-policy)).
 
 The shared handler captures source instance, exact query, cursor and view generation before work. Each action reuses citation navigation's authoritative resolver and current-admission predicate before disclosure and in-window focus. Retained actions revalidate only the private SQLite original-body/session/storage/source snapshot, never the original filesystem path, capture, attach or replace.
 

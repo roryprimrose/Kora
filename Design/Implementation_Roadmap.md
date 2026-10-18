@@ -34,6 +34,13 @@ do not depend on hosted management, and speech preferences do not qualify wake.
 
 ## Current Delivery
 
+### Bounded exact immutable LocalFile Find count and ordinal - 2026-10-18
+
+The existing [native current-source Find](File_And_Folder_Ingestion.md#exact-immutable-localfile-occurrence-count-and-ordinal---2026-10-18) reports an accessible exact total and selected ordinal only for its admitted displayed immutable file, never corpus/retrieval/live disk.
+Both LocalFile and clipboard counted adapters consume the [shared forward nonoverlapping sequence](../src/Kora.Core/Context/SnapshotLiteralFind.cs); Previous reverses that sequence without changing ordinary uncounted Find.
+Exhaustion preserves total/anchor ordinal without wrap or a current-match/focus claim; invalid input rejects before retained read, and async exact-source/privacy/generation/cancellation fences still gate disclosure ([portable tests](../tests/Kora.Core.UnitTests/Context/LocalFileLiteralFindTests.cs), [native tests](../tests/Kora.Windows.IntegrationTests/LocalFileLiteralFindWindowTests.cs)).
+This consumes only the merged immutable-source/shared-Find/native I subset. No extra read, persisted count/index, model/provider/device/clipboard-write/authority change is added; E/Q and installed accessibility remain separate, and unqualified runtime/provider/egress/wake/profile-original writers remain unavailable ([contract](File_And_Folder_Ingestion.md#exact-immutable-localfile-occurrence-count-and-ordinal---2026-10-18)).
+
 ### Bounded native Evidence retained due ranges - 2026-10-18
 
 The [existing Evidence inspector](Information_Display.md#delivered-bounded-native-evidence-inspection)

@@ -127,7 +127,7 @@ public sealed partial class MainViewModel
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or InvalidDataException
             or InvalidOperationException or OperationCanceledException or TimeoutException or ArgumentOutOfRangeException)
         {
-            ApplicationLog.Error(logger, exception, "Observing hypothetical session retention");
+            ApplicationLog.SessionRetentionPreviewFailed(logger, exception.GetType().Name);
         }
         finally { if (!disposed) { NotifySessionRetentionPlan(); } }
     }

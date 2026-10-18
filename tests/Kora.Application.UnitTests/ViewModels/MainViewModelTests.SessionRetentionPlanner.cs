@@ -4,6 +4,8 @@ using Kora.Core.Configuration;
 using Kora.Core.Hosting;
 using Kora.Core.Storage;
 
+using Microsoft.Extensions.Logging;
+
 namespace Kora.Application.UnitTests.ViewModels;
 
 public sealed partial class MainViewModelTests
@@ -152,5 +154,57 @@ public sealed partial class MainViewModelTests
         await (Task)method.Invoke(fixture.ViewModel, [])!;
         fixture.ViewModel.CanPreviewSessionRetention.Should().BeFalse();
         fixture.ViewModel.Dispose();
+    }
+
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(true, false)]
+    [InlineData(true, true)]
+    public async Task PreviewFailureLoggingNeverRetainsPrivateExceptionMessagesOrPaths(bool enabled, bool unexpected)
+    {
+        var log = new RetentionPreviewLogger(enabled);
+        var fixture = new Fixture(logger: log, enableSessionRetention: true, enableDiagnosticRetention: true,
+            enableSessionRetentionPlanner: true);
+        await using var admission = fixture.DiagnosticAdmission;
+        await fixture.ViewModel.InitializeAsync();
+        fixture.ViewModel.BindDiagnosticRetentionNativeLifetime(static () => true);
+        fixture.ViewModel.BindSessionRetentionNativeLifetime(static () => true);
+        await fixture.ViewModel.RefreshSessionRetentionCommand.ExecuteAsync();
+        fixture.ViewModel.ProposedSessionArchiveDays = 1;
+        fixture.ViewModel.ProposedSessionDeleteDays = 3;
+        fixture.SessionPlanReader.Pending = Task.FromException<SessionRetentionPlanResult>(
+            unexpected ? new NotSupportedException(@"private-sentinel Q:\private\session-retention.txt")
+                : new IOException(@"private-sentinel Q:\private\session-retention.txt"));
+        if (unexpected)
+        {
+            fixture.ViewModel.PreviewSessionRetentionCommand.Execute(null);
+            await log.Failure.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+        }
+        else { await fixture.ViewModel.PreviewSessionRetentionCommand.ExecuteAsync(); }
+        fixture.ViewModel.SessionRetentionPlanStatus.Should().Contain("failed").And.NotContain("private-sentinel");
+        var failures = log.Events.Where(entry => entry.Name is "SessionRetentionPreviewFailed").ToArray();
+        if (enabled)
+        {
+            failures.Should().ContainSingle();
+            failures[0].Message.Should().Contain(unexpected ? nameof(NotSupportedException) : nameof(IOException))
+                .And.NotContain("private-sentinel").And.NotContain(@"Q:\private");
+            failures[0].Exception.Should().BeNull();
+        }
+        else { failures.Should().BeEmpty(); }
+        fixture.ViewModel.Dispose();
+    }
+
+    private sealed class RetentionPreviewLogger(bool enabled) : ILogger<Kora.Application.ViewModels.MainViewModel>
+    {
+        internal List<(string? Name, string Message, Exception? Exception)> Events { get; } = [];
+        internal TaskCompletionSource Failure { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
+        public bool IsEnabled(LogLevel logLevel) => enabled;
+        public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception,
+            Func<TState, Exception?, string> formatter)
+        {
+            Events.Add((eventId.Name, formatter(state, exception), exception));
+            if (eventId.Name is "SessionRetentionPreviewFailed") { Failure.TrySetResult(); }
+        }
     }
 }

@@ -483,7 +483,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         SaveSessionRetentionCommand = CreateCommand(() => ConfigureSessionRetentionAsync(save: true, reset: false));
         ResetSessionRetentionCommand = CreateCommand(() => ConfigureSessionRetentionAsync(save: true, reset: true));
         PreviewSessionRetentionCommand = new(PreviewSessionRetentionAsync,
-            exception => ApplicationLog.Error(logger, exception, "Observing hypothetical session retention"),
+            exception => ApplicationLog.SessionRetentionPreviewFailed(logger, exception.GetType().Name),
             () => CanPreviewSessionRetention);
         SaveDiagnosticRetentionCommand = CreateCommand(() => ExecuteDiagnosticRetentionCommandAsync(new(AppearanceCommandOperation.Set,
             SelectedDiagnosticRetentionDays.ToString(System.Globalization.CultureInfo.InvariantCulture)), SecurityAuditInitiator.LocalUser));

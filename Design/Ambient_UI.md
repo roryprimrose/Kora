@@ -235,6 +235,15 @@ choice, the exact value `native` selects the native startup default; unset or
 when a saved preference exists, without fallback or preference-file changes
 ([selection](../src/Kora/Controls/PresenceRendererSelection.cs)).
 
+The renderer selector uses the existing single-flight appearance-persistence
+queue, retaining at most the latest pending absolute choice per appearance
+option. Its binding reads the last confirmed choice without taking the storage
+lock while audit or preference I/O is pending. Startup still reads and validates
+the saved renderer before creating the first window. Requested and terminal
+audits remain durable, privacy is rechecked before writing, and only confirmed
+state requests window replacement. Handoff refuses pending persistence and
+shutdown joins it; a stale or failed write is explicitly reported.
+
 Changing renderer defers until initial host startup, mouse-button gestures and
 presence-owned dialogs/file pickers finish. New choices replace pending choices;
 choosing the current renderer cancels a pending replacement. Only an actual

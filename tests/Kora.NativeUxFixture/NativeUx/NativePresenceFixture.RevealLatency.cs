@@ -30,8 +30,8 @@ internal static partial class NativePresenceFixture
                 var started = Stopwatch.GetTimestamp();
                 tray.HandlePrimaryClick();
                 var shown = Stopwatch.GetElapsedTime(started);
-                Require(window.IsVisible && shown < TimeSpan.FromSeconds(1),
-                    $"First tray click did not show the shell under one second: {shown.TotalMilliseconds:F1} ms.");
+                Require(window.IsVisible && window.Opacity == 1 && shown < TimeSpan.FromSeconds(1),
+                    $"First tray click did not reveal an opaque shell under one second: {shown.TotalMilliseconds:F1} ms, opacity {window.Opacity:F1}.");
                 var cloud = window.GetLogicalDescendants().OfType<PresenceControl>().Single();
                 var nativeHost = window.GetLogicalDescendants().OfType<NativePresenceHost>().SingleOrDefault();
                 while (!(native ? nativeHost?.CanInteract == true : cloud.CanInteract))

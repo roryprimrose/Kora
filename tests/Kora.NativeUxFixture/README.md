@@ -446,3 +446,21 @@ listed synthetic observations on these payload bytes and recorded display
 conditions**. Full qualification and actual privacy/audio/installed boundaries
 remain open. Share only a reviewed, sanitized receipt if it is later needed in
 the deferred-validation register; publishing or committing evidence is separate.
+
+## Presence renderer reveal regression
+
+The `--native-presence-fixture` mode runs on an unswitched private desktop with
+scratch-only services. Its production-window replacement sequence keeps the
+modeless Settings window open, switches each hidden renderer, and reveals it
+through the actual first-click tray handler. The replacement must remain hidden
+until that request, then restore full shell opacity and a positive presence frame
+within one second, including while scratch SQLite delivery is deliberately blocked.
+The test does not manually restore a visible replacement state before revealing.
+It awaits the tracked appearance-persistence task before replacement, measures
+the selector callback and joined retirement/replacement separately, and requires
+each UI stage to complete within 500 ms in the scratch fixture. Durable preference
+commit time is not represented as render time.
+
+This covers the hidden-replacement zero-opacity regression for both Avalonia and
+Native. It does not measure Explorer event delivery or composed physical pixels,
+qualify microphone/provider behavior, or authorize a real application launch.

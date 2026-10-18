@@ -515,6 +515,7 @@ public sealed partial class MainWindow : Window
     private void ShowPresenceWindow()
     {
         presence.SetAnimationEnabled(nativePresence is null);
+        Opacity = 1;
         Show();
         if (!presenceInputFailed)
         {

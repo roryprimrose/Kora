@@ -96,6 +96,7 @@ public sealed partial class MainViewModel
             switch (descriptor.Option, appearanceConfiguration.Get(descriptor.Option).Value)
             {
                 case (AppearanceOption.NativePresenceRenderer, AppearanceValue.Toggle boolean):
+                    nativePresenceRendererObserved = true;
                     if (SetProperty(ref isNativePresenceRenderer, boolean.Value, nameof(IsNativePresenceRenderer)))
                         OnPropertyChanged(nameof(SelectedPresenceRenderer));
                     break;

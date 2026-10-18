@@ -12,6 +12,20 @@ namespace Kora.Application.UnitTests.ViewModels;
 
 public sealed partial class MainViewModelTests
 {
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task RendererStartupReadHonorsSavedChoiceBeforeHostInitialization(bool native)
+    {
+        var fixture = new Fixture();
+        fixture.AppearancePreferences.SaveNativePresenceRendererEnabled(native);
+        fixture.ViewModel.IsNativePresenceRenderer.Should().Be(native);
+        await fixture.ViewModel.InitializeAsync();
+        fixture.ViewModel.SelectedPresenceRenderer.IsNative.Should().Be(native);
+        fixture.Audit.Events.Should().NotContain(item =>
+            string.Equals(item.ActionId, "configuration.native-presence-renderer", StringComparison.Ordinal));
+    }
+
     [Fact]
     public async Task Renderer_selector_uses_the_shared_audited_setting_and_does_not_claim_activation()
     {
@@ -21,6 +35,7 @@ public sealed partial class MainViewModelTests
         var notifications = new List<string?>();
         fixture.ViewModel.PropertyChanged += (_, args) => notifications.Add(args.PropertyName);
         fixture.ViewModel.SelectedPresenceRenderer = fixture.ViewModel.PresenceRenderers[1];
+        await fixture.ViewModel.AppearanceUpdate;
         fixture.ViewModel.IsNativePresenceRenderer.Should().BeTrue();
         fixture.AppearancePreferences.NativePresenceRendererEnabled.Should().BeTrue();
         notifications.Should().Contain(nameof(MainViewModel.IsNativePresenceRenderer))
@@ -30,6 +45,7 @@ public sealed partial class MainViewModelTests
         fixture.ViewModel.PresenceRendererStatus.Should().Be("Native renderer active.");
         fixture.AppearancePreferences.SaveException = new IOException("fixture save failure");
         fixture.ViewModel.SelectedPresenceRenderer = fixture.ViewModel.PresenceRenderers[0];
+        await fixture.ViewModel.AppearanceUpdate;
         fixture.ViewModel.SelectedPresenceRenderer.IsNative.Should().BeTrue();
         fixture.Audit.Events.Should().Contain(item => item.ActionId == "configuration.native-presence-renderer"
             && item.Outcome == SecurityAuditOutcome.Succeeded);

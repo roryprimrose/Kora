@@ -104,6 +104,7 @@ internal static partial class NativePresenceFixture
         private readonly IClassicDesktopStyleApplicationLifetime desktop;
         private readonly string output;
         private readonly Stopwatch clock = Stopwatch.StartNew();
+        private readonly List<RendererSwitchSample> rendererSwitchSamples = [];
         private PresenceRenderInputs inputs = new(AssistantState.Hidden, false, 0, true, 200,
             200, 200, 200, false, true, true, 600, 600, 1);
         private Exception? failure;
@@ -304,6 +305,7 @@ internal static partial class NativePresenceFixture
                     PlaybackSamples = samples,
                     ProductionWindowReplacements = replacements,
                     TrayRevealSamples = revealSamples,
+                    RendererSwitchSamples = rendererSwitchSamples,
                     ElapsedSeconds = clock.Elapsed.TotalSeconds,
                     Checks = new[] { "initial-opacity-gate", "hidden-legacy-sibling", "hidden-to-information",
                         "positive-opacity-presentation", "non-layered-root", "owned-popup", "empty-region-passthrough",
@@ -312,6 +314,7 @@ internal static partial class NativePresenceFixture
                         "resume", "reduced-motion", "detach-reattach", "dispose-without-ui-drain",
                         "production-window-replacement", "settings-selector", "owned-dialog-deferral",
                         "preserved-hidden-state", "preserved-minimized-state", "retired-handles",
+                        "hidden-replacement-tray-reveal", "modeless-settings-remains-open",
                         "first-click-reveal-under-one-second", "first-positive-frame-under-one-second-with-blocked-sqlite" },
                     Qualification = "Synthetic integration only; not post-composition pixel or laptop performance qualification.",
                 };
@@ -367,6 +370,7 @@ internal static partial class NativePresenceFixture
                 var settings = new SettingsWindow(fixture.Main);
                 var selector = settings.GetLogicalDescendants().OfType<ComboBox>()
                     .Single(control => ReferenceEquals(control.ItemsSource, fixture.Main.PresenceRenderers));
+                settings.Show();
                 fixture.Main.PropertyChanged += OnRendererChoice;
                 var replacements = 0;
                 try
@@ -381,9 +385,14 @@ internal static partial class NativePresenceFixture
                         {
                             // Commit an explicit native preference before selecting Avalonia through the UI.
                             fixture.Main.SelectedPresenceRenderer = fixture.Main.PresenceRenderers[1];
+                            await fixture.Main.AppearanceUpdate;
                         }
+                        var selectionStarted = Stopwatch.GetTimestamp();
                         selector.SelectedItem = fixture.Main.PresenceRenderers[native ? 1 : 0];
-                        await Task.Delay(25);
+                        var selectionElapsed = Stopwatch.GetElapsedTime(selectionStarted);
+                        Require(selectionElapsed < TimeSpan.FromMilliseconds(500),
+                            $"Renderer selector blocked the UI for {selectionElapsed.TotalMilliseconds:F1} ms.");
+                        await fixture.Main.AppearanceUpdate;
                         Require(fixture.Main.IsNativePresenceRenderer == native && controller.HasPendingChange,
                             "The actual settings selector did not persist and request its renderer choice.");
                         if (index == 0)
@@ -394,12 +403,20 @@ internal static partial class NativePresenceFixture
                                 "An owned dialog did not defer production-window replacement.");
                             owned.Close();
                         }
-                        if (index == 2) { previous.Hide(); }
+                        if (index is 2 or 3) { previous.Hide(); }
                         if (index == 4) { previous.WindowState = WindowState.Minimized; }
                         var wasVisible = previous.IsVisible;
                         var previousState = previous.WindowState;
                         var previousPosition = previous.Position;
+                        var replacementStarted = Stopwatch.GetTimestamp();
                         Require(controller.TryApply(), "Production-window replacement was unexpectedly deferred.");
+                        var replacementElapsed = Stopwatch.GetElapsedTime(replacementStarted);
+                        Require(replacementElapsed < TimeSpan.FromMilliseconds(500),
+                            $"Renderer retirement/replacement blocked for {replacementElapsed.TotalMilliseconds:F1} ms.");
+                        rendererSwitchSamples.Add(new(native ? "native" : "avalonia",
+                            selectionElapsed.TotalMilliseconds, replacementElapsed.TotalMilliseconds));
+                        Console.WriteLine($"Synthetic renderer switch ({(native ? "native" : "avalonia")}): "
+                            + $"selector {selectionElapsed.TotalMilliseconds:F1} ms, replacement {replacementElapsed.TotalMilliseconds:F1} ms.");
                         replacements++;
                         Require(!IsWindow(previousHandle) && (previousPopup == 0 || !IsWindow(previousPopup)),
                             "A retired shell or native popup handle survived replacement.");
@@ -410,8 +427,8 @@ internal static partial class NativePresenceFixture
                             "Replacement changed hidden or minimized state.");
                         if (!wasVisible)
                         {
-                            ((IPresenceWindow)next).RestoreAfterReplacement(new(next.Position, WindowState.Normal,
-                                true, true, null, Stopwatch.GetTimestamp()));
+                            Require(settings.IsVisible, "The modeless settings window closed during renderer replacement.");
+                            await VerifyTrayRevealAsync(fixture, next, native, delayedCommit);
                         }
                         next.WindowState = WindowState.Normal;
                         await Task.Delay(75);
@@ -454,6 +471,9 @@ internal static partial class NativePresenceFixture
                 throw new InvalidOperationException(message);
             }
         }
+
+        private sealed record RendererSwitchSample(string Renderer, double SelectionMilliseconds,
+            double ReplacementMilliseconds);
 
         public void Dispose()
         {

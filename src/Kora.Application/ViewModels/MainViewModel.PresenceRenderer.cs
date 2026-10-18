@@ -1,6 +1,5 @@
 using System.Collections.ObjectModel;
 
-using Kora.Core.Auditing;
 using Kora.Core.Configuration;
 
 namespace Kora.Application.ViewModels;
@@ -10,15 +9,24 @@ public sealed partial class MainViewModel
     private static readonly ReadOnlyCollection<PresenceRendererChoice> RendererChoices =
         Array.AsReadOnly<PresenceRendererChoice>([new("Avalonia", false), new("Native (experimental)", true)]);
     private bool isNativePresenceRenderer;
+    private bool nativePresenceRendererObserved;
     private string presenceRendererStatus = "The presence renderer has not been initialized.";
 
     public IReadOnlyList<PresenceRendererChoice> PresenceRenderers => RendererChoices;
 
     public bool IsNativePresenceRenderer
     {
-        get => appearanceConfiguration.Get(AppearanceOption.NativePresenceRenderer).Value.GetToggle();
-        set => ApplyAppearance(AppearanceOption.NativePresenceRenderer, new AppearanceValue.Toggle(value),
-            SecurityAuditInitiator.LocalUser, nameof(IsNativePresenceRenderer));
+        get
+        {
+            if (!nativePresenceRendererObserved)
+            {
+                isNativePresenceRenderer = appearanceConfiguration.Get(AppearanceOption.NativePresenceRenderer).Value.GetToggle();
+                nativePresenceRendererObserved = true;
+            }
+            return isNativePresenceRenderer;
+        }
+        set => QueueAppearance(AppearanceOption.NativePresenceRenderer, new AppearanceValue.Toggle(value),
+            nameof(IsNativePresenceRenderer));
     }
 
     public PresenceRendererChoice SelectedPresenceRenderer

@@ -3,6 +3,8 @@ using AwesomeAssertions;
 using Kora.Core.Configuration;
 using Kora.Application.ViewModels;
 using Kora.Core.Auditing;
+using Kora.Core.Diagnostics;
+using Kora.Core.Hosting;
 
 namespace Kora.Application.UnitTests.ViewModels;
 
@@ -123,5 +125,130 @@ public sealed partial class MainViewModelTests
         fixture.AppearancePreferences.SavedPresenceSizePixels.Should().BeNull();
         fixture.ViewModel.PresenceSizePixels.Should().Be(PresenceSettings.DefaultSizePixels);
         fixture.ViewModel.AppearanceSettingStatus.Should().Contain("not confirmed");
+    }
+
+    [Theory]
+    [InlineData(SecurityAuditOutcome.Requested)]
+    [InlineData(SecurityAuditOutcome.Succeeded)]
+    public async Task RendererSelectionAndReadbackYieldDuringAuditAndCoalesceTheLatestChoice(SecurityAuditOutcome blockedOutcome)
+    {
+        var fixture = await Fixture.CreateInitializedAsync();
+        using var request = HostActivity.BeginRoot(HostRequest.Create(RequestOrigin.LocalUi),
+            HostActivityLayer.Application, HostOperation.Presentation);
+        using var release = new ManualResetEventSlim();
+        var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var token = TestContext.Current.CancellationToken;
+        var blocked = 0;
+        fixture.Audit.BeforeWrite = audit =>
+        {
+            if (!string.Equals(audit.ActionId, "configuration.native-presence-renderer", StringComparison.Ordinal)) { return; }
+            HostActivity.Current.Should().NotBeNull();
+            HostActivity.Current!.Request.Should().Be(request.Request);
+            if (audit.Outcome != blockedOutcome || Interlocked.Exchange(ref blocked, 1) != 0) { return; }
+            entered.TrySetResult();
+            release.Wait(token);
+        };
+        var selection = Task.Run(() =>
+        {
+            fixture.ViewModel.SelectedPresenceRenderer = fixture.ViewModel.PresenceRenderers[1];
+            return fixture.ViewModel.SelectedPresenceRenderer.IsNative;
+        }, token);
+        try
+        {
+            await entered.Task.WaitAsync(TimeSpan.FromSeconds(5), token);
+            (await selection.WaitAsync(TimeSpan.FromSeconds(1), token)).Should().BeFalse();
+            fixture.ViewModel.AppearanceUpdate.IsCompleted.Should().BeFalse();
+            fixture.ViewModel.IsNativePresenceRenderer.Should().BeFalse();
+            fixture.ViewModel.SelectedPresenceRenderer.IsNative.Should().BeFalse();
+            var settingsOpened = false;
+            fixture.ViewModel.SettingsRequested += (_, _) => settingsOpened = true;
+            fixture.ViewModel.ShowSettings();
+            settingsOpened.Should().BeTrue();
+            fixture.ViewModel.SelectedPresenceRenderer = fixture.ViewModel.PresenceRenderers[0];
+            fixture.ViewModel.SelectedPresenceRenderer = fixture.ViewModel.PresenceRenderers[1];
+            fixture.ViewModel.SelectedPresenceRenderer = fixture.ViewModel.PresenceRenderers[0];
+            (await fixture.ViewModel.TryPrepareHandoffAsync()).Should().BeFalse();
+        }
+        finally
+        {
+            release.Set();
+            await selection;
+            await fixture.ViewModel.AppearanceUpdate;
+        }
+        fixture.ViewModel.IsNativePresenceRenderer.Should().BeFalse();
+        fixture.AppearancePreferences.NativePresenceRendererEnabled.Should().BeFalse();
+        fixture.Audit.Events.Count(item => string.Equals(item.ActionId, "configuration.native-presence-renderer", StringComparison.Ordinal)
+            && item.Outcome == SecurityAuditOutcome.Succeeded).Should().Be(2);
+    }
+
+    [Fact]
+    public async Task RendererSelectionRechecksPrivacyAfterRequestedAuditBeforePersistingOrActivating()
+    {
+        var fixture = await Fixture.CreateInitializedAsync();
+        using var release = new ManualResetEventSlim();
+        var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var token = TestContext.Current.CancellationToken;
+        fixture.Audit.BeforeWrite = audit =>
+        {
+            if (!string.Equals(audit.ActionId, "configuration.native-presence-renderer", StringComparison.Ordinal)
+                || audit.Outcome != SecurityAuditOutcome.Requested) { return; }
+            entered.TrySetResult();
+            release.Wait(token);
+        };
+        var selection = Task.Run(() =>
+            fixture.ViewModel.SelectedPresenceRenderer = fixture.ViewModel.PresenceRenderers[1], token);
+        try
+        {
+            await entered.Task.WaitAsync(TimeSpan.FromSeconds(5), token);
+            await selection.WaitAsync(TimeSpan.FromSeconds(1), token);
+            fixture.Session.IsUnlocked = false;
+        }
+        finally
+        {
+            release.Set();
+            await selection;
+            await fixture.ViewModel.AppearanceUpdate;
+        }
+        fixture.AppearancePreferences.NativePresenceRendererEnabled.Should().BeNull();
+        fixture.ViewModel.IsNativePresenceRenderer.Should().BeFalse();
+        fixture.ViewModel.AppearanceSettingStatus.Should().Contain("not confirmed");
+        fixture.Audit.Events.Should().Contain(item => string.Equals(item.ActionId, "configuration.native-presence-renderer", StringComparison.Ordinal)
+            && item.Outcome == SecurityAuditOutcome.Denied);
+    }
+
+    [Fact]
+    public async Task DisposalJoinsTheRendererPreferenceAuditAndPreventsLateActivation()
+    {
+        var fixture = await Fixture.CreateInitializedAsync();
+        using var release = new ManualResetEventSlim();
+        var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var token = TestContext.Current.CancellationToken;
+        fixture.Audit.BeforeWrite = audit =>
+        {
+            if (!string.Equals(audit.ActionId, "configuration.native-presence-renderer", StringComparison.Ordinal)
+                || audit.Outcome != SecurityAuditOutcome.Requested) { return; }
+            entered.TrySetResult();
+            release.Wait(token);
+        };
+        fixture.ViewModel.SelectedPresenceRenderer = fixture.ViewModel.PresenceRenderers[1];
+        Task disposal = Task.CompletedTask;
+        try
+        {
+            await entered.Task.WaitAsync(TimeSpan.FromSeconds(5), token);
+            disposal = fixture.ViewModel.DisposeAsync().AsTask();
+            disposal.IsCompleted.Should().BeFalse();
+        }
+        finally
+        {
+            release.Set();
+            var observeDisposal = () => disposal;
+            await observeDisposal.Should().ThrowAsync<InvalidOperationException>()
+                .WithMessage("*no longer eligible*");
+            await fixture.ViewModel.AppearanceUpdate;
+        }
+        fixture.AppearancePreferences.NativePresenceRendererEnabled.Should().BeNull();
+        fixture.ViewModel.IsNativePresenceRenderer.Should().BeFalse();
+        fixture.Audit.Events.Should().Contain(item => string.Equals(item.ActionId, "configuration.native-presence-renderer", StringComparison.Ordinal)
+            && item.Outcome == SecurityAuditOutcome.Denied);
     }
 }

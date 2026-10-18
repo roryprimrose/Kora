@@ -87,7 +87,7 @@ public sealed class WindowsSqliteSessionRetentionPlannerReader : ISessionRetenti
             try
             {
                 var attributes = File.GetAttributes(path);
-                if ((attributes & (FileAttributes.Directory | FileAttributes.ReparsePoint)) != 0)
+                if (attributes.HasFlag(FileAttributes.Directory) || attributes.HasFlag(FileAttributes.ReparsePoint))
                 {
                     throw new InvalidDataException("The retention preference metadata is not an ordinary local file.");
                 }

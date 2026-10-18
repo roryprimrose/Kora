@@ -2,6 +2,7 @@
 
 using AwesomeAssertions;
 
+using Kora.Core.Diagnostics;
 using Kora.Core.Hosting;
 using Kora.Core.Storage;
 using Kora.Windows.IntegrationTests.Audio;

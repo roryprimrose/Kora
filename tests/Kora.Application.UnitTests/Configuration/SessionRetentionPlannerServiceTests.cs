@@ -33,6 +33,8 @@ public sealed class SessionRetentionPlannerServiceTests
         fixture.Preferences.Writes.Should().Be(0);
         fixture.Audit.Writes.Should().Be(0);
         fixture.Policy.Settings.Should().Be(SessionRetentionSettings.Default);
+        fixture.Time.Advance(SessionRetentionPlanner.PreviewLifetime);
+        fixture.Service.Get().Result.Should().BeNull();
     }
 
     [Theory]
@@ -48,20 +50,20 @@ public sealed class SessionRetentionPlannerServiceTests
     [InlineData("invalid")]
     public async Task InvalidOrUnconfirmedAdmissionCannotStartScanning(string reason)
     {
-        await using var fixture = new Fixture(observe: reason != "unobserved");
-        if (reason == "preference") { fixture.Preferences.Value = new(2, 60); }
-        if (reason == "readback") { fixture.Preferences.ReadBackValue = new(2, 60); }
-        if (reason == "corrupt") { fixture.Preferences.Failure = new InvalidDataException(); }
-        if (reason == "access") { fixture.Preferences.Failure = new UnauthorizedAccessException(); }
-        if (reason == "io") { fixture.Preferences.Failure = new IOException(); }
-        if (reason == "policy") { fixture.Policy.HoldUnavailable(); }
-        if (reason == "host") { fixture.Eligible = false; }
-        if (reason == "policy-aba")
+        await using var fixture = new Fixture(observe: reason is not "unobserved");
+        if (reason is "preference") { fixture.Preferences.Value = new(2, 60); }
+        if (reason is "readback") { fixture.Preferences.ReadBackValue = new(2, 60); }
+        if (reason is "corrupt") { fixture.Preferences.Failure = new InvalidDataException(); }
+        if (reason is "access") { fixture.Preferences.Failure = new UnauthorizedAccessException(); }
+        if (reason is "io") { fixture.Preferences.Failure = new IOException(); }
+        if (reason is "policy") { fixture.Policy.HoldUnavailable(); }
+        if (reason is "host") { fixture.Eligible = false; }
+        if (reason is "policy-aba")
         {
             fixture.Policy.HoldUnavailable();
             fixture.Policy.Activate(new(2, 60));
         }
-        var action = () => fixture.Service.PreviewAsync(reason == "invalid" ? default : new(1, 3),
+        var action = () => fixture.Service.PreviewAsync(reason is "invalid" ? default : new(1, 3),
             fixture.AdmissionSnapshot, () => fixture.Eligible, TestContext.Current.CancellationToken);
         await action.Should().ThrowAsync<Exception>();
         fixture.Reader.Requests.Should().BeEmpty();
@@ -83,23 +85,25 @@ public sealed class SessionRetentionPlannerServiceTests
     public async Task PublishedResultsRetireWithoutImplicitReplayOrRevival(string reason)
     {
         await using var fixture = new Fixture();
+        var notices = 0;
+        fixture.Service.Changed += (_, _) => notices++;
         await fixture.Preview();
         var original = fixture.Service.Get().Preference!;
-        if (reason == "source") { fixture.Reader.Current = false; }
-        if (reason == "event-aba") { fixture.Reader.Signal(); }
-        if (reason == "preference") { fixture.Preferences.Value = new(2, 60); }
-        if (reason == "readback") { fixture.Preferences.ReadBackValue = new(2, 60); }
-        if (reason == "policy-aba")
+        if (reason is "source") { fixture.Reader.Current = false; }
+        if (reason is "event-aba") { fixture.Reader.Signal(); }
+        if (reason is "preference") { fixture.Preferences.Value = new(2, 60); }
+        if (reason is "readback") { fixture.Preferences.ReadBackValue = new(2, 60); }
+        if (reason is "policy-aba")
         {
             fixture.Policy.Activate(new(2, 60));
             fixture.Policy.Activate(SessionRetentionSettings.Default);
         }
-        if (reason == "refresh") { fixture.Configuration.Observe(); }
-        if (reason == "host") { fixture.Eligible = false; }
-        if (reason == "corrupt") { fixture.Preferences.Failure = new InvalidDataException(); }
-        if (reason == "edit") { fixture.Service.Retire("Proposal edited."); }
-        if (reason == "close") { fixture.Service.Dispose(); }
-        if (reason == "expiry") { fixture.Time.Advance(SessionRetentionPlanner.PreviewLifetime); }
+        if (reason is "refresh") { fixture.Configuration.Observe(); }
+        if (reason is "host") { fixture.Eligible = false; }
+        if (reason is "corrupt") { fixture.Preferences.Failure = new InvalidDataException(); }
+        if (reason is "edit") { fixture.Service.Retire("Proposal edited."); }
+        if (reason is "close") { fixture.Service.Dispose(); }
+        if (reason is "expiry") { fixture.Time.Advance(SessionRetentionPlanner.PreviewLifetime); }
         fixture.Service.Get().Result.Should().BeNull();
         fixture.Reader.Current = true;
         fixture.Eligible = true;
@@ -108,7 +112,8 @@ public sealed class SessionRetentionPlannerServiceTests
         fixture.Preferences.Failure = null;
         fixture.Service.Get().Result.Should().BeNull();
         fixture.Reader.Requests.Should().HaveCount(1);
-        if (reason == "refresh")
+        notices.Should().BeGreaterThan(0);
+        if (reason is "refresh")
         {
             fixture.Configuration.GetObservation().PreferenceRevision.Should().BeGreaterThan(original.PreferenceRevision);
         }
@@ -144,21 +149,23 @@ public sealed class SessionRetentionPlannerServiceTests
     public async Task InFlightFailuresAndStaleReceiptsNeverPublish(string reason)
     {
         await using var fixture = new Fixture();
+        var notices = 0;
+        fixture.Service.Changed += (_, _) => notices++;
         var pending = new TaskCompletionSource<SessionRetentionPlanResult>(TaskCreationOptions.RunContinuationsAsynchronously);
         fixture.Reader.Pending = pending.Task;
         using var cancellation = new CancellationTokenSource();
         var preview = fixture.Service.PreviewAsync(new(1, 3), fixture.AdmissionSnapshot, () => fixture.Eligible, cancellation.Token);
-        if (reason == "event") { fixture.Reader.Signal(); }
-        if (reason == "refresh") { fixture.Configuration.Observe(); }
-        if (reason == "host") { fixture.Eligible = false; }
-        if (reason == "stale") { fixture.Reader.Current = false; }
-        if (reason == "cancel") { await cancellation.CancelAsync(); }
-        if (reason == "timeout") { fixture.Time.Advance(SessionRetentionPlanner.ScanTimeout); }
-        if (reason == "close") { fixture.Service.Dispose(); }
-        if (reason == "throw") { pending.SetException(new IOException("metadata unavailable")); }
+        if (reason is "event") { fixture.Reader.Signal(); }
+        if (reason is "refresh") { fixture.Configuration.Observe(); }
+        if (reason is "host") { fixture.Eligible = false; }
+        if (reason is "stale") { fixture.Reader.Current = false; }
+        if (reason is "cancel") { await cancellation.CancelAsync(); }
+        if (reason is "timeout") { fixture.Time.Advance(SessionRetentionPlanner.ScanTimeout); }
+        if (reason is "close") { fixture.Service.Dispose(); }
+        if (reason is "throw") { pending.SetException(new IOException("metadata unavailable")); }
         else
         {
-            pending.SetResult(reason == "invalid-result"
+            pending.SetResult(reason is "invalid-result"
                 ? new(SessionRetentionPlanStatus.Complete, null, "stamp")
                 : fixture.Reader.Result);
         }
@@ -167,7 +174,8 @@ public sealed class SessionRetentionPlannerServiceTests
         fixture.Service.Get().Result.Should().BeNull();
         fixture.Reader.Cancellation.IsCancellationRequested.Should().BeTrue();
         fixture.Preferences.Writes.Should().Be(0);
-        if (reason == "close")
+        notices.Should().BeGreaterThan(0);
+        if (reason is "close")
         {
             await ((Func<Task>)(() => fixture.Preview())).Should().ThrowAsync<ObjectDisposedException>();
         }
@@ -219,11 +227,11 @@ public sealed class SessionRetentionPlannerServiceTests
         using var cancellation = new CancellationTokenSource();
         fixture.Reader.OnCurrent = () =>
         {
-            if (reason == "host") { fixture.Eligible = false; }
-            if (reason == "refresh") { fixture.Configuration.Observe(); }
-            if (reason == "event") { fixture.Reader.Signal(); }
-            if (reason == "cancel") { cancellation.Cancel(); }
-            if (reason == "timeout") { fixture.Time.Advance(SessionRetentionPlanner.ScanTimeout); }
+            if (reason is "host") { fixture.Eligible = false; }
+            if (reason is "refresh") { fixture.Configuration.Observe(); }
+            if (reason is "event") { fixture.Reader.Signal(); }
+            if (reason is "cancel") { cancellation.Cancel(); }
+            if (reason is "timeout") { fixture.Time.Advance(SessionRetentionPlanner.ScanTimeout); }
         };
         var action = () => fixture.Service.PreviewAsync(new(1, 3), fixture.AdmissionSnapshot, () => fixture.Eligible, cancellation.Token);
         await action.Should().ThrowAsync<Exception>();
@@ -253,14 +261,18 @@ public sealed class SessionRetentionPlannerServiceTests
         await using var fixture = new Fixture();
         using var hostile = new Activity("hostile").SetIdFormat(ActivityIdFormat.W3C).Start();
         await fixture.Preview();
-        var activity = stopped.Single(a => a.OperationName == "session.retention.preview");
+        var activity = stopped.Single(a => a.OperationName is "session.retention.preview");
         activity.ParentId.Should().BeNull();
         activity.Status.Should().Be(ActivityStatusCode.Ok);
         activity.Source.Version.Should().NotBeNullOrWhiteSpace();
         activity.TagObjects.Select(t => t.Key).Should().Equal("kora.request.id");
         activity.Baggage.Should().BeEmpty();
         Activity.Current.Should().BeSameAs(hostile);
+        fixture.Reader.Result = new(SessionRetentionPlanStatus.Unavailable, null, null);
+        await fixture.Preview();
+        stopped.Last().Status.Should().Be(ActivityStatusCode.Error);
         fixture.Reader.Current = false;
+        fixture.Reader.Result = new(SessionRetentionPlanStatus.Complete, new(0, 0, 0, 0, 0, 0, 0, 0, 0), "stamp");
         await ((Func<Task>)(() => fixture.Preview())).Should().ThrowAsync<InvalidDataException>();
         stopped.Last().Status.Should().Be(ActivityStatusCode.Error);
     }

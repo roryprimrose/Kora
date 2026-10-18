@@ -135,7 +135,7 @@ Entries charge envelope size without returning it; task/session metadata charge 
 Ten-second scan timeout retires the request; receipts expire after thirty seconds. Incomplete/Unavailable have no aggregate, never false zero.
 Proposal/control/private/owner/call, preference/policy revisions, source snapshot and expiry fence results. Edits, refresh/save/reset, changes, privacy loss, close or failure retire without replay ([orchestration](../src/Kora.Application/Configuration/SessionRetentionPlannerService.cs)).
 
-There is no apply-now, policy write, session mutation/removal/hold, revocation, schema/index change or scanner. Future-only preferences and maintenance remain separate. Existing policy/private authority is consumed, not broader runtime or E/Q qualification. Build/tests/exact portable coverage await the coordinator permit ([contract](../src/Kora.Core/Storage/ISessionRetentionPlannerReader.cs)).
+There is no apply-now, policy write, session mutation/removal/hold, revocation, schema/index change or scanner. Future-only preferences and maintenance remain separate. Existing policy/private authority is consumed, not broader runtime or E/Q qualification ([contract](../src/Kora.Core/Storage/ISessionRetentionPlannerReader.cs)).
 
 Live/dispatched/Unknown work, unresolved questions, current-run control
 authorities and uncertain copy inventories hold maintenance. See the

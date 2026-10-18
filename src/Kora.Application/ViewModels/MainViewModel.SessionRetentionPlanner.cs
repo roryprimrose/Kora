@@ -42,22 +42,25 @@ public sealed partial class MainViewModel
     {
         get
         {
-            var state = sessionRetentionPlanner?.Get();
-            if (state is null) { return "Session retention planner unavailable. No policy or session changes."; }
-            var text = state.Status;
-            if (state.Proposed is { } proposed)
+            var preview = sessionRetentionPlanner?.Get();
+            if (preview is null) { return "Session retention planner unavailable. No policy or session changes."; }
+            var text = preview.Status;
+            if (preview.Proposed is { } proposed)
             {
                 text += $" Hypothetical policy: archive {proposed.ArchiveDays} / delete {proposed.DeleteDays} idle days."
-                    + $" Fixed UTC cutoff: {state.CutoffUtc:O}. Expires UTC: {state.ExpiresUtc:O}.";
+                    + $" Fixed UTC cutoff: {preview.CutoffUtc:O}. Expires UTC: {preview.ExpiresUtc:O}.";
             }
-            if (state.Preference is { } preference && state.Admission is { } admission)
+            if (preview.Preference is { } preference)
             {
                 text += $" Future-only current policy: {preference.Effective.ArchiveDays} / {preference.Effective.DeleteDays}."
-                    + $" Preference revision {preference.PreferenceRevision}; policy revision {preference.PolicyRevision};"
-                    + $" control revision {admission.ControlRevision}; private revision {admission.PrivateRevision};"
+                    + $" Preference revision {preference.PreferenceRevision}; policy revision {preference.PolicyRevision}.";
+            }
+            if (preview.Admission is { } admission)
+            {
+                text += $" Control revision {admission.ControlRevision}; private revision {admission.PrivateRevision};"
                     + $" owner revision {admission.OwnerRevision}; call revision {admission.CallRevision}.";
             }
-            if (state.Result is { } result)
+            if (preview.Result is { } result)
             {
                 text += $" Source: {result.Status}.";
                 if (result.Snapshot is { } snapshot) { text += $" Exact metadata snapshot: {snapshot}."; }
@@ -93,7 +96,7 @@ public sealed partial class MainViewModel
     {
         OnPropertyChanged(nameof(SessionRetentionPlanStatus));
         OnPropertyChanged(nameof(CanPreviewSessionRetention));
-        PreviewSessionRetentionCommand?.NotifyCanExecuteChanged();
+        PreviewSessionRetentionCommand.NotifyCanExecuteChanged();
     }
 
     private void RetireIneligibleSessionRetentionPlan()

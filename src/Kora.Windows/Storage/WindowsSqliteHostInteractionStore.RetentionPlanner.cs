@@ -260,7 +260,7 @@ public sealed partial class WindowsSqliteHostInteractionStore
         foreach (var key in authority.Keys)
         {
             RequireTime();
-            if (key.Kind == "session" && !sessions.Contains(new(ParseId(key.Id))))
+            if (key.Kind is "session" && !sessions.Contains(new(ParseId(key.Id))))
             {
                 throw new InvalidDataException("A committed session authority has no retained session metadata.");
             }

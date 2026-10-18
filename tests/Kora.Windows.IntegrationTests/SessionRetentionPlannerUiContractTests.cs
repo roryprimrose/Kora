@@ -24,9 +24,9 @@ public sealed class SessionRetentionPlannerUiContractTests
             control.Attribute("IsEnabled")!.Value.Should().Be("{Binding CanChangeSessionRetentionNative}");
             control.Attribute("AutomationProperties.Name")!.Value.Should().Contain("read-only preview");
         }
-        controls.Single(c => c.Attribute("Command")?.Value == "{Binding PreviewSessionRetentionCommand}")
+        controls.Single(c => c.Attribute("Command")?.Value is "{Binding PreviewSessionRetentionCommand}")
             .Attribute("IsEnabled")!.Value.Should().Be("{Binding CanPreviewSessionRetention}");
-        controls.Single(c => c.Attribute("Text")?.Value == "{Binding SessionRetentionPlanStatus}")
+        controls.Single(c => c.Attribute("Text")?.Value is "{Binding SessionRetentionPlanStatus}")
             .Attribute("AutomationProperties.Name")!.Value.Should().Be("Read-only session retention impact result");
         var source = File.ReadAllText(Path.Combine(root, "src", "Kora.Application", "Configuration", "SessionRetentionPlannerService.cs"));
         source.Should().NotContain("SaveAsync").And.NotContain("ApplyRetentionAsync").And.NotContain("RecordControlIntentAsync");

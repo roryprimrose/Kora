@@ -94,7 +94,7 @@ Question status is not read from private payloads, so retained questions are con
 Incomplete or Unavailable means **no aggregate**, not zero. The bounded metadata scan has finite candidate/encoded-byte/time limits.
 It expires and retires on edits, source/policy/preference or private/owner/control changes, refresh, close, cancellation or timeout. Explicitly Preview again; there is no automatic replay ([planner lifecycle](../src/Kora.Application/Configuration/SessionRetentionPlannerService.cs)).
 
-Preview never saves/resets policy, changes recorded deadlines, archives/deletes/holds sessions or revokes sources. Current policy remains future-only. This implementation is awaiting permitted build/test and exact portable coverage validation, not E/Q qualification ([implementation boundary](../Design/User_Configuration.md#read-only-hypothetical-session-retention-planner)).
+Preview never saves/resets policy, changes recorded deadlines, archives/deletes/holds sessions or revokes sources. Current policy remains future-only; implementation and deterministic validation do not enable broader capabilities or claim E/Q qualification ([implementation boundary](../Design/User_Configuration.md#read-only-hypothetical-session-retention-planner)).
 
 ### Exact existing session controls
 

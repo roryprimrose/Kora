@@ -79,8 +79,7 @@ public sealed class SessionRetentionPlanner
             {
                 NewlyDeleteDue = aggregate.NewlyDeleteDue + (delete <= cutoff && cutoff < state.DeleteDue ? 1 : 0),
                 NewlyArchiveDue = aggregate.NewlyArchiveDue
-                    + (lifecycle == 0 && archive <= cutoff && cutoff < state.ArchiveDue && delete > cutoff
-                        && state.DeleteDue > cutoff ? 1 : 0),
+                    + (lifecycle == 0 && archive <= cutoff && cutoff < state.ArchiveDue && delete > cutoff ? 1 : 0),
                 RecordedArchiveDue = aggregate.RecordedArchiveDue
                     + (lifecycle == 0 && state.ArchiveDue <= cutoff && cutoff < state.DeleteDue ? 1 : 0),
                 RecordedDeleteDue = aggregate.RecordedDeleteDue + (state.DeleteDue <= cutoff ? 1 : 0),

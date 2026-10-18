@@ -63,6 +63,9 @@ public sealed class SessionRetentionPlannerTests
         extending.Add(Clock(10), 0, false, false, 1);
         extending.Finish("source").Aggregate!.NewlyDeleteDue.Should().Be(0);
         extending.Finish("source").Aggregate!.NewlyArchiveDue.Should().Be(0);
+        var alreadyDeleting = new SessionRetentionPlanner(new(1, 60), Now);
+        alreadyDeleting.Add(Clock(30), 0, false, false, 1);
+        alreadyDeleting.Finish("source").Aggregate!.NewlyArchiveDue.Should().Be(0);
     }
 
     [Fact]
@@ -123,8 +126,8 @@ public sealed class SessionRetentionPlannerTests
             "delete-too-late" => clock with { DeleteDue = clock.LastMeaningfulActivity.AddDays(366) },
             _ => clock,
         };
-        if (reason == "lifecycle-negative") { lifecycle = -1; }
-        if (reason == "lifecycle-unknown") { lifecycle = 3; }
+        if (reason is "lifecycle-negative") { lifecycle = -1; }
+        if (reason is "lifecycle-unknown") { lifecycle = 3; }
         var action = () => planner.Add(clock, lifecycle, true, true, 1);
         action.Should().Throw<Exception>();
         planner.Finish("source").Aggregate!.Sessions.Should().Be(0);

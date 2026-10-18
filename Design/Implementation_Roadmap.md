@@ -762,7 +762,7 @@ broader E/Q qualification is claimed.
 
 The [read-only session planner](User_Configuration.md#read-only-hypothetical-session-retention-planner) adds explicit proposal/preview controls, content-free hypothetical-versus-recorded due counts and conservative exclusions. Bounded metadata and exact source/preference/policy/admission revisions fence results; incomplete/unavailable observations expose no aggregate.
 
-Consumed I is existing policy/private authority and native lifetime. No apply-now, mutation, cleanup, revocation, schema/index/cache/scanner or broader runtime is enabled. Test execution and exact100% portable line/branch proof await the coordinator permit; this is not READY or E/Q-qualified ([planner source](../src/Kora.Application/Configuration/SessionRetentionPlannerService.cs)).
+Consumed I is existing policy/private authority and native lifetime. No apply-now, mutation, cleanup, revocation, schema/index/cache/scanner or broader runtime is enabled. Deterministic tests cover policy, budgets, exclusions, currentness and lifecycle; exact-head validation receipts remain separate from E/Q qualification ([planner source](../src/Kora.Application/Configuration/SessionRetentionPlannerService.cs)).
 
 ### Bounded read-only audit shortening impact preview - 2026-10-15
 

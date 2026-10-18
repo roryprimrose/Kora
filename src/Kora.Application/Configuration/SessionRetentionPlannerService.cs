@@ -1,6 +1,7 @@
 ﻿using System.Diagnostics;
 
 using Kora.Core.Configuration;
+using Kora.Core.Diagnostics;
 using Kora.Core.Hosting;
 using Kora.Core.Storage;
 
@@ -204,10 +205,3 @@ public sealed class SessionRetentionPlannerService : IDisposable
         }
     }
 }
-
-public sealed record SessionRetentionPlannerState(string Status, SessionRetentionSettings? Proposed = null,
-    DateTimeOffset? CutoffUtc = null, SessionRetentionConfigurationObservation? Preference = null,
-    SessionRetentionPlanResult? Result = null, DateTimeOffset? ExpiresUtc = null,
-    SessionRetentionPlannerAdmission? Admission = null);
-
-public sealed record SessionRetentionPlannerAdmission(long ControlRevision, long PrivateRevision, long OwnerRevision, long CallRevision);

@@ -9,17 +9,14 @@ public sealed class SessionRetentionPolicy
     private bool available = true;
     private long revision;
 
-    public long Revision { get { lock (gate) { return revision; } } }
+    public SessionRetentionSettings Settings => Observe().Settings;
 
-    public SessionRetentionSettings Settings
+    public (SessionRetentionSettings Settings, long Revision) Observe()
     {
-        get
+        lock (gate)
         {
-            lock (gate)
-            {
-                if (!available) { throw new InvalidDataException("Session-retention policy is unconfirmed; retention and new clock writes are held."); }
-                return settings;
-            }
+            if (!available) { throw new InvalidDataException("Session-retention policy is unconfirmed; retention and new clock writes are held."); }
+            return (settings, revision);
         }
     }
 

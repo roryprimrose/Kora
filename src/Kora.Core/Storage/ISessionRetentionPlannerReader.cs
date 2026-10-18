@@ -16,20 +16,3 @@ public interface ISessionRetentionPlannerReader
     /// <summary>Checks the exact source and lifetime of an observation.</summary>
     bool IsCurrent(SessionRetentionPlanResult result);
 }
-
-/// <summary>Describes whether the bounded observation finished.</summary>
-public enum SessionRetentionPlanStatus
-{
-    /// <summary>Every admitted metadata candidate was validated and aggregated.</summary>
-    Complete,
-    /// <summary>A finite observation budget was exhausted; no aggregate is published.</summary>
-    Incomplete,
-    /// <summary>The source or its metadata could not be trusted; no aggregate is published.</summary>
-    Unavailable,
-}
-
-public sealed record SessionRetentionPlanAggregate(int Sessions, int NewlyArchiveDue, int NewlyDeleteDue,
-    int RecordedArchiveDue, int RecordedDeleteDue, int Kept, int WorkHeld, int UnknownHold, int Removed);
-
-public sealed record SessionRetentionPlanResult(SessionRetentionPlanStatus Status,
-    SessionRetentionPlanAggregate? Aggregate, string? Snapshot);

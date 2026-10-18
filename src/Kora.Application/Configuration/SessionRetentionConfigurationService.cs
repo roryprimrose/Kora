@@ -26,9 +26,8 @@ public sealed class SessionRetentionConfigurationService(
             {
                 throw new InvalidOperationException("Refresh confirmed session retention before requesting a preview.");
             }
-            var policyRevision = policy.Revision;
-            var settings = policy.Settings;
-            if (policyRevision != policy.Revision || settings != (observed ?? SessionRetentionSettings.Default))
+            var (settings, policyRevision) = policy.Observe();
+            if (settings != (observed ?? SessionRetentionSettings.Default))
             {
                 throw new InvalidDataException("The session-retention policy changed during observation.");
             }
@@ -149,6 +148,3 @@ public sealed class SessionRetentionConfigurationService(
         }
     }
 }
-
-public sealed record SessionRetentionConfigurationObservation(SessionRetentionSettings? Saved,
-    SessionRetentionSettings Effective, long PreferenceRevision, long PolicyRevision);

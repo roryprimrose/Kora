@@ -26,6 +26,7 @@ public sealed partial class MainViewModelTests
         fixture.ViewModel.CanPreviewSessionRetention.Should().BeFalse();
         await fixture.ViewModel.RefreshSessionRetentionCommand.ExecuteAsync();
         fixture.ViewModel.ProposedSessionArchiveDays = 2;
+        fixture.ViewModel.ProposedSessionArchiveDays = 2;
         fixture.ViewModel.ProposedSessionDeleteDays = 2;
         fixture.ViewModel.CanPreviewSessionRetention.Should().BeFalse();
         fixture.ViewModel.ProposedSessionDeleteDays = 3;
@@ -46,6 +47,9 @@ public sealed partial class MainViewModelTests
         fixture.SessionPlanReader.Result = new(SessionRetentionPlanStatus.Incomplete, null, "stamp");
         await fixture.ViewModel.PreviewSessionRetentionCommand.ExecuteAsync();
         fixture.ViewModel.SessionRetentionPlanStatus.Should().Contain("Incomplete").And.Contain("No aggregate available");
+        fixture.SessionPlanReader.Result = new(SessionRetentionPlanStatus.Unavailable, null, null);
+        await fixture.ViewModel.PreviewSessionRetentionCommand.ExecuteAsync();
+        fixture.ViewModel.SessionRetentionPlanStatus.Should().Contain("Unavailable").And.Contain("No aggregate available");
         await fixture.ViewModel.RefreshSessionRetentionCommand.ExecuteAsync();
         fixture.ViewModel.SessionRetentionPlanStatus.Should().Contain("retired");
         fixture.SessionPlanReader.Result = new(SessionRetentionPlanStatus.Complete, new(0, 0, 0, 0, 0, 0, 0, 0, 0), "stamp");
@@ -74,21 +78,79 @@ public sealed partial class MainViewModelTests
         fixture.ViewModel.ProposedSessionArchiveDays = 1;
         fixture.ViewModel.ProposedSessionDeleteDays = 3;
         await fixture.ViewModel.PreviewSessionRetentionCommand.ExecuteAsync();
-        if (reason == "private")
+        if (reason is "private")
         {
             var current = fixture.PrivacyObservation.Current;
             fixture.PrivacyObservation.Publish(new(current, current with { TopologyRevision = current.TopologyRevision + 1 },
                 Kora.Core.Platform.WindowsPrivacyChangeReason.DeviceTopology));
         }
-        if (reason == "owner") { fixture.ViewModel.BindCallOwnershipGate(static () => false); }
-        if (reason == "call")
+        if (reason is "owner") { fixture.ViewModel.BindCallOwnershipGate(static () => false); }
+        if (reason is "call")
         {
             await fixture.ViewModel.SetManualCallAsync(true, RequestOrigin.LocalUi, fixture.ViewModel.CallPolicyRevision,
                 TestContext.Current.CancellationToken);
         }
-        if (reason == "source") { fixture.SessionPlanReader.Signal(); }
+        if (reason is "source") { fixture.SessionPlanReader.Signal(); }
         fixture.ViewModel.SessionRetentionPlanStatus.Should().Contain("retired");
         fixture.SessionPlanReader.Requests.Should().HaveCount(1);
+        fixture.ViewModel.Dispose();
+    }
+
+    [Theory]
+    [InlineData("failure")]
+    [InlineData("close")]
+    [InlineData("private-revision")]
+    [InlineData("owner-revision")]
+    public async Task PendingNativePreviewCannotPublishAfterFailureClosureOrRevisionLoss(string reason)
+    {
+        var fixture = new Fixture(enableSessionRetention: true, enableDiagnosticRetention: true, enableSessionRetentionPlanner: true);
+        await using var admission = fixture.DiagnosticAdmission;
+        await fixture.ViewModel.InitializeAsync();
+        fixture.ViewModel.BindDiagnosticRetentionNativeLifetime(static () => true);
+        fixture.ViewModel.BindSessionRetentionNativeLifetime(static () => true);
+        await fixture.ViewModel.RefreshSessionRetentionCommand.ExecuteAsync();
+        fixture.ViewModel.ProposedSessionArchiveDays = 1;
+        fixture.ViewModel.ProposedSessionDeleteDays = 3;
+        var owner = 1L;
+        fixture.ViewModel.BindCallOwnershipGate(static () => true, () => owner);
+        var pending = new TaskCompletionSource<SessionRetentionPlanResult>(TaskCreationOptions.RunContinuationsAsynchronously);
+        fixture.SessionPlanReader.Pending = pending.Task;
+        var task = fixture.ViewModel.PreviewSessionRetentionCommand.ExecuteAsync();
+        if (reason is "close")
+        {
+            fixture.Dispatcher.DeferPosts = true;
+            fixture.SessionPlanReader.Signal();
+            fixture.ViewModel.Dispose();
+            fixture.Dispatcher.FlushPosts();
+        }
+        if (reason is "private-revision")
+        {
+            var current = fixture.PrivacyObservation.Current;
+            fixture.PrivacyObservation.Publish(new(current, current with { TopologyRevision = current.TopologyRevision + 1 },
+                Kora.Core.Platform.WindowsPrivacyChangeReason.DeviceTopology));
+        }
+        if (reason is "owner-revision")
+        {
+            owner++;
+            typeof(Kora.Application.ViewModels.MainViewModel).GetMethod("RetireIneligibleSessionRetentionPlan",
+                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!.Invoke(fixture.ViewModel, []);
+        }
+        if (reason is "failure") { pending.SetException(new IOException("private source unavailable")); }
+        else { pending.SetResult(fixture.SessionPlanReader.Result); }
+        await task;
+        fixture.ViewModel.SessionRetentionPlanStatus.Should().NotContain("Sessions observed:");
+        if (reason is "failure") { fixture.ViewModel.SessionRetentionPlanStatus.Should().Contain("failed"); }
+        fixture.ViewModel.Dispose();
+    }
+
+    [Fact]
+    public async Task DirectStaleCallbackIsRefusedEvenWhenInvokedAfterCommandEligibility()
+    {
+        var fixture = new Fixture();
+        var method = typeof(Kora.Application.ViewModels.MainViewModel).GetMethod("PreviewSessionRetentionAsync",
+            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!;
+        await (Task)method.Invoke(fixture.ViewModel, [])!;
+        fixture.ViewModel.CanPreviewSessionRetention.Should().BeFalse();
         fixture.ViewModel.Dispose();
     }
 }

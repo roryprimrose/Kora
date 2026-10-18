@@ -489,6 +489,80 @@ validation. Already committed records never adopt the new days, including
 attempts to replace an old span ID: the current writer is insert-only and
 rejects duplicate IDs rather than upserting retention metadata.
 
+#### Read-only ordinary diagnostic shortening impact preview
+
+Native **Settings > Logging**, in the ordinary SQLite diagnostic subsection, has
+an initially unselected **proposed** 1-365-day selector and explicit **Preview
+diagnostic shortening impact only**, **Cancel**, and **Clear** controls. The
+proposal must be shorter than the current confirmed saved/default diagnostic
+configuration. Selecting, editing, status reads and source notifications never
+start a scan. The future-only Save/Reset controls and exact typed/activated-voice
+settings behavior remain separate and unchanged; there is no new model, tool,
+voice, approval or apply-now route.
+
+The [portable diagnostic impact policy](../src/Kora.Core/Diagnostics/DiagnosticRetentionImpact.cs)
+uses one fixed UTC cutoff for the whole observation. A row is **hypothetically
+newly due** only when `committed UTC + proposed days <= cutoff < original due`.
+It validates the original integral **1-365-day** diagnostic deadline, not an
+audit-domain minimum, observed-event age, trace age or the current policy's
+deadline. Already-due rows are excluded. Links count by their owning span's
+validated committed/deadline pair, exact ordinal and typed envelope/column
+relationship, never by their target span's age or existence. Missing, partial,
+or orphan linkage cannot produce a Complete span/link result.
+
+Ordinary logs, spans and owned links report **separate Complete / Incomplete /
+Unavailable** qualifications. A Complete result contains only newly-due count,
+oldest/newest affected committed UTC and earliest/latest proposed due UTC; a
+Complete zero has no timing range. No content, message, property, path, identity
+or private store stamp is displayed. Unqualified sources never display a
+partial aggregate or false zero. Logs qualify independently from spans/links,
+which share an ownership-validation budget and qualification.
+
+The [private reader](../src/Kora.Windows/Storage/WindowsSqliteEvidenceSink.DiagnosticImpact.cs)
+opens only an existing admitted private partition under its existing lease and
+query-only SQLite transaction. It validates the exact current schema and
+physical integrity and decodes/validates all visited rows, including irrelevant
+ones, without populating the sink's writer validation cache. As required by the
+actual ordinary janitor's admission, a separate bounded guard validates the
+preserved typed security-audit projection's contiguous prefix/head, envelopes,
+columns and original audit deadlines. **No security-audit row is counted,
+returned, pruned or reclassified**. An ordinary log's `SecurityAudit=true`
+property or lookalike message confers no audit authority and does not remove
+that ordinary log from the ordinary janitor's impact.
+
+There are three finite scan budgets: the preserved-audit guard, ordinary logs,
+and spans plus their owned links. Each admits at most **4,096 rows / 4 MiB
+encoded envelopes**, with one non-decoded overflow sentinel. A guard overflow
+makes all sources Incomplete without counts; an unqualified protected prefix or
+private/schema state makes them Unavailable. Other row/byte overflows suppress
+that source group's entire aggregate. All work shares the fixed cutoff and a
+**ten-second TimeProvider cancellation/deadline**, in addition to existing
+SQLite progress and lease limits. Cancel/failure/timeout publishes no aggregate.
+
+The [application observation service](../src/Kora.Application/Configuration/DiagnosticImpactPreviewService.cs)
+binds the proposal/control generation, exact saved/default provenance and
+readback, configuration observation reference, policy generation, request,
+private store identity/change stamp and source notification generation, native
+visible lifetime and live owning/unlocked privacy/desktop/call state. Edit,
+new observation (even identical), configuration/policy ABA, source mutation,
+Clear/Cancel, closure/disposal, failure and a non-renewable **30-second
+monotonic lifetime** retire the result. Late reader/timer and reentrant
+notification/currentness callbacks cannot publish a retired generation or
+retire a newer one. Retirement never refreshes or replays a scan.
+
+The observation trace is a content-free, versioned, unparented diagnostic
+Activity, not a HostActivity or authority source, and cannot persist an evidence
+span. This workflow creates no durable/control session or task, meaningful
+session activity, preference/marker/schema/index/cache write, audit receipt,
+record/deadline modification, policy activation or cleanup trigger. It does
+not promise actual cleanup, complete traces, physical/forensic deletion or
+disposal of retained copies, and does not change session retirement or grants.
+This is the existing configuration/private-storage **I** subset only; broader
+R04/R10, installed/accessibility, hardware/provider and release **E/Q** gates are
+not implementation prerequisites or claimed qualification. Implementation and
+authored deterministic tests await the separately admitted serial build/test
+and exact portable line **and** branch coverage checks; this is not READY.
+
 **Apply-now/immediate deletion is unavailable.** Set/reset never runs pruning
 or changes its startup schedule/triggers. Audit remains independently configured
 (30–365/default-reset 90, as described above), daily files 30 days/30 files, and every session,

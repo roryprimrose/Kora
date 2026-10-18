@@ -64,6 +64,7 @@ public sealed partial class MainViewModel
     {
         if (disposed) { return; }
         auditImpactPreview?.Retire("Private/lock/desktop revision changed; preview retired.");
+        diagnosticImpactPreview?.Retire("Private/lock/desktop revision changed; preview retired.");
         RetireQuestionVoiceReply();
         var snapshot = eventArgs.Current;
         var voicePrivacyChanged = (eventArgs.Reason & (WindowsPrivacyChangeReason.Power
@@ -256,6 +257,12 @@ public sealed partial class MainViewModel
             auditImpactPreview.Changed -= OnAuditImpactPreviewChanged;
             auditImpactPreview.Dispose();
         }
+        if (diagnosticImpactPreview is not null)
+        {
+            diagnosticImpactPreview.Changed -= OnDiagnosticImpactPreviewChanged;
+            diagnosticImpactPreview.Dispose();
+        }
+        PropertyChanged -= OnDiagnosticImpactHostPropertyChanged;
         RetireWebResultDetails();
         RetireSpeechCaption();
         lifecycleAdmissionClosed = true;

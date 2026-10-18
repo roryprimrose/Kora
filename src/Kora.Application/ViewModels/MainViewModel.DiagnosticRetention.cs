@@ -18,7 +18,10 @@ public sealed partial class MainViewModel
     public void BindDiagnosticRetentionNativeLifetime(Func<bool> lifetime)
     {
         diagnosticRetentionNativeLifetime = lifetime;
+        Interlocked.Increment(ref diagnosticImpactControlRevision);
+        diagnosticImpactPreview?.Retire("Native Settings lifetime changed; preview retired.");
         OnPropertyChanged(nameof(CanChangeDiagnosticRetentionNative));
+        NotifyDiagnosticImpactPreview();
     }
 
     public IReadOnlyList<int> DiagnosticRetentionChoices { get; } =
@@ -26,7 +29,15 @@ public sealed partial class MainViewModel
     public int SelectedDiagnosticRetentionDays
     {
         get => selectedDiagnosticRetentionDays;
-        set => SetProperty(ref selectedDiagnosticRetentionDays, new DiagnosticRetentionDays(value).Days);
+        set
+        {
+            var days = new DiagnosticRetentionDays(value).Days;
+            if (selectedDiagnosticRetentionDays == days) { return; }
+            selectedDiagnosticRetentionDays = days;
+            Interlocked.Increment(ref diagnosticImpactControlRevision);
+            diagnosticImpactPreview?.Retire("Future-only diagnostic draft edited; preview retired.");
+            OnPropertyChanged(nameof(SelectedDiagnosticRetentionDays));
+        }
     }
     public AsyncCommand RefreshDiagnosticRetentionCommand { get; }
     public AsyncCommand SaveDiagnosticRetentionCommand { get; }
@@ -38,7 +49,11 @@ public sealed partial class MainViewModel
         ? "SQLite diagnostic-retention admission unavailable; no preference change. Apply-now unavailable."
         : DiagnosticRetentionState.Serialize(diagnosticRetentionConfiguration.Get(), CallPolicyRevision, "observed");
 
-    private void OnDiagnosticRetentionChanged(object? sender, EventArgs args) => uiDispatcher.Post(SynchronizeDiagnosticRetention);
+    private void OnDiagnosticRetentionChanged(object? sender, EventArgs args)
+    {
+        diagnosticImpactPreview?.Retire("Confirmed configuration changed; preview retired.");
+        uiDispatcher.Post(SynchronizeDiagnosticRetention);
+    }
 
     private void SynchronizeDiagnosticRetention()
     {
@@ -47,6 +62,7 @@ public sealed partial class MainViewModel
         OnPropertyChanged(nameof(DiagnosticRetentionStatus));
         OnPropertyChanged(nameof(CanChangeDiagnosticRetention));
         OnPropertyChanged(nameof(CanChangeDiagnosticRetentionNative));
+        NotifyDiagnosticImpactPreview();
     }
 
     internal async Task ExecuteDiagnosticRetentionCommandAsync(DiagnosticRetentionCommand command,
@@ -68,6 +84,8 @@ public sealed partial class MainViewModel
         bool Eligible() => hostEligible() && (initiator != SecurityAuditInitiator.LocalUser
             || ReferenceEquals(nativeLifetime, diagnosticRetentionNativeLifetime) && nativeLifetime());
         Func<bool> eligible = Eligible;
+        Interlocked.Increment(ref diagnosticImpactControlRevision);
+        diagnosticImpactPreview?.Retire("Retention control request changed; preview retired.");
         diagnosticRetentionControlActive = true;
         OnPropertyChanged(nameof(CanChangeDiagnosticRetention));
         try

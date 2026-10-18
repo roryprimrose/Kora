@@ -494,6 +494,9 @@ internal static class Program
         services.AddSingleton<IAuditRetentionImpactReader>(provider =>
             new WindowsSqliteAuditImpactReader(interactions, evidence, paths));
         services.AddSingleton<AuditImpactPreviewService>();
+        services.AddSingleton<IDiagnosticRetentionImpactReader>(provider =>
+            new WindowsSqliteDiagnosticImpactReader(evidence, paths));
+        services.AddSingleton<DiagnosticImpactPreviewService>();
         services.AddSingleton<IModelApprovalPreferences>(provider =>
             new LocalModelApprovalPreferences(
                 provider.GetRequiredService<IPreferenceStore>()));

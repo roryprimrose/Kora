@@ -317,20 +317,14 @@ public sealed partial class WindowsSqliteEvidenceSink : IDeferredEvidenceSink
                 ValidateLinks(rows, activity, links, ref hasLink, connection, validationTime, cancellationToken);
             }
 
-            foreach (var pair in validated.Projection)
-            {
-                if (!Equals(rows.GetValue(rows.GetOrdinal(pair.Key)), pair.Value))
-                {
-                    throw new InvalidDataException("Typed evidence correlation disagrees with its persisted envelope.");
-                }
-            }
+            ValidateProjectionColumns(rows, validated.Projection);
             var committed = ReadTimestamp(rows, "committed_utc");
             var due = ReadTimestamp(rows, "due_utc");
             var days = (due - committed).TotalDays;
             if (string.Equals(table, "security_audit_events", StringComparison.Ordinal)
                 ? !AuditRetentionDays.IsValidDeadline(committed, due)
                 : legacy ? days != EvidenceRetentionPolicy.DiagnosticDays
-                    : days is < DiagnosticRetentionDays.Minimum or > DiagnosticRetentionDays.Maximum || days != Math.Truncate(days))
+                    : !DiagnosticRetentionDays.IsValidDeadline(committed, due))
             {
                 throw new InvalidDataException("The persisted effective retention due date is invalid.");
             }
@@ -338,6 +332,17 @@ public sealed partial class WindowsSqliteEvidenceSink : IDeferredEvidenceSink
         if (hasLink)
         {
             throw new InvalidDataException("The evidence store contains orphan activity links.");
+        }
+    }
+
+    private static void ValidateProjectionColumns(SqliteDataReader row, Dictionary<string, object> projection)
+    {
+        foreach (var pair in projection)
+        {
+            if (!Equals(row.GetValue(row.GetOrdinal(pair.Key)), pair.Value))
+            {
+                throw new InvalidDataException("Typed evidence correlation disagrees with its persisted envelope.");
+            }
         }
     }
 
@@ -488,25 +493,7 @@ public sealed partial class WindowsSqliteEvidenceSink : IDeferredEvidenceSink
         while (hasLink && string.Equals(links.GetString(links.GetOrdinal("evidence_id")),
             envelope.EvidenceId.Value.ToString("D"), StringComparison.Ordinal))
         {
-            if (index >= envelope.Links.Count || links.GetInt64(links.GetOrdinal("ordinal")) != index
-                || links.GetInt64(links.GetOrdinal("committed_utc")) != row.GetInt64(row.GetOrdinal("committed_utc"))
-                || links.GetInt64(links.GetOrdinal("due_utc")) != row.GetInt64(row.GetOrdinal("due_utc")))
-            {
-                throw new InvalidDataException("An activity link disagrees with its bounded envelope or retention date.");
-            }
-            var payload = links.GetString(links.GetOrdinal("envelope"));
-            if (Encoding.UTF8.GetByteCount(payload) > MaximumEnvelopeBytes
-                || JsonSerializer.Deserialize<ActivityLinkEnvelope>(payload, Serialization) != envelope.Links[index])
-            {
-                throw new InvalidDataException("A persisted activity link envelope is malformed or inconsistent.");
-            }
-            foreach (var pair in LinkProjection(envelope, envelope.Links[index], index))
-            {
-                if (!Equals(links.GetValue(links.GetOrdinal(pair.Key)), pair.Value))
-                {
-                    throw new InvalidDataException("Typed activity link correlation disagrees with its owning envelope.");
-                }
-            }
+            ValidateOwnedLink(row, envelope, links, index);
             index++;
             hasLink = ReadValidationRow(links, connection, validationTime, cancellationToken);
         }
@@ -514,6 +501,25 @@ public sealed partial class WindowsSqliteEvidenceSink : IDeferredEvidenceSink
         {
             throw new InvalidDataException("A persisted activity link is missing.");
         }
+    }
+
+    private static void ValidateOwnedLink(SqliteDataReader row, CompletedActivityEnvelope envelope,
+        SqliteDataReader links, int index)
+    {
+        if (index >= envelope.Links.Count || links.GetInt64(links.GetOrdinal("ordinal")) != index
+            || links.GetInt64(links.GetOrdinal("committed_utc")) != row.GetInt64(row.GetOrdinal("committed_utc"))
+            || links.GetInt64(links.GetOrdinal("due_utc")) != row.GetInt64(row.GetOrdinal("due_utc")))
+        {
+            throw new InvalidDataException("An activity link disagrees with its bounded envelope or retention date.");
+        }
+        var payload = links.GetString(links.GetOrdinal("envelope"));
+        using (var document = JsonDocument.Parse(payload, new() { MaxDepth = 16 })) { RequireUnique(document.RootElement); }
+        if (Encoding.UTF8.GetByteCount(payload) > MaximumEnvelopeBytes
+            || JsonSerializer.Deserialize<ActivityLinkEnvelope>(payload, Serialization) != envelope.Links[index])
+        {
+            throw new InvalidDataException("A persisted activity link envelope is malformed or inconsistent.");
+        }
+        ValidateProjectionColumns(links, LinkProjection(envelope, envelope.Links[index], index));
     }
 
     private static DateTimeOffset ReadTimestamp(SqliteDataReader row, string name)

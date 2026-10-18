@@ -709,6 +709,15 @@ files30/30, all authority and pruning triggers are unchanged; unavailable
 ordinary policy reports explicit independent gaps rather than becoming default
 or blocking required trusted audit on activity disposal.
 
+The separate [ordinary diagnostic impact preview](User_Configuration.md#read-only-ordinary-diagnostic-shortening-impact-preview)
+is an explicit native read-only observation, not janitor admission or apply-now.
+It uses the same original deadline and exact span/owned-link validation rules,
+with bounded protected-prefix qualification, independent content-free source
+aggregates, exact private/configuration generations and expiring host-held
+results. It neither runs pruning nor changes future-only Save/Reset, session
+activity, security audit, storage bytes or cleanup triggers. Deterministic
+validation remains pending its serial validation permit.
+
 The independently delivered [future-only audit setting](User_Configuration.md#delivered-bounded-future-only-audit-retention-r10r04)
 adds a domain-owned 30–365/default-reset90 snapshot to both real
 `WindowsSqliteHostInteractionStore.AppendAudit` commits and

@@ -15,7 +15,7 @@ public sealed record SessionDispositionPreview(
         + "History content and session-owned reviewed-memory bodies are redacted atomically; exact event IDs, sequence, revisions and digests remain readable. "
         + "Exact session provider overrides are inventoried and removed from the private SQLite authority and committed journal, never promoted to app preferences. "
         + "Exact session file attachments, when present, are inventoried, revoked and securely removed from owned SQLite cells/free pages and the committed rollback journal; uninventoried copies hold completion. "
-        + "Submitted conversation bodies and explicitly saved drafts are inventoried and removed from owned SQLite cells/free pages and committed journals; "
+        + "Original USER conversation bodies, separately retained ASSISTANT answers and explicitly saved drafts are inventoried and removed from owned SQLite cells/free pages and committed journals; "
         + "general managed-artifact or backup deletion is not delivered. Other SQLite journals/free pages, "
         + "inert legacy storage, user exports and provider copies are not erased. This is not forensic deletion.";
 }

@@ -75,6 +75,10 @@ public sealed partial class DetailWindow : Window, IDetailView
             var host = Required<TextBlock>("ConversationHostLabel");
             host.IsVisible = true;
             host.Text = state.HostText;
+            var assistant = Required<TextBlock>("ConversationAssistantLabel");
+            assistant.IsVisible = message.AssistantResponse is not null;
+            assistant.Text = message.AssistantResponse is not { } answer ? string.Empty
+                : $"ASSISTANT - finalized local answer | host turn {answer.Provenance.Turn.Value:D}\n" + state.AssistantText;
             Required<CheckBox>("FindHostToggle").IsVisible = true;
             Required<TextBlock>("CopyPolicyLabel").Text = "Passive retained conversation Details grant no clipboard/export disclosure authority. Exact-source and selection copy are blocked.";
             Required<Button>("CopySource").IsEnabled = false;
@@ -276,7 +280,7 @@ public sealed partial class DetailWindow : Window, IDetailView
         findSpan.Text = null;
         findSpan.IsVisible = false;
         disclosure.IsChecked = false;
-        foreach (var name in new[] { "DetailTitle", "ProvenanceLabel", "ReferenceLabel", "DigestLabel", "ConversationHostLabel", "RendererStatus", "RenderStatus" })
+        foreach (var name in new[] { "DetailTitle", "ProvenanceLabel", "ReferenceLabel", "DigestLabel", "ConversationHostLabel", "ConversationAssistantLabel", "RendererStatus", "RenderStatus" })
         {
             Required<TextBlock>(name).Text = string.Empty;
         }

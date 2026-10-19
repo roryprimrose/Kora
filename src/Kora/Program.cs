@@ -485,6 +485,7 @@ internal static class Program
         services.AddSingleton<Kora.Application.Tools.ReadOnlyCapabilityRegistry>();
         services.AddSingleton<ModelTurnHost>();
         services.AddSingleton<IModelTurnAdmission>(provider => provider.GetRequiredService<ModelTurnHost>());
+        services.AddSingleton<IModelTurnExecution>(provider => provider.GetRequiredService<ModelTurnHost>());
         services.AddSingleton<SessionConversationService>();
         services.AddTransient<NewRequestComposer>();
         services.AddSingleton<Kora.Application.Definitions.PromptConversationSubmission>();

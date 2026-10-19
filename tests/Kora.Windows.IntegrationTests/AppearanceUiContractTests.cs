@@ -14,6 +14,38 @@ public sealed class AppearanceUiContractTests
     ];
 
     [Fact]
+    public void SettingsGroupAppearanceBeforePresence()
+    {
+        var root = FindRepositoryRoot();
+        var document = XDocument.Load(Path.Combine(root, "src", "Kora", "SettingsWindow.axaml"));
+        XNamespace avalonia = "https://github.com/avaloniaui";
+        var tab = document.Descendants(avalonia + "TabItem")
+            .Single(element => string.Equals(element.Attribute("Header")?.Value, "Appearance", StringComparison.Ordinal));
+
+        var headings = tab.Descendants(avalonia + "TextBlock")
+            .Where(element => string.Equals(element.Attribute("FontSize")?.Value, "18", StringComparison.Ordinal)
+                || string.Equals(element.Attribute("Classes")?.Value, "settings-title", StringComparison.Ordinal))
+            .Select(element => element.Attribute("Text")?.Value);
+
+        headings.Should().Equal(
+            "Appearance",
+            "Application theme",
+            "Native reader text scale",
+            "Always show responses",
+            "Keep responses on top",
+            "Response timeout",
+            "Presence",
+            "Show presence",
+            "Presence timeout",
+            "Presence size",
+            "Dot size",
+            "Dot density",
+            "Movement speed",
+            "Speech sizing",
+            "Speech scale amount");
+    }
+
+    [Fact]
     public void Existing_direct_controls_bind_authoritative_domain_bounds_and_per_option_reset()
     {
         var root = FindRepositoryRoot();
@@ -35,10 +67,35 @@ public sealed class AppearanceUiContractTests
             control.Attribute("Maximum")!.Value.Should().Contain(item.Value.Replace("Minimum", "Maximum", StringComparison.Ordinal));
         }
         document.Descendants().Any(element => string.Equals(element.Attribute("Text")?.Value, "{Binding AppearanceSettingStatus}", StringComparison.Ordinal)).Should().BeTrue();
-        document.Descendants().Any(element => string.Equals(element.Attribute("Command")?.Value, "{Binding ResetAppearanceOptionCommand}", StringComparison.Ordinal)).Should().BeTrue();
-        document.Descendants().Any(element => string.Equals(element.Attribute("SelectedItem")?.Value, "{Binding SelectedAppearanceOption}", StringComparison.Ordinal)).Should().BeTrue();
+        document.Descendants().Any(element => string.Equals(element.Attribute("SelectedItem")?.Value, "{Binding SelectedAppearanceOption}", StringComparison.Ordinal)).Should().BeFalse();
         var composition = File.ReadAllText(Path.Combine(root, "src", "Kora", "Program.cs"));
         composition.Should().Contain("AddSingleton<AppearanceConfigurationService>()");
+    }
+
+    [Theory]
+    [InlineData("Application theme", "ResetThemeCommand", "SelectedItem", "ThemeMode")]
+    [InlineData("Native reader text scale", "ResetReaderTextScaleCommand", "Value", "ReaderTextScalePercent")]
+    [InlineData("Always show responses", "ResetResponseAlwaysVisibleCommand", "IsChecked", "IsResponseAlwaysVisible")]
+    [InlineData("Keep responses on top", "ResetResponseWindowTopmostCommand", "IsChecked", "IsResponseWindowTopmost")]
+    [InlineData("Response timeout", "ResetResponseTimeoutCommand", "Value", "ResponseTimeoutSeconds")]
+    [InlineData("Show presence", "ResetPresenceDisplayCommand", "IsChecked", "IsPresenceDisplayEnabled")]
+    [InlineData("Presence timeout", "ResetPresenceTimeoutCommand", "Value", "PresenceTimeoutSeconds")]
+    [InlineData("Presence size", "ResetPresenceSizeCommand", "Value", "PresenceSizePixels")]
+    [InlineData("Dot size", "ResetPresenceDotSizeCommand", "Value", "PresenceDotSizePercent")]
+    [InlineData("Dot density", "ResetPresenceDotDensityCommand", "Value", "PresenceDotDensityPercent")]
+    [InlineData("Movement speed", "ResetPresenceMovementSpeedCommand", "Value", "PresenceMovementSpeedPercent")]
+    [InlineData("Speech sizing", "ResetPresenceSpeechScalingCommand", "IsChecked", "IsPresenceSpeechScalingEnabled")]
+    [InlineData("Speech scale amount", "ResetPresenceSpeechScaleAmountCommand", "Value", "PresenceSpeechScaleAmountPercent")]
+    public void EachSettingHasItsOwnResetMenu(string label, string command, string attribute, string binding)
+    {
+        var document = XDocument.Load(Path.Combine(FindRepositoryRoot(), "src", "Kora", "SettingsWindow.axaml"));
+        var actions = document.Descendants().Single(element =>
+            string.Equals(element.Name.LocalName, "SettingActionsButton", StringComparison.Ordinal)
+            && string.Equals(element.Attribute("SettingName")?.Value, label, StringComparison.Ordinal));
+        actions.Attribute("ResetCommand")!.Value.Should().Be("{Binding " + command + "}");
+        actions.Parent!.Descendants().Single(element =>
+            string.Equals(element.Attribute(attribute)?.Value, "{Binding " + binding + "}", StringComparison.Ordinal))
+            .Should().NotBeNull();
     }
 
     [Fact]
@@ -72,7 +129,7 @@ public sealed class AppearanceUiContractTests
         var document = XDocument.Load(Path.Combine(root, "src", "Kora", "SettingsWindow.axaml"));
         foreach (var binding in new[]
         {
-            "SelectedAppearanceOption", "ResetAppearanceOptionCommand", "ThemeMode",
+            "ThemeMode", "ReaderTextScalePercent", "IsPresenceDisplayEnabled",
             "ResponseTimeoutSeconds", "PresenceTimeoutSeconds", "PresenceSizePixels",
             "PresenceDotSizePercent", "PresenceDotDensityPercent", "PresenceMovementSpeedPercent",
             "IsPresenceSpeechScalingEnabled", "PresenceSpeechScaleAmountPercent",

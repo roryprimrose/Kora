@@ -22,7 +22,6 @@ public sealed partial class MainViewModel
 
     private readonly AppearanceConfigurationService appearanceConfiguration;
     private string appearanceSettingStatus = AppearanceCommand.Syntax;
-    private AppearanceOptionDescriptor selectedAppearanceOption = AppearanceOptionRegistry.Options[0];
     private int readerTextScalePercent = ReaderTextScaleSettings.DefaultPercent;
     private readonly Dictionary<AppearanceOption, PendingAppearance> pendingAppearance = [];
     private bool applyingAppearance;
@@ -64,13 +63,19 @@ public sealed partial class MainViewModel
     public int ReaderTextScaleMaximum => ReaderTextScaleSettings.MaximumPercent;
 
     public IReadOnlyList<AppearanceOptionDescriptor> AppearanceOptions => AppearanceOptionRegistry.Options;
-    public AsyncCommand ResetAppearanceOptionCommand { get; }
-
-    public AppearanceOptionDescriptor SelectedAppearanceOption
-    {
-        get => selectedAppearanceOption;
-        set => SetProperty(ref selectedAppearanceOption, value);
-    }
+    public AsyncCommand ResetThemeCommand { get; }
+    public AsyncCommand ResetReaderTextScaleCommand { get; }
+    public AsyncCommand ResetResponseTimeoutCommand { get; }
+    public AsyncCommand ResetResponseAlwaysVisibleCommand { get; }
+    public AsyncCommand ResetResponseWindowTopmostCommand { get; }
+    public AsyncCommand ResetPresenceDisplayCommand { get; }
+    public AsyncCommand ResetPresenceTimeoutCommand { get; }
+    public AsyncCommand ResetPresenceSizeCommand { get; }
+    public AsyncCommand ResetPresenceDotSizeCommand { get; }
+    public AsyncCommand ResetPresenceDotDensityCommand { get; }
+    public AsyncCommand ResetPresenceMovementSpeedCommand { get; }
+    public AsyncCommand ResetPresenceSpeechScalingCommand { get; }
+    public AsyncCommand ResetPresenceSpeechScaleAmountCommand { get; }
 
     public string AppearanceSettingStatus
     {
@@ -237,7 +242,7 @@ public sealed partial class MainViewModel
         return result.Succeeded;
     }
 
-    private async Task ResetSelectedAppearanceOptionAsync()
+    private async Task ResetAppearanceOptionAsync(AppearanceOption option)
     {
 #pragma warning disable VSTHRD003 // Serialize against the owned appearance workflow without blocking the dispatcher.
         await AppearanceUpdate;
@@ -246,7 +251,7 @@ public sealed partial class MainViewModel
         {
             return;
         }
-        var optionState = appearanceConfiguration.Get(SelectedAppearanceOption.Option);
+        var optionState = appearanceConfiguration.Get(option);
         await ApplyAppearanceProposalAsync(appearanceConfiguration.ProposeReset(
             optionState.Descriptor.Option, optionState.Revision, SecurityAuditInitiator.LocalUser,
             RequestOrigin.LocalUi, () => IsHostInputEligible));

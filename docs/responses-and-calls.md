@@ -84,15 +84,14 @@ Drag the response title area to reposition the window. Its last position is
 stored on this device and restored when that position remains on a connected
 display.
 
-Configure these controls under **Settings > Appearance > Visual feedback**:
+Configure these controls in the **Appearance** group under **Settings > Appearance** ([settings layout](../src/Kora/SettingsWindow.axaml)):
 
 - **Always show** - bypass the response timeout until **Dismiss** is selected;
 - **Stay on top** - keep the response above other windows; on by default;
 - **Response timeout** - set the response window's 1-60 second inactivity
   interval, default **5 seconds**.
 
-Presence has a separate **Presence timeout** setting under **Appearance >
-Presence appearance**, default **10 seconds**. It automatically hides after
+Presence has a separate **Presence timeout** setting in the **Presence** group under **Settings > Appearance**, default **10 seconds** ([settings layout](../src/Kora/SettingsWindow.axaml)). It automatically hides after
 inactivity while idle or listening without a pending prompt, but remains
 visible for work, speech, and required attention. **Always show** applies only
 to the response window.

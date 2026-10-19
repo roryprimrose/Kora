@@ -461,6 +461,8 @@ required queued setup task.
 
 ## Appearance
 
+The tab groups **Appearance** controls first (theme, reader text scale and response-window behavior), followed by **Presence** controls (visibility, timeout and animation). Each field has a **...** actions button with **Reset setting**, affecting only that field ([settings layout](../src/Kora/SettingsWindow.axaml)).
+
 The existing controls and exact typed/activated-voice commands share one
 host-owned, typed appearance service. No model or network is needed. Enter
 **list appearance settings** to inspect the eleven admitted options, units,
@@ -497,8 +499,8 @@ the animated presence optional. It is displayed by default. Turning it off
 keeps the presence hidden across restarts while response, settings, approval
 and other interactive surfaces remain available.
 
-The Appearance tab also offers **Reset selected option**. Reset affects only
-that option, not a whole profile or undo history. Updates revalidate the
+Use the field's **...** actions button and choose **Reset setting** to restore its default; opening the menu does not change the value ([actions menu](../src/Kora/Controls/SettingActionsButton.cs)).
+Reset affects only that field, not a whole group, profile or undo history. Updates revalidate the
 typed value and current host revision before one atomic preference-file write.
 A stale proposal requires a fresh inspection/proposal. A save failure retains
 the previous saved/effective value and revision and shows the error.
@@ -506,7 +508,8 @@ Get distinguishes a saved preference from an unsaved domain default.
 Successful changes update all open visual surfaces without reopening them.
 Speech scaling changes only animation, not audio output or call policy.
 
-**Native reader text scale** in Settings > Appearance applies an absolute integer percentage immediately; select its exact ID for **Reset selected option** (100). Exact commands include `get/status appearance.reader-text-scale`, `set appearance.reader-text-scale to 75` (or 100/200), and `reset appearance.reader-text-scale`. Relative changes and number words are not inferred ([registry](../src/Kora.Core/Configuration/AppearanceOptionRegistry.cs), [parser](../src/Kora.Application/Configuration/AppearanceCommand.cs), [editor](../src/Kora/SettingsWindow.axaml)).
+**Native reader text scale** applies an absolute integer percentage immediately; its **Reset setting** action restores 100 ([editor](../src/Kora/SettingsWindow.axaml)).
+Exact commands include `get/status appearance.reader-text-scale`, `set appearance.reader-text-scale to 75` (or 100/200), and `reset appearance.reader-text-scale`. Relative changes and number words are not inferred ([registry](../src/Kora.Core/Configuration/AppearanceOptionRegistry.cs), [parser](../src/Kora.Application/Configuration/AppearanceCommand.cs)).
 
 It scales only shared native DetailWindow Rendered/Source/continuous text, file/folder/retained attachment source bodies and exact cited/literal-match spans, the native clipboard snapshot source body, admitted complete serialized Evidence page bodies and their inert focused literal-Find spans, and the currently observed native speech-caption content text. New windows and live confirmed changes use original typography, never cumulative scaling. Trusted chrome, search inputs/result navigation, identity/location labels, consent/approval/question/error controls and caption labels, Pin/Unpin and display selector/status retain their own typography. Strings, bytes, digests and offsets are unchanged; the preference grants no content access/copy/export or persistence consent ([detail](../src/Kora/DetailWindow.axaml.cs), [file](../src/Kora/LocalFilePreviewWindow.cs), [span](../src/Kora/LocalFilePreviewWindow.Citations.cs), [clipboard](../src/Kora/ClipboardPreviewWindow.cs), [Evidence](../src/Kora/EvidenceWindow.axaml.cs), [caption](../src/Kora/SpeechCaptionWindow.axaml.cs)).
 
@@ -533,9 +536,9 @@ documentation, and other Kora-owned visual surfaces.
 ### Independent visibility timeouts
 
 - **Presence timeout** - default **10 seconds**; range **1 to 60 seconds**,
-  under **Appearance > Presence appearance**.
+  in the **Presence** group under **Settings > Appearance** ([settings layout](../src/Kora/SettingsWindow.axaml)).
 - **Response timeout** - default **5 seconds**; range **1 to 60 seconds**,
-  under **Appearance > Visual feedback**.
+  in the **Appearance** group under **Settings > Appearance** ([settings layout](../src/Kora/SettingsWindow.axaml)).
 
 Presence hides automatically and without asking when it is idle or listening
 and no prompt needs attention. New Kora interaction restarts its timer.
@@ -552,7 +555,7 @@ timeout values are retained when upgrading.
 
 ### Presence appearance
 
-Under **Appearance > Presence appearance**:
+In the **Presence** group under **Settings > Appearance** ([settings layout](../src/Kora/SettingsWindow.axaml)):
 
 | Setting | Range | Default |
 |---|---|---|
@@ -570,7 +573,7 @@ click-through and saved-position behavior, see [Presence](windows-and-tray.md#ko
 
 ### Response window
 
-Under **Appearance > Visual feedback**:
+In the **Appearance** group under **Settings > Appearance** ([settings layout](../src/Kora/SettingsWindow.axaml)):
 
 | Control | Default / behavior |
 |---|---|

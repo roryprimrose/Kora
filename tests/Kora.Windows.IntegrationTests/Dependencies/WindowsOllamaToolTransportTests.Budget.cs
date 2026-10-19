@@ -129,7 +129,7 @@ public sealed partial class WindowsOllamaToolTransportTests
                 role = "assistant",
                 content = "",
                 tool_calls = Enumerable.Range(0, ModelToolProtocol.MaximumCalls)
-                    .Select(_ => new { function = new { name = ReadOnlyCapabilityCatalog.Version, arguments = new Dictionary<string, string>() } }),
+                    .Select(_ => new { function = new { name = ReadOnlyCapabilityCatalog.Version, arguments = new Dictionary<string, string>(StringComparer.Ordinal) } }),
             },
             done = true,
         });

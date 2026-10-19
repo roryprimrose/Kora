@@ -26,7 +26,7 @@ public sealed class WindowsOllamaToolEndpointBinding
             || profile.CatalogueRevision != provenance.Selection.Revision || processId <= 0
             || !Path.IsPathFullyQualified(executablePath) || !IsDigest(executableSha256)
             || executablePath.StartsWith(@"\\", StringComparison.Ordinal) || !IsDigest(modelDigest))
-        { throw new ArgumentException("An exact local endpoint/process/model observation target is required."); }
+        { throw new ArgumentException("An exact local endpoint/process/model observation target is required.", nameof(profile)); }
         Provenance = provenance;
         Profile = profile;
         Model = model;

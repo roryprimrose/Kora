@@ -132,12 +132,12 @@ public sealed partial class WindowsSqliteConversationTests
         var live = true;
         using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(f.Token);
         f.Reopen(new AnswerCheckpoint(
-            () => { if (armed && failure == "audit") { throw new IOException("required audit failure"); } },
+            () => { if (armed && string.Equals(failure, "audit", StringComparison.Ordinal)) { throw new IOException("required audit failure"); } },
             () =>
             {
                 if (!armed) { return; }
-                if (failure == "source-commit") { live = false; }
-                if (failure == "cancel-commit") { cancellation.Cancel(); }
+                if (string.Equals(failure, "source-commit", StringComparison.Ordinal)) { live = false; }
+                if (string.Equals(failure, "cancel-commit", StringComparison.Ordinal)) { cancellation.Cancel(); }
             }));
         var request = Fresh(f.Request.SessionId);
         var provenance = new ModelTurnProvenance(new(Guid.NewGuid()), request, ModelProviderSelection.OllamaCandidate);

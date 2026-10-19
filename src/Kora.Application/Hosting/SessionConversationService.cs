@@ -100,7 +100,7 @@ public sealed partial class SessionConversationService(
                 actual.Metadata?.Revision.Value ?? 0, body, Live, token).ConfigureAwait(false);
             retained.Message.Validate();
             if (retained.Message.Outcome is not null || retained.Message.Request != request
-                || retained.Message.Generation != actual.Authority.Generation || retained.Message.Body != body
+                || retained.Message.Generation != actual.Authority.Generation || !string.Equals(retained.Message.Body, body, StringComparison.Ordinal)
                 || retained.Task.Request != request || retained.Task.State != HostTaskState.IntentRecorded
                 || retained.Task.Revision.Value != 1 || retained.Message.Revision != 1 || !Live())
             { throw new InvalidDataException("A fresh submission unexpectedly returned an already terminal request."); }

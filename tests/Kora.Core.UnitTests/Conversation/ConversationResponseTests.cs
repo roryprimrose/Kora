@@ -89,7 +89,7 @@ public sealed class ConversationResponseTests
             "control" => response with { Body = "answer\0" },
             _ => response with { Body = "api_key=synthetic-only-value" },
         };
-        if (fault == "credential")
+        if (string.Equals(fault, "credential", StringComparison.Ordinal))
         { response.Invoking(value => value.Validate()).Should().Throw<ConversationCredentialException>(); }
         else { response.Invoking(value => value.Validate()).Should().Throw<InvalidDataException>(); }
     }

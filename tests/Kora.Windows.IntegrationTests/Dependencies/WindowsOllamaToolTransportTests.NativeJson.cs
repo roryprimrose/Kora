@@ -58,7 +58,7 @@ public sealed partial class WindowsOllamaToolTransportTests
         await using var fixture = new Fixture();
         using var root = fixture.Root();
         fixture.Chat = (message, _) => Task.FromResult(Json(message,
-            $$"""{"model":"{{Model}}","message":{"role":"assistant","content":"","tool_calls":[{"id":"call_1","function":{"name":"application.get_version","arguments":{}}},{"id":"call_1","function":{"name":"application.get_version","arguments":{}}}]},"done":true}"""));
+            $$$$"""{"model":"{{{{Model}}}}","message":{"role":"assistant","content":"","tool_calls":[{"id":"call_1","function":{"name":"application.get_version","arguments":{}}},{"id":"call_1","function":{"name":"application.get_version","arguments":{}}}]},"done":true}"""));
         var reply = await fixture.Transport.CompleteAsync(fixture.Request(), Token);
         reply.Message.Should().BeNull();
         reply.Outcome.Should().Be(ModelTurnOutcome.Denied);

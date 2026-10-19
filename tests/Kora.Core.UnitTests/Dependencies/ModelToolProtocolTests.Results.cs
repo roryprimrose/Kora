@@ -118,13 +118,13 @@ public sealed partial class ModelToolProtocolTests
             case "runtime-enum":
             case "runtime-page":
                 var runtime = new RuntimeObservation(ReadOnlyCapabilityCatalog.LocalRuntimeId, RuntimeLocality.Local,
-                    CapabilityAvailability.NotObserved, null, "not-observed", null, fault == "runtime-qualified");
-                if (fault == "runtime-enum") { runtime = runtime with { Locality = (RuntimeLocality)999 }; }
-                capability = fault == "runtime-page" ? ReadOnlyCapabilityCatalog.RuntimeList : ReadOnlyCapabilityCatalog.RuntimeStatus;
-                input = fault == "runtime-page" ? "{}" : """{"id":"local.inference"}""";
-                reply = fault == "runtime-page"
-                    ? new(CapabilityOutcome.Succeeded, "read", Runtimes: new([runtime, runtime], 2, null))
-                    : new(CapabilityOutcome.Succeeded, "read", Runtime: fault == "runtime" ? null : runtime);
+                    CapabilityAvailability.NotObserved, null, "not-observed", null, string.Equals(fault, "runtime-qualified", StringComparison.Ordinal));
+                if (string.Equals(fault, "runtime-enum", StringComparison.Ordinal)) { runtime = runtime with { Locality = (RuntimeLocality)999 }; }
+                capability = string.Equals(fault, "runtime-page", StringComparison.Ordinal) ? ReadOnlyCapabilityCatalog.RuntimeList : ReadOnlyCapabilityCatalog.RuntimeStatus;
+                input = string.Equals(fault, "runtime-page", StringComparison.Ordinal) ? "{}" : """{"id":"local.inference"}""";
+                reply = string.Equals(fault, "runtime-page"
+, StringComparison.Ordinal) ? new(CapabilityOutcome.Succeeded, "read", Runtimes: new([runtime, runtime], 2, null))
+                    : new(CapabilityOutcome.Succeeded, "read", Runtime: string.Equals(fault, "runtime", global::System.StringComparison.Ordinal) ? null : runtime);
                 break;
             default:
                 capability = ReadOnlyCapabilityCatalog.Readiness;

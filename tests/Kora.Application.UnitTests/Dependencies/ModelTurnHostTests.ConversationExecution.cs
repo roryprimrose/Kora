@@ -26,13 +26,13 @@ public sealed partial class ModelTurnHostTests
         using var f = new Fixture();
         using var root = f.Root();
         var turn = (await f.Host.AdmitAsync(ModelProviderSelection.OllamaCandidate, f.Context(), Token)).Turn!;
-        IModelTurnExecution execution = fault == "foreign" ? f.Qualified(ModelProviderSelection.OllamaCandidate) : f.Host;
-        if (fault == "expired") { f.Time.Now = DateTimeOffset.UnixEpoch.AddMinutes(1); }
-        if (fault == "generation") { f.Session = f.Session with { Generation = new(2) }; }
-        if (fault == "stopped-context") { root.Complete(Kora.Core.Diagnostics.HostOperationOutcome.Completed); }
+        IModelTurnExecution execution = string.Equals(fault, "foreign", StringComparison.Ordinal) ? f.Qualified(ModelProviderSelection.OllamaCandidate) : f.Host;
+        if (string.Equals(fault, "expired", StringComparison.Ordinal)) { f.Time.Now = DateTimeOffset.UnixEpoch.AddMinutes(1); }
+        if (string.Equals(fault, "generation", StringComparison.Ordinal)) { f.Session = f.Session with { Generation = new(2) }; }
+        if (string.Equals(fault, "stopped-context", StringComparison.Ordinal)) { root.Complete(Kora.Core.Diagnostics.HostOperationOutcome.Completed); }
         using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(Token);
-        if (fault == "cancelled") { cancellation.Cancel(); }
-        var response = await execution.RunAsync(turn, () => fault != "closed-source", cancellation.Token);
+        if (string.Equals(fault, "cancelled", StringComparison.Ordinal)) { cancellation.Cancel(); }
+        var response = await execution.RunAsync(turn, () => !string.Equals(fault, "closed-source", StringComparison.Ordinal), cancellation.Token);
         response.Outcome.Should().NotBe(ModelTurnOutcome.Succeeded);
         response.Response.Should().BeNull();
         f.Adapter.Calls.Should().Be(0);
@@ -91,6 +91,7 @@ public sealed partial class ModelTurnHostTests
         wire.RootElement.GetProperty("Evidence").GetArrayLength().Should().Be(0);
         f.Messages.Should().NotContain(message => message.Contains(body, StringComparison.Ordinal)
             || message.Contains("host reported", StringComparison.Ordinal));
+        using var inspection = f.Root();
         (await service.ReadPageAsync(f.Session.SessionId, null, 25, Token)).Messages.Single().Should().Be(receipt.Message);
         var details = await service.ReadDetailAsync(new(f.Session, null), receipt.Message, static () => true, Token);
         details.Source.Should().Be(body);
@@ -152,25 +153,25 @@ public sealed partial class ModelTurnHostTests
         var host = f.ConfiguredProfiles();
         var live = true;
         var toolCalls = 0;
-        if (boundary == "before-run") { f.AfterExecutionStart = () => live = false; }
+        if (string.Equals(boundary, "before-run", StringComparison.Ordinal)) { f.AfterExecutionStart = () => live = false; }
         f.OnVersion = () =>
         {
             toolCalls++;
-            if (boundary == "after-tool") { live = false; }
+            if (string.Equals(boundary, "after-tool", StringComparison.Ordinal)) { live = false; }
         };
         f.Adapter.OnTool = async invoke =>
         {
-            if (boundary == "before-tool") { live = false; }
-            if (boundary == "metadata") { f.Metadata = new(f.Session.SessionId, new(1), new("changed")); }
+            if (string.Equals(boundary, "before-tool", StringComparison.Ordinal)) { live = false; }
+            if (string.Equals(boundary, "metadata", StringComparison.Ordinal)) { f.Metadata = new(f.Session.SessionId, new(1), new("changed")); }
             await invoke(ReadOnlyCapabilityCatalog.Version, "{}", Token);
-            if (boundary == "terminal") { live = false; }
+            if (string.Equals(boundary, "terminal", StringComparison.Ordinal)) { live = false; }
         };
-        if (boundary == "audit") { f.BeforeExecutionComplete = () => throw new IOException("required audit failed"); }
-        if (boundary == "readback") { f.BadExecutionReadback = true; }
+        if (string.Equals(boundary, "audit", StringComparison.Ordinal)) { f.BeforeExecutionComplete = () => throw new IOException("required audit failed"); }
+        if (string.Equals(boundary, "readback", StringComparison.Ordinal)) { f.BadExecutionReadback = true; }
         await f.ConversationService(host, execution: host).Invoking(service =>
             service.SubmitAsync(new(f.Session, null), "immutable source", () => live, Token))
             .Should().ThrowAsync<ConversationSubmissionUnconfirmedException>();
-        f.Adapter.Calls.Should().Be(boundary == "before-run" ? 0 : 1);
+        f.Adapter.Calls.Should().Be(string.Equals(boundary, "before-run", StringComparison.Ordinal) ? 0 : 1);
         toolCalls.Should().Be(boundary is "before-run" or "before-tool" or "metadata" ? 0 : 1);
         f.RetainCalls.Should().Be(1);
         f.ExecutionStarts.Should().Be(1);

@@ -29,7 +29,11 @@ public sealed partial class NewRequestControllerTests
             "  retained original e\u0301🙂\r\ncomplete  ", () => true, f.Token);
         var receipt = await f.Interactions.CompleteConversationSubmissionAsync(request, ModelTurnOutcome.Unavailable,
             ModelTurnReason.UnregisteredModel, () => true, f.Token);
-        return (source, receipt.Message);
+        var observed = await f.Interactions.ReadMetadataAsync(source.Authority.SessionId, f.Token);
+        observed.Should().Be(source);
+        var canonical = await f.Sessions.ReadConversationDetailAsync(observed, receipt.Message, () => true, f.Token);
+        canonical.Source.Should().Be(receipt.Message.Body);
+        return (observed, receipt.Message);
     }
 
     [WindowsFact]
@@ -140,6 +144,12 @@ public sealed partial class NewRequestControllerTests
             {
                 if (decision is "created") { await composer.Create(); }
                 using var root = HostActivity.BeginRoot(original.Request, HostActivityLayer.Desktop, HostOperation.Request);
+                if (decision is not "created")
+                {
+                    using var sourceReview = await OriginalMessageReuseReview.ReviewAsync(f.Sessions, f.Access, source,
+                        original, composer, () => true, f.Token);
+                    sourceReview.Body.Should().Be(original.Body);
+                }
                 var result = await controller.ReviewOriginalReuseAsync(source, original, owner, () => true, f.Token);
                 prompted.Should().Be(decision is "created" ? 0 : 1, result);
                 composer.Body.Should().Be(decision is "replace" ? original.Body

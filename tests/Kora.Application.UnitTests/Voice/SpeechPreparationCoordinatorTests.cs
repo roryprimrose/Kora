@@ -5,6 +5,7 @@ using Kora.Application.Voice;
 using Kora.Core.Diagnostics;
 using Kora.Core.Hosting;
 using Kora.Core.Voice;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Kora.Application.UnitTests.Voice;
@@ -92,6 +93,7 @@ public sealed class SpeechPreparationCoordinatorTests
         var notifications = 0;
         coordinator.Changed += (_, _) => notifications++;
         coordinator.Dispose();
+        coordinator.Request(Voice("af_sky"), static () => true);
         try
         {
             coordinator.IsQuiescent.Should().BeFalse();
@@ -109,19 +111,42 @@ public sealed class SpeechPreparationCoordinatorTests
     public async Task Failure_is_explicit_and_same_voice_can_be_retried()
     {
         var fail = true;
+        var failure = new IOException("Asset unavailable.");
+        var logger = new FailureLogger();
         var service = new PreparationService
         {
-            Prepare = (_, _) => fail ? Task.FromException(new IOException("Asset unavailable.")) : Task.CompletedTask,
+            Prepare = (_, _) => fail ? Task.FromException(failure) : Task.CompletedTask,
         };
-        using var coordinator = Create(service);
+        using var coordinator = new SpeechPreparationCoordinator(service, logger);
         coordinator.Request(Voice("af_heart"), static () => true);
         await coordinator.WaitForQuiescenceAsync();
         coordinator.Status.Should().Contain("failed");
+        logger.Failure.Should().BeSameAs(failure);
         fail = false;
         coordinator.Request(Voice("af_heart"), static () => true);
         await coordinator.WaitForQuiescenceAsync();
         service.Voices.Should().Equal("af_heart", "af_heart");
         coordinator.Status.Should().Be("Selected speech voice is prepared.");
+    }
+
+    [Fact]
+    public async Task Eligibility_lost_during_native_preparation_cannot_publish_readiness()
+    {
+        var eligible = true;
+        var service = new PreparationService
+        {
+            Prepare = (_, _) =>
+            {
+                eligible = false;
+                return Task.CompletedTask;
+            },
+        };
+        using var coordinator = Create(service);
+        coordinator.Request(Voice("af_heart"), () => eligible);
+        await coordinator.WaitForQuiescenceAsync();
+
+        service.Voices.Should().Equal("af_heart");
+        coordinator.Status.Should().BeEmpty();
     }
 
     [Theory]
@@ -182,5 +207,14 @@ public sealed class SpeechPreparationCoordinatorTests
             Voices.Enqueue(voice.Id);
             return Prepare(voice, cancellationToken);
         }
+    }
+
+    private sealed class FailureLogger : ILogger<SpeechPreparationCoordinator>
+    {
+        public Exception? Failure { get; private set; }
+        public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
+        public bool IsEnabled(LogLevel logLevel) => true;
+        public void Log<TState>(LogLevel logLevel, EventId eventId, TState state,
+            Exception? exception, Func<TState, Exception?, string> formatter) => Failure = exception;
     }
 }

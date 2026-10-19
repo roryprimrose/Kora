@@ -24,6 +24,7 @@ public sealed partial class SpeechPreparationCoordinator(
 
     public void Request(SpeechVoice? voice, Func<bool>? remainsEligible = null)
     {
+        var eligibility = remainsEligible ?? (static () => false);
         if (voice is not null && !string.Equals(voice.ProviderId, SpeechProviderIds.Kokoro, StringComparison.Ordinal))
         {
             voice = null;
@@ -44,7 +45,7 @@ public sealed partial class SpeechPreparationCoordinator(
                 var selected = voice;
                 var begin = HostActivity.CaptureContinuation(HostActivityLayer.Application, HostOperation.Runtime);
 #pragma warning disable VSTHRD003 // The worker joins the prior owned task without using the caller's synchronization context.
-                pending = Task.Run(() => PrepareAsync(previous, selected, source, currentRevision, begin, remainsEligible));
+                pending = Task.Run(() => PrepareAsync(previous, selected, source, currentRevision, begin, eligibility));
 #pragma warning restore VSTHRD003
             }
         }
@@ -70,7 +71,7 @@ public sealed partial class SpeechPreparationCoordinator(
     }
 
     private async Task PrepareAsync(Task previous, SpeechVoice voice, CancellationTokenSource source,
-        long currentRevision, Func<HostActivity> begin, Func<bool>? remainsEligible)
+        long currentRevision, Func<HostActivity> begin, Func<bool> remainsEligible)
     {
         using var activity = begin();
         var result = string.Empty;
@@ -80,10 +81,10 @@ public sealed partial class SpeechPreparationCoordinator(
 #pragma warning disable VSTHRD003 // Join the previously owned native preparation before starting its replacement.
             await previous.ConfigureAwait(false);
 #pragma warning restore VSTHRD003
-            if (remainsEligible?.Invoke() != true) { await source.CancelAsync().ConfigureAwait(false); }
+            if (!remainsEligible()) { await source.CancelAsync().ConfigureAwait(false); }
             source.Token.ThrowIfCancellationRequested();
             await service.PrepareAsync(voice, source.Token).ConfigureAwait(false);
-            if (remainsEligible?.Invoke() != true) { await source.CancelAsync().ConfigureAwait(false); }
+            if (!remainsEligible()) { await source.CancelAsync().ConfigureAwait(false); }
             source.Token.ThrowIfCancellationRequested();
             result = "Selected speech voice is prepared.";
             activity.Complete(HostOperationOutcome.Completed);

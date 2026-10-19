@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using AwesomeAssertions;
+using Kora.Core.Communication;
 using Kora.Core.Platform;
 using Kora.Core.Voice;
 
@@ -7,6 +8,29 @@ namespace Kora.Application.UnitTests.ViewModels;
 
 public sealed partial class MainViewModelTests
 {
+    [Fact]
+    public async Task Protected_call_and_host_disposal_retire_the_injected_preparation_workflow()
+    {
+        var fixture = PreparationFixture();
+        await fixture.ViewModel.InitializeAsync();
+        await fixture.SpeechPreparation.WaitForQuiescenceAsync();
+
+        fixture.CallState.SetState(CallState.Active);
+        await fixture.ViewModel.CallClosureTask;
+        fixture.ViewModel.SpeechPreparationStatus.Should().BeEmpty();
+        fixture.ViewModel.Dispose();
+        await fixture.SpeechPreparation.WaitForQuiescenceAsync();
+        fixture.ViewModel.SpeechPreparationStatus.Should().BeEmpty();
+        fixture.Preparation.Voices.Should().Equal("af_heart");
+    }
+
+    [Fact]
+    public void Preparation_status_is_empty_when_the_optional_workflow_is_unavailable()
+    {
+        var fixture = new Fixture();
+        fixture.ViewModel.SpeechPreparationStatus.Should().BeEmpty();
+    }
+
     [Fact]
     public async Task Startup_and_settings_selection_prepare_only_selected_installed_Kokoro_voice()
     {

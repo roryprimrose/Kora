@@ -1,3 +1,5 @@
+using System.Text.Json;
+
 using Avalonia.Controls;
 using Avalonia.Headless;
 using Avalonia.Interactivity;
@@ -209,4 +211,3 @@ public sealed partial class SessionsMemoryFilterTests
         });
     }
 }
-using System.Text.Json;

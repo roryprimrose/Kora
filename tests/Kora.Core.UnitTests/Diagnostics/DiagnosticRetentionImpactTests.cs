@@ -219,6 +219,11 @@ public sealed class DiagnosticRetentionImpactTests
         DiagnosticRetentionImpact.Validate(snapshot, new(1), Cutoff);
         var missingIdentity = () => DiagnosticRetentionImpact.Validate(snapshot with { Snapshot = null }, new(1), Cutoff);
         missingIdentity.Should().Throw<InvalidDataException>();
+        var mismatchedQualifications = () => DiagnosticRetentionImpact.Validate(snapshot with
+        {
+            Links = new(DiagnosticImpactSource.OwnedLinks, DiagnosticImpactStatus.Unavailable, null),
+        }, new(1), Cutoff);
+        mismatchedQualifications.Should().Throw<InvalidDataException>();
         DiagnosticRetentionImpact.Validate(snapshot with
         {
             Spans = new(DiagnosticImpactSource.Spans, DiagnosticImpactStatus.Incomplete, null),

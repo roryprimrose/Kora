@@ -114,10 +114,11 @@ public sealed partial class NewRequestComposerTests
         using var f = new Fixture();
         var original = Original(f, active: false);
         f.Entry = f.Entry! with { Authority = f.Entry!.Authority with { Generation = new(2) } };
+        f.Entry = f.Entry! with { Metadata = new(original.Request.SessionId, new(3), new("Historical source")) };
         using var root = HostActivity.BeginRoot(original.Request, HostActivityLayer.Desktop, HostOperation.Request);
         using var review = await ReviewOriginal(f, original);
         review.Attribution.Should().Contain("current generation 2").And.Contain("original submitted generation 1")
-            .And.Contain("Done");
+            .And.Contain("metadata revision 3").And.Contain("Done");
         (await review.ConfirmAsync(false, TestContext.Current.CancellationToken)).Should().BeTrue();
         f.Composer.Body.Should().Be(original.Body);
         original.Generation.Value.Should().Be(1);
@@ -349,5 +350,68 @@ public sealed partial class NewRequestComposerTests
         f.Composer.Body.Should().BeEmpty();
         f.Creates.Should().Be(0);
         f.Retentions.Should().Be(0);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void SeedRejectsStaleBufferOrWithdrawnAdmissionBeforeChangingMemory(bool staleBuffer)
+    {
+        using var f = new Fixture();
+        f.Composer.Body = "prior private memory";
+        var expected = f.Composer.ReuseBufferEpoch;
+        if (staleBuffer) { f.Composer.Body = "newer independent memory"; }
+        var checks = 0;
+        f.Composer.SeedOriginal(expected, "original USER text", () =>
+        {
+            checks++;
+            return staleBuffer;
+        }).Should().BeFalse();
+        checks.Should().Be(staleBuffer ? 0 : 1);
+        f.Composer.Body.Should().Be(staleBuffer ? "newer independent memory" : "prior private memory");
+        f.Creates.Should().Be(0);
+        f.Writes.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task AdmissionWithdrawnByFinalSourceReadCannotPublishAReuseReview()
+    {
+        using var f = new Fixture();
+        var original = Original(f);
+        var admitted = true;
+        using var root = HostActivity.BeginRoot(original.Request, HostActivityLayer.Desktop, HostOperation.Request);
+        Func<Task> read = () => ReviewOriginal(f, original, () =>
+        {
+            var current = admitted;
+            if (f.OriginalReads == 2) { admitted = false; }
+            return current;
+        });
+        await read.Should().ThrowAsync<OperationCanceledException>();
+        f.OriginalReads.Should().Be(2);
+        f.Composer.Body.Should().BeEmpty();
+        f.Creates.Should().Be(0);
+        f.Writes.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task AdmissionWithdrawnByFinalConfirmationReadCannotCompleteHandoff()
+    {
+        using var f = new Fixture();
+        var original = Original(f);
+        f.Composer.Body = "prior independent memory";
+        var admitted = true;
+        using var root = HostActivity.BeginRoot(original.Request, HostActivityLayer.Desktop, HostOperation.Request);
+        using var review = await ReviewOriginal(f, original, () =>
+        {
+            var current = admitted;
+            if (f.OriginalReads == 4) { admitted = false; }
+            return current;
+        });
+        (await review.ConfirmAsync(true, TestContext.Current.CancellationToken)).Should().BeFalse();
+        f.OriginalReads.Should().Be(4);
+        review.Available.Should().BeFalse();
+        f.Composer.Body.Should().Be("prior independent memory");
+        f.Creates.Should().Be(0);
+        f.Writes.Should().Be(0);
     }
 }

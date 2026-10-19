@@ -1,4 +1,4 @@
-using Kora.Application.Diagnostics;
+﻿using Kora.Application.Diagnostics;
 using Kora.Core;
 using Kora.Core.Diagnostics;
 using Kora.Core.Platform;
@@ -64,6 +64,7 @@ public sealed partial class MainViewModel
     {
         if (disposed) { return; }
         auditImpactPreview?.Retire("Private/lock/desktop revision changed; preview retired.");
+        sessionRetentionPlanner?.Retire("Private/lock/desktop revision changed; preview retired.");
         RetireQuestionVoiceReply();
         var snapshot = eventArgs.Current;
         var voicePrivacyChanged = (eventArgs.Reason & (WindowsPrivacyChangeReason.Power
@@ -255,6 +256,11 @@ public sealed partial class MainViewModel
         {
             auditImpactPreview.Changed -= OnAuditImpactPreviewChanged;
             auditImpactPreview.Dispose();
+        }
+        if (sessionRetentionPlanner is not null)
+        {
+            sessionRetentionPlanner.Changed -= OnSessionRetentionPlannerChanged;
+            sessionRetentionPlanner.Dispose();
         }
         RetireWebResultDetails();
         RetireSpeechCaption();

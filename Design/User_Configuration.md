@@ -120,6 +120,24 @@ files are unchanged. Audited Perpetual session marking is a separate
 exemption, now exposed by the [exact native per-session controls](Interaction_And_Sessions.md#r12-native-exact-session-retention-controls---2026-10-10), not by these future-only preferences.
 Native status shows recorded UTC inactivity/due dates. Keep/ordinary requires a separate exact preview/confirmation; ordinary warns about unchanged soon/already-due dates. The exemption is session retention only, not an operation grant, consent, memory/recall or execution. No typed/voice/model or apply-now route is available.
 
+#### Read-only hypothetical session retention planner
+
+The native Session Retention card adds separate proposals and **Preview hypothetical session retention only**. Refresh the confirmed future policy first. Selecting a proposal does not save/reset preferences or scan; preview leaves recorded deadlines and cleanup eligibility unchanged ([native integration](../src/Kora.Application/ViewModels/MainViewModel.SessionRetentionPlanner.cs)).
+
+At one fixed UTC cutoff, Complete reports hypothetical newly archive/delete-due counts, already-due recorded deadlines and mutually exclusive removed/kept/work-held/unknown exclusions. Hypothetical deletion takes precedence over archival; archived sessions do not rearchive. Inclusive cutoff and original deadlines are separate ([aggregation](../src/Kora.Core/Storage/SessionRetentionPlanner.cs)).
+
+The reader checks dates, flags, lifecycle, typed changes and authority head. Each scanned candidate is validated before exclusion, including the budget-crossing lookahead.
+No session bodies, names, attachment paths or question payloads are projected; retained questions/unavailable tasks are unknown exclusions ([reader](../src/Kora.Windows/Storage/WindowsSqliteHostInteractionStore.RetentionPlanner.cs)).
+Preview failure diagnostics retain only the exception type, never exception messages, private paths or source contents ([typed diagnostic](../src/Kora.Application/Diagnostics/ApplicationLog.Logging.cs)).
+
+The scan shares 4,096 admissions and 4 MiB charges across authority, work metadata, clocks and orphan checks.
+Entries charge envelope size without returning it; task/session metadata charge 192 bytes, questions 96, ledger rows 40 and clock keys 36. A further validated candidate exhausts a limit, never truncated Complete ([accounting](../src/Kora.Windows/Storage/WindowsSqliteHostInteractionStore.RetentionPlanner.cs)).
+
+Ten-second scan timeout retires the request; receipts expire after thirty seconds. Incomplete/Unavailable have no aggregate, never false zero.
+Proposal/control/private/owner/call, preference/policy revisions, source snapshot and expiry fence results. Edits, refresh/save/reset, changes, privacy loss, close or failure retire without replay ([orchestration](../src/Kora.Application/Configuration/SessionRetentionPlannerService.cs)).
+
+There is no apply-now, policy write, session mutation/removal/hold, revocation, schema/index change or scanner. Future-only preferences and maintenance remain separate. Existing policy/private authority is consumed, not broader runtime or E/Q qualification ([contract](../src/Kora.Core/Storage/ISessionRetentionPlannerReader.cs)).
+
 Live/dispatched/Unknown work, unresolved questions, current-run control
 authorities and uncertain copy inventories hold maintenance. See the
 [storage/removal contract](Interaction_And_Sessions.md#r12-bounded-session-retention-delivered---2026-10-09).

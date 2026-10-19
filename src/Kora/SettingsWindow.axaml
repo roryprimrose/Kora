@@ -800,6 +800,19 @@
                 <Button Content="Refresh session retention" Command="{Binding RefreshSessionRetentionCommand}" IsEnabled="{Binding CanChangeSessionRetentionNative}" />
                 <Button Content="Save future session retention" Command="{Binding SaveSessionRetentionCommand}" IsEnabled="{Binding CanChangeSessionRetentionNative}" />
                 <Button Content="Reset future session retention to 1 / 30 days" Command="{Binding ResetSessionRetentionCommand}" IsEnabled="{Binding CanChangeSessionRetentionNative}" />
+                <TextBlock Text="Read-only hypothetical impact planner" Classes="settings-title" />
+                <TextBlock Text="Refresh the confirmed future policy, then review a separate proposal and explicitly Preview. This never saves or resets policy, recomputes recorded deadlines, changes cleanup eligibility, holds/removes sessions or revokes sources. Bounded metadata only; incomplete/unavailable results have no counts. Sessions with work metadata whose holds cannot be established without payload inspection are conservatively excluded as unknown."
+                           Classes="settings-description" TextWrapping="Wrap" />
+                <TextBlock Text="Proposed archive inactivity days (preview only)" />
+                <ComboBox ItemsSource="{Binding SessionRetentionChoices}" SelectedItem="{Binding ProposedSessionArchiveDays}"
+                          IsEnabled="{Binding CanChangeSessionRetentionNative}" AutomationProperties.Name="Proposed session archive days for read-only preview" />
+                <TextBlock Text="Proposed deletion inactivity days (preview only; later than archive)" />
+                <ComboBox ItemsSource="{Binding SessionRetentionChoices}" SelectedItem="{Binding ProposedSessionDeleteDays}"
+                          IsEnabled="{Binding CanChangeSessionRetentionNative}" AutomationProperties.Name="Proposed session deletion days for read-only preview" />
+                <Button Content="Preview hypothetical session retention only" Command="{Binding PreviewSessionRetentionCommand}"
+                        IsEnabled="{Binding CanPreviewSessionRetention}" AutomationProperties.Name="Preview hypothetical session retention without changing policy or sessions" />
+                <TextBlock Text="{Binding SessionRetentionPlanStatus}" Classes="settings-description" TextWrapping="Wrap"
+                           AutomationProperties.Name="Read-only session retention impact result" />
               </StackPanel>
             </Border>
           </StackPanel>

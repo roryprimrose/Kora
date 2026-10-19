@@ -81,7 +81,7 @@ public sealed partial class SessionWorkspaceServiceTests
         };
         f.QueueFailure = "read";
         var review = () => queue.ReviewDiagnosticsPlanAsync(expected, profiles,
-            kind == "prerequisite" ? (SessionDiagnosticsPlanPrerequisite)99 : SessionDiagnosticsPlanPrerequisite.None,
+            kind is "prerequisite" ? (SessionDiagnosticsPlanPrerequisite)99 : SessionDiagnosticsPlanPrerequisite.None,
             RequestOrigin.LocalUi, () => true, f.Token);
         await review.Should().ThrowAsync<InvalidDataException>();
         f.TaskWrites.Should().BeEmpty();
@@ -150,12 +150,13 @@ public sealed partial class SessionWorkspaceServiceTests
             "held" => snapshot with { DispatchControl = snapshot.DispatchControl! with { Held = true } },
             "later-malformed" => snapshot with { Entries = [snapshot.Entries[0], snapshot.Entries[1] with { ExpiresAt = DateTimeOffset.MinValue }] },
             "later-foreign" => snapshot with { Entries = [snapshot.Entries[0], snapshot.Entries[1] with
-            { Request = snapshot.Entries[1].Request with { SessionId = new(Guid.NewGuid()) } }] },
+            { Request = new(snapshot.Entries[1].Request.RequestId, new(Guid.NewGuid()),
+                snapshot.Entries[1].Request.TaskId, snapshot.Entries[1].Request.Origin) }] },
             _ => snapshot,
         };
         if (change is "done" or "foreign")
         {
-            f.ExactListReader = _ => new(change == "done" ? f.Session with { IsActive = false }
+            f.ExactListReader = _ => new(change is "done" ? f.Session with { IsActive = false }
                 : f.Session with { SessionId = new(Guid.NewGuid()) }, null);
         }
         var result = await queue.ConfirmDiagnosticsPlanAsync(review, RequestOrigin.LocalUi, () => true, f.Token);
@@ -190,8 +191,8 @@ public sealed partial class SessionWorkspaceServiceTests
         };
         var result = await queue.ConfirmDiagnosticsPlanAsync(review, RequestOrigin.LocalUi, () => true, cancellation.Token);
         result.Items[0].State.Should().Be(SessionDiagnosticsPlanItemState.Accepted);
-        result.Items[1].State.Should().Be(change == "cancel" ? SessionDiagnosticsPlanItemState.Cancelled
-            : change == "readback" ? SessionDiagnosticsPlanItemState.Unavailable : SessionDiagnosticsPlanItemState.Conflict);
+        result.Items[1].State.Should().Be(change is "cancel" ? SessionDiagnosticsPlanItemState.Cancelled
+            : change is "readback" ? SessionDiagnosticsPlanItemState.Unavailable : SessionDiagnosticsPlanItemState.Conflict);
         result.Items.Skip(2).Should().OnlyContain(item => item.State == SessionDiagnosticsPlanItemState.NotAttempted);
         f.QueueRows.Should().ContainSingle().Which.Should().Be(result.Items[0].CommittedEntry);
         f.QueueActions.Should().Be(0);
@@ -322,10 +323,10 @@ public sealed partial class SessionWorkspaceServiceTests
         var review = await DiagnosticsReview(f, queue);
         f.AfterDiagnosticsEnqueueCommit = () =>
         {
-            if (failure == "lost-readback") { throw new IOException("The commit reply was lost."); }
-            if (failure == "database-failure") { throw new System.Data.DataException("The database reply was unavailable."); }
-            if (failure == "late-cancel") { cancellation.Cancel(); }
-            if (failure == "late-private") { f.AdvanceRevision(); }
+            if (failure is "lost-readback") { throw new IOException("The commit reply was lost."); }
+            if (failure is "database-failure") { throw new System.Data.DataException("The database reply was unavailable."); }
+            if (failure is "late-cancel") { cancellation.Cancel(); }
+            if (failure is "late-private") { f.AdvanceRevision(); }
         };
         f.DiagnosticsEnqueueProjection = snapshot => failure switch
         {
@@ -371,10 +372,10 @@ public sealed partial class SessionWorkspaceServiceTests
         using var cancellation = new CancellationTokenSource();
         await using var queue = f.QueueService();
         var snapshot = await f.ReadQueueAsync(f.Request.SessionId, f.Token);
-        if (change == "before") { cancellation.Cancel(); }
-        if (change == "during") { f.AfterQueueRead = cancellation.Cancel; }
-        if (change == "unavailable") { f.QueueFailure = "read"; }
-        if (change == "stale") { snapshot = snapshot with { Revision = 99 }; }
+        if (change is "before") { cancellation.Cancel(); }
+        if (change is "during") { f.AfterQueueRead = cancellation.Cancel; }
+        if (change is "unavailable") { f.QueueFailure = "read"; }
+        if (change is "stale") { snapshot = snapshot with { Revision = 99 }; }
         f.QueueReadProjection = observed => change switch
         {
             "held" => observed with { DispatchControl = observed.DispatchControl! with { Held = true } },
@@ -384,10 +385,105 @@ public sealed partial class SessionWorkspaceServiceTests
             _ => observed,
         };
         var review = () => queue.ReviewDiagnosticsPlanAsync(snapshot, AllDiagnostics, SessionDiagnosticsPlanPrerequisite.None,
-            change == "origin" ? RequestOrigin.ActivatedVoice : RequestOrigin.LocalUi, () => true, cancellation.Token);
+            change is "origin" ? RequestOrigin.ActivatedVoice : RequestOrigin.LocalUi, () => true, cancellation.Token);
         await review.Should().ThrowAsync<Exception>();
         f.TaskWrites.Should().BeEmpty();
         f.QueueRows.Should().BeEmpty();
+    }
+
+    [Theory]
+    [InlineData("generation")]
+    [InlineData("revision")]
+    [InlineData("run")]
+    [InlineData("control-revision")]
+    [InlineData("control-admission")]
+    [InlineData("changed-admission")]
+    [InlineData("too-many")]
+    [InlineData("entry-generation")]
+    [InlineData("entry-run")]
+    public async Task DiagnosticsMalformedCompleteQueueObservationFailsClosedBeforePublishingReview(string change)
+    {
+        using var f = new Fixture();
+        await using var queue = f.QueueService();
+        var expected = await f.ReadQueueAsync(f.Request.SessionId, f.Token);
+        if (change is "generation") { f.ExactListReader = _ => new(f.Session with { Generation = new(0) }, null); }
+        f.QueueReadProjection = observed => change switch
+        {
+            "generation" => observed with { Generation = new(0) },
+            "revision" => observed with { Revision = -1 },
+            "run" => observed with { DispatchControl = observed.DispatchControl! with { RunId = Guid.Empty } },
+            "control-revision" => observed with { DispatchControl = observed.DispatchControl! with { Revision = -1 } },
+            "control-admission" => observed with { DispatchControl = observed.DispatchControl! with { ControlRevision = -1 } },
+            "changed-admission" => observed with { DispatchControl = observed.DispatchControl! with { Revision = 1, ControlRevision = 99 } },
+            "too-many" => observed with { Entries = Enumerable.Range(0, 12).Select(_ => DiagnosticsRow(f)).ToArray() },
+            "entry-generation" => observed with { Entries = [DiagnosticsRow(f) with { Generation = new(9) }] },
+            _ => observed with { Entries = [DiagnosticsRow(f) with { RunId = Guid.NewGuid() }] },
+        };
+        var act = () => queue.ReviewDiagnosticsPlanAsync(expected, AllDiagnostics, SessionDiagnosticsPlanPrerequisite.None,
+            RequestOrigin.LocalUi, () => true, f.Token);
+        await act.Should().ThrowAsync<Exception>();
+        f.TaskWrites.Should().BeEmpty();
+        f.QueueRows.Should().BeEmpty();
+    }
+
+    [Theory]
+    [InlineData("inspect")]
+    [InlineData("control")]
+    [InlineData("dispose")]
+    [InlineData("replacement")]
+    public async Task DiagnosticsReviewRechecksAllLiveAuthorityAfterPassiveRead(string change)
+    {
+        using var f = new Fixture();
+        await using var queue = f.QueueService();
+        var expected = await f.ReadQueueAsync(f.Request.SessionId, f.Token);
+        SessionDiagnosticsPlanReview? replacement = null;
+        f.AfterQueueRead = () =>
+        {
+            f.AfterQueueRead = null;
+            switch (change)
+            {
+                case "inspect": f.CanInspect = false; break;
+                case "control": f.CanControl = false; break;
+                case "dispose": queue.DisposeAsync().AsTask().GetAwaiter().GetResult(); break;
+                case "replacement": replacement = DiagnosticsReview(f, queue).GetAwaiter().GetResult(); break;
+            }
+        };
+        var act = () => queue.ReviewDiagnosticsPlanAsync(expected, AllDiagnostics, SessionDiagnosticsPlanPrerequisite.None,
+            RequestOrigin.LocalUi, () => true, f.Token);
+        await act.Should().ThrowAsync<InvalidOperationException>();
+        f.TaskWrites.Should().BeEmpty();
+        f.QueueRows.Should().BeEmpty();
+        if (replacement is not null)
+        {
+            (await queue.ConfirmDiagnosticsPlanAsync(replacement, RequestOrigin.LocalUi, () => true, f.Token))
+                .Items.Should().OnlyContain(item => item.State == SessionDiagnosticsPlanItemState.Accepted);
+        }
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task DiagnosticsWorkspaceRetiresIssuedReviewAndMissingQueueIsExplicitlyUnavailable(bool available)
+    {
+        using var f = new Fixture();
+        await using var queue = f.QueueService();
+        var service = new SessionWorkspaceService(f, new(f), f, f.Logger, available ? queue : null);
+        if (available)
+        {
+            var review = await service.ReviewDiagnosticsPlanAsync(await f.ReadQueueAsync(f.Request.SessionId, f.Token),
+                AllDiagnostics, SessionDiagnosticsPlanPrerequisite.None, () => true, f.Token);
+            service.RetireDiagnosticsPlan(review);
+            var confirm = () => service.ConfirmDiagnosticsPlanAsync(review, () => true, f.Token);
+            await confirm.Should().ThrowAsync<InvalidOperationException>().WithMessage("*retired or consumed*");
+        }
+        else
+        {
+            var review = () => service.ReviewDiagnosticsPlanAsync(new(f.Request.SessionId, new(1), 0, []),
+                AllDiagnostics, SessionDiagnosticsPlanPrerequisite.None, () => true, f.Token);
+            await review.Should().ThrowAsync<InvalidOperationException>().WithMessage("*unavailable*");
+            service.RetireDiagnosticsPlan(await DiagnosticsReview(f, queue));
+        }
+        f.TaskWrites.Should().BeEmpty();
     }
 
     [Fact]

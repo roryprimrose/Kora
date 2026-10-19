@@ -73,9 +73,11 @@ The [Application orchestration](../src/Kora.Application/Hosting/SessionQueueServ
 [portable service cases](../tests/Kora.Application.UnitTests/Hosting/SessionWorkspaceServiceTests.DiagnosticsPlan.cs),
 [private SQLite cases](../tests/Kora.Windows.IntegrationTests/Storage/WindowsSqliteSessionQueueTests.DiagnosticsPlan.cs)
 and [native lifecycle cases](../tests/Kora.Windows.IntegrationTests/SessionsDiagnosticsPlanTests.cs)
-implement this consumed I subset. Deterministic execution, maintained native/build
-checks and exact raw 100% portable line/branch coverage are **pending the separate
-coordinator validation permit**; no passing-test/readiness or E/Q claim is made.
+implement this consumed I subset. Validation requires deterministic execution,
+maintained native/build checks and exact raw 100% portable line/branch coverage
+with commit-bound source, binary, report and test provenance. Continuation receipts
+preserve failed attempts separately from successful proof; a validation permit or
+rounded coverage display is not passing-test/readiness evidence.
 Unqualified provider/runtime/egress/wake/profile-original writers remain unavailable.
 
 ### Delivered closed targeted metadata reads - 2026-10-12

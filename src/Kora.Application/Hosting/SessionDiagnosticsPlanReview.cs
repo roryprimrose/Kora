@@ -36,5 +36,3 @@ public sealed class SessionDiagnosticsPlanReview
         + "Existing IDs, deadlines, pause, order and run controls are unchanged. "
         + "Dispatch remains a separate manual fair bounded action; no pump, model, network, provider, executor or action authority.";
 }
-
-public enum SessionDiagnosticsPlanPrerequisite { None }

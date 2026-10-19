@@ -44,9 +44,11 @@ prerequisite and fresh host IDs. Sequential/possibly partial outcomes stop at un
 earlier pending commits remain queued, with no retry, rollback or implicit dispatch.
 
 This consumes only the merged session/queue/profile/admission/audit/limits I subset.
-Implementation, deterministic tests and native wiring are authored; builds, test execution,
-maintained native checks and exact-source raw 100% portable line/branch proof are pending
-the separately admitted serial validation lane. This is not READY or qualification evidence.
+Implementation, deterministic tests and native wiring are authored. Readiness requires
+builds, test execution, maintained native checks and exact-source raw 100% portable
+line/branch proof in the separately admitted serial validation lane. Commit-bound
+continuation receipts distinguish failed attempts from completed proof; authorization
+alone is not READY or qualification evidence.
 No model/provider/network/executor or background pump is added; E/Q, installed/hardware and
 physical/provider/containment qualification remain separate and unclaimed.
 

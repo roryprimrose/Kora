@@ -130,7 +130,7 @@ public sealed partial class SessionQueueService
                     // Intentionally no native row prerequisite, target, arguments or dispatch.
                 };
                 attempted = true;
-                var result = await ExecuteCommandCoreAsync(command, origin, Eligible, token, review, committed =>
+                _ = await ExecuteCommandCoreAsync(command, origin, Eligible, token, review, committed =>
                 {
                     var entry = committed.Entries.SingleOrDefault(row => row.Request == work);
                     if (entry is null || entry.ReadProfile != outcomes[index].Profile || entry.Dependency is not null
@@ -148,9 +148,8 @@ public sealed partial class SessionQueueService
                     {
                         throw new InvalidDataException("The returned durable queue/control receipt is not the exact reviewed enqueue.");
                     }
+                    expected = committed;
                 }).ConfigureAwait(false);
-                expected = result.Queue ?? throw new InvalidDataException("The committed queue receipt is missing.");
-                if (outcomes[index].CommittedEntry is null) { throw new InvalidDataException("The new task receipt is missing."); }
                 outcomes[index] = outcomes[index] with { State = SessionDiagnosticsPlanItemState.Accepted };
             }
         }
@@ -197,7 +196,7 @@ public sealed partial class SessionQueueService
     {
         lock (causeGate)
         {
-            return !disposed && !lifetime.IsCancellationRequested && diagnosticsEpoch == epoch
+            return !disposed && diagnosticsEpoch == epoch
                 && access.CanControl && access.CanInspect && access.ControlRevision == admissionRevision;
         }
     }

@@ -436,7 +436,8 @@ public sealed partial class SessionWorkspaceServiceTests
         using var f = new Fixture();
         await using var queue = f.QueueService();
         var expected = await f.ReadQueueAsync(f.Request.SessionId, f.Token);
-        SessionDiagnosticsPlanReview? replacement = null;
+        Task? disposal = null;
+        Task<SessionDiagnosticsPlanReview>? replacement = null;
         f.AfterQueueRead = () =>
         {
             f.AfterQueueRead = null;
@@ -444,18 +445,19 @@ public sealed partial class SessionWorkspaceServiceTests
             {
                 case "inspect": f.CanInspect = false; break;
                 case "control": f.CanControl = false; break;
-                case "dispose": queue.DisposeAsync().AsTask().GetAwaiter().GetResult(); break;
-                case "replacement": replacement = DiagnosticsReview(f, queue).GetAwaiter().GetResult(); break;
+                case "dispose": disposal = queue.DisposeAsync().AsTask(); break;
+                case "replacement": replacement = DiagnosticsReview(f, queue); break;
             }
         };
         var act = () => queue.ReviewDiagnosticsPlanAsync(expected, AllDiagnostics, SessionDiagnosticsPlanPrerequisite.None,
             RequestOrigin.LocalUi, () => true, f.Token);
         await act.Should().ThrowAsync<InvalidOperationException>();
+        if (disposal is not null) { await disposal; }
         f.TaskWrites.Should().BeEmpty();
         f.QueueRows.Should().BeEmpty();
         if (replacement is not null)
         {
-            (await queue.ConfirmDiagnosticsPlanAsync(replacement, RequestOrigin.LocalUi, () => true, f.Token))
+            (await queue.ConfirmDiagnosticsPlanAsync(await replacement, RequestOrigin.LocalUi, () => true, f.Token))
                 .Items.Should().OnlyContain(item => item.State == SessionDiagnosticsPlanItemState.Accepted);
         }
     }

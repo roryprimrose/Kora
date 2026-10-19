@@ -31,7 +31,7 @@ retires the review and its private bodies. Cancel before confirmation makes no c
 Forget results are content-free even on failed/malformed readback, and private-source loss suppresses stale bodies/results.
 Single-record controls remain available under their existing policy. No batch acceptance/admission, scope promotion, recall,
 provider/network action, session-retention exemption, automatic deletion or broader model behavior is enabled.
-Implementation tests are authored; validation and exact coverage await the serial permit, not unrelated E/Q evidence.
+Implementation tests are authored; current-head maintained builds, tests and exact portable line-and-branch coverage are required before merge, not unrelated E/Q evidence.
 
 ## Fixed Session Attachment Boundary
 

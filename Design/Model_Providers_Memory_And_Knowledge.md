@@ -508,8 +508,8 @@ recall, scope promotion, provider/network action, retention-policy change, foren
 [authoritative action tests](../tests/Kora.Application.UnitTests/Memory/MemoryAdmissionServiceTests.BatchForget.cs),
 [native controls](../tests/Kora.Windows.IntegrationTests/SessionsMemoryFilterTests.BatchForget.cs) and
 [private SQLite tests](../tests/Kora.Windows.IntegrationTests/Storage/WindowsSqliteMemoryTests.BatchForget.cs)
-are authored. Their execution, maintained full checks and exact portable line/branch coverage remain pending
-the coordinator's serial validation permit; the disable-only historical proof above does not validate this extension.
+are authored. Current-head maintained builds, full checks and exact portable line/branch coverage are required
+before merge; the disable-only historical proof above does not validate this extension.
 
 ### Delivered Original-User Session Memory Proposals - 2026-10-10
 

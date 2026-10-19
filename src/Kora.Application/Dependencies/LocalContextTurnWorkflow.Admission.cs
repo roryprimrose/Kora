@@ -14,7 +14,7 @@ public sealed partial class LocalContextTurnWorkflow
         internal LocalContextTurnReason Reason { get; } = reason;
     }
 
-    private sealed class AdmittedContextTurn(HostRequest request) : IAdmittedModelContextTurn
+    private sealed class AdmittedContextTurn(HostRequest request, HostRequest sourceRequest) : IAdmittedModelContextTurn
     {
         private readonly Lock gate = new();
         private readonly CancellationTokenSource lifetime = new();
@@ -72,7 +72,7 @@ public sealed partial class LocalContextTurnWorkflow
                 used = true;
                 var current = HostActivity.Current;
                 var rejection = current is null || current.Activity!.IsStopped
-                    || current.Outcome != HostOperationOutcome.Unknown || !ReferenceEquals(current.Request, request)
+                    || current.Outcome != HostOperationOutcome.Unknown || !ReferenceEquals(current.Request, sourceRequest)
                     ? LocalContextTurnReason.OriginalInputRequired : (LocalContextTurnReason?)null;
                 (submission ?? throw new InvalidOperationException("Context submission is unavailable."))
                     .SetResult(new(rejection is null ? context : null, rejection, token));

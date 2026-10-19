@@ -29,6 +29,7 @@ public sealed class WindowsSqliteLocalContextTurnTests
         using var fixture = new InteractionStorageFixture();
         await fixture.Tasks.InitializeAsync(fixture.Token);
         await fixture.Store.InitializeAsync(fixture.Token);
+        var sourceRequest = HostRequest.Create(origin);
         var request = HostRequest.Create(origin);
         var controls = new Controls();
         var adapter = new Adapter { ProposeTool = proposeTool };
@@ -46,9 +47,9 @@ public sealed class WindowsSqliteLocalContextTurnTests
             NullLogger<SessionWorkspaceService>.Instance);
         await using var workflow = new LocalContextTurnWorkflow(fixture.Store, fixture.Store, sessions, coordinator,
             controls, new Admission(host), host, controls, NullLogger<LocalContextTurnWorkflow>.Instance);
-        using var root = HostActivity.BeginRoot(request, HostActivityLayer.Application, HostOperation.Request);
+        using var root = HostActivity.BeginRoot(sourceRequest, HostActivityLayer.Application, HostOperation.Request);
         IModelContextRunner runner = workflow;
-        var target = LocalContextSessionTarget.ReviewedFresh(request);
+        var target = LocalContextSessionTarget.ReviewedFresh(sourceRequest, request);
         var issued = await runner.AdmitAsync(target, static () => true, fixture.Token);
         issued.Rejection.Should().BeNull();
         await using var admitted = issued.Turn
@@ -84,6 +85,8 @@ public sealed class WindowsSqliteLocalContextTurnTests
         host.IsQuiescent.Should().BeTrue();
         fixture.Count("work_sessions").Should().Be(1);
         fixture.Count("host_tasks").Should().Be(2);
+        var sessionsPage = await fixture.Store.ReadSessionsAsync(null, 10, fixture.Token);
+        sessionsPage.Records.Should().NotContain(session => session.SessionId == sourceRequest.SessionId);
         fixture.Count("conversation_messages").Should().Be(0);
         fixture.Count("conversation_drafts").Should().Be(0);
         fixture.Count("host_questions").Should().Be(0);

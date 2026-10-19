@@ -114,4 +114,34 @@ public sealed partial class LocalContextTurnWorkflowTests
         receipt.DurableState.Should().Be(HostTaskState.Succeeded);
         receipt.Answer.Should().BeNull();
     }
+
+    [Theory]
+    [InlineData(RequestOrigin.LocalUi, false)]
+    [InlineData(RequestOrigin.ActivatedVoice, false)]
+    [InlineData(RequestOrigin.LocalUi, true)]
+    public async Task VolatileSourceLineageCannotBecomeEnvelopeOrDurableTaskAuthority(RequestOrigin origin, bool reuseSourceEnvelope)
+    {
+        await using var fixture = new Fixture(origin);
+        using var source = fixture.Root();
+        var durableRequest = HostRequest.Create(origin);
+        var target = LocalContextSessionTarget.ReviewedFresh(fixture.Request, durableRequest);
+        var issued = await fixture.Workflow.AdmitAsync(target, () => fixture.Eligible, Token);
+        issued.Rejection.Should().BeNull();
+        await using var turn = issued.Turn ?? throw new InvalidOperationException("Missing reviewed durable target.");
+        turn.Request.Should().BeSameAs(durableRequest).And.NotBeSameAs(fixture.Request);
+        fixture.Store.Tasks.Should().NotContain(task => task.Request == fixture.Request);
+        fixture.Store.Tasks.Last().Request.Should().BeSameAs(turn.Request);
+        fixture.Store.Tasks.Last().State.Should().Be(HostTaskState.DispatchRecorded);
+        fixture.Model.Calls.Should().Be(0);
+        var envelopeRequest = reuseSourceEnvelope ? fixture.Request : turn.Request;
+        var envelope = new ModelContextEnvelope(envelopeRequest, "untrusted source", "summarize",
+            [new(new(Guid.NewGuid()), envelopeRequest, new(1), "do-not-persist-web-source", ModelEvidenceDisclosure.LocalOnly)],
+            DateTimeOffset.UtcNow, DateTimeOffset.UtcNow.AddSeconds(15), allowTools: false);
+        var receipt = await turn.RunAsync(envelope, Token);
+        receipt.Request.Should().BeSameAs(durableRequest);
+        receipt.Outcome.Should().Be(reuseSourceEnvelope ? ModelTurnOutcome.Denied : ModelTurnOutcome.Succeeded);
+        receipt.Reason.Should().Be(reuseSourceEnvelope ? LocalContextTurnReason.ContextMismatch : LocalContextTurnReason.Completed);
+        fixture.Model.Calls.Should().Be(reuseSourceEnvelope ? 0 : 1);
+        HostActivity.Current.Should().BeSameAs(source);
+    }
 }

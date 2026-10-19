@@ -29,4 +29,18 @@ public sealed class ModelContextAdmissionTests
         var create = () => new ModelContextAdmission(receipt);
         create.Should().Throw<InvalidDataException>();
     }
+
+    [Theory]
+    [InlineData("origin")]
+    [InlineData("request")]
+    [InlineData("task")]
+    public void ReviewedTargetCannotRelabelOriginOrAliasVolatileTaskIdentity(string alias)
+    {
+        var source = HostRequest.Create(RequestOrigin.ActivatedVoice);
+        var proposed = new HostRequest(alias is "request" ? source.RequestId : new(Guid.NewGuid()),
+            new(Guid.NewGuid()), alias is "task" ? source.TaskId : new(Guid.NewGuid()),
+            alias is "origin" ? RequestOrigin.LocalUi : source.Origin);
+        var create = () => LocalContextSessionTarget.ReviewedFresh(source, proposed);
+        create.Should().Throw<InvalidDataException>();
+    }
 }

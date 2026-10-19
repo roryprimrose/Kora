@@ -30,15 +30,21 @@ public sealed class ModelContextEnvelope
         UserRequest = userRequest;
         CreatedAt = createdAt;
         ExpiresAt = expiresAt;
-        Evidence = evidence.Take(MaximumEvidenceItems + 1).ToImmutableArray();
-        if (Evidence.Length > MaximumEvidenceItems)
+        Evidence = ValidateContent(request, systemPolicy, userRequest, evidence);
+    }
+
+    internal static ImmutableArray<ModelContextEvidence> ValidateContent(HostRequest request, string systemPolicy,
+        string userRequest, IEnumerable<ModelContextEvidence> evidence)
+    {
+        var items = evidence.Take(MaximumEvidenceItems + 1).ToImmutableArray();
+        if (items.Length > MaximumEvidenceItems)
         {
             throw new InvalidDataException("The context evidence count exceeds the host limit.");
         }
         ValidateText(systemPolicy);
         ValidateText(userRequest);
         var ids = new HashSet<HostId<EvidenceIdentity>>();
-        foreach (var item in Evidence)
+        foreach (var item in items)
         {
             if (item is null) { throw new InvalidDataException("A context evidence item is missing."); }
             item.Id.Validate();
@@ -49,6 +55,7 @@ public sealed class ModelContextEnvelope
             }
             ValidateText(item.Content);
         }
+        return items;
     }
 
     public HostRequest Request { get; }

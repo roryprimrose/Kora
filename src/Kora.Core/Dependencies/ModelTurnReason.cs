@@ -29,4 +29,6 @@ public enum ModelTurnReason
     LocalEvidenceNotDisclosable,
     GenerationNotEnabled,
     HostInterrupted,
+    ToolLoopBudgetExceeded,
+    ToolResultRejected,
 }

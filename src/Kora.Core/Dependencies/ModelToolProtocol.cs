@@ -18,11 +18,19 @@ public static partial class ModelToolProtocol
     private static readonly UTF8Encoding StrictUtf8 = new(false, true);
 
     public static ModelToolRequest CreateRequest(ModelTurnProvenance provenance, ProviderProfileTuple? profile,
-        ModelToolContext context, IEnumerable<ModelToolMessage> messages, int round)
+        ModelToolContext context, IEnumerable<ModelToolMessage> messages, int round, ModelToolBudget? budget = null)
     {
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(messages);
         ValidateProvenance(provenance);
+        if (context.Provenance != provenance)
+        { throw new InvalidDataException("A context cannot be reused by another host turn."); }
+        if (profile is not null)
+        {
+            ProviderProfileRules.ValidateTuple(profile);
+            if (profile.Service != ProviderProfileRules.ServiceFor(provenance.Selection.Provider))
+            { throw new InvalidDataException("The provider tuple does not belong to the host selection."); }
+        }
         var history = messages.Take(MaximumCalls * 2 + 1).ToImmutableArray();
         ValidateHistory(history);
         var expectedRound = history.Count(message => message is ModelAssistantToolCalls) + 1;
@@ -30,8 +38,9 @@ public static partial class ModelToolProtocol
         { throw new InvalidDataException("The continuation round is not the complete serial history."); }
         // Revalidate the immutable source against this request rather than allowing cross-session reuse.
         ReadContext(context.Wire.AsSpan(), provenance);
-        var request = new ModelToolRequest(provenance, profile, context, history, round);
-        if (SerializeRequest(request).Length > MaximumInputUtf8Bytes)
+        var request = new ModelToolRequest(provenance, profile, context, history, round,
+            budget ?? new(MaximumInputUtf8Bytes, MaximumOutputUtf8Bytes));
+        if (SerializeRequest(request).Length > request.Budget.InputUtf8Bytes)
         { throw new InvalidDataException("The complete model request exceeds the input limit."); }
         return request;
     }

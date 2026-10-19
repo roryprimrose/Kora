@@ -34,7 +34,7 @@ public static partial class ModelToolProtocol
         { throw new InvalidDataException("The complete host context or catalogue does not match the admitted protocol."); }
         var evidence = ModelContextEnvelope.ValidateContent(provenance.Request, content.SystemPolicy,
             content.UserRequest, content.Evidence);
-        return new(content.SystemPolicy, content.UserRequest, evidence, ImmutableArray.CreateRange(wire.ToArray()));
+        return new(provenance, content.SystemPolicy, content.UserRequest, evidence, ImmutableArray.CreateRange(wire.ToArray()));
     }
 
     private sealed record ContextContent(string SystemPolicy, string UserRequest, ModelContextEvidence[] Evidence,

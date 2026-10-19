@@ -79,6 +79,18 @@ for actual SDK final-request, transport, retry, session-I/O, resource, account
 or all-path lifecycle tests. RT1/RT2/MG1/Node and local-inference experiments
 remain retained with no assertions marked migrated or unique evidence removed.
 
+The [2026-10-20 bounded provider-neutral continuation engine](Internal_Model_Tools.md#bounded-provider-neutral-continuation-implementation---2026-10-20)
+adds a maintained Application model/tool/result consumer over the portable
+`IModelToolTransport` seam. It uses the live admitted host and the closed six-ID
+registry, not a copied experiment, a new provider selection or a qualifier.
+Deterministic fake transport tests are authored; their execution and exact
+coverage remain pending serial admission. This consumer does not establish
+native Ollama, Copilot SDK, all-path lifecycle, account, containment or
+installed-profile evidence. No experiment assertion is marked migrated and
+no RT1/RT2/MG1/PV1 proof is removed or requested as an implementation prerequisite.
+Production exposure still requires the applicable exact runtime/profile E/Q
+gates, with explicit unavailable behavior until they pass.
+
 The [provider policy/exact-review workflow](Model_Providers_Memory_And_Knowledge.md#delivered-provider-policy-and-exact-handoff-workflow---2026-10-09)
 now consumes that host boundary and existing question transactions. It adds no
 SDK, transport or management-runtime subject: approved review still fails

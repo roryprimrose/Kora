@@ -34,6 +34,28 @@ do not depend on hosted management, and speech preferences do not qualify wake.
 
 ## Current Delivery
 
+### Bounded provider-neutral local-model tool continuation implementation - 2026-10-20
+
+The [tool-loop contract](Internal_Model_Tools.md#bounded-provider-neutral-continuation-implementation---2026-10-20)
+adds immutable Core protocol/transport contracts, one strict shared input
+policy, finite complete/cumulative byte/call/round/deadline budgets and an
+Application engine behind `IModelTurnAdapter`. Its only tool dispatch is the
+existing `ModelTurnHost` callback; additional host-owned continuation
+revalidation closes every send on stale session/task/generation/policy,
+privacy, expiry or qualification. Exact successful results continue as inert
+data, and only a genuine final answer enters the existing response contract.
+
+The consumed I subset is the existing host admission/single-use/caller/audit/
+quiescence foundation and six read-only catalogue actions. Production
+transport composition belongs to its native adapter owner, and conversation
+retention/presentation to its session owner; neither is replaced here.
+Deterministic real-host/fake-transport tests and related documentation are
+authored. Build/test execution and exact raw 100% portable line **and** branch
+coverage remain pending the explicit serial validation permit, not claimed
+READY. Qualified fake evidence cannot qualify production. Runtime/profile
+enablement and RC E/Q remain unavailable, independent of this bounded I
+implementation; no provider/hardware/network/experiment is executed.
+
 ### Bounded exact sparse session-provider copy implementation - 2026-10-19
 
 The [session-provider copy contract](Model_Providers_Memory_And_Knowledge.md#exact-sparse-session-provider-copy-implementation---2026-10-19) adds explicit native/typed/current-name activated review of a source's exact sparse overrides for a distinct active destination. Complete old/new policy and effective/unavailable disclosure precedes separate expiring one-shot confirmation; null inheritance is never flattened into a source effective tuple.

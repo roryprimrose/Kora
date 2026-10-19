@@ -245,7 +245,7 @@ public sealed partial class MainViewModelTests
         {
             if (item.Outcome == SecurityAuditOutcome.Requested && string.Equals(item.ActionId, "configuration.windows-speech-rate", StringComparison.Ordinal))
             {
-                fixture.ViewModel.RefreshWindowsSpeechRateCommand.ExecuteAsync().GetAwaiter().GetResult();
+                fixture.ViewModel.RefreshWindowsSpeechRateCommand.ExecuteAsync().IsCompletedSuccessfully.Should().BeTrue();
             }
         };
         await fixture.ViewModel.ExecuteWindowsSpeechRateCommandAsync(new(AppearanceCommandOperation.Set, "1"),
@@ -347,7 +347,7 @@ public sealed partial class MainViewModelTests
             if (changed is "topology") { fixture.PrivacyObservation.Current = fixture.PrivacyObservation.Current with { TopologyRevision = 100 }; }
             if (changed is "native") { visible = false; }
             if (changed is "native-replaced") { fixture.ViewModel.BindWindowsSpeechRateNativeLifetime(static () => true); }
-            if (changed is "name") { fixture.ViewModel.SetAssistantNameAsync("Nova").GetAwaiter().GetResult(); }
+            if (changed is "name") { fixture.ViewModel.SetAssistantNameAsync("Nova").IsCompletedSuccessfully.Should().BeTrue(); }
             if (changed is "voice-generation") { fixture.Voice.AdvanceGeneration(); }
         };
         await fixture.ViewModel.ExecuteWindowsSpeechRateCommandAsync(new(AppearanceCommandOperation.Set, "1"),

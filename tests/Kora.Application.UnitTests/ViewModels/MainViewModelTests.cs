@@ -1,4 +1,4 @@
-using System.Globalization;
+﻿using System.Globalization;
 using System.Net;
 using System.Reflection;
 using System.Diagnostics;
@@ -8520,7 +8520,7 @@ public sealed partial class MainViewModelTests : IDisposable
             bool enableArtifactConfiguration = false,
             Exception? artifactReadFailure = null,
             bool enableMcpServerConfiguration = true, bool enableProviderProfiles = false,
-            bool enableQuestionReplies = false, bool enableAuditImpact = false)
+            bool enableQuestionReplies = false, bool enableAuditImpact = false, bool enableSessionRetentionPlanner = false)
         {
             Catalog = new BuiltInCommandCatalog();
             CaptionPreferences.LoadFailure = captionReadFailure;
@@ -8683,7 +8683,8 @@ public sealed partial class MainViewModelTests : IDisposable
                 ArtifactDirectoryConfiguration,
                 McpServerConfiguration,
                 enableProviderProfiles ? new ProviderProfileConfigurationService(ProfilePreferences, ProfileCatalogue, OutputAdmission, Audit, ProfileTime) : null,
-                enableAuditImpact ? new AuditImpactPreviewService(ImpactReader, AuditPreferences, AuditConfiguration!) : null);
+                enableAuditImpact ? new AuditImpactPreviewService(ImpactReader, AuditPreferences, AuditConfiguration!) : null,
+                enableSessionRetentionPlanner ? new SessionRetentionPlannerService(SessionPlanReader, SessionRetentionConfiguration!) : null);
             ViewModel.BindCallOwnershipGate(static () => true);
             ViewModel.BindManualCallNativeLifetime(true);
             if (enableWindowsSpeechRate) { ViewModel.BindWindowsSpeechRateNativeLifetime(static () => true); }
@@ -8732,6 +8733,7 @@ public sealed partial class MainViewModelTests : IDisposable
         public DiagnosticRetentionConfigurationService? DiagnosticConfiguration { get; }
         public FakeSessionRetentionPreferences SessionRetentionPreferences { get; } = new();
         public SessionRetentionConfigurationService? SessionRetentionConfiguration { get; }
+        public Kora.Application.UnitTests.Configuration.SessionRetentionPlannerServiceTests.Reader SessionPlanReader { get; } = new();
         public AuditRetentionAdmission AuditAdmission { get; }
         public FakeAuditRetentionPreferences AuditPreferences { get; } = new();
         public AuditRetentionPolicy AuditPolicy { get; } = new();

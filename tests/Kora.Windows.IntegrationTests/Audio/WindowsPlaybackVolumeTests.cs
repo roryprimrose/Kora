@@ -22,10 +22,12 @@ public sealed class WindowsPlaybackVolumeTests
             cancelOwnedSynthesis: () =>
             {
                 cancellations++;
+#pragma warning disable VSTHRD002 // The bounded cross-thread wait proves synchronous cancellation runs outside the state lock.
                 Task.Run(() => service!.OnPlaybackStopped(new object(), new()),
                     TestContext.Current.CancellationToken)
                     .WaitAsync(TimeSpan.FromSeconds(15), TestContext.Current.CancellationToken)
                     .GetAwaiter().GetResult();
+#pragma warning restore VSTHRD002
             });
         await using (service)
         {

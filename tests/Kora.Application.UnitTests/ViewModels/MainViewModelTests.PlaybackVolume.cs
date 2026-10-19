@@ -235,7 +235,7 @@ public sealed partial class MainViewModelTests
         {
             if (item.Outcome == SecurityAuditOutcome.Requested && string.Equals(item.ActionId, "configuration.playback-volume", StringComparison.Ordinal))
             {
-                fixture.ViewModel.RefreshPlaybackVolumeCommand.ExecuteAsync().GetAwaiter().GetResult();
+                fixture.ViewModel.RefreshPlaybackVolumeCommand.ExecuteAsync().IsCompletedSuccessfully.Should().BeTrue();
             }
         };
         await fixture.RunAsync("set speech.playback-volume to 1");

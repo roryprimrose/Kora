@@ -1,4 +1,4 @@
-using System.Diagnostics;
+﻿using System.Diagnostics;
 
 using AwesomeAssertions;
 
@@ -34,6 +34,8 @@ public sealed class SessionRetentionConfigurationServiceTests : IDisposable
         fixture.Service.Observe();
         fixture.Policy.Settings.Should().Be(SessionRetentionSettings.Default);
         fixture.Service.Settings.Should().Be(SessionRetentionSettings.Default);
+        var changes = 0;
+        fixture.Service.Changed += (_, _) => changes++;
         var old = fixture.Policy.Settings;
         fixture.Audit.BeforeWrite = _ => fixture.Policy.Settings.Should().Be(old);
         (await fixture.Save(new(2, 60))).Should().BeTrue();
@@ -48,6 +50,7 @@ public sealed class SessionRetentionConfigurationServiceTests : IDisposable
         fixture.Audit.Events.Chunk(2).Should().OnlyContain(pair =>
             pair[0].Outcome == SecurityAuditOutcome.Requested && pair[1].Outcome == SecurityAuditOutcome.Succeeded
             && pair[0].ActionId == "configuration.session-retention");
+        changes.Should().BeGreaterThan(0);
     }
 
     [Theory]
@@ -129,6 +132,35 @@ public sealed class SessionRetentionConfigurationServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task PlannerObservationRequiresAnIdleConfirmedPolicyAndPreservesSavedSourceRevision()
+    {
+        await using var fixture = new Fixture();
+        fixture.Service.Observe();
+        var initial = fixture.Service.GetObservation();
+        var inspected = false;
+        fixture.Audit.BeforeWrite = item =>
+        {
+            if (item.Outcome == SecurityAuditOutcome.Requested)
+            {
+                fixture.Preferences.AfterLoad = () =>
+                {
+                    fixture.Preferences.AfterLoad = null;
+                    inspected = true;
+                    fixture.Service.Invoking(service => service.GetObservation()).Should().Throw<InvalidOperationException>();
+                };
+            }
+        };
+        (await fixture.Save(new(2, 60))).Should().BeTrue();
+        inspected.Should().BeTrue();
+        var saved = fixture.Service.GetObservation();
+        saved.Saved.Should().Be(new SessionRetentionSettings(2, 60));
+        saved.PreferenceRevision.Should().BeGreaterThan(initial.PreferenceRevision);
+        saved.PolicyRevision.Should().BeGreaterThan(initial.PolicyRevision);
+        fixture.Service.IsCurrentObservation(initial).Should().BeFalse();
+        fixture.Service.IsCurrentObservation(saved).Should().BeTrue();
+    }
+
+    [Fact]
     public async Task Cancelled_or_unadmitted_input_cannot_write_and_policy_requires_explicit_refresh()
     {
         await using var fixture = new Fixture();
@@ -178,10 +210,12 @@ public sealed class SessionRetentionConfigurationServiceTests : IDisposable
         internal Exception? WriteFailure { get; set; }
         internal Exception? ConfirmFailure { get; set; }
         internal Action? AfterSave { get; set; }
+        internal Action? AfterLoad { get; set; }
         internal Action? AfterConfirm { get; set; }
         public SessionRetentionSettings? Load()
         {
             if (Pending) { throw new InvalidDataException("Unconfirmed preference."); }
+            AfterLoad?.Invoke();
             return ReadBack();
         }
         public SessionRetentionSettings? ReadBack() { if (ReadFailure is { } failure) { throw failure; } return Value; }

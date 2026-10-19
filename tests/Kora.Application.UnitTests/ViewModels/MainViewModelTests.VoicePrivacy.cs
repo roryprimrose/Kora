@@ -1690,7 +1690,7 @@ public sealed partial class MainViewModelTests
                     fixture.Voice.AdvanceGeneration();
                     break;
                 case "handoff":
-                    fixture.ViewModel.TryPrepareHandoffAsync().GetAwaiter().GetResult();
+                    fixture.ViewModel.TryPrepareHandoffAsync().IsCompletedSuccessfully.Should().BeTrue();
                     break;
                 case "lock":
                     fixture.Session.IsUnlocked = false;
@@ -2448,18 +2448,20 @@ public sealed partial class MainViewModelTests
         fixture.Probe.Status = new DependencyStatus("local.inference", "Inference", DependencyReadiness.Ready, "Ready");
         fixture.Reasoner.Action = BuiltInAction.ShowHelp;
         await fixture.ViewModel.InitializeAsync();
-        bool? handoffDuringDispatch = null;
+        Task<bool>? handoffDuringDispatch = null;
         fixture.ViewModel.PropertyChanged += (_, change) =>
         {
             if (string.Equals(change.PropertyName, nameof(fixture.ViewModel.IsSpeaking), StringComparison.Ordinal)
                 && fixture.ViewModel.IsSpeaking)
             {
-                handoffDuringDispatch = fixture.ViewModel.TryPrepareHandoffAsync().GetAwaiter().GetResult();
+                handoffDuringDispatch = fixture.ViewModel.TryPrepareHandoffAsync();
+                handoffDuringDispatch.IsCompletedSuccessfully.Should().BeTrue();
             }
         };
         await fixture.RunAsync("please describe available features");
         await fixture.ViewModel.ActiveReasoningTask!;
-        handoffDuringDispatch.Should().BeFalse();
+        handoffDuringDispatch.Should().NotBeNull();
+        (await handoffDuringDispatch!).Should().BeFalse();
         (await fixture.ViewModel.TryPrepareHandoffAsync()).Should().BeTrue();
     }
 

@@ -28,7 +28,9 @@ internal sealed partial class PromptParameterController(
     private long reviewRevision;
     private PreparedPromptConversation? reviewed;
     private bool submissionHeld;
+#pragma warning disable VSTHRD003 // Exposes this controller's owned operation for asynchronous observation without duplicating submission.
     internal Task ActiveOperation => activeOperation;
+#pragma warning restore VSTHRD003
 
     internal void Bind()
     {

@@ -1,4 +1,4 @@
-using System.Collections.Immutable;
+﻿using System.Collections.Immutable;
 using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
@@ -700,10 +700,7 @@ public sealed partial class WindowsSqliteHostInteractionStore : IHostInteraction
             || !IsHex(audit.TraceId, 32) || !IsHex(audit.SpanId, 16)
             || audit.Audit.Category != SecurityAuditCategory.SecurityApproval
             || !Same(audit.Audit.TargetId, Id(audit.Request.TaskId))
-            || audit.Changes.Any(change => change.Digest is null || !IsHex(change.Digest, 64) || change.Revision <= 0
-                || change.Kind is not ("session" or "observation" or "question" or "grant" or "metadata" or "task" or "wait" or "queue" or "queue-order" or "retention" or "memory" or "session-file" or "session-provider-profile" or "conversation-draft" or "conversation-message")
-                || !Guid.TryParseExact(change.Id, "D", out var id) || id == Guid.Empty
-                || !Same(change.Id, id.ToString("D"))))
+            || audit.Changes.Any(change => !IsValidAuthorityChange(change)))
         {
             throw new InvalidDataException("The typed interaction audit chain or identity is invalid.");
         }
@@ -1086,6 +1083,13 @@ public sealed partial class WindowsSqliteHostInteractionStore : IHostInteraction
         [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] SessionQueueRequeueReceipt? QueueRequeueReceipt = null);
 
     private sealed record AuthorityChange(string Kind, string Id, long Revision, string Digest);
+
+    private static bool IsValidAuthorityChange(AuthorityChange change) =>
+        change is not null && change.Digest is not null && IsHex(change.Digest, 64) && change.Revision > 0
+        && change.Kind is ("session" or "observation" or "question" or "grant" or "metadata" or "task" or "wait"
+            or "queue" or "queue-order" or "retention" or "memory" or "session-file" or "session-provider-profile"
+            or "conversation-draft" or "conversation-message")
+        && Guid.TryParseExact(change.Id, "D", out var id) && id != Guid.Empty && Same(change.Id, id.ToString("D"));
 
     private static AuthorityChange Change(string kind, string id, long revision, string payload) =>
         new(kind, id, revision, Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(payload))));

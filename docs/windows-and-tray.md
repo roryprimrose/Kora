@@ -415,8 +415,7 @@ the presence's visibility.
 
 While idle or listening without a prompt needing attention, presence hides
 automatically after **10 seconds** without Kora interaction. It does not ask
-before hiding. Change **Presence timeout** under **Settings > Appearance >
-Presence appearance** to any value from 1 to 60 seconds. New interaction
+before hiding. Change **Presence timeout** in the **Presence** group under **Settings > Appearance** to any value from 1 to 60 seconds ([settings layout](../src/Kora/SettingsWindow.axaml)). New interaction
 restarts the timer, including Ctrl-dragging the presence.
 Active work, speech, approvals, questions, recovery actions, grant editing,
 and unacknowledged failures keep presence visible. After these finish, the
@@ -428,7 +427,7 @@ the response, last transcript, typed-command fallback, and a **Dismiss** action.
 Drag its title area to reposition it. Kora remembers the position when it is
 still on a connected display.
 
-Under **Settings > Appearance > Visual feedback**, configure:
+In the **Appearance** group under **Settings > Appearance**, configure ([settings layout](../src/Kora/SettingsWindow.axaml)):
 
 - **Always show** - keep the current response visible until dismissed;
 - **Stay on top** - keep the response above other windows; enabled by default;

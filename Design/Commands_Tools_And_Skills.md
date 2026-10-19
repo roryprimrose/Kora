@@ -452,6 +452,17 @@ An agent SDK can own iteration only if every invocation and result transmission 
 An inference adapter uses the shared Kora-owned loop.
 In neither case does the model directly execute application code.
 
+The [bounded read-only continuation implementation](Internal_Model_Tools.md#bounded-provider-neutral-continuation-implementation---2026-10-20)
+now supplies that host-owned loop over a provider-neutral portable transport.
+It consumes only the existing six read-only capabilities through the admitted
+host callback. Complete-message validation precedes serial one-use calls;
+genuine correlated results remain inert data, and a final answer uses the
+existing response contract. Live host revalidation, complete cumulative byte,
+call/round and deadline limits, no retries and actual transport termination
+remain mandatory. This is not a running provider, a skill/agent executor or
+permission to use the legacy action selector as a tool loop. Production
+qualification and default enablement remain unavailable.
+
 Safe/Approve-all admissions create no grants. Commands/UI, MCP, generated/stored scripts and skill steps share the host decision; unsupported profiles remain unavailable. [Call approval eligibility](Session_Permission_Levels.md#voice-approval-and-protected-calls) restricts spoken approval by default, not grants or the level. These are proposed additions, not implemented transports.
 
 ## Internal Tool Example: Current Session State

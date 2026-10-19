@@ -54,9 +54,10 @@ public static partial class ModelToolProtocol
     {
         ArgumentNullException.ThrowIfNull(call);
         ArgumentNullException.ThrowIfNull(reply);
-        if (!Enum.IsDefined(reply.Outcome) || string.IsNullOrWhiteSpace(reply.Reason)
+        if (reply.Outcome != CapabilityOutcome.Succeeded || string.IsNullOrWhiteSpace(reply.Reason)
             || !CapabilityReplyWire.IsWithinLimit(reply))
         { throw new InvalidDataException("The host tool result is invalid or exceeds its complete bound."); }
+        ValidateResult(call, reply);
         var wire = CapabilityReplyWire.Serialize(reply);
         using var document = ReadJson(wire, MaximumOutputUtf8Bytes);
         return new(call.CallId, call.CapabilityId, ImmutableArray.CreateRange(wire));
@@ -105,6 +106,7 @@ public static partial class ModelToolProtocol
             writer.WritePropertyName("result");
             writer.WriteRawValue(result.Result.AsSpan());
         }
+        else { throw new InvalidDataException("Unknown conversation message type."); }
         writer.WriteEndObject();
     }
 

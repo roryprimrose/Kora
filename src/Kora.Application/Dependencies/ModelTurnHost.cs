@@ -26,7 +26,7 @@ public sealed partial class ModelTurnHost : IAsyncDisposable, IModelTurnAdmissio
     private readonly ProviderModeConfigurationService? providerModeConfiguration;
     private readonly ProviderProfileConfigurationService? providerProfileConfiguration;
     private readonly ISessionProviderProfileStore? sessionProfiles;
-    private static readonly TimeSpan Deadline = TimeSpan.FromSeconds(15);
+    private static readonly TimeSpan Deadline = ModelToolProtocol.Deadline;
     private readonly Lock dispatchGate = new();
     private readonly CancellationTokenSource lifetime = new();
     private TaskCompletionSource? quiescence;
@@ -242,7 +242,8 @@ public sealed partial class ModelTurnHost : IAsyncDisposable, IModelTurnAdmissio
         {
             token.ThrowIfCancellationRequested();
             var pending = turn.Registration.Adapter!.RunAsync(turn.Provenance, turn.Profile, turn.Wire.AsMemory(),
-                (id, input, toolToken) => InvokeToolAsync(turn, id, input, token, toolToken), token);
+                (id, input, toolToken) => InvokeToolAsync(turn, id, input, token, toolToken),
+                continuationToken => RevalidateAsync(turn, continuationToken), token);
             try { reply = await pending.WaitAsync(token).ConfigureAwait(false); }
             catch (OperationCanceledException) when (token.IsCancellationRequested)
             {
@@ -261,11 +262,12 @@ public sealed partial class ModelTurnHost : IAsyncDisposable, IModelTurnAdmissio
         reason = await RevalidateAsync(turn, token).ConfigureAwait(false);
         if (reason != ModelTurnReason.None) { return Finish(ModelTurnOutcome.Denied, reason, turn.Provenance); }
         if (reply is null || reply.ReportedSelection != turn.Provenance.Selection || !Enum.IsDefined(reply.Outcome)
+            || !Enum.IsDefined(reply.Reason)
             || reply.Outcome == ModelTurnOutcome.Succeeded && !ValidResponse(reply.Response))
         {
             return Finish(ModelTurnOutcome.Unknown, ModelTurnReason.InvalidProviderResponse, turn.Provenance);
         }
-        return Finish(reply.Outcome, ModelTurnReason.ProviderOutcome, turn.Provenance,
+        return Finish(reply.Outcome, reply.Reason, turn.Provenance,
             reply.Outcome == ModelTurnOutcome.Succeeded ? reply.Response : null);
     }
 
@@ -413,6 +415,14 @@ public sealed partial class ModelTurnHost : IAsyncDisposable, IModelTurnAdmissio
         lock (dispatchGate) { outstanding = quiescence?.Task ?? Task.CompletedTask; }
         await outstanding.ConfigureAwait(false);
         lock (policyGate) { policies.Clear(); }
-        lifetime.Dispose();
+        try
+        {
+            foreach (var adapter in registrations.Select(item => item.Adapter).OfType<IAsyncDisposable>()
+                .Distinct<IAsyncDisposable>(ReferenceEqualityComparer.Instance))
+            {
+                await adapter.DisposeAsync().ConfigureAwait(false);
+            }
+        }
+        finally { lifetime.Dispose(); }
     }
 }

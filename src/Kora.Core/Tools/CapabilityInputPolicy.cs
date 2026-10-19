@@ -7,6 +7,8 @@ namespace Kora.Core.Tools;
 /// <summary>One strict input policy for both complete model proposals and the host registry.</summary>
 public static class CapabilityInputPolicy
 {
+    private static readonly UTF8Encoding StrictUtf8 = new(false, true);
+
     public static CapabilityInputResult Read(CapabilityDescriptor descriptor, string input)
     {
         ArgumentNullException.ThrowIfNull(descriptor);
@@ -52,7 +54,7 @@ public static class CapabilityInputPolicy
 
     private static byte[] EncodingStrict(string input)
     {
-        try { return new UTF8Encoding(false, true).GetBytes(input); }
+        try { return StrictUtf8.GetBytes(input); }
         catch (EncoderFallbackException exception) { throw new InvalidDataException("Malformed input Unicode.", exception); }
     }
 }

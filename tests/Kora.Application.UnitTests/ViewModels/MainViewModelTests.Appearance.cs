@@ -66,6 +66,7 @@ public sealed partial class MainViewModelTests
             [AppearanceOption.ReaderTextScale] = fixture.ViewModel.ResetReaderTextScaleCommand,
             [AppearanceOption.ResponseTimeout] = fixture.ViewModel.ResetResponseTimeoutCommand,
             [AppearanceOption.PresenceDisplay] = fixture.ViewModel.ResetPresenceDisplayCommand,
+            [AppearanceOption.NativePresenceRenderer] = fixture.ViewModel.ResetPresenceRendererCommand,
             [AppearanceOption.PresenceTimeout] = fixture.ViewModel.ResetPresenceTimeoutCommand,
             [AppearanceOption.PresenceSize] = fixture.ViewModel.ResetPresenceSizeCommand,
             [AppearanceOption.DotSize] = fixture.ViewModel.ResetPresenceDotSizeCommand,
@@ -79,7 +80,7 @@ public sealed partial class MainViewModelTests
             var text = descriptor.Default switch
             {
                 AppearanceValue.Theme => "dark",
-                AppearanceValue.Toggle => "false",
+                AppearanceValue.Toggle toggle => toggle.Value ? "false" : "true",
                 _ => descriptor.Maximum!.Value.ToString(System.Globalization.CultureInfo.InvariantCulture),
             };
             await fixture.RunAsync($"Kora, set {descriptor.Id} to {text}");
@@ -90,6 +91,7 @@ public sealed partial class MainViewModelTests
         }
         notified.Should().Contain(nameof(fixture.ViewModel.ThemeMode))
             .And.Contain(nameof(fixture.ViewModel.IsPresenceDisplayEnabled))
+            .And.Contain(nameof(fixture.ViewModel.IsNativePresenceRenderer))
             .And.Contain(nameof(fixture.ViewModel.PresenceTimeoutSeconds))
             .And.Contain(nameof(fixture.ViewModel.ResponseTimeoutSeconds))
             .And.Contain(nameof(fixture.ViewModel.PresenceSizePixels))
@@ -100,6 +102,7 @@ public sealed partial class MainViewModelTests
             .And.Contain(nameof(fixture.ViewModel.PresenceSpeechScaleAmountPercent));
         fixture.ViewModel.ThemeMode.Should().Be(ApplicationThemeMode.System);
         fixture.ViewModel.IsPresenceDisplayEnabled.Should().BeTrue();
+        fixture.ViewModel.IsNativePresenceRenderer.Should().BeFalse();
         fixture.ViewModel.PresenceTimeoutSeconds.Should().Be(PresenceSettings.DefaultTimeoutSeconds);
         fixture.ViewModel.ResponseTimeoutSeconds.Should().Be(ResponseWindowSettings.DefaultTimeoutSeconds);
         fixture.ViewModel.PresenceSizePixels.Should().Be(PresenceSettings.DefaultSizePixels);

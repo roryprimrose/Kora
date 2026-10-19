@@ -500,10 +500,10 @@ the animated presence optional. It is displayed by default. Turning it off
 keeps the presence hidden across restarts while response, settings, approval
 and other interactive surfaces remain available.
 
-Under **Appearance > Presence appearance**, **Presence renderer** switches
+Under **Appearance > Presence**, **Presence renderer** switches
 between **Avalonia** and **Native (experimental)** without restarting Kora's
-host services. Both use the same particle cloud. The presence briefly disappears
-while its window and rendering resources are replaced. Switching waits for
+host services. Both use the same particle cloud. The old presence fades out
+before its window and rendering resources are replaced, then the new one fades in. Switching waits for
 startup, mouse gestures and presence-owned dialogs/file pickers to finish.
 Position, hidden/minimized state and the remaining inactivity timeout are
 retained; privacy and display eligibility are rechecked before showing it.

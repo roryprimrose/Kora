@@ -236,11 +236,13 @@
                     </DataTemplate>
                   </ComboBox.ItemTemplate>
                 </ComboBox>
+                <controls:SettingActionsButton Grid.Column="2" SettingName="Presence renderer"
+                                               ResetCommand="{Binding ResetPresenceRendererCommand}" />
               </Grid>
             </Border>
 
             <Border Classes="settings-card">
-              <Grid ColumnDefinitions="*,240" ColumnSpacing="24">
+              <Grid ColumnDefinitions="*,240,Auto" ColumnSpacing="24">
                 <StackPanel Spacing="4">
                   <TextBlock Text="Presence timeout" Classes="settings-title" />
                   <TextBlock

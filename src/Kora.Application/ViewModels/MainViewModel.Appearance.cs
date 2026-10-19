@@ -69,6 +69,7 @@ public sealed partial class MainViewModel
     public AsyncCommand ResetResponseAlwaysVisibleCommand { get; }
     public AsyncCommand ResetResponseWindowTopmostCommand { get; }
     public AsyncCommand ResetPresenceDisplayCommand { get; }
+    public AsyncCommand ResetPresenceRendererCommand { get; }
     public AsyncCommand ResetPresenceTimeoutCommand { get; }
     public AsyncCommand ResetPresenceSizeCommand { get; }
     public AsyncCommand ResetPresenceDotSizeCommand { get; }

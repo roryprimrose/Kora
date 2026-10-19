@@ -23,8 +23,7 @@ public sealed partial class MainViewModelTests
         await fixture.ViewModel.AppearanceUpdate;
         fixture.ViewModel.ReaderTextScalePercent.Should().Be(percent);
         fixture.ViewModel.EnsureReaderTypographyAvailable();
-        fixture.ViewModel.SelectedAppearanceOption = AppearanceOptionRegistry.Get(AppearanceOption.ReaderTextScale);
-        await fixture.ViewModel.ResetAppearanceOptionCommand.ExecuteAsync();
+        await fixture.ViewModel.ResetReaderTextScaleCommand.ExecuteAsync();
         fixture.ViewModel.ReaderTextScalePercent.Should().Be(100);
         await fixture.ViewModel.ExecuteAppearanceCommandAsync(
             AppearanceCommand.Parse("set appearance.reader-text-scale to 200", "Kora")!, SecurityAuditInitiator.TypedCommand);

@@ -6,7 +6,7 @@ using Kora.Core.Conversation;
 namespace Kora;
 
 // Owns the native selected-session presentation, not session/work authority.
-internal sealed class SessionsPresentationOwner
+internal sealed partial class SessionsPresentationOwner
 {
     private readonly SessionsViewModel model;
     private readonly EventHandler<RoutedEventArgs> conversationDetailClick;
@@ -38,6 +38,7 @@ internal sealed class SessionsPresentationOwner
         surface.Closing += Closing;
         surface.Closed += Closed;
         surface.AddHandler(Button.ClickEvent, conversationDetailClick);
+        surface.AddHandler(Button.ClickEvent, OnOriginalMessageReuse);
         refresh.Start();
     }
 
@@ -95,6 +96,7 @@ internal sealed class SessionsPresentationOwner
         surface.Closing -= Closing;
         surface.Closed -= Closed;
         surface.RemoveHandler(Button.ClickEvent, conversationDetailClick);
+        surface.RemoveHandler(Button.ClickEvent, OnOriginalMessageReuse);
         surfaces.Remove(surface);
         if (ReferenceEquals(active, surface)) { active = null; }
         if (surfaces.Count != 0) { return; }

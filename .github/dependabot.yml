@@ -3,6 +3,8 @@ version: 2
 updates:
   - package-ecosystem: nuget
     directory: /
+    cooldown:
+      default-days: 7
     schedule:
       interval: weekly
       day: monday

@@ -8,6 +8,9 @@ using Avalonia.VisualTree;
 
 using AwesomeAssertions;
 
+using Kora.Application.Infrastructure;
+using Kora.Controls;
+using Kora.Core.Configuration;
 using Kora.Core.Presentation;
 using Kora.Definitions.Skills;
 using Kora.NativeUxFixture;
@@ -136,13 +139,63 @@ public sealed class BoundedSurfaceAccessibilityTests
                 var cycle = ReadCycle(window, first, reverse);
                 cycle.Select(control => ControlAutomationPeer.CreatePeerForElement(control)!.GetName())
                     .Should().BeEquivalentTo(
-                        "Appearance", "Native reader text scale percentage", "Select an appearance option to inspect or change",
-                        "Reset the selected appearance option to its default", "Show animated presence", "Application theme",
-                        "Always show", "Stay on top", "Response timeout in seconds", "Presence timeout in seconds",
+                        "Appearance", "Native reader text scale percentage", "Show animated presence", "Application theme",
+                        "Always show", "Stay on top", "Response timeout in seconds", "Presence renderer", "Presence timeout in seconds",
                         "Presence size in pixels", "Dot size percent", "Dot density percent", "Movement speed percent",
-                        "Scale presence with speech playback", "Speech scale amount percent");
+                        "Scale presence with speech playback", "Speech scale amount percent",
+                        "Application theme actions", "Native reader text scale actions", "Always show responses actions",
+                        "Keep responses on top actions", "Response timeout actions", "Show presence actions", "Presence renderer actions",
+                        "Presence timeout actions", "Presence size actions", "Dot size actions", "Dot density actions",
+                        "Movement speed actions", "Speech sizing actions", "Speech scale amount actions");
                 cycle.Should().Contain(tab);
                 ReadCycle(window, first, reverse).Should().Equal(cycle);
+            }
+            finally { window.Close(); }
+        });
+    }
+
+    [Fact]
+    public async Task AppearanceResetMenuOpensWithKeyboardAndResetsOnlyItsField()
+    {
+        await HeadlessSession.RunAsync(async () =>
+        {
+            using var fixture = new NativeUxFixtureSession(Path.GetTempPath());
+            await fixture.InitializeAsync();
+            fixture.Main.ThemeMode = ApplicationThemeMode.Dark;
+            fixture.Main.PresenceSizePixels = 480;
+            await fixture.Main.AppearanceUpdate;
+            var window = new SettingsWindow(fixture.Main);
+            try
+            {
+                window.Show();
+                window.Activate();
+                window.UpdateLayout();
+                var actions = window.GetVisualDescendants().OfType<SettingActionsButton>().ToArray();
+                actions.Should().HaveCount(14);
+                foreach (var action in actions)
+                {
+                    action.ResetCommand.Should().NotBeNull();
+                    var menu = (MenuFlyout)action.Flyout!;
+                    var item = menu.Items.OfType<MenuItem>().Single();
+                    item.Header.Should().Be("Reset setting");
+                    item.Command.Should().BeSameAs(action.ResetCommand);
+                    ControlAutomationPeer.CreatePeerForElement(action)!.GetName().Should().Be($"{action.SettingName} actions");
+                    ControlAutomationPeer.CreatePeerForElement(item)!.GetName().Should().Be($"Reset {action.SettingName} to its default");
+                }
+
+                var theme = actions.Single(action => string.Equals(action.SettingName, "Application theme", StringComparison.Ordinal));
+                theme.Focus().Should().BeTrue();
+                window.KeyPress(Key.Space, RawInputModifiers.None, PhysicalKey.Space, " ");
+                window.KeyRelease(Key.Space, RawInputModifiers.None, PhysicalKey.Space, " ");
+                window.UpdateLayout();
+                var flyout = (MenuFlyout)theme.Flyout!;
+                flyout.IsOpen.Should().BeTrue();
+                fixture.Main.ThemeMode.Should().Be(ApplicationThemeMode.Dark);
+                fixture.Main.PresenceSizePixels.Should().Be(480);
+                flyout.Hide();
+                await ((AsyncCommand)flyout.Items.OfType<MenuItem>().Single().Command!).ExecuteAsync();
+                fixture.Main.ThemeMode.Should().Be(ApplicationThemeMode.System);
+                fixture.Main.PresenceSizePixels.Should().Be(480);
             }
             finally { window.Close(); }
         });

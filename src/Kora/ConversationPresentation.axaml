@@ -13,6 +13,9 @@
       <Button Name="OpenConversationDetail" Content="Details - exact original USER / separate HOST"
           IsEnabled="{Binding $parent[Window].DataContext.CanOpenConversationDetails}"
           AutomationProperties.Name="Explicit passive Details for this exact retained original USER record and separate typed HOST outcome; no clipboard authority" />
+      <Button Name="ReviewOriginalMessageReuse" Content="Review reuse of this original USER text in a New request"
+          IsEnabled="{Binding $parent[Window].DataContext.CanReviewOriginalMessageReuse}"
+          AutomationProperties.Name="Review complete exact retained original USER text and historical attribution; separate confirmation copies to New request memory only, never replay, HOST output, Save or Submit" />
     </StackPanel>
   </DataTemplate>
 </ResourceDictionary>

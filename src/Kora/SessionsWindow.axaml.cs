@@ -103,6 +103,7 @@ internal sealed partial class SessionsWindow : Window
         AttachFile.Click += async (_, _) => await model.OpenAttachment(attach: true);
         InspectAttachment.Click += async (_, _) => await model.OpenAttachment(attach: false);
         RefreshProviders.Click += async (_, _) => await model.RefreshProviders();
+        ReviewProviderCopy.Click += async (_, _) => await model.ReviewProviderCopy();
         ReviewProviderService.Click += async (_, _) => await model.ReviewProviderField(Kora.Core.Providers.SessionProviderField.Service, reset: false);
         ReviewProviderModel.Click += async (_, _) => await model.ReviewProviderField(Kora.Core.Providers.SessionProviderField.Model, reset: false);
         ReviewProviderReasoning.Click += async (_, _) => await model.ReviewProviderField(Kora.Core.Providers.SessionProviderField.Reasoning, reset: false);
@@ -175,6 +176,9 @@ internal sealed partial class SessionsWindow : Window
         EnqueueCapabilities.Click += async (_, _) => await model.EnqueueCapabilitiesAsync();
         EnqueueReadiness.Click += async (_, _) => await model.EnqueueReadinessAsync();
         EnqueueRuntimes.Click += async (_, _) => await model.EnqueueRuntimesAsync();
+        ReviewDiagnosticsPlan.Click += async (_, _) => await model.ReviewDiagnosticsPlanAsync();
+        ConfirmDiagnosticsPlan.Click += async (_, _) => await model.ConfirmDiagnosticsPlanAsync();
+        DiscardDiagnosticsPlan.Click += (_, _) => model.DiscardDiagnosticsPlan();
         QueueCapabilities.SelectionChanged += (_, _) =>
             model.SelectQueueCapability(QueueCapabilities.SelectedItem as QueueCapabilityOption);
         EnqueueCapability.Click += async (_, _) => await model.EnqueueCapabilityAsync();

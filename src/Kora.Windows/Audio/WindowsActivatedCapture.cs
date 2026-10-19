@@ -51,7 +51,9 @@ internal sealed class WindowsActivatedCapture : IActivatedCapture
 
     public event EventHandler? SpeechDetected;
 
+#pragma warning disable VSTHRD003 // Native recognition callbacks complete this asynchronous receipt without a UI-dispatcher dependency.
     public Task Completion => completion.Task;
+#pragma warning restore VSTHRD003
 
     public long? RecorderReleasedTimestamp => Volatile.Read(ref recorderReleasedTimestamp) is var timestamp
         && timestamp != 0 ? timestamp : null;

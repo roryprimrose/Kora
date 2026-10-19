@@ -157,6 +157,15 @@
       <StackPanel Spacing="6">
         <controls:NamedTextBlock Text="{Binding ProviderStatus}" TextWrapping="Wrap"
             AutomationProperties.Name="Exact selected session saved sparse fields, inherited flags, effective unavailable or resolved tuple, account and catalogue provenance; no generation or authentication" />
+        <TextBlock Text="Copy only exact sparse overrides from another admitted session. Null fields keep inheriting; source credentials, grants and authority never transfer. The selected session is the explicit destination. Review complete old/new values, then Confirm separately." TextWrapping="Wrap" />
+        <WrapPanel>
+          <ComboBox ItemsSource="{Binding ProviderCopySources}" SelectedItem="{Binding ProviderCopySource, Mode=TwoWay}"
+              IsEnabled="{Binding CanInspectProviders}" Width="400"
+              AutomationProperties.Name="Explicit exact source session for sparse provider copy; destination is the selected active session">
+            <ComboBox.ItemTemplate><DataTemplate><TextBlock Text="{Binding Authority}" TextWrapping="Wrap" /></DataTemplate></ComboBox.ItemTemplate>
+          </ComboBox>
+          <Button x:Name="ReviewProviderCopy" Content="Review exact sparse provider copy to selected session" IsEnabled="{Binding CanReviewProviderCopy}" />
+        </WrapPanel>
         <WrapPanel>
           <Button x:Name="RefreshProviders" Content="Refresh exact session provider status" IsEnabled="{Binding CanInspectProviders}" />
           <ComboBox ItemsSource="{Binding ProviderServices}" SelectedItem="{Binding ProviderService, Mode=TwoWay}"
@@ -401,6 +410,24 @@
         <ScrollViewer Grid.Row="3" MaxHeight="180" VerticalScrollBarVisibility="Auto"
                       AutomationProperties.Name="Routine notices and pending exact questions; scroll for complete retained cards">
         <StackPanel Spacing="4">
+          <Expander Header="Fixed local diagnostics queue plan: choose, review, separately enqueue">
+            <StackPanel Spacing="4">
+              <WrapPanel>
+                <CheckBox Content="Version" IsChecked="{Binding DiagnosticsVersion, Mode=TwoWay}" IsEnabled="{Binding CanSelectDiagnosticsProfiles}" />
+                <CheckBox Content="Capabilities" IsChecked="{Binding DiagnosticsCapabilities, Mode=TwoWay}" IsEnabled="{Binding CanSelectDiagnosticsProfiles}" />
+                <CheckBox Content="Readiness" IsChecked="{Binding DiagnosticsReadiness, Mode=TwoWay}" IsEnabled="{Binding CanSelectDiagnosticsProfiles}" />
+                <CheckBox Content="Runtimes" IsChecked="{Binding DiagnosticsRuntimes, Mode=TwoWay}" IsEnabled="{Binding CanSelectDiagnosticsProfiles}" />
+              </WrapPanel>
+              <controls:NamedTextBlock Text="{Binding DiagnosticsPlanStatus}" TextWrapping="Wrap"
+                                      AutomationProperties.Name="Complete exact fixed local diagnostics plan review and per-item durable outcomes; prerequisite None for every item, independent of work row selection; sequential possibly partial, never atomic or automatic dispatch" />
+              <WrapPanel>
+                <Button x:Name="ReviewDiagnosticsPlan" Content="Review selected diagnostics profiles" IsEnabled="{Binding CanReviewDiagnosticsPlan}" />
+                <Button x:Name="ConfirmDiagnosticsPlan" Content="Enqueue reviewed diagnostics plan" IsEnabled="{Binding CanConfirmDiagnosticsPlan}"
+                        AutomationProperties.Name="Separately confirm one-shot sequential enqueues of these exact reviewed diagnostics profiles; stop on first uncertain failure, earlier pending commits remain queued; no dispatch" />
+                <Button x:Name="DiscardDiagnosticsPlan" Content="Cancel diagnostics review" IsEnabled="{Binding CanDiscardDiagnosticsPlan}" />
+              </WrapPanel>
+            </StackPanel>
+          </Expander>
           <controls:NamedTextBlock Text="{Binding QueueCapabilityStatus}" TextWrapping="Wrap"
                                   AutomationProperties.Name="Closed descriptor target choice and recorded local runtime boundary" />
           <ComboBox x:Name="QueueCapabilities" ItemsSource="{Binding QueueCapabilities}"

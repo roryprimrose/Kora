@@ -17,7 +17,7 @@ using System.Xml.Linq;
 
 namespace Kora.Windows.IntegrationTests;
 
-public sealed class SessionsProviderProfileTests
+public sealed partial class SessionsProviderProfileTests
 {
     [Theory]
     [InlineData(SessionProviderField.Model, "model-next")]

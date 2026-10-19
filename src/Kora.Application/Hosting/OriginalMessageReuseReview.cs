@@ -78,16 +78,16 @@ public sealed class OriginalMessageReuseReview : IDisposable
         ISessionWorkspaceAccess access, SessionWorkspaceEntry source, ConversationMessage original,
         NewRequestComposer composer, Func<bool> admitted, CancellationToken token)
     {
-        var control = access.ControlRevision;
+        var controlRevision = access.ControlRevision;
         var epoch = composer.ReuseBufferEpoch;
-        bool Current() => access.CanInspect && access.CanControl && access.ControlRevision == control
+        bool Current() => access.CanInspect && access.CanControl && access.ControlRevision == controlRevision
             && composer.IsReuseBufferCurrent(epoch) && admitted();
         if (!Current()) { throw new OperationCanceledException("Original-text reuse requires current private native admission and an uncreated New request."); }
         ConversationText.Validate(composer.Body);
-        var content = await workspace.ReadConversationDetailAsync(source, original, Current, token);
+        var originalContent = await workspace.ReadConversationDetailAsync(source, original, Current, token);
         token.ThrowIfCancellationRequested();
         if (!Current()) { throw new OperationCanceledException("Original-text reuse admission changed during review."); }
-        return new(workspace, access, composer, source, content, admitted, control, epoch);
+        return new(workspace, access, composer, source, originalContent, admitted, controlRevision, epoch);
     }
 
     public async Task<bool> ConfirmAsync(bool replaceDirtyBuffer, CancellationToken token)

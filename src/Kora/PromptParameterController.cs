@@ -177,7 +177,8 @@ internal sealed partial class PromptParameterController(
                     + "private readable SQLite authority (not an encryption claim), with a fresh host task and required audit. Existing retention applies. "
                     + "Local best-effort reject-only credential screening cannot guarantee secret-free text. No Save anyway or silent redaction. "
                     + "Source provenance shown here is volatile; only the approved expanded user body is retained. No hidden form values/template/source path are saved. "
-                    + "Generation is unavailable; no model, network, authentication, tool execution or rejected-local fallback. "
+                    + "A separately qualified local host turn may execute admitted read-only tools and retain its genuine ASSISTANT answer. "
+                    + "Unqualified production runtime remains unavailable; no setup, authentication, side effects or rejected-local fallback. "
                     + "Existing saved drafts and unsaved Sessions composer buffers are unchanged. Cancel writes no conversation message.\n\n"
                     + prepared.Expanded.UserRequest;
                 opened.ConfirmSubmit.IsEnabled = true;
@@ -203,10 +204,13 @@ internal sealed partial class PromptParameterController(
                 opened.RefreshTargets.IsEnabled = false;
                 opened.NextTargets.IsEnabled = false;
                 opened.Targets.IsEnabled = false;
-                opened.Status.Text = $"Message retained; model generation unavailable. HOST {receipt.Message.Outcome} / {receipt.Message.Reason}. "
+                opened.Status.Text = $"Original USER message retained. HOST {receipt.Message.Outcome} / {receipt.Message.Reason}. "
                     + $"Session {receipt.Message.Request.SessionId.Value:D}; message sequence {receipt.Message.Sequence}; "
                     + $"request {receipt.Message.Request.RequestId.Value:D}; task {receipt.Task.Request.TaskId.Value:D}. "
-                    + "Inspect this exact session through Sessions > Read conversation and task receipts. No assistant answer; no replay.";
+                    + "Inspect this exact session through Sessions > Read conversation and task receipts. No replay."
+                    + (receipt.Message.AssistantResponse is not null
+                        ? " Genuine ASSISTANT answer retained separately in that exact session; this source form does not copy its private body."
+                        : " No assistant answer retained.");
             }
         }
         catch (ConversationSubmissionUnconfirmedException exception)

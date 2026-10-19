@@ -1,8 +1,6 @@
-using Kora.Core.Tools;
+namespace Kora.Core.Tools;
 
-namespace Kora.Tools.Capabilities;
-
-internal static class ReadOnlyPage
+public static class CapabilityPagePolicy
 {
     public static (int Count, int? NextOffset)? Resolve(CapabilityPageInput input, int total)
     {

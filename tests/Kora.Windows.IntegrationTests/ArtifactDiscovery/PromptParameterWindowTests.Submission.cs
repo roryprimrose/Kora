@@ -141,7 +141,8 @@ public sealed partial class PromptParameterWindowTests
                     {
                         message.Outcome.Should().Be(ModelTurnOutcome.Unavailable);
                         task!.Task.State.Should().Be(HostTaskState.Unavailable);
-                        native.Status.Text.Should().Contain("Message retained; model generation unavailable").And.Contain(message.Request.TaskId.Value.ToString("D"));
+                        native.Status.Text.Should().Contain("Original USER message retained").And.Contain("No assistant answer retained")
+                            .And.Contain(message.Request.TaskId.Value.ToString("D"));
                         native.Inputs["topic"].Text.Should().BeEmpty();
                     }
                     else

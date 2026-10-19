@@ -306,6 +306,7 @@ public sealed partial class SessionProviderProfileConfigurationTests
         internal SessionProviderProfile Snapshot { get; set; }
         internal SessionProviderProfile SourceSnapshot { get; set; }
         internal Action? BeforeCommit { get; set; }
+        internal Action? AfterCommit { get; set; }
         internal Action<HostId<SessionIdentity>>? AfterProfileRead { get; set; }
         internal bool FailReadback { get; set; }
         internal SessionWorkspaceService Workspace { get; }
@@ -368,6 +369,7 @@ public sealed partial class SessionProviderProfileConfigurationTests
                     throw new IOException("Uncertain readback; inspect exact durable receipt, never retry.");
                 }
                 Tasks.Add(Tasks.Last(record => record.Request.TaskId == request.TaskId).Next(HostTaskState.Succeeded));
+                owner.AfterCommit?.Invoke();
                 return ValueTask.FromResult(owner.Snapshot);
             }
         }

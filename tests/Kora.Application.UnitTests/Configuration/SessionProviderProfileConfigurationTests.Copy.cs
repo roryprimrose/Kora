@@ -259,4 +259,28 @@ public sealed partial class SessionProviderProfileConfigurationTests
         }
         f.Store.Tasks.Should().BeEmpty();
     }
+
+    [Fact]
+    public async Task SourceLeaseRetiredByAdmissionCallbackCannotEnterConfirmationOrWrite()
+    {
+        await using var f = new Fixture();
+        SessionProviderProposal? proposal = null;
+        var withdrawSource = false;
+        proposal = await f.Service.ReviewCopy(f.SourceSnapshot.Session.SessionId, f.Session.SessionId,
+            RequestOrigin.LocalUi, () =>
+            {
+                if (withdrawSource)
+                {
+                    withdrawSource = false;
+                    f.Service.Discard(proposal!.Source!);
+                }
+                return true;
+            }, f.Token);
+        withdrawSource = true;
+        await f.Service.Invoking(service => service.Confirm(proposal, RequestOrigin.LocalUi, () => true, f.Token))
+            .Should().ThrowAsync<InvalidOperationException>();
+        f.Snapshot.Revision.Should().Be(0);
+        f.SourceSnapshot.Revision.Should().Be(0);
+        f.Store.Tasks.Should().BeEmpty();
+    }
 }

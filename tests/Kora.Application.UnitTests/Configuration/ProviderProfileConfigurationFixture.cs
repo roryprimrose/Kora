@@ -47,7 +47,13 @@ internal sealed class ProviderProfileConfigurationFixture : IAsyncDisposable
     internal sealed class ProfileTime : TimeProvider
     {
         internal DateTimeOffset Now { get; set; } = DateTimeOffset.UnixEpoch;
-        public override DateTimeOffset GetUtcNow() => Now;
+        internal Action? AfterRead { get; set; }
+        public override DateTimeOffset GetUtcNow()
+        {
+            var observed = Now;
+            AfterRead?.Invoke();
+            return observed;
+        }
     }
 
     internal sealed class ProfilePreferences : IProviderProfilePreferences

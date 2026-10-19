@@ -115,9 +115,13 @@ public sealed partial class SessionProviderProfileConfigurationTests
             case "shape": f.Profiles.Catalogue.Model = "different-model-same-label"; break;
             case "app": f.Profiles.Preferences.Value = new(ProviderService.Claude, []); break;
             case "app-aba":
+                var appBefore = f.Profiles.Preferences.Value!.Serialize();
                 await f.Profiles.Refresh();
-                await f.Profiles.Select(ProviderService.Claude);
-                await f.Profiles.Select(ProviderService.Local);
+                (await f.Profiles.Select(ProviderService.Claude)).Should().BeTrue();
+                await f.Profiles.Refresh();
+                (await f.Profiles.Select(ProviderService.Local)).Should().BeTrue();
+                f.Profiles.Preferences.Value!.Serialize().Should().Be(appBefore);
+                f.Profiles.Service.Get().Revision.Should().BeGreaterThan(proposal.AppRevision);
                 break;
             case "private": f.Access.ControlRevision++; break;
             case "control": f.Access.CanControl = false; break;

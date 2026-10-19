@@ -257,6 +257,8 @@ public sealed partial class ModelTurnHost : IAsyncDisposable, IModelTurnAdmissio
             if (!transferred) { released.TrySetResult(); }
         }
         token.ThrowIfCancellationRequested();
+        if (turn.HasForbiddenToolAttempt)
+        { return Finish(ModelTurnOutcome.Denied, ModelTurnReason.ToolUseNotPermitted, turn.Provenance); }
         reason = await RevalidateContinuationAsync(turn, token).ConfigureAwait(false);
         if (reason != ModelTurnReason.None) { return Finish(ModelTurnOutcome.Denied, reason, turn.Provenance); }
         if (reply is null || reply.ReportedSelection != turn.Provenance.Selection || !Enum.IsDefined(reply.Outcome)
@@ -274,6 +276,13 @@ public sealed partial class ModelTurnHost : IAsyncDisposable, IModelTurnAdmissio
     {
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(turnToken, token);
         linked.Token.ThrowIfCancellationRequested();
+        // Refuse before asynchronous source validation so an unawaited callback cannot race a successful answer.
+        if (turn.Owner == owner && turn.Context.ToolMode == ModelToolMode.None)
+        {
+            turn.RejectToolAttempt();
+            ToolDenied(logger);
+            return new(CapabilityOutcome.Denied, "model-tools-not-permitted");
+        }
         var current = HostActivity.Current;
         if (turn.Owner != owner || !turn.IsRunning || current is null || current.Activity!.IsStopped
             || !ReferenceEquals(current.Request, turn.Provenance.Request)

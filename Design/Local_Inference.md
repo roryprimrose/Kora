@@ -112,6 +112,28 @@ and current-source fences. These ports do not infer a session or authorize a sou
 No consumer may route around qualification, relabel its origin as native input,
 or use transport correlation as host authority.
 
+For a source-qualified **local, tool-free** turn, the owning request/task bridge
+constructs the [immutable envelope](../src/Kora.Core/Dependencies/ModelContextEnvelope.cs)
+with the explicit final argument `toolMode: ModelToolMode.None` and calls
+`AdmitAsync(ModelTurnChoice.Local, envelope, null, token)`. It then passes the
+issued turn to `IModelTurnExecution.RunAsync(turn, admitted, token, validateSource)`
+under the same live original host activity. The bridge owns durable task intent,
+terminal task/audit receipts and source eligibility; these APIs do not save a
+conversation body or create source/session/task admission.
+
+[ModelToolMode.None](../src/Kora.Core/Dependencies/ModelToolMode.cs) fixes the
+complete canonical catalogue to empty and rejects all tool history. Missing,
+unknown or mismatched wire mode/catalogue fails closed; text instructions alone
+never disable tools. The [native request](../src/Kora.Windows/Dependencies/OllamaToolWire.cs)
+omits the `tools` field, and [transport](../src/Kora.Windows/Dependencies/WindowsOllamaToolTransport.cs)
+rejects unsolicited tool calls. The [bounded adapter](../src/Kora.Application/Dependencies/BoundedModelTurnAdapter.cs)
+refuses tool-call messages before callback dispatch, including fake transports.
+The [host](../src/Kora.Application/Dependencies/ModelTurnHost.cs) independently
+refuses every tool callback and suppresses an adapter's claimed answer after
+a forbidden attempt (`Denied / ToolUseNotPermitted`). Existing default
+`ReadOnly` turns retain their six-tool behaviour. Qualification, exact local
+selection, byte/deadline limits and cancellation/quiescence fences still apply.
+
 The [retained native conversation workflow](../src/Kora.Application/Hosting/SessionConversationService.Execution.cs)
 owns its existing original USER/dispatch/terminal transaction and exact readback;
 it is not a generic voice or selected-source context broker. Source-policy owners

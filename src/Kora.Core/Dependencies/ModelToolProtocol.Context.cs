@@ -17,7 +17,7 @@ public static partial class ModelToolProtocol
     {
         ValidateProvenance(provenance);
         using var document = ReadJson(wire, MaximumInputUtf8Bytes);
-        RequireFields(document.RootElement, "SystemPolicy", "UserRequest", "Evidence", "Tools", "MaximumOutputUtf8Bytes");
+        RequireFields(document.RootElement, "SystemPolicy", "UserRequest", "Evidence", "ToolMode", "Tools", "MaximumOutputUtf8Bytes");
         ContextContent content;
         try
         {
@@ -26,17 +26,26 @@ public static partial class ModelToolProtocol
         }
         catch (Exception exception) when (exception is JsonException or ArgumentException)
         { throw new InvalidDataException("The host context has invalid typed fields.", exception); }
+        var tools = GetTools(content.ToolMode);
         if (content.SystemPolicy is null || content.UserRequest is null || content.Evidence is null
             || content.Tools is null || content.MaximumOutputUtf8Bytes != MaximumOutputUtf8Bytes
-            || content.Tools.Length != ReadOnlyCapabilityCatalog.Descriptors.Count
+            || content.Tools.Length != tools.Count
             || content.Tools.Where((descriptor, index) => descriptor is null
-                || !CapabilityReplyWire.IsExactDescriptor(descriptor, ReadOnlyCapabilityCatalog.Descriptors[index])).Any())
+                || !CapabilityReplyWire.IsExactDescriptor(descriptor, tools[index])).Any())
         { throw new InvalidDataException("The complete host context or catalogue does not match the admitted protocol."); }
         var evidence = ModelContextEnvelope.ValidateContent(provenance.Request, content.SystemPolicy,
             content.UserRequest, content.Evidence);
-        return new(provenance, content.SystemPolicy, content.UserRequest, evidence, ImmutableArray.CreateRange(wire.ToArray()));
+        return new(provenance, content.SystemPolicy, content.UserRequest, evidence, content.ToolMode,
+            ImmutableArray.CreateRange(wire.ToArray()));
     }
 
+    internal static IReadOnlyList<CapabilityDescriptor> GetTools(ModelToolMode mode) => mode switch
+    {
+        ModelToolMode.ReadOnly => ReadOnlyCapabilityCatalog.Descriptors,
+        ModelToolMode.None => [],
+        _ => throw new InvalidDataException("The complete turn requires a known host tool mode."),
+    };
+
     private sealed record ContextContent(string SystemPolicy, string UserRequest, ModelContextEvidence[] Evidence,
-        CapabilityDescriptor[] Tools, int MaximumOutputUtf8Bytes);
+        ModelToolMode ToolMode, CapabilityDescriptor[] Tools, int MaximumOutputUtf8Bytes);
 }

@@ -32,6 +32,8 @@ public static partial class ModelToolProtocol
             { throw new InvalidDataException("The provider tuple does not belong to the host selection."); }
         }
         var history = messages.Take(MaximumCalls * 2 + 1).ToImmutableArray();
+        if (context.ToolMode == ModelToolMode.None && !history.IsEmpty)
+        { throw new InvalidDataException("A tool-free turn cannot contain any tool history."); }
         ValidateHistory(history);
         var expectedRound = history.Count(message => message is ModelAssistantToolCalls) + 1;
         if (round != expectedRound || round > MaximumRounds)

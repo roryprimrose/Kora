@@ -596,8 +596,9 @@ public sealed partial class ModelTurnHostTests : IDisposable
             ? ModelQualificationGate.LocalCandidateSelection | ModelQualificationGate.IntegratedHost
             : ModelQualificationGate.DotNetFinalRequest | ModelQualificationGate.AllPathLifecycle
                 | ModelQualificationGate.ExecutionAccount | ModelQualificationGate.IntegratedHost;
-        internal ModelContextEnvelope Context(HostRequest? request = null, string text = "request-secret") =>
-            new(request ?? Request, "policy", text, [], DateTimeOffset.UnixEpoch, DateTimeOffset.UnixEpoch.AddMinutes(1));
+        internal ModelContextEnvelope Context(HostRequest? request = null, string text = "request-secret",
+            ModelToolMode toolMode = ModelToolMode.ReadOnly) =>
+            new(request ?? Request, "policy", text, [], DateTimeOffset.UnixEpoch, DateTimeOffset.UnixEpoch.AddMinutes(1), toolMode);
         internal async Task<ModelTurnResult> Run(CancellationToken? token = null)
         {
             var turn = (await Host.AdmitAsync(ModelProviderSelection.OllamaCandidate, Context(), Token)).Turn!;

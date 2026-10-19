@@ -78,6 +78,15 @@ presentation. The host keeps its slot and awaits actual engine/transport
 termination; cancellation acknowledgement is not quiescence. Host disposal
 also disposes its distinct owned adapters and their transports.
 
+The [explicit tool-free mode](Local_Inference.md#shared-execution-seam-for-original-request-consumers)
+captures `ModelToolMode.None` in the host envelope. It admits an empty catalogue,
+no continuation history and only a final answer. Native omission and transport,
+engine and independent host-callback refusal prohibit all tool dispatch even
+when lower-trust source text or a provider requests one; ordinary default
+read-only turns remain unchanged ([protocol tests](../tests/Kora.Core.UnitTests/Dependencies/ModelToolProtocolTests.ToolFree.cs),
+[host tests](../tests/Kora.Application.UnitTests/Dependencies/ModelTurnHostTests.ToolFree.cs),
+[native tests](../tests/Kora.Windows.IntegrationTests/Dependencies/WindowsOllamaToolTransportTests.ToolFree.cs)).
+
 Deterministic [fake-transport tests](../tests/Kora.Application.UnitTests/Dependencies/ModelTurnHostTests.ToolLoop.cs)
 exercise the real admitted host and registry, with hostile messages, replay,
 authority drift, byte/call exhaustion, cancellation and noncooperative late

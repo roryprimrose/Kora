@@ -13,15 +13,16 @@ namespace Kora;
 
 internal sealed class ConversationDraftRecoveryWindow : Window
 {
-    private readonly TaskCompletionSource<bool> reply = new(TaskCreationOptions.RunContinuationsAsynchronously);
+    private readonly TaskCompletionSource<bool> reply;
     private readonly SnapshotComparisonFindPane[] panes;
     private readonly NamedTextBlock explanation;
     private readonly DispatcherTimer timer = new() { Interval = TimeSpan.FromMilliseconds(250) };
     private Func<bool>? current;
     private bool opening = true;
 
-    private ConversationDraftRecoveryWindow(Window owner, ConversationDraftRecoveryReview review)
+    private ConversationDraftRecoveryWindow(Window owner, ConversationDraftRecoveryReview review, TaskCompletionSource<bool> reply)
     {
+        this.reply = reply;
         current = () => owner.IsVisible && review.Available;
         Title = "Review saved conversation draft recovery";
         Width = 1200; Height = 760; MinWidth = 760; MinHeight = 540;
@@ -99,7 +100,8 @@ internal sealed class ConversationDraftRecoveryWindow : Window
     {
         token.ThrowIfCancellationRequested();
         if (!owner.IsVisible || !review.Available) { throw new OperationCanceledException("The draft recovery surface expired."); }
-        var dialog = new ConversationDraftRecoveryWindow(owner, review);
+        var completion = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var dialog = new ConversationDraftRecoveryWindow(owner, review, completion);
         EventHandler retire = (_, _) => dialog.Withdraw();
         model.DraftRecoveryRetired += retire;
         owner.Closed += retire;
@@ -110,7 +112,7 @@ internal sealed class ConversationDraftRecoveryWindow : Window
             dialog.opening = false;
             if (!dialog.Current() || token.IsCancellationRequested) { dialog.Withdraw(); }
             else { dialog.timer.Start(); }
-            return await dialog.reply.Task;
+            return await completion.Task;
         }
         finally
         {

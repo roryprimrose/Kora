@@ -82,6 +82,10 @@ Optional frequent-speaker learning and owner-aware verification remain separatel
 7. Kora speaks a short summary using local text-to-speech.
 8. The user can stop speech, cancel the task, or ask a follow-up using the same approved snapshot.
 
+The bounded [clipboard production workflow](../src/Kora.Application/Context/ClipboardExplanationWorkflow.cs) implements a narrower fail-closed path: exact voice/typed explanation requests open native review, and a separate explicit [native admission control](../src/Kora/ClipboardPreviewWindow.cs) admits only that exact current immutable plain-text snapshot to a qualified local model.
+Review/capture is not explanation success or egress approval; no hosted/bootstrap fallback or production model enablement is added. Answers remain volatile native-only text, not speech, transcripts or retained conversation bodies ([presentation](../src/Kora.Application/ViewModels/MainViewModel.Clipboard.cs)).
+The [clipboard context policy](../src/Kora.Core/Context/ClipboardExplanationContext.cs) reuses structural credential screening, binds exact snapshot evidence to a content-free host task and refuses full-envelope overflow without truncation. Deterministic [workflow tests](../tests/Kora.Application.UnitTests/Context/ClipboardExplanationWorkflowTests.cs) are implementation evidence, not runtime/offline/native quality qualification.
+
 Included:
 
 - A .NET/Avalonia desktop shell with explicit microphone and task status.

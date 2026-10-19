@@ -27,12 +27,12 @@ public interface ISessionQueueStore
     /// <summary>Remove the reviewed expired source and enqueue its fresh decision at the tail in one transaction.</summary>
     ValueTask<SessionQueueSnapshot> RequeueExpiredAsync(HostRequest control, SessionQueueRequeueReview review,
         SessionQueueLimits limits, long configurationRevision, Func<bool> eligible, CancellationToken token);
-    /// <summary>Enqueue one fixed read; an optional real task revision guard restricts native observations to the addressed session at commit.</summary>
+    /// <summary>Enqueue one fixed read; optional exact prerequisite and reviewed run/control fences are rechecked at physical commit.</summary>
     ValueTask<SessionQueueSnapshot> EnqueueAsync(HostRequest control, HostRequest work, HostRevision generation,
         long expectedRevision, long admissionRevision, HostId<TaskIdentity>? dependency,
         SessionQueueLimits limits, Func<bool> eligible, CancellationToken token,
         SessionQueueReadProfile profile = SessionQueueReadProfile.Version, HostRevision? expectedDependencyRevision = null,
-        SessionQueueCapabilityTarget? target = null);
+        SessionQueueCapabilityTarget? target = null, SessionQueueDispatchControl? expectedControl = null);
     ValueTask<SessionQueueSnapshot> RemovePendingAsync(HostRequest control, HostRevision generation, long expectedRevision,
         HostId<TaskIdentity>? task, HostRevision? entryRevision, SessionQueueState outcome,
         Func<bool> eligible, CancellationToken token);

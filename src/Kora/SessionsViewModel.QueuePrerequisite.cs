@@ -64,6 +64,7 @@ internal sealed partial class SessionsViewModel
 
     private void InvalidateQueuePrerequisite(bool clearSource = false, bool requireDecision = false)
     {
+        if (clearSource) { RetireDiagnosticsReview(clearSelection: true); }
         InvalidateQueueCapability();
         queuePrerequisiteDecisionRequired |= queuePrerequisite is not null || requireDecision;
         queuePrerequisite = null;

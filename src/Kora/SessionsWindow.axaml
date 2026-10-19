@@ -401,6 +401,24 @@
         <ScrollViewer Grid.Row="3" MaxHeight="180" VerticalScrollBarVisibility="Auto"
                       AutomationProperties.Name="Routine notices and pending exact questions; scroll for complete retained cards">
         <StackPanel Spacing="4">
+          <Expander Header="Fixed local diagnostics queue plan: choose, review, separately enqueue">
+            <StackPanel Spacing="4">
+              <WrapPanel>
+                <CheckBox Content="Version" IsChecked="{Binding DiagnosticsVersion, Mode=TwoWay}" IsEnabled="{Binding CanSelectDiagnosticsProfiles}" />
+                <CheckBox Content="Capabilities" IsChecked="{Binding DiagnosticsCapabilities, Mode=TwoWay}" IsEnabled="{Binding CanSelectDiagnosticsProfiles}" />
+                <CheckBox Content="Readiness" IsChecked="{Binding DiagnosticsReadiness, Mode=TwoWay}" IsEnabled="{Binding CanSelectDiagnosticsProfiles}" />
+                <CheckBox Content="Runtimes" IsChecked="{Binding DiagnosticsRuntimes, Mode=TwoWay}" IsEnabled="{Binding CanSelectDiagnosticsProfiles}" />
+              </WrapPanel>
+              <controls:NamedTextBlock Text="{Binding DiagnosticsPlanStatus}" TextWrapping="Wrap"
+                                      AutomationProperties.Name="Complete exact fixed local diagnostics plan review and per-item durable outcomes; prerequisite None for every item, independent of work row selection; sequential possibly partial, never atomic or automatic dispatch" />
+              <WrapPanel>
+                <Button x:Name="ReviewDiagnosticsPlan" Content="Review selected diagnostics profiles" IsEnabled="{Binding CanReviewDiagnosticsPlan}" />
+                <Button x:Name="ConfirmDiagnosticsPlan" Content="Enqueue reviewed diagnostics plan" IsEnabled="{Binding CanConfirmDiagnosticsPlan}"
+                        AutomationProperties.Name="Separately confirm one-shot sequential enqueues of these exact reviewed diagnostics profiles; stop on first uncertain failure, earlier pending commits remain queued; no dispatch" />
+                <Button x:Name="DiscardDiagnosticsPlan" Content="Cancel diagnostics review" IsEnabled="{Binding CanDiscardDiagnosticsPlan}" />
+              </WrapPanel>
+            </StackPanel>
+          </Expander>
           <controls:NamedTextBlock Text="{Binding QueueCapabilityStatus}" TextWrapping="Wrap"
                                   AutomationProperties.Name="Closed descriptor target choice and recorded local runtime boundary" />
           <ComboBox x:Name="QueueCapabilities" ItemsSource="{Binding QueueCapabilities}"

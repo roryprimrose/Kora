@@ -275,7 +275,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         McpServerConfigurationService? mcpServerConfiguration = null,
         ProviderProfileConfigurationService? providerProfileConfiguration = null,
         AuditImpactPreviewService? auditImpactPreview = null,
-        SessionRetentionPlannerService? sessionRetentionPlanner = null)
+        SessionRetentionPlannerService? sessionRetentionPlanner = null,
+        Kora.Application.Voice.SpeechPreparationCoordinator? speechPreparation = null)
     {
         this.commandCatalog = commandCatalog;
         this.commandRouter = commandRouter;
@@ -291,6 +292,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         this.microphoneAccessService = microphoneAccessService;
         this.voiceRecognition = voiceRecognition;
         this.textToSpeech = textToSpeech;
+        this.speechPreparation = speechPreparation;
+        if (speechPreparation is not null) { speechPreparation.Changed += OnSpeechPreparationChanged; }
         this.assistantNameConfiguration = assistantNameConfiguration;
         assistantNameConfiguration.Changed += OnAssistantNameConfigurationChanged;
         this.appearancePreferences = appearancePreferences;
@@ -1505,6 +1508,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         private set
         {
             SetProperty(ref isSpeechProviderOperationActive, value);
+            UpdateSpeechPreparation();
             NotifySpeechProviderStateChanged();
         }
     }
@@ -2118,6 +2122,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         finally
         {
             isInitializing = false;
+            UpdateSpeechPreparation();
         }
     }
 
@@ -2979,6 +2984,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         ApplicationLog.Information(logger, "Kora exit was requested");
         hostExitRequested = true;
         lifecycleAdmissionClosed = true;
+        speechPreparation?.Request(null);
+        if (speechPreparation is not null) { await speechPreparation.WaitForQuiescenceAsync(); }
 #pragma warning disable VSTHRD003 // Join the owned appearance workflow while the desktop dispatcher is still running.
         await AppearanceUpdate;
         await PreferenceUpdate;
@@ -5273,6 +5280,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
     private void SetActiveSpeechVoice(SpeechVoice? voice)
     {
         activeSpeechVoice = voice;
+        UpdateSpeechPreparation();
         OnPropertyChanged(nameof(IsSpeechOutputAvailable));
         NotifyOutputPolicyChanged();
     }

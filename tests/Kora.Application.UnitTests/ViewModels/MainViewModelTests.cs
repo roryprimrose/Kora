@@ -8520,7 +8520,8 @@ public sealed partial class MainViewModelTests : IDisposable
             bool enableArtifactConfiguration = false,
             Exception? artifactReadFailure = null,
             bool enableMcpServerConfiguration = true, bool enableProviderProfiles = false,
-            bool enableQuestionReplies = false, bool enableAuditImpact = false, bool enableSessionRetentionPlanner = false)
+            bool enableQuestionReplies = false, bool enableAuditImpact = false, bool enableSessionRetentionPlanner = false,
+            bool enableSpeechPreparation = false)
         {
             Catalog = new BuiltInCommandCatalog();
             CaptionPreferences.LoadFailure = captionReadFailure;
@@ -8528,6 +8529,7 @@ public sealed partial class MainViewModelTests : IDisposable
             Voice = new FakeVoiceRecognitionService(Dispatcher, Events);
             ReplyVoice = enableQuestionReplies ? new QuestionVoiceAdapter(Voice) : null;
             TextToSpeech = new FakeTextToSpeechService(Events);
+            SpeechPreparation = new(Preparation, NullLogger<Kora.Application.Voice.SpeechPreparationCoordinator>.Instance);
             NamePreferences = new FakeAssistantNamePreferences();
             AppearancePreferences = new FakeAppearancePreferences();
             MicrophoneAccess = new FakeMicrophoneAccessService();
@@ -8684,7 +8686,8 @@ public sealed partial class MainViewModelTests : IDisposable
                 McpServerConfiguration,
                 enableProviderProfiles ? new ProviderProfileConfigurationService(ProfilePreferences, ProfileCatalogue, OutputAdmission, Audit, ProfileTime) : null,
                 enableAuditImpact ? new AuditImpactPreviewService(ImpactReader, AuditPreferences, AuditConfiguration!) : null,
-                enableSessionRetentionPlanner ? new SessionRetentionPlannerService(SessionPlanReader, SessionRetentionConfiguration!) : null);
+                enableSessionRetentionPlanner ? new SessionRetentionPlannerService(SessionPlanReader, SessionRetentionConfiguration!) : null,
+                speechPreparation: enableSpeechPreparation ? SpeechPreparation : null);
             ViewModel.BindCallOwnershipGate(static () => true);
             ViewModel.BindManualCallNativeLifetime(true);
             if (enableWindowsSpeechRate) { ViewModel.BindWindowsSpeechRateNativeLifetime(static () => true); }
@@ -8749,6 +8752,8 @@ public sealed partial class MainViewModelTests : IDisposable
         public QuestionVoiceAdapter? ReplyVoice { get; }
 
         public FakeTextToSpeechService TextToSpeech { get; }
+        public PreparationService Preparation { get; } = new();
+        public Kora.Application.Voice.SpeechPreparationCoordinator SpeechPreparation { get; }
 
         public FakeAssistantNamePreferences NamePreferences { get; }
 

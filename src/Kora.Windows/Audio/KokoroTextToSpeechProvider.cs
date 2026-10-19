@@ -1,4 +1,5 @@
 using System.Buffers;
+using System.Diagnostics;
 using System.Globalization;
 using System.IO.Compression;
 using System.Security.Cryptography;
@@ -7,14 +8,15 @@ using Kora.Core.Dependencies;
 using Kora.Core.Voice;
 using Kora.Windows.Diagnostics;
 
-using KokoroSharp;
+using KokoroSharp.Core;
+using KokoroSharp.Processing;
 
 using Microsoft.Extensions.Logging;
 using Microsoft.ML.OnnxRuntime;
 
 namespace Kora.Windows.Audio;
 
-public sealed class KokoroTextToSpeechProvider : IDisposable
+public sealed partial class KokoroTextToSpeechProvider : IDisposable
 {
     internal const long ModelSizeBytes = 163_636_560;
     internal const long VoicesSizeBytes = 65_813_438;
@@ -67,7 +69,12 @@ public sealed class KokoroTextToSpeechProvider : IDisposable
     private readonly string voiceDirectory;
     private readonly string voicesHashPath;
     private readonly bool prepareAfterInstall;
-    private KokoroWavSynthesizer? synthesizer;
+    private readonly Func<string, IKokoroSynthesizer> createSynthesizer;
+    private readonly Func<string, KokoroVoice> loadVoice;
+    private readonly Action<KokoroVoice> prepareLanguage;
+    private readonly HashSet<string> preparedLanguages = new(StringComparer.Ordinal);
+    private IKokoroSynthesizer? synthesizer;
+    private KokoroVoice? loadedVoice;
     private bool disposed;
 
     public KokoroTextToSpeechProvider(
@@ -98,7 +105,10 @@ public sealed class KokoroTextToSpeechProvider : IDisposable
         Uri voicesUri,
         long expectedVoicesSize,
         string expectedVoicesSha256,
-        bool prepareAfterInstall)
+        bool prepareAfterInstall,
+        Func<string, IKokoroSynthesizer>? createSynthesizer = null,
+        Func<string, KokoroVoice>? loadVoice = null,
+        Action<KokoroVoice>? prepareLanguage = null)
     {
         ArgumentNullException.ThrowIfNull(paths);
         ArgumentNullException.ThrowIfNull(httpClient);
@@ -119,6 +129,9 @@ public sealed class KokoroTextToSpeechProvider : IDisposable
         this.expectedModelSha256 = expectedModelSha256;
         this.expectedVoicesSha256 = expectedVoicesSha256;
         this.prepareAfterInstall = prepareAfterInstall;
+        this.createSynthesizer = createSynthesizer ?? (path => new KokoroSynthesizer(path));
+        this.loadVoice = loadVoice ?? KokoroVoice.FromPath;
+        this.prepareLanguage = prepareLanguage ?? (voice => _ = Tokenizer.Tokenize("Hello.", voice.GetLangCode()));
         providerDirectory = Path.Combine(
             paths.LocalRoot,
             "Speech",
@@ -282,18 +295,27 @@ public sealed class KokoroTextToSpeechProvider : IDisposable
         ObjectDisposedException.ThrowIf(disposed, this);
         ArgumentException.ThrowIfNullOrWhiteSpace(text);
         ArgumentException.ThrowIfNullOrWhiteSpace(voiceId);
-        if (!IsInstalled)
-        {
-            throw new InvalidOperationException(
-                "The Kokoro speech provider is not installed.");
-        }
-
-        await EnsureLoadedAsync(cancellationToken);
-        var voice = KokoroVoiceManager.GetVoice(voiceId);
-        byte[] samples;
+        await modelLock.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            samples = await synthesizer!.SynthesizeAsync(text, voice);
+            ObjectDisposedException.ThrowIf(disposed, this);
+            if (!IsInstalled)
+            {
+                throw new InvalidOperationException(
+                    "The Kokoro speech provider is not installed.");
+            }
+
+            await EnsureVoiceLoadedAsync(voiceId, cancellationToken).ConfigureAwait(false);
+
+            cancellationToken.ThrowIfCancellationRequested();
+            await EnsureModelLoadedAsync(cancellationToken).ConfigureAwait(false);
+            cancellationToken.ThrowIfCancellationRequested();
+            var voice = loadedVoice!;
+            var samples = await RunPhaseAsync("synthesis",
+                () => Task.Run(() => synthesizer!.SynthesizeAsync(text, voice), cancellationToken)).ConfigureAwait(false);
+            if (cancellationToken.IsCancellationRequested) { Array.Clear(samples); }
+            cancellationToken.ThrowIfCancellationRequested();
+            return new KokoroAudio(samples, 24_000, 16, 1);
         }
         catch (OnnxRuntimeException exception)
         {
@@ -302,18 +324,54 @@ public sealed class KokoroTextToSpeechProvider : IDisposable
                 exception);
         }
 
-        cancellationToken.ThrowIfCancellationRequested();
-        return new KokoroAudio(samples, 24_000, 16, 1);
+        finally
+        {
+            modelLock.Release();
+        }
+    }
+
+    public async Task PrepareAsync(string voiceId, CancellationToken cancellationToken)
+    {
+        ObjectDisposedException.ThrowIf(disposed, this);
+        ArgumentException.ThrowIfNullOrWhiteSpace(voiceId);
+        await modelLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            ObjectDisposedException.ThrowIf(disposed, this);
+            if (!IsInstalled)
+            {
+                throw new InvalidOperationException("The Kokoro speech provider is not installed.");
+            }
+            await EnsureVoiceLoadedAsync(voiceId, cancellationToken).ConfigureAwait(false);
+            cancellationToken.ThrowIfCancellationRequested();
+            await EnsureModelLoadedAsync(cancellationToken).ConfigureAwait(false);
+            cancellationToken.ThrowIfCancellationRequested();
+            var voice = loadedVoice!;
+            var language = voice.GetLangCode();
+            if (!preparedLanguages.Contains(language))
+            {
+                await RunPhaseAsync("language-preparation", () => Task.Run(() =>
+                {
+                    prepareLanguage(voice);
+                    return true;
+                }, cancellationToken)).ConfigureAwait(false);
+                preparedLanguages.Add(language);
+            }
+            cancellationToken.ThrowIfCancellationRequested();
+        }
+        finally { modelLock.Release(); }
     }
 
     public async Task RemoveAsync(CancellationToken cancellationToken)
     {
         ObjectDisposedException.ThrowIf(disposed, this);
-        await modelLock.WaitAsync(cancellationToken);
+        await modelLock.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
+            ObjectDisposedException.ThrowIf(disposed, this);
             synthesizer?.Dispose();
             synthesizer = null;
+            loadedVoice = null;
             DeleteIfExists(modelPath);
             DeleteIfExists(hashPath);
             DeleteIfExists(voicesHashPath);
@@ -346,10 +404,23 @@ public sealed class KokoroTextToSpeechProvider : IDisposable
             return;
         }
 
-        disposed = true;
-        synthesizer?.Dispose();
-        synthesizer = null;
-        modelLock.Dispose();
+        // The synchronous disposal boundary must wait for owned native inference.
+#pragma warning disable VSTHRD002 // All work under this gate runs without a captured synchronization context.
+        modelLock.Wait();
+#pragma warning restore VSTHRD002
+        try
+        {
+            if (disposed) { return; }
+            disposed = true;
+            synthesizer?.Dispose();
+            synthesizer = null;
+            loadedVoice = null;
+        }
+        finally
+        {
+            // Queued callers must still acquire the gate and observe disposal.
+            modelLock.Release();
+        }
     }
 
     private async Task DownloadAndVerifyAsync(
@@ -498,31 +569,61 @@ public sealed class KokoroTextToSpeechProvider : IDisposable
 
     private async Task EnsureLoadedAsync(CancellationToken cancellationToken)
     {
-        await modelLock.WaitAsync(cancellationToken);
+        await modelLock.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            if (synthesizer is null)
-            {
-                KokoroVoiceManager.LoadVoicesFromPath(voiceDirectory);
-                try
-                {
-                    synthesizer = await Task.Run(
-                        () => new KokoroWavSynthesizer(modelPath),
-                        cancellationToken);
-                }
-                catch (OnnxRuntimeException exception)
-                {
-                    throw new InvalidOperationException(
-                        "The Kokoro neural model could not be loaded.",
-                        exception);
-                }
-
-                WindowsLog.Information(logger, "Kokoro neural model loaded");
-            }
+            ObjectDisposedException.ThrowIf(disposed, this);
+            await EnsureModelLoadedAsync(cancellationToken).ConfigureAwait(false);
         }
         finally
         {
             modelLock.Release();
+        }
+    }
+
+    private async Task EnsureModelLoadedAsync(CancellationToken cancellationToken)
+    {
+        if (synthesizer is not null) { return; }
+        try
+        {
+            synthesizer = await RunPhaseAsync("model-loading",
+                () => Task.Run(() => createSynthesizer(modelPath), cancellationToken)).ConfigureAwait(false);
+        }
+        catch (OnnxRuntimeException exception)
+        {
+            throw new InvalidOperationException(
+                "The Kokoro neural model could not be loaded.", exception);
+        }
+
+        WindowsLog.Information(logger, "Kokoro neural model loaded");
+    }
+
+    private async Task EnsureVoiceLoadedAsync(string voiceId, CancellationToken cancellationToken)
+    {
+        if (string.Equals(loadedVoice?.Name, voiceId, StringComparison.Ordinal)) { return; }
+        var voicePath = Directory.EnumerateFiles(voiceDirectory, "*.npy", SearchOption.AllDirectories)
+            .SingleOrDefault(path => string.Equals(
+                Path.GetFileNameWithoutExtension(path), voiceId, StringComparison.Ordinal))
+            ?? throw new ArgumentOutOfRangeException(nameof(voiceId),
+                "The selected Kokoro voice is not installed.");
+        loadedVoice = null;
+        loadedVoice = await RunPhaseAsync("voice-loading",
+            () => Task.Run(() => loadVoice(voicePath), cancellationToken)).ConfigureAwait(false);
+    }
+
+    private async Task<T> RunPhaseAsync<T>(string phase, Func<Task<T>> operation)
+    {
+        var started = Stopwatch.GetTimestamp();
+        var succeeded = false;
+        try
+        {
+            var result = await operation().ConfigureAwait(false);
+            succeeded = true;
+            return result;
+        }
+        finally
+        {
+            PhaseFinished(phase, Stopwatch.GetElapsedTime(started).TotalMilliseconds, succeeded);
         }
     }
 

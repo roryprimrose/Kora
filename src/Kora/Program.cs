@@ -594,7 +594,10 @@ internal static class Program
             Timeout = TimeSpan.FromMinutes(15),
         });
         services.AddSingleton<KokoroTextToSpeechProvider>();
-        services.AddSingleton<ITextToSpeechService, WindowsTextToSpeechService>();
+        services.AddSingleton<WindowsTextToSpeechService>();
+        services.AddSingleton<ITextToSpeechService>(provider => provider.GetRequiredService<WindowsTextToSpeechService>());
+        services.AddSingleton<ISpeechPreparationService>(provider => provider.GetRequiredService<WindowsTextToSpeechService>());
+        services.AddSingleton<Kora.Application.Voice.SpeechPreparationCoordinator>();
         services.AddSingleton<ISessionController, WindowsSessionController>();
         services.AddSingleton<IApplicationProcessController, DesktopApplicationProcessController>();
         services.AddSingleton<ICurrentUserNameProvider, WindowsCurrentUserNameProvider>();

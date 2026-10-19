@@ -29,14 +29,34 @@ try { & $runner -Shard 'unknown' -ListShards | Out-Null }
 catch [System.Management.Automation.ParameterBindingException] { $rejected = $true }
 Assert $rejected 'Unknown shards must fail, not run a default or empty success.'
 
-$classes = @(
-    'Storage.WindowsSqliteSessionAttachmentTests', 'Storage.WindowsSqliteConversationTests',
-    'Storage.WindowsSqliteSessionQueueTests', 'Storage.WindowsSqliteMemoryTests',
-    'Storage.WindowsSqliteExactGrantFilterTests', 'Storage.WindowsSqliteEvidenceQueryTests',
-    'ArtifactDiscovery.OwnedDefinitionEditorWindowTests', 'NativeUx.NativeUxFixtureContractTests',
-    'EvidenceAdvancedFilterTests', 'EvidenceLiteralFindTests', 'NativeQuestionTests'
-)
-foreach ($class in $classes) {
+$classes = [ordered]@{
+    'Storage.WindowsSqliteSessionAttachmentTests' = 'storage-heavy'
+    'Storage.WindowsSqliteConversationTests' = 'storage-heavy'
+    'Storage.WindowsSqliteSessionQueueTests' = 'storage-heavy'
+    'Storage.WindowsSqliteMemoryTests' = 'storage-heavy'
+    'Storage.WindowsSqliteExactGrantFilterTests' = 'storage-heavy'
+    'Storage.WindowsSqliteEvidenceQueryTests' = 'storage-other'
+    'Storage.FutureStorageTests' = 'storage-other'
+    'ArtifactDiscovery.OwnedDefinitionEditorWindowTests' = 'ui-definitions'
+    'ArtifactDiscovery.FutureDefinitionTests' = 'ui-definitions'
+    'EvidenceLiteralFindTests' = 'ui-definitions'
+    'BoundedSurfaceAccessibilityTests' = 'ui-definitions'
+    'NativeUx.NativeUxFixtureContractTests' = 'native-ux'
+    'NativeUx.FutureNativeUxTests' = 'native-ux'
+    'Presentation.DispatcherEvidenceResponsivenessTests' = 'native-ux'
+    'NativeReaderTextScaleTests' = 'native-ux'
+    'SpeechCaptionDisplayTests' = 'native-ux'
+    'EvidenceAdvancedFilterTests' = 'ui-platform'
+    'EvidenceLiteralFindTestsExtra' = 'ui-platform'
+    'BoundedSurfaceAccessibilityTestsExtra' = 'ui-platform'
+    'Presentation.DispatcherEvidenceResponsivenessTestsExtra' = 'ui-platform'
+    'NativeReaderTextScaleTestsExtra' = 'ui-platform'
+    'SpeechCaptionDisplayTestsExtra' = 'ui-platform'
+    'SessionsConversationTests' = 'ui-platform'
+    'NativeQuestionTests' = 'ui-platform'
+    'FuturePlatformTests' = 'ui-platform'
+}
+foreach ($class in $classes.Keys) {
     $qualified = "Kora.Windows.IntegrationTests.$class.Test"
     $matching = @($all | Where-Object {
         $matchesFilter = $false
@@ -54,6 +74,7 @@ foreach ($class in $classes) {
         $matchesFilter
     })
     Assert ($matching.Count -eq 1) "Partition must cover $class exactly once."
+    Assert ($matching[0].Name -ceq $classes[$class]) "Partition placed $class in the wrong shard."
 }
 
 Assert ($workflow.Contains('shard: [storage-heavy, storage-other, ui-definitions, native-ux, ui-platform]',

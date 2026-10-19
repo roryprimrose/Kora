@@ -60,8 +60,8 @@ their GUID-name, existing-directory and non-reparse ownership checks.
 
 To reproduce CI's Windows test scheduling after a locked `win-x64` build, run
 `.\eng\Run-WindowsIntegrationTests.ps1`. Its five concurrent, disjoint local shards
-cover heavy storage, other storage, definition UI, native UX fixtures, and all
-remaining UI/platform tests. Each shard retains its own TRX and console output;
+cover heavy storage, other storage, and three balanced UI/platform groups.
+Each shard retains its own TRX and console output;
 any nonzero shard exit fails the run. `-Shard <name>` selects exactly one existing
 shard; `-ListShards` lists the selected names and filters without running tests.
 CI isolates these same five shards on separate hosted Windows runners, retaining
@@ -72,6 +72,10 @@ This scheduling isolates competing test processes without removing tests or
 changing test/product or 30-minute Windows job timeouts. Run
 `.\eng\Test-WindowsIntegrationScheduling.ps1` for deterministic selection,
 partition and aggregate-gate checks.
+
+The [runner's UI filters](eng/Run-WindowsIntegrationTests.ps1) retain the existing shard names: `ui-definitions` also runs Evidence Find and bounded accessibility tests; `native-ux` also runs dispatcher responsiveness, reader scale, and speech caption tests. `ui-platform` runs the remainder, with exclusions derived from the same prefix lists to avoid gaps or overlaps.
+
+Rebalance whole classes using per-shard TRX durations, not test counts. Keep the [headless UI collection](tests/Kora.Windows.IntegrationTests/HeadlessUiTestGroup.cs) serial within each process; moving classes between isolated shard processes must not relax its process-wide dispatcher protection. Update the [scheduling contracts](eng/Test-WindowsIntegrationScheduling.ps1) when changing assignments.
 
 Documentation-only changes need local link/heading, exact example and availability
 checks. Changes to the embedded user guide also run its focused tests. They do

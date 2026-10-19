@@ -52,7 +52,8 @@ public sealed partial class MemoryAdmissionServiceTests
         fixture.Stored.Should().HaveCount(3);
         fixture.Stored.Values.Count(row => row.Retention == MemoryRetentionState.Forgotten).Should().Be(2);
         fixture.Stored.Values.Count(row => row.Candidate != null).Should().Be(1);
-        fixture.Audits.Count(audit => audit.ActionId == "memory.forget" && audit.Outcome == SecurityAuditOutcome.Succeeded)
+        fixture.Audits.Count(audit => string.Equals(audit.ActionId, "memory.forget", StringComparison.Ordinal)
+            && audit.Outcome == SecurityAuditOutcome.Succeeded)
             .Should().Be(2);
         fixture.ControlIntents.Should().OnlyContain(intent => intent.Request.SessionId == fixture.Session.SessionId);
         fixture.ControlIntents.Select(intent => intent.Request.RequestId).Should().OnlyHaveUniqueItems();

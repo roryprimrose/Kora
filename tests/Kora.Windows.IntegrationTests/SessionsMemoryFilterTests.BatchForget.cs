@@ -5,6 +5,7 @@ using Avalonia.LogicalTree;
 using AwesomeAssertions;
 using Kora.Application.Memory;
 using Kora.Core.Commands;
+using Kora.Core.Hosting;
 using Kora.Core.Memory;
 using Kora.Windows.IntegrationTests.Audio;
 
@@ -144,7 +145,7 @@ public sealed partial class SessionsMemoryFilterTests
         f.Model.SelectMemoryBatch(f.Model.MemoryRecords.ToArray());
         f.Model.PropertyChanged += (_, args) =>
         {
-            if (args.PropertyName == nameof(SessionsViewModel.MemoryBatchDetail)
+            if (string.Equals(args.PropertyName, nameof(SessionsViewModel.MemoryBatchDetail), StringComparison.Ordinal)
                 && f.Model.MemoryBatchDetail.Contains("FORGET only", StringComparison.Ordinal))
             {
                 f.Model.ConfirmMemoryBatchAsync().IsCompletedSuccessfully.Should().BeTrue();
@@ -193,6 +194,6 @@ public sealed partial class SessionsMemoryFilterTests
                 list.SelectedItems!.Count.Should().Be(0);
             }
             finally { window.Close(); }
-        }, TestContext.Current.CancellationToken);
+        });
     }
 }

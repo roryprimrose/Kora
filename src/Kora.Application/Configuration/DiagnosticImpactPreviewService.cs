@@ -221,7 +221,7 @@ public sealed class DiagnosticImpactPreviewService : IDisposable
             configuration.ObservationChanged -= OnSourceChanged;
             RetireLocked("Preview closed.");
         }
-
-        private sealed record Admission(Func<bool> Eligible, DiagnosticRetentionObservation Observation);
     }
+
+    private sealed record Admission(Func<bool> Eligible, DiagnosticRetentionObservation Observation);
 }

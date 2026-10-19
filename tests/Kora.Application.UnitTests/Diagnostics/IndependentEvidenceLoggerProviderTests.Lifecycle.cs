@@ -13,6 +13,25 @@ namespace Kora.Application.UnitTests.Diagnostics;
 
 public sealed partial class IndependentEvidenceLoggerProviderTests
 {
+    [Theory]
+    [InlineData(-1)]
+    [InlineData(int.MaxValue)]
+    public void Application_timing_rejects_unregistered_phases_before_metric_callbacks(int value)
+    {
+        var measurements = 0;
+        using var timing = new MeterListener();
+        var instrument = PresenceSwitchTiming.Instrument;
+        timing.InstrumentPublished = (published, observer) =>
+        {
+            if (ReferenceEquals(published, instrument)) { observer.EnableMeasurementEvents(published); }
+        };
+        timing.SetMeasurementEventCallback<long>((_, _, _, _) => Interlocked.Increment(ref measurements));
+        timing.Start();
+        var mark = () => PresenceSwitchTiming.Mark((PresenceSwitchPhase)value);
+        mark.Should().Throw<ArgumentOutOfRangeException>();
+        Volatile.Read(ref measurements).Should().Be(0);
+    }
+
     [Fact]
     public async Task A_flush_barrier_consumes_queue_capacity_without_consuming_a_record_slot()
     {

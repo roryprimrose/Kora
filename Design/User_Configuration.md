@@ -559,7 +559,10 @@ or private store stamp is displayed. Unqualified sources never display a
 partial aggregate or false zero. Logs qualify independently from spans/links,
 which share an ownership-validation budget and qualification.
 
-The [private reader](../src/Kora.Windows/Storage/WindowsSqliteEvidenceSink.DiagnosticImpact.cs)
+The [production segmented adapter](../src/Kora.Windows/Storage/WindowsSegmentedEvidenceSink.DiagnosticImpact.cs)
+uses the admitted retained inventory, including legacy and sealed/active segments,
+under the existing store gate, inventory/seal checks and unchanged source stamp.
+Each [private partition reader](../src/Kora.Windows/Storage/WindowsSqliteEvidenceSink.DiagnosticImpact.cs)
 opens only an existing admitted private partition under its existing lease and
 query-only SQLite transaction. It validates the exact current schema and
 physical integrity and decodes/validates all visited rows, including irrelevant
@@ -571,7 +574,8 @@ returned, pruned or reclassified**. An ordinary log's `SecurityAudit=true`
 property or lookalike message confers no audit authority and does not remove
 that ordinary log from the ordinary janitor's impact.
 
-There are three finite scan budgets: the preserved-audit guard, ordinary logs,
+There are three finite scan budgets across the entire retained inventory, never
+renewed for each rotated partition: the preserved-audit guard, ordinary logs,
 and spans plus their owned links. Each admits at most **4,096 rows / 4 MiB
 encoded envelopes**, with one non-decoded overflow sentinel. A guard overflow
 makes all sources Incomplete without counts; an unqualified protected prefix or

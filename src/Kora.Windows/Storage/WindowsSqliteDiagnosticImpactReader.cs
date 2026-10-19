@@ -9,30 +9,48 @@ namespace Kora.Windows.Storage;
 
 public sealed class WindowsSqliteDiagnosticImpactReader : IDiagnosticRetentionImpactReader, IDisposable
 {
-    private readonly WindowsSqliteEvidenceSink sink;
+    private readonly Func<DiagnosticRetentionDays, DateTimeOffset, CancellationToken, DiagnosticImpactSnapshot> readProjection;
+    private readonly Func<string> projectionStamp;
     private readonly FileSystemWatcher watcher;
     private long generation;
     private bool disposed;
 
     public WindowsSqliteDiagnosticImpactReader(WindowsSqliteEvidenceSink sink, IApplicationDataPaths paths)
+        : this(sink.ReadDiagnosticImpact, sink.DiagnosticImpactStamp,
+            Path.Combine(paths.LocalRoot, WindowsSqliteEvidenceSink.PartitionName), includeSubdirectories: false)
     {
-        this.sink = sink;
-        watcher = new(Path.Combine(paths.LocalRoot, WindowsSqliteEvidenceSink.PartitionName))
+    }
+
+    public WindowsSqliteDiagnosticImpactReader(WindowsSegmentedEvidenceSink sink, IApplicationDataPaths paths)
+        : this(sink.ReadDiagnosticImpact, sink.DiagnosticImpactStamp, paths.LocalRoot, includeSubdirectories: true)
+    {
+    }
+
+    private WindowsSqliteDiagnosticImpactReader(
+        Func<DiagnosticRetentionDays, DateTimeOffset, CancellationToken, DiagnosticImpactSnapshot> readProjection,
+        Func<string> projectionStamp, string directory, bool includeSubdirectories)
+    {
+        this.readProjection = readProjection;
+        this.projectionStamp = projectionStamp;
+        watcher = new(directory)
         {
-            NotifyFilter = NotifyFilters.LastWrite | NotifyFilters.Size | NotifyFilters.FileName | NotifyFilters.Security,
+            NotifyFilter = NotifyFilters.LastWrite | NotifyFilters.Size | NotifyFilters.FileName
+                | NotifyFilters.DirectoryName | NotifyFilters.Security,
+            IncludeSubdirectories = includeSubdirectories,
         };
         watcher.Changed += OnChanged;
         watcher.Created += OnChanged;
         watcher.Deleted += OnChanged;
         watcher.Renamed += OnChanged;
         watcher.Error += OnError;
-        watcher.EnableRaisingEvents = true;
+        try { watcher.EnableRaisingEvents = true; }
+        catch { watcher.Dispose(); throw; }
     }
 
     public event EventHandler? Changed;
     private void OnChanged(object sender, FileSystemEventArgs args)
     {
-        if (!string.Equals(args.Name, "operation.lock", StringComparison.OrdinalIgnoreCase)) { Invalidate(); }
+        if (!string.Equals(Path.GetFileName(args.Name), "operation.lock", StringComparison.OrdinalIgnoreCase)) { Invalidate(); }
     }
     private void OnError(object sender, ErrorEventArgs args) => Invalidate();
     private void Invalidate()
@@ -55,7 +73,7 @@ public sealed class WindowsSqliteDiagnosticImpactReader : IDiagnosticRetentionIm
         {
             try
             {
-                var snapshot = sink.ReadDiagnosticImpact(proposed, cutoff, cancellationToken);
+                var snapshot = readProjection(proposed, cutoff, cancellationToken);
                 cancellationToken.ThrowIfCancellationRequested();
                 if (observed != Volatile.Read(ref generation) || Volatile.Read(ref disposed)) { return DiagnosticImpactSnapshot.Unavailable; }
                 return snapshot with { Snapshot = BindStamp(observed, snapshot.Snapshot!) };
@@ -75,7 +93,7 @@ public sealed class WindowsSqliteDiagnosticImpactReader : IDiagnosticRetentionIm
         try
         {
             var observed = Volatile.Read(ref generation);
-            var stamp = BindStamp(observed, sink.DiagnosticImpactStamp());
+            var stamp = BindStamp(observed, projectionStamp());
             return !Volatile.Read(ref disposed) && observed == Volatile.Read(ref generation)
                 && string.Equals(snapshot.Snapshot, stamp, StringComparison.Ordinal);
         }

@@ -16,7 +16,7 @@ using Microsoft.Data.Sqlite;
 namespace Kora.Windows.IntegrationTests.Storage;
 
 [Collection(nameof(ProcessGlobalEvidenceTestGroup))]
-public sealed class WindowsSqliteDiagnosticImpactTests
+public sealed partial class WindowsSqliteDiagnosticImpactTests
 {
     [WindowsFact]
     public async Task Actual_commit_deadlines_and_owned_links_not_observed_age_or_link_targets_define_newly_due_impact()
@@ -333,10 +333,13 @@ public sealed class WindowsSqliteDiagnosticImpactTests
     private static string DatabasePath(OwnedStorageFixture paths) => Path.Combine(paths.LocalRoot,
         WindowsSqliteEvidenceSink.PartitionName, "evidence.db");
     private static SqliteConnection Open(OwnedStorageFixture paths)
+        => OpenDatabase(DatabasePath(paths));
+
+    private static SqliteConnection OpenDatabase(string databasePath)
     {
         var connection = new SqliteConnection(new SqliteConnectionStringBuilder
         {
-            DataSource = DatabasePath(paths), Mode = SqliteOpenMode.ReadWrite, Pooling = false,
+            DataSource = databasePath, Mode = SqliteOpenMode.ReadWrite, Pooling = false,
         }.ToString());
         connection.Open();
         using var command = connection.CreateCommand();
@@ -354,6 +357,11 @@ public sealed class WindowsSqliteDiagnosticImpactTests
     private static void CloneLogs(OwnedStorageFixture paths, int count)
     {
         using var connection = Open(paths);
+        CloneLogs(connection, count);
+    }
+
+    private static void CloneLogs(SqliteConnection connection, int count)
+    {
         using var command = connection.CreateCommand();
         command.CommandText = "SELECT envelope FROM application_log_events LIMIT 1;";
         var original = WindowsSqliteEvidenceSink.DecodeDiagnostic((string)command.ExecuteScalar()!);

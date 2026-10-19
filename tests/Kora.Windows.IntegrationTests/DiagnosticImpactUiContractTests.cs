@@ -37,7 +37,7 @@ public sealed class DiagnosticImpactUiContractTests
             "{Binding DiagnosticImpactPreviewStatus}", StringComparison.Ordinal));
         status.Attribute("AutomationProperties.Name")!.Value.Should().Contain("Read-only");
         var composition = File.ReadAllText(Path.Combine(root, "src", "Kora", "Program.cs"));
-        composition.Should().Contain("new WindowsSqliteDiagnosticImpactReader(evidence, paths)")
+        composition.Should().Contain("new WindowsSqliteDiagnosticImpactReader(provider.GetRequiredService<WindowsSegmentedEvidenceSink>(), paths)")
             .And.Contain("services.AddSingleton<DiagnosticImpactPreviewService>()");
     }
 }

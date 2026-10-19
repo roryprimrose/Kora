@@ -12,6 +12,13 @@ public sealed partial class WindowsSqliteEvidenceSink
     internal DiagnosticImpactSnapshot ReadDiagnosticImpact(DiagnosticRetentionDays proposed, DateTimeOffset cutoff,
         CancellationToken token)
     {
+        var scan = new DiagnosticImpactScan(proposed, cutoff);
+        var stamp = AccumulateDiagnosticImpact(scan, token);
+        return scan.Finish(stamp);
+    }
+
+    internal string AccumulateDiagnosticImpact(DiagnosticImpactScan scan, CancellationToken token)
+    {
         using var lease = database.AcquireReadLease(token);
         var stamp = DiagnosticImpactStamp();
         // No initialization, migration, validation cache or writer may run on this observation path.
@@ -19,43 +26,37 @@ public sealed partial class WindowsSqliteEvidenceSink
         using var transaction = connection.BeginTransaction(deferred: true);
         // The janitor's admission validates the preserved typed audit prefix too. This guard never
         // aggregates audit rows or infers audit authority from ordinary diagnostic properties.
-        if (!ValidateDiagnosticImpactProtectedPrefix(connection, proposed, cutoff, token))
+        scan.ProtectedPrefixComplete = ValidateDiagnosticImpactProtectedPrefix(connection, scan.ProtectedPrefix, token);
+        if (scan.ProtectedPrefixComplete)
         {
-            token.ThrowIfCancellationRequested();
-            if (!string.Equals(stamp, DiagnosticImpactStamp(), StringComparison.Ordinal))
+            if (scan.LogsAvailable && scan.Logs.Finish(DiagnosticImpactSource.OrdinaryLogs).Status == DiagnosticImpactStatus.Complete)
             {
-                throw new InvalidDataException("The diagnostic store changed during protected-prefix validation.");
+                try { ReadLogImpact(connection, scan.Logs, token); }
+                catch (Exception exception) when (exception is InvalidDataException or JsonException or ArgumentException)
+                {
+                    scan.LogsAvailable = false;
+                }
             }
-            return new(new(DiagnosticImpactSource.OrdinaryLogs, DiagnosticImpactStatus.Incomplete, null),
-                new(DiagnosticImpactSource.Spans, DiagnosticImpactStatus.Incomplete, null),
-                new(DiagnosticImpactSource.OwnedLinks, DiagnosticImpactStatus.Incomplete, null), stamp);
-        }
-        DiagnosticImpactResult logs;
-        DiagnosticImpactResult spans;
-        DiagnosticImpactResult links;
-        try { logs = ReadLogImpact(connection, proposed, cutoff, token); }
-        catch (Exception exception) when (exception is InvalidDataException or JsonException or ArgumentException)
-        {
-            logs = new(DiagnosticImpactSource.OrdinaryLogs, DiagnosticImpactStatus.Unavailable, null);
-        }
-        try { (spans, links) = ReadOwnedImpact(connection, proposed, cutoff, token); }
-        catch (Exception exception) when (exception is InvalidDataException or JsonException or ArgumentException)
-        {
-            spans = new(DiagnosticImpactSource.Spans, DiagnosticImpactStatus.Unavailable, null);
-            links = new(DiagnosticImpactSource.OwnedLinks, DiagnosticImpactStatus.Unavailable, null);
+            if (scan.OwnedAvailable && scan.Spans.Finish(DiagnosticImpactSource.Spans).Status == DiagnosticImpactStatus.Complete)
+            {
+                try { ReadOwnedImpact(connection, scan.Spans, scan.Links, token); }
+                catch (Exception exception) when (exception is InvalidDataException or JsonException or ArgumentException)
+                {
+                    scan.OwnedAvailable = false;
+                }
+            }
         }
         token.ThrowIfCancellationRequested();
         if (!string.Equals(stamp, DiagnosticImpactStamp(), StringComparison.Ordinal))
         {
             throw new InvalidDataException("The diagnostic store changed during preview.");
         }
-        return new(logs, spans, links, stamp);
+        return stamp;
     }
 
     private static bool ValidateDiagnosticImpactProtectedPrefix(SqliteConnection connection,
-        DiagnosticRetentionDays proposed, DateTimeOffset cutoff, CancellationToken token)
+        DiagnosticRetentionImpact budget, CancellationToken token)
     {
-        var budget = new DiagnosticRetentionImpact(proposed, cutoff);
         using var command = ImpactCommand(connection, "security_audit_events", "audit_sequence");
         using var rows = command.ExecuteReader();
         long sequence = 0;
@@ -78,10 +79,8 @@ public sealed partial class WindowsSqliteEvidenceSink
         return true;
     }
 
-    private static DiagnosticImpactResult ReadLogImpact(SqliteConnection connection, DiagnosticRetentionDays proposed,
-        DateTimeOffset cutoff, CancellationToken token)
+    private static void ReadLogImpact(SqliteConnection connection, DiagnosticRetentionImpact impact, CancellationToken token)
     {
-        var impact = new DiagnosticRetentionImpact(proposed, cutoff);
         using var command = ImpactCommand(connection, "application_log_events", "evidence_id");
         using var rows = command.ExecuteReader();
         while (rows.Read())
@@ -90,14 +89,11 @@ public sealed partial class WindowsSqliteEvidenceSink
             if (!impact.Admit(EncodedLength(rows))) { break; }
             ValidateImpactRow(rows, "application_log_events", impact);
         }
-        return impact.Finish(DiagnosticImpactSource.OrdinaryLogs);
     }
 
-    private static (DiagnosticImpactResult Spans, DiagnosticImpactResult Links) ReadOwnedImpact(
-        SqliteConnection connection, DiagnosticRetentionDays proposed, DateTimeOffset cutoff, CancellationToken token)
+    private static void ReadOwnedImpact(SqliteConnection connection, DiagnosticRetentionImpact spans,
+        DiagnosticRetentionImpact links, CancellationToken token)
     {
-        var spans = new DiagnosticRetentionImpact(proposed, cutoff);
-        var links = new DiagnosticRetentionImpact(proposed, cutoff);
         using var command = ImpactCommand(connection, "activity_spans", "evidence_id");
         using var linkCommand = ImpactCommand(connection, "activity_links", "evidence_id,ordinal");
         using var rows = command.ExecuteReader();
@@ -106,7 +102,7 @@ public sealed partial class WindowsSqliteEvidenceSink
         while (rows.Read())
         {
             token.ThrowIfCancellationRequested();
-            if (!spans.Admit(EncodedLength(rows))) { return IncompleteOwnedImpact(); }
+            if (!spans.Admit(EncodedLength(rows))) { return; }
             var activity = ValidateImpactRow(rows, "activity_spans", spans).Activity!;
             var index = 0;
             while (hasLink && string.Equals(owned.GetString(owned.GetOrdinal("evidence_id")),
@@ -114,7 +110,7 @@ public sealed partial class WindowsSqliteEvidenceSink
             {
                 token.ThrowIfCancellationRequested();
                 // One shared finite budget covers both owners and links, not 32 unbounded child scans.
-                if (!spans.Admit(EncodedLength(owned))) { return IncompleteOwnedImpact(); }
+                if (!spans.Admit(EncodedLength(owned))) { return; }
                 ValidateOwnedLink(rows, activity, owned, index);
                 links.Add(ReadTimestamp(owned, "committed_utc"), ReadTimestamp(owned, "due_utc"));
                 index++;
@@ -123,12 +119,7 @@ public sealed partial class WindowsSqliteEvidenceSink
             if (index != activity.Links.Count) { throw new InvalidDataException("An owned diagnostic link is missing."); }
         }
         if (hasLink) { throw new InvalidDataException("An orphan or unqualified diagnostic link remains."); }
-        return (spans.Finish(DiagnosticImpactSource.Spans), links.Finish(DiagnosticImpactSource.OwnedLinks));
     }
-
-    private static (DiagnosticImpactResult, DiagnosticImpactResult) IncompleteOwnedImpact() =>
-        (new(DiagnosticImpactSource.Spans, DiagnosticImpactStatus.Incomplete, null),
-            new(DiagnosticImpactSource.OwnedLinks, DiagnosticImpactStatus.Incomplete, null));
 
     private static SqliteCommand ImpactCommand(SqliteConnection connection, string table, string order)
     {

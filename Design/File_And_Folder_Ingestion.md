@@ -501,7 +501,7 @@ Citation identity validation is not a claim of semantic truth or answer-quality 
 
 **Exact consumed I boundary:** the required sensitive-content/source-use admission service is not composed.
 [ILocalFileModelUsePolicy](../src/Kora.Core/Context/ILocalFileModelUsePolicy.cs) is distinct from read consent.
-The production [UnavailableLocalFileModelUsePolicy](../src/Kora.Application/Dependencies/UnavailableLocalFileModelUsePolicy.cs) reports `SourceUseUnavailable` before context construction or dispatch.
+The production [UnavailableLocalFileModelUsePolicy](../src/Kora.Application/Dependencies/UnavailableLocalFileModelUsePolicy.cs) reports unavailable with the explicit `SourceUsePolicyMissing` decision, surfaced as `SourceUseUnavailable`, before shared admission, evidence/envelope construction or dispatch.
 Deterministic fakes exercise admitted and denied paths without asserting that source contents are safe.
 Awaited source policy receives the exact immutable revision, unchanged question and selected citations with original host correlation.
 Revocation/cancellation while classification is pending suppresses context construction and execution; a source-policy I/O/state failure records a failed terminal file audit, logs only its failure type and publishes no claims.
@@ -529,6 +529,8 @@ Two-phase integration validation on 2026-10-20: the Release solution build passe
 The earlier `d5cfa31` disposal-outcome failure is superseded by the peer's two-phase revision and passing [shared lifecycle checks](../tests/Kora.Application.UnitTests/Dependencies/LocalContextTurnWorkflowTests.cs), not by a file-owned shared-lifecycle repair.
 File-owned portable source paths retain 100% line/branch coverage. Aggregate coverage remains below the maintained 100% gate after dependency import and is not a passing repository readiness claim.
 Production sensitivity/source-use admission and model qualification remain unavailable. Passing fake/source-identity checks do not qualify semantic answer grounding, an empty-tool transport or real source classification.
+This is a bounded production-path implementation, not a shipped functional file-answer capability: the missing production contract must classify/detect secrets and sensitive content for the exact immutable revision, question and selected excerpts before use.
+Preview consent, narrow credential screening, a fake allow, local-only disclosure and generic durable admission do not fulfill that source-use detection contract. No permissive detector or automatic fallback is composed.
 
 ## Delivered Native Current-Source Literal Find - 2026-10-12
 

@@ -69,8 +69,10 @@ public sealed partial class LocalFileAnswer(LocalFilePreview preview, ILocalFile
                 if (!current()) { return LocalFileAnswerResult.Empty(LocalFileAnswerOutcome.Stale); }
                 if (decision != LocalFileModelUseDecision.Allowed)
                 {
-                    return LocalFileAnswerResult.Empty(decision == LocalFileModelUseDecision.Unavailable
-                        ? LocalFileAnswerOutcome.SourceUseUnavailable : LocalFileAnswerOutcome.Denied);
+                    return LocalFileAnswerResult.Empty(decision is LocalFileModelUseDecision.Unavailable
+                        or LocalFileModelUseDecision.SourceUsePolicyMissing
+                        ? LocalFileAnswerOutcome.SourceUseUnavailable : LocalFileAnswerOutcome.Denied) with
+                    { SourceUseDecision = decision };
                 }
                 var admission = await model.AdmitAsync(reviewedTarget, current, token).ConfigureAwait(false);
                 if (admission.Turn is not { } admitted)

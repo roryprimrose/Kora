@@ -132,13 +132,19 @@ public sealed class LocalFileAnswerWindowTests
         {
             var window = new LocalFilePreviewWindow(_ => { });
             window.ShowRevision(Source(), (_, _, _) => throw new NotSupportedException(), () => true, () => Task.CompletedTask,
-                (_, _, _) => Task.FromResult(LocalFileAnswerResult.Empty(outcome)));
+                (_, _, _) => Task.FromResult(LocalFileAnswerResult.Empty(outcome) with
+                { SourceUseDecision = outcome == LocalFileAnswerOutcome.SourceUseUnavailable
+                    ? LocalFileModelUseDecision.SourceUsePolicyMissing : null }));
             window.Show();
             try
             {
                 Question(window).Text = "alpha";
                 await Press(window, "Use this exact snapshot once to answer locally");
                 Status(window).Text.Should().Contain(disclosure);
+                if (outcome == LocalFileAnswerOutcome.SourceUseUnavailable)
+                {
+                    Status(window).Text.Should().Contain(nameof(LocalFileModelUseDecision.SourceUsePolicyMissing));
+                }
                 window.GetVisualDescendants().OfType<ListBox>().Should().OnlyContain(rows => rows.ItemsSource == null);
             }
             finally { window.ClearAndClose(); }

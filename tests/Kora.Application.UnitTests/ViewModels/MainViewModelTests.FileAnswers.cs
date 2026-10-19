@@ -46,6 +46,34 @@ public sealed partial class MainViewModelTests
             .Outcome.Should().Be(LocalFileAnswerOutcome.Denied);
     }
 
+    [Fact]
+    public async Task ProductionSourcePolicyRefusesBeforeSharedAdmissionEvidenceProviderOrBodyPersistence()
+    {
+        var f = new Fixture();
+        using var preview = new LocalFilePreview(new FakeFileInspector(), f.Audit, TimeProvider.System, NullLogger<LocalFilePreview>.Instance);
+        var runner = new NativeFileAnswerModel();
+        f.ViewModel.BindFilePreview(preview, new FakeFilePicker());
+        f.ViewModel.BindFileAnswer(new(preview, new LocalFileLexicalRetrieval(), new UnavailableLocalFileModelUsePolicy(), runner,
+            f.Audit, TimeProvider.System, NullLogger<LocalFileAnswer>.Instance));
+        await f.ViewModel.PreviewFileAsync();
+        await f.ViewModel.ConfirmFilePreviewAsync(f.ViewModel.FileReview!.ReviewId);
+        var source = f.ViewModel.FileRevision!;
+        const string question = "private marker";
+        var result = await f.ViewModel.AnswerFileAsync(source.Reference, question, () => true, TestContext.Current.CancellationToken);
+        result.Outcome.Should().Be(LocalFileAnswerOutcome.SourceUseUnavailable);
+        result.SourceUseDecision.Should().Be(LocalFileModelUseDecision.SourceUsePolicyMissing);
+        result.Claims.Should().BeEmpty();
+        result.ExecutionReason.Should().BeNull();
+        result.ExecutionState.Should().BeNull();
+        runner.AdmissionCalls.Should().Be(0);
+        runner.Context.Should().BeNull();
+        f.HostStore.Records.Should().BeEmpty();
+        f.Reasoner.Requests.Should().BeEmpty();
+        f.ClipboardReader.Calls.Should().Be(0);
+        f.ViewModel.ResponseBody.Should().NotContain(FakeFileInspector.Text);
+        f.ViewModel.Transcript.Should().NotContain(question);
+    }
+
     [Theory]
     [InlineData("unsupported", LocalFileAnswerOutcome.Unsupported)]
     [InlineData("success", LocalFileAnswerOutcome.Succeeded)]
@@ -136,19 +164,31 @@ public sealed partial class MainViewModelTests
     }
 
     [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public async Task NativeFileAnswerFinalPresentationFencesSourceAndQuestionRevocation(bool question)
+    [InlineData("source")]
+    [InlineData("question")]
+    [InlineData("privacy")]
+    [InlineData("call")]
+    [InlineData("ownership")]
+    public async Task NativeFileAnswerFinalPresentationFencesSourceQuestionAndHostRevocationAfterFakeAllow(string change)
     {
         var f = new Fixture();
         using var preview = new LocalFilePreview(new FakeFileInspector(), f.Audit, TimeProvider.System, NullLogger<LocalFilePreview>.Instance);
         var current = true;
         var model = new NativeFileAnswerModel
         {
-            OnRun = () =>
+            OnRunAsync = async () =>
             {
-                if (question) { current = false; }
-                else { f.ViewModel.ClearFilePreview(); }
+                switch (change)
+                {
+                    case "question": current = false; break;
+                    case "privacy": f.ViewModel.CloseForObservedPrivacyEvent("fixture", hidePresentation: true); break;
+                    case "call":
+                        await f.ViewModel.SetManualCallAsync(true, RequestOrigin.LocalUi, f.ViewModel.CallPolicyRevision,
+                            TestContext.Current.CancellationToken);
+                        break;
+                    case "ownership": f.ViewModel.BindClipboardOwnershipGate(() => false); break;
+                    default: f.ViewModel.ClearFilePreview(); break;
+                }
             },
         };
         f.ViewModel.BindFilePreview(preview, new FakeFilePicker());
@@ -161,6 +201,8 @@ public sealed partial class MainViewModelTests
             TestContext.Current.CancellationToken);
         result.Outcome.Should().Be(LocalFileAnswerOutcome.Stale);
         result.Claims.Should().BeEmpty();
+        model.Context.Should().NotBeNull();
+        f.Reasoner.Requests.Should().BeEmpty();
     }
 
     private sealed class NativeFileAnswerPolicy : ILocalFileModelUsePolicy
@@ -171,12 +213,15 @@ public sealed partial class MainViewModelTests
 
     private sealed class NativeFileAnswerModel : IModelContextRunner
     {
+        internal int AdmissionCalls { get; private set; }
         internal string Kind { get; init; } = "unsupported";
         internal Action? OnRun { get; init; }
+        internal Func<Task>? OnRunAsync { get; init; }
         internal ModelContextEnvelope? Context { get; private set; }
         public Task<ModelContextAdmission> AdmitAsync(LocalContextSessionTarget target, Func<bool> sourceCurrent,
             CancellationToken token, Func<CancellationToken, Task>? validateSource = null)
         {
+            AdmissionCalls++;
             sourceCurrent().Should().BeTrue();
             target.Request.Should().BeSameAs(HostActivity.RequireCurrent().Request);
             return Task.FromResult(new ModelContextAdmission(new Lease(this, target.Request)));
@@ -191,10 +236,11 @@ public sealed partial class MainViewModelTests
                 Completion = owner.RunModel(context);
             public ValueTask DisposeAsync() => ValueTask.CompletedTask;
         }
-        private Task<LocalContextTurnReceipt> RunModel(ModelContextEnvelope context)
+        private async Task<LocalContextTurnReceipt> RunModel(ModelContextEnvelope context)
         {
             Context = context;
             OnRun?.Invoke();
+            if (OnRunAsync is { } callback) { await callback(); }
             var outcome = Kind switch
             {
                 "cancelled" => ModelTurnOutcome.Cancelled,
@@ -206,8 +252,8 @@ public sealed partial class MainViewModelTests
                 : "{\"unsupported\":true,\"claims\":[]}";
             var result = new ModelTurnResult(outcome, ModelTurnReason.None,
                 new(new(Guid.NewGuid()), context.Request, ModelProviderSelection.OllamaCandidate), new(answer, null));
-            return Task.FromResult(new LocalContextTurnReceipt(context.Request, outcome, LocalContextTurnReason.Completed,
-                HostTaskState.Succeeded, result));
+            return new LocalContextTurnReceipt(context.Request, outcome, LocalContextTurnReason.Completed,
+                HostTaskState.Succeeded, result);
         }
     }
 }

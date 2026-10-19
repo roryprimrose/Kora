@@ -77,6 +77,6 @@ public sealed partial class LocalContextTurnWorkflowTests
     public async Task ProductionFileSourceUsePolicyIsExplicitlyUnavailableRatherThanPreviewConsent()
     {
         var policy = new UnavailableLocalFileModelUsePolicy();
-        (await policy.AdmitAsync(null!, "question", null!, Token)).Should().Be(LocalFileModelUseDecision.Unavailable);
+        (await policy.AdmitAsync(null!, "question", null!, Token)).Should().Be(LocalFileModelUseDecision.SourceUsePolicyMissing);
     }
 }

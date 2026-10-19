@@ -75,6 +75,7 @@ internal sealed partial class LocalFilePreviewWindow
             var result = await selection.Run(question.Text ?? string.Empty, answer, Current);
             if (result is null || !Current()) { return; }
             text.Text = $"Outcome: {result.Outcome}; model reason: {result.ModelReason?.ToString() ?? "(none)"}.\n"
+                + $"Source-use decision: {result.SourceUseDecision?.ToString() ?? "(no refusal decision)"}.\n"
                 + $"Execution: {result.ExecutionReason?.ToString() ?? "(not started)"}; durable task: {result.ExecutionState?.ToString() ?? "(none)"}.\n"
                 + $"Matching chunks: {result.MatchingChunks}; lexical selection truncated: {result.RetrievalTruncated}.\n"
                 + (result.Outcome switch

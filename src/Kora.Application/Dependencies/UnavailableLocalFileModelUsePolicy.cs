@@ -9,6 +9,6 @@ public sealed class UnavailableLocalFileModelUsePolicy : ILocalFileModelUsePolic
         LocalFileSearchResult excerpts, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        return Task.FromResult(LocalFileModelUseDecision.Unavailable);
+        return Task.FromResult(LocalFileModelUseDecision.SourceUsePolicyMissing);
     }
 }

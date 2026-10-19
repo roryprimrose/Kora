@@ -7,6 +7,7 @@ namespace Kora.Core.Context;
 public sealed record LocalFileAnswerResult(LocalFileAnswerOutcome Outcome, ImmutableArray<LocalFileAnswerClaim> Claims,
     int MatchingChunks = 0, bool RetrievalTruncated = false, ModelTurnReason? ModelReason = null)
 {
+    public LocalFileModelUseDecision? SourceUseDecision { get; init; }
     public LocalContextTurnReason? ExecutionReason { get; init; }
     public HostTaskState? ExecutionState { get; init; }
     public static LocalFileAnswerResult Empty(LocalFileAnswerOutcome outcome) => new(outcome, []);

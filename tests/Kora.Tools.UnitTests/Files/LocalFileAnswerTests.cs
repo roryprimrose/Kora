@@ -96,6 +96,7 @@ public sealed class LocalFileAnswerTests : IDisposable
 
     [Theory]
     [InlineData(LocalFileModelUseDecision.Unavailable, LocalFileAnswerOutcome.SourceUseUnavailable)]
+    [InlineData(LocalFileModelUseDecision.SourceUsePolicyMissing, LocalFileAnswerOutcome.SourceUseUnavailable)]
     [InlineData(LocalFileModelUseDecision.Denied, LocalFileAnswerOutcome.Denied)]
     [InlineData((LocalFileModelUseDecision)99, LocalFileAnswerOutcome.Denied)]
     public async Task PreviewReadIsNeverImplicitModelUseConsent(LocalFileModelUseDecision decision, LocalFileAnswerOutcome expected)
@@ -103,10 +104,37 @@ public sealed class LocalFileAnswerTests : IDisposable
         using var root = Root();
         using var f = new Fixture { Decision = decision };
         await f.Admit();
-        (await f.ExecuteAsync(f.Source.Reference, "private", () => true, Token)).Outcome.Should().Be(expected);
+        var result = await f.ExecuteAsync(f.Source.Reference, "private", () => true, Token);
+        result.Outcome.Should().Be(expected);
+        result.SourceUseDecision.Should().Be(decision);
         f.ModelCalls.Should().Be(0);
         f.Audits.Last().Outcome.Should().Be(SecurityAuditOutcome.Failed);
         f.AdmissionCalls.Should().Be(0);
+    }
+
+    [Theory]
+    [InlineData(LocalFileModelUseDecision.Denied, LocalFileAnswerOutcome.Denied)]
+    [InlineData(LocalFileModelUseDecision.Unavailable, LocalFileAnswerOutcome.SourceUseUnavailable)]
+    [InlineData(LocalFileModelUseDecision.SourceUsePolicyMissing, LocalFileAnswerOutcome.SourceUseUnavailable)]
+    public async Task SourceUseRefusalPrecedesEvidenceBindingEvenWhenReturnedCitationWouldBeRejected(
+        LocalFileModelUseDecision decision, LocalFileAnswerOutcome expected)
+    {
+        using var root = Root();
+        using var f = new Fixture { Decision = decision, RetrievalDefect = "span" };
+        await f.Admit();
+        var result = await f.ExecuteAsync(f.Source.Reference, "private", () => true, Token);
+        result.Outcome.Should().Be(expected);
+        result.SourceUseDecision.Should().Be(decision);
+        result.Claims.Should().BeEmpty();
+        result.ExecutionReason.Should().BeNull();
+        f.AdmissionCalls.Should().Be(0);
+        f.ModelCalls.Should().Be(0);
+        f.Context.Should().BeNull();
+        f.LeaseDisposals.Should().Be(0);
+        f.Reads.Should().Be(1);
+        f.Audits.Last().Outcome.Should().Be(SecurityAuditOutcome.Failed);
+        string.Join(' ', f.Messages.Concat(f.Audits.Select(item => item.ActionId + item.TargetId + item.ReasonCode)))
+            .Should().NotContain("private marker").And.NotContain(f.Source.Text).And.NotContain("C:\\");
     }
 
     [Theory]

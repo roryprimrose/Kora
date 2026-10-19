@@ -100,6 +100,8 @@ public sealed partial class NewRequestControllerTests
     [InlineData("close")]
     [InlineData("repeat")]
     [InlineData("created")]
+    [InlineData("owner-hide")]
+    [InlineData("owner-close")]
     public async Task DirtyExistingTargetAndReentrantDecisionsNeverSilentlyOverwriteOrReviveReuse(string decision)
     {
         await HeadlessSession.RunAsync(async () =>
@@ -137,6 +139,8 @@ public sealed partial class NewRequestControllerTests
                     case "open": controller.Open(); break;
                     case "close": target.ClosePrivate(); break;
                     case "repeat": await controller.ReviewOriginalReuseAsync(source, original, owner, () => true, f.Token); break;
+                    case "owner-hide": owner.Hide(); owner.Show(); break;
+                    case "owner-close": owner.Close(); break;
                 }
                 return decision is not "keep";
             };

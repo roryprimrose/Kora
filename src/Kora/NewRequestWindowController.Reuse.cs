@@ -1,3 +1,4 @@
+using Avalonia;
 using Avalonia.Controls;
 
 using Kora.Application.Hosting;
@@ -32,14 +33,27 @@ internal sealed partial class NewRequestWindowController
         var revision = access.ControlRevision;
         var originalWindow = window;
         var originalComposer = composer;
+        var ownerAdmission = 1;
         bool Current() => !disposed && reuseEpoch == epoch && access.CanInspect && access.CanControl
-            && access.ControlRevision == revision && owner.IsVisible && admitted();
+            && access.ControlRevision == revision && Volatile.Read(ref ownerAdmission) == 1 && admitted();
+        void WithdrawOwner()
+        {
+            if (Interlocked.Exchange(ref ownerAdmission, 0) == 1) { CancelOriginalReuse(); }
+        }
+        void OwnerChanged(object? sender, AvaloniaPropertyChangedEventArgs args)
+        {
+            if (args.Property == Visual.IsVisibleProperty && !owner.IsVisible) { WithdrawOwner(); }
+        }
+        void OwnerClosed(object? sender, EventArgs args) => WithdrawOwner();
         void TargetChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs args)
         {
             if (reuse is { Available: false }) { CancelOriginalReuse(); }
         }
         try
         {
+            // Storage continuations may query admission off-thread; native visibility is observed only by UI events.
+            owner.PropertyChanged += OwnerChanged;
+            owner.Closed += OwnerClosed;
             reuseSource = source.Authority.SessionId;
             var reviewed = await OriginalMessageReuseReview.ReviewAsync(workspace, access, source, original, state,
                 Current, token);
@@ -69,6 +83,9 @@ internal sealed partial class NewRequestWindowController
         }
         finally
         {
+            Interlocked.Exchange(ref ownerAdmission, 0);
+            owner.PropertyChanged -= OwnerChanged;
+            owner.Closed -= OwnerClosed;
             state.PropertyChanged -= TargetChanged;
             reuse?.Dispose();
             reuse = null;

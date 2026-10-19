@@ -1,5 +1,3 @@
-using System.Diagnostics;
-
 using Kora.Core;
 using Kora.Core.Configuration;
 using Kora.Core.Diagnostics;
@@ -17,6 +15,7 @@ public sealed partial class PresenceRenderWorker : IDisposable
     private readonly Action<Action> dispatch;
     private readonly Action<Exception> reportFailure;
     private readonly ILogger<PresenceRenderWorker> logger;
+    private readonly TimeProvider time;
     private readonly Lock gate = new();
     private readonly AutoResetEvent wake = new(false);
     private readonly Thread thread;
@@ -43,11 +42,19 @@ public sealed partial class PresenceRenderWorker : IDisposable
 
     public PresenceRenderWorker(IPresenceRenderTarget target, Action<Action> dispatch,
         Action<Exception> reportFailure, ILogger<PresenceRenderWorker> logger)
+        : this(target, dispatch, reportFailure, logger, TimeProvider.System)
     {
+    }
+
+    internal PresenceRenderWorker(IPresenceRenderTarget target, Action<Action> dispatch,
+        Action<Exception> reportFailure, ILogger<PresenceRenderWorker> logger, TimeProvider time)
+    {
+        ArgumentNullException.ThrowIfNull(time);
         this.target = target;
         this.dispatch = dispatch;
         this.reportFailure = reportFailure;
         this.logger = logger;
+        this.time = time;
         continuation = HostActivity.CaptureContinuation(HostActivityLayer.Application, HostOperation.Presentation);
         failureContext = continuation;
         thread = new Thread(Run) { IsBackground = true, Name = "Kora presence renderer" };
@@ -131,7 +138,7 @@ public sealed partial class PresenceRenderWorker : IDisposable
             var particles = new PresenceParticle[PresenceSettings.GetParticleCount(PresenceSettings.MaximumDotDensityPercent)];
             PresenceRenderInputs? previous = null;
             long observedGeneration = -1;
-            var timestamp = Stopwatch.GetTimestamp();
+            var timestamp = time.GetTimestamp();
             var active = false;
             var cadence = PresenceAnimation.FrameInterval;
             while (true)
@@ -168,14 +175,14 @@ public sealed partial class PresenceRenderWorker : IDisposable
                     {
                         if (!enabled)
                         {
-                            timestamp = Stopwatch.GetTimestamp();
+                            timestamp = time.GetTimestamp();
                             active = false;
                         }
                     }
                     continue;
                 }
-                var now = Stopwatch.GetTimestamp();
-                var elapsed = Stopwatch.GetElapsedTime(timestamp, now);
+                var now = time.GetTimestamp();
+                var elapsed = time.GetElapsedTime(timestamp, now);
                 if (active && elapsed < cadence)
                 {
                     // Input changes wake promptly; a pending deadline never delays a state or speech edge.
@@ -224,7 +231,7 @@ public sealed partial class PresenceRenderWorker : IDisposable
                 if (!changed && previous == current)
                 {
                     wake.WaitOne();
-                    timestamp = Stopwatch.GetTimestamp();
+                    timestamp = time.GetTimestamp();
                     active = false;
                     continue;
                 }

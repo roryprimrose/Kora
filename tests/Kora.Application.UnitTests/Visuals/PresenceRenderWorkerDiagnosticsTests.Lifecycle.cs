@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using System.Threading.Channels;
 
 using AwesomeAssertions;
@@ -10,6 +9,17 @@ namespace Kora.Application.UnitTests.Visuals;
 
 public sealed partial class PresenceRenderWorkerDiagnosticsTests
 {
+    [Fact]
+    public void WorkerRejectsAMissingClockBeforeStarting()
+    {
+        using var target = new PresenceRenderWorkerTests.FakeTarget();
+        var create = () => new PresenceRenderWorker(target, _ => { }, _ => { }, new DiagnosticLogger(), null!);
+
+        create.Should().Throw<ArgumentNullException>().WithParameterName("time");
+        target.Draws.Should().Be(0);
+        target.Releases.Should().Be(0);
+    }
+
     [Fact]
     public async Task SuspensionDuringDrawDiscardsPixelsAndResumeCreatesExactlyOneFreshGeneration()
     {
@@ -62,15 +72,11 @@ public sealed partial class PresenceRenderWorkerDiagnosticsTests
         using var dispatch = new PresenceRenderWorkerTests.WorkerGate();
         using var settled = new PresenceRenderWorkerTests.WorkerGate();
         using var afterWait = new PresenceRenderWorkerTests.WorkerGate();
-        long drawnAt = 0;
-        using var target = new PresenceRenderWorkerTests.FakeTarget
-        {
-            BeforeDrawReturns = () => Volatile.Write(ref drawnAt, Stopwatch.GetTimestamp()),
-        };
+        var clock = new RenderClock();
+        using var target = new PresenceRenderWorkerTests.FakeTarget();
         var queue = Channel.CreateUnbounded<Action>();
         var inspectSettledFrame = 0;
         var settledGuardCaptured = 0;
-        var settledGuardElapsed = TimeSpan.Zero;
         var logger = new DiagnosticLogger
         {
             BeforeInformationCheck = () =>
@@ -79,19 +85,12 @@ public sealed partial class PresenceRenderWorkerDiagnosticsTests
                 {
                     return;
                 }
-                if (Volatile.Read(ref settledGuardCaptured) != 0)
+                if (Interlocked.Exchange(ref settledGuardCaptured, 1) != 0)
                 {
                     afterWait.BlockOnce();
                     return;
                 }
-                var elapsedSinceDraw = Stopwatch.GetElapsedTime(Volatile.Read(ref drawnAt));
-                if (elapsedSinceDraw >= PresenceParticleField.QuietFrameInterval)
-                {
-                    // The worker timestamp precedes Draw, so it cannot take the earlier cadence wait now.
-                    settledGuardElapsed = elapsedSinceDraw;
-                    Volatile.Write(ref settledGuardCaptured, 1);
-                    settled.BlockOnce();
-                }
+                settled.BlockOnce();
             },
         };
         using var worker = new PresenceRenderWorker(target,
@@ -100,7 +99,7 @@ public sealed partial class PresenceRenderWorkerDiagnosticsTests
                 queue.Writer.TryWrite(action);
                 dispatch.BlockOnce();
             },
-            exception => throw new InvalidOperationException("Unexpected renderer failure.", exception), logger);
+            exception => throw new InvalidOperationException("Unexpected renderer failure.", exception), logger, clock);
         var inputs = PresenceRenderWorkerTests.Inputs() with { State = AssistantState.Hidden };
         try
         {
@@ -108,11 +107,12 @@ public sealed partial class PresenceRenderWorkerDiagnosticsTests
             var first = await Next(queue);
             await dispatch.Entered.Task.WaitAsync(Deadline, TestContext.Current.CancellationToken);
             first();
+            clock.Advance(PresenceParticleField.QuietFrameInterval);
             Volatile.Write(ref inspectSettledFrame, 1);
             dispatch.Release();
             await settled.Entered.Task.WaitAsync(Deadline, TestContext.Current.CancellationToken);
 
-            settledGuardElapsed.Should().BeGreaterThanOrEqualTo(PresenceParticleField.QuietFrameInterval);
+            clock.GetElapsedTime(0).Should().Be(PresenceParticleField.QuietFrameInterval);
             // Unchanged hidden inputs past cadence must take the no-change wait and consume this queued wake.
             worker.Update(inputs with { IsLightTheme = true });
             target.Draws.Should().Be(1);
@@ -150,6 +150,15 @@ public sealed partial class PresenceRenderWorkerDiagnosticsTests
         worker.PresentedOpacity.Should().Be(0);
         target.Presents.Should().Be(1);
         target.Releases.Should().Be(1);
+    }
+
+    private sealed class RenderClock : TimeProvider
+    {
+        private long timestamp;
+
+        public override long TimestampFrequency => TimeSpan.TicksPerSecond;
+        public override long GetTimestamp() => Volatile.Read(ref timestamp);
+        public void Advance(TimeSpan elapsed) => Interlocked.Add(ref timestamp, elapsed.Ticks);
     }
 
     [Fact]

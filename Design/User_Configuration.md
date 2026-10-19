@@ -1254,7 +1254,7 @@ Copy transfers only `SessionProviderOverrides`: null remains **Inherit app**, ex
 
 Confirmation separately rereads both policies/lifecycles and current app/account/catalogue/installation/private-control snapshots. Source and destination revisions/generations must still match; changing and restoring values does not restore an old revision. Editing selections/fields, cancelling, closing, privacy/control changes or expiry invalidate review. At each destination transaction boundary the private SQLite writer rereads the exact source on its owned connection; a changed source stops the operation. No source row, source control intent or source authority is mutated. An identical-value copy still uses the normal audited destination save/revision/terminal receipt, not a second no-op writer.
 
-Unknown audit/save/readback outcomes retain the existing destination-only durable hold and explicit inspect-receipts recovery. No automatic retry, rollback claim or source-to-destination execution authority is introduced. Deterministic copy tests are authored; current-head build/test/coverage proof is pending the serial validation permit. Runtime/provider/egress E/Q enablement remains unavailable.
+Unknown audit/save/readback outcomes retain the existing destination-only durable hold and explicit inspect-receipts recovery. No automatic retry, rollback claim or source-to-destination execution authority is introduced. Deterministic copy tests are authored; current-head maintained builds, tests and exact portable line-and-branch coverage are required before merge. Runtime/provider/egress E/Q enablement remains unavailable.
 
 ## 6. Definitions and Local Data
 

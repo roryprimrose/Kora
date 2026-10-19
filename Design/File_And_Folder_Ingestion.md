@@ -499,6 +499,9 @@ Citation identity validation is not a claim of semantic truth or answer-quality 
 [ILocalFileModelUsePolicy](../src/Kora.Core/Context/ILocalFileModelUsePolicy.cs) is distinct from read consent.
 The production [UnavailableLocalFileModelUsePolicy](../src/Kora.Application/Dependencies/UnavailableLocalFileModelUsePolicy.cs) reports `SourceUseUnavailable` before context construction or dispatch.
 Deterministic fakes exercise admitted and denied paths without asserting that source contents are safe.
+Awaited source policy receives the exact immutable revision, unchanged question and selected citations with original host correlation.
+Revocation/cancellation while classification is pending suppresses context construction and execution; a source-policy I/O/state failure records a failed terminal file audit, logs only its failure type and publishes no claims.
+Evidence IDs from another question are rejected even when both questions use the same immutable source revision.
 
 **Shared execution integration:** consumes peer commit `d5cfa31cf15b4f4c64e1a30241427366e3b35456` and its committed model-pipeline dependencies.
 The source gate and broker/native cancellation remain attached through the shared executor and [model-host consumer fence](../src/Kora.Application/Dependencies/ModelTurnHost.Execution.cs), including asynchronous revalidation, tool rejection and final disclosure.

@@ -200,6 +200,104 @@ public sealed class LocalFileAnswerTests : IDisposable
     }
 
     [Theory]
+    [InlineData("clear", LocalFileAnswerOutcome.Stale)]
+    [InlineData("cancel", LocalFileAnswerOutcome.Cancelled)]
+    [InlineData("native-question", LocalFileAnswerOutcome.Stale)]
+    [InlineData("privacy", LocalFileAnswerOutcome.Stale)]
+    [InlineData("call", LocalFileAnswerOutcome.Stale)]
+    [InlineData("ownership", LocalFileAnswerOutcome.Stale)]
+    [InlineData("dispose", LocalFileAnswerOutcome.Unavailable)]
+    public async Task AwaitedSensitivityAdmissionCannotAuthorizeRetiredSourceOrNativeQuestion(string boundary,
+        LocalFileAnswerOutcome expected)
+    {
+        using var root = Root();
+        using var f = new Fixture { DelayPolicy = true };
+        await f.Admit();
+        using var cancellation = new CancellationTokenSource();
+        var nativeCurrent = true;
+        var run = f.Action.ExecuteAsync(f.Source.Reference, "  private marker? ", () => nativeCurrent, cancellation.Token);
+        await f.PolicyEntered.Task.WaitAsync(Token);
+        f.SourceUseCalls.Should().Be(1);
+        f.ModelCalls.Should().Be(0);
+        f.Context.Should().BeNull();
+        f.Preview.IsQuiescent.Should().BeFalse();
+        var quiescence = f.Preview.WaitForQuiescenceAsync();
+        quiescence.IsCompleted.Should().BeFalse();
+        switch (boundary)
+        {
+            case "clear": f.Preview.Clear(); break;
+            case "cancel": cancellation.Cancel(); break;
+            case "dispose": f.Preview.Dispose(); break;
+            default: nativeCurrent = false; break;
+        }
+        try
+        {
+            f.ModelCalls.Should().Be(0);
+            run.IsCompleted.Should().BeFalse();
+        }
+        finally { f.PolicyRelease.TrySetResult(); }
+        var result = await run;
+        result.Outcome.Should().Be(expected);
+        result.Claims.Should().BeEmpty();
+        result.ExecutionReason.Should().BeNull();
+        f.ModelCalls.Should().Be(0);
+        f.Context.Should().BeNull();
+        f.Reads.Should().Be(1);
+        await quiescence;
+        f.Preview.IsQuiescent.Should().BeTrue();
+    }
+
+    [Theory]
+    [InlineData(LocalFileModelUseDecision.Allowed, LocalFileAnswerOutcome.Succeeded)]
+    [InlineData(LocalFileModelUseDecision.Denied, LocalFileAnswerOutcome.Denied)]
+    [InlineData(LocalFileModelUseDecision.Unavailable, LocalFileAnswerOutcome.SourceUseUnavailable)]
+    public async Task AwaitedSourcePolicyReceivesExactImmutableQuestionSelectionAndHostProvenance(
+        LocalFileModelUseDecision decision, LocalFileAnswerOutcome expected)
+    {
+        using var root = Root();
+        using var f = new Fixture { DelayPolicy = true, Decision = decision };
+        await f.Admit();
+        const string question = "  private marker? ";
+        f.OnPolicy = () =>
+        {
+            f.PolicySource.Should().BeSameAs(f.Source);
+            f.PolicyQuestion.Should().Be(question);
+            f.PolicySelection!.Outcome.Should().Be(LocalFileSearchOutcome.Matched);
+            f.PolicySelection.Citations.Should().OnlyContain(citation => citation.Source == f.Source.Reference);
+            f.PolicySelection.Citations.Single().Excerpt.Should().Be(f.Source.Text);
+            f.PolicyRequest.Should().BeSameAs(root.Request);
+        };
+        var run = f.Action.ExecuteAsync(f.Source.Reference, question, () => true, Token);
+        await f.PolicyEntered.Task.WaitAsync(Token);
+        f.Context.Should().BeNull();
+        f.PolicyRelease.SetResult();
+        var result = await run;
+        result.Outcome.Should().Be(expected);
+        f.PolicyResumedRequest.Should().BeSameAs(root.Request);
+        f.ModelCalls.Should().Be(decision == LocalFileModelUseDecision.Allowed ? 1 : 0);
+        if (decision != LocalFileModelUseDecision.Allowed) { f.Context.Should().BeNull(); }
+    }
+
+    [Fact]
+    public async Task SensitivityPolicyFailureIsUnavailableWithoutContentDiagnosticsOrModelAuthority()
+    {
+        using var root = Root();
+        using var f = new Fixture { PolicyFailure = new IOException("private marker sensitive-classification detail") };
+        await f.Admit();
+        var result = await f.Action.ExecuteAsync(f.Source.Reference, "private marker", () => true, Token);
+        result.Outcome.Should().Be(LocalFileAnswerOutcome.Unavailable);
+        result.Claims.Should().BeEmpty();
+        result.ExecutionReason.Should().BeNull();
+        f.ModelCalls.Should().Be(0);
+        f.Context.Should().BeNull();
+        string.Join(' ', f.Messages).Should().NotContain("private marker").And.NotContain("sensitive-classification");
+        f.Audits.TakeLast(2).Select(item => item.Outcome)
+            .Should().Equal(SecurityAuditOutcome.Requested, SecurityAuditOutcome.Failed);
+        f.LogContexts.Should().OnlyContain(context => context != null && context.Request == root.Request);
+        f.Preview.IsQuiescent.Should().BeTrue();
+    }
+
+    [Theory]
     [InlineData("mode")]
     [InlineData("version")]
     [InlineData("span")]
@@ -331,11 +429,20 @@ public sealed class LocalFileAnswerTests : IDisposable
         internal ModelContextEnvelope? Context { get; private set; }
         internal Func<LocalContextTurnReceipt, LocalContextTurnReceipt>? TransformReceipt { get; init; }
         internal bool DelayModel { get; init; }
+        internal bool DelayPolicy { get; init; }
+        internal IOException? PolicyFailure { get; init; }
+        internal LocalFileRevision? PolicySource { get; private set; }
+        internal string? PolicyQuestion { get; private set; }
+        internal LocalFileSearchResult? PolicySelection { get; private set; }
+        internal HostRequest? PolicyRequest { get; private set; }
+        internal HostRequest? PolicyResumedRequest { get; private set; }
         internal string? RetrievalDefect { get; init; }
         internal Action? OnPolicy { get; set; }
         internal SecurityAuditOutcome? RejectAudit { get; set; }
         internal TaskCompletionSource Entered { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         internal TaskCompletionSource Release { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        internal TaskCompletionSource PolicyEntered { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        internal TaskCompletionSource PolicyRelease { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         internal LocalFilePreview Preview { get; }
         internal LocalFileAnswer Action { get; }
         internal LocalFileRevision Source { get; private set; } = null!;
@@ -363,12 +470,20 @@ public sealed class LocalFileAnswerTests : IDisposable
             }
             public void Dispose() { }
         }
-        public Task<LocalFileModelUseDecision> AdmitAsync(LocalFileRevision source, string question,
+        public async Task<LocalFileModelUseDecision> AdmitAsync(LocalFileRevision source, string question,
             LocalFileSearchResult excerpts, CancellationToken cancellationToken)
         {
             SourceUseCalls++;
+            PolicySource = source;
+            PolicyQuestion = question;
+            PolicySelection = excerpts;
+            PolicyRequest = HostActivity.RequireCurrent().Request;
             OnPolicy?.Invoke();
-            return Task.FromResult(Decision);
+            PolicyEntered.TrySetResult();
+            if (DelayPolicy) { await PolicyRelease.Task; }
+            PolicyResumedRequest = HostActivity.RequireCurrent().Request;
+            if (PolicyFailure is { } failure) { throw failure; }
+            return Decision;
         }
         public async Task<LocalContextTurnReceipt> RunAsync(ModelContextEnvelope context, Func<bool> isCurrent, CancellationToken cancellationToken)
         {

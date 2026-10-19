@@ -56,7 +56,13 @@ public sealed partial class LocalFileAnswer(LocalFilePreview preview, ILocalFile
                     return LocalFileAnswerResult.Empty(search.Outcome == LocalFileSearchOutcome.NoMatch
                         ? LocalFileAnswerOutcome.NoEvidence : LocalFileAnswerOutcome.Denied);
                 }
-                var decision = await sourceUse.AdmitAsync(source, question, search, token).ConfigureAwait(false);
+                LocalFileModelUseDecision decision;
+                try { decision = await sourceUse.AdmitAsync(source, question, search, token).ConfigureAwait(false); }
+                catch (Exception exception) when (exception is IOException or InvalidOperationException)
+                {
+                    Failure(logger, exception.GetType().Name);
+                    return LocalFileAnswerResult.Empty(LocalFileAnswerOutcome.Unavailable);
+                }
                 token.ThrowIfCancellationRequested();
                 if (!current()) { return LocalFileAnswerResult.Empty(LocalFileAnswerOutcome.Stale); }
                 if (decision != LocalFileModelUseDecision.Allowed)

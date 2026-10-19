@@ -118,6 +118,25 @@ public sealed class LocalFileAnswerContextTests
         result.Claims.Should().BeEmpty();
     }
 
+    [Fact]
+    public void EvidenceIdentityCannotBeReplayedAcrossQuestionsOnTheSameImmutableRevision()
+    {
+        var (source, search, first) = Create();
+        var second = new LocalFileAnswerContext(source, search, "alpha marker?", first.Envelope.Request,
+            new(1), DateTimeOffset.UnixEpoch);
+        var oldId = first.Envelope.Evidence.Single().Id.Value;
+        second.Envelope.Evidence.Single().Id.Value.Should().NotBe(oldId);
+        var answer = JsonSerializer.Serialize(new
+        {
+            unsupported = false,
+            claims = new[] { new { text = "Prior question's claim", evidenceIds = new[] { oldId } } },
+        });
+        first.Resolve(Success(first, answer), search).Outcome.Should().Be(LocalFileAnswerOutcome.Succeeded);
+        var replayed = second.Resolve(Success(second, answer), search);
+        replayed.Outcome.Should().Be(LocalFileAnswerOutcome.InvalidResponse);
+        replayed.Claims.Should().BeEmpty();
+    }
+
     [Theory]
     [InlineData("source")]
     [InlineData("span")]

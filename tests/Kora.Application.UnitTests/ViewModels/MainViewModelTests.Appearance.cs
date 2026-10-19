@@ -28,7 +28,7 @@ public sealed partial class MainViewModelTests
         await fixture.ViewModel.DisposeAsync();
         fixture.ViewModel.IsNativePresenceRenderer = true;
         fixture.ViewModel.IsNativePresenceRenderer.Should().BeFalse();
-        fixture.AppearancePreferences.NativePresenceRendererEnabled.Should().BeFalse();
+        fixture.AppearancePreferences.NativePresenceRendererEnabled.Should().BeNull();
     }
 
     [Theory]

@@ -1,4 +1,4 @@
-using Kora.Application.Communication;
+﻿using Kora.Application.Communication;
 using Kora.Application.Configuration;
 using Kora.Application.Diagnostics;
 using Kora.Application.Infrastructure;
@@ -74,16 +74,20 @@ public sealed partial class MainViewModel
     public void BindCallOwnershipGate(Func<bool> gate, Func<long>? revision = null)
     {
         callOwnershipEligible = gate;
+        UpdateSpeechPreparation();
         auditImpactControlRevision = checked(auditImpactControlRevision + 1);
         auditImpactOwnerRevision = revision ?? (static () => 0);
         auditImpactPreview?.Retire("Owner binding changed; preview retired.");
         Interlocked.Increment(ref diagnosticImpactControlRevision);
         diagnosticImpactPreview?.Retire("Owner binding changed; preview retired.");
         NotifyDiagnosticImpactPreview();
+        sessionRetentionPlanner?.Retire("Owner binding changed; preview retired.");
         NotifyAuditImpactPreview();
     }
 
+#pragma warning disable VSTHRD003 // Exposes the owned call transition for asynchronous observation without starting duplicate closure work.
     internal Task CallClosureTask => callClosureTask;
+#pragma warning restore VSTHRD003
 
     private bool IsCallMutationHostEligible => !disposed && IsHostInputEligible && callOwnershipEligible();
 
@@ -229,6 +233,7 @@ public sealed partial class MainViewModel
     {
         auditImpactPreview?.Retire("Call revision changed; preview retired.");
         diagnosticImpactPreview?.Retire("Call revision changed; preview retired.");
+        sessionRetentionPlanner?.Retire("Call revision changed; preview retired.");
         RetireQuestionVoiceReply();
         try
         {
@@ -240,7 +245,11 @@ public sealed partial class MainViewModel
             ClearFilePreview();
             ApplicationLog.CallStateChanged(logger, observation.EffectiveState);
             // Invalidation precedes any dispatcher or asynchronous stop, including pending synthesis.
-            if (ShouldWithholdCallOutput(observation)) { textToSpeech.InvalidateOutput(); }
+            if (ShouldWithholdCallOutput(observation))
+            {
+                speechPreparation?.Request(null);
+                textToSpeech.InvalidateOutput();
+            }
             if (!observation.AllowActivation && IsVoiceEnabled)
             {
                 HoldVoiceInput("Microphone closed · voice activation paused during detected call");

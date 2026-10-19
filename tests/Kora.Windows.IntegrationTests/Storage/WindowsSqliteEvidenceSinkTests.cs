@@ -936,7 +936,7 @@ public sealed partial class WindowsSqliteEvidenceSinkTests
         command.ExecuteNonQuery();
     }
 
-    private static void SeedDiagnosticHistory(OwnedStorageFixture fixture, DiagnosticEnvelope seed, int count, bool audit = false) =>
+    internal static void SeedDiagnosticHistory(OwnedStorageFixture fixture, DiagnosticEnvelope seed, int count, bool audit = false) =>
         SeedEvidenceHistory(fixture, seed.EvidenceId.Value, count, audit ? "security_audit_events" : "application_log_events");
 
     private static void SeedEvidenceHistory(OwnedStorageFixture fixture, Guid seedId, int count, string table)
@@ -983,7 +983,7 @@ public sealed partial class WindowsSqliteEvidenceSinkTests
         process.ExitCode.Should().Be(0, $"owned junction operation must succeed: {await output} {await error}");
     }
 
-    private static SqliteConnection Open(OwnedStorageFixture fixture)
+    internal static SqliteConnection Open(OwnedStorageFixture fixture)
     {
         var connection = new SqliteConnection(new SqliteConnectionStringBuilder
         {
@@ -1017,12 +1017,12 @@ public sealed partial class WindowsSqliteEvidenceSinkTests
         "synthetic.operation", SecurityAuditOutcome.Requested, SecurityAuditInitiator.LocalUser, "synthetic.target",
         Guid.NewGuid());
 
-    private static DiagnosticEnvelope Diagnostic(HostActivity host) => new(1, new(Guid.NewGuid()),
+    internal static DiagnosticEnvelope Diagnostic(HostActivity host) => new(1, new(Guid.NewGuid()),
         DateTimeOffset.UtcNow, 42, "SyntheticEvent", "Information", "Kora.Tests", "Synthetic {Count}",
         new Dictionary<string, EvidenceValue>(StringComparer.Ordinal) { ["Count"] = new(EvidenceValueKind.WholeNumber, "1") },
         [], TraceSnapshot.Capture(host.Activity), host.Request, null, host.CorrelationId, host.ApprovalId);
 
-    private static DiagnosticEnvelope Bootstrap(bool bootstrap = true) => new(1, new(Guid.NewGuid()),
+    internal static DiagnosticEnvelope Bootstrap(bool bootstrap = true) => new(1, new(Guid.NewGuid()),
         DateTimeOffset.UtcNow, 1, bootstrap ? "Bootstrap" : "Contextless", "Information", "Kora.Tests",
         bootstrap ? "Synthetic bootstrap" : "Synthetic contextless",
         new Dictionary<string, EvidenceValue>(StringComparer.Ordinal)
@@ -1031,7 +1031,7 @@ public sealed partial class WindowsSqliteEvidenceSinkTests
             ["kora.evidence.gap"] = new(EvidenceValueKind.Text, "MissingHostContext"),
         }, [], null, null, null);
 
-    private static ActivityListener Listen()
+    internal static ActivityListener Listen()
     {
         var listener = new ActivityListener
         {

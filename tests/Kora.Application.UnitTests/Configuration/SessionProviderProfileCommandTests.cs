@@ -7,6 +7,33 @@ namespace Kora.Application.UnitTests.Configuration;
 public sealed class SessionProviderProfileCommandTests
 {
     private const string Session = "d7fd283b-5d96-4300-8c93-67a119d564c4";
+    private const string Source = "4ebf69ce-a88f-4051-88cb-223504cab87b";
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("Nova, ")]
+    public void SparseCopySyntaxRequiresAnExplicitDistinctDestinationAndSeparateConfirmation(string prefix)
+    {
+        var command = SessionProviderProfileCommand.Parse(prefix + "copy providers.session.profile from " + Source + " to " + Session, "Nova")!;
+        command.Operation.Should().Be(AppearanceCommandOperation.Set);
+        command.SourceSession.Should().Be(Guid.Parse(Source));
+        command.Session.Should().Be(Guid.Parse(Session));
+        command.Confirmation.Should().BeNull();
+        command.Error.Should().BeNull();
+        command.Model.Should().BeNull();
+        command.Service.Should().BeNull();
+    }
+
+    [Theory]
+    [InlineData("copy providers.session.profile from " + Source)]
+    [InlineData("copy providers.session.profile from " + Source + " to selected")]
+    [InlineData("copy providers.session.profile from " + Source + " to " + Source)]
+    [InlineData("copy providers.session.profile from " + Source + " to " + Session + " now")]
+    [InlineData("copy providers.session.service from " + Source + " to " + Session)]
+    [InlineData("copy providers.session.profile for " + Source + " to " + Session)]
+    [InlineData("copy providers.session.profile from 4EBF69CE-A88F-4051-88CB-223504CAB87B to " + Session)]
+    public void AmbiguousCopyNeverInfersOrRebindsASession(string text) =>
+        SessionProviderProfileCommand.Parse(text, "Kora")!.Operation.Should().Be(AppearanceCommandOperation.Clarify);
 
     [Theory]
     [InlineData("Kora, ", "get", "profile", AppearanceCommandOperation.Get)]

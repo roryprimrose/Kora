@@ -603,6 +603,38 @@ snapshot; later records do not silently extend it. Each page includes stable
 including metadata. A record too large for one page is explicitly marked
 `ContentOmitted`; content is never silently truncated.
 
+Segmented SQLite inspection retains the same source-qualified citations and
+global commit-time/source/ID/link-ordinal ordering across registered segments,
+including retained legacy evidence. Its 4,096-row scan budget is shared across
+the whole read, not granted separately to each segment. A versioned snapshot
+binds the store identity, inventory generation, segment identities, audit offsets
+and individual row ceilings. Appends and new segments do not widen those ceilings.
+A later inventory generation can continue only while every original segment
+identity, audit offset and ceiling remains valid; incompatible maintenance or
+removed history invalidates the continuation explicitly and requires a new search.
+Segmented cursors use a versioned signed Brotli payload with a 48 KiB wire bound
+and 128 KiB inflated bound, authenticated before decompression. Legacy signed
+cursors remain readable; the complete serialized page still stays within 64 KiB.
+Trace parents and links resolve only within the admitted snapshot and selected
+session. Global diagnostic-audit sequence numbers add each segment's registered
+offset to its local sequence; these projections remain separate from committed
+interaction-store authority. Inspection never creates a missing segment, mutates
+retention, or resets the legacy evidence store.
+
+Explicit offline first-cutover recovery is separate from Evidence inspection and
+normal startup. Its exact operator argument and native confirmation can complete
+only an empty never-published inventory shell under verified instance/storage
+gates, retaining legacy database/journal bytes. It does not start host services,
+providers, microphone capture, task replay or automatic owner recovery. Unknown
+or partially published state remains held and preserved. Its content-free
+bootstrap receipt describes storage completion only; it is not a trusted
+security-audit event, proof of resource quiescence or authority to remove an
+unclean-owner marker or restart. Each live recovery/launch needs separate
+approval even after deterministic source tests pass.
+Failure stderr receipts also contain only fixed classifications and commit
+state, not rendered exceptions or private paths. Unconfirmed completion never
+means rolled back, and no failure receipt authorizes an automatic retry.
+
 **Literal Find** searches only the exact serialized page already displayed
 after a successful complete explicit Evidence read, including its literal JSON
 escapes, citations and disclosure. It performs no new query or storage read.

@@ -359,7 +359,8 @@ public sealed partial class SessionsConversationTests
 
     private sealed class SearchReader(
         Func<HostId<SessionIdentity>, ConversationCursor?, int, CancellationToken, ValueTask<ConversationPage>> read,
-        Func<HostId<SessionIdentity>, CancellationToken, ValueTask<ConversationDraftSnapshot>>? readDraft = null)
+        Func<HostId<SessionIdentity>, CancellationToken, ValueTask<ConversationDraftSnapshot>>? readDraft = null,
+        Func<HostId<SessionIdentity>, CancellationToken, ValueTask<SessionWorkspaceEntry>>? readMetadata = null)
         : ISessionWorkspaceStore, ISessionConversationStore
     {
         internal int Reads { get; private set; }
@@ -389,7 +390,8 @@ public sealed partial class SessionsConversationTests
         public ValueTask<HostTaskRecord> RecordControlIntentAsync(HostRequest request, CancellationToken cancellationToken) => throw new NotSupportedException();
         public ValueTask<SessionPage<WorkSessionAuthorization>> ReadSessionsAsync(Guid? after, int limit, CancellationToken cancellationToken) => throw new NotSupportedException();
         public ValueTask<SessionPage<SessionWorkspaceEntry>> ReadMetadataPageAsync(Guid? after, int limit, CancellationToken cancellationToken) => throw new NotSupportedException();
-        public ValueTask<SessionWorkspaceEntry> ReadMetadataAsync(HostId<SessionIdentity> session, CancellationToken cancellationToken) => throw new NotSupportedException();
+        public ValueTask<SessionWorkspaceEntry> ReadMetadataAsync(HostId<SessionIdentity> session, CancellationToken cancellationToken) =>
+            (readMetadata ?? throw new NotSupportedException())(session, cancellationToken);
         public ValueTask<HostTaskObservation?> ReadTaskAsync(HostId<SessionIdentity> session, HostId<TaskIdentity> task, CancellationToken cancellationToken) => throw new NotSupportedException();
         public ValueTask<HostTaskObservation> CancelWaitingTaskAsync(HostRequest control, HostTaskCancellationTarget target, Func<bool> canControl, CancellationToken cancellationToken) => throw new NotSupportedException();
         public ValueTask<SessionWorkspaceEntry> CreateNamedSessionAsync(HostRequest request, SessionName name, Func<bool> canControl, CancellationToken cancellationToken) => throw new NotSupportedException();

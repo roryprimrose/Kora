@@ -192,7 +192,17 @@ jobs:
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: test-results
-          path: .net-test-artifacts/**/*.trx
+          path: |
+            .net-test-artifacts/**/*.trx
+            .net-test-artifacts/**/*.coverage.cobertura.*.xml
+            src/Kora.Core/bin/Release/net10.0/Kora.Core.dll
+            src/Kora.Core/bin/Release/net10.0/Kora.Core.pdb
+            src/Kora.Application/bin/Release/net10.0/Kora.Application.dll
+            src/Kora.Application/bin/Release/net10.0/Kora.Application.pdb
+            src/Kora.Tools/bin/Release/net10.0/Kora.Tools.dll
+            src/Kora.Tools/bin/Release/net10.0/Kora.Tools.pdb
+            src/Kora.Definitions/bin/Release/net10.0/Kora.Definitions.dll
+            src/Kora.Definitions/bin/Release/net10.0/Kora.Definitions.pdb
           if-no-files-found: error
           include-hidden-files: true
 

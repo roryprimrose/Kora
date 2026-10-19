@@ -1,4 +1,4 @@
-using Kora.Application.Configuration;
+﻿using Kora.Application.Configuration;
 using Kora.Application.Diagnostics;
 using Kora.Application.Infrastructure;
 using Kora.Core.Configuration;
@@ -26,12 +26,15 @@ public sealed partial class MainViewModel
 
     public void BindSessionRetentionNativeLifetime(Func<bool> lifetime)
     {
+        sessionRetentionPlanner?.Retire("Native settings lifetime changed; preview retired.");
         sessionRetentionNativeLifetime = lifetime;
         OnPropertyChanged(nameof(CanChangeSessionRetentionNative));
+        NotifySessionRetentionPlan();
     }
 
     private async Task ConfigureSessionRetentionAsync(bool save, bool reset)
     {
+        sessionRetentionPlanner?.Retire("Future-policy control or refresh requested; preview retired.");
         if (!CanChangeSessionRetentionNative)
         {
             SessionRetentionStatus = "Session retention requires the owning unlocked native settings surface.";
@@ -66,5 +69,6 @@ public sealed partial class MainViewModel
             ApplicationLog.Error(logger, exception, "Configuring future-only session retention");
             ShowFailure("Session retention unavailable.", exception.Message);
         }
+        finally { NotifySessionRetentionPlan(); }
     }
 }

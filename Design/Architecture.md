@@ -808,7 +808,7 @@ Implementation requirements:
 - Use the maintained pinned standard-SQLite distribution with reviewed provenance/licences and release-native closure. The rejected encrypted candidates are historical evidence, not admission blockers for this baseline. Installed native loading remains distribution evidence, not proof of database confidentiality.
 - Pin the managed provider, native engine and initialization mode as one release-owned dependency closure. Publish and installer manifests must include the exact native asset for each offered architecture; package restore/build tools are development inputs, not runtime acquisition paths.
 - Keep content-bearing FTS, summaries, indexes, journals and managed backups inside the private storage boundary. Use memory-only temporary storage and never trace SQL parameters or record content into diagnostics. Backups/exports outside that boundary are readable, not encrypted.
-- Fan every content-minimising `ILogger` event to two independent providers: the retained daily JSON file sink and the private SQLite logging provider. The file stream remains available for database open/migration/permission/commit failure, fatal crash and recovery diagnosis. Failure in one provider must not recursively invoke it or silently suppress delivery to the other.
+- Fan every content-minimising `ILogger` event through the evidence provider to the retained daily JSON file sink and the private SQLite sink. The file stream remains available for database open/migration/permission/commit failure, fatal crash and recovery diagnosis. Failure in one sink must not recursively invoke it or silently suppress delivery to the other.
 - Both SQLite tables are structured logging stores, not rendered-line archives.
   Preserve a common formatter-independent `ILogger` envelope: stable evidence
   ID, UTC observation time, numeric/name event ID, level, logger category,
@@ -843,7 +843,105 @@ Implementation requirements:
 - Apply independent database retention policies: diagnostics default to 30 days under their configurable bounded schema; audits default to 90 days and permit 30-365 days. Persist each row's effective due time. Session deletion, search and reasoning do not refresh or collapse these policies; perpetual grants remain independently retained.
 - Query retained tables/files through one host-owned evidence service with bounded list/read/search, stable citations and explicit unavailable/expired/gap markers; never expose arbitrary SQL or paths. Search uses permitted indexed fields inside private storage.
 - “Ask Evidence” is an application workflow over that service, not unrestricted database access. It retrieves a bounded, reviewable set of permitted log/audit/session records through the context broker, invokes the selected eligible reasoning runtime, and returns claims with exact evidence citations and explicit inference/uncertainty. Local reasoning is the default. A remote runtime requires preview and approval of the exact selected records under normal egress policy. Missing reasoning does not disable deterministic list/read/search.
-- The security audit `ILogger` provider commits `security_audit_events` synchronously at the policy boundary and reports failure to the host-owned audit service; a daily-file copy alone cannot permit consequential dispatch. Ordinary `application_log_events` ingestion may batch asynchronously, but bounded-buffer exhaustion, write failure or recovery must produce an explicit loss marker in the file stream and later database gap evidence rather than silent loss or pressure that prevents audit commits.
+- The security audit `ILogger` provider commits `security_audit_events` synchronously at the policy boundary and reports failure to the host-owned audit service; a daily-file copy alone cannot permit consequential dispatch. Typed audits never use ordinary delivery queues.
+- Desktop ordinary diagnostics and completed activities use two independently drained, bounded 1,024-entry queues: a required daily-file copy and a SQLite projection. Capture validates and snapshots admitted identities, W3C context, scopes and links at emission; workers do not inherit ambient host authority. A stalled SQLite write cannot hold the file lane or perform synchronous persistence on the UI overload path. A full healthy projection queue omits only that projection and admits its exact evidence ID and sink name as a `ProjectionBackpressure` gap alongside the required file copy. Such gaps are durable file evidence, not promised database replay; existing daily-evidence reads report explicit gaps as partial coverage. Subsequent records can project normally once capacity returns.
+- The desktop SQLite projection drains already-available ordinary snapshots in atomic batches of at most 32, without a coalescing delay. Only snapshots admitted by that exact sink are eligible; typed audits and file copies are never batched. Dequeued batch members retain their admission slots until the transaction finishes, preserving the original maximum of 1,025 accepted records (1,024 queued plus one in flight), not enlarging the buffer by a batch. Flush barriers separate batches. Each batch retains restricted file/lease verification, schema/integrity and changed-history validation, before/after database digests, and FULL-synchronous commit. Pre-commit failure rolls back every member; post-commit verification failure does not claim rollback. Delivery failures report every affected identity and remain fatal. Required typed audits have priority over the next ordinary delivery at per-sink boundaries, never over an in-progress transaction, and still commit synchronously before returning. Strict/shared consumers retain single-write delivery.
+- Required file admission/delivery or gap-reporting failure, actual SQLite delivery/integrity failure and unexpected worker termination remain fail-closed; ordinary queue admission is not a durability receipt. Per-sink serialization preserves audit/write integrity without coupling independent ordinary lanes. Provider shutdown closes capture, waits for outstanding capture leases, closes and joins both drains even when one fails, and propagates their failures. Flush barriers wait asynchronously for capacity; cancelling a flush does not cancel accepted records or poison admission. DI owns asynchronous provider disposal; resolve logging before creating the startup root so its activity listener is installed before sampling, retaining live lifecycle authority through startup retention/recovery. Other consumers retain strict shared-buffer behavior unless they explicitly select the required-copy policy.
+
+#### Bounded desktop evidence segments
+
+The desktop composes [WindowsSegmentedEvidenceSink](../src/Kora.Windows/Storage/WindowsSegmentedEvidenceSink.cs)
+over the existing checked SQLite sink. `EvidenceSegmentsV2` owns a versioned,
+profile-restricted inventory, admission lease and registered segment directories.
+An existing `EvidenceStorageV1` database and journal are admitted as sealed legacy
+history without changing their bytes during cutover. Unknown schemas, missing
+files, invalid inventories and incomplete publication fail closed; no existing
+partition is recreated, cleared or silently repaired.
+
+Initial segment admission uses the existing thirty-second startup integrity
+budget for read-only `quick_check`, including legacy sealing, active-state reads
+and identity-inventory population. Ordinary reads, rotations and maintenance
+retain their five-second integrity budget. These are bounded validation
+allowances, not skipped checks or a startup-success deadline; envelope/link
+validation still runs, with fresh budgets for bounded row work. Legacy history
+is validated and pinned before first creating `EvidenceSegmentsV2`, so a failed
+pre-cutover validation does not leave a newly created incomplete inventory.
+An already-existing inventory without committed metadata is explicitly
+unavailable and preserved; it is never treated as a fresh store or repaired
+automatically. This does not release an unclean instance marker or authorize
+another launch.
+
+An explicit offline `--recover-evidence-cutover` route can complete only a
+never-published first-cutover shell: empty `Artifacts`, an existing zero-byte
+`operation.lock`, no other entries and retained valid legacy history. The
+verified instance coordinator reserves the existing owner/lifecycle gates and
+requires native confirmation in an authoritative unlocked session, without
+starting IPC or calling owner-continuity begin/end for a clean host lifetime.
+The [recovery path](../src/Kora.Windows/Storage/WindowsSegmentedEvidenceSink.Recovery.cs)
+rechecks shape under the normal exclusive inventory lease, admits/pins legacy
+history and validates identity uniqueness before creating the active segment.
+It uses the existing checked creation and atomic inventory publication in place.
+Authority and cancellation are rechecked before mutation and publication; after
+commit, cancellation cannot relabel the completion receipt as rollback.
+Unexpected, committed, pending or candidate state stays unavailable and
+preserved. This is bootstrap storage maintenance, not task recovery, trusted
+audit authority, resource-quiescence proof or ownership-marker release. The
+desktop dispatcher, host service container, microphone and providers never
+start on this route, whether it succeeds, fails or receives malformed arguments.
+Completion uses stdout; content-free failure receipts use stderr with typed
+admission/error codes and conservative NotStarted/Unconfirmed/Committed states.
+Receipt fields never include exception messages or private paths. A refused
+native confirmation is not retrospectively classified as decline versus
+timeout; missing/error-output failure is explicitly notified, not swallowed.
+
+New segments use 4 KiB pages with a read-back-verified 4,096-page (16 MiB) SQLite
+cap and rotate before the next transaction once the active file reaches 2,048
+pages (8 MiB). Every active write retains full schema/integrity validation,
+before/after database digests, changed-history validation and synchronous FULL
+commit. A maximum-32 batch is still atomic. Unexpected capacity or write failure
+holds subsequent writes, rather than retrying an uncertain audit or losing
+accepted evidence. Inventory capacity is 128 registered segments, including any
+legacy segment, and 128 KiB of serialized metadata. Capacity exhaustion is
+explicitly unavailable, not permission to discard retained records.
+
+The approved validation scope is per-active-segment on append, not a rescan of
+all historical databases for every new audit. Sealed and legacy segments receive
+full checked admission and content/identity verification, retain owned read-only
+database and journal pins, and are verified again on access. The tested Windows
+write handles and managed writable mappings prevent pin admission; pin failure
+holds startup. Pins do not establish independent tamper evidence, same-user
+rollback protection or immunity to hardware corruption. Sealed-history access
+still checks its admitted digest and the existing reader validates schema,
+integrity, envelopes, links and audit continuity.
+
+Rotation seals the predecessor, creates a checked candidate, flushes a bounded
+inventory staging file and atomically publishes the registered successor before
+accepting its first record. Unregistered candidates or a remaining staging file
+hold later admission; they are preserved for explicit supported investigation,
+not automatically deleted or replayed. Local audit sequences are combined with
+registered predecessor offsets to preserve global order. A fixed 4 MiB identity
+filter accelerates only definite-negative duplicate checks; possible matches
+receive exact checked lookup, so a false positive cannot reject a valid record.
+Emission snapshots remain immutable, host-admitted and independent of the
+eventual destination; preparing an ordinary record does not wait on storage.
+
+Evidence reads merge registered segments under the existing global scan/page
+limits, preserve cross-segment causal references and session isolation, and bind
+continuations to store identity, inventory generation and original segment
+ceilings. Added segments cannot leak into an existing snapshot. Versioned signed
+Brotli cursors retain legacy cursor decoding and enforce wire and inflated
+payload bounds. Diagnostic retention operates on one segment per bounded call,
+temporarily releases its pins under the operation gate, preserves audit rows,
+reseals history and publishes a new inventory generation before returning its
+receipt. An uncertain maintenance outcome holds admission. Audit-impact previews
+retain their global row/byte bounds and observe all registered segments.
+Provider drains finish before DI disposes the store and releases its pins and
+inventory lease.
+
+These bounds and synthetic tests do not qualify physical renderer-selection
+latency. The real application still requires a separately approved, same-build
+trial before claiming the sub-second interaction requirement.
+
 - Transactionally commit ordered intent/decision evidence before consequential dispatch and link observed receipts afterward. Use FULL-synchronous durability, then prove recovery on the admitted engine. Recovery restores readable interrupted/unknown evidence, never fresh execution authority or automatic replay.
 - Validate versioned identity/role-bound artifacts and immutable digests. Stage, flush and publish before committing references; recover staged, orphan and missing/corrupt referenced files explicitly. Bound sizes. Digests detect accidental corruption, not same-user tampering.
 - Verify supplied profile-local paths and restrictive effective folder/file ACLs for every managed copy. Missing/corrupt data or permissions fail visibly without replacement data, permission repair or shared-path fallback.

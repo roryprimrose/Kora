@@ -167,7 +167,7 @@ public sealed partial class MaintenanceViewModelTests
         {
             f.Time.Now = f.State.NextCheck!.Value;
             f.Client.Result = original with { AttemptedAt = f.Time.Now, VerifiedAt = f.Time.Now };
-            f.State.CheckAsync().GetAwaiter().GetResult();
+            f.State.CheckAsync().IsCompletedSuccessfully.Should().BeTrue();
         };
         var action = () => f.Commands.ExecuteAsync(MaintenanceCommand.Review, RequestOrigin.LocalUi, () => true, CancellationToken.None);
         await action.Should().ThrowAsync<InvalidOperationException>();

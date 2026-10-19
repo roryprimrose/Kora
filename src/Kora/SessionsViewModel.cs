@@ -27,7 +27,8 @@ internal sealed partial class SessionsViewModel(
     Kora.Application.Configuration.SessionProviderProfileConfigurationService? providers = null,
     SessionConversationService? conversation = null,
     Func<AdmittedDetailContent, Func<bool>, Func<CancellationToken, Task<AdmittedDetailContent>>, CancellationToken, Task<string>>? openConversationDetail = null,
-    Action<HostId<SessionIdentity>>? revokeConversationDetails = null) : ObservableObject
+    Action<HostId<SessionIdentity>>? revokeConversationDetails = null,
+    Func<SessionWorkspaceEntry, Kora.Core.Conversation.ConversationMessage, Func<bool>, CancellationToken, Task<string>>? reviewOriginalMessageReuse = null) : ObservableObject
 {
     private readonly HostRequest viewer = HostRequest.Create(RequestOrigin.LocalUi);
     private readonly CancellationTokenSource lifetime = new();
@@ -97,6 +98,7 @@ internal sealed partial class SessionsViewModel(
 
     internal void RevokeSessionList()
     {
+        RetireDraftRecovery();
         RetireComposerComparison();
         savedConversationDraftControlRevision = 0;
         ClearLocalEvents();
@@ -499,6 +501,7 @@ internal sealed partial class SessionsViewModel(
     {
         if (busy && !(passive && dispatchingQueue) && !(dispatchControl && dispatchingQueue) || closed || passive && refreshingWork
             || routineNoticeControl && changingRoutineQuiet || dispatchControl && changingQueueControl) { return; }
+        RetireDraftRecovery();
         var subject = selected?.Authority.SessionId;
         var epoch = selectionEpoch;
         var clearedPresentation = false;

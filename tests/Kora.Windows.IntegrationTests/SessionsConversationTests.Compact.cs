@@ -267,7 +267,7 @@ public sealed partial class SessionsConversationTests
             f.Reopen(new SelectionCheckpoint(() =>
             {
                 if (revokeControl) { subject!.Access.ControlRevision++; }
-                subject!.Model.SubmitConversationAsync().GetAwaiter().GetResult();
+                subject!.Model.SubmitConversationAsync().IsCompletedSuccessfully.Should().BeTrue();
                 subject.Model.ComposerBody = "not admitted second buffer";
             }));
             await f.Store.InitializeAsync(f.Token);

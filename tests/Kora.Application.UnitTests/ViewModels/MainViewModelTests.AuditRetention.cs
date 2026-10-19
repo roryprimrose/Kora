@@ -190,7 +190,7 @@ public sealed partial class MainViewModelTests
         {
             if (item.ActionId is "configuration.audit-retention" && item.Outcome == SecurityAuditOutcome.Requested)
             {
-                fixture.ViewModel.RefreshAuditRetentionCommand.ExecuteAsync().GetAwaiter().GetResult();
+                fixture.ViewModel.RefreshAuditRetentionCommand.ExecuteAsync().IsCompletedSuccessfully.Should().BeTrue();
             }
             if (item.ActionId is "configuration.audit-retention" && item.Outcome == SecurityAuditOutcome.Succeeded) { fixture.ViewModel.Dispose(); }
         };

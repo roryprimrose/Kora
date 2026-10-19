@@ -25,6 +25,8 @@ internal sealed class SessionsWindowController(
     private bool disposed;
     internal Action? OpenAllWork { get; set; }
     internal Action? OpenNewRequest { get; set; }
+    internal Func<SessionWorkspaceEntry, Kora.Core.Conversation.ConversationMessage, Avalonia.Controls.Window?,
+        Func<bool>, CancellationToken, Task<string>>? ReviewOriginalMessageReuse { get; set; }
 
     internal void Bind()
     {
@@ -94,7 +96,10 @@ internal sealed class SessionsWindowController(
             (content, admitted, resolve, token) => details?.OpenConversationDetailAsync(content,
                 window ?? (Avalonia.Controls.Window?)compact, admitted, resolve, token)
                 ?? Task.FromResult("Conversation details unavailable: the native viewer is not composed."),
-            session => details?.RevokeConversationSession(session));
+            session => details?.RevokeConversationSession(session),
+            (source, original, admitted, token) => ReviewOriginalMessageReuse?.Invoke(source, original,
+                window ?? (Avalonia.Controls.Window?)compact, admitted, token)
+                ?? Task.FromResult("Original USER reuse unavailable: native New request is not composed."));
         presentation = new(model);
     }
 
@@ -160,6 +165,7 @@ internal sealed class SessionsWindowController(
         disposed = true;
         OpenAllWork = null;
         OpenNewRequest = null;
+        ReviewOriginalMessageReuse = null;
         main.SessionsRequested -= OnOpen;
         main.PrivacyClosureRequested -= OnPrivacyClosure;
         service.SessionLifecycleChanged -= RevokeSession;

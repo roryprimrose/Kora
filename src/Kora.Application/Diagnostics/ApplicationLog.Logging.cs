@@ -1,4 +1,4 @@
-using Kora.Core.Commands;
+﻿using Kora.Core.Commands;
 using Kora.Core.Communication;
 using Kora.Application.Communication;
 using Kora.Core.Hosting;
@@ -17,6 +17,9 @@ internal static partial class ApplicationLog
 
     [LoggerMessage(102, LogLevel.Error, "{Operation} failed.")]
     public static partial void Error(ILogger logger, Exception exception, string operation);
+
+    [LoggerMessage(115, LogLevel.Error, "Session-retention preview failed with {FailureKind}; refresh confirmed native settings and preview again.")]
+    public static partial void SessionRetentionPreviewFailed(ILogger logger, string failureKind);
 
     [LoggerMessage(103, LogLevel.Information, "Call state changed to {CallState}.")]
     public static partial void CallStateChanged(ILogger logger, CallState callState);

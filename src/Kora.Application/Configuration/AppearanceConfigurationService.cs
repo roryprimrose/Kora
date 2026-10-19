@@ -16,6 +16,7 @@ public sealed partial class AppearanceConfigurationService(
     private readonly Guid owner = Guid.NewGuid();
     private readonly Dictionary<AppearanceOption, Action<AppearanceValue>> save = new()
     {
+        [AppearanceOption.NativePresenceRenderer] = value => preferences.SaveNativePresenceRendererEnabled(value.GetToggle()),
         [AppearanceOption.Theme] = value => preferences.SaveThemeMode(value.GetTheme()),
         [AppearanceOption.PresenceDisplay] = value => preferences.SavePresenceDisplayEnabled(value.GetToggle()),
         [AppearanceOption.PresenceTimeout] = value => preferences.SavePresenceTimeoutSeconds(value.GetNumber()),
@@ -34,6 +35,19 @@ public sealed partial class AppearanceConfigurationService(
     private HashSet<AppearanceOption> savedOptions = [];
     private bool loaded;
     private bool publishing;
+    private bool nativePresenceStartupDefault;
+
+    public void ConfigureNativePresenceStartupDefault(bool useNative)
+    {
+        lock (gate)
+        {
+            if (loaded)
+            {
+                throw new InvalidOperationException("The renderer startup default must be configured before preferences are loaded.");
+            }
+            nativePresenceStartupDefault = useNative;
+        }
+    }
 
     public event EventHandler? Changed;
 
@@ -57,6 +71,8 @@ public sealed partial class AppearanceConfigurationService(
             EnsureNotPublishing();
             var saved = new Dictionary<AppearanceOption, AppearanceValue?>
             {
+                [AppearanceOption.NativePresenceRenderer] = preferences.LoadNativePresenceRendererEnabled() is { } native
+                    ? new AppearanceValue.Toggle(native) : null,
                 [AppearanceOption.Theme] = preferences.LoadThemeMode() is { } theme ? new AppearanceValue.Theme(theme) : null,
                 [AppearanceOption.ReaderTextScale] = preferences.LoadReaderTextScalePercent() is { } scale ? new AppearanceValue.Number(scale) : null,
                 [AppearanceOption.PresenceDisplay] = preferences.LoadPresenceDisplayEnabled() is { } display ? new AppearanceValue.Toggle(display) : null,
@@ -70,6 +86,10 @@ public sealed partial class AppearanceConfigurationService(
                 [AppearanceOption.SpeechScaleAmount] = preferences.LoadPresenceSpeechScaleAmountPercent() is { } amount ? new AppearanceValue.Number(amount) : null,
             };
             var effective = saved.ToDictionary(item => item.Key, item => item.Value ?? AppearanceOptionRegistry.Get(item.Key).Default);
+            if (saved[AppearanceOption.NativePresenceRenderer] is null)
+            {
+                effective[AppearanceOption.NativePresenceRenderer] = new AppearanceValue.Toggle(nativePresenceStartupDefault);
+            }
             var persisted = saved.Where(item => item.Value is not null).Select(item => item.Key).ToHashSet();
             foreach (var item in effective)
             {
@@ -118,8 +138,11 @@ public sealed partial class AppearanceConfigurationService(
     public AppearanceApplyResult Apply(AppearanceProposal proposal, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(proposal);
+        var timeRenderer = proposal.Option == AppearanceOption.NativePresenceRenderer;
+        if (timeRenderer) { PresenceSwitchTiming.Mark(PresenceSwitchPhase.ApplyStarted); }
         lock (gate)
         {
+            if (timeRenderer) { PresenceSwitchTiming.Mark(PresenceSwitchPhase.ConfigurationGateEntered); }
             EnsureNotPublishing();
             cancellationToken.ThrowIfCancellationRequested();
             if (proposal.Owner != owner)
@@ -158,12 +181,16 @@ public sealed partial class AppearanceConfigurationService(
                 ? HostActivity.BeginChild(HostActivityLayer.Application, HostOperation.Storage)
                 : HostActivity.BeginRoot(HostRequest.Create(proposal.Initiator == SecurityAuditInitiator.VoiceCommand
                     ? RequestOrigin.ActivatedVoice : RequestOrigin.LocalUi), HostActivityLayer.Application, HostOperation.Storage);
+            if (timeRenderer) { PresenceSwitchTiming.Mark(PresenceSwitchPhase.RequestedAuditStarted); }
             auditLog.Write(audit);
+            if (timeRenderer) { PresenceSwitchTiming.Mark(PresenceSwitchPhase.RequestedAuditReturned); }
             try
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 RequireEligibility(proposal);
+                if (timeRenderer) { PresenceSwitchTiming.Mark(PresenceSwitchPhase.PreferenceWriteStarted); }
                 save[proposal.Option](proposal.Value);
+                if (timeRenderer) { PresenceSwitchTiming.Mark(PresenceSwitchPhase.PreferenceWriteReturned); }
             }
             catch (OperationCanceledException)
             {
@@ -188,9 +215,14 @@ public sealed partial class AppearanceConfigurationService(
             values[proposal.Option] = proposal.Value;
             savedOptions.Add(proposal.Option);
             revision++;
+            if (timeRenderer) { PresenceSwitchTiming.Mark(PresenceSwitchPhase.TerminalAuditStarted); }
             auditLog.Write(audit.WithOutcome(SecurityAuditOutcome.Succeeded));
+            if (timeRenderer) { PresenceSwitchTiming.Mark(PresenceSwitchPhase.TerminalAuditReturned); }
             activity.Complete(HostOperationOutcome.Completed);
+            if (timeRenderer) { PresenceSwitchTiming.Mark(PresenceSwitchPhase.PublicationStarted); }
             Publish();
+            if (timeRenderer) { PresenceSwitchTiming.Mark(PresenceSwitchPhase.PublicationReturned); }
+            if (timeRenderer) { PresenceSwitchTiming.Mark(PresenceSwitchPhase.ApplyReturning); }
             return new(AppearanceApplyOutcome.Applied, Get(proposal.Option));
         }
     }

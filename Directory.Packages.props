@@ -29,7 +29,7 @@
     <PackageVersion Include="Microsoft.Testing.Extensions.TrxReport" Version="2.5.0" />
     <PackageVersion Include="Microsoft.Testing.Extensions.Telemetry" Version="2.5.0" />
     <PackageVersion Include="Microsoft.Testing.Platform.MSBuild" Version="2.5.0" />
-    <PackageVersion Include="Microsoft.VisualStudio.Threading.Analyzers" Version="18.7.23" />
+    <PackageVersion Include="Microsoft.VisualStudio.Threading.Analyzers" Version="18.12.1" />
     <PackageVersion Include="Microsoft.Win32.SystemEvents" Version="10.0.12" />
     <PackageVersion Include="MisakiSharp" Version="2.2.0" />
     <PackageVersion Include="NAudio" Version="3.1.0" />
@@ -37,6 +37,7 @@
     <PackageVersion Include="Serilog" Version="4.4.0" />
     <PackageVersion Include="Serilog.Extensions.Logging" Version="10.0.0" />
     <PackageVersion Include="Serilog.Sinks.File" Version="7.0.0" />
+    <PackageVersion Include="SkiaSharp" Version="3.119.4" />
     <PackageVersion Include="System.Speech" Version="10.0.12" />
     <PackageVersion Include="WixToolset.BootstrapperApplicationApi" Version="7.0.0" />
     <PackageVersion Include="WixToolset.Netfx.wixext" Version="7.0.0" />

@@ -62,7 +62,9 @@ internal sealed class OwnedInstructionRebaseReviewWindow : Window
     private bool Current() => current?.Invoke() == true;
     private void OnTick(object? sender, EventArgs args) { if (!Current()) { Withdraw(); } }
 
+#pragma warning disable VSTHRD003 // Exposes the queued withdrawal receipt; asynchronous observers leave the UI dispatcher running.
     internal Task Withdrawal => withdrawal.Task;
+#pragma warning restore VSTHRD003
 
     internal void Withdraw()
     {

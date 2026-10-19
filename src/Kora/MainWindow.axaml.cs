@@ -28,6 +28,8 @@ public sealed partial class MainWindow : Window
 {
     private readonly MainViewModel viewModel;
     private readonly ILogger<MainWindow> logger;
+    private readonly ILogger<PresenceRenderWorker> rendererLogger;
+    private readonly bool useNativePresence;
     private readonly PresenceControl presence;
     private readonly DispatcherTimer presenceTimeoutTimer;
     private readonly PresentationInactivityTimeout presenceInactivity = new();
@@ -50,9 +52,19 @@ public sealed partial class MainWindow : Window
     }
 
     public MainWindow(MainViewModel viewModel, ILogger<MainWindow> logger)
+        : this(viewModel, logger, viewModel.IsNativePresenceRenderer, true,
+            App.Services.GetRequiredService<ILogger<PresenceRenderWorker>>())
+    {
+    }
+
+    internal MainWindow(MainViewModel viewModel, ILogger<MainWindow> logger, bool useNative, bool initializeHost,
+        ILogger<PresenceRenderWorker> rendererLogger)
     {
         this.viewModel = viewModel;
         this.logger = logger;
+        this.rendererLogger = rendererLogger;
+        this.initializeHost = initializeHost;
+        useNativePresence = useNative;
         AvaloniaXamlLoader.Load(this);
         presence = this.FindControl<PresenceControl>("Presence")
             ?? throw new InvalidOperationException("The presence control was not loaded.");
@@ -60,10 +72,6 @@ public sealed partial class MainWindow : Window
         presence.BindPresentationEligibility(() => viewModel.CanRevealPrivatePresentation);
         ShowInTaskbar = false;
         Opacity = 0;
-        Win32Properties.AddWindowStylesCallback(this, ConfigurePresenceWindowStyles);
-        presenceInput = new WindowsPresenceWindowInput(
-            TryGetPlatformHandle()?.Handle
-            ?? throw new InvalidOperationException("The presence window has no Windows handle."));
         presenceInputTimer = new DispatcherTimer(
             TimeSpan.FromMilliseconds(16),
             DispatcherPriority.Input,
@@ -86,10 +94,30 @@ public sealed partial class MainWindow : Window
         Loaded += OnLoaded;
         Closing += OnClosing;
         Closed += OnClosed;
+        try
+        {
+            Win32Properties.AddWindowStylesCallback(this, ConfigurePresenceWindowStyles);
+            var handle = TryGetPlatformHandle()?.Handle
+                ?? throw new InvalidOperationException("The presence window has no Windows handle.");
+            presenceInput = useNativePresence
+                ? WindowsPresenceWindowInput.CreateForNativeRenderer(handle)
+                : new WindowsPresenceWindowInput(handle);
+            InitializeNativePresence();
+        }
+        catch (Exception failure) when (failure is not OutOfMemoryException)
+        {
+            try { ((IPresenceWindow)this).CloseForReplacement(); }
+            catch (Exception cleanup) when (cleanup is not OutOfMemoryException)
+            {
+                throw new AggregateException("Presence construction and cleanup failed.", failure, cleanup);
+            }
+            throw;
+        }
     }
 
     private (uint Style, uint ExtendedStyle) ConfigurePresenceWindowStyles(uint style, uint extendedStyle) =>
-        (style, WindowsPresenceWindowInput.GetExtendedStyle(extendedStyle, presenceInput?.InterceptsMouse == true));
+        useNativePresence ? (style, extendedStyle | 0x08000000)
+            : (style, WindowsPresenceWindowInput.GetExtendedStyle(extendedStyle, presenceInput?.InterceptsMouse == true));
 
     private void OnPresenceInputTick(object? sender, EventArgs eventArgs) => RefreshPresenceInput();
 
@@ -105,9 +133,9 @@ public sealed partial class MainWindow : Window
             IsHitTestVisible = presenceInput.Refresh(
                 IsVisible && viewModel.CanRevealPrivatePresentation
                 && viewModel.State != Kora.Core.AssistantState.Hidden
-                && presence.CanInteract);
+                && (nativePresence?.CanInteract ?? presence.CanInteract));
         }
-        catch (Win32Exception exception)
+        catch (Exception exception) when (exception is Win32Exception or InvalidOperationException)
         {
             presenceInputFailed = true;
             presenceInputTimer.Stop();
@@ -121,6 +149,10 @@ public sealed partial class MainWindow : Window
     protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
     {
         base.OnPropertyChanged(change);
+        if (nativePresence is not null)
+        {
+            RefreshNativePresence();
+        }
         if (change.Property == IsVisibleProperty && presenceInput is not null)
         {
             RefreshPresenceInput();
@@ -138,20 +170,12 @@ public sealed partial class MainWindow : Window
 
     private void OnClosed(object? sender, EventArgs eventArgs)
     {
-        presence.Dispose();
-        presenceInputTimer.Stop();
-        presenceTimeoutTimer.Stop();
-        presenceInactivity.Stop();
-        positionSaveTimer.Stop();
-        CancelPendingHide();
-        Win32Properties.RemoveWindowStylesCallback(this, ConfigurePresenceWindowStyles);
-        viewModel.WindowActionRequested -= OnWindowActionRequested;
-        viewModel.PropertyChanged -= OnViewModelPropertyChanged;
-        presenceInput = null;
+        DisposePresenceResources();
     }
 
     private async void OnLoaded(object? sender, RoutedEventArgs eventArgs)
     {
+        if (!initializeHost) { return; }
         try
         {
             await HostRequestRunner.RunAsync(RequestOrigin.HostSystem, InitializeWindowAsync,
@@ -162,11 +186,21 @@ public sealed partial class MainWindow : Window
             HostRequestRunner.Run(RequestOrigin.HostSystem, () =>
             {
                 DesktopLog.Error(logger, exception, "Initializing the main window");
+                windowActionFailed = true;
                 viewModel.ReportHostInteractionFailure("Desktop initialization failed. " + exception.Message);
                 presenceInputTimer.Stop();
                 IsHitTestVisible = false;
                 Hide();
             }, HostActivityLayer.Desktop, HostOperation.Presentation);
+        }
+        finally
+        {
+            initializationCompleted = true;
+            if (!presenceInputFailed && !nativePresenceFailed && !windowActionFailed)
+            {
+                viewModel.ReportPresenceRendererStatus(useNativePresence
+                    ? "Native (experimental) renderer active." : "Avalonia renderer active.");
+            }
         }
     }
 
@@ -182,6 +216,11 @@ public sealed partial class MainWindow : Window
         DesktopLog.Information(logger, "Main window loaded");
         await viewModel.InitializeAsync();
         RestorePosition();
+        if (useNativePresence && ActualTransparencyLevel != WindowTransparencyLevel.Transparent)
+        {
+            ReportNativePresenceFailure(new InvalidOperationException("A transparent non-layered native presence shell is unavailable."));
+            return;
+        }
         if (!viewModel.CanRevealPrivatePresentation)
         {
             HidePresenceWindow();
@@ -272,6 +311,7 @@ public sealed partial class MainWindow : Window
 
     private async void OnWindowActionRequested(object? sender, WindowAction action)
     {
+        if (retiring) { return; }
         _ = await RunWindowActionAsync(() => ApplyWindowActionAsync(action), ReportWindowActionFailure);
     }
 
@@ -313,12 +353,14 @@ public sealed partial class MainWindow : Window
     {
         if (action is WindowAction.Show or WindowAction.ShowPresence
             && (presenceInputFailed
+                || nativePresenceFailed
                 || windowActionFailed
                 || !viewModel.CanRevealPrivatePresentation
                 || !viewModel.IsPresenceDisplayEnabled))
         {
             return;
         }
+        rendererTransition = null;
         switch (action)
         {
             case WindowAction.ShowPresence:
@@ -395,6 +437,7 @@ public sealed partial class MainWindow : Window
 
     private void OnClosing(object? sender, WindowClosingEventArgs eventArgs)
     {
+        if (retiring) { return; }
         using var activity = HostActivity.BeginOperation(HostActivityLayer.Desktop, HostOperation.Presentation,
             RequestOrigin.LocalUi);
         positionSaveTimer.Stop();
@@ -472,7 +515,8 @@ public sealed partial class MainWindow : Window
 
     private void ShowPresenceWindow()
     {
-        presence.SetAnimationEnabled(true);
+        presence.SetAnimationEnabled(nativePresence is null);
+        Opacity = 1;
         Show();
         if (!presenceInputFailed)
         {
@@ -482,10 +526,18 @@ public sealed partial class MainWindow : Window
 
     private void HidePresenceWindow()
     {
+        nativePresence?.Suspend();
         presenceInputTimer.Stop();
         IsHitTestVisible = false;
         presence.SetAnimationEnabled(false);
-        Hide();
+        try
+        {
+            if (useNativePresence && !presenceInputFailed) { presenceInput?.Refresh(false); }
+        }
+        finally
+        {
+            Hide();
+        }
     }
 
     private void OnPointerPressed(object? sender, PointerPressedEventArgs eventArgs)
@@ -558,7 +610,7 @@ public sealed partial class MainWindow : Window
     }
 
     private bool CanSchedulePresenceTimeout =>
-        IsVisible && !isOptionalSpeechOfferVisible && viewModel.CanAutoHidePresence;
+        rendererTransition is null && IsVisible && !isOptionalSpeechOfferVisible && viewModel.CanAutoHidePresence;
 
     private void UpdatePresenceTimeoutEligibility()
     {

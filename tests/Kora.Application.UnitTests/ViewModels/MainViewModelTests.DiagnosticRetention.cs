@@ -175,7 +175,7 @@ public sealed partial class MainViewModelTests
             if (string.Equals(item.ActionId, "configuration.sqlite-diagnostic-retention", StringComparison.Ordinal)
                 && item.Outcome == SecurityAuditOutcome.Requested)
             {
-                fixture.ViewModel.RefreshDiagnosticRetentionCommand.ExecuteAsync().GetAwaiter().GetResult();
+                fixture.ViewModel.RefreshDiagnosticRetentionCommand.ExecuteAsync().IsCompletedSuccessfully.Should().BeTrue();
             }
             if (string.Equals(item.ActionId, "configuration.sqlite-diagnostic-retention", StringComparison.Ordinal)
                 && item.Outcome == SecurityAuditOutcome.Succeeded) { fixture.ViewModel.Dispose(); }

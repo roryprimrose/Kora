@@ -18,6 +18,7 @@ public sealed partial class SessionProviderProfileConfigurationService(
     private readonly HashSet<SessionProviderDraft> drafts = [];
     private readonly HashSet<SessionProviderProposal> proposals = [];
     private bool applying;
+    private SessionProviderProposal? applyingProposal;
 
     public async Task<SessionProviderDraft> Inspect(HostId<SessionIdentity> session, RequestOrigin origin,
         Func<bool> eligible, CancellationToken token)
@@ -46,7 +47,48 @@ public sealed partial class SessionProviderProfileConfigurationService(
         lock (gate)
         {
             drafts.Remove(draft);
-            proposals.RemoveWhere(proposal => ReferenceEquals(proposal.Draft, draft));
+            foreach (var copy in proposals.Where(proposal => ReferenceEquals(proposal.Draft, draft) || ReferenceEquals(proposal.Source, draft)).ToArray())
+            {
+                if (copy.Source is { } source) { drafts.Remove(source); }
+            }
+            proposals.RemoveWhere(proposal => ReferenceEquals(proposal.Draft, draft) || ReferenceEquals(proposal.Source, draft));
+        }
+    }
+
+    public void Retire(SessionProviderProposal proposal)
+    {
+        lock (gate)
+        {
+            proposals.Remove(proposal);
+            if (ReferenceEquals(applyingProposal, proposal)) { applyingProposal = null; }
+            if (proposal.Source is { } source) { Discard(source); }
+        }
+    }
+
+    /// <summary>Reviews exact sparse configuration data, never the source's effective tuple or authority.</summary>
+    public async Task<SessionProviderProposal> ReviewCopy(HostId<SessionIdentity> source, HostId<SessionIdentity> destination,
+        RequestOrigin origin, Func<bool> eligible, CancellationToken token)
+    {
+        if (source == destination) { throw new InvalidOperationException("Choose distinct exact source and destination sessions."); }
+        SessionProviderDraft? from = null;
+        SessionProviderDraft? to = null;
+        var admission = workspace.CaptureProviderCopyAdmission(eligible);
+        try
+        {
+            from = await Inspect(source, origin, admission, token).ConfigureAwait(false);
+            to = await Inspect(destination, origin, admission, token).ConfigureAwait(false);
+            if (from.Saved.Held || from.Origin != to.Origin || from.AppRevision != to.AppRevision
+                || !string.Equals(from.App.Serialize(), to.App.Serialize(), StringComparison.Ordinal)
+                || !SameObservation(from.Observation, to.Observation)
+                || from.Saved.Desired.Binding is not null && ResolveEffective(from.Saved.Desired, to.App, to.Observation) is null)
+            { throw new InvalidOperationException("Source binding, app, account or catalogue is unavailable or changed. Nothing was rebound or substituted."); }
+            return Issue(to, from.Saved.Desired, null, from);
+        }
+        catch
+        {
+            if (from is not null) { Discard(from); }
+            if (to is not null) { Discard(to); }
+            throw;
         }
     }
 
@@ -93,14 +135,25 @@ public sealed partial class SessionProviderProfileConfigurationService(
         return Issue(draft, desired, field);
     }
 
-    private SessionProviderProposal Issue(SessionProviderDraft draft, SessionProviderOverrides desired, SessionProviderField? field)
+    private SessionProviderProposal Issue(SessionProviderDraft draft, SessionProviderOverrides desired, SessionProviderField? field,
+        SessionProviderDraft? source = null)
     {
         lock (gate)
         {
-            if (applying || !drafts.Contains(draft) || draft.Saved.Held || !draft.Saved.Session.IsActive
-                || !draft.RemainsAdmitted() || drafts.Count + proposals.Count >= 64)
+            if (applying || !drafts.Contains(draft) || source is not null && !drafts.Contains(source)
+                || !draft.RemainsAdmitted() || source is not null && !source.RemainsAdmitted()
+                || !drafts.Contains(draft) || source is not null && !drafts.Contains(source)
+                || draft.Saved.Held || !draft.Saved.Session.IsActive || drafts.Count + proposals.Count >= 64)
             { throw new InvalidOperationException("Inspect an exact active session under current original-user admission before reviewing changes."); }
-            var proposal = new SessionProviderProposal(draft, desired, field, ResolveEffective(desired, draft.App, draft.Observation));
+            var now = time.GetUtcNow();
+            var expiresAt = new[]
+            {
+                now.AddMinutes(5), draft.Observation.Catalogues.Min(item => item.ValidUntil),
+                source?.Observation.Catalogues.Min(item => item.ValidUntil) ?? DateTimeOffset.MaxValue,
+            }.Min();
+            if (expiresAt <= now) { throw new InvalidOperationException("The provider observation expired. Refresh before reviewing changes."); }
+            var proposal = new SessionProviderProposal(draft, desired, field, ResolveEffective(desired, draft.App, draft.Observation),
+                expiresAt, source);
             proposals.Add(proposal);
             return proposal;
         }
@@ -120,9 +173,18 @@ public sealed partial class SessionProviderProfileConfigurationService(
     {
         lock (gate)
         {
-            if (applying || !proposals.Contains(proposal) || proposal.Draft.Origin != origin || !proposal.Draft.RemainsAdmitted())
-            { throw new InvalidOperationException("Provider confirmation is stale, foreign or from another input origin."); }
+            var issued = proposals.Remove(proposal);
+            if (applying || !issued || proposal.Draft.Origin != origin || !ProposalLive(proposal))
+            {
+                if (issued)
+                {
+                    Discard(proposal.Draft);
+                    if (proposal.Source is { } source) { Discard(source); }
+                }
+                throw new InvalidOperationException("Provider confirmation is stale, foreign or from another input origin.");
+            }
             applying = true;
+            applyingProposal = proposal;
         }
         try
         {
@@ -134,17 +196,29 @@ public sealed partial class SessionProviderProfileConfigurationService(
                     var current = await catalogue.ObserveAsync(token).ConfigureAwait(false);
                     var app = preferences.Load() ?? new ProviderProfilePreferences(
                         current.Installation == LocalProviderInstallation.Installed ? ProviderService.Local : ProviderService.Unset, []);
-                    bool Live() => admitted() && eligible() && proposal.Draft.RemainsAdmitted() && !token.IsCancellationRequested
-                        && appConfiguration.Get().Revision == proposal.Draft.AppRevision
+                    var destination = await store.ReadProviderProfile(request.SessionId, token).ConfigureAwait(false);
+                    if (!SameProfile(proposal.Draft.Saved, destination))
+                    { throw new InvalidOperationException("The exact destination policy or lifecycle changed; review again."); }
+                    if (proposal.Source is { } source)
+                    {
+                        var latest = await store.ReadProviderProfile(source.Saved.Session.SessionId, token).ConfigureAwait(false);
+                        if (!SameProfile(source.Saved, latest))
+                        { throw new InvalidOperationException("The exact source policy or lifecycle changed; nothing was copied."); }
+                    }
+                    bool Live() => admitted() && eligible()
                         && string.Equals(app.Serialize(), proposal.Draft.App.Serialize(), StringComparison.Ordinal)
                         && string.Equals((preferences.Load() ?? new ProviderProfilePreferences(
                             current.Installation == LocalProviderInstallation.Installed ? ProviderService.Local : ProviderService.Unset, [])).Serialize(),
                             app.Serialize(), StringComparison.Ordinal)
                         && SameObservation(proposal.Draft.Observation, current)
                         && (proposal.Desired.Binding is null || ProviderProfileRules.Resolve(proposal.Desired.Binding,
-                            current.For(proposal.Desired.Binding.Service), time.GetUtcNow()) is not null);
+                            current.For(proposal.Desired.Binding.Service), time.GetUtcNow()) is not null)
+                        // Preference/admission callbacks may synchronously retire the review.
+                        && ProposalLive(proposal) && IsApplying(proposal) && !token.IsCancellationRequested
+                        && appConfiguration.Get().Revision == proposal.Draft.AppRevision;
                     if (!Live()) { throw new InvalidOperationException("App, account, catalogue, installation or original session review changed; no choice was substituted."); }
-                    var result = await store.CommitProviderProfile(request, proposal.Draft.Saved, proposal.Desired, Live, token).ConfigureAwait(false);
+                    var result = await store.CommitProviderProfile(request, proposal.Draft.Saved, proposal.Desired, Live, token,
+                        proposal.Source?.Saved).ConfigureAwait(false);
                     activity.Complete(HostOperationOutcome.Completed);
                     return result;
                 }
@@ -166,14 +240,41 @@ public sealed partial class SessionProviderProfileConfigurationService(
             lock (gate)
             {
                 applying = false;
+                applyingProposal = null;
                 Discard(proposal.Draft);
+                if (proposal.Source is { } source) { Discard(source); }
             }
         }
     }
+
+    private bool IsApplying(SessionProviderProposal proposal)
+    {
+        lock (gate) { return ReferenceEquals(applyingProposal, proposal); }
+    }
+
+    private bool ProposalLive(SessionProviderProposal proposal)
+    {
+        if (time.GetUtcNow() >= proposal.ExpiresAt || !proposal.Draft.RemainsAdmitted()
+            || proposal.Source is { } source && !source.RemainsAdmitted()) { return false; }
+        lock (gate)
+        {
+            return drafts.Contains(proposal.Draft) && (proposal.Source is null || drafts.Contains(proposal.Source));
+        }
+    }
+
+    private static bool SameProfile(SessionProviderProfile expected, SessionProviderProfile current) =>
+        !expected.Held && !current.Held && expected.Session == current.Session && expected.Revision == current.Revision
+        && string.Equals(expected.Desired.Serialize(), current.Desired.Serialize(), StringComparison.Ordinal);
 
     private static bool SameObservation(ProviderCatalogueObservation before, ProviderCatalogueObservation after) =>
         before.Installation == after.Installation && before.Catalogues.All(previous =>
             after.For(previous.Service) is { } current && previous.Service == current.Service
             && previous.Account == current.Account && previous.Revision == current.Revision
-            && previous.Status == current.Status);
+            && previous.Status == current.Status
+            && (previous.Status != ProviderCatalogueStatus.Current
+                || previous.ObservedAt == current.ObservedAt && previous.ValidUntil == current.ValidUntil)
+            && previous.Models.Count == current.Models.Count && previous.Models.Zip(current.Models).All(pair =>
+                pair.First.Id == pair.Second.Id && pair.First.Selection == pair.Second.Selection
+                && string.Equals(pair.First.Label, pair.Second.Label, StringComparison.Ordinal)
+                && pair.First.Reasoning.SequenceEqual(pair.Second.Reasoning) && pair.First.Context.SequenceEqual(pair.Second.Context)));
 }

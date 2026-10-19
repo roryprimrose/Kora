@@ -406,10 +406,10 @@ public sealed partial class SessionWorkspaceServiceTests
         using var f = new Fixture();
         await using var queue = f.QueueService();
         var expected = await f.ReadQueueAsync(f.Request.SessionId, f.Token);
-        if (change is "generation") { f.ExactListReader = _ => new(f.Session with { Generation = new(0) }, null); }
+        if (change is "generation") { f.ExactListReader = _ => new(f.Session with { Generation = default }, null); }
         f.QueueReadProjection = observed => change switch
         {
-            "generation" => observed with { Generation = new(0) },
+            "generation" => observed with { Generation = default },
             "revision" => observed with { Revision = -1 },
             "run" => observed with { DispatchControl = observed.DispatchControl! with { RunId = Guid.Empty } },
             "control-revision" => observed with { DispatchControl = observed.DispatchControl! with { Revision = -1 } },
@@ -421,7 +421,7 @@ public sealed partial class SessionWorkspaceServiceTests
         };
         var act = () => queue.ReviewDiagnosticsPlanAsync(expected, AllDiagnostics, SessionDiagnosticsPlanPrerequisite.None,
             RequestOrigin.LocalUi, () => true, f.Token);
-        await act.Should().ThrowAsync<Exception>();
+        await act.Should().ThrowAsync<InvalidDataException>();
         f.TaskWrites.Should().BeEmpty();
         f.QueueRows.Should().BeEmpty();
     }

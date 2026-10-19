@@ -12,6 +12,7 @@ public sealed partial class MainViewModel
 {
     private SessionProviderProfileConfigurationService? sessionProviderConfiguration;
     private SessionProviderProposal? sessionProviderProposal;
+    private long sessionProviderCommandRevision;
     public void BindSessionProviderProfiles(SessionProviderProfileConfigurationService service) => sessionProviderConfiguration = service;
 
     internal async Task ExecuteSessionProviderProfileCommand(SessionProviderProfileCommand command, SecurityAuditInitiator initiator)
@@ -19,13 +20,23 @@ public sealed partial class MainViewModel
         var service = sessionProviderConfiguration;
         if (disposed) { return; }
         if (service is null) { ShowFailure("Session provider profiles unavailable.", "Select an exact existing session; no app fallback."); return; }
-        if (command.Error is not null) { ShowInformation("Exact session provider syntax required.", command.Error); return; }
+        if (command.Error is not null)
+        {
+            sessionProviderCommandRevision++;
+            if (sessionProviderProposal is { } invalidated) { service.Discard(invalidated.Draft); service.Retire(invalidated); sessionProviderProposal = null; }
+            ShowInformation("Exact session provider syntax required.", command.Error);
+            return;
+        }
         var origin = initiator == SecurityAuditInitiator.VoiceCommand ? RequestOrigin.ActivatedVoice : RequestOrigin.LocalUi;
         if (initiator is not (SecurityAuditInitiator.LocalUser or SecurityAuditInitiator.TypedCommand or SecurityAuditInitiator.VoiceCommand))
         { ShowFailure("Session provider profile denied.", "Original authenticated local input is required."); return; }
+        var commandRevision = command.Confirmation is null ? ++sessionProviderCommandRevision : sessionProviderCommandRevision;
         var callRevision = CallPolicyRevision;
         var recoveryRevision = Volatile.Read(ref voiceRecoveryRevision);
+        var privacyRevision = privacyObservation.Current.TopologyRevision;
         bool Eligible() => !disposed && IsHostInputEligible && IsCallMutationHostEligible && CallPolicyRevision == callRevision
+            && sessionProviderCommandRevision == commandRevision
+            && privacyObservation.Current.TopologyRevision == privacyRevision
             && !IsResponseInteractionPending && (origin != RequestOrigin.ActivatedVoice || IsVoiceEnabled && HasVoiceConsent
                 && CallObservation.AllowActivation && Volatile.Read(ref voiceRecoveryRevision) == recoveryRevision);
         SessionProviderDraft? inspected = null;
@@ -37,6 +48,7 @@ public sealed partial class MainViewModel
                 var proposal = sessionProviderProposal;
                 if (proposal is null || proposal.ConfirmationId != confirmation) { throw new InvalidOperationException("No exact live host-issued session review matches that confirmation."); }
                 var saved = await service.Confirm(proposal, origin, Eligible, CancellationToken.None);
+                if (commandRevision != sessionProviderCommandRevision || !Eligible()) { return; }
                 sessionProviderProposal = null;
                 ShowSessionProviderInformation("Exact session provider policy committed.", new
                 {
@@ -45,8 +57,32 @@ public sealed partial class MainViewModel
                 });
                 return;
             }
-            if (sessionProviderProposal is { } old) { service.Discard(old.Draft); sessionProviderProposal = null; }
+            if (sessionProviderProposal is { } old) { service.Discard(old.Draft); service.Retire(old); sessionProviderProposal = null; }
             var session = new HostId<SessionIdentity>(command.Session ?? throw new InvalidOperationException("Select/address an exact existing session. No app fallback."));
+            if (command.SourceSession is { } sourceSession)
+            {
+                var copy = await service.ReviewCopy(new(sourceSession), session, origin, Eligible, CancellationToken.None);
+                if (!Eligible())
+                {
+                    service.Discard(copy.Draft);
+                    service.Retire(copy);
+                    throw new InvalidOperationException("The exact copy input changed before review disclosure.");
+                }
+                sessionProviderProposal = copy;
+                ShowSessionProviderInformation("Review sparse provider copy; nothing saved.", new
+                {
+                    scope = "Only the explicit destination changes. Source is configuration data, never authority.",
+                    source = sessionProviderProposal.Source!.Saved, destination = sessionProviderProposal.Draft.Saved,
+                    previous = sessionProviderProposal.Draft.Saved.Desired, proposed = sessionProviderProposal.Desired,
+                    sourceEffective = sessionProviderProposal.Source.Effective, sourceStatus = sessionProviderProposal.Source.Status,
+                    sessionProviderProposal.PreviousEffective, sessionProviderProposal.ResultingEffective,
+                    destinationStatus = sessionProviderProposal.Draft.Status, sessionProviderProposal.AppRevision,
+                    sessionProviderProposal.ExpiresAt, sourceCatalogue = sessionProviderProposal.Source.Catalogue,
+                    destinationCatalogue = sessionProviderProposal.Draft.Catalogue,
+                    confirmation = "confirm providers.session.profile " + sessionProviderProposal.ConfirmationId.ToString("D"),
+                });
+                return;
+            }
             var draft = await service.Inspect(session, origin, Eligible, CancellationToken.None);
             inspected = draft;
             if (command.Operation == AppearanceCommandOperation.Get)
@@ -92,9 +128,11 @@ public sealed partial class MainViewModel
         }
         catch (Exception exception) when (exception is InvalidOperationException or IOException or InvalidDataException or UnauthorizedAccessException or OperationCanceledException or ArgumentException)
         {
-            if (sessionProviderProposal is { } old) { service.Discard(old.Draft); sessionProviderProposal = null; }
+            if (commandRevision == sessionProviderCommandRevision && sessionProviderProposal is { } old)
+            { service.Discard(old.Draft); service.Retire(old); sessionProviderProposal = null; }
             ApplicationLog.Error(logger, exception, "Reviewing exact session provider profiles");
-            if (!disposed) { ShowFailure("Session provider policy not confirmed.", exception.Message + " Inspect exact saved state and audit/control receipts; no rollback, retry or app fallback."); }
+            if (!disposed && commandRevision == sessionProviderCommandRevision)
+            { ShowFailure("Session provider policy not confirmed.", exception.Message + " Inspect exact saved state and audit/control receipts; no rollback, retry or app fallback."); }
         }
         finally
         {

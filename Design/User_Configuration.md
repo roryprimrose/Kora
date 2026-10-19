@@ -1244,6 +1244,18 @@ Single-field model/reasoning/context edits use the current whole effective tuple
 
 Session retention/disposition inventory includes the policy row and committed journal. The actual provider-neutral turn consumer captures immutable effective tuple/catalogue/session-policy revision, preserving admitted turns across later edits; pre-dispatch private authority/account/catalogue/installation loss refuses. Buffered local bootstrap reasoning, LocalOnly/handoff/envelope gates, authentication/providers, generic multi-action and one-turn directives remain untouched/unavailable.
 
+#### Exact sparse copy between sessions
+
+In the native provider region, explicitly choose a source from admitted exact session metadata; the selected **active** session is the distinct destination. **Review exact sparse provider copy** discloses both immutable session IDs/generations/policy revisions, complete destination old/source-proposed sparse values, account/catalogue provenance and effective/resolved-or-unavailable status. **Confirm** is a separate one-shot action, expiring after five minutes (or earlier catalogue expiry).
+
+Exact typed/current-name activated syntax is `copy providers.session.profile from <source-session-id> to <destination-session-id>`, followed by the displayed host-issued `confirm providers.session.profile <confirmation-id>`. Neither route infers a destination from a label, selected app profile or source authority. They use the same Application review/confirmation action and existing destination writer.
+
+Copy transfers only `SessionProviderOverrides`: null remains **Inherit app**, explicit fields and their original binding remain exact. It never freezes the source's effective tuple, rewrites app defaults, copies credentials/grants/approvals or session/request/task identities, authenticates, enables a provider or sends a request. All-inherit and unresolved service-only policies remain copyable and visibly unavailable; unavailable/cross-service/account/catalogue-bound dependent choices are rejected, never rebound to matching IDs/labels.
+
+Confirmation separately rereads both policies/lifecycles and current app/account/catalogue/installation/private-control snapshots. Source and destination revisions/generations must still match; changing and restoring values does not restore an old revision. Editing selections/fields, cancelling, closing, privacy/control changes or expiry invalidate review. At each destination transaction boundary the private SQLite writer rereads the exact source on its owned connection; a changed source stops the operation. No source row, source control intent or source authority is mutated. An identical-value copy still uses the normal audited destination save/revision/terminal receipt, not a second no-op writer.
+
+Unknown audit/save/readback outcomes retain the existing destination-only durable hold and explicit inspect-receipts recovery. No automatic retry, rollback claim or source-to-destination execution authority is introduced. Deterministic copy tests are authored; current-head maintained builds, tests and exact portable line-and-branch coverage are required before merge. Runtime/provider/egress E/Q enablement remains unavailable.
+
 ## 6. Definitions and Local Data
 
 | Option | Default / limits | Example verbal setter |

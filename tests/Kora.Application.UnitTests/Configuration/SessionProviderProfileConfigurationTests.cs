@@ -13,7 +13,7 @@ using Microsoft.Extensions.Logging;
 namespace Kora.Application.UnitTests.Configuration;
 
 [Collection("Host tracing")]
-public sealed class SessionProviderProfileConfigurationTests
+public sealed partial class SessionProviderProfileConfigurationTests
 {
     [Fact]
     public async Task PassiveInspectionCannotRetargetForeignSessionPolicyOrWriteAControlIntent()
@@ -287,6 +287,7 @@ public sealed class SessionProviderProfileConfigurationTests
             ActivitySource.AddActivityListener(listener);
             Session = new(new(Guid.NewGuid()), new(1), true);
             Snapshot = new(Session, 0, SessionProviderOverrides.Inherit, false);
+            SourceSnapshot = new(new(new(Guid.NewGuid()), new(1), true), 0, SessionProviderOverrides.Inherit, false);
             Store = new(this);
             if (current)
             {
@@ -303,6 +304,11 @@ public sealed class SessionProviderProfileConfigurationTests
         internal ProviderProfileConfigurationFixture Profiles { get; } = new();
         internal WorkSessionAuthorization Session { get; }
         internal SessionProviderProfile Snapshot { get; set; }
+        internal SessionProviderProfile SourceSnapshot { get; set; }
+        internal Action? BeforeCommit { get; set; }
+        internal Action? AfterCommit { get; set; }
+        internal Action<HostId<SessionIdentity>>? AfterProfileRead { get; set; }
+        internal bool FailReadback { get; set; }
         internal SessionWorkspaceService Workspace { get; }
         internal SessionProviderProfileConfigurationService Service { get; }
         internal bool Eligible { get; set; } = true;
@@ -311,6 +317,8 @@ public sealed class SessionProviderProfileConfigurationTests
         internal CancellationToken Token => TestContext.Current.CancellationToken;
         internal Task<SessionProviderDraft> Inspect(RequestOrigin origin = RequestOrigin.LocalUi) =>
             Service.Inspect(Session.SessionId, origin, () => Eligible, Token);
+        internal Task<SessionProviderProposal> Copy(RequestOrigin origin = RequestOrigin.LocalUi) =>
+            Service.ReviewCopy(SourceSnapshot.Session.SessionId, Session.SessionId, origin, () => Eligible, Token);
         public async ValueTask DisposeAsync() { await Profiles.DisposeAsync(); listener.Dispose(); }
         internal sealed class CaptureLogger : ILogger<SessionProviderProfileConfigurationService>
         {
@@ -330,18 +338,38 @@ public sealed class SessionProviderProfileConfigurationTests
         internal sealed class SessionStore(Fixture owner) : AudioControlTestStore, ISessionProviderProfileStore
         {
             public override ValueTask<SessionWorkspaceEntry> ReadMetadataAsync(HostId<SessionIdentity> session, CancellationToken token) =>
-                ValueTask.FromResult(new SessionWorkspaceEntry(owner.Snapshot.Session, null));
+                ValueTask.FromResult(new SessionWorkspaceEntry(session == owner.SourceSnapshot.Session.SessionId ? owner.SourceSnapshot.Session : owner.Snapshot.Session, null));
             public override ValueTask<HostTaskObservation?> ReadTaskAsync(HostId<SessionIdentity> session, HostId<TaskIdentity> task, CancellationToken token) =>
                 ValueTask.FromResult<HostTaskObservation?>(new(Tasks.Last(record => record.Request.TaskId == task),
                     owner.Session.Generation, "fake-current-authority", true, null));
-            public ValueTask<SessionProviderProfile> ReadProviderProfile(HostId<SessionIdentity> session, CancellationToken token) => ValueTask.FromResult(owner.Snapshot);
-            public ValueTask<SessionProviderProfile> CommitProviderProfile(HostRequest request, SessionProviderProfile expected,
-                SessionProviderOverrides desired, Func<bool> admitted, CancellationToken token)
+            public ValueTask<SessionProviderProfile> ReadProviderProfile(HostId<SessionIdentity> session, CancellationToken token)
             {
+                token.ThrowIfCancellationRequested();
+                var result = session == owner.SourceSnapshot.Session.SessionId ? owner.SourceSnapshot : owner.Snapshot;
+                owner.AfterProfileRead?.Invoke(session);
+                return ValueTask.FromResult(result);
+            }
+            public ValueTask<SessionProviderProfile> CommitProviderProfile(HostRequest request, SessionProviderProfile expected,
+                SessionProviderOverrides desired, Func<bool> admitted, CancellationToken token, SessionProviderProfile? source = null)
+            {
+                owner.BeforeCommit?.Invoke();
+                token.ThrowIfCancellationRequested();
                 if (owner.CommitFailure is { } failure) { throw failure; }
                 if (!admitted() || expected.Session != owner.Snapshot.Session || expected.Revision != owner.Snapshot.Revision) { throw new InvalidOperationException(); }
+                if (source is not null && (source.Held || owner.SourceSnapshot.Held || source.Session != owner.SourceSnapshot.Session
+                    || source.Revision != owner.SourceSnapshot.Revision
+                    || !string.Equals(source.Desired.Serialize(), owner.SourceSnapshot.Desired.Serialize(), StringComparison.Ordinal)
+                    || source.Session.SessionId == request.SessionId
+                    || !string.Equals(desired.Serialize(), source.Desired.Serialize(), StringComparison.Ordinal)))
+                { throw new InvalidOperationException(); }
                 owner.Snapshot = owner.Snapshot with { Revision = owner.Snapshot.Revision + 1, Desired = desired };
+                if (owner.FailReadback)
+                {
+                    owner.Snapshot = owner.Snapshot with { Held = true };
+                    throw new IOException("Uncertain readback; inspect exact durable receipt, never retry.");
+                }
                 Tasks.Add(Tasks.Last(record => record.Request.TaskId == request.TaskId).Next(HostTaskState.Succeeded));
+                owner.AfterCommit?.Invoke();
                 return ValueTask.FromResult(owner.Snapshot);
             }
         }

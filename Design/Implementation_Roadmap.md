@@ -34,6 +34,14 @@ do not depend on hosted management, and speech preferences do not qualify wake.
 
 ## Current Delivery
 
+### Bounded exact sparse session-provider copy implementation - 2026-10-19
+
+The [session-provider copy contract](Model_Providers_Memory_And_Knowledge.md#exact-sparse-session-provider-copy-implementation---2026-10-19) adds explicit native/typed/current-name activated review of a source's exact sparse overrides for a distinct active destination. Complete old/new policy and effective/unavailable disclosure precedes separate expiring one-shot confirmation; null inheritance is never flattened into a source effective tuple.
+
+The existing Application review action, strict sparse/domain rules and private destination audit/save/readback/terminal writer remain authoritative. Both policy/lifecycle/app/private/account/catalogue snapshots are fenced; each destination transaction boundary rereads the exact source, and uncertain outcomes retain destination-only holds without retry. Source authority, credentials/grants/identities, app defaults, runtime/provider execution and network are not transferred or enabled.
+
+Deterministic workflow, command, native and private SQLite tests are authored. Current-head maintained builds, tests and exact portable line-and-branch coverage are required before merge; authored tests and incomplete validation are not READY or passing proof. This consumes the merged session-provider configuration I subset only. Broader provider/runtime/egress E/Q qualification remains unavailable and is not an implementation prerequisite.
+
 ### Bounded retained original USER text reuse implementation — 2026-10-19
 
 The [explicit original-text reuse contract](Interaction_And_Sessions.md#explicit-retained-original-user-text-reuse--2026-10-19) adds actual admitted USER-row review and separate one-shot confirmation into the single New request memory buffer. Complete source/body/provenance rereads, explicit dirty-buffer replacement, inert panes and private/source/buffer/native-opening fences preserve immutable originals and fresh eventual submission lineage. No task replay, HOST/model promotion, target creation, Save/Submit, queue/approval, clipboard, activity renewal or provider operation is implicit.

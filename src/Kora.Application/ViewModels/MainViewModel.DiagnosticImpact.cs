@@ -82,7 +82,7 @@ public sealed partial class MainViewModel
 
     private void OnDiagnosticImpactHostPropertyChanged(object? sender, PropertyChangedEventArgs args)
     {
-        if (args.PropertyName != nameof(IsResponseInteractionPending)) { return; }
+        if (!string.Equals(args.PropertyName, nameof(IsResponseInteractionPending), StringComparison.Ordinal)) { return; }
         Interlocked.Increment(ref diagnosticImpactControlRevision);
         diagnosticImpactPreview?.Retire("Foreground interaction control changed; preview retired.");
     }

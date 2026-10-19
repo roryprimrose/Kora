@@ -93,6 +93,10 @@ expired qualification. The endpoint resolver also returns no binding by
 default. Host admission therefore remains explicitly unavailable. No existing
 rejected runtime/model is qualified, no readiness observation sets
 `ToolLoopQualified`, and no legacy/global reasoner fallback is used.
+`IModelTurnAdmission` and `IModelTurnExecution` resolve the same host singleton.
+That host supplies the live continuation guard around each exchange/tool and
+retains the session consumer's current-source fence; native composition does
+not call the engine's deliberately refused unguarded entry.
 
 A future enablement owner must supply an exact, unexpired host-created binding
 for the admitted provenance and complete account/catalogue/model/options
@@ -119,9 +123,23 @@ transport. No process is started, killed or installed by this path.
 
 The entire native request, including framing, tool declarations and serial
 history, obeys the Core input limit both individually and cumulatively.
-Raw assistant responses plus newly returned native tool-result messages obey
-the Core cumulative output limit; metadata reads are separately bounded by
-that same complete-response limit. Oversize, partial, malformed UTF-8/Unicode,
+Protocol revision 2 supplies the host's remaining `ModelToolRequest.Budget`.
+Before any HTTP send, the greater of the native body and complete canonical
+request must fit that remaining input budget. Every successful reply echoes
+the host provenance and carries actual `ModelToolUsage`: input is the greater
+of those complete request sizes; output is the greater of the entire raw
+assistant response and its canonical message size. Missing/stub counters are
+not a successful integration.
+
+Declared-length and unknown-length responses are bounded by the remaining
+output budget before parsing, not just the global maximum; the canonical
+assistant charge must also fit before any call is returned. Assistant charges
+plus canonical host tool-result messages obey the cumulative Core output
+limit. The Application engine already charges each canonical tool result
+once; the transport does not report it again as response usage. Native
+tool-result framing remains part of the complete outbound request charge.
+Metadata observations are separately bounded by the same remaining raw
+response limit and are not model/tool messages. Oversize, partial, malformed UTF-8/Unicode,
 unknown/duplicate fields, wrong roles/model/IDs/order and abnormal termination
 never produce a partial answer. The fully validated native message is mapped
 through the authoritative Core parser before any tool call can be returned.

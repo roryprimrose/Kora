@@ -13,10 +13,8 @@ internal static partial class OllamaToolWire
     internal sealed record Reply(ModelAssistantMessage Message, byte[] NativeMessage);
     private static readonly UTF8Encoding StrictUtf8 = new(false, true);
 
-    internal static byte[] WriteRequest(ModelToolRequest request, string model, IReadOnlyList<Exchange> exchanges,
-        out int newResultBytes)
+    internal static byte[] WriteRequest(ModelToolRequest request, string model, IReadOnlyList<Exchange> exchanges)
     {
-        newResultBytes = 0;
         using var stream = new MemoryStream();
         using (var writer = new Utf8JsonWriter(stream))
         {
@@ -36,7 +34,6 @@ internal static partial class OllamaToolWire
             }
             WriteTextMessage(writer, "user", request.Context.UserRequest);
             var index = 0;
-            var exchangeIndex = 0;
             foreach (var exchange in exchanges)
             {
                 if (index >= request.Messages.Length
@@ -56,9 +53,7 @@ internal static partial class OllamaToolWire
                     { throw new InvalidDataException("Native tool result is missing or out of order."); }
                     var resultWire = WriteResult(result, nativeCalls[callIndex]);
                     writer.WriteRawValue(resultWire);
-                    if (exchangeIndex == exchanges.Count - 1) { newResultBytes += resultWire.Length; }
                 }
-                exchangeIndex++;
             }
             if (index != request.Messages.Length)
             { throw new InvalidDataException("The native conversation contains an unobserved or replayed exchange."); }

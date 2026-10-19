@@ -1,4 +1,5 @@
 using System.Buffers.Binary;
+using System.Text;
 using AwesomeAssertions;
 using Kora.Application.Dependencies;
 using Kora.Application.Tools;
@@ -12,13 +13,17 @@ namespace Kora.Windows.IntegrationTests.Dependencies;
 
 public sealed partial class WindowsOllamaToolTransportTests
 {
-    [Fact]
-    public async Task Native_transport_and_producer_engine_use_only_the_admitted_callback_and_continue_with_its_exact_result()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Native_transport_and_producer_engine_use_the_live_guard_and_only_the_admitted_registry_callback(
+        bool withdrawAfterTool)
     {
         await using var fixture = new Fixture();
         using var root = fixture.Root();
         fixture.Chat = (message, _) => Task.FromResult(Json(message, fixture.Bodies.Count == 1 ? Call : Final));
-        await using var adapter = new BoundedModelTurnAdapter(fixture.Transport, fixture.Time,
+        var recording = new RecordingTransport(fixture.Transport);
+        await using var adapter = new BoundedModelTurnAdapter(recording, fixture.Time,
             NullLogger<BoundedModelTurnAdapter>.Instance);
         var application = new ObservedApplication();
         using var dependencies = new DependencyBootstrapper([], NullLogger<DependencyBootstrapper>.Instance, fixture.Time);
@@ -36,13 +41,76 @@ public sealed partial class WindowsOllamaToolTransportTests
                 token.ThrowIfCancellationRequested();
                 invocations.Add(id);
                 input.Should().Be("{}");
-                return ValueTask.FromResult(registry.Invoke(registry.Admit(CapabilityLane.Execution), id, input, token));
-            }, Token);
-        reply.Outcome.Should().Be(ModelTurnOutcome.Succeeded);
-        reply.Response!.Answer.Should().Be("Genuine answer");
+                var result = registry.Invoke(registry.Admit(CapabilityLane.Execution), id, input, token);
+                fixture.Admitted = !withdrawAfterTool;
+                return ValueTask.FromResult(result);
+            }, token => ValidateContinuation(fixture, token), Token);
+        reply.Outcome.Should().Be(withdrawAfterTool ? ModelTurnOutcome.Denied : ModelTurnOutcome.Succeeded);
         invocations.Should().Equal(ReadOnlyCapabilityCatalog.Version);
         application.Reads.Should().Be(1);
-        fixture.Bodies.Should().HaveCount(2);
+        fixture.Bodies.Should().HaveCount(withdrawAfterTool ? 1 : 2);
+        if (withdrawAfterTool)
+        {
+            reply.Reason.Should().Be(ModelTurnReason.HostAdmissionClosed);
+            reply.Response.Should().BeNull();
+        }
+        else
+        {
+            reply.Response!.Answer.Should().Be("Genuine answer");
+            var firstUsage = recording.Replies[0].Usage!;
+            recording.Requests[1].Budget.InputUtf8Bytes.Should()
+                .Be(ModelToolProtocol.MaximumInputUtf8Bytes - firstUsage.InputUtf8Bytes);
+            var result = recording.Requests[1].Messages.OfType<ModelToolResultMessage>().Single();
+            recording.Requests[1].Budget.OutputUtf8Bytes.Should().Be(ModelToolProtocol.MaximumOutputUtf8Bytes
+                - firstUsage.OutputUtf8Bytes - ModelToolProtocol.SerializeMessage(result).Length);
+        }
+        for (var index = 0; index < recording.Replies.Count; index++)
+        {
+            var transportReply = recording.Replies[index];
+            transportReply.Provenance.Should().BeSameAs(fixture.Provenance);
+            transportReply.Usage.Should().NotBeNull();
+            var usage = transportReply.Usage!;
+            usage.InputUtf8Bytes.Should().Be(Math.Max(fixture.Bodies[index].Length,
+                ModelToolProtocol.SerializeRequest(recording.Requests[index]).Length));
+            usage.OutputUtf8Bytes.Should().Be(Math.Max(Encoding.UTF8.GetByteCount(index == 0 ? Call : Final),
+                ModelToolProtocol.SerializeMessage(transportReply.Message!).Length));
+        }
+    }
+
+    [Fact]
+    public async Task Original_engine_entry_cannot_bypass_the_required_live_host_guard()
+    {
+        await using var fixture = new Fixture();
+        using var root = fixture.Root();
+        await using var adapter = new BoundedModelTurnAdapter(fixture.Transport, fixture.Time,
+            NullLogger<BoundedModelTurnAdapter>.Instance);
+        var invocations = 0;
+        var reply = await adapter.RunAsync(fixture.Provenance, fixture.Profile, fixture.Request().Context.Wire.ToArray(),
+            (_, _, _) => { invocations++; return ValueTask.FromResult(VersionReply()); }, Token);
+        reply.Outcome.Should().Be(ModelTurnOutcome.Denied);
+        reply.Reason.Should().Be(ModelTurnReason.HostContextRequired);
+        invocations.Should().Be(0);
+        fixture.Observations.Should().Be(0);
+        fixture.Paths.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task Live_guard_withdrawal_before_the_first_exchange_never_reaches_native_observation_or_HTTP()
+    {
+        await using var fixture = new Fixture { Admitted = false };
+        using var root = fixture.Root();
+        await using var adapter = new BoundedModelTurnAdapter(fixture.Transport, fixture.Time,
+            NullLogger<BoundedModelTurnAdapter>.Instance);
+        var invocations = 0;
+        var reply = await adapter.RunAsync(fixture.Provenance, fixture.Profile, fixture.Request().Context.Wire.ToArray(),
+            (_, _, _) => { invocations++; return ValueTask.FromResult(VersionReply()); },
+            token => ValidateContinuation(fixture, token), Token);
+        reply.Outcome.Should().Be(ModelTurnOutcome.Denied);
+        reply.Reason.Should().Be(ModelTurnReason.HostAdmissionClosed);
+        reply.Response.Should().BeNull();
+        invocations.Should().Be(0);
+        fixture.Observations.Should().Be(0);
+        fixture.Paths.Should().BeEmpty();
     }
 
     [Fact]
@@ -98,5 +166,25 @@ public sealed partial class WindowsOllamaToolTransportTests
         internal int Reads;
         public bool IsCurrentHost => true;
         public string Version { get { Reads++; return "1.2.3"; } }
+    }
+
+    private static ValueTask<ModelTurnReason> ValidateContinuation(Fixture fixture, CancellationToken token)
+    {
+        token.ThrowIfCancellationRequested();
+        return ValueTask.FromResult(fixture.Admitted ? ModelTurnReason.None : ModelTurnReason.HostAdmissionClosed);
+    }
+
+    private sealed class RecordingTransport(IModelToolTransport inner) : IModelToolTransport
+    {
+        internal readonly List<ModelToolRequest> Requests = [];
+        internal readonly List<ModelToolTransportReply> Replies = [];
+        public async Task<ModelToolTransportReply> CompleteAsync(ModelToolRequest request, CancellationToken cancellationToken)
+        {
+            Requests.Add(request);
+            var reply = await inner.CompleteAsync(request, cancellationToken);
+            Replies.Add(reply);
+            return reply;
+        }
+        public ValueTask DisposeAsync() => inner.DisposeAsync();
     }
 }

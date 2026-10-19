@@ -153,7 +153,11 @@ The provider-neutral tool-loop contract now has a separate Windows native
 [Local Inference](Local_Inference.md#native-tool-message-transport-boundary).
 Native messages map to the Core protocol; complete messages and serial
 continuations retain its six-action catalogue, exact argument admission and
-complete UTF-8 budgets. Tool results remain lower-trust `tool` content, not
+complete UTF-8 budgets. The native transport consumes revision-2 remaining
+budgets before I/O and returns measured complete native/canonical maximum byte
+charges on every successful reply; no absent or synthetic usage is accepted.
+The same host supplies the live continuation guard and consumer source fence.
+Tool results remain lower-trust `tool` content, not
 instructions or approval. Neither transport nor model output invokes actions
 directly.
 

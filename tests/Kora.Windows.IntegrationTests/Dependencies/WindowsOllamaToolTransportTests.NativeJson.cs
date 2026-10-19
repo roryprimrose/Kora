@@ -3,7 +3,6 @@ using System.Text;
 using AwesomeAssertions;
 using Kora.Core.Dependencies;
 using Kora.Core.Tools;
-using Kora.Windows.Dependencies;
 
 namespace Kora.Windows.IntegrationTests.Dependencies;
 
@@ -100,7 +99,7 @@ public sealed partial class WindowsOllamaToolTransportTests
             Call.Replace("""{"function":""", """{"id":"same_call","function":""", StringComparison.Ordinal)));
         var first = await fixture.Transport.CompleteAsync(fixture.Request(), Token);
         var calls = first.Message.Should().BeOfType<ModelAssistantToolCalls>().Subject;
-        var result = ModelToolProtocol.CreateToolResult(calls.Calls[0], new(CapabilityOutcome.Succeeded, "observed"));
+        var result = ModelToolProtocol.CreateToolResult(calls.Calls[0], VersionReply());
         var repeated = await fixture.Transport.CompleteAsync(fixture.Request([calls, result], 2), Token);
         repeated.Outcome.Should().Be(ModelTurnOutcome.Denied);
         repeated.Message.Should().BeNull();
@@ -174,10 +173,10 @@ public sealed partial class WindowsOllamaToolTransportTests
         var user = new string('u', 10_000);
         var first = await fixture.Transport.CompleteAsync(fixture.Request(user: user), Token);
         var calls1 = first.Message.Should().BeOfType<ModelAssistantToolCalls>().Subject;
-        var result1 = ModelToolProtocol.CreateToolResult(calls1.Calls[0], new(CapabilityOutcome.Succeeded, "observed"));
+        var result1 = ModelToolProtocol.CreateToolResult(calls1.Calls[0], VersionReply());
         var second = await fixture.Transport.CompleteAsync(fixture.Request([calls1, result1], 2, user: user), Token);
         var calls2 = second.Message.Should().BeOfType<ModelAssistantToolCalls>().Subject;
-        var result2 = ModelToolProtocol.CreateToolResult(calls2.Calls[0], new(CapabilityOutcome.Succeeded, "observed"));
+        var result2 = ModelToolProtocol.CreateToolResult(calls2.Calls[0], VersionReply());
         var third = await fixture.Transport.CompleteAsync(fixture.Request([calls1, result1, calls2, result2], 3, user: user), Token);
         third.Outcome.Should().Be(ModelTurnOutcome.Denied);
         third.Message.Should().BeNull();
@@ -197,7 +196,7 @@ public sealed partial class WindowsOllamaToolTransportTests
         };
         var first = await fixture.Transport.CompleteAsync(fixture.Request(), Token);
         var calls = first.Message.Should().BeOfType<ModelAssistantToolCalls>().Subject;
-        var result = ModelToolProtocol.CreateToolResult(calls.Calls[0], new(CapabilityOutcome.Succeeded, "observed"));
+        var result = ModelToolProtocol.CreateToolResult(calls.Calls[0], VersionReply());
         var reply = await fixture.Transport.CompleteAsync(fixture.Request([calls, result], 2), Token);
         reply.Outcome.Should().Be(ModelTurnOutcome.Denied);
         reply.Message.Should().BeNull();

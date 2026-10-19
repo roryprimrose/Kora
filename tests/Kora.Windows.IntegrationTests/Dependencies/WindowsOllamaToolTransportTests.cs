@@ -1,6 +1,5 @@
 using System.Diagnostics;
 using System.Net;
-using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
 using AwesomeAssertions;
@@ -64,7 +63,7 @@ public sealed partial class WindowsOllamaToolTransportTests
             : Final));
         var first = await fixture.Transport.CompleteAsync(fixture.Request(), Token);
         var calls = first.Message.Should().BeOfType<ModelAssistantToolCalls>().Subject;
-        var result = ModelToolProtocol.CreateToolResult(calls.Calls[0], new(CapabilityOutcome.Denied, "not-observed"));
+        var result = ModelToolProtocol.CreateToolResult(calls.Calls[0], VersionReply());
         (await fixture.Transport.CompleteAsync(fixture.Request([calls, result], 2), Token)).Outcome.Should().Be(ModelTurnOutcome.Succeeded);
         using var sent = JsonDocument.Parse(fixture.Bodies[1]);
         sent.RootElement.GetProperty("messages")[3].GetProperty("tool_call_id").GetString().Should().Be("provider_1");
@@ -155,6 +154,9 @@ public sealed partial class WindowsOllamaToolTransportTests
     private static HttpResponseMessage Json(HttpRequestMessage request, string text, HttpStatusCode status = HttpStatusCode.OK) =>
         new(status) { RequestMessage = request, Content = new StringContent(text, Encoding.UTF8, "application/json") };
 
+    private static CapabilityReply VersionReply() =>
+        new(CapabilityOutcome.Succeeded, "observed", Version: new("1.2.3", "not-observed"));
+
     private sealed class Fixture : IAsyncDisposable
     {
         private readonly ActivityListener listener = new()
@@ -200,7 +202,7 @@ public sealed partial class WindowsOllamaToolTransportTests
                 if (Metadata is not null) { return await Metadata(message, token); }
                 return Json(message, string.Equals(message.RequestUri.AbsolutePath, "/api/version", StringComparison.Ordinal)
                     ? """{"version":"fake-runtime"}"""
-                    : $$"""{"models":[{"name":"{{Model}}","digest":"{{Digest}}"}]}""");
+                    : JsonSerializer.Serialize(new { models = new[] { new { name = BoundModel, digest = Digest } } }));
             });
             Transport = new(new HttpClient(HttpHandler), request => MissingBinding ? null : Binding(),
                 (_, token) => { token.ThrowIfCancellationRequested(); Observations++; return Task.FromResult(ProcessCurrent); },
@@ -211,12 +213,13 @@ public sealed partial class WindowsOllamaToolTransportTests
             Expired ? Time.GetUtcNow() : Time.GetUtcNow().AddMinutes(1), () => Admitted, Revoked.Token);
         internal HostActivity Root() => HostActivity.BeginRoot(RequestIdentity, HostActivityLayer.Application, HostOperation.Runtime);
         internal ModelToolRequest Request(IEnumerable<ModelToolMessage>? messages = null, int round = 1,
-            ProviderProfileTuple? profile = null, string user = "Return the actual application version.")
+            ProviderProfileTuple? profile = null, string user = "Return the actual application version.",
+            ModelToolBudget? budget = null, IEnumerable<ModelContextEvidence>? evidence = null)
         {
             var envelope = new ModelContextEnvelope(RequestIdentity, "Tools are host-mediated observations.", user,
-                [], Time.GetUtcNow(), Time.GetUtcNow().AddMinutes(1));
+                evidence ?? [], Time.GetUtcNow(), Time.GetUtcNow().AddMinutes(1));
             return ModelToolProtocol.CreateRequest(Provenance, profile ?? Profile,
-                ModelToolProtocol.ReadContext(envelope.Serialize(), Provenance), messages ?? [], round);
+                ModelToolProtocol.ReadContext(envelope.Serialize(), Provenance), messages ?? [], round, budget);
         }
         public async ValueTask DisposeAsync()
         {

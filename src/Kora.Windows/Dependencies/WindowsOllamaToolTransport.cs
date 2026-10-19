@@ -108,7 +108,8 @@ public sealed partial class WindowsOllamaToolTransport : IModelToolTransport
     private async Task<ModelToolTransportReply> ExchangeAsync(ModelToolRequest request, CancellationToken callerToken)
     {
         // Reuse the producer's complete history, provenance, catalogue and byte policy.
-        ModelToolProtocol.CreateRequest(request.Provenance, request.Profile, request.Context, request.Messages, request.Round);
+        ModelToolProtocol.CreateRequest(request.Provenance, request.Profile, request.Context, request.Messages,
+            request.Round, request.Budget);
         if (request.Profile is null) { return Finish(request, ModelTurnOutcome.Unavailable); }
         if (original is null)
         {
@@ -129,7 +130,8 @@ public sealed partial class WindowsOllamaToolTransport : IModelToolTransport
             || admittedHistory.Where((wire, index) => !wire.AsSpan()
                 .SequenceEqual(ModelToolProtocol.SerializeMessage(request.Messages[index]))).Any())
         { return Finish(request, ModelTurnOutcome.Denied); }
-        admittedHistory = request.Messages.Select(ModelToolProtocol.SerializeMessage).ToArray();
+        var resultBytes = request.Messages.Skip(admittedHistory.Length).OfType<ModelToolResultMessage>()
+            .Sum(result => ModelToolProtocol.SerializeMessage(result).Length);
         var remaining = deadline - time.GetUtcNow();
         if (remaining <= TimeSpan.Zero) { return Finish(request, ModelTurnOutcome.TimedOut); }
         using var timeout = new CancellationTokenSource(remaining, time);
@@ -140,12 +142,17 @@ public sealed partial class WindowsOllamaToolTransport : IModelToolTransport
             linked.Token.ThrowIfCancellationRequested();
             if (!await ObserveAsync(request, linked.Token).ConfigureAwait(false))
             { return Finish(request, ModelTurnOutcome.Denied); }
-            var body = OllamaToolWire.WriteRequest(request, selected.Model, exchanges, out var resultBytes);
-            inputBytes = checked(inputBytes + body.Length);
-            outputBytes = checked(outputBytes + resultBytes);
-            if (inputBytes > ModelToolProtocol.MaximumInputUtf8Bytes || outputBytes > ModelToolProtocol.MaximumOutputUtf8Bytes)
+            var body = OllamaToolWire.WriteRequest(request, selected.Model, exchanges);
+            var inputCharge = Math.Max(body.Length, ModelToolProtocol.SerializeRequest(request).Length);
+            var outputLimit = Math.Min(request.Budget.OutputUtf8Bytes,
+                ModelToolProtocol.MaximumOutputUtf8Bytes - outputBytes - resultBytes);
+            if (inputCharge > request.Budget.InputUtf8Bytes
+                || inputCharge > ModelToolProtocol.MaximumInputUtf8Bytes - inputBytes || outputLimit <= 0)
             { return Finish(request, ModelTurnOutcome.Denied); }
-            var metadata = await VerifyMetadataAsync(request, linked.Token).ConfigureAwait(false);
+            inputBytes += inputCharge;
+            outputBytes += resultBytes;
+            admittedHistory = request.Messages.Select(ModelToolProtocol.SerializeMessage).ToArray();
+            var metadata = await VerifyMetadataAsync(request, outputLimit, linked.Token).ConfigureAwait(false);
             if (metadata != ModelTurnOutcome.Succeeded) { return Finish(request, metadata); }
             if (!await ObserveAsync(request, linked.Token).ConfigureAwait(false))
             { return Finish(request, ModelTurnOutcome.Denied); }
@@ -158,11 +165,11 @@ public sealed partial class WindowsOllamaToolTransport : IModelToolTransport
                 linked.Token).ConfigureAwait(false);
             var status = Status(response, message);
             if (status != ModelTurnOutcome.Succeeded) { return Finish(request, status); }
-            var wire = await ReadBoundedAsync(response.Content, linked.Token).ConfigureAwait(false);
-            outputBytes = checked(outputBytes + wire.Length);
-            if (outputBytes > ModelToolProtocol.MaximumOutputUtf8Bytes)
-            { return Finish(request, ModelTurnOutcome.Denied); }
+            var wire = await ReadBoundedAsync(response.Content, outputLimit, linked.Token).ConfigureAwait(false);
             var parsed = OllamaToolWire.ReadReply(wire, selected.Model, request.Round);
+            var outputCharge = Math.Max(wire.Length, ModelToolProtocol.SerializeMessage(parsed.Message).Length);
+            if (outputCharge > outputLimit) { return Finish(request, ModelTurnOutcome.Denied); }
+            outputBytes += outputCharge;
             if (!await ObserveAsync(request, linked.Token).ConfigureAwait(false))
             { return Finish(request, ModelTurnOutcome.Denied); }
             linked.Token.ThrowIfCancellationRequested();
@@ -178,7 +185,7 @@ public sealed partial class WindowsOllamaToolTransport : IModelToolTransport
             }
             else { CloseConversation(request.Provenance); }
             TransportCompleted(logger, ModelTurnOutcome.Succeeded);
-            return new(ModelTurnOutcome.Succeeded, request.Provenance, parsed.Message);
+            return new(ModelTurnOutcome.Succeeded, request.Provenance, parsed.Message, new(inputCharge, outputCharge));
         }
         catch (OperationCanceledException) when (linked.IsCancellationRequested)
         {
@@ -206,7 +213,7 @@ public sealed partial class WindowsOllamaToolTransport : IModelToolTransport
         return Current(request);
     }
 
-    private async Task<ModelTurnOutcome> VerifyMetadataAsync(ModelToolRequest request, CancellationToken token)
+    private async Task<ModelTurnOutcome> VerifyMetadataAsync(ModelToolRequest request, int outputLimit, CancellationToken token)
     {
         foreach (var path in new[] { "api/version", "api/tags" })
         {
@@ -215,7 +222,7 @@ public sealed partial class WindowsOllamaToolTransport : IModelToolTransport
             using var response = await client.SendAsync(message, HttpCompletionOption.ResponseHeadersRead, token).ConfigureAwait(false);
             var status = Status(response, message);
             if (status != ModelTurnOutcome.Succeeded) { return status; }
-            var bytes = await ReadBoundedAsync(response.Content, token).ConfigureAwait(false);
+            var bytes = await ReadBoundedAsync(response.Content, outputLimit, token).ConfigureAwait(false);
             if (string.Equals(path, "api/version", StringComparison.Ordinal))
             { OllamaToolWire.VerifyVersion(bytes, binding!.RuntimeVersion); }
             else { OllamaToolWire.VerifyModel(bytes, binding!.Model, binding.ModelDigest); }
@@ -237,12 +244,12 @@ public sealed partial class WindowsOllamaToolTransport : IModelToolTransport
         return ModelTurnOutcome.Succeeded;
     }
 
-    private static async Task<byte[]> ReadBoundedAsync(HttpContent content, CancellationToken token)
+    private static async Task<byte[]> ReadBoundedAsync(HttpContent content, int limit, CancellationToken token)
     {
-        if (content.Headers.ContentLength > ModelToolProtocol.MaximumOutputUtf8Bytes)
-        { throw new InvalidDataException("The complete native response exceeds the host output limit."); }
+        if (content.Headers.ContentLength > limit)
+        { throw new InvalidDataException("The complete native response exceeds the remaining host output budget."); }
         await using var stream = await content.ReadAsStreamAsync(token).ConfigureAwait(false);
-        var bytes = new byte[ModelToolProtocol.MaximumOutputUtf8Bytes + 1];
+        var bytes = new byte[limit + 1];
         var count = 0;
         while (count < bytes.Length)
         {
@@ -251,7 +258,7 @@ public sealed partial class WindowsOllamaToolTransport : IModelToolTransport
             if (read == 0) { return bytes[..count]; }
             count += read;
         }
-        throw new InvalidDataException("The complete native response exceeds the host output limit.");
+        throw new InvalidDataException("The complete native response exceeds the remaining host output budget.");
     }
 
     private ModelToolTransportReply Finish(ModelToolRequest request, ModelTurnOutcome outcome)

@@ -78,6 +78,9 @@ public sealed partial class MainViewModel
         auditImpactControlRevision = checked(auditImpactControlRevision + 1);
         auditImpactOwnerRevision = revision ?? (static () => 0);
         auditImpactPreview?.Retire("Owner binding changed; preview retired.");
+        Interlocked.Increment(ref diagnosticImpactControlRevision);
+        diagnosticImpactPreview?.Retire("Owner binding changed; preview retired.");
+        NotifyDiagnosticImpactPreview();
         sessionRetentionPlanner?.Retire("Owner binding changed; preview retired.");
         NotifyAuditImpactPreview();
     }
@@ -229,6 +232,7 @@ public sealed partial class MainViewModel
     private async void OnCommunicationPolicyChanged(object? sender, EventArgs args)
     {
         auditImpactPreview?.Retire("Call revision changed; preview retired.");
+        diagnosticImpactPreview?.Retire("Call revision changed; preview retired.");
         sessionRetentionPlanner?.Retire("Call revision changed; preview retired.");
         RetireQuestionVoiceReply();
         try

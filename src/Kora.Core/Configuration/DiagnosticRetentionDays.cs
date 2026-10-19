@@ -18,6 +18,12 @@ public readonly record struct DiagnosticRetentionDays
 
     public int Days { get; }
 
+    public static bool IsValidDeadline(DateTimeOffset committed, DateTimeOffset due)
+    {
+        var days = (due - committed).TotalDays;
+        return days is >= Minimum and <= Maximum && days == Math.Truncate(days);
+    }
+
     public static DiagnosticRetentionDays Parse(string value)
     {
         if (!int.TryParse(value, NumberStyles.None, CultureInfo.InvariantCulture, out var days)

@@ -8521,7 +8521,7 @@ public sealed partial class MainViewModelTests : IDisposable
             Exception? artifactReadFailure = null,
             bool enableMcpServerConfiguration = true, bool enableProviderProfiles = false,
             bool enableQuestionReplies = false, bool enableAuditImpact = false, bool enableSessionRetentionPlanner = false,
-            bool enableSpeechPreparation = false)
+            bool enableSpeechPreparation = false, bool enableDiagnosticImpact = false)
         {
             Catalog = new BuiltInCommandCatalog();
             CaptionPreferences.LoadFailure = captionReadFailure;
@@ -8687,7 +8687,8 @@ public sealed partial class MainViewModelTests : IDisposable
                 enableProviderProfiles ? new ProviderProfileConfigurationService(ProfilePreferences, ProfileCatalogue, OutputAdmission, Audit, ProfileTime) : null,
                 enableAuditImpact ? new AuditImpactPreviewService(ImpactReader, AuditPreferences, AuditConfiguration!) : null,
                 enableSessionRetentionPlanner ? new SessionRetentionPlannerService(SessionPlanReader, SessionRetentionConfiguration!) : null,
-                speechPreparation: enableSpeechPreparation ? SpeechPreparation : null);
+                speechPreparation: enableSpeechPreparation ? SpeechPreparation : null,
+                diagnosticImpactPreview: enableDiagnosticImpact ? new DiagnosticImpactPreviewService(DiagnosticImpactReader, DiagnosticPreferences, DiagnosticConfiguration!) : null);
             ViewModel.BindCallOwnershipGate(static () => true);
             ViewModel.BindManualCallNativeLifetime(true);
             if (enableWindowsSpeechRate) { ViewModel.BindWindowsSpeechRateNativeLifetime(static () => true); }
@@ -8742,6 +8743,7 @@ public sealed partial class MainViewModelTests : IDisposable
         public AuditRetentionPolicy AuditPolicy { get; } = new();
         public AuditRetentionConfigurationService? AuditConfiguration { get; }
         public Kora.Application.UnitTests.Configuration.AuditImpactPreviewServiceTests.Reader ImpactReader { get; } = new();
+        public Kora.Application.UnitTests.Configuration.DiagnosticImpactPreviewServiceTests.Reader DiagnosticImpactReader { get; } = new();
         public FakeArtifactPreferences ArtifactPreferences { get; } = new();
         public ArtifactDirectoryConfigurationService? ArtifactDirectoryConfiguration { get; }
         public McpServerConfigurationService? McpServerConfiguration { get; }

@@ -1377,6 +1377,14 @@ their independent rules. Unavailable ordinary policy reports explicit
 independent delivery gaps without waiving mandatory trusted audit. This is logical
 row pruning, not recoverable-copy disposal or forensic erasure. Audit expiry
 and its continuation/checkpoint requirements remain independently unimplemented.
+The independent [ordinary diagnostic impact preview](User_Configuration.md#read-only-ordinary-diagnostic-shortening-impact-preview)
+only observes hypothetically newly-due ordinary logs/spans/owned links at one
+fixed cutoff. It never counts security audit; bounded protected-prefix and
+private ownership/schema validation qualify the observation without granting
+authority. Unknown/incomplete sources expose no counts, and host/configuration/
+source/control changes or expiry retire results without automatic replay.
+No policy, session, question/approval, grant, database, cache or marker is written.
+
 The subsequent [future-only audit option](User_Configuration.md#delivered-bounded-future-only-audit-retention-r10r04)
 admits canonical 30–365/default-reset90 through independent original-user audit
 session/generation/source/policy revision checks and protected-call/native

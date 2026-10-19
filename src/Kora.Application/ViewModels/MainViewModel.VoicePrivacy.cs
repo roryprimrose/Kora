@@ -66,6 +66,7 @@ public sealed partial class MainViewModel
     {
         if (disposed) { return; }
         auditImpactPreview?.Retire("Private/lock/desktop revision changed; preview retired.");
+        diagnosticImpactPreview?.Retire("Private/lock/desktop revision changed; preview retired.");
         sessionRetentionPlanner?.Retire("Private/lock/desktop revision changed; preview retired.");
         RetireQuestionVoiceReply();
         var snapshot = eventArgs.Current;
@@ -259,6 +260,12 @@ public sealed partial class MainViewModel
             auditImpactPreview.Changed -= OnAuditImpactPreviewChanged;
             auditImpactPreview.Dispose();
         }
+        if (diagnosticImpactPreview is not null)
+        {
+            diagnosticImpactPreview.Changed -= OnDiagnosticImpactPreviewChanged;
+            diagnosticImpactPreview.Dispose();
+        }
+        PropertyChanged -= OnDiagnosticImpactHostPropertyChanged;
         if (sessionRetentionPlanner is not null)
         {
             sessionRetentionPlanner.Changed -= OnSessionRetentionPlannerChanged;

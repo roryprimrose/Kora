@@ -276,7 +276,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         ProviderProfileConfigurationService? providerProfileConfiguration = null,
         AuditImpactPreviewService? auditImpactPreview = null,
         SessionRetentionPlannerService? sessionRetentionPlanner = null,
-        Kora.Application.Voice.SpeechPreparationCoordinator? speechPreparation = null)
+        Kora.Application.Voice.SpeechPreparationCoordinator? speechPreparation = null,
+        DiagnosticImpactPreviewService? diagnosticImpactPreview = null)
     {
         this.commandCatalog = commandCatalog;
         this.commandRouter = commandRouter;
@@ -396,6 +397,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         if (sessionRetentionPlanner is not null) { sessionRetentionPlanner.Changed += OnSessionRetentionPlannerChanged; }
         this.auditRetentionConfiguration = auditRetentionConfiguration;
         this.auditImpactPreview = auditImpactPreview;
+        this.diagnosticImpactPreview = diagnosticImpactPreview;
+        if (diagnosticImpactPreview is not null) { diagnosticImpactPreview.Changed += OnDiagnosticImpactPreviewChanged; }
+        PropertyChanged += OnDiagnosticImpactHostPropertyChanged;
         if (auditImpactPreview is not null) { auditImpactPreview.Changed += OnAuditImpactPreviewChanged; }
         if (auditRetentionConfiguration is not null)
         {
@@ -520,6 +524,12 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         ResetAuditRetentionCommand = CreateCommand(() => ExecuteAuditRetentionCommandAsync(new(AppearanceCommandOperation.Reset), SecurityAuditInitiator.LocalUser));
         PreviewAuditImpactCommand = new(PreviewAuditImpactAsync, exception =>
             ApplicationLog.Error(logger, exception, "Observing audit-retention impact"), () => CanPreviewAuditImpact);
+        PreviewDiagnosticImpactCommand = new(PreviewDiagnosticImpactAsync, FailDiagnosticImpactPreview,
+            () => CanPreviewDiagnosticImpact);
+        ClearDiagnosticImpactCommand = new(ClearDiagnosticImpactAsync, FailDiagnosticImpactPreview,
+            () => CanClearDiagnosticImpact);
+        CancelDiagnosticImpactCommand = new(CancelDiagnosticImpactAsync, FailDiagnosticImpactPreview,
+            () => CanCancelDiagnosticImpact);
         RefreshResponseModeCommand = CreateCommand(() => RunNativeResponseModeAsync(AppearanceCommandOperation.Get));
         SaveResponseModeCommand = CreateCommand(() => RunNativeResponseModeAsync(AppearanceCommandOperation.Set));
         ResetResponseModeCommand = CreateCommand(() => RunNativeResponseModeAsync(AppearanceCommandOperation.Reset));
@@ -5848,6 +5858,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         OnPropertyChanged(nameof(CanChangeAuditRetentionNative));
         OnPropertyChanged(nameof(AuditRetentionStatus));
         RetireIneligibleAuditImpact();
+        RetireIneligibleDiagnosticImpact();
         RetireIneligibleSessionRetentionPlan();
         OnPropertyChanged(nameof(CanChangeResponseMode));
         OnPropertyChanged(nameof(ResponseModeConfigurationStatus));

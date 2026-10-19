@@ -861,6 +861,22 @@
                 <Button Content="Refresh SQLite retention only" Command="{Binding RefreshDiagnosticRetentionCommand}" IsEnabled="{Binding CanChangeDiagnosticRetentionNative}" />
                 <Button Content="Save future SQLite retention only" Command="{Binding SaveDiagnosticRetentionCommand}" IsEnabled="{Binding CanChangeDiagnosticRetentionNative}" />
                 <Button Content="Reset future SQLite retention to 30 days" Command="{Binding ResetDiagnosticRetentionCommand}" IsEnabled="{Binding CanChangeDiagnosticRetentionNative}" />
+                <TextBlock Text="Read-only ordinary diagnostic shortening impact" Classes="settings-title" />
+                <TextBlock Text="Choose an exact shorter proposal, then Preview. No scan runs on selection. Counts are hypothetical newly-due ordinary logs, spans and validated owned links at one fixed cutoff, not security audit or session retirement. Bounds or unknown linkage suppress counts. Results expire after 30 seconds; no cleanup, complete trace, physical or forensic deletion is promised. Save and Reset above remain separate and future-only."
+                           Classes="settings-description" TextWrapping="Wrap" />
+                <ComboBox ItemsSource="{Binding DiagnosticRetentionChoices}" SelectedItem="{Binding ProposedDiagnosticImpactDays}"
+                          IsEnabled="{Binding CanChangeDiagnosticRetentionNative}"
+                          AutomationProperties.Name="Proposed ordinary diagnostic retention days for read-only preview"
+                          AutomationProperties.HelpText="Select 1 through 365 days, shorter than confirmed current retention. Selecting does not scan or save." />
+                <Button Content="Preview diagnostic shortening impact only" Command="{Binding PreviewDiagnosticImpactCommand}"
+                        IsEnabled="{Binding CanPreviewDiagnosticImpact}"
+                        AutomationProperties.Name="Preview diagnostic shortening impact only" />
+                <Button Content="Cancel diagnostic preview" Command="{Binding CancelDiagnosticImpactCommand}"
+                        IsEnabled="{Binding CanCancelDiagnosticImpact}" AutomationProperties.Name="Cancel read-only diagnostic preview" />
+                <Button Content="Clear diagnostic preview" Command="{Binding ClearDiagnosticImpactCommand}"
+                        IsEnabled="{Binding CanClearDiagnosticImpact}" AutomationProperties.Name="Clear read-only diagnostic preview" />
+                <TextBlock Text="{Binding DiagnosticImpactPreviewStatus}" Classes="settings-description" TextWrapping="Wrap"
+                           AutomationProperties.Name="Read-only ordinary diagnostic impact status" />
               </StackPanel>
             </Border>
             <Border Classes="settings-card">

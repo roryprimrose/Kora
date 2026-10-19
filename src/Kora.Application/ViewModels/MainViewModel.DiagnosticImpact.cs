@@ -59,7 +59,7 @@ public sealed partial class MainViewModel
         }
     }
 
-    private static string DescribeDiagnosticImpact(DiagnosticImpactResult result)
+    internal static string DescribeDiagnosticImpact(DiagnosticImpactResult result)
     {
         var source = result.Source switch
         {
@@ -130,7 +130,7 @@ public sealed partial class MainViewModel
     }
 
     private void FailDiagnosticImpactPreview(Exception _) =>
-        diagnosticImpactPreview?.Retire("Preview unavailable or failed; no result. Nothing saved or removed.");
+        diagnosticImpactPreview!.Retire("Preview unavailable or failed; no result. Nothing saved or removed.");
 
     private Task ClearDiagnosticImpactAsync()
     {

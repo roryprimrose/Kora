@@ -1,4 +1,5 @@
 using AwesomeAssertions;
+using Kora.Application.ViewModels;
 using Kora.Core.Configuration;
 using Kora.Core.Diagnostics;
 using Kora.Core.Hosting;
@@ -14,6 +15,8 @@ public sealed partial class MainViewModelTests
         var absent = new Fixture();
         absent.ViewModel.DiagnosticImpactPreviewStatus.Should().Contain("unavailable");
         absent.ViewModel.CanPreviewDiagnosticImpact.Should().BeFalse();
+        absent.ViewModel.CanCancelDiagnosticImpact.Should().BeFalse();
+        absent.ViewModel.CanClearDiagnosticImpact.Should().BeFalse();
         absent.ViewModel.ProposedDiagnosticImpactDays = 1;
         absent.ViewModel.ProposedDiagnosticImpactDays = null;
         absent.ViewModel.Dispose();
@@ -22,6 +25,8 @@ public sealed partial class MainViewModelTests
         await using var admission = fixture.DiagnosticAdmission;
         await fixture.ViewModel.InitializeAsync();
         fixture.ViewModel.BindDiagnosticRetentionNativeLifetime(static () => true);
+        fixture.ViewModel.CanClearDiagnosticImpact.Should().BeTrue();
+        fixture.ViewModel.CanCancelDiagnosticImpact.Should().BeFalse();
         var title = fixture.ViewModel.ResponseTitle;
         var body = fixture.ViewModel.ResponseBody;
         var transcript = fixture.ViewModel.Transcript;
@@ -67,9 +72,14 @@ public sealed partial class MainViewModelTests
         await fixture.ViewModel.PreviewDiagnosticImpactCommand.ExecuteAsync();
         await fixture.ViewModel.RefreshDiagnosticRetentionCommand.ExecuteAsync();
         fixture.ViewModel.DiagnosticImpactPreviewStatus.Should().Contain("retired");
+        fixture.DiagnosticPreferences.Value = new(365);
+        fixture.DiagnosticConfiguration!.Observe();
+        fixture.ViewModel.DiagnosticImpactPreviewStatus.Should().Contain("retired");
         fixture.ViewModel.BindDiagnosticRetentionNativeLifetime(static () => false);
         fixture.ViewModel.CanPreviewDiagnosticImpact.Should().BeFalse();
         fixture.ViewModel.Dispose();
+        fixture.ViewModel.CanCancelDiagnosticImpact.Should().BeFalse();
+        fixture.ViewModel.CanClearDiagnosticImpact.Should().BeFalse();
         fixture.DiagnosticImpactReader.Signal();
     }
 
@@ -153,6 +163,40 @@ public sealed partial class MainViewModelTests
         await fixture.ViewModel.CancelModelQuestionAsync();
         fixture.ViewModel.IsModelQuestionPending.Should().BeFalse();
         fixture.ViewModel.DiagnosticImpactPreviewStatus.Should().Contain("retired");
+        fixture.ViewModel.Dispose();
+    }
+
+    [Fact]
+    public void Diagnostic_formatter_rejects_unknown_source_instead_of_mislabeling_counts()
+    {
+        var describe = () => MainViewModel.DescribeDiagnosticImpact(
+            new((DiagnosticImpactSource)99, DiagnosticImpactStatus.Unavailable, null));
+        describe.Should().Throw<InvalidDataException>();
+    }
+
+    [Fact]
+    public async Task Native_command_boundary_reports_unexpected_preview_failure_without_content_or_policy_changes()
+    {
+        var fixture = new Fixture(enableDiagnosticRetention: true, enableDiagnosticImpact: true);
+        await using var admission = fixture.DiagnosticAdmission;
+        await fixture.ViewModel.InitializeAsync();
+        fixture.ViewModel.BindDiagnosticRetentionNativeLifetime(static () => true);
+        fixture.ViewModel.ProposedDiagnosticImpactDays = 1;
+        fixture.DiagnosticImpactReader.OnCurrent = () => throw new FormatException("private sentinel");
+        var reported = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        fixture.ViewModel.PropertyChanged += (_, args) =>
+        {
+            if (string.Equals(args.PropertyName, nameof(MainViewModel.DiagnosticImpactPreviewStatus), StringComparison.Ordinal)
+                && fixture.ViewModel.DiagnosticImpactPreviewStatus.Contains("Preview unavailable or failed", StringComparison.Ordinal))
+            {
+                reported.TrySetResult();
+            }
+        };
+        fixture.ViewModel.PreviewDiagnosticImpactCommand.Execute(null);
+        await reported.Task.WaitAsync(TestContext.Current.CancellationToken);
+        fixture.ViewModel.DiagnosticImpactPreviewStatus.Should().Contain("no result").And.NotContain("private sentinel");
+        fixture.DiagnosticPreferences.Value.Should().BeNull();
+        fixture.DiagnosticPolicy.Effective.Should().Be(DiagnosticRetentionDays.Default);
         fixture.ViewModel.Dispose();
     }
 }

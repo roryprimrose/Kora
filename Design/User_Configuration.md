@@ -604,9 +604,11 @@ not promise actual cleanup, complete traces, physical/forensic deletion or
 disposal of retained copies, and does not change session retirement or grants.
 This is the existing configuration/private-storage **I** subset only; broader
 R04/R10, installed/accessibility, hardware/provider and release **E/Q** gates are
-not implementation prerequisites or claimed qualification. Implementation and
-authored deterministic tests await the separately admitted serial build/test
-and exact portable line **and** branch coverage checks; this is not READY.
+not implementation prerequisites or claimed qualification. Delivery requires
+the exact published source's maintained full portable/serial Windows suites,
+current analyzers, engineering contracts and exact portable line **and** branch
+coverage, followed by protected hosted checks. These checks do not qualify any
+broader runtime, provider, installed or physical capability.
 
 **Apply-now/immediate deletion is unavailable.** Set/reset never runs pruning
 or changes its startup schedule/triggers. Audit remains independently configured

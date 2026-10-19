@@ -16,8 +16,7 @@ public sealed class DiagnosticImpactPreviewService : IDisposable
     private readonly TimeProvider time;
     private readonly Lock gate = new();
     private DiagnosticImpactPreviewState state = new("Select shorter diagnostic days, then explicitly Preview. Nothing is saved or removed.");
-    private DiagnosticRetentionObservation? observed;
-    private Func<bool>? eligible;
+    private Admission? admitted;
     private CancellationTokenSource? scan;
     private ITimer? expiry;
     private long revision;
@@ -45,7 +44,7 @@ public sealed class DiagnosticImpactPreviewService : IDisposable
         lock (gate)
         {
             var expected = revision;
-            if (eligible is not null && !Current(expected, state.Result) && expected == revision)
+            if (admitted is { } admission && !Current(expected, state.Result, admission) && expected == revision)
             {
                 RetireLocked("Preview retired; private source, host or confirmed configuration changed.");
             }
@@ -53,15 +52,13 @@ public sealed class DiagnosticImpactPreviewService : IDisposable
         }
     }
 
-    private bool Current(long expected, DiagnosticImpactSnapshot? result)
+    private bool Current(long expected, DiagnosticImpactSnapshot? result, Admission admission)
     {
-        var admission = eligible;
-        var preference = observed;
-        if (admission is null || preference is null || disposed) { return false; }
+        var preference = admission.Observation;
         notifying++;
         try
         {
-            return admission() && configuration.IsCurrentObservation(preference)
+            return admission.Eligible() && configuration.IsCurrentObservation(preference)
                 && preferences.Load() == preference.Saved && preferences.ReadBack() == preference.Saved
                 && (result is null || (time.GetElapsedTime(publishedAt) < DiagnosticRetentionImpact.PreviewLifetime
                     && (result.Snapshot is null || reader.IsCurrent(result))))
@@ -89,6 +86,7 @@ public sealed class DiagnosticImpactPreviewService : IDisposable
         DiagnosticRetentionDays proposed;
         DateTimeOffset cutoff;
         HostRequest request;
+        Admission admission;
         lock (gate)
         {
             ObjectDisposedException.ThrowIf(disposed, this);
@@ -96,10 +94,10 @@ public sealed class DiagnosticImpactPreviewService : IDisposable
             RetireLocked("Preview unavailable; choose exact shorter days under confirmed configuration.");
             expected = revision;
             proposed = DiagnosticRetentionDays.Parse(value);
-            observed = configuration.GetObservation();
-            eligible = remainsEligible;
-            if (observed.State.Effective is not { } effective || proposed.Days >= effective.Days
-                || !Current(expected, null))
+            admission = new(remainsEligible, configuration.GetObservation());
+            admitted = admission;
+            if (admission.Observation.State.Effective is not { } effective || proposed.Days >= effective.Days
+                || !Current(expected, null, admission))
             {
                 RetireLocked("Preview unavailable; confirmed configuration and current owning unlocked Settings are required.");
                 throw new InvalidOperationException("Preview requires a shorter value and exact current configuration readback.");
@@ -127,7 +125,7 @@ public sealed class DiagnosticImpactPreviewService : IDisposable
             lock (gate)
             {
                 cancellation.Token.ThrowIfCancellationRequested();
-                if (!Current(expected, null) || result.Snapshot is not null && !SnapshotCurrent(result)
+                if (!Current(expected, null, admission) || result.Snapshot is not null && !SnapshotCurrent(result)
                     || expected != revision)
                 {
                     throw new InvalidOperationException("Diagnostic preview admission or snapshot changed before publication.");
@@ -197,8 +195,7 @@ public sealed class DiagnosticImpactPreviewService : IDisposable
         scan = null;
         var timer = expiry;
         expiry = null;
-        eligible = null;
-        observed = null;
+        admitted = null;
         state = new(reason);
         // Clear all old state before invoking cancellation callbacks; no callback can revive that generation.
         notifying++;
@@ -224,5 +221,7 @@ public sealed class DiagnosticImpactPreviewService : IDisposable
             configuration.ObservationChanged -= OnSourceChanged;
             RetireLocked("Preview closed.");
         }
+
+        private sealed record Admission(Func<bool> Eligible, DiagnosticRetentionObservation Observation);
     }
 }

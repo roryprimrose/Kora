@@ -111,6 +111,8 @@ public sealed class DiagnosticRetentionImpactTests
     [InlineData("zero-last")]
     [InlineData("no-oldest")]
     [InlineData("no-newest")]
+    [InlineData("no-first")]
+    [InlineData("no-last")]
     [InlineData("reversed")]
     [InlineData("future")]
     [InlineData("not-due")]
@@ -143,6 +145,8 @@ public sealed class DiagnosticRetentionImpactTests
             "zero-last" => valid with { Aggregate = zero with { LatestProposedDueUtc = committed } },
             "no-oldest" => valid with { Aggregate = one with { OldestCommittedUtc = null } },
             "no-newest" => valid with { Aggregate = one with { NewestCommittedUtc = null } },
+            "no-first" => valid with { Aggregate = one with { EarliestProposedDueUtc = null } },
+            "no-last" => valid with { Aggregate = one with { LatestProposedDueUtc = null } },
             "reversed" => valid with { Aggregate = one with { OldestCommittedUtc = Cutoff } },
             "future" => valid with { Aggregate = one with { NewestCommittedUtc = Cutoff.AddTicks(1) } },
             "not-due" => valid with { Aggregate = one with { NewestCommittedUtc = Cutoff } },
@@ -201,6 +205,25 @@ public sealed class DiagnosticRetentionImpactTests
         policy.Activate(new(30));
         policy.Revision.Should().Be(revision + 2);
         policy.IsCurrent(new(30), revision).Should().BeFalse();
+    }
+
+    [Fact]
+    public void Positive_owned_links_require_positive_qualified_owners_and_complete_snapshot_identity()
+    {
+        var committed = Cutoff.AddDays(-2);
+        var affected = new DiagnosticImpactAggregate(1, committed, committed, committed.AddDays(1), committed.AddDays(1));
+        var snapshot = new DiagnosticImpactSnapshot(
+            new(DiagnosticImpactSource.OrdinaryLogs, DiagnosticImpactStatus.Unavailable, null),
+            new(DiagnosticImpactSource.Spans, DiagnosticImpactStatus.Complete, affected),
+            new(DiagnosticImpactSource.OwnedLinks, DiagnosticImpactStatus.Complete, affected), "qualified");
+        DiagnosticRetentionImpact.Validate(snapshot, new(1), Cutoff);
+        var missingIdentity = () => DiagnosticRetentionImpact.Validate(snapshot with { Snapshot = null }, new(1), Cutoff);
+        missingIdentity.Should().Throw<InvalidDataException>();
+        DiagnosticRetentionImpact.Validate(snapshot with
+        {
+            Spans = new(DiagnosticImpactSource.Spans, DiagnosticImpactStatus.Incomplete, null),
+            Links = new(DiagnosticImpactSource.OwnedLinks, DiagnosticImpactStatus.Incomplete, null),
+        }, new(1), Cutoff);
     }
 
     private static DiagnosticImpactSnapshot Snapshot(DiagnosticImpactResult logs) => new(logs,

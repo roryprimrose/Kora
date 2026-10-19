@@ -29,12 +29,12 @@ internal sealed partial class NewRequestWindowController
         var state = composer ?? create();
         var ownsPending = !ReferenceEquals(state, composer);
         reuseBusy = true;
-        var epoch = ++reuseEpoch;
+        var epoch = Interlocked.Increment(ref reuseEpoch);
         var revision = access.ControlRevision;
         var originalWindow = window;
         var originalComposer = composer;
         var ownerAdmission = 1;
-        bool Current() => !disposed && reuseEpoch == epoch && access.CanInspect && access.CanControl
+        bool Current() => !disposed && Volatile.Read(ref reuseEpoch) == epoch && access.CanInspect && access.CanControl
             && access.ControlRevision == revision && Volatile.Read(ref ownerAdmission) == 1 && admitted();
         void WithdrawOwner()
         {
@@ -97,7 +97,7 @@ internal sealed partial class NewRequestWindowController
 
     private void CancelOriginalReuse()
     {
-        reuseEpoch++;
+        Interlocked.Increment(ref reuseEpoch);
         reuse?.Dispose();
     }
 }

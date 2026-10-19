@@ -260,23 +260,26 @@ public sealed partial class SessionProviderProfileConfigurationTests
         f.Store.Tasks.Should().BeEmpty();
     }
 
-    [Fact]
-    public async Task SourceLeaseRetiredByAdmissionCallbackCannotEnterConfirmationOrWrite()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task ReviewedLeaseRetiredByAdmissionCallbackCannotEnterConfirmationOrWrite(bool destination)
     {
         await using var f = new Fixture();
         SessionProviderProposal? proposal = null;
-        var withdrawSource = false;
+        var retireLease = false;
         proposal = await f.Service.ReviewCopy(f.SourceSnapshot.Session.SessionId, f.Session.SessionId,
             RequestOrigin.LocalUi, () =>
             {
-                if (withdrawSource)
+                if (retireLease)
                 {
-                    withdrawSource = false;
-                    f.Service.Discard(proposal!.Source!);
+                    retireLease = false;
+                    var issued = proposal!;
+                    f.Service.Discard(destination ? issued.Draft : issued.Source!);
                 }
                 return true;
             }, f.Token);
-        withdrawSource = true;
+        retireLease = true;
         await f.Service.Invoking(service => service.Confirm(proposal, RequestOrigin.LocalUi, () => true, f.Token))
             .Should().ThrowAsync<InvalidOperationException>();
         f.Snapshot.Revision.Should().Be(0);

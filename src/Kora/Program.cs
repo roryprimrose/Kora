@@ -51,6 +51,11 @@ internal static class Program
     public static int Main(string[] args)
     {
         HostActivity.ConfigureW3C();
+        if (EvidenceCutoverRecoveryStartup.TryRun(args, RecoverEvidenceCutover, Console.Out, Console.Error,
+            WindowsInstanceCoordinator.ReportStartupFailure, out var recoveryExitCode))
+        {
+            return recoveryExitCode;
+        }
         var ownershipBridge = new DesktopInstanceOwnershipBridge();
         WindowsInstanceCoordinator coordinator;
         try
@@ -83,20 +88,23 @@ internal static class Program
                 {
                     var safelyDisposed = false;
                     ServiceProvider? provider = null;
+                    PresenceSwitchTimingCapture? presenceTiming = null;
                     try
                     {
+                        presenceTiming = PresenceSwitchTimingCapture.Create(
+                            Environment.GetEnvironmentVariable("KORA_PRESENCE_TIMING"), Console.Out);
                         var paths = new ApplicationDataPaths(coordinator.BuildIdentity.IsDebug);
                         var fileHealth = new FileEvidenceHealth();
                         var fileLogger = DailyFileLoggerFactory.Create(paths, fileHealth);
                         Log.Logger = fileLogger;
                         var services = new ServiceCollection();
                         ConfigureServices(services, paths, fileLogger, fileHealth, ownershipBridge, coordinator);
+                        provider = services.BuildServiceProvider();
+                        App.Services = provider;
+                        var startupLogger = provider.GetRequiredService<ILoggerFactory>().CreateLogger("Kora.Desktop");
                         using (var startup = HostActivity.BeginRoot(HostRequest.Create(RequestOrigin.HostSystem),
                             HostActivityLayer.Desktop, HostOperation.Startup))
                         {
-                            provider = services.BuildServiceProvider();
-                            App.Services = provider;
-                            var startupLogger = provider.GetRequiredService<ILoggerFactory>().CreateLogger("Kora.Desktop");
                             var auditConfiguration = provider.GetRequiredService<AuditRetentionConfigurationService>();
                             try { auditConfiguration.Observe(); }
                             catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or InvalidDataException)
@@ -149,6 +157,14 @@ internal static class Program
                     }
                     finally
                     {
+                        try { presenceTiming?.Dispose(); }
+                        catch (Exception exception)
+                        {
+                            safelyDisposed = false;
+                            failure ??= ExceptionDispatchInfo.Capture(exception);
+                            Log.Error("Presence phase timing capture failed; trial output is incomplete. BootstrapDiagnostic: {BootstrapDiagnostic}; ExceptionType: {ExceptionType}.",
+                                true, exception.GetType().FullName);
+                        }
                         try
                         {
                             if (provider is not null)
@@ -209,6 +225,22 @@ internal static class Program
             .WithInterFont()
             .LogToTrace();
 
+    private static EvidenceCutoverRecoveryReceipt RecoverEvidenceCutover()
+    {
+        using var coordinator = new WindowsInstanceCoordinator(new DesktopInstanceOwnershipBridge());
+        if (!coordinator.EnterEvidenceCutoverRecovery())
+        {
+            throw new EvidenceCutoverRecoveryAdmissionException(coordinator.RecoveryAdmissionFailure, coordinator.FailureReason);
+        }
+        using var recovery = HostActivity.BeginRoot(HostRequest.Create(RequestOrigin.HostSystem),
+            HostActivityLayer.Desktop, HostOperation.Recovery);
+        using var store = new WindowsSegmentedEvidenceSink(new ApplicationDataPaths(coordinator.BuildIdentity.IsDebug));
+        var receipt = store.RecoverInterruptedFirstCutover(coordinator.RequireEvidenceCutoverRecoveryAuthority,
+            CancellationToken.None);
+        recovery.Complete(HostOperationOutcome.Completed);
+        return receipt;
+    }
+
     private static async Task DisposeServicesAsync(ServiceProvider provider)
     {
         using var shutdown = HostActivity.BeginOperation(HostActivityLayer.Desktop, HostOperation.Recovery);
@@ -236,8 +268,13 @@ internal static class Program
         var auditPolicy = new AuditRetentionPolicy();
         var sessionPolicy = new SessionRetentionPolicy();
         sessionPolicy.Activate(new LocalSessionRetentionPreferences(paths).Load() ?? SessionRetentionSettings.Default);
-        var evidence = new WindowsSqliteEvidenceSink(paths, diagnosticPolicy: diagnosticPolicy, auditPolicy: auditPolicy);
-        evidence.Initialize();
+        services.AddSingleton(_ =>
+        {
+            var evidence = new WindowsSegmentedEvidenceSink(paths,
+                diagnosticPolicy: diagnosticPolicy, auditPolicy: auditPolicy);
+            try { evidence.Initialize(); return evidence; }
+            catch { evidence.Dispose(); throw; }
+        });
         var tasks = new WindowsSqliteHostTaskStore(paths);
         Task.Run(() => tasks.InitializeAsync(CancellationToken.None).AsTask()).GetAwaiter().GetResult();
         var interactions = new WindowsSqliteHostInteractionStore(paths, tasks, auditPolicy: auditPolicy, sessionRetentionPolicy: sessionPolicy);
@@ -246,10 +283,11 @@ internal static class Program
         {
             builder.ClearProviders();
             builder.SetMinimumLevel(LogLevel.Debug);
-            var fileSink = new FileEvidenceSink(fileLogger, fileHealth);
-            builder.AddProvider(new EvidenceLoggerProvider(
-                [fileSink, evidence], fileSink, bufferDiagnostics: true));
         });
+        var fileSink = new FileEvidenceSink(fileLogger, fileHealth);
+        services.AddSingleton<ILoggerProvider>(provider => new EvidenceLoggerProvider(
+            [fileSink, provider.GetRequiredService<WindowsSegmentedEvidenceSink>()],
+            fileSink, bufferDiagnostics: true, requiredOrdinaryCopy: fileSink));
         services.AddSingleton(ownershipBridge);
         services.AddSingleton<IInstanceHostCallbacks>(ownershipBridge);
         services.AddSingleton<IInstanceLifecycleController>(coordinator);
@@ -305,7 +343,6 @@ internal static class Program
         services.AddKeyedSingleton<Kora.Application.Definitions.InstructionSaveWorkflow>(ArtifactKind.Prompt, (provider, _) =>
             new(provider.GetRequiredKeyedService<Kora.Application.Definitions.OwnedInstructionEditorActions>(ArtifactKind.Prompt)));
         services.AddSingleton<IApplicationDataPaths>(paths);
-        services.AddSingleton(evidence);
         services.AddSingleton(diagnosticPolicy);
         services.AddSingleton(auditPolicy);
         services.AddSingleton(sessionPolicy);
@@ -404,8 +441,9 @@ internal static class Program
         services.AddSingleton<Kora.Application.Interaction.HostAuthorizationService>();
         services.AddSingleton<HostTaskCoordinator>();
         services.AddSingleton<DurableVersionQuery>();
-        services.AddSingleton<IEvidenceReader>(new WindowsEvidenceReader(
-            new WindowsSqliteEvidenceReader(evidence), new WindowsDailyEvidenceReader(paths), interactions));
+        services.AddSingleton<IEvidenceReader>(provider => new WindowsEvidenceReader(
+            new WindowsSegmentedEvidenceReader(provider.GetRequiredService<WindowsSegmentedEvidenceSink>()),
+            new WindowsDailyEvidenceReader(paths), interactions));
         services.AddSingleton<IEvidenceQueryAccess, DesktopEvidenceAccess>();
         services.AddSingleton<DurableEvidenceQuery>();
         services.AddSingleton<DurableHostRecovery>();
@@ -495,7 +533,7 @@ internal static class Program
             new LocalAuditRetentionPreferences(provider.GetRequiredService<IPreferenceStore>()));
         services.AddSingleton<AuditRetentionConfigurationService>();
         services.AddSingleton<IAuditRetentionImpactReader>(provider =>
-            new WindowsSqliteAuditImpactReader(interactions, evidence, paths));
+            new WindowsSqliteAuditImpactReader(interactions, provider.GetRequiredService<WindowsSegmentedEvidenceSink>(), paths));
         services.AddSingleton<AuditImpactPreviewService>();
         services.AddSingleton<IModelApprovalPreferences>(provider =>
             new LocalModelApprovalPreferences(

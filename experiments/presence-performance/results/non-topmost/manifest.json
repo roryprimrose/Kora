@@ -1,0 +1,397 @@
+{
+  "GeneratedUtc": "2026-10-14T21:00:05.0754015+00:00",
+  "Runs": 101,
+  "MeasuredSeconds": 1845.8686629000001,
+  "WarmupSeconds": 303.0,
+  "RawDirectory": "C:\\Users\\roryprimrose\\.copilot\\session-state\\8a512e0f-d952-4aa2-b0e7-00e12357d710\\files\\presence-final",
+  "RunFiles": [
+    "Active-1-default-baseline-default",
+    "Active-1-default-baseline-software",
+    "Active-1-default-cached-software",
+    "Active-1-default-compositor-software",
+    "Active-1-default-native-dib-default",
+    "Active-1-default-skia-software",
+    "Active-1-maximum-baseline-default",
+    "Active-1-maximum-baseline-software",
+    "Active-1-maximum-cached-software",
+    "Active-1-maximum-compositor-software",
+    "Active-1-maximum-native-dib-default",
+    "Active-1-maximum-skia-software",
+    "Active-1-reactive-baseline-default",
+    "Active-1-reactive-baseline-software",
+    "Active-1-reactive-cached-software",
+    "Active-1-reactive-compositor-software",
+    "Active-1-reactive-native-dib-default",
+    "Active-1-reactive-skia-software",
+    "Active-2-default-baseline-default",
+    "Active-2-default-baseline-software",
+    "Active-2-default-cached-software",
+    "Active-2-default-compositor-software",
+    "Active-2-default-native-dib-default",
+    "Active-2-default-skia-software",
+    "Active-2-maximum-baseline-default",
+    "Active-2-maximum-baseline-software",
+    "Active-2-maximum-cached-software",
+    "Active-2-maximum-compositor-software",
+    "Active-2-maximum-native-dib-default",
+    "Active-2-maximum-skia-software",
+    "Active-2-reactive-baseline-default",
+    "Active-2-reactive-baseline-software",
+    "Active-2-reactive-cached-software",
+    "Active-2-reactive-compositor-software",
+    "Active-2-reactive-native-dib-default",
+    "Active-2-reactive-skia-software",
+    "Active-3-default-baseline-default",
+    "Active-3-default-baseline-software",
+    "Active-3-default-cached-software",
+    "Active-3-default-compositor-software",
+    "Active-3-default-native-dib-default",
+    "Active-3-default-skia-software",
+    "Active-3-maximum-baseline-default",
+    "Active-3-maximum-baseline-software",
+    "Active-3-maximum-cached-software",
+    "Active-3-maximum-compositor-software",
+    "Active-3-maximum-native-dib-default",
+    "Active-3-maximum-skia-software",
+    "Active-3-reactive-baseline-default",
+    "Active-3-reactive-baseline-software",
+    "Active-3-reactive-cached-software",
+    "Active-3-reactive-compositor-software",
+    "Active-3-reactive-native-dib-default",
+    "Active-3-reactive-skia-software",
+    "Lifecycle-1-hidden-baseline-default",
+    "Lifecycle-1-hidden-cached-software",
+    "Lifecycle-1-hidden-compositor-software",
+    "Lifecycle-1-hidden-native-dib-default",
+    "Lifecycle-1-hidden-pr247-default",
+    "Lifecycle-1-static-baseline-default",
+    "Lifecycle-1-static-cached-software",
+    "Lifecycle-1-static-compositor-software",
+    "Lifecycle-1-static-native-dib-default",
+    "Lifecycle-1-static-pr247-default",
+    "Lifecycle-2-hidden-baseline-default",
+    "Lifecycle-2-hidden-cached-software",
+    "Lifecycle-2-hidden-compositor-software",
+    "Lifecycle-2-hidden-native-dib-default",
+    "Lifecycle-2-hidden-pr247-default",
+    "Lifecycle-2-static-baseline-default",
+    "Lifecycle-2-static-cached-software",
+    "Lifecycle-2-static-compositor-software",
+    "Lifecycle-2-static-native-dib-default",
+    "Lifecycle-2-static-pr247-default",
+    "Lifecycle-3-hidden-baseline-default",
+    "Lifecycle-3-hidden-cached-software",
+    "Lifecycle-3-hidden-compositor-software",
+    "Lifecycle-3-hidden-native-dib-default",
+    "Lifecycle-3-hidden-pr247-default",
+    "Lifecycle-3-static-baseline-default",
+    "Lifecycle-3-static-cached-software",
+    "Lifecycle-3-static-compositor-software",
+    "Lifecycle-3-static-native-dib-default",
+    "Lifecycle-3-static-pr247-default",
+    "Offscreen-1-maximum-baseline-software",
+    "Offscreen-1-maximum-bitmap-software",
+    "Offscreen-1-maximum-cached-software",
+    "Offscreen-1-maximum-skia-software",
+    "Offscreen-1-maximum-trajectory-software",
+    "Offscreen-2-maximum-baseline-software",
+    "Offscreen-2-maximum-bitmap-software",
+    "Offscreen-2-maximum-cached-software",
+    "Offscreen-2-maximum-skia-software",
+    "Offscreen-2-maximum-trajectory-software",
+    "Offscreen-3-maximum-baseline-software",
+    "Offscreen-3-maximum-bitmap-software",
+    "Offscreen-3-maximum-cached-software",
+    "Offscreen-3-maximum-skia-software",
+    "Offscreen-3-maximum-trajectory-software",
+    "Soak-1-reactive-compositor-software",
+    "Soak-1-reactive-native-dib-default"
+  ],
+  "MachineMetadata": [
+    {
+      "Utc": "2026-10-15T07:20:13.001911+11:00",
+      "Suite": "Active",
+      "MeasuredSeconds": 15,
+      "WarmupSeconds": 3,
+      "Repetitions": 2,
+      "BaseCommit": "df75e4b1f1be51c0990a3b4f61e69c022a8c57cf",
+      "DwmId": 10360,
+      "SessionId": 2,
+      "Processor": [
+        {
+          "Name": "AMD EPYC 7763 64-Core Processor                ",
+          "NumberOfCores": 8,
+          "NumberOfLogicalProcessors": 16
+        }
+      ],
+      "Video": [
+        {
+          "Name": "Microsoft Hyper-V Video",
+          "DriverVersion": "10.0.26100.1150",
+          "CurrentHorizontalResolution": 1024,
+          "CurrentVerticalResolution": 768
+        }
+      ],
+      "Memory": {
+        "TotalVisibleMemorySize": 67056476,
+        "FreePhysicalMemory": 38039048
+      },
+      "SourceHashes": [
+        {
+          "Path": "Q:\\Repos\\Kora.worktrees\\kora-presence-performance-optimization-f7e13d13\\experiments\\presence-performance\\BenchmarkLogSink.cs",
+          "Hash": "3685A8FF9455F316717E201E4E2150A46F885AA61954AA923FDF4CB24774DB62"
+        },
+        {
+          "Path": "Q:\\Repos\\Kora.worktrees\\kora-presence-performance-optimization-f7e13d13\\experiments\\presence-performance\\CandidateControl.cs",
+          "Hash": "63F6164EA0FC7FCDD13E57D5741B621885D806FB94C5A641B7B670475F3305FB"
+        },
+        {
+          "Path": "Q:\\Repos\\Kora.worktrees\\kora-presence-performance-optimization-f7e13d13\\experiments\\presence-performance\\CompositionControl.cs",
+          "Hash": "634BA84EB6D12BE6062A9757E9DACE7EAF4F5DFB19CA29865A9C1A6B113EFCD5"
+        },
+        {
+          "Path": "Q:\\Repos\\Kora.worktrees\\kora-presence-performance-optimization-f7e13d13\\experiments\\presence-performance\\FidelityVerification.cs",
+          "Hash": "34B7DF7EA0FF9788BF2B45DAEA7D8B1F9A9E65D35CB4D79D0E22FBED70342802"
+        },
+        {
+          "Path": "Q:\\Repos\\Kora.worktrees\\kora-presence-performance-optimization-f7e13d13\\experiments\\presence-performance\\NativeBitmapWindow.cs",
+          "Hash": "9D8947822A86B07E89CA8EEC4A1A787E64F093FACC23116184CE63B2F7256AE3"
+        },
+        {
+          "Path": "Q:\\Repos\\Kora.worktrees\\kora-presence-performance-optimization-f7e13d13\\experiments\\presence-performance\\ParticleScene.cs",
+          "Hash": "A77BE0D560AD8B94D63568116843D420273A9A23040EE0AD460BB2E08887E83C"
+        },
+        {
+          "Path": "Q:\\Repos\\Kora.worktrees\\kora-presence-performance-optimization-f7e13d13\\experiments\\presence-performance\\Program.cs",
+          "Hash": "92C62453DEA69A9DF6B1063C351CFE174A69706AB60286193DB2651AE7881F2C"
+        },
+        {
+          "Path": "Q:\\Repos\\Kora.worktrees\\kora-presence-performance-optimization-f7e13d13\\experiments\\presence-performance\\RenderProbe.cs",
+          "Hash": "890333D5EE8F5650762E22754B3472F2390C920FCACB7D17750BD065F0DD4615"
+        },
+        {
+          "Path": "Q:\\Repos\\Kora.worktrees\\kora-presence-performance-optimization-f7e13d13\\experiments\\presence-performance\\ResourceSnapshot.cs",
+          "Hash": "F739D64D377323155944BFF68E05D4D5930793D6C20E4A3A8E487D7F14748239"
+        }
+      ],
+      "BaselineHash": {
+        "Path": "Q:\\Repos\\Kora.worktrees\\kora-presence-performance-optimization-f7e13d13\\src\\Kora\\Controls\\PresenceControl.cs",
+        "Hash": "5015C2B59D8F9E78B2FDB4DA07F954F3C576BDD7D969E011B1749C7AFC0044D0"
+      }
+    },
+    {
+      "Utc": "2026-10-15T07:32:33.338564+11:00",
+      "Suite": "Lifecycle",
+      "MeasuredSeconds": 15,
+      "WarmupSeconds": 3,
+      "Repetitions": 3,
+      "BaseCommit": "df75e4b1f1be51c0990a3b4f61e69c022a8c57cf",
+      "DwmId": 10360,
+      "SessionId": 2,
+      "Processor": [
+        {
+          "Name": "AMD EPYC 7763 64-Core Processor                ",
+          "NumberOfCores": 8,
+          "NumberOfLogicalProcessors": 16
+        }
+      ],
+      "Video": [
+        {
+          "Name": "Microsoft Hyper-V Video",
+          "DriverVersion": "10.0.26100.1150",
+          "CurrentHorizontalResolution": 1024,
+          "CurrentVerticalResolution": 768
+        }
+      ],
+      "Memory": {
+        "TotalVisibleMemorySize": 67056476,
+        "FreePhysicalMemory": 39047160
+      },
+      "SourceHashes": [
+        {
+          "Path": "Q:\\Repos\\Kora.worktrees\\kora-presence-performance-optimization-f7e13d13\\experiments\\presence-performance\\BenchmarkLogSink.cs",
+          "Hash": "3685A8FF9455F316717E201E4E2150A46F885AA61954AA923FDF4CB24774DB62"
+        },
+        {
+          "Path": "Q:\\Repos\\Kora.worktrees\\kora-presence-performance-optimization-f7e13d13\\experiments\\presence-performance\\CandidateControl.cs",
+          "Hash": "63F6164EA0FC7FCDD13E57D5741B621885D806FB94C5A641B7B670475F3305FB"
+        },
+        {
+          "Path": "Q:\\Repos\\Kora.worktrees\\kora-presence-performance-optimization-f7e13d13\\experiments\\presence-performance\\CompositionControl.cs",
+          "Hash": "634BA84EB6D12BE6062A9757E9DACE7EAF4F5DFB19CA29865A9C1A6B113EFCD5"
+        },
+        {
+          "Path": "Q:\\Repos\\Kora.worktrees\\kora-presence-performance-optimization-f7e13d13\\experiments\\presence-performance\\FidelityVerification.cs",
+          "Hash": "34B7DF7EA0FF9788BF2B45DAEA7D8B1F9A9E65D35CB4D79D0E22FBED70342802"
+        },
+        {
+          "Path": "Q:\\Repos\\Kora.worktrees\\kora-presence-performance-optimization-f7e13d13\\experiments\\presence-performance\\NativeBitmapWindow.cs",
+          "Hash": "9D8947822A86B07E89CA8EEC4A1A787E64F093FACC23116184CE63B2F7256AE3"
+        },
+        {
+          "Path": "Q:\\Repos\\Kora.worktrees\\kora-presence-performance-optimization-f7e13d13\\experiments\\presence-performance\\ParticleScene.cs",
+          "Hash": "A77BE0D560AD8B94D63568116843D420273A9A23040EE0AD460BB2E08887E83C"
+        },
+        {
+          "Path": "Q:\\Repos\\Kora.worktrees\\kora-presence-performance-optimization-f7e13d13\\experiments\\presence-performance\\Program.cs",
+          "Hash": "92C62453DEA69A9DF6B1063C351CFE174A69706AB60286193DB2651AE7881F2C"
+        },
+        {
+          "Path": "Q:\\Repos\\Kora.worktrees\\kora-presence-performance-optimization-f7e13d13\\experiments\\presence-performance\\RenderProbe.cs",
+          "Hash": "890333D5EE8F5650762E22754B3472F2390C920FCACB7D17750BD065F0DD4615"
+        },
+        {
+          "Path": "Q:\\Repos\\Kora.worktrees\\kora-presence-performance-optimization-f7e13d13\\experiments\\presence-performance\\ResourceSnapshot.cs",
+          "Hash": "F739D64D377323155944BFF68E05D4D5930793D6C20E4A3A8E487D7F14748239"
+        }
+      ],
+      "BaselineHash": {
+        "Path": "Q:\\Repos\\Kora.worktrees\\kora-presence-performance-optimization-f7e13d13\\src\\Kora\\Controls\\PresenceControl.cs",
+        "Hash": "5015C2B59D8F9E78B2FDB4DA07F954F3C576BDD7D969E011B1749C7AFC0044D0"
+      }
+    },
+    {
+      "Utc": "2026-10-15T07:42:29.961853+11:00",
+      "Suite": "Offscreen",
+      "MeasuredSeconds": 15,
+      "WarmupSeconds": 3,
+      "Repetitions": 3,
+      "BaseCommit": "df75e4b1f1be51c0990a3b4f61e69c022a8c57cf",
+      "DwmId": 10360,
+      "SessionId": 2,
+      "Processor": [
+        {
+          "Name": "AMD EPYC 7763 64-Core Processor                ",
+          "NumberOfCores": 8,
+          "NumberOfLogicalProcessors": 16
+        }
+      ],
+      "Video": [
+        {
+          "Name": "Microsoft Hyper-V Video",
+          "DriverVersion": "10.0.26100.1150",
+          "CurrentHorizontalResolution": 1024,
+          "CurrentVerticalResolution": 768
+        }
+      ],
+      "Memory": {
+        "TotalVisibleMemorySize": 67056476,
+        "FreePhysicalMemory": 38835676
+      },
+      "SourceHashes": [
+        {
+          "Path": "Q:\\Repos\\Kora.worktrees\\kora-presence-performance-optimization-f7e13d13\\experiments\\presence-performance\\BenchmarkLogSink.cs",
+          "Hash": "3685A8FF9455F316717E201E4E2150A46F885AA61954AA923FDF4CB24774DB62"
+        },
+        {
+          "Path": "Q:\\Repos\\Kora.worktrees\\kora-presence-performance-optimization-f7e13d13\\experiments\\presence-performance\\CandidateControl.cs",
+          "Hash": "63F6164EA0FC7FCDD13E57D5741B621885D806FB94C5A641B7B670475F3305FB"
+        },
+        {
+          "Path": "Q:\\Repos\\Kora.worktrees\\kora-presence-performance-optimization-f7e13d13\\experiments\\presence-performance\\CompositionControl.cs",
+          "Hash": "634BA84EB6D12BE6062A9757E9DACE7EAF4F5DFB19CA29865A9C1A6B113EFCD5"
+        },
+        {
+          "Path": "Q:\\Repos\\Kora.worktrees\\kora-presence-performance-optimization-f7e13d13\\experiments\\presence-performance\\FidelityVerification.cs",
+          "Hash": "34B7DF7EA0FF9788BF2B45DAEA7D8B1F9A9E65D35CB4D79D0E22FBED70342802"
+        },
+        {
+          "Path": "Q:\\Repos\\Kora.worktrees\\kora-presence-performance-optimization-f7e13d13\\experiments\\presence-performance\\NativeBitmapWindow.cs",
+          "Hash": "9D8947822A86B07E89CA8EEC4A1A787E64F093FACC23116184CE63B2F7256AE3"
+        },
+        {
+          "Path": "Q:\\Repos\\Kora.worktrees\\kora-presence-performance-optimization-f7e13d13\\experiments\\presence-performance\\ParticleScene.cs",
+          "Hash": "A77BE0D560AD8B94D63568116843D420273A9A23040EE0AD460BB2E08887E83C"
+        },
+        {
+          "Path": "Q:\\Repos\\Kora.worktrees\\kora-presence-performance-optimization-f7e13d13\\experiments\\presence-performance\\Program.cs",
+          "Hash": "92C62453DEA69A9DF6B1063C351CFE174A69706AB60286193DB2651AE7881F2C"
+        },
+        {
+          "Path": "Q:\\Repos\\Kora.worktrees\\kora-presence-performance-optimization-f7e13d13\\experiments\\presence-performance\\RenderProbe.cs",
+          "Hash": "890333D5EE8F5650762E22754B3472F2390C920FCACB7D17750BD065F0DD4615"
+        },
+        {
+          "Path": "Q:\\Repos\\Kora.worktrees\\kora-presence-performance-optimization-f7e13d13\\experiments\\presence-performance\\ResourceSnapshot.cs",
+          "Hash": "F739D64D377323155944BFF68E05D4D5930793D6C20E4A3A8E487D7F14748239"
+        }
+      ],
+      "BaselineHash": {
+        "Path": "Q:\\Repos\\Kora.worktrees\\kora-presence-performance-optimization-f7e13d13\\src\\Kora\\Controls\\PresenceControl.cs",
+        "Hash": "5015C2B59D8F9E78B2FDB4DA07F954F3C576BDD7D969E011B1749C7AFC0044D0"
+      }
+    },
+    {
+      "Utc": "2026-10-15T07:48:22.3134294+11:00",
+      "Suite": "Soak",
+      "MeasuredSeconds": 180,
+      "WarmupSeconds": 3,
+      "Repetitions": 1,
+      "BaseCommit": "df75e4b1f1be51c0990a3b4f61e69c022a8c57cf",
+      "DwmId": 10360,
+      "SessionId": 2,
+      "Processor": [
+        {
+          "Name": "AMD EPYC 7763 64-Core Processor                ",
+          "NumberOfCores": 8,
+          "NumberOfLogicalProcessors": 16
+        }
+      ],
+      "Video": [
+        {
+          "Name": "Microsoft Hyper-V Video",
+          "DriverVersion": "10.0.26100.1150",
+          "CurrentHorizontalResolution": 1024,
+          "CurrentVerticalResolution": 768
+        }
+      ],
+      "Memory": {
+        "TotalVisibleMemorySize": 67056476,
+        "FreePhysicalMemory": 37372408
+      },
+      "SourceHashes": [
+        {
+          "Path": "Q:\\Repos\\Kora.worktrees\\kora-presence-performance-optimization-f7e13d13\\experiments\\presence-performance\\BenchmarkLogSink.cs",
+          "Hash": "3685A8FF9455F316717E201E4E2150A46F885AA61954AA923FDF4CB24774DB62"
+        },
+        {
+          "Path": "Q:\\Repos\\Kora.worktrees\\kora-presence-performance-optimization-f7e13d13\\experiments\\presence-performance\\CandidateControl.cs",
+          "Hash": "63F6164EA0FC7FCDD13E57D5741B621885D806FB94C5A641B7B670475F3305FB"
+        },
+        {
+          "Path": "Q:\\Repos\\Kora.worktrees\\kora-presence-performance-optimization-f7e13d13\\experiments\\presence-performance\\CompositionControl.cs",
+          "Hash": "634BA84EB6D12BE6062A9757E9DACE7EAF4F5DFB19CA29865A9C1A6B113EFCD5"
+        },
+        {
+          "Path": "Q:\\Repos\\Kora.worktrees\\kora-presence-performance-optimization-f7e13d13\\experiments\\presence-performance\\FidelityVerification.cs",
+          "Hash": "34B7DF7EA0FF9788BF2B45DAEA7D8B1F9A9E65D35CB4D79D0E22FBED70342802"
+        },
+        {
+          "Path": "Q:\\Repos\\Kora.worktrees\\kora-presence-performance-optimization-f7e13d13\\experiments\\presence-performance\\NativeBitmapWindow.cs",
+          "Hash": "9D8947822A86B07E89CA8EEC4A1A787E64F093FACC23116184CE63B2F7256AE3"
+        },
+        {
+          "Path": "Q:\\Repos\\Kora.worktrees\\kora-presence-performance-optimization-f7e13d13\\experiments\\presence-performance\\ParticleScene.cs",
+          "Hash": "A77BE0D560AD8B94D63568116843D420273A9A23040EE0AD460BB2E08887E83C"
+        },
+        {
+          "Path": "Q:\\Repos\\Kora.worktrees\\kora-presence-performance-optimization-f7e13d13\\experiments\\presence-performance\\Program.cs",
+          "Hash": "92C62453DEA69A9DF6B1063C351CFE174A69706AB60286193DB2651AE7881F2C"
+        },
+        {
+          "Path": "Q:\\Repos\\Kora.worktrees\\kora-presence-performance-optimization-f7e13d13\\experiments\\presence-performance\\RenderProbe.cs",
+          "Hash": "890333D5EE8F5650762E22754B3472F2390C920FCACB7D17750BD065F0DD4615"
+        },
+        {
+          "Path": "Q:\\Repos\\Kora.worktrees\\kora-presence-performance-optimization-f7e13d13\\experiments\\presence-performance\\ResourceSnapshot.cs",
+          "Hash": "F739D64D377323155944BFF68E05D4D5930793D6C20E4A3A8E487D7F14748239"
+        }
+      ],
+      "BaselineHash": {
+        "Path": "Q:\\Repos\\Kora.worktrees\\kora-presence-performance-optimization-f7e13d13\\src\\Kora\\Controls\\PresenceControl.cs",
+        "Hash": "5015C2B59D8F9E78B2FDB4DA07F954F3C576BDD7D969E011B1749C7AFC0044D0"
+      }
+    }
+  ],
+  "Warning": "Window draw callbacks/submissions are not proof of physical presentation or display latency. Shared DWM intervals include startup and warmup. Offscreen cases also retain ordinary window rendering."
+}

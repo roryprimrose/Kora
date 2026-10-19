@@ -56,7 +56,7 @@ public sealed class PresenceControl : Control, IDisposable
     public static readonly StyledProperty<bool> IsMotionEnabledProperty =
         AvaloniaProperty.Register<PresenceControl, bool>(nameof(IsMotionEnabled), true);
 
-    private PresenceAnimation animation = new(AssistantState.Information);
+    private PresenceAnimation animation = new(AssistantState.Hidden);
     private readonly Particle[] particles;
     private readonly int[] depthOrder;
     private readonly PresenceRenderLoop loop;
@@ -317,13 +317,11 @@ public sealed class PresenceControl : Control, IDisposable
         {
             return PresenceRenderLoop.SpeechInterval;
         }
-        if (transitioning
-            || IsMotionEnabled && State is AssistantState.Listening or AssistantState.Calculating or AssistantState.Executing
-            || GetActivity() >= 0.5)
+        if (transitioning || GetActivity() > 0)
         {
             return PresenceRenderLoop.ActiveInterval;
         }
-        return GetActivity() > 0 ? PresenceRenderLoop.QuietInterval : null;
+        return null;
     }
 
     private void UpdateFrame(TimeSpan elapsed, bool resumed, bool isWake)
@@ -375,22 +373,7 @@ public sealed class PresenceControl : Control, IDisposable
 
     private double GetActivity()
     {
-        if (!IsMotionEnabled)
-        {
-            return 0;
-        }
-        var activity = State switch
-        {
-            AssistantState.Listening => 0.8,
-            AssistantState.Calculating => 1.25,
-            AssistantState.Waiting => 0.35,
-            AssistantState.Executing => 1.5,
-            AssistantState.Success => 0.08,
-            AssistantState.Failure => 0,
-            AssistantState.Information => 0.28,
-            _ => 0,
-        };
-        return activity * MovementSpeedPercent / 100d;
+        return PresenceParticleField.GetActivity(State, MovementSpeedPercent, IsMotionEnabled);
     }
 
     private void MoveParticles(double activity)

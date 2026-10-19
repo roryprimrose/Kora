@@ -14,26 +14,53 @@ public sealed class EvidenceLoggerProvider : ILoggerProvider, ISupportExternalSc
     private readonly TimeProvider clock;
     private readonly ActivityListener listener;
     private readonly BufferedEvidenceWriter? buffer;
+    private readonly IndependentDelivery? independent;
+    private readonly BufferedEvidenceWriter[] buffers = [];
     private readonly Lock captureGate = new();
-    private readonly Lock deliveryGate = new();
+    private readonly Dictionary<IEvidenceSink, EvidenceDeliveryGate> deliveryGates = new(ReferenceEqualityComparer.Instance);
     private readonly TaskCompletionSource capturesStopped = new(TaskCreationOptions.RunContinuationsAsynchronously);
     private int captures;
     private bool disposed;
     private IExternalScopeProvider scopes = new LoggerExternalScopeProvider();
 
+    private sealed record IndependentDelivery(IDeferredEvidenceSink Copy, IEvidenceSink Projection,
+        BufferedEvidenceWriter CopyWriter, BufferedEvidenceWriter ProjectionWriter);
+
     public EvidenceLoggerProvider(IEnumerable<IEvidenceSink> sinks, IEvidenceGapReporter gaps,
-        TimeProvider? clock = null, bool bufferDiagnostics = false)
+        TimeProvider? clock = null, bool bufferDiagnostics = false,
+        IDeferredEvidenceSink? requiredOrdinaryCopy = null)
     {
         this.sinks = sinks.ToArray();
         this.gaps = gaps;
         this.clock = clock ?? TimeProvider.System;
+        if (requiredOrdinaryCopy is not null && (!bufferDiagnostics || this.sinks.Length != 2
+            || this.sinks.Count(sink => ReferenceEquals(sink, requiredOrdinaryCopy)) != 1
+            || !ReferenceEquals(gaps, requiredOrdinaryCopy)))
+        {
+            throw new ArgumentException("Independent delivery requires two buffered sinks and an admitted required copy that also reports gaps.",
+                nameof(requiredOrdinaryCopy));
+        }
+        foreach (var sink in this.sinks) { deliveryGates.TryAdd(sink, new EvidenceDeliveryGate()); }
         if (bufferDiagnostics)
         {
             if (this.sinks.Any(sink => sink is not IDeferredEvidenceSink))
             {
                 throw new ArgumentException("Buffered sinks must support call-time evidence admission.", nameof(sinks));
             }
-            buffer = new BufferedEvidenceWriter();
+            if (requiredOrdinaryCopy is null)
+            {
+                buffer = new BufferedEvidenceWriter();
+                buffers = [buffer];
+            }
+            else
+            {
+                var projection = this.sinks.Single(sink => !ReferenceEquals(sink, requiredOrdinaryCopy));
+                independent = new(requiredOrdinaryCopy, projection,
+                    new BufferedEvidenceWriter(),
+                    new BufferedEvidenceWriter(projection is IBatchedEvidenceSink batched
+                        ? writes => DeliverProjectionBatch(batched, writes) : null));
+                buffers = [independent.CopyWriter, independent.ProjectionWriter];
+            }
         }
         HostActivity.ConfigureW3C();
         listener = new ActivityListener
@@ -60,11 +87,29 @@ public sealed class EvidenceLoggerProvider : ILoggerProvider, ISupportExternalSc
     public async ValueTask DisposeAsync()
     {
         await StopCapture().ConfigureAwait(false);
-        if (buffer is not null) { await buffer.DisposeAsync().ConfigureAwait(false); }
+        await JoinBuffersAsync(buffers.Select(writer => writer.DisposeAsync().AsTask()),
+            "Buffered evidence shutdown failed after all lanes were joined.").ConfigureAwait(false);
     }
 
     public Task FlushAsync(CancellationToken cancellationToken = default) =>
-        buffer?.FlushAsync(cancellationToken) ?? Task.CompletedTask;
+        JoinBuffersAsync(buffers.Select(writer => writer.FlushAsync(cancellationToken)),
+            "Buffered evidence flush failed; independent lanes were attempted.");
+
+    private static async Task JoinBuffersAsync(IEnumerable<Task> operations, string message)
+    {
+        var completion = Task.WhenAll(operations);
+        await completion.ConfigureAwait(ConfigureAwaitOptions.SuppressThrowing);
+        if (completion.Exception is { } failures)
+        {
+            throw new IOException(message, failures.Flatten());
+        }
+        if (completion.IsCanceled) { throw new TaskCanceledException(completion); }
+    }
+
+    private void RequireBufferedHealth()
+    {
+        foreach (var writer in buffers) { writer.RequireHealthy(); }
+    }
 
     private Task StopCapture()
     {
@@ -124,13 +169,14 @@ public sealed class EvidenceLoggerProvider : ILoggerProvider, ISupportExternalSc
             host.Outcome, activity.Links.Select(link =>
                 new ActivityLinkEnvelope(link.Context.TraceId.ToHexString(), link.Context.SpanId.ToHexString())).ToArray(),
             host.CorrelationId, host.ApprovalId);
-        if (buffer is null)
+        if (buffers.Length == 0)
         {
             FanOut(completed.EvidenceId, sink => sink.WriteActivity(completed), ordinary: true);
         }
         else
         {
-            QueueOrdinary(completed.EvidenceId, sink => sink.PrepareActivity(completed));
+            QueueOrdinary(completed.EvidenceId, sink => sink.PrepareActivity(completed),
+                sink => sink.PrepareActivityWrite(completed));
         }
     }
 
@@ -138,7 +184,7 @@ public sealed class EvidenceLoggerProvider : ILoggerProvider, ISupportExternalSc
         TState state, Exception? exception)
     {
         using var capture = BeginCapture(required: true);
-        buffer?.RequireHealthy();
+        RequireBufferedHealth();
         var identity = new HostId<EvidenceIdentity>(Guid.NewGuid());
         DiagnosticEnvelope envelope;
         EvidenceGap? contextGap = null;
@@ -182,10 +228,11 @@ public sealed class EvidenceLoggerProvider : ILoggerProvider, ISupportExternalSc
             throw;
         }
 
-        if (state is not TrustedAuditState && buffer is not null)
+        if (state is not TrustedAuditState && buffers.Length != 0)
         {
             QueueOrdinary(identity, sink => sink.PrepareDiagnostic(envelope),
-                contextGap is null ? null : () => gaps.Report(contextGap));
+                sink => sink.PrepareDiagnosticWrite(envelope),
+                contextGap);
             return;
         }
         FanOut(identity, sink =>
@@ -198,7 +245,8 @@ public sealed class EvidenceLoggerProvider : ILoggerProvider, ISupportExternalSc
             {
                 sink.WriteDiagnostic(envelope);
             }
-        }, ordinary: state is not TrustedAuditState);
+        }, ordinary: state is not TrustedAuditState,
+            timeRendererAudit: state is TrustedAuditState timedAudit && PresenceSwitchTiming.IsRendererAudit(timedAudit.Event));
         if (contextGap is not null)
         {
             gaps.Report(contextGap);
@@ -206,10 +254,51 @@ public sealed class EvidenceLoggerProvider : ILoggerProvider, ISupportExternalSc
     }
 
     private void QueueOrdinary(HostId<EvidenceIdentity> identity, Func<IDeferredEvidenceSink, Action> prepare,
-        Action? reportContextGap = null)
+        Func<IBatchedEvidenceSink, IPreparedEvidenceWrite> prepareBatch,
+        EvidenceGap? contextGap = null)
     {
-        var writes = new Dictionary<IEvidenceSink, Action>();
-        FanOut(identity, sink => writes.Add(sink, prepare((IDeferredEvidenceSink)sink)), ordinary: true, serialize: false);
+        RequireBufferedHealth();
+        var writes = new Dictionary<IEvidenceSink, Action>(ReferenceEqualityComparer.Instance);
+        IPreparedEvidenceWrite? preparedProjection = null;
+        FanOut(identity, sink =>
+        {
+            if (ReferenceEquals(sink, independent?.Projection) && sink is IBatchedEvidenceSink batched)
+            {
+                var prepared = prepareBatch(batched);
+                if (prepared is null || prepared.EvidenceId != identity)
+                {
+                    throw new InvalidOperationException("The prepared projection must retain its admitted evidence identity.");
+                }
+                preparedProjection = prepared;
+            }
+            else { writes.Add(sink, prepare((IDeferredEvidenceSink)sink)); }
+        }, ordinary: true, serialize: false);
+        if (independent is { } delivery)
+        {
+            var projected = preparedProjection is not null
+                ? delivery.ProjectionWriter.TryEnqueue(preparedProjection)
+                : !writes.TryGetValue(delivery.Projection, out var project)
+                    || delivery.ProjectionWriter.TryEnqueue(() =>
+                        Deliver(identity, _ => project(), ordinary: true, serialize: true, [delivery.Projection]));
+            var backpressure = projected ? null : new EvidenceGap(clock.GetUtcNow(), delivery.Projection.Name,
+                EvidenceGapReason.ProjectionBackpressure, identity, null);
+            delivery.CopyWriter.Enqueue(() =>
+            {
+                var errors = new List<Exception>();
+                try
+                {
+                    Deliver(identity, _ => writes[delivery.Copy](), ordinary: true, serialize: true, [delivery.Copy]);
+                }
+                catch (IOException exception) { errors.Add(exception); }
+                if (backpressure is not null) { ReportGap(backpressure, errors); }
+                if (contextGap is not null) { ReportGap(contextGap, errors); }
+                if (errors.Count != 0)
+                {
+                    throw new IOException("Required ordinary evidence copy or gap delivery failed.", new AggregateException(errors));
+                }
+            });
+            return;
+        }
         buffer!.Enqueue(() =>
         {
             FanOut(identity, sink =>
@@ -217,7 +306,7 @@ public sealed class EvidenceLoggerProvider : ILoggerProvider, ISupportExternalSc
                 // A preparation rejected by an explicitly unavailable ordinary policy already reported its gap.
                 if (writes.TryGetValue(sink, out var write)) { write(); }
             }, ordinary: true);
-            reportContextGap?.Invoke();
+            if (contextGap is not null) { gaps.Report(contextGap); }
         });
     }
 
@@ -234,31 +323,65 @@ public sealed class EvidenceLoggerProvider : ILoggerProvider, ISupportExternalSc
         return new ReadOnlyDictionary<string, EvidenceValue>(properties);
     }
 
-    private void FanOut(HostId<EvidenceIdentity> identity, Action<IEvidenceSink> write, bool ordinary, bool serialize = true)
+    private void FanOut(HostId<EvidenceIdentity> identity, Action<IEvidenceSink> write, bool ordinary,
+        bool serialize = true, bool timeRendererAudit = false)
+        => Deliver(identity, write, ordinary, serialize, sinks, timeRendererAudit);
+
+    private void DeliverProjectionBatch(IBatchedEvidenceSink sink, IReadOnlyList<IPreparedEvidenceWrite> writes)
     {
-        if (serialize)
+        try
         {
-            lock (deliveryGate) { Deliver(identity, write, ordinary); }
+            using var delivery = deliveryGates[sink].Enter(required: false);
+            sink.WriteBatch(writes);
         }
-        else { Deliver(identity, write, ordinary); }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or InvalidOperationException)
+        {
+            List<Exception> errors = [exception];
+            foreach (var write in writes)
+            {
+                ReportGap(new EvidenceGap(clock.GetUtcNow(), sink.Name,
+                    exception is Kora.Core.Storage.StorageAdmissionException
+                        ? EvidenceGapReason.StorageNotAdmitted : EvidenceGapReason.SinkFailure,
+                    write.EvidenceId, exception.GetType().FullName), errors);
+            }
+            if (exception is not DiagnosticRetentionUnavailableException || errors.Count != 1)
+            {
+                throw new IOException("Batched projection delivery or gap reporting failed.", new AggregateException(errors));
+            }
+        }
     }
 
-    private void Deliver(HostId<EvidenceIdentity> identity, Action<IEvidenceSink> write, bool ordinary)
+    private void Deliver(HostId<EvidenceIdentity> identity, Action<IEvidenceSink> write, bool ordinary,
+        bool serialize, ReadOnlySpan<IEvidenceSink> targets, bool timeRendererAudit = false)
     {
         var failures = new List<EvidenceGap>();
         var errors = new List<Exception>();
         var requiredFailure = false;
-        foreach (var sink in sinks)
+        foreach (var sink in targets)
         {
             try
             {
-                write(sink);
+                if (serialize)
+                {
+                    var timeCopy = timeRendererAudit && ReferenceEquals(sink, independent?.Copy);
+                    var timeProjection = timeRendererAudit && ReferenceEquals(sink, independent?.Projection);
+                    if (timeCopy) { PresenceSwitchTiming.Mark(PresenceSwitchPhase.AuditCopyGateWaiting); }
+                    if (timeProjection) { PresenceSwitchTiming.Mark(PresenceSwitchPhase.AuditProjectionGateWaiting); }
+                    using var delivery = deliveryGates[sink].Enter(required: !ordinary);
+                    if (timeCopy) { PresenceSwitchTiming.Mark(PresenceSwitchPhase.AuditCopyGateEntered); }
+                    if (timeProjection) { PresenceSwitchTiming.Mark(PresenceSwitchPhase.AuditProjectionGateEntered); }
+                    write(sink);
+                    if (timeCopy) { PresenceSwitchTiming.Mark(PresenceSwitchPhase.AuditCopyReturned); }
+                    if (timeProjection) { PresenceSwitchTiming.Mark(PresenceSwitchPhase.AuditProjectionReturned); }
+                }
+                else { write(sink); }
             }
             catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or InvalidOperationException)
             {
                 // An explicitly unavailable ordinary policy reports a gap and still attempts the file
                 // sink. It must not break unrelated required audit/session authority on activity disposal.
-                requiredFailure |= !ordinary || exception is not DiagnosticRetentionUnavailableException;
+                requiredFailure |= !ordinary || ReferenceEquals(sink, independent?.Copy)
+                    || exception is not DiagnosticRetentionUnavailableException;
                 errors.Add(exception);
                 failures.Add(new EvidenceGap(clock.GetUtcNow(), sink.Name,
                     exception is Kora.Core.Storage.StorageAdmissionException
@@ -282,7 +405,12 @@ public sealed class EvidenceLoggerProvider : ILoggerProvider, ISupportExternalSc
     {
         try
         {
-            gaps.Report(gap);
+            if (gaps is IEvidenceSink sink && deliveryGates.TryGetValue(sink, out var gate))
+            {
+                using var delivery = gate.Enter(required: false);
+                gaps.Report(gap);
+            }
+            else { gaps.Report(gap); }
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException
             or InvalidOperationException or InvalidDataException)

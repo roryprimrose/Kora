@@ -15,7 +15,8 @@ namespace Kora.Application.Context;
 
 public sealed partial class ClipboardExplanationWorkflow(
     ClipboardSnapshotBroker snapshots, ClipboardRead read, ClipboardExplanationAdmission admission,
-    ModelTurnHost models, ISecurityAuditLog audit, TimeProvider time, ILogger<ClipboardExplanationWorkflow> logger)
+    ModelTurnHost models, ISecurityAuditLog audit, TimeProvider time, ILogger<ClipboardExplanationWorkflow> logger,
+    IClipboardSourceUsePolicy sourceUsePolicy)
     : IClipboardExplanationWorkflow, IDisposable
 {
     private readonly Lock gate = new();
@@ -97,6 +98,8 @@ public sealed partial class ClipboardExplanationWorkflow(
         {
             Changed?.Invoke(this, EventArgs.Empty);
             if (!Current()) { return Report(new(ClipboardExplanationOutcome.Cancelled)); }
+            var sourceUse = await EvaluateSourceUseAsync(source, Current, cancellation.Token).ConfigureAwait(false);
+            if (sourceUse is not null) { return Report(sourceUse); }
             string? completedAnswer = null;
             DateTimeOffset completedExpiry = default;
             var completed = await admission.RunAsync(origin, Current, async (request, current, admitted) =>
@@ -188,6 +191,48 @@ public sealed partial class ClipboardExplanationWorkflow(
     {
         Outcome(logger, result.Outcome, result.CaptureOutcome, result.ModelReason);
         return result;
+    }
+
+    private async Task<ClipboardExplanationResult?> EvaluateSourceUseAsync(
+        ClipboardSnapshot source, Func<bool> current, CancellationToken token)
+    {
+        using var activity = HostActivity.BeginChild(HostActivityLayer.Application, HostOperation.Policy);
+        var request = activity.Request;
+        var requested = new SecurityAuditEvent(Guid.NewGuid(), SecurityAuditCategory.ProtectedOperation,
+            "clipboard.source-use", SecurityAuditOutcome.Requested,
+            request.Origin == RequestOrigin.ActivatedVoice ? SecurityAuditInitiator.VoiceCommand : SecurityAuditInitiator.LocalUser,
+            source.SnapshotId.ToString("D"));
+        audit.Write(requested);
+        try
+        {
+            var decision = await sourceUsePolicy.EvaluateAsync(source, token).ConfigureAwait(false);
+            token.ThrowIfCancellationRequested();
+            ClipboardExplanationResult? result = !current() ? new(ClipboardExplanationOutcome.Cancelled) : decision switch
+            {
+                ClipboardSourceUseOutcome.Accepted => null,
+                ClipboardSourceUseOutcome.Denied => new(ClipboardExplanationOutcome.SourceUseDenied),
+                ClipboardSourceUseOutcome.Unavailable => new(ClipboardExplanationOutcome.SourceUsePolicyUnavailable),
+                _ => throw new InvalidDataException("The clipboard source-use policy returned an unknown decision."),
+            };
+            audit.Write(requested.WithOutcome(result is null ? SecurityAuditOutcome.Succeeded
+                : result.Outcome == ClipboardExplanationOutcome.Cancelled ? SecurityAuditOutcome.Cancelled : SecurityAuditOutcome.Denied));
+            activity.Complete(result is null ? HostOperationOutcome.Completed
+                : result.Outcome == ClipboardExplanationOutcome.Cancelled ? HostOperationOutcome.Cancelled : HostOperationOutcome.Failed);
+            return result;
+        }
+        catch (OperationCanceledException) when (token.IsCancellationRequested)
+        {
+            audit.Write(requested.WithOutcome(SecurityAuditOutcome.Cancelled));
+            activity.Complete(HostOperationOutcome.Cancelled);
+            throw;
+        }
+        catch (Exception exception)
+        {
+            Failure(logger, exception.GetType().Name);
+            audit.Write(requested.WithOutcome(SecurityAuditOutcome.Unknown));
+            activity.Complete(HostOperationOutcome.Unknown);
+            throw;
+        }
     }
 
     public void Clear()

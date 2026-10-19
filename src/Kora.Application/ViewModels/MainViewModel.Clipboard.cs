@@ -93,7 +93,7 @@ public sealed partial class MainViewModel
             ShowInformation("Local clipboard preview: " + outcome,
                 DescribeClipboardOutcome(outcome) + " Explicit plain-text snapshot only (256 KiB UTF-8 maximum); no truncation, clipboard write or history. "
                 + "Reuse requires the same snapshot ID; clear/revoke discards it. Clipboard changes never replace an existing snapshot. "
-                + "Explanation requires explicit native review and a qualified local runtime; capture is not explanation success. "
+                + "Explanation requires explicit native review, implemented clipboard source-use policy and a qualified local runtime; capture is not explanation success. "
                 + "Preview is not egress approval. Text may contain secrets; no safety/redaction claim is made.");
         }
 
@@ -106,8 +106,9 @@ public sealed partial class MainViewModel
             result.Outcome switch
             {
                 ClipboardExplanationOutcome.ReviewRequired =>
-                    "Review this exact snapshot in the native preview, then explicitly admit it with Review and explain locally. "
-                    + "This does not approve egress. A qualified local runtime is required; there is no hosted or bootstrap fallback.",
+                    "Review this exact snapshot in the native preview, then request policy-gated admission with Review and explain locally. "
+                    + "This does not approve egress. A qualified local runtime is required; there is no hosted or bootstrap fallback. "
+                    + "Production explanation is unavailable until the required clipboard secret/sensitive-content source-use policy is implemented.",
                 ClipboardExplanationOutcome.Succeeded =>
                     "The admitted local response is available only in the exact native snapshot preview. It is not saved or spoken.",
                 ClipboardExplanationOutcome.CredentialRejected =>
@@ -124,6 +125,11 @@ public sealed partial class MainViewModel
                     "Local inference is still running or releasing resources. No retry or fallback is queued.",
                 ClipboardExplanationOutcome.Denied =>
                     "Original user input, ownership, privacy or call policy does not admit this local explanation.",
+                ClipboardExplanationOutcome.SourceUsePolicyUnavailable =>
+                    "Explanation is unavailable: the required clipboard secret/sensitive-content source-use policy is not implemented. "
+                    + "No model context was constructed or sent. Explicit consent and credential heuristics do not satisfy this rule.",
+                ClipboardExplanationOutcome.SourceUseDenied =>
+                    "The clipboard source-use policy refused this exact snapshot. No model context was constructed or sent.",
                 _ => "Explanation is unavailable. No qualified local response was produced; no hosted or bootstrap fallback was used. "
                     + (result.CaptureOutcome is { } capture ? DescribeClipboardOutcome(capture) : "Model admission reason: " + result.ModelReason),
             });

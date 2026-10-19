@@ -34,6 +34,8 @@ public sealed partial class MainViewModelTests
     [InlineData(ClipboardExplanationOutcome.Denied)]
     [InlineData(ClipboardExplanationOutcome.Failed)]
     [InlineData(ClipboardExplanationOutcome.Unavailable)]
+    [InlineData(ClipboardExplanationOutcome.SourceUsePolicyUnavailable)]
+    [InlineData(ClipboardExplanationOutcome.SourceUseDenied)]
     public async Task NativeExplanationHasExplicitContentFreeOutcomeAndPreservesOriginalOrigin(ClipboardExplanationOutcome outcome)
     {
         var fixture = new Fixture();

@@ -4,7 +4,7 @@ using Kora.Core.Hosting;
 
 namespace Kora.Core.Context;
 
-/// <summary>Clipboard-only admission policy; structural screening is not a secret-free classification.</summary>
+/// <summary>Clipboard-only envelope construction after source-use admission; structural screening is not sensitive-content classification.</summary>
 public static class ClipboardExplanationContext
 {
     public static readonly TimeSpan Lifetime = TimeSpan.FromMinutes(15);

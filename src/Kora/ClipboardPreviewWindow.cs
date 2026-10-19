@@ -44,8 +44,10 @@ internal sealed partial class ClipboardPreviewWindow(Action<Exception> reportFai
         var disclosure = new NamedTextBlock
         {
             Text = "Exact local text only. May contain secrets. No inference without explicit review, egress approval, copy/write or history.\n"
-                + "Review and explain locally admits this complete snapshot to a qualified LOCAL runtime only; review expires 15 minutes after capture. "
+                + "Review and explain locally requests policy-gated use of this complete snapshot by a qualified LOCAL runtime only; review expires 15 minutes after capture. "
                 + "Structural credential screening is best-effort, not a secret-free guarantee. No hosted or bootstrap fallback.\n"
+                + "Production explanation is unavailable: required clipboard secret/sensitive-content source-use classification is not implemented. "
+                + "Review/consent does not bypass that policy.\n"
                 + "Clipboard changes do not update this snapshot. Close revokes it.",
             TextWrapping = TextWrapping.Wrap,
         };
@@ -57,7 +59,7 @@ internal sealed partial class ClipboardPreviewWindow(Action<Exception> reportFai
         chrome.Children.Add(controls);
         if (explain is not null)
         {
-            var consent = new CheckBox { Content = "I reviewed this exact text and admit it for local-only explanation." };
+            var consent = new CheckBox { Content = "I reviewed this exact text and request policy-gated local-only explanation." };
             AutomationProperties.SetName(consent, "Admit this exact clipboard snapshot to local-only inference");
             var explainButton = new Button { Content = "Review and explain locally" };
             AutomationProperties.SetName(explainButton, "Review and explain this exact clipboard snapshot locally");

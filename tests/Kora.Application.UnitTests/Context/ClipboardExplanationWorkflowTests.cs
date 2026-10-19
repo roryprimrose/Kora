@@ -30,6 +30,109 @@ namespace Kora.Application.UnitTests.Context;
 public sealed class ClipboardExplanationWorkflowTests
 {
     [Fact]
+    public async Task ProductionSourceUsePolicyRemainsUnavailableEvenWithAQualifiedFakeProviderAndExplicitReview()
+    {
+        await using var fixture = new Fixture(productionSourcePolicy: true);
+        using var root = fixture.Root();
+        fixture.Reader.Text = "apparently ordinary private-marker source";
+        (await fixture.Action.ExecuteAsync(null, () => true, fixture.Token)).Outcome.Should().Be(ClipboardExplanationOutcome.ReviewRequired);
+        var source = fixture.Broker.Current!;
+        (await fixture.Action.ExecuteAsync(source.SnapshotId, () => true, fixture.Token))
+            .Outcome.Should().Be(ClipboardExplanationOutcome.SourceUsePolicyUnavailable);
+        fixture.Tasks.Should().BeEmpty();
+        fixture.Adapter.Calls.Should().Be(0);
+        fixture.Adapter.Wire.Should().BeNull();
+        fixture.Workflow.CurrentExplanation.Should().BeNull();
+        fixture.Broker.Current.Should().BeSameAs(source);
+        fixture.Reader.Calls.Should().Be(1);
+        fixture.Messages.Should().NotContain(message => message.Contains("private-marker", StringComparison.Ordinal));
+        fixture.Audits.Select(audit => audit.Outcome).Should().Equal(SecurityAuditOutcome.Requested, SecurityAuditOutcome.Denied);
+    }
+
+    [Theory]
+    [InlineData(ClipboardSourceUseOutcome.Denied, ClipboardExplanationOutcome.SourceUseDenied)]
+    [InlineData(ClipboardSourceUseOutcome.Unavailable, ClipboardExplanationOutcome.SourceUsePolicyUnavailable)]
+    public async Task FakeSourcePolicyRefusesBeforeEnvelopeConstructionOrDurableAdmission(
+        ClipboardSourceUseOutcome policyOutcome, ClipboardExplanationOutcome expected)
+    {
+        await using var fixture = new Fixture();
+        using var root = fixture.Root(RequestOrigin.ActivatedVoice);
+        fixture.Reader.Text = new string('x', 32768) + " password=synthetic-private-marker";
+        fixture.SourcePolicy.Outcome = policyOutcome;
+        await fixture.Action.ExecuteAsync(null, () => true, fixture.Token);
+        var source = fixture.Broker.Current!;
+        (await fixture.Action.ExecuteAsync(source.SnapshotId, () => true, fixture.Token)).Outcome.Should().Be(expected);
+        fixture.SourcePolicy.Source.Should().BeSameAs(source);
+        fixture.Tasks.Should().BeEmpty();
+        fixture.Adapter.Calls.Should().Be(0);
+        fixture.Workflow.CurrentExplanation.Should().BeNull();
+        fixture.Audits.Should().OnlyContain(audit => audit.Initiator == SecurityAuditInitiator.VoiceCommand);
+    }
+
+    [Theory]
+    [InlineData("eligibility")]
+    [InlineData("revocation")]
+    public async Task SourceUseDecisionCannotSurviveEligibilityLossDuringEvaluation(string change)
+    {
+        await using var fixture = new Fixture();
+        using var root = fixture.Root();
+        var eligible = true;
+        await fixture.Action.ExecuteAsync(null, () => eligible, fixture.Token);
+        fixture.SourcePolicy.BeforeReturn = () =>
+        {
+            if (change is "revocation") { fixture.Broker.Clear(); }
+            else { eligible = false; }
+        };
+        (await fixture.Action.ExecuteAsync(fixture.Broker.Current!.SnapshotId, () => eligible, fixture.Token))
+            .Outcome.Should().Be(ClipboardExplanationOutcome.Cancelled);
+        fixture.Tasks.Should().BeEmpty();
+        fixture.Adapter.Calls.Should().Be(0);
+    }
+
+    [Theory]
+    [InlineData("unknown")]
+    [InlineData("failure")]
+    [InlineData("unrelated-cancellation")]
+    public async Task InvalidOrFailedSourcePolicyIsNotReinterpretedAsAnAcceptedEnvelope(string fault)
+    {
+        await using var fixture = new Fixture();
+        using var root = fixture.Root();
+        await fixture.Action.ExecuteAsync(null, () => true, fixture.Token);
+        fixture.SourcePolicy.Outcome = (ClipboardSourceUseOutcome)999;
+        fixture.SourcePolicy.BeforeReturn = () =>
+        {
+            if (fault is "failure") { throw new IOException("private-marker source-policy failure"); }
+            if (fault is "unrelated-cancellation") { throw new OperationCanceledException("private-marker source-policy failure"); }
+        };
+        var run = () => fixture.Action.ExecuteAsync(fixture.Broker.Current!.SnapshotId, () => true, fixture.Token);
+        await run.Should().ThrowAsync<Exception>();
+        fixture.Audits.Last().Outcome.Should().Be(SecurityAuditOutcome.Unknown);
+        fixture.Messages.Should().NotContain(message => message.Contains("private-marker", StringComparison.Ordinal));
+        fixture.Tasks.Should().BeEmpty();
+        fixture.Adapter.Calls.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task AsyncPolicyCannotAdmitRevokedSourceAndOwnedWorkWaitsForActualPolicyCompletion()
+    {
+        await using var fixture = new Fixture();
+        using var root = fixture.Root();
+        await fixture.Action.ExecuteAsync(null, () => true, fixture.Token);
+        fixture.SourcePolicy.Pending = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        var run = fixture.Action.ExecuteAsync(fixture.Broker.Current!.SnapshotId, () => true, fixture.Token);
+        fixture.SourcePolicy.Source.Should().BeSameAs(fixture.Broker.Current);
+        fixture.Broker.Clear();
+        fixture.Workflow.IsQuiescent.Should().BeFalse();
+        var wait = fixture.Workflow.WaitForQuiescenceAsync();
+        wait.IsCompleted.Should().BeFalse();
+        fixture.SourcePolicy.Pending.SetResult(ClipboardSourceUseOutcome.Accepted);
+        (await run).Outcome.Should().Be(ClipboardExplanationOutcome.Cancelled);
+        await wait;
+        fixture.Adapter.Calls.Should().Be(0);
+        fixture.Tasks.Should().BeEmpty();
+    }
+
+    [Fact]
     public async Task AlreadyQueuedSourceNotificationCannotUseRetiredCancellation()
     {
         await using var fixture = new Fixture();
@@ -447,6 +550,7 @@ public sealed class ClipboardExplanationWorkflowTests
         internal Reader Reader { get; } = new();
         internal Clock Time { get; } = new();
         internal Adapter Adapter { get; } = new();
+        internal SourceUsePolicy SourcePolicy { get; } = new();
         internal ClipboardSnapshotBroker Broker { get; }
         internal ClipboardExplanationWorkflow Workflow { get; }
         internal ClipboardExplain Action { get; }
@@ -474,7 +578,7 @@ public sealed class ClipboardExplanationWorkflowTests
         public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
         public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception,
             Func<TState, Exception?, string> formatter) => Messages.Add(formatter(state, exception));
-        internal Fixture(bool qualified = true, ClipboardSnapshotBroker? broker = null)
+        internal Fixture(bool qualified = true, ClipboardSnapshotBroker? broker = null, bool productionSourcePolicy = false)
         {
             ActivitySource.AddActivityListener(listener);
             var dependencies = new DependencyBootstrapper([], NullLogger<DependencyBootstrapper>.Instance);
@@ -493,7 +597,8 @@ public sealed class ClipboardExplanationWorkflowTests
             Broker = broker ?? new(Reader, Time, NullLogger<ClipboardSnapshotBroker>.Instance);
             if (broker is not null) { Time.ReadTime = () => broker.Current?.CapturedAt ?? Time.Now; }
             admission = new(store, new(store));
-            Workflow = new(Broker, new(Broker), admission, models, this, Time, this);
+            Workflow = new(Broker, new(Broker), admission, models, this, Time, this,
+                productionSourcePolicy ? new UnavailableClipboardSourceUsePolicy() : SourcePolicy);
             Action = new(Workflow);
         }
         internal HostActivity Root(RequestOrigin origin = RequestOrigin.LocalUi) =>
@@ -501,6 +606,7 @@ public sealed class ClipboardExplanationWorkflowTests
         public async ValueTask DisposeAsync()
         {
             Workflow.Dispose();
+            SourcePolicy.Pending?.TrySetResult(ClipboardSourceUseOutcome.Unavailable);
             Adapter.Pending?.TrySetResult(Adapter.Reply());
             await models.DisposeAsync();
             await admission.DisposeAsync();
@@ -540,6 +646,20 @@ public sealed class ClipboardExplanationWorkflowTests
         public void BeginWrite() => throw new NotSupportedException();
         public void Save(ModelProviderMode mode) => throw new NotSupportedException();
         public void ConfirmWrite() => throw new NotSupportedException();
+    }
+
+    private sealed class SourceUsePolicy : IClipboardSourceUsePolicy
+    {
+        internal ClipboardSourceUseOutcome Outcome { get; set; } = ClipboardSourceUseOutcome.Accepted;
+        internal Action? BeforeReturn { get; set; }
+        internal TaskCompletionSource<ClipboardSourceUseOutcome>? Pending { get; set; }
+        internal ClipboardSnapshot? Source { get; private set; }
+        public Task<ClipboardSourceUseOutcome> EvaluateAsync(ClipboardSnapshot snapshot, CancellationToken token)
+        {
+            Source = snapshot;
+            BeforeReturn?.Invoke();
+            return Pending?.Task ?? Task.FromResult(Outcome);
+        }
     }
 
     private sealed class Reader : IPlainTextClipboardReader

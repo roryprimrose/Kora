@@ -14,4 +14,6 @@ public enum ClipboardExplanationOutcome
     Cancelled,
     Busy,
     Failed,
+    SourceUsePolicyUnavailable,
+    SourceUseDenied,
 }

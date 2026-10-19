@@ -54,7 +54,7 @@ public sealed class LocalFileAnswerContext
             evidence.Add(new(new(id), request, generation, citation.Excerpt, ModelEvidenceDisclosure.LocalOnly));
         }
         citations = bindings.ToImmutable();
-        Envelope = new(request, Policy, question, evidence, now, now.AddSeconds(30));
+        Envelope = new(request, Policy, question, evidence, now, now.AddSeconds(30), allowTools: false);
     }
 
     public ModelContextEnvelope Envelope { get; }

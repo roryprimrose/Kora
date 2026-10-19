@@ -6,6 +6,7 @@ using AwesomeAssertions;
 using Kora.Application.Infrastructure;
 using Kora.Controls;
 using Kora.Core.Context;
+using Kora.Core.Dependencies;
 using Kora.Core.Hosting;
 
 namespace Kora.Windows.IntegrationTests;
@@ -21,7 +22,11 @@ public sealed class LocalFileAnswerWindowTests
             var source = Source();
             var citation = new LocalFileLexicalRetrieval().Search(source, source.Reference, "alpha",
                 DateTimeOffset.UnixEpoch, CancellationToken.None).Citations.Single();
-            var response = new LocalFileAnswerResult(LocalFileAnswerOutcome.Succeeded, [new("Exact marker claim", [citation])], 1);
+            var response = new LocalFileAnswerResult(LocalFileAnswerOutcome.Succeeded, [new("Exact marker claim", [citation])], 1)
+            {
+                ExecutionReason = LocalContextTurnReason.Completed,
+                ExecutionState = HostTaskState.Succeeded,
+            };
             var calls = 0;
             var window = new LocalFilePreviewWindow(_ => { });
             window.ShowRevision(source, (_, _, _) => Task.FromResult(LocalFileSearchResult.Empty(
@@ -39,6 +44,10 @@ public sealed class LocalFileAnswerWindowTests
             try
             {
                 calls.Should().Be(0);
+                window.GetVisualDescendants().OfType<NamedTextBlock>().Should().Contain(block =>
+                    block.Text != null && block.Text.Contains("Only host session/task receipts are retained", StringComparison.Ordinal)
+                    && block.Text.Contains(source.Review.Request.SessionId.Value.ToString("D"), StringComparison.Ordinal)
+                    && block.Text.Contains(source.Review.Request.TaskId.Value.ToString("D"), StringComparison.Ordinal));
                 window.FocusAnswer();
                 var question = Question(window);
                 question.IsFocused.Should().BeTrue();
@@ -46,6 +55,8 @@ public sealed class LocalFileAnswerWindowTests
                 calls.Should().Be(0);
                 await Press(window, "Use this exact snapshot once to answer locally");
                 calls.Should().Be(1);
+                window.GetVisualDescendants().OfType<Button>().Single(button => string.Equals(button.Content as string,
+                    "Use this exact snapshot once to answer locally", StringComparison.Ordinal)).IsEnabled.Should().BeFalse();
                 question.IsFocused.Should().BeTrue();
                 Status(window).Text.Should().Contain("Succeeded").And.Contain("Exact marker claim")
                     .And.Contain(source.RevisionId.ToString("D")).And.Contain(citation.Excerpt);
@@ -94,6 +105,8 @@ public sealed class LocalFileAnswerWindowTests
                 Question(window).Text = "alpha";
                 var status = Status(window);
                 var run = Press(window, "Use this exact snapshot once to answer locally");
+                window.GetVisualDescendants().OfType<Button>().Single(button => string.Equals(button.Content as string,
+                    "Use this exact snapshot once to answer locally", StringComparison.Ordinal)).IsEnabled.Should().BeFalse();
                 gate!().Should().BeTrue();
                 if (string.Equals(change, "source", StringComparison.Ordinal)) { current = false; }
                 else if (string.Equals(change, "close", StringComparison.Ordinal)) { window.ClearAndClose(); }

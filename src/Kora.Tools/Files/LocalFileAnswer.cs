@@ -76,14 +76,14 @@ public sealed partial class LocalFileAnswer(LocalFilePreview preview, ILocalFile
                 }
                 token.ThrowIfCancellationRequested();
                 if (!current()) { return LocalFileAnswerResult.Empty(LocalFileAnswerOutcome.Stale); }
-                var reply = await model.RunAsync(binding.Envelope, current, token).ConfigureAwait(false);
+                var receipt = await model.RunAsync(binding.Envelope, current, token).ConfigureAwait(false);
                 token.ThrowIfCancellationRequested();
                 if (!current()) { return LocalFileAnswerResult.Empty(LocalFileAnswerOutcome.Stale); }
                 foreach (var citation in search.Citations)
                 {
                     _ = LocalFileLexicalRetrieval.ResolveCitation(source, citation, search.Mode);
                 }
-                return binding.Resolve(reply, search);
+                return ResolveReceipt(binding, receipt, search);
             }, Commit, cancellationToken).ConfigureAwait(false);
         }
         catch (Exception exception) when (exception is IOException or InvalidOperationException)
@@ -96,5 +96,33 @@ public sealed partial class LocalFileAnswer(LocalFilePreview preview, ILocalFile
             ? HostOperationOutcome.Completed : result.Outcome == LocalFileAnswerOutcome.Cancelled
                 ? HostOperationOutcome.Cancelled : HostOperationOutcome.Failed);
         return result;
+    }
+
+    private static LocalFileAnswerResult ResolveReceipt(LocalFileAnswerContext binding, LocalContextTurnReceipt receipt,
+        LocalFileSearchResult search)
+    {
+        if (!ReferenceEquals(receipt.Request, binding.Envelope.Request)
+            || !Enum.IsDefined(receipt.Outcome) || !Enum.IsDefined(receipt.Reason)
+            || receipt.Outcome == ModelTurnOutcome.Succeeded
+                && (receipt.DurableState != HostTaskState.Succeeded || receipt.Reason != LocalContextTurnReason.Completed))
+        {
+            return LocalFileAnswerResult.Empty(LocalFileAnswerOutcome.InvalidResponse);
+        }
+        LocalFileAnswerResult result;
+        if (receipt.ModelResult is { } reply && reply.Outcome == receipt.Outcome)
+        {
+            result = binding.Resolve(reply, search);
+        }
+        else
+        {
+            result = LocalFileAnswerResult.Empty(receipt.Outcome switch
+            {
+                ModelTurnOutcome.Succeeded => LocalFileAnswerOutcome.InvalidResponse,
+                ModelTurnOutcome.Cancelled => LocalFileAnswerOutcome.Cancelled,
+                ModelTurnOutcome.Denied or ModelTurnOutcome.DeniedEgress => LocalFileAnswerOutcome.Denied,
+                _ => LocalFileAnswerOutcome.Unavailable,
+            });
+        }
+        return result with { ExecutionReason = receipt.Reason, ExecutionState = receipt.DurableState };
     }
 }

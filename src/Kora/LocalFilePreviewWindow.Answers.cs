@@ -5,6 +5,7 @@ using Avalonia.Layout;
 using Avalonia.Media;
 using Kora.Application.Infrastructure;
 using Kora.Application.Presentation;
+using Kora.Application.Dependencies;
 using Kora.Controls;
 using Kora.Core.Context;
 
@@ -69,10 +70,12 @@ internal sealed partial class LocalFilePreviewWindow
         AutomationProperties.SetName(submit, "Explicit one-question local model source-use request, separate from preview consent");
         submit.Command = new AsyncCommand(async () =>
         {
+            submit.IsEnabled = false;
             Invalidate();
             var result = await selection.Run(question.Text ?? string.Empty, answer, Current);
             if (result is null || !Current()) { return; }
             text.Text = $"Outcome: {result.Outcome}; model reason: {result.ModelReason?.ToString() ?? "(none)"}.\n"
+                + $"Execution: {result.ExecutionReason?.ToString() ?? "(not started)"}; durable task: {result.ExecutionState?.ToString() ?? "(none)"}.\n"
                 + $"Matching chunks: {result.MatchingChunks}; lexical selection truncated: {result.RetrievalTruncated}.\n"
                 + (result.Outcome switch
                 {
@@ -88,6 +91,7 @@ internal sealed partial class LocalFilePreviewWindow
                 });
             rows.ItemsSource = result.Outcome == LocalFileAnswerOutcome.Succeeded
                 ? result.Claims.SelectMany(claim => claim.Citations).Distinct().ToArray() : null;
+            text.Text += "\nThis snapshot's one-shot request is consumed. No automatic retry or new session selection.";
         }, exception =>
         {
             if (!Current()) { return; }
@@ -100,6 +104,8 @@ internal sealed partial class LocalFilePreviewWindow
         panel.Children.Add(new NamedTextBlock
         {
             Text = "ONE current immutable file only: " + DescribeItem(source) + "\n"
+                + LocalContextSessionTarget.FreshSessionDisclosure + "\n"
+                + $"Reviewed session: {source.Review.Request.SessionId.Value:D}; one-shot task: {source.Review.Request.TaskId.Value:D}.\n"
                 + "Separate explicit request: send bounded exact excerpts and this question only to an admitted LOCAL model. "
                 + "Source-use/sensitive-content policy and qualified runtime must independently admit use. "
                 + "No hosted fallback, retention, fresh read, folder expansion, tools or speech. Unavailable gates stay closed.",

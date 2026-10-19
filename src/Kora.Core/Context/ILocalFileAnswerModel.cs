@@ -6,5 +6,5 @@ namespace Kora.Core.Context;
 public interface ILocalFileAnswerModel
 {
     /// <summary>Rechecks source admission around host admission and execution; never selects a hosted destination.</summary>
-    Task<ModelTurnResult> RunAsync(ModelContextEnvelope context, Func<bool> isCurrent, CancellationToken cancellationToken);
+    Task<LocalContextTurnReceipt> RunAsync(ModelContextEnvelope context, Func<bool> isCurrent, CancellationToken cancellationToken);
 }

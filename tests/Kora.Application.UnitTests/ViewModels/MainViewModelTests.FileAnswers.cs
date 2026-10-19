@@ -174,7 +174,7 @@ public sealed partial class MainViewModelTests
         internal string Kind { get; init; } = "unsupported";
         internal Action? OnRun { get; init; }
         internal ModelContextEnvelope? Context { get; private set; }
-        public Task<ModelTurnResult> RunAsync(ModelContextEnvelope context, Func<bool> isCurrent, CancellationToken cancellationToken)
+        public Task<LocalContextTurnReceipt> RunAsync(ModelContextEnvelope context, Func<bool> isCurrent, CancellationToken cancellationToken)
         {
             Context = context;
             OnRun?.Invoke();
@@ -187,8 +187,10 @@ public sealed partial class MainViewModelTests
             var answer = string.Equals(Kind, "success", StringComparison.Ordinal)
                 ? JsonSerializer.Serialize(new { unsupported = false, claims = new[] { new { text = "Exact marker", evidenceIds = new[] { context.Evidence[0].Id.Value } } } })
                 : "{\"unsupported\":true,\"claims\":[]}";
-            return Task.FromResult(new ModelTurnResult(outcome, ModelTurnReason.None,
-                new(new(Guid.NewGuid()), context.Request, ModelProviderSelection.OllamaCandidate), new(answer, null)));
+            var result = new ModelTurnResult(outcome, ModelTurnReason.None,
+                new(new(Guid.NewGuid()), context.Request, ModelProviderSelection.OllamaCandidate), new(answer, null));
+            return Task.FromResult(new LocalContextTurnReceipt(context.Request, outcome, LocalContextTurnReason.Completed,
+                HostTaskState.Succeeded, result));
         }
     }
 }

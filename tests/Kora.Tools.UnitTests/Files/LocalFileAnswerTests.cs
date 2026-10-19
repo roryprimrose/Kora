@@ -218,7 +218,7 @@ public sealed class LocalFileAnswerTests : IDisposable
     public async Task CompleteSerializedContextIsMeasuredWithJsonEscapingAndNothingIsSilentlyDropped()
     {
         using var root = Root();
-        using var f = new Fixture { Text = string.Join("\n\n", Enumerable.Repeat("private " + new string('\u0009', 1900), 8)) };
+        using var f = new Fixture { Text = string.Join("\n\n", Enumerable.Repeat("private " + new string('\u0009', 2000), 8)) };
         await f.Admit();
         var result = await f.Action.ExecuteAsync(f.Source.Reference, "private", () => true, Token);
         result.Outcome.Should().Be(LocalFileAnswerOutcome.ContextLimit);
@@ -280,6 +280,42 @@ public sealed class LocalFileAnswerTests : IDisposable
         f.Audits.Last().Initiator.Should().Be(SecurityAuditInitiator.VoiceCommand);
     }
 
+    [Theory]
+    [InlineData("foreign", LocalFileAnswerOutcome.InvalidResponse)]
+    [InlineData("outcome", LocalFileAnswerOutcome.InvalidResponse)]
+    [InlineData("reason", LocalFileAnswerOutcome.InvalidResponse)]
+    [InlineData("state", LocalFileAnswerOutcome.InvalidResponse)]
+    [InlineData("completed", LocalFileAnswerOutcome.InvalidResponse)]
+    [InlineData("no-response", LocalFileAnswerOutcome.InvalidResponse)]
+    [InlineData("mismatch", LocalFileAnswerOutcome.InvalidResponse)]
+    [InlineData("cancelled", LocalFileAnswerOutcome.Cancelled)]
+    [InlineData("denied", LocalFileAnswerOutcome.Denied)]
+    [InlineData("unavailable", LocalFileAnswerOutcome.Unavailable)]
+    public async Task SharedExecutionReceiptsMustBeExactAndDurablySuccessfulBeforeClaims(string defect, LocalFileAnswerOutcome expected)
+    {
+        using var root = Root();
+        using var f = new Fixture
+        {
+            TransformReceipt = receipt => defect switch
+            {
+                "foreign" => receipt with { Request = HostRequest.Create(RequestOrigin.LocalUi) },
+                "outcome" => receipt with { Outcome = (ModelTurnOutcome)999 },
+                "reason" => receipt with { Reason = (LocalContextTurnReason)999 },
+                "state" => receipt with { DurableState = HostTaskState.Unknown },
+                "completed" => receipt with { Reason = LocalContextTurnReason.EvidenceUnavailable },
+                "no-response" => receipt with { ModelResult = null },
+                "mismatch" => receipt with { ModelResult = receipt.ModelResult! with { Outcome = ModelTurnOutcome.Denied } },
+                "cancelled" => receipt with { Outcome = ModelTurnOutcome.Cancelled, ModelResult = null },
+                "denied" => receipt with { Outcome = ModelTurnOutcome.Denied, ModelResult = null },
+                _ => receipt with { Outcome = ModelTurnOutcome.Unknown, ModelResult = null },
+            },
+        };
+        await f.Admit();
+        var result = await f.Action.ExecuteAsync(f.Source.Reference, "private", () => true, Token);
+        result.Outcome.Should().Be(expected);
+        result.Claims.Should().BeEmpty();
+    }
+
     private sealed class Fixture : ILocalFileInspector, IUserFilePicker, ILocalFileModelUsePolicy, ILocalFileAnswerModel,
         ILocalFileRetrieval, ISecurityAuditLog, ILogger<LocalFileAnswer>, IDisposable
     {
@@ -293,6 +329,7 @@ public sealed class LocalFileAnswerTests : IDisposable
         internal LocalFileModelUseDecision Decision { get; init; } = LocalFileModelUseDecision.Allowed;
         internal ModelTurnOutcome ModelOutcome { get; init; } = ModelTurnOutcome.Succeeded;
         internal ModelContextEnvelope? Context { get; private set; }
+        internal Func<LocalContextTurnReceipt, LocalContextTurnReceipt>? TransformReceipt { get; init; }
         internal bool DelayModel { get; init; }
         internal string? RetrievalDefect { get; init; }
         internal Action? OnPolicy { get; set; }
@@ -333,20 +370,23 @@ public sealed class LocalFileAnswerTests : IDisposable
             OnPolicy?.Invoke();
             return Task.FromResult(Decision);
         }
-        public async Task<ModelTurnResult> RunAsync(ModelContextEnvelope context, Func<bool> isCurrent, CancellationToken cancellationToken)
+        public async Task<LocalContextTurnReceipt> RunAsync(ModelContextEnvelope context, Func<bool> isCurrent, CancellationToken cancellationToken)
         {
             ModelCalls++;
             Context = context;
             isCurrent().Should().BeTrue();
             Entered.SetResult();
             if (DelayModel) { await Release.Task; }
-            return new(ModelOutcome, ModelOutcome == ModelTurnOutcome.Succeeded ? ModelTurnReason.None : ModelTurnReason.QualificationPending,
+            var result = new ModelTurnResult(ModelOutcome, ModelOutcome == ModelTurnOutcome.Succeeded ? ModelTurnReason.None : ModelTurnReason.QualificationPending,
                 new(new(Guid.NewGuid()), context.Request, ModelProviderSelection.OllamaCandidate),
                 new(JsonSerializer.Serialize(new
                 {
                     unsupported = false,
                     claims = new[] { new { text = "The admitted excerpt contains the marker.", evidenceIds = new[] { context.Evidence[0].Id.Value } } },
                 }), null));
+            var receipt = new LocalContextTurnReceipt(context.Request, ModelOutcome, LocalContextTurnReason.Completed,
+                HostTaskState.Succeeded, result);
+            return TransformReceipt is { } transform ? transform(receipt) : receipt;
         }
         public LocalFileSearchResult Search(LocalFileRevision revision, LocalFileReference exactSource, string query,
             DateTimeOffset observedAt, CancellationToken cancellationToken) =>

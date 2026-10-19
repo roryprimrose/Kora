@@ -468,7 +468,8 @@ It does not choose a source, read a path, reuse a folder/retained attachment, or
 Inline questions/paths after the fixed command are rejected ([command](../src/Kora.Core/Context/LocalFileCommand.cs), [routing](../src/Kora.Application/ViewModels/MainViewModel.Files.cs)).
 
 The native **Use this exact snapshot once to answer locally** control is a separate explicit source-use request for the displayed exact revision and unchanged native question. Preview consent is not model-use consent.
-Question/excerpts/claims stay native and volatile, outside conversation history, speech, clipboard and retention ([native control](../src/Kora/LocalFilePreviewWindow.Answers.cs), [host continuation](../src/Kora.Application/ViewModels/MainViewModel.FileAnswers.cs)).
+Question/excerpts/claims stay native and volatile, outside conversation history, speech, clipboard and retained bodies ([native control](../src/Kora/LocalFilePreviewWindow.Answers.cs), [host continuation](../src/Kora.Application/ViewModels/MainViewModel.FileAnswers.cs)).
+The control separately discloses creation of the exact displayed `Local context` session and one-shot task. Only content-free host lifecycle receipts are durable; preview consent never authorizes that creation implicitly.
 
 The registered per-action [LocalFileAnswer](../src/Kora.Tools/Files/LocalFileAnswer.cs) holds the existing [immutable preview broker](../src/Kora.Tools/Files/LocalFilePreview.cs) generation/cancellation/terminal-audit boundary through retrieval and answer resolution.
 It uses `ILocalFileRetrieval` / `lexical-lines-v1`, the unchanged 256-character / 512-UTF-8-byte question, 32 unique terms / 64-character term and eight-citation / 16-KiB-excerpt limits ([policy](../src/Kora.Core/Context/LocalFileRetrievalPolicy.cs)).
@@ -478,13 +479,17 @@ Every excerpt uses the authoritative immutable citation resolver before context 
 Cancel/clear/refresh/revocation, native question edit/close and private/call/ownership changes retire the owned work and suppress late claims ([action](../src/Kora.Tools/Files/LocalFileAnswer.cs), [generation owner](../src/Kora.Application/Presentation/LocalFileAnswerSelection.cs)).
 
 The [file-specific binding](../src/Kora.Core/Context/LocalFileAnswerContext.cs) creates only `LocalOnly` `ModelContextEvidence` with host-owned opaque evidence IDs and exact unmodified excerpts.
-It uses the existing [ModelContextEnvelope serializer](../src/Kora.Core/Dependencies/ModelContextEnvelope.cs); complete JSON, escaping and registered descriptor overhead must fit 32,768 UTF-8 bytes.
+It uses the existing [ModelContextEnvelope serializer](../src/Kora.Core/Dependencies/ModelContextEnvelope.cs) with `allowTools: false`; complete JSON and escaping must fit 32,768 UTF-8 bytes. The authoritative serializer emits an empty tool catalogue; file code does not duplicate envelope serialization.
 Over-limit input is explicitly rejected, never shortened. Lexical matching count/truncation is disclosed separately from complete envelope admission.
 
-The [Application adapter](../src/Kora.Application/Dependencies/LocalFileAnswerModel.cs) calls the existing `ModelTurnHost.AdmitAsync(ModelTurnChoice.Local, ...)` and `RunAsync`, never a reasoner/transport directly, default/hosted selection or fallback.
+The [Application adapter](../src/Kora.Application/Dependencies/LocalFileAnswerModel.cs) consumes the shared [LocalContextTurnWorkflow](../src/Kora.Application/Dependencies/LocalContextTurnWorkflow.cs), never a source-specific durable-task bridge, direct reasoner/transport or hosted fallback.
+The shared executor alone records session/control intent, typed local-context dispatch and truthful terminal receipts, calls `ModelTurnHost` with explicit Local selection and waits for physical quiescence.
+The file action requires an exact original-request receipt with `Completed` / durable `Succeeded` before publishing successful cited claims; absent, mismatched or uncertain receipts never produce an answer.
 Successful host responses alone may resolve the strict file-answer JSON schema.
 Each supported claim needs at least one exact admitted evidence ID; unknown, duplicate, malformed, foreign-request or hosted references produce no claims.
 Unsupported and no-lexical-evidence are explicit distinct outcomes ([binding](../src/Kora.Core/Context/LocalFileAnswerContext.cs)).
+Each explicit native answer request consumes the snapshot's one-shot target, including invalid, unavailable, cancelled or uncertain outcomes.
+The answer control disables further dispatch before awaiting work; edits still clear claims/citations but never silently create another session/task, retry the old target or choose an existing target.
 
 Claim references map back to host-held original citation objects, not model-supplied paths/locations.
 Native rows and per-claim descriptions retain original source/revision/item/digest and UTF-16/line/column spans; explicit **Show exact answer citation** reuses inert exact-source navigation.
@@ -495,9 +500,9 @@ Citation identity validation is not a claim of semantic truth or answer-quality 
 The production [UnavailableLocalFileModelUsePolicy](../src/Kora.Application/Dependencies/UnavailableLocalFileModelUsePolicy.cs) reports `SourceUseUnavailable` before context construction or dispatch.
 Deterministic fakes exercise admitted and denied paths without asserting that source contents are safe.
 
-**Shared execution integration:** the source-specific adapter currently rechecks its source gate around host admission/execution and propagates the broker/native cancellation token.
-A peer-owned source-specific final-dispatch gate inside the model host's asynchronous revalidation remains an integration requirement before admitting a production source-use policy.
-The adapter does not change shared execution or transport ([adapter](../src/Kora.Application/Dependencies/LocalFileAnswerModel.cs), [model host](../src/Kora.Application/Dependencies/ModelTurnHost.cs)).
+**Shared execution integration:** consumes peer commit `d5cfa31cf15b4f4c64e1a30241427366e3b35456` and its committed model-pipeline dependencies.
+The source gate and broker/native cancellation remain attached through the shared executor and [model-host consumer fence](../src/Kora.Application/Dependencies/ModelTurnHost.Execution.cs), including asynchronous revalidation, tool rejection and final disclosure.
+This consumer does not edit shared execution, serializer, transport or durable writers ([adapter](../src/Kora.Application/Dependencies/LocalFileAnswerModel.cs), [shared execution contract](Local_Inference.md)).
 
 Production model registrations remain unqualified/unavailable ([model registrations](../src/Kora.Application/Dependencies/ModelTurnHost.cs)).
 This bounded implementation does not enable or qualify R26.3, hosted egress, managed libraries/corpora, embeddings, folders, generic content tools, provider/containment or installed/hardware trials ([I/E/Q policy](Implementation_Roadmap.md#delivery-and-qualification-dependency-policy)).
@@ -507,11 +512,14 @@ Maintained deterministic evidence:
 - [Exact binding and malformed output](../tests/Kora.Core.UnitTests/Context/LocalFileAnswerContextTests.cs).
 - [Action/read/limits/revocation/audit](../tests/Kora.Tools.UnitTests/Files/LocalFileAnswerTests.cs).
 - [Selection ownership](../tests/Kora.Application.UnitTests/Presentation/LocalFileAnswerSelectionTests.cs).
-- [Existing model-host consumer](../tests/Kora.Application.UnitTests/Dependencies/ModelTurnHostTests.FileAnswers.cs).
+- [Shared durable executor consumer](../tests/Kora.Application.UnitTests/Dependencies/LocalContextTurnWorkflowTests.FileAnswers.cs).
 - [Exact command routing](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.FileAnswers.cs).
 - [Headless native controls](../tests/Kora.Windows.IntegrationTests/LocalFileAnswerWindowTests.cs).
 
 No experiments or E/Q gates are retired or rerun by this increment.
+
+Integration validation on 2026-10-20: file/tool and native/SQLite checks pass, but the imported shared executor's maintained `DisposeCancelsAuthorityAndWaitsForOwnedModelResourcesWithoutReplay` check returned Denied where Cancelled is required.
+The failing [shared lifecycle check](../tests/Kora.Application.UnitTests/Dependencies/LocalContextTurnWorkflowTests.cs) remains a peer repair handoff, not a passing validation or readiness claim. Production source-use policy and model qualification remain unavailable.
 
 ## Delivered Native Current-Source Literal Find - 2026-10-12
 

@@ -84,7 +84,7 @@ internal sealed partial class NativeUxFixtureSession : IApplicationDataPaths, ID
                 var health = new FileEvidenceHealth();
                 dailyEvidenceLogger = DailyFileLoggerFactory.Create(this, health);
                 var copy = new FileEvidenceSink(dailyEvidenceLogger, health);
-                evidenceProvider = new([copy, sink], copy, bufferDiagnostics: true);
+                evidenceProvider = new([copy, sink], copy, bufferDiagnostics: true, requiredOrdinaryCopy: copy);
             }
             else
             {

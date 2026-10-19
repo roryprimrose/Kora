@@ -56,7 +56,7 @@ public sealed class PresenceControl : Control, IDisposable
     public static readonly StyledProperty<bool> IsMotionEnabledProperty =
         AvaloniaProperty.Register<PresenceControl, bool>(nameof(IsMotionEnabled), true);
 
-    private PresenceAnimation animation = new(AssistantState.Information);
+    private PresenceAnimation animation = new(AssistantState.Hidden);
     private readonly Particle[] particles;
     private readonly int[] depthOrder;
     private readonly PresenceRenderLoop loop;

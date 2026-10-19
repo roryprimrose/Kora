@@ -1,4 +1,6 @@
 using System.Diagnostics;
+using System.Diagnostics.Metrics;
+using System.Collections.Concurrent;
 using AwesomeAssertions;
 using Kora.Application.Configuration;
 using Kora.Core.Auditing;
@@ -74,6 +76,64 @@ public sealed partial class AppearanceConfigurationServiceTests
         notifications.Should().Be(0);
         fixture.Store.Text.Should().NotContainKey("presence-native-renderer-enabled.txt");
         fixture.Audit.Events[^1].Outcome.Should().Be(SecurityAuditOutcome.Failed);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Renderer_change_publication_waits_for_both_required_audit_boundaries(bool terminal)
+    {
+        var phases = new ConcurrentQueue<PresenceSwitchPhase>();
+        using var timing = new MeterListener();
+        var instrument = PresenceSwitchTiming.Instrument;
+        timing.InstrumentPublished = (published, observer) =>
+        {
+            if (ReferenceEquals(published, instrument)) { observer.EnableMeasurementEvents(published); }
+        };
+        timing.SetMeasurementEventCallback<long>((_, _, tags, _) =>
+        {
+            if (tags[0].Value is PresenceSwitchPhase phase) { phases.Enqueue(phase); }
+        });
+        timing.Start();
+        var fixture = new Fixture();
+        var before = fixture.Service.Get(AppearanceOption.NativePresenceRenderer);
+        var notifications = 0;
+        fixture.Service.Changed += (_, _) => Interlocked.Increment(ref notifications);
+        using var release = new ManualResetEventSlim();
+        var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        void HoldAudit()
+        {
+            entered.TrySetResult();
+            release.Wait(TestContext.Current.CancellationToken);
+        }
+        if (terminal) { fixture.Audit.BeforeSuccess = HoldAudit; }
+        else { fixture.Audit.BeforeRequested = HoldAudit; }
+        var proposal = fixture.Service.Propose(before.Descriptor.Option, new AppearanceValue.Toggle(true),
+            before.Revision, SecurityAuditInitiator.LocalUser, RequestOrigin.LocalUi, () => true);
+        var applying = fixture.Service.ApplyAsync(proposal, TestContext.Current.CancellationToken);
+        try
+        {
+            await entered.Task.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
+            applying.IsCompleted.Should().BeFalse();
+            Volatile.Read(ref notifications).Should().Be(0,
+                "the renderer consumes the confirmed change event, not an uncommitted selection");
+            fixture.Store.Writes.Should().Be(terminal ? 1 : 0);
+            phases.Should().Contain(terminal ? PresenceSwitchPhase.TerminalAuditStarted : PresenceSwitchPhase.RequestedAuditStarted);
+            phases.Should().NotContain(terminal ? PresenceSwitchPhase.TerminalAuditReturned : PresenceSwitchPhase.RequestedAuditReturned);
+            phases.Should().NotContain(PresenceSwitchPhase.PublicationStarted);
+        }
+        finally { release.Set(); }
+        var result = await applying.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
+        result.Succeeded.Should().BeTrue();
+        result.State.Value.GetToggle().Should().BeTrue();
+        Volatile.Read(ref notifications).Should().Be(1);
+        fixture.Audit.Events.Select(item => item.Outcome).Should()
+            .Equal(SecurityAuditOutcome.Requested, SecurityAuditOutcome.Succeeded);
+        phases.Should().Equal(PresenceSwitchPhase.ApplyStarted, PresenceSwitchPhase.ConfigurationGateEntered,
+            PresenceSwitchPhase.RequestedAuditStarted, PresenceSwitchPhase.RequestedAuditReturned,
+            PresenceSwitchPhase.PreferenceWriteStarted, PresenceSwitchPhase.PreferenceWriteReturned,
+            PresenceSwitchPhase.TerminalAuditStarted, PresenceSwitchPhase.TerminalAuditReturned,
+            PresenceSwitchPhase.PublicationStarted, PresenceSwitchPhase.PublicationReturned, PresenceSwitchPhase.ApplyReturning);
     }
 
     [Fact]

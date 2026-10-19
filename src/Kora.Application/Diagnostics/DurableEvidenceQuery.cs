@@ -1,3 +1,5 @@
+using System.Buffers;
+using System.IO.Compression;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
@@ -13,6 +15,11 @@ namespace Kora.Application.Diagnostics;
 public sealed partial class DurableEvidenceQuery(
     IEvidenceReader reader, IEvidenceQueryAccess access, TimeProvider time, ILogger<DurableEvidenceQuery> logger)
 {
+    internal const int MaximumCursorCharacters = 48 * 1024;
+    internal const int MaximumInflatedCursorBytes = 128 * 1024;
+    private const int MaximumLegacyCursorCharacters = 2048;
+    private static ReadOnlySpan<byte> CompressedCursorHeader => "KoraCursorV2:"u8;
+
     private static readonly JsonSerializerOptions Format = new()
     {
         UnmappedMemberHandling = JsonUnmappedMemberHandling.Disallow,
@@ -133,20 +140,58 @@ public sealed partial class DurableEvidenceQuery(
     private string Encode(Continuation continuation)
     {
         var bytes = JsonSerializer.SerializeToUtf8Bytes(continuation, Format);
-        return Convert.ToBase64String(bytes) + "." + Convert.ToBase64String(HMACSHA256.HashData(cursorKey, bytes));
+        var compressed = continuation.Checkpoint.Snapshot.Segmented is not null;
+        if (compressed)
+        {
+            if (bytes.Length > MaximumInflatedCursorBytes)
+            {
+                throw new InvalidDataException("The evidence cursor payload exceeds its bound.");
+            }
+            var framed = new byte[CompressedCursorHeader.Length + BrotliEncoder.GetMaxCompressedLength(bytes.Length)];
+            CompressedCursorHeader.CopyTo(framed);
+            if (!BrotliEncoder.TryCompress(bytes, framed.AsSpan(CompressedCursorHeader.Length), out var written,
+                quality: 4, window: 22))
+            {
+                throw new InvalidDataException("The evidence cursor could not be compressed within its bound.");
+            }
+            bytes = framed.AsSpan(0, CompressedCursorHeader.Length + written).ToArray();
+        }
+        // Authenticate the version header as well as the compressed bytes, before any inflation on read.
+        var cursor = Convert.ToBase64String(bytes) + "." + Convert.ToBase64String(HMACSHA256.HashData(cursorKey, bytes));
+        if (cursor.Length > (compressed ? MaximumCursorCharacters : MaximumLegacyCursorCharacters))
+        {
+            throw new InvalidDataException("The evidence cursor exceeds its bound.");
+        }
+        return cursor;
     }
 
     private Continuation Decode(string cursor, string fingerprint, HostId<SessionIdentity> session, DateTimeOffset now)
     {
         try
         {
-            if (cursor.Length > 2048) { throw new InvalidDataException("The evidence cursor exceeds its bound."); }
+            if (cursor.Length > MaximumCursorCharacters) { throw new InvalidDataException("The evidence cursor exceeds its bound."); }
             var parts = cursor.Split('.');
             if (parts.Length != 2) { throw new InvalidDataException("The evidence cursor is malformed."); }
             var bytes = Convert.FromBase64String(parts[0]);
             if (!CryptographicOperations.FixedTimeEquals(HMACSHA256.HashData(cursorKey, bytes), Convert.FromBase64String(parts[1])))
             {
                 throw new InvalidDataException("The evidence cursor is not host-issued.");
+            }
+            if (bytes.AsSpan().StartsWith(CompressedCursorHeader))
+            {
+                var inflated = new byte[MaximumInflatedCursorBytes];
+                using var decoder = new BrotliDecoder();
+                var payload = bytes.AsSpan(CompressedCursorHeader.Length);
+                var status = decoder.Decompress(payload, inflated, out var consumed, out var written);
+                if (status != OperationStatus.Done || consumed != payload.Length)
+                {
+                    throw new InvalidDataException("The evidence cursor compression is corrupt, truncated or exceeds its bound.");
+                }
+                bytes = inflated.AsSpan(0, written).ToArray();
+            }
+            else if (cursor.Length > MaximumLegacyCursorCharacters)
+            {
+                throw new InvalidDataException("The legacy evidence cursor exceeds its bound.");
             }
             var value = JsonSerializer.Deserialize<Continuation>(bytes, Format)
                 ?? throw new InvalidDataException("The evidence cursor is missing.");

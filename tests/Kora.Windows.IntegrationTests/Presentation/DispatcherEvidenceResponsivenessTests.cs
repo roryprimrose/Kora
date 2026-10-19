@@ -16,6 +16,129 @@ namespace Kora.Windows.IntegrationTests.Presentation;
 public sealed class DispatcherEvidenceResponsivenessTests(ITestOutputHelper output)
 {
     [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Independent_file_delivery_keeps_actual_dispatcher_responsive_beyond_projection_capacity(bool batched)
+    {
+        using var paths = new OwnedStorageFixture();
+        using var checkpoint = new SlowCommit();
+        var sink = new WindowsSqliteEvidenceSink(paths, null, null, checkpoint);
+        sink.Initialize();
+        var bytes = SeedLargeHistory(sink, paths);
+        var health = new FileEvidenceHealth();
+        using var fileLogger = Kora.DailyFileLoggerFactory.Create(paths, health);
+        using var copy = new TrackedFile(new Kora.FileEvidenceSink(fileLogger, health));
+        try
+        {
+            IDeferredEvidenceSink projection = batched ? sink : new SingleWriteProjection(sink);
+            await using var provider = new EvidenceLoggerProvider([copy, projection], copy,
+                bufferDiagnostics: true, requiredOrdinaryCopy: copy);
+            var logger = provider.CreateLogger("independent-reveal-fixture");
+            var ready = new TaskCompletionSource<AvaloniaUiDispatcher>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var end = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            var callbacks = 0;
+            var drainStarted = 0L;
+            checkpoint.Armed = true;
+            var ui = HeadlessSession.RunAsync(async () =>
+            {
+                ready.SetResult(new AvaloniaUiDispatcher());
+                await end.Task;
+            });
+            try
+            {
+                var dispatcher = await ready.Task.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
+                for (var batch = 0; batch < 12; batch++)
+                {
+                    var heartbeat = new TaskCompletionSource<TimeSpan>(TaskCreationOptions.RunContinuationsAsynchronously);
+                    var started = Stopwatch.GetTimestamp();
+                    for (var index = 0; index < 48; index++)
+                    {
+                        dispatcher.Post(() =>
+                        {
+                            Interlocked.Increment(ref callbacks);
+                            if (logger.IsEnabled(LogLevel.Debug))
+                            {
+                                logger.Log(LogLevel.Debug, new EventId(9877),
+                                    new Dictionary<string, object?>(StringComparer.Ordinal)
+                                    {
+                                        ["{OriginalFormat}"] = "Synthetic independent reveal diagnostic.",
+                                    }, null, static (_, _) => "unused");
+                            }
+                        });
+                    }
+                    Dispatcher.UIThread.Post(() => heartbeat.SetResult(Stopwatch.GetElapsedTime(started)));
+                    await checkpoint.Entered.Task.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
+                    var latency = await heartbeat.Task.WaitAsync(TimeSpan.FromSeconds(1), TestContext.Current.CancellationToken);
+                    latency.Should().BeLessThan(TimeSpan.FromSeconds(1));
+                    output.WriteLine("Batch {0}: 48 callbacks / 96 records; heartbeat {1} ms; SQLite still blocked.",
+                        batch, latency.TotalMilliseconds);
+                    for (var record = 0; record < 96; record++) { await copy.NextDeliveryAsync(); }
+                }
+                Volatile.Read(ref callbacks).Should().Be(576);
+            }
+            finally
+            {
+                drainStarted = Stopwatch.GetTimestamp();
+                checkpoint.Release.Set();
+                end.TrySetResult();
+                await ui;
+            }
+            await provider.DisposeAsync();
+            var drain = Stopwatch.GetElapsedTime(drainStarted);
+            checkpoint.Attempts.Should().Be(batched ? 33 : 1025,
+                "only batching changes the checked transaction count, not record admission or integrity checks");
+            using var lease = sink.AcquireReadLease(TestContext.Current.CancellationToken);
+            using var connection = sink.OpenReadOnly(TestContext.Current.CancellationToken);
+            using var command = connection.CreateCommand();
+            command.CommandText = """
+                SELECT evidence_id FROM activity_spans
+                UNION ALL SELECT evidence_id FROM application_log_events WHERE event_id=9877;
+                """;
+            var projected = new List<Guid>();
+            using (var rows = command.ExecuteReader())
+            {
+                while (rows.Read()) { projected.Add(Guid.Parse(rows.GetString(0))); }
+            }
+            fileLogger.Dispose();
+            var copied = new List<Guid>();
+            var gaps = new List<EvidenceGap>();
+            foreach (var file in Directory.GetFiles(Path.Combine(paths.LocalRoot, DailyLogFilePolicy.DirectoryName)))
+            {
+                foreach (var line in File.ReadLines(file))
+                {
+                    using var json = JsonDocument.Parse(line);
+                    var properties = json.RootElement.GetProperty("Properties");
+                    if (properties.TryGetProperty("EvidenceEnvelope", out var diagnostic))
+                    {
+                        var row = WindowsSqliteEvidenceSink.DecodeDiagnostic(diagnostic.GetString()!);
+                        row.EventId.Should().Be(9877);
+                        row.Host.Should().NotBeNull();
+                        row.Trace.Should().NotBeNull();
+                        copied.Add(row.EvidenceId.Value);
+                    }
+                    if (properties.TryGetProperty("ActivityEvidence", out var activity))
+                    {
+                        using var payload = JsonDocument.Parse(activity.GetString()!);
+                        copied.Add(payload.RootElement.GetProperty("EvidenceId").GetProperty("Value").GetGuid());
+                    }
+                    if (properties.TryGetProperty("EvidenceGap", out var gap))
+                    {
+                        gaps.Add(JsonSerializer.Deserialize<EvidenceGap>(gap.GetString()!)!);
+                    }
+                }
+            }
+            copied.Should().HaveCount(1152).And.OnlyHaveUniqueItems();
+            projected.Should().HaveCount(1025).And.OnlyHaveUniqueItems();
+            gaps.Should().HaveCount(127).And.OnlyContain(gap => gap.Sink == sink.Name
+                && gap.Reason == EvidenceGapReason.ProjectionBackpressure);
+            gaps.Select(gap => gap.EvidenceId!.Value.Value).Should().BeEquivalentTo(copied.Except(projected));
+            output.WriteLine("Batched: {0}; scratch bytes: {1}; required file records: {2}; SQLite projections: {3}; explicit gaps: {4}; checked transactions: {5}; drain: {6} ms.",
+                batched, bytes, copied.Count, projected.Count, gaps.Count, checkpoint.Attempts, drain.TotalMilliseconds);
+        }
+        finally { Serilog.Debugging.SelfLog.Disable(); }
+    }
+
+    [Theory]
     [InlineData(128)]
     [InlineData(384)]
     public async Task Ordinary_diagnostics_leave_dispatcher_responsive_under_one_second_while_large_store_commit_is_blocked(int count)
@@ -245,5 +368,36 @@ public sealed class DispatcherEvidenceResponsivenessTests(ITestOutputHelper outp
             file.Report(gap);
             Items.Enqueue(gap);
         }
+
+    }
+
+    private sealed class TrackedFile(Kora.FileEvidenceSink file) : IDeferredEvidenceSink, IEvidenceGapReporter, IDisposable
+    {
+        private readonly SemaphoreSlim delivered = new(0);
+        public string Name => file.Name;
+        public void WriteDiagnostic(DiagnosticEnvelope envelope) => file.WriteDiagnostic(envelope);
+        public void WriteActivity(CompletedActivityEnvelope envelope) => file.WriteActivity(envelope);
+        public void WriteAudit(AuditEnvelope envelope) => file.WriteAudit(envelope);
+        public void Report(EvidenceGap gap) => file.Report(gap);
+        public Action PrepareDiagnostic(DiagnosticEnvelope envelope) => Track(file.PrepareDiagnostic(envelope));
+        public Action PrepareActivity(CompletedActivityEnvelope envelope) => Track(file.PrepareActivity(envelope));
+        private Action Track(Action write) => () =>
+        {
+            write();
+            delivered.Release();
+        };
+        public async Task NextDeliveryAsync() =>
+            (await delivered.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken)).Should().BeTrue();
+        public void Dispose() => delivered.Dispose();
+    }
+
+    private sealed class SingleWriteProjection(WindowsSqliteEvidenceSink sink) : IDeferredEvidenceSink
+    {
+        public string Name => sink.Name;
+        public void WriteDiagnostic(DiagnosticEnvelope envelope) => sink.WriteDiagnostic(envelope);
+        public void WriteActivity(CompletedActivityEnvelope envelope) => sink.WriteActivity(envelope);
+        public void WriteAudit(AuditEnvelope envelope) => sink.WriteAudit(envelope);
+        public Action PrepareDiagnostic(DiagnosticEnvelope envelope) => sink.PrepareDiagnostic(envelope);
+        public Action PrepareActivity(CompletedActivityEnvelope envelope) => sink.PrepareActivity(envelope);
     }
 }

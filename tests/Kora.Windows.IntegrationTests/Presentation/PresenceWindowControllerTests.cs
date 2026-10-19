@@ -2,11 +2,47 @@ using Avalonia;
 using Avalonia.Controls;
 
 using AwesomeAssertions;
+using System.Diagnostics.Metrics;
+using Kora.Core.Diagnostics;
+using Kora.Windows.IntegrationTests.Storage;
 
 namespace Kora.Windows.IntegrationTests.Presentation;
 
+[Collection(nameof(ProcessGlobalEvidenceTestGroup))]
 public sealed class PresenceWindowControllerTests
 {
+    [Fact]
+    public void Phase_timing_distinguishes_owner_wait_fade_wait_and_ordered_replacement_without_poll_spam()
+    {
+        var phases = new List<PresenceSwitchPhase>();
+        using var timing = new MeterListener();
+        var instrument = PresenceSwitchTiming.Instrument;
+        timing.InstrumentPublished = (published, observer) =>
+        {
+            if (ReferenceEquals(published, instrument)) { observer.EnableMeasurementEvents(published); }
+        };
+        timing.SetMeasurementEventCallback<long>((_, _, tags, _) =>
+        {
+            if (tags[0].Value is PresenceSwitchPhase phase) { phases.Add(phase); }
+        });
+        timing.Start();
+        var fixture = new Fixture();
+        fixture.Controller.Start(false);
+        fixture.OwnerAvailable = false;
+        fixture.Controller.Request(true);
+        for (var index = 0; index < 10; index++) { fixture.Controller.IsReadyToApply.Should().BeFalse(); }
+        fixture.OwnerAvailable = true;
+        fixture.Windows[0].FadeReady = false;
+        fixture.Controller.TryApply().Should().BeFalse();
+        for (var index = 0; index < 10; index++) { fixture.Controller.IsReadyToApply.Should().BeFalse(); }
+        fixture.Windows[0].FadeReady = true;
+        fixture.Controller.TryApply().Should().BeTrue();
+        phases.Should().Equal(PresenceSwitchPhase.WaitingForOwnerOrWindow,
+            PresenceSwitchPhase.WaitingForFade, PresenceSwitchPhase.RetirementStarted,
+            PresenceSwitchPhase.RetirementReturned, PresenceSwitchPhase.CreationStarted,
+            PresenceSwitchPhase.CreationReturned, PresenceSwitchPhase.RestoreStarted, PresenceSwitchPhase.RestoreReturned);
+    }
+
     [Fact]
     public void Repeated_switches_retire_before_creation_and_never_repeat_host_startup()
     {
@@ -193,6 +229,90 @@ public sealed class PresenceWindowControllerTests
         startAgain.Should().Throw<InvalidOperationException>();
     }
 
+    [Fact]
+    public void Outgoing_fade_keeps_one_live_owner_and_does_not_retire_until_ready()
+    {
+        var fixture = new Fixture();
+        fixture.Controller.Start(false);
+        var original = fixture.Windows[0];
+        original.FadeReady = false;
+        fixture.Controller.Request(true);
+        for (var index = 0; index < 10; index++)
+        {
+            fixture.Controller.TryApply().Should().BeFalse();
+            fixture.Controller.IsAvailable.Should().BeTrue();
+            fixture.Controller.HasPendingChange.Should().BeTrue();
+            original.Closed.Should().BeFalse();
+            fixture.Creations.Should().ContainSingle();
+        }
+        original.FadeStarted.Should().BeTrue();
+        original.Preparations.Should().Be(1, "waiting polls must remain read-only");
+        original.FadeReady = true;
+        fixture.Controller.TryApply().Should().BeTrue();
+        original.Closed.Should().BeTrue();
+        fixture.Windows[^1].Restored.Should().BeSameAs(original.State);
+        fixture.Creations.Should().HaveCount(2);
+    }
+
+    [Fact]
+    public void Selecting_current_renderer_during_fade_resumes_it_without_replacement()
+    {
+        var fixture = new Fixture();
+        fixture.Controller.Start(false);
+        var original = fixture.Windows[0];
+        original.FadeReady = false;
+        fixture.Controller.Request(true);
+        fixture.Controller.TryApply().Should().BeFalse();
+        fixture.Controller.Request(false);
+        fixture.Controller.TryApply().Should().BeTrue();
+        original.FadeCancelled.Should().BeTrue();
+        original.Closed.Should().BeFalse();
+        fixture.Controller.HasPendingChange.Should().BeFalse();
+        fixture.Creations.Should().ContainSingle();
+    }
+
+    [Fact]
+    public void New_owned_dialog_defers_retirement_after_fade_and_stop_never_reveals_or_replaces()
+    {
+        var fixture = new Fixture();
+        fixture.Controller.Start(false);
+        var original = fixture.Windows[0];
+        original.FadeReady = false;
+        fixture.Controller.Request(true);
+        fixture.Controller.TryApply().Should().BeFalse();
+        original.FadeReady = true;
+        original.CanReplace = false;
+        fixture.Controller.TryApply().Should().BeFalse();
+        original.CanReplace = true;
+        fixture.OwnerAvailable = false;
+        fixture.Controller.TryApply().Should().BeFalse();
+        fixture.Controller.Stop();
+        fixture.OwnerAvailable = true;
+        fixture.Controller.TryApply().Should().BeTrue();
+        original.FadeCancelled.Should().BeFalse();
+        original.Closed.Should().BeFalse();
+        fixture.Creations.Should().ContainSingle();
+        fixture.Controller.IsAvailable.Should().BeFalse();
+    }
+
+    [Fact]
+    public void Failed_fade_does_not_retire_and_an_explicit_current_choice_can_cancel_it()
+    {
+        var fixture = new Fixture();
+        fixture.Controller.Start(false);
+        var original = fixture.Windows[0];
+        original.FailFade = true;
+        fixture.Controller.Request(true);
+        var apply = fixture.Controller.TryApply;
+        apply.Should().Throw<TimeoutException>().WithMessage("fade failure");
+        original.Closed.Should().BeFalse();
+        fixture.Creations.Should().ContainSingle();
+        fixture.Controller.Request(false);
+        fixture.Controller.TryApply().Should().BeTrue();
+        original.FadeCancelled.Should().BeTrue();
+        fixture.Controller.HasPendingChange.Should().BeFalse();
+    }
+
     private sealed class Fixture
     {
         public List<string> Events { get; } = [];
@@ -229,10 +349,25 @@ public sealed class PresenceWindowControllerTests
         public bool FailSuspend { get; set; }
         public bool FailClose { get; set; }
         public bool FailRestore { get; set; }
+        public bool FadeReady { get; set; } = true;
+        public bool FadeStarted { get; private set; }
+        public bool FadeCancelled { get; private set; }
+        public bool FailFade { get; set; }
+        public int Preparations { get; private set; }
+        public bool IsReplacementReady => !FadeStarted || FadeReady || FailFade;
         public Action? OnClosed { get; set; }
         public PresenceWindowState State { get; set; } =
             new(new PixelPoint(100, 150), WindowState.Normal, true, true, TimeSpan.FromSeconds(5), 0);
         public PresenceWindowState? Restored { get; private set; }
+
+        public bool PrepareForReplacement()
+        {
+            FadeStarted = true;
+            Preparations++;
+            if (FailFade) { throw new TimeoutException("fade failure"); }
+            return FadeReady;
+        }
+        public void CancelReplacement() => FadeCancelled = true;
 
         public PresenceWindowState SuspendForReplacement()
         {

@@ -1017,7 +1017,7 @@ public sealed partial class WindowsSqliteEvidenceSinkTests
         "synthetic.operation", SecurityAuditOutcome.Requested, SecurityAuditInitiator.LocalUser, "synthetic.target",
         Guid.NewGuid());
 
-    private static DiagnosticEnvelope Diagnostic(HostActivity host) => new(1, new(Guid.NewGuid()),
+    internal static DiagnosticEnvelope Diagnostic(HostActivity host) => new(1, new(Guid.NewGuid()),
         DateTimeOffset.UtcNow, 42, "SyntheticEvent", "Information", "Kora.Tests", "Synthetic {Count}",
         new Dictionary<string, EvidenceValue>(StringComparer.Ordinal) { ["Count"] = new(EvidenceValueKind.WholeNumber, "1") },
         [], TraceSnapshot.Capture(host.Activity), host.Request, null, host.CorrelationId, host.ApprovalId);

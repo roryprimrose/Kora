@@ -81,10 +81,12 @@ public sealed class PresenceRenderWorkerTests
         worker.Update(state);
         stale();
         target.Presents.Should().Be(0);
+        worker.PresentedOpacity.Should().Be(0);
         var fresh = await Next(queue);
         fresh();
         target.Presents.Should().Be(1);
         worker.HasVisibleFrame.Should().BeFalse("the first freshly admitted frame starts at zero opacity");
+        worker.PresentedOpacity.Should().Be(0);
         target.Hides.Should().Be(1);
     }
 
@@ -151,11 +153,48 @@ public sealed class PresenceRenderWorkerTests
         worker.Update(Inputs());
         (await Next(queue))();
         worker.HasVisibleFrame.Should().BeFalse("first admission starts the visibility transition from zero");
+        worker.PresentedOpacity.Should().Be(0);
         (await Next(queue))();
         worker.HasVisibleFrame.Should().BeTrue();
+        worker.PresentedOpacity.Should().BeInRange(double.Epsilon, 1);
         worker.Suspend();
         worker.HasVisibleFrame.Should().BeFalse();
+        worker.PresentedOpacity.Should().Be(0);
         target.Hides.Should().Be(1);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Published_opacity_tracks_completed_frames_through_both_fades(bool reducedMotion)
+    {
+        using var target = new FakeTarget();
+        var queue = Channel.CreateUnbounded<Action>();
+        using var worker = Create(target, queue);
+        var inputs = Inputs() with { ReducedMotion = reducedMotion };
+        worker.Update(inputs);
+        (await Next(queue))();
+        worker.PresentedOpacity.Should().Be(0);
+        var intermediate = false;
+        for (var frame = 0; frame < 100 && worker.PresentedOpacity < 1; frame++)
+        {
+            (await Next(queue))();
+            worker.PresentedOpacity.Should().Be(target.PresentedOpacity);
+            intermediate |= worker.PresentedOpacity is > 0 and < 1;
+        }
+        intermediate.Should().BeTrue();
+        worker.PresentedOpacity.Should().Be(1);
+        worker.Update(inputs with { IsPresenceVisible = false });
+        intermediate = false;
+        for (var frame = 0; frame < 100 && worker.PresentedOpacity > 0; frame++)
+        {
+            (await Next(queue))();
+            worker.PresentedOpacity.Should().Be(target.PresentedOpacity);
+            intermediate |= worker.PresentedOpacity is > 0 and < 1;
+        }
+        intermediate.Should().BeTrue();
+        worker.PresentedOpacity.Should().Be(0);
+        worker.HasVisibleFrame.Should().BeFalse();
     }
 
     [Fact]
@@ -256,6 +295,8 @@ public sealed class PresenceRenderWorkerTests
         public int Hides { get; private set; }
         public double LastWidth { get; private set; }
         public double LastScaling { get; private set; }
+        private double drawnOpacity;
+        public double PresentedOpacity { get; private set; }
         public Exception? DrawFailure { get; init; }
         public Exception? PresentFailure { get; init; }
         public ActivityContext ActivityContext { get; private set; }
@@ -267,6 +308,7 @@ public sealed class PresenceRenderWorkerTests
             DrawingThread = Environment.CurrentManagedThreadId;
             LastWidth = width;
             LastScaling = scaling;
+            drawnOpacity = opacity;
             ActivityContext = Activity.Current?.Context ?? default;
             Links = Activity.Current?.Links.ToArray() ?? [];
             if (DrawFailure is not null)
@@ -282,6 +324,7 @@ public sealed class PresenceRenderWorkerTests
                 throw PresentFailure;
             }
             Presents++;
+            PresentedOpacity = drawnOpacity;
         }
         public void Hide() => Hides++;
         public void ReleaseDrawingResources()

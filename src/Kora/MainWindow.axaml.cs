@@ -360,6 +360,7 @@ public sealed partial class MainWindow : Window
         {
             return;
         }
+        rendererTransition = null;
         switch (action)
         {
             case WindowAction.ShowPresence:
@@ -609,7 +610,7 @@ public sealed partial class MainWindow : Window
     }
 
     private bool CanSchedulePresenceTimeout =>
-        IsVisible && !isOptionalSpeechOfferVisible && viewModel.CanAutoHidePresence;
+        rendererTransition is null && IsVisible && !isOptionalSpeechOfferVisible && viewModel.CanAutoHidePresence;
 
     private void UpdatePresenceTimeoutEligibility()
     {

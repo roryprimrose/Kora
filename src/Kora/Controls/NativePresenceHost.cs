@@ -29,6 +29,7 @@ internal sealed class NativePresenceHost(
     private bool positionUpdatePending;
     internal long FramesPresented => releasedFrames + (target?.FramesPresented ?? 0);
     internal nint NativeHandle => target?.Handle ?? 0;
+    internal double PresentedOpacity => CanPresent ? worker?.PresentedOpacity ?? 0 : 0;
     internal bool CanInteract => CanPresent && worker?.HasVisibleFrame == true
         && capture() is { IsPresenceVisible: true, State: not AssistantState.Hidden };
     private bool CanPresent => !disposed && !failed && topLevel is not null && IsEffectivelyVisible

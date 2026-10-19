@@ -315,6 +315,11 @@ internal static partial class NativePresenceFixture
                         "production-window-replacement", "settings-selector", "owned-dialog-deferral",
                         "preserved-hidden-state", "preserved-minimized-state", "retired-handles",
                         "hidden-replacement-tray-reveal", "modeless-settings-remains-open",
+                        "outgoing-intermediate-and-zero-opacity-before-retirement",
+                        "incoming-not-full-and-intermediate-opacity", "cancelled-fade-retains-window",
+                        "hidden-and-minimized-skip-cosmetic-wait",
+                        "hide-and-minimize-during-fade", "privacy-cancellation-does-not-reveal",
+                        "stop-during-fade-no-replacement",
                         "first-click-reveal-under-one-second", "first-positive-frame-under-one-second-with-blocked-sqlite" },
                     Qualification = "Synthetic integration only; not post-composition pixel or laptop performance qualification.",
                 };
@@ -375,7 +380,7 @@ internal static partial class NativePresenceFixture
                 var replacements = 0;
                 try
                 {
-                    for (var index = 0; index < 6; index++)
+                    for (var index = 0; index < 8; index++)
                     {
                         var previous = current ?? throw new InvalidOperationException("The current fixture window is unavailable.");
                         var previousHandle = previous.TryGetPlatformHandle()!.Handle;
@@ -402,21 +407,28 @@ internal static partial class NativePresenceFixture
                             Require(!controller.TryApply() && IsWindow(previousHandle),
                                 "An owned dialog did not defer production-window replacement.");
                             owned.Close();
+                            await VerifyFadeCancellationAsync(controller, previous, fixture.Token);
                         }
+                        if (index == 1) { await VerifyFadeCancellationAsync(controller, previous, fixture.Token); }
                         if (index is 2 or 3) { previous.Hide(); }
                         if (index == 4) { previous.WindowState = WindowState.Minimized; }
+                        if (index is 6 or 7)
+                        {
+                            await WaitForFullOpacityAsync(previous, fixture.Token);
+                            Require(!controller.PrepareToApply(), "The visibility-change test did not begin a fade.");
+                            if (index == 6) { previous.Hide(); }
+                            else { previous.WindowState = WindowState.Minimized; }
+                        }
                         var wasVisible = previous.IsVisible;
                         var previousState = previous.WindowState;
                         var previousPosition = previous.Position;
+                        var fadeOutElapsed = await VerifyFadeOutAsync(controller, previous, fixture.Token);
+                        Require(ReferenceEquals(current, previous), "A replacement was constructed before the outgoing fade completed.");
                         var replacementStarted = Stopwatch.GetTimestamp();
                         Require(controller.TryApply(), "Production-window replacement was unexpectedly deferred.");
                         var replacementElapsed = Stopwatch.GetElapsedTime(replacementStarted);
                         Require(replacementElapsed < TimeSpan.FromMilliseconds(500),
                             $"Renderer retirement/replacement blocked for {replacementElapsed.TotalMilliseconds:F1} ms.");
-                        rendererSwitchSamples.Add(new(native ? "native" : "avalonia",
-                            selectionElapsed.TotalMilliseconds, replacementElapsed.TotalMilliseconds));
-                        Console.WriteLine($"Synthetic renderer switch ({(native ? "native" : "avalonia")}): "
-                            + $"selector {selectionElapsed.TotalMilliseconds:F1} ms, replacement {replacementElapsed.TotalMilliseconds:F1} ms.");
                         replacements++;
                         Require(!IsWindow(previousHandle) && (previousPopup == 0 || !IsWindow(previousPopup)),
                             "A retired shell or native popup handle survived replacement.");
@@ -425,6 +437,14 @@ internal static partial class NativePresenceFixture
                             "Replacement did not retain the exact host view model and position.");
                         Require(next.IsVisible == wasVisible && next.WindowState == previousState,
                             "Replacement changed hidden or minimized state.");
+                        var fadeInElapsed = wasVisible && previousState != WindowState.Minimized
+                            ? await VerifyFadeInAsync(next, fixture.Token) : 0;
+                        rendererSwitchSamples.Add(new(native ? "native" : "avalonia",
+                            selectionElapsed.TotalMilliseconds, replacementElapsed.TotalMilliseconds,
+                            fadeOutElapsed, fadeInElapsed));
+                        Console.WriteLine($"Synthetic renderer switch ({(native ? "native" : "avalonia")}): "
+                            + $"selector {selectionElapsed.TotalMilliseconds:F1} ms, replacement {replacementElapsed.TotalMilliseconds:F1} ms, "
+                            + $"outgoing fade {fadeOutElapsed:F1} ms, incoming fade {fadeInElapsed:F1} ms.");
                         if (!wasVisible)
                         {
                             Require(settings.IsVisible, "The modeless settings window closed during renderer replacement.");
@@ -437,6 +457,11 @@ internal static partial class NativePresenceFixture
                             await VerifyTrayRevealAsync(fixture, next, native, delayedCommit);
                         }
                     }
+                    Require(rendererSwitchSamples.Where(sample => sample.FadeOutMilliseconds > 0 && sample.FadeInMilliseconds > 0)
+                        .Select(sample => sample.Renderer).Distinct(StringComparer.Ordinal).Count() == 2,
+                        "Visible fade-out/fade-in did not cover both renderer directions.");
+                    await VerifyPrivacyAndStopDuringFadeAsync(fixture, controller,
+                        current ?? throw new InvalidOperationException("The final presence window is unavailable."));
                     activity.Complete(HostOperationOutcome.Completed);
                     return replacements;
                 }
@@ -473,7 +498,7 @@ internal static partial class NativePresenceFixture
         }
 
         private sealed record RendererSwitchSample(string Renderer, double SelectionMilliseconds,
-            double ReplacementMilliseconds);
+            double ReplacementMilliseconds, double FadeOutMilliseconds, double FadeInMilliseconds);
 
         public void Dispose()
         {

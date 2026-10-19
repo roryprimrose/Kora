@@ -1,3 +1,5 @@
+using System.Collections.Concurrent;
+using System.Diagnostics.Metrics;
 using AwesomeAssertions;
 
 using Kora.Core.Configuration;
@@ -10,6 +12,56 @@ namespace Kora.Application.UnitTests.ViewModels;
 
 public sealed partial class MainViewModelTests
 {
+    [Fact]
+    public async Task Renderer_phase_timing_separates_selection_worker_audit_and_confirmed_notification()
+    {
+        var fixture = await Fixture.CreateInitializedAsync();
+        var phases = new ConcurrentQueue<PresenceSwitchPhase>();
+        using var timing = new MeterListener();
+        var instrument = PresenceSwitchTiming.Instrument;
+        timing.InstrumentPublished = (published, observer) =>
+        {
+            if (ReferenceEquals(published, instrument)) { observer.EnableMeasurementEvents(published); }
+        };
+        timing.SetMeasurementEventCallback<long>((_, _, tags, _) =>
+        {
+            if (tags[0].Value is PresenceSwitchPhase phase) { phases.Enqueue(phase); }
+        });
+        timing.Start();
+        using var release = new ManualResetEventSlim();
+        var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        fixture.Audit.BeforeWrite = audit =>
+        {
+            if (!string.Equals(audit.ActionId, "configuration.native-presence-renderer", StringComparison.Ordinal)
+                || audit.Outcome != SecurityAuditOutcome.Requested) { return; }
+            entered.TrySetResult();
+            release.Wait(TestContext.Current.CancellationToken);
+        };
+        fixture.ViewModel.SelectedPresenceRenderer = fixture.ViewModel.PresenceRenderers[1];
+        try
+        {
+            await entered.Task.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
+            phases.Take(6).Should().Equal(PresenceSwitchPhase.Selection, PresenceSwitchPhase.Queued,
+                PresenceSwitchPhase.WorkerStarted, PresenceSwitchPhase.ConfigurationReadStarted,
+                PresenceSwitchPhase.ConfigurationReadReturned, PresenceSwitchPhase.ApplyStarted);
+            phases.Should().Contain(PresenceSwitchPhase.RequestedAuditStarted)
+                .And.NotContain(PresenceSwitchPhase.RequestedAuditReturned)
+                .And.NotContain(PresenceSwitchPhase.RendererNotification);
+        }
+        finally
+        {
+            release.Set();
+            await fixture.ViewModel.AppearanceUpdate;
+        }
+        var completed = phases.ToArray();
+        completed.Should().ContainInOrder(PresenceSwitchPhase.RequestedAuditReturned,
+            PresenceSwitchPhase.TerminalAuditReturned, PresenceSwitchPhase.PublicationReturned,
+            PresenceSwitchPhase.ApplyReturning, PresenceSwitchPhase.ApplyReturned,
+            PresenceSwitchPhase.UiContinuation, PresenceSwitchPhase.RendererNotification);
+        fixture.ViewModel.IsNativePresenceRenderer.Should().BeTrue();
+        await fixture.ViewModel.DisposeAsync();
+    }
+
     [Fact]
     public async Task AggregatedAuditOrStorageFailureIsPresentedInsteadOfBecomingAnUnobservedBindingTask()
     {

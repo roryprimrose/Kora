@@ -388,6 +388,8 @@ public sealed partial class App : Avalonia.Application
         if (string.Equals(eventArgs.PropertyName, nameof(MainViewModel.IsNativePresenceRenderer), StringComparison.Ordinal)
             && viewModel is not null && presenceWindows is not null)
         {
+            PresenceSwitchTiming.Mark(PresenceSwitchPhase.DesktopRequest);
+            rendererTimingFirstTick = true;
             presenceWindows.Request(viewModel.IsNativePresenceRenderer);
             if (presenceWindows.HasPendingChange)
             {
@@ -396,6 +398,7 @@ public sealed partial class App : Avalonia.Application
                 viewModel.ReportPresenceRendererStatus(
                     "Renderer change saved. Waiting for startup, mouse gestures and owned dialogs to finish.");
                 presenceRendererTimer.Start();
+                PresenceSwitchTiming.Mark(PresenceSwitchPhase.TimerStarted);
             }
             else
             {

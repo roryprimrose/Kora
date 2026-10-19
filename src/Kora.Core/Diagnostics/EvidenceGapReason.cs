@@ -4,4 +4,4 @@ using Kora.Core.Hosting;
 
 namespace Kora.Core.Diagnostics;
 
-public enum EvidenceGapReason { StorageNotAdmitted, SinkFailure, InvalidStructuredState, ExpiredTraceSegment, MissingHostContext }
+public enum EvidenceGapReason { StorageNotAdmitted, SinkFailure, InvalidStructuredState, ExpiredTraceSegment, MissingHostContext, ProjectionBackpressure }

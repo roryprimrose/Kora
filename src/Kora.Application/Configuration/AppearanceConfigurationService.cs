@@ -138,8 +138,11 @@ public sealed partial class AppearanceConfigurationService(
     public AppearanceApplyResult Apply(AppearanceProposal proposal, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(proposal);
+        var timeRenderer = proposal.Option == AppearanceOption.NativePresenceRenderer;
+        if (timeRenderer) { PresenceSwitchTiming.Mark(PresenceSwitchPhase.ApplyStarted); }
         lock (gate)
         {
+            if (timeRenderer) { PresenceSwitchTiming.Mark(PresenceSwitchPhase.ConfigurationGateEntered); }
             EnsureNotPublishing();
             cancellationToken.ThrowIfCancellationRequested();
             if (proposal.Owner != owner)
@@ -178,12 +181,16 @@ public sealed partial class AppearanceConfigurationService(
                 ? HostActivity.BeginChild(HostActivityLayer.Application, HostOperation.Storage)
                 : HostActivity.BeginRoot(HostRequest.Create(proposal.Initiator == SecurityAuditInitiator.VoiceCommand
                     ? RequestOrigin.ActivatedVoice : RequestOrigin.LocalUi), HostActivityLayer.Application, HostOperation.Storage);
+            if (timeRenderer) { PresenceSwitchTiming.Mark(PresenceSwitchPhase.RequestedAuditStarted); }
             auditLog.Write(audit);
+            if (timeRenderer) { PresenceSwitchTiming.Mark(PresenceSwitchPhase.RequestedAuditReturned); }
             try
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 RequireEligibility(proposal);
+                if (timeRenderer) { PresenceSwitchTiming.Mark(PresenceSwitchPhase.PreferenceWriteStarted); }
                 save[proposal.Option](proposal.Value);
+                if (timeRenderer) { PresenceSwitchTiming.Mark(PresenceSwitchPhase.PreferenceWriteReturned); }
             }
             catch (OperationCanceledException)
             {
@@ -208,9 +215,14 @@ public sealed partial class AppearanceConfigurationService(
             values[proposal.Option] = proposal.Value;
             savedOptions.Add(proposal.Option);
             revision++;
+            if (timeRenderer) { PresenceSwitchTiming.Mark(PresenceSwitchPhase.TerminalAuditStarted); }
             auditLog.Write(audit.WithOutcome(SecurityAuditOutcome.Succeeded));
+            if (timeRenderer) { PresenceSwitchTiming.Mark(PresenceSwitchPhase.TerminalAuditReturned); }
             activity.Complete(HostOperationOutcome.Completed);
+            if (timeRenderer) { PresenceSwitchTiming.Mark(PresenceSwitchPhase.PublicationStarted); }
             Publish();
+            if (timeRenderer) { PresenceSwitchTiming.Mark(PresenceSwitchPhase.PublicationReturned); }
+            if (timeRenderer) { PresenceSwitchTiming.Mark(PresenceSwitchPhase.ApplyReturning); }
             return new(AppearanceApplyOutcome.Applied, Get(proposal.Option));
         }
     }

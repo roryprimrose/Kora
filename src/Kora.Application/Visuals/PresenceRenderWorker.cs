@@ -29,7 +29,7 @@ public sealed partial class PresenceRenderWorker : IDisposable
     private bool pending;
     private bool stopping;
     private bool disposed;
-    private bool hasVisibleFrame;
+    private double presentedOpacity;
     private bool faulted;
     private DiagnosticState? lastDiagnosticState;
     private int diagnosticTransitions;
@@ -57,13 +57,15 @@ public sealed partial class PresenceRenderWorker : IDisposable
         }
     }
 
-    public bool HasVisibleFrame
+    public bool HasVisibleFrame => PresentedOpacity > 0;
+
+    public double PresentedOpacity
     {
         get
         {
             lock (gate)
             {
-                return enabled && !stopping && !disposed && hasVisibleFrame;
+                return enabled && !stopping && !disposed ? presentedOpacity : 0;
             }
         }
     }
@@ -95,7 +97,7 @@ public sealed partial class PresenceRenderWorker : IDisposable
                 || inputs.Scaling != next.Scaling)
             {
                 generation++;
-                hasVisibleFrame = false;
+                presentedOpacity = 0;
             }
             inputs = next;
             enabled = true;
@@ -112,7 +114,7 @@ public sealed partial class PresenceRenderWorker : IDisposable
                 return;
             }
             enabled = false;
-            hasVisibleFrame = false;
+            presentedOpacity = 0;
             generation++;
             wake.Set();
         }
@@ -150,7 +152,7 @@ public sealed partial class PresenceRenderWorker : IDisposable
                     version = generation;
                     shouldWait = !enabled || pending || next is null;
                     admitted = enabled;
-                    positiveOpacityPresented = hasVisibleFrame;
+                    positiveOpacityPresented = presentedOpacity > 0;
                     diagnosticContext = failureContext;
                 }
                 if (next is not null)
@@ -243,7 +245,7 @@ public sealed partial class PresenceRenderWorker : IDisposable
                     }
                     pending = true;
                 }
-                dispatch(() => Present(version, frame.Opacity > 0));
+                dispatch(() => Present(version, frame.Opacity));
             }
             activity.Complete(faulted ? HostOperationOutcome.Failed : HostOperationOutcome.Completed);
         }
@@ -271,7 +273,7 @@ public sealed partial class PresenceRenderWorker : IDisposable
             || PresenceParticleField.GetActivity(current.State, current.MovementSpeed, !current.ReducedMotion) > 0
             ? PresenceAnimation.FrameInterval : PresenceParticleField.QuietFrameInterval;
 
-    private void Present(long version, bool visible)
+    private void Present(long version, double opacity)
     {
         try
         {
@@ -285,7 +287,7 @@ public sealed partial class PresenceRenderWorker : IDisposable
                 target.Present();
                 lock (gate)
                 {
-                    hasVisibleFrame = visible;
+                    presentedOpacity = opacity;
                     presentedFrames++;
                 }
             }
@@ -357,7 +359,7 @@ public sealed partial class PresenceRenderWorker : IDisposable
         {
             stopping = true;
             faulted = true;
-            hasVisibleFrame = false;
+            presentedOpacity = 0;
             enabled = false;
             generation++;
             cause = failureContext;

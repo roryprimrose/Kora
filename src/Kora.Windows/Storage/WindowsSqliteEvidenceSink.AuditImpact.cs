@@ -12,12 +12,20 @@ public sealed partial class WindowsSqliteEvidenceSink
     internal AuditImpactResult ReadAuditImpact(AuditRetentionDays proposed, DateTimeOffset cutoff,
         CancellationToken token)
     {
-        using var lease = database.AcquireReadLease(token);
         var stamp = AuditImpactStamp();
+        var impact = new AuditRetentionImpact(proposed, cutoff);
+        AccumulateAuditImpact(impact, token);
+        token.ThrowIfCancellationRequested();
+        if (!string.Equals(stamp, AuditImpactStamp(), StringComparison.Ordinal)) { throw new InvalidDataException("The projection store changed during preview."); }
+        return impact.Finish(AuditImpactSource.DiagnosticProjection, stamp);
+    }
+
+    internal bool AccumulateAuditImpact(AuditRetentionImpact impact, CancellationToken token)
+    {
+        using var lease = database.AcquireReadLease(token);
         // This path validates only the independently typed audit projection, not diagnostic lookalikes.
         using var connection = database.OpenReadOnly(token);
         using var transaction = connection.BeginTransaction(deferred: true);
-        var impact = new AuditRetentionImpact(proposed, cutoff);
         using var command = connection.CreateCommand();
         command.CommandText = $"""
             SELECT * FROM security_audit_events ORDER BY audit_sequence
@@ -53,7 +61,6 @@ public sealed partial class WindowsSqliteEvidenceSink
         rows.Close();
         if (complete) { ValidateAuditSequence(connection); }
         token.ThrowIfCancellationRequested();
-        if (!string.Equals(stamp, AuditImpactStamp(), StringComparison.Ordinal)) { throw new InvalidDataException("The projection store changed during preview."); }
-        return impact.Finish(AuditImpactSource.DiagnosticProjection, stamp);
+        return complete;
     }
 }

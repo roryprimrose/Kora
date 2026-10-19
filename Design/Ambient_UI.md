@@ -244,14 +244,34 @@ audits remain durable, privacy is rechecked before writing, and only confirmed
 state requests window replacement. Handoff refuses pending persistence and
 shutdown joins it; a stale or failed write is explicitly reported.
 
+The desktop's [bounded evidence segments](Architecture.md#bounded-desktop-evidence-segments)
+limit the database checked by each new renderer-configuration audit. Existing
+history remains readable and sealed rather than being cleared to improve
+latency. Requested and terminal audits still complete their checked FULL commits
+before publication or fade-out; a file-only receipt, queued audit or uncertain
+rotation cannot activate the renderer. Synthetic checked-write and rollover
+timings are not a physical sub-second responsiveness qualification.
+
 Changing renderer defers until initial host startup, mouse-button gestures and
 presence-owned dialogs/file pickers finish. New choices replace pending choices;
-choosing the current renderer cancels a pending replacement. Only an actual
-replacement creates a linked presentation activity, not every waiting poll.
-The old window is hidden, its timers and input are stopped, its rendering worker
-is joined and its popup/root are retired before a replacement is constructed.
+choosing the current renderer cancels a pending replacement. Fade preparation,
+cancellation and actual replacement create linked presentation activities, not
+every read-only waiting poll.
+An eligible visible renderer first fades to zero using the existing 220 ms
+visibility animation. The existing UI timer polls readiness without blocking
+Settings, tray actions or shutdown. Input stops at the outgoing visibility edge;
+no second window or worker exists during the fade. A fade that has not reached
+zero within one second fails explicitly without retirement or automatic fallback.
+Hidden, minimized and privacy-ineligible presentation never waits for cosmetics.
+Choosing the current renderer during a fade resumes that same window, subject to
+the current privacy/display gates and the original remaining inactivity deadline.
+After zero opacity, the old window is hidden, its timers and input are stopped,
+its rendering worker is joined and its popup/root are retired before a replacement
+is constructed. Fresh admission fades the replacement in from zero over 220 ms;
+this is sequential fade-out/fade-in, not overlapping rendering authorities.
 The replacement uses the same host view model, preserves position,
-hidden/minimized state and the remaining inactivity deadline, and rechecks privacy
+hidden/minimized state (including changes during the fade) and the remaining
+inactivity deadline, and rechecks privacy
 and display eligibility before revealing. It never reruns host/provider/voice
 startup, changes microphone consent or replaces other application services.
 File and question surfaces resolve the current owner instead of retaining a
@@ -260,6 +280,33 @@ with an explicit settings status; there is no automatic renderer fallback.
 Uncertain old-window retirement prevents further replacement until normal exit
 ([controller](../src/Kora/PresenceWindowController.cs),
 [window lifecycle](../src/Kora/MainWindow.RendererSwitch.cs)).
+
+For an explicitly approved local timing trial only, `KORA_PRESENCE_TIMING=1`
+enables a content-free, bounded stdout capture. It is absent/off by default;
+unknown values fail explicitly. The versioned `Kora.PresenceTiming` meter emits
+only fixed `PresenceSwitchPhase` names and monotonic `Stopwatch` timestamps:
+selection/queue/worker, configuration lock, Requested audit, preference write,
+Succeeded audit, publication, actual Apply return/UI continuation, confirmed
+notification, first renderer timer tick, owner/window/fade waits, fade start,
+retirement, creation and restore. `ApplyReturning` precedes activity disposal;
+`ApplyReturned` follows the actual call, so disposal delays are not mislabelled.
+The capture does not subscribe to general logs, activities or private stores,
+and records no text, paths, setting values, host identities or credentials.
+Its 256-entry context-free output lane never performs I/O in the metric callback;
+shutdown joins accepted output and reports overflow/invalid measurements/I/O
+failures explicitly rather than calling an incomplete trial successful. Timing
+observations are not audit authority or physical-pixel evidence. Compare one
+switch at a time using `(endTimestamp-startTimestamp)/frequency`; output order
+across threads is not an operation identity. A timing-enabled physical launch
+still requires fresh approval, normal ownership admission and disclosure of
+possible already-consented microphone/provider startup; it grants no recovery,
+restart or private-profile collection permission.
+For the native-renderer configuration audit action only, the same opt-in also
+separates required-copy/projection gate wait and delivery, SQLite admission,
+lease, restricted open/connection/schema/quick-check, before/after digest,
+changed-history validation, transaction begin, insert, file verification and
+FULL commit. These remain fixed phase names with no store size or row contents.
+No audit is skipped, deferred, batched or reclassified by this observation.
 
 The native path retains the Avalonia window for position, size, DPI observation, click-through/Ctrl-drag routing, timeout, privacy and shutdown. A same-process, same-UI-thread native popup is owned by that window, not parented as a child. The `asInvoker`, `uiAccess=false` Windows manifest does not request elevation
 ([host](../src/Kora/MainWindow.NativePresence.cs), [manifest](../src/Kora/app.manifest)).

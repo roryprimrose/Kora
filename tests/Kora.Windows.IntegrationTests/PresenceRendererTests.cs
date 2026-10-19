@@ -399,6 +399,50 @@ public sealed class PresenceRendererTests
         });
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Replacement_fades_old_to_zero_then_fresh_control_from_zero(bool motionEnabled)
+    {
+        await HeadlessSession.RunAsync(() =>
+        {
+            var outgoingClock = new RecordingScheduler();
+            using var outgoing = new PresenceControl(outgoingClock)
+            {
+                IsPresentationEligible = true, IsMotionEnabled = motionEnabled,
+            };
+            outgoing.CurrentFrame.Opacity.Should().Be(0, "unadmitted controls must not expose a bright initial frame");
+            var oldWindow = Show(outgoing);
+            outgoing.CurrentFrame.Opacity.Should().Be(0);
+            outgoingClock.Advance(TimeSpan.FromSeconds(1));
+            outgoing.CurrentFrame.Opacity.Should().Be(1);
+            outgoing.IsPresenceVisible = false;
+            outgoing.CanInteract.Should().BeFalse();
+            outgoingClock.Advance(TimeSpan.FromMilliseconds(99));
+            outgoing.CurrentFrame.Opacity.Should().BeInRange(0.1, 0.9);
+            outgoingClock.Advance(TimeSpan.FromSeconds(1));
+            outgoing.CurrentFrame.Opacity.Should().Be(0);
+            oldWindow.Close();
+            var oldTicks = outgoing.TickCount;
+            outgoingClock.InvokeRetired();
+            outgoing.TickCount.Should().Be(oldTicks);
+
+            var incomingClock = new RecordingScheduler();
+            using var incoming = new PresenceControl(incomingClock)
+            {
+                IsPresentationEligible = true, IsMotionEnabled = motionEnabled,
+            };
+            incoming.CurrentFrame.Opacity.Should().Be(0, "layout may not have admitted the replacement yet");
+            var newWindow = Show(incoming);
+            incoming.CurrentFrame.Opacity.Should().Be(0);
+            incomingClock.Advance(TimeSpan.FromMilliseconds(99));
+            incoming.CurrentFrame.Opacity.Should().BeInRange(0.1, 0.9);
+            incomingClock.Advance(TimeSpan.FromSeconds(1));
+            incoming.CurrentFrame.Opacity.Should().Be(1);
+            newWindow.Close();
+        });
+    }
+
     [Fact]
     public async Task ActualDrawingUsesBoundedSeededPrefixAndCachedBrushesAndRejectsUnknownEligibility()
     {

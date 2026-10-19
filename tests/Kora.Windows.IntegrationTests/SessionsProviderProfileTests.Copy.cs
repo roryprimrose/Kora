@@ -4,6 +4,7 @@ using AwesomeAssertions;
 using Kora.Application.Configuration;
 using Kora.Application.Diagnostics;
 using Kora.Application.Hosting;
+using Kora.Application.Voice;
 using Kora.Core.Hosting;
 using Kora.Core.Providers;
 using Kora.Core.Storage;

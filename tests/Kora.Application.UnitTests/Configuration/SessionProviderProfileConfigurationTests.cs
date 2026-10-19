@@ -356,8 +356,10 @@ public sealed partial class SessionProviderProfileConfigurationTests
                 if (owner.CommitFailure is { } failure) { throw failure; }
                 if (!admitted() || expected.Session != owner.Snapshot.Session || expected.Revision != owner.Snapshot.Revision) { throw new InvalidOperationException(); }
                 if (source is not null && (source.Held || owner.SourceSnapshot.Held || source.Session != owner.SourceSnapshot.Session
-                    || source.Revision != owner.SourceSnapshot.Revision || source.Desired.Serialize() != owner.SourceSnapshot.Desired.Serialize()
-                    || source.Session.SessionId == request.SessionId || desired.Serialize() != source.Desired.Serialize()))
+                    || source.Revision != owner.SourceSnapshot.Revision
+                    || !string.Equals(source.Desired.Serialize(), owner.SourceSnapshot.Desired.Serialize(), StringComparison.Ordinal)
+                    || source.Session.SessionId == request.SessionId
+                    || !string.Equals(desired.Serialize(), source.Desired.Serialize(), StringComparison.Ordinal)))
                 { throw new InvalidOperationException(); }
                 owner.Snapshot = owner.Snapshot with { Revision = owner.Snapshot.Revision + 1, Desired = desired };
                 if (owner.FailReadback)

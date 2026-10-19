@@ -319,7 +319,9 @@ native release and required typed requested/terminal audit outcomes.
 
 The **volatile preview** is not a durable workspace attachment or registered
 knowledge source. Nothing content-bearing is written to preferences, SQLite,
-artifacts, logs, speech, transcripts, model requests or the clipboard. Raw
+artifacts, logs, speech, transcripts, model requests or the clipboard by preview admission alone. The separate explicit
+single-file local-answer request below does not inherit model-use authority from
+this read consent. Raw
 read buffers are cleared; discarded immutable CLR text becomes eligible for
 collection, not a claimed cryptographic memory erasure. Close, `clear file
 preview`, Cancel task, privacy/lock, generation changes, exit or ownership
@@ -458,6 +460,58 @@ Navigation adds no filesystem read/picker/refresh, source attachment mutation, e
 Evidence: [exact/forged Unicode/BOM/range/heading policy](../tests/Kora.Core.UnitTests/Context/LocalFileCitationTests.cs), [generation and row-reference admission](../tests/Kora.Application.UnitTests/Presentation/LocalFileCitationSelectionTests.cs), [actual native single/folder span, viewport, focus/accessibility and stale callback proof](../tests/Kora.Windows.IntegrationTests/LocalFileCitationWindowTests.cs), and [retained real-store/native span with no recapture](../tests/Kora.Windows.IntegrationTests/SessionAttachmentWindowTests.cs).
 
 Experiment equivalence is limited to deterministic exact citation resolution and these native passive consumers. No experiment or historical receipt is retired: native/runtime/offline/resource, privacy/storage/migration/recovery, containment, RT1/RT2/MG1 and model-quality proofs remain unique. Full CommonMark/rendering, managed sources, model grounding/providers, installed/OS-accessibility acceptance and broader R26 qualification remain separate and open.
+
+## Bounded Current Immutable Single-File Local Answer Implementation - 2026-10-20
+
+Exact typed/current-name ACTIVATED **`answer file`** opens the native question control for the already admitted current **single-file** volatile snapshot.
+It does not choose a source, read a path, reuse a folder/retained attachment, or send a question to a model.
+Inline questions/paths after the fixed command are rejected ([command](../src/Kora.Core/Context/LocalFileCommand.cs), [routing](../src/Kora.Application/ViewModels/MainViewModel.Files.cs)).
+
+The native **Use this exact snapshot once to answer locally** control is a separate explicit source-use request for the displayed exact revision and unchanged native question. Preview consent is not model-use consent.
+Question/excerpts/claims stay native and volatile, outside conversation history, speech, clipboard and retention ([native control](../src/Kora/LocalFilePreviewWindow.Answers.cs), [host continuation](../src/Kora.Application/ViewModels/MainViewModel.FileAnswers.cs)).
+
+The registered per-action [LocalFileAnswer](../src/Kora.Tools/Files/LocalFileAnswer.cs) holds the existing [immutable preview broker](../src/Kora.Tools/Files/LocalFilePreview.cs) generation/cancellation/terminal-audit boundary through retrieval and answer resolution.
+It uses `ILocalFileRetrieval` / `lexical-lines-v1`, the unchanged 256-character / 512-UTF-8-byte question, 32 unique terms / 64-character term and eight-citation / 16-KiB-excerpt limits ([policy](../src/Kora.Core/Context/LocalFileRetrievalPolicy.cs)).
+
+Exact source/revision/item/digest, original session/task, deliberate origin and source generation are revalidated.
+Every excerpt uses the authoritative immutable citation resolver before context construction and again before publishing; source text is never reconstructed or reread.
+Cancel/clear/refresh/revocation, native question edit/close and private/call/ownership changes retire the owned work and suppress late claims ([action](../src/Kora.Tools/Files/LocalFileAnswer.cs), [generation owner](../src/Kora.Application/Presentation/LocalFileAnswerSelection.cs)).
+
+The [file-specific binding](../src/Kora.Core/Context/LocalFileAnswerContext.cs) creates only `LocalOnly` `ModelContextEvidence` with host-owned opaque evidence IDs and exact unmodified excerpts.
+It uses the existing [ModelContextEnvelope serializer](../src/Kora.Core/Dependencies/ModelContextEnvelope.cs); complete JSON, escaping and registered descriptor overhead must fit 32,768 UTF-8 bytes.
+Over-limit input is explicitly rejected, never shortened. Lexical matching count/truncation is disclosed separately from complete envelope admission.
+
+The [Application adapter](../src/Kora.Application/Dependencies/LocalFileAnswerModel.cs) calls the existing `ModelTurnHost.AdmitAsync(ModelTurnChoice.Local, ...)` and `RunAsync`, never a reasoner/transport directly, default/hosted selection or fallback.
+Successful host responses alone may resolve the strict file-answer JSON schema.
+Each supported claim needs at least one exact admitted evidence ID; unknown, duplicate, malformed, foreign-request or hosted references produce no claims.
+Unsupported and no-lexical-evidence are explicit distinct outcomes ([binding](../src/Kora.Core/Context/LocalFileAnswerContext.cs)).
+
+Claim references map back to host-held original citation objects, not model-supplied paths/locations.
+Native rows and per-claim descriptions retain original source/revision/item/digest and UTF-16/line/column spans; explicit **Show exact answer citation** reuses inert exact-source navigation.
+Citation identity validation is not a claim of semantic truth or answer-quality qualification ([native answer view](../src/Kora/LocalFilePreviewWindow.Answers.cs), [shared navigation](../src/Kora/LocalFilePreviewWindow.Citations.cs)).
+
+**Exact consumed I boundary:** the required sensitive-content/source-use admission service is not composed.
+[ILocalFileModelUsePolicy](../src/Kora.Core/Context/ILocalFileModelUsePolicy.cs) is distinct from read consent.
+The production [UnavailableLocalFileModelUsePolicy](../src/Kora.Application/Dependencies/UnavailableLocalFileModelUsePolicy.cs) reports `SourceUseUnavailable` before context construction or dispatch.
+Deterministic fakes exercise admitted and denied paths without asserting that source contents are safe.
+
+**Shared execution integration:** the source-specific adapter currently rechecks its source gate around host admission/execution and propagates the broker/native cancellation token.
+A peer-owned source-specific final-dispatch gate inside the model host's asynchronous revalidation remains an integration requirement before admitting a production source-use policy.
+The adapter does not change shared execution or transport ([adapter](../src/Kora.Application/Dependencies/LocalFileAnswerModel.cs), [model host](../src/Kora.Application/Dependencies/ModelTurnHost.cs)).
+
+Production model registrations remain unqualified/unavailable ([model registrations](../src/Kora.Application/Dependencies/ModelTurnHost.cs)).
+This bounded implementation does not enable or qualify R26.3, hosted egress, managed libraries/corpora, embeddings, folders, generic content tools, provider/containment or installed/hardware trials ([I/E/Q policy](Implementation_Roadmap.md#delivery-and-qualification-dependency-policy)).
+
+Maintained deterministic evidence:
+
+- [Exact binding and malformed output](../tests/Kora.Core.UnitTests/Context/LocalFileAnswerContextTests.cs).
+- [Action/read/limits/revocation/audit](../tests/Kora.Tools.UnitTests/Files/LocalFileAnswerTests.cs).
+- [Selection ownership](../tests/Kora.Application.UnitTests/Presentation/LocalFileAnswerSelectionTests.cs).
+- [Existing model-host consumer](../tests/Kora.Application.UnitTests/Dependencies/ModelTurnHostTests.FileAnswers.cs).
+- [Exact command routing](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.FileAnswers.cs).
+- [Headless native controls](../tests/Kora.Windows.IntegrationTests/LocalFileAnswerWindowTests.cs).
+
+No experiments or E/Q gates are retired or rerun by this increment.
 
 ## Delivered Native Current-Source Literal Find - 2026-10-12
 

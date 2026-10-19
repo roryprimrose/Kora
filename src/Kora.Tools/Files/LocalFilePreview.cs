@@ -52,6 +52,27 @@ public sealed partial class LocalFilePreview(
         Func<TRevision, HostRequest> originalRequest, Func<bool> gate,
         DateTimeOffset observedAt, Func<TRevision, CancellationToken, Task<LocalFileSearchResult>> search,
         Action<LocalFileSearchResult> commit, CancellationToken token) where TRevision : class
+        => await UseCurrentAsync(resolve, originalRequest, gate,
+            outcome => LocalFileSearchResult.Empty(outcome, observedAt),
+            (source, _, _, cancellation) => search(source, cancellation), commit, token).ConfigureAwait(false);
+
+    internal Task<LocalFileAnswerResult> AnswerAsync(LocalFileReference exactSource, Func<bool> gate,
+        Func<LocalFileRevision, long, Func<bool>, CancellationToken, Task<LocalFileAnswerResult>> answer,
+        Action<LocalFileAnswerResult> commit, CancellationToken token) =>
+        UseCurrentAsync(() => revision?.Reference == exactSource ? revision : null, item => item.Review.Request,
+            gate, outcome => LocalFileAnswerResult.Empty(outcome switch
+            {
+                LocalFileSearchOutcome.Busy => LocalFileAnswerOutcome.Busy,
+                LocalFileSearchOutcome.Stale => LocalFileAnswerOutcome.Stale,
+                LocalFileSearchOutcome.Cancelled => LocalFileAnswerOutcome.Cancelled,
+                LocalFileSearchOutcome.Unavailable => LocalFileAnswerOutcome.Unavailable,
+                _ => LocalFileAnswerOutcome.Denied,
+            }), answer, commit, token);
+
+    private async Task<TResult> UseCurrentAsync<TRevision, TResult>(Func<TRevision?> resolve,
+        Func<TRevision, HostRequest> originalRequest, Func<bool> gate, Func<LocalFileSearchOutcome, TResult> empty,
+        Func<TRevision, long, Func<bool>, CancellationToken, Task<TResult>> work,
+        Action<TResult> commit, CancellationToken token) where TRevision : class
     {
         var request = HostActivity.RequireCurrent().Request;
         Revalidate();
@@ -71,7 +92,7 @@ public sealed partial class LocalFilePreview(
                     ? LocalFileSearchOutcome.Denied : null;
             if (denied is { } outcome)
             {
-                var refused = LocalFileSearchResult.Empty(outcome, observedAt);
+                var refused = empty(outcome);
                 commit(refused);
                 return refused;
             }
@@ -83,23 +104,31 @@ public sealed partial class LocalFilePreview(
         }
         try
         {
-            LocalFileSearchResult result;
+            bool Current()
+            {
+                lock (sync)
+                {
+                    return IsCurrent(admittedGeneration, gate, cancellation.Token) && ReferenceEquals(resolve(), admitted)
+                        && eligible is not null && eligible();
+                }
+            }
+            TResult result;
             try
             {
                 cancellation.Token.ThrowIfCancellationRequested();
-                result = await search(admitted, cancellation.Token).ConfigureAwait(false);
+                result = await work(admitted, admittedGeneration, Current, cancellation.Token).ConfigureAwait(false);
             }
             catch (OperationCanceledException) when (cancellation.IsCancellationRequested)
             {
-                result = LocalFileSearchResult.Empty(LocalFileSearchOutcome.Cancelled, observedAt);
+                result = empty(LocalFileSearchOutcome.Cancelled);
             }
             lock (sync)
             {
                 if (!IsCurrent(admittedGeneration, gate, cancellation.Token) || !ReferenceEquals(resolve(), admitted)
                     || eligible is null || !eligible())
                 {
-                    result = LocalFileSearchResult.Empty(disposed ? LocalFileSearchOutcome.Unavailable
-                        : token.IsCancellationRequested ? LocalFileSearchOutcome.Cancelled : LocalFileSearchOutcome.Stale, observedAt);
+                    result = empty(disposed ? LocalFileSearchOutcome.Unavailable
+                        : token.IsCancellationRequested ? LocalFileSearchOutcome.Cancelled : LocalFileSearchOutcome.Stale);
                 }
                 // Audit publication and exact-generation revalidation share the revocation boundary.
                 commit(result);

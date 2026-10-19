@@ -28,6 +28,7 @@ internal sealed class LocalFilePreviewWindowController : IUserFilePicker, IUserF
         this.getOwner = getOwner;
         host.FilePreviewChanged += OnChanged;
         host.FileInspectionRequested += OnInspectionRequested;
+        host.FileAnswerRequested += OnAnswerRequested;
         timer.Tick += OnChanged;
         timer.Start();
     }
@@ -138,7 +139,8 @@ internal sealed class LocalFilePreviewWindowController : IUserFilePicker, IUserF
                 () => !disposed && ReferenceEquals(window, view) && ReferenceEquals(host.FileRevision, revision),
                 () => !disposed && ReferenceEquals(window, view) && host.FileRevision?.Reference == exactSource
                     ? host.RefreshFilePreviewAsync(exactSource)
-                    : Task.FromException(new InvalidOperationException("The exact file preview is stale; no refresh was authorized.")));
+                    : Task.FromException(new InvalidOperationException("The exact file preview is stale; no refresh was authorized.")),
+                (question, current, token) => host.AnswerFileAsync(exactSource, question, current, token));
         }
         else if (folderRevision is not null)
         {
@@ -181,6 +183,12 @@ internal sealed class LocalFilePreviewWindowController : IUserFilePicker, IUserF
         window?.FocusSearch();
     }
 
+    private void OnAnswerRequested(object? sender, EventArgs args)
+    {
+        Refresh();
+        window?.FocusAnswer();
+    }
+
     private void CloseView()
     {
         var view = window;
@@ -196,6 +204,7 @@ internal sealed class LocalFilePreviewWindowController : IUserFilePicker, IUserF
         disposed = true;
         host.FilePreviewChanged -= OnChanged;
         host.FileInspectionRequested -= OnInspectionRequested;
+        host.FileAnswerRequested -= OnAnswerRequested;
         timer.Stop();
         timer.Tick -= OnChanged;
         CloseView();

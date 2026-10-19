@@ -367,4 +367,16 @@ public sealed class MemoryBatchForgetWorkflowTests
         (await applying).Items.Should().OnlyContain(item => item.State == MemoryBatchState.Succeeded);
         actions.Attempts.Should().Be(2);
     }
+
+    [Fact]
+    public void SharedPolicyRejectsDisabledRowsForDisableAndPreservesExistingDisableDisclosure()
+    {
+        var actions = Create();
+        var record = actions.Rows.Values.First() with { Retention = MemoryRetentionState.Disabled };
+        var summary = MemoryBatchPolicy.Summary(record);
+        var validate = () => MemoryBatchPolicy.ValidateRecord(MemoryBatchOperation.Disable, actions.Session, summary, record);
+        validate.Should().Throw<InvalidDataException>();
+        MemoryBatchPolicy.Disclosure(MemoryBatchOperation.Disable).Should().Be(MemoryBatchOutcome.Disclosure);
+        actions.Attempts.Should().Be(0);
+    }
 }

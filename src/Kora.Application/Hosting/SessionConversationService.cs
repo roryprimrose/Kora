@@ -51,7 +51,19 @@ public sealed partial class SessionConversationService(
                 throw;
             }
         }
-        return await workspace.CommitConversationDraftAsync(expected, body, admitted, token).ConfigureAwait(false);
+        var saved = await workspace.CommitConversationDraftAsync(expected, body, admitted, token).ConfigureAwait(false);
+        RequireDraftSaveReceipt(expected, body, saved);
+        return saved;
+    }
+
+    internal static void RequireDraftSaveReceipt(ConversationDraftSnapshot expected, string? body, ConversationDraftSnapshot saved)
+    {
+        saved.Draft.Validate();
+        if (saved.Session != expected.Session || saved.ExpectedTarget != expected.ExpectedTarget
+            || saved.Draft.SessionId != expected.Draft.SessionId
+            || saved.Draft.Revision != checked(expected.Draft.Revision + 1)
+            || !string.Equals(saved.Draft.Body, body, StringComparison.Ordinal))
+        { throw new IOException("Saved draft receipt is unconfirmed; inspect exact durable revision before another decision."); }
     }
 
     public async Task<ConversationSubmissionReceipt> SubmitAsync(SessionWorkspaceEntry target, string body,

@@ -24,7 +24,7 @@ internal static class OwnedStorageChildProcess
         }
         var start = new ProcessStartInfo(executable)
         {
-            WorkingDirectory = Directory.GetCurrentDirectory(),
+            WorkingDirectory = OwnedStorageFixture.ScratchParent(),
             UseShellExecute = false,
             CreateNoWindow = true,
             RedirectStandardOutput = true,
@@ -40,11 +40,11 @@ internal static class OwnedStorageChildProcess
         var name = Path.GetFileName(root);
         if (!Path.IsPathFullyQualified(root)
             || !string.Equals(Path.GetDirectoryName(root),
-                Path.TrimEndingDirectorySeparator(Directory.GetCurrentDirectory()), StringComparison.OrdinalIgnoreCase)
+                OwnedStorageFixture.ScratchParent(), StringComparison.OrdinalIgnoreCase)
             || !name.StartsWith(RootPrefix, StringComparison.Ordinal)
             || !Guid.TryParseExact(name.AsSpan(RootPrefix.Length), "N", out _))
         {
-            throw new InvalidOperationException("The child must use its exact GUID-named scratch fixture in the test working directory.");
+            throw new InvalidOperationException("The child must use its exact GUID-named scratch fixture under the source fixture parent.");
         }
         var attributes = File.GetAttributes(root);
         if (!attributes.HasFlag(FileAttributes.Directory) || attributes.HasFlag(FileAttributes.ReparsePoint))

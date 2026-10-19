@@ -103,6 +103,8 @@
           AutomationProperties.Name="Shared exact-session memory draft, not question input or approval" />
       <WrapPanel>
         <Button x:Name="SaveConversationDraft" Content="Explicitly Save draft" IsEnabled="{Binding CanSaveConversationDraft}" />
+        <Button x:Name="RecoverConversationDraft" Content="Review latest saved baseline; retain shared buffer" IsEnabled="{Binding CanRecoverConversationDraft}"
+            AutomationProperties.Name="Explicit saved conversation draft recovery review; old, latest and raw; no Save or Submit" />
         <Button x:Name="ReloadConversationDraft" Content="Reload saved draft" IsEnabled="{Binding CanReloadConversationDraft}" />
         <Button x:Name="DiscardComposer" Content="Discard shared memory buffer only" IsEnabled="{Binding CanReadConversation}" />
         <Button x:Name="ReviewClearConversationDraft" Content="Review Clear saved draft" IsEnabled="{Binding CanReviewClearConversationDraft}" />

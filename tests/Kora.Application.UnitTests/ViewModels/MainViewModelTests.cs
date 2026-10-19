@@ -1,4 +1,4 @@
-using System.Globalization;
+﻿using System.Globalization;
 using System.Net;
 using System.Reflection;
 using System.Diagnostics;
@@ -8520,7 +8520,8 @@ public sealed partial class MainViewModelTests : IDisposable
             bool enableArtifactConfiguration = false,
             Exception? artifactReadFailure = null,
             bool enableMcpServerConfiguration = true, bool enableProviderProfiles = false,
-            bool enableQuestionReplies = false, bool enableAuditImpact = false)
+            bool enableQuestionReplies = false, bool enableAuditImpact = false, bool enableSessionRetentionPlanner = false,
+            bool enableSpeechPreparation = false)
         {
             Catalog = new BuiltInCommandCatalog();
             CaptionPreferences.LoadFailure = captionReadFailure;
@@ -8528,6 +8529,7 @@ public sealed partial class MainViewModelTests : IDisposable
             Voice = new FakeVoiceRecognitionService(Dispatcher, Events);
             ReplyVoice = enableQuestionReplies ? new QuestionVoiceAdapter(Voice) : null;
             TextToSpeech = new FakeTextToSpeechService(Events);
+            SpeechPreparation = new(Preparation, NullLogger<Kora.Application.Voice.SpeechPreparationCoordinator>.Instance);
             NamePreferences = new FakeAssistantNamePreferences();
             AppearancePreferences = new FakeAppearancePreferences();
             MicrophoneAccess = new FakeMicrophoneAccessService();
@@ -8683,7 +8685,9 @@ public sealed partial class MainViewModelTests : IDisposable
                 ArtifactDirectoryConfiguration,
                 McpServerConfiguration,
                 enableProviderProfiles ? new ProviderProfileConfigurationService(ProfilePreferences, ProfileCatalogue, OutputAdmission, Audit, ProfileTime) : null,
-                enableAuditImpact ? new AuditImpactPreviewService(ImpactReader, AuditPreferences, AuditConfiguration!) : null);
+                enableAuditImpact ? new AuditImpactPreviewService(ImpactReader, AuditPreferences, AuditConfiguration!) : null,
+                enableSessionRetentionPlanner ? new SessionRetentionPlannerService(SessionPlanReader, SessionRetentionConfiguration!) : null,
+                speechPreparation: enableSpeechPreparation ? SpeechPreparation : null);
             ViewModel.BindCallOwnershipGate(static () => true);
             ViewModel.BindManualCallNativeLifetime(true);
             if (enableWindowsSpeechRate) { ViewModel.BindWindowsSpeechRateNativeLifetime(static () => true); }
@@ -8732,6 +8736,7 @@ public sealed partial class MainViewModelTests : IDisposable
         public DiagnosticRetentionConfigurationService? DiagnosticConfiguration { get; }
         public FakeSessionRetentionPreferences SessionRetentionPreferences { get; } = new();
         public SessionRetentionConfigurationService? SessionRetentionConfiguration { get; }
+        public Kora.Application.UnitTests.Configuration.SessionRetentionPlannerServiceTests.Reader SessionPlanReader { get; } = new();
         public AuditRetentionAdmission AuditAdmission { get; }
         public FakeAuditRetentionPreferences AuditPreferences { get; } = new();
         public AuditRetentionPolicy AuditPolicy { get; } = new();
@@ -8747,6 +8752,8 @@ public sealed partial class MainViewModelTests : IDisposable
         public QuestionVoiceAdapter? ReplyVoice { get; }
 
         public FakeTextToSpeechService TextToSpeech { get; }
+        public PreparationService Preparation { get; } = new();
+        public Kora.Application.Voice.SpeechPreparationCoordinator SpeechPreparation { get; }
 
         public FakeAssistantNamePreferences NamePreferences { get; }
 
@@ -9732,6 +9739,14 @@ public sealed partial class MainViewModelTests : IDisposable
 
     private sealed class FakeAppearancePreferences : IAppearancePreferences
     {
+        public bool? NativePresenceRendererEnabled { get; private set; }
+        public bool? LoadNativePresenceRendererEnabled() => NativePresenceRendererEnabled;
+        public void SaveNativePresenceRendererEnabled(bool value)
+        {
+            ThrowIfSaveFails();
+            NativePresenceRendererEnabled = value;
+        }
+
         public int? ReaderTextScalePercent { get; private set; }
         public bool ReaderScalePending { get; private set; }
         public int? LoadReaderTextScalePercent() => ReaderScalePending

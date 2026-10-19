@@ -740,13 +740,19 @@ public sealed partial class SessionWorkspaceServiceTests
         public async ValueTask<SessionQueueSnapshot> EnqueueAsync(HostRequest control, HostRequest work, HostRevision generation,
             long expectedRevision, long admissionRevision, HostId<TaskIdentity>? dependency, SessionQueueLimits limits,
             Func<bool> eligible, CancellationToken token, SessionQueueReadProfile profile = SessionQueueReadProfile.Version,
-            HostRevision? expectedDependencyRevision = null, SessionQueueCapabilityTarget? target = null)
+            HostRevision? expectedDependencyRevision = null, SessionQueueCapabilityTarget? target = null,
+            SessionQueueDispatchControl? expectedControl = null)
         {
             SessionQueueReadProfiles.Validate(profile, target);
             LastExpectedDependencyRevision = expectedDependencyRevision;
             QueueCheck("enqueue");
             if (BeforeEnqueue is { } before) { await before(limits); }
             if (!eligible()) { throw new InvalidOperationException("Private admission changed."); }
+            if (expectedControl is not null && (expectedRevision != QueueRevision
+                || expectedControl != QueueSnapshot(control.SessionId).DispatchControl))
+            {
+                throw new InvalidOperationException("The reviewed exact queue/control changed.");
+            }
             if (QueueRows.Count(entry => entry.IsPending && entry.Request.SessionId == work.SessionId) >= limits.PendingPerSession)
             { throw new InvalidOperationException("The pending queue is full."); }
             var now = QueueTime.GetUtcNow();
@@ -756,7 +762,9 @@ public sealed partial class SessionWorkspaceServiceTests
                     : profile is SessionQueueReadProfile.Capability or SessionQueueReadProfile.RuntimeStatus
                         ? SessionQueueEntry.TargetedReadRecordVersion : SessionQueueEntry.FixedReadRecordVersion,
                 PendingLifetimeMinutes: limits.PendingLifetimeMinutes, Profile: profile == SessionQueueReadProfile.Version ? null : profile, Target: target));
-            return QueueSnapshot(control.SessionId);
+            var snapshot = QueueSnapshot(control.SessionId);
+            AfterDiagnosticsEnqueueCommit?.Invoke();
+            return DiagnosticsEnqueueProjection?.Invoke(snapshot) ?? snapshot;
         }
         public ValueTask<SessionQueueSnapshot> RemovePendingAsync(HostRequest control, HostRevision generation,
             long expectedRevision, HostId<TaskIdentity>? task, HostRevision? entryRevision, SessionQueueState outcome,

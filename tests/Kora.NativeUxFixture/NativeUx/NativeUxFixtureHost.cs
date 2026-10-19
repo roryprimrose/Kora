@@ -18,6 +18,10 @@ public static class NativeUxFixtureHost
                     + "<existing absolute directory on a fixed local drive> are required. UNC, mapped-drive and reparse-point parents are not accepted.");
                 return 2;
             }
+            if (args.Length == 4 && args[3] is "--native-presence-fixture")
+            {
+                return NativePresenceFixture.Run(scratchParent);
+            }
             using var session = new NativeUxFixtureSession(scratchParent,
                 args.Length == 4 && string.Equals(args[3], "--silent-caption-fixture", StringComparison.Ordinal),
                 args.Length == 4 && string.Equals(args[3], "--list-overflow-fixture", StringComparison.Ordinal),
@@ -41,7 +45,7 @@ public static class NativeUxFixtureHost
         scratchParent = string.Empty;
         if (args.Length is not (3 or 4)
             || args.Length == 4 && args[3] is not ("--silent-caption-fixture" or "--list-overflow-fixture"
-                or "--exact-grants-fixture" or "--all-work-fixture")
+                or "--exact-grants-fixture" or "--all-work-fixture" or "--native-presence-fixture")
             || !string.Equals(args[0], "--launch-native-fixtures", StringComparison.Ordinal)
             || !string.Equals(args[1], "--scratch-parent", StringComparison.Ordinal)
             || !IsLocalScratchParent(args[2]))

@@ -15,7 +15,7 @@ using Microsoft.Extensions.Logging;
 
 namespace Kora.Windows.Audio;
 
-public sealed partial class WindowsTextToSpeechService : ITextToSpeechService, IPlaybackVolumeControl, IWindowsSpeechRateControl
+public sealed partial class WindowsTextToSpeechService : ITextToSpeechService, IPlaybackVolumeControl, IWindowsSpeechRateControl, ISpeechPreparationService
 {
     private readonly Lock stateLock = new();
     private readonly SemaphoreSlim lifecycleLock = new(1, 1);
@@ -195,6 +195,40 @@ public sealed partial class WindowsTextToSpeechService : ITextToSpeechService, I
             .ToArray();
         WindowsLog.DevicesEnumerated(logger, voices.Length, "speech voice");
         return voices;
+    }
+
+    public async Task PrepareAsync(SpeechVoice voice, CancellationToken cancellationToken = default)
+    {
+        ObjectDisposedException.ThrowIf(disposed, this);
+        ArgumentNullException.ThrowIfNull(voice);
+        cancellationToken.ThrowIfCancellationRequested();
+        if (!string.Equals(voice.ProviderId, SpeechProviderIds.Kokoro, StringComparison.Ordinal))
+        {
+            throw new ArgumentOutOfRangeException(nameof(voice), "Only Kokoro has a background preparation path.");
+        }
+        var provider = kokoroProvider
+            ?? throw new InvalidOperationException("The Kokoro speech provider is unavailable.");
+        using var activity = HostActivity.BeginOperation(HostActivityLayer.Windows, HostOperation.Runtime);
+        var outcome = HostOperationOutcome.Failed;
+        var entered = false;
+        try
+        {
+            await speechLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+            entered = true;
+            ObjectDisposedException.ThrowIf(disposed, this);
+            await Task.Run(() => provider.PrepareAsync(voice.Id, cancellationToken), cancellationToken).ConfigureAwait(false);
+            outcome = HostOperationOutcome.Completed;
+        }
+        catch (OperationCanceledException)
+        {
+            outcome = HostOperationOutcome.Cancelled;
+            throw;
+        }
+        finally
+        {
+            if (entered) { speechLock.Release(); }
+            activity.Complete(outcome);
+        }
     }
 
     public SpeechVoice? GetDefaultVoice() =>

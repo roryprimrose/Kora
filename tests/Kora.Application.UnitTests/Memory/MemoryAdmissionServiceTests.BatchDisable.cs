@@ -3,6 +3,9 @@ using Kora.Application.Memory;
 using Kora.Core.Auditing;
 using Kora.Core.Commands;
 using Kora.Core.Memory;
+using MemoryBatchDisableWorkflow = Kora.Application.Memory.MemoryBatchWorkflow;
+using MemoryBatchDisableState = Kora.Application.Memory.MemoryBatchState;
+using IMemoryBatchDisableActions = Kora.Application.Memory.IMemoryBatchActions;
 
 namespace Kora.Application.UnitTests.Memory;
 
@@ -125,7 +128,7 @@ public sealed partial class MemoryAdmissionServiceTests
             else { fixture.Stored[record.Id] = record with { Candidate = new(MemoryContentClass.Decision, "same revision different body") }; }
         };
         MemoryResult? result = null;
-        await actions.DisableAsync(fixture.Session.SessionId, record, () => true, value => result = value, Token);
+        await actions.ApplyAsync(MemoryBatchOperation.Disable, fixture.Session.SessionId, record, () => true, value => result = value, Token);
         result!.Outcome.Should().Be(MemoryOutcome.RevisionConflict);
         fixture.Stored.Values.Should().NotContain(row => row.Retention == MemoryRetentionState.Disabled);
         fixture.Audits.Should().NotContain(audit => audit.ActionId == "memory.disable" && audit.Outcome == SecurityAuditOutcome.Succeeded);

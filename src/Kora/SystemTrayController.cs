@@ -254,6 +254,9 @@ public sealed class SystemTrayController : IDisposable
     }
 
     private void OnTrayIconClicked(object? sender, EventArgs eventArgs)
+        => HandlePrimaryClick();
+
+    internal void HandlePrimaryClick()
     {
         if (disposed) { return; }
         using var activity = HostActivity.BeginOperation(HostActivityLayer.Desktop, HostOperation.Presentation,
@@ -262,6 +265,7 @@ public sealed class SystemTrayController : IDisposable
         {
             case ClickSequenceOutcome.Pending:
                 trayClickTimer.Start();
+                ShowWindow();
                 break;
             case ClickSequenceOutcome.DoubleClick:
                 trayClickTimer.Stop();
@@ -278,9 +282,9 @@ public sealed class SystemTrayController : IDisposable
     {
         if (disposed) { return; }
         trayClickTimer.Stop();
-        if (clickSequence.ResolvePendingClick() == ClickSequenceOutcome.SingleClick)
+        if (clickSequence.ResolvePendingClick() is not (ClickSequenceOutcome.None or ClickSequenceOutcome.SingleClick))
         {
-            ShowWindow();
+            throw new InvalidOperationException("The tray click sequence returned an invalid delayed outcome.");
         }
     }
 

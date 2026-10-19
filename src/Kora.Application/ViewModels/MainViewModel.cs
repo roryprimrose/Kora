@@ -1,4 +1,4 @@
-using System.Collections.ObjectModel;
+﻿using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Globalization;
@@ -274,7 +274,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         ArtifactDirectoryConfigurationService? artifactDirectoryConfiguration = null,
         McpServerConfigurationService? mcpServerConfiguration = null,
         ProviderProfileConfigurationService? providerProfileConfiguration = null,
-        AuditImpactPreviewService? auditImpactPreview = null)
+        AuditImpactPreviewService? auditImpactPreview = null,
+        SessionRetentionPlannerService? sessionRetentionPlanner = null,
+        Kora.Application.Voice.SpeechPreparationCoordinator? speechPreparation = null)
     {
         this.commandCatalog = commandCatalog;
         this.commandRouter = commandRouter;
@@ -290,6 +292,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         this.microphoneAccessService = microphoneAccessService;
         this.voiceRecognition = voiceRecognition;
         this.textToSpeech = textToSpeech;
+        this.speechPreparation = speechPreparation;
+        if (speechPreparation is not null) { speechPreparation.Changed += OnSpeechPreparationChanged; }
         this.assistantNameConfiguration = assistantNameConfiguration;
         assistantNameConfiguration.Changed += OnAssistantNameConfigurationChanged;
         this.appearancePreferences = appearancePreferences;
@@ -388,6 +392,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             queueConfiguration.Changed += OnQueueConfigurationChanged;
         }
         this.sessionRetentionConfiguration = sessionRetentionConfiguration;
+        this.sessionRetentionPlanner = sessionRetentionPlanner;
+        if (sessionRetentionPlanner is not null) { sessionRetentionPlanner.Changed += OnSessionRetentionPlannerChanged; }
         this.auditRetentionConfiguration = auditRetentionConfiguration;
         this.auditImpactPreview = auditImpactPreview;
         if (auditImpactPreview is not null) { auditImpactPreview.Changed += OnAuditImpactPreviewChanged; }
@@ -444,7 +450,30 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
                     HostActivity.Current?.Request.Origin ?? RequestOrigin.LocalUi,
                     () => HandleCommandException(exception)), canExecute);
 
-        ResetAppearanceOptionCommand = CreateCommand(ResetSelectedAppearanceOptionAsync);
+        ResetThemeCommand = CreateCommand(() => ResetAppearanceOptionAsync(AppearanceOption.Theme));
+        ResetReaderTextScaleCommand = CreateCommand(() => ResetAppearanceOptionAsync(AppearanceOption.ReaderTextScale));
+        ResetResponseTimeoutCommand = CreateCommand(() => ResetAppearanceOptionAsync(AppearanceOption.ResponseTimeout));
+        ResetPresenceDisplayCommand = CreateCommand(() => ResetAppearanceOptionAsync(AppearanceOption.PresenceDisplay));
+        ResetPresenceRendererCommand = CreateCommand(() => ResetAppearanceOptionAsync(AppearanceOption.NativePresenceRenderer));
+        ResetPresenceTimeoutCommand = CreateCommand(() => ResetAppearanceOptionAsync(AppearanceOption.PresenceTimeout));
+        ResetPresenceSizeCommand = CreateCommand(() => ResetAppearanceOptionAsync(AppearanceOption.PresenceSize));
+        ResetPresenceDotSizeCommand = CreateCommand(() => ResetAppearanceOptionAsync(AppearanceOption.DotSize));
+        ResetPresenceDotDensityCommand = CreateCommand(() => ResetAppearanceOptionAsync(AppearanceOption.DotDensity));
+        ResetPresenceMovementSpeedCommand = CreateCommand(() => ResetAppearanceOptionAsync(AppearanceOption.MovementSpeed));
+        ResetPresenceSpeechScalingCommand = CreateCommand(() => ResetAppearanceOptionAsync(AppearanceOption.SpeechScaling));
+        ResetPresenceSpeechScaleAmountCommand = CreateCommand(() => ResetAppearanceOptionAsync(AppearanceOption.SpeechScaleAmount));
+#pragma warning disable VSTHRD003 // Await the owned preference queue started by these reset requests without blocking the dispatcher.
+        ResetResponseAlwaysVisibleCommand = CreateCommand(() =>
+        {
+            IsResponseAlwaysVisible = ResponseWindowSettings.Default.AlwaysShow;
+            return PreferenceUpdate;
+        });
+        ResetResponseWindowTopmostCommand = CreateCommand(() =>
+        {
+            IsResponseWindowTopmost = ResponseWindowSettings.Default.Topmost;
+            return PreferenceUpdate;
+        });
+#pragma warning restore VSTHRD003
         ResetSpeechProviderCommand = CreateCommand(() => ResetSpeechAsync(SpeechOption.Provider));
         ResetSpeechVoiceCommand = CreateCommand(() => ResetSpeechAsync(SpeechOption.Voice));
         RefreshOutputDevicesCommand = CreateCommand(RefreshOutputConfigurationAsync);
@@ -479,6 +508,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         RefreshSessionRetentionCommand = CreateCommand(() => ConfigureSessionRetentionAsync(save: false, reset: false));
         SaveSessionRetentionCommand = CreateCommand(() => ConfigureSessionRetentionAsync(save: true, reset: false));
         ResetSessionRetentionCommand = CreateCommand(() => ConfigureSessionRetentionAsync(save: true, reset: true));
+        PreviewSessionRetentionCommand = new(PreviewSessionRetentionAsync,
+            exception => ApplicationLog.SessionRetentionPreviewFailed(logger, exception.GetType().Name),
+            () => CanPreviewSessionRetention);
         SaveDiagnosticRetentionCommand = CreateCommand(() => ExecuteDiagnosticRetentionCommandAsync(new(AppearanceCommandOperation.Set,
             SelectedDiagnosticRetentionDays.ToString(System.Globalization.CultureInfo.InvariantCulture)), SecurityAuditInitiator.LocalUser));
         ResetDiagnosticRetentionCommand = CreateCommand(() => ExecuteDiagnosticRetentionCommandAsync(new(AppearanceCommandOperation.Reset), SecurityAuditInitiator.LocalUser));
@@ -937,7 +969,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         return $"{localStatus} {hostedStatus}";
     }
 
+#pragma warning disable VSTHRD003 // Exposes the owned reasoning operation for asynchronous observation without submitting another request.
     internal Task? ActiveReasoningTask => activeReasoningTask;
+#pragma warning restore VSTHRD003
 
     public bool IsLocalTaskCancellable
     {
@@ -1474,6 +1508,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         private set
         {
             SetProperty(ref isSpeechProviderOperationActive, value);
+            UpdateSpeechPreparation();
             NotifySpeechProviderStateChanged();
         }
     }
@@ -2087,6 +2122,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         finally
         {
             isInitializing = false;
+            UpdateSpeechPreparation();
         }
     }
 
@@ -2948,6 +2984,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         ApplicationLog.Information(logger, "Kora exit was requested");
         hostExitRequested = true;
         lifecycleAdmissionClosed = true;
+        speechPreparation?.Request(null);
+        if (speechPreparation is not null) { await speechPreparation.WaitForQuiescenceAsync(); }
 #pragma warning disable VSTHRD003 // Join the owned appearance workflow while the desktop dispatcher is still running.
         await AppearanceUpdate;
         await PreferenceUpdate;
@@ -5242,6 +5280,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
     private void SetActiveSpeechVoice(SpeechVoice? voice)
     {
         activeSpeechVoice = voice;
+        UpdateSpeechPreparation();
         OnPropertyChanged(nameof(IsSpeechOutputAvailable));
         NotifyOutputPolicyChanged();
     }
@@ -5809,6 +5848,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         OnPropertyChanged(nameof(CanChangeAuditRetentionNative));
         OnPropertyChanged(nameof(AuditRetentionStatus));
         RetireIneligibleAuditImpact();
+        RetireIneligibleSessionRetentionPlan();
         OnPropertyChanged(nameof(CanChangeResponseMode));
         OnPropertyChanged(nameof(ResponseModeConfigurationStatus));
         OnPropertyChanged(nameof(CanChangeProviderMode));

@@ -5,6 +5,12 @@ namespace Kora.Application.Hosting;
 
 public sealed partial class SessionWorkspaceService
 {
+    internal Func<bool> CaptureProviderCopyAdmission(Func<bool> admission)
+    {
+        var revision = access.ControlRevision;
+        return () => admission() && access.CanInspect && access.CanControl && access.ControlRevision == revision;
+    }
+
     internal Task<T> ProviderProfileControl<T>(HostId<SessionIdentity> session, RequestOrigin origin,
         Func<bool> admission, Func<HostRequest, Func<bool>, ValueTask<T>> operation, CancellationToken token)
     {

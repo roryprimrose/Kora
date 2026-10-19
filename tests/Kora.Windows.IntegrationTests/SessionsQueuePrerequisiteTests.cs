@@ -466,8 +466,10 @@ public sealed partial class SessionsQueuePrerequisiteTests
         public ValueTask<SessionQueueSnapshot> EnqueueAsync(HostRequest control, HostRequest work, HostRevision generation,
             long revision, long admission, HostId<TaskIdentity>? dependency, SessionQueueLimits limits,
             Func<bool> eligible, CancellationToken token, SessionQueueReadProfile profile = SessionQueueReadProfile.Version,
-            HostRevision? expectedDependencyRevision = null, SessionQueueCapabilityTarget? target = null) =>
-            store.EnqueueAsync(control, work, generation, revision, admission, dependency, limits, eligible, token, profile, expectedDependencyRevision, target);
+            HostRevision? expectedDependencyRevision = null, SessionQueueCapabilityTarget? target = null,
+            SessionQueueDispatchControl? expectedControl = null) =>
+            store.EnqueueAsync(control, work, generation, revision, admission, dependency, limits, eligible, token,
+                profile, expectedDependencyRevision, target, expectedControl);
         public ValueTask<SessionQueueSnapshot> RemovePendingAsync(HostRequest control, HostRevision generation, long revision,
             HostId<TaskIdentity>? task, HostRevision? entryRevision, SessionQueueState outcome, Func<bool> eligible, CancellationToken token) =>
             store.RemovePendingAsync(control, generation, revision, task, entryRevision, outcome, eligible, token);

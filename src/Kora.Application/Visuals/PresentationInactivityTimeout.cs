@@ -34,6 +34,16 @@ public sealed class PresentationInactivityTimeout
 
     public void Stop() => startedAt = null;
 
+    public void Resume(TimeSpan remaining)
+    {
+        if (remaining <= TimeSpan.Zero || remaining > TimeSpan.FromSeconds(VisibilityTimeoutSettings.MaximumSeconds))
+        {
+            throw new ArgumentOutOfRangeException(nameof(remaining));
+        }
+        timeout = remaining;
+        startedAt = timeProvider.GetTimestamp();
+    }
+
     public bool TryExpire()
     {
         if (!IsScheduled || Remaining > TimeSpan.Zero)

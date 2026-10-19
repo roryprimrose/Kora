@@ -7,7 +7,7 @@ using Microsoft.Data.Sqlite;
 
 namespace Kora.Windows.IntegrationTests.Storage;
 
-public sealed class WindowsSqliteSessionProviderProfileTests
+public sealed partial class WindowsSqliteSessionProviderProfileTests
 {
     [Fact]
     public async Task ExactDispositionInventoriesPolicyAndVerifiesDeletionWithoutChangingAppOrIndependentAudit()

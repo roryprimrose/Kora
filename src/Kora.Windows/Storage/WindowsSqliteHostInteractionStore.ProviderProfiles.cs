@@ -50,7 +50,7 @@ public sealed partial class WindowsSqliteHostInteractionStore : ISessionProvider
     }
 
     public ValueTask<SessionProviderProfile> CommitProviderProfile(HostRequest request, SessionProviderProfile expected,
-        SessionProviderOverrides desired, Func<bool> admitted, CancellationToken token)
+        SessionProviderOverrides desired, Func<bool> admitted, CancellationToken token, SessionProviderProfile? source = null)
     {
         RequireLive(request);
         ArgumentNullException.ThrowIfNull(desired);
@@ -61,12 +61,23 @@ public sealed partial class WindowsSqliteHostInteractionStore : ISessionProvider
                 {
                     ValidateAuthority(connection);
                     RequireFreshMetadataIntent(intent);
+                    bool Live()
+                    {
+                        if (!admitted()) { return false; }
+                        if (source is null) { return true; }
+                        var current = ReadProviderProfileRow(connection, source.Session.SessionId);
+                        return source.Session.SessionId != request.SessionId && !source.Held && !current.Held
+                            && !heldProviderProfiles.ContainsKey(source.Session.SessionId)
+                            && current.Session == source.Session && current.Revision == source.Revision
+                            && Same(current.Desired.Serialize(), source.Desired.Serialize())
+                            && Same(desired.Serialize(), source.Desired.Serialize());
+                    }
                     var previous = ReadProviderProfileRow(connection, request.SessionId);
                     if (request.Origin is not (RequestOrigin.LocalUi or RequestOrigin.ActivatedVoice)
                         || request.InvocationId is not null || !previous.Session.IsActive || previous.Held
                         || heldProviderProfiles.ContainsKey(request.SessionId) || expected.Held
                         || previous.Session != expected.Session || previous.Revision != expected.Revision
-                        || !Same(previous.Desired.Serialize(), expected.Desired.Serialize()) || !admitted())
+                        || !Same(previous.Desired.Serialize(), expected.Desired.Serialize()) || !Live())
                     { throw new InvalidOperationException("Refresh the exact active session, generation, policy and private original-user admission."); }
                     var requested = ProviderProfileAudit(request, SecurityAuditOutcome.Requested);
                     using var activity = HostActivity.BeginAudit(request, requested);
@@ -75,7 +86,7 @@ public sealed partial class WindowsSqliteHostInteractionStore : ISessionProvider
                     using (var preflight = connection.BeginTransaction())
                     {
                         AppendAudit(connection, preflight, intent, previous.Session, requested);
-                        Commit(preflight, request, token, admitted);
+                        Commit(preflight, request, token, Live);
                     }
                     var revision = checked(previous.Revision + 1);
                     var payload = desired.Serialize();
@@ -92,7 +103,7 @@ public sealed partial class WindowsSqliteHostInteractionStore : ISessionProvider
                                 payload=excluded.payload,audit_sequence=excluded.audit_sequence;
                             """, ("$id", Id(request.SessionId)), ("$generation", previous.Session.Generation.Value),
                             ("$revision", revision), ("$payload", payload), ("$audit", sequence));
-                        Commit(transaction, request, token, admitted);
+                        Commit(transaction, request, token, Live);
                         saved.Complete(HostOperationOutcome.Completed);
                     }
                     database.VerifyFiles();
@@ -108,7 +119,7 @@ public sealed partial class WindowsSqliteHostInteractionStore : ISessionProvider
                         Execute(connection, transaction, "UPDATE session_provider_profile SET audit_sequence=$audit WHERE session_id=$id;",
                             ("$audit", sequence), ("$id", Id(request.SessionId)));
                         WindowsSqliteHostTaskStore.WriteTask(connection, transaction, completed);
-                        Commit(transaction, request, token, admitted);
+                        Commit(transaction, request, token, Live);
                         receipt.Complete(HostOperationOutcome.Completed);
                     }
                     database.VerifyFiles();

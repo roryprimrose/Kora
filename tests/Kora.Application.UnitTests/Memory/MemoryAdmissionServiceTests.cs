@@ -157,14 +157,16 @@ public sealed partial class MemoryAdmissionServiceTests : IDisposable
         using var root = fixture.Root();
         var proposal = await fixture.Propose();
         var reviewed = (await fixture.Service.ReviewAsync(proposal.Id, proposal.Revision, true, Token)).Record!;
-        MemoryRecord? forgotten = null;
+        Task<MemoryResult>? forgetting = null;
         fixture.OnAfterStoreCommit = () =>
         {
             fixture.OnAfterStoreCommit = null;
-            forgotten = fixture.Service.ForgetAsync(reviewed.Id, new(reviewed.Revision.Value + 1), Token)
-                .GetAwaiter().GetResult().Record!;
+            forgetting = fixture.Service.ForgetAsync(reviewed.Id, new(reviewed.Revision.Value + 1), Token);
+            forgetting.IsCompletedSuccessfully.Should().BeTrue();
         };
         var admitted = (await fixture.Service.AdmitAsync(reviewed.Id, reviewed.Revision, Token)).Record!;
+        forgetting.Should().NotBeNull();
+        var forgotten = (await forgetting!).Record!;
         forgotten.Should().NotBeNull();
         fixture.Stored.Single().Value.Should().Be(forgotten);
         (await fixture.Service.UseAsync(forgotten!.Id, forgotten.Revision, MemoryDestination.Local, Token)).Reason

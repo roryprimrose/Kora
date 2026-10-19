@@ -1,6 +1,7 @@
 using System.Globalization;
 
 using Kora.Core.Dependencies;
+using Kora.Core.Diagnostics;
 
 using Microsoft.Data.Sqlite;
 
@@ -8,7 +9,7 @@ namespace Kora.Windows.Storage;
 
 internal sealed partial class RestrictedSqliteDatabase
 {
-    private static readonly TimeSpan DefaultProgressTimeout = TimeSpan.FromSeconds(5);
+    internal static readonly TimeSpan DefaultProgressTimeout = TimeSpan.FromSeconds(5);
     private readonly RestrictedStorageDirectory directory;
     private readonly string databasePath;
     private readonly string journalPath;
@@ -120,8 +121,13 @@ internal sealed partial class RestrictedSqliteDatabase
         }
     }
 
-    internal SqliteConnection OpenReadOnly(CancellationToken cancellationToken)
+    internal SqliteConnection OpenReadOnly(CancellationToken cancellationToken) =>
+        OpenReadOnly(DefaultProgressTimeout, timeProvider: null, cancellationToken);
+
+    internal SqliteConnection OpenReadOnly(TimeSpan integrityTimeout, TimeProvider? timeProvider,
+        CancellationToken cancellationToken)
     {
+        ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(integrityTimeout, TimeSpan.Zero);
         cancellationToken.ThrowIfCancellationRequested();
         VerifyFiles();
         var connection = new SqliteConnection(new SqliteConnectionStringBuilder
@@ -137,7 +143,7 @@ internal sealed partial class RestrictedSqliteDatabase
             settings.CommandText = "PRAGMA query_only=ON; PRAGMA temp_store=MEMORY;";
             settings.ExecuteNonQuery();
             ValidateSchema(connection, cancellationToken: cancellationToken);
-            ValidateIntegrity(connection, cancellationToken);
+            ValidateIntegrity(connection, integrityTimeout, timeProvider, cancellationToken);
             VerifyFiles();
             cancellationToken.ThrowIfCancellationRequested();
             return connection;
@@ -162,7 +168,14 @@ internal sealed partial class RestrictedSqliteDatabase
     internal SqliteConnection Open(bool created, CancellationToken cancellationToken = default) =>
         Open(created, DefaultProgressTimeout, cancellationToken);
 
-    internal SqliteConnection Open(bool created, TimeSpan integrityTimeout, CancellationToken cancellationToken = default)
+    internal SqliteConnection Open(bool created, TimeSpan integrityTimeout, CancellationToken cancellationToken = default) =>
+        OpenCore(created, integrityTimeout, timeRendererAudit: false, cancellationToken);
+
+    internal SqliteConnection OpenForRendererAudit(bool created, TimeSpan? integrityTimeout = null) =>
+        OpenCore(created, integrityTimeout ?? DefaultProgressTimeout, timeRendererAudit: true, CancellationToken.None);
+
+    private SqliteConnection OpenCore(bool created, TimeSpan integrityTimeout, bool timeRendererAudit,
+        CancellationToken cancellationToken)
     {
         ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(integrityTimeout, TimeSpan.Zero);
         cancellationToken.ThrowIfCancellationRequested();
@@ -186,7 +199,9 @@ internal sealed partial class RestrictedSqliteDatabase
         }.ToString());
         try
         {
+            if (timeRendererAudit) { PresenceSwitchTiming.Mark(PresenceSwitchPhase.SqliteAuditConnectionStarted); }
             connection.Open();
+            if (timeRendererAudit) { PresenceSwitchTiming.Mark(PresenceSwitchPhase.SqliteAuditConnectionReturned); }
             ResetProgressBudget(connection, cancellationToken);
             using var settings = connection.CreateCommand();
             // Exclusive mode must precede any page read: hot-journal recovery otherwise unlinks the
@@ -196,8 +211,10 @@ internal sealed partial class RestrictedSqliteDatabase
             VerifyFiles();
             if (!created)
             {
+                if (timeRendererAudit) { PresenceSwitchTiming.Mark(PresenceSwitchPhase.SqliteAuditSchemaStarted); }
                 Migrate(connection, cancellationToken);
                 ValidateSchema(connection, cancellationToken: cancellationToken);
+                if (timeRendererAudit) { PresenceSwitchTiming.Mark(PresenceSwitchPhase.SqliteAuditSchemaReturned); }
             }
             if (created)
             {
@@ -210,7 +227,9 @@ internal sealed partial class RestrictedSqliteDatabase
                 transaction.Commit();
                 ValidateSchema(connection, cancellationToken: cancellationToken);
             }
+            if (timeRendererAudit) { PresenceSwitchTiming.Mark(PresenceSwitchPhase.SqliteAuditIntegrityStarted); }
             ValidateIntegrity(connection, integrityTimeout, cancellationToken: cancellationToken);
+            if (timeRendererAudit) { PresenceSwitchTiming.Mark(PresenceSwitchPhase.SqliteAuditIntegrityReturned); }
             return connection;
         }
         catch (SqliteException exception)
@@ -275,7 +294,7 @@ internal sealed partial class RestrictedSqliteDatabase
         TimeProvider? timeProvider, CancellationToken cancellationToken = default) =>
         ResetProgressBudget(connection, DefaultProgressTimeout, timeProvider, cancellationToken);
 
-    private static void ResetProgressBudget(SqliteConnection connection, TimeSpan timeout,
+    internal static void ResetProgressBudget(SqliteConnection connection, TimeSpan timeout,
         TimeProvider? timeProvider, CancellationToken cancellationToken)
     {
         ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(timeout, TimeSpan.Zero);

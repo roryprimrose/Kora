@@ -10,6 +10,29 @@ and mandatory secure workflows.
 
 Related: [OOTB Phrases](OOTB_Phrases.md), [Environment Setup](Environment_Setup.md), [Call-Aware Speech](Call_Aware_Speech.md), [Security](Security_Data_Flows.md), [Interaction and Sessions](Interaction_And_Sessions.md).
 
+## Fixed Reviewed Session Memory Management Boundary
+
+The [reviewed selected-subset memory workflow](Model_Providers_Memory_And_Knowledge.md#reviewed-selected-subset-session-memory-forget---2026-10-19)
+is an explicit original-user action, not a saved retention setting, model permission or automatic cleanup policy.
+In **Sessions > Session memories**, explicitly list, choose **Disable** or **Forget**, select only visible exact rows,
+review every complete body/classification/ID/revision and the total count, then separately confirm the displayed operation.
+There is no default Select All. Only admitted Enabled records qualify for Disable; Forget also accepts admitted Disabled records.
+Pending/unreviewed/rejected, already Forgotten, unknown, duplicate, foreign or stale rows do not qualify.
+
+Disable closes use while retaining content. **Forget irreversibly removes application content** and the review receipt,
+retaining a content-free non-reusable identity tombstone; it is not physical/forensic erasure of database pages, backups or copies.
+The entire subset is preflighted before any effect, but each action commits separately with its existing audit.
+This is **not atomic-all**. At the first conflict, cancellation or uncertainty the sequence stops, earlier commits remain committed,
+and later rows are **NotAttempted**. **Unavailable** can mean unknown commit; inspect durable state manually before a fresh review.
+Neither rollback nor automatic retry is promised.
+
+Changing operation, selection, filters, source/list, edits/classification, private session/control state or closing/cancelling
+retires the review and its private bodies. Cancel before confirmation makes no change; in-flight cancellation cannot undo earlier commits.
+Forget results are content-free even on failed/malformed readback, and private-source loss suppresses stale bodies/results.
+Single-record controls remain available under their existing policy. No batch acceptance/admission, scope promotion, recall,
+provider/network action, session-retention exemption, automatic deletion or broader model behavior is enabled.
+Implementation tests are authored; current-head maintained builds, tests and exact portable line-and-branch coverage are required before merge, not unrelated E/Q evidence.
+
 ## Fixed Session Attachment Boundary
 
 The [native single-file Session attachment](File_And_Folder_Ingestion.md#delivered-durable-single-file-session-attachment---2026-10-10) has fixed host policy, not a configurable knowledge or model setting: one immutable UTF-8 `.txt`/`.md`/`.markdown` file per exact session, 256 KiB original bytes including BOM, sixteen retained profile files and no eviction.
@@ -119,6 +142,24 @@ diagnostic/audit retention, independent Perpetual grants and other preference
 files are unchanged. Audited Perpetual session marking is a separate
 exemption, now exposed by the [exact native per-session controls](Interaction_And_Sessions.md#r12-native-exact-session-retention-controls---2026-10-10), not by these future-only preferences.
 Native status shows recorded UTC inactivity/due dates. Keep/ordinary requires a separate exact preview/confirmation; ordinary warns about unchanged soon/already-due dates. The exemption is session retention only, not an operation grant, consent, memory/recall or execution. No typed/voice/model or apply-now route is available.
+
+#### Read-only hypothetical session retention planner
+
+The native Session Retention card adds separate proposals and **Preview hypothetical session retention only**. Refresh the confirmed future policy first. Selecting a proposal does not save/reset preferences or scan; preview leaves recorded deadlines and cleanup eligibility unchanged ([native integration](../src/Kora.Application/ViewModels/MainViewModel.SessionRetentionPlanner.cs)).
+
+At one fixed UTC cutoff, Complete reports hypothetical newly archive/delete-due counts, already-due recorded deadlines and mutually exclusive removed/kept/work-held/unknown exclusions. Hypothetical deletion takes precedence over archival; archived sessions do not rearchive. Inclusive cutoff and original deadlines are separate ([aggregation](../src/Kora.Core/Storage/SessionRetentionPlanner.cs)).
+
+The reader checks dates, flags, lifecycle, typed changes and authority head. Each scanned candidate is validated before exclusion, including the budget-crossing lookahead.
+No session bodies, names, attachment paths or question payloads are projected; retained questions/unavailable tasks are unknown exclusions ([reader](../src/Kora.Windows/Storage/WindowsSqliteHostInteractionStore.RetentionPlanner.cs)).
+Preview failure diagnostics retain only the exception type, never exception messages, private paths or source contents ([typed diagnostic](../src/Kora.Application/Diagnostics/ApplicationLog.Logging.cs)).
+
+The scan shares 4,096 admissions and 4 MiB charges across authority, work metadata, clocks and orphan checks.
+Entries charge envelope size without returning it; task/session metadata charge 192 bytes, questions 96, ledger rows 40 and clock keys 36. A further validated candidate exhausts a limit, never truncated Complete ([accounting](../src/Kora.Windows/Storage/WindowsSqliteHostInteractionStore.RetentionPlanner.cs)).
+
+Ten-second scan timeout retires the request; receipts expire after thirty seconds. Incomplete/Unavailable have no aggregate, never false zero.
+Proposal/control/private/owner/call, preference/policy revisions, source snapshot and expiry fence results. Edits, refresh/save/reset, changes, privacy loss, close or failure retire without replay ([orchestration](../src/Kora.Application/Configuration/SessionRetentionPlannerService.cs)).
+
+There is no apply-now, policy write, session mutation/removal/hold, revocation, schema/index change or scanner. Future-only preferences and maintenance remain separate. Existing policy/private authority is consumed, not broader runtime or E/Q qualification ([contract](../src/Kora.Core/Storage/ISessionRetentionPlannerReader.cs)).
 
 Live/dispatched/Unknown work, unresolved questions, current-run control
 authorities and uncertain copy inventories hold maintenance. See the
@@ -618,16 +659,22 @@ settings, consent/privacy downgrade, general registry or full R10/R09 acceptance
 
 ### Delivered bounded appearance subset (R10)
 
-Eleven independently persisted options are admitted:
+Twelve independently persisted options are admitted:
 `appearance.theme`, `appearance.presence-display`, `appearance.presence-timeout`,
 `appearance.response-timeout`, `appearance.presence-size`,
 `appearance.dot-size`, `appearance.dot-density`,
 `appearance.movement-speed`, `appearance.speech-scaling` and
-`appearance.speech-scale-amount`, plus `appearance.reader-text-scale`. The [end-user reference](../docs/settings.md#appearance)
+`appearance.speech-scale-amount`, `appearance.reader-text-scale`, and
+`appearance.native-presence-renderer`. The [end-user reference](../docs/settings.md#appearance)
 lists their exact types, units, defaults and bounds. Each descriptor declares
 device-local scope, appearance-only effect, local-host availability,
 immediate-after-save timing and per-option reset. Animation driven by playback
 is not a voice-output or call-sensitive option.
+The renderer option immediately queues a presentation-only replacement, deferred
+through startup, gestures and owned dialogs; its separate status reports actual
+application or failure. A saved renderer preference wins over the optional
+environment startup default. Neither renderer selection nor switching restarts
+voice/provider services. Native remains explicitly experimental.
 
 The host-owned [registry](../src/Kora.Core/Configuration/AppearanceOptionRegistry.cs)
 reuses existing domain validation; the
@@ -1219,6 +1266,18 @@ Saved desired and effective resolved/unavailable state are distinct. Model-depen
 Single-field model/reasoning/context edits use the current whole effective tuple; only that sparse field becomes explicit. Native options belong to its effective model; exact short setters require session/option/account/catalogue IDs and separate confirmation. Other fields retain null inheritance or explicit originals. Incompatible/missing tuples or dependent rebinding require reset/complete-profile recovery; no defaults or app writes.
 
 Session retention/disposition inventory includes the policy row and committed journal. The actual provider-neutral turn consumer captures immutable effective tuple/catalogue/session-policy revision, preserving admitted turns across later edits; pre-dispatch private authority/account/catalogue/installation loss refuses. Buffered local bootstrap reasoning, LocalOnly/handoff/envelope gates, authentication/providers, generic multi-action and one-turn directives remain untouched/unavailable.
+
+#### Exact sparse copy between sessions
+
+In the native provider region, explicitly choose a source from admitted exact session metadata; the selected **active** session is the distinct destination. **Review exact sparse provider copy** discloses both immutable session IDs/generations/policy revisions, complete destination old/source-proposed sparse values, account/catalogue provenance and effective/resolved-or-unavailable status. **Confirm** is a separate one-shot action, expiring after five minutes (or earlier catalogue expiry).
+
+Exact typed/current-name activated syntax is `copy providers.session.profile from <source-session-id> to <destination-session-id>`, followed by the displayed host-issued `confirm providers.session.profile <confirmation-id>`. Neither route infers a destination from a label, selected app profile or source authority. They use the same Application review/confirmation action and existing destination writer.
+
+Copy transfers only `SessionProviderOverrides`: null remains **Inherit app**, explicit fields and their original binding remain exact. It never freezes the source's effective tuple, rewrites app defaults, copies credentials/grants/approvals or session/request/task identities, authenticates, enables a provider or sends a request. All-inherit and unresolved service-only policies remain copyable and visibly unavailable; unavailable/cross-service/account/catalogue-bound dependent choices are rejected, never rebound to matching IDs/labels.
+
+Confirmation separately rereads both policies/lifecycles and current app/account/catalogue/installation/private-control snapshots. Source and destination revisions/generations must still match; changing and restoring values does not restore an old revision. Editing selections/fields, cancelling, closing, privacy/control changes or expiry invalidate review. At each destination transaction boundary the private SQLite writer rereads the exact source on its owned connection; a changed source stops the operation. No source row, source control intent or source authority is mutated. An identical-value copy still uses the normal audited destination save/revision/terminal receipt, not a second no-op writer.
+
+Unknown audit/save/readback outcomes retain the existing destination-only durable hold and explicit inspect-receipts recovery. No automatic retry, rollback claim or source-to-destination execution authority is introduced. Deterministic copy tests are authored; current-head maintained builds, tests and exact portable line-and-branch coverage are required before merge. Runtime/provider/egress E/Q enablement remains unavailable.
 
 ## 6. Definitions and Local Data
 

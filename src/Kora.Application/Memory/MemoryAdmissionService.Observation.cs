@@ -59,6 +59,16 @@ internal sealed partial class MemoryAdmissionService
                 {
                     token.ThrowIfCancellationRequested();
                     if (!Eligible()) { throw new InvalidOperationException("Memory inspection admission changed."); }
+                    if (storage is not null)
+                    {
+                        // A vanished durable row is not an inspectable cached-body fallback.
+                        foreach (var id in records.Values.Where(row => row.Scope == MemoryScope.Session(boundary!.Session)
+                            && !volatileIdentities.Contains(row.Id) && !rows.Any(saved => saved.Id == row.Id))
+                            .Select(row => row.Id).ToArray())
+                        {
+                            records.Remove(id);
+                        }
+                    }
                     foreach (var row in rows)
                     {
                         if (row.Scope.Kind != MemoryScopeKind.Session || row.Scope.Identity != boundary!.Session.Value)

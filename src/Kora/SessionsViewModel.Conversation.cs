@@ -358,7 +358,7 @@ internal sealed partial class SessionsViewModel
         NotifyConversationSearch();
         foreach (var name in new[] { nameof(ComposerBody), nameof(ComposerDirty), nameof(ComposerTarget),
             nameof(ConversationMessages), nameof(ConversationStatus), nameof(SavedConversationDraftReview), nameof(CanReadConversation), nameof(CanNextConversation),
-            nameof(CanOpenConversationDetails), nameof(CanCompose), nameof(CanSaveConversationDraft), nameof(CanReloadConversationDraft),
+            nameof(CanOpenConversationDetails), nameof(CanReviewOriginalMessageReuse), nameof(CanCompose), nameof(CanSaveConversationDraft), nameof(CanReloadConversationDraft),
             nameof(CanReviewClearConversationDraft), nameof(CanClearConversationDraft), nameof(CanSubmitConversation), nameof(CanCompareComposer),
             nameof(CanRecoverConversationDraft) })
         { OnPropertyChanged(name); }

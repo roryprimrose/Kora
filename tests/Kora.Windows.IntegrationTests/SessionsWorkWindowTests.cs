@@ -293,7 +293,7 @@ public sealed class SessionsWorkWindowTests
         await viewer.SelectAsync(viewer.Sessions.Single(record => record.Authority.SessionId == fixture.Request.SessionId));
         await viewer.EnqueueVersionAsync();
         viewer.SelectWorkRecord(viewer.WorkRecords.Single(record => record.Queue?.Entry.State == SessionQueueState.Pending));
-        checkpoint.Commit = (_, _) => viewer.SelectAsync(other).GetAwaiter().GetResult();
+        checkpoint.Commit = (_, _) => viewer.SelectAsync(other).IsCompletedSuccessfully.Should().BeTrue();
         try { await viewer.CancelWorkAsync(); }
         finally { checkpoint.Commit = null; viewer.Close(); }
         (await fixture.Store.ReadQueueAsync(fixture.Request.SessionId, fixture.Token)).Entries.Should().ContainSingle()

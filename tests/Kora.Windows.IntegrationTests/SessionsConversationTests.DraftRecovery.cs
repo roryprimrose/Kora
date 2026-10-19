@@ -426,8 +426,10 @@ public sealed partial class SessionsConversationTests
         dialog.Content.Should().BeNull();
         foreach (var pane in panes)
         {
-            CompareSource(pane).Text.Should().BeEmpty();
-            CompareQuery(pane).Text.Should().BeEmpty();
+            var fields = pane.GetLogicalDescendants().OfType<TextBox>().ToArray();
+            fields.Should().HaveCount(2);
+            fields.Single(box => box.IsReadOnly).Text.Should().BeEmpty();
+            fields.Single(box => !box.IsReadOnly).Text.Should().BeEmpty();
         }
     }
 }

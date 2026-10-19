@@ -49,16 +49,17 @@ public sealed class DiagnosticImpactPreviewServiceTests
     public async Task Invalid_or_unknown_admission_never_starts_a_scan(string reason)
     {
         await using var fixture = new Fixture();
-        var text = reason == "parse" ? "01" : reason == "not-shorter" ? "30" : "1";
-        if (reason == "minimum") { fixture.Preferences.Value = new(1); fixture.Configuration.Observe(); }
-        if (reason == "host") { fixture.Eligible = false; }
-        if (reason == "config") { fixture.Configuration.HoldUnavailable(); }
-        if (reason == "policy") { fixture.Policy.HoldUnavailable(); }
-        if (reason == "saved") { fixture.Preferences.Value = new(365); }
-        if (reason == "readback") { fixture.Preferences.ReadBackValue = new(365); }
-        if (reason == "io") { fixture.Preferences.Failure = new IOException(); }
-        if (reason == "access") { fixture.Preferences.Failure = new UnauthorizedAccessException(); }
-        if (reason == "corrupt") { fixture.Preferences.Failure = new InvalidDataException(); }
+        var text = string.Equals(reason, "parse", StringComparison.Ordinal) ? "01"
+            : string.Equals(reason, "not-shorter", StringComparison.Ordinal) ? "30" : "1";
+        if (string.Equals(reason, "minimum", StringComparison.Ordinal)) { fixture.Preferences.Value = new(1); fixture.Configuration.Observe(); }
+        if (string.Equals(reason, "host", StringComparison.Ordinal)) { fixture.Eligible = false; }
+        if (string.Equals(reason, "config", StringComparison.Ordinal)) { fixture.Configuration.HoldUnavailable(); }
+        if (string.Equals(reason, "policy", StringComparison.Ordinal)) { fixture.Policy.HoldUnavailable(); }
+        if (string.Equals(reason, "saved", StringComparison.Ordinal)) { fixture.Preferences.Value = new(365); }
+        if (string.Equals(reason, "readback", StringComparison.Ordinal)) { fixture.Preferences.ReadBackValue = new(365); }
+        if (string.Equals(reason, "io", StringComparison.Ordinal)) { fixture.Preferences.Failure = new IOException(); }
+        if (string.Equals(reason, "access", StringComparison.Ordinal)) { fixture.Preferences.Failure = new UnauthorizedAccessException(); }
+        if (string.Equals(reason, "corrupt", StringComparison.Ordinal)) { fixture.Preferences.Failure = new InvalidDataException(); }
         await ((Func<Task>)(() => fixture.Service.PreviewAsync(text, () => fixture.Eligible)))
             .Should().ThrowAsync<Exception>();
         fixture.Service.Get().Result.Should().BeNull();
@@ -81,23 +82,23 @@ public sealed class DiagnosticImpactPreviewServiceTests
     {
         await using var fixture = new Fixture();
         await fixture.Preview();
-        if (reason == "saved") { fixture.Preferences.Value = new(30); } // Same effective, different saved provenance.
-        if (reason == "readback") { fixture.Preferences.ReadBackValue = new(365); }
-        if (reason == "policy-aba") { fixture.Policy.HoldUnavailable(); fixture.Policy.Activate(new(30)); }
-        if (reason == "config-aba")
+        if (string.Equals(reason, "saved", StringComparison.Ordinal)) { fixture.Preferences.Value = new(30); } // Same effective, different saved provenance.
+        if (string.Equals(reason, "readback", StringComparison.Ordinal)) { fixture.Preferences.ReadBackValue = new(365); }
+        if (string.Equals(reason, "policy-aba", StringComparison.Ordinal)) { fixture.Policy.HoldUnavailable(); fixture.Policy.Activate(new(30)); }
+        if (string.Equals(reason, "config-aba", StringComparison.Ordinal))
         {
             fixture.Preferences.Value = new(365);
             fixture.Configuration.Observe();
             fixture.Preferences.Value = null;
             fixture.Configuration.Observe();
         }
-        if (reason == "observation") { fixture.Configuration.Observe(); }
-        if (reason == "host") { fixture.Eligible = false; }
-        if (reason == "source") { fixture.Reader.Current = false; }
-        if (reason == "source-event") { fixture.Reader.Signal(); }
-        if (reason == "io") { fixture.Preferences.Failure = new IOException(); }
-        if (reason == "corrupt") { fixture.Preferences.Failure = new InvalidDataException(); }
-        if (reason == "access") { fixture.Preferences.Failure = new UnauthorizedAccessException(); }
+        if (string.Equals(reason, "observation", StringComparison.Ordinal)) { fixture.Configuration.Observe(); }
+        if (string.Equals(reason, "host", StringComparison.Ordinal)) { fixture.Eligible = false; }
+        if (string.Equals(reason, "source", StringComparison.Ordinal)) { fixture.Reader.Current = false; }
+        if (string.Equals(reason, "source-event", StringComparison.Ordinal)) { fixture.Reader.Signal(); }
+        if (string.Equals(reason, "io", StringComparison.Ordinal)) { fixture.Preferences.Failure = new IOException(); }
+        if (string.Equals(reason, "corrupt", StringComparison.Ordinal)) { fixture.Preferences.Failure = new InvalidDataException(); }
+        if (string.Equals(reason, "access", StringComparison.Ordinal)) { fixture.Preferences.Failure = new UnauthorizedAccessException(); }
         fixture.Service.Get().Result.Should().BeNull();
         fixture.Eligible = true;
         fixture.Reader.Current = true;
@@ -146,23 +147,24 @@ public sealed class DiagnosticImpactPreviewServiceTests
         fixture.Reader.Pending = pending.Task;
         var task = fixture.Service.PreviewAsync("1", () => fixture.Eligible, cancellation.Token);
         fixture.Service.Get().Scanning.Should().BeTrue();
-        if (reason == "edit") { fixture.Service.Retire("Proposal edited."); }
-        if (reason == "dispose") { fixture.Service.Dispose(); }
-        if (reason == "cancel") { await cancellation.CancelAsync(); }
-        if (reason == "timeout") { fixture.Time.Advance(DiagnosticRetentionImpact.ScanTimeout); }
-        if (reason == "host") { fixture.Eligible = false; }
-        if (reason == "source") { fixture.Reader.Current = false; }
-        if (reason == "configuration") { fixture.Configuration.Observe(); }
-        if (reason == "failure") { pending.SetException(new IOException("private sentinel")); }
+        if (string.Equals(reason, "edit", StringComparison.Ordinal)) { fixture.Service.Retire("Proposal edited."); }
+        if (string.Equals(reason, "dispose", StringComparison.Ordinal)) { fixture.Service.Dispose(); }
+        if (string.Equals(reason, "cancel", StringComparison.Ordinal)) { await cancellation.CancelAsync(); }
+        if (string.Equals(reason, "timeout", StringComparison.Ordinal)) { fixture.Time.Advance(DiagnosticRetentionImpact.ScanTimeout); }
+        if (string.Equals(reason, "host", StringComparison.Ordinal)) { fixture.Eligible = false; }
+        if (string.Equals(reason, "source", StringComparison.Ordinal)) { fixture.Reader.Current = false; }
+        if (string.Equals(reason, "configuration", StringComparison.Ordinal)) { fixture.Configuration.Observe(); }
+        if (string.Equals(reason, "failure", StringComparison.Ordinal)) { pending.SetException(new IOException("private sentinel")); }
         else
         {
             var result = fixture.Reader.Result(new(1), fixture.Time.Now);
-            pending.SetResult(reason == "malformed" ? result with { Logs = result.Logs with { Aggregate = null } } : result);
+            pending.SetResult(string.Equals(reason, "malformed", StringComparison.Ordinal)
+                ? result with { Logs = result.Logs with { Aggregate = null } } : result);
         }
         await ((Func<Task>)(() => task)).Should().ThrowAsync<Exception>();
         fixture.Service.Get().Result.Should().BeNull();
         fixture.Service.Get().Status.Should().NotContain("private sentinel");
-        if (reason == "dispose")
+        if (string.Equals(reason, "dispose", StringComparison.Ordinal))
         {
             await ((Func<Task>)(() => fixture.Preview())).Should().ThrowAsync<ObjectDisposedException>();
             fixture.Reader.Signal();
@@ -220,7 +222,8 @@ public sealed class DiagnosticImpactPreviewServiceTests
         await using var fixture = new Fixture();
         using var hostile = new Activity("hostile").SetIdFormat(ActivityIdFormat.W3C).Start();
         await fixture.Preview();
-        var observation = completed.Single(item => item.OperationName == "diagnostics.retention.preview");
+        var observation = completed.Single(item =>
+            string.Equals(item.OperationName, "diagnostics.retention.preview", StringComparison.Ordinal));
         observation.ParentId.Should().BeNull();
         observation.Status.Should().Be(ActivityStatusCode.Ok);
         observation.TagObjects.Select(tag => tag.Key).Should().Equal("kora.request.id");

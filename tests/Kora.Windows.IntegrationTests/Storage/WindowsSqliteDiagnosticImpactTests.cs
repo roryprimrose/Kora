@@ -144,15 +144,15 @@ public sealed partial class WindowsSqliteDiagnosticImpactTests
             sink.WriteAudit(new(Diagnostic(host, fixture.Time.Now), audit));
         }
         using var reader = new WindowsSqliteDiagnosticImpactReader(sink, fixture.Paths);
-        if (reason == "audit-envelope") { Mutate(fixture.Paths, "UPDATE security_audit_events SET envelope='{}';"); }
-        if (reason == "audit-prefix") { Mutate(fixture.Paths, "DELETE FROM security_audit_events;"); }
-        if (reason == "audit-deadline") { Mutate(fixture.Paths, "UPDATE security_audit_events SET due_utc=committed_utc+1;"); }
-        if (reason == "schema") { Mutate(fixture.Paths, "PRAGMA user_version=99;"); }
+        if (string.Equals(reason, "audit-envelope", StringComparison.Ordinal)) { Mutate(fixture.Paths, "UPDATE security_audit_events SET envelope='{}';"); }
+        if (string.Equals(reason, "audit-prefix", StringComparison.Ordinal)) { Mutate(fixture.Paths, "DELETE FROM security_audit_events;"); }
+        if (string.Equals(reason, "audit-deadline", StringComparison.Ordinal)) { Mutate(fixture.Paths, "UPDATE security_audit_events SET due_utc=committed_utc+1;"); }
+        if (string.Equals(reason, "schema", StringComparison.Ordinal)) { Mutate(fixture.Paths, "PRAGMA user_version=99;"); }
         DirectorySecurity? original = null;
         var directory = new DirectoryInfo(Path.GetDirectoryName(DatabasePath(fixture.Paths))!);
         try
         {
-            if (reason == "privacy")
+            if (string.Equals(reason, "privacy", StringComparison.Ordinal))
             {
                 original = directory.GetAccessControl(AccessControlSections.Access);
                 var changed = directory.GetAccessControl(AccessControlSections.Access);

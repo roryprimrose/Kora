@@ -943,7 +943,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         return $"{localStatus} {hostedStatus}";
     }
 
+#pragma warning disable VSTHRD003 // Exposes the owned reasoning operation for asynchronous observation without submitting another request.
     internal Task? ActiveReasoningTask => activeReasoningTask;
+#pragma warning restore VSTHRD003
 
     public bool IsLocalTaskCancellable
     {

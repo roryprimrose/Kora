@@ -81,7 +81,9 @@ public sealed partial class MainViewModel
         NotifyAuditImpactPreview();
     }
 
+#pragma warning disable VSTHRD003 // Exposes the owned call transition for asynchronous observation without starting duplicate closure work.
     internal Task CallClosureTask => callClosureTask;
+#pragma warning restore VSTHRD003
 
     private bool IsCallMutationHostEligible => !disposed && IsHostInputEligible && callOwnershipEligible();
 

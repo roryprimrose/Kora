@@ -170,6 +170,15 @@ Clipboard, selected-file and fetched-web consumers share [LocalContextTurnWorkfl
 Source workflows retain exact immutable review, fresh source validation, provenance, citations and retirement policy.
 Their eligibility fence stays attached across queued work, model callbacks and final disclosure.
 
+The shared bridge does not detect secrets/sensitive content or approve source use.
+Each consumer must obtain an affirmative source-specific sensitivity/source-use decision before constructing any envelope or evidence.
+Preview permission, a freshness callback, durable task ownership and `LocalOnly` disclosure are not substitutes for that decision.
+Missing or unknown source policy remains explicitly unavailable; the shared runner has no permissive source-policy default.
+
+The file consumer's required pre-context secret/sensitive-content detection production contract is currently missing.
+Its file-owned policy seam therefore remains unavailable in production; deterministic allow/deny fakes demonstrate behavior only and do not qualify real source use.
+That is a concrete file-feature readiness boundary, separate from successful shared lifecycle tests and from model runtime qualification. No generic detector is implemented or claimed here.
+
 Tools and other Core-only consumers use a two-phase host contract, without referencing Application:
 
 ```csharp

@@ -10,6 +10,29 @@ and mandatory secure workflows.
 
 Related: [OOTB Phrases](OOTB_Phrases.md), [Environment Setup](Environment_Setup.md), [Call-Aware Speech](Call_Aware_Speech.md), [Security](Security_Data_Flows.md), [Interaction and Sessions](Interaction_And_Sessions.md).
 
+## Fixed Reviewed Session Memory Management Boundary
+
+The [reviewed selected-subset memory workflow](Model_Providers_Memory_And_Knowledge.md#reviewed-selected-subset-session-memory-forget---2026-10-19)
+is an explicit original-user action, not a saved retention setting, model permission or automatic cleanup policy.
+In **Sessions > Session memories**, explicitly list, choose **Disable** or **Forget**, select only visible exact rows,
+review every complete body/classification/ID/revision and the total count, then separately confirm the displayed operation.
+There is no default Select All. Only admitted Enabled records qualify for Disable; Forget also accepts admitted Disabled records.
+Pending/unreviewed/rejected, already Forgotten, unknown, duplicate, foreign or stale rows do not qualify.
+
+Disable closes use while retaining content. **Forget irreversibly removes application content** and the review receipt,
+retaining a content-free non-reusable identity tombstone; it is not physical/forensic erasure of database pages, backups or copies.
+The entire subset is preflighted before any effect, but each action commits separately with its existing audit.
+This is **not atomic-all**. At the first conflict, cancellation or uncertainty the sequence stops, earlier commits remain committed,
+and later rows are **NotAttempted**. **Unavailable** can mean unknown commit; inspect durable state manually before a fresh review.
+Neither rollback nor automatic retry is promised.
+
+Changing operation, selection, filters, source/list, edits/classification, private session/control state or closing/cancelling
+retires the review and its private bodies. Cancel before confirmation makes no change; in-flight cancellation cannot undo earlier commits.
+Forget results are content-free even on failed/malformed readback, and private-source loss suppresses stale bodies/results.
+Single-record controls remain available under their existing policy. No batch acceptance/admission, scope promotion, recall,
+provider/network action, session-retention exemption, automatic deletion or broader model behavior is enabled.
+Implementation tests are authored; current-head maintained builds, tests and exact portable line-and-branch coverage are required before merge, not unrelated E/Q evidence.
+
 ## Fixed Session Attachment Boundary
 
 The [native single-file Session attachment](File_And_Folder_Ingestion.md#delivered-durable-single-file-session-attachment---2026-10-10) has fixed host policy, not a configurable knowledge or model setting: one immutable UTF-8 `.txt`/`.md`/`.markdown` file per exact session, 256 KiB original bytes including BOM, sixteen retained profile files and no eviction.

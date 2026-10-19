@@ -10,7 +10,7 @@ using Microsoft.Extensions.Logging;
 namespace Kora.Application.Memory;
 
 /// <summary>Original-user session proposals and management only. No use, model tool or disclosure entry point.</summary>
-internal sealed partial class MemoryManagementService : IAsyncDisposable, IMemoryBatchDisableActions
+internal sealed partial class MemoryManagementService : IAsyncDisposable, IMemoryBatchActions
 {
     private readonly SessionWorkspaceService sessions;
     private readonly ManagementAccess access;
@@ -69,7 +69,7 @@ internal sealed partial class MemoryManagementService : IAsyncDisposable, IMemor
     }
 
     internal async Task<MemoryCommandResult> ExecuteAsync(MemoryCommand command, RequestOrigin origin,
-        Func<bool> admission, CancellationToken token, MemoryRecord? exactDisable = null,
+        Func<bool> admission, CancellationToken token, MemoryRecord? exactRecord = null,
         Action<MemoryResult>? completed = null)
     {
         ArgumentNullException.ThrowIfNull(command);
@@ -172,8 +172,8 @@ internal sealed partial class MemoryManagementService : IAsyncDisposable, IMemor
                             MemoryCommandOperation.Review => Admission.ReviewAsync(id, revision, command.Accept, token),
                             MemoryCommandOperation.Admit => Admission.AdmitAsync(id, revision, token),
                             MemoryCommandOperation.Edit => Admission.EditAsync(id, revision, command.Candidate, token),
-                            MemoryCommandOperation.Disable => Admission.DisableAsync(id, revision, token, exactDisable),
-                            MemoryCommandOperation.Forget => Admission.ForgetAsync(id, revision, token),
+                            MemoryCommandOperation.Disable => Admission.DisableAsync(id, revision, token, exactRecord),
+                            MemoryCommandOperation.Forget => Admission.ForgetAsync(id, revision, token, exactRecord),
                             _ => throw new InvalidOperationException("Unsupported memory management operation."),
                         };
                         var changed = await mutation.ConfigureAwait(false);

@@ -169,12 +169,29 @@ public sealed partial class MainViewModelTests
             LocalFileSearchResult excerpts, CancellationToken cancellationToken) => Task.FromResult(LocalFileModelUseDecision.Allowed);
     }
 
-    private sealed class NativeFileAnswerModel : ILocalFileAnswerModel
+    private sealed class NativeFileAnswerModel : IModelContextRunner
     {
         internal string Kind { get; init; } = "unsupported";
         internal Action? OnRun { get; init; }
         internal ModelContextEnvelope? Context { get; private set; }
-        public Task<LocalContextTurnReceipt> RunAsync(ModelContextEnvelope context, Func<bool> isCurrent, CancellationToken cancellationToken)
+        public Task<ModelContextAdmission> AdmitAsync(LocalContextSessionTarget target, Func<bool> sourceCurrent,
+            CancellationToken token, Func<CancellationToken, Task>? validateSource = null)
+        {
+            sourceCurrent().Should().BeTrue();
+            target.Request.Should().BeSameAs(HostActivity.RequireCurrent().Request);
+            return Task.FromResult(new ModelContextAdmission(new Lease(this, target.Request)));
+        }
+        private sealed class Lease(NativeFileAnswerModel owner, HostRequest request) : IAdmittedModelContextTurn
+        {
+            public HostRequest Request => request;
+            public HostRevision SessionGeneration => new(1);
+            public Task<LocalContextTurnReceipt> Completion { get; private set; } = Task.FromResult(
+                new LocalContextTurnReceipt(request, ModelTurnOutcome.Cancelled, LocalContextTurnReason.Cancelled));
+            public Task<LocalContextTurnReceipt> RunAsync(ModelContextEnvelope context, CancellationToken token) =>
+                Completion = owner.RunModel(context);
+            public ValueTask DisposeAsync() => ValueTask.CompletedTask;
+        }
+        private Task<LocalContextTurnReceipt> RunModel(ModelContextEnvelope context)
         {
             Context = context;
             OnRun?.Invoke();

@@ -641,7 +641,6 @@ internal static class Program
         services.AddSingleton<SessionAttachmentCatalogueService>();
         services.AddSingleton<Kora.Tools.Files.LocalFileSearch>();
         services.AddSingleton<Kora.Tools.Files.LocalFileAnswer>();
-        services.AddSingleton<Kora.Core.Context.ILocalFileAnswerModel, LocalFileAnswerModel>();
         services.AddSingleton<Kora.Core.Context.ILocalFileModelUsePolicy, UnavailableLocalFileModelUsePolicy>();
         services.AddSingleton<Kora.Tools.Files.LocalFileRefresh>();
         services.AddSingleton<Kora.Core.Context.ILocalFileRetrieval, Kora.Core.Context.LocalFileLexicalRetrieval>();

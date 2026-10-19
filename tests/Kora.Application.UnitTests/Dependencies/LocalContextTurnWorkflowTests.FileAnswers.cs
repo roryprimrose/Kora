@@ -18,10 +18,13 @@ public sealed partial class LocalContextTurnWorkflowTests
         var source = new LocalFileRevision(new(Guid.NewGuid(), Guid.NewGuid(), f.Request,
             new(@"C:\Team\guide.md", "identity", bytes.Length, DateTimeOffset.UnixEpoch)), bytes, DateTimeOffset.UnixEpoch);
         var search = new LocalFileLexicalRetrieval().Search(source, source.Reference, "alpha", DateTimeOffset.UtcNow, Token);
-        var binding = new LocalFileAnswerContext(source, search, "alpha?", f.Request, new(1), DateTimeOffset.UtcNow);
+        IModelContextRunner runner = f.Workflow;
+        var admitted = await runner.AdmitAsync(f.Target, () => true, Token);
+        await using var turn = admitted.Turn ?? throw new InvalidOperationException("Missing durable admission.");
+        f.Store.Tasks.Last().State.Should().Be(HostTaskState.DispatchRecorded);
+        var binding = new LocalFileAnswerContext(source, search, "alpha?", turn.Request, new(1), DateTimeOffset.UtcNow);
         binding.Envelope.AllowTools.Should().BeFalse();
-        var model = new LocalFileAnswerModel(f.Workflow);
-        var result = await model.RunAsync(binding.Envelope, () => true, Token);
+        var result = await turn.RunAsync(binding.Envelope, Token);
         result.Outcome.Should().Be(ModelTurnOutcome.Succeeded);
         result.Request.Should().BeSameAs(f.Request);
         result.ModelResult!.Provenance!.Selection.Should().Be(ModelProviderSelection.OllamaCandidate);
@@ -41,8 +44,9 @@ public sealed partial class LocalContextTurnWorkflowTests
         await using var f = new Fixture();
         using var root = f.Root();
         f.Model.Outcome = ModelTurnOutcome.Unavailable;
-        var model = new LocalFileAnswerModel(f.Workflow);
-        var result = await model.RunAsync(f.Context(), () => !revoke, Token);
+        var issued = await f.Workflow.AdmitAsync(f.Target, () => !revoke, Token);
+        await using var turn = issued.Turn;
+        var result = turn is null ? issued.Rejection! : await turn.RunAsync(f.Context(), Token);
         result.Outcome.Should().Be(revoke ? ModelTurnOutcome.Denied : ModelTurnOutcome.Unavailable);
         result.Answer.Should().BeNull();
         f.Model.Calls.Should().Be(0);
@@ -60,7 +64,9 @@ public sealed partial class LocalContextTurnWorkflowTests
         using var root = f.Root();
         var current = true;
         f.Model.BeforeRun = () => current = false;
-        var result = await new LocalFileAnswerModel(f.Workflow).RunAsync(f.Context(), () => current, Token);
+        var issued = await f.Workflow.AdmitAsync(f.Target, () => current, Token);
+        await using var turn = issued.Turn ?? throw new InvalidOperationException("Missing durable admission.");
+        var result = await turn.RunAsync(f.Context(), Token);
         result.Outcome.Should().Be(ModelTurnOutcome.Denied);
         result.Reason.Should().Be(LocalContextTurnReason.SourceNotCurrent);
         result.DurableState.Should().Be(HostTaskState.Denied);

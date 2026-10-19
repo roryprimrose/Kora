@@ -5,7 +5,7 @@ using Avalonia.Layout;
 using Avalonia.Media;
 using Kora.Application.Infrastructure;
 using Kora.Application.Presentation;
-using Kora.Application.Dependencies;
+using Kora.Core.Dependencies;
 using Kora.Controls;
 using Kora.Core.Context;
 

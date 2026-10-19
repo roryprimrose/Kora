@@ -19,6 +19,7 @@ public sealed class LocalFileAnswerContext
         + "When evidence does not support an answer return {\"unsupported\":true,\"claims\":[]}. "
         + "Do not put citation markers in claim text; the host renders the exact source references separately.";
     private readonly ImmutableDictionary<Guid, LocalFileCitation> citations;
+    private readonly LocalFileRevision exactRevision;
 
     public LocalFileAnswerContext(LocalFileRevision source, LocalFileSearchResult search, string question,
         HostRequest request, HostRevision generation, DateTimeOffset now)
@@ -54,6 +55,7 @@ public sealed class LocalFileAnswerContext
             evidence.Add(new(new(id), request, generation, citation.Excerpt, ModelEvidenceDisclosure.LocalOnly));
         }
         citations = bindings.ToImmutable();
+        exactRevision = source;
         Envelope = new(request, Policy, question, evidence, now, now.AddSeconds(30), allowTools: false);
     }
 
@@ -67,7 +69,7 @@ public sealed class LocalFileAnswerContext
                 ? LocalFileAnswerOutcome.Cancelled : result.Outcome is ModelTurnOutcome.Denied or ModelTurnOutcome.DeniedEgress
                     ? LocalFileAnswerOutcome.Denied : LocalFileAnswerOutcome.Unavailable) with { ModelReason = result.Reason };
         }
-        if (result.Provenance is not { } provenance || provenance.Request != Envelope.Request
+        if (result.Provenance is not { } provenance || !ReferenceEquals(provenance.Request, Envelope.Request)
             || provenance.Selection.Provider != ModelProviderIdentity.Ollama
             || result.Response is not { Action: null, GrantChange: null, Question: null, Answer: { } answer })
         {
@@ -108,6 +110,7 @@ public sealed class LocalFileAnswerContext
                     {
                         return LocalFileAnswerResult.Empty(LocalFileAnswerOutcome.InvalidResponse);
                     }
+                    _ = LocalFileLexicalRetrieval.ResolveCitation(exactRevision, citation, LocalFileRetrievalMode.LexicalLines);
                     references.Add(citation);
                 }
                 resolved.Add(new(text, references.ToImmutable()));

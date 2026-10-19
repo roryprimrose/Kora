@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using Kora.Application.Hosting;
 using Kora.Core.Context;
+using Kora.Core.Dependencies;
 using Kora.Core.Diagnostics;
 using Kora.Core.Hosting;
 using Kora.Tools.Files;
@@ -44,11 +45,12 @@ public sealed partial class MainViewModel
         {
             return LocalFileAnswerResult.Empty(LocalFileAnswerOutcome.Denied);
         }
-        // This new native question has its own LocalUi provenance, linked to the original source admission.
+        // The displayed fresh target is a reviewed proposal, not durable authority. The Core runner must admit it.
         var request = new HostRequest(new(Guid.NewGuid()), admitted.Review.Request.SessionId, admitted.Review.Request.TaskId, origin);
         using var activity = HostActivity.BeginRoot(request, HostActivityLayer.Application, HostOperation.Request,
             [new ActivityLink(admitted.Review.Cause)]);
-        var result = await fileAnswer.ExecuteAsync(exactSource, question, Eligible, cancellationToken);
+        var result = await fileAnswer.ExecuteAsync(exactSource, question,
+            LocalContextSessionTarget.ReviewedFresh(request), Eligible, cancellationToken);
         if (!Eligible() || FileRevision?.Reference != exactSource)
         {
             result = LocalFileAnswerResult.Empty(LocalFileAnswerOutcome.Stale);

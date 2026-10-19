@@ -8,17 +8,19 @@ using Microsoft.Extensions.Logging;
 namespace Kora.Tools.Files;
 
 public sealed partial class LocalFileAnswer(LocalFilePreview preview, ILocalFileRetrieval retrieval,
-    ILocalFileModelUsePolicy sourceUse, ILocalFileAnswerModel model, ISecurityAuditLog audit,
+    ILocalFileModelUsePolicy sourceUse, IModelContextRunner model, ISecurityAuditLog audit,
     TimeProvider time, ILogger<LocalFileAnswer> logger)
 {
     public async Task<LocalFileAnswerResult> ExecuteAsync(LocalFileReference exactSource, string question,
-        Func<bool> canPresent, CancellationToken cancellationToken)
+        LocalContextSessionTarget reviewedTarget, Func<bool> canPresent, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(exactSource);
         ArgumentNullException.ThrowIfNull(question);
+        ArgumentNullException.ThrowIfNull(reviewedTarget);
         ArgumentNullException.ThrowIfNull(canPresent);
         var context = HostActivity.RequireCurrent();
-        if (context.Outcome != HostOperationOutcome.Unknown || context.Request.InvocationId is not null)
+        if (context.Outcome != HostOperationOutcome.Unknown || context.Request.InvocationId is not null
+            || !ReferenceEquals(reviewedTarget.Request, context.Request))
         {
             return LocalFileAnswerResult.Empty(LocalFileAnswerOutcome.Denied);
         }
@@ -70,26 +72,51 @@ public sealed partial class LocalFileAnswer(LocalFilePreview preview, ILocalFile
                     return LocalFileAnswerResult.Empty(decision == LocalFileModelUseDecision.Unavailable
                         ? LocalFileAnswerOutcome.SourceUseUnavailable : LocalFileAnswerOutcome.Denied);
                 }
-                LocalFileAnswerContext binding;
-                try { binding = new(source, search, question, request, new(generation), time.GetUtcNow()); }
-                catch (InvalidDataException)
+                var admission = await model.AdmitAsync(reviewedTarget, current, token).ConfigureAwait(false);
+                if (admission.Turn is not { } admitted)
+                {
+                    var rejection = admission.Rejection
+                        ?? throw new InvalidOperationException("Model context admission returned neither a lease nor a rejection.");
+                    return ResolveReceipt(request, null, rejection, search);
+                }
+                await using var turn = admitted;
+                token.ThrowIfCancellationRequested();
+                if (!current()) { return LocalFileAnswerResult.Empty(LocalFileAnswerOutcome.Stale); }
+                if (!ReferenceEquals(turn.Request, request) || turn.SessionGeneration.Value <= 0)
                 {
                     return LocalFileAnswerResult.Empty(LocalFileAnswerOutcome.Denied);
                 }
+                [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "VSTHRD003",
+                    Justification = "Reads this operation's owned lease completion after asynchronous disposal has awaited terminal quiescence; no UI join.")]
+                async Task<LocalFileAnswerResult> Abandon(LocalFileAnswerOutcome outcome)
+                {
+                    await turn.DisposeAsync().ConfigureAwait(false);
+                    var terminal = await turn.Completion.ConfigureAwait(false);
+                    return ReferenceEquals(terminal.Request, request)
+                        ? LocalFileAnswerResult.Empty(outcome) with
+                        { ExecutionReason = terminal.Reason, ExecutionState = terminal.DurableState }
+                        : LocalFileAnswerResult.Empty(LocalFileAnswerOutcome.InvalidResponse);
+                }
+                LocalFileAnswerContext binding;
+                try { binding = new(source, search, question, turn.Request, new(generation), time.GetUtcNow()); }
+                catch (InvalidDataException)
+                {
+                    return await Abandon(LocalFileAnswerOutcome.Denied).ConfigureAwait(false);
+                }
                 if (binding.Envelope.Serialize().Length > ModelContextEnvelope.MaximumInputUtf8Bytes)
                 {
-                    return LocalFileAnswerResult.Empty(LocalFileAnswerOutcome.ContextLimit);
+                    return await Abandon(LocalFileAnswerOutcome.ContextLimit).ConfigureAwait(false);
                 }
                 token.ThrowIfCancellationRequested();
                 if (!current()) { return LocalFileAnswerResult.Empty(LocalFileAnswerOutcome.Stale); }
-                var receipt = await model.RunAsync(binding.Envelope, current, token).ConfigureAwait(false);
+                var receipt = await turn.RunAsync(binding.Envelope, token).ConfigureAwait(false);
                 token.ThrowIfCancellationRequested();
                 if (!current()) { return LocalFileAnswerResult.Empty(LocalFileAnswerOutcome.Stale); }
                 foreach (var citation in search.Citations)
                 {
                     _ = LocalFileLexicalRetrieval.ResolveCitation(source, citation, search.Mode);
                 }
-                return ResolveReceipt(binding, receipt, search);
+                return ResolveReceipt(turn.Request, binding, receipt, search);
             }, Commit, cancellationToken).ConfigureAwait(false);
         }
         catch (Exception exception) when (exception is IOException or InvalidOperationException)
@@ -104,10 +131,10 @@ public sealed partial class LocalFileAnswer(LocalFilePreview preview, ILocalFile
         return result;
     }
 
-    private static LocalFileAnswerResult ResolveReceipt(LocalFileAnswerContext binding, LocalContextTurnReceipt receipt,
-        LocalFileSearchResult search)
+    private static LocalFileAnswerResult ResolveReceipt(HostRequest request, LocalFileAnswerContext? binding,
+        LocalContextTurnReceipt receipt, LocalFileSearchResult search)
     {
-        if (!ReferenceEquals(receipt.Request, binding.Envelope.Request)
+        if (!ReferenceEquals(receipt.Request, request)
             || !Enum.IsDefined(receipt.Outcome) || !Enum.IsDefined(receipt.Reason)
             || receipt.Outcome == ModelTurnOutcome.Succeeded
                 && (receipt.DurableState != HostTaskState.Succeeded || receipt.Reason != LocalContextTurnReason.Completed))
@@ -115,7 +142,7 @@ public sealed partial class LocalFileAnswer(LocalFilePreview preview, ILocalFile
             return LocalFileAnswerResult.Empty(LocalFileAnswerOutcome.InvalidResponse);
         }
         LocalFileAnswerResult result;
-        if (receipt.ModelResult is { } reply && reply.Outcome == receipt.Outcome)
+        if (binding is not null && receipt.ModelResult is { } reply && reply.Outcome == receipt.Outcome)
         {
             result = binding.Resolve(reply, search);
         }

@@ -482,11 +482,15 @@ The [file-specific binding](../src/Kora.Core/Context/LocalFileAnswerContext.cs) 
 It uses the existing [ModelContextEnvelope serializer](../src/Kora.Core/Dependencies/ModelContextEnvelope.cs) with `allowTools: false`; complete JSON and escaping must fit 32,768 UTF-8 bytes. The authoritative serializer emits an empty tool catalogue; file code does not duplicate envelope serialization.
 Over-limit input is explicitly rejected, never shortened. Lexical matching count/truncation is disclosed separately from complete envelope admission.
 
-The [Application adapter](../src/Kora.Application/Dependencies/LocalFileAnswerModel.cs) consumes the shared [LocalContextTurnWorkflow](../src/Kora.Application/Dependencies/LocalContextTurnWorkflow.cs), never a source-specific durable-task bridge, direct reasoner/transport or hosted fallback.
+The [file action](../src/Kora.Tools/Files/LocalFileAnswer.cs) directly consumes the shared Core [IModelContextRunner](../src/Kora.Core/Dependencies/IModelContextRunner.cs), not a file-specific executor interface, Application wrapper, durable-task bridge, direct reasoner/transport or hosted fallback.
+After affirmative file source-use admission, it submits the exact explicitly reviewed target for genuine durable admission.
+Only an issued [IAdmittedModelContextTurn](../src/Kora.Core/Dependencies/IAdmittedModelContextTurn.cs) may supply the exact request used to construct the envelope/evidence.
+The proposed target and freshness callback alone confer no host authority. Rejected admission constructs no envelope; an abandoned, foreign or unknown-generation lease is disposed without model work.
 The shared executor alone records session/control intent, typed local-context dispatch and truthful terminal receipts, calls `ModelTurnHost` with explicit Local selection and waits for physical quiescence.
 The file action requires an exact original-request receipt with `Completed` / durable `Succeeded` before publishing successful cited claims; absent, mismatched or uncertain receipts never produce an answer.
 Successful host responses alone may resolve the strict file-answer JSON schema.
 Each supported claim needs at least one exact admitted evidence ID; unknown, duplicate, malformed, foreign-request or hosted references produce no claims.
+Each returned ID resolves through the host-held source/revision/location map and exact `ResolveCitation` immediately before claim disclosure.
 Unsupported and no-lexical-evidence are explicit distinct outcomes ([binding](../src/Kora.Core/Context/LocalFileAnswerContext.cs)).
 Each explicit native answer request consumes the snapshot's one-shot target, including invalid, unavailable, cancelled or uncertain outcomes.
 The answer control disables further dispatch before awaiting work; edits still clear claims/citations but never silently create another session/task, retry the old target or choose an existing target.
@@ -503,9 +507,9 @@ Awaited source policy receives the exact immutable revision, unchanged question 
 Revocation/cancellation while classification is pending suppresses context construction and execution; a source-policy I/O/state failure records a failed terminal file audit, logs only its failure type and publishes no claims.
 Evidence IDs from another question are rejected even when both questions use the same immutable source revision.
 
-**Shared execution integration:** consumes peer commit `d5cfa31cf15b4f4c64e1a30241427366e3b35456` and its committed model-pipeline dependencies.
+**Shared execution integration:** consumes the peer-owned two-phase Core contract at `470a03444d07a07a776f82572ce87dff90cf4bbf` plus the explicit source-policy boundary at `d881bd2d85d99b0a554625213b3e5576bc224b1c` and their committed dependencies.
 The source gate and broker/native cancellation remain attached through the shared executor and [model-host consumer fence](../src/Kora.Application/Dependencies/ModelTurnHost.Execution.cs), including asynchronous revalidation, tool rejection and final disclosure.
-This consumer does not edit shared execution, serializer, transport or durable writers ([adapter](../src/Kora.Application/Dependencies/LocalFileAnswerModel.cs), [shared execution contract](Local_Inference.md)).
+This consumer does not edit shared execution, serializer, transport, protocol or durable writers ([file action](../src/Kora.Tools/Files/LocalFileAnswer.cs), [shared execution contract](Local_Inference.md)).
 
 Production model registrations remain unqualified/unavailable ([model registrations](../src/Kora.Application/Dependencies/ModelTurnHost.cs)).
 This bounded implementation does not enable or qualify R26.3, hosted egress, managed libraries/corpora, embeddings, folders, generic content tools, provider/containment or installed/hardware trials ([I/E/Q policy](Implementation_Roadmap.md#delivery-and-qualification-dependency-policy)).
@@ -521,8 +525,10 @@ Maintained deterministic evidence:
 
 No experiments or E/Q gates are retired or rerun by this increment.
 
-Integration validation on 2026-10-20: file/tool and native/SQLite checks pass, but the imported shared executor's maintained `DisposeCancelsAuthorityAndWaitsForOwnedModelResourcesWithoutReplay` check returned Denied where Cancelled is required.
-The failing [shared lifecycle check](../tests/Kora.Application.UnitTests/Dependencies/LocalContextTurnWorkflowTests.cs) remains a peer repair handoff, not a passing validation or readiness claim. Production source-use policy and model qualification remain unavailable.
+Two-phase integration validation on 2026-10-20: the Release solution build passes with zero warnings/errors; Core 3,296, Application 8,497, Tools 259, Definitions 6 and selected native/SQLite 58 tests pass.
+The earlier `d5cfa31` disposal-outcome failure is superseded by the peer's two-phase revision and passing [shared lifecycle checks](../tests/Kora.Application.UnitTests/Dependencies/LocalContextTurnWorkflowTests.cs), not by a file-owned shared-lifecycle repair.
+File-owned portable source paths retain 100% line/branch coverage. Aggregate coverage remains below the maintained 100% gate after dependency import and is not a passing repository readiness claim.
+Production sensitivity/source-use admission and model qualification remain unavailable. Passing fake/source-identity checks do not qualify semantic answer grounding, an empty-tool transport or real source classification.
 
 ## Delivered Native Current-Source Literal Find - 2026-10-12
 

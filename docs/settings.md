@@ -187,6 +187,9 @@ never reported as a Kokoro speed effect. Unknown state stays unavailable.
 [Exact typed/current-name ACTIVATED commands](commands.md#inspect-or-change-windows-native-speech-rate)
 use the same admitted host workflow, not model settings tools.
 
+Exact typed/current-name activated **speak faster** and **speak slower** adjust the freshly admitted desired Windows rate by **1 provider-native unit** ([domain step](../src/Kora.Core/Configuration/WindowsSpeechRate.cs#L21)).
+At -10/10 the result explicitly reports unchanged without a write or success audit; reaching a bound is reported explicitly. Kokoro remains unsupported; aliases never select Windows for you ([rate action](../src/Kora.Application/Configuration/WindowsSpeechRateConfigurationService.cs#L118)).
+
 Saving/resetting retires active and queued speech. Only future eligible Windows
 synthesis consumes the owned engine rate, after the previous synthesis lifetime
 quiesces; changing it never starts or replays speech. Full interrupted responses
@@ -740,6 +743,9 @@ padding, fractions, `%` or leading zeros. The current assistant-name prefix
 works. Results show saved/default/unavailable source, desired/effective percent,
 bounds/default, revisions and recovery. Protected/unknown calls deny original
 voice mutations; use a new eligible typed/Settings request.
+
+Exact typed/current-name activated **speak louder** and **speak quieter** adjust the freshly admitted desired Kora volume by **up to 10 percentage points** ([domain step](../src/Kora.Core/Configuration/PlaybackVolume.cs#L21)).
+A shorter final step explicitly reports the reached 0/100 boundary and exact desired/effective result (95 to 100 or 5 to 0); already there reports unchanged with no write or successful-change audit. Numeric Settings controls and aliases use the same audited apply path ([volume action](../src/Kora.Application/Configuration/PlaybackVolumeConfigurationService.cs#L86)).
 
 Only Kora-owned Windows speech instance gain and Kokoro PCM attenuation change.
 No Windows/system/call volume, mute, microphone, consent, provider, output

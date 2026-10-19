@@ -95,18 +95,34 @@ public sealed partial class MainViewModel
         {
             await windowsSpeechRateConfiguration!.RefreshAsync(origin, eligible, cancellationToken);
             var saved = false;
-            if (command.Operation is AppearanceCommandOperation.Set or AppearanceCommandOperation.Reset)
+            var outcome = "observed";
+            if (command.Adjustment is { } adjustment)
+            {
+                var current = windowsSpeechRateConfiguration.Get();
+                var proposal = windowsSpeechRateConfiguration.ProposeAdjustment(adjustment, current.Revision, CallPolicyRevision);
+                if (proposal is null)
+                {
+                    outcome = adjustment == AudioPreferenceAdjustment.Increase ? "unchanged-upper-boundary" : "unchanged-lower-boundary";
+                }
+                else
+                {
+                    saved = await windowsSpeechRateConfiguration.ApplyAsync(proposal, origin, initiator, communicationPolicy, eligible, cancellationToken);
+                    outcome = !saved ? "denied" : proposal.Value!.Value.Value == WindowsSpeechRate.Maximum ? "saved-upper-boundary"
+                        : proposal.Value.Value.Value == WindowsSpeechRate.Minimum ? "saved-lower-boundary" : "saved";
+                }
+            }
+            else if (command.Operation is AppearanceCommandOperation.Set or AppearanceCommandOperation.Reset)
             {
                 var proposal = windowsSpeechRateConfiguration.Propose(command.Operation == AppearanceCommandOperation.Reset ? null
                     : command.Value ?? throw new InvalidOperationException("An exact Windows-native rate is required."),
                     windowsSpeechRateConfiguration.Get().Revision, CallPolicyRevision);
                 saved = await windowsSpeechRateConfiguration.ApplyAsync(proposal, origin, initiator, communicationPolicy, eligible, cancellationToken);
+                outcome = saved ? "saved" : "denied";
             }
             if (!eligible()) { return; }
             if (saved && IsSpeaking) { await textToSpeech.StopAsync(CancellationToken.None); }
             if (!eligible()) { return; }
-            var result = WindowsSpeechRateState.Serialize(windowsSpeechRateConfiguration.Get(), CallPolicyRevision,
-                command.Operation is AppearanceCommandOperation.Set or AppearanceCommandOperation.Reset ? saved ? "saved" : "denied" : "observed");
+            var result = WindowsSpeechRateState.Serialize(windowsSpeechRateConfiguration.Get(), CallPolicyRevision, outcome);
             if (preserveResponse)
             {
                 Transcript = result;

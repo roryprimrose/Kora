@@ -12,7 +12,7 @@ public abstract class HostControlAdmission(
 {
     private readonly SemaphoreSlim gate = new(1, 1);
     private readonly CancellationTokenSource lifetime = new();
-    private bool disposed;
+    private volatile bool disposed;
     private bool evidenceUnavailable;
     private readonly Lock disposalGate = new();
     private Task? disposal;

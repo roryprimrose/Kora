@@ -79,11 +79,15 @@ public sealed partial class LocalContextTurnWorkflowTests : IDisposable
         if (string.Equals(failure, "inactive", StringComparison.Ordinal)) { fixture.Store.Authority = fixture.Store.Authority! with { IsActive = false }; }
         var context = fixture.Context(allowTools: string.Equals(failure, "tools", StringComparison.Ordinal),
             hosted: string.Equals(failure, "hosted-evidence", StringComparison.Ordinal), foreign: string.Equals(failure, "foreign-context", StringComparison.Ordinal));
-        var receipt = await fixture.Workflow.RunAsync(fixture.Target, context, () => fixture.Eligible, Token);
+        var receipt = await fixture.Run(context: context);
         receipt.Outcome.Should().Be(ModelTurnOutcome.Denied);
         receipt.Answer.Should().BeNull();
         fixture.Model.Calls.Should().Be(0);
-        fixture.Store.Tasks.Should().BeEmpty();
+        if (failure is "tools" or "hosted-evidence" or "foreign-context")
+        {
+            fixture.Store.Tasks.Last().State.Should().Be(HostTaskState.Denied);
+        }
+        else { fixture.Store.Tasks.Should().BeEmpty(); }
     }
 
     [Theory]
@@ -126,7 +130,7 @@ public sealed partial class LocalContextTurnWorkflowTests : IDisposable
         using var cancellation = new CancellationTokenSource();
         fixture.Model.Quiescence = new(TaskCreationOptions.RunContinuationsAsynchronously);
         fixture.Model.BeforeRun = cancellation.Cancel;
-        var pending = fixture.Workflow.RunAsync(fixture.Target, fixture.Context(), () => fixture.Eligible, cancellation.Token);
+        var pending = fixture.Run(cancellation.Token);
         try
         {
             pending.IsCompleted.Should().BeFalse();
@@ -187,7 +191,7 @@ public sealed partial class LocalContextTurnWorkflowTests : IDisposable
             if (cancel) { cancellation.Cancel(); }
             else { fixture.Eligible = false; }
         };
-        var receipt = await fixture.Workflow.RunAsync(fixture.Target, fixture.Context(), () => fixture.Eligible, cancellation.Token);
+        var receipt = await fixture.Run(cancellation.Token);
         receipt.Outcome.Should().Be(cancel ? ModelTurnOutcome.Cancelled : ModelTurnOutcome.Denied);
         receipt.DurableState.Should().Be(cancel ? HostTaskState.Cancelled : HostTaskState.Denied);
         fixture.Model.Calls.Should().Be(0);
@@ -222,7 +226,7 @@ public sealed partial class LocalContextTurnWorkflowTests : IDisposable
             validations++;
             HostActivity.RequireCurrent().Request.Should().BeSameAs(fixture.Request);
         }
-        var receipt = await fixture.Workflow.RunAsync(fixture.Target, fixture.Context(), () => fixture.Eligible, Token, Validate);
+        var receipt = await fixture.Run(validateSource: Validate);
         receipt.Outcome.Should().Be(ModelTurnOutcome.Succeeded);
         validations.Should().BeGreaterThan(3);
     }
@@ -272,8 +276,11 @@ public sealed partial class LocalContextTurnWorkflowTests : IDisposable
             var context = new ModelContextEnvelope(secondRequest, "untrusted", "second",
                 [new(new(Guid.NewGuid()), secondRequest, new(1), "different-source-secret", ModelEvidenceDisclosure.LocalOnly)],
                 DateTimeOffset.UtcNow, DateTimeOffset.UtcNow.AddSeconds(15), allowTools: false);
-            return await fixture.Workflow.RunAsync(LocalContextSessionTarget.Existing(secondRequest, new(1)),
-                context, () => secondEligible, Token);
+            var issued = await fixture.Workflow.AdmitAsync(LocalContextSessionTarget.Existing(secondRequest, new(1)),
+                () => secondEligible, Token);
+            if (issued.Turn is not { } turn) { return issued.Rejection!; }
+            await using var owned = turn;
+            return await turn.RunAsync(context, Token);
         }
         var second = RunSecond();
         try
@@ -335,7 +342,16 @@ public sealed partial class LocalContextTurnWorkflowTests : IDisposable
                     hosted ? ModelEvidenceDisclosure.HostedEligible : ModelEvidenceDisclosure.LocalOnly)],
                 DateTimeOffset.UtcNow, DateTimeOffset.UtcNow.AddMinutes(1), allowTools);
         }
-        internal Task<LocalContextTurnReceipt> Run() => Workflow.RunAsync(Target, Context(), () => Eligible, Token);
+        internal async Task<LocalContextTurnReceipt> Run(CancellationToken? token = null,
+            ModelContextEnvelope? context = null, Func<CancellationToken, Task>? validateSource = null)
+        {
+            var cancellation = token ?? Token;
+            IModelContextRunner runner = Workflow;
+            var issued = await runner.AdmitAsync(Target, () => Eligible, cancellation, validateSource);
+            if (issued.Turn is not { } turn) { return issued.Rejection!; }
+            await using var owned = turn;
+            return await turn.RunAsync(context ?? Context(), cancellation);
+        }
         public ValueTask DisposeAsync() => Workflow.DisposeAsync();
     }
 

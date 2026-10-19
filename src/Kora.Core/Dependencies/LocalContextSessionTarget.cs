@@ -1,6 +1,6 @@
 using Kora.Core.Hosting;
 
-namespace Kora.Application.Dependencies;
+namespace Kora.Core.Dependencies;
 
 /// <summary>An exact, one-shot session target included in the caller's explicit source-use review.</summary>
 public sealed class LocalContextSessionTarget
@@ -34,5 +34,6 @@ public sealed class LocalContextSessionTarget
     /// <summary>Uses only the reviewed active session generation; never creates or reroutes on failure.</summary>
     public static LocalContextSessionTarget Existing(HostRequest request, HostRevision generation) => new(request, generation);
 
-    internal bool TryConsume() => Interlocked.Exchange(ref consumed, 1) == 0;
+    /// <summary>Consumes the reviewed decision once; this does not establish host or durable task authority.</summary>
+    public bool TryConsume() => Interlocked.Exchange(ref consumed, 1) == 0;
 }

@@ -20,29 +20,43 @@ public sealed partial class LocalContextTurnWorkflow(
     IModelTurnAdmission admission,
     IModelTurnExecution execution,
     ISecurityAuditLog audit,
-    ILogger<LocalContextTurnWorkflow> logger) : HostControlAdmission(workspace, coordinator)
+    ILogger<LocalContextTurnWorkflow> logger) : HostControlAdmission(workspace, coordinator), IModelContextRunner
 {
     protected override async ValueTask<WorkSessionAuthorization> CreateSessionAsync(
         HostRequest request, Func<bool> eligible, CancellationToken token) =>
         (await sessions.CreateLocalContextSessionAsync(request, eligible, token).ConfigureAwait(false)).Authority;
 
-    public async Task<LocalContextTurnReceipt> RunAsync(LocalContextSessionTarget target, ModelContextEnvelope context,
-        Func<bool> eligible, CancellationToken token, Func<CancellationToken, Task>? validateSource = null)
+    public async Task<ModelContextAdmission> AdmitAsync(LocalContextSessionTarget target, Func<bool> sourceCurrent,
+        CancellationToken token, Func<CancellationToken, Task>? validateSource = null)
     {
         ArgumentNullException.ThrowIfNull(target);
-        ArgumentNullException.ThrowIfNull(context);
-        ArgumentNullException.ThrowIfNull(eligible);
+        ArgumentNullException.ThrowIfNull(sourceCurrent);
         var request = target.Request;
         var current = HostActivity.Current;
         if (current is null || current.Activity!.IsStopped || current.Outcome != HostOperationOutcome.Unknown
             || !ReferenceEquals(current.Request, request) || current.Request.Origin != request.Origin)
         {
-            return new(request, ModelTurnOutcome.Denied, LocalContextTurnReason.OriginalInputRequired);
+            return new(new LocalContextTurnReceipt(request, ModelTurnOutcome.Denied, LocalContextTurnReason.OriginalInputRequired));
         }
         if (!target.TryConsume())
         {
-            return new(request, ModelTurnOutcome.Denied, LocalContextTurnReason.TargetAlreadyUsed);
+            return new(new LocalContextTurnReceipt(request, ModelTurnOutcome.Denied, LocalContextTurnReason.TargetAlreadyUsed));
         }
+        var prepared = new AdmittedContextTurn(request);
+        var completion = RunLifecycleAsync(target, prepared, current, sourceCurrent, validateSource, token);
+        prepared.BindCompletion(completion);
+        var result = await prepared.ReadAdmissionAsync().ConfigureAwait(false);
+        if (result.Turn is null) { await prepared.DisposeAsync().ConfigureAwait(false); }
+        return result;
+    }
+
+    private async Task<LocalContextTurnReceipt> RunLifecycleAsync(LocalContextSessionTarget target,
+        AdmittedContextTurn prepared, HostActivity current, Func<bool> eligible,
+        Func<CancellationToken, Task>? validateSource, CancellationToken token)
+    {
+        var request = target.Request;
+        using var linked = CancellationTokenSource.CreateLinkedTokenSource(token, prepared.Revocation);
+        token = linked.Token;
         var requested = new SecurityAuditEvent(Guid.NewGuid(), SecurityAuditCategory.ProtectedOperation,
             "model.context.local", SecurityAuditOutcome.Requested,
             request.Origin == RequestOrigin.ActivatedVoice ? SecurityAuditInitiator.VoiceCommand : SecurityAuditInitiator.LocalUser,
@@ -56,21 +70,10 @@ public sealed partial class LocalContextTurnWorkflow(
             requestedCommitted = true;
             var revision = access.ControlRevision;
             bool Live() => access.CanControl && access.ControlRevision == revision && eligible()
-                && !current.Activity.IsStopped && current.Outcome == HostOperationOutcome.Unknown;
-            receipt = await RunExactAsync<LocalContextTurnReceipt>(request, Live, async (admitted, cancellation) =>
-            {
-                if (!ReferenceEquals(context.Request, request))
-                {
-                    return new(request, ModelTurnOutcome.Denied, LocalContextTurnReason.ContextMismatch);
-                }
-                if (context.AllowTools || context.Evidence.IsEmpty
-                    || context.Evidence.Any(item => item.Disclosure != ModelEvidenceDisclosure.LocalOnly))
-                {
-                    return new(request, ModelTurnOutcome.Denied, LocalContextTurnReason.ContextMismatch);
-                }
-                context.RequireCompleteInputLimit();
-                return await ExecuteAsync(target, context, admitted, validateSource, cancellation).ConfigureAwait(false);
-            }, value => ActivityOutcome(value.Outcome), token).ConfigureAwait(false);
+                && !current.Activity!.IsStopped && current.Outcome == HostOperationOutcome.Unknown;
+            receipt = await RunExactAsync(request, Live,
+                (admitted, cancellation) => ExecuteAsync(target, prepared, admitted, validateSource, cancellation),
+                value => ActivityOutcome(value.Outcome), token).ConfigureAwait(false);
         }
         catch (OperationCanceledException)
         {
@@ -94,16 +97,20 @@ public sealed partial class LocalContextTurnWorkflow(
         }
         Result(logger, receipt.Outcome, receipt.Reason, receipt.DurableState);
         auditActivity.Complete(ActivityOutcome(receipt.Outcome));
+        prepared.RejectIfNotAdmitted(receipt);
+        prepared.Retire();
         return receipt;
     }
 
     private async Task<LocalContextTurnReceipt> ExecuteAsync(LocalContextSessionTarget target,
-        ModelContextEnvelope context, Func<bool> eligible, Func<CancellationToken, Task>? validateSource,
+        AdmittedContextTurn prepared, Func<bool> eligible, Func<CancellationToken, Task>? validateSource,
         CancellationToken token)
     {
         var request = target.Request;
         HostTaskRecord? prior = null;
         var executionEntered = false;
+        var admissionToken = token;
+        CancellationToken submissionToken = default;
         Func<CancellationToken, Task>? finalValidation = null;
         LocalContextTurnReceipt receipt;
         try
@@ -122,8 +129,12 @@ public sealed partial class LocalContextTurnWorkflow(
             prior = await Workspace.RecordControlIntentAsync(request, token).ConfigureAwait(false);
             async Task ValidateTurnAsync(CancellationToken cancellation)
             {
+                admissionToken.ThrowIfCancellationRequested();
+                submissionToken.ThrowIfCancellationRequested();
                 if (!OwnsLiveContext(request)) { throw new SourceNotCurrentException(); }
                 await RequireSourceAsync(eligible, validateSource, cancellation).ConfigureAwait(false);
+                admissionToken.ThrowIfCancellationRequested();
+                submissionToken.ThrowIfCancellationRequested();
                 var actual = await Workspace.ReadMetadataAsync(request.SessionId, cancellation).ConfigureAwait(false);
                 if (actual.Authority != session) { throw new SourceNotCurrentException(); }
                 await RequireSourceAsync(eligible, validateSource, cancellation).ConfigureAwait(false);
@@ -131,6 +142,27 @@ public sealed partial class LocalContextTurnWorkflow(
             finalValidation = ValidateTurnAsync;
             await ValidateTurnAsync(token).ConfigureAwait(false);
             prior = await contextTasks.AdmitLocalContextDispatchAsync(request, session.Generation, eligible, token).ConfigureAwait(false);
+            var observed = await Workspace.ReadTaskAsync(request.SessionId, request.TaskId, token).ConfigureAwait(false);
+            if (observed?.Task != prior || !observed.CurrentSource || observed.Generation != session.Generation
+                || prior.State != HostTaskState.DispatchRecorded || prior.Request != request)
+            {
+                throw new InvalidDataException("Local context admission has no exact current-source durable dispatch.");
+            }
+            await ValidateTurnAsync(token).ConfigureAwait(false);
+            var submitted = await prepared.ReceiveAsync(session.Generation, token).ConfigureAwait(false);
+            submissionToken = submitted.Token;
+            using var runCancellation = CancellationTokenSource.CreateLinkedTokenSource(token, submitted.Token);
+            token = runCancellation.Token;
+            if (submitted.Rejection is { } rejection) { throw new ContextRejectedException(rejection); }
+            var context = submitted.Context
+                ?? throw new InvalidDataException("The admitted context submission is missing.");
+            if (!ReferenceEquals(context.Request, request) || context.AllowTools || context.Evidence.IsEmpty
+                || context.Evidence.Any(item => item.Disclosure != ModelEvidenceDisclosure.LocalOnly))
+            {
+                throw new ContextRejectedException(LocalContextTurnReason.ContextMismatch);
+            }
+            context.RequireCompleteInputLimit();
+            await ValidateTurnAsync(token).ConfigureAwait(false);
             var model = await admission.AdmitAsync(ModelTurnChoice.Local, context, null, token).ConfigureAwait(false);
             var result = model.Result;
             if (model.Turn is { } turn)
@@ -160,7 +192,11 @@ public sealed partial class LocalContextTurnWorkflow(
         catch (SourceNotCurrentException)
         {
             if (executionEntered) { await execution.WaitForQuiescenceAsync(CancellationToken.None).ConfigureAwait(false); }
-            receipt = new(request, ModelTurnOutcome.Denied, LocalContextTurnReason.SourceNotCurrent);
+            receipt = SourceClosed(request);
+        }
+        catch (ContextRejectedException exception)
+        {
+            receipt = new(request, ModelTurnOutcome.Denied, exception.Reason);
         }
         catch (Exception exception)
         {
@@ -193,7 +229,7 @@ public sealed partial class LocalContextTurnWorkflow(
                 }
                 catch (SourceNotCurrentException)
                 {
-                    return new(request, ModelTurnOutcome.Denied, LocalContextTurnReason.SourceNotCurrent, terminal.State);
+                    return SourceClosed(request, terminal.State);
                 }
             }
             return receipt with { DurableState = terminal.State };
@@ -217,6 +253,10 @@ public sealed partial class LocalContextTurnWorkflow(
     }
 
     private sealed class SourceNotCurrentException : InvalidOperationException;
+
+    private LocalContextTurnReceipt SourceClosed(HostRequest request, HostTaskState? state = null) => IsDisposed
+        ? new(request, ModelTurnOutcome.Cancelled, LocalContextTurnReason.Cancelled, state)
+        : new(request, ModelTurnOutcome.Denied, LocalContextTurnReason.SourceNotCurrent, state);
 
     private static LocalContextTurnReason Reason(ModelTurnOutcome outcome) => outcome switch
     {

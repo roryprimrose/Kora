@@ -132,6 +132,24 @@ public sealed partial class MainViewModel : ISpeechReadOncePlayback
         else { ApplicationLog.Error(logger, exception, operation); }
     }
 
+    private async Task ExecuteResponseReadCommandAsync(ResponseReadCommand command, string originalInput,
+        SecurityAuditInitiator initiator, ResponseReadInput? capturedInput)
+    {
+        if (!command.IsValid)
+        {
+            ReportResponseRead("Response read command was not accepted. Use exactly read that aloud or read current response, with the optional current assistant name; no extra source, text or controls. Nothing was played, answered, approved or sent to a model.");
+            return;
+        }
+        if (!isAssistantNameAvailable && commandRouter.IsActivationPrefixed(originalInput, AssistantName))
+        {
+            ReportResponseRead("Assistant prefix routing is unavailable; no response playback was dispatched.");
+            return;
+        }
+        var input = capturedInput ?? CaptureResponseReadInput(initiator);
+        await Kora.Application.Hosting.HostRequestRunner.RunAsync(OriginalOrigin(initiator),
+            () => ReadCurrentResponseAsync(input));
+    }
+
     private async Task ReadCurrentResponseAsync(ResponseReadInput input)
     {
         if (input.Target is not { } target || !input.Eligible() || IsSpeaking || responseReadCancellation is not null)

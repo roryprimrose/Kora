@@ -4077,16 +4077,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             ApplicationLog.Information(logger, "Rejected command input outside the active unlocked host");
             return;
         }
-        if (ResponseReadCommand.Matches(spokenText, AssistantName))
+        if (ResponseReadCommand.Parse(spokenText, AssistantName) is { } responseReadCommand)
         {
-            if (!isAssistantNameAvailable && commandRouter.IsActivationPrefixed(spokenText, AssistantName))
-            {
-                ReportResponseRead("Assistant prefix routing is unavailable; no response playback was dispatched.");
-                return;
-            }
-            var input = responseReadInput ?? CaptureResponseReadInput(initiator);
-            await Kora.Application.Hosting.HostRequestRunner.RunAsync(OriginalOrigin(initiator),
-                () => ReadCurrentResponseAsync(input));
+            await ExecuteResponseReadCommandAsync(responseReadCommand, spokenText, initiator, responseReadInput);
             return;
         }
         RetirePromptPreparationForNewInput();

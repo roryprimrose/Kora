@@ -61,6 +61,7 @@ bootstrap fallback. Draft saves are explicit; reading/restoring never submits.
 
 Use **Read current response** in the compact response window, `read that aloud`, or `read current response`.
 Typed and activated voice input accept the optional current assistant-name prefix, for example `Kora, read that aloud`; extra words are not an exact command ([parser](../src/Kora.Application/Voice/ResponseReadCommand.cs), [native controls](../src/Kora/ResponseWindow.axaml)).
+The `read that` and `read current` families are reserved before question/approval and model dispatch. Incomplete, overlong, control-character or extra-argument forms report exact-command recovery without answering/cancelling a pending decision, synthesizing text or invoking inference ([boundary tests](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.ResponseRead.cs)).
 
 All routes invoke the same [one-shot action](../src/Kora.Tools/Speech/SpeechReadOnce.cs) for the exact current ordinary response identity/revision and observed call policy.
 This is not arbitrary TTS, history-row playback, raw clipboard/file/web reading, a question/approval readback, or an automatic replay queue ([host admission](../src/Kora.Application/ViewModels/MainViewModel.ResponseRead.cs)).

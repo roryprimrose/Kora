@@ -1,7 +1,7 @@
 using Avalonia.Controls;
 using Avalonia.Interactivity;
+using Avalonia.LogicalTree;
 using Avalonia.Threading;
-using Avalonia.VisualTree;
 
 using AwesomeAssertions;
 
@@ -22,7 +22,7 @@ public sealed partial class NewRequestControllerTests
 {
     private static async Task<(SessionWorkspaceEntry Source, ConversationMessage Original)> RetainOriginal(NativeUxFixtureSession f)
     {
-        var source = (await f.Interactions.ReadMetadataPageAsync(null, 25, f.Token)).Records.First(record => record.Authority.IsActive);
+        var source = await f.Sessions.CreateAsync(new NewRequestCreationAttempt(), () => true, f.Token);
         var request = new HostRequest(new(Guid.NewGuid()), source.Authority.SessionId, new(Guid.NewGuid()), RequestOrigin.LocalUi);
         using var root = HostActivity.BeginRoot(request, HostActivityLayer.Desktop, HostOperation.Request);
         await f.Interactions.RetainConversationMessageAsync(request, source.Authority.Generation, source.Metadata?.Revision.Value ?? 0,
@@ -55,7 +55,7 @@ public sealed partial class NewRequestControllerTests
             var opens = 0;
             using var opened = Window.WindowOpenedEvent.AddClassHandler<NewRequestWindow>((view, _) => { target = view; opens++; });
             using var reviewed = Window.WindowOpenedEvent.AddClassHandler<OriginalMessageReuseWindow>((view, _) =>
-                Dispatcher.UIThread.Post(() => view.GetVisualDescendants().OfType<Button>()
+                Dispatcher.UIThread.Post(() => view.GetLogicalDescendants().OfType<Button>()
                     .Single(button => string.Equals(button.Name, "ConfirmOriginalMessageReuse", StringComparison.Ordinal))
                     .RaiseEvent(new RoutedEventArgs(Button.ClickEvent))));
             var before = await f.Interactions.ReadRetentionAsync(source.Authority.SessionId, f.Token);
@@ -140,8 +140,8 @@ public sealed partial class NewRequestControllerTests
             {
                 if (decision is "created") { await composer.Create(); }
                 using var root = HostActivity.BeginRoot(original.Request, HostActivityLayer.Desktop, HostOperation.Request);
-                await controller.ReviewOriginalReuseAsync(source, original, owner, () => true, f.Token);
-                prompted.Should().Be(decision is "created" ? 0 : 1);
+                var result = await controller.ReviewOriginalReuseAsync(source, original, owner, () => true, f.Token);
+                prompted.Should().Be(decision is "created" ? 0 : 1, result);
                 composer.Body.Should().Be(decision is "replace" ? original.Body
                     : decision is "edit" ? "newer independent memory"
                     : decision is "close" ? string.Empty : "existing memory");

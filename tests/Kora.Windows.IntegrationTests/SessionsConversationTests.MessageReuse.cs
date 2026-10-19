@@ -1,5 +1,6 @@
 using Avalonia.Controls;
 using Avalonia.Interactivity;
+using Avalonia.LogicalTree;
 using Avalonia.VisualTree;
 
 using AwesomeAssertions;
@@ -95,16 +96,16 @@ public sealed partial class SessionsConversationTests
             try
             {
                 var decision = dialog.Open(owner);
-                var fields = dialog.GetVisualDescendants().OfType<TextBox>().Where(control => control.IsReadOnly).ToArray();
+                var fields = dialog.GetLogicalDescendants().OfType<TextBox>().Where(control => control.IsReadOnly).ToArray();
                 fields.Select(control => control.Text).Should().Contain(original.Body).And.Contain(composer.Body);
                 fields.Should().OnlyContain(control => control.ContextMenu == null && !control.IsUndoEnabled);
                 var copy = new RoutedEventArgs(TextBox.CopyingToClipboardEvent);
                 fields[0].RaiseEvent(copy);
                 copy.Handled.Should().BeTrue();
-                dialog.GetVisualDescendants().OfType<Button>()
+                dialog.GetLogicalDescendants().OfType<Button>()
                     .Single(button => string.Equals(button.Name, "ConfirmOriginalMessageReuse", StringComparison.Ordinal))
                     .Content!.ToString().Should().Contain("Replace");
-                dialog.GetVisualDescendants().OfType<Button>()
+                dialog.GetLogicalDescendants().OfType<Button>()
                     .Single(button => string.Equals(button.Name, "CancelOriginalMessageReuse", StringComparison.Ordinal))
                     .RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
                 (await decision).Should().BeFalse();
@@ -228,8 +229,8 @@ public sealed partial class SessionsConversationTests
             Button? retainedConfirm = null;
             using var opening = Window.WindowOpenedEvent.AddClassHandler<OriginalMessageReuseWindow>((view, _) =>
             {
-                fields = view.GetVisualDescendants().OfType<TextBox>().Where(control => control.IsReadOnly).ToArray();
-                retainedConfirm = view.GetVisualDescendants().OfType<Button>()
+                fields = view.GetLogicalDescendants().OfType<TextBox>().Where(control => control.IsReadOnly).ToArray();
+                retainedConfirm = view.GetLogicalDescendants().OfType<Button>()
                     .Single(button => string.Equals(button.Name, "ConfirmOriginalMessageReuse", StringComparison.Ordinal));
                 if (change is "source") { review.Dispose(); }
                 else { composed.Access.ControlRevision++; }

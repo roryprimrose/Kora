@@ -116,5 +116,6 @@ internal sealed partial class SessionsViewModel
         NotifyPendingCancellation();
         NotifyExpiredRequeue();
         NotifyQueuePrerequisite();
+        NotifyDiagnosticsPlan();
     }
 }

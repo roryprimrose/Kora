@@ -14,7 +14,7 @@ public sealed partial class WindowsSqliteHostInteractionStore
         if (work.SessionId != control.SessionId || work.TaskId == control.TaskId || work.RequestId == control.RequestId
             || work.Origin != control.Origin || work.InvocationId is not null || ReadTask(connection, work.TaskId) is not null
             || QueueRequestExists(connection, work.RequestId)
-            || ReadQueueRows(connection, control.SessionId).Count(entry => entry.IsPending && entry.RunId == runId)
+            || SessionQueueCapacity.PendingCount(ReadQueueRows(connection, control.SessionId), runId)
                 - freedSlots >= limits.PendingPerSession)
         {
             throw new InvalidOperationException("The exact work identity conflicts or the resulting pending queue exceeds its confirmed capacity.");

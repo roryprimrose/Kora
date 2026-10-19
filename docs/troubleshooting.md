@@ -69,6 +69,49 @@ An interrupted validation means evidence is unavailable, not proven corrupt or
 successfully validated. Retain the database and journal; do not delete them to
 work around the failure.
 
+Segmented evidence startup applies the same 30-second allowance to read-only
+legacy sealing, segment-state checks and initial identity admission. It validates
+legacy history before creating the new inventory partition. If an earlier failed
+cutover already left `EvidenceSegmentsV2` without committed inventory metadata,
+startup reports an incomplete inventory and preserves it; the corrected
+validation budget does not make that partial state safe to reuse. Keep the
+legacy database, its journal and all new-partition files intact for explicit
+supported investigation. Do not remove an inventory, staging file, segment or
+unclean-owner marker to force another launch. A source fix does not authorize
+recovery or an automatic restart.
+
+The explicit operator argument `--recover-evidence-cutover` is a narrowly scoped
+offline maintenance route, not an ordinary launch or a general inventory repair.
+It requires a verified build, exclusive instance/storage gates, one authoritative
+unlocked session and a native confirmation. It accepts only an existing
+`EvidenceSegmentsV2` containing an empty `Artifacts` directory and an existing
+zero-byte `operation.lock`, with retained valid legacy evidence. Committed or
+pending inventory, any candidate segment, unknown entry, unavailable ownership
+or validation failure blocks it. It completes that first cutover in place;
+existing database, journal, lease and marker files are not removed or replaced.
+Normal startup never invokes it automatically.
+
+This route does not start assistant services, providers, microphone capture,
+task recovery or replay, and does not release the unclean-owner marker. Session
+eligibility is rechecked before mutation and atomic publication. Cancellation or
+failure after candidate/staging creation preserves those files and refuses
+another first-cutover recovery; investigate the actual resulting state instead
+of repeating the command. Its stdout JSON is a bootstrap completion receipt,
+not a security-audit receipt or permission to restart. A failure writing that
+receipt after commit is explicitly reported as committed, not rolled back.
+Refusals/failures emit a separate content-free stderr JSON receipt with a
+typed reason code; exception text and private paths are not copied into it.
+`NotAdmitted` / `NotStarted` means the native admission gate did not permit the
+storage operation. Other failures report commit state `Unconfirmed`, never
+claiming rollback; notification failure after a returned completion receipt
+reports `Committed`. The native confirmation uses Yes/No: Yes requests only
+offline evidence recovery, not host startup or ownership-marker removal.
+Declined, timed-out or otherwise unavailable confirmation shares the explicit
+`ConfirmationUnavailableOrDeclined` reason, not a guessed button choice.
+If stderr output itself fails, the native error explicitly reports that loss.
+Live recovery, instance reconciliation and any subsequent launch require
+separate operator approval; source-only validation authorizes none of them.
+
 If the UI stalls while recording presentation updates, completed desktop
 activities use the shared bounded off-UI evidence buffer rather than
 hashing the entire evidence database on the UI thread. Required audit

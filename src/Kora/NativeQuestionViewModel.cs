@@ -164,7 +164,9 @@ internal sealed partial class NativeQuestionViewModel : ObservableObject
             lock (stateGate) { return !closed && !cleared && !busy && question.Spec.Accepts(answer, submitting: false); }
         }
     }
+#pragma warning disable VSTHRD003 // Exposes the owned interaction receipt; asynchronous observers leave the dispatcher available for completion.
     internal Task<HostInteractionDecision> Completion => completion.Task;
+#pragma warning restore VSTHRD003
 
     internal void Edit(QuestionAnswer value)
     {

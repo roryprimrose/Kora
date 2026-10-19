@@ -42,6 +42,30 @@ The existing Application review action, strict sparse/domain rules and private d
 
 Deterministic workflow, command, native and private SQLite tests are authored. Current-head build/test/exact portable line-and-branch coverage validation is pending the coordinator's serial permit; no READY or proof claim is made. This consumes the merged session-provider configuration I subset only. Broader provider/runtime/egress E/Q qualification remains unavailable and is not an implementation prerequisite.
 
+### Bounded retained original USER text reuse implementation — 2026-10-19
+
+The [explicit original-text reuse contract](Interaction_And_Sessions.md#explicit-retained-original-user-text-reuse--2026-10-19) adds actual admitted USER-row review and separate one-shot confirmation into the single New request memory buffer. Complete source/body/provenance rereads, explicit dirty-buffer replacement, inert panes and private/source/buffer/native-opening fences preserve immutable originals and fresh eventual submission lineage. No task replay, HOST/model promotion, target creation, Save/Submit, queue/approval, clipboard, activity renewal or provider operation is implicit.
+
+Implementation and deterministic tests are authored, including cancellation during synchronous memory handoff. Exact-head maintained builds, tests and raw line/branch coverage remain required before merge; authored tests and incomplete local execution are not passing validation. Only the existing canonical original-reader/New request/private-pane I subset is consumed; runtime/provider/egress/wake/profile-original writers remain unavailable and unrelated E/Q or physical/installed qualification is not claimed.
+
+### Bounded fixed local diagnostics queue plan implementation - 2026-10-19
+
+The [queue contract](Work_Management.md#bounded-fixed-local-diagnostics-queue-plan---2026-10-19)
+adds explicit native selection of up to four existing no-argument diagnostics profiles,
+complete exact-session/capacity/deadline/control review and separate one-shot confirmation.
+Each planned item uses the same authoritative single enqueue action, with explicit None
+prerequisite and fresh host IDs. Sequential/possibly partial outcomes stop at uncertainty;
+earlier pending commits remain queued, with no retry, rollback or implicit dispatch.
+
+This consumes only the merged session/queue/profile/admission/audit/limits I subset.
+Implementation, deterministic tests and native wiring are authored. Readiness requires
+builds, test execution, maintained native checks and exact-source raw 100% portable
+line/branch proof in the separately admitted serial validation lane. Commit-bound
+continuation receipts distinguish failed attempts from completed proof; authorization
+alone is not READY or qualification evidence.
+No model/provider/network/executor or background pump is added; E/Q, installed/hardware and
+physical/provider/containment qualification remain separate and unclaimed.
+
 ### Bounded exact immutable LocalFile Find count and ordinal - 2026-10-18
 
 The existing [native current-source Find](File_And_Folder_Ingestion.md#exact-immutable-localfile-occurrence-count-and-ordinal---2026-10-18) reports an accessible exact total and selected ordinal only for its admitted displayed immutable file, never corpus/retrieval/live disk.
@@ -765,6 +789,12 @@ Preference/source/private closure and page retirement fail closed.
 This consumes the existing preference/typography/Evidence I subset; no global
 UI scaling, model/runtime route, voice inference, installed accessibility or
 broader E/Q qualification is claimed.
+
+### Bounded native session retention impact planner implementation - 2026-10-18
+
+The [read-only session planner](User_Configuration.md#read-only-hypothetical-session-retention-planner) adds explicit proposal/preview controls, content-free hypothetical-versus-recorded due counts and conservative exclusions. Bounded metadata and exact source/preference/policy/admission revisions fence results; incomplete/unavailable observations expose no aggregate.
+
+Consumed I is existing policy/private authority and native lifetime. No apply-now, mutation, cleanup, revocation, schema/index/cache/scanner or broader runtime is enabled. Deterministic tests cover policy, budgets, exclusions, currentness and lifecycle; exact-head validation receipts remain separate from E/Q qualification ([planner source](../src/Kora.Application/Configuration/SessionRetentionPlannerService.cs)).
 
 ### Bounded read-only audit shortening impact preview - 2026-10-15
 

@@ -22,14 +22,12 @@ public sealed class DailyFileLoggerFactoryTests
     [Fact]
     public void Production_calendar_configuration_explicitly_disables_size_cutoff_without_new_roll_names()
     {
-        var directory = new DirectoryInfo(AppContext.BaseDirectory);
-        while (directory is not null && !File.Exists(Path.Combine(directory.FullName, ".github", "copilot-instructions.md")))
-        {
-            directory = directory.Parent;
-        }
-        var root = directory?.FullName ?? throw new InvalidOperationException("Source root unavailable.");
+        var root = SourceRoot();
         File.ReadAllText(Path.Combine(root, "src", "Kora", "Program.cs"))
-            .Should().Contain("DailyFileLoggerFactory.Create(paths, fileHealth)");
+            .Should().Contain("DailyFileLoggerFactory.Create(paths, fileHealth)")
+            .And.Contain("services.AddSingleton<ILoggerProvider>(provider => new EvidenceLoggerProvider(")
+            .And.Contain("provider.GetRequiredService<WindowsSegmentedEvidenceSink>()")
+            .And.Contain("requiredOrdinaryCopy: fileSink");
         // The 1 GiB boundary is checked at the production configuration seam, not with a huge file.
         File.ReadAllText(Path.Combine(root, "src", "Kora", "DailyFileLoggerFactory.cs"))
             .Should().Contain("fileSizeLimitBytes: null")
@@ -39,6 +37,29 @@ public sealed class DailyFileLoggerFactoryTests
             .And.Contain("rollOnFileSizeLimit: false")
             .And.Contain("shared: false")
             .And.Contain("DailyLogFilePolicy.RollingName");
+    }
+
+    [Fact]
+    public void Production_logging_is_activated_before_the_startup_root_is_created()
+    {
+        var source = File.ReadAllText(Path.Combine(SourceRoot(), "src", "Kora", "Program.cs"));
+        var startup = source.IndexOf("using (var startup = HostActivity.BeginRoot(", StringComparison.Ordinal);
+        startup.Should().BeGreaterThan(0);
+        source.IndexOf("provider = services.BuildServiceProvider();", StringComparison.Ordinal)
+            .Should().BeGreaterThan(0).And.BeLessThan(startup);
+        source.IndexOf("var startupLogger = provider.GetRequiredService<ILoggerFactory>()", StringComparison.Ordinal)
+            .Should().BeGreaterThan(0).And.BeLessThan(startup,
+                "DI must install the evidence listener before ActivitySource attempts the startup root");
+    }
+
+    private static string SourceRoot()
+    {
+        var directory = new DirectoryInfo(AppContext.BaseDirectory);
+        while (directory is not null && !File.Exists(Path.Combine(directory.FullName, ".github", "copilot-instructions.md")))
+        {
+            directory = directory.Parent;
+        }
+        return directory?.FullName ?? throw new InvalidOperationException("Source root unavailable.");
     }
 
     [WindowsFact]

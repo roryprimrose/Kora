@@ -1,4 +1,4 @@
-using Kora.Application.Diagnostics;
+﻿using Kora.Application.Diagnostics;
 using Kora.Core;
 using Kora.Core.Diagnostics;
 using Kora.Core.Platform;
@@ -22,7 +22,9 @@ public sealed partial class MainViewModel
     private bool microphoneCatalogCurrent = true;
     private bool isRefreshingMicrophones;
     private Task microphoneRefreshTask = Task.CompletedTask;
+#pragma warning disable VSTHRD003 // Exposes the owned metadata refresh for asynchronous observation without starting another discovery.
     internal Task MicrophoneRefreshTask => microphoneRefreshTask;
+#pragma warning restore VSTHRD003
 
     public bool IsRefreshingMicrophones => isRefreshingMicrophones;
     public bool IsMicrophoneCatalogCurrent => microphoneCatalogCurrent;
@@ -64,6 +66,7 @@ public sealed partial class MainViewModel
     {
         if (disposed) { return; }
         auditImpactPreview?.Retire("Private/lock/desktop revision changed; preview retired.");
+        sessionRetentionPlanner?.Retire("Private/lock/desktop revision changed; preview retired.");
         RetireQuestionVoiceReply();
         var snapshot = eventArgs.Current;
         var voicePrivacyChanged = (eventArgs.Reason & (WindowsPrivacyChangeReason.Power
@@ -256,9 +259,19 @@ public sealed partial class MainViewModel
             auditImpactPreview.Changed -= OnAuditImpactPreviewChanged;
             auditImpactPreview.Dispose();
         }
+        if (sessionRetentionPlanner is not null)
+        {
+            sessionRetentionPlanner.Changed -= OnSessionRetentionPlannerChanged;
+            sessionRetentionPlanner.Dispose();
+        }
         RetireWebResultDetails();
         RetireSpeechCaption();
         lifecycleAdmissionClosed = true;
+        if (speechPreparation is not null)
+        {
+            speechPreparation.Changed -= OnSpeechPreparationChanged;
+            speechPreparation.Request(null);
+        }
         questionVoiceReplies?.CloseAdmission();
         RetireQuestionVoiceReply();
         PropertyChanged -= OnQuestionVoiceReadinessChanged;
@@ -348,13 +361,18 @@ public sealed partial class MainViewModel
         });
     }
 
+#pragma warning disable VSTHRD003 // Exposes the owned privacy closure; observers await asynchronously while leaving the dispatcher available.
     internal Task PrivacyClosureTask => privacyClosureTask;
+#pragma warning restore VSTHRD003
 
+#pragma warning disable VSTHRD003 // Exposes the event-started recovery for asynchronous observation, not renewed voice admission.
     internal Task VoiceUnlockRecoveryTask => voiceUnlockRecoveryTask;
+#pragma warning restore VSTHRD003
 
     internal void CloseForObservedPrivacyEvent(string reason, bool hidePresentation,
         WindowsSessionState? sessionState = null, bool restoreOnUnlock = false)
     {
+        speechPreparation?.Request(null);
         RetireWebResultDetails();
         speechCaption.Retire();
         uiDispatcher.Post(RetireSpeechCaption);
@@ -983,7 +1001,7 @@ public sealed partial class MainViewModel
             || !outputCatalog.IsQuiescent || !OutputRefresh.IsCompleted || !outputDiscoveryPersistence.IsCompleted
             || Volatile.Read(ref pendingAuditWrites) != 0
             || Volatile.Read(ref stoppingAudioOperations) != 0
-            || !IsHandoffReviewQuiescent || IsBusy || IsWebPageRetrievalActive
+            || !IsHandoffReviewQuiescent || speechPreparation?.IsQuiescent == false || IsBusy || IsWebPageRetrievalActive
             || !clipboardPreview.IsQuiescent || filePreview?.IsQuiescent == false || sessionFiles?.IsQuiescent == false
             || IsLocalModelSetupActive || IsPowerShellSetupActive || IsSpeechProviderOperationActive
             || activeReasoningTask is { IsCompleted: false } || isModelActionDispatchActive

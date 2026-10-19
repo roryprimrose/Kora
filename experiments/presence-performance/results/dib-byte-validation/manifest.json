@@ -1,0 +1,73 @@
+{
+  "GeneratedUtc": "2026-10-15T02:38:46.7535243+00:00",
+  "OriginalBenchmarkCommit": "5d16773f2843141f2b51640580ec9b74cb85230a",
+  "SourceState": "Uncommitted DIB verification repair; see source hashes",
+  "RequiredProductionAlphaRelativeErrorMaximum": 0.01,
+  "RequiredProductionBgraChannelRelativeErrorMaximum": 0.01,
+  "RequiredDibVersusSkiaMaximumByteError": 0,
+  "RequiredInvalidPremultipliedPixels": 0,
+  "ComparisonCount": 297,
+  "PresentationScope": "DIB bytes and GDI coordinate/layout checks; UpdateLayeredWindow successful submissions only, no Windows composition/display capture",
+  "Os": "Microsoft Windows NT 10.0.26300.0",
+  "Framework": ".NET 10.0.13",
+  "SourceHashes": [
+    {
+      "Path": "Q:\\Repos\\Kora.worktrees\\kora-presence-performance-optimization-f7e13d13\\experiments\\presence-performance\\BenchmarkLogSink.cs",
+      "Hash": "3685A8FF9455F316717E201E4E2150A46F885AA61954AA923FDF4CB24774DB62"
+    },
+    {
+      "Path": "Q:\\Repos\\Kora.worktrees\\kora-presence-performance-optimization-f7e13d13\\experiments\\presence-performance\\BgraPixelComparison.cs",
+      "Hash": "3361603D70D0C10D4F8B29BF0C22160B5FB1DAE790F383AB529129E590D64009"
+    },
+    {
+      "Path": "Q:\\Repos\\Kora.worktrees\\kora-presence-performance-optimization-f7e13d13\\experiments\\presence-performance\\CandidateControl.cs",
+      "Hash": "63F6164EA0FC7FCDD13E57D5741B621885D806FB94C5A641B7B670475F3305FB"
+    },
+    {
+      "Path": "Q:\\Repos\\Kora.worktrees\\kora-presence-performance-optimization-f7e13d13\\experiments\\presence-performance\\CompositionControl.cs",
+      "Hash": "634BA84EB6D12BE6062A9757E9DACE7EAF4F5DFB19CA29865A9C1A6B113EFCD5"
+    },
+    {
+      "Path": "Q:\\Repos\\Kora.worktrees\\kora-presence-performance-optimization-f7e13d13\\experiments\\presence-performance\\FidelityVerification.cs",
+      "Hash": "B25B87D263E0C8FDB1D05CD7BF7F4AFA7CE5D6AF53CEE949F93FE0FF6212604E"
+    },
+    {
+      "Path": "Q:\\Repos\\Kora.worktrees\\kora-presence-performance-optimization-f7e13d13\\experiments\\presence-performance\\NativeBitmapWindow.cs",
+      "Hash": "E3189110D10EC200447202840DEDD96C77383FB5F4FC4BD82E7BB7E427595CD1"
+    },
+    {
+      "Path": "Q:\\Repos\\Kora.worktrees\\kora-presence-performance-optimization-f7e13d13\\experiments\\presence-performance\\NativeDibBuffer.cs",
+      "Hash": "0FAAFC5062B3059A5A484DADD961BDA6913F8AC938D26CC818B3525EC32FDF6E"
+    },
+    {
+      "Path": "Q:\\Repos\\Kora.worktrees\\kora-presence-performance-optimization-f7e13d13\\experiments\\presence-performance\\ParticleScene.cs",
+      "Hash": "A77BE0D560AD8B94D63568116843D420273A9A23040EE0AD460BB2E08887E83C"
+    },
+    {
+      "Path": "Q:\\Repos\\Kora.worktrees\\kora-presence-performance-optimization-f7e13d13\\experiments\\presence-performance\\Program.cs",
+      "Hash": "901CC049A241266AF1A280979C7A28918607E212FFE01A7B0C7BD6E06037EE88"
+    },
+    {
+      "Path": "Q:\\Repos\\Kora.worktrees\\kora-presence-performance-optimization-f7e13d13\\experiments\\presence-performance\\RenderProbe.cs",
+      "Hash": "890333D5EE8F5650762E22754B3472F2390C920FCACB7D17750BD065F0DD4615"
+    },
+    {
+      "Path": "Q:\\Repos\\Kora.worktrees\\kora-presence-performance-optimization-f7e13d13\\experiments\\presence-performance\\ResourceSnapshot.cs",
+      "Hash": "F739D64D377323155944BFF68E05D4D5930793D6C20E4A3A8E487D7F14748239"
+    }
+  ],
+  "TestSourceHashes": [
+    {
+      "Path": "Q:\\Repos\\Kora.worktrees\\kora-presence-performance-optimization-f7e13d13\\experiments\\presence-performance-tests\\BgraPixelComparisonTests.cs",
+      "Hash": "B693BE60867978D76D872DC2DFC10DC117F8C92A703FE763883C278430A1F218"
+    },
+    {
+      "Path": "Q:\\Repos\\Kora.worktrees\\kora-presence-performance-optimization-f7e13d13\\experiments\\presence-performance-tests\\NativeDibBufferTests.cs",
+      "Hash": "153094035295134201AD47777C0498A66F0AABD929EE7255F3592F73D9F014BB"
+    },
+    {
+      "Path": "Q:\\Repos\\Kora.worktrees\\kora-presence-performance-optimization-f7e13d13\\experiments\\presence-performance-tests\\ParticleSceneTests.cs",
+      "Hash": "845B00408BAFEFFBC949CADA63E28934A9481474B6B238C61993976126A0C8F7"
+    }
+  ]
+}

@@ -15,7 +15,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 namespace Kora.Windows.IntegrationTests;
 
 [Collection(nameof(HeadlessUiTestGroup))]
-public sealed class NewRequestControllerTests
+public sealed partial class NewRequestControllerTests
 {
     [WindowsFact]
     public async Task TrayAndWorkspaceShareOneIsolatedWindowAndExactNavigationProtectsDirtyNamedBufferBeforePrivacyAndLifecycleRevocation()

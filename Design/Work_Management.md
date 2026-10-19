@@ -18,6 +18,68 @@ Search, Next, Cancel and Clear issue no control intent, renew no meaningful acti
 
 ## Delivered deterministic local-version queue
 
+### Bounded fixed local diagnostics queue plan - 2026-10-19
+
+The native Sessions **queue** region adds one convenient choose/review/separately-confirm
+workflow for one exact selected active session. Initial selection is empty. The
+user explicitly selects a nonempty subset of at most four unique existing
+no-argument profiles: Version (`application.get_version`), Capabilities
+(`capabilities.list`), Readiness (`readiness.get`) and Runtimes (`runtime.list`).
+The plan orders only those selected profiles in that order. It cannot accept
+arbitrary commands, arguments, descriptors, targeted profiles or task IDs.
+
+Every planned item has the explicit **None** prerequisite (the sole plan
+choice/default), independently of the single-enqueue prerequisite or selected
+native work row. There is no inferred dependency, chain, inherited stale task,
+automatic selection or automatic review.
+
+The complete inert review shows ordered profiles and `{}` inputs, exact
+session/generation, private admission revision, queue revision, current
+run/pause/control revisions, confirmed limits revision, count and resulting
+pending/free-capacity impact, existing original pending/active deadlines, and
+the unchanged execution-slot/future captured-clock policy. Expired projected
+pending entries still occupy capacity until explicitly removed. Review reserves
+no slot or deadline and writes no intent, audit, queue record or activity renewal.
+Changing the selection, selected subject/work, source/private admission or closing
+the surface retires confirmation; refresh requires a fresh deliberate review.
+
+Separate confirmation consumes the host-issued review once, rereads the full
+active-session/queue/control/limits preflight before **any** effect and again
+before **each** existing `SessionQueueService` `QueueEnqueue` action. The same
+authoritative `ISessionQueueStore` enqueue/admission/task/audit transaction and
+limits apply. An additional optional exact reviewed run/control fence is checked
+inside that same single-enqueue transaction and again at physical commit; ordinary
+single-enqueue callers retain their previous contract. Fresh host request/task IDs
+are generated only for each attempted item. No previous task, approval, result or
+deadline is replayed.
+
+**This is sequential and possibly partial, not an atomic batch.** Exact per-item
+Accepted, Conflict, Unavailable, Cancelled or NotAttempted outcomes retain new
+request/task IDs and any returned durable entry/queue revision/original deadline.
+An unconfirmed commit is Unavailable, never claimed rolled back or absent.
+The first conflict, cancellation or uncertain receipt/audit/readback stops the
+sequence without automatic retry; later items remain NotAttempted. Earlier
+committed pending entries remain queued. Inspect exact IDs after uncertainty
+before making a new user decision. Cancel review changes nothing.
+
+Enqueue is **not dispatch**. Existing manual fair bounded dispatch remains the
+only dispatcher. There is no pump, worker, scheduler, model, network/provider call,
+executor, action authority, hidden renewal/expiry reset, reorder, pause/resume,
+clear, cascade, rollback or restart replay. Existing single-enqueue, targeted
+profile and dispatch behavior is unchanged.
+
+The [Application orchestration](../src/Kora.Application/Hosting/SessionQueueService.DiagnosticsPlan.cs),
+[native queue-only surface](../src/Kora/SessionsViewModel.DiagnosticsPlan.cs),
+[portable service cases](../tests/Kora.Application.UnitTests/Hosting/SessionWorkspaceServiceTests.DiagnosticsPlan.cs),
+[private SQLite cases](../tests/Kora.Windows.IntegrationTests/Storage/WindowsSqliteSessionQueueTests.DiagnosticsPlan.cs)
+and [native lifecycle cases](../tests/Kora.Windows.IntegrationTests/SessionsDiagnosticsPlanTests.cs)
+implement this consumed I subset. Validation requires deterministic execution,
+maintained native/build checks and exact raw 100% portable line/branch coverage
+with commit-bound source, binary, report and test provenance. Continuation receipts
+preserve failed attempts separately from successful proof; a validation permit or
+rounded coverage display is not passing-test/readiness evidence.
+Unqualified provider/runtime/egress/wake/profile-original writers remain unavailable.
+
 ### Delivered closed targeted metadata reads - 2026-10-12
 
 All six existing read-only registry actions now have bounded queued routes. `capabilities.get` takes one explicitly selected exact descriptor ID from the current six-record catalogue. `runtime.get_status` has only the host-fixed `local.inference` target. These are metadata selections, not arbitrary tool requests, parameters, resources or effect authority.

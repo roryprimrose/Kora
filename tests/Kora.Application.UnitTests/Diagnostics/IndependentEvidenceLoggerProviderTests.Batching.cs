@@ -269,6 +269,7 @@ public sealed partial class IndependentEvidenceLoggerProviderTests
         public ConcurrentQueue<int> BatchSizes { get; } = new();
         public Action<int>? BeforeBatch { get; init; }
         public bool FailBatches { get; init; }
+        public Exception? BatchFailure { get; init; }
         public bool MissingPreparation { get; init; }
         public bool WrongIdentity { get; init; }
         public void WriteAudit(AuditEnvelope envelope) => storage.WriteAudit(envelope);
@@ -288,6 +289,7 @@ public sealed partial class IndependentEvidenceLoggerProviderTests
             BatchSizes.Enqueue(writes.Count);
             BeforeBatch?.Invoke(BatchSizes.Count);
             if (FailBatches) { throw new IOException("Synthetic atomic batch failure."); }
+            if (BatchFailure is { } failure) { throw failure; }
             foreach (var write in writes) { write.Write(); }
         }
         private sealed class Prepared(HostId<EvidenceIdentity> identity, Action write) : IPreparedEvidenceWrite

@@ -424,9 +424,18 @@ public sealed partial class IndependentEvidenceLoggerProviderTests
         public bool FailWrites { get; init; }
         public bool UnexpectedFailure { get; init; }
         public bool FailGaps { get; set; }
+        public Exception? PreparationFailure { get; init; }
         public bool PersistenceHadHostContext { get; private set; }
-        public Action PrepareDiagnostic(DiagnosticEnvelope envelope) => () => WriteDiagnostic(envelope);
-        public Action PrepareActivity(CompletedActivityEnvelope envelope) => () => WriteActivity(envelope);
+        public Action PrepareDiagnostic(DiagnosticEnvelope envelope)
+        {
+            if (PreparationFailure is { } failure) { throw failure; }
+            return () => WriteDiagnostic(envelope);
+        }
+        public Action PrepareActivity(CompletedActivityEnvelope envelope)
+        {
+            if (PreparationFailure is { } failure) { throw failure; }
+            return () => WriteActivity(envelope);
+        }
         public async Task NextDeliveryAsync() =>
             (await delivered.WaitAsync(Deadline, TestContext.Current.CancellationToken)).Should().BeTrue();
         public HostId<EvidenceIdentity>[] Identities() => Diagnostics.Select(row => row.EvidenceId)

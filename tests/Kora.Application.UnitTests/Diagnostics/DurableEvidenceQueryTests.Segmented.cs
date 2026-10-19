@@ -85,6 +85,11 @@ public sealed partial class DurableEvidenceQueryTests
         legacyBytes[0].Should().Be((byte)'{');
         await fixture.Service.QueryAsync(query, legacy, TestContext.Current.CancellationToken);
         fixture.Reader.Checkpoint!.Snapshot.Should().BeEquivalentTo(fixture.Reader.Batch.Snapshot);
+        var oversizedLegacy = legacy.Insert(legacy.IndexOf('.', StringComparison.Ordinal),
+            new string(' ', 2049 - legacy.Length));
+        var rejectLegacy = () => fixture.Service.QueryAsync(query, oversizedLegacy,
+            TestContext.Current.CancellationToken).AsTask();
+        await rejectLegacy.Should().ThrowAsync<InvalidDataException>().WithMessage("*legacy*bound*");
         var compressed = Sign(fixture, CompressCursor(legacyBytes));
         var dot = compressed.IndexOf('.', StringComparison.Ordinal);
         var atLimit = compressed.Insert(dot, new string(' ', DurableEvidenceQuery.MaximumCursorCharacters - compressed.Length));

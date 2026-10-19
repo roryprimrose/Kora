@@ -40,7 +40,7 @@ internal sealed class EvidenceDeliveryGate
     {
         lock (gate)
         {
-            if (ownerThread != Environment.CurrentManagedThreadId || depth == 0)
+            if (ownerThread != Environment.CurrentManagedThreadId)
             {
                 throw new SynchronizationLockException("Evidence delivery must leave on its owning thread.");
             }

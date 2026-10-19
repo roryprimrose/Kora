@@ -12,6 +12,25 @@ namespace Kora.Application.UnitTests.ViewModels;
 
 public sealed partial class MainViewModelTests
 {
+    [Fact]
+    public async Task Renderer_get_distinguishes_unsaved_startup_choice_from_a_domain_default()
+    {
+        var fixture = await Fixture.CreateInitializedAsync();
+        await fixture.RunAsync("get appearance.native-presence-renderer");
+        fixture.ViewModel.ResponseBody.Should().Contain("Startup choice is effective; no saved preference.");
+        await fixture.ViewModel.DisposeAsync();
+    }
+
+    [Fact]
+    public async Task Renderer_selection_after_disposal_does_not_persist_or_change_the_choice()
+    {
+        var fixture = await Fixture.CreateInitializedAsync();
+        await fixture.ViewModel.DisposeAsync();
+        fixture.ViewModel.IsNativePresenceRenderer = true;
+        fixture.ViewModel.IsNativePresenceRenderer.Should().BeFalse();
+        fixture.AppearancePreferences.NativePresenceRendererEnabled.Should().BeFalse();
+    }
+
     [Theory]
     [InlineData(false)]
     [InlineData(true)]

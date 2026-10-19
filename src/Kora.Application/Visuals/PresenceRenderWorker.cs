@@ -239,7 +239,7 @@ public sealed partial class PresenceRenderWorker : IDisposable
                 lock (gate)
                 {
                     drawnFrames++;
-                    if (!enabled || stopping || generation != version)
+                    if (!enabled || generation != version)
                     {
                         continue;
                     }

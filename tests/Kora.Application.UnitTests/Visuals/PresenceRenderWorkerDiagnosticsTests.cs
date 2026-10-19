@@ -12,7 +12,7 @@ using Microsoft.Extensions.Logging;
 
 namespace Kora.Application.UnitTests.Visuals;
 
-public sealed class PresenceRenderWorkerDiagnosticsTests
+public sealed partial class PresenceRenderWorkerDiagnosticsTests
 {
     private static readonly TimeSpan Deadline = TimeSpan.FromSeconds(5);
 
@@ -146,20 +146,32 @@ public sealed class PresenceRenderWorkerDiagnosticsTests
             .WaitAsync(Deadline, TestContext.Current.CancellationToken);
 
     private sealed record DiagnosticRecord(int EventId, int Thread,
-        IReadOnlyDictionary<string, EvidenceValue> Properties, HostRequest? Request, ActivityLink[] Links);
+        IReadOnlyDictionary<string, EvidenceValue> Properties, HostRequest? Request, ActivityLink[] Links,
+        Exception? Exception);
 
     private sealed class DiagnosticLogger : ILogger<PresenceRenderWorker>
     {
         public Channel<DiagnosticRecord> Records { get; } = Channel.CreateUnbounded<DiagnosticRecord>();
         public IOException? TransitionFailure { get; init; }
-        public bool IsEnabled(LogLevel logLevel) => true;
+        public IOException? CompletionFailure { get; init; }
+        public Action? BeforeInformationCheck { get; init; }
+        public bool IsEnabled(LogLevel logLevel)
+        {
+            if (logLevel == LogLevel.Information)
+            {
+                BeforeInformationCheck?.Invoke();
+            }
+            return true;
+        }
         public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
         public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception,
             Func<TState, Exception?, string> formatter)
         {
             if (eventId.Id == 1 && TransitionFailure is not null) { throw TransitionFailure; }
+            if (eventId.Id == 3 && CompletionFailure is not null) { throw CompletionFailure; }
             Records.Writer.TryWrite(new DiagnosticRecord(eventId.Id, Environment.CurrentManagedThreadId,
-                EvidenceProperties.Capture(state), HostActivity.Current?.Request, Activity.Current?.Links.ToArray() ?? []));
+                EvidenceProperties.Capture(state), HostActivity.Current?.Request, Activity.Current?.Links.ToArray() ?? [],
+                exception));
         }
     }
 }

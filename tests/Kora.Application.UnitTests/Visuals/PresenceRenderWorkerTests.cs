@@ -14,7 +14,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Kora.Application.UnitTests.Visuals;
 
-public sealed class PresenceRenderWorkerTests
+public sealed partial class PresenceRenderWorkerTests
 {
     private static readonly TimeSpan Deadline = TimeSpan.FromSeconds(5);
 
@@ -293,12 +293,22 @@ public sealed class PresenceRenderWorkerTests
         public bool Released { get; private set; }
         public int Presents { get; private set; }
         public int Hides { get; private set; }
+        public int Draws { get; private set; }
+        public int Releases { get; private set; }
         public double LastWidth { get; private set; }
+        public double LastHeight { get; private set; }
         public double LastScaling { get; private set; }
+        public byte LastRed { get; private set; }
+        public byte LastGreen { get; private set; }
+        public byte LastBlue { get; private set; }
+        public PresenceParticle[] LastParticles { get; private set; } = [];
         private double drawnOpacity;
         public double PresentedOpacity { get; private set; }
         public Exception? DrawFailure { get; init; }
         public Exception? PresentFailure { get; init; }
+        public Exception? ReleaseFailure { get; init; }
+        public Action? BeforeDrawReturns { get; init; }
+        public Action? OnHide { get; init; }
         public ActivityContext ActivityContext { get; private set; }
         public ActivityLink[] Links { get; private set; } = [];
 
@@ -306,8 +316,14 @@ public sealed class PresenceRenderWorkerTests
             byte red, byte green, byte blue, double opacity)
         {
             DrawingThread = Environment.CurrentManagedThreadId;
+            Draws++;
             LastWidth = width;
+            LastHeight = height;
             LastScaling = scaling;
+            LastRed = red;
+            LastGreen = green;
+            LastBlue = blue;
+            LastParticles = particles.ToArray();
             drawnOpacity = opacity;
             ActivityContext = Activity.Current?.Context ?? default;
             Links = Activity.Current?.Links.ToArray() ?? [];
@@ -315,6 +331,7 @@ public sealed class PresenceRenderWorkerTests
             {
                 throw DrawFailure;
             }
+            BeforeDrawReturns?.Invoke();
         }
 
         public void Present()
@@ -326,11 +343,20 @@ public sealed class PresenceRenderWorkerTests
             Presents++;
             PresentedOpacity = drawnOpacity;
         }
-        public void Hide() => Hides++;
+        public void Hide()
+        {
+            Hides++;
+            OnHide?.Invoke();
+        }
         public void ReleaseDrawingResources()
         {
+            Releases++;
             ReleaseThread = Environment.CurrentManagedThreadId;
             Released = true;
+            if (ReleaseFailure is not null)
+            {
+                throw ReleaseFailure;
+            }
         }
         public void Dispose() { }
     }

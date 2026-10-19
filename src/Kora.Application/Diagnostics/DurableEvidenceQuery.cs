@@ -147,14 +147,13 @@ public sealed partial class DurableEvidenceQuery(
             {
                 throw new InvalidDataException("The evidence cursor payload exceeds its bound.");
             }
-            var framed = new byte[CompressedCursorHeader.Length + BrotliEncoder.GetMaxCompressedLength(bytes.Length)];
-            CompressedCursorHeader.CopyTo(framed);
-            if (!BrotliEncoder.TryCompress(bytes, framed.AsSpan(CompressedCursorHeader.Length), out var written,
-                quality: 4, window: 22))
+            using var framed = new MemoryStream(CompressedCursorHeader.Length + BrotliEncoder.GetMaxCompressedLength(bytes.Length));
+            framed.Write(CompressedCursorHeader);
+            using (var compressor = new BrotliStream(framed, new BrotliCompressionOptions { Quality = 4 }, leaveOpen: true))
             {
-                throw new InvalidDataException("The evidence cursor could not be compressed within its bound.");
+                compressor.Write(bytes);
             }
-            bytes = framed.AsSpan(0, CompressedCursorHeader.Length + written).ToArray();
+            bytes = framed.ToArray();
         }
         // Authenticate the version header as well as the compressed bytes, before any inflation on read.
         var cursor = Convert.ToBase64String(bytes) + "." + Convert.ToBase64String(HMACSHA256.HashData(cursorKey, bytes));

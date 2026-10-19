@@ -57,6 +57,15 @@ public sealed partial class NativeUxFixtureContractTests
     }
 
     [Fact]
+    public void NativePresenceFixtureRequiresItsExactIsolatedMode()
+    {
+        NativeUxFixtureHost.TryGetScratchParent(
+            ["--launch-native-fixtures", "--scratch-parent", Path.GetTempPath(), "--native-presence-fixture"], out _).Should().BeTrue();
+        NativeUxFixtureHost.TryGetScratchParent(
+            ["--launch-native-fixtures", "--scratch-parent", Path.GetTempPath(), "--native-presence-fixture", "--silent-caption-fixture"], out _).Should().BeFalse();
+    }
+
+    [Fact]
     public void List_overflow_mode_requires_its_exact_separate_flag()
     {
         NativeUxFixtureHost.TryGetScratchParent(
@@ -335,7 +344,7 @@ public sealed partial class NativeUxFixtureContractTests
             fixture.Main.LocalModelsEnabled.Should().BeFalse();
             fixture.Main.HostedModelsEnabled.Should().BeFalse();
             fixture.Main.CanRevealPrivatePresentation.Should().BeTrue("only synthetic private presentation is admitted");
-            fixture.Main.AppearanceOptions.Should().HaveCount(11);
+            fixture.Main.AppearanceOptions.Should().HaveCount(12);
             fixture.Main.ClipboardPreview.Should().BeNull();
             var maintenance = fixture.CreateMaintenance();
             maintenance.NetworkEnabled.Should().BeFalse();
@@ -695,7 +704,8 @@ public sealed partial class NativeUxFixtureContractTests
             page.Records.Count(record => record.Reference.Source == EvidenceSource.Link).Should().Be(2);
             var confined = await fixture.Evidence.QueryAsync(new()
             {
-                TraceId = links.Linked.TraceId, SessionId = links.LinkedRequest.SessionId,
+                TraceId = links.Linked.TraceId,
+                SessionId = links.LinkedRequest.SessionId,
             }, null, CancellationToken.None);
             confined.Records.Single(record => record.Reference.Source == EvidenceSource.Span)
                 .RelatedSegments.Single(segment => string.Equals(segment.TraceId, links.Source.TraceId, StringComparison.Ordinal)).Record.Should().BeNull();

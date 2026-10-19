@@ -2,6 +2,10 @@ namespace Kora.Core.Configuration;
 
 public interface IPresencePreferences
 {
+    bool? LoadNativePresenceRendererEnabled();
+
+    void SaveNativePresenceRendererEnabled(bool value);
+
     bool? LoadPresenceDisplayEnabled();
 
     int? LoadPresenceTimeoutSeconds();

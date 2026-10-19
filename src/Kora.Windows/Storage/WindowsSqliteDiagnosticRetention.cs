@@ -5,9 +5,30 @@ using Microsoft.Extensions.Logging;
 
 namespace Kora.Windows.Storage;
 
-public sealed partial class WindowsSqliteDiagnosticRetention(
-    WindowsSqliteEvidenceSink sink, TimeProvider time, ILogger<WindowsSqliteDiagnosticRetention> logger)
+public sealed partial class WindowsSqliteDiagnosticRetention
 {
+    private readonly Func<DateTimeOffset, CancellationToken, DiagnosticRetentionBatch> prune;
+    private readonly TimeProvider time;
+    private readonly ILogger<WindowsSqliteDiagnosticRetention> logger;
+
+    public WindowsSqliteDiagnosticRetention(WindowsSqliteEvidenceSink sink, TimeProvider time,
+        ILogger<WindowsSqliteDiagnosticRetention> logger) : this(sink.PruneOrdinaryDiagnostics, time, logger)
+    {
+    }
+
+    public WindowsSqliteDiagnosticRetention(WindowsSegmentedEvidenceSink sink, TimeProvider time,
+        ILogger<WindowsSqliteDiagnosticRetention> logger) : this(sink.PruneOrdinaryDiagnostics, time, logger)
+    {
+    }
+
+    private WindowsSqliteDiagnosticRetention(Func<DateTimeOffset, CancellationToken, DiagnosticRetentionBatch> prune,
+        TimeProvider time, ILogger<WindowsSqliteDiagnosticRetention> logger)
+    {
+        this.prune = prune;
+        this.time = time;
+        this.logger = logger;
+    }
+
     public const int MaximumLogs = 128;
     public const int MaximumSpans = 32;
     public const int MaximumLinks = MaximumSpans * 32;
@@ -24,7 +45,7 @@ public sealed partial class WindowsSqliteDiagnosticRetention(
         try
         {
             var cutoff = time.GetUtcNow();
-            result = await Task.Run(() => sink.PruneOrdinaryDiagnostics(cutoff, cancellationToken),
+            result = await Task.Run(() => prune(cutoff, cancellationToken),
                 cancellationToken).ConfigureAwait(false);
             activity.Complete(HostOperationOutcome.Completed);
         }

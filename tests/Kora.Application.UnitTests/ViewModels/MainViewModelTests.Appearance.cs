@@ -1,6 +1,7 @@
 using AwesomeAssertions;
 using Kora.Application.Configuration;
 using Kora.Application.Infrastructure;
+using Kora.Application.ViewModels;
 using Kora.Core;
 using Kora.Core.Auditing;
 using Kora.Core.Configuration;
@@ -11,6 +12,67 @@ namespace Kora.Application.UnitTests.ViewModels;
 
 public sealed partial class MainViewModelTests
 {
+    [Fact]
+    public async Task Renderer_get_distinguishes_unsaved_startup_choice_from_a_domain_default()
+    {
+        var fixture = await Fixture.CreateInitializedAsync();
+        await fixture.RunAsync("get appearance.native-presence-renderer");
+        fixture.ViewModel.ResponseBody.Should().Contain("Startup choice is effective; no saved preference.");
+        await fixture.ViewModel.DisposeAsync();
+    }
+
+    [Fact]
+    public async Task Renderer_selection_after_disposal_does_not_persist_or_change_the_choice()
+    {
+        var fixture = await Fixture.CreateInitializedAsync();
+        await fixture.ViewModel.DisposeAsync();
+        fixture.ViewModel.IsNativePresenceRenderer = true;
+        fixture.ViewModel.IsNativePresenceRenderer.Should().BeFalse();
+        fixture.AppearancePreferences.NativePresenceRendererEnabled.Should().BeNull();
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task RendererStartupReadHonorsSavedChoiceBeforeHostInitialization(bool native)
+    {
+        var fixture = new Fixture();
+        fixture.AppearancePreferences.SaveNativePresenceRendererEnabled(native);
+        fixture.ViewModel.IsNativePresenceRenderer.Should().Be(native);
+        await fixture.ViewModel.InitializeAsync();
+        fixture.ViewModel.SelectedPresenceRenderer.IsNative.Should().Be(native);
+        fixture.Audit.Events.Should().NotContain(item =>
+            string.Equals(item.ActionId, "configuration.native-presence-renderer", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task Renderer_selector_uses_the_shared_audited_setting_and_does_not_claim_activation()
+    {
+        var fixture = await Fixture.CreateInitializedAsync();
+        fixture.ViewModel.PresenceRenderers.Select(item => item.Name).Should()
+            .Equal("Avalonia", "Native (experimental)");
+        var notifications = new List<string?>();
+        fixture.ViewModel.PropertyChanged += (_, args) => notifications.Add(args.PropertyName);
+        fixture.ViewModel.SelectedPresenceRenderer = fixture.ViewModel.PresenceRenderers[1];
+        await fixture.ViewModel.AppearanceUpdate;
+        fixture.ViewModel.IsNativePresenceRenderer.Should().BeTrue();
+        fixture.AppearancePreferences.NativePresenceRendererEnabled.Should().BeTrue();
+        notifications.Should().Contain(nameof(MainViewModel.IsNativePresenceRenderer))
+            .And.Contain(nameof(MainViewModel.SelectedPresenceRenderer));
+        fixture.ViewModel.PresenceRendererStatus.Should().NotContain("active.");
+        fixture.ViewModel.ReportPresenceRendererStatus("Native renderer active.");
+        fixture.ViewModel.PresenceRendererStatus.Should().Be("Native renderer active.");
+        fixture.AppearancePreferences.SaveException = new IOException("fixture save failure");
+        fixture.ViewModel.SelectedPresenceRenderer = fixture.ViewModel.PresenceRenderers[0];
+        await fixture.ViewModel.AppearanceUpdate;
+        fixture.ViewModel.SelectedPresenceRenderer.IsNative.Should().BeTrue();
+        fixture.Audit.Events.Should().Contain(item => item.ActionId == "configuration.native-presence-renderer"
+            && item.Outcome == SecurityAuditOutcome.Succeeded);
+        fixture.Audit.Events.Should().Contain(item => item.ActionId == "configuration.native-presence-renderer"
+            && item.Outcome == SecurityAuditOutcome.Failed);
+        fixture.Reasoner.Requests.Should().BeEmpty();
+    }
+
     [Fact]
     public async Task Actual_typed_commands_share_all_direct_appearance_controls_and_live_notifications_without_reasoning()
     {
@@ -23,6 +85,7 @@ public sealed partial class MainViewModelTests
             [AppearanceOption.ReaderTextScale] = fixture.ViewModel.ResetReaderTextScaleCommand,
             [AppearanceOption.ResponseTimeout] = fixture.ViewModel.ResetResponseTimeoutCommand,
             [AppearanceOption.PresenceDisplay] = fixture.ViewModel.ResetPresenceDisplayCommand,
+            [AppearanceOption.NativePresenceRenderer] = fixture.ViewModel.ResetPresenceRendererCommand,
             [AppearanceOption.PresenceTimeout] = fixture.ViewModel.ResetPresenceTimeoutCommand,
             [AppearanceOption.PresenceSize] = fixture.ViewModel.ResetPresenceSizeCommand,
             [AppearanceOption.DotSize] = fixture.ViewModel.ResetPresenceDotSizeCommand,
@@ -36,7 +99,7 @@ public sealed partial class MainViewModelTests
             var text = descriptor.Default switch
             {
                 AppearanceValue.Theme => "dark",
-                AppearanceValue.Toggle => "false",
+                AppearanceValue.Toggle toggle => toggle.Value ? "false" : "true",
                 _ => descriptor.Maximum!.Value.ToString(System.Globalization.CultureInfo.InvariantCulture),
             };
             await fixture.RunAsync($"Kora, set {descriptor.Id} to {text}");
@@ -47,6 +110,7 @@ public sealed partial class MainViewModelTests
         }
         notified.Should().Contain(nameof(fixture.ViewModel.ThemeMode))
             .And.Contain(nameof(fixture.ViewModel.IsPresenceDisplayEnabled))
+            .And.Contain(nameof(fixture.ViewModel.IsNativePresenceRenderer))
             .And.Contain(nameof(fixture.ViewModel.PresenceTimeoutSeconds))
             .And.Contain(nameof(fixture.ViewModel.ResponseTimeoutSeconds))
             .And.Contain(nameof(fixture.ViewModel.PresenceSizePixels))
@@ -57,6 +121,7 @@ public sealed partial class MainViewModelTests
             .And.Contain(nameof(fixture.ViewModel.PresenceSpeechScaleAmountPercent));
         fixture.ViewModel.ThemeMode.Should().Be(ApplicationThemeMode.System);
         fixture.ViewModel.IsPresenceDisplayEnabled.Should().BeTrue();
+        fixture.ViewModel.IsNativePresenceRenderer.Should().BeFalse();
         fixture.ViewModel.PresenceTimeoutSeconds.Should().Be(PresenceSettings.DefaultTimeoutSeconds);
         fixture.ViewModel.ResponseTimeoutSeconds.Should().Be(ResponseWindowSettings.DefaultTimeoutSeconds);
         fixture.ViewModel.PresenceSizePixels.Should().Be(PresenceSettings.DefaultSizePixels);

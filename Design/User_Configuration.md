@@ -636,16 +636,22 @@ settings, consent/privacy downgrade, general registry or full R10/R09 acceptance
 
 ### Delivered bounded appearance subset (R10)
 
-Eleven independently persisted options are admitted:
+Twelve independently persisted options are admitted:
 `appearance.theme`, `appearance.presence-display`, `appearance.presence-timeout`,
 `appearance.response-timeout`, `appearance.presence-size`,
 `appearance.dot-size`, `appearance.dot-density`,
 `appearance.movement-speed`, `appearance.speech-scaling` and
-`appearance.speech-scale-amount`, plus `appearance.reader-text-scale`. The [end-user reference](../docs/settings.md#appearance)
+`appearance.speech-scale-amount`, `appearance.reader-text-scale`, and
+`appearance.native-presence-renderer`. The [end-user reference](../docs/settings.md#appearance)
 lists their exact types, units, defaults and bounds. Each descriptor declares
 device-local scope, appearance-only effect, local-host availability,
 immediate-after-save timing and per-option reset. Animation driven by playback
 is not a voice-output or call-sensitive option.
+The renderer option immediately queues a presentation-only replacement, deferred
+through startup, gestures and owned dialogs; its separate status reports actual
+application or failure. A saved renderer preference wins over the optional
+environment startup default. Neither renderer selection nor switching restarts
+voice/provider services. Native remains explicitly experimental.
 
 The host-owned [registry](../src/Kora.Core/Configuration/AppearanceOptionRegistry.cs)
 reuses existing domain validation; the

@@ -64,6 +64,32 @@ public sealed class PresentationInactivityTimeoutTests
     }
 
     [Fact]
+    public void Renderer_replacement_resumes_the_remaining_fractional_deadline_not_a_full_period()
+    {
+        var clock = new FakeTimeProvider();
+        var timeout = new PresentationInactivityTimeout(clock);
+        timeout.Resume(TimeSpan.FromMilliseconds(1250));
+        clock.Advance(TimeSpan.FromMilliseconds(1249));
+        timeout.TryExpire().Should().BeFalse();
+        timeout.Remaining.Should().Be(TimeSpan.FromMilliseconds(1));
+        clock.Advance(TimeSpan.FromMilliseconds(1));
+        timeout.TryExpire().Should().BeTrue();
+    }
+
+    [Theory]
+    [InlineData(-1)]
+    [InlineData(0)]
+    [InlineData(60001)]
+    public void Invalid_resume_does_not_mutate_an_existing_deadline(int milliseconds)
+    {
+        var timeout = new PresentationInactivityTimeout(new FakeTimeProvider());
+        timeout.Restart(10);
+        var resume = () => timeout.Resume(TimeSpan.FromMilliseconds(milliseconds));
+        resume.Should().Throw<ArgumentOutOfRangeException>();
+        timeout.Remaining.Should().Be(TimeSpan.FromSeconds(10));
+    }
+
+    [Fact]
     public void Active_work_or_prompts_can_stop_the_deadline_and_resume_with_a_fresh_period()
     {
         var clock = new FakeTimeProvider();

@@ -21,6 +21,8 @@ internal sealed partial class QuestionWindowController : IDisposable
     private NativeQuestionViewModel? state;
     private bool running;
     private bool disposed;
+    private int ownerUsers;
+    internal bool IsOwnerInUse => running || ownerUsers > 0 || window is not null;
 
     internal QuestionWindowController(MainViewModel main, NativeQuestionHost host, DurableVersionQuery query,
         IApplicationInfo info, NativeDetailRenderer renderer, Func<bool> ownsDesktop,
@@ -101,6 +103,7 @@ internal sealed partial class QuestionWindowController : IDisposable
     internal async Task ReturnToCurrentQuestionAsync(Window owner)
     {
         if (disposed) { return; }
+        ownerUsers++;
         try
         {
             var model = await host.ReturnToCurrentQuestionAsync(CancellationToken.None);
@@ -119,6 +122,10 @@ internal sealed partial class QuestionWindowController : IDisposable
                 main.ReportHostInteractionFailure("Current question recovery failed. Storage/audit or host admission is unavailable; no answer, dispatch or successful recovery is claimed. Inspect status before a fresh request.");
             }
             QueryFailure(logger, exception.GetType().FullName);
+        }
+        finally
+        {
+            ownerUsers--;
         }
     }
 

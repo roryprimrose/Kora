@@ -256,7 +256,7 @@ internal sealed partial class SessionsViewModel
             {
                 conversationSearchStatus = "InvalidRange. Use ordered inclusive sequence bounds 1-"
                     + ConversationText.MaximumSessionMessages.ToString(CultureInfo.InvariantCulture)
-                    + ", positive observed message generation, revision 1-2 and canonical UTC yyyy-MM-ddTHH:mm:ss.fffffff+00:00; unsigned decimal only, empty means Any. Correct the fields and explicitly Search.";
+                    + ", positive observed message generation, revision 1-3 and canonical UTC yyyy-MM-ddTHH:mm:ss.fffffff+00:00; unsigned decimal only, empty means Any. Correct the fields and explicitly Search.";
                 Failure(logger, exception.GetType().Name);
                 activity.Complete(HostOperationOutcome.Failed);
                 return;
@@ -301,7 +301,7 @@ internal sealed partial class SessionsViewModel
                 {
                     ArgumentException => "InvalidQuery, InvalidRole, InvalidTerminalFilter, InvalidRange, InvalidCorrelation or CursorMismatch. Request/task IDs require canonical lowercase nonempty D GUIDs (empty means Any). Use ordered inclusive sequence bounds 1-"
                         + ConversationText.MaximumSessionMessages.ToString(CultureInfo.InvariantCulture)
-                        + ", positive observed message generation, revision 1-2 and canonical UTC yyyy-MM-ddTHH:mm:ss.fffffff+00:00 (empty means Any). Select defined roles and Any or exact typed terminal values; use 1-256 UTF-16 characters / 512 UTF-8 bytes with 1-32 distinct lexical terms of at most 64 characters; start fresh Search.",
+                        + ", positive observed message generation, revision 1-3 and canonical UTC yyyy-MM-ddTHH:mm:ss.fffffff+00:00 (empty means Any). Select defined roles and Any or exact typed terminal values; use 1-256 UTF-16 characters / 512 UTF-8 bytes with 1-32 distinct lexical terms of at most 64 characters; start fresh Search.",
                     ConversationSnapshotChangedException => "Snapshot changed. No search content; start a fresh Search.",
                     OperationCanceledException => "Search cancelled. No search content or successful observation inferred.",
                     _ => "Exact conversation search unavailable. No search content; refresh the selected source and start fresh Search.",

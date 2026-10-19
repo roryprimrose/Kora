@@ -16,8 +16,14 @@ atomically retains the fresh original user body and task IntentRecorded with
 required typed audit before configured provider-neutral admission. Its current
 no-qualified-model outcome is a terminal **Unavailable** task and separate
 HOST Unavailable conversation status, never Succeeded execution or an invented
-assistant answer. Generation stays unavailable even for future qualified
-admission; no adapter/effect dispatch is composed.
+assistant answer. A separately qualified local admission now reaches the
+[bounded admitted answer workflow](Interaction_And_Sessions.md#bounded-admitted-local-answer-execution---2026-10-20).
+It records DispatchRecorded on that same original task before the single-use
+host run, then atomically commits validated assistant content, exact terminal
+task and required audit. No second control session/task or approval is invented.
+Cancellation/timeout after dispatch conservatively retains Unknown certainty;
+source/commit uncertainty cannot publish an answer and dispatched restart is
+Unknown without replay. No runtime is newly qualified or effect dispatch enabled.
 
 Saved conversation drafts are data, not pending execution. Save/clear controls
 have administrative exact receipts but do not renew meaningful activity.

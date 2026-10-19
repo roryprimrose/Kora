@@ -69,7 +69,9 @@ public sealed partial class WindowsSqliteHostInteractionStore : IHostInteraction
             migrationAdmission: ValidateAttachmentMigrationAdmission,
             providerProfileMigration: new(8, 9, HostInteractionSchema.AttachmentTables, MigrateProviderProfiles),
             queueOrderMigration: new(9, 10, HostInteractionSchema.ProviderProfileTables, MigrateQueueOrder),
-            conversationMigration: new(10, HostInteractionSchema.Version, HostInteractionSchema.QueueOrderTables, MigrateConversation));
+            conversationMigration: new(10, 11, HostInteractionSchema.QueueOrderTables, MigrateConversation),
+            conversationExecutionMigration: new(11, HostInteractionSchema.Version,
+                HostInteractionSchema.LegacyConversationTables, MigrateConversationExecution));
     }
 
     public ValueTask InitializeAsync(CancellationToken cancellationToken) =>
@@ -725,7 +727,7 @@ public sealed partial class WindowsSqliteHostInteractionStore : IHostInteraction
         var queueControl = Same(audit.Audit.ActionId, "queue.pause") || Same(audit.Audit.ActionId, "queue.resume") || queueMove || queueCancel || queueRequeue;
         var credentialRejection = Same(audit.Audit.ActionId, "conversation.credential-rejected");
         var conversationControl = credentialRejection || audit.Audit.ActionId is "conversation.submit" or "conversation.terminal"
-            or "conversation.draft.save" or "conversation.draft.clear";
+            or "conversation.execution" or "conversation.answer" or "conversation.draft.save" or "conversation.draft.clear";
         if (queueRequeue != (audit.QueueRequeueReceipt is not null))
         {
             throw new InvalidDataException("Expired replacement requires exact typed original and fresh lineage.");

@@ -47,7 +47,16 @@ requested/terminal audit and content digests; raw bodies are not audit/log/tag/
 baggage/preference/Work/AllWork fields. Explicit native input, exact generation/
 revision, ownership/privacy/call/control and final commit fences fail closed.
 The configured provider-neutral admission consumer preserves unavailable
-outcomes without fallback, HTTP, authentication, egress or execution.
+outcomes without fallback, HTTP, authentication or hosted egress. A separately
+qualified local turn may use only the existing host-owned single-use execution
+and read-only registry callbacks. Exact consumer source/private lifetime and
+session metadata are revalidated around model/tool continuations, alongside
+existing owner/issuer/task/generation/context/policy/qualification/quiescence
+fences. Raw model text cannot select a handler, approve, grant or become USER.
+Only a strict bounded answer-only final result with the original host provenance
+may be atomically retained as ASSISTANT with the original terminal task and typed
+audit. Readback/source/cancellation uncertainty cannot become answer publication
+or automatic retry. Production qualification remains unchanged and unavailable.
 
 Saved data is never replay/approval/source-use authority. Passive read/Done
 inspection does not renew activity or trigger cleanup; private/source closure
@@ -55,6 +64,12 @@ revokes draft/page callbacks. Disposition/retention inventory actual cells,
 free pages and committed journal with existing Unknown-work and uninventoried
 copy holds. Required audit remains content-minimised and independently
 retained; disk/write/receipt failures cannot become an unaudited success.
+Optional versioned assistant data shares the existing original message cell,
+audit digest, complete-page byte limit and disposition/retention/copy inventory.
+Legacy canonical payloads remain unchanged; unknown/malformed/foreign response
+provenance is rejected. USER/HOST lexical search and original-text reuse do not
+search or promote assistant output. Private native details show it separately
+without adding source-copy/export authority.
 
 The bounded native composer uses shared Core local structural credential-like
 checks, not a model, network call or entropy-based DLP. Detected or malformed

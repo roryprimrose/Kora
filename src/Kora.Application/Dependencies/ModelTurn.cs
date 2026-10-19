@@ -34,7 +34,8 @@ public sealed class ModelTurn
     internal ModelContextEnvelope Context { get; }
     internal byte[] Wire { get; }
     internal HostRevision SessionGeneration { get; }
-    internal HostRevision TaskRevision { get; }
+    internal HostRevision TaskRevision { get; set; }
+    internal Kora.Core.Storage.SessionWorkspaceEntry? ConversationTarget { get; set; }
     internal long ControlRevision { get; }
     internal ModelProviderRegistration Registration { get; }
     internal ModelProviderPolicy? Policy { get; set; }

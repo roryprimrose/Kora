@@ -27,8 +27,10 @@ Management receives only these minimal read-only descriptors, never the current
 action enum, executable-task catalogue, source instructions, or new authority.
 Lane selection is host-owned, not an input field. Callers are registry-instance
 and live host-request bound; foreign, completed, disposed or unavailable host
-contexts fail closed. Only the Native route is presently composed; adapter
-admission/egress and full model tool/result iteration remain outstanding.
+contexts fail closed. Only the Native route is presently enabled; qualified
+provider composition and egress remain unavailable. The bounded continuation
+engine and native Ollama tool transport below are implementations, not runtime
+qualification or permission to enable model tool/result execution.
 Raw dependency names/details are not serialized. Readiness and `local.inference`
 runtime observations reuse the existing bootstrap/setup records, with timestamps
 and explicit NotObserved/Unavailable reasons; queries do not reprobe or generate.
@@ -36,6 +38,57 @@ Version uses the existing running-version provider, which does not observe
 deployment mode. Runtime health is not permission or R02 qualification;
 ToolLoopQualified remains false. No settings/evidence/session/side-effect entries
 are added, and existing exact lock/power behavior is unchanged.
+
+### Bounded provider-neutral continuation implementation - 2026-10-20
+
+[ModelToolProtocol](../src/Kora.Core/Dependencies/ModelToolProtocol.cs) owns the
+closed immutable assistant-call, host-result and final-answer messages and the
+[portable transport seam](../src/Kora.Core/Dependencies/IModelToolTransport.cs).
+The [Application engine](../src/Kora.Application/Dependencies/BoundedModelTurnAdapter.cs)
+uses the existing admitted `ModelTurnHost` callback only. It never creates a
+registry caller, invokes an action directly, fabricates an invocation/session
+identity or dispatches legacy action, grant or question responses.
+
+An entire provider message is validated before any member executes. Exact
+case-sensitive IDs/fields, strict UTF-8/Unicode, duplicate detection, known
+shapes/enums, exact evidence/request provenance and the complete current
+six-descriptor catalogue fail closed. The
+[shared input policy](../src/Kora.Core/Tools/CapabilityInputPolicy.cs) serves
+both proposal validation and registry dispatch. Calls execute serially under
+the host's original trace and live admission; the host revalidates before each
+model send and tool call and after each result. Model call IDs are bounded
+ASCII correlation only and cannot be reused anywhere in a turn.
+
+The full turn permits at most six calls/seven exchanges and the existing
+15-second host deadline. Complete serialized requests, including provider
+framing, obey the 32,768-byte input limit **both individually and cumulatively**.
+Assistant messages plus correlated host-result envelopes share the existing
+4,096-byte cumulative output limit. Native transport receives the remaining
+byte budgets before sending; its complete charges are at least the canonical
+serialization sizes, never token/character estimates. Tool inputs still obey
+the catalogue's 1,024-byte limit. Nothing is truncated, normalized away,
+silently omitted, retried or repaired through another provider.
+
+Only genuine successful callback results enter continuation as structurally
+separate, lower-trust data. A denied/failed/invalid tool result terminates with
+a typed reason and no answer. Final answers use `LocalModelResponse.Answer`;
+no echo fallback or unsupported action dispatch exists. Cancellation,
+deadline, admission withdrawal or disposal suppresses all later calls and
+presentation. The host keeps its slot and awaits actual engine/transport
+termination; cancellation acknowledgement is not quiescence. Host disposal
+also disposes its distinct owned adapters and their transports.
+
+Deterministic [fake-transport tests](../tests/Kora.Application.UnitTests/Dependencies/ModelTurnHostTests.ToolLoop.cs)
+exercise the real admitted host and registry, with hostile messages, replay,
+authority drift, byte/call exhaustion, cancellation and noncooperative late
+completion. The [retained integration tests](../tests/Kora.Application.UnitTests/Dependencies/ModelTurnHostTests.IntegratedExecution.cs)
+join that loop to the original USER/task/answer path and fence live
+session-profile/catalogue authority without changing frozen profile semantics.
+Maintained builds, test execution and exact portable coverage remain required;
+authored tests alone are not passing evidence. No production profile is qualified or enabled by
+this engine. Unknown/unqualified runtime/profile stays explicitly unavailable.
+No clipboard, files, URI, settings, shell, network, grants, skill/agent executor
+or additional catalogue capability is introduced.
 
 All six actions also have [closed queued Native reads](Work_Management.md#delivered-closed-targeted-metadata-reads---2026-10-12), not model autoexecution. The original four retain `{}`/default first pages. Queued `capabilities.get` requires one exact current descriptor ID; queued `runtime.get_status` supplies only host-fixed recorded `local.inference`.
 Catalogue Available is registry metadata, not live provider/worker/tool-loop qualification or authorization.
@@ -73,7 +126,7 @@ implementation and acceptance work. Roadmap inventory IDs are not tool IDs.
 
 ## Availability and Caller Lanes
 
-- **Current:** verified local Ollama bootstrap accepts a bounded JSON proposal, not an SDK tool-call loop.
+- **Current enabled:** verified local Ollama bootstrap accepts a bounded JSON proposal, not an SDK tool-call loop. The separate native tool-message candidate remains unavailable without exact qualification and a host-owned endpoint binding.
 - **Proposed A:** required host tools for Slice A, including revised A3/A4 sessions and interaction.
 - **Proposed B/C:** connector/skill discovery in B and declarative authoring in C.
 - **Deferred:** outside initial release scope; never advertise as available before its dedicated proof.
@@ -95,6 +148,28 @@ route over one registered action/gateway. Record why a route is omitted or
 unavailable. A descriptor is proposal authority only, never execution permission.
 Tests must reject unknown, ambiguous, unavailable and unauthorized proposals
 without effects.
+
+## Native Ollama Tool-Transport Implementation
+
+The provider-neutral tool-loop contract now has a separate Windows native
+`api/chat` transport and desktop candidate registration, described in
+[Local Inference](Local_Inference.md#native-tool-message-transport-boundary).
+Native messages map to the Core protocol; complete messages and serial
+continuations retain its six-action catalogue, exact argument admission and
+complete UTF-8 budgets. The native transport consumes revision-2 remaining
+budgets before I/O and returns measured complete native/canonical maximum byte
+charges on every successful reply; no absent or synthetic usage is accepted.
+The same host supplies the live continuation guard and consumer source fence.
+Tool results remain lower-trust `tool` content, not
+instructions or approval. Neither transport nor model output invokes actions
+directly.
+
+This source path is unavailable by default: registration has no qualification
+evidence, its expiry is in the past, and no host endpoint binding is supplied.
+The presence of a native transport or a fake integration test does not make
+the catalogue a qualified live model surface. The ordinary bootstrap reasoner
+below remains a separate unchanged proposal protocol, never an automatic
+fallback from failed tool execution.
 
 ## Implemented Bootstrap Surface
 

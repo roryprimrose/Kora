@@ -140,7 +140,7 @@ public sealed partial class SessionsConversationTests
     [InlineData("", " 1", "", "")]
     [InlineData("9223372036854775808", "", "", "")]
     [InlineData("", "", "0", "")]
-    [InlineData("", "", "", "3")]
+    [InlineData("", "", "", "4")]
     [InlineData("", "", "2", "1")]
     [InlineData("", "", "", "2 ")]
     public async Task InvalidNativeProvenanceFailsWithoutReadsOrDraftMutation(string minimum, string maximum, string revisionFrom, string revisionThrough)
@@ -162,7 +162,7 @@ public sealed partial class SessionsConversationTests
         await model.SearchConversationAsync();
         reader.Reads.Should().Be(0);
         model.ConversationSearchMessages.Should().BeEmpty();
-        model.ConversationSearchStatus.Should().Contain("InvalidRange").And.Contain("revision 1-2");
+        model.ConversationSearchStatus.Should().Contain("InvalidRange").And.Contain("revision 1-3");
         model.ConversationMinimumGeneration.Should().Be(minimum);
         model.ConversationMaximumGeneration.Should().Be(maximum);
         model.ConversationMinimumRevision.Should().Be(revisionFrom);

@@ -69,7 +69,7 @@ public sealed partial class WindowsSqliteHostInteractionStore : ISessionConversa
         if (command.ExecuteScalar() is not null)
         { throw new InvalidDataException("Missing audited conversation authority cannot be replaced by an empty migration."); }
         token.ThrowIfCancellationRequested();
-        foreach (var table in HostInteractionSchema.ConversationSchema) { Execute(connection, transaction, table); }
+        foreach (var table in HostInteractionSchema.LegacyConversationSchema) { Execute(connection, transaction, table); }
         checkpoint?.BeforeCommit(connection, transaction);
     }
 
@@ -382,12 +382,13 @@ public sealed partial class WindowsSqliteHostInteractionStore : ISessionConversa
         if (message is null || message.Outcome is not null) { return; }
         var recovered = message with
         {
-            Revision = 2,
+            Revision = checked(message.Revision + 1),
             Outcome = ModelTurnOutcome.Unknown,
             Reason = task.State == HostTaskState.Interrupted ? ModelTurnReason.HostInterrupted : ModelTurnReason.ProviderOutcome,
         };
         var audit = new SecurityAuditEvent(Guid.NewGuid(), SecurityAuditCategory.SecurityApproval, "conversation.recovery",
-            SecurityAuditOutcome.Denied, SecurityAuditInitiator.System, Id(task.Request.TaskId),
+            task.State == HostTaskState.Unknown ? SecurityAuditOutcome.Unknown : SecurityAuditOutcome.Denied,
+            SecurityAuditInitiator.System, Id(task.Request.TaskId),
             reasonCode: recovered.Reason.ToString()!.ToLowerInvariant());
         using var activity = HostActivity.BeginAudit(task.Request, audit);
         var session = RequireSession(connection, task.Request.SessionId).Authority;
@@ -414,7 +415,8 @@ public sealed partial class WindowsSqliteHostInteractionStore : ISessionConversa
         blockers.Parameters.AddWithValue("$task", Id(task.Request.TaskId));
         return new(task, session.Generation, "conversation.user-request.v1",
             session.IsActive && message.Generation == session.Generation && message.Outcome is null
-                && task.State == HostTaskState.IntentRecorded && task.Revision.Value == 1
+                && task.State == message.ExpectedTaskState
+                && task.Revision.Value == message.Revision
                 && ReadRun(connection, task.Request.TaskId) == runId && blockers.ExecuteScalar() is null, null);
     }
 

@@ -66,12 +66,21 @@ public sealed class DiagnosticRetentionImpact
         ValidateResult(snapshot.Logs, DiagnosticImpactSource.OrdinaryLogs, proposed, cutoff);
         ValidateResult(snapshot.Spans, DiagnosticImpactSource.Spans, proposed, cutoff);
         ValidateResult(snapshot.Links, DiagnosticImpactSource.OwnedLinks, proposed, cutoff);
-        if (snapshot.Spans.Status != snapshot.Links.Status
-            || snapshot.Links.Aggregate?.NewlyDueCount > 0 && snapshot.Spans.Aggregate?.NewlyDueCount == 0
-            || snapshot.Links.Aggregate is { NewlyDueCount: > 0 } owned && snapshot.Spans.Aggregate is { } owners
-                && (owned.OldestCommittedUtc < owners.OldestCommittedUtc
-                    || owned.NewestCommittedUtc > owners.NewestCommittedUtc)
-            || snapshot.Snapshot is null && (snapshot.Logs.Status != DiagnosticImpactStatus.Unavailable
+        if (snapshot.Spans.Status != snapshot.Links.Status)
+        {
+            throw new InvalidDataException("The diagnostic owner/link qualifications disagree.");
+        }
+        if (snapshot.Links.Aggregate is { NewlyDueCount: > 0 } owned)
+        {
+            // Equal Complete qualifications and the validation above guarantee non-null positive ranges.
+            var owners = snapshot.Spans.Aggregate!;
+            if (owners.NewlyDueCount == 0 || owned.OldestCommittedUtc!.Value < owners.OldestCommittedUtc!.Value
+                || owned.NewestCommittedUtc!.Value > owners.NewestCommittedUtc!.Value)
+            {
+                throw new InvalidDataException("The diagnostic links lack qualified affected owners.");
+            }
+        }
+        if (snapshot.Snapshot is null && (snapshot.Logs.Status != DiagnosticImpactStatus.Unavailable
                 || snapshot.Spans.Status != DiagnosticImpactStatus.Unavailable)
             || snapshot.Snapshot is not null && string.IsNullOrWhiteSpace(snapshot.Snapshot))
         {

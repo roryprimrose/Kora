@@ -2,6 +2,7 @@ using Avalonia.Automation.Peers;
 using Avalonia.Controls;
 using Avalonia.Headless;
 using Avalonia.Input;
+using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Styling;
 using Avalonia.VisualTree;
@@ -154,8 +155,11 @@ public sealed class BoundedSurfaceAccessibilityTests
         });
     }
 
-    [Fact]
-    public async Task AppearanceResetMenuOpensWithKeyboardAndResetsOnlyItsField()
+    [Theory]
+    [InlineData(Key.Space, PhysicalKey.Space, " ")]
+    [InlineData(Key.Enter, PhysicalKey.Enter, null)]
+    public async Task AppearanceResetMenuOpensWithKeyboardAndResetsOnlyItsField(
+        Key key, PhysicalKey physicalKey, string? keySymbol)
     {
         await HeadlessSession.RunAsync(async () =>
         {
@@ -174,6 +178,11 @@ public sealed class BoundedSurfaceAccessibilityTests
                 actions.Should().HaveCount(14);
                 foreach (var action in actions)
                 {
+                    action.Content.Should().BeOfType<PathIcon>();
+                    action.HorizontalAlignment.Should().Be(HorizontalAlignment.Right);
+                    action.VerticalAlignment.Should().Be(VerticalAlignment.Top);
+                    action.Bounds.Top.Should().BeApproximately(0, 0.1);
+                    action.Bounds.Right.Should().BeApproximately(((Grid)action.Parent!).Bounds.Width, 0.1);
                     action.ResetCommand.Should().NotBeNull();
                     var menu = (MenuFlyout)action.Flyout!;
                     var item = menu.Items.OfType<MenuItem>().Single();
@@ -185,8 +194,8 @@ public sealed class BoundedSurfaceAccessibilityTests
 
                 var theme = actions.Single(action => string.Equals(action.SettingName, "Application theme", StringComparison.Ordinal));
                 theme.Focus().Should().BeTrue();
-                window.KeyPress(Key.Space, RawInputModifiers.None, PhysicalKey.Space, " ");
-                window.KeyRelease(Key.Space, RawInputModifiers.None, PhysicalKey.Space, " ");
+                window.KeyPress(key, RawInputModifiers.None, physicalKey, keySymbol);
+                window.KeyRelease(key, RawInputModifiers.None, physicalKey, keySymbol);
                 window.UpdateLayout();
                 var flyout = (MenuFlyout)theme.Flyout!;
                 flyout.IsOpen.Should().BeTrue();

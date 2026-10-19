@@ -2032,7 +2032,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
     public string VoiceConsentDescription =>
         "Voice consent is saved for this Windows profile and device. Activated command audio is processed locally. "
         + "Production wake detection is not available in this build: no ambient audio is recorded or transcribed. "
-        + "Use explicit push-to-talk after enabling listening. Disable listening closes capture for this run; "
+        + "Use push-to-talk in the response window when offered; Settings manages consent and readiness only. "
+        + "Disable listening closes capture for this run; "
         + "Withdraw consent keeps it closed across restart. Normal unlock restores previously enabled readiness after fresh checks, "
         + "without resuming capture. Disconnect, suspend and device/permission loss require explicit recovery.";
 

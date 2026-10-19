@@ -1,4 +1,4 @@
-using Kora.Application.Dependencies;
+using Kora.Core.Dependencies;
 using Kora.Core.Diagnostics;
 using Kora.Core.Hosting;
 using Kora.Core.Storage;

@@ -399,6 +399,7 @@ internal static class Program
         services.AddSingleton<SessionWorkspaceService>();
         services.AddSingleton<ILocalContextTaskStore>(interactions);
         services.AddSingleton<LocalContextTurnWorkflow>();
+        services.AddSingleton<IModelContextRunner>(provider => provider.GetRequiredService<LocalContextTurnWorkflow>());
         services.AddSingleton<ISessionQueueStore>(interactions);
         services.AddSingleton<ISessionWorkStore>(interactions);
         services.AddSingleton<Kora.Core.Memory.IMemoryStore>(interactions);

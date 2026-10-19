@@ -36,7 +36,7 @@ internal sealed partial class SessionsViewModel
             if (closed || !access.CanInspect || conversationBusy || protectingComposer) { return; }
             RetireComposerComparison();
             RetireDraftRecovery();
-            composerBufferRevision++;
+            Interlocked.Increment(ref composerBufferRevision);
             composerBody = value;
             clearDraftReviewed = false;
             NotifyConversation();

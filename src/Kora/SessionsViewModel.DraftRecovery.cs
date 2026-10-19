@@ -33,16 +33,16 @@ internal sealed partial class SessionsViewModel
         var original = savedConversationDraft!;
         var selection = selectionEpoch;
         var control = access.ControlRevision;
-        var bufferRevision = composerBufferRevision;
+        var bufferRevision = Volatile.Read(ref composerBufferRevision);
         var raw = composerBody;
-        var epoch = draftRecoveryEpoch;
+        var epoch = Volatile.Read(ref draftRecoveryEpoch);
         using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(lifetime.Token);
         draftRecoveryCancellation = cancellation;
         bool Current() => !closed && !busy && !conversationBusy && !protectingComposer && access.CanInspect && access.CanControl
             && access.ControlRevision == control && savedConversationDraftControlRevision == control
             && !conversationHeld && !conversationSourceHeld && !draftSaveUnconfirmed && surfaceCurrent()
-            && draftRecoveryEpoch == epoch && selectionEpoch == selection && selected == target
-            && ReferenceEquals(savedConversationDraft, original) && composerBufferRevision == bufferRevision
+            && Volatile.Read(ref draftRecoveryEpoch) == epoch && selectionEpoch == selection && selected == target
+            && ReferenceEquals(savedConversationDraft, original) && Volatile.Read(ref composerBufferRevision) == bufferRevision
             && !cancellation.IsCancellationRequested;
         draftRecoveryCurrent = Current;
         NotifyConversation();
@@ -71,7 +71,7 @@ internal sealed partial class SessionsViewModel
         }
         catch (Exception exception) when (exception is not OutOfMemoryException)
         {
-            if (draftRecoveryEpoch == epoch && !closed && access.CanInspect && access.ControlRevision == control)
+            if (Volatile.Read(ref draftRecoveryEpoch) == epoch && !closed && access.CanInspect && access.ControlRevision == control)
             {
                 conversationSourceHeld |= exception is ConversationDraftRecoverySourceException;
                 conversationStatus = "Draft recovery refused/cancelled: " + exception.Message
@@ -96,7 +96,7 @@ internal sealed partial class SessionsViewModel
 
     private void RetireDraftRecovery()
     {
-        draftRecoveryEpoch++;
+        Interlocked.Increment(ref draftRecoveryEpoch);
         draftRecoveryCurrent = null;
         draftRecoveryReview?.Dispose();
         draftRecoveryReview = null;

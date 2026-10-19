@@ -57,8 +57,7 @@ internal sealed partial class SessionsWindow : Window
             }
         };
         SaveConversationDraft.Click += async (_, _) => await (ConversationOperation = model.SaveConversationDraftAsync());
-        RecoverConversationDraft.Click += async (_, _) => await (ConversationOperation = model.ReviewConversationDraftRecoveryAsync(
-            (review, token) => ConversationDraftRecoveryWindow.ReviewAsync(this, model, review, token), () => IsVisible));
+        RecoverConversationDraft.Click += async (_, _) => await (ConversationOperation = ConversationDraftRecoveryWindow.RecoverAsync(this, model));
         Closed += (_, _) => model.CancelConversationDraftRecovery();
         ReloadConversationDraft.Click += async (_, _) => await (ConversationOperation = model.ReloadConversationDraftAsync());
         DiscardComposer.Click += (_, _) => model.DiscardComposerBuffer();

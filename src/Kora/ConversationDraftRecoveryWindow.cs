@@ -1,3 +1,4 @@
+using Avalonia;
 using Avalonia.Automation;
 using Avalonia.Controls;
 using Avalonia.Input;
@@ -62,6 +63,35 @@ internal sealed class ConversationDraftRecoveryWindow : Window
             Erase();
             reply.TrySetResult(false);
         };
+    }
+
+    internal static async Task RecoverAsync(Window owner, SessionsViewModel model)
+    {
+        var ownerAdmission = owner.IsVisible ? 1 : 0;
+        void WithdrawOwner()
+        {
+            if (Interlocked.Exchange(ref ownerAdmission, 0) == 1) { model.CancelConversationDraftRecovery(); }
+        }
+        void OwnerChanged(object? sender, AvaloniaPropertyChangedEventArgs args)
+        {
+            if (args.Property == Visual.IsVisibleProperty && !owner.IsVisible) { WithdrawOwner(); }
+        }
+        void OwnerClosed(object? sender, EventArgs args) => WithdrawOwner();
+        owner.PropertyChanged += OwnerChanged;
+        owner.Closed += OwnerClosed;
+        try
+        {
+            // Storage admission may run off-thread; only native UI events inspect owner visibility.
+            await model.ReviewConversationDraftRecoveryAsync(
+                (review, token) => ReviewAsync(owner, model, review, token),
+                () => Volatile.Read(ref ownerAdmission) == 1);
+        }
+        finally
+        {
+            Interlocked.Exchange(ref ownerAdmission, 0);
+            owner.PropertyChanged -= OwnerChanged;
+            owner.Closed -= OwnerClosed;
+        }
     }
 
     internal static async Task<bool> ReviewAsync(Window owner, SessionsViewModel model,

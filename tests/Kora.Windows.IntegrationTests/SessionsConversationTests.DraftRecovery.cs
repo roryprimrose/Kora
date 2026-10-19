@@ -205,6 +205,7 @@ public sealed partial class SessionsConversationTests
     [InlineData("protect")]
     [InlineData("cancel")]
     [InlineData("close")]
+    [InlineData("owner-hide")]
     [InlineData("reentrant")]
     public async Task EveryComposerRecoveryLifetimeFenceRetiresReviewAndRetainedCallbacks(string change)
     {
@@ -257,6 +258,7 @@ public sealed partial class SessionsConversationTests
                     case "protect": await model.ProtectComposerAsync(); break;
                     case "cancel": model.CancelConversationDraftRecovery(); break;
                     case "close": window.Close(); break;
+                    case "owner-hide": window.Hide(); window.Show(); break;
                     case "reentrant": await model.ReviewConversationDraftRecoveryAsync((_, _) => throw new InvalidOperationException("No replacement review."), () => true); break;
                 }
                 CompareClick(panes[2], "Find next");

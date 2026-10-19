@@ -4,6 +4,9 @@ using Kora.Application.Voice;
 using Kora.Core.Communication;
 using Kora.Core.Voice;
 using Microsoft.Extensions.Logging;
+using Kora.Core.Auditing;
+using Kora.Core.Commands;
+using Kora.Core.Hosting;
 
 namespace Kora.Application.ViewModels;
 
@@ -21,9 +24,21 @@ public sealed partial class MainViewModel
         }
         if (voiceRecognition is not IQuestionVoiceRecognitionService capture) { return null; }
         questionVoiceReplies = new(questions, capture, time, uiDispatcher, ObserveQuestionVoiceAdmission,
-            SpeakExactQuestionAsync, replyLogger);
+            SpeakExactQuestionAsync, replyLogger, TryStopQuestionListeningAsync, GetListeningStopPhrases);
         PropertyChanged += OnQuestionVoiceReadinessChanged;
         return questionVoiceReplies;
+    }
+
+    private IEnumerable<string> GetListeningStopPhrases() => commandCatalog.GetCommands(AssistantName)
+        .Single(command => command.Action == BuiltInAction.DisableListening).AllPhrases
+        .SelectMany(phrase => new[] { phrase, $"{AssistantName} {phrase}" });
+
+    private async Task<bool> TryStopQuestionListeningAsync(string transcript)
+    {
+        if (!IsListeningStopCommand(transcript)) { return false; }
+        await Kora.Application.Hosting.HostRequestRunner.RunAsync(RequestOrigin.ActivatedVoice,
+            () => DisableListeningAsync(SecurityAuditInitiator.VoiceCommand));
+        return true;
     }
 
     private QuestionVoiceAdmission? ObserveQuestionVoiceAdmission()

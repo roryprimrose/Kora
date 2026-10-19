@@ -619,6 +619,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         RefreshMicrophonesCommand = CreateCommand(RefreshMicrophonesAsync);
         this.microphoneCatalog = microphoneCatalog
             ?? new BoundedMicrophoneCatalog(voiceRecognition, privacyObservation, microphoneAccessService, logger);
+        listeningStop = new(voiceRecognition, logger);
         RefreshCommand = CreateCommand(
             RefreshAsync,
             () => !IsBusy && !IsLocalModelSetupActive && !IsPowerShellSetupActive
@@ -626,7 +627,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         RunTypedCommand = CreateCommand(
             RunTypedCommandAsync,
             () => !string.IsNullOrWhiteSpace(CommandText)
-                  && (!IsBusy || IsSetupStatusCommand()
+                  && (!IsBusy || IsSetupStatusCommand() || IsListeningStopCommand(CommandText)
                       || SessionCommand.Parse(CommandText, AssistantName) is not null
                       || SessionDispositionReviewCommand.Parse(CommandText, AssistantName) is not null
                       || MemoryCommand.Parse(CommandText, AssistantName) is not null
@@ -813,7 +814,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
     internal static bool ShouldShowGrantEditor(bool editorVisible, bool initializing) =>
         editorVisible && !initializing;
 
-    public IReadOnlyList<CommandDefinition> GrantActions => commandCatalog.GetCommands(AssistantName);
+    public IReadOnlyList<CommandDefinition> GrantActions => commandCatalog.GetCommands(AssistantName)
+        .Where(command => command.SupportsModelSuggestion).ToArray();
     public IReadOnlyList<GrantChangeOperation> GrantOperations { get; } =
         Enum.GetValues<GrantChangeOperation>();
     public IReadOnlyList<ModelApprovalScope> GrantScopes { get; } =
@@ -2035,7 +2037,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
     public bool IsPushToTalkVisible => !IsVoiceEnabled;
 
     public bool CanPushToTalk =>
-        IsVoiceReadinessEligible(privacyObservation.Current)
+        !listeningStop.IsHeld && IsVoiceReadinessEligible(privacyObservation.Current)
         && IsHostInputEligible
         && microphoneCatalogCurrent
         && !IsListening
@@ -3400,11 +3402,12 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         var callRevision = CallPolicyRevision;
         if (AdmitVoiceOptionMutation("configuration.listening-enabled"))
         {
-            await StartListeningAsync(origin, callRevision);
+            await StartListeningAsync(origin, callRevision, explicitListeningRecovery: true);
         }
     }
 
-    private async Task StartListeningAsync(RequestOrigin? originalOrigin = null, long observedCallRevision = 0)
+    private async Task StartListeningAsync(RequestOrigin? originalOrigin = null, long observedCallRevision = 0,
+        bool explicitListeningRecovery = false)
     {
         IsBusy = true;
         try
@@ -3432,7 +3435,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
                     return;
                 }
             }
-            if (!TryEnableVoiceReadiness(revision))
+            if (!TryEnableVoiceReadiness(revision, explicitListeningRecovery: explicitListeningRecovery))
             {
                 ShowInformation("Readiness changed.", "Review the current blocker and enable listening again.");
                 return;
@@ -4084,14 +4087,22 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
                 ?? CaptureManualCallInput(OriginalOrigin(initiator), CallPolicyRevision), reviewEligibility);
             return;
         }
-        Interlocked.Increment(ref approvalPreparationRevision);
-        var speechRevision = Interlocked.Read(ref manualCallSpeechRevision);
         if (!IsHostInputEligible)
         {
             ApplicationLog.Information(logger, "Rejected command input outside the active unlocked host");
             return;
         }
+        if (IsListeningStopCommand(spokenText))
+        {
+            await Kora.Application.Hosting.HostRequestRunner.RunAsync(
+                HostActivity.Current?.Request.Origin ?? (initiator == SecurityAuditInitiator.VoiceCommand
+                    ? RequestOrigin.ActivatedVoice : RequestOrigin.LocalUi),
+                () => DisableListeningAsync(initiator));
+            return;
+        }
         Interlocked.Increment(ref dispositionReviewEpoch);
+        Interlocked.Increment(ref approvalPreparationRevision);
+        var speechRevision = Interlocked.Read(ref manualCallSpeechRevision);
         if (ResponseReadCommand.Parse(spokenText, AssistantName) is { } responseReadCommand)
         {
             await ExecuteResponseReadCommandAsync(responseReadCommand, spokenText, initiator, responseReadInput);
@@ -4979,7 +4990,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             or BuiltInAction.OpenDocumentation or BuiltInAction.OpenSetup
             or BuiltInAction.ShowHelp or BuiltInAction.ShowVersion
             or BuiltInAction.ShowStatus or BuiltInAction.ShowCurrentTaskProgress
-            or BuiltInAction.StopSpeaking or BuiltInAction.CancelPowerAction
+            or BuiltInAction.StopSpeaking or BuiltInAction.DisableListening or BuiltInAction.CancelPowerAction
             or BuiltInAction.ShowPowerStatus or BuiltInAction.ListGrants
             or BuiltInAction.ManageGrants or BuiltInAction.ShowModelExecution => false,
         _ => throw new ArgumentOutOfRangeException(nameof(action), action, "Unsupported model action."),
@@ -5429,6 +5440,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             or BuiltInAction.ExitApplication
             or BuiltInAction.RestartApplication
             or BuiltInAction.StopSpeaking
+            or BuiltInAction.DisableListening
             or BuiltInAction.LockMachine);
 
     private void HandleAudioOutputFailure(
@@ -5636,6 +5648,15 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
                 break;
             case BuiltInAction.StopSpeaking:
                 await StopSpeakingAsync();
+                break;
+            case BuiltInAction.DisableListening:
+                if (initiator == SecurityAuditInitiator.ModelSuggestion)
+                {
+                    ShowInformation("Model listening control is unavailable.",
+                        "Use the exact typed command or native Disable listening.");
+                    break;
+                }
+                await DisableListeningAsync(initiator);
                 break;
             case BuiltInAction.LockMachine:
                 await LockCurrentSessionAsync(initiator, observedCallRevision);

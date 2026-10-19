@@ -8995,6 +8995,7 @@ public sealed partial class MainViewModelTests : IDisposable
             fixture.Voice.ResetInteractionState();
             fixture.WindowActions.Clear();
             fixture.Events.Clear();
+            fixture.Audit.Events.Clear();
             return fixture;
         }
 

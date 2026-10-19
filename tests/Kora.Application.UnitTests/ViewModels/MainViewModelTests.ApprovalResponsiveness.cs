@@ -236,6 +236,7 @@ public sealed partial class MainViewModelTests
     public async Task ConsentWithdrawalClosesCaptureBeforeSlowPersistenceAndTheLatestChoiceWins()
     {
         var fixture = await Fixture.CreateInitializedAsync();
+        await fixture.ViewModel.ToggleListeningCommand.ExecuteAsync();
         await fixture.ViewModel.BeginPushToTalkAsync();
         fixture.Voice.IsListening.Should().BeTrue();
         using var release = new ManualResetEventSlim();

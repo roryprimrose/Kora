@@ -21,6 +21,8 @@ public sealed partial class HostQuestionVoiceReplyService : IAsyncDisposable
     private readonly Func<QuestionVoiceAdmission?> observe;
     private readonly Func<string, Func<bool>, CancellationToken, Task> speak;
     private readonly ILogger<HostQuestionVoiceReplyService> logger;
+    private readonly Func<string, Task<bool>>? tryStopListening;
+    private readonly Func<IEnumerable<string>>? listeningStopPhrases;
     private Turn? turn;
     private Task retirement = Task.CompletedTask;
     private Task delivery = Task.CompletedTask;
@@ -29,7 +31,8 @@ public sealed partial class HostQuestionVoiceReplyService : IAsyncDisposable
 
     public HostQuestionVoiceReplyService(HostQuestionService questions, IQuestionVoiceRecognitionService capture,
         TimeProvider time, IUiDispatcher dispatcher, Func<QuestionVoiceAdmission?> observe,
-        Func<string, Func<bool>, CancellationToken, Task> speak, ILogger<HostQuestionVoiceReplyService> logger)
+        Func<string, Func<bool>, CancellationToken, Task> speak, ILogger<HostQuestionVoiceReplyService> logger,
+        Func<string, Task<bool>>? tryStopListening = null, Func<IEnumerable<string>>? listeningStopPhrases = null)
     {
         this.questions = questions;
         this.capture = capture;
@@ -38,6 +41,8 @@ public sealed partial class HostQuestionVoiceReplyService : IAsyncDisposable
         this.observe = observe;
         this.speak = speak;
         this.logger = logger;
+        this.tryStopListening = tryStopListening;
+        this.listeningStopPhrases = listeningStopPhrases;
         questions.ReplyTargetChanging += OnTargetChanging;
         capture.TranscriptRecognized += OnTranscript;
         capture.ReplySpeechStarted += OnSpeechStarted;
@@ -127,7 +132,8 @@ public sealed partial class HostQuestionVoiceReplyService : IAsyncDisposable
                 opened.Cancellation.Token.Register(opened.Timer.Dispose);
             }
             Publish();
-            await capture.BeginReplyAsync(opened.Admission.Microphone, canonical.Spec.Options.Select(option => option.Label),
+            await capture.BeginReplyAsync(opened.Admission.Microphone,
+                canonical.Spec.Options.Select(option => option.Label).Concat(listeningStopPhrases?.Invoke() ?? []),
                 () => Eligible(opened), opened.Cancellation.Token);
             lock (gate) { opened.Generation = capture.Generation; }
             if (!Eligible(opened) || !capture.AcceptCaptureGeneration(opened.Generation))
@@ -302,7 +308,6 @@ public sealed partial class HostQuestionVoiceReplyService : IAsyncDisposable
         var admission = observe();
         var generation = capture.Generation;
         Turn? current;
-        QuestionAnswer? answer;
         lock (gate)
         {
             current = turn;
@@ -310,30 +315,36 @@ public sealed partial class HostQuestionVoiceReplyService : IAsyncDisposable
                 || args.Generation != generation || admission != current.Admission || !current.Presented()
                 || current.Question.ExpiresAt <= time.GetUtcNow()
                 || !current.SpeechStarted && time.GetUtcNow() >= current.Deadline) { return; }
-            answer = QuestionVoiceAnswer.Parse(current.Question, args.Transcript);
             current.Submitting = true;
-            if (answer is not null) { current.Delivered = new(TaskCreationOptions.RunContinuationsAsynchronously); }
+            current.Delivered = new(TaskCreationOptions.RunContinuationsAsynchronously);
             current.Timer!.Dispose();
             status = "Microphone closed. Submitting only the exact schema-valid question answer.";
         }
-        if (answer is null)
-        {
-            Retire(current, "Reply did not match this question's schema. Nothing was routed or submitted. Microphone closed; use native controls or try again.");
-            return;
-        }
         capture.InvalidateCapture();
-        var submitted = DeliverAsync(current, answer);
+        var submitted = DeliverAsync(current, args.Transcript);
         lock (gate) { delivery = submitted; }
         Publish();
     }
 
-    private async Task DeliverAsync(Turn current, QuestionAnswer answer)
+    private async Task DeliverAsync(Turn current, string transcript)
     {
         using var activity = BeginQuestionActivity(current.Question.Key.Request, HostOperation.Request, current);
         try
         {
             await dispatcher.InvokeAsync(async () =>
             {
+                if (!Eligible(current)) { throw new OperationCanceledException("Reply admission retired before dispatch."); }
+                if (tryStopListening is not null && await tryStopListening(transcript))
+                {
+                    Retire(current, "Listening disabled. Native question remains answerable; no answer was submitted.");
+                    return;
+                }
+                var answer = QuestionVoiceAnswer.Parse(current.Question, transcript);
+                if (answer is null)
+                {
+                    Retire(current, "Reply did not match this question's schema. Nothing was routed or submitted. Microphone closed; use native controls or try again.");
+                    return;
+                }
                 await capture.StopAsync();
                 var decision = await questions.SubmitReplyAsync(current.Question.Key, current.Question.SessionGeneration,
                     answer, () => Eligible(current), current.Cancellation.Token);

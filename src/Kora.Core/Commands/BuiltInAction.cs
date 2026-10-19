@@ -27,4 +27,5 @@ public enum BuiltInAction
     DisableLocalModels,
     EnableHostedModels,
     DisableHostedModels,
+    DisableListening,
 }

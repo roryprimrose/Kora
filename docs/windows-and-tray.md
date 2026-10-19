@@ -688,6 +688,12 @@ and readiness only, not held PTT or command capture. Use the response window's
 push-to-talk control when offered. These actions do not cancel tasks or approve work.
 No microphone test or ambient wake is provided by this recovery slice.
 
+Exact typed/current-name activated `stop listening` and `disable listening` use this same native/tray [Disable action](../src/Kora.Application/ViewModels/MainViewModel.VoicePrivacy.cs), not Stop speaking or Cancel task.
+Acceptance closes input admission; native release is awaited and unconfirmed release remains explicit. Repeated Disable never toggles back to Enable ([shared stop action](../src/Kora.Application/Voice/ListeningStopAction.cs)).
+
+After manual Disable, queued PTT/transcription, device/default refresh and unlock recovery cannot reopen input. Saved consent and device preferences remain unchanged ([voice stop and recovery](voice-and-audio.md#exact-stop-listening)).
+Use fresh native **Enable listening** after current release/readiness checks; opening the recovery card alone does not enable or capture ([deterministic tests](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.ListeningStop.cs)).
+
 ## Passive document details
 
 ### Minimal durable Sessions

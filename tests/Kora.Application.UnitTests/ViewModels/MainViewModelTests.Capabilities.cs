@@ -42,7 +42,7 @@ public sealed partial class MainViewModelTests
         fixture.ViewModel.CommandText = "help";
         await fixture.ViewModel.RunTypedCommand.ExecuteAsync();
         fixture.ViewModel.ResponseBody.Should().Contain("list capabilities").And.Contain("describe capability");
-        fixture.Catalog.GetCommands().Should().HaveCount(25);
+        fixture.Catalog.GetCommands().Should().HaveCount(26);
         ReadOnlyCapabilityCatalog.Descriptors.Should().HaveCount(6);
     }
 }

@@ -78,49 +78,18 @@
             </StackPanel>
 
             <TextBlock Text="{Binding AppearanceSettingStatus}" Classes="muted" TextWrapping="Wrap" />
-            <Border Classes="settings-card">
-              <StackPanel Spacing="8">
-                <TextBlock Text="Native reader text scale" Classes="settings-title" />
-                <TextBlock Text="Integer percent: 75–200; default 100. Applies only to detail Rendered/Source/continuous text and native file/clipboard source bodies. Chrome, consent, errors, captions and other surfaces do not scale."
-                           TextWrapping="Wrap" Classes="settings-description" />
-                <NumericUpDown Value="{Binding ReaderTextScalePercent}" Minimum="{Binding ReaderTextScaleMinimum}" Maximum="{Binding ReaderTextScaleMaximum}" Increment="1"
-                               FormatString="0" Width="160" HorizontalAlignment="Left"
-                               AutomationProperties.Name="Native reader text scale percentage" />
-              </StackPanel>
-            </Border>
-            <StackPanel Orientation="Horizontal" Spacing="12">
-              <ComboBox ItemsSource="{Binding AppearanceOptions}" SelectedItem="{Binding SelectedAppearanceOption}" Width="340"
-                        AutomationProperties.Name="Select an appearance option to inspect or change">
-                <ComboBox.ItemTemplate>
-                  <DataTemplate>
-                    <TextBlock Text="{Binding Description}" />
-                  </DataTemplate>
-                </ComboBox.ItemTemplate>
-              </ComboBox>
-              <Button Content="Reset selected option" Command="{Binding ResetAppearanceOptionCommand}"
-                      AutomationProperties.Name="Reset the selected appearance option to its default" />
+
+            <StackPanel Spacing="5" Margin="0,8,0,0">
+              <TextBlock Text="Appearance" FontSize="18" FontWeight="SemiBold" />
+              <TextBlock
+                  Text="Control the application theme, reader text scale and response window."
+                  Classes="muted"
+                  FontSize="12"
+                  TextWrapping="Wrap" />
             </StackPanel>
 
             <Border Classes="settings-card">
-              <Grid ColumnDefinitions="*,240" ColumnSpacing="24">
-                <StackPanel Spacing="4">
-                  <TextBlock Text="Show presence" Classes="settings-title" />
-                  <TextBlock
-                      Text="{Binding PresenceDisplayDescription}"
-                      Classes="settings-description"
-                      TextWrapping="Wrap" />
-                </StackPanel>
-                <CheckBox
-                    Grid.Column="1"
-                    Content="Show presence"
-                    IsChecked="{Binding IsPresenceDisplayEnabled}"
-                    VerticalAlignment="Center"
-                    AutomationProperties.Name="Show animated presence" />
-              </Grid>
-            </Border>
-
-            <Border Classes="settings-card">
-              <Grid ColumnDefinitions="*,240" ColumnSpacing="24">
+              <Grid ColumnDefinitions="*,240,Auto" ColumnSpacing="24">
                 <StackPanel Spacing="4">
                   <TextBlock Text="Application theme" Classes="settings-title" />
                   <TextBlock
@@ -134,20 +103,28 @@
                     SelectedItem="{Binding ThemeMode}"
                     VerticalAlignment="Center"
                     AutomationProperties.Name="Application theme" />
+                <controls:SettingActionsButton Grid.Column="2" SettingName="Application theme"
+                                               ResetCommand="{Binding ResetThemeCommand}" />
               </Grid>
             </Border>
 
-            <StackPanel Spacing="5" Margin="0,8,0,0">
-              <TextBlock Text="Visual feedback" FontSize="18" FontWeight="SemiBold" />
-              <TextBlock
-                  Text="Control how the presence and response window remain visible."
-                  Classes="muted"
-                  FontSize="12"
-                  TextWrapping="Wrap" />
-            </StackPanel>
+            <Border Classes="settings-card">
+              <Grid ColumnDefinitions="*,Auto" ColumnSpacing="24">
+                <StackPanel Spacing="8">
+                  <TextBlock Text="Native reader text scale" Classes="settings-title" />
+                  <TextBlock Text="Integer percent: 75–200; default 100. Applies only to detail Rendered/Source/continuous text and native file/clipboard source bodies. Chrome, consent, errors, captions and other surfaces do not scale."
+                             TextWrapping="Wrap" Classes="settings-description" />
+                  <NumericUpDown Value="{Binding ReaderTextScalePercent}" Minimum="{Binding ReaderTextScaleMinimum}" Maximum="{Binding ReaderTextScaleMaximum}" Increment="1"
+                                 FormatString="0" Width="160" HorizontalAlignment="Left"
+                                 AutomationProperties.Name="Native reader text scale percentage" />
+                </StackPanel>
+                <controls:SettingActionsButton Grid.Column="1" SettingName="Native reader text scale"
+                                               ResetCommand="{Binding ResetReaderTextScaleCommand}" />
+              </Grid>
+            </Border>
 
             <Border Classes="settings-card">
-              <Grid ColumnDefinitions="*,240" ColumnSpacing="24">
+              <Grid ColumnDefinitions="*,240,Auto" ColumnSpacing="24">
                 <StackPanel Spacing="4">
                   <TextBlock Text="Always show responses" Classes="settings-title" />
                   <TextBlock
@@ -160,11 +137,13 @@
                     Content="Always show"
                     IsChecked="{Binding IsResponseAlwaysVisible}"
                     VerticalAlignment="Center" />
+                <controls:SettingActionsButton Grid.Column="2" SettingName="Always show responses"
+                                               ResetCommand="{Binding ResetResponseAlwaysVisibleCommand}" />
               </Grid>
             </Border>
 
             <Border Classes="settings-card">
-              <Grid ColumnDefinitions="*,240" ColumnSpacing="24">
+              <Grid ColumnDefinitions="*,240,Auto" ColumnSpacing="24">
                 <StackPanel Spacing="4">
                   <TextBlock Text="Keep responses on top" Classes="settings-title" />
                   <TextBlock
@@ -177,11 +156,13 @@
                     Content="Stay on top"
                     IsChecked="{Binding IsResponseWindowTopmost}"
                     VerticalAlignment="Center" />
+                <controls:SettingActionsButton Grid.Column="2" SettingName="Keep responses on top"
+                                               ResetCommand="{Binding ResetResponseWindowTopmostCommand}" />
               </Grid>
             </Border>
 
             <Border Classes="settings-card">
-              <Grid ColumnDefinitions="*,240" ColumnSpacing="24">
+              <Grid ColumnDefinitions="*,240,Auto" ColumnSpacing="24">
                 <StackPanel Spacing="4">
                   <TextBlock Text="Response timeout" Classes="settings-title" />
                   <TextBlock
@@ -198,11 +179,13 @@
                     Increment="1"
                     FormatString="0"
                     VerticalAlignment="Center" />
+                <controls:SettingActionsButton Grid.Column="2" SettingName="Response timeout"
+                                               ResetCommand="{Binding ResetResponseTimeoutCommand}" />
               </Grid>
             </Border>
 
             <StackPanel Spacing="5" Margin="0,8,0,0">
-              <TextBlock Text="Presence appearance" FontSize="18" FontWeight="SemiBold" />
+              <TextBlock Text="Presence" FontSize="18" FontWeight="SemiBold" />
               <TextBlock
                   Text="Animated dots that communicate the assistant's current state."
                   Classes="muted"
@@ -211,7 +194,27 @@
             </StackPanel>
 
             <Border Classes="settings-card">
-              <Grid ColumnDefinitions="*,240" ColumnSpacing="24">
+              <Grid ColumnDefinitions="*,240,Auto" ColumnSpacing="24">
+                <StackPanel Spacing="4">
+                  <TextBlock Text="Show presence" Classes="settings-title" />
+                  <TextBlock
+                      Text="{Binding PresenceDisplayDescription}"
+                      Classes="settings-description"
+                      TextWrapping="Wrap" />
+                </StackPanel>
+                <CheckBox
+                    Grid.Column="1"
+                    Content="Show presence"
+                    IsChecked="{Binding IsPresenceDisplayEnabled}"
+                    VerticalAlignment="Center"
+                    AutomationProperties.Name="Show animated presence" />
+                <controls:SettingActionsButton Grid.Column="2" SettingName="Show presence"
+                                               ResetCommand="{Binding ResetPresenceDisplayCommand}" />
+              </Grid>
+            </Border>
+
+            <Border Classes="settings-card">
+              <Grid ColumnDefinitions="*,240,Auto" ColumnSpacing="24">
                 <StackPanel Spacing="4">
                   <TextBlock Text="Presence timeout" Classes="settings-title" />
                   <TextBlock
@@ -228,11 +231,13 @@
                     Increment="1"
                     FormatString="0"
                     VerticalAlignment="Center" />
+                <controls:SettingActionsButton Grid.Column="2" SettingName="Presence timeout"
+                                               ResetCommand="{Binding ResetPresenceTimeoutCommand}" />
               </Grid>
             </Border>
 
             <Border Classes="settings-card">
-              <Grid ColumnDefinitions="*,240" ColumnSpacing="24">
+              <Grid ColumnDefinitions="*,240,Auto" ColumnSpacing="24">
                 <StackPanel Spacing="4">
                   <TextBlock Text="Presence size" Classes="settings-title" />
                   <TextBlock
@@ -249,11 +254,13 @@
                     IsSnapToTickEnabled="True"
                     VerticalAlignment="Center"
                     AutomationProperties.Name="Presence size in pixels" />
+                <controls:SettingActionsButton Grid.Column="2" SettingName="Presence size"
+                                               ResetCommand="{Binding ResetPresenceSizeCommand}" />
               </Grid>
             </Border>
 
             <Border Classes="settings-card">
-              <Grid ColumnDefinitions="*,240" ColumnSpacing="24">
+              <Grid ColumnDefinitions="*,240,Auto" ColumnSpacing="24">
                 <StackPanel Spacing="4">
                   <TextBlock Text="Dot size" Classes="settings-title" />
                   <TextBlock
@@ -270,11 +277,13 @@
                     IsSnapToTickEnabled="True"
                     VerticalAlignment="Center"
                     AutomationProperties.Name="Dot size percent" />
+                <controls:SettingActionsButton Grid.Column="2" SettingName="Dot size"
+                                               ResetCommand="{Binding ResetPresenceDotSizeCommand}" />
               </Grid>
             </Border>
 
             <Border Classes="settings-card">
-              <Grid ColumnDefinitions="*,240" ColumnSpacing="24">
+              <Grid ColumnDefinitions="*,240,Auto" ColumnSpacing="24">
                 <StackPanel Spacing="4">
                   <TextBlock Text="Dot density" Classes="settings-title" />
                   <TextBlock
@@ -291,11 +300,13 @@
                     IsSnapToTickEnabled="True"
                     VerticalAlignment="Center"
                     AutomationProperties.Name="Dot density percent" />
+                <controls:SettingActionsButton Grid.Column="2" SettingName="Dot density"
+                                               ResetCommand="{Binding ResetPresenceDotDensityCommand}" />
               </Grid>
             </Border>
 
             <Border Classes="settings-card">
-              <Grid ColumnDefinitions="*,240" ColumnSpacing="24">
+              <Grid ColumnDefinitions="*,240,Auto" ColumnSpacing="24">
                 <StackPanel Spacing="4">
                   <TextBlock Text="Movement speed" Classes="settings-title" />
                   <TextBlock
@@ -312,11 +323,13 @@
                     IsSnapToTickEnabled="True"
                     VerticalAlignment="Center"
                     AutomationProperties.Name="Movement speed percent" />
+                <controls:SettingActionsButton Grid.Column="2" SettingName="Movement speed"
+                                               ResetCommand="{Binding ResetPresenceMovementSpeedCommand}" />
               </Grid>
             </Border>
 
             <Border Classes="settings-card">
-              <Grid ColumnDefinitions="*,240" ColumnSpacing="24">
+              <Grid ColumnDefinitions="*,240,Auto" ColumnSpacing="24">
                 <StackPanel Spacing="4">
                   <TextBlock Text="Speech sizing" Classes="settings-title" />
                   <TextBlock
@@ -330,11 +343,13 @@
                     IsChecked="{Binding IsPresenceSpeechScalingEnabled}"
                     VerticalAlignment="Center"
                     AutomationProperties.Name="Scale presence with speech playback" />
+                <controls:SettingActionsButton Grid.Column="2" SettingName="Speech sizing"
+                                               ResetCommand="{Binding ResetPresenceSpeechScalingCommand}" />
               </Grid>
             </Border>
 
             <Border Classes="settings-card">
-              <Grid ColumnDefinitions="*,240" ColumnSpacing="24">
+              <Grid ColumnDefinitions="*,240,Auto" ColumnSpacing="24">
                 <StackPanel Spacing="4">
                   <TextBlock Text="Speech scale amount" Classes="settings-title" />
                   <TextBlock
@@ -352,6 +367,8 @@
                     IsSnapToTickEnabled="True"
                     VerticalAlignment="Center"
                     AutomationProperties.Name="Speech scale amount percent" />
+                <controls:SettingActionsButton Grid.Column="2" SettingName="Speech scale amount"
+                                               ResetCommand="{Binding ResetPresenceSpeechScaleAmountCommand}" />
               </Grid>
             </Border>
           </StackPanel>

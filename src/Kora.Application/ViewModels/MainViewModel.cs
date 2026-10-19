@@ -444,7 +444,29 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
                     HostActivity.Current?.Request.Origin ?? RequestOrigin.LocalUi,
                     () => HandleCommandException(exception)), canExecute);
 
-        ResetAppearanceOptionCommand = CreateCommand(ResetSelectedAppearanceOptionAsync);
+        ResetThemeCommand = CreateCommand(() => ResetAppearanceOptionAsync(AppearanceOption.Theme));
+        ResetReaderTextScaleCommand = CreateCommand(() => ResetAppearanceOptionAsync(AppearanceOption.ReaderTextScale));
+        ResetResponseTimeoutCommand = CreateCommand(() => ResetAppearanceOptionAsync(AppearanceOption.ResponseTimeout));
+        ResetPresenceDisplayCommand = CreateCommand(() => ResetAppearanceOptionAsync(AppearanceOption.PresenceDisplay));
+        ResetPresenceTimeoutCommand = CreateCommand(() => ResetAppearanceOptionAsync(AppearanceOption.PresenceTimeout));
+        ResetPresenceSizeCommand = CreateCommand(() => ResetAppearanceOptionAsync(AppearanceOption.PresenceSize));
+        ResetPresenceDotSizeCommand = CreateCommand(() => ResetAppearanceOptionAsync(AppearanceOption.DotSize));
+        ResetPresenceDotDensityCommand = CreateCommand(() => ResetAppearanceOptionAsync(AppearanceOption.DotDensity));
+        ResetPresenceMovementSpeedCommand = CreateCommand(() => ResetAppearanceOptionAsync(AppearanceOption.MovementSpeed));
+        ResetPresenceSpeechScalingCommand = CreateCommand(() => ResetAppearanceOptionAsync(AppearanceOption.SpeechScaling));
+        ResetPresenceSpeechScaleAmountCommand = CreateCommand(() => ResetAppearanceOptionAsync(AppearanceOption.SpeechScaleAmount));
+#pragma warning disable VSTHRD003 // Await the owned preference queue started by these reset requests without blocking the dispatcher.
+        ResetResponseAlwaysVisibleCommand = CreateCommand(() =>
+        {
+            IsResponseAlwaysVisible = ResponseWindowSettings.Default.AlwaysShow;
+            return PreferenceUpdate;
+        });
+        ResetResponseWindowTopmostCommand = CreateCommand(() =>
+        {
+            IsResponseWindowTopmost = ResponseWindowSettings.Default.Topmost;
+            return PreferenceUpdate;
+        });
+#pragma warning restore VSTHRD003
         ResetSpeechProviderCommand = CreateCommand(() => ResetSpeechAsync(SpeechOption.Provider));
         ResetSpeechVoiceCommand = CreateCommand(() => ResetSpeechAsync(SpeechOption.Voice));
         RefreshOutputDevicesCommand = CreateCommand(RefreshOutputConfigurationAsync);

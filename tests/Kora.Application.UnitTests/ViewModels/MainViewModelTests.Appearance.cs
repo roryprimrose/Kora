@@ -1,5 +1,6 @@
 using AwesomeAssertions;
 using Kora.Application.Configuration;
+using Kora.Application.Infrastructure;
 using Kora.Core;
 using Kora.Core.Auditing;
 using Kora.Core.Configuration;
@@ -16,6 +17,20 @@ public sealed partial class MainViewModelTests
         var fixture = await Fixture.CreateInitializedAsync();
         var notified = new HashSet<string?>(StringComparer.Ordinal);
         fixture.ViewModel.PropertyChanged += (_, args) => notified.Add(args.PropertyName);
+        var resets = new Dictionary<AppearanceOption, AsyncCommand>
+        {
+            [AppearanceOption.Theme] = fixture.ViewModel.ResetThemeCommand,
+            [AppearanceOption.ReaderTextScale] = fixture.ViewModel.ResetReaderTextScaleCommand,
+            [AppearanceOption.ResponseTimeout] = fixture.ViewModel.ResetResponseTimeoutCommand,
+            [AppearanceOption.PresenceDisplay] = fixture.ViewModel.ResetPresenceDisplayCommand,
+            [AppearanceOption.PresenceTimeout] = fixture.ViewModel.ResetPresenceTimeoutCommand,
+            [AppearanceOption.PresenceSize] = fixture.ViewModel.ResetPresenceSizeCommand,
+            [AppearanceOption.DotSize] = fixture.ViewModel.ResetPresenceDotSizeCommand,
+            [AppearanceOption.DotDensity] = fixture.ViewModel.ResetPresenceDotDensityCommand,
+            [AppearanceOption.MovementSpeed] = fixture.ViewModel.ResetPresenceMovementSpeedCommand,
+            [AppearanceOption.SpeechScaling] = fixture.ViewModel.ResetPresenceSpeechScalingCommand,
+            [AppearanceOption.SpeechScaleAmount] = fixture.ViewModel.ResetPresenceSpeechScaleAmountCommand,
+        };
         foreach (var descriptor in fixture.ViewModel.AppearanceOptions)
         {
             var text = descriptor.Default switch
@@ -27,8 +42,7 @@ public sealed partial class MainViewModelTests
             await fixture.RunAsync($"Kora, set {descriptor.Id} to {text}");
             fixture.ViewModel.State.Should().Be(AssistantState.Success);
             fixture.ViewModel.ResponseBody.Should().Contain($"{descriptor.Id} = {text}");
-            fixture.ViewModel.SelectedAppearanceOption = descriptor;
-            await fixture.ViewModel.ResetAppearanceOptionCommand.ExecuteAsync();
+            await resets[descriptor.Option].ExecuteAsync();
             fixture.ViewModel.ResponseBody.Should().Contain($"{descriptor.Id} = {AppearanceCommand.Format(descriptor.Default)}");
         }
         notified.Should().Contain(nameof(fixture.ViewModel.ThemeMode))
@@ -147,7 +161,7 @@ public sealed partial class MainViewModelTests
         fixture.ViewModel.ThemeMode.Should().Be(ApplicationThemeMode.System);
         fixture.ViewModel.AppearanceSettingStatus.Should().Contain("unlocked local host");
         fixture.ViewModel.SetThemeMode(ApplicationThemeMode.Dark).Should().BeFalse();
-        await fixture.ViewModel.ResetAppearanceOptionCommand.ExecuteAsync();
+        await fixture.ViewModel.ResetThemeCommand.ExecuteAsync();
         await fixture.ViewModel.ExecuteAppearanceCommandAsync(
             new AppearanceCommand(AppearanceCommandOperation.List), SecurityAuditInitiator.TypedCommand);
         fixture.AppearancePreferences.SavedMode.Should().BeNull();
@@ -157,5 +171,47 @@ public sealed partial class MainViewModelTests
         closing.ViewModel.SetThemeMode(ApplicationThemeMode.Dark).Should().BeTrue();
         closing.AppearancePreferences.SavedMode.Should().Be(ApplicationThemeMode.Dark);
         closing.ViewModel.ThemeMode.Should().Be(ApplicationThemeMode.System);
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task ResponseResetChangesOnlyItsOwnField(bool resetAlwaysShow)
+    {
+        var fixture = await Fixture.CreateInitializedAsync();
+        var position = new ResponseWindowPosition(120, 240);
+        await fixture.ViewModel.SetResponseAlwaysVisibleAsync(true);
+        await fixture.ViewModel.SetResponseWindowTopmostAsync(false);
+        await fixture.ViewModel.SetResponseWindowPositionAsync(position);
+        var reset = resetAlwaysShow
+            ? fixture.ViewModel.ResetResponseAlwaysVisibleCommand
+            : fixture.ViewModel.ResetResponseWindowTopmostCommand;
+
+        await reset.ExecuteAsync();
+
+        fixture.ViewModel.IsResponseAlwaysVisible.Should().Be(!resetAlwaysShow);
+        fixture.ViewModel.IsResponseWindowTopmost.Should().Be(!resetAlwaysShow);
+        fixture.ViewModel.ResponseWindowPosition.Should().Be(position);
+        fixture.AppearancePreferences.SavedResponseWindowSettings.Should().Be(
+            new ResponseWindowSettings(!resetAlwaysShow, !resetAlwaysShow, position));
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task ResponseResetReportsPersistenceFailureWithoutChangingValues(bool resetAlwaysShow)
+    {
+        var fixture = await Fixture.CreateInitializedAsync();
+        await fixture.ViewModel.SetResponseAlwaysVisibleAsync(true);
+        await fixture.ViewModel.SetResponseWindowTopmostAsync(false);
+        fixture.AppearancePreferences.SaveException = new IOException("Reset could not be saved.");
+
+        await (resetAlwaysShow
+            ? fixture.ViewModel.ResetResponseAlwaysVisibleCommand
+            : fixture.ViewModel.ResetResponseWindowTopmostCommand).ExecuteAsync();
+
+        fixture.ViewModel.IsResponseAlwaysVisible.Should().BeTrue();
+        fixture.ViewModel.IsResponseWindowTopmost.Should().BeFalse();
+        fixture.ViewModel.ResponseBody.Should().Contain("Reset could not be saved.");
     }
 }

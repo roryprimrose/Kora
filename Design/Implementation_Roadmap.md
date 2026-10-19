@@ -34,6 +34,12 @@ do not depend on hosted management, and speech preferences do not qualify wake.
 
 ## Current Delivery
 
+### Bounded retained original USER text reuse implementation — 2026-10-19
+
+The [explicit original-text reuse contract](Interaction_And_Sessions.md#explicit-retained-original-user-text-reuse--2026-10-19) adds actual admitted USER-row review and separate one-shot confirmation into the single New request memory buffer. Complete source/body/provenance rereads, explicit dirty-buffer replacement, inert panes and private/source/buffer/native-opening fences preserve immutable originals and fresh eventual submission lineage. No task replay, HOST/model promotion, target creation, Save/Submit, queue/approval, clipboard, activity renewal or provider operation is implicit.
+
+Implementation and deterministic tests are authored, including cancellation during synchronous memory handoff. Exact-head maintained builds, tests and raw line/branch coverage remain required before merge; authored tests and incomplete local execution are not passing validation. Only the existing canonical original-reader/New request/private-pane I subset is consumed; runtime/provider/egress/wake/profile-original writers remain unavailable and unrelated E/Q or physical/installed qualification is not claimed.
+
 ### Bounded fixed local diagnostics queue plan implementation - 2026-10-19
 
 The [queue contract](Work_Management.md#bounded-fixed-local-diagnostics-queue-plan---2026-10-19)

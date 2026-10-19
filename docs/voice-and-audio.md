@@ -102,9 +102,11 @@ listening** closes input for the current run without withdrawing saved consent.
 The production wake engine is not selected or integrated. The previous ambient
 phrase grammar is not production wake and is no longer run on ambient audio.
 The microphone stays closed until explicit push-to-talk or an admitted native
-question reply action. Hold **Push to talk**
-in the native Speech & audio settings (mouse, Space or Enter), speak one
-command, then release to finish. Losing the capture control/window also ends
+question reply action. When the response window offers its **Push to talk**
+microphone control, hold it (mouse, Space or Enter), speak one command, then
+release to finish. Settings manages consent, readiness and device preferences
+only; it has no push-to-talk button or command-capture entrypoint.
+Losing the capture control/window also ends
 capture. Each answer or approval requires a new activation. Transcripts use the
 same deterministic command pipeline as typed input; activation alone approves
 nothing.
@@ -274,7 +276,8 @@ Windows provider intact.
 Kora never silently downloads or substitutes a provider or voice. Without a
 saved voice choice it uses the selected provider's advertised default.
 The **Speech voice** selector combines ready voices from all installed providers;
-there is no separate provider selection in that card. **Reset speech voice**
+there is no separate provider selection in that card. The card's top-right cog
+menu offers **Reset speech voice**, which
 keeps the current provider and restores only its advertised compatible default.
 For Windows that default ranks installed Windows voices in this order:
 

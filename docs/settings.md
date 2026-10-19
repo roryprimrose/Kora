@@ -12,6 +12,12 @@ application version as a suffix. Source builds default to version `0.1.0`;
 release builds can override that version during publishing. Changes use the
 same live application state as the presence and response surfaces.
 
+Reset actions are in the cog menu at the top right of the relevant card or
+section. Cards with multiple reset actions list each one separately, retaining
+its exact scope and availability. Opening the menu changes nothing; select a
+named reset action to use its existing preference workflow. Apply, Save,
+Refresh, Preview and Stop remain separate controls.
+
 ## Preference Changes and Recovery
 
 Admitted exact/native preference workflows show saved/default/unavailable
@@ -157,7 +163,7 @@ Sentence alignment remains unavailable because playback supplies no admitted
 sentence boundaries. Broad natural caption commands and rich browser/HTML/
 diagram rendering remain unimplemented.
 
-**Caption display — this run only** is available in **Settings > Speech & audio** and the caption. Choose an available native display and press **Use selected display**; **Return to primary** explicitly resets to the current primary.
+**Caption display — this run only** is available in **Settings > Responses** and the caption. Choose an available native display and press **Use selected display**; the section's top-right cog offers **Return to primary** to explicitly reset to the current primary.
 Labels show ordinal, primary designation and safe working-area geometry; they are not durable display identities. No monitor choice is saved; restart returns to primary.
 
 Choosing while speech text is Off applies only to the next eligible caption; it does not enable captions or speak/capture. Choosing while eligible text is visible moves only that observed caption, keeping its original completion deadline and pin. The saved corner remains relative to the chosen display's current working area/DPI; tiny areas clip rather than spill.
@@ -461,7 +467,7 @@ required queued setup task.
 
 ## Appearance
 
-The tab groups **Appearance** controls first (theme, reader text scale and response-window behavior), followed by **Presence** controls (visibility, timeout and animation). Each field has a **...** actions button with **Reset setting**, affecting only that field ([settings layout](../src/Kora/SettingsWindow.axaml)).
+The tab groups **Appearance** controls first (theme, reader text scale and response-window behavior), followed by **Presence** controls (visibility, timeout and animation). Each field has a cog actions button at the top right of its card, inside the card padding. Clicking it opens **Reset setting**, affecting only that field ([settings layout](../src/Kora/SettingsWindow.axaml)).
 
 The existing controls and exact typed/activated-voice commands share one
 host-owned, typed appearance service. No model or network is needed. Enter
@@ -520,7 +526,7 @@ native startup default. Invalid environment values are errors.
 setting and runtime switch as the selector. Saving is not evidence that a
 deferred replacement has completed; inspect the renderer status.
 
-Use the field's **...** actions button and choose **Reset setting** to restore its default; opening the menu does not change the value ([actions menu](../src/Kora/Controls/SettingActionsButton.cs)).
+Use the field's top-right cog actions button and choose **Reset setting** to restore its default; opening the menu does not change the value. The button retains its setting-specific accessible name and tooltip and also opens with Space or Enter ([actions menu](../src/Kora/Controls/SettingActionsButton.cs)).
 Reset affects only that field, not a whole group, profile or undo history. Updates revalidate the
 typed value and current host revision before one atomic preference-file write.
 A stale proposal requires a fresh inspection/proposal. A save failure retains
@@ -669,13 +675,14 @@ Windows microphone settings separately, then refresh.
 | Control/state | Behavior |
 |---|---|
 | Ongoing voice consent | Required before voice enablement; saved consent can arm PTT at ordinary startup without capture |
-| Push to talk | Hold mouse/Space/Enter, speak, then release; production wake is unavailable |
+| Command capture | Not available in Settings; the response window offers push-to-talk when eligible |
 | Disable / Enable listening | Current-run release / explicit fresh-gated re-arm; disablement is not saved |
 | Withdraw voice consent | Persist closed consent across restart |
 | Normal authoritative unlock | Restore only prior enabled readiness after confirmed closure/fresh gates; never resume recording |
 | Resume/reconnect, restored permission/device or intervening failure | Explicit Enable required; selection/refresh does not release the hold |
 
-Status explains privacy, permission, call or manual holds.
+Settings configures consent and readiness only; it has no push-to-talk command
+button. Status explains privacy, permission, call or manual holds.
 See [consent and PTT workflow](voice-and-audio.md#voice-consent-and-explicit-push-to-talk)
 for the full lifecycle and recovery rules.
 

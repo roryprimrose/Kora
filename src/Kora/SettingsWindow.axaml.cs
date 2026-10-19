@@ -1,5 +1,4 @@
 ﻿using Avalonia.Controls;
-using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Markup.Xaml;
 using Avalonia.Layout;
@@ -15,7 +14,6 @@ namespace Kora;
 public sealed partial class SettingsWindow : Window
 {
     private readonly TabControl settingsTabs;
-    private readonly Button pushToTalkButton;
     private readonly TabItem readinessTab;
     private readonly TabItem speechAudioTab;
     private bool isLocalModelReviewOpen;
@@ -32,34 +30,10 @@ public sealed partial class SettingsWindow : Window
         AvaloniaXamlLoader.Load(this);
         settingsTabs = this.FindControl<TabControl>("SettingsTabs")
             ?? throw new InvalidOperationException("The settings tab control is unavailable.");
-        pushToTalkButton = this.FindControl<Button>("PushToTalkButton")
-            ?? throw new InvalidOperationException("The push-to-talk control is unavailable.");
         readinessTab = this.FindControl<TabItem>("ReadinessTab")
             ?? throw new InvalidOperationException("The readiness settings tab is unavailable.");
         speechAudioTab = this.FindControl<TabItem>("SpeechAudioTab")
             ?? throw new InvalidOperationException("The speech and audio settings tab is unavailable.");
-#pragma warning disable MA0147 // Avalonia routed events require void event handlers.
-        pushToTalkButton.AddHandler(
-            PointerPressedEvent,
-            OnPushToTalkPressed,
-            RoutingStrategies.Tunnel,
-            handledEventsToo: true);
-        pushToTalkButton.AddHandler(
-            PointerReleasedEvent,
-            OnPushToTalkReleased,
-            RoutingStrategies.Tunnel,
-            handledEventsToo: true);
-        pushToTalkButton.AddHandler(
-            KeyDownEvent,
-            OnPushToTalkKeyDown,
-            RoutingStrategies.Tunnel,
-            handledEventsToo: true);
-        pushToTalkButton.AddHandler(
-            KeyUpEvent,
-            OnPushToTalkKeyUp,
-            RoutingStrategies.Tunnel,
-            handledEventsToo: true);
-#pragma warning restore MA0147
         DataContext = viewModel;
         if (captionDisplay is not null)
         {
@@ -69,16 +43,6 @@ public sealed partial class SettingsWindow : Window
             ?? throw new InvalidOperationException("The microphone recovery control is unavailable.");
         recovery.IsEnabled = chooseMicrophone is not null;
         recovery.Click += (_, _) => chooseMicrophone?.Invoke();
-        Deactivated += OnCaptureSurfaceUnavailable;
-        Closed += OnCaptureSurfaceUnavailable;
-    }
-
-    private void OnCaptureSurfaceUnavailable(object? sender, EventArgs eventArgs)
-    {
-        if (DataContext is MainViewModel viewModel)
-        {
-            viewModel.EndPushToTalkCommand.Execute(null);
-        }
     }
 
     public void ShowReadiness() => settingsTabs.SelectedItem = readinessTab;
@@ -88,58 +52,6 @@ public sealed partial class SettingsWindow : Window
     private void OnMaintenanceClicked(object? sender, RoutedEventArgs eventArgs)
     {
         if (DataContext is MainViewModel viewModel) { viewModel.ShowMaintenance(); }
-    }
-
-    private void OnPushToTalkFocusLost(object? sender, Avalonia.Input.FocusChangedEventArgs eventArgs) =>
-        OnCaptureSurfaceUnavailable(sender, eventArgs);
-
-    private void OnPushToTalkPressed(object? sender, Avalonia.Input.PointerPressedEventArgs eventArgs)
-    {
-        if (sender is Control control && eventArgs.GetCurrentPoint(control).Properties.IsLeftButtonPressed
-            && DataContext is MainViewModel viewModel)
-        {
-            eventArgs.Handled = true;
-            eventArgs.Pointer.Capture(control);
-            viewModel.BeginPushToTalkCommand.Execute(null);
-        }
-    }
-
-    private void OnPushToTalkReleased(object? sender, Avalonia.Input.PointerReleasedEventArgs eventArgs)
-    {
-        eventArgs.Handled = true;
-        if (DataContext is MainViewModel viewModel)
-        {
-            viewModel.EndPushToTalkCommand.Execute(null);
-        }
-        eventArgs.Pointer.Capture(null);
-    }
-
-    private void OnPushToTalkCaptureLost(object? sender, Avalonia.Input.PointerCaptureLostEventArgs eventArgs)
-    {
-        if (DataContext is MainViewModel viewModel)
-        {
-            viewModel.EndPushToTalkCommand.Execute(null);
-        }
-    }
-
-    private void OnPushToTalkKeyDown(object? sender, Avalonia.Input.KeyEventArgs eventArgs)
-    {
-        if (eventArgs.Key is Avalonia.Input.Key.Space or Avalonia.Input.Key.Enter
-            && DataContext is MainViewModel viewModel)
-        {
-            eventArgs.Handled = true;
-            viewModel.BeginPushToTalkCommand.Execute(null);
-        }
-    }
-
-    private void OnPushToTalkKeyUp(object? sender, Avalonia.Input.KeyEventArgs eventArgs)
-    {
-        if (eventArgs.Key is Avalonia.Input.Key.Space or Avalonia.Input.Key.Enter
-            && DataContext is MainViewModel viewModel)
-        {
-            eventArgs.Handled = true;
-            viewModel.EndPushToTalkCommand.Execute(null);
-        }
     }
 
     private async void OnInstallLocalModelClicked(object? sender, Avalonia.Interactivity.RoutedEventArgs eventArgs)

@@ -683,8 +683,9 @@ or a failed save reports refusal/recovery. Refresh and choose again.
 **Enable listening** requires saved consent and fresh existing host gates; it
 only arms PTT. **Disable listening** is always an explicit close, never a toggle
 that can accidentally enable from an old menu. **Stop speaking** stops only
-playback. **Voice consent / push-to-talk** opens existing Settings for consent,
-readiness and held PTT. These actions do not cancel tasks or approve work.
+playback. **Voice consent / push-to-talk** opens existing Settings for consent
+and readiness only, not held PTT or command capture. Use the response window's
+push-to-talk control when offered. These actions do not cancel tasks or approve work.
 No microphone test or ambient wake is provided by this recovery slice.
 
 ## Passive document details

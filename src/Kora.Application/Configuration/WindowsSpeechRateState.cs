@@ -24,9 +24,15 @@ public sealed record WindowsSpeechRateState(WindowsSpeechRate? Desired, WindowsS
     public string ResetEffect => "removes only Windows rate override; restores engine-normal 0; no replay";
     public string Syntax => WindowsSpeechRateCommand.Syntax;
 
-    public static string Serialize(WindowsSpeechRateState state, long callRevision, string outcome)
+    public static string Serialize(WindowsSpeechRateState state, long callRevision, string outcome, WindowsSpeechRate? previousDesired = null)
     {
-        var bytes = JsonSerializer.SerializeToUtf8Bytes(new { State = state, CallRevision = callRevision, Outcome = outcome }, Json);
+        var bytes = previousDesired is { } previous
+            ? JsonSerializer.SerializeToUtf8Bytes(new
+            {
+                State = state, CallRevision = callRevision, Outcome = outcome,
+                Adjustment = new { PreviousNativeRate = previous.Value, CurrentNativeRate = state.Desired?.Value },
+            }, Json)
+            : JsonSerializer.SerializeToUtf8Bytes(new { State = state, CallRevision = callRevision, Outcome = outcome }, Json);
         if (bytes.Length > SessionCommand.MaximumResultBytes)
         {
             throw new InvalidDataException("Rate result exceeds 64 KiB; no partial result is presented.");

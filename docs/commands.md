@@ -943,7 +943,7 @@ ownership/privacy changes and failed evidence require explicit refresh/recovery.
 Canonical integer 0-100 (no signs, padding, fractions, percent suffix or leading zeros); default/reset 100. Zero prevents synthesis and retains full visual output. Changes never alter global/call volume, test audio, reopen capture or replay output.
 The exact aliases move the freshly admitted desired volume by **up to 10 percentage points** ([domain step](../src/Kora.Core/Configuration/PlaybackVolume.cs#L21)).
 A final shorter step explicitly reports `saved-upper-boundary` (100) or `saved-lower-boundary` (0); already at that bound reports `unchanged-upper-boundary` or `unchanged-lower-boundary` without writing or auditing a successful change ([shared action](../src/Kora.Application/Configuration/PlaybackVolumeConfigurationService.cs#L86)).
-The complete result includes the exact desired/effective percent and saved source: for example, 95 becomes 100, not 105; 5 becomes 0, not -5. [Boundary-result tests](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.RelativeAudio.cs#L67) check those exact fields and the unchanged follow-up.
+The complete result includes `adjustment.previousPercent` and `adjustment.currentPercent` alongside exact desired/effective percent and saved source: for example, 95 becomes 100, not 105; 5 becomes 0, not -5. [Boundary-result tests](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.RelativeAudio.cs) check both old/new values and the unchanged follow-up.
 Current-name activated input is supported; protected/Unknown original-voice
 writes refuse. Input is at most 1,024 UTF-8 bytes including the prefix and
 rejects controls; complete result at most 64 KiB.
@@ -967,6 +967,7 @@ signs only; no plus, negative zero, padding, fractions or suffix. Windows
 provider-native rate, not percentage or words/minute.
 **Kokoro is unsupported and unchanged**; no provider switch, trial or replay.
 The exact aliases move the freshly admitted desired Windows rate by **1 native unit** ([domain step](../src/Kora.Core/Configuration/WindowsSpeechRate.cs#L21)).
+The complete relative result includes `adjustment.previousNativeRate` and `adjustment.currentNativeRate`; no-op and denied results disclose the actual unchanged value, not an uncommitted target ([result](../src/Kora.Application/Configuration/WindowsSpeechRateState.cs)).
 Reaching -10/10 explicitly reports `saved-lower-boundary`/`saved-upper-boundary`; already at that bound reports `unchanged-lower-boundary`/`unchanged-upper-boundary`, with no write or successful-change audit ([shared action](../src/Kora.Application/Configuration/WindowsSpeechRateConfigurationService.cs#L118)).
 Current-name activated input is supported; protected/Unknown original-voice
 writes refuse. Input is at most 1,024 UTF-8 bytes including the prefix and

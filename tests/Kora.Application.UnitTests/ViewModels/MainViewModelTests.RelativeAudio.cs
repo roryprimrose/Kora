@@ -37,7 +37,15 @@ public sealed partial class MainViewModelTests
         fixture.TextToSpeech.ClearSpokenResponse();
         var microphones = fixture.Voice.StartCalls;
         fixture.Audit.Events.Clear();
+        void AssertAdjustment(int previous, int next)
+        {
+            using var result = JsonDocument.Parse(fixture.ViewModel.ResponseBody);
+            var adjustment = result.RootElement.GetProperty("adjustment");
+            adjustment.GetProperty(rate ? "previousNativeRate" : "previousPercent").GetInt32().Should().Be(previous);
+            adjustment.GetProperty(rate ? "currentNativeRate" : "currentPercent").GetInt32().Should().Be(next);
+        }
         await fixture.RunAsync(alias);
+        AssertAdjustment(current, expected);
         if (rate) { fixture.RatePreferences.Value.Should().Be(new WindowsSpeechRate(expected)); }
         else { fixture.VolumePreferences.Value.Should().Be(new PlaybackVolume(expected)); }
         fixture.Voice.StartCalls.Should().Be(microphones);
@@ -46,6 +54,7 @@ public sealed partial class MainViewModelTests
         await fixture.RunAsync("set assistant.name to Nova");
         fixture.Audit.Events.Clear();
         await fixture.RaiseActivatedTranscriptAsync("Nova, " + alias, 1);
+        AssertAdjustment(expected, expected + expected - current);
         fixture.Voice.StartedPhrases.Should().Contain(alias).And.Contain("Nova " + alias).And.NotContain("Kora " + alias);
         if (rate) { fixture.RatePreferences.Value.Should().Be(new WindowsSpeechRate(expected + expected - current)); }
         else { fixture.VolumePreferences.Value.Should().Be(new PlaybackVolume(expected + expected - current)); }
@@ -72,7 +81,7 @@ public sealed partial class MainViewModelTests
         await fixture.ViewModel.InitializeAsync();
         if (rate) { fixture.RatePreferences.Value = new(current); }
         else { fixture.VolumePreferences.Value = new(current); }
-        void AssertExactResult()
+        void AssertExactResult(int previous)
         {
             using var result = JsonDocument.Parse(fixture.ViewModel.ResponseBody);
             var state = result.RootElement.GetProperty("state");
@@ -81,17 +90,20 @@ public sealed partial class MainViewModelTests
             state.GetProperty("effective").GetProperty(scalar).GetInt32().Should().Be(expected);
             state.GetProperty("source").GetString().Should().Be("saved");
             state.GetProperty("available").GetBoolean().Should().BeTrue();
+            var adjustment = result.RootElement.GetProperty("adjustment");
+            adjustment.GetProperty(rate ? "previousNativeRate" : "previousPercent").GetInt32().Should().Be(previous);
+            adjustment.GetProperty(rate ? "currentNativeRate" : "currentPercent").GetInt32().Should().Be(expected);
         }
         fixture.TextToSpeech.ClearSpokenResponse();
         await fixture.RunAsync(alias);
         fixture.ViewModel.ResponseBody.Should().Contain("\"outcome\":\"saved-" + boundary + "-boundary\"");
-        AssertExactResult();
+        AssertExactResult(current);
         if (rate) { fixture.RatePreferences.Value.Should().Be(new WindowsSpeechRate(expected)); }
         else { fixture.VolumePreferences.Value.Should().Be(new PlaybackVolume(expected)); }
         fixture.Audit.Events.Clear();
         await fixture.RunAsync(alias);
         fixture.ViewModel.ResponseBody.Should().Contain("\"outcome\":\"unchanged-" + boundary + "-boundary\"");
-        AssertExactResult();
+        AssertExactResult(expected);
         fixture.Audit.Events.Should().NotContain(item => item.Category == SecurityAuditCategory.ConfigurationWrite);
         fixture.VolumePreferences.Pending.Should().BeFalse();
         fixture.RatePreferences.Pending.Should().BeFalse();
@@ -126,6 +138,12 @@ public sealed partial class MainViewModelTests
         }
         await Execute();
         fixture.ViewModel.ResponseBody.Should().Contain("\"outcome\":\"denied\"");
+        using (var result = JsonDocument.Parse(fixture.ViewModel.ResponseBody))
+        {
+            var adjustment = result.RootElement.GetProperty("adjustment");
+            adjustment.GetProperty(rate ? "previousNativeRate" : "previousPercent").GetInt32().Should().Be(rate ? 0 : 30);
+            adjustment.GetProperty(rate ? "currentNativeRate" : "currentPercent").GetInt32().Should().Be(rate ? 0 : 30);
+        }
         fixture.CallState.SetState(CallState.Unknown);
         await fixture.Dispatcher.LastInvocation;
         using (HostActivity.BeginRoot(HostRequest.Create(RequestOrigin.LocalUi), HostActivityLayer.Application, HostOperation.Request))

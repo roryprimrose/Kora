@@ -73,10 +73,12 @@ public sealed partial class MainViewModel
             await playbackVolumeConfiguration!.RefreshAsync(origin, eligible, cancellationToken);
             var saved = false;
             var outcome = "observed";
+            PlaybackVolume? previousDesired = null;
             if (command.Adjustment is { } adjustment)
             {
                 var current = playbackVolumeConfiguration.Get();
                 var proposal = playbackVolumeConfiguration.ProposeAdjustment(adjustment, current.Revision, CallPolicyRevision);
+                previousDesired = current.Desired;
                 if (proposal is null)
                 {
                     outcome = adjustment == AudioPreferenceAdjustment.Increase ? "unchanged-upper-boundary" : "unchanged-lower-boundary";
@@ -99,7 +101,7 @@ public sealed partial class MainViewModel
             if (!eligible()) { return; }
             if (saved && IsSpeaking) { await textToSpeech.StopAsync(CancellationToken.None); }
             if (!eligible()) { return; }
-            var result = PlaybackVolumeState.Serialize(playbackVolumeConfiguration.Get(), CallPolicyRevision, outcome);
+            var result = PlaybackVolumeState.Serialize(playbackVolumeConfiguration.Get(), CallPolicyRevision, outcome, previousDesired);
             if (preserveResponse)
             {
                 Transcript = result;

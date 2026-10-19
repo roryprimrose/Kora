@@ -745,7 +745,7 @@ bounds/default, revisions and recovery. Protected/unknown calls deny original
 voice mutations; use a new eligible typed/Settings request.
 
 Exact typed/current-name activated **speak louder** and **speak quieter** adjust the freshly admitted desired Kora volume by **up to 10 percentage points** ([domain step](../src/Kora.Core/Configuration/PlaybackVolume.cs#L21)).
-A shorter final step explicitly reports the reached 0/100 boundary and exact desired/effective result (95 to 100 or 5 to 0); already there reports unchanged with no write or successful-change audit. Numeric Settings controls and aliases use the same audited apply path ([volume action](../src/Kora.Application/Configuration/PlaybackVolumeConfigurationService.cs#L86)).
+A shorter final step explicitly reports the reached 0/100 boundary and old/new values (`adjustment.previousPercent` / `adjustment.currentPercent`, e.g. 95 to 100 or 5 to 0); already there reports unchanged with no write or success audit. Settings controls and aliases use the same [audited apply path](../src/Kora.Application/Configuration/PlaybackVolumeConfigurationService.cs#L86).
 
 Only Kora-owned Windows speech instance gain and Kokoro PCM attenuation change.
 No Windows/system/call volume, mute, microphone, consent, provider, output

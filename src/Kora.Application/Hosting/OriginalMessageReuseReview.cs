@@ -105,7 +105,8 @@ public sealed class OriginalMessageReuseReview : IDisposable
             // The source fence remains live through synchronous binding/focus callbacks; only a completed
             // handoff becomes independent memory content. No historical request identity is transferred.
             handingOff = true;
-            return composer.SeedOriginal(bufferEpoch, frozen.Source, SourceCurrent);
+            return composer.SeedOriginal(bufferEpoch, frozen.Source,
+                () => !token.IsCancellationRequested && SourceCurrent());
         }
         finally { Dispose(); }
     }

@@ -218,9 +218,11 @@ public sealed partial class NewRequestComposerTests
     [InlineData("edit")]
     [InlineData("close")]
     [InlineData("cancel")]
+    [InlineData("token")]
     public async Task SourceRevocationOrReentrancyDuringSeedBindingsErasesUncompletedHandoff(string change)
     {
         using var f = new Fixture();
+        using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
         var original = Original(f);
         f.Composer.Body = "old buffer";
         var admitted = true;
@@ -239,9 +241,10 @@ public sealed partial class NewRequestComposerTests
                 case "edit": f.Composer.Body = "reentrant edit"; break;
                 case "close": f.Composer.Dispose(); break;
                 case "cancel": f.Composer.Cancel(); break;
+                case "token": cancellation.Cancel(); break;
             }
         };
-        (await review.ConfirmAsync(true, TestContext.Current.CancellationToken)).Should().BeFalse();
+        (await review.ConfirmAsync(true, cancellation.Token)).Should().BeFalse();
         f.Composer.Body.Should().Be(change is "private" or "close" ? string.Empty
             : change is "edit" ? "reentrant edit" : "old buffer");
         f.Creates.Should().Be(0);

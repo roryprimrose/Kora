@@ -52,7 +52,7 @@ public sealed partial class NewRequestComposerTests
             f.Saves.Should().Be(0);
             f.OriginalReads.Should().Be(2);
             System.ComponentModel.PropertyChangedEventHandler checkHandoff = (_, _) =>
-            { if (f.Composer.Body == original.Body) { review.Available.Should().BeTrue(); } };
+            { if (string.Equals(f.Composer.Body, original.Body, StringComparison.Ordinal)) { review.Available.Should().BeTrue(); } };
             f.Composer.PropertyChanged += checkHandoff;
             try { (await review.ConfirmAsync(false, TestContext.Current.CancellationToken)).Should().BeTrue(); }
             finally { f.Composer.PropertyChanged -= checkHandoff; }
@@ -231,7 +231,7 @@ public sealed partial class NewRequestComposerTests
         var changed = false;
         f.Composer.PropertyChanged += (_, _) =>
         {
-            if (changed || f.Composer.Body != original.Body) { return; }
+            if (changed || !string.Equals(f.Composer.Body, original.Body, StringComparison.Ordinal)) { return; }
             changed = true;
             switch (change)
             {

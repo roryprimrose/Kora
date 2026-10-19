@@ -4,6 +4,9 @@ namespace Kora.Application.ViewModels;
 
 public sealed partial class MainViewModel
 {
+    [LoggerMessage(119, LogLevel.Error, "Current-response one-shot unavailable; exception type {ExceptionType}.")]
+    private static partial void ResponseReadFailed(ILogger logger, string exceptionType);
+
     [LoggerMessage(118, LogLevel.Warning, "Original-user web-result presentation failed; exception type {ExceptionType}.")]
     private static partial void WebPagePresentationFailed(ILogger logger, string exceptionType);
 

@@ -336,8 +336,14 @@ The delivered [native exact-session retention status and Keep/ordinary review](I
 | `interaction.show_details` | Exact response/artifact ID and source/rendered preference; detail/history surface reference | M/E | Proposed A4; displaying content is not model retrieval or execution |
 | `presentation.navigate`, `presentation.pin`, `presentation.close` | Exact viewer/item and bounded next/back/zoom/pin state; presentation result | M/E | Proposed A4; no webpage form automation, workflow denial, or focus theft |
 | `speech.stop`, `speech.mute` | Current host-owned playback/input scope; actual stopped/muted status | M/E | Proposed A; mute releases capture; no hidden voice-unmute channel |
-| `speech.read_once` | Exact response/prompt ID and policy revision; eligible one-response playback or explicit blocker | M/E | Proposed A; shared call/privacy gate, protected-call exception requires UI initiation; no arbitrary raw TTS |
+| `speech.read_once` | Exact response/prompt ID and policy revision; eligible one-response playback or explicit blocker | M/E | Bounded current ordinary response native/exact command action delivered below; model lane unavailable, broader prompt readback and protected-call exception remain proposed; no arbitrary raw TTS |
 | `calls.get_status`, `calls.set_manual_state` | Detector metadata or explicit manual Active/Clear request; current evidence/effective policy | M/E | Proposed A; manual preference cannot fabricate observations; manual-state mutation while protected requires UI initiation |
+
+The bounded [native and exact typed/current-name activated `speech.read_once` action](../src/Kora.Tools/Speech/SpeechReadOnce.cs) resolves only the current ordinary response through [existing host speech admission](../src/Kora.Application/ViewModels/MainViewModel.ResponseRead.cs).
+Its model lane is **Unavailable** with `current-response-model-tool-loop-not-qualified`: the generic parameterized model tool/result lane is not qualified. No descriptor is added to the six read-only family, and model transport is unchanged.
+
+This delivery does not admit prompt/question/approval or historical USER/HOST playback, raw source TTS, a VisualOnly override or a protected-call speak-once exception.
+[Current commands and blockers](../docs/commands.md#read-the-current-response-aloud-once) and [deterministic boundary tests](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.ResponseRead.cs) own its bounded implementation evidence.
 
 ### Work Scheduling and Grounded Status
 

@@ -27,6 +27,15 @@ not just a warning. A later eligible response uses the freshly resolved output;
 unmuting or changing configuration never replays retired speech. This applies
 to **System** and a selected speaker. See [the existing fallback boundary](settings.md#muted-speaker-fallback).
 
+## Deliberate current-response playback
+
+**Read current response**, `read that aloud` and `read current response` share one exact current ordinary-response action.
+It retains the complete answer, uses normal speech admission and both summary caps, and refuses VisualOnly and all protected calls; no speak-once call exception is delivered ([native controls](../src/Kora/ResponseWindow.axaml), [host action](../src/Kora.Application/ViewModels/MainViewModel.ResponseRead.cs)).
+
+The action has no raw-text input and cannot select conversation USER/HOST rows, raw source bodies, questions or approvals. Successful push-to-talk leaves an existing eligible answer intact so an activated read command can target that same answer.
+Every replacement, including identical text, gets a new identity; close, cancellation, stop and privacy/call/ownership retirement prevent late playback.
+Recovery never replays a retired request ([source and capture lifecycle](../src/Kora.Application/ViewModels/MainViewModel.VoicePrivacy.cs), [deterministic tests](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.ResponseRead.cs)).
+
 ## Output precedence
 
 Response selection has this precedence, before all mandatory policy gates:

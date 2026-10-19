@@ -4547,6 +4547,7 @@ public sealed partial class MainViewModelTests : IDisposable
             .Concat(Kora.Application.Network.WebPageCommand.FixedPhrases)
             .Concat(InCallFeedbackCommand.FixedPhrases)
             .Concat(SpeechTextCommand.FixedPhrases)
+            .Concat(Kora.Application.Voice.ResponseReadCommand.FixedPhrases)
             .Concat(Kora.Core.Interaction.LocalEventCommand.FixedPhrases)
             .Concat(Kora.Core.Maintenance.MaintenanceCommandParser.FixedPhrases);
         fixture.Voice.StartedPhrases.Should().BeEquivalentTo(
@@ -9566,6 +9567,7 @@ public sealed partial class MainViewModelTests : IDisposable
         public TaskCompletionSource? SpeakGate { get; set; }
 
         public bool HoldSpeechCompletionOnStop { get; set; }
+        public int SpeakCalls { get; private set; }
         public bool ReturnWhileSpeaking { get; set; }
 
         public TaskCompletionSource SpeakStarted { get; set; } = new(
@@ -9608,6 +9610,7 @@ public sealed partial class MainViewModelTests : IDisposable
             AudioOutputDevice outputDevice,
             CancellationToken cancellationToken = default)
         {
+            SpeakCalls++;
             var generation = Interlocked.Read(ref outputGeneration);
             BeforeSpeak?.Invoke();
             if (generation != Interlocked.Read(ref outputGeneration)) { throw new OperationCanceledException(); }

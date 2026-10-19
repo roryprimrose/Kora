@@ -73,6 +73,7 @@ public sealed partial class MainViewModel
 
     public void BindCallOwnershipGate(Func<bool> gate, Func<long>? revision = null)
     {
+        RetireCurrentResponseSpeech();
         callOwnershipEligible = gate;
         UpdateSpeechPreparation();
         auditImpactControlRevision = checked(auditImpactControlRevision + 1);
@@ -239,6 +240,7 @@ public sealed partial class MainViewModel
         try
         {
             var observation = communicationPolicy.Current;
+            RetireCurrentResponseSpeech();
             RetireWebResultDetails();
             speechCaption.Retire();
             uiDispatcher.Post(RetireSpeechCaption);

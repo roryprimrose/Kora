@@ -9,6 +9,14 @@ public sealed partial class ModelTurnHost : IModelTurnExecution
     private sealed record ConsumerAdmission(Func<bool> Admitted, Func<CancellationToken, Task>? ValidateSource);
     private readonly ConditionalWeakTable<ModelTurn, ConsumerAdmission> consumerAdmissions = new();
 
+    public Task WaitForQuiescenceAsync(CancellationToken token)
+    {
+        lock (dispatchGate)
+        {
+            return (quiescence?.Task ?? Task.CompletedTask).WaitAsync(token);
+        }
+    }
+
     async Task<ModelTurnResult> IModelTurnExecution.RunAsync(ModelTurn turn, Func<bool> admitted, CancellationToken token,
         Func<CancellationToken, Task>? validateSource)
     {

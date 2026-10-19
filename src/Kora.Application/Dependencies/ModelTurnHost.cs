@@ -261,6 +261,8 @@ public sealed partial class ModelTurnHost : IAsyncDisposable, IModelTurnAdmissio
         token.ThrowIfCancellationRequested();
         reason = await RevalidateAsync(turn, token).ConfigureAwait(false);
         if (reason != ModelTurnReason.None) { return Finish(ModelTurnOutcome.Denied, reason, turn.Provenance); }
+        if (turn.ToolProposalRejected)
+        { return Finish(ModelTurnOutcome.Denied, ModelTurnReason.ToolResultRejected, turn.Provenance); }
         if (reply is null || reply.ReportedSelection != turn.Provenance.Selection || !Enum.IsDefined(reply.Outcome)
             || !Enum.IsDefined(reply.Reason)
             || reply.Outcome == ModelTurnOutcome.Succeeded && !ValidResponse(reply.Response))
@@ -276,6 +278,12 @@ public sealed partial class ModelTurnHost : IAsyncDisposable, IModelTurnAdmissio
     {
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(turnToken, token);
         linked.Token.ThrowIfCancellationRequested();
+        if (!turn.Context.AllowTools)
+        {
+            turn.ToolProposalRejected = true;
+            ToolDenied(logger);
+            return new(CapabilityOutcome.Denied, "tool-free-context");
+        }
         var current = HostActivity.Current;
         if (turn.Owner != owner || !turn.IsRunning || current is null || current.Activity!.IsStopped
             || !ReferenceEquals(current.Request, turn.Provenance.Request)

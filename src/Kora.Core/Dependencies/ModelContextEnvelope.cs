@@ -15,7 +15,8 @@ public sealed class ModelContextEnvelope
     private static readonly UTF8Encoding StrictUtf8 = new(false, true);
 
     public ModelContextEnvelope(HostRequest request, string systemPolicy, string userRequest,
-        IEnumerable<ModelContextEvidence> evidence, DateTimeOffset createdAt, DateTimeOffset expiresAt)
+        IEnumerable<ModelContextEvidence> evidence, DateTimeOffset createdAt, DateTimeOffset expiresAt,
+        bool allowTools = true)
     {
         ArgumentNullException.ThrowIfNull(request);
         ArgumentNullException.ThrowIfNull(systemPolicy);
@@ -30,6 +31,7 @@ public sealed class ModelContextEnvelope
         UserRequest = userRequest;
         CreatedAt = createdAt;
         ExpiresAt = expiresAt;
+        AllowTools = allowTools;
         Evidence = ValidateContent(request, systemPolicy, userRequest, evidence);
     }
 
@@ -64,13 +66,14 @@ public sealed class ModelContextEnvelope
     public ImmutableArray<ModelContextEvidence> Evidence { get; }
     public DateTimeOffset CreatedAt { get; }
     public DateTimeOffset ExpiresAt { get; }
+    public bool AllowTools { get; }
 
     public byte[] Serialize() => JsonSerializer.SerializeToUtf8Bytes(new
     {
         SystemPolicy,
         UserRequest,
         Evidence,
-        Tools = ReadOnlyCapabilityCatalog.Descriptors,
+        Tools = AllowTools ? ReadOnlyCapabilityCatalog.Descriptors : [],
         MaximumOutputUtf8Bytes,
     });
 

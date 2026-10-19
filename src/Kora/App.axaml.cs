@@ -5,6 +5,7 @@ using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
 using Avalonia.Styling;
+using Avalonia.Threading;
 
 using Kora.Application.Documentation;
 using Kora.Application.ViewModels;
@@ -14,6 +15,8 @@ using Kora.Core.Configuration;
 using Kora.Core.Hosting;
 using Kora.Core.Diagnostics;
 using Kora.Application.Hosting;
+using Kora.Application.Configuration;
+using Kora.Controls;
 
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -46,6 +49,9 @@ public sealed partial class App : Avalonia.Application
     private MaintenanceWindowController? maintenanceWindow;
     private MainViewModel? viewModel;
     private ILogger<App>? logger;
+    private PresenceWindowController? presenceWindows;
+    private readonly DispatcherTimer presenceRendererTimer = new() { Interval = TimeSpan.FromMilliseconds(33) };
+    private Func<HostActivity>? rendererSwitchContext;
 
     internal static ServiceProvider Services { get; set; } = null!;
     internal DetailWindowController? Details => detailWindow;
@@ -61,6 +67,8 @@ public sealed partial class App : Avalonia.Application
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
             desktop.ShutdownMode = ShutdownMode.OnExplicitShutdown;
+            Services.GetRequiredService<AppearanceConfigurationService>().ConfigureNativePresenceStartupDefault(
+                PresenceRendererSelection.UseNative(Environment.GetEnvironmentVariable(PresenceRendererSelection.EnvironmentVariable)));
             viewModel = Services.GetRequiredService<MainViewModel>();
             viewModel.PropertyChanged += OnViewModelPropertyChanged;
             viewModel.PrivacyClosureRequested += OnPrivacyClosureRequested;
@@ -68,10 +76,19 @@ public sealed partial class App : Avalonia.Application
             logger = Services.GetRequiredService<ILogger<App>>();
             BindHandoffPresentation(viewModel);
             DesktopLog.Information(logger, "Initializing the Kora desktop application");
-            var window = new MainWindow(
-                viewModel,
-                Services.GetRequiredService<ILogger<MainWindow>>());
-            desktop.MainWindow = window;
+            var hostViewModel = viewModel;
+            presenceWindows = new PresenceWindowController((native, startup) =>
+            {
+                var replacement = new MainWindow(hostViewModel,
+                    Services.GetRequiredService<ILogger<MainWindow>>(), native, startup,
+                    Services.GetRequiredService<ILogger<Kora.Application.Visuals.PresenceRenderWorker>>());
+                desktop.MainWindow = replacement;
+                return replacement;
+            }, () => fileWindow?.IsOwnerInUse != true && questionWindow?.IsOwnerInUse != true);
+            presenceWindows.Start(viewModel.IsNativePresenceRenderer);
+            presenceRendererTimer.Tick += OnPresenceRendererTick;
+            viewModel.ReportPresenceRendererStatus(viewModel.IsNativePresenceRenderer
+                ? "Native (experimental) selected; initializing presence." : "Avalonia selected; initializing presence.");
             microphoneRecovery = new MicrophoneRecoveryWindowController(viewModel,
                 Services.GetRequiredService<ILogger<MicrophoneRecoveryWindow>>());
             var captionView = new SpeechCaptionWindow(viewModel);
@@ -159,14 +176,14 @@ public sealed partial class App : Avalonia.Application
             systemTray = new SystemTrayController(
                 viewModel,
                 Services.GetRequiredService<ILogger<SystemTrayController>>(),
-                () => questionWindow.ReviewVersionAsync(window),
+                () => questionWindow.ReviewVersionAsync(GetPresenceOwner()),
                 () => evidenceWindow?.Open(),
                 () => skillPackagesWindow.Open(),
                 () => sessionsWindow?.Open(),
                 () => maintenanceWindow?.Open(),
                 microphoneRecovery.Open,
                 () => exactGrants?.Open(),
-                () => questionWindow.ReturnToCurrentQuestionAsync(window),
+                () => questionWindow.ReturnToCurrentQuestionAsync(GetPresenceOwner()),
                 () => attachmentCatalogue?.Open(),
                 () => instructionEditor.Open(),
                 () => savedDraftCatalogue?.Open(),
@@ -177,7 +194,7 @@ public sealed partial class App : Avalonia.Application
                 Services.GetRequiredService<Kora.Core.Diagnostics.IEvidenceQueryAccess>(),
                 Services.GetRequiredService<ILogger<EvidenceViewModel>>());
             evidenceWindow.Bind();
-            fileWindow = new LocalFilePreviewWindowController(viewModel, window);
+            fileWindow = new LocalFilePreviewWindowController(viewModel, GetPresenceOwner);
             var sessionFiles = Services.GetRequiredService<SessionFileAttachmentService>();
             Services.GetRequiredService<SessionWorkspaceService>().BindAttachmentLifecycle(sessionFiles);
             viewModel.BindSessionAttachments(sessionFiles);
@@ -303,6 +320,10 @@ public sealed partial class App : Avalonia.Application
 
     private void DisposeDesktopControllers()
     {
+        presenceRendererTimer.Stop();
+        presenceRendererTimer.Tick -= OnPresenceRendererTick;
+        presenceWindows?.Stop();
+        rendererSwitchContext = null;
         DisposeHandoffPresentation();
         Services.GetRequiredService<DesktopInstanceOwnershipBridge>().UnbindCallbacks();
         if (logger is not null)
@@ -365,6 +386,29 @@ public sealed partial class App : Avalonia.Application
 
     private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs eventArgs)
     {
+        if (string.Equals(eventArgs.PropertyName, nameof(MainViewModel.IsNativePresenceRenderer), StringComparison.Ordinal)
+            && viewModel is not null && presenceWindows is not null)
+        {
+            PresenceSwitchTiming.Mark(PresenceSwitchPhase.DesktopRequest);
+            rendererTimingFirstTick = true;
+            presenceWindows.Request(viewModel.IsNativePresenceRenderer);
+            if (presenceWindows.HasPendingChange)
+            {
+                rendererSwitchContext = HostActivity.CaptureContinuation(HostActivityLayer.Desktop,
+                    HostOperation.Presentation, RequestOrigin.LocalUi);
+                viewModel.ReportPresenceRendererStatus(
+                    "Renderer change saved. Waiting for startup, mouse gestures and owned dialogs to finish.");
+                presenceRendererTimer.Start();
+                PresenceSwitchTiming.Mark(PresenceSwitchPhase.TimerStarted);
+            }
+            else
+            {
+                presenceRendererTimer.Stop();
+                rendererSwitchContext = null;
+                viewModel.ReportPresenceRendererStatus(viewModel.IsNativePresenceRenderer
+                    ? "Native (experimental) renderer selected." : "Avalonia renderer selected.");
+            }
+        }
         if (string.Equals(
             eventArgs.PropertyName,
             nameof(MainViewModel.ThemeMode),

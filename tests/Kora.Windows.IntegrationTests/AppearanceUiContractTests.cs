@@ -36,6 +36,7 @@ public sealed class AppearanceUiContractTests
             "Response timeout",
             "Presence",
             "Show presence",
+            "Presence renderer",
             "Presence timeout",
             "Presence size",
             "Dot size",
@@ -79,6 +80,7 @@ public sealed class AppearanceUiContractTests
     [InlineData("Keep responses on top", "ResetResponseWindowTopmostCommand", "IsChecked", "IsResponseWindowTopmost")]
     [InlineData("Response timeout", "ResetResponseTimeoutCommand", "Value", "ResponseTimeoutSeconds")]
     [InlineData("Show presence", "ResetPresenceDisplayCommand", "IsChecked", "IsPresenceDisplayEnabled")]
+    [InlineData("Presence renderer", "ResetPresenceRendererCommand", "SelectedItem", "SelectedPresenceRenderer")]
     [InlineData("Presence timeout", "ResetPresenceTimeoutCommand", "Value", "PresenceTimeoutSeconds")]
     [InlineData("Presence size", "ResetPresenceSizeCommand", "Value", "PresenceSizePixels")]
     [InlineData("Dot size", "ResetPresenceDotSizeCommand", "Value", "PresenceDotSizePercent")]
@@ -133,6 +135,7 @@ public sealed class AppearanceUiContractTests
             "ResponseTimeoutSeconds", "PresenceTimeoutSeconds", "PresenceSizePixels",
             "PresenceDotSizePercent", "PresenceDotDensityPercent", "PresenceMovementSpeedPercent",
             "IsPresenceSpeechScalingEnabled", "PresenceSpeechScaleAmountPercent",
+            "SelectedPresenceRenderer",
         })
         {
             var control = document.Descendants().Single(element => element.Attributes().Any(attribute =>

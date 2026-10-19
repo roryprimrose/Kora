@@ -11,6 +11,7 @@ namespace Kora.Application.Configuration;
 public sealed class LocalAppearancePreferences : IAppearancePreferences
 {
     private const string FileName = "appearance-theme.txt";
+    private const string NativePresenceRendererFileName = "presence-native-renderer-enabled.txt";
     private const string PresenceDisplayEnabledFileName = "presence-display-enabled.txt";
     private const string PresenceTimeoutFileName = "presence-inactivity-timeout-seconds.txt";
     private const string ResponseTimeoutFileName = "response-timeout-seconds.txt";
@@ -44,6 +45,12 @@ public sealed class LocalAppearancePreferences : IAppearancePreferences
     }
 
     public int? LoadReaderTextScalePercent() => readerScale.LoadReaderTextScalePercent();
+    public bool? LoadNativePresenceRendererEnabled() =>
+        LoadBooleanPreference(NativePresenceRendererFileName, "native presence renderer");
+
+    public void SaveNativePresenceRendererEnabled(bool value) =>
+        store.WriteText(NativePresenceRendererFileName, value.ToString(CultureInfo.InvariantCulture));
+
     public int? ReadBackReaderTextScalePercent() => readerScale.ReadBackReaderTextScalePercent();
     public void BeginReaderTextScaleWrite() => readerScale.BeginReaderTextScaleWrite();
     public void SaveReaderTextScalePercent(int percent) => readerScale.SaveReaderTextScalePercent(percent);

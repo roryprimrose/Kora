@@ -36,9 +36,57 @@ public sealed class WindowsSqliteEvidenceReader(WindowsSqliteEvidenceSink sink) 
         using var lease = sink.AcquireReadLease(cancellationToken);
         using var connection = sink.OpenReadOnly(cancellationToken);
         var snapshot = checkpoint?.Snapshot ?? Snapshot(connection);
+        if (snapshot.Segmented is not null)
+        {
+            throw new InvalidDataException("A segmented snapshot cannot be read from a single evidence database.");
+        }
         if (checkpoint is not null) { ValidateSnapshot(connection, snapshot); }
+        using var command = CreateReadCommand(connection, query, checkpoint?.After, request, snapshot);
+        using var rows = command.ExecuteReader();
+        var candidates = new List<EvidenceCandidate>();
+        EvidencePosition? scannedThrough = checkpoint?.After;
+        var scanned = 0;
+        while (rows.Read())
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (++scanned > MaximumScannedRows)
+            {
+                return new(snapshot, candidates, scannedThrough, HasMore: true, ScanLimitReached: true);
+            }
+            var position = Position(rows);
+            var record = Project(connection, rows, position, query.SessionId, snapshot, now);
+            scannedThrough = position;
+            if (!Matches(record, query)) { continue; }
+            candidates.Add(new(position, record));
+            if (candidates.Count == query.Limit + 1)
+            {
+                return new(snapshot, candidates, scannedThrough, HasMore: true, ScanLimitReached: false);
+            }
+        }
+        cancellationToken.ThrowIfCancellationRequested();
+        return new(snapshot, candidates, scannedThrough, HasMore: false, ScanLimitReached: false);
+    }
+
+    internal static SqliteCommand CreateReadCommand(SqliteConnection connection, EvidenceQuery query,
+        EvidencePosition? after, HostRequest request, EvidenceSnapshot snapshot)
+    {
+        var command = connection.CreateCommand();
+        try
+        {
+            PopulateReadCommand(command, query, after, request, snapshot);
+            return command;
+        }
+        catch
+        {
+            command.Dispose();
+            throw;
+        }
+    }
+
+    private static void PopulateReadCommand(SqliteCommand command, EvidenceQuery query,
+        EvidencePosition? after, HostRequest request, EvidenceSnapshot snapshot)
+    {
         var ceilings = new[] { snapshot.Log, snapshot.Audit, snapshot.Span, snapshot.Link };
-        using var command = connection.CreateCommand();
         var selects = new List<string>();
         for (var index = 0; index < Tables.Length; index++)
         {
@@ -96,7 +144,6 @@ public sealed class WindowsSqliteEvidenceReader(WindowsSqliteEvidenceSink sink) 
             selects.Add($"SELECT committed_utc,{index + 1} AS source,evidence_id,{ordinal} AS ordinal,due_utc,envelope,{auditSequence} AS audit_sequence FROM {Tables[index]} WHERE {string.Join(" AND ", where)}");
         }
         Parameter(command, "$excluded", request.RequestId.Value.ToString("D"));
-        var after = checkpoint?.After;
         var continuation = after is null ? string.Empty
             : "WHERE (committed_utc,source,evidence_id,ordinal)>($ticks,$source,$id,$lastOrdinal)";
         if (after is not null)
@@ -107,32 +154,12 @@ public sealed class WindowsSqliteEvidenceReader(WindowsSqliteEvidenceSink sink) 
             Parameter(command, "$lastOrdinal", after.Ordinal);
         }
         command.CommandText = $"SELECT * FROM ({string.Join(" UNION ALL ", selects)}) {continuation} ORDER BY committed_utc,source,evidence_id,ordinal LIMIT {MaximumScannedRows + 1};";
-        using var rows = command.ExecuteReader();
-        var candidates = new List<EvidenceCandidate>();
-        EvidencePosition? scannedThrough = after;
-        var scanned = 0;
-        while (rows.Read())
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            if (++scanned > MaximumScannedRows)
-            {
-                return new(snapshot, candidates, scannedThrough, HasMore: true, ScanLimitReached: true);
-            }
-            var position = new EvidencePosition(rows.GetInt64(0), (EvidenceSource)rows.GetInt32(1), rows.GetString(2), rows.GetInt32(3));
-            var record = Project(connection, rows, position, query.SessionId, snapshot, now);
-            scannedThrough = position;
-            if (!Matches(record, query)) { continue; }
-            candidates.Add(new(position, record));
-            if (candidates.Count == query.Limit + 1)
-            {
-                return new(snapshot, candidates, scannedThrough, HasMore: true, ScanLimitReached: false);
-            }
-        }
-        cancellationToken.ThrowIfCancellationRequested();
-        return new(snapshot, candidates, scannedThrough, HasMore: false, ScanLimitReached: false);
     }
 
-    private static EvidenceSnapshot Snapshot(SqliteConnection connection)
+    internal static EvidencePosition Position(SqliteDataReader row) =>
+        new(row.GetInt64(0), (EvidenceSource)row.GetInt32(1), row.GetString(2), row.GetInt32(3));
+
+    internal static EvidenceSnapshot Snapshot(SqliteConnection connection)
     {
         var values = new long[Tables.Length];
         var identities = new string?[Tables.Length];
@@ -151,7 +178,7 @@ public sealed class WindowsSqliteEvidenceReader(WindowsSqliteEvidenceSink sink) 
         return new(values[0], values[1], values[2], values[3], identities[0], identities[2], identities[3]);
     }
 
-    private static void ValidateSnapshot(SqliteConnection connection, EvidenceSnapshot snapshot)
+    internal static void ValidateSnapshot(SqliteConnection connection, EvidenceSnapshot snapshot)
     {
         // Ordinary rowids can be reused after pruning. Never admit a replacement into an old cursor.
         var ceilings = new[] { snapshot.Log, snapshot.Span, snapshot.Link };
@@ -185,9 +212,11 @@ public sealed class WindowsSqliteEvidenceReader(WindowsSqliteEvidenceSink sink) 
         if (!command.Parameters.Contains(name)) { command.Parameters.AddWithValue(name, value); }
     }
 
-    private static EvidenceRecord Project(SqliteConnection connection, SqliteDataReader row, EvidencePosition position,
-        HostId<SessionIdentity>? session, EvidenceSnapshot snapshot, DateTimeOffset now)
+    internal static EvidenceRecord Project(SqliteConnection connection, SqliteDataReader row, EvidencePosition position,
+        HostId<SessionIdentity>? session, EvidenceSnapshot snapshot, DateTimeOffset now,
+        Func<string, string, EvidenceSegment>? resolve = null, long auditBase = 0)
     {
+        resolve ??= (trace, span) => Resolve(connection, trace, span, session, snapshot, now);
         var id = new HostId<EvidenceIdentity>(Guid.ParseExact(position.Id, "D"));
         var committed = new DateTimeOffset(position.CommittedTicks, TimeSpan.Zero);
         var due = new DateTimeOffset(row.GetInt64(4), TimeSpan.Zero);
@@ -201,11 +230,11 @@ public sealed class WindowsSqliteEvidenceReader(WindowsSqliteEvidenceSink sink) 
                 pair => EvidenceFieldPolicy.IsSensitive(pair.Key) ? new(EvidenceValueKind.Text, "[redacted]") : pair.Value,
                 StringComparer.Ordinal);
             var related = diagnostic.Trace is { } trace
-                ? new[] { Resolve(connection, trace.TraceId, trace.SpanId, session, snapshot, now) } : [];
+                ? new[] { resolve(trace.TraceId, trace.SpanId) } : [];
             return new(new(position.Source, id), committed, due, retention, diagnostic.Host, diagnostic.Trace,
                 diagnostic.AuditCorrelationId, diagnostic.ApprovalId, diagnostic.Level, diagnostic.Category,
                 diagnostic.EventId, diagnostic.MessageTemplate, properties, audit?.Audit, null, related,
-                AuditSequence: row.IsDBNull(6) ? null : row.GetInt64(6),
+                AuditSequence: row.IsDBNull(6) ? null : checked(auditBase + row.GetInt64(6)),
                 EventName: diagnostic.EventName, ExceptionType: diagnostic.ExceptionType);
         }
         var owner = position.Source == EvidenceSource.Link ? ReadOwner(connection, position.Id) : payload;
@@ -213,16 +242,16 @@ public sealed class WindowsSqliteEvidenceReader(WindowsSqliteEvidenceSink sink) 
         var segments = new List<EvidenceSegment>();
         if (span.Trace.ParentSpanId is { } parent)
         {
-            segments.Add(Resolve(connection, span.Trace.TraceId, parent, session, snapshot, now));
+            segments.Add(resolve(span.Trace.TraceId, parent));
         }
         foreach (var link in span.Links)
         {
-            segments.Add(Resolve(connection, link.TraceId, link.SpanId, session, snapshot, now));
+            segments.Add(resolve(link.TraceId, link.SpanId));
         }
         if (position.Source == EvidenceSource.Link)
         {
             var link = span.Links[position.Ordinal];
-            segments = [Resolve(connection, link.TraceId, link.SpanId, session, snapshot, now)];
+            segments = [resolve(link.TraceId, link.SpanId)];
         }
         return new(new(position.Source, id, position.Source == EvidenceSource.Link ? position.Ordinal : null),
             committed, due, retention, span.Host, span.Trace, span.AuditCorrelationId, span.ApprovalId,

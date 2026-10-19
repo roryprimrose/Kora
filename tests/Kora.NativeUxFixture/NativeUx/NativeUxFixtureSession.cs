@@ -48,10 +48,12 @@ internal sealed partial class NativeUxFixtureSession : IApplicationDataPaths, ID
     private SessionQueueService? queue;
     private SessionWorkspaceService? sessions;
     private readonly EvidenceLoggerProvider? evidenceProvider;
+    private readonly Serilog.Core.Logger? dailyEvidenceLogger;
     private AudioControlAdmission? captionAdmission;
 
     internal NativeUxFixtureSession(string scratchParent, bool silentCaption = false, bool listOverflow = false,
-        bool exactGrants = false, bool allWork = false)
+        bool exactGrants = false, bool allWork = false, bool bufferedEvidence = false,
+        ISqliteTransactionCheckpoint? evidenceCheckpoint = null)
     {
         if ((silentCaption ? 1 : 0) + (listOverflow ? 1 : 0) + (exactGrants ? 1 : 0) + (allWork ? 1 : 0) > 1)
         {
@@ -75,9 +77,19 @@ internal sealed partial class NativeUxFixtureSession : IApplicationDataPaths, ID
             identity.User ?? throw new InvalidOperationException("A loaded Windows user profile is required."));
         try
         {
-            var sink = new WindowsSqliteEvidenceSink(this);
+            var sink = new WindowsSqliteEvidenceSink(this, null, null, evidenceCheckpoint);
             sink.Initialize();
-            evidenceProvider = new([sink], new FixtureEvidenceGaps());
+            if (bufferedEvidence)
+            {
+                var health = new FileEvidenceHealth();
+                dailyEvidenceLogger = DailyFileLoggerFactory.Create(this, health);
+                var copy = new FileEvidenceSink(dailyEvidenceLogger, health);
+                evidenceProvider = new([copy, sink], copy, bufferDiagnostics: true, requiredOrdinaryCopy: copy);
+            }
+            else
+            {
+                evidenceProvider = new([sink], new FixtureEvidenceGaps());
+            }
             Loggers = LoggerFactory.Create(builder => builder.AddProvider(evidenceProvider));
             Audit = new LoggerSecurityAuditLog(Loggers.CreateLogger<LoggerSecurityAuditLog>());
             Tasks = new(this);
@@ -92,6 +104,7 @@ internal sealed partial class NativeUxFixtureSession : IApplicationDataPaths, ID
         {
             Loggers?.Dispose();
             evidenceProvider?.Dispose();
+            dailyEvidenceLogger?.Dispose();
             cancellation.Dispose();
             Directory.Delete(LocalRoot, recursive: true);
             throw;
@@ -339,6 +352,7 @@ internal sealed partial class NativeUxFixtureSession : IApplicationDataPaths, ID
         Access.Dispose();
         Loggers.Dispose();
         evidenceProvider?.Dispose();
+        dailyEvidenceLogger?.Dispose();
         cancellation.Dispose();
         // Delete only the uniquely created fixture child, never the supplied parent or user data.
         if (File.GetAttributes(LocalRoot).HasFlag(FileAttributes.ReparsePoint))

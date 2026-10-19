@@ -54,8 +54,12 @@ public sealed partial class SessionQueueService : IAsyncDisposable
             (store as ISessionWorkStore ?? throw new InvalidOperationException("The authoritative work snapshot service is unavailable."))
                 .ReadWorkAsync(session, admissionRevision, current, token).AsTask(), token);
 
-    public async Task<SessionCommandResult> ExecuteCommandAsync(SessionCommand command, RequestOrigin origin,
-        Func<bool> admission, CancellationToken token)
+    public Task<SessionCommandResult> ExecuteCommandAsync(SessionCommand command, RequestOrigin origin,
+        Func<bool> admission, CancellationToken token) => ExecuteCommandCoreAsync(command, origin, admission, token);
+
+    private async Task<SessionCommandResult> ExecuteCommandCoreAsync(SessionCommand command, RequestOrigin origin,
+        Func<bool> admission, CancellationToken token, SessionDiagnosticsPlanReview? plan = null,
+        Action<SessionQueueSnapshot>? enqueueCommitted = null)
     {
         ArgumentNullException.ThrowIfNull(command);
         ArgumentNullException.ThrowIfNull(admission);
@@ -162,12 +166,22 @@ public sealed partial class SessionQueueService : IAsyncDisposable
                 var generation = new HostRevision(command.Generation);
                 snapshot = command.Operation switch
                 {
-                    SessionCommandOperation.QueueEnqueue => await WithLimitsAsync(current => store.EnqueueAsync(request,
+                    SessionCommandOperation.QueueEnqueue => await WithLimitsAsync(async current =>
+                    {
+                        if (plan is not null && (current != plan.Limits || ConfigurationRevision != plan.ConfigurationRevision))
+                        {
+                            throw new InvalidOperationException("The reviewed queue limits changed; review a fresh plan.");
+                        }
+                        var committed = await store.EnqueueAsync(request,
                         new(new(command.WorkRequestId ?? throw new InvalidOperationException("An exact request ID is required.")),
                             session, RequireTask(command), origin),
                         generation, command.QueueRevision, revision, command.DependencyTaskId is { } dependency ? new(dependency) : null,
                         current, () => Eligible() && (configuration is null || configuration.IsCurrent(current)), token,
-                        command.QueueProfile, command.ExpectedDependencyRevision, command.QueueTarget).AsTask(), token).ConfigureAwait(false),
+                        command.QueueProfile, command.ExpectedDependencyRevision, command.QueueTarget,
+                        plan?.Queue.DispatchControl).ConfigureAwait(false);
+                        enqueueCommitted?.Invoke(committed);
+                        return committed;
+                    }, token).ConfigureAwait(false),
                     SessionCommandOperation.QueueCancel or SessionCommandOperation.QueueRemove =>
                         await store.RemovePendingAsync(request, generation, command.QueueRevision, RequireTask(command),
                             new(command.TaskRevision), command.Operation == SessionCommandOperation.QueueCancel
@@ -454,7 +468,7 @@ public sealed partial class SessionQueueService : IAsyncDisposable
         }
         await lifetime.CancelAsync().ConfigureAwait(false);
         await dispatchGate.WaitAsync(CancellationToken.None).ConfigureAwait(false);
-        lock (causeGate) { causes.Clear(); moveReviews.Clear(); cancelReviews.Clear(); requeueReviews.Clear(); }
+        lock (causeGate) { causes.Clear(); moveReviews.Clear(); cancelReviews.Clear(); requeueReviews.Clear(); diagnosticsReview = null; diagnosticsAdmission = static () => false; }
         dispatchGate.Dispose();
         lifetime.Dispose();
     }

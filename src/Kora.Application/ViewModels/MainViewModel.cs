@@ -451,6 +451,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         ResetReaderTextScaleCommand = CreateCommand(() => ResetAppearanceOptionAsync(AppearanceOption.ReaderTextScale));
         ResetResponseTimeoutCommand = CreateCommand(() => ResetAppearanceOptionAsync(AppearanceOption.ResponseTimeout));
         ResetPresenceDisplayCommand = CreateCommand(() => ResetAppearanceOptionAsync(AppearanceOption.PresenceDisplay));
+        ResetPresenceRendererCommand = CreateCommand(() => ResetAppearanceOptionAsync(AppearanceOption.NativePresenceRenderer));
         ResetPresenceTimeoutCommand = CreateCommand(() => ResetAppearanceOptionAsync(AppearanceOption.PresenceTimeout));
         ResetPresenceSizeCommand = CreateCommand(() => ResetAppearanceOptionAsync(AppearanceOption.PresenceSize));
         ResetPresenceDotSizeCommand = CreateCommand(() => ResetAppearanceOptionAsync(AppearanceOption.DotSize));

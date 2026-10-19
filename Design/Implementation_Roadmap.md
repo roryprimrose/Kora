@@ -40,6 +40,24 @@ The [explicit original-text reuse contract](Interaction_And_Sessions.md#explicit
 
 Implementation and deterministic tests are authored, including cancellation during synchronous memory handoff. Exact-head maintained builds, tests and raw line/branch coverage remain required before merge; authored tests and incomplete local execution are not passing validation. Only the existing canonical original-reader/New request/private-pane I subset is consumed; runtime/provider/egress/wake/profile-original writers remain unavailable and unrelated E/Q or physical/installed qualification is not claimed.
 
+### Bounded fixed local diagnostics queue plan implementation - 2026-10-19
+
+The [queue contract](Work_Management.md#bounded-fixed-local-diagnostics-queue-plan---2026-10-19)
+adds explicit native selection of up to four existing no-argument diagnostics profiles,
+complete exact-session/capacity/deadline/control review and separate one-shot confirmation.
+Each planned item uses the same authoritative single enqueue action, with explicit None
+prerequisite and fresh host IDs. Sequential/possibly partial outcomes stop at uncertainty;
+earlier pending commits remain queued, with no retry, rollback or implicit dispatch.
+
+This consumes only the merged session/queue/profile/admission/audit/limits I subset.
+Implementation, deterministic tests and native wiring are authored. Readiness requires
+builds, test execution, maintained native checks and exact-source raw 100% portable
+line/branch proof in the separately admitted serial validation lane. Commit-bound
+continuation receipts distinguish failed attempts from completed proof; authorization
+alone is not READY or qualification evidence.
+No model/provider/network/executor or background pump is added; E/Q, installed/hardware and
+physical/provider/containment qualification remain separate and unclaimed.
+
 ### Bounded exact immutable LocalFile Find count and ordinal - 2026-10-18
 
 The existing [native current-source Find](File_And_Folder_Ingestion.md#exact-immutable-localfile-occurrence-count-and-ordinal---2026-10-18) reports an accessible exact total and selected ordinal only for its admitted displayed immutable file, never corpus/retrieval/live disk.

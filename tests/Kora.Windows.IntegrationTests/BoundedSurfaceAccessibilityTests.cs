@@ -140,11 +140,11 @@ public sealed class BoundedSurfaceAccessibilityTests
                 cycle.Select(control => ControlAutomationPeer.CreatePeerForElement(control)!.GetName())
                     .Should().BeEquivalentTo(
                         "Appearance", "Native reader text scale percentage", "Show animated presence", "Application theme",
-                        "Always show", "Stay on top", "Response timeout in seconds", "Presence timeout in seconds",
+                        "Always show", "Stay on top", "Response timeout in seconds", "Presence renderer", "Presence timeout in seconds",
                         "Presence size in pixels", "Dot size percent", "Dot density percent", "Movement speed percent",
                         "Scale presence with speech playback", "Speech scale amount percent",
                         "Application theme actions", "Native reader text scale actions", "Always show responses actions",
-                        "Keep responses on top actions", "Response timeout actions", "Show presence actions",
+                        "Keep responses on top actions", "Response timeout actions", "Show presence actions", "Presence renderer actions",
                         "Presence timeout actions", "Presence size actions", "Dot size actions", "Dot density actions",
                         "Movement speed actions", "Speech sizing actions", "Speech scale amount actions");
                 cycle.Should().Contain(tab);
@@ -171,7 +171,7 @@ public sealed class BoundedSurfaceAccessibilityTests
                 window.Activate();
                 window.UpdateLayout();
                 var actions = window.GetVisualDescendants().OfType<SettingActionsButton>().ToArray();
-                actions.Should().HaveCount(13);
+                actions.Should().HaveCount(14);
                 foreach (var action in actions)
                 {
                     action.ResetCommand.Should().NotBeNull();

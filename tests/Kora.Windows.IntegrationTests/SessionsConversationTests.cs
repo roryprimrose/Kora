@@ -209,7 +209,7 @@ public sealed partial class SessionsConversationTests
         await WindowsSqliteConversationTests.FinishInitial(f);
         SessionsViewModel? subject = null;
         Kora.Core.Storage.SessionWorkspaceEntry? other = null;
-        f.Reopen(new SelectionCheckpoint(() => subject!.SelectAsync(other).GetAwaiter().GetResult()));
+        f.Reopen(new SelectionCheckpoint(() => subject!.SelectAsync(other).IsCompletedSuccessfully.Should().BeTrue()));
         await f.Store.InitializeAsync(f.Token);
         await using var composed = new Composition(f);
         subject = composed.Model;

@@ -12,7 +12,7 @@ using Microsoft.Extensions.Logging;
 
 namespace Kora.Application.Hosting;
 
-/// <summary>Native exact-session requests. No history assembly, routing inference, retries or adapter execution.</summary>
+/// <summary>Canonical original-user exact-session requests. No inferred routing or automatic retries.</summary>
 public sealed partial class SessionConversationService(
     ISessionConversationStore conversations, ISessionWorkspaceStore store, SessionWorkspaceService workspace,
     ISessionWorkspaceAccess access, IModelTurnAdmission turns, TimeProvider time, ILogger<SessionConversationService> logger)
@@ -68,28 +68,30 @@ public sealed partial class SessionConversationService(
 
     public async Task<ConversationSubmissionReceipt> SubmitAsync(SessionWorkspaceEntry target, string body,
         Func<bool> admitted, CancellationToken token, Func<CancellationToken, Task>? beforeRetain = null,
-        IEnumerable<ActivityLink>? links = null)
+        IEnumerable<ActivityLink>? links = null, RequestOrigin origin = RequestOrigin.LocalUi)
     {
-        if (HostActivity.Current is { Request.Origin: not RequestOrigin.LocalUi })
-        { throw new InvalidOperationException("Conversation submission cannot relabel model or voice input as native intent."); }
+        RequireOriginalSource(origin);
         if (beforeRetain is not null) { await beforeRetain(token).ConfigureAwait(false); }
         try { ConversationText.Validate(body, submission: true); }
         catch (ConversationCredentialException)
         {
-            await RejectCredentialAsync(target.Authority.SessionId, target.Authority.Generation, admitted, token).ConfigureAwait(false);
+            await RejectCredentialAsync(target.Authority.SessionId, target.Authority.Generation, admitted, token, origin).ConfigureAwait(false);
             throw;
         }
         var revision = access.ControlRevision;
         bool Live() => access.CanControl && access.ControlRevision == revision && admitted();
         if (!Live() || !turns.IsQuiescent)
-        { throw new InvalidOperationException("Submission requires private original native input and quiescent provider admission."); }
+        { throw new InvalidOperationException("Submission requires private original user input and quiescent provider admission."); }
         var actual = await store.ReadMetadataAsync(target.Authority.SessionId, token).ConfigureAwait(false);
         if (actual != target || !actual.Authority.IsActive || !Live())
         { throw new InvalidOperationException("Refresh the exact Active session, generation and metadata revision before submitting."); }
         // Asynchronous native-source validation precedes the issuing root; the store's Live fence still runs at physical COMMIT.
         if (beforeRetain is not null) { await beforeRetain(token).ConfigureAwait(false); }
         if (!Live()) { throw new InvalidOperationException("Submission admission changed during source validation."); }
-        var request = new HostRequest(new(Guid.NewGuid()), actual.Authority.SessionId, new(Guid.NewGuid()), RequestOrigin.LocalUi);
+        var request = new HostRequest(new(Guid.NewGuid()), actual.Authority.SessionId, new(Guid.NewGuid()), origin);
+        var now = time.GetUtcNow();
+        var context = new ModelContextEnvelope(request, Policy, body, [], now, now.AddSeconds(15));
+        context.RequireCompleteInputLimit();
         using var activity = HostActivity.BeginRoot(request, HostActivityLayer.Application, HostOperation.Request, links);
         try
         {
@@ -98,20 +100,22 @@ public sealed partial class SessionConversationService(
                 actual.Metadata?.Revision.Value ?? 0, body, Live, token).ConfigureAwait(false);
             if (retained.Message.Outcome is not null)
             { throw new InvalidDataException("A fresh submission unexpectedly returned an already terminal request."); }
-            var now = time.GetUtcNow();
-            var context = new ModelContextEnvelope(request, Policy, body, [], now, now.AddSeconds(15));
-            context.RequireCompleteInputLimit();
             ModelTurnResult result;
             if (!Live() || !turns.IsQuiescent)
             { result = new(ModelTurnOutcome.Denied, ModelTurnReason.HostAdmissionClosed); }
             else
             {
-                var admission = await turns.AdmitAsync(ModelTurnChoice.Default, context, null, token).ConfigureAwait(false);
-                result = admission.Result.Response is not null
-                    || admission.Turn is null && admission.Result.Outcome == ModelTurnOutcome.Succeeded
-                    ? new(ModelTurnOutcome.Denied, ModelTurnReason.InvalidProviderResponse)
-                    : admission.Turn is null ? admission.Result
-                        : new(ModelTurnOutcome.Unavailable, ModelTurnReason.GenerationNotEnabled);
+                if (beforeRetain is not null) { await beforeRetain(token).ConfigureAwait(false); }
+                if (!Live()) { result = new(ModelTurnOutcome.Denied, ModelTurnReason.HostAdmissionClosed); }
+                else
+                {
+                    var admission = await turns.AdmitAsync(ModelTurnChoice.Default, context, null, token).ConfigureAwait(false);
+                    result = admission.Result.Response is not null
+                        || admission.Turn is null && admission.Result.Outcome == ModelTurnOutcome.Succeeded
+                        ? new(ModelTurnOutcome.Denied, ModelTurnReason.InvalidProviderResponse)
+                        : admission.Turn is null ? admission.Result
+                            : new(ModelTurnOutcome.Unavailable, ModelTurnReason.GenerationNotEnabled);
+                }
             }
             var receipt = await conversations.CompleteConversationSubmissionAsync(request, result.Outcome,
                 result.Reason, Live, token).ConfigureAwait(false);
@@ -140,7 +144,7 @@ public sealed partial class SessionConversationService(
     }
 
     private async Task RejectCredentialAsync(HostId<SessionIdentity> session, HostRevision generation,
-        Func<bool> admitted, CancellationToken token)
+        Func<bool> admitted, CancellationToken token, RequestOrigin origin = RequestOrigin.LocalUi)
     {
         var revision = access.ControlRevision;
         bool Live() => access.CanControl && access.ControlRevision == revision && admitted();
@@ -148,7 +152,7 @@ public sealed partial class SessionConversationService(
         var target = await store.ReadMetadataAsync(session, token).ConfigureAwait(false);
         if (target.Authority.Generation != generation || !target.Authority.IsActive || target.Authority.SessionId != session)
         { throw new InvalidOperationException("Credential rejection requires the exact current Active session."); }
-        var request = new HostRequest(new(Guid.NewGuid()), session, new(Guid.NewGuid()), RequestOrigin.LocalUi);
+        var request = new HostRequest(new(Guid.NewGuid()), session, new(Guid.NewGuid()), origin);
         using var activity = HostActivity.BeginRoot(request, HostActivityLayer.Application, HostOperation.Request);
         try
         {
@@ -160,5 +164,15 @@ public sealed partial class SessionConversationService(
             activity.Complete(HostOperationOutcome.Unknown);
             throw;
         }
+
+    }
+
+    internal static void RequireOriginalSource(RequestOrigin origin)
+    {
+        if (origin is not (RequestOrigin.LocalUi or RequestOrigin.ActivatedVoice)
+            || HostActivity.HasScope && (HostActivity.Current is not { } current
+                || current.Request.Origin != origin || current.Request.InvocationId is not null
+                || current.Outcome != HostOperationOutcome.Unknown))
+        { throw new InvalidOperationException("Conversation submission requires live original user authority without relabelling its channel."); }
     }
 }

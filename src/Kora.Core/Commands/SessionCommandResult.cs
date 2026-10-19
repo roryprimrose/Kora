@@ -7,6 +7,7 @@ using Kora.Core.Interaction;
 using Kora.Core.Storage;
 using Kora.Core.Tools;
 using Kora.Core.Dependencies;
+using Kora.Core.Conversation;
 
 namespace Kora.Core.Commands;
 
@@ -30,6 +31,8 @@ public sealed record SessionCommandResult(string Outcome, string Message)
     public SessionQueueCancelReceipt? QueueCancelReceipt { get; init; }
     public SessionQueueRequeueReview? QueueRequeueReview { get; init; }
     public SessionQueueRequeueReceipt? QueueRequeueReceipt { get; init; }
+    public SessionRequestReview? RequestReview { get; init; }
+    public ConversationSubmissionReceipt? RequestSubmission { get; init; }
     public static byte[] Serialize(SessionCommandResult result)
     {
         var bytes = JsonSerializer.SerializeToUtf8Bytes(result, Json);

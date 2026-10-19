@@ -272,6 +272,8 @@ public sealed partial class MainViewModel
             sessionRetentionPlanner.Dispose();
         }
         RetireWebResultDetails();
+        sessionRequests?.Retire();
+        PrivacyClosureRequested -= OnSessionRequestPrivacyClosure;
         RetireSpeechCaption();
         lifecycleAdmissionClosed = true;
         if (speechPreparation is not null)
@@ -479,6 +481,7 @@ public sealed partial class MainViewModel
 
     private void HoldVoiceInput(string reason, WindowsSessionState? sessionState = null, bool restoreOnUnlock = false)
     {
+        sessionRequests?.Retire();
         RetireQuestionVoiceReply();
         long revision;
         lock (voiceReadinessGate)

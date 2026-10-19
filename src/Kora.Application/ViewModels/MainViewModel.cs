@@ -4195,6 +4195,14 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         }
         if (SessionCommand.Parse(spokenText, AssistantName) is { } sessionCommand)
         {
+            if (initiator == SecurityAuditInitiator.VoiceCommand
+                && sessionCommand.Operation is SessionCommandOperation.RequestReview or SessionCommandOperation.RequestConfirm or SessionCommandOperation.RequestCancel
+                && !commandRouter.IsActivationPrefixed(spokenText, AssistantName))
+            {
+                sessionRequests?.Retire();
+                ShowInformation("Session request denied.", "Use the current assistant-name prefix and exact session request grammar. No pending question or model received this input.");
+                return;
+            }
             await ExecuteSessionCommandAsync(sessionCommand, initiator);
             return;
         }
@@ -5942,6 +5950,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             StringComparison.Ordinal);
         if (!AssistantName.Equals(normalizedName, StringComparison.Ordinal))
         {
+            sessionRequests?.Retire();
             AssistantName = normalizedName;
             OnPropertyChanged(nameof(AssistantInitial));
             OnPropertyChanged(nameof(SettingsWindowTitle));

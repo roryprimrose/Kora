@@ -72,8 +72,9 @@ this continuation.
 
 The [D-014/R04-R08 host increment](Model_Providers_Memory_And_Knowledge.md#delivered-r04-r08-host-controls---2026-10-09)
 adds a maintained provider-neutral admission/envelope consumer, but no Copilot
-SDK/runtime or MG1 operating envelope. Its production registrations contain no
-adapter or qualification evidence. Shared numerical UTF-8 limits, fake typed
+SDK/runtime or MG1 operating envelope. That increment's registrations contained
+no adapter or qualification evidence. The later native Ollama transport still
+adds no qualification evidence. Shared numerical UTF-8 limits, fake typed
 results and host cancellation/link tests are not subject/assertion equivalence
 for actual SDK final-request, transport, retry, session-I/O, resource, account
 or all-path lifecycle tests. RT1/RT2/MG1/Node and local-inference experiments
@@ -87,6 +88,12 @@ executables, derived-fixture consumers and native procedures remain retained;
 these deterministic workflow tests are not exact maintained runtime equivalence.
 
 ### RT1 .NET outcome: selected source-built profile passes
+
+The separately implemented [native Ollama tool transport](Local_Inference.md#native-tool-message-transport-boundary)
+consumes the host-owned portable tool protocol, not the Copilot SDK. Its
+strict native JSON, fake HTTP/lifecycle tests and unavailable candidate
+composition do not qualify a local runtime or migrate any RT1/RT2/MG1/Node
+experiment assertion. Exact-profile enablement remains a separate gate.
 
 The [RT1 disposition](../experiments/r02-dotnet-control-proof/evidence/disposition.json)
 records **PASS for the reviewed exact-tag source-built minimal HTTP/stdio

@@ -27,8 +27,9 @@ Management receives only these minimal read-only descriptors, never the current
 action enum, executable-task catalogue, source instructions, or new authority.
 Lane selection is host-owned, not an input field. Callers are registry-instance
 and live host-request bound; foreign, completed, disposed or unavailable host
-contexts fail closed. Only the Native route is presently composed; adapter
-admission/egress and full model tool/result iteration remain outstanding.
+contexts fail closed. Only the Native route is presently enabled. The separate
+native Ollama tool-transport implementation below does not qualify a runtime
+or enable model admission/egress or tool/result execution.
 Raw dependency names/details are not serialized. Readiness and `local.inference`
 runtime observations reuse the existing bootstrap/setup records, with timestamps
 and explicit NotObserved/Unavailable reasons; queries do not reprobe or generate.
@@ -73,7 +74,7 @@ implementation and acceptance work. Roadmap inventory IDs are not tool IDs.
 
 ## Availability and Caller Lanes
 
-- **Current:** verified local Ollama bootstrap accepts a bounded JSON proposal, not an SDK tool-call loop.
+- **Current enabled:** verified local Ollama bootstrap accepts a bounded JSON proposal, not an SDK tool-call loop. The separate native tool-message candidate remains unavailable without exact qualification and a host-owned endpoint binding.
 - **Proposed A:** required host tools for Slice A, including revised A3/A4 sessions and interaction.
 - **Proposed B/C:** connector/skill discovery in B and declarative authoring in C.
 - **Deferred:** outside initial release scope; never advertise as available before its dedicated proof.
@@ -95,6 +96,24 @@ route over one registered action/gateway. Record why a route is omitted or
 unavailable. A descriptor is proposal authority only, never execution permission.
 Tests must reject unknown, ambiguous, unavailable and unauthorized proposals
 without effects.
+
+## Native Ollama Tool-Transport Implementation
+
+The provider-neutral tool-loop contract now has a separate Windows native
+`api/chat` transport and desktop candidate registration, described in
+[Local Inference](Local_Inference.md#native-tool-message-transport-boundary).
+Native messages map to the Core protocol; complete messages and serial
+continuations retain its six-action catalogue, exact argument admission and
+complete UTF-8 budgets. Tool results remain lower-trust `tool` content, not
+instructions or approval. Neither transport nor model output invokes actions
+directly.
+
+This source path is unavailable by default: registration has no qualification
+evidence, its expiry is in the past, and no host endpoint binding is supplied.
+The presence of a native transport or a fake integration test does not make
+the catalogue a qualified live model surface. The ordinary bootstrap reasoner
+below remains a separate unchanged proposal protocol, never an automatic
+fallback from failed tool execution.
 
 ## Implemented Bootstrap Surface
 

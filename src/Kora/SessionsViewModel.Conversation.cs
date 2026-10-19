@@ -12,6 +12,7 @@ internal sealed partial class SessionsViewModel
     private string composerBaseline = string.Empty;
     private ConversationDraftSnapshot? savedConversationDraft;
     private ConversationPage? conversationPage;
+    private ConversationMessage? completedConversationMessage;
     private bool conversationHeld;
     private bool conversationSourceHeld;
     private bool conversationBusy;
@@ -52,7 +53,8 @@ internal sealed partial class SessionsViewModel
             + " | private control epoch " + access.ControlRevision.ToString(CultureInfo.InvariantCulture)
             + " | saved draft revision " + (savedConversationDraft?.Draft.Revision ?? catalogueDraft?.DraftRevision ?? 0).ToString(CultureInfo.InvariantCulture)
         : "Select an exact session; no global or question-reply target.";
-    public IReadOnlyList<ConversationMessage> ConversationMessages => conversationPage?.Messages ?? [];
+    public IReadOnlyList<ConversationMessage> ConversationMessages => conversationPage is { } page ? page.Messages
+        : completedConversationMessage is { } completed ? [completed] : [];
     public bool CanReadConversation => CanRead && !conversationBusy && selected is not null && conversation is not null;
     public bool CanNextConversation => CanReadConversation && conversationPage?.Next is not null;
     public bool CanOpenConversationDetails => CanReadConversation && openConversationDetail is not null;
@@ -123,6 +125,7 @@ internal sealed partial class SessionsViewModel
         if (!live() || page.Session != target.Authority || draft.Session != target.Authority)
         { throw new OperationCanceledException("Conversation source or exact selected generation changed."); }
         conversationPage = page;
+        completedConversationMessage = null;
         savedConversationDraft = draft;
         savedConversationDraftControlRevision = access.ControlRevision;
         catalogueDraft = null;
@@ -130,7 +133,7 @@ internal sealed partial class SessionsViewModel
         draftSaveUnconfirmed = false;
         clearDraftReviewed = false;
         conversationStatus = "Observed " + page.Messages.Length.ToString(CultureInfo.InvariantCulture)
-            + " exact immutable user messages. Host status is not an assistant answer. "
+            + " exact immutable user messages with any separately retained ASSISTANT answer. HOST status is not assistant prose. "
             + (page.Next is null ? "End of this sequence snapshot." : "More bounded records available.")
             + (conversationHeld ? " Submission uncertainty remains held; inspect task receipts/restart recovery, never retry automatically." : string.Empty);
     }, sourceRead: true);
@@ -204,10 +207,13 @@ internal sealed partial class SessionsViewModel
         if (!live()) { throw new OperationCanceledException("The selected private presentation changed."); }
         if (string.Equals(composerBody, body, StringComparison.Ordinal)) { composerBody = string.Empty; composerBaseline = string.Empty; }
         conversationPage = null;
+        completedConversationMessage = receipt.Message;
         conversationStatus = "Original user message retained exactly; request " + receipt.Message.Request.RequestId.Value.ToString("D")
             + " | sequence " + receipt.Message.Sequence.ToString(CultureInfo.InvariantCulture)
             + " | HOST " + receipt.Message.Outcome + " / " + receipt.Message.Reason
-            + " | task " + receipt.Task.State + ". No assistant answer, dispatch, fallback or automatic retry. Saved drafts remain independently retained.";
+            + " | task " + receipt.Task.State
+            + (receipt.Message.AssistantResponse is null ? ". No assistant answer retained." : ". Genuine ASSISTANT answer retained separately below.")
+            + " No fallback or automatic retry. Saved drafts remain independently retained; Refresh for the full bounded conversation.";
     }, submission: true);
 
     internal async Task<bool> ProtectComposerAsync()
@@ -292,6 +298,7 @@ internal sealed partial class SessionsViewModel
             {
                 ClearConversationSearch();
                 conversationPage = null;
+                completedConversationMessage = null;
                 clearDraftReviewed = false;
                 conversationStatus = "Terminal snapshot changed; Refresh conversation. Memory draft retained; no retry or submission.";
             }
@@ -316,6 +323,7 @@ internal sealed partial class SessionsViewModel
             else
             {
                 conversationPage = null;
+                completedConversationMessage = null;
                 conversationHeld |= submission;
                 conversationStatus = "The original selection changed during admission; its memory draft remains held, never retargeted. Inspect exact receipts.";
             }
@@ -344,6 +352,7 @@ internal sealed partial class SessionsViewModel
         savedConversationDraft = null;
         savedConversationDraftControlRevision = 0;
         conversationPage = null;
+        completedConversationMessage = null;
         conversationHeld = false;
         conversationSourceHeld = false;
         draftSaveUnconfirmed = false;

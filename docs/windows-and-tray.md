@@ -25,7 +25,7 @@ Open **Tray > Compact selected-session conversation** or **Sessions > Compact co
 Reopening activates the same compact window. It shares the exact selected session and memory composer with the workspace, not a copied buffer or an inferred recent target ([native surface](../src/Kora/CompactSessionWindow.axaml)).
 
 With no selected target, open **Sessions / explicit selection**. Selecting metadata does not automatically read conversation bodies or reload a saved draft.
-Use **Read exact conversation / saved revision**, bounded Next, and **Refresh observed work** explicitly. USER text and separate HOST status are observations, not generated assistant answers ([shared actions](../src/Kora/CompactSessionWindow.axaml.cs)).
+Use **Read exact conversation / saved revision**, bounded Next, and **Refresh observed work** explicitly. Original USER, any separately retained genuine ASSISTANT answer and typed HOST status have distinct roles ([shared actions](../src/Kora/CompactSessionWindow.axaml.cs)).
 
 Save, explicit Reload, reviewed Clear and Submit use the existing exact-session services. Both windows display edits to the same buffer.
 New request remains a separate fresh-target workflow; opening it never transfers the shared text ([shared controller](../src/Kora/SessionsWindowController.cs)).
@@ -33,18 +33,18 @@ New request remains a separate fresh-target workflow; opening it never transfers
 Closing one view leaves the other view and draft intact. Closing the last dirty view offers Save/Discard/Cancel; failed or stale Save keeps the recoverable original target open.
 Privacy, ownership or session retirement revokes both views without saving or stopping unrelated work ([presentation owner](../src/Kora/SessionsPresentationOwner.cs)).
 
-Questions, approvals, voice focus and legacy response presentation remain in their existing surfaces. This selected-session projection adds no generation, relatedness, voice routing, model context, clipboard or export authority.
+Questions, approvals, voice focus and legacy response presentation remain in their existing surfaces. Explicit Submit uses the same qualified local host execution as Sessions, not legacy inference. No relatedness, voice routing, history assembly, clipboard or export authority is added.
 Installed accessibility, physical storage and provider qualification remain separate ([delivery boundary](../Design/UI_Workspace_And_Windows.md#delivered-compact-selected-session-projection)).
 
 ### Exact retained original message Details
 
 After **Read exact conversation** or explicit conversation Search, choose **Details - exact original USER / separate HOST** on one row. The shared row uses the same action in Sessions and compact projections; selecting a session or opening either window does not read/open Details automatically ([shared action](../src/Kora/ConversationPresentation.axaml)).
 
-The separate native window shows the complete unchanged **USER** body as inert plain text. Original session/request/task/sequence, revision, generation/time and SHA-256 identify that exact retained record. **HOST** outcome, reason and task state are separate observations, not an assistant answer or permission to execute anything ([native chrome](../src/Kora/DetailWindow.axaml.cs)).
+The separate native window shows the complete unchanged **USER** body as inert plain text. Original session/request/task/sequence, revision, generation/time and USER-source SHA-256 identify that exact retained record. Any genuine finalized **ASSISTANT** answer appears separately with its host turn identity. **HOST** outcome, reason and task state are separate observations, not assistant prose or permission to execute anything ([native chrome](../src/Kora/DetailWindow.axaml.cs)).
 
 Find and exact-source viewing stay passive. Reopening the same unchanged record activates its viewer; eight viewers are allowed. Stale selection/body/source refuses with Refresh rather than opening a newer message. Done reading does not Resume or renew activity. Privacy, owner/source/selection loss, deletion, retention or closure clears private viewer state ([controller](../src/Kora/DetailWindowController.cs)).
 
-These conversation Details grant **no clipboard/export disclosure authority**. Copy exact source, selection, Ctrl+C and automatic copy remain blocked, even after disclosure confirmation; other admitted viewer origins retain their existing policy. There is no generated content, provider call, model tool or network operation ([copy policy](../src/Kora.Application/Presentation/DetailViewerState.cs)).
+These conversation Details grant **no clipboard/export disclosure authority**. Copy exact source, selection, Ctrl+C and automatic copy remain blocked, even after disclosure confirmation; other admitted viewer origins retain their existing policy. Opening Details never generates content, invokes a provider/tool or accesses the network. Exact source, literal USER Find and original-text reuse remain USER-only; they do not silently include assistant output ([copy policy](../src/Kora.Application/Presentation/DetailViewerState.cs)).
 
 ### Find a literal in open Details
 
@@ -66,7 +66,7 @@ Open **Tray > New request (fresh session only)** or **Sessions > New request (fr
 2. Choose **Create new empty target**. Inspect the accepted **New conversation** ID, name, generation and metadata revision. This commits only an empty Active session, not the body.
 3. Choose **Review frozen body for this target**, inspect the exact body/target, then separately **Submit reviewed exact body**. Edits or Cancel retire that review, even if the edited bytes later match.
 
-Submit uses the same body bounds, best-effort credential rejection and exact USER retention as the [named-session composer](#exact-session-conversation-and-composer). Current production generation is unavailable: HOST/task status is not an assistant answer. No inference, provider setup, network, fallback or implicit routing is performed.
+Submit uses the same body bounds, best-effort credential rejection, exact USER retention and admitted execution as the [named-session composer](#exact-session-conversation-and-composer). A separately qualified local host turn may use admitted read-only tools and retain its genuine bounded ASSISTANT answer, displayed separately from HOST/task status. Production profiles remain unqualified and explicitly unavailable; no provider setup, hosted egress, fallback or implicit routing is performed. Cancellation or uncertain commit/readback holds the original attempt without retry; no answer is inferred from admission alone.
 
 To retain a draft instead, choose **Review exact saved revision and new body** after confirmed creation. Inspect the saved revision, confirmed memory baseline and complete old/new bodies, then separately **Confirm Save reviewed draft only**. Saving leaves the body in memory; it does not submit, run a model, renew activity or grant approval. Submit always needs its own fresh review and leaves saved data independent.
 

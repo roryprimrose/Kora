@@ -504,6 +504,7 @@ internal static class Program
             provider.GetRequiredService<ProviderProfileConfigurationService>(),
             provider.GetRequiredService<ISessionProviderProfileStore>()));
         services.AddSingleton<IModelTurnAdmission>(provider => provider.GetRequiredService<ModelTurnHost>());
+        services.AddSingleton<IModelTurnExecution>(provider => provider.GetRequiredService<ModelTurnHost>());
         services.AddSingleton<SessionConversationService>();
         services.AddTransient<NewRequestComposer>();
         services.AddSingleton<Kora.Application.Definitions.PromptConversationSubmission>();

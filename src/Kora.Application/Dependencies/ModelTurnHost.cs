@@ -295,16 +295,19 @@ public sealed partial class ModelTurnHost : IAsyncDisposable, IModelTurnAdmissio
 
     private async ValueTask<ModelTurnReason> RevalidateAsync(ModelTurn turn, CancellationToken token)
     {
+        if (!ConsumerAdmissionCurrent(turn)) { return ModelTurnReason.HostAdmissionClosed; }
+        await ValidateConsumerSourceAsync(turn, token).ConfigureAwait(false);
         if (turn.Policy is { } policy && !IsCurrentPolicy(policy)) { return ModelTurnReason.PolicyChanged; }
         var reason = ContextReason(turn.Context, turn.Provenance.Request);
         if (reason != ModelTurnReason.None) { return reason; }
-        if (!Eligible(turn.ControlRevision)) { return ModelTurnReason.HostAdmissionClosed; }
+        if (!Eligible(turn.ControlRevision) || !ConsumerAdmissionCurrent(turn)) { return ModelTurnReason.HostAdmissionClosed; }
         var session = await workspace.ReadMetadataAsync(turn.Provenance.Request.SessionId, token).ConfigureAwait(false);
         var task = await workspace.ReadTaskAsync(turn.Provenance.Request.SessionId, turn.Provenance.Request.TaskId,
             token).ConfigureAwait(false);
         token.ThrowIfCancellationRequested();
-        if (!Eligible(turn.ControlRevision)) { return ModelTurnReason.HostAdmissionClosed; }
+        if (!Eligible(turn.ControlRevision) || !ConsumerAdmissionCurrent(turn)) { return ModelTurnReason.HostAdmissionClosed; }
         if (session.Authority.SessionId != turn.Provenance.Request.SessionId || !session.Authority.IsActive
+            || turn.ConversationTarget is { } target && target != session
             || session.Authority.Generation != turn.SessionGeneration
             || !OwnsTask(task, turn.Provenance.Request, turn.SessionGeneration) || task!.Task.Revision != turn.TaskRevision)
         {

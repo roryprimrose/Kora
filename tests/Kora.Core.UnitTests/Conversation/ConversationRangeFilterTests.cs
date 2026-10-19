@@ -47,8 +47,8 @@ public sealed class ConversationRangeFilterTests
         foreach (var invalid in new[] {
             new ConversationRangeFilter(MinimumGeneration: 0), new ConversationRangeFilter(MaximumGeneration: -1),
             new ConversationRangeFilter(MinimumGeneration: 2, MaximumGeneration: 1),
-            new ConversationRangeFilter(MinimumRevision: 0), new ConversationRangeFilter(MinimumRevision: 3),
-            new ConversationRangeFilter(MaximumRevision: 0), new ConversationRangeFilter(MaximumRevision: 3),
+            new ConversationRangeFilter(MinimumRevision: 0), new ConversationRangeFilter(MinimumRevision: 4),
+            new ConversationRangeFilter(MaximumRevision: 0), new ConversationRangeFilter(MaximumRevision: 4),
             new ConversationRangeFilter(MinimumRevision: 2, MaximumRevision: 1) })
         { new Action(() => _ = new ConversationSearch("marker", range: invalid)).Should().Throw<ArgumentException>(); }
         var range = ConversationRangeFilter.Parse("", "", "", "", "01", long.MaxValue.ToString(CultureInfo.InvariantCulture), "01", "02");

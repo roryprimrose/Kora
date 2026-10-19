@@ -55,6 +55,8 @@ Restricted-storage fixtures create their unique, owner-only scratch directories
 under the discovered repository root, not the deeper testhost binary directory.
 This keeps nested segmented-store fixtures within native directory path limits
 in long worktrees without changing production path validation or ACL checks.
+Owned child-process creation and release probes share that exact parent and keep
+their GUID-name, existing-directory and non-reparse ownership checks.
 
 To reproduce CI's Windows test scheduling after a locked `win-x64` build, run
 `.\eng\Run-WindowsIntegrationTests.ps1`. Its five concurrent, disjoint local shards

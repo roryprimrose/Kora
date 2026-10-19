@@ -13,11 +13,11 @@ internal sealed class OwnedStorageFixture : IApplicationDataPaths, IDisposable
         using var identity = WindowsIdentity.GetCurrent();
         var sid = identity.User ?? throw new InvalidOperationException("The test needs a loaded Windows profile.");
         // Nested native partitions must not inherit the testhost binary directory's path depth.
-        LocalRoot = Path.Combine(RepositoryRoot(), $".kora-storage-test-{Guid.NewGuid():N}");
+        LocalRoot = Path.Combine(ScratchParent(), $".kora-storage-test-{Guid.NewGuid():N}");
         RestrictedStorageDirectory.CreateRestrictedDirectory(LocalRoot, sid);
     }
 
-    private static string RepositoryRoot()
+    internal static string ScratchParent()
     {
         var directory = new DirectoryInfo(AppContext.BaseDirectory);
         while (directory is not null)

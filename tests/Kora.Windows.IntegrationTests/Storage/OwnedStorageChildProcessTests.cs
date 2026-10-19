@@ -7,6 +7,21 @@ namespace Kora.Windows.IntegrationTests.Storage;
 
 public sealed class OwnedStorageChildProcessTests
 {
+    [WindowsFact]
+    public void Scratch_parent_is_shared_and_wrong_parent_or_malformed_identity_is_rejected()
+    {
+        using var fixture = new OwnedStorageFixture();
+        OwnedStorageChildProcess.RequireOwnedRoot(fixture.LocalRoot);
+        var wrongParent = Path.Combine(AppContext.BaseDirectory, Path.GetFileName(fixture.LocalRoot));
+        var foreign = () => OwnedStorageChildProcess.RequireOwnedRoot(wrongParent);
+        foreign.Should().Throw<InvalidOperationException>();
+        var malformedRoot = Path.Combine(OwnedStorageFixture.ScratchParent(), ".kora-storage-test-not-a-guid");
+        var malformed = () => OwnedStorageChildProcess.RequireOwnedRoot(malformedRoot);
+        malformed.Should().Throw<InvalidOperationException>();
+        Directory.Exists(wrongParent).Should().BeFalse();
+        Directory.Exists(malformedRoot).Should().BeFalse();
+    }
+
     [Theory]
     [InlineData("evidence.db")]
     [InlineData("evidence.db-journal")]

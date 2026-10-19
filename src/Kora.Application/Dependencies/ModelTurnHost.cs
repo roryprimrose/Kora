@@ -26,7 +26,7 @@ public sealed partial class ModelTurnHost : IAsyncDisposable, IModelTurnAdmissio
     private readonly ProviderModeConfigurationService? providerModeConfiguration;
     private readonly ProviderProfileConfigurationService? providerProfileConfiguration;
     private readonly ISessionProviderProfileStore? sessionProfiles;
-    private static readonly TimeSpan Deadline = TimeSpan.FromSeconds(15);
+    private static readonly TimeSpan Deadline = ModelToolProtocol.Deadline;
     private readonly Lock dispatchGate = new();
     private readonly CancellationTokenSource lifetime = new();
     private TaskCompletionSource? quiescence;
@@ -242,7 +242,8 @@ public sealed partial class ModelTurnHost : IAsyncDisposable, IModelTurnAdmissio
         {
             token.ThrowIfCancellationRequested();
             var pending = turn.Registration.Adapter!.RunAsync(turn.Provenance, turn.Profile, turn.Wire.AsMemory(),
-                (id, input, toolToken) => InvokeToolAsync(turn, id, input, token, toolToken), token);
+                (id, input, toolToken) => InvokeToolAsync(turn, id, input, token, toolToken),
+                continuationToken => RevalidateAsync(turn, continuationToken), token);
             try { reply = await pending.WaitAsync(token).ConfigureAwait(false); }
             catch (OperationCanceledException) when (token.IsCancellationRequested)
             {
@@ -260,12 +261,15 @@ public sealed partial class ModelTurnHost : IAsyncDisposable, IModelTurnAdmissio
         token.ThrowIfCancellationRequested();
         reason = await RevalidateAsync(turn, token).ConfigureAwait(false);
         if (reason != ModelTurnReason.None) { return Finish(ModelTurnOutcome.Denied, reason, turn.Provenance); }
+        if (turn.ToolProposalRejected)
+        { return Finish(ModelTurnOutcome.Denied, ModelTurnReason.ToolResultRejected, turn.Provenance); }
         if (reply is null || reply.ReportedSelection != turn.Provenance.Selection || !Enum.IsDefined(reply.Outcome)
+            || !Enum.IsDefined(reply.Reason)
             || reply.Outcome == ModelTurnOutcome.Succeeded && !ValidResponse(reply.Response))
         {
             return Finish(ModelTurnOutcome.Unknown, ModelTurnReason.InvalidProviderResponse, turn.Provenance);
         }
-        return Finish(reply.Outcome, ModelTurnReason.ProviderOutcome, turn.Provenance,
+        return Finish(reply.Outcome, reply.Reason, turn.Provenance,
             reply.Outcome == ModelTurnOutcome.Succeeded ? reply.Response : null);
     }
 
@@ -274,6 +278,12 @@ public sealed partial class ModelTurnHost : IAsyncDisposable, IModelTurnAdmissio
     {
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(turnToken, token);
         linked.Token.ThrowIfCancellationRequested();
+        if (!turn.Context.AllowTools)
+        {
+            turn.ToolProposalRejected = true;
+            ToolDenied(logger);
+            return new(CapabilityOutcome.Denied, "tool-free-context");
+        }
         var current = HostActivity.Current;
         if (turn.Owner != owner || !turn.IsRunning || current is null || current.Activity!.IsStopped
             || !ReferenceEquals(current.Request, turn.Provenance.Request)
@@ -293,16 +303,19 @@ public sealed partial class ModelTurnHost : IAsyncDisposable, IModelTurnAdmissio
 
     private async ValueTask<ModelTurnReason> RevalidateAsync(ModelTurn turn, CancellationToken token)
     {
+        if (!ConsumerAdmissionCurrent(turn)) { return ModelTurnReason.HostAdmissionClosed; }
+        await ValidateConsumerSourceAsync(turn, token).ConfigureAwait(false);
         if (turn.Policy is { } policy && !IsCurrentPolicy(policy)) { return ModelTurnReason.PolicyChanged; }
         var reason = ContextReason(turn.Context, turn.Provenance.Request);
         if (reason != ModelTurnReason.None) { return reason; }
-        if (!Eligible(turn.ControlRevision)) { return ModelTurnReason.HostAdmissionClosed; }
+        if (!Eligible(turn.ControlRevision) || !ConsumerAdmissionCurrent(turn)) { return ModelTurnReason.HostAdmissionClosed; }
         var session = await workspace.ReadMetadataAsync(turn.Provenance.Request.SessionId, token).ConfigureAwait(false);
         var task = await workspace.ReadTaskAsync(turn.Provenance.Request.SessionId, turn.Provenance.Request.TaskId,
             token).ConfigureAwait(false);
         token.ThrowIfCancellationRequested();
-        if (!Eligible(turn.ControlRevision)) { return ModelTurnReason.HostAdmissionClosed; }
+        if (!Eligible(turn.ControlRevision) || !ConsumerAdmissionCurrent(turn)) { return ModelTurnReason.HostAdmissionClosed; }
         if (session.Authority.SessionId != turn.Provenance.Request.SessionId || !session.Authority.IsActive
+            || turn.ConversationTarget is { } target && target != session
             || session.Authority.Generation != turn.SessionGeneration
             || !OwnsTask(task, turn.Provenance.Request, turn.SessionGeneration) || task!.Task.Revision != turn.TaskRevision)
         {
@@ -413,6 +426,14 @@ public sealed partial class ModelTurnHost : IAsyncDisposable, IModelTurnAdmissio
         lock (dispatchGate) { outstanding = quiescence?.Task ?? Task.CompletedTask; }
         await outstanding.ConfigureAwait(false);
         lock (policyGate) { policies.Clear(); }
-        lifetime.Dispose();
+        try
+        {
+            foreach (var adapter in registrations.Select(item => item.Adapter).OfType<IAsyncDisposable>()
+                .Distinct<IAsyncDisposable>(ReferenceEqualityComparer.Instance))
+            {
+                await adapter.DisposeAsync().ConfigureAwait(false);
+            }
+        }
+        finally { lifetime.Dispose(); }
     }
 }

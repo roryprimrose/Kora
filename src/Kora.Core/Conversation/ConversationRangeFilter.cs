@@ -25,7 +25,7 @@ public readonly record struct ConversationRangeFilter(long? MinimumSequence = nu
             || MinimumRevision is { } minimumRevision && !ConversationMessageProvenance.IsValidRevision(minimumRevision)
             || MaximumRevision is { } maximumRevision && !ConversationMessageProvenance.IsValidRevision(maximumRevision)
             || MinimumRevision > MaximumRevision)
-        { throw new InvalidDataException("Conversation ranges require ordered valid message sequence, positive generation, revision 1-2 and UTC submitted bounds."); }
+        { throw new InvalidDataException("Conversation ranges require ordered valid message sequence, positive generation, revision 1-3 and UTC submitted bounds."); }
     }
 
     public bool Matches(ConversationMessage message) =>

@@ -15,7 +15,8 @@ public sealed class ModelContextEnvelope
     private static readonly UTF8Encoding StrictUtf8 = new(false, true);
 
     public ModelContextEnvelope(HostRequest request, string systemPolicy, string userRequest,
-        IEnumerable<ModelContextEvidence> evidence, DateTimeOffset createdAt, DateTimeOffset expiresAt)
+        IEnumerable<ModelContextEvidence> evidence, DateTimeOffset createdAt, DateTimeOffset expiresAt,
+        bool allowTools = true)
     {
         ArgumentNullException.ThrowIfNull(request);
         ArgumentNullException.ThrowIfNull(systemPolicy);
@@ -30,15 +31,22 @@ public sealed class ModelContextEnvelope
         UserRequest = userRequest;
         CreatedAt = createdAt;
         ExpiresAt = expiresAt;
-        Evidence = evidence.Take(MaximumEvidenceItems + 1).ToImmutableArray();
-        if (Evidence.Length > MaximumEvidenceItems)
+        AllowTools = allowTools;
+        Evidence = ValidateContent(request, systemPolicy, userRequest, evidence);
+    }
+
+    internal static ImmutableArray<ModelContextEvidence> ValidateContent(HostRequest request, string systemPolicy,
+        string userRequest, IEnumerable<ModelContextEvidence> evidence)
+    {
+        var items = evidence.Take(MaximumEvidenceItems + 1).ToImmutableArray();
+        if (items.Length > MaximumEvidenceItems)
         {
             throw new InvalidDataException("The context evidence count exceeds the host limit.");
         }
         ValidateText(systemPolicy);
         ValidateText(userRequest);
         var ids = new HashSet<HostId<EvidenceIdentity>>();
-        foreach (var item in Evidence)
+        foreach (var item in items)
         {
             if (item is null) { throw new InvalidDataException("A context evidence item is missing."); }
             item.Id.Validate();
@@ -49,6 +57,7 @@ public sealed class ModelContextEnvelope
             }
             ValidateText(item.Content);
         }
+        return items;
     }
 
     public HostRequest Request { get; }
@@ -57,13 +66,14 @@ public sealed class ModelContextEnvelope
     public ImmutableArray<ModelContextEvidence> Evidence { get; }
     public DateTimeOffset CreatedAt { get; }
     public DateTimeOffset ExpiresAt { get; }
+    public bool AllowTools { get; }
 
     public byte[] Serialize() => JsonSerializer.SerializeToUtf8Bytes(new
     {
         SystemPolicy,
         UserRequest,
         Evidence,
-        Tools = ReadOnlyCapabilityCatalog.Descriptors,
+        Tools = AllowTools ? ReadOnlyCapabilityCatalog.Descriptors : [],
         MaximumOutputUtf8Bytes,
     });
 

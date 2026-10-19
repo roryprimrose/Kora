@@ -78,3 +78,138 @@ repeat it for the rejected candidates.
 Shared domain, policy, task, skill and configuration code remains portable.
 Windows runtime/process/device mechanisms stay in Windows integration and
 composition. Missing, malformed or changed runtime/model identity fails closed.
+
+## Native Tool-Message Transport Boundary
+
+The Windows `WindowsOllamaToolTransport` implements the portable
+`IModelToolTransport` seam for native Ollama `api/chat` messages. This is a
+separate path from the unchanged bootstrap `api/generate` reasoner. Transport
+implementation is not candidate acceptance, qualification evidence, permission
+to start a server, or permission to install/download/select another model.
+
+Desktop composition constructs the bounded Application adapter over this
+transport, but its candidate registration retains `None` evidence and an
+expired qualification. The endpoint resolver also returns no binding by
+default. Host admission therefore remains explicitly unavailable. No existing
+rejected runtime/model is qualified, no readiness observation sets
+`ToolLoopQualified`, and no legacy/global reasoner fallback is used.
+`IModelTurnAdmission` and `IModelTurnExecution` resolve the same host singleton.
+That host supplies the live continuation guard around each exchange/tool and
+retains the session consumer's current-source fence; native composition does
+not call the engine's deliberately refused unguarded entry.
+
+A future enablement owner must supply an exact, unexpired host-created binding
+for the admitted provenance and complete account/catalogue/model/options
+profile. The native profile implemented here fixes `stream=false` and
+`think=false`; those settings and the server's context behavior must match its
+qualified profile rather than silently overriding a different selection.
+The binding's live fence covers original session, generation, control, privacy,
+qualification and resource ownership. The host revokes its binding at turn
+closure; revocation/caller cancellation also releases idle continuation data.
+Terminal completion and disposal release the retained volatile context.
+Provider/user/tool data cannot construct
+that fence or supply an endpoint, headers, credentials or an account.
+
+Only `http://127.0.0.1:11434` is addressed. Before metadata and chat dispatch,
+and after receiving an answer, Windows checks the expected PID, creation time,
+current user/session, executable path/hash and exact IPv4 loopback listener.
+The binding must come from the host's admitted process-ownership receipt;
+same-user identity or endpoint discovery alone is not ownership.
+Version and selected model digest are checked through bounded metadata reads;
+missing, inaccessible, changed or ambiguous identity is a terminal refusal,
+not discovery or a substitute model. The HTTP client disables proxies,
+redirects, cookies, ambient credentials and decompression, and is owned by the
+transport. No process is started, killed or installed by this path.
+
+The entire native request, including framing, tool declarations and serial
+history, obeys the Core input limit both individually and cumulatively.
+Protocol revision 2 supplies the host's remaining `ModelToolRequest.Budget`.
+Before any HTTP send, the greater of the native body and complete canonical
+request must fit that remaining input budget. Every successful reply echoes
+the host provenance and carries actual `ModelToolUsage`: input is the greater
+of those complete request sizes; output is the greater of the entire raw
+assistant response and its canonical message size. Missing/stub counters are
+not a successful integration.
+
+Declared-length and unknown-length responses are bounded by the remaining
+output budget before parsing, not just the global maximum; the canonical
+assistant charge must also fit before any call is returned. Assistant charges
+plus canonical host tool-result messages obey the cumulative Core output
+limit. The Application engine already charges each canonical tool result
+once; the transport does not report it again as response usage. Native
+tool-result framing remains part of the complete outbound request charge.
+Metadata observations are separately bounded by the same remaining raw
+response limit and are not model/tool messages. Oversize, partial, malformed UTF-8/Unicode,
+unknown/duplicate fields, wrong roles/model/IDs/order and abnormal termination
+never produce a partial answer. The fully validated native message is mapped
+through the authoritative Core parser before any tool call can be returned.
+Only the six read-only catalogue actions are declared; the Application
+callback, not this transport or provider output, owns their dispatch.
+
+Native calls without an ID receive a turn-local round/index correlation ID.
+Explicit provider IDs are validated correlation only. Native assistant
+messages are replayed exactly in order; host results use the `tool` role,
+exact tool name and result bytes as inert content, with `tool_call_id` only
+when the native call supplied an ID. Results are never promoted to system
+instructions or caller identity. Prior exchanges cannot be replaced or
+replayed as new invocations.
+
+Cancellation, revocation, expiry, failed HTTP and deadline completion have
+typed terminal outcomes without retries or fallback. Cancellation/disposal
+waits for actual owned HTTP/read work to terminate, including a
+non-cooperative platform fake, before disposing the client. Closing HTTP is
+not proof that a server's model computation physically stopped; actual-runtime
+cessation and enablement qualification remain separate and unclaimed.
+Maintained tests use fake HTTP, process observations and in-memory listener
+tables only; they do not contact a model/server, invoke Windows process
+observation, install software or establish runtime qualification.
+
+## Deliberate volatile local context turns
+
+Clipboard, selected-file and fetched-web consumers share [LocalContextTurnWorkflow](../src/Kora.Application/Dependencies/LocalContextTurnWorkflow.cs), not source-specific request/task bridges.
+Source workflows retain exact immutable review, fresh source validation, provenance, citations and retirement policy.
+Their eligibility fence stays attached across queued work, model callbacks and final disclosure.
+
+The shared public execution signature is:
+
+```csharp
+Task<LocalContextTurnReceipt> RunAsync(
+    LocalContextSessionTarget target,
+    ModelContextEnvelope context,
+    Func<bool> eligible,
+    CancellationToken token,
+    Func<CancellationToken, Task>? validateSource = null);
+```
+
+The caller reviews either an exact active session generation or a fresh exact session identity using [LocalContextSessionTarget](../src/Kora.Application/Dependencies/LocalContextSessionTarget.cs).
+Fresh creation is explicitly disclosed as `Local context`; a missing, changed or unavailable existing target never silently creates or selects another session.
+Original local UI or activated-voice origin is preserved, not relabelled.
+
+The shared workflow uses real named-session creation and durable control intent/dispatch/terminal records.
+It never retains source text, the prompt or model answer as a conversation, draft, history body or diagnostic value.
+Only host identities and lifecycle receipts are durable. Trusted `model.context.local` requested and terminal audits are content-free.
+A target is single-use, including cancellation or uncertainty; no automatic retry is authorized.
+
+[ILocalContextTaskStore](../src/Kora.Core/Storage/ILocalContextTaskStore.cs) commits exact-generation dispatch and its source-classification receipt in one existing authority-ledger transaction.
+SQLite resolves `local-context` ownership only from that typed, hash-validated authority audit and the current host-run task binding.
+An arbitrary diagnostic/audit lookalike or an ordinary unclassified control intent is not a current model source. No new body store or schema is introduced.
+
+[ModelContextEnvelope](../src/Kora.Core/Dependencies/ModelContextEnvelope.cs) remains the sole input policy and serialization authority.
+Context consumers require `allowTools: false`, nonempty exact-request evidence and `LocalOnly` disclosure. The envelope emits an empty canonical tool catalogue.
+The host refuses any tool callback for that envelope and rejects an attempted proposal even if the adapter later returns an answer. Action, grant and question outputs remain invalid.
+
+The local choice uses existing model admission and does not confer model qualification or hosted egress.
+The [protocol](../src/Kora.Core/Dependencies/ModelToolProtocol.Context.cs) and [native transport](../src/Kora.Windows/Dependencies/OllamaToolWire.cs) owner must add support for the empty tool catalogue; unsupported transports refuse rather than substituting the normal catalogue.
+Production profiles remain unavailable until separately qualified. Synthetic success at the model seam is not runtime or containment evidence.
+
+Cancellation closes source authority immediately, but terminal task recording and disposal wait for actual adapter quiescence.
+A dispatched cancelled/timed-out task uses durable `Unknown`, not a false claim of unstarted work.
+Receipt/audit uncertainty suppresses the answer and holds further admission; inspect the exact existing task rather than replaying it.
+
+Deterministic evidence:
+
+- [Application lifecycle tests](../tests/Kora.Application.UnitTests/Dependencies/LocalContextTurnWorkflowTests.cs).
+- [Envelope policy tests](../tests/Kora.Core.UnitTests/Dependencies/ModelContextEnvelopeToolPolicyTests.cs).
+- [Private SQLite ownership/non-persistence tests](../tests/Kora.Windows.IntegrationTests/Storage/WindowsSqliteLocalContextTurnTests.cs).
+
+No hardware, real-provider, installed-native, offline or containment trial is required or claimed by this implementation slice.

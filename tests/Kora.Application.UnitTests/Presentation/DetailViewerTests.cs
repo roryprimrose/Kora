@@ -11,6 +11,37 @@ namespace Kora.Application.UnitTests.Presentation;
 public sealed class DetailViewerTests
 {
     [Fact]
+    public void GenuineAssistantAnswerRemainsSeparateFromOriginalSourceHostFindAndClipboardAndIsClearedOnRevocation()
+    {
+        var request = HostRequest.Create(RequestOrigin.LocalUi);
+        var provenance = new Kora.Core.Dependencies.ModelTurnProvenance(new(Guid.NewGuid()), request,
+            Kora.Core.Dependencies.ModelProviderSelection.OllamaCandidate);
+        var message = new Kora.Core.Conversation.ConversationMessage(request, new(1), 1, 3, DateTimeOffset.UnixEpoch,
+            "original USER only", Kora.Core.Dependencies.ModelTurnOutcome.Succeeded, Kora.Core.Dependencies.ModelTurnReason.ProviderOutcome)
+        {
+            Version = 2, Execution = provenance, ExecutionMetadataRevision = 0,
+            AssistantResponse = new(provenance, "genuine ASSISTANT only"),
+        };
+        var content = new AdmittedDetailContent(new(new(request.RequestId.Value), 3), DetailContentKind.PlainText,
+            DetailContentOrigin.RetainedConversation, DetailSensitivity.DisclosureConfirmationRequired,
+            "Original USER / separate ASSISTANT", "Exact retained original and separately finalized answer", message.Body,
+            conversationMessage: message);
+        var live = true;
+        var state = new DetailViewerState(content, () => live);
+        state.ActiveText.Should().Be(message.Body);
+        state.AssistantText.Should().Be("genuine ASSISTANT only");
+        state.HostText.Should().Contain("Succeeded").And.NotContain("genuine ASSISTANT only");
+        state.TryGetCopySource(true, true, out _).Should().BeFalse();
+        state.SetFindHost(true);
+        state.FindText.Should().NotContain("genuine ASSISTANT only");
+        live = false;
+        state.AssistantText.Should().BeEmpty();
+        state.ActiveText.Should().BeEmpty();
+        state.HostText.Should().BeEmpty();
+        state.Content.Should().BeNull();
+    }
+
+    [Fact]
     public void RetainedConversationDetailsDoNotGrantExactSourceOrSelectionDisclosure()
     {
         var message = new Kora.Core.Conversation.ConversationMessage(HostRequest.Create(RequestOrigin.LocalUi),

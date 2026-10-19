@@ -397,6 +397,8 @@ internal static class Program
         services.AddSingleton<SpeechTextConfigurationService>();
         services.AddSingleton<ISessionWorkspaceAccess, DesktopSessionWorkspaceAccess>();
         services.AddSingleton<SessionWorkspaceService>();
+        services.AddSingleton<ILocalContextTaskStore>(interactions);
+        services.AddSingleton<LocalContextTurnWorkflow>();
         services.AddSingleton<ISessionQueueStore>(interactions);
         services.AddSingleton<ISessionWorkStore>(interactions);
         services.AddSingleton<Kora.Core.Memory.IMemoryStore>(interactions);
@@ -483,8 +485,28 @@ internal static class Program
         services.AddSingleton<Kora.Tools.Runtime.RuntimeList>();
         services.AddSingleton<Kora.Tools.Runtime.RuntimeGetStatus>();
         services.AddSingleton<Kora.Application.Tools.ReadOnlyCapabilityRegistry>();
-        services.AddSingleton<ModelTurnHost>();
+        services.AddSingleton(provider => new BoundedModelTurnAdapter(
+            new WindowsOllamaToolTransport(static _ => null, provider.GetRequiredService<TimeProvider>(),
+                provider.GetRequiredService<ILogger<WindowsOllamaToolTransport>>()),
+            provider.GetRequiredService<TimeProvider>(),
+            provider.GetRequiredService<ILogger<BoundedModelTurnAdapter>>()));
+        services.AddSingleton(provider => new ModelTurnHost(
+            provider.GetRequiredService<ISessionWorkspaceStore>(),
+            provider.GetRequiredService<ISessionWorkspaceAccess>(),
+            provider.GetRequiredService<Kora.Core.Tools.ICapabilityHostAccess>(),
+            provider.GetRequiredService<Kora.Application.Tools.ReadOnlyCapabilityRegistry>(),
+            provider.GetRequiredService<ISecurityAuditLog>(),
+            provider.GetRequiredService<ILogger<ModelTurnHost>>(),
+            provider.GetRequiredService<TimeProvider>(),
+            [
+                OllamaModelProviderFactory.CreateUnavailable(provider.GetRequiredService<BoundedModelTurnAdapter>()),
+                new(ModelProviderSelection.CopilotCandidate, ModelQualificationGate.None, DateTimeOffset.MinValue, null),
+            ],
+            provider.GetRequiredService<ProviderModeConfigurationService>(),
+            provider.GetRequiredService<ProviderProfileConfigurationService>(),
+            provider.GetRequiredService<ISessionProviderProfileStore>()));
         services.AddSingleton<IModelTurnAdmission>(provider => provider.GetRequiredService<ModelTurnHost>());
+        services.AddSingleton<IModelTurnExecution>(provider => provider.GetRequiredService<ModelTurnHost>());
         services.AddSingleton<SessionConversationService>();
         services.AddTransient<NewRequestComposer>();
         services.AddSingleton<Kora.Application.Definitions.PromptConversationSubmission>();

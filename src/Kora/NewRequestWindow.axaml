@@ -44,6 +44,9 @@
             AutomationProperties.Name="Explicit exact-ID navigation only; never transfers this body and protects dirty named-session buffers" />
       </WrapPanel>
       <TextBlock Text="{Binding Status}" TextWrapping="Wrap" AutomationProperties.Name="New request truthful partial success or recovery hold" />
+      <TextBlock Text="ASSISTANT - only a genuine finalized admitted answer, when available" />
+      <TextBlock Text="{Binding AssistantAnswer}" TextWrapping="Wrap"
+          AutomationProperties.Name="Complete read-only ASSISTANT answer, separate from original USER request and typed HOST status" />
       <TextBlock Text="Creation, reviewed Save and reviewed Submit are separate durable operations, not an atomic transaction. Save does not submit, run a model or renew meaningful activity. Eligible dirty close offers reviewed Save/Discard/Cancel; before confirmed creation or while held, only Discard/Cancel. No implicit Save, Reload, autosave or transfer. Cancel or close leaves the disclosed session and saved data; no automatic Done/delete." TextWrapping="Wrap" />
     </StackPanel>
   </ScrollViewer>

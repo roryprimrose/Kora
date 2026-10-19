@@ -92,7 +92,19 @@ public sealed partial class SessionsMemoryFilterTests
         if (boundary is not "list") { f.Store.Calls.Should().Be(calls); }
         f.Model.CanConfirmMemoryBatch.Should().BeFalse();
         f.Model.MemoryBatchDetail.Should().BeEmpty();
-        f.Model.MemoryDetail.Should().BeEmpty();
+        f.Model.MemoryDetail.Should().NotContain("private exact value");
+        if (boundary is "list")
+        {
+            f.Store.Calls.Should().BeGreaterThan(calls);
+            using var listed = JsonDocument.Parse(f.Model.MemoryDetail);
+            listed.RootElement.GetProperty("inspected").ValueKind.Should().Be(JsonValueKind.Null);
+            var summaries = listed.RootElement.GetProperty("memories");
+            summaries.GetArrayLength().Should().Be(1);
+            summaries[0].GetProperty("id").GetGuid().Should().Be(row.Id);
+            summaries[0].GetProperty("revision").GetInt64().Should().Be(row.Revision);
+            f.Model.MemoryRecords.Single().Should().Be(row);
+        }
+        else { f.Model.MemoryDetail.Should().BeEmpty(); }
         f.Model.MemoryDraft.Should().Be(boundary is "draft" ? "new private draft" : string.Empty);
     }
 
@@ -197,3 +209,4 @@ public sealed partial class SessionsMemoryFilterTests
         });
     }
 }
+using System.Text.Json;

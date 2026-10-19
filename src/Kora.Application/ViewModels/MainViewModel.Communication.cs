@@ -74,6 +74,7 @@ public sealed partial class MainViewModel
     public void BindCallOwnershipGate(Func<bool> gate, Func<long>? revision = null)
     {
         callOwnershipEligible = gate;
+        UpdateSpeechPreparation();
         auditImpactControlRevision = checked(auditImpactControlRevision + 1);
         auditImpactOwnerRevision = revision ?? (static () => 0);
         auditImpactPreview?.Retire("Owner binding changed; preview retired.");
@@ -240,7 +241,11 @@ public sealed partial class MainViewModel
             ClearFilePreview();
             ApplicationLog.CallStateChanged(logger, observation.EffectiveState);
             // Invalidation precedes any dispatcher or asynchronous stop, including pending synthesis.
-            if (ShouldWithholdCallOutput(observation)) { textToSpeech.InvalidateOutput(); }
+            if (ShouldWithholdCallOutput(observation))
+            {
+                speechPreparation?.Request(null);
+                textToSpeech.InvalidateOutput();
+            }
             if (!observation.AllowActivation && IsVoiceEnabled)
             {
                 HoldVoiceInput("Microphone closed · voice activation paused during detected call");

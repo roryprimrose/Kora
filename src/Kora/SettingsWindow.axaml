@@ -561,6 +561,7 @@
                   </ComboBox>
                   <TextBlock Text="{Binding SpeechSettingStatus}" TextWrapping="Wrap" Classes="settings-description" />
                   <Button Content="Reset speech voice" Command="{Binding ResetSpeechVoiceCommand}" />
+                  <TextBlock Text="{Binding SpeechPreparationStatus}" TextWrapping="Wrap" Classes="settings-description" />
                   <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
                     <Button Content="Preview" Command="{Binding PreviewVoiceCommand}" />
                     <Button Grid.Column="1" Content="Stop" Command="{Binding StopSpeechCommand}" />

@@ -9,11 +9,14 @@ using Kora.Core.Dependencies;
 using Kora.Core.Voice;
 using Kora.Windows.Audio;
 
+using KokoroSharp.Core;
+
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Kora.Windows.IntegrationTests.Audio;
 
-public sealed class KokoroTextToSpeechProviderTests : IDisposable
+public sealed partial class KokoroTextToSpeechProviderTests : IDisposable
 {
     private static readonly Uri ModelUri = new("https://example.invalid/model.onnx");
     private static readonly Uri VoicesUri = new("https://example.invalid/voices.zip");
@@ -244,18 +247,26 @@ public sealed class KokoroTextToSpeechProviderTests : IDisposable
         HttpClient client,
         byte[] model,
         byte[] voices,
-        string? modelHash = null) =>
+        string? modelHash = null,
+        Func<string, IKokoroSynthesizer>? createSynthesizer = null,
+        Func<string, KokoroVoice>? loadVoice = null,
+        ILogger<KokoroTextToSpeechProvider>? logger = null,
+        bool prepareAfterInstall = false,
+        Action<KokoroVoice>? prepareLanguage = null) =>
         new(
             new TestPaths(root, Path.Combine(root, "Roaming")),
             client,
-            NullLogger<KokoroTextToSpeechProvider>.Instance,
+            logger ?? NullLogger<KokoroTextToSpeechProvider>.Instance,
             ModelUri,
             model.LongLength,
             modelHash ?? GetSha256(model),
             VoicesUri,
             voices.LongLength,
             GetSha256(voices),
-            prepareAfterInstall: false);
+            prepareAfterInstall,
+            createSynthesizer,
+            loadVoice,
+            prepareLanguage);
 
     private static HttpClient CreateClient(byte[] model, byte[] voices) =>
         new(new AssetMessageHandler(

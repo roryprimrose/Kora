@@ -12,6 +12,32 @@ namespace Kora.Application.UnitTests.ViewModels;
 public sealed partial class MainViewModelTests
 {
     [Fact]
+    public async Task Settings_preview_uses_each_newly_selected_Kokoro_voice_without_changing_the_catalogue()
+    {
+        var fixture = new Fixture();
+        fixture.TextToSpeech.Providers = [CreateWindowsProvider(), CreateKokoroProvider(true)];
+        fixture.TextToSpeech.Voices =
+        [
+            new("female", "Windows", "en-US", SpeechVoiceGender.Female),
+            CreateKokoroVoice("af_heart", "Heart"),
+            CreateKokoroVoice("af_sky", "Sky"),
+        ];
+        await fixture.ViewModel.InitializeAsync();
+
+        foreach (var id in new[] { "af_heart", "af_sky", "af_heart" })
+        {
+            fixture.ViewModel.SelectedVoice = fixture.ViewModel.InstalledSpeechVoices.Single(voice =>
+                string.Equals(voice.Id, id, StringComparison.Ordinal));
+            await fixture.ViewModel.PreviewVoiceCommand.ExecuteAsync();
+            fixture.TextToSpeech.SpokenVoice!.Id.Should().Be(id);
+            fixture.ViewModel.InstalledSpeechVoices.Should().HaveCount(3);
+        }
+
+        fixture.TextToSpeech.InstallProviderCalls.Should().Be(0);
+        fixture.TextToSpeech.RemoveProviderCalls.Should().Be(0);
+    }
+
+    [Fact]
     public async Task Cross_provider_voice_picker_selects_and_resets_without_provider_controls()
     {
         var fixture = new Fixture();

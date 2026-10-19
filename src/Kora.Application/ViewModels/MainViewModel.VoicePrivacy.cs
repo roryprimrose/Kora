@@ -267,6 +267,11 @@ public sealed partial class MainViewModel
         RetireWebResultDetails();
         RetireSpeechCaption();
         lifecycleAdmissionClosed = true;
+        if (speechPreparation is not null)
+        {
+            speechPreparation.Changed -= OnSpeechPreparationChanged;
+            speechPreparation.Request(null);
+        }
         questionVoiceReplies?.CloseAdmission();
         RetireQuestionVoiceReply();
         PropertyChanged -= OnQuestionVoiceReadinessChanged;
@@ -367,6 +372,7 @@ public sealed partial class MainViewModel
     internal void CloseForObservedPrivacyEvent(string reason, bool hidePresentation,
         WindowsSessionState? sessionState = null, bool restoreOnUnlock = false)
     {
+        speechPreparation?.Request(null);
         RetireWebResultDetails();
         speechCaption.Retire();
         uiDispatcher.Post(RetireSpeechCaption);
@@ -995,7 +1001,7 @@ public sealed partial class MainViewModel
             || !outputCatalog.IsQuiescent || !OutputRefresh.IsCompleted || !outputDiscoveryPersistence.IsCompleted
             || Volatile.Read(ref pendingAuditWrites) != 0
             || Volatile.Read(ref stoppingAudioOperations) != 0
-            || !IsHandoffReviewQuiescent || IsBusy || IsWebPageRetrievalActive
+            || !IsHandoffReviewQuiescent || speechPreparation?.IsQuiescent == false || IsBusy || IsWebPageRetrievalActive
             || !clipboardPreview.IsQuiescent || filePreview?.IsQuiescent == false || sessionFiles?.IsQuiescent == false
             || IsLocalModelSetupActive || IsPowerShellSetupActive || IsSpeechProviderOperationActive
             || activeReasoningTask is { IsCompleted: false } || isModelActionDispatchActive

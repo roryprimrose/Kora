@@ -240,6 +240,26 @@ or unexpected download is rejected rather than activated. After preparation,
 Kokoro's voices become selectable immediately without an application restart. Synthesis
 then runs on this device and continues to use the selected Windows audio output.
 
+The voice picker lists all installed voices matching the profile language without
+loading their embedding data. Speech and previews load only the requested voice,
+retain it for repeated use, and replace it when another voice is requested. Trying
+another voice in Settings reuses the same loaded neural model; returning to a
+previous voice reloads that voice's data rather than retaining every tried voice.
+After eligible startup and speech selection changes, Kora prepares the installed,
+selected Kokoro model, voice, and language processing in the background. Preparation
+does not download assets, synthesize speech, play audio, or open the microphone.
+Settings shows preparation progress or an explicit failure; Preview can retry a
+failed preparation through the ordinary speech path. A preview requested before
+preparation finishes still waits for the outstanding work. Preparation does not
+eliminate normal inference latency.
+
+Unknown or ineligible ownership/session state does not start preparation. Privacy
+closure, protected call output, selection changes, asset operations, and exit retire
+pending preparation. Already-running native initialization is joined before removal
+or exit; handoff remains unavailable until resource quiescence. Diagnostic phase
+timings distinguish voice loading, model loading, language preparation, and synthesis
+without recording speech text, voice identifiers, or asset paths.
+
 Selecting a provider that still needs to be downloaded does not interrupt the
 working speech provider. Kora continues using the current installed voice for
 download results and failures. A successful installation does not silently

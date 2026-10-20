@@ -84,7 +84,9 @@ public sealed class MicrophoneRecoveryViewModel : ObservableObject, IDisposable
         }
         await host.EnableListeningFromRecoveryAsync(choice!.Revision, choice.Device, lifetime.Token);
         if (disposed) { return; }
-        status = host.ResponseTitle + " " + host.ResponseBody;
+        status = host.IsVoiceEnabled
+            ? "Push-to-talk is ready. " + host.ListeningStatus
+            : host.ResponseTitle + " " + host.ResponseBody;
     });
 
     public Task DisableAsync() => RunAsync(host.DisableListeningFromTrayAsync, stop: true);

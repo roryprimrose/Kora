@@ -71,6 +71,14 @@
       <StackPanel
           Grid.Row="3"
           Spacing="6">
+        <StackPanel Orientation="Horizontal" Spacing="8">
+          <Button Content="Read current response"
+                  AutomationProperties.Name="Read this current ordinary response aloud once"
+                  ToolTip.Tip="Uses normal speech mode, privacy, call, voice, length, volume and output admission. Questions, approvals and raw sources are not eligible."
+                  Command="{Binding ReadCurrentResponseCommand}" />
+          <Button Content="Stop speaking" Command="{Binding StopSpeechCommand}" />
+        </StackPanel>
+        <TextBlock Text="{Binding ReadCurrentResponseStatus}" Classes="muted" FontSize="11" TextWrapping="Wrap" />
         <ItemsControl ItemsSource="{Binding WebResultDetailActions}" IsVisible="{Binding HasWebResultDetails}">
           <ItemsControl.ItemTemplate>
             <DataTemplate>

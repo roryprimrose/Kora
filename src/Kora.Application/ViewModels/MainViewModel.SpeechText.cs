@@ -80,13 +80,14 @@ public sealed partial class MainViewModel : ISpeechCaptionPresentation
         set => SetProperty(ref selectedSpeechCaptionChoice, value);
     }
 
-    private Task StartCaptionedSpeechAsync(string exactText, Func<bool> playbackEligible)
+    private Task StartCaptionedSpeechAsync(string exactText, Func<bool> playbackEligible,
+        CancellationToken cancellationToken = default)
     {
         RetireSpeechCaption();
         var captionState = speechTextConfiguration?.Get();
         if (captionState?.Effective is not SpeechTextMode.CurrentUtterance)
         {
-            return textToSpeech.SpeakAsync(exactText, activeSpeechVoice!, SelectedOutputDevice!, CancellationToken.None);
+            return textToSpeech.SpeakAsync(exactText, activeSpeechVoice!, SelectedOutputDevice!, cancellationToken);
         }
         var request = HostActivity.RequireCurrent().Request;
         captionPresentationContext = HostActivity.CaptureContinuation(HostActivityLayer.Application, HostOperation.Presentation);
@@ -105,7 +106,7 @@ public sealed partial class MainViewModel : ISpeechCaptionPresentation
             && speechTextConfiguration?.Get() is { Available: true, Effective: SpeechTextMode.CurrentUtterance } current
             && current.Revision == captionState.Revision;
         var id = speechCaption.Bind(response, request, exactText, Eligible, captionState.EffectiveCaptionOptions);
-        return textToSpeech.SpeakAsync(exactText, activeSpeechVoice!, SelectedOutputDevice!, id, CancellationToken.None);
+        return textToSpeech.SpeakAsync(exactText, activeSpeechVoice!, SelectedOutputDevice!, id, cancellationToken);
     }
 
     private void RetireSpeechCaptionSource()

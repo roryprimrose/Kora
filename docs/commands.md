@@ -57,6 +57,22 @@ outcomes through configured provider-neutral admission. It is not a new typed/
 voice command, question reply, approval, fixed-read queue profile, model tool or
 bootstrap fallback. Draft saves are explicit; reading/restoring never submits.
 
+## Read the current response aloud once
+
+Use **Read current response** in the compact response window, `read that aloud`, or `read current response`.
+Typed and activated voice input accept the optional current assistant-name prefix, for example `Kora, read that aloud`; extra words are not an exact command ([parser](../src/Kora.Application/Voice/ResponseReadCommand.cs), [native controls](../src/Kora/ResponseWindow.axaml)).
+The `read that` and `read current` families are reserved before question/approval and model dispatch. Incomplete, overlong, control-character or extra-argument forms report exact-command recovery without answering/cancelling a pending decision, synthesizing text or invoking inference ([boundary tests](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.ResponseRead.cs)).
+
+All routes invoke the same [one-shot action](../src/Kora.Tools/Speech/SpeechReadOnce.cs) for the exact current ordinary response identity/revision and observed call policy.
+This is not arbitrary TTS, history-row playback, raw clipboard/file/web reading, a question/approval readback, or an automatic replay queue ([host admission](../src/Kora.Application/ViewModels/MainViewModel.ResponseRead.cs)).
+
+Normal speech admission still applies, including VisualOnly refusal, protected Active/Suspected/Unknown calls, owner/privacy/lock, voice/provider, both summary caps, Kora volume and the selected unmuted available output.
+The full visual answer is retained on length/output failure. Replacement (even identical text), source close, stop/cancellation, call/privacy/owner retirement and disposal invalidate the invocation; it has a two-minute cancellation bound.
+Refresh, unlock, call end and output recovery never retry it ([playback](../src/Kora.Application/ViewModels/MainViewModel.cs), [boundary tests](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.ResponseRead.cs)).
+
+Push-to-talk preserves an existing eligible current answer while showing capture progress separately; it does not select an older answer. **Stop speaking** remains available during playback.
+The model lane remains unavailable with `current-response-model-tool-loop-not-qualified`; the six read-only descriptors and model transport are unchanged ([capture](../src/Kora.Application/ViewModels/MainViewModel.VoicePrivacy.cs), [action boundary](../src/Kora.Tools/Speech/SpeechReadOnce.cs)).
+
 ## Inspect or change the device-local provider mode
 
 Native Settings > Providers and exact typed/current-name activated commands:

@@ -455,14 +455,14 @@ the response window visible; idle presence still uses its own timeout.
 ### Order this loaded page
 
 After explicitly reading a page, use **Order this loaded page** to choose
-**Source order (default)**, **Display name ascending/descending (ordinal)**, or
-**Retained byte count ascending/descending**. This is **page-only, metadata-only**
+**Source order (default)** or **Retained byte count ascending/descending**
+(unknown last). This is **page-only, metadata-only**
 presentation: it never reads a file, body or path, refreshes a source, changes a
 query, scans more rows, changes storage order or gives a global order/count.
 
-This catalogue does not admit display names, so every name is unavailable in
-both name directions. Their ties use the canonical exact retained-slot session
-ID, ascending ordinal. Equal byte counts use the same tie-break; unknown byte
+This catalogue does not admit display names, so no display-name ordering is
+offered. Equal byte counts use the canonical exact retained-slot session ID,
+ascending ordinal, as a stable tie-break in both directions. Unknown byte
 counts remain last in either direction, not zero. Removed/unavailable provenance
 never recovers former names, counts, digest or source metadata.
 

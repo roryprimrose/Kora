@@ -9,6 +9,13 @@ namespace Kora.Core.UnitTests.Storage;
 public sealed class SessionAttachmentPageOrderingTests
 {
     [Fact]
+    public void OnlySupportedMetadataOrdersAreOffered()
+    {
+        Enum.GetValues<SessionAttachmentPageOrder>().Should().Equal(SessionAttachmentPageOrder.Source,
+            SessionAttachmentPageOrder.RetainedBytesAscending, SessionAttachmentPageOrder.RetainedBytesDescending);
+    }
+
+    [Fact]
     public void DefaultPreservesExactSourceOrderAndAllObservationMetadata()
     {
         var page = Page();
@@ -21,8 +28,6 @@ public sealed class SessionAttachmentPageOrderingTests
     }
 
     [Theory]
-    [InlineData(SessionAttachmentPageOrder.DisplayNameAscending, "12345")]
-    [InlineData(SessionAttachmentPageOrder.DisplayNameDescending, "12345")]
     [InlineData(SessionAttachmentPageOrder.RetainedBytesAscending, "31245")]
     [InlineData(SessionAttachmentPageOrder.RetainedBytesDescending, "12345")]
     public void OrdersOnlyAdmittedProjectionWithCanonicalSessionTiesAndUnknownLast(

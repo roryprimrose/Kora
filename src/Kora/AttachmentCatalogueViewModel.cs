@@ -60,13 +60,11 @@ internal sealed partial class AttachmentCatalogueViewModel(
     public IReadOnlyList<SessionAttachmentSummary> Records => visibleRecords;
     public IReadOnlyList<AttachmentPageOrderChoice> PageOrders { get; } =
         [new(SessionAttachmentPageOrder.Source, "Source order (default)"),
-            new(SessionAttachmentPageOrder.DisplayNameAscending, "Display name ascending (ordinal; unavailable)"),
-            new(SessionAttachmentPageOrder.DisplayNameDescending, "Display name descending (ordinal; unavailable)"),
             new(SessionAttachmentPageOrder.RetainedBytesAscending, "Retained byte count ascending (unknown last)"),
             new(SessionAttachmentPageOrder.RetainedBytesDescending, "Retained byte count descending (unknown last)")];
     public bool CanOrderPage => CanEdit && page is not null;
     public string PageOrderHint => "Order this loaded page only; metadata only. No read, query/scan/storage/global order or count change. "
-        + "Display names are not admitted by this catalogue: all are unavailable; both name directions use canonical session ID ties. "
+        + "Display names are not available in this catalogue; no display-name ordering is offered. Equal byte counts use canonical session ID ties. "
         + "Unknown retained byte counts stay last in either direction. Next keeps the original semantic continuation. "
         + "Changing or clearing order retires selection, details, literal Find and native open readiness; select again explicitly.";
     public AttachmentPageOrderChoice? PageOrder

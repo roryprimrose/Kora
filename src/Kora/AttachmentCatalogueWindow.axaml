@@ -19,7 +19,7 @@
     <StackPanel Spacing="6">
       <WrapPanel>
         <ComboBox x:Name="AttachmentPageOrder" ItemsSource="{Binding PageOrders}" SelectedItem="{Binding PageOrder, Mode=TwoWay}"
-                  IsEnabled="{Binding CanOrderPage}" AutomationProperties.Name="Order this loaded page: Source order, display name ascending or descending ordinal (names unavailable), retained byte count ascending or descending (unknown last); metadata only; no read" />
+                  IsEnabled="{Binding CanOrderPage}" AutomationProperties.Name="Order this loaded page: Source order, retained byte count ascending or descending (unknown last); metadata only; no read" />
         <Button x:Name="ClearAttachmentPageOrder" Content="Clear _order (Source order)" IsEnabled="{Binding CanOrderPage}"
                 AutomationProperties.Name="Clear loaded-page order to Source order without a read; retires selection, details, Find and open readiness" />
       </WrapPanel>

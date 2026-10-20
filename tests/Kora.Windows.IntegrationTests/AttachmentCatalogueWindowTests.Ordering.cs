@@ -39,12 +39,15 @@ public sealed partial class AttachmentCatalogueWindowTests
                 var clear = window.FindControl<Button>("ClearAttachmentPageOrder")!;
                 picker.IsEnabled.Should().BeFalse();
                 model.PageOrder!.Value.Should().Be(SessionAttachmentPageOrder.Source);
-                model.PageOrders.Should().HaveCount(5);
+                model.PageOrders.Select(choice => choice.Value).Should().Equal(SessionAttachmentPageOrder.Source,
+                    SessionAttachmentPageOrder.RetainedBytesAscending, SessionAttachmentPageOrder.RetainedBytesDescending);
                 ControlAutomationPeer.CreatePeerForElement(picker)!.GetName()
-                    .Should().Contain("Order this loaded page").And.Contain("metadata only").And.Contain("no read");
+                    .Should().Contain("Order this loaded page").And.Contain("metadata only").And.Contain("no read")
+                    .And.NotContain("display name");
                 ControlAutomationPeer.CreatePeerForElement(clear)!.GetName().Should().Contain("Source order");
                 var disclosure = window.FindControl<TextBlock>("AttachmentPageOrderDisclosure")!;
                 ControlAutomationPeer.CreatePeerForElement(disclosure)!.GetName().Should().Contain("Next keeps the original");
+                model.PageOrderHint.Should().Contain("Display names are not available").And.Contain("no display-name ordering");
                 await model.Refresh();
                 picker.Focus();
                 picker.IsFocused.Should().BeTrue();
@@ -60,6 +63,8 @@ public sealed partial class AttachmentCatalogueWindowTests
                     model.HasMetadataFindMatch.Should().BeTrue();
                     picker.SelectedItem = choice;
                     model.PageOrder.Should().Be(choice);
+                    long?[] expected = choice.Value == SessionAttachmentPageOrder.RetainedBytesAscending ? [0, 1] : [1, 0];
+                    model.Records.Select(record => record.RetainedStoredBytes).Should().Equal(expected);
                     model.SelectedRecord.Should().BeNull();
                     model.SelectedDetails.Should().BeEmpty();
                     model.MetadataFindQuery.Should().BeEmpty();
@@ -70,7 +75,7 @@ public sealed partial class AttachmentCatalogueWindowTests
                     model.CanNext.Should().BeTrue();
                     reads.Should().ContainSingle();
                 }
-                revoked.Should().Be(4);
+                revoked.Should().Be(2);
                 clear.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
                 model.PageOrder!.Value.Should().Be(SessionAttachmentPageOrder.Source);
                 model.Records.Should().Equal(row, other);
@@ -109,7 +114,7 @@ public sealed partial class AttachmentCatalogueWindowTests
             await model.Refresh();
             model.Select(row);
             var navigation = model.Navigate();
-            model.PageOrder = model.PageOrders[3];
+            model.PageOrder = model.PageOrders[1];
             captured.IsCancellationRequested.Should().BeTrue();
             original!().Should().BeFalse();
             completed.SetResult();
@@ -120,13 +125,13 @@ public sealed partial class AttachmentCatalogueWindowTests
             model.Select(model.Records[0]);
             model.MetadataFindQuery = "Session";
             admitted = false;
-            model.PageOrder = model.PageOrders[4];
+            model.PageOrder = model.PageOrders[2];
             model.Records.Should().BeEmpty();
             model.SelectedDetails.Should().BeEmpty();
             model.MetadataFindQuery.Should().BeEmpty();
             model.PageOrder!.Value.Should().Be(SessionAttachmentPageOrder.Source);
             model.Dispose();
-            model.PageOrder = model.PageOrders[3];
+            model.PageOrder = model.PageOrders[1];
             model.Records.Should().BeEmpty();
         });
     }
@@ -144,7 +149,7 @@ public sealed partial class AttachmentCatalogueWindowTests
             await model.Refresh();
             model.Status.Should().Contain("InvalidDataException");
             model.CanOrderPage.Should().BeFalse();
-            model.PageOrder = model.PageOrders[3];
+            model.PageOrder = model.PageOrders[1];
             model.Records.Should().BeEmpty();
             model.PageOrder!.Value.Should().Be(SessionAttachmentPageOrder.Source);
         });

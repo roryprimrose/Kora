@@ -4,8 +4,6 @@ namespace Kora.Core.Storage;
 public enum SessionAttachmentPageOrder
 {
     Source,
-    DisplayNameAscending,
-    DisplayNameDescending,
     RetainedBytesAscending,
     RetainedBytesDescending,
 }

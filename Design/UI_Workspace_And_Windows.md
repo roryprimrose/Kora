@@ -284,10 +284,10 @@ Core. It validates the entire admitted page before ordering, preserves Source
 order by default and uses ascending canonical D-format session IDs (the
 authoritative unique retained-slot key) for ties in both directions. Retained
 byte ordering consumes only `RetainedStoredBytes`, with unknown values last.
-The current projection has no display names: both ordinal name choices disclose
-that every name is unavailable and resolve only ties, never recover names from
-source/path/body data. No projection, schema, scan, continuation or budget changes
-are implied.
+Only Source order and retained-byte ascending/descending are offered.
+The current projection has no display names, so no name-sort modes exist and no
+names are recovered from source/path/body data. No projection, schema, scan,
+continuation or budget changes are implied.
 
 Order edits and the separate no-read Clear order retire selection/details/Find
 and exact-open readiness, cancel in-flight open work and replace presentation

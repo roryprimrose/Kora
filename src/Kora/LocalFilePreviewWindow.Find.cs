@@ -23,6 +23,7 @@ internal sealed partial class LocalFilePreviewWindow
     private void SetFindSource(LocalFileRevision? file)
     {
         SetWrappingSource(file);
+        ClearWhitespace();
         ClearFind(clearQuery: true);
         findSource = file;
         SetMeasurementSource(file);

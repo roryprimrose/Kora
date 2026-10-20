@@ -4,6 +4,7 @@ using Avalonia.Threading;
 using Kora.Application.ViewModels;
 using Kora.Application.Presentation;
 using Kora.Core.Context;
+using Microsoft.Extensions.Logging;
 
 namespace Kora;
 
@@ -16,6 +17,7 @@ internal sealed class LocalFilePreviewWindowController : IUserFilePicker, IUserF
     private Guid showing;
     private bool disposed;
     private bool selecting;
+    private readonly ILogger<LocalFilePreviewWindow>? logger;
     internal bool IsOwnerInUse => selecting || window is not null;
 
     internal LocalFilePreviewWindowController(MainViewModel host, Window owner)
@@ -23,10 +25,12 @@ internal sealed class LocalFilePreviewWindowController : IUserFilePicker, IUserF
     {
     }
 
-    internal LocalFilePreviewWindowController(MainViewModel host, Func<Window> getOwner)
+    internal LocalFilePreviewWindowController(MainViewModel host, Func<Window> getOwner,
+        ILogger<LocalFilePreviewWindow>? logger = null)
     {
         this.host = host;
         this.getOwner = getOwner;
+        this.logger = logger;
         host.FilePreviewChanged += OnChanged;
         host.FileInspectionRequested += OnInspectionRequested;
         host.FileAnswerRequested += OnAnswerRequested;
@@ -131,7 +135,7 @@ internal sealed class LocalFilePreviewWindowController : IUserFilePicker, IUserF
         CloseView();
         if (id == Guid.Empty) { return; }
         showing = id;
-        var view = new LocalFilePreviewWindow(host.ReportHostInteractionFailure, host);
+        var view = new LocalFilePreviewWindow(host.ReportHostInteractionFailure, host, logger);
         window = view;
         view.Closed += OnClosed;
         if (revision is not null)

@@ -198,13 +198,15 @@ public sealed partial class App : Avalonia.Application
                 Services.GetRequiredService<Kora.Core.Diagnostics.IEvidenceQueryAccess>(),
                 Services.GetRequiredService<ILogger<EvidenceViewModel>>());
             evidenceWindow.Bind();
-            fileWindow = new LocalFilePreviewWindowController(viewModel, GetPresenceOwner);
+            fileWindow = new LocalFilePreviewWindowController(viewModel, GetPresenceOwner,
+                Services.GetRequiredService<ILogger<LocalFilePreviewWindow>>());
             var sessionFiles = Services.GetRequiredService<SessionFileAttachmentService>();
             Services.GetRequiredService<SessionWorkspaceService>().BindAttachmentLifecycle(sessionFiles);
             viewModel.BindSessionAttachments(sessionFiles);
             attachmentWindow = new SessionAttachmentWindowController(viewModel.ReportHostInteractionFailure, sessionFiles,
                 Services.GetRequiredService<SessionWorkspaceService>(),
-                Services.GetRequiredService<Kora.Core.Storage.ISessionWorkspaceAccess>(), fileWindow, viewModel);
+                Services.GetRequiredService<Kora.Core.Storage.ISessionWorkspaceAccess>(), fileWindow, viewModel,
+                Services.GetRequiredService<ILogger<LocalFilePreviewWindow>>());
             viewModel.BindSessionAttachmentCommands(new(Services.GetRequiredService<SessionWorkspaceService>(), sessionFiles,
                 Services.GetRequiredService<Kora.Core.Storage.ISessionWorkspaceAccess>(), attachmentWindow));
             attachmentCatalogue = new(viewModel, Services.GetRequiredService<SessionWorkspaceService>(), sessionFiles,

@@ -476,6 +476,29 @@ This native-only feedback does not search, edit, copy, save, refresh, renew
 activity, authorize model use or send text/counts to a response, speech, log or
 clipboard. No new text quota or model capacity is inferred.
 
+### Inspect whitespace in the admitted text
+
+Choose **Inspect whitespace in this admitted text** to count the complete exact
+decoded text currently displayed: **CRLF pairs**, **standalone LF**, **standalone
+CR**, **TAB (U+0009)** and **ordinary SPACE (U+0020)**. CRLF pairs are disjoint
+from the standalone counts. Empty admitted text has five zero counts; unavailable
+text has no result. Nonbreaking spaces and all other Unicode whitespace are
+explicitly not counted.
+
+This native-only action uses only the already loaded immutable file, selected
+captured-folder item or retained attachment read channel. It does not reread a
+file or retained store, inspect other items, normalize text, convert line endings,
+edit, save, copy, export, or send anything to a model. It runs only on the explicit
+button, not on open, typing, Find or idle. **Clear whitespace counts**, a different
+source/item, changed host/private/input/call/owner admission or closure retires the
+result. Find and exact retrieval citations are unchanged.
+
+These are characters in decoded current text, not original byte encoding,
+retained storage bytes, model tokens, Unicode whitespace totals, logical or
+visual/wrapped line counts, syntax/formatting errors, unsafe-text detection or a
+security/safety assessment. They grant no source-use, sensitive-content or model
+permission and never appear in responses, speech, transcripts, clipboard or logs.
+
 ### Find a literal in the currently inspected original file
 
 In an admitted file preview, selected captured-folder file or retained Session attachment, enter a one-line literal in **Literal Find** and explicitly choose **Find first**. This searches only the displayed immutable original, not every folder file, the current filesystem, a provider or a conversation.

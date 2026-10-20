@@ -688,6 +688,53 @@ unchanged; its existing raw 100% line and branch gate remains required with no n
 exclusions. Installed accessibility, provider, hardware and unrelated E/Q evidence
 are not implementation prerequisites or newly claimed qualifications.
 
+## Native decoded current-text whitespace inspection
+
+The explicit **Inspect whitespace in this admitted text** button scans only the
+whole exact already-admitted displayed `LocalFileRevision.Text`, never a new
+decode, filesystem path, retained store, source read channel or another folder
+item. The retained viewer stays bound to its original retained-channel admission;
+it never looks up the historical original file. `LocalFileWhitespaceInspection`
+returns five typed finite integer aggregates: CRLF pairs, standalone LF,
+standalone CR, TAB U+0009 and ordinary SPACE U+0020. A pair is not counted again
+as standalone characters. Empty admitted text returns zero; missing text is
+unavailable, never an empty successful fallback.
+
+The linear, constant-space scan consumes the existing `LocalFileRevision`
+admission and `LocalFilePolicy.MaximumBytes` source budget, with checked counters
+and cancellation. It creates no line array, copied body, occurrence index,
+normalization or parser. It is a character classification over the exact decoded
+text, not the retrieval parser's logical-line/chunk/coordinate calculation.
+BOM stripping remains solely the original admission decoder's responsibility;
+any U+FEFF retained in the displayed body is not one of the five counted values.
+Nonbreaking spaces and other Unicode whitespace are explicitly not counted.
+
+The dedicated native partial captures the exact displayed control/text object,
+source object/reference/item/revision, original host/private/input/call/owner
+binding and native control generation before scanning, then revalidates before
+and after publishing. Existing source/controller lifetime callbacks retain
+authority. Reentrancy, item/source replacement, changed admission, clear/cancel
+and disposal retire private-derived counts; stale controls cannot retarget or
+restore them. No getter, constructor, typing, idle or polling scan is added.
+Counts and content-bearing exceptions never enter main response, transcript,
+speech, audit, diagnostics, clipboard, persistence, Activity tags or model context.
+Unexpected failures have a content-minimizing generated diagnostic and native
+unavailable/error outcome, never zero counts.
+
+The presentation Activity uses the original host-resolved session/task identity
+and links the admission trace when available. Restored sources without that
+historical trace still have their exact admitted identity; no zero/fabricated link
+or incoming ambient trace is promoted into authority.
+
+This bounded I increment requires only existing admitted source, native lifetime
+and host eligibility contracts. It changes no source text/encoding/newlines/BOM,
+Find, retrieval citations, admission, TTL/activity renewal or model-use policy.
+It is not a Unicode whitespace total, original-byte/retained-storage measurement,
+model token counter, logical/visual/wrapped line counter, syntax/formatting error
+checker, unsafe-text detector or security/safety tool. No unrelated E/Q,
+provider/hardware/installed-native or retired experiment proof is a prerequisite;
+no such capability is enabled or qualified.
+
 ## Delivered Native Current-Source Literal Find - 2026-10-12
 
 **Find first / Find next / Find previous / Clear literal Find** navigate only the currently displayed exact immutable text file: volatile single-file preview, the current captured-folder selector item, or an exact retained Session attachment. This native presentation control is separate from ranked lexical/Markdown retrieval and citations. Typing does not scan, change files or move focus.

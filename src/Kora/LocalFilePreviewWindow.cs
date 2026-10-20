@@ -14,7 +14,9 @@ using Kora.Core.Hosting;
 
 namespace Kora;
 
-internal sealed partial class LocalFilePreviewWindow(Action<string> reportFailure, MainViewModel? typographyHost = null) : Window
+internal sealed partial class LocalFilePreviewWindow(Action<string> reportFailure, MainViewModel? typographyHost = null,
+    Microsoft.Extensions.Logging.ILogger<LocalFilePreviewWindow>? logger = null,
+    Func<Func<bool>>? captureWhitespaceAdmission = null) : Window
 {
     private NamedTextBlock content = CreateContent();
     private TextBox? queryBox;
@@ -263,6 +265,7 @@ internal sealed partial class LocalFilePreviewWindow(Action<string> reportFailur
         DockPanel.SetDock(panel, Dock.Bottom);
         body.Children.Insert(1, panel);
         ShowFind(body, Current, resolveSource);
+        ShowWhitespace(body, Current);
     }
 
     internal void FocusSearch()
@@ -450,6 +453,7 @@ internal sealed partial class LocalFilePreviewWindow(Action<string> reportFailur
         wrappingPanel = null;
         wrappingViewport = null;
         ClearSourceMeasurement();
+        RemoveWhitespace();
         ClearAnswer();
         ClearNavigation();
         SetFindSource(null);

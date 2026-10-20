@@ -5,6 +5,7 @@ using Kora.Application.ViewModels;
 using Kora.Core.Context;
 using Kora.Core.Hosting;
 using Kora.Core.Storage;
+using Microsoft.Extensions.Logging;
 
 namespace Kora;
 
@@ -16,6 +17,7 @@ internal sealed class SessionAttachmentWindowController : IUserFilePicker, IReta
     private readonly ISessionWorkspaceAccess access;
     private readonly IUserFilePicker picker;
     private readonly MainViewModel? typographyHost;
+    private readonly ILogger<LocalFilePreviewWindow>? logger;
     private readonly DispatcherTimer timer = new() { Interval = TimeSpan.FromMilliseconds(250) };
     private LocalFilePreviewWindow? window;
     private CancellationTokenSource? lifetime;
@@ -28,7 +30,8 @@ internal sealed class SessionAttachmentWindowController : IUserFilePicker, IReta
     private bool disposed;
 
     internal SessionAttachmentWindowController(Action<string> reportFailure, SessionFileAttachmentService service,
-        SessionWorkspaceService sessions, ISessionWorkspaceAccess access, IUserFilePicker picker, MainViewModel? typographyHost = null)
+        SessionWorkspaceService sessions, ISessionWorkspaceAccess access, IUserFilePicker picker, MainViewModel? typographyHost = null,
+        ILogger<LocalFilePreviewWindow>? logger = null)
     {
         this.reportFailure = reportFailure;
         this.service = service;
@@ -36,6 +39,7 @@ internal sealed class SessionAttachmentWindowController : IUserFilePicker, IReta
         this.access = access;
         this.picker = picker;
         this.typographyHost = typographyHost;
+        this.logger = logger;
         sessions.SessionRetired += OnRevoked;
         sessions.SessionLifecycleChanged += OnRevoked;
         service.Revoked += OnAttachmentRevoked;
@@ -83,7 +87,7 @@ internal sealed class SessionAttachmentWindowController : IUserFilePicker, IReta
             && ReferenceEquals(lifetime, openingLifetime);
         eligible = Current;
         if (!Current()) { throw new InvalidOperationException("The exact selected session is stale."); }
-        var view = new LocalFilePreviewWindow(reportFailure, typographyHost);
+        var view = new LocalFilePreviewWindow(reportFailure, typographyHost, logger);
         window = view;
         view.Closed += OnClosed;
         if (attach)
@@ -204,7 +208,7 @@ internal sealed class SessionAttachmentWindowController : IUserFilePicker, IReta
     private LocalFilePreviewWindow NewView()
     {
         RevokeView();
-        var view = new LocalFilePreviewWindow(reportFailure, typographyHost);
+        var view = new LocalFilePreviewWindow(reportFailure, typographyHost, logger);
         window = view;
         view.Closed += OnClosed;
         return view;

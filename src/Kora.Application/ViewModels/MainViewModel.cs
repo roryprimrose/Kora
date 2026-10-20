@@ -4101,6 +4101,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             return;
         }
         Interlocked.Increment(ref workspaceSurfaceInputRevision);
+        Interlocked.Increment(ref diagnosticsPlanEpoch);
         if (Kora.Core.Calculations.CalculateCommand.Parse(spokenText, AssistantName) is { } calculateCommand)
         {
             ExecuteCalculateCommand(calculateCommand, initiator, manualInput);
@@ -4312,6 +4313,12 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         if (Kora.Core.Maintenance.MaintenanceCommandParser.Parse(spokenText, AssistantName) is { } maintenanceCommand)
         {
             await ExecuteMaintenanceCommandAsync(maintenanceCommand, initiator);
+            return;
+        }
+        if (SessionDiagnosticsPlanCommand.Parse(spokenText, AssistantName) is { } diagnosticsPlanCommand)
+        {
+            await ExecuteDiagnosticsPlanAsync(diagnosticsPlanCommand, initiator,
+                commandRouter.IsActivationPrefixed(spokenText, AssistantName));
             return;
         }
         if (SessionDispositionReviewCommand.Parse(spokenText, AssistantName) is { } dispositionCommand)
@@ -5630,6 +5637,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
                     + "Use “show fixed read queue settings” for exact inspect/set/independent-reset phrases for future-only fixed read queue limits; manual dispatch remains unchanged. "
                     + "Use “" + SessionDispositionReviewCommand.Syntax + "” for preview only in private native Sessions; confirmation is a separate native action. "
                     + SessionQueueCancellationReviewCommand.Syntax + ". " + SessionQueueCancellationReviewCommand.Boundary + " "
+                    + SessionDiagnosticsPlanCommand.Syntax + ". " + SessionDiagnosticsPlanCommand.Boundary + " "
                     + $"Use “{AssistantName}, list assistant settings” for the display/PTT command-prefix name. "
                     + NaturalAppearanceCommand.Syntax + " "
                     + "Natural name commands: “what is your name”, “call yourself <name>”, “change your name to <name>”, or “reset your name”. "

@@ -4092,6 +4092,12 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         ResponseReadInput? responseReadInput = null,
         Func<bool>? reviewEligibility = null)
     {
+        if (ClipboardSnapshotStatusCommand.Parse(spokenText, AssistantName) is { } snapshotStatusCommand)
+        {
+            await ExecuteClipboardSnapshotStatusCommandAsync(snapshotStatusCommand, initiator,
+                manualInput ?? CaptureManualCallInput(OriginalOrigin(initiator), CallPolicyRevision));
+            return;
+        }
         Interlocked.Increment(ref workspaceSurfaceInputRevision);
         if (Kora.Core.Calculations.CalculateCommand.Parse(spokenText, AssistantName) is { } calculateCommand)
         {
@@ -6078,6 +6084,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         var commands = commandCatalog.GetCommands(AssistantName)
             .SelectMany(command => command.AllPhrases)
             .Concat(ClipboardCommand.FixedPhrases)
+            .Concat(ClipboardSnapshotStatusCommand.DiscoveryPhrases)
             .Concat(LocalFileCommand.FixedPhrases)
             .Concat(PreparedLocalSearchCommand.DiscoveryPhrases)
             .Concat(Kora.Core.Calculations.CalculateCommand.DiscoveryPhrases)

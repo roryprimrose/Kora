@@ -3,12 +3,13 @@ namespace Kora.Core.Context;
 public sealed record LocalFileCommand(LocalFileOperation Operation)
 {
     public static IEnumerable<string> FixedPhrases => ["preview file", "clear file preview", "search file", "inspect file",
-        "preview folder", "clear folder preview", "search folder", "inspect folder", "refresh file", "refresh folder"];
+        "preview folder", "clear folder preview", "search folder", "inspect folder", "refresh file", "refresh folder", "answer file"];
 
     public static LocalFileCommand? Parse(string normalized) => normalized switch
     {
         "preview file" => new(LocalFileOperation.Select),
         "preview folder" => new(LocalFileOperation.SelectFolder),
+        "answer file" => new(LocalFileOperation.Answer),
         "refresh file" => new(LocalFileOperation.Refresh),
         "refresh folder" => new(LocalFileOperation.RefreshFolder),
         "clear file preview" or "clear folder preview" => new(LocalFileOperation.Clear),
@@ -19,6 +20,7 @@ public sealed record LocalFileCommand(LocalFileOperation Operation)
             || normalized.StartsWith("inspect folder ", StringComparison.Ordinal)
             || normalized.StartsWith("preview folder ", StringComparison.Ordinal)
             || normalized.StartsWith("refresh file", StringComparison.Ordinal)
+            || normalized.StartsWith("answer file ", StringComparison.Ordinal)
             || normalized.StartsWith("refresh folder", StringComparison.Ordinal) => new(LocalFileOperation.Invalid),
         _ => null,
     };

@@ -257,6 +257,7 @@ public sealed partial class App : Avalonia.Application
             viewModel.BindFilePreview(Services.GetRequiredService<Kora.Tools.Files.LocalFilePreview>(), fileWindow,
                 Services.GetRequiredService<Kora.Tools.Files.LocalFileSearch>(), fileWindow,
                 Services.GetRequiredService<Kora.Tools.Files.LocalFileRefresh>());
+            viewModel.BindFileAnswer(Services.GetRequiredService<Kora.Tools.Files.LocalFileAnswer>());
             maintenanceWindow = new MaintenanceWindowController(viewModel,
                 Services.GetRequiredService<MaintenanceViewModel>(),
                 () => Services.GetRequiredService<DesktopInstanceOwnershipBridge>().IsCapabilityAdmissionOpen

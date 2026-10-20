@@ -1910,6 +1910,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             if (SetProperty(ref commandText, value))
             {
                 Interlocked.Increment(ref attachmentCatalogueComposerRevision);
+                Interlocked.Increment(ref queueMoveInputRevision);
                 RefreshArtifactCommandOptions();
                 RunTypedCommand.NotifyCanExecuteChanged();
             }
@@ -4380,6 +4381,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
                 commandRouter.IsActivationPrefixed(spokenText, AssistantName));
             return;
         }
+        if (SessionQueueMoveReviewCommand.Parse(spokenText, AssistantName) is { } queueMoveCommand)
+        {
+            await ExecuteQueueMoveReviewAsync(queueMoveCommand, spokenText, initiator, manualInput);
+            return;
+        }
         if (SessionDispositionReviewCommand.Parse(spokenText, AssistantName) is { } dispositionCommand)
         {
             await ExecuteSessionDispositionReviewAsync(dispositionCommand, initiator,
@@ -5699,6 +5705,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
                     + SessionQueueCancellationReviewCommand.Syntax + ". " + SessionQueueCancellationReviewCommand.Boundary + " "
                     + SessionDiagnosticsPlanCommand.Syntax + ". " + SessionDiagnosticsPlanCommand.Boundary + " "
                     + "Use “list response window settings” for exact device-local visibility/topmost controls; no response is reopened. "
+                    + SessionQueueMoveReviewCommand.Syntax + ". " + SessionQueueMoveReviewCommand.Boundary + " "
                     + $"Use “{AssistantName}, list assistant settings” for the display/PTT command-prefix name. "
                     + NaturalAppearanceCommand.Syntax + " "
                     + "Natural name commands: “what is your name”, “call yourself <name>”, “change your name to <name>”, or “reset your name”. "

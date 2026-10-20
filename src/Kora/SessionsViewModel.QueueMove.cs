@@ -14,7 +14,7 @@ internal sealed partial class SessionsViewModel
     public bool CanMoveQueueDown => CanReviewQueueMove && QueueMoveRefusal(false) is null;
     private bool CanReviewQueueMove => CanChangeQueuePause
         && selectedQueueEntry?.State is SessionQueueState.Pending or SessionQueueState.Expired;
-    public bool CanConfirmQueueMove => CanChangeQueuePause && queueMoveReview is { } review
+    public bool CanConfirmQueueMove => CanChangeQueuePause && queueMoveAdmission() && queueMoveReview is { } review
         && queueSnapshot?.DispatchControl?.Held == false
         && queueMoveEpoch == selectionEpoch && review.Queue.SessionId == selected?.Authority.SessionId
         && review.Queue.Generation == selected.Authority.Generation && review.Queue.Revision == queueSnapshot?.Revision
@@ -26,6 +26,12 @@ internal sealed partial class SessionsViewModel
             + "\nCurrent: " + Pair(review.Up ? review.Neighbor : review.Selected, review.Up ? review.Selected : review.Neighbor)
             + "\nProposed: " + Pair(review.Up ? review.Selected : review.Neighbor, review.Up ? review.Neighbor : review.Selected)
             + "\nReview " + review.Id.ToString("D") + " | queue revision " + review.Queue.Revision.ToString(CultureInfo.InvariantCulture)
+            + " | session " + review.Queue.SessionId.Value.ToString("D") + " generation " + review.Queue.Generation.Value.ToString(CultureInfo.InvariantCulture)
+            + " | run " + review.Queue.DispatchControl!.RunId.ToString("D")
+            + " control revision " + review.Queue.DispatchControl.Revision.ToString(CultureInfo.InvariantCulture)
+            + " paused " + review.Queue.DispatchControl.Paused + " held " + review.Queue.DispatchControl.Held
+            + " reason " + review.Queue.DispatchControl.Reason
+            + " | private admission " + review.AdmissionRevision.ToString(CultureInfo.InvariantCulture)
             + " | original pending deadlines and dependencies unchanged; no pause/resume/dispatch or activity renewal."
         : "Move up: " + (QueueMoveRefusal(true) ?? "exact adjacent review available")
             + "\nMove down: " + (QueueMoveRefusal(false) ?? "exact adjacent review available");
@@ -35,7 +41,8 @@ internal sealed partial class SessionsViewModel
         + " task " + entry.Request.TaskId.Value.ToString("D") + " revision " + entry.Revision.Value.ToString(CultureInfo.InvariantCulture)
         + " original arrival " + entry.Position.ToString(CultureInfo.InvariantCulture)
         + " enqueued " + entry.EnqueuedAt.ToString("O", CultureInfo.InvariantCulture)
-        + " expires " + entry.ExpiresAt.ToString("O", CultureInfo.InvariantCulture);
+        + " expires " + entry.ExpiresAt.ToString("O", CultureInfo.InvariantCulture)
+        + " dependency " + (entry.Dependency?.Value.ToString("D") ?? "None");
 
     private SessionQueueEntry? MoveNeighbor(bool up)
     {
@@ -86,6 +93,7 @@ internal sealed partial class SessionsViewModel
                 throw new OperationCanceledException("Selection changed during adjacent-pair review.");
             }
             queueMoveReview = result.QueueMoveReview ?? throw new InvalidDataException("The exact queue move review is missing.");
+            queueMoveAdmission = static () => true;
             queueMoveEpoch = epoch;
             status = "Review only; queue order and input draft unchanged. Confirm exactly this pair or cancel.";
             NotifyQueueMove();

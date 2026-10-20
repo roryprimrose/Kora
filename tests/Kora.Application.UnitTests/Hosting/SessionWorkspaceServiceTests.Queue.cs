@@ -878,9 +878,10 @@ public sealed partial class SessionWorkspaceServiceTests
         internal sealed class QueueClock : TimeProvider
         {
             internal long Ticks { get; set; }
+            internal DateTimeOffset UtcNow { get; set; } = new(2026, 10, 9, 0, 0, 0, TimeSpan.Zero);
             public override long TimestampFrequency => TimeSpan.TicksPerSecond;
             public override long GetTimestamp() => Ticks;
-            public override DateTimeOffset GetUtcNow() => new(2026, 10, 9, 0, 0, 0, TimeSpan.Zero);
+            public override DateTimeOffset GetUtcNow() => UtcNow;
         }
     }
 }

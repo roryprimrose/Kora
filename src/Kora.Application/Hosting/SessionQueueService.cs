@@ -135,7 +135,7 @@ public sealed partial class SessionQueueService : IAsyncDisposable
                 _ = SessionCommandResult.Serialize(reviewed);
                 token.ThrowIfCancellationRequested();
                 RequireEligible(Eligible);
-                lock (causeGate) { moveReviews.Clear(); moveReviews[session] = (preview, origin); }
+                lock (causeGate) { moveReviews.Clear(); moveReviews[session] = (preview, origin, static () => true); }
                 root.Complete(HostOperationOutcome.Completed);
                 return reviewed;
             }
@@ -152,8 +152,9 @@ public sealed partial class SessionQueueService : IAsyncDisposable
                 root.Complete(HostOperationOutcome.Completed);
                 return new("cancelled-review", "No queue order mutation; the exact review is revoked. Input drafts and original deadlines remain unchanged.");
             }
-            var moveReview = command.Operation == SessionCommandOperation.QueueMoveConfirm
-                ? ConsumeMoveReview(command, session, revision, origin) : null;
+            var moveProposal = command.Operation == SessionCommandOperation.QueueMoveConfirm
+                ? ConsumeMoveReview(command, session, revision, origin) : ((SessionQueueMoveReview Review, Func<bool> Eligible)?)null;
+            var moveReview = moveProposal?.Review;
             var cancelReview = command.Operation == SessionCommandOperation.QueueCancelSelectedConfirm
                 ? ConsumeCancellationReview(command, session, revision, origin) : null;
             var requeueProposal = command.Operation == SessionCommandOperation.QueueRequeueExpiredConfirm
@@ -197,7 +198,8 @@ public sealed partial class SessionQueueService : IAsyncDisposable
                             Eligible, token).ConfigureAwait(false),
                     SessionCommandOperation.QueueMoveConfirm =>
                         await WithLimitsAsync(current => store.MovePendingAsync(request, moveReview!,
-                            () => Eligible() && (configuration is null || configuration.IsCurrent(current)), token).AsTask(), token).ConfigureAwait(false),
+                            () => Eligible() && moveProposal!.Value.Eligible()
+                                && (configuration is null || configuration.IsCurrent(current)), token).AsTask(), token).ConfigureAwait(false),
                     SessionCommandOperation.QueueCancelSelectedConfirm =>
                         await store.CancelSelectedPendingAsync(request, cancelReview!, Eligible, token).ConfigureAwait(false),
                     SessionCommandOperation.QueueRequeueExpiredConfirm =>

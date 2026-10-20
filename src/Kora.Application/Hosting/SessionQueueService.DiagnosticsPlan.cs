@@ -283,9 +283,7 @@ public sealed partial class SessionQueueService
     }
 
     private static bool SameDiagnosticsQueue(SessionQueueSnapshot expected, SessionQueueSnapshot observed) =>
-        expected.SessionId == observed.SessionId && expected.Generation == observed.Generation
-        && expected.Revision == observed.Revision && expected.DispatchControl == observed.DispatchControl
-        && expected.Entries.SequenceEqual(observed.Entries);
+        expected.MatchesRecordedState(observed);
 
     private static void RequireDiagnosticsCapacity(SessionDiagnosticsPlanReview review, SessionQueueSnapshot snapshot, int count)
     {

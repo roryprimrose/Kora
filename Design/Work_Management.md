@@ -231,6 +231,27 @@ Maintained [domain selection](../tests/Kora.Core.UnitTests/Hosting/SessionQueueC
 Native Selected Work offers **Review Move up/down**, exact current/proposed pair order, profiles, immutable task IDs/revisions and original enqueue/expiry times, followed by separate **Confirm exact adjacent move** or **Cancel move review**.
 Original typed/current-name activated commands use the same `SessionQueueService` review and audited store transaction. No name/position targeting, inferred reordering, bulk/cross-session shuffle or dispatch is introduced.
 
+The bounded preparation phrase `session queue move review <session-id> <task-id> <neighbor-task-id> <up|down>`
+opens that same private native review, with separate native one-shot confirmation.
+It requires nonempty canonical lowercase D IDs, distinct selected/neighbor IDs and an exact direction.
+Both requested IDs are resolved from one authoritative current work snapshot; the existing
+`SessionQueueOrdering.Refusal` and shared snapshot match reject a wrong/nonadjacent, expired,
+held, previous-run, dependency-inverting or uncertain pair. No second ordering engine,
+name/position/default/current/latest selection or newer-neighbor substitution exists.
+The original dirty composer uses the existing Save/Discard/Cancel gate before exact navigation.
+Deferred service reads and native publication retain original host/input/name/call/private/control,
+native owner/navigation/buffer, queue/run/pause and configuration bindings; changes require a fresh command.
+Status stays in the transcript so pending questions, approvals and security panes are not replaced.
+Preparation writes no intent, audit, order, task or deadline and grants no confirmation/dispatch authority.
+The original activated-voice source hands the prepared review only to the existing native
+LocalUi one-shot confirmation; full revisioned commands retain their original-origin binding.
+See [exact syntax](../docs/commands.md), [preparation service](../src/Kora.Application/Hosting/SessionQueueService.MovePreparation.cs),
+[native presenter](../src/Kora/SessionsWindowController.QueueMoveReview.cs),
+[deterministic preparation cases](../tests/Kora.Application.UnitTests/Hosting/SessionWorkspaceServiceTests.MovePreparation.cs)
+and [headless native wiring](../tests/Kora.Windows.IntegrationTests/SessionQueueMoveReviewControllerTests.cs).
+This consumes only the delivered queue/native-review implementation; unrelated enablement/RC,
+provider, physical, installed or retired experiment evidence is not an implementation prerequisite.
+
 An explicit version-1 order lineage in consolidated schema 10 selects a bounded permutation of the exact same-session/current-run pending set. Default/no lineage remains arrival FIFO.
 Original `Position`, timestamps, IDs, dependencies, profiles/results, absent/2/3/4 canonical queue payloads and their recorded digests are untouched. Removal/admission removes only its exact pending ID; enqueue appends.
 Committed pair receipts and order changes append typed requested/terminal audit, rather than rewriting historical intent.

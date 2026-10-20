@@ -11,4 +11,11 @@ public sealed record SessionQueueSnapshot(HostId<SessionIdentity> SessionId, Hos
     public SessionQueueCancelReceipt? CancelReceipt { get; init; }
     public SessionQueueRequeueReceipt? RequeueReceipt { get; init; }
     public int OmittedOrders { get; init; }
+
+    public bool MatchesRecordedState(SessionQueueSnapshot observed) =>
+        SessionId == observed.SessionId && Generation == observed.Generation
+        && Revision == observed.Revision && DispatchControl == observed.DispatchControl
+        && Entries.SequenceEqual(observed.Entries)
+        && SessionQueueOrdering.Pending(Entries, SessionId, Orders)
+            .SequenceEqual(SessionQueueOrdering.Pending(observed.Entries, observed.SessionId, observed.Orders));
 }

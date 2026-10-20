@@ -6,12 +6,13 @@ namespace Kora.Application.Hosting;
 
 public sealed partial class SessionQueueService
 {
-    private readonly Dictionary<HostId<SessionIdentity>, (SessionQueueMoveReview Review, RequestOrigin Origin)> moveReviews = [];
+    private readonly Dictionary<HostId<SessionIdentity>, (SessionQueueMoveReview Review, RequestOrigin Origin, Func<bool> Eligible)> moveReviews = [];
 
     private async Task<SessionQueueMoveReview> ReviewMoveAsync(SessionCommand command, HostId<SessionIdentity> session,
         long admissionRevision, Func<bool> eligible, CancellationToken token)
     {
         var snapshot = await store.ReadQueueAsync(session, token).ConfigureAwait(false);
+        token.ThrowIfCancellationRequested();
         RequireEligible(eligible);
         if (snapshot.SessionId != session || snapshot.Generation.Value != command.Generation || snapshot.Revision != command.QueueRevision
             || snapshot.DispatchControl is not { } control || control.RunId != command.QueueRunId
@@ -36,12 +37,12 @@ public sealed partial class SessionQueueService
         return new(Guid.NewGuid(), snapshot, selected, neighbor, up, admissionRevision, now);
     }
 
-    private SessionQueueMoveReview ConsumeMoveReview(SessionCommand command, HostId<SessionIdentity> session,
+    private (SessionQueueMoveReview Review, Func<bool> Eligible) ConsumeMoveReview(SessionCommand command, HostId<SessionIdentity> session,
         long admissionRevision, RequestOrigin origin)
     {
         lock (causeGate)
         {
-            if (!moveReviews.TryGetValue(session, out var pending) || pending.Origin != origin
+            if (!moveReviews.TryGetValue(session, out var pending) || pending.Origin != origin || !pending.Eligible()
                 || pending.Review.Id != command.QueueMoveReviewId || pending.Review.AdmissionRevision != admissionRevision
                 || pending.Review.Queue.Generation.Value != command.Generation || pending.Review.Queue.Revision != command.QueueRevision
                 || pending.Review.Queue.DispatchControl!.RunId != command.QueueRunId
@@ -54,7 +55,7 @@ public sealed partial class SessionQueueService
                 throw new InvalidOperationException("Exact current review confirmation required. Refresh and review again; no inferred or replayed move.");
             }
             moveReviews.Remove(session);
-            return pending.Review;
+            return (pending.Review, pending.Eligible);
         }
     }
 }

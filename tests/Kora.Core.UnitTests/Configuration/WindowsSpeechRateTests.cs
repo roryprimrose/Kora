@@ -7,6 +7,23 @@ namespace Kora.Core.UnitTests.Configuration;
 public sealed class WindowsSpeechRateTests
 {
     [Theory]
+    [InlineData(0, AudioPreferenceAdjustment.Increase, 1)]
+    [InlineData(0, AudioPreferenceAdjustment.Decrease, -1)]
+    [InlineData(9, AudioPreferenceAdjustment.Increase, 10)]
+    [InlineData(-9, AudioPreferenceAdjustment.Decrease, -10)]
+    [InlineData(10, AudioPreferenceAdjustment.Increase, 10)]
+    [InlineData(-10, AudioPreferenceAdjustment.Decrease, -10)]
+    [InlineData(-10, AudioPreferenceAdjustment.Increase, -9)]
+    [InlineData(10, AudioPreferenceAdjustment.Decrease, 9)]
+    public void AdjustUsesBoundedNativeUnitSteps(int current, AudioPreferenceAdjustment adjustment, int expected) =>
+        new WindowsSpeechRate(current).Adjust(adjustment).Value.Should().Be(expected);
+
+    [Fact]
+    public void AdjustRejectsUnknownDirection() =>
+        FluentActions.Invoking(() => WindowsSpeechRate.Default.Adjust((AudioPreferenceAdjustment)999))
+            .Should().Throw<ArgumentOutOfRangeException>();
+
+    [Theory]
     [InlineData(-10)]
     [InlineData(-1)]
     [InlineData(0)]

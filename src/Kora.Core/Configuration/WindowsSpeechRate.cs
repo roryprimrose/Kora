@@ -6,6 +6,7 @@ public readonly record struct WindowsSpeechRate
 {
     public const int Minimum = -10;
     public const int Maximum = 10;
+    public const int RelativeStep = 1;
     public static WindowsSpeechRate Default => new(0);
 
     public WindowsSpeechRate(int value)
@@ -16,6 +17,13 @@ public readonly record struct WindowsSpeechRate
     }
 
     public int Value { get; }
+
+    public WindowsSpeechRate Adjust(AudioPreferenceAdjustment adjustment) => adjustment switch
+    {
+        AudioPreferenceAdjustment.Increase => new(Math.Min(Maximum, Value + RelativeStep)),
+        AudioPreferenceAdjustment.Decrease => new(Math.Max(Minimum, Value - RelativeStep)),
+        _ => throw new ArgumentOutOfRangeException(nameof(adjustment)),
+    };
 
     public static WindowsSpeechRate Parse(string value)
     {

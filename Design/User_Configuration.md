@@ -337,6 +337,10 @@ explicit Refresh/Save/Reset. Exact typed/current-name **ACTIVATED**
 `list rate settings`, `get/status speech.windows-rate`,
 `set speech.windows-rate to <canonical integer>` and `reset speech.windows-rate`
 use the same [rate workflow](../src/Kora.Application/Configuration/WindowsSpeechRateConfigurationService.cs).
+Exact typed/current-name ACTIVATED `speak faster` / `speak slower` use a [domain-owned 1-native-unit step](../src/Kora.Core/Configuration/WindowsSpeechRate.cs#L21) and [revision-bound proposal](../src/Kora.Application/Configuration/WindowsSpeechRateConfigurationService.cs#L118), then the existing audited apply/readback/hold path.
+Kokoro remains unsupported; no model inference or provider switch is involved ([rate control](../src/Kora.Application/ViewModels/MainViewModel.WindowsSpeechRate.cs#L99)).
+The [result orchestration](../src/Kora.Application/ViewModels/MainViewModel.WindowsSpeechRate.cs#L99) explicitly reports reached and unchanged -10/10 boundaries.
+An unchanged boundary creates no preference write or successful-change audit. Failed/stale admission, provider or persistence is not reinterpreted as a default or retried against newer state ([proposal](../src/Kora.Application/Configuration/WindowsSpeechRateConfigurationService.cs#L118)).
 Input/control bounds remain 1,024 UTF-8 bytes and complete results 64 KiB.
 Discovery/status explicitly includes provider, advertised support, desired/
 effective native rate, saved/default/unavailable source, bounds/default,
@@ -994,6 +998,13 @@ Native Settings draft/save/reset and exact typed/ACTIVATED
 `list volume settings`, `get/status speech.playback-volume`,
 `set speech.playback-volume to <0-100>` and `reset speech.playback-volume`
 share the [volume workflow](../src/Kora.Application/Configuration/PlaybackVolumeConfigurationService.cs).
+Exact typed/current-name ACTIVATED `speak louder` / `speak quieter` take a [domain-owned step of up to 10 percentage points](../src/Kora.Core/Configuration/PlaybackVolume.cs#L21).
+They refresh original-channel admission before deriving an exact target from desired state/revision, then use the [existing held proposal and audited apply action](../src/Kora.Application/Configuration/PlaybackVolumeConfigurationService.cs#L86); they never mutate the draft or infer a target through a model.
+The [result orchestration](../src/Kora.Application/ViewModels/MainViewModel.PlaybackVolume.cs#L76) explicitly reports a final shorter step reaching 0/100, or unchanged if already there.
+No unchanged-boundary write or successful-change audit occurs. Stale revisions/saved state refuse rather than retrying a lost-update read-modify-write ([proposal](../src/Kora.Application/Configuration/PlaybackVolumeConfigurationService.cs#L86)).
+The [boundary-result test](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.RelativeAudio.cs) verifies explicit previous/current values, exact desired/effective scalar and saved source, not just an outcome label. A newer committed scalar is preserved when an older relative proposal is rejected; no stale target is silently recomputed.
+Relative result envelopes add `adjustment.previousPercent` / `currentPercent` or `adjustment.previousNativeRate` / `currentNativeRate`; each old value is the freshly admitted desired scalar and each new value is the actual result state, not a proposed target ([result tests](../tests/Kora.Application.UnitTests/Configuration/AudioPreferenceRelativeResultTests.cs)).
+Numeric setter/status/reset result envelopes remain unchanged ([volume](../src/Kora.Application/Configuration/PlaybackVolumeState.cs), [rate](../src/Kora.Application/Configuration/WindowsSpeechRateState.cs)).
 The current assistant-name prefix, 1,024-byte UTF-8/control input bound and
 complete 64-KiB result bound apply. Results expose desired/effective percent,
 saved/default/unavailable provenance, default/bounds, availability, recovery,

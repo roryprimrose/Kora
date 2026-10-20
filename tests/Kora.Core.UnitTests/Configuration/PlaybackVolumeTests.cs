@@ -8,6 +8,23 @@ namespace Kora.Core.UnitTests.Configuration;
 public sealed class PlaybackVolumeTests
 {
     [Theory]
+    [InlineData(30, AudioPreferenceAdjustment.Increase, 40)]
+    [InlineData(30, AudioPreferenceAdjustment.Decrease, 20)]
+    [InlineData(95, AudioPreferenceAdjustment.Increase, 100)]
+    [InlineData(5, AudioPreferenceAdjustment.Decrease, 0)]
+    [InlineData(100, AudioPreferenceAdjustment.Increase, 100)]
+    [InlineData(0, AudioPreferenceAdjustment.Decrease, 0)]
+    [InlineData(0, AudioPreferenceAdjustment.Increase, 10)]
+    [InlineData(100, AudioPreferenceAdjustment.Decrease, 90)]
+    public void AdjustUsesBoundedTenPointSteps(int current, AudioPreferenceAdjustment adjustment, int expected) =>
+        new PlaybackVolume(current).Adjust(adjustment).Percent.Should().Be(expected);
+
+    [Fact]
+    public void AdjustRejectsUnknownDirection() =>
+        FluentActions.Invoking(() => PlaybackVolume.Default.Adjust((AudioPreferenceAdjustment)999))
+            .Should().Throw<ArgumentOutOfRangeException>();
+
+    [Theory]
     [InlineData(0)]
     [InlineData(1)]
     [InlineData(100)]

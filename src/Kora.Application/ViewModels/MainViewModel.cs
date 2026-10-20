@@ -637,6 +637,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
                       || SessionDispositionReviewCommand.Parse(CommandText, AssistantName) is not null
                       || WorkspaceSurfaceCommand.Parse(CommandText, AssistantName) is not null
                       || AttachmentCataloguePreparationCommand.Parse(CommandText, AssistantName) is not null
+                      || SessionDraftCompareCommand.Parse(CommandText, AssistantName) is not null
                       || MemoryCommand.Parse(CommandText, AssistantName) is not null
                       || LocalClockCommand.Parse(CommandText, AssistantName) is not null
                       || IsInstructionEditorCommand(CommandText)
@@ -1907,6 +1908,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         get => commandText;
         set
         {
+            if (!string.Equals(commandText, value, StringComparison.Ordinal))
+            { Interlocked.Increment(ref composerComparisonInputRevision); }
             if (SetProperty(ref commandText, value))
             {
                 Interlocked.Increment(ref attachmentCatalogueComposerRevision);
@@ -4082,6 +4085,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             ReportRetiredSkillReview(eventArgs.Transcript);
             if (LocalClockCommand.Parse(eventArgs.Transcript, AssistantName) is not null)
             { Transcript = "Local clock unavailable: the original voice generation or host was revoked."; }
+            if (SessionDraftCompareCommand.Parse(eventArgs.Transcript, AssistantName) is not null)
+            { Transcript = ComposerComparisonUnavailable; }
             if (SettingsSectionCommand.Parse(eventArgs.Transcript, AssistantName) is not null)
             { Transcript = "Settings navigation unavailable: the original voice generation or host was revoked."; }
             if (manualInput.CataloguePreparation is not null)
@@ -4097,7 +4102,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         IsListening = voiceRecognition.IsListening;
         if (SettingsSectionCommand.Parse(eventArgs.Transcript, AssistantName) is not null
             || LocalClockCommand.Parse(eventArgs.Transcript, AssistantName) is not null
-            || manualInput.CataloguePreparation is not null)
+            || manualInput.CataloguePreparation is not null
+            || SessionDraftCompareCommand.Parse(eventArgs.Transcript, AssistantName) is not null)
         {
             await HandleTranscriptAsync(eventArgs.Transcript, eventArgs.Confidence,
                 SecurityAuditInitiator.VoiceCommand, manualInput);
@@ -4139,21 +4145,29 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         }
         Interlocked.Increment(ref workspaceSurfaceInputRevision);
         Interlocked.Increment(ref diagnosticsPlanEpoch);
+        Interlocked.Increment(ref composerComparisonInputRevision);
         if (Kora.Core.Calculations.CalculateCommand.Parse(spokenText, AssistantName) is { } calculateCommand)
         {
             ExecuteCalculateCommand(calculateCommand, initiator, manualInput);
             return;
         }
         var sessionCommand = SessionCommand.Parse(spokenText, AssistantName);
-        if (sessionCommand is null && LocalClockCommand.Parse(spokenText, AssistantName) is { } clockCommand)
+        var cataloguePreparation = manualInput?.CataloguePreparation
+            ?? AttachmentCataloguePreparationCommand.Parse(spokenText, AssistantName);
+        if (sessionCommand is null && cataloguePreparation is null
+            && LocalClockCommand.Parse(spokenText, AssistantName) is { } clockCommand)
         {
             ExecuteLocalClockCommand(clockCommand, initiator, manualInput);
             return;
         }
-        if ((manualInput?.CataloguePreparation
-            ?? AttachmentCataloguePreparationCommand.Parse(spokenText, AssistantName)) is { } cataloguePreparation)
+        if (cataloguePreparation is not null)
         {
             await PrepareAttachmentCatalogue(cataloguePreparation, initiator, manualInput);
+            return;
+        }
+        if (SessionDraftCompareCommand.Parse(spokenText, AssistantName) is { } compareCommand)
+        {
+            await ExecuteComposerComparisonCommand(compareCommand, spokenText, initiator, manualInput);
             return;
         }
         if (Kora.Application.Skills.SkillReviewCommand.Parse(spokenText, AssistantName) is { } reviewCommand)
@@ -6171,6 +6185,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             .Concat(AttachmentCataloguePreparationCommand.DiscoveryPhrases)
             .Concat(SessionCommand.DiscoveryPhrases)
             .Concat(WorkspaceSurfaceCommand.FixedPhrases)
+            .Append("session draft compare help")
             .Concat(MemoryCommand.DiscoveryPhrases)
             .Concat(AssistantNameCommand.DiscoveryPhrases)
             .Concat(InputDeviceCommand.FixedPhrases)

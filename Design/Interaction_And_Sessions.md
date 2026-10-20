@@ -451,6 +451,20 @@ Composer edits (including through compact shared controls), source/selection/gen
 
 This consumes only the existing composer/observed-draft/text/pane I subset. No schema, provider, runtime, egress, wake, profile writer or new authority is enabled; installed-native/accessibility, physical/hardware/acoustic/provider and RC qualification remain separate ([delivery policy](Implementation_Roadmap.md#delivery-and-qualification-dependency-policy)).
 
+Exact typed/current-name activated `session draft compare <session-id>` uses the
+same native Compare action and dialog, only in the already open Sessions owner
+with its exact currently selected session and shared memory buffer. A nonempty
+lowercase D GUID must match that captured selection; it cannot select, retarget,
+resolve a name/latest revision or open a different composer. The original
+host-resolved origin, input/call/name/private ownership and captured saved object,
+generation, buffer, control and native lifetime remain admission conditions
+through queued opening and focus. No new trusted LocalUi gesture is manufactured.
+An unobserved or unavailable saved revision requires the explicit recovery
+guidance **explicitly read exact saved revision first**, without performing it.
+`session draft compare help` is constant and source-free; malformed reserved
+commands cannot answer pending questions or reach the model. Draft recovery and
+other pending decisions are not resolved or replaced by this command.
+
 ### Source-preserving saved conversation draft recovery - 2026-10-19
 
 **Sessions or compact conversation > Review latest saved baseline; retain buffer** is a separate explicit action for one already selected existing Active session. It is not Reload, automatic conflict resolution, or the passive Compare above. An exact observed saved draft under the current private control epoch is required. The [portable recovery workflow](../src/Kora.Application/Hosting/ConversationDraftRecovery.cs) explicitly reads the admitted latest draft, then displays three **complete inert snapshots**: old observed saved body/revision, latest explicitly observed saved body/revision, and exact raw unsaved buffer. A removed/never-saved body remains absent; a saved empty string remains present. Authoritative [ConversationText](../src/Kora.Core/Conversation/ConversationText.cs) admission rejects malformed, over-limit or screened text without normalization, truncation or a Save-anyway path.

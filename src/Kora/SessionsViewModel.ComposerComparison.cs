@@ -8,16 +8,31 @@ internal sealed partial class SessionsViewModel
     private ConversationDraftComparison? composerComparison;
     private long composerComparisonEpoch;
     private long savedConversationDraftControlRevision;
+    internal long ComposerComparisonEpoch => composerComparisonEpoch;
     internal event EventHandler? ComposerComparisonRetired;
 
     public bool CanCompareComposer => CanReadConversation && access.CanControl && !conversationSourceHeld
         && savedConversationDraftControlRevision > 0 && access.ControlRevision == savedConversationDraftControlRevision
         && savedConversationDraft is { } observed && observed.Session == selected?.Authority;
 
-    internal ConversationDraftComparison? CompareComposer()
+    internal Func<bool>? CaptureComposerComparisonSource(Kora.Core.Hosting.HostId<Kora.Core.Hosting.SessionIdentity> session)
+    {
+        if (!CanCompareComposer || selected?.Authority.SessionId != session || draftRecoveryCancellation is not null)
+        { return null; }
+        var target = selected;
+        var observed = savedConversationDraft;
+        var selection = selectionEpoch;
+        var control = access.ControlRevision;
+        var buffer = composerBufferRevision;
+        return () => CanCompareComposer && ReferenceEquals(selected, target) && selectionEpoch == selection
+            && access.ControlRevision == control && ReferenceEquals(savedConversationDraft, observed)
+            && composerBufferRevision == buffer && draftRecoveryCancellation is null;
+    }
+
+    internal ConversationDraftComparison? CompareComposer(Func<bool>? originalAdmission = null)
     {
         RetireComposerComparison();
-        if (!CanCompareComposer)
+        if (!CanCompareComposer || originalAdmission?.Invoke() == false)
         {
             conversationStatus = "Compare unavailable. Explicitly read the exact saved revision under current private ownership first; nothing was read or changed.";
             NotifyConversation();
@@ -30,6 +45,7 @@ internal sealed partial class SessionsViewModel
         var control = access.ControlRevision;
         var body = composerBody;
         bool Current() => CanCompareComposer && composerComparisonEpoch == epoch && selectionEpoch == selection
+            && originalAdmission?.Invoke() != false
             && access.ControlRevision == control && selected == target && ReferenceEquals(savedConversationDraft, observed)
             && string.Equals(composerBody, body, StringComparison.Ordinal);
         try

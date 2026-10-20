@@ -197,6 +197,16 @@ copy only. **Discard memory buffer only** leaves saved draft/messages unchanged.
 Switching/closing unsaved text offers Save/Discard/Cancel. Lock/privacy/owner
 closure clears private text and callbacks without silently saving.
 
+**Compare observed saved draft / memory buffer** is read-only. The exact typed
+or current-name activated `session draft compare <session-id>` opens that same
+dialog only for this already selected Sessions target, current buffer and
+already explicitly observed saved revision. It does not switch sessions, reload,
+save or prompt to discard dirty text. If unavailable, explicitly read exact saved
+revision first using the native Read action; the command never reads for you.
+`session draft compare help` gives constant guidance. Complete screened snapshots
+stay in the native panes, with the saved revision labelled historical, not current
+disk. Closing, source edits or lost private/control/input admission retire them.
+
 **Submit exact message — unavailable provider** retains your original exact
 text and fresh request/task receipt privately. Today the configured production
 catalogue has no qualified model: you receive truthful **HOST Unavailable /

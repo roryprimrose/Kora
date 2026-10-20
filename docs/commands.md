@@ -96,6 +96,25 @@ Native composition and original/current private ownership, input, call/privacy e
 Model navigation is explicitly unavailable: these window-focus actions are not added to bootstrap or the six read-only model descriptors.
 See [native windows](windows-and-tray.md#workspace-surface-navigation) and the [deterministic evidence](../Design/UI_Workspace_And_Windows.md#workspace-surface-command-evidence).
 
+## Compare the already observed saved draft and current composer
+
+`session draft compare <session-id>` opens the existing native Compare dialog
+only for the **same currently selected Sessions session and memory composer**.
+Use a nonempty canonical lowercase D GUID, not a name, latest target or another
+session. Current-name activated voice supports the same exact syntax.
+`session draft compare help` returns constant guidance without reading a source.
+
+The saved revision must already have been explicitly observed under current
+private control. If unavailable, **explicitly read exact saved revision first**
+in Sessions; the command never performs that read or implicitly reloads,
+refreshes, selects, saves, rebases, replaces or submits anything.
+Dirty memory drafts remain unchanged, without a Save/Discard prompt.
+The complete screened saved snapshot and buffer appear only in the existing
+native panes, never in command feedback, speech, logs, clipboard or model input.
+Source edits, input/ownership changes and native closure retire the review.
+Pending questions and approvals remain pending; comparison is not execution
+authority. See [the comparison contract](../Design/Interaction_And_Sessions.md#passive-observed-saved-draft--composer-compare---2026-10-18).
+
 ## Native saved conversation draft catalogue
 
 **Tray > Saved conversation drafts (metadata only)** or `open saved conversation drafts` opens the same native catalogue; it has no typed/voice/model body query. Opening reads nothing.

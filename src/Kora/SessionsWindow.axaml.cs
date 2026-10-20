@@ -49,14 +49,10 @@ internal sealed partial class SessionsWindow : Window
                 }
             };
         }
-        CompareComposer.Click += (_, _) =>
+        CompareComposer.Click += async (_, _) =>
         {
             model.CancelConversationDraftRecovery();
-            if (IsVisible && model.CompareComposer() is { } comparison)
-            {
-                var dialog = new ConversationDraftComparisonWindow(this, model, comparison);
-                dialog.Open(this);
-            }
+            await (ConversationOperation = OpenComposerComparison(model, () => IsVisible));
         };
         SaveConversationDraft.Click += async (_, _) => await (ConversationOperation = model.SaveConversationDraftAsync());
         RecoverConversationDraft.Click += async (_, _) => await (ConversationOperation = ConversationDraftRecoveryWindow.RecoverAsync(this, model));

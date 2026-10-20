@@ -18,6 +18,13 @@ does not confirm cancellation or introduce a model descriptor. The
 [Work Management](Work_Management.md#delivered-atomic-selected-pending-cancellation---2026-10-12) owns the
 complete-subset/revision and separate native-confirmation boundary.
 
+Exact `session draft compare <session-id>` and source-free
+`session draft compare help` are native navigation, not model tools. The former
+requires the same already selected Sessions composer and already explicitly
+observed saved revision under original host admission; it never reads/reloads or
+retargets. See [exact command boundaries](../docs/commands.md#compare-the-already-observed-saved-draft-and-current-composer)
+and [the native comparison contract](Interaction_And_Sessions.md#passive-observed-saved-draft--composer-compare---2026-10-18).
+
 For capability-specific limits, use [configuration](User_Configuration.md),
 [source storage](Skill_Storage.md), [file ingestion](File_And_Folder_Ingestion.md),
 [providers/memory](Model_Providers_Memory_And_Knowledge.md) and

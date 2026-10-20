@@ -16,7 +16,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 namespace Kora.Windows.IntegrationTests;
 
 [Collection(nameof(HeadlessUiTestGroup))]
-public sealed class WorkspaceSurfaceCommandControllerTests
+public sealed partial class WorkspaceSurfaceCommandControllerTests
 {
     [WindowsFact]
     public async Task ExactRoutesUseExistingSingletonsAndKeepSharedDirtySelectionAndDoneAuthority()
@@ -176,11 +176,14 @@ public sealed class WorkspaceSurfaceCommandControllerTests
             Native = new(parent);
         }
 
-        internal void Bind(SessionWorkspaceService? service = null)
+        internal void Bind(SessionWorkspaceService? service = null, ISessionWorkspaceStore? conversationReader = null)
         {
             service ??= Native.Sessions;
+            var conversationWorkspace = conversationReader is null ? service
+                : new SessionWorkspaceService(conversationReader, new(Native.Tasks), Native.Access,
+                    NullLogger<SessionWorkspaceService>.Instance);
             var conversation = new SessionConversationService(Native.Interactions, Native.Interactions,
-                service, Native.Access, new NoAdmission(), TimeProvider.System, NullLogger<SessionConversationService>.Instance);
+                conversationWorkspace, Native.Access, new NoAdmission(), TimeProvider.System, NullLogger<SessionConversationService>.Instance);
             Sessions = new(Native.Main, service, Native.Evidence, Native.Access, NullLogger<SessionsViewModel>.Instance,
                 conversation: conversation);
             Sessions.Bind();
@@ -215,9 +218,11 @@ public sealed class WorkspaceSurfaceCommandControllerTests
         }
     }
 
-    private sealed class RefusingWorkspaceStore : ISessionWorkspaceStore, ISessionConversationStore, ISavedDraftCatalogueStore
+    private sealed class RefusingWorkspaceStore(ISessionConversationStore? original = null) : ISessionWorkspaceStore, ISessionConversationStore, ISavedDraftCatalogueStore
     {
         internal int Calls { get; private set; }
+        internal int ConversationReads { get; private set; }
+        internal bool DenyReads { get; set; }
         private T Refuse<T>() { Calls++; throw new InvalidOperationException("Opening must not access storage."); }
         public ValueTask<SessionDispositionPreview> PreviewDispositionAsync(HostId<SessionIdentity> session, HostRevision expectedGeneration, long expectedMetadataRevision, CancellationToken cancellationToken) => Refuse<ValueTask<SessionDispositionPreview>>();
         public ValueTask<SessionDispositionReceipt> DisposeSessionAsync(HostRequest request, SessionDispositionPreview preview, Func<bool> canControl, CancellationToken cancellationToken) => Refuse<ValueTask<SessionDispositionReceipt>>();
@@ -233,11 +238,21 @@ public sealed class WorkspaceSurfaceCommandControllerTests
         public ValueTask<SessionPage<HostTaskRecord>> ReadTaskPageAsync(HostId<SessionIdentity> session, Guid? after, int limit, CancellationToken cancellationToken) => Refuse<ValueTask<SessionPage<HostTaskRecord>>>();
         public ValueTask<WorkSessionAuthorization> ChangeIdleLifecycleAsync(HostRequest request, HostRevision expectedGeneration, bool active, Func<bool> canControl, CancellationToken cancellationToken) => Refuse<ValueTask<WorkSessionAuthorization>>();
         public ValueTask<HostTaskRecord> RecordConversationCredentialRejectionAsync(HostRequest request, HostRevision generation, Func<bool> admitted, CancellationToken token) => Refuse<ValueTask<HostTaskRecord>>();
-        public ValueTask<Kora.Core.Conversation.ConversationDraftSnapshot> ReadConversationDraftAsync(HostId<SessionIdentity> session, CancellationToken token) => Refuse<ValueTask<Kora.Core.Conversation.ConversationDraftSnapshot>>();
+        public ValueTask<Kora.Core.Conversation.ConversationDraftSnapshot> ReadConversationDraftAsync(HostId<SessionIdentity> session, CancellationToken token)
+        {
+            ConversationReads++;
+            return original is not null && !DenyReads ? original.ReadConversationDraftAsync(session, token)
+                : Refuse<ValueTask<Kora.Core.Conversation.ConversationDraftSnapshot>>();
+        }
         public ValueTask<Kora.Core.Conversation.ConversationDraftSnapshot> CommitConversationDraftAsync(HostRequest control, Kora.Core.Conversation.ConversationDraftSnapshot expected, string? body, Func<bool> admitted, CancellationToken token) => Refuse<ValueTask<Kora.Core.Conversation.ConversationDraftSnapshot>>();
         public ValueTask<Kora.Core.Conversation.ConversationSubmissionReceipt> RetainConversationMessageAsync(HostRequest request, HostRevision generation, long expectedMetadataRevision, string body, Func<bool> admitted, CancellationToken token) => Refuse<ValueTask<Kora.Core.Conversation.ConversationSubmissionReceipt>>();
         public ValueTask<Kora.Core.Conversation.ConversationSubmissionReceipt> CompleteConversationSubmissionAsync(HostRequest request, Kora.Core.Dependencies.ModelTurnOutcome outcome, Kora.Core.Dependencies.ModelTurnReason reason, Func<bool> admitted, CancellationToken token) => Refuse<ValueTask<Kora.Core.Conversation.ConversationSubmissionReceipt>>();
-        public ValueTask<Kora.Core.Conversation.ConversationPage> ReadConversationPageAsync(HostId<SessionIdentity> session, Kora.Core.Conversation.ConversationCursor? cursor, int limit, CancellationToken token) => Refuse<ValueTask<Kora.Core.Conversation.ConversationPage>>();
+        public ValueTask<Kora.Core.Conversation.ConversationPage> ReadConversationPageAsync(HostId<SessionIdentity> session, Kora.Core.Conversation.ConversationCursor? cursor, int limit, CancellationToken token)
+        {
+            ConversationReads++;
+            return original is not null && !DenyReads ? original.ReadConversationPageAsync(session, cursor, limit, token)
+                : Refuse<ValueTask<Kora.Core.Conversation.ConversationPage>>();
+        }
         public ValueTask<Kora.Core.Conversation.ConversationMessage> ReadConversationMessageAsync(HostId<SessionIdentity> session, HostId<RequestIdentity> request, CancellationToken token) => Refuse<ValueTask<Kora.Core.Conversation.ConversationMessage>>();
         public ValueTask<SavedDraftPage> ReadSavedDraftPage(SessionListFilter filter, string? cursor, long controlRevision, Func<bool> admitted, CancellationToken token, SessionListSearch? query = null, SavedDraftMetadataFilter? metadataFilter = null) => Refuse<ValueTask<SavedDraftPage>>();
         public ValueTask<SessionWorkspaceEntry> ResolveSavedDraft(SavedDraftSummary exact, Func<bool> admitted, CancellationToken token) => Refuse<ValueTask<SessionWorkspaceEntry>>();

@@ -269,8 +269,14 @@ public sealed partial class SessionsViewModelTests
         }
         public ValueTask<SessionHistoryEvent?> ReadHistoryEventAsync(HostId<SessionIdentity> session,
             Guid eventId, CancellationToken cancellationToken) => throw new NotSupportedException();
+        internal TaskCompletionSource<SessionDispositionPreview> DispositionCompletion { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        internal HostRequest? DispositionRequest { get; private set; }
         public ValueTask<SessionDispositionPreview> PreviewDispositionAsync(HostId<SessionIdentity> session,
-            HostRevision expectedGeneration, long expectedMetadataRevision, CancellationToken cancellationToken) => throw new NotSupportedException();
+            HostRevision expectedGeneration, long expectedMetadataRevision, CancellationToken cancellationToken)
+        {
+            DispositionRequest = HostActivity.RequireCurrent().Request;
+            return new(DispositionCompletion.Task);
+        }
         public ValueTask<SessionDispositionReceipt> DisposeSessionAsync(HostRequest request, SessionDispositionPreview preview,
             Func<bool> canControl, CancellationToken cancellationToken) => throw new NotSupportedException();
         public ValueTask<HostTaskObservation?> ReadTaskAsync(HostId<SessionIdentity> session, HostId<TaskIdentity> task, CancellationToken cancellationToken) =>

@@ -780,6 +780,16 @@ Native Sessions additionally offers separate
 It removes addressed live authority rows, not recoverable copies or full
 history. No typed/voice `session delete` or model deletion tool is admitted.
 
+### Review one exact session's logical disposition
+
+`review session disposition <canonical-D-guid> <positive-generation> <nonnegative-metadata-revision>` opens the existing private native review for that exact observed identity and revisions. Typed input or voice activated with the **current** assistant name may launch it; names, selected rows and the current question are never selectors ([grammar](../src/Kora.Core/Commands/SessionDispositionReviewCommand.cs)).
+
+The complete native preview displays the exact ID, label, generation, metadata revision, all eight inventory counts and the existing logical scope, retained tombstone/provenance and exclusions. The response only reports whether review opened; private inventory is not spoken or sent to a model ([shared preview](../src/Kora/SessionsViewModel.cs), [routing](../src/Kora.Application/ViewModels/MainViewModel.SessionDispositionReview.cs)).
+
+Nothing is removed by the command. **Confirm logical disposition** remains a separate deliberate native action with a fresh native request. `confirm session disposition ...` explains this boundary and never confirms; `session delete` and model deletion tools remain unavailable ([native-only one-shot confirmation](../src/Kora.Application/Hosting/SessionWorkspaceService.Disposition.cs)).
+
+Stale generations/revisions, lost private/native ownership, busy or unbound presentation, cancellation and replaced previews require a fresh review. Dirty composer Save/Discard/Cancel remains a separate native decision; the command never saves, submits or discards implicitly ([native launch](../src/Kora/SessionsWindowController.cs), [deterministic tests](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.DispositionReview.cs)).
+
 ### Bounded exact-ID session commands
 
 Typed input and **activated** voice share one grammar, with the configured

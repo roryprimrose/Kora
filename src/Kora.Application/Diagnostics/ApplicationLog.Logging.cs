@@ -21,6 +21,9 @@ internal static partial class ApplicationLog
     [LoggerMessage(115, LogLevel.Error, "Session-retention preview failed with {FailureKind}; refresh confirmed native settings and preview again.")]
     public static partial void SessionRetentionPreviewFailed(ILogger logger, string failureKind);
 
+    [LoggerMessage(116, LogLevel.Error, "Session-disposition review failed with {FailureKind}; request a fresh native preview.")]
+    public static partial void SessionDispositionReviewFailed(ILogger logger, string failureKind);
+
     [LoggerMessage(103, LogLevel.Information, "Call state changed to {CallState}.")]
     public static partial void CallStateChanged(ILogger logger, CallState callState);
 

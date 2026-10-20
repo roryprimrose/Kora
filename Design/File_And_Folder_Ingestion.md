@@ -387,7 +387,7 @@ Denied, Cancelled and Unavailable are distinct and carry no excerpts.
 
 Native preview exposes exact selected-source search and complete inert text
 inspection. Fixed `search file` / `inspect file` typed/current-name ACTIVATED
-commands only focus that control; query text is entered natively and never
+commands only focus that control; query text executes natively and never
 enters conversation transcripts/history, model routing, speech, logs, audit
 identifiers, clipboard or durable storage. All result content stays native/
 volatile and is cleared on close. The current R06 six-ID read-only registry
@@ -396,6 +396,25 @@ unchanged, with no model tool or result egress. Required typed audit failure
 blocks result publication. Source-generated logs report only bounded outcome,
 count/truncation and failure type; child host activities preserve session/task
 correlation without content/path tags.
+
+### Delivered preparation-only native lexical query - 2026-10-20
+
+Original typed/current-name ACTIVATED `prepare file search for "<query>"` and `prepare folder search for "<query>"` only prepare the existing native inspection query. Final-quoted doubled-quote escaping preserves case, punctuation, Unicode and interior spaces before shared normalization ([grammar](../src/Kora.Core/Context/PreparedLocalSearchCommand.cs)).
+
+The parser reuses strict single-line Unicode validation and canonical lexical limits, without truncation or repair.
+Reserved malformed `prepare file/folder` input is consumed before questions, approvals, transcript presentation or model fallback; inline `search file <query>` stays invalid ([raw dispatch](../src/Kora.Application/ViewModels/MainViewModel.cs), [parser tests](../tests/Kora.Core.UnitTests/Context/PreparedLocalSearchCommandTests.cs)).
+
+Admission requires exactly the requested already-confirmed volatile file or complete folder revision. The host freezes that revision object, exact references and original origin, then rechecks current name/input, privacy topology, host/ownership, call revision and voice consent/recovery at queued dispatch.
+No newest-source substitution, path/name selector or retained-attachment targeting exists ([host](../src/Kora.Application/ViewModels/MainViewModel.PreparedLocalSearch.cs)).
+
+A scoped one-use handoff expires after synchronous delivery. The native controller checks UI-thread ownership and exact window revision; the window sets lexical mode/query, invalidates old citations and reports **PREPARED / REVIEW NEEDED**, never search success.
+Text changes/focus/late callbacks cannot execute retrieval ([handoff](../src/Kora.Application/Presentation/PreparedLocalSearchEventArgs.cs), [controller](../src/Kora/LocalFilePreviewWindowController.cs), [native hook](../src/Kora/LocalFilePreviewWindow.PreparedSearch.cs)).
+
+Only the user's separate existing native Search action invokes the same audited `LocalFileSearch`; `SearchFileAsync` / `SearchFolderAsync` retain their LocalUi-only exact-source guards.
+Preparation adds no read/search/refresh, metadata capture, Attach, consent, model/provider, clipboard or retention authority; query/source bodies never enter response/transcript, logging, audit, tags/Baggage or persistence ([guards](../src/Kora.Application/ViewModels/MainViewModel.Files.cs)).
+
+Deterministic [portable admission tests](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.PreparedLocalSearch.cs) and [headless native tests](../tests/Kora.Windows.IntegrationTests/PreparedLocalSearchWindowTests.cs) cover preparation versus separate execution.
+This is bounded I only: existing preview consent, retained attachment and unavailable source-use policy stay separate; no unrelated E/RC-Q, physical/audio/provider or installed-accessibility qualification is claimed.
 
 Experiment disposition: maintained deterministic chunk/citation, bounds,
 revocation/cancellation/isolation and no-egress tests now cover this exact

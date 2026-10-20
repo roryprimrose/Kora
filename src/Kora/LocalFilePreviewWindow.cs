@@ -166,6 +166,7 @@ internal sealed partial class LocalFilePreviewWindow(Action<string> reportFailur
         citationRows = rows;
         AutomationProperties.SetName(rows, "Select a citation from this exact successful admitted search");
         bool Current() => isCurrent() && ReferenceEquals(searchSelection, selection);
+        isSearchCurrent = Current;
         var navigate = new Button { Content = "Show exact cited source span", IsEnabled = false };
         AutomationProperties.SetName(navigate, "Show exact cited source span without acquiring or copying content");
         navigate.Command = new AsyncCommand(
@@ -195,6 +196,7 @@ internal sealed partial class LocalFilePreviewWindow(Action<string> reportFailur
             ItemsSource = new[] { "Lexical lines (default)", "Markdown structure-aware (opt-in, this view only)" },
             SelectedIndex = 0,
         };
+        searchModes = modes;
         AutomationProperties.SetName(modes, "Run-only retrieval mode for this exact admitted source");
         modes.SelectionChanged += (_, _) =>
         {
@@ -442,6 +444,8 @@ internal sealed partial class LocalFilePreviewWindow(Action<string> reportFailur
         findPrevious = null;
         searchSelection?.Dispose();
         searchSelection = null;
+        isSearchCurrent = null;
+        searchModes = null;
         content.Text = null;
         if (queryBox is not null) { queryBox.Text = null; }
         if (searchResults is not null) { searchResults.Text = null; }

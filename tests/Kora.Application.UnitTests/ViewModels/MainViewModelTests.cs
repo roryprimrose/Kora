@@ -4528,6 +4528,7 @@ public sealed partial class MainViewModelTests : IDisposable
         var commandPhrases = fixture.Catalog.GetCommands().SelectMany(command => command.AllPhrases)
             .Concat(Kora.Core.Context.ClipboardCommand.FixedPhrases)
             .Concat(Kora.Core.Context.LocalFileCommand.FixedPhrases)
+            .Concat(Kora.Core.Context.PreparedLocalSearchCommand.DiscoveryPhrases)
             .Concat(SessionCommand.DiscoveryPhrases)
             .Concat(WorkspaceSurfaceCommand.FixedPhrases)
             .Concat(MemoryCommand.DiscoveryPhrases)

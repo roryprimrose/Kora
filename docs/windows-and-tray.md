@@ -343,7 +343,7 @@ The result is inert, immutable plain text with exact-byte digest and provenance,
 not a Markdown renderer, attachment or model submission. Close revokes it.
 Exact typed/current-name ACTIVATED `preview file` / `clear file preview` use the
 same host workflow. Exact **search file** / **inspect file** focus native
-lexical search of that admitted revision. Queries are entered only in this
+lexical search of that admitted revision. Queries execute only in this
 native control; bounded exact excerpts carry revision/digest/line citations,
 observation time and truthful truncation/failure states. Results stay inert,
 volatile and host-only. **Tray > Preview folder** reviews all 1–32 immediate text/Markdown files (1 MiB combined, 256 KiB per file); any subdirectory or inadmissible item rejects the whole selection.
@@ -352,6 +352,11 @@ Use native **Refresh this file preview** / **Refresh this folder preview**, or e
 
 There is no automatic refresh, watcher, recursion, registry, durable attachment, knowledge/persistent-index/reasoning authority. Same privacy/ownership/call/control/lifetime and native release fences apply; unverified release blocks clean handoff/exit until recovery.
 See [commands and limits](commands.md#explicit-local-file-preview).
+
+Original typed/current-name ACTIVATED `prepare file search for "<query>"` / `prepare folder search for "<query>"` may pre-populate this same exact preview's lexical query. **PREPARED / REVIEW NEEDED** is not a search result: review the exact source and click **Search selected immutable revision locally** separately ([native preparation](../src/Kora/LocalFilePreviewWindow.PreparedSearch.cs)).
+
+Quoted literals use doubled quotes, keep exact case/punctuation/Unicode/interior spaces, and reuse the existing bounded lexical validation. Preparation performs no metadata/content read, refresh, search, clipboard, model, attachment, retention or consent operation.
+Missing/wrong-kind/stale/closed previews or changed admission refuse rather than choosing another source; retained attachments and Literal Find are not targets ([host handoff](../src/Kora.Application/ViewModels/MainViewModel.PreparedLocalSearch.cs)).
 
 ### Find a literal in the currently inspected original file
 

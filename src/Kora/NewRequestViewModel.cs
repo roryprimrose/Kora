@@ -51,7 +51,7 @@ internal sealed partial class NewRequestViewModel : ObservableObject, IDisposabl
 
     private void Changed(object? sender, PropertyChangedEventArgs args)
     {
-        if (args.PropertyName == nameof(NewRequestComposer.DraftMeasurement))
+        if (string.Equals(args.PropertyName, nameof(NewRequestComposer.DraftMeasurement), StringComparison.Ordinal))
         {
             OnPropertyChanged(nameof(DraftSizeFeedback));
             return;

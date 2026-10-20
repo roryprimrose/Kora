@@ -84,6 +84,24 @@ existing host input admission and deterministic presentation; provider,
 hardware, installed, retired experiment and E/Q qualification are not
 prerequisites. No unrelated calendar/reminder/scheduling behavior is delivered.
 
+## Deterministic local integer-base utility
+
+The native-only `number` command is a bounded developer utility, not a model tool
+or a calculator language. [Exact grammar and limits](../docs/commands.md#convert-a-signed-integer-between-explicit-bases)
+are owned by the command guide. [Core policy](../src/Kora.Core/Numbers/IntegerBasePolicy.cs)
+owns the single canonical literal/range/format rule: mathematical signed Int64,
+no redundant leading zeros or negative zero, lowercase output, explicit bases.
+Unsigned magnitude accumulation supports Int64.MinValue without negation overflow.
+The registered [IntegerBaseConvert action](../src/Kora.Tools/Numbers/IntegerBaseConvert.cs)
+delegates to that policy; the early reserved [Application parser](../src/Kora.Application/Numbers/NumberCommand.cs)
+and [presentation route](../src/Kora.Application/ViewModels/MainViewModel.Numbers.cs)
+never duplicate arithmetic or grant model/session authority.
+The minimum consumed Implementation subset is current host/original-input admission,
+ordinary response presentation and the Tools/Core dependency seam. No E/RC,
+provider, hardware, installed-native or experiment evidence is claimed or required;
+no model descriptor is added. Deterministic tests cover all 16 base pairs, signed
+bounds, strict grammar, admission, pending decisions and trace separation.
+
 ## Delivered Artifact Invocation
 
 Kora has one source-qualified artifact invocation route for bundled skills and

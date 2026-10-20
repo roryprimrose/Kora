@@ -4533,6 +4533,7 @@ public sealed partial class MainViewModelTests : IDisposable
             .Concat(Kora.Core.Calculations.CalculateCommand.DiscoveryPhrases)
             .Concat(LocalClockCommand.FixedPhrases)
             .Concat(AttachmentCataloguePreparationCommand.DiscoveryPhrases)
+            .Concat(["number help", "number convert"])
             .Concat(SessionCommand.DiscoveryPhrases)
             .Concat(WorkspaceSurfaceCommand.FixedPhrases)
             .Concat(MemoryCommand.DiscoveryPhrases)
@@ -8699,6 +8700,7 @@ public sealed partial class MainViewModelTests : IDisposable
                 new Kora.Tools.Clipboard.ClipboardValidateJson(clipboard, TimeProvider.System,
                     Microsoft.Extensions.Logging.Abstractions.NullLogger<Kora.Tools.Clipboard.ClipboardValidateJson>.Instance),
                 new AuditedPreferenceWriter(Audit), outputCatalog,
+                new Kora.Tools.Numbers.IntegerBaseConvert(),
                 microphoneCatalog, OutputConfiguration, VolumeConfiguration, enableResponseModeConfiguration
                     ? new ResponseModeConfigurationService(OutputPreferences, OutputAdmission, Audit, TextToSpeech) : null,
                 DiagnosticConfiguration,

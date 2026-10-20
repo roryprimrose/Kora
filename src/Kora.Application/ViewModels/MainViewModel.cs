@@ -255,6 +255,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         Kora.Tools.Clipboard.ClipboardValidateJson clipboardValidateJson,
         AuditedPreferenceWriter preferenceWriter,
         BoundedAudioOutputCatalog outputCatalog,
+        Kora.Tools.Numbers.IntegerBaseConvert integerBaseConvert,
         BoundedMicrophoneCatalog? microphoneCatalog = null,
         OutputDeviceConfigurationService? outputConfiguration = null,
         PlaybackVolumeConfigurationService? playbackVolumeConfiguration = null,
@@ -283,6 +284,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         Kora.Application.Context.ClipboardExplanationWorkflow? clipboardExplanation = null,
         Kora.Application.Clock.LocalClockWorkflow? localClock = null)
     {
+        this.integerBaseConvert = integerBaseConvert;
         this.commandCatalog = commandCatalog;
         this.commandRouter = commandRouter;
         this.artifactCatalogue = artifactCatalogue;
@@ -4086,6 +4088,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             { Transcript = "Settings navigation unavailable: the original voice generation or host was revoked."; }
             if (manualInput.CataloguePreparation is not null)
             { Transcript = "Attachment catalogue preparation unavailable: the original voice generation or host was revoked."; }
+            if (Kora.Application.Numbers.NumberCommand.Parse(eventArgs.Transcript, AssistantName) is not null)
+            { Transcript = "Number conversion unavailable: the original voice generation or host was revoked."; }
             return;
         }
         if (Interlocked.CompareExchange(ref acceptedTranscriptGeneration, -1, eventArgs.Generation) != eventArgs.Generation)
@@ -4097,7 +4101,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         IsListening = voiceRecognition.IsListening;
         if (SettingsSectionCommand.Parse(eventArgs.Transcript, AssistantName) is not null
             || LocalClockCommand.Parse(eventArgs.Transcript, AssistantName) is not null
-            || manualInput.CataloguePreparation is not null)
+            || manualInput.CataloguePreparation is not null
+            || Kora.Application.Numbers.NumberCommand.Parse(eventArgs.Transcript, AssistantName) is not null)
         {
             await HandleTranscriptAsync(eventArgs.Transcript, eventArgs.Confidence,
                 SecurityAuditInitiator.VoiceCommand, manualInput);
@@ -4145,15 +4150,22 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             return;
         }
         var sessionCommand = SessionCommand.Parse(spokenText, AssistantName);
-        if (sessionCommand is null && LocalClockCommand.Parse(spokenText, AssistantName) is { } clockCommand)
+        var cataloguePreparation = manualInput?.CataloguePreparation
+            ?? AttachmentCataloguePreparationCommand.Parse(spokenText, AssistantName);
+        if (sessionCommand is null && cataloguePreparation is null
+            && LocalClockCommand.Parse(spokenText, AssistantName) is { } clockCommand)
         {
             ExecuteLocalClockCommand(clockCommand, initiator, manualInput);
             return;
         }
-        if ((manualInput?.CataloguePreparation
-            ?? AttachmentCataloguePreparationCommand.Parse(spokenText, AssistantName)) is { } cataloguePreparation)
+        if (cataloguePreparation is not null)
         {
             await PrepareAttachmentCatalogue(cataloguePreparation, initiator, manualInput);
+            return;
+        }
+        if (Kora.Application.Numbers.NumberCommand.Parse(spokenText, AssistantName) is { } numberCommand)
+        {
+            ExecuteNumberCommand(numberCommand, initiator, manualInput);
             return;
         }
         if (Kora.Application.Skills.SkillReviewCommand.Parse(spokenText, AssistantName) is { } reviewCommand)
@@ -6169,6 +6181,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             .Concat(Kora.Core.Calculations.CalculateCommand.DiscoveryPhrases)
             .Concat(LocalClockCommand.FixedPhrases)
             .Concat(AttachmentCataloguePreparationCommand.DiscoveryPhrases)
+            .Concat(["number help", "number convert"])
             .Concat(SessionCommand.DiscoveryPhrases)
             .Concat(WorkspaceSurfaceCommand.FixedPhrases)
             .Concat(MemoryCommand.DiscoveryPhrases)

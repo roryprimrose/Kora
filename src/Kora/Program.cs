@@ -391,6 +391,7 @@ internal static class Program
         services.AddSingleton<Kora.Tools.Network.PreapprovedUriClear>();
         services.AddSingleton<Kora.Core.Network.IWebPageTransport, Kora.Windows.Network.WindowsWebPageTransport>();
         services.AddSingleton<Kora.Tools.Network.WebPageGet>();
+        services.AddSingleton<Kora.Tools.Numbers.IntegerBaseConvert>();
         services.AddSingleton<Kora.Tools.Network.WebResultSummarize>();
         services.AddSingleton<Kora.Core.Network.IWebResultModelUsePolicy, Kora.Application.Network.UnavailableWebResultModelUsePolicy>();
         services.AddSingleton<Kora.Application.Network.IWebSummaryModelExecution, Kora.Application.Network.WebSummaryModelExecution>();

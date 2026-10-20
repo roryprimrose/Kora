@@ -207,6 +207,7 @@ internal sealed partial class NativeUxFixtureSession : IApplicationDataPaths, ID
             new(clipboard, TimeProvider.System, NullLogger<ClipboardValidateJson>.Instance), new AuditedPreferenceWriter(Audit),
             new Kora.Application.Voice.BoundedAudioOutputCatalog(speech,
                 NullLogger<Kora.Application.Voice.BoundedAudioOutputCatalog>.Instance),
+            new Kora.Tools.Numbers.IntegerBaseConvert(),
             speechTextConfiguration: captionConfiguration,
             webPageGet: webPageGet);
         if (webSummary is not null) { Main.BindWebSummaryWorkflow(webSummary); }

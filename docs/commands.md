@@ -58,6 +58,35 @@ stale/denied/unavailable requests report recovery in status. Pending questions,
 approvals, power proposals, grant editors and native security reviews stay
 unchanged, including for malformed clock commands.
 
+## Convert a signed integer between explicit bases
+
+Use `number help` or exactly
+`number convert <integer> from <binary|octal|decimal|hex> to <binary|octal|decimal|hex>`.
+For example, `number convert -FF from hex to decimal` returns `-255`;
+`number convert -42 from decimal to binary` returns `-101010`.
+Keywords and hexadecimal digits are case-insensitive; output is lowercase canonical.
+Typed commands may use the current assistant-name prefix; activated voice requires it,
+for example `Kora, number help`.
+
+The domain is mathematical signed Int64: -9223372036854775808 through
+9223372036854775807 inclusive. Every base uses an optional ASCII minus and
+declared-base digits, never two's complement or bit widths. Only `0` represents
+zero. Redundant leading zeros and `-0` are rejected, as are plus signs, `0x`/`0b`
+prefixes, grouping, fractions, exponents, expressions and Unicode lookalikes.
+There is no base guessing. Overflow and invalid input are explicit failures.
+
+Use single ASCII spaces between tokens (outer ASCII spaces are allowed).
+Complete input is limited to 256 UTF-8 bytes, including an optional
+current-name prefix. The command body has at most 7 tokens. Representations are at most 65 ASCII
+bytes; complete title/body output, including help and errors, is bounded to
+1024 UTF-8 bytes without truncation.
+Malformed reserved `number` requests do not fall through to inference.
+The owning private unlocked host and original typed/activated input are required.
+Protected calls refuse conversion; pending questions, approvals and security
+previews retain their original authority. Results use ordinary response policy,
+not forced speech. Conversion performs no resource read, model request,
+permission request or external access.
+
 ## Open an exact Settings tab
 
 Use one complete case-insensitive phrase below, optionally prefixed by the current assistant name when typed. Activated voice requires that current-name prefix. Outer spaces are accepted; punctuation, extra words, control characters and input over 256 characters are not ([exact grammar](../src/Kora.Application/Configuration/SettingsSectionCommand.cs)).

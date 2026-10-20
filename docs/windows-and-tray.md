@@ -1039,6 +1039,25 @@ and approvals are preserved and must be resolved explicitly.
 
 ### Local clipboard preview
 
+Choose **Inspect this snapshot as a web URL (no fetch)** to inspect the whole
+existing snapshot as one absolute HTTP/HTTPS URL, up to 2048 UTF-8 bytes.
+This native-only button does not reread the clipboard or change the original
+text or Find state. It refuses whitespace, controls, format characters,
+backslashes, credentials, relative addresses and other schemes; it never
+trims, repairs or truncates the source.
+
+Only scheme, parser-canonical ASCII/IDN host (not a verified destination),
+effective port and query/fragment presence are displayed as inert local facts.
+Paths, credentials and query/fragment values are not reproduced in the result.
+Syntax acceptance is **not** a safe/trusted/allowed destination claim: no fetch,
+DNS, certificate, redirect, reachability, public-IP, identity or IDN-confusable
+security screening occurs. IP literals are syntax only.
+There is no URL launch/link, copy, save, approval, policy grant, model use,
+history, speech or persistence. Closing/revoking/replacing the snapshot or losing
+its original privacy/ownership/call eligibility discards these volatile facts.
+The original inert source may still contain secrets. Local syntax inspection
+does not satisfy or change the separate model source-use policy.
+
 The separate [clipboard preview](commands.md#explicit-local-clipboard-preview)
 uses inert native plain text, not Markdown/HTML parsing or the document viewer's
 copy controls. It has exact-ID reuse, revoke/clear and native literal Find. Closing it revokes

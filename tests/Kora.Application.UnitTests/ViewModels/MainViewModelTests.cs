@@ -8696,6 +8696,8 @@ public sealed partial class MainViewModelTests : IDisposable
                 clipboardAction,
                 new Kora.Tools.Clipboard.ClipboardValidateJson(clipboard, TimeProvider.System,
                     Microsoft.Extensions.Logging.Abstractions.NullLogger<Kora.Tools.Clipboard.ClipboardValidateJson>.Instance),
+                new Kora.Tools.Clipboard.ClipboardInspectWebUrl(clipboard,
+                    Microsoft.Extensions.Logging.Abstractions.NullLogger<Kora.Tools.Clipboard.ClipboardInspectWebUrl>.Instance),
                 new AuditedPreferenceWriter(Audit), outputCatalog,
                 microphoneCatalog, OutputConfiguration, VolumeConfiguration, enableResponseModeConfiguration
                     ? new ResponseModeConfigurationService(OutputPreferences, OutputAdmission, Audit, TextToSpeech) : null,

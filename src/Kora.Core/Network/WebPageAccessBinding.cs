@@ -11,9 +11,7 @@ public static class WebPageAccessBinding
     public static string DestinationDigest(Uri address)
     {
         ArgumentNullException.ThrowIfNull(address);
-        if (!address.IsAbsoluteUri
-            || address.Scheme is not ("http" or "https")
-            || !string.IsNullOrEmpty(address.UserInfo)
+        if (!WebPageAddressSyntax.IsHttpAddressWithoutCredentials(address)
             || !string.IsNullOrEmpty(address.Fragment))
         {
             throw new ArgumentException(

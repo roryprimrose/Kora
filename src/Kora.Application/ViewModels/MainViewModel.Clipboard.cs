@@ -13,6 +13,7 @@ public sealed partial class MainViewModel
     private readonly ClipboardRevoke clipboardRevoke;
     private readonly ClipboardExplain clipboardExplain;
     private readonly ClipboardValidateJson clipboardValidateJson;
+    private readonly ClipboardInspectWebUrl clipboardInspectWebUrl;
     private readonly Kora.Application.Context.ClipboardExplanationWorkflow? clipboardExplanation;
     private Func<bool> clipboardOwnershipEligible = static () => false;
     public ClipboardSnapshot? ClipboardPreview => clipboardPreview.Current;
@@ -33,6 +34,14 @@ public sealed partial class MainViewModel
         });
 
     public Task PreviewClipboardAsync() => RunClipboardUiAsync("preview clipboard");
+
+    public Kora.Core.Network.WebUrlSyntaxResult InspectClipboardWebUrl(
+        ClipboardSnapshot source, Func<bool> nativeCurrent, CancellationToken token)
+    {
+        var revision = CallPolicyRevision;
+        bool Eligible() => nativeCurrent() && IsClipboardEligible(source.Request.Origin, revision);
+        return clipboardInspectWebUrl.Execute(source, Eligible, token);
+    }
 
     public Task ReuseClipboardAsync(Guid snapshotId) => RunClipboardUiAsync("reuse clipboard snapshot " + snapshotId.ToString("D"));
     public Task RevokeClipboardAsync() => RunClipboardUiAsync("revoke clipboard snapshot");

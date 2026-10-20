@@ -1,6 +1,7 @@
 using Avalonia.Threading;
 using Kora.Application.ViewModels;
 using Kora.Core.Context;
+using Kora.Core.Network;
 
 namespace Kora;
 
@@ -19,6 +20,7 @@ internal sealed class ClipboardPreviewWindowController : IDisposable
     private readonly Func<ClipboardSnapshot, Func<bool>, CancellationToken, ClipboardJsonSyntaxResult>? validateJson;
     private Func<bool>? jsonEligible;
     private readonly Func<ClipboardSnapshot, Func<bool>, CancellationToken, ClipboardXmlValidationResult>? validateXml;
+    private readonly Func<ClipboardSnapshot, Func<bool>, CancellationToken, WebUrlSyntaxResult>? inspectWebUrl;
     private readonly DispatcherTimer? privacyTimer;
     private IClipboardPreviewView? window;
     private ClipboardSnapshot? showing;
@@ -29,7 +31,7 @@ internal sealed class ClipboardPreviewWindowController : IDisposable
             () => new ClipboardPreviewWindow(exception => host.ReportHostInteractionFailure(
                 "Native clipboard preview failed. No success is claimed. Failure type: " + exception.GetType().Name), host),
             host.ReportHostInteractionFailure, host.ExplainClipboardAsync, () => host.ClipboardExplanation,
-            host.CaptureClipboardJsonEligibility, host.ValidateClipboardJson, host.ValidateClipboardXml)
+            host.CaptureClipboardJsonEligibility, host.ValidateClipboardJson, host.ValidateClipboardXml, host.InspectClipboardWebUrl)
     {
         this.host = host;
         host.ClipboardPreviewChanged += OnChanged;
@@ -44,7 +46,8 @@ internal sealed class ClipboardPreviewWindowController : IDisposable
         Func<Guid, Task>? explain = null, Func<string?>? explanation = null,
         Func<ClipboardSnapshot, Func<bool>>? admitJson = null,
         Func<ClipboardSnapshot, Func<bool>, CancellationToken, ClipboardJsonSyntaxResult>? validateJson = null,
-        Func<ClipboardSnapshot, Func<bool>, CancellationToken, ClipboardXmlValidationResult>? validateXml = null)
+        Func<ClipboardSnapshot, Func<bool>, CancellationToken, ClipboardXmlValidationResult>? validateXml = null,
+        Func<ClipboardSnapshot, Func<bool>, CancellationToken, WebUrlSyntaxResult>? inspectWebUrl = null)
     {
         this.current = current;
         this.reuse = reuse;
@@ -57,6 +60,7 @@ internal sealed class ClipboardPreviewWindowController : IDisposable
         this.admitJson = admitJson;
         this.validateJson = validateJson;
         this.validateXml = validateXml;
+        this.inspectWebUrl = inspectWebUrl;
     }
 
     private void OnChanged(object? sender, EventArgs args)
@@ -96,6 +100,11 @@ internal sealed class ClipboardPreviewWindowController : IDisposable
         bool IsCurrent() => !disposed && ReferenceEquals(window, view) && ReferenceEquals(current(), snapshot)
             && !disposed && ReferenceEquals(window, view) && ReferenceEquals(showing, snapshot);
         bool JsonCurrent() => IsCurrent() && admitted?.Invoke() != false;
+        if (inspectWebUrl is not null)
+        {
+            view.BindWebUrlInspection(token => IsCurrent()
+                ? inspectWebUrl(snapshot, IsCurrent, token) : new(WebUrlSyntaxOutcome.Stale));
+        }
         // A queued callback cannot reuse or retarget another generation.
         view.Show(snapshot, () => IsCurrent()
             ? reuse(id) : Task.FromException(new InvalidOperationException("Clipboard preview generation is stale; start a new explicit request.")),

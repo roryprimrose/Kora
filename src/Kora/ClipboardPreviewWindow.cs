@@ -83,6 +83,7 @@ internal sealed partial class ClipboardPreviewWindow(Action<Exception> reportFai
         var content = new StackPanel { Spacing = 12 };
         if (validateJson is not null) { AddJsonValidation(content, isCurrent, isJsonCurrent ?? isCurrent, validateJson); }
         content.Children.Add(source);
+        AddWebUrlInspection(content, isCurrent);
         AutomationProperties.SetName(explanation, "Volatile local clipboard explanation; untrusted model response");
         content.Children.Add(explanation);
         AddXmlValidation(content, snapshot, isCurrent, validateXml);
@@ -102,6 +103,7 @@ internal sealed partial class ClipboardPreviewWindow(Action<Exception> reportFai
 
     public void ClearAndClose()
     {
+        ClearWebUrlInspection();
         ClearFindState();
         ClearJsonState();
         ClearXmlValidation();
@@ -113,6 +115,7 @@ internal sealed partial class ClipboardPreviewWindow(Action<Exception> reportFai
 
     private void OnFindClosed(object? sender, EventArgs args)
     {
+        ClearWebUrlInspection();
         Closed -= OnFindClosed;
         ClearFindState();
         ClearJsonState();

@@ -640,6 +640,33 @@ uniqueness, egress approval or model-source-use authority. This bounded
 deterministic implementation makes no installed-native or security
 qualification claim; the following source-use policy remains unavailable.
 
+### Native clipboard web URL syntax inspection
+
+Native **Inspect this snapshot as a web URL (no fetch)** is a separate, pure local
+inspection of the exact existing immutable capture, not explanation or source-use
+admission. The [action](../src/Kora.Tools/Clipboard/ClipboardInspectWebUrl.cs)
+uses the broker's original capture eligibility and exact object identity before
+parsing and publication. The [native partial](../src/Kora/ClipboardPreviewWindow.WebUrl.cs)
+and controller additionally fence the exact view/control generation, cancellation,
+reentrancy, close and disposal. No latest-source fallback or clipboard operation
+is permitted. It renews no capture lifetime or durable activity.
+The [pure grammar](../src/Kora.Core/Network/WebPageAddressSyntax.cs) shares the
+web-page binding's absolute HTTP/HTTPS, no-credentials predicate. Exact inspection
+additionally rejects padding/whitespace, controls/format characters, backslash
+repair, invalid percent escapes and noncanonical/relative authority syntax;
+the complete source must fit the existing 2048 UTF-8 byte URL input bound.
+Syntax permits fragments; execution's existing fragment prohibition, egress,
+authorization, DNS/public-address checks and redirect policy are unchanged.
+Only scheme, parser-canonical ASCII/IDN host, effective port and query/fragment
+presence become native inert facts. No path, user-info, query/fragment value,
+raw URI or raw exception is emitted into results/logs/transcripts/speech/history.
+There is no fetch, DNS, browser, launch/link activation, copy/write, save,
+preapproval, grant, source-use/model call, persistence or new timer.
+Syntax acceptance (including IP literals and IDNs) establishes no security,
+certificate, resolution, reachability, public-IP, confusable, identity or
+destination-binding claim. Source/Find/consent policy and explanation's
+unavailable source-use classification remain unchanged.
+
 The [explicit clipboard workflow](../src/Kora.Application/Context/ClipboardExplanationWorkflow.cs) now separates review from explanation.
 The native **Validate this snapshot as JSON** gesture is independent of that inference workflow.
 [ClipboardJsonSyntax](../src/Kora.Core/Context/ClipboardJsonSyntax.cs) consumes only the exact immutable capture's canonical strict UTF-8 bytes,

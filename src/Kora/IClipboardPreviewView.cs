@@ -10,5 +10,6 @@ internal interface IClipboardPreviewView
         Func<ClipboardSnapshot, Func<bool>, CancellationToken, ClipboardXmlValidationResult>? validateXml = null);
     void ClearJsonValidation();
     void SetExplanation(string? text);
+    void BindWebUrlInspection(Func<CancellationToken, Kora.Core.Network.WebUrlSyntaxResult> inspect) { }
     void ClearAndClose();
 }

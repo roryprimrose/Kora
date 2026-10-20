@@ -253,6 +253,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         Kora.Tools.Clipboard.ClipboardRevoke clipboardRevoke,
         Kora.Tools.Clipboard.ClipboardExplain clipboardExplain,
         Kora.Tools.Clipboard.ClipboardValidateJson clipboardValidateJson,
+        Kora.Tools.Clipboard.ClipboardInspectWebUrl clipboardInspectWebUrl,
         AuditedPreferenceWriter preferenceWriter,
         BoundedAudioOutputCatalog outputCatalog,
         BoundedMicrophoneCatalog? microphoneCatalog = null,
@@ -451,6 +452,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         this.clipboardRevoke = clipboardRevoke;
         this.clipboardExplain = clipboardExplain;
         this.clipboardValidateJson = clipboardValidateJson;
+        this.clipboardInspectWebUrl = clipboardInspectWebUrl;
         this.clipboardExplanation = clipboardExplanation;
         this.localClock = localClock;
         if (clipboardExplanation is not null) { clipboardExplanation.Changed += OnClipboardPreviewChanged; }

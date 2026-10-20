@@ -9,6 +9,8 @@ public sealed partial class MainViewModel
 
     [LoggerMessage(121, LogLevel.Information, "Local calculator outcome {CalculationOutcome}")]
     private partial void CalculatorFinished(Kora.Core.Calculations.CalculationOutcome calculationOutcome);
+    [LoggerMessage(120, LogLevel.Warning, "Owned metadata preparation unavailable; exception type {ExceptionType}.")]
+    private static partial void OwnedDefinitionPreparationFailed(ILogger logger, string exceptionType);
 
     [LoggerMessage(120, LogLevel.Error, "Native clipboard XML check failed internally; failure type {FailureType}. No XML result claimed.")]
     private static partial void ClipboardXmlFailed(ILogger logger, string failureType);

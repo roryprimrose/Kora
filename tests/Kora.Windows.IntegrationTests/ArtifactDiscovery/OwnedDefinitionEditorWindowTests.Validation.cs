@@ -194,6 +194,7 @@ public sealed partial class OwnedDefinitionEditorWindowTests
         internal OwnedInstructionEditorWindow? Editor { get; private set; }
         internal long Ownership = 1;
         internal bool Owned = true;
+        internal IOwnedDefinitionPreparation Preparation => controller;
         internal string Prefix { get; }
         internal string SourcePath => Path.Combine(Session.RoamingRoot, Prefix is "instructions" ? "Instructions" : "Prompts",
             "example" + (Prefix is "instructions" ? ".instructions.md" : ".prompt.md"));

@@ -52,6 +52,12 @@ internal sealed partial class OwnedInstructionEditorWindow : Window
     private Window? activeReview;
     private Window? activeComparison;
     private bool selectingKind;
+    internal bool HasMutationReview => activeReview is not null;
+    internal readonly ComboBox InventoryKindInput = new()
+    {
+        Width = 140, ItemsSource = new[] { ArtifactKind.Instruction, ArtifactKind.Prompt },
+        SelectedItem = ArtifactKind.Instruction,
+    };
 
     internal OwnedInstructionEditorWindow(Action<string> run)
     {
@@ -59,6 +65,8 @@ internal sealed partial class OwnedInstructionEditorWindow : Window
         Width = 960;
         Height = 720;
         var controls = new WrapPanel { Orientation = Orientation.Horizontal };
+        controls.Children.Add(new TextBlock { Text = "Loaded source kind: ", VerticalAlignment = VerticalAlignment.Center });
+        AutomationProperties.SetName(KindInput, "Loaded source kind; explicit change uses the native unsaved draft guard; not the metadata query kind");
         controls.Children.Add(KindInput);
         KindInput.SelectionChanged += (_, _) => { if (!selectingKind) { run("Kind"); } };
         controls.Children.Add(Files);
@@ -79,6 +87,9 @@ internal sealed partial class OwnedInstructionEditorWindow : Window
         panel.Children.Add(controls);
         var search = new WrapPanel { Orientation = Orientation.Horizontal };
         search.Children.Add(new TextBlock { Text = "Owned metadata search: ", VerticalAlignment = VerticalAlignment.Center });
+        AutomationProperties.SetName(InventoryKindInput, "Owned metadata query kind: Instruction or Prompt; does not change the loaded source kind or unsaved draft");
+        search.Children.Add(InventoryKindInput);
+        InventoryKindInput.SelectionChanged += (_, _) => { if (!selectingKind) { run("Filter"); } };
         search.Children.Add(new TextBlock { Text = "Order: ", VerticalAlignment = VerticalAlignment.Center });
         AutomationProperties.SetName(OrderInput, "Owned metadata order: FileNameAscending (default), FileNameDescending, DisplayNameAscending or DisplayNameDescending; ordinal extensionless owned filename IDs; absent display names last; filename ascending ties; metadata only");
         search.Children.Add(OrderInput);
@@ -194,10 +205,14 @@ internal sealed partial class OwnedInstructionEditorWindow : Window
     {
         Files.SelectedItem = null; Files.ItemsSource = null; NextPage.IsEnabled = false; inventoryDetails.Text = string.Empty;
     }
-    internal void SelectKind(ArtifactKind kind)
+    internal void SelectKind(ArtifactKind kind, bool synchronizeInventory = true)
     {
         selectingKind = true;
-        try { KindInput.SelectedItem = kind; }
+        try
+        {
+            KindInput.SelectedItem = kind;
+            if (synchronizeInventory) { InventoryKindInput.SelectedItem = kind; }
+        }
         finally { selectingKind = false; }
     }
     internal void CancelReview() => activeReview?.Close();

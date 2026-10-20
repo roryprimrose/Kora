@@ -92,7 +92,41 @@ remain outside this owned-editor workflow.
 
 ## Search observed owned metadata
 
-**List** / **Refresh** explicitly enumerates the selected kind's existing bounded owned directory and runs the existing source-reconciliation pipeline. That refresh can read source files and reconcile revision preferences; typing a search or changing a use-state filter cannot.
+### Prepare an exact owned filename query without reading
+
+Type `prepare owned definition instruction example` or
+`prepare owned definition prompt example`; activated voice must use the current
+assistant name, for example `Kora, prepare owned definition prompt example`.
+`owned definition help` shows constant syntax only, without inspecting the editor.
+
+Preparation opens/focuses this same native editor and prepares only **Owned metadata
+query kind**, **ExactOwnedId**, and the exact query. The ID must be a canonical
+lowercase owned filename ID, without extension or path; artifact IDs, display
+names, guesses, whitespace repair and body queries are not accepted.
+Every other filter draft (use, digest, revision, observed UTC bounds and order)
+is retained and remains **AND-composed** when you explicitly query.
+
+Preparation performs no List, Refresh, discovery, source inspection/load, create,
+validation, comparison, rebase, save, deletion, use review or execution.
+Results, cursor, selection and observation/use-review readiness are retired.
+An ID is only a future metadata predicate, not proof of existence, ownership,
+trust, use approval or executable authority.
+
+**Loaded source kind** is separate from **Owned metadata query kind**.
+Preparing or editing a query never retargets the source, replaces the original,
+or discards unsaved Instruction/Prompt text. Native mutation reviews must finish
+or be cancelled separately; preparation does not answer or replace them.
+After explicit **List/Refresh**, select a row and **Inspect** separately.
+Cross-kind Inspect uses the existing native unsaved-draft guard; Cancel preserves
+the current source and dirty buffer. To save that source instead, cancel the
+switch, save under its separate native review, then prepare/query again.
+An unconfirmed save is not permission to continue an earlier preparation.
+Stale host/input/buffer lifetimes or unconfirmed native focus are unavailable,
+never a fallback query or default source.
+
+### Query the observed inventory explicitly
+
+**List** / **Refresh** explicitly enumerates the metadata query kind's existing bounded owned directory and runs the existing source-reconciliation pipeline. That refresh can read source files and reconcile revision preferences; typing a search or changing a use-state filter cannot.
 The inventory contains at most 128 filenames for the explicit Instruction or Prompt kind, defaulting to ordinal filename order. Its source is fixed to Kora-owned roaming data. No profile, bundled, skill, agent or additional-directory inventory is added.
 
 **Order** explicitly selects **FileNameAscending** (default), **FileNameDescending**, **DisplayNameAscending** or **DisplayNameDescending** before bounded pagination. All comparisons are ordinal and culture-independent, never natural-number sorting. Absent observed display names sort last in both directions; ties always use canonical filename ascending ordinal ([ordering](../src/Kora.Application/Definitions/OwnedDefinitionInventory.cs)).

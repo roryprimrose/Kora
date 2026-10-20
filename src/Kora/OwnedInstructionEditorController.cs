@@ -31,11 +31,13 @@ internal sealed partial class OwnedInstructionEditorController(
     private bool uncertain;
     private bool newDraft;
     private long sourceRevision;
+    private long editorBufferRevision;
     private long copyInputRevision;
     private long windowOwnershipRevision;
 
     internal void Bind()
     {
+        main.BindOwnedDefinitionPreparation(this);
         main.OwnedInstructionEditorRequested += OnRequested;
         main.OwnedPromptEditorRequested += OnPromptRequested;
         main.PrivacyClosureRequested += OnPrivacyClosed;
@@ -84,18 +86,18 @@ internal sealed partial class OwnedInstructionEditorController(
         window.BindGoToLine(CaptureGoToLine);
         window.Source.PropertyChanged += (_, change) =>
         {
-            if (change.Property == TextBox.TextProperty) { Interlocked.Increment(ref sourceRevision); window?.CancelRebaseReview(); window?.ClearValidation(); }
+            if (change.Property == TextBox.TextProperty) { Interlocked.Increment(ref editorBufferRevision); Interlocked.Increment(ref sourceRevision); window?.CancelRebaseReview(); window?.ClearValidation(); }
         };
         window.CopyNameInput.PropertyChanged += (_, change) =>
         {
-            if (change.Property == TextBox.TextProperty) { Interlocked.Increment(ref sourceRevision); window?.CancelRebaseReview(); }
+            if (change.Property == TextBox.TextProperty) { Interlocked.Increment(ref editorBufferRevision); Interlocked.Increment(ref sourceRevision); window?.CancelRebaseReview(); }
         };
         window.NameInput.PropertyChanged += (_, change) =>
         {
-            if (change.Property == TextBox.TextProperty) { Interlocked.Increment(ref sourceRevision); inventoryChoiceWithdrawn = false; window?.CancelRebaseReview(); window?.ClearValidation(); }
+            if (change.Property == TextBox.TextProperty) { Interlocked.Increment(ref editorBufferRevision); Interlocked.Increment(ref sourceRevision); inventoryChoiceWithdrawn = false; window?.CancelRebaseReview(); window?.ClearValidation(); }
         };
         window.Files.SelectionChanged += (_, _) => { Interlocked.Increment(ref sourceRevision); window?.CancelRebaseReview(); window?.ClearValidation(); };
-        window.KindInput.SelectionChanged += (_, _) => { Interlocked.Increment(ref sourceRevision); window?.CancelRebaseReview(); window?.ClearValidation(); };
+        window.KindInput.SelectionChanged += (_, _) => { Interlocked.Increment(ref editorBufferRevision); Interlocked.Increment(ref sourceRevision); window?.CancelRebaseReview(); window?.ClearValidation(); };
         window.SelectKind(kind);
         window.Closing += OnClosing;
         window.Closed += (_, _) => Clear();
@@ -138,6 +140,7 @@ internal sealed partial class OwnedInstructionEditorController(
         else
         {
             if (!await SwitchKind(window, requestedKind, lifetime.Token)) { return; }
+            if (operation is "List") { window.InventoryKindInput.SelectedItem = requestedKind; }
             if (name is not null) { window.NameInput.Text = name; window.Files.SelectedItem = null; inventoryChoiceWithdrawn = false; }
         }
         await Run(operation, name);
@@ -159,6 +162,8 @@ internal sealed partial class OwnedInstructionEditorController(
         if (!Eligible() || ownership != windowOwnershipRevision) { OnPrivacyClosed(this, EventArgs.Empty); return; }
         opened.RetireBufferFind(clearQuery: true);
         busy = true;
+        Interlocked.Increment(ref sourceRevision);
+        activeEditorAction = action;
         try
         {
             switch (action)
@@ -170,7 +175,7 @@ internal sealed partial class OwnedInstructionEditorController(
                 case "List":
                 case "Refresh":
                     await RefreshInventory(opened, Eligible, token);
-                    if (!Eligible() || inventory is null || !Actions.IsInventoryCurrent(inventory)) { break; }
+                    if (!Eligible() || inventory is null || !InventoryActions.IsInventoryCurrent(inventory)) { break; }
                     opened.Report("Owned file inventory refreshed. Disabled revisions remain inspectable. Select an ID and Inspect.");
                     break;
                 case "Create":
@@ -265,7 +270,7 @@ internal sealed partial class OwnedInstructionEditorController(
                 + (exception is InvalidDataException or InvalidOperationException ? exception.Message : exception.GetType().Name)
                 + ". No success or rollback claimed. Draft retained. For a copy, inspect the destination explicitly or choose another new ID; no overwrite. Profile originals remain unavailable."); }
         }
-        finally { busy = false; }
+        finally { busy = false; activeEditorAction = null; }
     }
 
     private async Task ValidateDraft(OwnedInstructionEditorWindow opened, Func<bool> eligible, CancellationToken token, bool compare = false)
@@ -451,20 +456,28 @@ internal sealed partial class OwnedInstructionEditorController(
         !Dirty || await opened.Choose("Discard current draft?", "Reload/inspect/create will abandon unsaved changes.",
             originalText, opened.Source.Text, ["Discard draft and continue", "Cancel"], token) == 0;
 
-    private async Task<bool> SwitchKind(OwnedInstructionEditorWindow opened, ArtifactKind requestedKind, CancellationToken token)
+    private async Task<bool> SwitchKind(OwnedInstructionEditorWindow opened, ArtifactKind requestedKind, CancellationToken token,
+        bool preserveInventory = false)
     {
         _ = OwnedDefinitionKind.DirectoryName(requestedKind);
         if (kind == requestedKind) { return true; }
+        var current = main.CaptureInstructionEditorEligibility();
+        var source = Interlocked.Read(ref sourceRevision);
+        var filters = Interlocked.Read(ref inventoryFilterRevision);
+        var owner = ownershipRevision();
         if (!await AbandonDraft(opened, token))
-        { opened.SelectKind(kind); return false; }
+        { opened.SelectKind(kind, synchronizeInventory: false); opened.Report("Source kind switch cancelled. Original source, unsaved buffer and metadata filter drafts retained."); return false; }
         token.ThrowIfCancellationRequested();
+        if (!current() || !ownsHost() || owner != ownershipRevision() || !ReferenceEquals(window, opened)
+            || source != Interlocked.Read(ref sourceRevision) || filters != Interlocked.Read(ref inventoryFilterRevision))
+        { opened.SelectKind(kind, synchronizeInventory: false); opened.Report("Source kind switch unavailable: original host, buffer or filter admission changed. No source was adopted."); return false; }
         kind = requestedKind;
-        InvalidateInventory("Kind changed; explicit List/Refresh required.");
+        if (!preserveInventory) { InvalidateInventory("Kind changed; explicit List/Refresh required."); }
         baseline = null; selectedName = null; originalText = string.Empty; uncertain = false;
         newDraft = false;
-        opened.Source.Text = string.Empty; opened.NameInput.Text = string.Empty; opened.CopyNameInput.Text = string.Empty; opened.ClearInventory();
-        opened.ClearSearch();
-        opened.SelectKind(kind);
+        opened.Source.Text = string.Empty; opened.NameInput.Text = string.Empty; opened.CopyNameInput.Text = string.Empty;
+        if (!preserveInventory) { opened.ClearInventory(); opened.ClearSearch(); }
+        opened.SelectKind(kind, synchronizeInventory: !preserveInventory);
         return true;
     }
 
@@ -506,6 +519,7 @@ internal sealed partial class OwnedInstructionEditorController(
     private void OnPrivacyClosed(object? sender, EventArgs args) { lifetime?.Cancel(); window?.ClearPrivateText(); closing = true; window?.Close(); closing = false; }
     private void Clear()
     {
+        Interlocked.Increment(ref sourceRevision);
         lifetime?.Cancel(); lifetime?.Dispose(); lifetime = null;
         inventory = null; inventoryPage = null; inventoryEligibility = null; inventoryChoiceWithdrawn = false;
         window?.ClearPrivateText(); window = null; baseline = null; selectedName = null; originalText = string.Empty; uncertain = false;
@@ -515,6 +529,7 @@ internal sealed partial class OwnedInstructionEditorController(
     public void Dispose()
     {
         disposed = true;
+        main.BindOwnedDefinitionPreparation(null);
         main.OwnedInstructionEditorRequested -= OnRequested;
         main.OwnedPromptEditorRequested -= OnPromptRequested;
         main.PrivacyClosureRequested -= OnPrivacyClosed;

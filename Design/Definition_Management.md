@@ -399,7 +399,31 @@ Order edits use the same no-read retirement of rows/details/selection/cursor/val
 Mode edits retain raw unsaved drafts and the frozen baseline; an open Compare retires, while separately admitted historical Compare remains available without reading or claiming current source state ([native lifecycle tests](../tests/Kora.Windows.IntegrationTests/ArtifactDiscovery/OwnedDefinitionEditorWindowTests.Inventory.cs)).
 Exact reinspection restores eligible review controls. Predicates are metadata/correlation only, never use authority, revision admission, content identity override or current-disk integrity proof.
 No source addition, reload on edit, persistence/schema/index/cache, logging/tags/audit input, activity renewal or model/tool/speech/clipboard/export route is added.
-Exact typed/current-name activated List/Inspect still targets the same native controls; there is no new search command grammar, model tool, reader/root permission, profile/bundled-as-owned inventory or writer. Profile-original editing remains explicitly deferred behind its existing security qualification.
+Exact typed/current-name activated List/Inspect still targets the same native controls.
+The bounded [owned preparation parser](../src/Kora.Application/Definitions/OwnedDefinitionPreparationCommand.cs)
+adds `prepare owned definition <instruction|prompt> <owned-id>` and constant
+`owned definition help`, not a query executor, model tool, reader/root permission,
+profile/bundled-as-owned inventory or writer. It reuses ExactOwnedId query/name
+admission without trimming, casing repair, extension/path guessing or artifact-ID
+inference. Only metadata kind, mode and query are prepared; every other filter
+draft is retained and AND-composed. The independent metadata kind cannot change
+the loaded source kind or dirty buffer. Only separate explicit Inspect crosses
+that boundary through the existing native draft guard; cancellation preserves
+the original source and unsaved text. Save remains a separate exact native
+authority decision, not an automatic continuation of preparation.
+
+The [Application handoff](../src/Kora.Application/ViewModels/MainViewModel.OwnedDefinitionPreparation.cs)
+captures original origin, name, owner/control, input, privacy/call and voice
+lifetime plus the [native editor lifetime/buffer/filter fence](../src/Kora/OwnedInstructionEditorController.Preparation.cs).
+Native focus and synchronous acknowledgement are required; unbound, stale,
+disposed or review-busy surfaces report unavailable, without fallback/default
+queries or source loading. Preparation uses the same read-free query-edit
+retirement for rows/cursor/selection, validation/use readiness and late callbacks.
+Help has no native handoff or source read. Private IDs/queries/source text are
+not copied to responses, transcript, speech, clipboard or diagnostics.
+This consumes only existing I contracts; no unrelated E/Q/provider/hardware or
+installed evidence is required. Profile-original editing remains explicitly
+deferred behind its existing security qualification.
 
 **Validate open owned draft** / exact `instructions validate` or `prompts validate` observes the captured same-kind canonical original or explicitly created draft without opening sources or switching targets. It reuses ordinary Save preparation, including original BOM and any native v1 marker added for changed/new proposals; unchanged supported legacy bytes stay legacy.
 Existing strict Unicode/UTF-8, complete-byte/header/metadata/versioned-prompt and observed catalogue namespace rules apply to prepared Save bytes, not just raw draft text. Bounded text-only findings expose proposal byte count/digest/actual native version and unapproved kind/source/model-context role, never body/excerpts or executable preview.

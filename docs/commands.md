@@ -1776,6 +1776,18 @@ to three; start a new request with more details if it reaches that limit.
 
 ### Edit an owned instruction or literal prompt without a model
 
+`prepare owned definition instruction <owned-id>` and
+`prepare owned definition prompt <owned-id>` open/focus the existing native owned
+editor and prepare only metadata kind, **ExactOwnedId** mode and the exact
+canonical lowercase filename ID (no extension/path/artifact ID/name inference).
+Activated voice requires the current assistant-name prefix.
+`owned definition help` is constant, read-free syntax.
+All other filter drafts remain AND-composed. No query, source load, write, use
+review or execution runs; an ID is not proof that a source exists or is trusted.
+The loaded source kind, original and unsaved buffer stay separate and unchanged.
+Execute native List/Refresh and Inspect separately; cross-kind source inspection
+retains the native dirty-draft guard. See [exact preparation and recovery](instruction-editor.md#prepare-an-exact-owned-filename-query-without-reading).
+
 Type `instructions editor` or `prompts editor`, or say the same control prefixed
 with the current assistant name. Both focus the same native editor with explicit
 Instruction/Prompt kind selection. `list`, `create <id>`, `edit <id>`,

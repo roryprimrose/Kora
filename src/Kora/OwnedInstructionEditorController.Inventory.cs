@@ -15,6 +15,11 @@ internal sealed partial class OwnedInstructionEditorController
     private bool inventoryChoiceWithdrawn;
     private long inventoryEpoch;
     private long inventoryFilterRevision;
+    private ArtifactKind InventoryKind => window?.InventoryKindInput.SelectedItem is ArtifactKind value
+        && value is ArtifactKind.Instruction or ArtifactKind.Prompt ? value
+        : throw new InvalidOperationException("Select an explicit owned metadata kind.");
+    private OwnedInstructionEditorActions InventoryActions => InventoryKind == ArtifactKind.Instruction ? actions
+        : promptActions ?? throw new InvalidOperationException("Prompt metadata is unavailable.");
 
     private void OnInventoryChanged(object? sender, EventArgs args) =>
         RetireInventory("Catalogue observation changed. Refresh and reselect; the open original/draft is retained.");
@@ -45,14 +50,15 @@ internal sealed partial class OwnedInstructionEditorController
     private async Task RefreshInventory(OwnedInstructionEditorWindow opened, Func<bool> eligible, CancellationToken token)
     {
         InvalidateInventory("Refreshing the admitted bounded owned filename inventory and existing source reconciliation.");
-        var observedKind = kind;
+        var observedKind = InventoryKind;
+        var observedActions = InventoryActions;
         var filterRevision = Interlocked.Read(ref inventoryFilterRevision);
-        var files = await Actions.List(eligible, token);
+        var files = await observedActions.List(eligible, token);
         if (!eligible() || filterRevision != Interlocked.Read(ref inventoryFilterRevision)) { return; }
         if (!reload.ReloadNow()) { throw new IOException("The catalogue could not be reconciled."); }
         var epoch = Interlocked.Read(ref inventoryEpoch);
-        var snapshot = await Actions.ObserveInventory(files, eligible, token);
-        if (!eligible() || kind != observedKind || epoch != Interlocked.Read(ref inventoryEpoch)
+        var snapshot = await observedActions.ObserveInventory(files, eligible, token);
+        if (!eligible() || InventoryKind != observedKind || epoch != Interlocked.Read(ref inventoryEpoch)
             || filterRevision != Interlocked.Read(ref inventoryFilterRevision)) { return; }
         inventory = snapshot;
         inventoryEligibility = eligible;
@@ -61,28 +67,20 @@ internal sealed partial class OwnedInstructionEditorController
 
     private void FilterInventory(bool next, bool edited = false)
     {
+        if (preparingInventory) { return; }
         if (disposed || lifetime?.IsCancellationRequested != false || window is not { } opened) { return; }
         var selected = opened.Files.SelectedItem as OwnedDefinitionInventoryRow;
         if (edited)
         {
-            Interlocked.Increment(ref inventoryFilterRevision);
-            Interlocked.Increment(ref inventoryEpoch);
-            Interlocked.Increment(ref sourceRevision);
-            inventoryPage = null;
-            inventoryChoiceWithdrawn = true;
-            opened.SetUseReviewAvailable(false);
-            opened.CancelReview();
-            opened.ClearInventory();
-            opened.ClearValidation();
-            opened.SetUseReviewAvailable(false);
-            opened.CancelReview();
+            RetireInventoryFilterEdit(opened);
         }
         if (!ownsHost() || ownershipRevision() != windowOwnershipRevision || !main.CaptureInstructionEditorEligibility()())
         {
             OnPrivacyClosed(this, EventArgs.Empty);
             return;
         }
-        if (inventory is not { } snapshot || inventoryEligibility?.Invoke() != true || !Actions.IsInventoryCurrent(snapshot))
+        if (inventory is not { } snapshot || opened.InventoryKindInput.SelectedItem is not ArtifactKind queryKind
+            || snapshot.Kind != queryKind || inventoryEligibility?.Invoke() != true || !InventoryActions.IsInventoryCurrent(snapshot))
         {
             InvalidateInventory("No current metadata observation. Explicit List/Refresh required; draft retained.");
             return;
@@ -121,6 +119,19 @@ internal sealed partial class OwnedInstructionEditorController
         }
     }
 
+    private void RetireInventoryFilterEdit(OwnedInstructionEditorWindow opened)
+    {
+        Interlocked.Increment(ref inventoryFilterRevision);
+        Interlocked.Increment(ref inventoryEpoch);
+        Interlocked.Increment(ref sourceRevision);
+        inventoryPage = null;
+        inventoryChoiceWithdrawn = true;
+        opened.SetUseReviewAvailable(false);
+        opened.CancelReview();
+        opened.ClearInventory();
+        opened.ClearValidation();
+    }
+
     private async Task InspectChoice(OwnedInstructionEditorWindow opened, bool reloadOriginal, string? exactName,
         Func<bool> eligible, CancellationToken token)
     {
@@ -130,11 +141,20 @@ internal sealed partial class OwnedInstructionEditorController
         var sourceEpoch = Interlocked.Read(ref sourceRevision);
         bool CurrentChoice() => eligible() && epoch == Interlocked.Read(ref inventoryEpoch)
             && sourceEpoch == Interlocked.Read(ref sourceRevision);
-        if (row is not null && (snapshot is null || inventoryEligibility?.Invoke() != true || !Actions.IsInventoryCurrent(snapshot)))
+        if (row is not null && (snapshot is null || snapshot.Kind != InventoryKind
+            || inventoryEligibility?.Invoke() != true || !InventoryActions.IsInventoryCurrent(snapshot)))
         { throw new InvalidOperationException("The selected observation expired. Refresh and reselect; draft retained."); }
         if (row is null && exactName is null && !reloadOriginal && inventoryChoiceWithdrawn)
         { throw new InvalidOperationException("The previous inventory choice was withdrawn. Reselect or explicitly enter the current filename ID; the draft is still open."); }
-        if (!await AbandonDraft(opened, token) || !CurrentChoice()) { return; }
+        if (row is not null && row.Kind != kind)
+        {
+            // Only explicit Inspect can cross from metadata kind to source kind, under the native draft guard.
+            if (!await SwitchKind(opened, row.Kind, token, preserveInventory: true) || !eligible()
+                || !ReferenceEquals(inventory, snapshot) || epoch != Interlocked.Read(ref inventoryEpoch))
+            { return; }
+            sourceEpoch = Interlocked.Read(ref sourceRevision);
+        }
+        else if (!await AbandonDraft(opened, token) || !CurrentChoice()) { return; }
         var name = exactName ?? (reloadOriginal ? selectedName ?? row?.Name ?? opened.NameInput.Text : row?.Name ?? opened.NameInput.Text);
         await Load(opened, name, CurrentChoice, token, row is null ? null : snapshot, row);
     }

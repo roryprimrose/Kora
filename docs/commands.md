@@ -1027,7 +1027,22 @@ See [controls and option-specific recovery](settings.md#windows-native-speech-ra
 - **set responses.default-mode to VisualOnly**
 - **reset responses.default-mode**
 
+Natural exact aliases use the same SET operation, not a toggle or playback command:
+
+| Exact phrase | Equivalent |
+|---|---|
+| **use visual responses** | `set responses.default-mode to VisualOnly` |
+| **use spoken responses** | `set responses.default-mode to VoiceOnly` |
+| **use spoken and visual responses** | `set responses.default-mode to Hybrid` |
+| **check response mode** | `get responses.default-mode` (desired/effective mode, availability and live output policy) |
+
+Aliases are case-insensitive with an optional current assistant-name prefix, but no extra words, punctuation or internal whitespace repair. Reserved malformed variants clarify locally; they never answer a pending decision or reach the model. **be quiet** and **stop speaking** remain stop-playback commands; **mute** is not a response-mode alias.
+These aliases do not claim the separate `speak louder`, `speak quieter`, `speak faster` or `speak slower` controls.
+See the [exact parser and conflict tests](../tests/Kora.Application.UnitTests/Configuration/ResponseModeCommandTests.cs).
+
 Exact case-insensitive Hybrid / VoiceOnly / VisualOnly; default/reset Hybrid. Save changes only the device default, not queue/task overrides or mandatory call/privacy/full-visual recovery. No autoplay, replay or capture.
+Mode changes affect future eligible responses only: no sample speech, provider/output-device change or global/call volume change. VoiceOnly never overrides call/privacy suppression, speech caps or required visual recovery, and does not establish speaker identity.
+Native selection, enum syntax and aliases retain the same fresh choice/revision, original-origin admission, audit and atomic save/readback. Results disclose desired/effective/outcome; stale or unconfirmed state refuses rather than reporting success ([route and refusal tests](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.NaturalResponseMode.cs)).
 Current-name activated input is supported; protected/Unknown original-voice
 writes refuse. Input is at most 1,024 UTF-8 bytes including the prefix and
 rejects controls; complete result at most 64 KiB.

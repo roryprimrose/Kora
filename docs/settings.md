@@ -853,6 +853,9 @@ queue/task overrides or change call/mute fallback, speech, microphone or consent
 Status reports saved/default/unavailable provenance, revision, desired/configured
 effective mode and live output policy. The [exact commands](commands.md#inspect-or-change-the-device-default-response-mode)
 use the same admitted audited atomic save/readback workflow.
+The exact phrases **use visual responses**, **use spoken responses** and **use spoken and visual responses** save VisualOnly, VoiceOnly and Hybrid respectively through that same service.
+**check response mode** inspects the same status without writing ([parser](../src/Kora.Application/Configuration/ResponseModeCommand.cs), [native/typed/activated parity tests](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.NaturalResponseMode.cs)).
+These are future-response preferences, not immediate speech, replay, capture, speaker identification or output-device/provider/global-volume controls. VoiceOnly cannot override call/privacy suppression or speech caps. Ambiguous **be quiet** remains stop speech, not a saved mode change.
 Stale choices and failed storage/evidence require a fresh inspection; corrupt
 saved state is unavailable, never silently Hybrid. Save/reset never plays or
 replays speech or opens capture. Required full visual response/preview remains

@@ -370,6 +370,20 @@ Use `list queue settings`, `get <id>`, `status <id>`,
 descriptors. No signs, leading zeros, fractions, extra words or apply-now.
 Native Refresh is required before each unchanged visible draft Save/Reset.
 
+The same [parser and original-input action](../src/Kora.Application/Configuration/SessionQueueConfigurationCommand.cs) also admit these whole-utterance natural aliases, optionally prefixed by the current assistant name:
+
+| Inspect | Set | Independent reset |
+|---|---|---|
+| `show fixed read queue settings` | Lists all four options; no change | No whole-queue reset |
+| `show fixed read pending capacity` | `set fixed read pending capacity to <integer>` | `reset fixed read pending capacity` |
+| `show fixed read execution slots` | `set fixed read execution slots to <integer>` | `reset fixed read execution slots` |
+| `show fixed read pending lifetime` | `set fixed read pending lifetime to <integer> minutes` | `reset fixed read pending lifetime` |
+| `show fixed read active budget` | `set fixed read active budget to <integer> minutes` | `reset fixed read active budget` |
+
+Natural values use the same ranges above and [canonical domain validation](../src/Kora.Core/Configuration/SessionQueuePreferences.cs). Duration setters require the exact token `minutes`, including for `1 minutes`; singular/other units, word numerals, fractions, signs, overflow, extra clauses and apply-now clarify without mutation or model fallthrough.
+Case-insensitive matching, outer whitespace and old exact option-ID commands remain unchanged. `run two tasks`, generic queue controls, pause-all and current-task extensions are not aliases ([parser tests](../tests/Kora.Application.UnitTests/Configuration/SessionQueueConfigurationCommandTests.cs)).
+Each reset preserves the other three saved overrides; malformed/unknown saved companions remain unavailable, not defaulted ([consumer tests](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.QueueConfiguration.cs)).
+
 Protected/Unknown original-voice writes and stale/held preferences refuse.
 Inspect/repair receipts before fresh Refresh; it cannot clear unconfirmed writes.
 See [queue settings and recovery](settings.md#sessions-fixed-read-only-local-version-queue).

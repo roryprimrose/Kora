@@ -8,12 +8,18 @@ namespace Kora.Application.Communication;
 public sealed record ManualCallCommand(AppearanceCommandOperation Operation, bool? Active = null, string? Error = null)
 {
     public const string OptionId = "call.manual-active";
+    private const string NaturalOn = "turn on manual call protection";
+    private const string NaturalOff = "turn off manual call protection";
+    private const string NaturalStatus = "show manual call status";
     public const string Syntax = "list call settings | get call.manual-active | status call.manual-active | "
-        + "set call.manual-active to on | set call.manual-active to off | reset call.manual-active. "
-        + "Current run only; off/reset clear only the manual layer and never assert automatic no-call evidence.";
+        + "set call.manual-active to on | set call.manual-active to off | reset call.manual-active | "
+        + NaturalOn + " | " + NaturalOff + " | " + NaturalStatus + ". "
+        + "Current run only; off/reset clear only the manual layer and never assert automatic no-call evidence. "
+        + "Original input and current host/voice admission apply; protected calls do not permit voice-originated manual changes.";
     public static IReadOnlyList<string> FixedPhrases { get; } =
         ["list call settings", "get " + OptionId, "status " + OptionId,
-            "set " + OptionId + " to on", "set " + OptionId + " to off", "reset " + OptionId];
+            "set " + OptionId + " to on", "set " + OptionId + " to off", "reset " + OptionId,
+            NaturalOn, NaturalOff, NaturalStatus];
 
     public static ManualCallCommand? Parse(string input, string assistantName)
     {
@@ -28,7 +34,10 @@ public sealed record ManualCallCommand(AppearanceCommandOperation Operation, boo
             && !text.StartsWith("get call.", StringComparison.OrdinalIgnoreCase)
             && !text.StartsWith("status call.", StringComparison.OrdinalIgnoreCase)
             && !text.StartsWith("set call.", StringComparison.OrdinalIgnoreCase)
-            && !text.StartsWith("reset call.", StringComparison.OrdinalIgnoreCase))
+            && !text.StartsWith("reset call.", StringComparison.OrdinalIgnoreCase)
+            && !text.StartsWith("turn on manual call", StringComparison.OrdinalIgnoreCase)
+            && !text.StartsWith("turn off manual call", StringComparison.OrdinalIgnoreCase)
+            && !text.StartsWith("show manual call", StringComparison.OrdinalIgnoreCase))
         {
             return null;
         }
@@ -38,9 +47,12 @@ public sealed record ManualCallCommand(AppearanceCommandOperation Operation, boo
         }
         if (text.Equals("list call settings", StringComparison.OrdinalIgnoreCase)) { return new(AppearanceCommandOperation.List); }
         if (text.Equals("get " + OptionId, StringComparison.OrdinalIgnoreCase)
-            || text.Equals("status " + OptionId, StringComparison.OrdinalIgnoreCase)) { return new(AppearanceCommandOperation.Get); }
-        if (text.Equals("set " + OptionId + " to on", StringComparison.OrdinalIgnoreCase)) { return new(AppearanceCommandOperation.Set, true); }
-        if (text.Equals("set " + OptionId + " to off", StringComparison.OrdinalIgnoreCase)) { return new(AppearanceCommandOperation.Set, false); }
+            || text.Equals("status " + OptionId, StringComparison.OrdinalIgnoreCase)
+            || text.Equals(NaturalStatus, StringComparison.OrdinalIgnoreCase)) { return new(AppearanceCommandOperation.Get); }
+        if (text.Equals("set " + OptionId + " to on", StringComparison.OrdinalIgnoreCase)
+            || text.Equals(NaturalOn, StringComparison.OrdinalIgnoreCase)) { return new(AppearanceCommandOperation.Set, true); }
+        if (text.Equals("set " + OptionId + " to off", StringComparison.OrdinalIgnoreCase)
+            || text.Equals(NaturalOff, StringComparison.OrdinalIgnoreCase)) { return new(AppearanceCommandOperation.Set, false); }
         if (text.Equals("reset " + OptionId, StringComparison.OrdinalIgnoreCase)) { return new(AppearanceCommandOperation.Reset, false); }
         return new(AppearanceCommandOperation.Clarify, Error: Syntax);
     }

@@ -9,15 +9,18 @@ namespace Kora.Application.UnitTests.ViewModels;
 
 public sealed partial class MainViewModelTests
 {
-    [Fact]
-    public async Task Native_typed_and_real_activated_manual_control_share_run_only_state_without_synthesis_or_capture_reopen()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Native_typed_and_real_activated_manual_control_share_run_only_state_without_synthesis_or_capture_reopen(bool natural)
     {
         var f = await Fixture.CreateInitializedAsync();
         f.TextToSpeech.ClearSpokenResponse();
         await f.ViewModel.SetAssistantNameAsync("Nova", Kora.Core.Auditing.SecurityAuditInitiator.LocalUser);
         var starts = f.Voice.StartCalls;
         var tasks = f.ManualCallStore.Tasks.Count;
-        foreach (var input in new[] { "list call settings", "Nova, get call.manual-active", "status call.manual-active" })
+        foreach (var input in new[] { "list call settings", "Nova, get call.manual-active", "status call.manual-active",
+            "show manual call status", "Nova, show manual call status" })
         {
             await f.RunAsync(input);
             using var json = JsonDocument.Parse(f.ViewModel.Transcript);
@@ -27,13 +30,13 @@ public sealed partial class MainViewModelTests
         }
         await f.ViewModel.GetManualCallStatusCommand.ExecuteAsync();
         f.ManualCallStore.Tasks.Should().HaveCount(tasks);
-        await f.RaiseActivatedTranscriptAsync("Nova, set call.manual-active to on", 1);
+        await f.RaiseActivatedTranscriptAsync(natural ? "Nova, turn on manual call protection" : "Nova, set call.manual-active to on", 1);
         f.ViewModel.IsManualCallActive.Should().BeTrue();
         f.ManualCallStore.LastRequest!.Origin.Should().Be(Kora.Core.Hosting.RequestOrigin.ActivatedVoice);
         f.ViewModel.IsVoiceEnabled.Should().BeFalse();
-        await f.RaiseActivatedTranscriptAsync("Nova, reset call.manual-active", 1);
+        await f.RaiseActivatedTranscriptAsync(natural ? "Nova, turn off manual call protection" : "Nova, reset call.manual-active", 1);
         f.ViewModel.IsManualCallActive.Should().BeTrue();
-        await f.RunAsync("Nova, set call.manual-active to off");
+        await f.RunAsync(natural ? "Nova, turn off manual call protection" : "Nova, set call.manual-active to off");
         f.ViewModel.IsManualCallActive.Should().BeFalse();
         await f.ViewModel.EnableManualCallCommand.ExecuteAsync();
         await f.ViewModel.ResetManualCallCommand.ExecuteAsync();
@@ -43,6 +46,10 @@ public sealed partial class MainViewModelTests
         f.ViewModel.IsManualCallActive.Should().BeFalse();
         await f.RaiseActivatedTranscriptAsync("Nova, get call.manual-active", 1);
         f.Voice.StartedPhrases.Should().Contain("Nova set call.manual-active to off").And.Contain("set call.manual-active to off");
+        foreach (var phrase in new[] { "turn on manual call protection", "turn off manual call protection", "show manual call status" })
+        {
+            f.Voice.StartedPhrases.Should().Contain(phrase).And.Contain("Nova " + phrase);
+        }
         f.Voice.StartCalls.Should().Be(starts + 3);
         f.TextToSpeech.SpokenText.Should().BeNull();
         f.CallPreferences.SavedSettings.Should().BeNull();
@@ -68,7 +75,9 @@ public sealed partial class MainViewModelTests
         var auditCount = f.Audit.Events.Count;
         var tasks = f.ManualCallStore.Tasks.Count;
         foreach (var input in new[] { "list call settings", "get call.manual-active", "status call.manual-active",
-            "set call.manual-active to on", "set call.manual-active to off", "reset call.manual-active", "set call.manual-active to true" })
+            "set call.manual-active to on", "set call.manual-active to off", "reset call.manual-active", "set call.manual-active to true",
+            "turn on manual call protection", "turn off manual call protection", "show manual call status",
+            "turn on manual call protection please", "show manual call" })
         {
             await f.RunAsync(input);
             f.ViewModel.ResponseBody.Should().Be(preview);
@@ -87,6 +96,157 @@ public sealed partial class MainViewModelTests
         f.Session.LockCalls.Should().Be(0);
     }
 
+    [Fact]
+    public async Task NaturalStatusDuringWorkDoesNotDispatchActivityOrReplaceTheRequest()
+    {
+        var f = new Fixture();
+        f.Probe.Status = new("local.inference", "Local", DependencyReadiness.Ready, "ready");
+        f.Reasoner.Gate = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        await f.ViewModel.InitializeAsync();
+        await f.RunAsync("please answer this work");
+        var work = f.ViewModel.ActiveReasoningTask!;
+        work.IsCompleted.Should().BeFalse();
+        var tasks = f.ManualCallStore.Tasks.Count;
+        var audits = f.Audit.Events.Count;
+        var requests = f.Reasoner.Requests.Count;
+        var starts = f.Voice.StartCalls;
+        foreach (var input in new[] { "turn on manual call protection", "turn off manual call protection",
+            "show manual call status", "turn on manual call protection please", "show manual call" })
+        {
+            f.ViewModel.CommandText = input;
+            f.ViewModel.RunTypedCommand.CanExecute(null).Should().BeTrue();
+        }
+        await f.RunAsync("turn on manual call protection please");
+        f.ViewModel.Transcript.Should().Contain("turn on manual call protection");
+        f.ViewModel.IsManualCallActive.Should().BeFalse();
+        await f.RunAsync("show manual call status");
+        using var status = JsonDocument.Parse(f.ViewModel.Transcript);
+        status.RootElement.GetProperty("syntax").GetString().Should().Contain("turn off manual call protection");
+        status.RootElement.GetProperty("observation").GetProperty("manualActive").GetBoolean().Should().BeFalse();
+        f.ManualCallStore.Tasks.Should().HaveCount(tasks);
+        f.Audit.Events.Should().HaveCount(audits);
+        f.Reasoner.Requests.Should().HaveCount(requests);
+        f.Voice.StartCalls.Should().Be(starts);
+        f.ViewModel.ActiveReasoningTask.Should().BeSameAs(work);
+        f.Reasoner.Gate.SetResult("The original work completes.");
+        await work;
+    }
+
+    [Fact]
+    public async Task NaturalCommandsRemainAvailableDuringBusyBootstrap()
+    {
+        var f = await Fixture.CreateInitializedAsync();
+        f.Probe.Gate = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        var busy = f.ViewModel.DetectMicrophonesAsync();
+        try
+        {
+            f.ViewModel.IsBusy.Should().BeTrue();
+            foreach (var input in new[] { "turn on manual call protection", "turn off manual call protection",
+                "show manual call status", "turn on manual call protection please", "show manual call" })
+            {
+                f.ViewModel.CommandText = input;
+                f.ViewModel.RunTypedCommand.CanExecute(null).Should().BeTrue();
+            }
+            await f.RunAsync("show manual call status");
+            f.ViewModel.IsBusy.Should().BeTrue();
+            f.Reasoner.Requests.Should().BeEmpty();
+            f.ManualCallStore.Tasks.Should().BeEmpty();
+        }
+        finally
+        {
+            f.Probe.Gate.SetResult();
+            await busy;
+        }
+    }
+
+    [Theory]
+    [InlineData(CallState.Active)]
+    [InlineData(CallState.Unknown)]
+    public async Task NaturalVoiceDoesNotAcquireAProtectedCallException(CallState automatic)
+    {
+        var f = await Fixture.CreateInitializedAsync();
+        await f.RunAsync("turn on manual call protection");
+        f.CallState.SetState(automatic);
+        foreach (var phrase in new[] { "turn off manual call protection", "turn on manual call protection" })
+        {
+            await f.RaiseActivatedTranscriptAsync("Kora, " + phrase, 1);
+            f.ViewModel.IsManualCallActive.Should().BeTrue();
+            f.ManualCallStore.LastRequest!.Origin.Should().Be(Kora.Core.Hosting.RequestOrigin.ActivatedVoice);
+            f.ManualCallStore.Tasks.Last().State.Should().Be(Kora.Core.Hosting.HostTaskState.Denied);
+        }
+        await f.RunAsync("turn off manual call protection");
+        await f.RunAsync("show manual call status");
+        using var status = JsonDocument.Parse(f.ViewModel.Transcript);
+        var observation = status.RootElement.GetProperty("observation");
+        observation.GetProperty("manualActive").GetBoolean().Should().BeFalse();
+        observation.GetProperty("automaticState").GetString().Should().Be(automatic.ToString());
+        observation.GetProperty("isProtected").GetBoolean().Should().BeTrue();
+        f.Reasoner.Requests.Should().BeEmpty();
+    }
+
+    [Theory]
+    [InlineData("owner")]
+    [InlineData("lock")]
+    [InlineData("privacy")]
+    [InlineData("voice-generation")]
+    [InlineData("call-revision")]
+    [InlineData("session-generation")]
+    [InlineData("receipt")]
+    public async Task NaturalVoiceRechecksOriginalHostSourceAndGenerationBeforeCommit(string change)
+    {
+        var f = await Fixture.CreateInitializedAsync();
+        f.ManualCallStore.BeforeOperation = () =>
+        {
+            switch (change)
+            {
+                case "owner": f.ViewModel.BindCallOwnershipGate(static () => false); break;
+                case "lock": f.Session.IsUnlocked = false; break;
+                case "privacy":
+                    f.PrivacyObservation.Current = f.PrivacyObservation.Current with { TopologyRevision = 99 };
+                    break;
+                case "voice-generation": f.Voice.AdvanceGeneration(); break;
+                case "call-revision": f.CallState.SetState(CallState.Unknown); break;
+                case "session-generation": f.ManualCallStore.Authority = f.ManualCallStore.Authority! with { Generation = new(2) }; break;
+                case "receipt": f.ManualCallStore.FailTerminal = true; break;
+            }
+        };
+        await f.RaiseActivatedTranscriptAsync("Kora, turn on manual call protection", 1);
+        f.ViewModel.IsManualCallActive.Should().Be(change is "receipt");
+        f.ManualCallStore.LastRequest!.Origin.Should().Be(Kora.Core.Hosting.RequestOrigin.ActivatedVoice);
+        f.ManualCallStore.BeforeOperation = null;
+        f.ManualCallStore.FailTerminal = false;
+        if (change is "receipt")
+        {
+            f.ViewModel.CallObservation.ManualControlEvidenceUnavailable.Should().BeTrue();
+            await f.RunAsync("turn off manual call protection");
+            f.ViewModel.IsManualCallActive.Should().BeTrue();
+        }
+        f.CallPreferences.SavedSettings.Should().BeNull();
+        f.Reasoner.Requests.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task NaturalMutationAwaitsRetirementAndLateCallbacksNeverClearOrReopenIt()
+    {
+        var f = await Fixture.CreateInitializedAsync();
+        var starts = f.Voice.StartCalls;
+        var retirement = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        f.Voice.StopGate = retirement;
+        var mutation = f.RunAsync("turn on manual call protection");
+        mutation.IsCompleted.Should().BeFalse();
+        f.ViewModel.IsVoiceEnabled.Should().BeFalse();
+        f.ViewModel.Transcript.Should().NotContain("\"outcome\":\"applied\"");
+        retirement.SetResult();
+        await mutation;
+        f.ViewModel.IsManualCallActive.Should().BeTrue();
+        await f.Voice.RaiseTranscriptAsync("Kora, turn off manual call protection", 1);
+        f.ViewModel.IsManualCallActive.Should().BeTrue();
+        await f.RunAsync("turn off manual call protection");
+        f.ViewModel.IsManualCallActive.Should().BeFalse();
+        f.Voice.StartCalls.Should().Be(starts);
+        f.Reasoner.Requests.Should().BeEmpty();
+    }
+
     [Theory]
     [InlineData(CallState.Active)]
     [InlineData(CallState.Unknown)]
@@ -96,9 +256,9 @@ public sealed partial class MainViewModelTests
         var f = await Fixture.CreateInitializedAsync();
         await f.ViewModel.SetAllowVoiceActivationDuringCallsAsync(false);
         f.CallState.SetState(automatic);
-        await f.RunAsync("set call.manual-active to on");
-        await f.RunAsync("set call.manual-active to off");
-        await f.RunAsync("set call.manual-active to on");
+        await f.RunAsync("turn on manual call protection");
+        await f.RunAsync("turn off manual call protection");
+        await f.RunAsync("turn on manual call protection");
         await f.RunAsync("reset call.manual-active");
         f.ViewModel.AutomaticCallState.Should().Be(automatic);
         f.ViewModel.IsProtectedCall.Should().Be(automatic != CallState.Unavailable);
@@ -161,7 +321,7 @@ public sealed partial class MainViewModelTests
         f.Reasoner.Gate = new(TaskCreationOptions.RunContinuationsAsynchronously);
         await f.RunAsync("please answer this work");
         var starts = f.Voice.StartCalls;
-        await f.RunAsync("set call.manual-active to on");
+        await f.RunAsync("turn on manual call protection");
         await f.RunAsync("reset call.manual-active");
         f.Reasoner.Gate.SetResult("Complete old response must remain visual.");
         await f.ViewModel.ActiveReasoningTask!;
@@ -180,16 +340,16 @@ public sealed partial class MainViewModelTests
         await missing.ViewModel.InitializeAsync();
         missing.ViewModel.ManualCallConfigurationStatus.Should().Contain("admission is unavailable");
         await missing.ViewModel.GetManualCallStatusCommand.ExecuteAsync();
-        await missing.RunAsync("set call.manual-active to on");
+        await missing.RunAsync("turn on manual call protection");
         missing.ViewModel.Transcript.Should().Contain("admission is unavailable");
         missing.ViewModel.IsManualCallActive.Should().BeFalse();
         var f = new Fixture();
         f.NamePreferences.Name = "Supported Commands";
         await f.ViewModel.InitializeAsync();
-        await f.RunAsync("Kora, set call.manual-active to on");
+        await f.RunAsync("Kora, turn on manual call protection");
         f.ViewModel.Transcript.Should().Contain("prefix routing is unavailable");
         f.ViewModel.IsManualCallActive.Should().BeFalse();
-        await f.RunAsync("set call.manual-active to on");
+        await f.RunAsync("turn on manual call protection");
         f.ViewModel.IsManualCallActive.Should().BeTrue();
     }
 

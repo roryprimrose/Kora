@@ -56,6 +56,9 @@ Device-local options are `queue.pending-per-session` (**1-10**, default/reset **
 Each option resets independently, preserving the other three; resetting all four removes only this override file ([domain validation](../src/Kora.Core/Configuration/SessionQueuePreferences.cs), [atomic preferences](../src/Kora.Application/Configuration/LocalSessionQueuePreferences.cs)).
 
 Use `list queue settings`, `get`/`status <option-id>`, `set <option-id> to <canonical integer>` or `reset <option-id>`; no fuzzy/model setter or whole-profile reset is added ([parser](../src/Kora.Application/Configuration/SessionQueueConfigurationCommand.cs)).
+The same parser admits `show fixed read queue settings` and exact `show`, `set ... to <integer>` and `reset` aliases for `fixed read pending capacity`, `fixed read execution slots`, `fixed read pending lifetime` and `fixed read active budget`; both duration setters require the literal `minutes` suffix ([complete grammar](../docs/commands.md#fixed-queue-settings)).
+Natural aliases retain whole-utterance canonical validation, current-name activation and original provenance; malformed reserved phrases clarify before other routing ([parser tests](../tests/Kora.Application.UnitTests/Configuration/SessionQueueConfigurationCommandTests.cs)).
+Independent resets preserve sparse companions and cannot repair corrupt saved state ([action tests](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.QueueConfiguration.cs)).
 Native Refresh captures the host-held draft revision, call revision, original input and exact visible lifetime; Save/Reset requires that unchanged admitted draft.
 Hiding/reopening, concurrent typed edits, stale session/generation/origin or private ownership changes refuse, rather than overwrite a newer value ([native workflow](../src/Kora.Application/ViewModels/MainViewModel.QueueConfiguration.cs)).
 
@@ -1110,6 +1113,12 @@ stop/cancel remain eligible. Saved output/activation preferences are retained.
 New call-protection downgrades and temporary/speak-once exceptions remain
 unavailable pending complete exact trusted review; they are not exposed as
 working verbal/model operations. See the [bounded R15 manual parity](Call_Aware_Speech.md#delivered-manual-command-parity---2026-10-08).
+
+Exact whole-utterance `turn on manual call protection`, `turn off manual call protection` and `show manual call status` also use the [authoritative manual parser](../src/Kora.Application/Communication/ManualCallCommand.cs) and its fixed recognition/help phrases, optionally after the current assistant name. Quoted, embedded, fuzzy and conversational call claims are not command aliases.
+
+These are run-only manual-layer operations, not detector controls. Off/reset never assert automatic Clear; Active/Unknown evidence and unavailable receipts retain protection. [Admission and retirement](../src/Kora.Application/ViewModels/MainViewModel.Communication.cs) are unchanged: protected-call voice writes remain denied, and host/privacy/listening gates may make voice unavailable.
+
+Bounded **I - Implementation** uses [deterministic route tests](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.ManualCallCommands.cs). Automatic detection, new call exceptions, manual persistence and hardware/acoustic/installed **E - Enablement / Q - RC** qualification are not enabled; see [delivery boundaries](Call_Aware_Speech.md#delivered-natural-manual-call-phrases).
 
 Each registered option declares:
 

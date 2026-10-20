@@ -17,8 +17,11 @@ internal sealed partial class SessionsViewModel
         var buffer = Volatile.Read(ref composerBufferRevision);
         var snapshot = queueSnapshot;
         return () => !closed && selectionEpoch == epoch && buffer == Volatile.Read(ref composerBufferRevision)
-            && ReferenceEquals(queueSnapshot, snapshot);
+            && QueueMoveSourceMatches(snapshot);
     }
+
+    private bool QueueMoveSourceMatches(SessionQueueSnapshot? snapshot) => snapshot is null
+        ? queueSnapshot is null : queueSnapshot is { } current && snapshot.MatchesRecordedState(current);
 
     internal async Task<bool> PrepareQueueMoveReviewAsync(SessionQueueMoveReviewCommand command, RequestOrigin origin,
         Func<bool> admitted, Func<bool> nativeAdmission, CancellationToken token)
@@ -31,7 +34,7 @@ internal sealed partial class SessionsViewModel
         var sourceSnapshot = queueSnapshot;
         bool SourceCurrent() => !closed && !token.IsCancellationRequested && admitted() && nativeAdmission() && access.CanControl && access.CanInspect
             && access.ControlRevision == revision && selectionEpoch == epoch
-            && buffer == Volatile.Read(ref composerBufferRevision) && ReferenceEquals(sourceSnapshot, queueSnapshot);
+            && buffer == Volatile.Read(ref composerBufferRevision) && QueueMoveSourceMatches(sourceSnapshot);
         ActivityLink[] causes = HostActivity.Current?.Activity is { } cause ? [new(cause.Context)] : [];
         using var activity = HostActivity.BeginRoot(new(new(Guid.NewGuid()), new(command.SessionId), new(Guid.NewGuid()), origin),
             HostActivityLayer.Desktop, HostOperation.Request, causes);

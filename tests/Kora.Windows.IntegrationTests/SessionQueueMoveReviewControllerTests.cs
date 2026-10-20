@@ -43,7 +43,9 @@ public sealed class SessionQueueMoveReviewControllerTests
             f.Main.CommandText = Input(before.SessionId.Value, selected.Request.TaskId.Value, neighbor.Request.TaskId.Value, up);
             await f.Main.RunTypedCommand.ExecuteAsync();
             opens.Should().Be(1);
-            viewer.CanConfirmQueueMove.Should().BeTrue();
+            viewer.CanConfirmQueueMove.Should().BeTrue("native status: {0}; command status: {1}", viewer.Status, f.Main.Transcript);
+            await viewer.RefreshWorkAsync();
+            viewer.CanConfirmQueueMove.Should().BeTrue("an unchanged recorded snapshot remains the exact same source");
             viewer.QueueMoveStatus.Should().Contain("Current:").And.Contain("Proposed:")
                 .And.Contain("application.get_version").And.Contain("capabilities.list")
                 .And.Contain("dependency None").And.Contain("control revision").And.Contain("paused False held False")
@@ -61,9 +63,10 @@ public sealed class SessionQueueMoveReviewControllerTests
             await viewer.CancelQueueMoveAsync();
             viewer.CanConfirmQueueMove.Should().BeFalse();
             await f.Main.RunTypedCommand.ExecuteAsync();
-            viewer.CanConfirmQueueMove.Should().BeTrue();
+            viewer.CanConfirmQueueMove.Should().BeTrue("native status: {0}; command status: {1}", viewer.Status, f.Main.Transcript);
             // Only the deliberate existing native action changes ordering, and only once.
             await viewer.ConfirmQueueMoveAsync();
+            viewer.Status.Should().StartWith("Exact adjacent order committed");
             (await f.Interactions.ReadQueueAsync(before.SessionId, f.Token)).Entries.Should().Equal(before.Entries.Reverse());
             viewer.CanConfirmQueueMove.Should().BeFalse();
             window.ClosePrivate();

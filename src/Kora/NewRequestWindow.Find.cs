@@ -167,9 +167,12 @@ internal sealed partial class NewRequestWindow
         if (direction != SnapshotFindDirection.First && cursor is null)
         { draftFindStatus.Text = "Find first after editing or clearing; no current draft match to navigate."; return; }
         var text = NewRequestBody.Text ?? string.Empty;
+        SnapshotLiteralSpan? selectionToVerify = null;
         bool Current() => generation == Interlocked.Read(ref draftFindGeneration) && DraftFindAvailable() && guard()
             && string.Equals(NewRequestBody.Text ?? string.Empty, text, StringComparison.Ordinal)
             && string.Equals(draftFindQuery.Text, literal, StringComparison.Ordinal)
+            && (selectionToVerify is null || NewRequestBody.IsFocused && NewRequestBody.SelectionStart == selectionToVerify.Start
+                && NewRequestBody.SelectionEnd == selectionToVerify.Start + selectionToVerify.Length)
             && generation == Interlocked.Read(ref draftFindGeneration);
         bool Check()
         {
@@ -196,6 +199,7 @@ internal sealed partial class NewRequestWindow
                 draftFindStatus.Text = "Native draft focus/selection unavailable; no match claimed. Use the editable draft directly.";
                 return;
             }
+            selectionToVerify = match;
         }
         draftFindCursor = result.Match ?? (direction == SnapshotFindDirection.First ? null : cursor);
         draftFindCurrent = guard;
@@ -226,7 +230,8 @@ internal sealed partial class NewRequestWindow
             var focused = draftFindQuery.Focus();
             if (generation != Interlocked.Read(ref draftFindGeneration) || !DraftFindAvailable() || !guard())
             { RetireDraftFind(); return; }
-            if (!focused) { draftFindStatus.Text = "Native Find query focus unavailable; use the labeled query directly."; }
+            if (!focused || !draftFindQuery.IsFocused)
+            { draftFindStatus.Text = "Native Find query focus unavailable; use the labeled query directly."; }
         }
         else if (args.Key == Key.Enter && draftFindQuery.IsFocused && args.KeyModifiers == KeyModifiers.None)
         { args.Handled = true; FindDraft(SnapshotFindDirection.First); }

@@ -208,6 +208,8 @@ public sealed class NewRequestDraftFindTests
     [InlineData("status")]
     [InlineData("button")]
     [InlineData("previous-button")]
+    [InlineData("status-selection")]
+    [InlineData("button-selection")]
     [InlineData("capture")]
     public Task ReentrantCallbacksCannotPublishLateCountNavigationOrFocus(string boundary) => Run(f =>
     {
@@ -218,7 +220,7 @@ public sealed class NewRequestDraftFindTests
         {
             if (fired) { return; }
             fired = true;
-            f.Host.Change();
+            if (boundary is not ("status-selection" or "button-selection")) { f.Host.Change(); }
             f.Source.SelectionStart = 2;
             f.Source.SelectionEnd = 4;
         }
@@ -231,8 +233,8 @@ public sealed class NewRequestDraftFindTests
         }
         if (boundary is "focus") { f.Source.GotFocus += (_, _) => Revoke(); f.Query.Focus(); }
         if (boundary is "query-focus") { f.Query.GotFocus += (_, _) => Revoke(); f.Source.Focus(); }
-        if (boundary is "status") { f.Status.PropertyChanged += (_, args) => { if (args.Property == TextBlock.TextProperty) { Revoke(); } }; }
-        if (boundary is "button") { f.Next.PropertyChanged += (_, args) => { if (args.Property == InputElement.IsEnabledProperty) { Revoke(); } }; }
+        if (boundary is "status" or "status-selection") { f.Status.PropertyChanged += (_, args) => { if (args.Property == TextBlock.TextProperty) { Revoke(); } }; }
+        if (boundary is "button" or "button-selection") { f.Next.PropertyChanged += (_, args) => { if (args.Property == InputElement.IsEnabledProperty) { Revoke(); } }; }
         if (boundary is "previous-button") { f.Control<Button>("DraftFindPrevious").PropertyChanged += (_, args) => { if (args.Property == InputElement.IsEnabledProperty) { Revoke(); } }; }
         if (boundary is "capture") { f.OnCapture = Revoke; }
         if (boundary is "query-focus") { f.Key(f.Window, Key.F, KeyModifiers.Control); }
@@ -289,6 +291,34 @@ public sealed class NewRequestDraftFindTests
         f.Click("DraftFindFirst");
         f.Status.Text.Should().BeEmpty();
         f.Next.IsEnabled.Should().BeFalse();
+    });
+
+    [Fact]
+    public Task CancelledNormalCloseRetiresFindAndFinalCloseReleasesObserversWithoutSaving() => Run(async f =>
+    {
+        f.Composer.Body = "alpha alpha";
+        f.Query.Text = "alpha";
+        f.Click("DraftFindFirst");
+        f.Window.DecideDraft = () => Task.FromResult(ComposerDraftDecision.Cancel);
+        f.Window.Close();
+        await f.Window.Operation;
+        f.Window.IsVisible.Should().BeTrue();
+        f.Query.Text.Should().BeEmpty();
+        f.Status.Text.Should().BeEmpty();
+        f.Composer.Body.Should().Be("alpha alpha");
+        f.Query.Text = "alpha";
+        f.Click("DraftFindFirst");
+        await Task.Run(f.Host.Change, TestContext.Current.CancellationToken);
+        f.Query.Text.Should().BeEmpty();
+        f.Next.IsEnabled.Should().BeFalse();
+        f.Window.DecideDraft = () => Task.FromResult(ComposerDraftDecision.Discard);
+        f.Window.Close();
+        await f.Window.Operation;
+        f.Window.IsVisible.Should().BeFalse();
+        f.Host.Subscribers.Should().Be(0);
+        f.Query.Text.Should().BeEmpty();
+        f.Composer.Creation.Should().BeNull();
+        f.Composer.Submission.Should().BeNull();
     });
 
     private static Task Run(Action<Fixture> test) => Run(f => { test(f); return Task.CompletedTask; });

@@ -15,6 +15,29 @@ namespace Kora.Application.UnitTests.ViewModels;
 
 public sealed partial class MainViewModelTests
 {
+    [Theory]
+    [InlineData("open new request", 1)]
+    [InlineData("open new request extra", 0)]
+    public async Task NewRequestNavigationDoesNotRetireAnUnrelatedNativeDispositionPreview(string input, int expectedOpens)
+    {
+        var f = await Fixture.CreateInitializedAsync();
+        var presenter = new DispositionPresenter { BeforeReturn = () => f.RunAsync(input) };
+        f.ViewModel.BindSessionDispositionReview(presenter);
+        var opens = 0;
+        f.ViewModel.NewRequestOpeningRequested += admitted =>
+        {
+            admitted().Should().BeTrue();
+            opens++;
+            return Task.FromResult(true);
+        };
+        await f.ViewModel.ExecuteSessionDispositionReviewAsync(DispositionTarget, SecurityAuditInitiator.LocalUser, false);
+        presenter.LastAdmission.Should().BeTrue();
+        presenter.Commands.Should().ContainSingle().Which.Should().Be(DispositionTarget);
+        opens.Should().Be(expectedOpens);
+        f.Reasoner.Requests.Should().BeEmpty();
+        f.HostStore.Records.Should().BeEmpty();
+    }
+
     [Fact]
     public async Task NewRequestNavigationKeepsOriginalHostIdentityAndTerminatesItsChildTrace()
     {

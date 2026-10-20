@@ -96,7 +96,14 @@ public sealed partial class DetailWindowControllerTests
         view.State.Content!.ConversationMessage.Should().Be(content.ConversationMessage);
         view.State.ActiveText.Should().Be(content.Source);
         view.State.Search("script").Should().BeTrue();
+        view.State.MatchCount.Should().Be(2);
+        view.State.MatchOrdinal.Should().Be(1);
+        view.State.FindSummary.Should().Contain("Match 1 of 2");
+        view.State.Search("script").Should().BeTrue();
+        view.State.MatchOrdinal.Should().Be(2);
         view.State.SetSource(true);
+        view.State.MatchCount.Should().BeNull();
+        view.State.MatchOrdinal.Should().BeNull();
         view.State.ActiveText.Should().Be(content.Source);
         reads.Should().Be(admittedReads, "Find scans only the admitted in-memory snapshot, without retained reads");
         await f.Controller.CopyAsync(content.Reference, view.State.Generation, true);
@@ -117,11 +124,14 @@ public sealed partial class DetailWindowControllerTests
         f.Controller.RevokeConversationSession(content.ConversationMessage!.Request.SessionId);
         view.State.Content.Should().BeNull();
         view.State.SearchQuery.Should().BeEmpty();
+        view.State.MatchCount.Should().BeNull();
+        view.State.MatchOrdinal.Should().BeNull();
         view.Cleared.Should().BeTrue();
         f.Views.Skip(1).Should().OnlyContain(other => !other.Cleared);
         await f.Controller.RevalidateConversationDetailsAsync();
         f.Controller.Dispose();
         f.Views.Should().OnlyContain(other => other.Cleared);
+        f.Views.Should().OnlyContain(other => other.State.MatchCount == null && other.State.MatchOrdinal == null);
     }
 
     [Theory]

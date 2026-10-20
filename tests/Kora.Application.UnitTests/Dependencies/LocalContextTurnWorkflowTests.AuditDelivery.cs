@@ -12,6 +12,7 @@ public sealed partial class LocalContextTurnWorkflowTests
     [InlineData("cancel")]
     [InlineData("generation")]
     [InlineData("inactive")]
+    [InlineData("foreign")]
     [InlineData("control")]
     public async Task TerminalAuditDeliveryCannotExtendSourceOrSessionDisclosureAuthority(string changed)
     {
@@ -25,6 +26,7 @@ public sealed partial class LocalContextTurnWorkflowTests
             if (changed is "cancel") { cancellation.Cancel(); }
             if (changed is "generation") { fixture.Store.Authority = fixture.Store.Authority! with { Generation = new(2) }; }
             if (changed is "inactive") { fixture.Store.Authority = fixture.Store.Authority! with { IsActive = false }; }
+            if (changed is "foreign") { fixture.Store.Authority = fixture.Store.Authority! with { SessionId = new(Guid.NewGuid()) }; }
             if (changed is "control") { fixture.Access.ControlRevision++; }
         };
         var receipt = await fixture.Run(cancellation.Token);

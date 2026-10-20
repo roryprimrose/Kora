@@ -97,7 +97,8 @@ public sealed partial class LocalContextTurnWorkflow(
                 {
                     await RequireSourceAsync(Live, validateSource, disclosureToken).ConfigureAwait(false);
                     var actual = await Workspace.ReadMetadataAsync(request.SessionId, disclosureToken).ConfigureAwait(false);
-                    if (!actual.Authority.IsActive || actual.Authority.Generation != prepared.SessionGeneration)
+                    if (actual.Authority.SessionId != request.SessionId || !actual.Authority.IsActive
+                        || actual.Authority.Generation != prepared.SessionGeneration)
                     { throw new SourceNotCurrentException(); }
                     await RequireSourceAsync(Live, validateSource, disclosureToken).ConfigureAwait(false);
                 }

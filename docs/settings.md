@@ -20,6 +20,14 @@ Refresh, Preview and Stop remain separate controls.
 
 ## Preference Changes and Recovery
 
+### Navigate without changing a preference
+
+The [seven exact Settings-tab commands](commands.md#open-an-exact-settings-tab) select Appearance, Speech & audio, Responses, Sessions or Calls in this same singleton window.
+`open microphone settings` and `open audio settings` only navigate to Speech & audio; Choose microphone, consent, listening, provider Refresh and all Save/Apply actions remain separate explicit native controls ([controller](../src/Kora/SettingsWindowController.cs), [named tabs](../src/Kora/SettingsWindow.axaml)).
+
+Opening Calls does not activate manual-call mode. Opening Responses does not replay or reveal retired private content.
+Navigation preserves unsaved fields and pending questions/approvals; unavailable or stale admission is reported in the transcript without opening a substitute tab ([workflow](../src/Kora.Application/ViewModels/MainViewModel.SettingsSectionNavigation.cs), [tests](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.SettingsSectionNavigation.cs)).
+
 Admitted exact/native preference workflows show saved/default/unavailable
 provenance, desired/effective values and revisions. Highlighting or opening
 a control is not Save. Writes require current original-user/host/session/

@@ -43,6 +43,19 @@ No format/limit override, folder attachment, managed source, extra version, mode
 
 ## Configuration Contract
 
+### Exact existing Settings-section navigation
+
+Original typed/current-name activated voice uses the [closed seven-phrase grammar](../src/Kora.Application/Configuration/SettingsSectionCommand.cs) to request only Appearance, Speech & audio (speech/audio/microphone aliases), Responses, Sessions or Calls.
+No fuzzy, substring, model or external-content selector is admitted; malformed reserved requests clarify before question/approval/model fallthrough ([dispatcher](../src/Kora.Application/ViewModels/MainViewModel.cs)).
+
+The consumer-focused [typed presenter seam](../src/Kora.Application/Presentation/ISettingsSectionNavigation.cs) binds original origin, request continuation, host/privacy/ownership revision, voice generation and native lifetime through UI dispatch.
+Missing/disposed/rebound or revoked presentation fails explicitly in the transcript, preserving pending interactions ([Application workflow](../src/Kora.Application/ViewModels/MainViewModel.SettingsSectionNavigation.cs)).
+
+The [desktop controller](../src/Kora/SettingsWindowController.cs) reuses its singleton Show/Activate path and selects [stable native tab anchors](../src/Kora/SettingsWindow.axaml.cs). Normal actual visibility observation alone binds setting controls.
+Navigation does not save preferences, choose endpoints, grant consent/permission, refresh providers/network, start capture, activate manual calls or restore retired content ([native tests](../tests/Kora.Windows.IntegrationTests/SettingsSectionNavigationTests.cs), [portable tests](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.SettingsSectionNavigation.cs)).
+
+This is the bounded I implementation subset: existing singleton/tab/private-native navigation and deterministic fakes. It enables no audio/provider profile and claims no E or RC-Q, installed/hardware/acoustic/accessibility qualification ([delivery policy](Implementation_Roadmap.md#delivery-and-qualification-dependency-policy)).
+
 ### Delivered bounded fixed local-version queue settings (R10/R13)
 
 The [optional native prerequisite](Work_Management.md#delivered-optional-native-enqueue-prerequisite---2026-10-12) is a volatile explicit decision for one new fixed read, not a device preference or policy edit. Initial None preserves the original route; after enqueue choose None or an exact observed same-session task again.

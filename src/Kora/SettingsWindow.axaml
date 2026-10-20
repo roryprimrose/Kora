@@ -66,7 +66,7 @@
         TabStripPlacement="Left"
         Margin="22"
         Background="Transparent">
-      <TabItem Header="Appearance">
+      <TabItem x:Name="AppearanceTab" Header="Appearance">
         <ScrollViewer VerticalScrollBarVisibility="Auto">
           <StackPanel Margin="30,4,30,30" Spacing="16" MaxWidth="700" HorizontalAlignment="Left">
             <StackPanel Spacing="5" Margin="0,0,0,8">
@@ -685,7 +685,7 @@
         </ScrollViewer>
       </TabItem>
 
-      <TabItem Header="Responses">
+      <TabItem x:Name="ResponsesTab" Header="Responses">
         <ScrollViewer VerticalScrollBarVisibility="Auto">
           <StackPanel Margin="30,4,30,30" Spacing="16" MaxWidth="700" HorizontalAlignment="Left">
             <StackPanel Spacing="5" Margin="0,0,0,8">
@@ -825,7 +825,7 @@
         </ScrollViewer>
       </TabItem>
 
-      <TabItem Header="Sessions">
+      <TabItem x:Name="SessionsTab" Header="Sessions">
         <ScrollViewer VerticalScrollBarVisibility="Auto">
           <StackPanel Margin="30,4,30,30" Spacing="16" MaxWidth="700" HorizontalAlignment="Left">
             <TextBlock Text="Session inactivity retention" FontSize="28" FontWeight="SemiBold" />
@@ -987,7 +987,7 @@
         </ScrollViewer>
       </TabItem>
 
-      <TabItem Header="Calls">
+      <TabItem x:Name="CallsTab" Header="Calls">
         <ScrollViewer VerticalScrollBarVisibility="Auto">
           <StackPanel Margin="30,4,30,30" Spacing="16" MaxWidth="700" HorizontalAlignment="Left">
             <StackPanel Spacing="5" Margin="0,0,0,8">

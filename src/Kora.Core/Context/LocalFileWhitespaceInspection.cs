@@ -19,20 +19,19 @@ public static class LocalFileWhitespaceInspection
             for (var index = 0; index < text.Length; index++)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                switch (text[index])
+                var character = text[index];
+                if (character == '\r')
                 {
-                    case '\r':
-                        if (index + 1 < text.Length && text[index + 1] == '\n')
-                        {
-                            pairs++;
-                            index++;
-                        }
-                        else { cr++; }
-                        break;
-                    case '\n': lf++; break;
-                    case '\t': tabs++; break;
-                    case ' ': spaces++; break;
+                    if (index + 1 < text.Length && text[index + 1] == '\n')
+                    {
+                        pairs++;
+                        index++;
+                    }
+                    else { cr++; }
                 }
+                else if (character == '\n') { lf++; }
+                else if (character == '\t') { tabs++; }
+                else if (character == ' ') { spaces++; }
             }
         }
         cancellationToken.ThrowIfCancellationRequested();

@@ -373,9 +373,10 @@ public sealed class LocalFileWhitespaceWindowTests
         var request = HostRequest.Create(RequestOrigin.LocalUi);
         var metadata = texts.Select((text, index) => new LocalFileMetadata($@"C:\Synthetic\{index}.md", $"file-{index}",
             Encoding.UTF8.GetByteCount(text), DateTimeOffset.UnixEpoch)).ToArray();
-        var review = new LocalFolderReview(reviewId, source, request, new(@"C:\Synthetic", "folder", metadata));
+        var cause = Activity.Current?.Context ?? default;
+        var review = new LocalFolderReview(reviewId, source, request, new(@"C:\Synthetic", "folder", metadata), cause);
         return new(review, texts.Select((text, index) => new LocalFileRevision(new(reviewId, source, request, metadata[index],
-            Activity.Current?.Context ?? default),
+            cause),
             Encoding.UTF8.GetBytes(text), DateTimeOffset.UnixEpoch)));
     }
 

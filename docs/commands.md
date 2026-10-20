@@ -1,5 +1,35 @@
 # Voice and typed commands
 
+## Local decimal calculator
+
+Type `calculate <expression>`, or use the current assistant-name prefix with
+activated voice, for example `Kora, calculate (1.25 + 2.75) * -3`.
+Use `calculate help` for the exact grammar. The result appears in the transcript
+only; it does not replace the response, automatically speak, or create retained
+conversation content.
+
+Supported syntax is invariant decimal literals (`12`, `0.25`), ASCII spaces,
+`+`, `-`, `*`, `/`, parentheses and unary signs. Multiplication/division precede
+addition/subtraction; binary operators associate left to right. A decimal point
+requires digits on both sides. No exponents, functions, units, evaluation engine,
+scripts, shell, model or network are used.
+
+Limits are 512 expression characters, 128 tokens and 16 nested parentheses/unary
+signs combined. Literals must be exactly representable as .NET decimal (up to 28
+fractional places after trailing zeros are removed). Checked decimal arithmetic
+uses .NET's decimal rounding, including division and underflow; for example
+`calculate 1/3` returns `0.3333333333333333333333333333`. Results are invariant,
+non-exponential, at most 31 characters, with insignificant trailing zeros removed.
+Invalid syntax, limit failures, overflow and division by zero are explicit
+outcomes with no value or default answer.
+
+Malformed reserved `calculate` requests never answer a pending question, grant
+an approval or reach a model. Calculator requests leave pending questions,
+approvals and grant reviews unchanged and report unavailable until resolved.
+Original private host, instance ownership, current-name voice activation and
+call/privacy admission must remain valid; protected or unknown call state
+refuses calculation. This native-only command adds no model descriptor.
+
 ## Open an exact Settings tab
 
 Use one complete case-insensitive phrase below, optionally prefixed by the current assistant name when typed. Activated voice requires that current-name prefix. Outer spaces are accepted; punctuation, extra words, control characters and input over 256 characters are not ([exact grammar](../src/Kora.Application/Configuration/SettingsSectionCommand.cs)).
@@ -930,11 +960,42 @@ queue, scheduler, automatic resume or playback. History does not import volatile
 file previews/shared skills or reconstruct captions. See the
 [native workflow](windows-and-tray.md#bounded-passive-interaction-history).
 
-The separate native [selected-conversation search](windows-and-tray.md#search-one-exact-retained-conversation) searches actual retained USER bodies and typed HOST outcomes in the selected exact session. This older `session search` command remains Question/Answer/task receipt `HistorySearch`; it is not implicitly remapped to body search. Conversation query content stays native and adds no typed/voice/model descriptor or transcript entry.
+The separate [exact-conversation search](#search-one-explicitly-addressed-retained-conversation) and native [selected-conversation search](windows-and-tray.md#search-one-exact-retained-conversation) search actual retained USER bodies and typed HOST outcomes.
+This older `session search` command remains Question/Answer/task receipt `HistorySearch`; it is not implicitly remapped to body search.
 
 Native transcript search additionally accepts optional inclusive observed message Generation (positive Int64) and Revision (1-2) min/max, AND with its existing predicates. Empty means Any; strict decimal input is not trimmed or repaired. This adds no command syntax, routing, submission or hidden body read ([range contract](../src/Kora.Core/Conversation/ConversationRangeFilter.cs)).
 
 Search uses the [shared lexical query rules](../src/Kora.Core/Context/LocalFileRetrievalPolicy.cs): 1-256 UTF-16 characters, at most 512 strict UTF-8 bytes, 1-32 distinct words of at most 64 characters, NFC/invariant case and literal whole-word OR matching. Punctuation separates words, not operators, wildcards or regular expressions. Quotes inside the final quoted query are doubled.
+
+### Search one explicitly addressed retained conversation
+
+Typed input and current-name activated voice share the distinct `conversation search` family:
+
+```text
+conversation search <session-id> -- <verbatim query>
+conversation search next <session-id>
+conversation search cancel <session-id>
+Kora, conversation search abcdef12-1234-1234-1234-123456789012 -- café
+```
+
+Use a complete nonempty canonical lowercase D-format session GUID, never a name, selected window, partial ID or model-supplied destination. Voice requires the current assistant-name prefix.
+The query is everything after the single space following `--`, including any additional leading/trailing spaces, case, quotes, Unicode or later `--`. It is not trimmed or repaired.
+The canonical lexical limits above apply; empty/invalid input refuses before body reads, never Browse, a question answer or model fallback.
+
+One original-user action calls the same [canonical search service](../src/Kora.Application/Hosting/SessionConversationService.cs) as native search. Active and retained Done are readable without Resume.
+Results are inert chronological original USER messages and separate typed HOST outcomes with exact session/generation/request/task/sequence/revision provenance, not generated snippets.
+Each page returns at most 25 messages, scans at most the existing 100-message session bound and preserves the complete serialized 64 KiB limit, counters and source-qualified cursor.
+
+`next` accepts only the same exact session ID, not a caller-supplied cursor or JSON. The host holds one memory-only cursor, original query/channel, private control revision, exact lifecycle/generation/metadata snapshot and original admission, expiring 60 seconds after the first page without renewal.
+Zero matches do not imply Browse or unavailable content. Changed source, snapshot, origin, privacy, call revision, voice/name readiness or expiry requires a fresh search. Cancel clears the exact host-held search and cancels its in-flight read.
+
+Search results are visual-only, including in Voice Only mode. No query/body is spoken, captioned, logged, persisted, sent to a model or added to transcript chrome.
+No session navigation occurs: dirty composer buffers and Save/Discard/Cancel decisions, saved drafts, question/approval/voice targets and retention activity remain unchanged.
+There is no draft/history/all-session body search, model descriptor, submission, replay or automatic resume.
+
+Deterministic evidence: [grammar and query bytes](../tests/Kora.Core.UnitTests/Commands/ConversationSearchCommandTests.cs) and [source-bound continuation/cancellation](../tests/Kora.Application.UnitTests/Hosting/SessionWorkspaceServiceTests.ConversationCommands.cs).
+Also see [typed/voice and decision isolation](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.ConversationSearch.cs) and [private SQLite/headless dirty-composer checks](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.ConversationSearch.cs).
+Hardware/provider/wake/acoustic/installed qualification is not enabled or required by this bounded implementation.
 
 The native receipt-history controls additionally offer exact kind, task state,
 decision, question status and answer-channel choices, each with explicit Any.

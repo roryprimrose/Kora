@@ -3,6 +3,10 @@ namespace Kora.Core.Hosting;
 /// <summary>Canonical optional historical correlation input; never establishes host authority.</summary>
 public static class OptionalCanonicalGuid
 {
+    /// <summary>Uses the same canonical codec for an explicitly required exact identity.</summary>
+    public static Guid ParseRequired(string text) =>
+        Parse(text) ?? throw new InvalidDataException("Enter a nonempty canonical lowercase D-format GUID.");
+
     public static Guid? Parse(string text)
     {
         ArgumentNullException.ThrowIfNull(text);

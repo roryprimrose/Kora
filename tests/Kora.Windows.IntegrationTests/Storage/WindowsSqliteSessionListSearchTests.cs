@@ -117,14 +117,22 @@ public sealed class WindowsSqliteSessionListSearchTests
         using var f = new InteractionStorageFixture();
         await f.InitializeAsync();
         var service = WindowsSqliteSessionWorkspaceTests.Service(f, new());
-        for (var index = 0; index < 50; index++)
+        await service.RenameAsync(f.Request.SessionId, new(1), 0, new("needle"), RequestOrigin.LocalUi, f.Token);
+        for (var index = 0; index < SessionListSearchPage.MaximumScannedRecords; index++)
         {
             await service.CreateAsync(new("needle"), RequestOrigin.LocalUi, f.Token);
         }
-        f.Mutate("""
-            UPDATE session_metadata SET name='cafe' || char(769)
-            WHERE session_id=(SELECT session_id FROM work_sessions WHERE state<>2 ORDER BY session_id LIMIT 1 OFFSET 49);
-            """);
+        f.Count("work_sessions").Should().Be(SessionListSearchPage.MaximumScannedRecords + 1);
+        using (var connection = f.OpenRaw())
+        using (var command = connection.CreateCommand())
+        {
+            command.CommandText = """
+                UPDATE session_metadata SET name='cafe' || char(769)
+                WHERE session_id=(SELECT session_id FROM work_sessions WHERE state<>2 ORDER BY session_id LIMIT 1 OFFSET $tail);
+                """;
+            command.Parameters.AddWithValue("$tail", SessionListSearchPage.MaximumScannedRecords - 1);
+            command.ExecuteNonQuery().Should().Be(1, "the page-tail session must have metadata to corrupt");
+        }
         using var root = HostActivity.BeginRoot(f.Request, HostActivityLayer.Application, HostOperation.Request);
         var read = () => service.SearchListAsync(SessionListSearchKind.Browse, SessionListFilter.All,
             "", null, 1, f.Token, minimumNameLength: 6, maximumNameLength: 6);

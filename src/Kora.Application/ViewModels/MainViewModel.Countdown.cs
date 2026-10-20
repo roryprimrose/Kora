@@ -34,7 +34,7 @@ public sealed partial class MainViewModel
         });
     }
 
-    private void ExecuteCountdownCommand(CountdownCommand command, string original,
+    private void ExecuteCountdownCommand(CountdownCommand command,
         SecurityAuditInitiator initiator, ManualCallInput? originalInput)
     {
         var origin = OriginalOrigin(initiator);
@@ -42,7 +42,7 @@ public sealed partial class MainViewModel
         if (origin is not (RequestOrigin.LocalUi or RequestOrigin.ActivatedVoice)
             || !isAssistantNameAvailable
             || initiator is not (SecurityAuditInitiator.TypedCommand or SecurityAuditInitiator.VoiceCommand)
-            || origin == RequestOrigin.ActivatedVoice && !commandRouter.IsActivationPrefixed(original, AssistantName)
+            || origin == RequestOrigin.ActivatedVoice && !command.IsActivated
             || !input.NavigationInitiallyAdmitted || !input.Eligible() || !CanRunCountdown
             || input.Revision != CallPolicyRevision || input.NavigationOwnerRevision != auditImpactOwnerRevision()
             || input.CountdownOwnerBindingRevision != Interlocked.Read(ref settingsOwnershipBindingRevision)

@@ -15,7 +15,10 @@ public sealed class CountdownCommandTests
     [InlineData("timer help", CountdownOperation.Help, 0)]
     public void ExactGrammarAcceptsOnlyBoundedOperations(string input, CountdownOperation operation, int seconds)
     {
-        CountdownCommand.Parse(input, "Nova").Should().Be(new CountdownCommand(operation, seconds));
+        var command = CountdownCommand.Parse(input, "Nova")!;
+        command.Operation.Should().Be(operation);
+        command.Seconds.Should().Be(seconds);
+        command.IsActivated.Should().Be(input.StartsWith("Nova", StringComparison.Ordinal));
     }
 
     [Theory]
@@ -60,6 +63,10 @@ public sealed class CountdownCommandTests
     {
         CountdownCommand.Parse("timer start " + new string('1', 256), "Nova")!.Operation.Should().Be(CountdownOperation.Invalid);
         CountdownCommand.Parse("timer status", "Timer")!.Operation.Should().Be(CountdownOperation.Status);
+        CountdownCommand.Parse("Timer, timer status", "Timer")!.Operation.Should().Be(CountdownOperation.Status);
+        CountdownCommand.Parse("timer status", "Timer")!.IsActivated.Should().BeFalse();
+        CountdownCommand.Parse("Timer, timer status", "Timer")!.IsActivated.Should().BeTrue();
+        CountdownCommand.Parse("Timer Status, timer start 1", "Timer Status")!.Seconds.Should().Be(1);
         CountdownCommand.DiscoveryPhrases.Should().HaveCount(4)
             .And.OnlyContain(phrase => CountdownCommand.Parse(phrase, "Kora")!.Operation != CountdownOperation.Invalid);
         CountdownCommand.IsValidSeconds(int.MinValue).Should().BeFalse();

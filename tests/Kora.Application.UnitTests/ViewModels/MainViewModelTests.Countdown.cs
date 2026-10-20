@@ -275,4 +275,23 @@ public sealed partial class MainViewModelTests
         timer.IsRunning.Should().BeFalse();
         time.Timers.Should().OnlyContain(item => item.Disposed);
     }
+
+    [Theory]
+    [InlineData("Timer")]
+    [InlineData("Timer Status")]
+    public async Task TimerNamedAssistantStillRequiresADistinctVoiceActivationPrefix(string name)
+    {
+        var f = await Fixture.CreateInitializedAsync();
+        using var timer = new CountdownWorkflow(new CountdownTestClock(), f.Dispatcher, NullLogger<CountdownWorkflow>.Instance);
+        f.ViewModel.BindCountdown(timer);
+        f.ViewModel.CountdownRequested += (_, _) => { };
+        await f.RunAsync("set assistant name to " + name);
+        await f.RaiseActivatedTranscriptAsync(name + ", timer start 60", 1);
+        timer.IsRunning.Should().BeTrue();
+        await f.RaiseActivatedTranscriptAsync("timer cancel", 1);
+        f.ViewModel.Transcript.Should().Contain("unavailable");
+        timer.IsRunning.Should().BeTrue();
+        await f.RunAsync("timer cancel");
+        timer.IsRunning.Should().BeFalse();
+    }
 }

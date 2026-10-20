@@ -4102,7 +4102,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         if (originalCountdown is not null)
         {
             Interlocked.Increment(ref workspaceSurfaceInputRevision);
-            ExecuteCountdownCommand(originalCountdown, eventArgs.Transcript,
+            ExecuteCountdownCommand(originalCountdown,
                 SecurityAuditInitiator.VoiceCommand, manualInput);
             return;
         }
@@ -4171,7 +4171,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         }
         if (CountdownCommand.Parse(spokenText, AssistantName) is { } countdownCommand)
         {
-            ExecuteCountdownCommand(countdownCommand, spokenText, initiator, manualInput);
+            ExecuteCountdownCommand(countdownCommand, initiator, manualInput);
             return;
         }
         if (Kora.Application.Skills.SkillReviewCommand.Parse(spokenText, AssistantName) is { } reviewCommand)

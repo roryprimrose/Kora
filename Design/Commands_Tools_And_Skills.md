@@ -74,6 +74,10 @@ authority established for an earlier or unrelated proposal.
 
 ### Owned metadata inventory navigation
 
+The existing skill inspectors have exact typed/current-name activated navigation: `open skill packages` / `show skill package review`, or `open shared skill sources` / `show shared skill sources`. See [exact syntax and review-only limits](../docs/commands.md#open-existing-skill-reviews).
+
+They activate the same singleton native controllers, not artifact `run`/`use`/`apply`, a model tool or a selector ([owning definition boundary](Definition_Management.md#delivered-native-skill-metadata-navigation)).
+
 The delivered owned native editor also provides literal metadata search, observed-use filters and exact stale-safe row inspection for its existing Instruction/Prompt filename inventories only.
 Explicit List/Refresh uses existing admission/reconciliation; filtering remains in-memory and model-free, with no source writes, activation or first-result loading. Typed/current-name activated List/Inspect opens the same native route; no new model tool or typed search grammar is registered.
 Observed catalogue state is not current disk integrity. Unavailable/stale choices require Refresh/reselection while the original/draft stays open. See [owned inventory controls](../docs/instruction-editor.md#search-observed-owned-metadata); profile-original editing and the full definition source matrix stay deferred.

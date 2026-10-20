@@ -631,6 +631,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
                       || SessionDispositionReviewCommand.Parse(CommandText, AssistantName) is not null
                       || MemoryCommand.Parse(CommandText, AssistantName) is not null
                       || IsInstructionEditorCommand(CommandText)
+                      || Kora.Application.Skills.SkillReviewCommand.Parse(CommandText, AssistantName) is not null
                       || Kora.Core.Interaction.LocalEventCommand.Parse(CommandText, AssistantName) is not null
                       || ManualCallCommand.Parse(CommandText, AssistantName) is not null));
         PreviewVoiceCommand = CreateCommand(
@@ -3985,8 +3986,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         {
             var manualInput = CaptureManualCallInput(RequestOrigin.ActivatedVoice, CallPolicyRevision, eventArgs.Generation);
             var responseReadInput = CaptureResponseReadInput();
+            var reviewEligibility = CaptureSkillReviewEligibility(manualInput);
             await uiDispatcher.InvokeAsync(
-                () => HandleRecognizedVoiceTranscriptAsync(eventArgs, manualInput, responseReadInput));
+                () => HandleRecognizedVoiceTranscriptAsync(eventArgs, manualInput, responseReadInput, reviewEligibility));
             activity.Complete(HostOperationOutcome.Completed);
         }
         catch (Exception exception) when (exception is not OutOfMemoryException)
@@ -4030,13 +4032,15 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
     }
 
     private async Task HandleRecognizedVoiceTranscriptAsync(
-        VoiceTranscriptEventArgs eventArgs, ManualCallInput manualInput, ResponseReadInput responseReadInput)
+        VoiceTranscriptEventArgs eventArgs, ManualCallInput manualInput, ResponseReadInput responseReadInput,
+        Func<bool> reviewEligibility)
     {
         if (!IsVoiceEnabled || eventArgs.Generation != voiceRecognition.Generation || lifecycleAdmissionClosed
             || !sessionController.IsCurrentSessionUnlocked())
         {
             ApplicationLog.Debug(logger, "Rejected an unactivated or stale voice transcript");
             ApplicationLog.VoiceDispatchGate(logger, eventArgs.Generation, "RejectedAfterQueue");
+            ReportRetiredSkillReview(eventArgs.Transcript);
             return;
         }
         if (Interlocked.CompareExchange(ref acceptedTranscriptGeneration, -1, eventArgs.Generation) != eventArgs.Generation)
@@ -4056,13 +4060,14 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         if (!IsVoiceEnabled || eventArgs.Generation != voiceRecognition.Generation || !IsHostInputEligible)
         {
             ApplicationLog.Debug(logger, "Discarded voice input retired while waiting for output shutdown");
+            ReportRetiredSkillReview(eventArgs.Transcript);
             return;
         }
         await HandleTranscriptAsync(
             eventArgs.Transcript,
             eventArgs.Confidence,
             SecurityAuditInitiator.VoiceCommand,
-            manualInput, responseReadInput);
+            manualInput, responseReadInput, reviewEligibility);
     }
 
     private async Task HandleTranscriptAsync(
@@ -4070,8 +4075,15 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         float confidence,
         SecurityAuditInitiator initiator,
         ManualCallInput? manualInput = null,
-        ResponseReadInput? responseReadInput = null)
+        ResponseReadInput? responseReadInput = null,
+        Func<bool>? reviewEligibility = null)
     {
+        if (Kora.Application.Skills.SkillReviewCommand.Parse(spokenText, AssistantName) is { } reviewCommand)
+        {
+            await ExecuteSkillReviewCommand(reviewCommand, spokenText, manualInput
+                ?? CaptureManualCallInput(OriginalOrigin(initiator), CallPolicyRevision), reviewEligibility);
+            return;
+        }
         Interlocked.Increment(ref approvalPreparationRevision);
         var speechRevision = Interlocked.Read(ref manualCallSpeechRevision);
         if (!IsHostInputEligible)
@@ -5561,6 +5573,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
                     + "Natural name commands: “what is your name”, “call yourself <name>”, “change your name to <name>”, or “reset your name”. "
                     + "Use “explain the clipboard” for exact native review and qualified local-only explanation; no hosted fallback. "
                     + "Use “show spoken summary limits” to inspect future ordinary-speech sentence/word budgets; “list speech settings” lists exact set/reset syntax. "
+                    + "Use “open skill packages” or “open shared skill sources” for native review only; neither enables or runs skills. "
                     + (LocalModelsEnabled && Dependencies.Any(status =>
                         string.Equals(status.Id, "local.inference", StringComparison.Ordinal)
                         && status.Readiness == DependencyReadiness.Ready)
@@ -6031,6 +6044,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             .Concat(SpeechTextCommand.FixedPhrases)
             .Concat(ResponseReadCommand.FixedPhrases)
             .Concat(SpeechCommand.FixedPhrases)
+            .Concat(Kora.Application.Skills.SkillReviewCommand.FixedPhrases)
             .Concat(Kora.Core.Maintenance.MaintenanceCommandParser.FixedPhrases)
             .Concat(Kora.Core.Interaction.LocalEventCommand.FixedPhrases)
             .Concat(ClipboardPreview is { } snapshot

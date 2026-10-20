@@ -138,6 +138,8 @@ public sealed partial class App : Avalonia.Application
                 new NativeDetailRenderer(Services.GetRequiredService<ILogger<NativeDetailRenderer>>()),
                 Services.GetRequiredService<Kora.Application.Skills.SharedSkillDiscoveryService>(),
                 Services.GetRequiredService<ILogger<SharedSkillSourcesWindowController>>());
+            viewModel.BindSkillReviewNavigation(skillPackagesWindow,
+                () => Services.GetRequiredService<DesktopInstanceOwnershipBridge>().AdmissionRevision);
             instructionEditor = new(viewModel,
                 Services.GetRequiredService<Kora.Application.Definitions.OwnedInstructionEditorActions>(),
                 Services.GetRequiredService<Kora.Application.Definitions.InstructionSaveWorkflow>(),

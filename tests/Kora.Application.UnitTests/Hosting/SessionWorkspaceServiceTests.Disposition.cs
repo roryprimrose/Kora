@@ -9,6 +9,63 @@ namespace Kora.Application.UnitTests.Hosting;
 
 public sealed partial class SessionWorkspaceServiceTests
 {
+    [Theory]
+    [InlineData("current")]
+    [InlineData("foreign")]
+    [InlineData("inspect")]
+    [InlineData("control")]
+    [InlineData("revision")]
+    [InlineData("discard")]
+    public async Task DispositionPreviewCurrencyAndExactDiscardNeverRetargetAnotherPendingReview(string mode)
+    {
+        using var f = new Fixture();
+        using var root = HostActivity.BeginRoot(f.Request, HostActivityLayer.Application, HostOperation.Request);
+        var preview = await f.Service.PreviewDispositionAsync(f.Session.SessionId, new(1), 0, f.Token);
+        var foreign = preview with { ConfirmationId = Guid.NewGuid() };
+        f.Service.DiscardDispositionPreview(foreign);
+        f.Service.IsDispositionPreviewCurrent(preview).Should().BeTrue();
+        if (mode is "foreign") { preview = foreign; }
+        if (mode is "inspect") { f.CanInspect = false; }
+        if (mode is "control") { f.CanControl = false; }
+        if (mode is "revision") { f.AdvanceRevision(); }
+        if (mode is "discard")
+        {
+            f.Service.DiscardDispositionPreview(preview);
+            f.Service.DiscardDispositionPreview(preview);
+        }
+        f.Service.IsDispositionPreviewCurrent(preview).Should().Be(mode is "current");
+        f.TaskWrites.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task ReplacedPreviewCannotReviveAfterALaterPreviewCompletesOrIsDiscarded()
+    {
+        using var f = new Fixture();
+        using var root = HostActivity.BeginRoot(f.Request, HostActivityLayer.Application, HostOperation.Request);
+        var held = new TaskCompletionSource<SessionDispositionPreview>(TaskCreationOptions.RunContinuationsAsynchronously);
+        f.ReadDispositionPreview = () => new(held.Task);
+        var first = f.Service.PreviewDispositionAsync(f.Session.SessionId, new(1), 0, f.Token);
+        f.ReadDispositionPreview = null;
+        var later = await f.Service.PreviewDispositionAsync(f.Session.SessionId, new(1), 0, f.Token);
+        f.Service.DiscardDispositionPreview(later);
+        held.SetResult(later with { ConfirmationId = Guid.NewGuid() });
+        await first.Invoking(task => task).Should().ThrowAsync<InvalidOperationException>().WithMessage("*replaced*");
+        f.Service.IsDispositionPreviewCurrent(later).Should().BeFalse();
+        f.TaskWrites.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task CancellationAfterPreviewReadCannotInstallPendingNativeConfirmation()
+    {
+        using var f = new Fixture();
+        using var cancellation = new CancellationTokenSource();
+        using var root = HostActivity.BeginRoot(f.Request, HostActivityLayer.Application, HostOperation.Request);
+        f.AfterPreview = cancellation.Cancel;
+        var act = () => f.Service.PreviewDispositionAsync(f.Session.SessionId, new(1), 0, cancellation.Token);
+        await act.Should().ThrowAsync<OperationCanceledException>();
+        f.TaskWrites.Should().BeEmpty();
+    }
+
     [Fact]
     public async Task Committed_logical_disposition_retires_exact_owned_broker_suppression_without_replaying_or_extending_work()
     {

@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Globalization;
 using System.Text;
 
@@ -174,7 +175,7 @@ internal sealed partial class SessionsViewModel(
     public string Detail
     {
         get => eventDetailPresented && !EventSourceCurrent ? string.Empty : detail;
-        private set { detail = value; eventDetailPresented = false; }
+        private set { ClearDispositionPreview(); detail = value; eventDetailPresented = false; }
     }
     public string HistorySessionId
     {
@@ -248,16 +249,72 @@ internal sealed partial class SessionsViewModel(
     public bool CanCreate => CanRead && access.CanControl && !string.IsNullOrWhiteSpace(nameDraft);
     public bool CanRename => CanCreate && selected is not null;
     public bool CanPreviewDisposition => CanRead && access.CanControl && selected is not null;
-    public bool CanConfirmDisposition => CanPreviewDisposition && dispositionPreview is not null;
+    public bool CanConfirmDisposition => CanPreviewDisposition && dispositionPreview is { } preview
+        && selected == preview.Session && service.IsDispositionPreviewCurrent(preview) && dispositionNativeAdmission();
+
+    private Func<bool> dispositionNativeAdmission = () => true;
 
     public Task PreviewDispositionAsync() => RunAsync(async () =>
     {
-        if (!await ProtectComposerAsync()) { return; }
-        dispositionPreview = null;
+        if (!await ProtectDispositionComposerAsync()) { return; }
         var target = RequireSelected();
-        var preview = await service.PreviewDispositionAsync(target.Authority.SessionId, target.Authority.Generation,
-            target.Metadata?.Revision.Value ?? 0, lifetime.Token);
-        dispositionPreview = preview;
+        await PrepareDispositionAsync(target.Authority.SessionId, target.Authority.Generation,
+            target.Metadata?.Revision.Value ?? 0, () => true, () => true, lifetime.Token);
+    });
+
+    internal async Task<bool> ReviewDispositionAsync(SessionDispositionReviewCommand command, RequestOrigin origin,
+        Func<bool> admitted, Func<bool> nativeAdmission, CancellationToken token)
+    {
+        if (origin is not (RequestOrigin.LocalUi or RequestOrigin.ActivatedVoice) || command.Error is not null)
+        { throw new InvalidOperationException("Disposition review requires an original user preview request."); }
+        if (!CanRead || draftRecoveryCancellation is not null)
+        { throw new InvalidOperationException("Sessions is busy, reviewing a saved draft or unavailable; finish the native review and retry the exact disposition review when idle."); }
+        var displayed = false;
+        ActivityLink[] causes = HostActivity.Current?.Activity is { } cause ? [new(cause.Context)] : [];
+        await RunAsync(async () =>
+        {
+            if (!await ProtectDispositionComposerAsync()) { return; }
+            using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(lifetime.Token, token);
+            await PrepareDispositionAsync(new(command.SessionId), new(command.Generation), command.MetadataRevision,
+                admitted, nativeAdmission, cancellation.Token);
+            displayed = true;
+        }, activitySession: new(command.SessionId), origin: origin, activityLinks: causes);
+        return displayed && CanConfirmDisposition;
+    }
+
+    private async Task<bool> ProtectDispositionComposerAsync()
+    {
+        ClearDispositionPreview();
+        try { return await ProtectComposerAsync(); }
+        catch (Exception exception) when (exception is not OutOfMemoryException)
+        {
+            ReportComposerCloseFailure(exception);
+            status = "Disposition review not opened: the original composer decision/save is unconfirmed. Reconcile the exact saved draft before retrying.";
+            return false;
+        }
+    }
+
+    private async Task PrepareDispositionAsync(HostId<SessionIdentity> session, HostRevision generation,
+        long metadataRevision, Func<bool> admitted, Func<bool> nativeAdmission, CancellationToken token)
+    {
+        ClearDispositionPreview();
+        var epoch = selectionEpoch;
+        var revision = access.ControlRevision;
+        token.ThrowIfCancellationRequested();
+        if (!admitted() || !nativeAdmission()) { throw new OperationCanceledException("Exact review admission changed."); }
+        var preview = await service.PreviewDispositionAsync(session, generation, metadataRevision, token);
+        if (closed || token.IsCancellationRequested || !access.CanControl || revision != access.ControlRevision
+            || epoch != selectionEpoch || !admitted() || !nativeAdmission() || !service.IsDispositionPreviewCurrent(preview))
+        {
+            service.DiscardDispositionPreview(preview);
+            throw new OperationCanceledException("Exact review changed or closed. Request a fresh preview.");
+        }
+        if (selected != preview.Session)
+        {
+            ClearSelection();
+            selected = preview.Session;
+            sessions = new([preview.Session], null);
+        }
         Detail = "Exact session ID: " + preview.Session.Authority.SessionId.Value.ToString("D")
             + "\nName (label only): " + (preview.Session.Metadata?.Name.Value ?? "Unnamed")
             + "\nGeneration: " + preview.Session.Authority.Generation.Value.ToString(CultureInfo.InvariantCulture)
@@ -267,18 +324,40 @@ internal sealed partial class SessionsViewModel(
             + ", observations " + preview.Observations.ToString(CultureInfo.InvariantCulture)
             + ", waits " + preview.Waits.ToString(CultureInfo.InvariantCulture)
             + ", durable file attachments " + preview.Attachments.ToString(CultureInfo.InvariantCulture)
+            + ", provider overrides " + preview.ProviderProfiles.ToString(CultureInfo.InvariantCulture)
+            + ", conversation messages " + preview.ConversationMessages.ToString(CultureInfo.InvariantCulture)
+            + ", saved conversation drafts " + preview.SavedConversationDrafts.ToString(CultureInfo.InvariantCulture)
             + "\n" + SessionDispositionPreview.Scope;
+        dispositionPreview = preview;
+        dispositionNativeAdmission = nativeAdmission;
         status = "Preview only; nothing removed. Confirm logical disposition is a separate deliberate action for this exact ID and revision.";
-    });
+    }
+
+    internal void RevokeDispositionReview()
+    {
+        if (dispositionPreview is null) { return; }
+        ClearDispositionPreview();
+        Detail = string.Empty;
+        status = "Disposition review owner closed or hidden. Request a fresh exact preview; nothing was removed.";
+        Notify();
+    }
+
+    private void ClearDispositionPreview()
+    {
+        if (dispositionPreview is { } preview) { service.DiscardDispositionPreview(preview); }
+        dispositionPreview = null;
+        dispositionNativeAdmission = () => true;
+    }
 
     public Task ConfirmDispositionAsync() => RunAsync(async () =>
     {
         if (!await ProtectComposerAsync()) { return; }
         var preview = dispositionPreview ?? throw new InvalidOperationException("Preview the exact session first.");
+        var nativeAdmission = dispositionNativeAdmission;
         dispositionPreview = null;
         revokeHistoryDetails?.Invoke(preview.Session.Authority.SessionId);
         var receipt = await service.ConfirmDispositionAsync(preview, RequestOrigin.LocalUi,
-            () => !closed && access.CanControl, lifetime.Token);
+            () => !closed && access.CanControl && nativeAdmission(), lifetime.Token);
         sessions = null;
         ClearSelection();
         Detail = SessionDispositionPreview.Scope;
@@ -497,7 +576,8 @@ internal sealed partial class SessionsViewModel(
 
     private async Task RunAsync(Func<Task> operation, bool passive = false,
         HostId<SessionIdentity>? activitySession = null, bool routineNoticeControl = false,
-        bool dispatchControl = false, bool queueDispatch = false)
+        bool dispatchControl = false, bool queueDispatch = false, RequestOrigin origin = RequestOrigin.LocalUi,
+        IEnumerable<ActivityLink>? activityLinks = null)
     {
         if (busy && !(passive && dispatchingQueue) && !(dispatchControl && dispatchingQueue) || closed || passive && refreshingWork
             || routineNoticeControl && changingRoutineQuiet || dispatchControl && changingQueueControl) { return; }
@@ -506,7 +586,7 @@ internal sealed partial class SessionsViewModel(
         var epoch = selectionEpoch;
         var clearedPresentation = false;
         using var activity = HostActivity.BeginRoot(new(new(Guid.NewGuid()), activitySession ?? viewer.SessionId,
-            viewer.TaskId, RequestOrigin.LocalUi), HostActivityLayer.Desktop, HostOperation.Request);
+            viewer.TaskId, origin), HostActivityLayer.Desktop, HostOperation.Request, activityLinks);
         if (dispatchControl) { changingQueueControl = true; NotifyQueue(); }
         else if (routineNoticeControl) { changingRoutineQuiet = true; NotifyLocalEvents(); }
         else if (passive) { refreshingWork = true; }
@@ -637,7 +717,7 @@ internal sealed partial class SessionsViewModel(
         pendingCancellationSelection = [];
         pendingCancellationEpoch++;
         OnPropertyChanged(nameof(PendingCancellationEntries));
-        dispositionPreview = null;
+        ClearDispositionPreview();
         selected = null;
         selectedTask = null;
         inspectedTask = null;

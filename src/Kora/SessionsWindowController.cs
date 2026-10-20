@@ -5,6 +5,8 @@ using Kora.Application.Hosting;
 using Kora.Application.Interaction;
 using Kora.Application.ViewModels;
 using Kora.Core.Storage;
+using Kora.Core.Commands;
+using Kora.Core.Hosting;
 
 using Microsoft.Extensions.Logging;
 
@@ -16,13 +18,15 @@ internal sealed class SessionsWindowController(
     DetailWindowController? details = null, Kora.Application.Memory.MemoryManagementService? memories = null,
     SessionAttachmentWindowController? attachments = null,
     Kora.Application.Configuration.SessionProviderProfileConfigurationService? providers = null,
-    SessionConversationService? conversation = null) : IDisposable
+    SessionConversationService? conversation = null) : IDisposable, ISessionDispositionReviewPresenter
 {
     private SessionsWindow? window;
     private CompactSessionWindow? compact;
     private SessionsViewModel? model;
     private SessionsPresentationOwner? presentation;
     private bool disposed;
+    private long dispositionOwnerEpoch;
+    private int dispositionOwnerOpen;
     internal Action? OpenAllWork { get; set; }
     internal Action? OpenNewRequest { get; set; }
     internal Func<SessionWorkspaceEntry, Kora.Core.Conversation.ConversationMessage, Avalonia.Controls.Window?,
@@ -31,6 +35,7 @@ internal sealed class SessionsWindowController(
     internal void Bind()
     {
         main.SessionsRequested += OnOpen;
+        main.BindSessionDispositionReview(this);
         main.PrivacyClosureRequested += OnPrivacyClosure;
         service.SessionLifecycleChanged += RevokeSession;
         service.SessionRetired += RevokeSession;
@@ -51,9 +56,25 @@ internal sealed class SessionsWindowController(
             opened.AllWorkRequested += (_, _) => OpenAllWork?.Invoke();
             opened.NewRequestRequested += (_, _) => OpenNewRequest?.Invoke();
             opened.CompactConversationRequested += (_, _) => OpenCompact();
+            opened.PropertyChanged += (_, args) =>
+            {
+                if (args.Property != Avalonia.Controls.Window.IsVisibleProperty || !ReferenceEquals(window, opened)) { return; }
+                Volatile.Write(ref dispositionOwnerOpen, opened.IsVisible ? 1 : 0);
+                if (!opened.IsVisible)
+                {
+                    Interlocked.Increment(ref dispositionOwnerEpoch);
+                    model?.RevokeDispositionReview();
+                }
+            };
             opened.Closed += (_, _) =>
             {
-                if (ReferenceEquals(window, opened)) { window = null; }
+                if (ReferenceEquals(window, opened))
+                {
+                    Volatile.Write(ref dispositionOwnerOpen, 0);
+                    Interlocked.Increment(ref dispositionOwnerEpoch);
+                    model?.RevokeDispositionReview();
+                    window = null;
+                }
                 ReleaseUnusedPresentation();
             };
             window = opened;
@@ -143,6 +164,24 @@ internal sealed class SessionsWindowController(
         await target.OpenRetentionReviewAsync(review, admitted, token);
     }
 
+    public async Task<bool> ReviewDispositionAsync(SessionDispositionReviewCommand command, RequestOrigin origin,
+        Func<bool> admitted, CancellationToken token)
+    {
+        token.ThrowIfCancellationRequested();
+        if (disposed || origin is not (RequestOrigin.LocalUi or RequestOrigin.ActivatedVoice)
+            || command.Error is not null || !access.CanControl || !main.CanRevealPrivatePresentation || !admitted())
+        { throw new OperationCanceledException("Private native disposition review is unavailable."); }
+        Open();
+        var owner = window ?? throw new InvalidOperationException("The native Sessions window is unavailable.");
+        var state = model ?? throw new InvalidOperationException("The native Sessions presentation is unavailable.");
+        var ownerEpoch = Volatile.Read(ref dispositionOwnerEpoch);
+        // Storage callbacks consume native-event observations, never Avalonia properties off-thread.
+        bool NativeAdmission() => !disposed && ReferenceEquals(window, owner)
+            && Volatile.Read(ref dispositionOwnerOpen) == 1 && ownerEpoch == Volatile.Read(ref dispositionOwnerEpoch)
+            && ReferenceEquals(model, state) && access.CanInspect && access.CanControl && main.CanRevealPrivatePresentation;
+        return await state.ReviewDispositionAsync(command, origin, admitted, NativeAdmission, token);
+    }
+
     internal void RevokeSession(Kora.Core.Hosting.HostId<Kora.Core.Hosting.SessionIdentity> session)
     {
         if (!Dispatcher.UIThread.CheckAccess())
@@ -179,9 +218,12 @@ internal sealed class SessionsWindowController(
     {
         if (disposed) { return; }
         disposed = true;
+        Volatile.Write(ref dispositionOwnerOpen, 0);
+        Interlocked.Increment(ref dispositionOwnerEpoch);
         OpenAllWork = null;
         OpenNewRequest = null;
         ReviewOriginalMessageReuse = null;
+        main.BindSessionDispositionReview(null);
         main.SessionsRequested -= OnOpen;
         main.PrivacyClosureRequested -= OnPrivacyClosure;
         service.SessionLifecycleChanged -= RevokeSession;

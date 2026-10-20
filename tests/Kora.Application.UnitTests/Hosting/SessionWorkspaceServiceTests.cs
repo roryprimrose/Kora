@@ -168,12 +168,14 @@ public sealed partial class SessionWorkspaceServiceTests
     private partial class Fixture : ISessionWorkspaceAccess, ISessionWorkspaceStore, ISessionHistoryStore, IHostTaskStore, ISessionRetentionControlStore, IDisposable
     {
         internal Action? AfterPreview { get; set; }
+        internal Func<ValueTask<SessionDispositionPreview>>? ReadDispositionPreview { get; set; }
         internal bool RevokeDuringDispositionResolution { get; init; }
         internal void AdvanceRevision() => ControlRevision++;
         public ValueTask<SessionDispositionPreview> PreviewDispositionAsync(HostId<SessionIdentity> session,
             HostRevision expectedGeneration, long expectedMetadataRevision, CancellationToken cancellationToken)
         {
             AfterPreview?.Invoke();
+            if (ReadDispositionPreview is not null) { return ReadDispositionPreview(); }
             return ValueTask.FromResult(new SessionDispositionPreview(Guid.NewGuid(), new(Session, null), "revision", 1, 1, 1, 1));
         }
         public async ValueTask<SessionDispositionReceipt> DisposeSessionAsync(HostRequest request, SessionDispositionPreview preview,

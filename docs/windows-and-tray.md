@@ -838,6 +838,10 @@ Nothing changes during preview. **Confirm logical disposition** is a separate
 deliberate native action using that single-use host-held preview. There is no
 voice, typed `session delete`, model, name-based or automatic deletion route.
 
+Original typed/current-name activated voice may open this **same preview only** with `review session disposition <canonical-D-guid> <positive-generation> <nonnegative-metadata-revision>`. It never follows newer observed revisions or infers a selected ID. Command confirmation is unavailable; the private native owner and existing separate native confirmation remain required ([command contract](../src/Kora.Core/Commands/SessionDispositionReviewCommand.cs), [native presenter](../src/Kora/SessionsWindowController.cs)).
+
+Both launch paths show questions, scoped grants, observations, waits, durable attachments, provider overrides, submitted conversation messages and saved conversation drafts, plus the complete retained-data/exclusion disclosure. The shared composer protection remains Save/Discard/Cancel, with no implicit submission or save ([shared presentation](../src/Kora/SessionsViewModel.cs), [inventory/scope](../src/Kora.Core/Storage/SessionDispositionPreview.cs)).
+
 Confirmation removes only this session's live name/metadata, questions
 (including drafts/answers), host observations, admitted wait bindings and
 scoped grants, and atomically redacts durable history source/content. Exact
@@ -853,8 +857,8 @@ preview after resolving the blocker.
 **This is not full or forensic deletion.** Task/event and content-minimising
 authority audit provenance, independent diagnostics, Perpetual provenance,
 inert legacy migration storage, SQLite journals/free pages and copied databases
-remain. Full conversations, managed session artifacts, source
-snapshots/indexes/caches and managed-backup deletion are not delivered. Local
+remain outside the specifically inventoried owned SQLite cells and committed journal scope. Submitted conversation bodies, saved drafts and session provider overrides are inventoried; general managed session artifacts, source
+snapshots/indexes/caches and managed-backup deletion are not delivered ([authoritative scope](../src/Kora.Core/Storage/SessionDispositionPreview.cs)). Local
 disposition cannot erase user exports or provider copies. No inactivity timer,
 automatic purge or session retention setting is added.
 

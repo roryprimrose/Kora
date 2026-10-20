@@ -124,12 +124,22 @@ public sealed class EmbeddedUserDocumentationProviderTests
             .Skip(1)
             .ToArray();
 
-        sections.Should().HaveCount(commands.Count + 16);
+        sections.Should().HaveCount(commands.Count + 17);
         var disposition = sections.Single(section => section.StartsWith("Review one exact session's logical disposition", StringComparison.Ordinal));
         disposition.Should().Contain(SessionDispositionReviewCommand.Syntax)
             .And.Contain("Nothing is removed by the command").And.Contain("separate deliberate native action")
             .And.Contain("confirm session disposition").And.Contain("never confirms")
             .And.Contain("all eight inventory counts").And.Contain("current").And.Contain("never saves");
+        var conversationSearch = sections.Single(section => section.StartsWith("Search one explicitly addressed retained conversation", StringComparison.Ordinal));
+        conversationSearch.Should().Contain("conversation search <session-id> -- <verbatim query>")
+            .And.Contain("conversation search next <session-id>")
+            .And.Contain("conversation search cancel <session-id>")
+            .And.Contain("current assistant-name prefix")
+            .And.Contain("not a caller-supplied cursor or JSON")
+            .And.Contain("dirty composer buffers")
+            .And.Contain("visual-only")
+            .And.Contain("same")
+            .And.Contain("canonical search service");
         var editor = sections.Single(section => section.StartsWith("Edit an owned instruction or literal prompt without a model", StringComparison.Ordinal));
         editor.Should().Contain("instructions editor").And.Contain("prompts editor")
             .And.Contain("same").And.Contain("Reload/Overwrite/Cancel").And.Contain("No paths or body dictation");
@@ -258,7 +268,7 @@ public sealed class EmbeddedUserDocumentationProviderTests
             && !ReferenceEquals(section, sessions) && !ReferenceEquals(section, speech)
             && !ReferenceEquals(section, sessionCommands) && !ReferenceEquals(section, summaries)).ToArray();
         sections = sections.Where(section => !ReferenceEquals(section, sharedSkills)
-            && !ReferenceEquals(section, webPage)).ToArray();
+            && !ReferenceEquals(section, webPage) && !ReferenceEquals(section, conversationSearch)).ToArray();
         for (var index = 0; index < commands.Count; index++)
         {
             var phrases = Regex.Matches(

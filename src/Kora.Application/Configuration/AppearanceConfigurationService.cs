@@ -129,6 +129,17 @@ public sealed partial class AppearanceConfigurationService(
         RequestOrigin? originalOrigin = null, Func<bool>? remainsEligible = null) =>
         Propose(option, AppearanceOptionRegistry.Get(option).Default, expectedRevision, initiator, originalOrigin, remainsEligible);
 
+    public AppearanceProposal ProposeReaderTextScaleAdjustment(int percentagePoints, SecurityAuditInitiator initiator,
+        RequestOrigin originalOrigin, Func<bool> remainsEligible)
+    {
+        ValidateInitiator(initiator);
+        ValidateReaderAdmission(initiator, originalOrigin, remainsEligible);
+        ArgumentOutOfRangeException.ThrowIfZero(percentagePoints);
+        var current = Get(AppearanceOption.ReaderTextScale);
+        var value = new AppearanceValue.Number(checked(current.Value.GetNumber() + percentagePoints));
+        return Propose(AppearanceOption.ReaderTextScale, value, current.Revision, initiator, originalOrigin, remainsEligible);
+    }
+
     public Task<AppearanceApplyResult> ApplyAsync(AppearanceProposal proposal, CancellationToken cancellationToken) =>
         Task.Run(() => Apply(proposal, cancellationToken), cancellationToken);
 

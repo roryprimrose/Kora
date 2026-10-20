@@ -4,7 +4,8 @@ using Kora.Core.Configuration;
 namespace Kora.Application.Configuration;
 
 public sealed record AppearanceCommand(AppearanceCommandOperation Operation,
-    AppearanceOptionDescriptor? Descriptor = null, AppearanceValue? Value = null, string? Error = null)
+    AppearanceOptionDescriptor? Descriptor = null, AppearanceValue? Value = null, string? Error = null,
+    int? ReaderTextScaleAdjustment = null)
 {
     public const string Syntax = "Use list appearance settings, get/status <appearance.id>, set <appearance.id> to <value>, or reset <appearance.id>. The listed spoken name also works instead of the ID. Integers use the listed units, theme is system/light/dark, and booleans are true/false. Reset affects only that option.";
 

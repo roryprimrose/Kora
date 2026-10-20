@@ -285,6 +285,15 @@ public sealed partial class MainViewModel
 
     internal async Task ExecuteAppearanceCommandAsync(AppearanceCommand command, SecurityAuditInitiator initiator)
     {
+        try { await ExecuteAdmittedAppearanceCommandAsync(command, initiator); }
+        catch (Exception exception) when (exception is IOException or InvalidDataException or UnauthorizedAccessException)
+        {
+            ReportUnconfirmedAppearance(exception);
+        }
+    }
+
+    private async Task ExecuteAdmittedAppearanceCommandAsync(AppearanceCommand command, SecurityAuditInitiator initiator)
+    {
 #pragma warning disable VSTHRD003 // Serialize against the owned appearance workflow without blocking the dispatcher.
         await AppearanceUpdate;
 #pragma warning restore VSTHRD003
@@ -304,7 +313,25 @@ public sealed partial class MainViewModel
                     $"{item.Id} (spoken: {item.SpokenName}): {item.Description}; {item.Type}, {item.Units}; default {AppearanceCommand.Format(item.Default)}"
                     + (item.Minimum is { } minimum ? $"; range {minimum}-{item.Maximum}" : string.Empty)
                     + $"; {item.Scope}, {item.Effect}, {item.Availability}, {item.ApplicationTiming}."))
-                + Environment.NewLine + AppearanceCommand.Syntax);
+                + Environment.NewLine + AppearanceCommand.Syntax
+                + Environment.NewLine + NaturalAppearanceCommand.Syntax);
+            return;
+        }
+        if (command.ReaderTextScaleAdjustment is { } percentagePoints)
+        {
+            AppearanceProposal adjustment;
+            try
+            {
+                adjustment = appearanceConfiguration.ProposeReaderTextScaleAdjustment(percentagePoints, initiator,
+                    OriginalOrigin(initiator), () => IsHostInputEligible);
+            }
+            catch (Exception exception) when (exception is OverflowException or ArgumentOutOfRangeException)
+            {
+                ShowInformation("Clarify the appearance setting.",
+                    "The reader text scale adjustment is outside the admitted range. " + NaturalAppearanceCommand.Syntax);
+                return;
+            }
+            await ApplyAppearanceProposalAsync(adjustment);
             return;
         }
         var descriptor = command.Descriptor ?? throw new InvalidOperationException("An appearance option is required.");
@@ -340,11 +367,25 @@ public sealed partial class MainViewModel
                 {
                     appearancePersistence = Task.CompletedTask;
                     applyingAppearance = false;
-                    if (!disposed) { SynchronizeAppearance(); }
+                    if (!disposed)
+                    {
+                        try { SynchronizeAppearance(); }
+                        catch (Exception exception) when (exception is IOException or InvalidDataException or UnauthorizedAccessException)
+                        {
+                            ReportUnconfirmedAppearance(exception);
+                        }
+                    }
                     if (pendingAppearance.Count > 0) { AppearanceUpdate = DrainAppearanceAsync(); }
                 }
             }
         });
+
+    private void ReportUnconfirmedAppearance(Exception exception)
+    {
+        ApplicationLog.Error(logger, exception, "Confirming an appearance command");
+        AppearanceSettingStatus = "Appearance preference not confirmed. Inspect saved preference evidence and audit receipts before explicit repair.";
+        ShowFailure("Appearance settings are unavailable.", AppearanceSettingStatus);
+    }
 
     private bool AdmitAppearanceRequest()
     {

@@ -4323,6 +4323,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
 
             if (commandRouter.Match(spokenText, AssistantName).IsMatch
                 || AppearanceCommand.Parse(spokenText, AssistantName) is not null
+                || NaturalAppearanceCommand.Parse(spokenText, AssistantName, initiator == SecurityAuditInitiator.VoiceCommand) is not null
                 || SpeechCommand.Parse(spokenText, AssistantName) is not null
                 || ClipboardCommand.Parse(commandRouter.Match(spokenText, AssistantName).NormalizedTranscript) is not null)
             {
@@ -4417,7 +4418,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
 
         BeginTranscriptPresentation(spokenText, confidence, initiator);
 
-        if (AppearanceCommand.Parse(spokenText, AssistantName) is { } appearanceCommand)
+        if ((AppearanceCommand.Parse(spokenText, AssistantName)
+            ?? NaturalAppearanceCommand.Parse(spokenText, AssistantName, initiator == SecurityAuditInitiator.VoiceCommand)) is { } appearanceCommand)
         {
             await ExecuteAppearanceCommandAsync(appearanceCommand, initiator);
             return;
@@ -5520,6 +5522,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
                     + "Use “list capabilities” for the admitted read-only registry, or “describe capability” followed by a canonical ID. "
                     + "Use “session help” for bounded exact-ID session observations and explicit lifecycle controls. "
                     + $"Use “{AssistantName}, list assistant settings” for the display/PTT command-prefix name. "
+                    + NaturalAppearanceCommand.Syntax + " "
                     + "Use “explain the clipboard” for exact native review and qualified local-only explanation; no hosted fallback. "
                     + (LocalModelsEnabled && Dependencies.Any(status =>
                         string.Equals(status.Id, "local.inference", StringComparison.Ordinal)

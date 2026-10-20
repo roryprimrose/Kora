@@ -3,6 +3,7 @@ using AwesomeAssertions;
 using Kora.Application.Configuration;
 using Kora.Application.Presentation;
 using Kora.Core.Communication;
+using Kora.Core.Authorization;
 using Kora.Core.Configuration;
 using Kora.Core.Dependencies;
 using Kora.Core.Hosting;
@@ -13,6 +14,73 @@ namespace Kora.Application.UnitTests.Presentation;
 
 public sealed class SettingsTextTests
 {
+    [Fact]
+    public void Unknown_choices_fail_explicitly_instead_of_acquiring_a_display_default()
+    {
+        Action[] actions =
+        [
+            () => SettingsText.ResponseMode((ResponseOutputMode)int.MaxValue),
+            () => SettingsText.ProviderMode((ModelProviderMode)int.MaxValue),
+            () => SettingsText.CallFeedback((InCallFeedbackMode)int.MaxValue),
+            () => SettingsText.Service((ProviderService)int.MaxValue),
+            () => SettingsText.CaptionPlacement((SpeechCaptionPlacement)int.MaxValue),
+        ];
+        foreach (var action in actions) { action.Should().Throw<ArgumentOutOfRangeException>(); }
+    }
+
+    [Fact]
+    public void Missing_effective_choices_remain_unavailable_even_when_availability_is_reported()
+    {
+        string[] summaries =
+        [
+            SettingsText.Describe(new ResponseModeCommandResult("observed", null, 1, 1,
+                null, null, null, "unavailable", true)),
+            SettingsText.Describe(new ProviderModeCommandResult("observed", null, 1, 1,
+                null, null, "unavailable", true)),
+            SettingsText.Describe(new InCallFeedbackCommandResult("observed", null, 1, 1,
+                null, null, "unavailable", true)),
+            SettingsText.Describe(new SpeechTextState("observed", 1, null, null, "unavailable", true, null)),
+        ];
+        summaries.Should().AllSatisfy(summary => summary.Should().StartWith("Setting unavailable."));
+        SettingsText.Describe(new ProviderProfileConfigurationState(1, null, null, null,
+            "Unavailable", null, LocalProviderInstallation.Unknown, true))
+            .Should().Contain("Not selected").And.Contain("No model is ready");
+    }
+
+    [Fact]
+    public void Available_modes_keep_their_selection_source_and_application_status()
+    {
+        SettingsText.Describe(new ResponseModeCommandResult("observed", null, 1, 1,
+            ResponseOutputMode.Hybrid, ResponseOutputMode.Hybrid, ResponseOutputMode.Hybrid, "saved", true))
+            .Should().Be("Text and speech. Saved on this device.");
+        SettingsText.Describe(new ProviderModeCommandResult("observed", null, 1, 1,
+            null, ModelProviderMode.LocalOnly, "default", true))
+            .Should().Be("On-device only for new sessions. Using the default.");
+        SettingsText.Describe(new InCallFeedbackCommandResult("observed", null, 1, 1,
+            null, InCallFeedbackMode.UI, "observed", true) { Applied = false, MandatoryVisual = false })
+            .Should().Be("Text only. Current setting on this device. Not currently applied.");
+    }
+
+    [Fact]
+    public void Caption_option_labels_and_provenance_do_not_hide_invalid_choices()
+    {
+        var session = new WorkSessionAuthorization(default, default, false);
+        var delay = new SpeechTextChoice(null, 1, Guid.NewGuid(), session,
+            Kora.Core.Hosting.RequestOrigin.LocalUi, static () => false, new SpeechCaptionValue.Delay(5));
+        delay.Label.Should().Be(new SpeechCaptionValue.Delay(5).Label);
+        var invalid = new SpeechTextChoice(null, 1, Guid.NewGuid(), session,
+            Kora.Core.Hosting.RequestOrigin.LocalUi, static () => false);
+        var readLabel = () => invalid.Label;
+        readLabel.Should().Throw<InvalidOperationException>();
+        var state = new SpeechTextState("observed", 1, null, SpeechTextMode.Off, "saved", true, null)
+        {
+            SavedCaptionOptions = SpeechCaptionOptions.Default,
+        };
+        state.CaptionOptionsSource.Should().Be("saved");
+        (state with { Available = false }).CaptionOptionsSource.Should().Be("unavailable");
+        (state with { SavedCaptionOptions = null }).CaptionOptionsSource.Should().Be("default");
+    }
+
     [Theory]
     [InlineData(ResponseOutputMode.VisualOnly, "Text only")]
     [InlineData(ResponseOutputMode.VoiceOnly, "Speech only")]

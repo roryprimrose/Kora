@@ -93,9 +93,9 @@ public sealed partial class MainViewModel
         OnPropertyChanged(nameof(CanPreviewDiagnosticImpact));
         OnPropertyChanged(nameof(CanCancelDiagnosticImpact));
         OnPropertyChanged(nameof(CanClearDiagnosticImpact));
-        PreviewDiagnosticImpactCommand?.NotifyCanExecuteChanged();
-        CancelDiagnosticImpactCommand?.NotifyCanExecuteChanged();
-        ClearDiagnosticImpactCommand?.NotifyCanExecuteChanged();
+        PreviewDiagnosticImpactCommand.NotifyCanExecuteChanged();
+        CancelDiagnosticImpactCommand.NotifyCanExecuteChanged();
+        ClearDiagnosticImpactCommand.NotifyCanExecuteChanged();
     }
 
     private void RetireIneligibleDiagnosticImpact()

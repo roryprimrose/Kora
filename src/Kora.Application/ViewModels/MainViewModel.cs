@@ -402,9 +402,6 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         this.auditRetentionConfiguration = auditRetentionConfiguration;
         this.auditImpactPreview = auditImpactPreview;
         this.diagnosticImpactPreview = diagnosticImpactPreview;
-        if (diagnosticImpactPreview is not null) { diagnosticImpactPreview.Changed += OnDiagnosticImpactPreviewChanged; }
-        PropertyChanged += OnDiagnosticImpactHostPropertyChanged;
-        if (auditImpactPreview is not null) { auditImpactPreview.Changed += OnAuditImpactPreviewChanged; }
         if (auditRetentionConfiguration is not null)
         {
             try { auditRetentionConfiguration.Observe(); }
@@ -539,6 +536,10 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             () => CanClearDiagnosticImpact);
         CancelDiagnosticImpactCommand = new(CancelDiagnosticImpactAsync, FailDiagnosticImpactPreview,
             () => CanCancelDiagnosticImpact);
+        // Preference observation can retire previews synchronously; attach only after their commands exist.
+        if (diagnosticImpactPreview is not null) { diagnosticImpactPreview.Changed += OnDiagnosticImpactPreviewChanged; }
+        PropertyChanged += OnDiagnosticImpactHostPropertyChanged;
+        if (auditImpactPreview is not null) { auditImpactPreview.Changed += OnAuditImpactPreviewChanged; }
         RefreshResponseModeCommand = CreateCommand(() => RunNativeResponseModeAsync(AppearanceCommandOperation.Get));
         SaveResponseModeCommand = CreateCommand(() => RunNativeResponseModeAsync(AppearanceCommandOperation.Set));
         ResetResponseModeCommand = CreateCommand(() => RunNativeResponseModeAsync(AppearanceCommandOperation.Reset));

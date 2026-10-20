@@ -198,7 +198,7 @@ public sealed partial class MainViewModelTests
             fixture.ViewModel.PropertyChanged += (_, args) =>
             {
                 if (string.Equals(args.PropertyName, nameof(fixture.ViewModel.SpeechTextChoices), StringComparison.Ordinal)
-                    && (stage is "late-host" || fixture.ViewModel.SpeechTextConfigurationStatus.Contains("\"available\":true", StringComparison.Ordinal)))
+                    && (stage is "late-host" || fixture.ViewModel.SpeechCaptionPlacement is not null))
                 {
                     fixture.Session.IsUnlocked = false;
                 }
@@ -224,6 +224,7 @@ public sealed partial class MainViewModelTests
             fixture.ViewModel.ResponseBody.Should().Contain("\"outcome\":\"denied\"");
         }
         else { await fixture.RunAsync(stage is "late-complete" ? "get display.speech-text" : "set display.speech-text to CurrentUtterance"); }
+        if (stage is "late-host" or "late-complete") { fixture.Session.IsUnlocked.Should().BeFalse(); }
         fixture.TextToSpeech.SpokenText.Should().BeNull();
         fixture.Reasoner.Requests.Should().BeEmpty();
         fixture.ViewModel.SpeechCaptionText.Should().BeNull();

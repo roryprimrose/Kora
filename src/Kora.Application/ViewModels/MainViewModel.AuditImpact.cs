@@ -71,7 +71,7 @@ public sealed partial class MainViewModel
     {
         OnPropertyChanged(nameof(AuditImpactPreviewStatus));
         OnPropertyChanged(nameof(CanPreviewAuditImpact));
-        PreviewAuditImpactCommand?.NotifyCanExecuteChanged();
+        PreviewAuditImpactCommand.NotifyCanExecuteChanged();
     }
 
     private void RetireIneligibleAuditImpact()

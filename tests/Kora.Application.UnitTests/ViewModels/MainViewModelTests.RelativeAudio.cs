@@ -199,7 +199,7 @@ public sealed partial class MainViewModelTests
                 SecurityAuditInitiator.TypedCommand, cancelled.Token);
             fixture.RatePreferences.ReadFailure = new InvalidDataException("malformed rate");
             await fixture.RunAsync("speak slower");
-            fixture.ViewModel.WindowsSpeechRateStatus.Should().Contain("\"source\":\"unavailable\"");
+            fixture.ViewModel.WindowsSpeechRateStatus.Should().StartWith("Setting unavailable.");
         }
         else
         {
@@ -207,7 +207,7 @@ public sealed partial class MainViewModelTests
                 SecurityAuditInitiator.TypedCommand, cancelled.Token);
             fixture.VolumePreferences.ReadFailure = new InvalidDataException("malformed volume");
             await fixture.RunAsync("speak louder");
-            fixture.ViewModel.PlaybackVolumeStatus.Should().Contain("\"source\":\"unavailable\"");
+            fixture.ViewModel.PlaybackVolumeStatus.Should().StartWith("Setting unavailable.");
         }
         fixture.VolumePreferences.Value.Should().BeNull();
         fixture.RatePreferences.Value.Should().BeNull();

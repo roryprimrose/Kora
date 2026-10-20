@@ -109,6 +109,7 @@ internal sealed partial class SessionsViewModel
         if (!CanReadConversation) { return; }
         RetireComposerComparison();
         RetireDraftRecovery();
+        Interlocked.Increment(ref composerBufferRevision);
         composerBody = string.Empty;
         composerBaseline = string.Empty;
         clearDraftReviewed = false;
@@ -216,7 +217,7 @@ internal sealed partial class SessionsViewModel
             + " No fallback or automatic retry. Saved drafts remain independently retained; Refresh for the full bounded conversation.";
     }, submission: true);
 
-    internal async Task<bool> ProtectComposerAsync(Func<bool>? admitted = null)
+    internal async Task<bool> ProtectComposerAsync(Func<bool>? admitted = null, bool allowSave = true)
     {
         RetireComposerComparison();
         RetireDraftRecovery();
@@ -238,18 +239,11 @@ internal sealed partial class SessionsViewModel
             if (!Live() || decision == ComposerDraftDecision.Cancel) { return false; }
             if (decision == ComposerDraftDecision.Discard)
             { composerBody = string.Empty; composerBaseline = string.Empty; return true; }
-            if (draftSaveUnconfirmed || conversationSourceHeld)
-            { throw new InvalidOperationException("Reconcile the exact saved draft source before saving uncertain composer state."); }
-            var draft = savedConversationDraft ?? await conversation!.ReadDraftAsync(target.Authority.SessionId, lifetime.Token);
-            var saved = await conversation!.SaveDraftAsync(draft, body,
-                () => Live() && access.CanControl, lifetime.Token);
-            if (!Live() || saved.Session != target.Authority || !string.Equals(saved.Draft.Body, body, StringComparison.Ordinal))
-            { throw new IOException("Saved draft receipt is unconfirmed; inspect exact durable revision."); }
-            savedConversationDraft = saved;
-            savedConversationDraftControlRevision = access.ControlRevision;
-            composerBaseline = body;
+            if (!allowSave) { return false; }
+            await SaveProtectedComposerAsync(target, body, Live);
             return true;
         }
+
         catch (Exception exception) when (exception is not OutOfMemoryException)
         {
             draftSaveUnconfirmed |= exception is not (ConversationDraftConflictException or ConversationCredentialException);
@@ -261,6 +255,19 @@ internal sealed partial class SessionsViewModel
             Notify();
             if (closed && !busy && !refreshingWork && !changingRoutineQuiet && !changingQueueControl) { lifetime.Dispose(); }
         }
+    }
+
+    private async Task SaveProtectedComposerAsync(Kora.Core.Storage.SessionWorkspaceEntry target, string body, Func<bool> live)
+    {
+        if (draftSaveUnconfirmed || conversationSourceHeld)
+        { throw new InvalidOperationException("Reconcile the exact saved draft source before saving uncertain composer state."); }
+        var draft = savedConversationDraft ?? await conversation!.ReadDraftAsync(target.Authority.SessionId, lifetime.Token);
+        var saved = await conversation!.SaveDraftAsync(draft, body, () => live() && access.CanControl, lifetime.Token);
+        if (!live() || saved.Session != target.Authority || !string.Equals(saved.Draft.Body, body, StringComparison.Ordinal))
+        { throw new IOException("Saved draft receipt is unconfirmed; inspect exact durable revision."); }
+        savedConversationDraft = saved;
+        savedConversationDraftControlRevision = access.ControlRevision;
+        composerBaseline = body;
     }
 
     private async Task RunConversationAsync(Func<Kora.Core.Storage.SessionWorkspaceEntry, Func<bool>, Task> operation,

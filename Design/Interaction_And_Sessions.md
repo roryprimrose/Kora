@@ -815,6 +815,46 @@ claimed replaced by this increment.
 
 ### Delivered Passive Session-List Name and Exact-ID Search - 2026-10-10
 
+#### Exact native query preparation
+
+The strict [preparation grammar](../src/Kora.Core/Commands/SessionListPreparationCommand.cs)
+and [Application handoff](../src/Kora.Application/ViewModels/MainViewModel.SessionListPreparation.cs)
+admit only `prepare session list <session-id>` and constant `session list help`;
+current-name activated voice follows the same original-input admission.
+An ID is a nonempty canonical lowercase D GUID and future query data only.
+No existence/absence, ownership, permission, current selection or action
+authority follows from parsing or opening.
+The [dedicated controller partial](../src/Kora/SessionsWindowController.ListPreparation.cs)
+reuses the Sessions singleton without changing general tray/open routes.
+Original host, input, name activation, owner, private/call/voice/control and
+native presentation/source/buffer epochs remain bound through queued opening,
+preparation and actual native query-focus acknowledgement.
+Missing/stale/disposed/unconfirmed state is unavailable/cancelled, never an
+alternate query or success-shaped default.
+
+Only search mode, ExactId and query text change. Every other lifecycle,
+availability, generation, name-revision and name-length draft remains exact
+and AND-composed, including invalid drafts. The prepared status explicitly
+requires separate native filter review, Search and exact selection/navigation.
+No metadata/body/count/search/refresh/Next/selection/service action is invoked.
+The [preparation seam](../src/Kora/SessionsViewModel.ListPreparation.cs)
+reuses authoritative no-read list invalidation, retiring prior search pages,
+cursors, selected search details/readiness and late callbacks. Ordinary
+selection and shared drafts are preserved. An unsaved name editor or existing
+review refuses search-selection retirement. Dirty composer retirement uses
+the existing real native Save/Discard/Cancel guard: Cancel preserves, Discard
+permits retirement, and only a real native Save event may save under new
+LocalUi authority. That event cancels the original command regardless of the
+save outcome; fresh preparation is required afterward. Preparation itself
+cannot save, confirm, answer/replace pending reviews, renew activity, or grant
+provider/model/task/queue/clipboard/copy authority.
+
+This consumes only the existing list query/edit, original-input admission,
+native singleton/focus and dirty-navigation implementation contracts. It
+adds no dependency, experiment, device/provider/network readiness or E/Q gate.
+See [direct syntax](../docs/commands.md#prepare-an-exact-session-list-metadata-query)
+and [native guide](../docs/windows-and-tray.md#search-the-session-list).
+
 The [metadata-only policy](../src/Kora.Core/Storage/SessionListSearch.cs) and [Application read path](../src/Kora.Application/Hosting/SessionWorkspaceService.ListSearch.cs) support explicit bounded Browse, names or an explicitly selected exact immutable ID.
 The separate [saved composer catalogue](#saved-conversation-draft-catalogue--2026-10-13) reuses this policy on authoritative saved-draft session metadata, not body content; it retains its stricter committed-head continuation invalidation and mandatory audit-prefix validation.
 The [All work overview](Work_Management.md#delivered-passive-cross-session-work-observation---2026-10-11) also reuses this exact policy, composing lifecycle and needs-answer filters over its own ten-session bounded canonical-ID scan. Both query modes scan rather than directly resolving an ID there; zero-match pages can have Next. Its volatile digest-bound continuation additionally binds needs-answer, availability, positive observed content, all optional inclusive work-metadata range endpoints and the overview source epoch. Work ranges apply only to complete validated Observed metadata, never unavailable or output-bound projections. Query editing never reads, and clear/close revoke private query/results without adding content/model or execution authority.

@@ -128,7 +128,20 @@ internal sealed partial class SessionsPresentationOwner
         foreach (var decision in Enum.GetValues<ComposerDraftDecision>())
         {
             var button = new Button { Content = decision.ToString(), Name = "Draft" + decision };
-            button.Click += (_, _) => dialog.Close(decision);
+            button.Click += async (_, _) =>
+            {
+                if (decision == ComposerDraftDecision.Save && model.IsPreparingListQuery)
+                {
+                    if (revoked || draftDialog != dialog || !owner.IsVisible) { dialog.Close(ComposerDraftDecision.Cancel); return; }
+                    buttons.IsEnabled = false;
+                    try { await model.SaveListPreparationDraftFromNativeAsync(); }
+                    catch (Exception exception) when (exception is not OutOfMemoryException)
+                    { model.ReportComposerCloseFailure(exception); }
+                    dialog.Close(ComposerDraftDecision.Cancel);
+                    return;
+                }
+                dialog.Close(decision);
+            };
             buttons.Children.Add(button);
         }
         content.Children.Add(buttons);

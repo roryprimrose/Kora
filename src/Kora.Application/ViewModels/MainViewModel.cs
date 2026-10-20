@@ -634,6 +634,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             () => !string.IsNullOrWhiteSpace(CommandText)
                   && (!IsBusy || IsSetupStatusCommand() || IsListeningStopCommand(CommandText)
                       || SessionCommand.Parse(CommandText, AssistantName) is not null
+                      || SessionListPreparationCommand.Parse(CommandText, AssistantName) is not null
                       || SessionDispositionReviewCommand.Parse(CommandText, AssistantName) is not null
                       || WorkspaceSurfaceCommand.Parse(CommandText, AssistantName) is not null
                       || AttachmentCataloguePreparationCommand.Parse(CommandText, AssistantName) is not null
@@ -4145,15 +4146,23 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             return;
         }
         var sessionCommand = SessionCommand.Parse(spokenText, AssistantName);
-        if (sessionCommand is null && LocalClockCommand.Parse(spokenText, AssistantName) is { } clockCommand)
+        var cataloguePreparation = manualInput?.CataloguePreparation
+            ?? AttachmentCataloguePreparationCommand.Parse(spokenText, AssistantName);
+        var listPreparation = SessionListPreparationCommand.Parse(spokenText, AssistantName);
+        if (sessionCommand is null && cataloguePreparation is null && listPreparation is null
+            && LocalClockCommand.Parse(spokenText, AssistantName) is { } clockCommand)
         {
             ExecuteLocalClockCommand(clockCommand, initiator, manualInput);
             return;
         }
-        if ((manualInput?.CataloguePreparation
-            ?? AttachmentCataloguePreparationCommand.Parse(spokenText, AssistantName)) is { } cataloguePreparation)
+        if (cataloguePreparation is not null)
         {
             await PrepareAttachmentCatalogue(cataloguePreparation, initiator, manualInput);
+            return;
+        }
+        if (listPreparation is not null)
+        {
+            await ExecuteSessionListPreparation(listPreparation, initiator, manualInput);
             return;
         }
         if (Kora.Application.Skills.SkillReviewCommand.Parse(spokenText, AssistantName) is { } reviewCommand)
@@ -6170,6 +6179,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             .Concat(LocalClockCommand.FixedPhrases)
             .Concat(AttachmentCataloguePreparationCommand.DiscoveryPhrases)
             .Concat(SessionCommand.DiscoveryPhrases)
+            .Concat(SessionListPreparationCommand.DiscoveryPhrases)
             .Concat(WorkspaceSurfaceCommand.FixedPhrases)
             .Concat(MemoryCommand.DiscoveryPhrases)
             .Concat(AssistantNameCommand.DiscoveryPhrases)

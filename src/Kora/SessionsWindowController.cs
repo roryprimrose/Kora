@@ -45,6 +45,7 @@ internal sealed partial class SessionsWindowController(
     internal void Bind()
     {
         main.SessionsRequested += OnOpen;
+        main.SessionListPreparationRequested += PrepareSessionList;
         main.BindSessionDispositionReview(this);
         main.BindQueueCancellationReview(this);
         main.BindSessionDiagnosticsPlan(this);
@@ -284,6 +285,7 @@ internal sealed partial class SessionsWindowController(
         main.BindQueueCancellationReview(null);
         main.BindSessionDiagnosticsPlan(null);
         main.SessionsRequested -= OnOpen;
+        main.SessionListPreparationRequested -= PrepareSessionList;
         main.PrivacyClosureRequested -= OnPrivacyClosure;
         service.SessionLifecycleChanged -= RevokeSession;
         service.SessionRetired -= RevokeSession;

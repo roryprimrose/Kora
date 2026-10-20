@@ -183,7 +183,7 @@ internal sealed partial class SessionsViewModel(
     public string NameDraft
     {
         get => nameDraft;
-        set { nameDraft = value; OnPropertyChanged(); Notify(); }
+        set { nameDraftRevision++; nameDraft = value; OnPropertyChanged(); Notify(); }
     }
     public string Status => status;
     public string Detail

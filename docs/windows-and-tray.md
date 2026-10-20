@@ -359,6 +359,29 @@ This is a passive bounded overview, not a conversation/composer, general provide
 
 ## Search the session list
 
+To prepare (not execute) an exact-ID query, use
+`prepare session list <session-id>` or current-name activated voice.
+`session list help` is constant no-read help. The existing **Sessions** window
+is reused, and only metadata-search mode, **ExactId**, and its query are
+prepared/focused. **No Search has run.** Every other lifecycle, availability,
+generation, name-revision and name-length filter draft is retained and **AND**
+composed, including invalid or excluding values. Review all filters, explicitly
+Search, then select/navigate an exact native result separately.
+An ID is only future query data, not existence/absence, ownership, permission
+or selection authority. No read, corpus count, activity renewal or action is
+performed by preparation.
+
+Ordinary selection and shared composer/name drafts remain intact. A published
+search query edit uses the same no-read retirement described below; an unsaved
+name editor or existing review refuses rather than silently losing it.
+Dirty composer retirement uses the real native Save/Discard/Cancel dialog.
+Cancel retains the buffer; Discard explicitly permits retirement. Native Save
+is a separate native event, never command/voice Save authority, and cancels
+the old preparation even when saving succeeds: issue a fresh command.
+Changed admission/source/buffer epochs, missing native composition or failed
+query focus acknowledgement reports unavailable/cancelled, not success.
+See [exact grammar and boundary](commands.md#prepare-an-exact-session-list-metadata-query).
+
 In **Sessions**, choose **Browse**, **NameSubstring**, **ExactId** or **ExactName**, enter the metadata query, and use **Search session metadata** (or Enter). This searches the persisted list across bounded pages, not just the already loaded rows. It is separate from **Search exact history** and diagnostic Evidence.
 
 - **NameSubstring** is literal, case-sensitive ordinal containment. `%`, `_` and punctuation are ordinary characters, not wildcards or SQL. Use NFC single-line Unicode, no control/format characters or surrounding whitespace, at most 120 scalars / 480 UTF-8 bytes. Invalid input is rejected without trimming, normalization or truncation.

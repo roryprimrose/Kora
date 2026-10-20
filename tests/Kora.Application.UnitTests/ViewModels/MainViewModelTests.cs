@@ -4534,6 +4534,7 @@ public sealed partial class MainViewModelTests : IDisposable
             .Concat(LocalClockCommand.FixedPhrases)
             .Concat(AttachmentCataloguePreparationCommand.DiscoveryPhrases)
             .Concat(SessionCommand.DiscoveryPhrases)
+            .Concat(SessionListPreparationCommand.DiscoveryPhrases)
             .Concat(WorkspaceSurfaceCommand.FixedPhrases)
             .Concat(MemoryCommand.DiscoveryPhrases)
             .Concat(AssistantNameCommand.DiscoveryPhrases)

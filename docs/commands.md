@@ -96,6 +96,42 @@ Native composition and original/current private ownership, input, call/privacy e
 Model navigation is explicitly unavailable: these window-focus actions are not added to bootstrap or the six read-only model descriptors.
 See [native windows](windows-and-tray.md#workspace-surface-navigation) and the [deterministic evidence](../Design/UI_Workspace_And_Windows.md#workspace-surface-command-evidence).
 
+## Prepare an exact session-list metadata query
+
+`prepare session list <session-id>` opens/focuses the same **Sessions** singleton
+and prepares only **ExactId** and its query field. Activated voice uses the
+current available assistant name, for example
+`Kora, prepare session list abcdef01-2345-6789-abcd-ef0123456789`.
+`session list help` provides constant syntax without reading any session.
+Only a nonempty canonical lowercase D GUID is accepted: no name, current,
+latest, Browse inference, body query or extra arguments. Existing revisioned
+`session list` and `session inspect` commands and `open sessions` are unchanged.
+
+**PREPARED / REVIEW NEEDED is not a search or selection.** Lifecycle,
+name availability, generation, name-revision and name-length filter drafts
+remain exactly as entered, including invalid drafts. All predicates **AND**
+together; a retained filter can exclude the ID. Review them and click native
+**Search session metadata** separately, then explicitly select/navigate an
+exact native result. The ID proves neither existence nor absence, ownership
+nor permission. There is no read, count, automatic refresh, body access,
+resume, model work, task/action authority or activity renewal.
+
+Preparation preserves an ordinary selected session and shared composer/name
+drafts. Editing a published metadata search retires its old rows, cursor,
+search selection, details, action readiness and late callbacks through the
+same no-read query-edit path. An unsaved name editor or open review refuses
+that retirement rather than discarding it. If a dirty shared composer must
+retire, the actual native **Save / Discard / Cancel** guard is shown.
+**Cancel** preserves it; **Discard** explicitly permits retirement.
+Only a real native **Save** click can save under fresh native authority; it
+cancels the old preparation, including after a successful save. Issue a fresh
+command afterward. A command never saves or confirms on your behalf.
+Missing/disposed native composition, changed original host/input/owner/private/
+call/voice/control/source/buffer state, or failed focus acknowledgement reports
+unavailable/cancelled, never prepared success or an alternate target.
+
+See [Search the session list](windows-and-tray.md#search-the-session-list).
+
 ## Native saved conversation draft catalogue
 
 **Tray > Saved conversation drafts (metadata only)** or `open saved conversation drafts` opens the same native catalogue; it has no typed/voice/model body query. Opening reads nothing.

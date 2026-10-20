@@ -235,7 +235,7 @@ public sealed partial class MainViewModel
         auditImpactPreview?.Retire("Call revision changed; preview retired.");
         diagnosticImpactPreview?.Retire("Call revision changed; preview retired.");
         sessionRetentionPlanner?.Retire("Call revision changed; preview retired.");
-        sessionRequests?.Retire();
+        RetireSessionCommandReviews();
         RetireQuestionVoiceReply();
         try
         {

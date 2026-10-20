@@ -12,7 +12,7 @@ internal sealed partial class SessionsViewModel
     private HostId<SessionIdentity>? retentionSubject;
 
     private sealed record RetentionReview(SessionRetentionObservation Observation, bool Keep,
-        long SelectionEpoch, long ControlRevision);
+        long SelectionEpoch, long ControlRevision, RequestOrigin? CommandOrigin = null);
 
     public string RetentionStatus => retentionObservation is { } observed
         ? DescribeRetention(observed)
@@ -22,6 +22,9 @@ internal sealed partial class SessionsViewModel
         ? (review.Keep ? "Confirm Keep this session: automatic session archive/delete will be held."
             : "Confirm Use ordinary retention: background maintenance may archive or delete soon, including already-due dates. No clock reset or apply-now cleanup.")
             + "\n" + DescribeRetention(review.Observation)
+            + (review.CommandOrigin is { } origin
+                ? "\nOpened from " + origin + " command. The command did not change the hold. A genuine NEW native decision is required."
+                : "")
         : "Keep is a SESSION retention hold, not a Perpetual OPERATION grant, consent, memory, recall or execution permission. Review and confirm one exact ID.";
 
     public bool CanReadExactRetention => CanRead
@@ -77,6 +80,29 @@ internal sealed partial class SessionsViewModel
         if (keep ? !CanKeepSession : !CanUseOrdinaryRetention) { return; }
         retentionReview = new(retentionObservation!, keep, selectionEpoch, access.ControlRevision);
         NotifyRetention();
+    }
+
+    internal async Task OpenRetentionReviewAsync(SessionRetentionReview review, Func<bool> admitted, CancellationToken token)
+    {
+        token.ThrowIfCancellationRequested();
+        if (!CanRead || ComposerDirty || !admitted())
+        { throw new InvalidOperationException("Native retention review requires an idle private surface without unsaved composer changes."); }
+        await RunAsync(async () =>
+        {
+            ClearSelection();
+            retentionSubject = review.Observation.State.SessionId;
+            historySessionId = retentionSubject.Value.Value.ToString("D");
+            await ReadSelectedRetentionAsync();
+            token.ThrowIfCancellationRequested();
+            if (!admitted() || !access.CanControl || retentionObservation is not { } actual
+                || !actual.MatchesRecordedState(review.Observation) || actual.Removed || actual.State.Purged)
+            { throw new InvalidOperationException("The exact command retention review or original admission changed. Review again."); }
+            retentionObservation = review.Observation;
+            retentionReview = new(review.Observation, review.Keep, selectionEpoch, access.ControlRevision, review.Origin);
+            status = "Exact native retention review only; no content read, hold write, resume, activity renewal or maintenance. Make a NEW native decision.";
+        }, activitySession: review.Observation.State.SessionId);
+        if (retentionReview?.Observation != review.Observation || !CanConfirmRetention)
+        { throw new InvalidOperationException("Native retention review was not confirmed open. No hold change or automatic retry."); }
     }
 
     public void CancelRetentionReview()

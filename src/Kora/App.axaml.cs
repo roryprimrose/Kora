@@ -48,6 +48,7 @@ public sealed partial class App : Avalonia.Application
     private AttachmentCatalogueWindowController? attachmentCatalogue;
     private SavedDraftCatalogueWindowController? savedDraftCatalogue;
     private MaintenanceWindowController? maintenanceWindow;
+    private CountdownWindowController? countdownWindow;
     private MainViewModel? viewModel;
     private ILogger<App>? logger;
     private PresenceWindowController? presenceWindows;
@@ -245,6 +246,9 @@ public sealed partial class App : Avalonia.Application
             var localEvents = Services.GetRequiredService<Kora.Application.Interaction.LocalEventBroker>();
             Services.GetRequiredService<SessionWorkspaceService>().BindLocalEvents(localEvents);
             viewModel.BindLocalEvents(localEvents);
+            countdownWindow = new(viewModel, new(
+                Services.GetRequiredService<TimeProvider>(), Services.GetRequiredService<IUiDispatcher>(),
+                Services.GetRequiredService<ILogger<Kora.Application.Interaction.CountdownWorkflow>>()));
             var sessionRetention = Services.GetRequiredService<SessionRetentionService>();
             Services.GetRequiredService<SessionWorkspaceService>().BindRetention(sessionRetention);
             sessionRetention.Revoking += sessionsWindow.RevokeSession;
@@ -399,6 +403,8 @@ public sealed partial class App : Avalonia.Application
         fileWindow = null;
         maintenanceWindow?.Dispose();
         maintenanceWindow = null;
+        countdownWindow?.Dispose();
+        countdownWindow = null;
     }
 
     private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs eventArgs)

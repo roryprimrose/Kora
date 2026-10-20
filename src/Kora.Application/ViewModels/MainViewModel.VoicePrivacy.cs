@@ -272,6 +272,7 @@ public sealed partial class MainViewModel
             if (disposed) { return; }
             disposed = true;
         }
+        countdown?.Dispose();
         if (auditImpactPreview is not null)
         {
             auditImpactPreview.Changed -= OnAuditImpactPreviewChanged;

@@ -36,6 +36,8 @@ public sealed partial class MainViewModel
         internal long InputRevision { get; init; }
         internal AttachmentCataloguePreparationCommand? CataloguePreparation { get; init; }
         internal Func<bool> CatalogueEligible { get; init; } = static () => true;
+        internal long CountdownOwnerBindingRevision { get; init; }
+        internal string CountdownAssistantName { get; init; } = string.Empty;
     }
 
     public string ManualCallConfigurationStatus => manualCallControl is null
@@ -69,6 +71,8 @@ public sealed partial class MainViewModel
             AssistantNameRevision = assistantNameConfiguration.Get().Revision,
             OwnershipBindingRevision = Interlocked.Read(ref settingsOwnershipBindingRevision),
             InputRevision = Interlocked.Read(ref workspaceSurfaceInputRevision),
+            CountdownOwnerBindingRevision = Interlocked.Read(ref settingsOwnershipBindingRevision),
+            CountdownAssistantName = AssistantName,
         };
     }
 

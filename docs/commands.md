@@ -58,6 +58,37 @@ stale/denied/unavailable requests report recovery in status. Pending questions,
 approvals, power proposals, grant editors and native security reviews stay
 unchanged, including for malformed clock commands.
 
+## Local visual countdown
+
+| Exact command | Result |
+|---|---|
+| `timer start <seconds>` | Start one timer for this run; refuse if one is still active |
+| `timer status` | Show the same native timer window and current remaining time or terminal state |
+| `timer cancel` | Cancel the active timer; repeated cancellation does not restart it |
+| `timer help` | Show exact syntax and limits |
+
+Commands are case-insensitive. Typed input may use the current assistant-name prefix;
+activated voice requires it, for example `Kora, timer start 60`. Renaming does not
+retain an old-name alias. Only whole ASCII digits **1..86400**, including leading
+zeroes, are accepted. Outer spaces are allowed; signs, decimals, separators,
+non-ASCII digits, extra words, punctuation, control characters, double internal
+spaces and input over 256 characters are refused with the syntax, not sent to a model.
+
+The native **Status** and **Cancel timer** buttons use the same workflow. Remaining
+seconds update in that window, not as per-second transcript entries. Completion
+only changes its visual text: no sound, speech, notification, proactive wake,
+device, network or model operation. It is not a reminder, alarm or durable schedule.
+Nothing is restored after exit. Closing the timer window cancels an active timer.
+
+Private host ownership, unlocked presentation and clear call admission are required.
+Loss of the original privacy/ownership/call lifetime cancels rather than deferring
+a completion until later. Late callbacks cannot revive cancelled or replaced timers.
+Timer commands do not answer pending questions, approve actions, replace the
+current response, submit work or persist a schedule. A cancelled/complete timer
+may be followed by a fresh explicit start. If expiry is already observed when
+checking status/cancelling, it remains complete, not a newly cancelled future action.
+See the [owning lifecycle contract](../Design/Commands_Tools_And_Skills.md#run-only-visual-countdown).
+
 ## Open an exact Settings tab
 
 Use one complete case-insensitive phrase below, optionally prefixed by the current assistant name when typed. Activated voice requires that current-name prefix. Outer spaces are accepted; punctuation, extra words, control characters and input over 256 characters are not ([exact grammar](../src/Kora.Application/Configuration/SettingsSectionCommand.cs)).

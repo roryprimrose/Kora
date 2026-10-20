@@ -84,6 +84,40 @@ existing host input admission and deterministic presentation; provider,
 hardware, installed, retired experiment and E/Q qualification are not
 prerequisites. No unrelated calendar/reminder/scheduling behavior is delivered.
 
+## Run-only visual countdown
+
+The [exact timer grammar](../docs/commands.md#local-visual-countdown) is owned by
+[CountdownCommand](../src/Kora.Core/Commands/CountdownCommand.cs), including the
+shared 1..86400 whole-ASCII-seconds validation. This is a direct host command,
+not a registered model tool, skill runner or durable local event.
+[CountdownWorkflow](../src/Kora.Application/Interaction/CountdownWorkflow.cs)
+owns one run-only timer, monotonic `TimeProvider.GetTimestamp` elapsed time,
+terminal cancellation/disposal, remaining-time observations and generation fences.
+UTC changes never extend or expire the countdown. Late dispatcher delivery
+observes elapsed time once; it does not replay missed transcript entries.
+
+Typed and original current-name activated input route before question/approval
+handling and preserve the original host, privacy, voice generation, call and
+owner-binding admission. Native status/cancel share the workflow; they do not
+approve or answer any decision. The desktop owns one ordinary native window.
+Only explicit start/status opens or activates it. Expiry updates its bound text
+without requesting another window, sound, speech, notification, wake, device,
+provider, model, network, durable event or schedule write.
+
+Closing the window, privacy/call closure or host disposal retires the timer.
+Every tick and fresh status checks the original owner/privacy/call lifetime;
+revocation cancels even if the monotonic deadline has passed but completion has
+not yet been admitted. Disposed/cancelled/previous-generation queued callbacks
+cannot publish a later completion. Diagnostic events carry operation/outcome,
+not input or duration; deferred presentation activities link to the admitted start.
+
+The consumed I subset is the existing exact host command routing, private
+presentation/ownership gates, dispatcher and portable time seam. Deterministic
+grammar, fake-time, authority/lifecycle and headless native tests plus maintained
+Release/analyzer and raw portable line/branch gates apply. This does not enable
+reminders, proactive/wake, notification or provider paths or claim physical,
+installed or E/Q qualification; unrelated retired experiments are not prerequisites.
+
 ## Delivered Artifact Invocation
 
 Kora has one source-qualified artifact invocation route for bundled skills and

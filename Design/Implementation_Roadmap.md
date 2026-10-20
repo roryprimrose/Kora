@@ -45,6 +45,19 @@ calendar, scheduling, speech/provider and hardware enablement are unchanged;
 no E/Q or experiment evidence is consumed. Answers remain visual without
 automatic speech or device discovery and preserve pending security interactions.
 
+### Run-only local visual countdown - 2026-10-21
+
+The [countdown contract](Commands_Tools_And_Skills.md#run-only-visual-countdown)
+adds exact typed/current-name activated start/status/cancel/help and one shared
+monotonic Application workflow with a native visual status/cancel window.
+Original private host/input/call/owner admission, terminal disposal and stale
+callback fences are retained. No model tool, durable schedule, reminder,
+notification, sound, speech or proactive wake is enabled.
+Only the existing command/private-presentation/dispatcher I subset is consumed;
+hardware/provider/installed/retired experiment E/Q evidence is not a prerequisite.
+Maintained exact-head Release/tests/analyzers and raw 100% portable lines/branches
+remain required before the implementation is ready for review.
+
 ### Bounded provider-neutral local-model tool continuation implementation - 2026-10-20
 
 The [tool-loop contract](Internal_Model_Tools.md#bounded-provider-neutral-continuation-implementation---2026-10-20)

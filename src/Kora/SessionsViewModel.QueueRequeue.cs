@@ -40,8 +40,8 @@ internal sealed partial class SessionsViewModel
             + "; run " + review.Queue.DispatchControl!.RunId.ToString("D")
             + "; pause revision " + review.Queue.DispatchControl.Revision.ToString(CultureInfo.InvariantCulture)
             + "; paused " + review.Queue.DispatchControl.Paused + "; held " + review.Queue.DispatchControl.Held
-            + "; resulting pending capacity " + review.Queue.Entries.Count(entry => entry.IsPending
-                && entry.RunId == review.Queue.DispatchControl.RunId).ToString(CultureInfo.InvariantCulture)
+            + "; resulting pending capacity " + SessionQueueCapacity.PendingCount(review.Queue.Entries,
+                review.Queue.DispatchControl.RunId).ToString(CultureInfo.InvariantCulture)
             + "/" + review.Limits.PendingPerSession.ToString(CultureInfo.InvariantCulture)
             + "; execution slots " + review.Limits.ExecutionSlots.ToString(CultureInfo.InvariantCulture)
             + "; future active budget " + review.Limits.ActiveBudgetMinutes.ToString(CultureInfo.InvariantCulture)

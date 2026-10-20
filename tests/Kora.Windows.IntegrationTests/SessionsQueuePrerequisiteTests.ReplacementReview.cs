@@ -151,7 +151,7 @@ public sealed partial class SessionsQueuePrerequisiteTests
             {
                 "oldrun" => "UPDATE session_queue SET payload=json_set(payload,'$.RunId',$value);",
                 "task-mismatch" => "UPDATE host_tasks SET state=2 WHERE task_id=$value;",
-                _ => "UPDATE session_queue SET payload=json_set(payload,'$.Dependency.Value',$value);",
+                _ => "UPDATE session_queue SET payload=json_set(payload,'$.Dependency',json_object('Value',$value));",
             };
             command.Parameters.AddWithValue("$value", failure is "oldrun" or "dependency"
                 ? Guid.NewGuid().ToString("D") : entry.Request.TaskId.Value.ToString("D"));

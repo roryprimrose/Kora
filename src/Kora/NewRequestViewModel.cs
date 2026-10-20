@@ -19,6 +19,7 @@ internal sealed class NewRequestViewModel : ObservableObject, IDisposable
     public string Body { get => Composer.Body; set => Composer.Body = value; }
     public string ReviewedBody => Composer.ReviewedBody;
     public string Status => Composer.Status;
+    public string AssistantAnswer => Composer.AssistantResponse?.Body ?? string.Empty;
     public bool CanEdit => Composer.CanEdit;
     public bool CanCreate => Composer.CanCreate;
     public bool CanReview => Composer.CanReview;
@@ -50,7 +51,7 @@ internal sealed class NewRequestViewModel : ObservableObject, IDisposable
 
     private void Changed(object? sender, PropertyChangedEventArgs args)
     {
-        foreach (var name in new[] { nameof(Body), nameof(ReviewedBody), nameof(Status), nameof(CanEdit),
+        foreach (var name in new[] { nameof(Body), nameof(ReviewedBody), nameof(Status), nameof(AssistantAnswer), nameof(CanEdit),
             nameof(CanCreate), nameof(CanReview), nameof(CanSubmit), nameof(CanInspect), nameof(TargetLabel), nameof(AttemptLabel),
             nameof(CanReviewSave), nameof(CanSave), nameof(SavedBodyReview), nameof(ProposedSavedBody), nameof(BaselineBody), nameof(SaveLabel) })
         { OnPropertyChanged(name); }

@@ -10,6 +10,9 @@ public sealed class ModelTurn
 {
     private int used;
     private bool running;
+    private int forbiddenToolAttempt;
+    internal bool HasForbiddenToolAttempt => Volatile.Read(ref forbiddenToolAttempt) != 0;
+    internal void RejectToolAttempt() => Interlocked.Exchange(ref forbiddenToolAttempt, 1);
     internal bool IsRunning { get => Volatile.Read(ref running); set => Volatile.Write(ref running, value); }
     internal ModelTurn(Guid owner, HostActivity issuer, ModelTurnProvenance provenance, ModelContextEnvelope context,
         byte[] wire, HostRevision sessionGeneration, HostRevision taskRevision,
@@ -34,7 +37,8 @@ public sealed class ModelTurn
     internal ModelContextEnvelope Context { get; }
     internal byte[] Wire { get; }
     internal HostRevision SessionGeneration { get; }
-    internal HostRevision TaskRevision { get; }
+    internal HostRevision TaskRevision { get; set; }
+    internal Kora.Core.Storage.SessionWorkspaceEntry? ConversationTarget { get; set; }
     internal long ControlRevision { get; }
     internal ModelProviderRegistration Registration { get; }
     internal ModelProviderPolicy? Policy { get; set; }

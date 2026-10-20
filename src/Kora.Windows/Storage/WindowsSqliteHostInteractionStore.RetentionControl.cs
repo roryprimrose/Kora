@@ -67,8 +67,7 @@ public sealed partial class WindowsSqliteHostInteractionStore : ISessionRetentio
             RequireFreshMetadataIntent(intent);
             var row = RequireSession(connection, request.SessionId);
             var current = ReadRetentionObservation(connection, request.SessionId);
-            if (row.State == 2 || current.State.Purged || current.Generation != expected.Generation
-                || current.State != expected.State || current.ExemptionAuditSequence != expected.ExemptionAuditSequence)
+            if (row.State == 2 || current.State.Purged || !current.MatchesRecordedState(expected))
             {
                 throw new InvalidOperationException("Retention preview changed or the session was removed. Refresh and review the exact dates again.");
             }

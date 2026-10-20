@@ -9,4 +9,10 @@ internal interface IModelTurnAdapter
     Task<ModelProviderReply> RunAsync(ModelTurnProvenance provenance, ProviderProfileTuple? profile, ReadOnlyMemory<byte> context,
         Func<string, string, CancellationToken, ValueTask<CapabilityReply>> invokeTool,
         CancellationToken cancellationToken);
+
+    Task<ModelProviderReply> RunAsync(ModelTurnProvenance provenance, ProviderProfileTuple? profile, ReadOnlyMemory<byte> context,
+        Func<string, string, CancellationToken, ValueTask<CapabilityReply>> invokeTool,
+        Func<CancellationToken, ValueTask<ModelTurnReason>> validateContinuation,
+        CancellationToken cancellationToken) =>
+        RunAsync(provenance, profile, context, invokeTool, cancellationToken);
 }

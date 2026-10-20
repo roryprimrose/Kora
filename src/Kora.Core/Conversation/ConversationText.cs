@@ -13,6 +13,13 @@ public static class ConversationText
     public const int MaximumPageUtf8Bytes = 65536;
     private static readonly UTF8Encoding StrictUtf8 = new(false, true);
 
+    /// <summary>Applies the shared reject-only credential policy without imposing conversation retention limits.</summary>
+    public static void RequireNoCredentials(string text)
+    {
+        ArgumentNullException.ThrowIfNull(text);
+        ConversationCredentialScreening.RequireAccepted(text);
+    }
+
     public static void Validate(string text, bool submission = false)
     {
         ArgumentNullException.ThrowIfNull(text);
@@ -44,6 +51,6 @@ public static class ConversationText
         {
             throw new InvalidDataException("An empty conversation message cannot be submitted.");
         }
-        ConversationCredentialScreening.RequireAccepted(text);
+        RequireNoCredentials(text);
     }
 }

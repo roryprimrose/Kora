@@ -19,9 +19,7 @@ public sealed partial class WindowsSpeechRateConfigurationService(
     private WindowsSpeechRateState state = new(null, null, null, SpeechRateSupport.Unsupported, 0,
         "unavailable", 0, "Refresh the Windows rate preference in the owning unlocked host.");
     private WindowsSpeechRateProposal? proposal;
-    private WorkSessionAuthorization? session;
-    private RequestOrigin origin;
-    private Func<bool>? eligible;
+    private (WorkSessionAuthorization Session, RequestOrigin Origin, Func<bool> Eligible)? input;
     private bool applying;
     private bool publishing;
 
@@ -87,14 +85,12 @@ public sealed partial class WindowsSpeechRateConfigurationService(
                     if (applying || publishing) { throw new InvalidOperationException("Rate is committing or notifying."); }
                     speech.Reload();
                     var saved = preferences.Load();
-                    if (session != authority || origin != request.Origin || eligible is null || !eligible())
+                    if (input is not { } current || current.Session != authority || current.Origin != request.Origin || !current.Eligible())
                     {
                         proposal = null;
                         state = state with { Revision = checked(state.Revision + 1) };
                     }
-                    session = authority;
-                    origin = request.Origin;
-                    eligible = remainsEligible;
+                    input = (authority, request.Origin, remainsEligible);
                     return saved;
                 }
             }, token).ConfigureAwait(false);
@@ -112,14 +108,39 @@ public sealed partial class WindowsSpeechRateConfigurationService(
         var parsed = value is null ? (WindowsSpeechRate?)null : WindowsSpeechRate.Parse(value);
         lock (gate)
         {
-            if (applying || publishing || expectedRevision != state.Revision || session is null || eligible is null || !eligible()
-                || !state.Available || !ProviderMatches())
-            {
-                throw new InvalidOperationException("Refresh rate under the current original input and supported Windows provider, then choose again.");
-            }
-            proposal = new(parsed, expectedRevision, callRevision, session, origin, eligible);
+            var current = RequireProposalAdmission(expectedRevision);
+            proposal = new(parsed, expectedRevision, callRevision, current.Session, current.Origin, current.Eligible);
             return proposal;
         }
+    }
+
+    /// <summary>Proposes one native step from admitted desired state; returns <c>null</c> only at an unchanged boundary.</summary>
+    public WindowsSpeechRateProposal? ProposeAdjustment(AudioPreferenceAdjustment adjustment, long expectedRevision, long callRevision)
+    {
+        lock (gate)
+        {
+            var current = RequireProposalAdmission(expectedRevision);
+            proposal = null;
+            var desired = state.Desired!.Value;
+            if ((preferences.Load() ?? WindowsSpeechRate.Default) != desired)
+            {
+                throw new InvalidOperationException("Saved rate changed; refresh before proposing a relative step.");
+            }
+            var adjusted = desired.Adjust(adjustment);
+            if (adjusted == desired) { return null; }
+            proposal = new(adjusted, expectedRevision, callRevision, current.Session, current.Origin, current.Eligible);
+            return proposal;
+        }
+    }
+
+    private (WorkSessionAuthorization Session, RequestOrigin Origin, Func<bool> Eligible) RequireProposalAdmission(long expectedRevision)
+    {
+        if (applying || publishing || expectedRevision != state.Revision || input is not { } current || !current.Eligible()
+            || !state.Available || !ProviderMatches())
+        {
+            throw new InvalidOperationException("Refresh rate under the current original input and supported Windows provider, then choose again.");
+        }
+        return current;
     }
 
     public async Task<bool> ApplyAsync(WindowsSpeechRateProposal candidate, RequestOrigin originalOrigin,

@@ -246,7 +246,8 @@ public sealed partial class SessionsConversationTests
                 Func<CancellationToken, Task<Kora.Core.Presentation.AdmittedDetailContent>>, CancellationToken, Task<string>>? openDetail = null,
             ISessionWorkspaceStore? conversationReader = null,
             Action<HostId<SessionIdentity>>? revokeDetails = null,
-            Func<SessionWorkspaceEntry, Kora.Core.Conversation.ConversationMessage, Func<bool>, CancellationToken, Task<string>>? reuseOriginal = null)
+            Func<SessionWorkspaceEntry, Kora.Core.Conversation.ConversationMessage, Func<bool>, CancellationToken, Task<string>>? reuseOriginal = null,
+            IModelTurnAdapter? adapter = null)
         {
             var workspace = WindowsSqliteSessionWorkspaceTests.Service(f, Access);
             Workspace = workspace;
@@ -260,12 +261,16 @@ public sealed partial class SessionsConversationTests
             var runtimes = new Kora.Tools.Runtime.RecordedRuntimeObservation(dependencies);
             var registry = new ReadOnlyCapabilityRegistry(boundary, new(), new(), new(boundary), new(dependencies),
                 new(runtimes), new(runtimes), NullLogger<ReadOnlyCapabilityRegistry>.Instance);
-            turns = new(f.Store, Access, boundary, registry, Audit, NullLogger<ModelTurnHost>.Instance,
-                f.Time, mode, profiles, f.Store);
+            turns = adapter is null
+                ? new(f.Store, Access, boundary, registry, Audit, NullLogger<ModelTurnHost>.Instance, f.Time, mode, profiles, f.Store)
+                : new(f.Store, Access, boundary, registry, Audit, NullLogger<ModelTurnHost>.Instance, f.Time,
+                    [new(ModelProviderSelection.OllamaCandidate,
+                        ModelQualificationGate.LocalCandidateSelection | ModelQualificationGate.IntegratedHost,
+                        f.Time.Now.AddMinutes(5), adapter)], mode);
             var conversationWorkspace = conversationReader is null ? workspace
                 : new SessionWorkspaceService(conversationReader, new(f.Tasks), Access, NullLogger<SessionWorkspaceService>.Instance);
             var conversation = new SessionConversationService(f.Store, f.Store, conversationWorkspace, Access, turns, f.Time,
-                NullLogger<SessionConversationService>.Instance);
+                NullLogger<SessionConversationService>.Instance, turns);
             Conversation = conversation;
             var sink = new WindowsSqliteEvidenceSink(f.Paths);
             sink.Initialize();

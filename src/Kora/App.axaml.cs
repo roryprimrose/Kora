@@ -70,6 +70,7 @@ public sealed partial class App : Avalonia.Application
             Services.GetRequiredService<AppearanceConfigurationService>().ConfigureNativePresenceStartupDefault(
                 PresenceRendererSelection.UseNative(Environment.GetEnvironmentVariable(PresenceRendererSelection.EnvironmentVariable)));
             viewModel = Services.GetRequiredService<MainViewModel>();
+            viewModel.BindWebSummaryWorkflow(Services.GetRequiredService<Kora.Application.Network.WebSummaryWorkflow>());
             viewModel.PropertyChanged += OnViewModelPropertyChanged;
             viewModel.PrivacyClosureRequested += OnPrivacyClosureRequested;
             ApplyThemeMode(viewModel.ThemeMode);
@@ -215,6 +216,8 @@ public sealed partial class App : Avalonia.Application
                 Services.GetRequiredService<Kora.Application.Configuration.SessionProviderProfileConfigurationService>(),
                 Services.GetRequiredService<SessionConversationService>());
             sessionsWindow.Bind();
+            viewModel.BindSessionRetentionCommands(Services.GetRequiredService<SessionRetentionCommandService>(),
+                sessionsWindow.OpenRetentionReviewAsync);
             newRequestWindow = new(viewModel, Services.GetRequiredService<SessionWorkspaceService>(),
                 Services.GetRequiredService<Kora.Core.Storage.ISessionWorkspaceAccess>(),
                 () => Services.GetRequiredService<NewRequestComposer>(), sessionsWindow);
@@ -254,6 +257,7 @@ public sealed partial class App : Avalonia.Application
             viewModel.BindFilePreview(Services.GetRequiredService<Kora.Tools.Files.LocalFilePreview>(), fileWindow,
                 Services.GetRequiredService<Kora.Tools.Files.LocalFileSearch>(), fileWindow,
                 Services.GetRequiredService<Kora.Tools.Files.LocalFileRefresh>());
+            viewModel.BindFileAnswer(Services.GetRequiredService<Kora.Tools.Files.LocalFileAnswer>());
             maintenanceWindow = new MaintenanceWindowController(viewModel,
                 Services.GetRequiredService<MaintenanceViewModel>(),
                 () => Services.GetRequiredService<DesktopInstanceOwnershipBridge>().IsCapabilityAdmissionOpen

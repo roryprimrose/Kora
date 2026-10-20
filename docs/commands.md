@@ -57,6 +57,22 @@ outcomes through configured provider-neutral admission. It is not a new typed/
 voice command, question reply, approval, fixed-read queue profile, model tool or
 bootstrap fallback. Draft saves are explicit; reading/restoring never submits.
 
+## Read the current response aloud once
+
+Use **Read current response** in the compact response window, `read that aloud`, or `read current response`.
+Typed and activated voice input accept the optional current assistant-name prefix, for example `Kora, read that aloud`; extra words are not an exact command ([parser](../src/Kora.Application/Voice/ResponseReadCommand.cs), [native controls](../src/Kora/ResponseWindow.axaml)).
+The `read that` and `read current` families are reserved before question/approval and model dispatch. Incomplete, overlong, control-character or extra-argument forms report exact-command recovery without answering/cancelling a pending decision, synthesizing text or invoking inference ([boundary tests](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.ResponseRead.cs)).
+
+All routes invoke the same [one-shot action](../src/Kora.Tools/Speech/SpeechReadOnce.cs) for the exact current ordinary response identity/revision and observed call policy.
+This is not arbitrary TTS, history-row playback, raw clipboard/file/web reading, a question/approval readback, or an automatic replay queue ([host admission](../src/Kora.Application/ViewModels/MainViewModel.ResponseRead.cs)).
+
+Normal speech admission still applies, including VisualOnly refusal, protected Active/Suspected/Unknown calls, owner/privacy/lock, voice/provider, both summary caps, Kora volume and the selected unmuted available output.
+The full visual answer is retained on length/output failure. Replacement (even identical text), source close, stop/cancellation, call/privacy/owner retirement and disposal invalidate the invocation; it has a two-minute cancellation bound.
+Refresh, unlock, call end and output recovery never retry it ([playback](../src/Kora.Application/ViewModels/MainViewModel.cs), [boundary tests](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.ResponseRead.cs)).
+
+Push-to-talk preserves an existing eligible current answer while showing capture progress separately; it does not select an older answer. **Stop speaking** remains available during playback.
+The model lane remains unavailable with `current-response-model-tool-loop-not-qualified`; the six read-only descriptors and model transport are unchanged ([capture](../src/Kora.Application/ViewModels/MainViewModel.VoicePrivacy.cs), [action boundary](../src/Kora.Tools/Speech/SpeechReadOnce.cs)).
+
 ## Inspect or change the device-local provider mode
 
 Native Settings > Providers and exact typed/current-name activated commands:
@@ -502,6 +518,20 @@ workflow as **Settings > Speech & audio > Apply name / Reset name to Kora**:
 | `set assistant.name to Nova Prime` | Validate with the existing name rules and atomically save one device-local value |
 | `reset assistant.name` | Restore Kora only; no durable identity, session-name, grant, approval, data-path or namespace reset |
 
+The [same parser](../src/Kora.Application/Configuration/AssistantNameCommand.cs) also admits these whole-utterance natural commands, case-insensitively with an optional current-name prefix:
+
+| Natural command | Same existing operation |
+|---|---|
+| `what is your name` or `what is your name?` | Get |
+| `call yourself <name>` | Set |
+| `change your name to <name>` | Set |
+| `reset your name` | Reset |
+
+Use the old **currently configured** prefix for the rename, for example **Kora, call yourself Nova Prime**; only after a successful commit use **Nova Prime, what is your name?**. There is no fuzzy, substring, old-prefix or generic agent-identity rename route ([parser and consumer tests](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.AssistantNameConfiguration.cs)).
+
+Natural set grammar uses the literal spaces shown above and preserves the entire raw proposed name, including case, Unicode and whitespace, until the [existing service](../src/Kora.Application/Configuration/AssistantNameConfigurationService.cs) applies authoritative normalization/validation.
+Empty proposals or malformed recognized grammar clarify locally; invalid domain names are audited denials, never repaired or sent to inference. Extra punctuation is not accepted for get/reset except the one optional query `?` ([grammar tests](../tests/Kora.Application.UnitTests/Configuration/AssistantNameCommandTests.cs)).
+
 The spoken target **assistant name** is equivalent to `assistant.name`.
 The active configured prefix is optional: **Kora, set assistant name to Nova**.
 After success use **Nova, get assistant name**; Kora is no hidden alias.
@@ -899,7 +929,7 @@ Windows.
 - **set appearance.theme to dark**
 - **reset appearance.theme**
 
-Substitute one of the eleven exact IDs in [Appearance settings](settings.md#appearance).
+Substitute one of the twelve exact IDs in [Appearance settings](settings.md#appearance).
 The configured assistant-name prefix is supported for typed input and activated
 voice. Exact spoken names also work: replace dots/hyphens in the ID with
 spaces, for example **"Kora, set appearance theme to dark"**.
@@ -907,11 +937,37 @@ Capitalization is ignored, but this typed value grammar deliberately
 preserves signs and decimal punctuation: `-10` and `1.5` are rejected, never
 normalized into valid integers. Use numeric whole numbers without appended
 units, `system`/`light`/`dark`, or `true`/`false`. Extra words, invented IDs,
-relative changes and invalid ranges produce local clarification, without
+relative changes in this ID grammar and invalid ranges produce local clarification, without
 model/network interpretation. Changes and per-option reset share the direct
 UI service, domain validation, revision check, atomic persistence, audit and
 live notifications. There is no whole-profile reset or undo, model tool
 exposure, arbitrary JSON patch or configuration-file editing authority.
+
+### Natural exact app theme and native reader text scale
+
+Original typed input also accepts these whole-utterance commands; voice requires the **current configured assistant-name prefix**, for example **"Kora, use dark mode"** ([parser](../src/Kora.Application/Configuration/NaturalAppearanceCommand.cs)):
+
+- **use dark mode**
+- **use light mode**
+- **use system theme**
+- **get reader text scale**
+- **status reader text scale**
+- **reset reader text scale**
+- **set reader text scale to &lt;integer&gt; percent**
+- **increase reader text scale by &lt;positive integer&gt; percentage points**
+- **decrease reader text scale by &lt;positive integer&gt; percentage points**
+
+Reader scale is inclusive 75–200 percent; reset restores 100. An increase from 150 by 25 percentage points requests 175, not 187.5.
+Relative resolution reads fresh confirmed state at execution, uses checked arithmetic and the registry's validation, then submits the existing revision-bound proposal.
+A concurrent revision refuses instead of overwriting or recalculating ([registry](../src/Kora.Core/Configuration/AppearanceOptionRegistry.cs), [proposal](../src/Kora.Application/Configuration/AppearanceConfigurationService.cs)).
+
+Capitalization and outer whitespace are ignored. Number words, signs, decimals, vague pronouns, selected-window inference, extra clauses and substring commands are not accepted as changes.
+Invalid results clarify without clamping. Missing/corrupt/unconfirmed evidence is never guessed; an absent preference uses only the service-confirmed declared default
+([parser](../src/Kora.Application/Configuration/NaturalAppearanceCommand.cs), [confirmed state](../src/Kora.Application/Configuration/AppearanceConfigurationService.cs)).
+
+These aliases use the same admitted service, atomic preference/audit path and live notifications as exact IDs and native controls.
+They change only Kora's app theme or bounded native reader content typography: no OS/global UI scale, new content access, permission, speech/caption enablement or model-derived authority
+([executor](../src/Kora.Application/ViewModels/MainViewModel.Appearance.cs), [reader scope](../Design/Information_Display.md#bounded-native-reader-text-scale)).
 
 ### Inspect or change an exact output choice
 
@@ -937,8 +993,13 @@ ownership/privacy changes and failed evidence require explicit refresh/recovery.
 - **status speech.playback-volume**
 - **set speech.playback-volume to 30**
 - **reset speech.playback-volume**
+- **speak louder**
+- **speak quieter**
 
 Canonical integer 0-100 (no signs, padding, fractions, percent suffix or leading zeros); default/reset 100. Zero prevents synthesis and retains full visual output. Changes never alter global/call volume, test audio, reopen capture or replay output.
+The exact aliases move the freshly admitted desired volume by **up to 10 percentage points** ([domain step](../src/Kora.Core/Configuration/PlaybackVolume.cs#L21)).
+A final shorter step explicitly reports `saved-upper-boundary` (100) or `saved-lower-boundary` (0); already at that bound reports `unchanged-upper-boundary` or `unchanged-lower-boundary` without writing or auditing a successful change ([shared action](../src/Kora.Application/Configuration/PlaybackVolumeConfigurationService.cs#L86)).
+The complete result includes `adjustment.previousPercent` and `adjustment.currentPercent` alongside exact desired/effective percent and saved source: for example, 95 becomes 100, not 105; 5 becomes 0, not -5. [Boundary-result tests](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.RelativeAudio.cs) check both old/new values and the unchanged follow-up.
 Current-name activated input is supported; protected/Unknown original-voice
 writes refuse. Input is at most 1,024 UTF-8 bytes including the prefix and
 rejects controls; complete result at most 64 KiB.
@@ -954,11 +1015,16 @@ See [controls and option-specific recovery](settings.md#kora-playback-volume) an
 - **set speech.windows-rate to 0**
 - **set speech.windows-rate to 10**
 - **reset speech.windows-rate**
+- **speak faster**
+- **speak slower**
 
 Canonical integer **-10..10**, normal/default/reset **0**. Negative nonzero
 signs only; no plus, negative zero, padding, fractions or suffix. Windows
 provider-native rate, not percentage or words/minute.
 **Kokoro is unsupported and unchanged**; no provider switch, trial or replay.
+The exact aliases move the freshly admitted desired Windows rate by **1 native unit** ([domain step](../src/Kora.Core/Configuration/WindowsSpeechRate.cs#L21)).
+The complete relative result includes `adjustment.previousNativeRate` and `adjustment.currentNativeRate`; no-op and denied results disclose the actual unchanged value, not an uncommitted target ([result](../src/Kora.Application/Configuration/WindowsSpeechRateState.cs)).
+Reaching -10/10 explicitly reports `saved-lower-boundary`/`saved-upper-boundary`; already at that bound reports `unchanged-lower-boundary`/`unchanged-upper-boundary`, with no write or successful-change audit ([shared action](../src/Kora.Application/Configuration/WindowsSpeechRateConfigurationService.cs#L118)).
 Current-name activated input is supported; protected/Unknown original-voice
 writes refuse. Input is at most 1,024 UTF-8 bytes including the prefix and
 rejects controls; complete result at most 64 KiB.
@@ -975,7 +1041,22 @@ See [controls and option-specific recovery](settings.md#windows-native-speech-ra
 - **set responses.default-mode to VisualOnly**
 - **reset responses.default-mode**
 
+Natural exact aliases use the same SET operation, not a toggle or playback command:
+
+| Exact phrase | Equivalent |
+|---|---|
+| **use visual responses** | `set responses.default-mode to VisualOnly` |
+| **use spoken responses** | `set responses.default-mode to VoiceOnly` |
+| **use spoken and visual responses** | `set responses.default-mode to Hybrid` |
+| **check response mode** | `get responses.default-mode` (desired/effective mode, availability and live output policy) |
+
+Aliases are case-insensitive with an optional current assistant-name prefix, but no extra words, punctuation or internal whitespace repair. Reserved malformed variants clarify locally; they never answer a pending decision or reach the model. **be quiet** and **stop speaking** remain stop-playback commands; **mute** is not a response-mode alias.
+These aliases do not claim the separate `speak louder`, `speak quieter`, `speak faster` or `speak slower` controls.
+See the [exact parser and conflict tests](../tests/Kora.Application.UnitTests/Configuration/ResponseModeCommandTests.cs).
+
 Exact case-insensitive Hybrid / VoiceOnly / VisualOnly; default/reset Hybrid. Save changes only the device default, not queue/task overrides or mandatory call/privacy/full-visual recovery. No autoplay, replay or capture.
+Mode changes affect future eligible responses only: no sample speech, provider/output-device change or global/call volume change. VoiceOnly never overrides call/privacy suppression, speech caps or required visual recovery, and does not establish speaker identity.
+Native selection, enum syntax and aliases retain the same fresh choice/revision, original-origin admission, audit and atomic save/readback. Results disclose desired/effective/outcome; stale or unconfirmed state refuses rather than reporting success ([route and refusal tests](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.NaturalResponseMode.cs)).
 Current-name activated input is supported; protected/Unknown original-voice
 writes refuse. Input is at most 1,024 UTF-8 bytes including the prefix and
 rejects controls; complete result at most 64 KiB.
@@ -1012,6 +1093,11 @@ See [the shared native controls](settings.md#speech-provider).
 
 ### Inspect or lower spoken summary caps
 
+- **show spoken summary limits**
+- **set spoken summary sentence limit to 2**
+- **set spoken summary word limit to 40**
+- **reset spoken summary sentence limit**
+- **reset spoken summary word limit**
 - **list speech settings**
 - **get speech.summary-sentences**
 - **get speech.summary-words**
@@ -1019,6 +1105,12 @@ See [the shared native controls](settings.md#speech-provider).
 - **set speech.summary-words to 40**
 - **reset speech.summary-sentences**
 - **reset speech.summary-words**
+
+Natural aliases are exact whole utterances. Typed input accepts an optional current-name prefix; activated voice requires it ([dispatch](../src/Kora.Application/ViewModels/MainViewModel.cs)).
+
+Use canonical decimal integers, without signs, leading zeroes, fractions or word numerals; no relative "be brief" interpretation is added. Malformed reserved aliases clarify locally ([parser](../src/Kora.Application/Configuration/SpeechCommand.cs)).
+
+These commands change future ordinary-speech admission budgets, not the current answer or an instruction to speak now. Pending questions/approvals remain untouched; finish or cancel them first. Discovery and acknowledgements remain visual, with no new speech, regeneration or replay ([shared dispatch](../src/Kora.Application/ViewModels/MainViewModel.SpeechConfiguration.cs)).
 
 The exact spoken names **speech summary sentences** and **speech summary words**
 also work, with the configured-name prefix for activated voice.

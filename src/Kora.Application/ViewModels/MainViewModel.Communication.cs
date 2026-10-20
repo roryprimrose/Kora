@@ -73,6 +73,7 @@ public sealed partial class MainViewModel
 
     public void BindCallOwnershipGate(Func<bool> gate, Func<long>? revision = null)
     {
+        RetireCurrentResponseSpeech();
         callOwnershipEligible = gate;
         UpdateSpeechPreparation();
         auditImpactControlRevision = checked(auditImpactControlRevision + 1);
@@ -234,11 +235,12 @@ public sealed partial class MainViewModel
         auditImpactPreview?.Retire("Call revision changed; preview retired.");
         diagnosticImpactPreview?.Retire("Call revision changed; preview retired.");
         sessionRetentionPlanner?.Retire("Call revision changed; preview retired.");
-        sessionRequests?.Retire();
+        RetireSessionCommandReviews();
         RetireQuestionVoiceReply();
         try
         {
             var observation = communicationPolicy.Current;
+            RetireCurrentResponseSpeech();
             RetireWebResultDetails();
             speechCaption.Retire();
             uiDispatcher.Post(RetireSpeechCaption);

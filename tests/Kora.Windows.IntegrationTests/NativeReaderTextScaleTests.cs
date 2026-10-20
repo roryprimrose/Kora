@@ -198,10 +198,9 @@ public sealed class NativeReaderTextScaleTests
                     clipboardFind.FontSize.Should().Be(clipboardQueryFont);
                     fileReader.Text.Should().Be(text);
                     clipboardReader.Text.Should().Be(text);
-                    foreach (var window in new Window[] { fileWindow, clipboardWindow })
+                    foreach (var reader in new[] { fileReader, clipboardReader })
                     {
-                        var viewport = window.GetVisualDescendants().OfType<ScrollViewer>()
-                            .Single(scroll => ReferenceEquals(scroll.Content, window == fileWindow ? fileReader : clipboardReader));
+                        var viewport = reader.GetVisualAncestors().OfType<ScrollViewer>().First();
                         viewport.Bounds.Height.Should().BeGreaterThan(0);
                         viewport.Extent.Height.Should().BeGreaterThan(viewport.Viewport.Height);
                     }

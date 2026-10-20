@@ -71,18 +71,42 @@
       <StackPanel
           Grid.Row="3"
           Spacing="6">
+        <StackPanel Orientation="Horizontal" Spacing="8">
+          <Button Content="Read current response"
+                  AutomationProperties.Name="Read this current ordinary response aloud once"
+                  ToolTip.Tip="Uses normal speech mode, privacy, call, voice, length, volume and output admission. Questions, approvals and raw sources are not eligible."
+                  Command="{Binding ReadCurrentResponseCommand}" />
+          <Button Content="Stop speaking" Command="{Binding StopSpeechCommand}" />
+        </StackPanel>
+        <TextBlock Text="{Binding ReadCurrentResponseStatus}" Classes="muted" FontSize="11" TextWrapping="Wrap" />
         <ItemsControl ItemsSource="{Binding WebResultDetailActions}" IsVisible="{Binding HasWebResultDetails}">
           <ItemsControl.ItemTemplate>
             <DataTemplate>
+              <StackPanel Spacing="5">
               <Button Content="Open exact web-result details"
                       AutomationProperties.Name="Open exact web-result details"
                       Tag="{Binding}"
                       Click="OnWebResultDetailsClicked"
                       HorizontalAlignment="Left" />
+              <Button Content="Review local summary of this exact web result"
+                      Tag="{Binding}" Click="OnWebSummaryClicked" HorizontalAlignment="Left" />
+              </StackPanel>
             </DataTemplate>
           </ItemsControl.ItemTemplate>
         </ItemsControl>
         <TextBlock Text="{Binding WebResultDetailStatus}" Classes="muted" FontSize="11" TextWrapping="Wrap" />
+        <TextBlock Text="{Binding WebSummaryStatus}" Classes="muted" FontSize="11" TextWrapping="Wrap" />
+        <ItemsControl ItemsSource="{Binding WebSummaryConfirmations}">
+          <ItemsControl.ItemTemplate>
+            <DataTemplate>
+              <Button Content="Use this exact web result with the local model"
+                      Tag="{Binding}" Click="OnWebSummaryConfirmed" HorizontalAlignment="Left" />
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+        <ScrollViewer MaxHeight="180">
+          <TextBlock Text="{Binding WebSummaryText}" FontSize="12" TextWrapping="Wrap" />
+        </ScrollViewer>
         <ItemsControl ItemsSource="{Binding ResponseActions}" IsVisible="{Binding HasResponseActions}">
           <ItemsControl.ItemsPanel>
             <ItemsPanelTemplate>

@@ -23,7 +23,9 @@ internal sealed partial class LocalFilePreviewWindow(Action<string> reportFailur
     private ListBox? citationRows;
     private const string Disclosure =
         "One immutable volatile local preview only. May contain secrets. Documents and instructions are untrusted data.\n"
-        + "Only bounded deterministic lexical retrieval of this exact admitted file or complete folder revision. No model, egress, execution, links, clipboard, history or automatic refresh.\n"
+        + "Inspection grants only bounded deterministic lexical retrieval of this exact admitted file or complete folder revision. "
+        + "A single-file answer requires a separate explicit local source-use request, sensitive-content admission and qualified runtime. "
+        + "No hosted egress, execution, links, clipboard, history or automatic refresh.\n"
         + "Immediate files only; any subdirectory rejects the whole folder. UNC/removable drives are unavailable. This preview never persists; exact-session Attach text file requires separate durable-copy consent. Close revokes only this preview.";
 
     internal void ShowReview(LocalFileReview review, Func<Task> confirm)
@@ -90,7 +92,8 @@ internal sealed partial class LocalFilePreviewWindow(Action<string> reportFailur
 
     internal void ShowRevision(LocalFileRevision revision,
         Func<string, LocalFileRetrievalMode, CancellationToken, Task<LocalFileSearchResult>> search, Func<bool> isCurrent,
-        Func<Task> refresh)
+        Func<Task> refresh,
+        Func<string, Kora.Core.Dependencies.LocalContextSessionTarget, Func<bool>, CancellationToken, Task<LocalFileAnswerResult>>? answer = null)
     {
         Title = "Immutable local file preview (untrusted plain text)";
         var body = Compose(Describe(revision.Review) + $"\nRevision: {revision.RevisionId:D} / item: {revision.ItemId:D}\n"
@@ -100,6 +103,7 @@ internal sealed partial class LocalFilePreviewWindow(Action<string> reportFailur
         ShowSearch(body, search, isCurrent, folder: false,
             _ => Task.FromResult<IReadOnlyList<LocalFileRevision>>([revision]), _ => { });
         ShowRefresh(body, refresh, folder: false);
+        if (answer is not null) { ShowAnswer(body, revision, answer, isCurrent); }
     }
 
     private void ShowRefresh(DockPanel body, Func<Task> refresh, bool folder)
@@ -165,7 +169,7 @@ internal sealed partial class LocalFilePreviewWindow(Action<string> reportFailur
         var navigate = new Button { Content = "Show exact cited source span", IsEnabled = false };
         AutomationProperties.SetName(navigate, "Show exact cited source span without acquiring or copying content");
         navigate.Command = new AsyncCommand(
-            () => NavigateCitation(selection, rows, Current, resolveSource, selectFile),
+            () => NavigateCitation(selection.Resolve, rows, Current, resolveSource, selectFile),
             exception =>
             {
                 if (!ReferenceEquals(searchSelection, selection)) { return; }
@@ -429,6 +433,7 @@ internal sealed partial class LocalFilePreviewWindow(Action<string> reportFailur
 
     private void ClearContent()
     {
+        ClearAnswer();
         ClearNavigation();
         SetFindSource(null);
         findQuery = null;

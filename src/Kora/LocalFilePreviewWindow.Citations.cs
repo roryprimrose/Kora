@@ -50,7 +50,9 @@ internal sealed partial class LocalFilePreviewWindow
         source.Children.Add(exactSpanPanel);
     }
 
-    private async Task NavigateCitation(LocalFileSearchSelection selection, ListBox rows, Func<bool> current,
+    private async Task NavigateCitation(
+        Func<LocalFileCitation, IReadOnlyList<LocalFileRevision>, Func<bool>, LocalFileCitationSpan> resolve,
+        ListBox rows, Func<bool> current,
         Func<CancellationToken, Task<IReadOnlyList<LocalFileRevision>>> resolveSource, Action<LocalFileRevision> selectFile)
     {
         ClearNavigation();
@@ -65,7 +67,7 @@ internal sealed partial class LocalFilePreviewWindow
             var files = await resolveSource(cancellation.Token);
             if (cancellation.IsCancellationRequested || generation != navigationGeneration
                 || !ReferenceEquals(rows.SelectedItem, citation) || !current()) { return; }
-            var span = selection.Resolve(citation, files, current);
+            var span = resolve(citation, files, current);
             navigation = null;
             selectFile(span.File);
             generation = navigationGeneration;

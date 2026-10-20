@@ -127,6 +127,22 @@ internal sealed class SessionsWindowController(
         await model.SelectExactAsync(session, admitted, token);
     }
 
+    internal async Task OpenRetentionReviewAsync(SessionRetentionReview review, Func<bool> admitted, CancellationToken token)
+    {
+        if (!Dispatcher.UIThread.CheckAccess())
+        {
+            await Dispatcher.UIThread.InvokeAsync(() => OpenRetentionReviewAsync(review, admitted, token));
+            return;
+        }
+        token.ThrowIfCancellationRequested();
+        if (disposed || !access.CanInspect || !access.CanControl || !main.CanRevealPrivatePresentation || !admitted())
+        { throw new OperationCanceledException("Exact retention navigation is no longer admitted."); }
+        Open();
+        if (window?.DataContext is not SessionsViewModel target)
+        { throw new InvalidOperationException("The native Sessions window is unavailable."); }
+        await target.OpenRetentionReviewAsync(review, admitted, token);
+    }
+
     internal void RevokeSession(Kora.Core.Hosting.HostId<Kora.Core.Hosting.SessionIdentity> session)
     {
         if (!Dispatcher.UIThread.CheckAccess())

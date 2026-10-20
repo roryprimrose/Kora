@@ -49,6 +49,7 @@ public sealed class DetailViewerState : ObservableObject
             + $" · Reason: {message.Reason?.ToString() ?? "None recorded"} · Task status: {message.ExpectedTaskState}"
             + " · Not an assistant answer or execution permission.";
     public string FindText => findHost ? HostText : ActiveText;
+    public string AssistantText => !CanRead() ? string.Empty : content!.ConversationMessage?.AssistantResponse?.Body ?? string.Empty;
 
     public bool CompleteRender(long renderGeneration, string semanticText, string message, bool fallback)
     {
@@ -259,6 +260,7 @@ public sealed class DetailViewerState : ObservableObject
         OnPropertyChanged(nameof(IsSource));
         OnPropertyChanged(nameof(ActiveText));
         OnPropertyChanged(nameof(HostText));
+        OnPropertyChanged(nameof(AssistantText));
         OnPropertyChanged(nameof(FindHost));
     }
 }

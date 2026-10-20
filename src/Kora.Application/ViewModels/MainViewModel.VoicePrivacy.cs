@@ -172,13 +172,13 @@ public sealed partial class MainViewModel
     public Task<bool> OutputRefresh { get; private set; } = Task.FromResult(true);
     private Task outputDiscoveryPersistence = Task.CompletedTask;
 
-    private Task<bool> RefreshOutputEndpointsAsync(CancellationToken token = default)
+    private Task<bool> RefreshOutputEndpointsAsync(bool preserveResponse = false, CancellationToken token = default)
     {
         if (!OutputRefresh.IsCompleted) { return OutputRefresh.WaitAsync(token); }
-        return OutputRefresh = DiscoverOutputEndpointsAsync(token);
+        return OutputRefresh = DiscoverOutputEndpointsAsync(preserveResponse, token);
     }
 
-    private async Task<bool> DiscoverOutputEndpointsAsync(CancellationToken token)
+    private async Task<bool> DiscoverOutputEndpointsAsync(bool preserveResponse, CancellationToken token)
     {
         var topology = privacyObservation.Current.TopologyRevision;
         var previousOutput = selectedOutputDevice;
@@ -234,8 +234,15 @@ public sealed partial class MainViewModel
         {
             if (disposed || lifecycleAdmissionClosed) { return false; }
             InvalidateUnavailableOutput();
-            try { ApplicationLog.Error(logger, exception, "Refreshing Windows output endpoint availability"); }
-            finally { ShowFailure("Audio output is unavailable.", exception.Message); }
+            try { LogSpokenResponseFailure(exception, "Refreshing Windows output endpoint availability", preserveResponse); }
+            finally
+            {
+                if (preserveResponse)
+                {
+                    PreserveSpokenResponseFailure("Audio output discovery is unavailable. Full visual output is retained; explicitly refresh output devices before a fresh read request.");
+                }
+                else { ShowFailure("Audio output is unavailable.", exception.Message); }
+            }
             return false;
         }
         finally
@@ -272,8 +279,9 @@ public sealed partial class MainViewModel
             sessionRetentionPlanner.Dispose();
         }
         RetireWebResultDetails();
-        sessionRequests?.Retire();
+        RetireSessionCommandReviews();
         PrivacyClosureRequested -= OnSessionRequestPrivacyClosure;
+        RetireCurrentResponseSpeech();
         RetireSpeechCaption();
         lifecycleAdmissionClosed = true;
         if (speechPreparation is not null)
@@ -288,6 +296,11 @@ public sealed partial class MainViewModel
         HoldVoiceInput("Microphone closed · host disposed");
         microphoneRefreshCancellation?.Cancel();
         clipboardPreview.Changed -= OnClipboardPreviewChanged;
+        if (clipboardExplanation is not null)
+        {
+            clipboardExplanation.Changed -= OnClipboardPreviewChanged;
+            clipboardExplanation.Dispose();
+        }
         clipboardPreview.Dispose();
         DisposeFilePreview();
         privacyObservation.Changed -= OnWindowsPrivacyChanged;
@@ -381,6 +394,7 @@ public sealed partial class MainViewModel
     internal void CloseForObservedPrivacyEvent(string reason, bool hidePresentation,
         WindowsSessionState? sessionState = null, bool restoreOnUnlock = false)
     {
+        RetireCurrentResponseSpeech();
         speechPreparation?.Request(null);
         RetireWebResultDetails();
         speechCaption.Retire();
@@ -476,7 +490,7 @@ public sealed partial class MainViewModel
 
     private void HoldVoiceInput(string reason, WindowsSessionState? sessionState = null, bool restoreOnUnlock = false)
     {
-        sessionRequests?.Retire();
+        RetireSessionCommandReviews();
         RetireQuestionVoiceReply();
         long revision;
         lock (voiceReadinessGate)
@@ -696,6 +710,8 @@ public sealed partial class MainViewModel
                 throw new InvalidOperationException("The selected microphone, permission or voice policy is unavailable.");
             }
 
+            RetireResponseReadPlayback();
+            RetireSpeechCaption();
             textToSpeech.InvalidateOutput();
             await textToSpeech.StopAsync(opening.Token);
             IsSpeaking = false;
@@ -713,8 +729,21 @@ public sealed partial class MainViewModel
             Interlocked.Exchange(ref acceptedTranscriptGeneration, voiceRecognition.Generation);
             IsListening = voiceRecognition.IsListening;
             BeginPushToTalkCommand.NotifyCanExecuteChanged();
-            PresentResponse(AssistantState.Listening, "Capturing your command.",
-                "Release Push to talk to finish. Only this explicitly activated command is transcribed locally.");
+            if (HasWebResultDetails)
+            {
+                // Activated input must not replace the exact source before the user can name it.
+                ReportWebResultDetailStatus("Capturing your command. Release Push to talk to finish.");
+            }
+            else if (Volatile.Read(ref ordinaryResponse) is not null && !IsResponseInteractionPending)
+            {
+                State = AssistantState.Listening;
+                Transcript = "Release Push to talk to finish. Only this explicitly activated command is transcribed locally. The current response remains unchanged.";
+            }
+            else
+            {
+                PresentResponse(AssistantState.Listening, "Capturing your command.",
+                    "Release Push to talk to finish. Only this explicitly activated command is transcribed locally.");
+            }
             generationToAccept = voiceRecognition.Generation;
         }
         catch (OperationCanceledException) when (opening.IsCancellationRequested)
@@ -1011,8 +1040,9 @@ public sealed partial class MainViewModel
             || !outputCatalog.IsQuiescent || !OutputRefresh.IsCompleted || !outputDiscoveryPersistence.IsCompleted
             || Volatile.Read(ref pendingAuditWrites) != 0
             || Volatile.Read(ref stoppingAudioOperations) != 0
-            || !IsHandoffReviewQuiescent || speechPreparation?.IsQuiescent == false || IsBusy || IsWebPageRetrievalActive
-            || !clipboardPreview.IsQuiescent || filePreview?.IsQuiescent == false || sessionFiles?.IsQuiescent == false
+            || !IsHandoffReviewQuiescent || speechPreparation?.IsQuiescent == false || IsBusy || IsWebPageRetrievalActive || IsWebSummaryActive
+            || !clipboardPreview.IsQuiescent || clipboardExplanation?.IsQuiescent == false
+            || filePreview?.IsQuiescent == false || sessionFiles?.IsQuiescent == false
             || IsLocalModelSetupActive || IsPowerShellSetupActive || IsSpeechProviderOperationActive
             || activeReasoningTask is { IsCompleted: false } || isModelActionDispatchActive
             || !sessionController.IsCurrentSessionUnlocked())

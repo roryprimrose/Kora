@@ -142,7 +142,8 @@ internal sealed partial class NativeUxFixtureSession : IApplicationDataPaths, ID
 
     internal Task InitializeAsync() => InitializeAsync(null);
 
-    internal async Task InitializeAsync(Kora.Tools.Network.WebPageGet? webPageGet)
+    internal async Task InitializeAsync(Kora.Tools.Network.WebPageGet? webPageGet,
+        Kora.Application.Network.WebSummaryWorkflow? webSummary = null)
     {
         if (initialized) { throw new InvalidOperationException("A fixture session may be initialized only once."); }
         await Tasks.InitializeAsync(Token);
@@ -201,11 +202,12 @@ internal sealed partial class NativeUxFixtureSession : IApplicationDataPaths, ID
             new AppearanceConfigurationService(appearances, Audit, NullLogger<AppearanceConfigurationService>.Instance),
             new SpeechConfigurationService(new LocalTextToSpeechPreferences(this, NullLogger<LocalTextToSpeechPreferences>.Instance),
                 speech, Audit, NullLogger<SpeechConfigurationService>.Instance),
-            clipboard, new(clipboard), new(clipboard), new(clipboard), new AuditedPreferenceWriter(Audit),
+            clipboard, new(clipboard), new(clipboard), new(clipboard), new(new DeniedClipboardExplanation()), new AuditedPreferenceWriter(Audit),
             new Kora.Application.Voice.BoundedAudioOutputCatalog(speech,
                 NullLogger<Kora.Application.Voice.BoundedAudioOutputCatalog>.Instance),
             speechTextConfiguration: captionConfiguration,
             webPageGet: webPageGet);
+        if (webSummary is not null) { Main.BindWebSummaryWorkflow(webSummary); }
         Main.BindCallOwnershipGate(() => Access.Open);
         Main.BindClipboardOwnershipGate(static () => false);
         await Main.InitializeAsync();
@@ -229,6 +231,13 @@ internal sealed partial class NativeUxFixtureSession : IApplicationDataPaths, ID
         if (ExactGrants) { await InitializeExactGrantsAsync(); }
         if (AllWork) { await InitializeAllWorkAsync(); }
         startup.Complete(HostOperationOutcome.Completed);
+    }
+
+    private sealed class DeniedClipboardExplanation : Kora.Core.Context.IClipboardExplanationWorkflow
+    {
+        public Task<Kora.Core.Context.ClipboardExplanationResult> ExplainAsync(
+            Guid? reviewedSnapshotId, Func<bool> eligible, CancellationToken token) =>
+            Task.FromResult(new Kora.Core.Context.ClipboardExplanationResult(Kora.Core.Context.ClipboardExplanationOutcome.Denied));
     }
 
     internal async Task<WorkSessionAuthorization> AdvanceLifecycleTargetAsync()

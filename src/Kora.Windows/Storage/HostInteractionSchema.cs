@@ -5,7 +5,7 @@ internal static class HostInteractionSchema
     internal const string Partition = "InteractionStorageV1";
     internal const string FileName = "interaction.db";
     internal const int ApplicationId = 1263489587;
-    internal const int Version = 11;
+    internal const int Version = 12;
     internal static readonly string[] Tables =
     [
         """
@@ -186,11 +186,17 @@ internal static class HostInteractionSchema
             request_id TEXT PRIMARY KEY NOT NULL,
             session_id TEXT NOT NULL REFERENCES work_sessions(session_id),
             sequence INTEGER NOT NULL CHECK(sequence BETWEEN 1 AND 100),
-            revision INTEGER NOT NULL CHECK(revision BETWEEN 1 AND 2),
+            revision INTEGER NOT NULL CHECK(revision BETWEEN 1 AND 3),
             payload TEXT NOT NULL CHECK(length(CAST(payload AS BLOB)) BETWEEN 1 AND 32768),
             audit_sequence INTEGER NOT NULL REFERENCES security_audit_events(sequence),
             UNIQUE(session_id,sequence)) STRICT
         """,
     ];
+    internal static readonly string[] LegacyConversationSchema =
+    [
+        ConversationSchema[0],
+        ConversationSchema[1].Replace("BETWEEN 1 AND 3", "BETWEEN 1 AND 2", StringComparison.Ordinal),
+    ];
+    internal static readonly string[] LegacyConversationTables = [.. QueueOrderTables, .. LegacyConversationSchema];
     internal static readonly string[] CurrentTables = [.. QueueOrderTables, .. ConversationSchema];
 }

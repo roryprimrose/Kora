@@ -127,6 +127,30 @@ public sealed partial class ResponseWindow : Window
         }
     }
 
+    private async void OnWebSummaryClicked(object? sender, RoutedEventArgs eventArgs)
+    {
+        try
+        {
+            if (sender is Button { Tag: DetailContentReference reference })
+            { await viewModel.PrepareWebSummaryAsync(reference); }
+            else { viewModel.ReportWebResultDetailStatus("Local web summary unavailable: the exact source control was retired."); }
+        }
+        catch (Exception exception) when (exception is InvalidOperationException or IOException or ArgumentException)
+        { viewModel.ReportWebSummaryFailure(exception); }
+    }
+
+    private async void OnWebSummaryConfirmed(object? sender, RoutedEventArgs eventArgs)
+    {
+        try
+        {
+            if (sender is Button { Tag: Kora.Application.Network.WebSummaryReview review })
+            { await viewModel.ConfirmWebSummaryAsync(review.Id); }
+            else { viewModel.ReportWebResultDetailStatus("Local web summary unavailable: the exact confirmation control was retired."); }
+        }
+        catch (Exception exception) when (exception is InvalidOperationException or IOException or ArgumentException)
+        { viewModel.ReportWebSummaryFailure(exception); }
+    }
+
     private async void OnCancelQuestionClicked(object? sender, RoutedEventArgs eventArgs) =>
         await viewModel.CancelModelQuestionAsync();
 
@@ -284,6 +308,7 @@ public sealed partial class ResponseWindow : Window
 
     private void OnClosed(object? sender, EventArgs eventArgs)
     {
+        viewModel.RetireCurrentResponseSpeech();
         viewModel.EndPushToTalkCommand.Execute(null);
         viewModel.RetireWebResultDetails();
         responseTimeoutTimer.Stop();
@@ -301,6 +326,7 @@ public sealed partial class ResponseWindow : Window
             responseInactivity.Stop();
             viewModel.EndPushToTalkCommand.Execute(null);
             Hide();
+            viewModel.RetireCurrentResponseSpeech();
             return;
         }
 
@@ -319,6 +345,10 @@ public sealed partial class ResponseWindow : Window
             || string.Equals(
                 eventArgs.PropertyName,
                 nameof(MainViewModel.HasResponseActions),
+                StringComparison.Ordinal)
+            || string.Equals(
+                eventArgs.PropertyName,
+                nameof(MainViewModel.IsCurrentResponseReadActive),
                 StringComparison.Ordinal))
         {
             RestartResponseTimeout();
@@ -334,7 +364,7 @@ public sealed partial class ResponseWindow : Window
             return;
         }
         if (!viewModel.IsResponseAlwaysVisible && !viewModel.IsResponseInteractionPending
-            && !viewModel.HasResponseActions)
+            && !viewModel.HasResponseActions && !viewModel.IsCurrentResponseReadActive)
         {
             if (!responseInactivity.TryExpire())
             {
@@ -343,6 +373,7 @@ public sealed partial class ResponseWindow : Window
                 return;
             }
             Hide();
+            viewModel.RetireCurrentResponseSpeech();
             viewModel.EndPushToTalkCommand.Execute(null);
         }
         else
@@ -381,6 +412,7 @@ public sealed partial class ResponseWindow : Window
 
     internal void HideResponse()
     {
+        viewModel.RetireCurrentResponseSpeech();
         responseTimeoutTimer.Stop();
         responseInactivity.Stop();
         viewModel.EndPushToTalkCommand.Execute(null);
@@ -393,7 +425,7 @@ public sealed partial class ResponseWindow : Window
         responseInactivity.Stop();
         if (!IsVisible || viewModel.IsResponseAlwaysVisible
             || viewModel.IsResponseInteractionPending
-            || viewModel.HasResponseActions)
+            || viewModel.HasResponseActions || viewModel.IsCurrentResponseReadActive)
         {
             return;
         }

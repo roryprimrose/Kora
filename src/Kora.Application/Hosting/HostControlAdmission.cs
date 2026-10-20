@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using Kora.Core.Authorization;
 using Kora.Core.Diagnostics;
 using Kora.Core.Hosting;
@@ -11,7 +12,7 @@ public abstract class HostControlAdmission(
 {
     private readonly SemaphoreSlim gate = new(1, 1);
     private readonly CancellationTokenSource lifetime = new();
-    private bool disposed;
+    private volatile bool disposed;
     private bool evidenceUnavailable;
     private readonly Lock disposalGate = new();
     private Task? disposal;
@@ -23,6 +24,8 @@ public abstract class HostControlAdmission(
     protected bool IsDisposed => disposed;
     protected bool IsEvidenceUnavailable => evidenceUnavailable;
     protected void HoldEvidenceUnavailable() => evidenceUnavailable = true;
+    protected ISessionWorkspaceStore Workspace => workspace;
+    protected HostTaskCoordinator Coordinator => coordinator;
 
     protected static RequestOrigin CaptureOriginalOrigin(RequestOrigin origin)
     {
@@ -38,6 +41,48 @@ public abstract class HostControlAdmission(
     {
         var live = HostActivity.RequireCurrent();
         return !live.Activity!.IsStopped && ReferenceEquals(live.Request, request);
+    }
+
+    /// <summary>Serializes exact reviewed requests without manufacturing a different request or session.</summary>
+    protected async Task<T> RunExactAsync<T>(HostRequest request, Func<bool> eligible,
+        Func<Func<bool>, CancellationToken, Task<T>> operation, Func<T, HostOperationOutcome> outcome,
+        CancellationToken cancellationToken)
+    {
+        ObjectDisposedException.ThrowIf(disposed, this);
+        var current = HostActivity.RequireCurrent();
+        if (current.Activity!.IsStopped || current.Outcome != HostOperationOutcome.Unknown
+            || !ReferenceEquals(current.Request, request))
+        {
+            throw new InvalidOperationException("Exact local context requires the original live host request.");
+        }
+        _ = CaptureOriginalOrigin(request.Origin);
+        ActivityLink[] links = [new(current.Activity.Context)];
+        using var linked = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, lifetime.Token);
+        await gate.WaitAsync(linked.Token).ConfigureAwait(false);
+        try
+        {
+            using var activity = HostActivity.BeginRoot(request, HostActivityLayer.Application, HostOperation.Request, links);
+            bool CurrentEligible() => !disposed && !evidenceUnavailable
+                && !linked.IsCancellationRequested && eligible()
+                && !current.Activity.IsStopped && current.Outcome == HostOperationOutcome.Unknown;
+            try
+            {
+                var result = await operation(CurrentEligible, linked.Token).ConfigureAwait(false);
+                activity.Complete(outcome(result));
+                return result;
+            }
+            catch (OperationCanceledException)
+            {
+                activity.Complete(HostOperationOutcome.Cancelled);
+                throw;
+            }
+            catch
+            {
+                activity.Complete(HostOperationOutcome.Failed);
+                throw;
+            }
+        }
+        finally { gate.Release(); }
     }
 
     protected Task<T> RunSynchronousAsync<T>(RequestOrigin origin, Func<bool> eligible,

@@ -563,7 +563,8 @@ public sealed partial class ModelTurnHostTests : IDisposable
             ownedHosts.Add(host);
             return host;
         }
-        internal ModelTurnHost ConfiguredProfiles(bool production = false, bool missingSessionStore = false)
+        internal ModelTurnHost ConfiguredProfiles(bool production = false, bool missingSessionStore = false,
+            IModelTurnAdapter? adapter = null)
         {
             var host = production ? new ModelTurnHost(this, this, this, registry, this, this, Time, ProviderConfiguration, ProfileConfiguration, this)
                 : new ModelTurnHost(this, this, this, registry, this, this, Time,
@@ -577,15 +578,17 @@ public sealed partial class ModelTurnHostTests : IDisposable
                                 Kora.Core.Providers.ProviderService.Claude => ModelProviderIdentity.Claude,
                                 _ => ModelProviderIdentity.Codex,
                             } };
-                            return new ModelProviderRegistration(selection, Gates(selection), Time.Now.AddMinutes(5), Adapter);
+                            return new ModelProviderRegistration(selection, Gates(selection), Time.Now.AddMinutes(5), adapter ?? Adapter);
                         }).ToArray(), ProviderConfiguration, ProfileConfiguration, missingSessionStore ? null : this);
             ownedHosts.Add(host);
             return host;
         }
-        internal ModelTurnHost Qualified(ModelProviderSelection selection, ModelQualificationGate? evidence = null)
+        internal ModelTurnHost Qualified(ModelProviderSelection selection, ModelQualificationGate? evidence = null,
+            bool composeProfileStoreOnly = false)
         {
             var host = new ModelTurnHost(this, this, this, registry, this, this, Time,
-                [new(selection, evidence ?? Gates(selection), Time.Now.AddSeconds(30), Adapter)]);
+                [new(selection, evidence ?? Gates(selection), Time.Now.AddSeconds(30), Adapter)],
+                sessionProfiles: composeProfileStoreOnly ? this : null);
             ownedHosts.Add(host);
             return host;
         }
@@ -593,8 +596,9 @@ public sealed partial class ModelTurnHostTests : IDisposable
             ? ModelQualificationGate.LocalCandidateSelection | ModelQualificationGate.IntegratedHost
             : ModelQualificationGate.DotNetFinalRequest | ModelQualificationGate.AllPathLifecycle
                 | ModelQualificationGate.ExecutionAccount | ModelQualificationGate.IntegratedHost;
-        internal ModelContextEnvelope Context(HostRequest? request = null, string text = "request-secret") =>
-            new(request ?? Request, "policy", text, [], DateTimeOffset.UnixEpoch, DateTimeOffset.UnixEpoch.AddMinutes(1));
+        internal ModelContextEnvelope Context(HostRequest? request = null, string text = "request-secret",
+            ModelToolMode toolMode = ModelToolMode.ReadOnly) =>
+            new(request ?? Request, "policy", text, [], DateTimeOffset.UnixEpoch, DateTimeOffset.UnixEpoch.AddMinutes(1), toolMode);
         internal async Task<ModelTurnResult> Run(CancellationToken? token = null)
         {
             var turn = (await Host.AdmitAsync(ModelProviderSelection.OllamaCandidate, Context(), Token)).Turn!;

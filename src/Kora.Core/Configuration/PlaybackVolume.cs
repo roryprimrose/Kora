@@ -5,6 +5,7 @@ namespace Kora.Core.Configuration;
 public readonly record struct PlaybackVolume
 {
     public const int MaximumPercent = 100;
+    public const int RelativeStepPercent = 10;
     public static PlaybackVolume Default => new(MaximumPercent);
 
     public PlaybackVolume(int percent)
@@ -16,6 +17,13 @@ public readonly record struct PlaybackVolume
 
     public int Percent { get; }
     public bool AllowsSpeech => Percent > 0;
+
+    public PlaybackVolume Adjust(AudioPreferenceAdjustment adjustment) => adjustment switch
+    {
+        AudioPreferenceAdjustment.Increase => new(Math.Min(MaximumPercent, Percent + RelativeStepPercent)),
+        AudioPreferenceAdjustment.Decrease => new(Math.Max(0, Percent - RelativeStepPercent)),
+        _ => throw new ArgumentOutOfRangeException(nameof(adjustment)),
+    };
 
     public static PlaybackVolume Parse(string value)
     {

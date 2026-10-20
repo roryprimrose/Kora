@@ -37,6 +37,7 @@ internal sealed partial class QuestionWindowController : IDisposable
         host.BindGate(() => !disposed && ownsDesktop() && main.CanRevealPrivatePresentation);
         if (admissionRevision is not null) { host.BindAdmissionRevision(admissionRevision); }
         host.BindCallObservation(() => main.CallObservation);
+        main.BindResponseReadDecisionGate(() => !disposed && !IsOwnerInUse);
         main.PrivacyClosureRequested += OnPrivacyClosure;
     }
 
@@ -50,6 +51,7 @@ internal sealed partial class QuestionWindowController : IDisposable
         }
         if (running) { await ReturnToCurrentQuestionAsync(owner); return; }
         window?.Close();
+        main.RetireCurrentResponseSpeech();
         running = true;
         try
         {

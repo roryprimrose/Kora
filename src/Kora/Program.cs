@@ -391,12 +391,19 @@ internal static class Program
         services.AddSingleton<Kora.Tools.Network.PreapprovedUriClear>();
         services.AddSingleton<Kora.Core.Network.IWebPageTransport, Kora.Windows.Network.WindowsWebPageTransport>();
         services.AddSingleton<Kora.Tools.Network.WebPageGet>();
+        services.AddSingleton<Kora.Tools.Network.WebResultSummarize>();
+        services.AddSingleton<Kora.Core.Network.IWebResultModelUsePolicy, Kora.Application.Network.UnavailableWebResultModelUsePolicy>();
+        services.AddSingleton<Kora.Application.Network.IWebSummaryModelExecution, Kora.Application.Network.WebSummaryModelExecution>();
+        services.AddSingleton<Kora.Application.Network.WebSummaryWorkflow>();
         services.AddSingleton<InCallFeedbackConfigurationService>();
         services.AddSingleton<IInCallFeedbackPreferences>(provider =>
             new LocalInCallFeedbackPreferences(provider.GetRequiredService<IPreferenceStore>()));
         services.AddSingleton<SpeechTextConfigurationService>();
         services.AddSingleton<ISessionWorkspaceAccess, DesktopSessionWorkspaceAccess>();
         services.AddSingleton<SessionWorkspaceService>();
+        services.AddSingleton<ILocalContextTaskStore>(interactions);
+        services.AddSingleton<LocalContextTurnWorkflow>();
+        services.AddSingleton<IModelContextRunner>(provider => provider.GetRequiredService<LocalContextTurnWorkflow>());
         services.AddSingleton<ISessionQueueStore>(interactions);
         services.AddSingleton<ISessionWorkStore>(interactions);
         services.AddSingleton<Kora.Core.Memory.IMemoryStore>(interactions);
@@ -483,10 +490,31 @@ internal static class Program
         services.AddSingleton<Kora.Tools.Runtime.RuntimeList>();
         services.AddSingleton<Kora.Tools.Runtime.RuntimeGetStatus>();
         services.AddSingleton<Kora.Application.Tools.ReadOnlyCapabilityRegistry>();
-        services.AddSingleton<ModelTurnHost>();
+        services.AddSingleton(provider => new BoundedModelTurnAdapter(
+            new WindowsOllamaToolTransport(static _ => null, provider.GetRequiredService<TimeProvider>(),
+                provider.GetRequiredService<ILogger<WindowsOllamaToolTransport>>()),
+            provider.GetRequiredService<TimeProvider>(),
+            provider.GetRequiredService<ILogger<BoundedModelTurnAdapter>>()));
+        services.AddSingleton(provider => new ModelTurnHost(
+            provider.GetRequiredService<ISessionWorkspaceStore>(),
+            provider.GetRequiredService<ISessionWorkspaceAccess>(),
+            provider.GetRequiredService<Kora.Core.Tools.ICapabilityHostAccess>(),
+            provider.GetRequiredService<Kora.Application.Tools.ReadOnlyCapabilityRegistry>(),
+            provider.GetRequiredService<ISecurityAuditLog>(),
+            provider.GetRequiredService<ILogger<ModelTurnHost>>(),
+            provider.GetRequiredService<TimeProvider>(),
+            [
+                OllamaModelProviderFactory.CreateUnavailable(provider.GetRequiredService<BoundedModelTurnAdapter>()),
+                new(ModelProviderSelection.CopilotCandidate, ModelQualificationGate.None, DateTimeOffset.MinValue, null),
+            ],
+            provider.GetRequiredService<ProviderModeConfigurationService>(),
+            provider.GetRequiredService<ProviderProfileConfigurationService>(),
+            provider.GetRequiredService<ISessionProviderProfileStore>()));
         services.AddSingleton<IModelTurnAdmission>(provider => provider.GetRequiredService<ModelTurnHost>());
+        services.AddSingleton<IModelTurnExecution>(provider => provider.GetRequiredService<ModelTurnHost>());
         services.AddSingleton<SessionConversationService>();
         services.AddSingleton<SessionRequestCommandService>();
+        services.AddSingleton<SessionRetentionCommandService>();
         services.AddTransient<NewRequestComposer>();
         services.AddSingleton<Kora.Application.Definitions.PromptConversationSubmission>();
         services.AddSingleton<ModelProviderHandoffWorkflow>();
@@ -497,20 +525,7 @@ internal static class Program
         services.AddSingleton<ILocalModelSetup, WindowsOllamaSetupService>();
 #endif
         services.AddSingleton<DependencySetupWorkflow>();
-        services.AddKeyedSingleton(
-            "ollama-reasoner",
-            (_, _) => new HttpClient(new HttpClientHandler
-            {
-                AllowAutoRedirect = false,
-                UseProxy = false,
-            })
-            {
-                Timeout = TimeSpan.FromMinutes(3),
-            });
-        services.AddSingleton<ILocalModelReasoner>(provider =>
-            new WindowsOllamaReasoner(
-                provider.GetRequiredKeyedService<HttpClient>("ollama-reasoner"),
-                provider.GetRequiredService<BuiltInCommandCatalog>()));
+        services.AddSingleton<ILocalModelReasoner, UnavailableLocalModelReasoner>();
         services.AddSingleton<IPreferenceStore, LocalPreferenceStore>();
         services.AddSingleton<IPlaybackVolumePreferences>(provider =>
             new LocalPlaybackVolumePreferences(provider.GetRequiredService<IPreferenceStore>()));
@@ -612,12 +627,20 @@ internal static class Program
         services.AddSingleton<Kora.Tools.Clipboard.ClipboardRead>();
         services.AddSingleton<Kora.Tools.Clipboard.ClipboardReuse>();
         services.AddSingleton<Kora.Tools.Clipboard.ClipboardRevoke>();
+        services.AddSingleton<Kora.Application.Context.ClipboardExplanationAdmission>();
+        services.AddSingleton<Kora.Application.Context.ClipboardExplanationWorkflow>();
+        services.AddSingleton<Kora.Core.Context.IClipboardSourceUsePolicy, Kora.Tools.Clipboard.UnavailableClipboardSourceUsePolicy>();
+        services.AddSingleton<Kora.Core.Context.IClipboardExplanationWorkflow>(provider =>
+            provider.GetRequiredService<Kora.Application.Context.ClipboardExplanationWorkflow>());
+        services.AddSingleton<Kora.Tools.Clipboard.ClipboardExplain>();
         services.AddSingleton<Kora.Core.Context.ILocalFileInspector, Kora.Windows.Context.WindowsLocalFileInspector>();
         services.AddSingleton<Kora.Tools.Files.LocalFilePreview>();
         services.AddSingleton<Kora.Tools.Files.LocalSessionFileAttach>();
         services.AddSingleton<SessionFileAttachmentService>();
         services.AddSingleton<SessionAttachmentCatalogueService>();
         services.AddSingleton<Kora.Tools.Files.LocalFileSearch>();
+        services.AddSingleton<Kora.Tools.Files.LocalFileAnswer>();
+        services.AddSingleton<Kora.Core.Context.ILocalFileModelUsePolicy, UnavailableLocalFileModelUsePolicy>();
         services.AddSingleton<Kora.Tools.Files.LocalFileRefresh>();
         services.AddSingleton<Kora.Core.Context.ILocalFileRetrieval, Kora.Core.Context.LocalFileLexicalRetrieval>();
         services.AddSingleton<MainViewModel>();

@@ -207,7 +207,7 @@ public sealed partial class NewRequestComposerTests
         }
         await f.Conversation.Invoking(value => value.SubmitAsync(f.Entry!, "original", () => live,
             TestContext.Current.CancellationToken, Revalidate)).Should().ThrowAsync<ConversationSubmissionUnconfirmedException>();
-        validations.Should().Be(3);
+        validations.Should().Be(4, "the retained submission readback also revalidates the original source without reviving admission");
         f.ModelAdmissions.Should().Be(0);
         f.Retained!.Outcome.Should().Be(ModelTurnOutcome.Denied);
     }

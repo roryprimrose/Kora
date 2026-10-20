@@ -51,6 +51,7 @@ public sealed partial class MainViewModel
 
     internal void RetireWebResultDetails(bool retireControl = true)
     {
+        RetireWebSummary();
         if (retireControl) { Interlocked.Increment(ref webControlGeneration); }
         Interlocked.Increment(ref webPresentationGeneration);
         var retiredBody = webResultResponseBody;

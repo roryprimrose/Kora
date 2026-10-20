@@ -67,10 +67,44 @@ Only one current volatile web snapshot is retained. Replacing/dismissing/closing
 A removed old control cannot retarget the latest result. Closing only the detail viewer permits explicit reopening of the same still-current source. Eight native viewers remain the shared limit. Retirement also clears the compact response's matching web body, never an unrelated later response or required question/card.
 
 Rendering is strictly inert plain text: no HTML, active links/images/scripts/styles, resource loading, browser, autodownload or further network. Private source/selection copy retains explicit native disclosure confirmation and fresh admission to that original snapshot.
-There is no persistence, export, speech/caption creation, diagnostic content, model context or provider transmission. Existing admitted session-history copy and passive retention semantics remain separate and unchanged.
+Fetch/details create no persistence, export, speech/caption, diagnostic content, model context or provider transmission. Explicit local summary below is not an implicit consequence of retrieval or viewing. Existing session-history copy and passive retention stay separate ([fetch](../src/Kora.Application/ViewModels/MainViewModel.WebPages.cs)).
 
 Maintained Core/Application/native fake and headless-binding tests cover provenance/digests/empty/truncation/bounds, actual response-to-viewer reuse, zero additional transport calls, retired controls and private/late/native-failure paths.
 They do not qualify installed visual/accessibility/DPI, transport security, durable conversation/knowledge, general details or the unavailable parameterized model tool loop.
+
+### Explicit Local Summary Of One Current Web Snapshot
+
+`summarize current web result`, optionally prefixed by the current assistant name, and the exact-source native button prepare a review, not a model call. Confirmation names its one-use ID or uses its native control. Retrieval consent is not model source-use consent ([parser](../src/Kora.Application/Network/WebSummaryCommand.cs), [workflow](../src/Kora.Application/Network/WebSummaryWorkflow.cs)).
+
+The [web action](../src/Kora.Tools/Network/WebResultSummarize.cs) preserves complete normalized text and inert provenance as LocalOnly evidence and refuses complete serialized envelopes above 32,768 UTF-8 bytes. Its shared credential screening is narrow reject-only assistance, not comprehensive sensitivity detection or source-use approval. Addresses confer no authority.
+
+The [view model](../src/Kora.Application/ViewModels/MainViewModel.WebSummary.cs) preserves the original response/details and displays admitted model text separately with fixed attribution. It adds no automatic inference, retrieval, speech, history, hosted fallback or model action. Source/reference, response/control/presentation, privacy/recovery/call epochs and review expiry fence late publication.
+
+The [review](../src/Kora.Application/Network/WebSummaryReview.cs) discloses the exact fresh `Local context` session and source-free receipt retention. Confirmation preserves the original-input channel; it cannot silently select or retarget another session ([target](../src/Kora.Core/Dependencies/LocalContextSessionTarget.cs)).
+
+The [web bridge](../src/Kora.Application/Network/WebSummaryModelExecution.cs) consumes the shared [Core runner](../src/Kora.Core/Dependencies/IModelContextRunner.cs). Review stores no envelope. A distinct exact target receives durable admission before evidence is bound to its [lease](../src/Kora.Core/Dependencies/IAdmittedModelContextTurn.cs), never to the volatile fetch/source request.
+
+The [shared workflow](../src/Kora.Application/Dependencies/LocalContextTurnWorkflow.cs) owns source-free durable receipts and quiescence. The [web action](../src/Kora.Tools/Network/WebResultSummarize.cs) owns credential screening and complete-envelope construction, not sensitivity approval. The local-only envelope disables tools; shared source-current checks fence dispatch and late return.
+
+[IWebResultModelUsePolicy](../src/Kora.Core/Network/IWebResultModelUsePolicy.cs) supplies a separate affirmative source-specific sensitivity/use decision over the complete exact snapshot. Retrieval consent, user confirmation, LocalOnly classification and narrow credential heuristics cannot replace it. Unknown or denied decisions prevent context/provider dispatch.
+
+No production web-source sensitivity/use service is delivered. The composed [unavailable policy](../src/Kora.Application/Network/UnavailableWebResultModelUsePolicy.cs) returns Unavailable before durable admission or envelope construction, including for ordinary prose without recognized credentials. This is an incomplete production source-policy requirement, independent of model qualification.
+
+The [web bridge](../src/Kora.Application/Network/WebSummaryModelExecution.cs) rechecks policy after asynchronous admission, through the shared execution validator and before late presentation. A denied/unknown observation permanently closes that use; later allowance cannot revive it. No retry, fallback, source rewrite or secret-free claim is introduced.
+
+Unqualified production registrations stay unavailable; denied/uncertain results disclose no answer or fallback ([host](../src/Kora.Application/Dependencies/ModelTurnHost.cs), [bridge](../src/Kora.Application/Network/WebSummaryModelExecution.cs)).
+
+The [protocol](../src/Kora.Core/Dependencies/ModelToolProtocol.Context.cs) and [native framing](../src/Kora.Windows/Dependencies/OllamaToolWire.cs) preserve `ModelToolMode.None`. Tool requests are denied before registry execution. Fake success is not provider qualification.
+
+[Push-to-talk](../src/Kora.Application/ViewModels/MainViewModel.VoicePrivacy.cs) reports capture status without replacing an existing exact web response. Activated summary and confirmation can therefore name that same current snapshot; other response replacement still retires it ([voice/source tests](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.WebSummaryBoundaries.cs)).
+
+[Tool tests](../tests/Kora.Tools.UnitTests/Network/WebResultSummarizeTests.cs), [workflow tests](../tests/Kora.Application.UnitTests/Network/WebSummaryWorkflowTests.cs) and [presentation tests](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.WebSummary.cs) use deterministic sources/adapters.
+
+[Lifecycle](../tests/Kora.Application.UnitTests/Dependencies/LocalContextTurnWorkflowTests.WebSummary.cs), [tool denial](../tests/Kora.Application.UnitTests/Dependencies/ModelTurnHostTests.WebSummary.cs) and [native binding](../tests/Kora.Windows.IntegrationTests/WebResultDetailsBindingTests.cs) cover production seams. They do not qualify providers, offline/containment or summary quality.
+
+[Lease-first web tests](../tests/Kora.Application.UnitTests/Network/WebSummaryModelExecutionTests.cs) prove evidence is bound only after admitted target resolution, foreign leases receive no source, and overflow/cancellation/source closure disposes the lease without model dispatch.
+
+[Policy tests](../tests/Kora.Application.UnitTests/Network/WebSummaryModelExecutionTests.cs) use explicit allowed/denied/unavailable fakes; [shared tests](../tests/Kora.Application.UnitTests/Dependencies/LocalContextTurnWorkflowTests.WebSummary.cs) exercise production unavailability and policy revocation. Fake success demonstrates workflow behavior, not real source classification.
 
 ## Delivered Exact Native Provider-Handoff Review - 2026-10-10
 
@@ -1289,7 +1323,15 @@ Appearance persistence runs off the dispatcher. During a known in-process save, 
 
 Captions temporarily hide until confirmation and independent source eligibility, without resetting retirement/failure state ([captions](../src/Kora/SpeechCaptionWindowController.cs)).
 
-The delivered native reader preference is `appearance.reader-text-scale`: an absolute integer percentage, default **100**, inclusive **75–200**. It uses the appearance registry, exact `get`/`status`/`set`/`reset` and `list appearance settings`, and the native Settings Appearance editor. Relative or natural-language examples below remain proposed, not inferred commands ([registry](../src/Kora.Core/Configuration/AppearanceOptionRegistry.cs), [parser](../src/Kora.Application/Configuration/AppearanceCommand.cs)).
+The delivered native reader preference is `appearance.reader-text-scale`: an absolute integer percentage, default **100**, inclusive **75–200**. It uses the appearance registry, exact `get`/`status`/`set`/`reset` and `list appearance settings`, and the native Settings Appearance editor ([registry](../src/Kora.Core/Configuration/AppearanceOptionRegistry.cs), [ID parser](../src/Kora.Application/Configuration/AppearanceCommand.cs)).
+
+Delivered natural exact commands are `use dark mode`, `use light mode`, `use system theme`, `get/status reader text scale`, `reset reader text scale`, and `set reader text scale to <integer> percent`.
+Original typed input or current-name-prefixed activated voice uses the same admitted appearance executor, not model interpretation
+([grammar](../src/Kora.Application/Configuration/NaturalAppearanceCommand.cs), [executor](../src/Kora.Application/ViewModels/MainViewModel.Appearance.cs)).
+
+`increase/decrease reader text scale by <positive integer> percentage points` reads fresh confirmed service state at execution and uses checked arithmetic plus registry validation.
+The existing revision-bound proposal refuses concurrent changes rather than overwriting or recalculating. No clamp, guessed value, selected-window inference or new policy layer is introduced
+([proposal](../src/Kora.Application/Configuration/AppearanceConfigurationService.cs), [exact examples](../docs/commands.md#natural-exact-app-theme-and-native-reader-text-scale)).
 
 Only content typography scales: shared DetailWindow Rendered blocks, exact Source and continuous text; native original file/folder and retained attachment source bodies; exact source citation/literal-match spans; native volatile clipboard snapshot source body; admitted complete immutable serialized Evidence page body and its inert focused literal-Find span; currently observed native speech-caption content text. Newly created windows inherit the confirmed preference. Repeated changes apply against each control's original font/line-height, never cumulatively ([binding](../src/Kora/NativeReaderTypography.cs), [detail](../src/Kora/DetailWindow.axaml.cs), [file](../src/Kora/LocalFilePreviewWindow.cs), [span](../src/Kora/LocalFilePreviewWindow.Citations.cs), [clipboard](../src/Kora/ClipboardPreviewWindow.cs), [Evidence](../src/Kora/EvidenceWindow.axaml.cs), [caption](../src/Kora/SpeechCaptionWindow.axaml.cs)).
 
@@ -1297,7 +1339,7 @@ Trusted chrome, consent/approval/question controls, search inputs/results, prove
 
 The preference is device-local atomic state under application data paths, with strict integer validation and pending evidence until exact readback and successful audit. Malformed, unknown, externally changed or unconfirmed evidence fails explicitly; it is not silently treated as 100. Existing preference files/migrations remain unchanged ([store](../src/Kora.Application/Configuration/LocalReaderTextScalePreferences.cs), [workflow](../src/Kora.Application/Configuration/AppearanceConfigurationService.cs)).
 
-Excluded: inline guide/grant previews, compact response/conversation lists, Evidence filters/query fields/result navigation/provenance/status and incomplete pages, search/attachment catalogues, caption labels/Pin/Unpin/display selector/status/chrome, browser/generated HTML/Mermaid/PDF/image renderers, model/runtime interfaces and voice-command inference. Caption scaling preserves exact text, response/playback/generation/segment identity, native geometry/display selection, original pin/dismissal lifetime and retirement. Preference/privacy/source/call/window closure, replacement, interruption, failure/cancellation and late callbacks clear stale scaled content. This is **not global text scaling**. Full accessibility, real hardware, Windows DPI/display and assistive-technology acceptance remain open; deterministic headless checks qualify only these bounded native readers.
+Excluded: inline guide/grant previews, compact response/conversation lists, Evidence filters/query fields/result navigation/provenance/status and incomplete pages, search/attachment catalogues, caption labels/Pin/Unpin/display selector/status/chrome, browser/generated HTML/Mermaid/PDF/image renderers, model/runtime interfaces and inferred voice commands. Caption scaling preserves exact text, response/playback/generation/segment identity, native geometry/display selection, original pin/dismissal lifetime and retirement. Preference/privacy/source/call/window closure, replacement, interruption, failure/cancellation and late callbacks clear stale scaled content. This is **not global text scaling**. Full accessibility, real hardware, Windows DPI/display and assistive-technology acceptance remain open; deterministic headless checks qualify only these bounded native readers.
 
 The broader proposed registry includes:
 

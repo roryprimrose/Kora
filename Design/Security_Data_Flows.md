@@ -47,7 +47,16 @@ requested/terminal audit and content digests; raw bodies are not audit/log/tag/
 baggage/preference/Work/AllWork fields. Explicit native input, exact generation/
 revision, ownership/privacy/call/control and final commit fences fail closed.
 The configured provider-neutral admission consumer preserves unavailable
-outcomes without fallback, HTTP, authentication, egress or execution.
+outcomes without fallback, HTTP, authentication or hosted egress. A separately
+qualified local turn may use only the existing host-owned single-use execution
+and read-only registry callbacks. Exact consumer source/private lifetime and
+session metadata are revalidated around model/tool continuations, alongside
+existing owner/issuer/task/generation/context/policy/qualification/quiescence
+fences. Raw model text cannot select a handler, approve, grant or become USER.
+Only a strict bounded answer-only final result with the original host provenance
+may be atomically retained as ASSISTANT with the original terminal task and typed
+audit. Readback/source/cancellation uncertainty cannot become answer publication
+or automatic retry. Production qualification remains unchanged and unavailable.
 
 Saved data is never replay/approval/source-use authority. Passive read/Done
 inspection does not renew activity or trigger cleanup; private/source closure
@@ -55,6 +64,12 @@ revokes draft/page callbacks. Disposition/retention inventory actual cells,
 free pages and committed journal with existing Unknown-work and uninventoried
 copy holds. Required audit remains content-minimised and independently
 retained; disk/write/receipt failures cannot become an unaudited success.
+Optional versioned assistant data shares the existing original message cell,
+audit digest, complete-page byte limit and disposition/retention/copy inventory.
+Legacy canonical payloads remain unchanged; unknown/malformed/foreign response
+provenance is rejected. USER/HOST lexical search and original-text reuse do not
+search or promote assistant output. Private native details show it separately
+without adding source-copy/export authority.
 
 The bounded native composer uses shared Core local structural credential-like
 checks, not a model, network call or entropy-based DLP. Detected or malformed
@@ -539,8 +554,10 @@ See [Call-Aware Speech](Call_Aware_Speech.md).
 
 ### Delivered R07 Local Clipboard Preview - 2026-10-07
 
-Exact deliberate voice/typed preview/snapshot/explain commands and the native
-tray preview action share a composed local plain-text broker. Eligibility is
+Exact deliberate voice/typed preview/snapshot commands and the native
+tray preview action share a composed local plain-text broker. Explanation requests use the
+[clipboard explanation action](../src/Kora.Tools/Clipboard/ClipboardExplain.cs).
+Eligibility is
 resolved before a request-owned STA read and revalidated before publication,
 presentation and same-ID reuse. Current unlocked privacy, instance capability
 ownership, original input origin and call generation are mandatory. No
@@ -572,15 +589,39 @@ Query edits retire matches and counts without I/O; clear, close, replacement, re
 Keyboard access remains native-only and blocks built-in cut/copy/paste/context routes. Find adds no clipboard reads/writes, reuse/revoke dispatch, typed/voice/model/tool query, provider/egress/context/persistence/history, activity renewal or timer.
 [Portable policy tests](../tests/Kora.Core.UnitTests/Context/ClipboardLiteralFindTests.cs) and [headless lifecycle/transfer tests](../tests/Kora.Windows.IntegrationTests/ClipboardLiteralFindWindowTests.cs) are consumer evidence, not installed-native/privacy qualification.
 
-Text remains untrusted and potentially secret. All inference/egress is
-unavailable, including for apparently safe text: preview is not approval and
-there is no secret-detection/redaction-correctness claim. The existing JSON
-selector and every local/remote provider receive none of this content.
-The complete qualified local tool loop, secret/destination classification,
-approved envelope budgeting, actual offline clipboard-answering quality and
-live native trials remain R07/R02-L6 gates. This delivery does not close A0/A2.
+The [explicit clipboard workflow](../src/Kora.Application/Context/ClipboardExplanationWorkflow.cs) now separates review from explanation.
+Exact `explain the clipboard` requests review of the current immutable snapshot, capturing once only when none is selected; preview/reuse/Find never run inference.
+The [native review control](../src/Kora/ClipboardPreviewWindow.cs) requires a deliberate checkbox and button gesture requesting admission of the exact shown snapshot ID; review alone does not admit inference, and closing/replacing/revoking fences old callbacks ([controller](../src/Kora/ClipboardPreviewWindowController.cs)).
+The owning clipboard rule requires secret/sensitive-content source-use classification before envelope construction. No authoritative production rule is implemented: [IClipboardSourceUsePolicy](../src/Kora.Core/Context/IClipboardSourceUsePolicy.cs) is composed with [UnavailableClipboardSourceUsePolicy](../src/Kora.Tools/Clipboard/UnavailableClipboardSourceUsePolicy.cs).
+Production returns `SourceUsePolicyUnavailable` before creating a model envelope, durable source-turn session/task or provider request, including for apparently ordinary or explicitly reviewed text ([workflow gate](../src/Kora.Application/Context/ClipboardExplanationWorkflow.cs), [deterministic unavailable/deny tests](../tests/Kora.Application.UnitTests/Context/ClipboardExplanationWorkflowTests.cs)).
+Review expires 15 minutes after capture; a [clipboard context](../src/Kora.Core/Context/ClipboardExplanationContext.cs) binds its one evidence item to the new content-free host request, exact snapshot ID/native sequence and `LocalOnly` disclosure, with a maximum 15-second model envelope.
+The complete existing `ModelContextEnvelope` serialization, including policy and tool overhead, must fit 32768 UTF-8 bytes without truncation ([boundary tests](../tests/Kora.Core.UnitTests/Context/ClipboardExplanationContextTests.cs)).
+Existing structural credential screening remains an additional refusal check, not the missing source-use rule; it is best-effort, not comprehensive classification, redaction or a secret-free guarantee ([screening policy](../src/Kora.Core/Conversation/ConversationCredentialScreening.cs)).
+Content-free task authority is separate from conversation retention, preserving original input origin; the exact capture object retains its original request/source identity while model evidence belongs to the newly admitted task ([clipboard admission](../src/Kora.Application/Context/ClipboardExplanationAdmission.cs), [workflow](../src/Kora.Application/Context/ClipboardExplanationWorkflow.cs)).
+Only a deterministic fake source-policy acceptance reaches the implementation's `ModelTurnChoice.Local` and host admission/`RunAsync` path in tests. Production explanations are not delivered, and no production runtime is qualified or enabled by this change ([host registration](../src/Kora.Application/Dependencies/ModelTurnHost.cs), [fake-boundary tests](../tests/Kora.Application.UnitTests/Context/ClipboardExplanationWorkflowTests.cs)).
+Only a successful admitted host response can become a volatile answer in that exact native preview, after terminal task evidence and current-source/eligibility checks; source/answer are not generic responses, transcripts, speech, saved clipboard history or conversation bodies ([workflow](../src/Kora.Application/Context/ClipboardExplanationWorkflow.cs), [presentation](../src/Kora.Application/ViewModels/MainViewModel.Clipboard.cs)).
+Source revocation and cancellation suppress late output while actual adapter quiescence remains mandatory for exit/handoff; deterministic fake-provider tests cover these boundaries without clipboard/model/network calls ([workflow tests](../tests/Kora.Application.UnitTests/Context/ClipboardExplanationWorkflowTests.cs)).
+Invalid presentation reads retire volatile answer/source references, so restored eligibility cannot resurrect a retired answer; model-envelope expiry is checked again after terminal task evidence before publication ([workflow](../src/Kora.Application/Context/ClipboardExplanationWorkflow.cs)).
+Integration boundary: the current [clipboard admission bridge](../src/Kora.Application/Context/ClipboardExplanationAdmission.cs) delegates to the existing `HostControlAdmission` and workspace/task stores; source-independent context execution owns its extraction, not a second clipboard tasking policy.
+The current [model host](../src/Kora.Application/Dependencies/ModelTurnHost.cs) does not consume a clipboard/source-current predicate after its asynchronous revalidation reads. Shared integration must carry that predicate to the exact adapter-dispatch boundary and tool callbacks; clipboard-side before/after checks alone are not that stronger guarantee ([workflow call site](../src/Kora.Application/Context/ClipboardExplanationWorkflow.cs)).
+These implementation checks do not qualify local answering quality, physical/native operation, containment, offline or hardware performance and do not close A0/A2; those E/Q gates do not block this fail-closed implementation ([delivery policy](Implementation_Roadmap.md#delivery-and-qualification-dependency-policy)).
 
 Rich content is untrusted presentation data under [Information Display](Information_Display.md).
+
+The [web-summary workflow](../src/Kora.Application/Network/WebSummaryWorkflow.cs) requires one-use source/local-model confirmation over one exact current snapshot. Fetch/view/search grants no inference permission; URLs confer no context or retrieval authority ([fetch](../src/Kora.Application/ViewModels/MainViewModel.WebPages.cs), [summary](../src/Kora.Application/ViewModels/MainViewModel.WebSummary.cs)).
+
+The [action](../src/Kora.Tools/Network/WebResultSummarize.cs) preserves complete normalized text and provenance as LocalOnly untrusted evidence. Its [credential checks](../src/Kora.Core/Conversation/ConversationText.cs) are narrow reject-only heuristics, not sensitivity classification. Page content grants no approvals, actions, tools or network authority.
+
+The independent [web-source policy](../src/Kora.Core/Network/IWebResultModelUsePolicy.cs) must affirm source-specific sensitivity/use admission before context construction. Its production [unavailable implementation](../src/Kora.Application/Network/UnavailableWebResultModelUsePolicy.cs) blocks before durable/model admission; no general detector or permissive default is claimed.
+
+Policy decisions are rechecked through the shared execution fence and before late disclosure; denial/unknown state permanently closes that use. Deterministic admitted/denied fakes do not establish production detection readiness ([bridge](../src/Kora.Application/Network/WebSummaryModelExecution.cs), [tests](../tests/Kora.Application.UnitTests/Network/WebSummaryModelExecutionTests.cs)).
+
+The [web bridge](../src/Kora.Application/Network/WebSummaryModelExecution.cs) consumes shared durable admission for a reviewed exact fresh `Local context` session. Only host session/task receipts persist; creation is disclosed before confirmation ([target](../src/Kora.Core/Dependencies/LocalContextSessionTarget.cs)).
+
+The volatile source request is lineage only. The [Core runner](../src/Kora.Core/Dependencies/IModelContextRunner.cs) resolves the separate reviewed durable request before evidence/envelope binding. An unknown/foreign lease receives no source; disposal waits for shared physical quiescence ([bridge tests](../tests/Kora.Application.UnitTests/Network/WebSummaryModelExecutionTests.cs)).
+
+The envelope disables tools, the shared host denies tool callbacks, and no adapter registration or bootstrap fallback is enabled. Review expiry, replacement, private/owner/call closure and cancellation suppress stale presentation ([host](../src/Kora.Application/Dependencies/ModelTurnHost.cs), [workflow](../src/Kora.Application/Network/WebSummaryWorkflow.cs)).
+
 The delivered `native-text-v1` viewer is passive native text/Markdown, entered
 only through the explicit Documentation **Open details** action for a host
 admitted immutable embedded page. Host reference/revision/digest, origin,

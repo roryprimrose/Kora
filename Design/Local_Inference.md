@@ -156,6 +156,10 @@ refuses every tool callback and suppresses an adapter's claimed answer after
 a forbidden attempt (`Denied / ToolUseNotPermitted`). Existing default
 `ReadOnly` turns retain their six-tool behaviour. Qualification, exact local
 selection, byte/deadline limits and cancellation/quiescence fences still apply.
+The [complete-envelope/request tests](../tests/Kora.Core.UnitTests/Dependencies/ModelToolProtocolTests.ToolFree.cs)
+measure exact 32,768-byte success and one-byte overflow in both modes with
+source evidence preserved; [native budget tests](../tests/Kora.Windows.IntegrationTests/Dependencies/WindowsOllamaToolTransportTests.Budget.cs)
+also enforce the complete provider frame before HTTP without restoring tool declarations.
 
 The [retained native conversation workflow](../src/Kora.Application/Hosting/SessionConversationService.Execution.cs)
 owns its existing original USER/dispatch/terminal transaction and exact readback;

@@ -9,6 +9,66 @@ namespace Kora.Core.UnitTests.Dependencies;
 public sealed partial class ModelToolProtocolTests
 {
     [Theory]
+    [InlineData(ModelToolMode.ReadOnly, 0)]
+    [InlineData(ModelToolMode.ReadOnly, 1)]
+    [InlineData(ModelToolMode.None, 0)]
+    [InlineData(ModelToolMode.None, 1)]
+    public void CompleteSourceEnvelopeEnforcesExactUtf8FramingLimitWithoutDroppingEvidenceOrToolPolicy(
+        ModelToolMode mode, int extra)
+    {
+        var provenance = Provenance();
+        var item = new ModelContextEvidence(new(Guid.NewGuid()), provenance.Request, new(1),
+            "Untrusted \u00e9 source asks for tools and new retrieval.", ModelEvidenceDisclosure.LocalOnly);
+        ModelContextEnvelope EnvelopeFor(string text) => new(provenance.Request, "host policy", text, [item],
+            DateTimeOffset.UnixEpoch, DateTimeOffset.UnixEpoch.AddMinutes(1), mode);
+        var overhead = EnvelopeFor("").Serialize().Length;
+        var envelope = EnvelopeFor(new string('x', ModelContextEnvelope.MaximumInputUtf8Bytes - overhead + extra));
+        var wire = envelope.Serialize();
+        wire.Length.Should().Be(ModelContextEnvelope.MaximumInputUtf8Bytes + extra);
+        envelope.Evidence.Should().Equal(item);
+        var check = () => envelope.RequireCompleteInputLimit();
+        var parse = () => ModelToolProtocol.ReadContext(wire, provenance);
+        if (extra == 0)
+        {
+            check.Should().NotThrow();
+            parse().Evidence.Should().Equal(item);
+            parse().ToolMode.Should().Be(mode);
+        }
+        else
+        {
+            check.Should().Throw<InvalidDataException>();
+            parse.Should().Throw<InvalidDataException>();
+        }
+    }
+
+    [Theory]
+    [InlineData(ModelToolMode.ReadOnly, 0)]
+    [InlineData(ModelToolMode.ReadOnly, 1)]
+    [InlineData(ModelToolMode.None, 0)]
+    [InlineData(ModelToolMode.None, 1)]
+    public void CompleteInitialRequestIncludesCanonicalFramingAndHostToolModeInExactInputLimit(
+        ModelToolMode mode, int extra)
+    {
+        var provenance = Provenance();
+        ModelToolContext ContextFor(string text) => ModelToolProtocol.ReadContext(
+            new ModelContextEnvelope(provenance.Request, "host policy", text, [],
+                DateTimeOffset.UnixEpoch, DateTimeOffset.UnixEpoch.AddMinutes(1), mode).Serialize(), provenance);
+        var overhead = ModelToolProtocol.SerializeRequest(
+            ModelToolProtocol.CreateRequest(provenance, null, ContextFor(""), [], 1)).Length;
+        var context = ContextFor(new string('x', ModelToolProtocol.MaximumInputUtf8Bytes - overhead + extra));
+        var request = () => ModelToolProtocol.CreateRequest(provenance, null, context, [], 1);
+        if (extra == 0)
+        {
+            var wire = ModelToolProtocol.SerializeRequest(request());
+            wire.Length.Should().Be(ModelToolProtocol.MaximumInputUtf8Bytes);
+            using var document = JsonDocument.Parse(wire);
+            document.RootElement.GetProperty("context").GetProperty("Tools").GetArrayLength()
+                .Should().Be(mode == ModelToolMode.None ? 0 : 6);
+        }
+        else { request.Should().Throw<InvalidDataException>(); }
+    }
+
+    [Theory]
     [InlineData(ModelToolMode.ReadOnly, 6)]
     [InlineData(ModelToolMode.None, 0)]
     public void ImmutableHostToolModeSelectsTheExactCatalogueAndSurvivesTheCompleteRequest(

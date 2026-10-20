@@ -64,13 +64,13 @@ public sealed partial class LocalContextTurnWorkflow(
         using var auditActivity = HostActivity.BeginAudit(request, requested, [new(current.Activity!.Context)]);
         LocalContextTurnReceipt receipt;
         var requestedCommitted = false;
+        var revision = access.ControlRevision;
+        bool Live() => access.CanControl && access.ControlRevision == revision && eligible()
+            && !current.Activity!.IsStopped && current.Outcome == HostOperationOutcome.Unknown;
         try
         {
             audit.Write(requested);
             requestedCommitted = true;
-            var revision = access.ControlRevision;
-            bool Live() => access.CanControl && access.ControlRevision == revision && eligible()
-                && !current.Activity!.IsStopped && current.Outcome == HostOperationOutcome.Unknown;
             receipt = await RunExactAsync(request, Live,
                 (admitted, cancellation) => ExecuteAsync(target, prepared, admitted, validateSource, cancellation),
                 value => ActivityOutcome(value.Outcome), token).ConfigureAwait(false);
@@ -88,6 +88,29 @@ public sealed partial class LocalContextTurnWorkflow(
         try
         {
             if (requestedCommitted) { audit.Write(requested.WithOutcome(AuditOutcome(receipt.Outcome))); }
+            if (receipt.Outcome == ModelTurnOutcome.Succeeded)
+            {
+                try
+                {
+                    await RequireSourceAsync(Live, validateSource, token).ConfigureAwait(false);
+                    var actual = await Workspace.ReadMetadataAsync(request.SessionId, token).ConfigureAwait(false);
+                    if (!actual.Authority.IsActive || actual.Authority.Generation != prepared.SessionGeneration)
+                    { throw new SourceNotCurrentException(); }
+                    await RequireSourceAsync(Live, validateSource, token).ConfigureAwait(false);
+                }
+                catch (OperationCanceledException)
+                {
+                    receipt = new(request, ModelTurnOutcome.Cancelled, LocalContextTurnReason.Cancelled, receipt.DurableState);
+                }
+                catch (SourceNotCurrentException)
+                {
+                    receipt = SourceClosed(request, receipt.DurableState);
+                }
+                if (receipt.Outcome != ModelTurnOutcome.Succeeded)
+                {
+                    audit.Write(requested.WithOutcome(AuditOutcome(receipt.Outcome)));
+                }
+            }
         }
         catch (Exception exception)
         {

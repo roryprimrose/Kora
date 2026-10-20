@@ -317,11 +317,14 @@ Production profiles remain unavailable until separately qualified. Synthetic suc
 Cancellation closes source authority immediately, but terminal task recording and disposal wait for actual adapter quiescence.
 A dispatched cancelled/timed-out task uses durable `Unknown`, not a false claim of unstarted work.
 Receipt/audit uncertainty suppresses the answer and holds further admission; inspect the exact existing task rather than replaying it.
+The workflow rechecks source, privacy/control and exact active session generation after terminal audit delivery before returning an answer.
+Revocation during that delivery suppresses disclosure and records the revised denied/cancelled audit outcome while preserving the already committed task receipt.
 
 Deterministic evidence:
 
 - [Application lifecycle tests](../tests/Kora.Application.UnitTests/Dependencies/LocalContextTurnWorkflowTests.cs).
 - [Two-phase admission and abandonment tests](../tests/Kora.Application.UnitTests/Dependencies/LocalContextTurnWorkflowTests.Admission.cs).
+- [Audit-delivery and exact-boundary tests](../tests/Kora.Application.UnitTests/Dependencies/LocalContextTurnWorkflowTests.Boundaries.cs).
 - [Envelope policy tests](../tests/Kora.Core.UnitTests/Dependencies/ModelContextEnvelopeToolPolicyTests.cs).
 - [Private SQLite ownership/non-persistence tests](../tests/Kora.Windows.IntegrationTests/Storage/WindowsSqliteLocalContextTurnTests.cs).
 

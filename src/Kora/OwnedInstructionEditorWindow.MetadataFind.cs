@@ -23,6 +23,7 @@ internal sealed partial class OwnedInstructionEditorWindow
     internal readonly NamedTextBlock MetadataFindStatus = new() { TextWrapping = Avalonia.Media.TextWrapping.Wrap };
     private AdmittedMetadataFindState? metadataFind;
     private bool renderingMetadataFind;
+    private long metadataFindRevision;
 
     private StackPanel BuildMetadataFind()
     {
@@ -57,27 +58,33 @@ internal sealed partial class OwnedInstructionEditorWindow
         MetadataFindQuery.ContextFlyout = null;
         MetadataFindQuery.PropertyChanged += (_, change) =>
         {
-            if (change.Property == IsEnabledProperty && !renderingMetadataFind && !MetadataFindQuery.IsEnabled)
+            if (change.Property == IsEnabledProperty && metadataFind is not null && !MetadataFindQuery.IsEnabled)
             { RetireMetadataFind(); return; }
-            if (change.Property != TextBox.TextProperty || renderingMetadataFind) { return; }
+            if (change.Property != TextBox.TextProperty
+                || renderingMetadataFind && string.Equals(MetadataFindQuery.Text ?? string.Empty, metadataFind?.Query ?? string.Empty, StringComparison.Ordinal))
+            { return; }
+            metadataFindRevision++;
             metadataFind?.Edit(MetadataFindQuery.Text ?? string.Empty);
             RenderMetadataFind();
         };
         MetadataFindFocus.Click += (_, _) =>
         {
             var admitted = metadataFind;
+            var revision = metadataFindRevision;
             RenderMetadataFind();
-            if (admitted is null || !ReferenceEquals(metadataFind, admitted)) { return; }
-            if (!MetadataFindQuery.Focus() || !MetadataFindQuery.IsFocused) { admitted.ReportFocusUnavailable(); }
+            if (admitted is null || !ReferenceEquals(metadataFind, admitted) || revision != metadataFindRevision) { return; }
+            var focused = MetadataFindQuery.Focus() && MetadataFindQuery.IsFocused;
+            if (ReferenceEquals(metadataFind, admitted) && revision == metadataFindRevision && !focused)
+            { admitted.ReportFocusUnavailable(); }
             RenderMetadataFind();
         };
         MetadataFindFirst.Click += (_, _) => FindMetadata(SnapshotFindDirection.First);
         MetadataFindNext.Click += (_, _) => FindMetadata(SnapshotFindDirection.Next);
         MetadataFindPrevious.Click += (_, _) => FindMetadata(SnapshotFindDirection.Previous);
-        MetadataFindClear.Click += (_, _) => { metadataFind?.Clear(); RenderMetadataFind(); };
+        MetadataFindClear.Click += (_, _) => ClearMetadataFindQuery();
         panel.AddHandler(KeyDownEvent, (_, args) =>
         {
-            if (args.Key == Key.Escape) { metadataFind?.Clear(); RenderMetadataFind(); args.Handled = true; }
+            if (args.Key == Key.Escape) { ClearMetadataFindQuery(); args.Handled = true; }
             else if (args.KeyModifiers is KeyModifiers.None or KeyModifiers.Shift
                 && (args.Key == Key.F3 || args.Key == Key.Enter && MetadataFindQuery.IsFocused))
             {
@@ -125,6 +132,7 @@ internal sealed partial class OwnedInstructionEditorWindow
 
     internal void RetireMetadataFind()
     {
+        metadataFindRevision++;
         metadataFind?.Dispose();
         metadataFind = null;
         RenderMetadataFind();
@@ -132,37 +140,67 @@ internal sealed partial class OwnedInstructionEditorWindow
 
     private void FindMetadata(SnapshotFindDirection direction)
     {
+        metadataFindRevision++;
         var admitted = metadataFind;
+        var revision = metadataFindRevision;
         admitted?.Find(direction);
         RenderMetadataFind();
-        bool Current() => admitted is not null && ReferenceEquals(metadataFind, admitted) && admitted.CheckAdmission() && admitted.Match is not null;
+        bool Current() => admitted is not null && ReferenceEquals(metadataFind, admitted) && revision == metadataFindRevision
+            && admitted.CheckAdmission() && admitted.Match is not null;
         if (!Current()) { return; }
         UpdateLayout();
         if (!Current()) { RenderMetadataFind(); return; }
         MetadataFindMatch.BringIntoView();
         if (!Current()) { RenderMetadataFind(); return; }
-        if (!MetadataFindMatch.Focus() || !MetadataFindMatch.IsFocused) { admitted!.ReportFocusUnavailable(); }
+        var focused = MetadataFindMatch.Focus() && MetadataFindMatch.IsFocused;
+        if (Current() && !focused) { admitted!.ReportFocusUnavailable(); }
         RenderMetadataFind();
     }
 
     private void RenderMetadataFind()
     {
+        var wasRendering = renderingMetadataFind;
         renderingMetadataFind = true;
         try
         {
-            var available = metadataFind?.CheckAdmission() == true;
-            if (!available) { metadataFind?.Dispose(); metadataFind = null; }
-            var hasMatch = metadataFind?.Match is not null;
+            var admitted = metadataFind;
+            var revision = metadataFindRevision;
+            bool Current() => ReferenceEquals(metadataFind, admitted) && revision == metadataFindRevision;
+            var available = admitted?.CheckAdmission() == true;
+            if (!Current()) { return; }
+            if (!available && admitted is not null) { RetireMetadataFind(); return; }
+            var hasMatch = admitted?.Match is not null;
             if ((!available && MetadataFindQuery.IsFocused) || (!hasMatch && MetadataFindMatch.IsFocused))
             { FocusManager?.Focus(null); }
-            MetadataFindQuery.Text = metadataFind?.Query ?? string.Empty;
-            MetadataFindQuery.IsEnabled = MetadataFindFocus.IsEnabled = MetadataFindFirst.IsEnabled = MetadataFindClear.IsEnabled = available;
-            MetadataFindNext.IsEnabled = MetadataFindPrevious.IsEnabled = metadataFind?.CanNavigate == true;
-            MetadataFindStatus.Text = metadataFind?.Status ?? string.Empty;
-            MetadataFindMatch.Text = metadataFind?.ExactMatch ?? string.Empty;
+            if (!Current()) { return; }
+            MetadataFindQuery.Text = admitted?.Query ?? string.Empty;
+            if (!Current()) { return; }
+            MetadataFindQuery.IsEnabled = available;
+            if (!Current()) { return; }
+            MetadataFindFocus.IsEnabled = available;
+            if (!Current()) { return; }
+            MetadataFindFirst.IsEnabled = available;
+            if (!Current()) { return; }
+            MetadataFindClear.IsEnabled = available;
+            if (!Current()) { return; }
+            MetadataFindNext.IsEnabled = admitted?.CanNavigate == true;
+            if (!Current()) { return; }
+            MetadataFindPrevious.IsEnabled = admitted?.CanNavigate == true;
+            if (!Current()) { return; }
+            MetadataFindStatus.Text = admitted?.Status ?? string.Empty;
+            if (!Current()) { return; }
+            MetadataFindMatch.Text = admitted?.ExactMatch ?? string.Empty;
+            if (!Current()) { return; }
             MetadataFindMatch.IsVisible = hasMatch;
         }
-        finally { renderingMetadataFind = false; }
+        finally { renderingMetadataFind = wasRendering; }
+    }
+
+    private void ClearMetadataFindQuery()
+    {
+        metadataFindRevision++;
+        metadataFind?.Clear();
+        RenderMetadataFind();
     }
 
     private static void BlockMetadataTransfer(object? sender, RoutedEventArgs args) => args.Handled = true;

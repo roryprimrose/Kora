@@ -191,6 +191,63 @@ public sealed partial class OwnedDefinitionEditorWindowTests
         });
     }
 
+    [Theory]
+    [InlineData("query")]
+    [InlineData("same-query")]
+    [InlineData("clear")]
+    [InlineData("private")]
+    [InlineData("replace")]
+    [InlineData("close")]
+    [InlineData("control")]
+    public async Task MetadataFindReentrantPublicationCannotRestoreRetiredOrEditedMatch(string change)
+    {
+        await HeadlessSession.RunAsync(() =>
+        {
+            var window = new OwnedInstructionEditorWindow(_ => { });
+            window.Show();
+            try
+            {
+                var page = MetadataPage(ArtifactKind.Instruction);
+                window.ShowInventory(page);
+                window.Files.SelectedItem = page.Rows[0];
+                window.AdmitMetadataFind(page.Rows[0], () => true);
+                var changed = false;
+                window.MetadataFindMatch.PropertyChanged += (_, args) =>
+                {
+                    if (changed || args.Property != TextBlock.TextProperty || window.MetadataFindMatch.Text is not "aa") { return; }
+                    changed = true;
+                    switch (change)
+                    {
+                        case "query":
+                        case "same-query":
+                            window.MetadataFindQuery.Text = "new";
+                            if (change is "same-query") { window.MetadataFindQuery.Text = "aa"; }
+                            break;
+                        case "clear": ClickMetadata(window.MetadataFindClear); break;
+                        case "private": window.ClearPrivateText(); break;
+                        case "replace":
+                            var replacement = MetadataPage(ArtifactKind.Instruction, 'b');
+                            window.ShowInventory(replacement);
+                            window.Files.SelectedItem = replacement.Rows[0];
+                            window.AdmitMetadataFind(replacement.Rows[0], () => true);
+                            break;
+                        case "close": window.Close(); break;
+                        case "control": window.MetadataFindQuery.IsEnabled = false; break;
+                    }
+                };
+                FindMetadataText(window, "aa");
+                changed.Should().BeTrue();
+                window.MetadataFindMatch.Text.Should().BeEmpty();
+                window.MetadataFindMatch.IsVisible.Should().BeFalse();
+                window.MetadataFindStatus.Text.Should().BeEmpty();
+                window.MetadataFindNext.IsEnabled.Should().BeFalse();
+                window.MetadataFindMatch.IsFocused.Should().BeFalse();
+                window.MetadataFindQuery.Text.Should().Be(change is "query" ? "new" : change is "same-query" ? "aa" : string.Empty);
+            }
+            finally { window.Close(); }
+        });
+    }
+
     private static OwnedDefinitionInventoryPage MetadataPage(ArtifactKind kind, char digest = 'a')
     {
         var candidate = new ArtifactDefinition("owned.example", kind, "aa aa", "HiddenDescriptionSecret", "hidden-command",

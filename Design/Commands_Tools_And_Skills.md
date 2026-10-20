@@ -84,6 +84,27 @@ existing host input admission and deterministic presentation; provider,
 hardware, installed, retired experiment and E/Q qualification are not
 prerequisites. No unrelated calendar/reminder/scheduling behavior is delivered.
 
+## Bounded native unit conversion
+
+`units.convert` is a host-owned native action implemented by
+[ConvertUnits](../src/Kora.Tools/Conversions/ConvertUnits.cs), registered directly
+in the [Application route](../src/Kora.Application/ViewModels/MainViewModel.UnitConversion.cs).
+[Core](../src/Kora.Core/Conversions/UnitConversion.cs) is the sole typed authority
+for dimensions, finite unit definitions, decimal admission, physical limits,
+exact rational conversion and disclosed 12-place midpoint-to-even rounding.
+The [shared command parser](../src/Kora.Core/Conversions/ConvertCommand.cs)
+owns reserved syntax; [user syntax](../docs/commands.md#deterministic-local-unit-conversion)
+lists exact units, bounds and factor sources.
+
+Reserved routing precedes pending-answer/model dispatch and does not retire or
+answer a pending question, approval or security preview. Original/current host,
+ownership, privacy, call, input generation and current-name admission remain
+mandatory. Action execution requires live host tracing, adds a content-free
+tool activity and emits only a typed outcome diagnostic. Ordinary responses
+retain the existing output policy, without forced speech or preference writes.
+No model descriptor, parameterized loop, new approval grant, egress, native
+platform dependency or qualification claim is introduced.
+
 ## Delivered Artifact Invocation
 
 Kora has one source-qualified artifact invocation route for bundled skills and

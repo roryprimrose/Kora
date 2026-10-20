@@ -58,6 +58,49 @@ stale/denied/unavailable requests report recovery in status. Pending questions,
 approvals, power proposals, grant editors and native security reviews stay
 unchanged, including for malformed clock commands.
 
+## Deterministic local unit conversion
+
+Use `convert <decimal> <unit> to <unit>` or `convert help`.
+For example, `convert 1 in to cm` returns `2.54 cm`; activated voice requires
+the current available name, for example `Kora, convert 0 celsius to fahrenheit`.
+Typed input may omit the name. Commands and unit IDs are case-insensitive.
+
+Only these exact, unambiguous IDs are supported:
+
+| Dimension | IDs |
+|---|---|
+| Length | `mm`, `cm`, `m`, `km`, `in`, `ft`, `yd`, `mi` |
+| Mass | `mg`, `g`, `kg`, `oz`, `lb` |
+| Temperature | `celsius`, `fahrenheit`, `kelvin` |
+
+An optional ASCII `+` or `-` precedes ASCII digits, optionally followed by `.`
+and more digits. At most 28 digits total and 12 fractional digits are admitted;
+the complete input is limited to 160 characters. Outer spaces are accepted;
+use single ASCII spaces between tokens. Exponents, locale/group separators,
+Unicode digits/signs, expressions, fuzzy aliases and extra punctuation/words
+are refused. Length and mass cannot be negative; temperatures below absolute
+zero are refused even for identity conversions.
+
+Factors are exact SI definitions: international inch `0.0254 m`, foot `0.3048 m`,
+yard `0.9144 m`, mile `1609.344 m`, avoirdupois pound `0.45359237 kg` and ounce
+`0.028349523125 kg`. Celsius uses an exact `273.15` kelvin offset; Fahrenheit
+uses `(F + 459.67) * 5 / 9` kelvin. These are not survey lengths or troy masses.
+Exact rational intermediates avoid accumulated decimal error. Results disclose
+whether rounded, with at most 12 decimal places, nearest with midpoint to even;
+nonterminating results and tiny values may round (including to zero).
+Results outside the .NET decimal range refuse visibly, without a partial value.
+Factor references: [NIST SI conversion tables](https://www.nist.gov/pml/special-publication-811/nist-guide-si-appendix-b-conversion-factors/nist-guide-si-appendix-b8)
+and [BIPM SI Brochure](https://www.bipm.org/en/publications/si-brochure).
+
+This is local arithmetic, not currency conversion, medical dosage advice,
+arbitrary evaluation or a model tool. No network, shell, device or profile
+operation occurs. Unknown/incompatible units and malformed reserved `convert`
+requests never fall back to a model or answer/approve a pending interaction.
+Pending questions, approvals, security previews, busy operations, protected calls
+or closed original host/privacy/ownership/name gates refuse without replacing
+that interaction. Ordinary answers use the existing response output policy;
+conversion never forces speech or changes output preferences.
+
 ## Open an exact Settings tab
 
 Use one complete case-insensitive phrase below, optionally prefixed by the current assistant name when typed. Activated voice requires that current-name prefix. Outer spaces are accepted; punctuation, extra words, control characters and input over 256 characters are not ([exact grammar](../src/Kora.Application/Configuration/SettingsSectionCommand.cs)).

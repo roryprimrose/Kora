@@ -106,6 +106,11 @@ public sealed class NewRequestDraftFindTests
         f.Query.Text.Should().Be(literal);
         f.Next.IsEnabled.Should().BeFalse();
         f.Composer.Body.Should().Be("alpha alpha");
+        f.Window.IsObservingDraftFind.Should().BeTrue("invalid-query recovery still owns private volatile text");
+        f.Live = false;
+        f.Window.ObserveDraftFindLifetime();
+        f.Query.Text.Should().BeEmpty();
+        f.Window.IsObservingDraftFind.Should().BeFalse();
     });
 
     [Theory]
@@ -284,6 +289,7 @@ public sealed class NewRequestDraftFindTests
         f.Status.Text.Should().Contain("query focus unavailable");
         f.Window.ClosePrivate();
         f.Host.Subscribers.Should().Be(0);
+        f.Window.IsObservingDraftFind.Should().BeFalse();
         f.Query.Text.Should().BeEmpty();
         f.Status.Text.Should().BeEmpty();
         f.Host.Change();

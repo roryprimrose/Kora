@@ -30,6 +30,7 @@ internal sealed partial class NewRequestWindow
     private long draftFindGeneration;
     private long draftFindLeaseGeneration;
     private bool draftFindDisposed;
+    internal bool IsObservingDraftFind => draftFindTimer.IsEnabled;
 
     internal void BindDraftFind(Func<Func<bool>?> capture, INotifyPropertyChanged host)
     {
@@ -159,6 +160,10 @@ internal sealed partial class NewRequestWindow
         if (generation != Interlocked.Read(ref draftFindGeneration)) { return; }
         if (!DraftFindAvailable() || guard?.Invoke() != true)
         { RetireDraftFind(); draftFindStatus.Text = "Draft Find unavailable or stale; no selection or focus claimed."; return; }
+        if (generation != Interlocked.Read(ref draftFindGeneration)) { return; }
+        draftFindCurrent = guard;
+        draftFindLeaseGeneration = generation;
+        draftFindTimer.Start();
         if (!SnapshotLiteralFind.IsValidQuery(literal))
         {
             draftFindStatus.Text = "Invalid literal: enter nonempty, bounded, well-formed one-line text without unsafe controls. Nothing truncated.";
@@ -202,8 +207,6 @@ internal sealed partial class NewRequestWindow
             selectionToVerify = match;
         }
         draftFindCursor = result.Match ?? (direction == SnapshotFindDirection.First ? null : cursor);
-        draftFindCurrent = guard;
-        draftFindLeaseGeneration = generation;
         draftFindNext.IsEnabled = draftFindCursor is not null;
         if (!Check()) { return; }
         draftFindPrevious.IsEnabled = draftFindCursor is not null;

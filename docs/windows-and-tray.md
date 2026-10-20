@@ -1044,6 +1044,15 @@ uses inert native plain text, not Markdown/HTML parsing or the document viewer's
 copy controls. It has exact-ID reuse, revoke/clear and native literal Find. Closing it revokes
 the selected snapshot. It does not authorize explanation or model transmission.
 
+**Wrap snapshot text** soft-wraps only the original source body to the available
+width. It starts unchecked (the existing unwrapped view); uncheck it to scroll
+long lines horizontally. Resizing and reader text scaling change visual lines,
+not snapshot text, tabs, line endings, identity, Find offsets/counts or explanation
+policy. This is a volatile choice for this source view only: replacement,
+revocation, privacy/ownership/call loss, close and disposal clear it. It never
+rereads or writes the clipboard, inserts newlines, parses text, grants model use,
+renews snapshot lifetime or saves a preference.
+
 Enter an unchanged one-line query and choose **Find first** (or Enter in the query). **Find next** (F3) starts at the selected span's exclusive end; **Find previous** (Shift+F3) returns to the preceding span in that same forward nonoverlapping sequence ([clipboard Find policy](../src/Kora.Core/Context/ClipboardLiteralFind.cs)).
 Ctrl+F focuses the query without retargeting questions or voice. Case/spaces/punctuation remain exact; limits are 256 UTF-16 characters / 512 strict UTF-8 bytes, with visible rejection rather than truncation.
 Explicit Find reports the complete `n matches; match k/n` count for this snapshot, with one inert exact span and original end-exclusive UTF-16 offsets. There is no wrap: a boundary hides the span but retains the ordinal for reversal. Zero matches clears selection; rejected queries are not zero ([Find implementation](../src/Kora/ClipboardPreviewWindow.Find.cs)).

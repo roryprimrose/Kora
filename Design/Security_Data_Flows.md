@@ -598,6 +598,21 @@ Logs contain only a typed presence outcome under host correlation; no ID,
 count, source text, excerpt, digest or provenance is logged or tagged.
 Clipboard explanation and its source-use policy remain unchanged.
 
+Native **Wrap snapshot text** is source-only soft wrapping, initially unchecked
+to preserve the actual `NamedTextBlock` NoWrap default. The
+[presentation partial](../src/Kora/ClipboardPreviewWindow.Wrapping.cs) changes only
+source wrapping and horizontal viewport measurement; it does not rewrite the
+snapshot or change logical UTF-16 spans, Find counts/navigation, explanation
+consent or source-use policy. The choice is volatile per exact source/view.
+Existing controller eligibility (privacy, input, owner, call and lifetime) and
+native generation are revalidated around property/layout publication, including
+reentrancy. Retirement resets the control and releases content; late controls
+cannot retarget a replacement. No read/write, parsing, model call, grant,
+persistence, history, activity renewal or TTL extension is added.
+[Headless wrapping tests](../tests/Kora.Windows.IntegrationTests/ClipboardSourceWrappingTests.cs)
+cover layout, immutable text and retirement; installed-native qualification
+remains separate.
+
 Native **Find first / Find next / Find previous / Clear literal Find** navigates only this already captured immutable snapshot.
 Exact case/spaces and original UTF-16 offsets use the [shared pure literal policy](../src/Kora.Core/Context/SnapshotLiteralFind.cs); the [clipboard adapter](../src/Kora.Core/Context/ClipboardLiteralFind.cs) binds directional spans to the exact capture object, without file/session identities.
 Queries wholly fit the existing 256 UTF-16 / 512 strict UTF-8 limits and are nonempty, well-formed, one-line text without unsafe controls; invalid input is visibly rejected, never truncated or normalized ([query policy](../src/Kora.Core/Context/SnapshotLiteralFind.cs)).

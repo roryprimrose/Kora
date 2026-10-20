@@ -96,6 +96,31 @@ Native composition and original/current private ownership, input, call/privacy e
 Model navigation is explicitly unavailable: these window-focus actions are not added to bootstrap or the six read-only model descriptors.
 See [native windows](windows-and-tray.md#workspace-surface-navigation) and the [deterministic evidence](../Design/UI_Workspace_And_Windows.md#workspace-surface-command-evidence).
 
+### Prepare an exact retained All Work task query
+
+Type `prepare all work task <task-id>` or use the current available assistant-name
+voice prefix. The ID must be a nonempty canonical **lowercase D GUID**; no names,
+`current`, `latest`, source/provider IDs, whitespace repair or alternate forms.
+`all work query help` returns constant guidance, without reading current IDs or
+metadata. Reserved malformed requests are refused before model/question routing.
+
+Preparation opens/focuses the **same existing All Work singleton** and changes
+only **Retained TaskId**. It performs no read, scan, count, Refresh, Search or Next.
+**RequestId and ALL other filter drafts remain AND-composed**; IDs and constrained
+state must match the **same validated retained task**. Review every visible
+predicate, then explicitly **Refresh** to start the existing bounded overview.
+Even re-preparing the same ID retires prior results, selection, details, action
+readiness, continuation and queued navigation; no stale result is current.
+
+The ID is future-query correlation metadata, not identity, ownership, permission,
+proof of existence/absence, exhaustive search or navigation/action authority.
+Missing/unavailable/omitted task limits are unchanged. No task/session is selected,
+resumed, retried or dispatched, no attention is dismissed and no activity is renewed.
+Pending questions, approvals and security panes remain unchanged. Original
+host/input/privacy/call/ownership/name/voice admission and native lifetime/focus
+must survive queued preparation and native acknowledgement; otherwise the transcript
+reports unavailable, never an unfiltered/current/latest fallback.
+
 ## Native saved conversation draft catalogue
 
 **Tray > Saved conversation drafts (metadata only)** or `open saved conversation drafts` opens the same native catalogue; it has no typed/voice/model body query. Opening reads nothing.

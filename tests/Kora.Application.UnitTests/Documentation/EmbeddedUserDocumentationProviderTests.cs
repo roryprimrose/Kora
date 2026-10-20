@@ -151,7 +151,13 @@ public sealed class EmbeddedUserDocumentationProviderTests
             .Skip(1)
             .ToArray();
 
-        sections.Should().HaveCount(commands.Count + 19);
+        sections.Should().HaveCount(commands.Count + 20);
+        var taskPreparation = sections.Single(section => section.StartsWith(
+            "Prepare an exact retained All Work task query", StringComparison.Ordinal));
+        taskPreparation.Should().Contain("prepare all work task <task-id>")
+            .And.Contain("all work query help").And.Contain("same validated retained task")
+            .And.Contain("AND-composed").And.Contain("explicitly **Refresh**")
+            .And.Contain("no stale result").And.Contain("reports unavailable");
         var disposition = sections.Single(section => section.StartsWith("Review one exact session's logical disposition", StringComparison.Ordinal));
         disposition.Should().Contain(SessionDispositionReviewCommand.Syntax)
             .And.Contain("Nothing is removed by the command").And.Contain("separate deliberate native action")
@@ -310,7 +316,8 @@ public sealed class EmbeddedUserDocumentationProviderTests
             && !ReferenceEquals(section, sessionCommands) && !ReferenceEquals(section, summaries)).ToArray();
         sections = sections.Where(section => !ReferenceEquals(section, sharedSkills)
             && !ReferenceEquals(section, webPage) && !ReferenceEquals(section, conversationSearch)
-            && !ReferenceEquals(section, attachment)).ToArray();
+            && !ReferenceEquals(section, attachment)
+            && !ReferenceEquals(section, taskPreparation)).ToArray();
         for (var index = 0; index < commands.Count; index++)
         {
             var phrases = Regex.Matches(

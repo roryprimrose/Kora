@@ -4,6 +4,33 @@ namespace Kora;
 
 internal sealed partial class AllWorkViewModel
 {
+    internal Func<bool> CapturePreparationEligibility()
+    {
+        var revision = epoch;
+        return () => !closed && epoch == revision;
+    }
+
+    internal bool PrepareTaskQuery(Guid taskId)
+    {
+        new SessionWorkOverviewTaskQuery(taskId).Validate();
+        if (!CanEdit) { return false; }
+        var exact = taskId.ToString("D");
+        var originalEpoch = epoch;
+        // Re-preparing the same ID must also retire results and queued navigation.
+        if (string.Equals(taskIdText, exact, StringComparison.Ordinal)) { Invalidate(); }
+        TaskIdText = exact;
+        if (!CanEdit || epoch != originalEpoch + 1)
+        {
+            Revoke();
+            return false;
+        }
+        status = "Task correlation PREPARED; no read performed. Request ID and ALL other filter drafts remain "
+            + "AND-composed; IDs and constrained state must match the same validated retained task. "
+            + "Review every visible predicate, then explicitly Refresh. " + TaskQueryHint;
+        Notify();
+        return true;
+    }
+
     private string taskIdText = string.Empty;
     private string requestIdText = string.Empty;
 

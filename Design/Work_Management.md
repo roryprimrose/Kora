@@ -329,6 +329,22 @@ Matching establishes no current task/session selection, ownership, permission, a
 Both semantic IDs bind [continuation](../src/Kora.Core/Storage/SessionWorkOverviewCursor.cs); the [reader](../src/Kora.Application/Hosting/SessionWorkspaceService.WorkOverview.cs) retains existing scan/serialized-page/counter/timeout/cancellation/source/private-control fences, with no extra read or new schema/authority.
 Named [native fields](../src/Kora/AllWorkWindow.axaml) perform read-free edits; **Clear task correlation** and Escape in either field clear both IDs while preserving independent filters. Edits retire rows/details/selection/navigation/action/cursor and stale callbacks; close/private closure clears volatile IDs ([native tests](../tests/Kora.Windows.IntegrationTests/AllWorkWindowTests.TaskQuery.cs)).
 
+The bounded original-user [task-query preparation route](../src/Kora.Application/ViewModels/MainViewModel.AllWorkTaskQuery.cs)
+sets only Retained TaskId in the existing All Work singleton, using the same
+no-read setter/invalidation. RequestId and all other predicate drafts remain
+AND-composed; same-ID preparation also revokes old results and queued navigation.
+The [dedicated parser](../src/Kora.Core/Commands/AllWorkTaskQueryCommand.cs) reuses
+the strict canonical ID policy, reserves malformed grammar before reasoning or
+question routing, and exposes only constant help. The native controller must
+acknowledge exact field focus and current source/lifetime under the original
+host/input/privacy/call/ownership/name/voice fences. No native binding, revoked
+source, failed focus or missing acknowledgement means explicit unavailable, not
+an unfiltered scan. No metadata is promoted to authority or session/task selection.
+The user reviews all visible predicates and explicitly Refreshes; bounded reader
+and same-validated-retained-task semantics above are unchanged. This consumes
+only the delivered parser, host admission, singleton and retained overview I
+contracts; it enables no provider/device/hardware or installed-native E/Q profile.
+
 Optional inclusive **minimum/maximum work metadata ranges** cover authority
 revision, queue revision, pending count, pending capacity, execution slots,
 observed current fixed reads, and omitted queue-receipt/task/pending-question

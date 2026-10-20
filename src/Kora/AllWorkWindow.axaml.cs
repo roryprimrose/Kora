@@ -7,6 +7,9 @@ namespace Kora;
 
 internal sealed partial class AllWorkWindow : Window
 {
+    internal bool FocusTaskQuery() => IsVisible && RetainedTaskId.Focus() && RetainedTaskId.IsFocused;
+    internal bool IsTaskQueryFocused => RetainedTaskId.IsFocused;
+
     internal AllWorkWindow(AllWorkViewModel model)
     {
         InitializeComponent();

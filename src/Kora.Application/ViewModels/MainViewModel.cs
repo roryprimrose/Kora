@@ -637,6 +637,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
                       || SessionDispositionReviewCommand.Parse(CommandText, AssistantName) is not null
                       || WorkspaceSurfaceCommand.Parse(CommandText, AssistantName) is not null
                       || AttachmentCataloguePreparationCommand.Parse(CommandText, AssistantName) is not null
+                      || AllWorkTaskQueryCommand.Parse(CommandText, AssistantName) is not null
                       || MemoryCommand.Parse(CommandText, AssistantName) is not null
                       || LocalClockCommand.Parse(CommandText, AssistantName) is not null
                       || IsInstructionEditorCommand(CommandText)
@@ -1910,6 +1911,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             if (SetProperty(ref commandText, value))
             {
                 Interlocked.Increment(ref attachmentCatalogueComposerRevision);
+                Interlocked.Increment(ref workspaceSurfaceInputRevision);
                 RefreshArtifactCommandOptions();
                 RunTypedCommand.NotifyCanExecuteChanged();
             }
@@ -4156,6 +4158,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             await PrepareAttachmentCatalogue(cataloguePreparation, initiator, manualInput);
             return;
         }
+        if (AllWorkTaskQueryCommand.Parse(spokenText, AssistantName) is { } allWorkTaskQuery)
+        {
+            await ExecuteAllWorkTaskQueryCommand(allWorkTaskQuery, spokenText, initiator, manualInput);
+            return;
+        }
         if (Kora.Application.Skills.SkillReviewCommand.Parse(spokenText, AssistantName) is { } reviewCommand)
         {
             await ExecuteSkillReviewCommand(reviewCommand, spokenText, manualInput
@@ -6171,6 +6178,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             .Concat(AttachmentCataloguePreparationCommand.DiscoveryPhrases)
             .Concat(SessionCommand.DiscoveryPhrases)
             .Concat(WorkspaceSurfaceCommand.FixedPhrases)
+            .Concat(AllWorkTaskQueryCommand.DiscoveryPhrases)
             .Concat(MemoryCommand.DiscoveryPhrases)
             .Concat(AssistantNameCommand.DiscoveryPhrases)
             .Concat(InputDeviceCommand.FixedPhrases)

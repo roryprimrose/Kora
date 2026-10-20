@@ -59,4 +59,11 @@ Assert (-not [regex]::IsMatch($command, '--max-parallel-test-modules\s+1(?:\s|$)
 Assert ($job.Contains('-reports:.net-test-artifacts/**/*.coverage.cobertura.*.xml', [StringComparison]::Ordinal)) 'Coverage aggregation must include every module directory.'
 Assert ($job.Contains('-MinimumLine 100', [StringComparison]::Ordinal)) 'Preserve the complete line-coverage gate.'
 Assert ($job.Contains('-MinimumBranch 100', [StringComparison]::Ordinal)) 'Preserve the complete branch-coverage gate.'
+Assert ($workflow.Contains("if: github.event_name == 'workflow_dispatch' && inputs.compare_portable_tests",
+    [StringComparison]::Ordinal)) 'Scheduling comparisons must remain opt-in and manual-only.'
+Assert ($workflow.Contains("inputs.compare_portable_tests && '-portable-comparison' || ''",
+    [StringComparison]::Ordinal)) 'Manual comparisons must not cancel the PR validation run.'
+$comparisonInput = [regex]::Match($workflow, '(?ms)^      compare_portable_tests:\r?\n(?<input>.*?)(?=^\S|\z)')
+Assert $comparisonInput.Success 'The manual comparison input was not found.'
+Assert ($comparisonInput.Groups['input'].Value.Contains('default: false', [StringComparison]::Ordinal)) 'Scheduling comparisons must default to disabled.'
 Write-Host "Portable test scheduling: $assertions assertions passed."

@@ -157,12 +157,22 @@ public sealed partial class MainViewModelTests
         ActivitySource.AddActivityListener(listener);
         var logger = new MemoryPrivacyLogger();
         var f = new Fixture(logger: logger);
+        using var hostile = new Activity("untrusted.incoming").SetIdFormat(ActivityIdFormat.W3C).Start();
         await f.RunAsync("number convert 123456789 from decimal to hex");
         await f.RunAsync("number convert -0 from decimal to hex");
         var tools = stopped.Where(activity => activity.OperationName.Contains("tool", StringComparison.Ordinal)).ToArray();
         tools.Should().HaveCount(2);
         tools[0].TraceId.Should().NotBe(tools[1].TraceId);
+        tools[0].GetTagItem("kora.session.id").Should().NotBe(tools[1].GetTagItem("kora.session.id"));
+        tools.Should().OnlyContain(activity => activity.TraceId != hostile.TraceId);
         tools.Should().OnlyContain(activity => activity.ParentId != null && activity.Duration >= TimeSpan.Zero);
+        tools.Select(activity => activity.Status).Should().Equal(ActivityStatusCode.Ok, ActivityStatusCode.Error);
+        foreach (var tool in tools)
+        {
+            var root = stopped.Single(activity => activity.TraceId == tool.TraceId && activity.ParentId is null);
+            tool.GetTagItem("kora.session.id").Should().Be(root.GetTagItem("kora.session.id"));
+            tool.GetTagItem("kora.request.id").Should().Be(root.GetTagItem("kora.request.id"));
+        }
         logger.Messages.Should().NotContain(message => message.Contains("123456789", StringComparison.Ordinal));
         stopped.SelectMany(activity => activity.Tags).Should().NotContain(tag =>
             tag.Value != null && tag.Value.Contains("123456789", StringComparison.Ordinal));

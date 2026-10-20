@@ -46,10 +46,12 @@ public sealed class WindowsOllamaReasonerTests
             system.Should().Contain("\"Readiness\":\"Ready\"");
             system.Should().Contain("\"State\":\"NeedsAction\"");
             system.Should().NotContain("Why is the sky blue?");
-            foreach (var command in new BuiltInCommandCatalog().GetCommands())
+            foreach (var command in new BuiltInCommandCatalog().GetCommands()
+                .Where(command => command.SupportsModelSuggestion))
             {
                 system.Should().Contain($"{command.Action}: ");
             }
+            system.Should().NotContain("DisableListening:");
             root.TryGetProperty("tools", out _).Should().BeFalse();
             root.TryGetProperty("messages", out _).Should().BeFalse();
             return Decision("""{"answer":"  The local answer.  "}""");
@@ -202,6 +204,8 @@ public sealed class WindowsOllamaReasonerTests
 
     [Theory]
     [InlineData("""{"action":"InstallLocalModel"}""")]
+    [InlineData("""{"action":"DisableListening"}""")]
+    [InlineData("""{"grantChange":{"operation":"Add","action":"DisableListening","scope":"Session"}}""")]
     [InlineData("")]
     [InlineData("not json")]
     [InlineData("""{"action":"LockMachine","answer":"already done"}""")]

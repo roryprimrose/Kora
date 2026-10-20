@@ -62,20 +62,25 @@ public sealed partial class SkillPackagesWindow : Window
         };
         Closed += (_, _) =>
         {
-            closed = true;
-            results = [];
-            selector.ItemsSource = Array.Empty<string>();
-            this.FindControl<TextBox>("PackageQuery")!.Text = string.Empty;
-            this.FindControl<TextBox>("PackageDefinitionDigest")!.Text = string.Empty;
-            this.FindControl<TextBox>("PackageDeclaredResourceDigest")!.Text = string.Empty;
-            filter.SelectedIndex = 0;
-            order.SelectedIndex = 0;
-            this.FindControl<TextBlock>("PackageSearchStatus")!.Text = string.Empty;
-            ClearSelection();
+            ClearPrivateContent();
             IdentityFinder.Dispose();
         };
         Search();
         selector.SelectedIndex = 0;
+    }
+
+    internal void ClearPrivateContent()
+    {
+        closed = true;
+        results = [];
+        this.FindControl<ComboBox>("PackageSelector")!.ItemsSource = Array.Empty<string>();
+        this.FindControl<TextBox>("PackageQuery")!.Text = string.Empty;
+        this.FindControl<TextBox>("PackageDefinitionDigest")!.Text = string.Empty;
+        this.FindControl<TextBox>("PackageDeclaredResourceDigest")!.Text = string.Empty;
+        this.FindControl<ComboBox>("PackageFilter")!.SelectedIndex = 0;
+        this.FindControl<ComboBox>("PackageOrder")!.SelectedIndex = 0;
+        this.FindControl<TextBlock>("PackageSearchStatus")!.Text = string.Empty;
+        ClearSelection();
     }
 
     internal SkillPackageSnapshot? SelectedPackage

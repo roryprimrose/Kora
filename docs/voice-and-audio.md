@@ -99,6 +99,29 @@ startup enables push-to-talk. **Enable listening** explicitly releases a
 current-run recovery hold, but does not open the microphone. **Disable
 listening** closes input for the current run without withdrawing saved consent.
 
+### Exact stop listening
+
+Type exact `stop listening` or `disable listening`, optionally prefixed by the current assistant name. Already activated voice accepts the same phrases; this does not add ambient listening or a wake detector ([catalogue](../src/Kora.Core/Commands/BuiltInCommandCatalog.cs), [recognition phrases](../src/Kora.Application/ViewModels/MainViewModel.cs)).
+
+These commands, native Settings and tray Disable listening share one run-only [stop action](../src/Kora.Application/Voice/ListeningStopAction.cs).
+Acceptance disables input immediately; completion awaits native release and confirms quiescence. Unconfirmed release is reported explicitly, never as a released microphone. Repeated stops remain disabled ([release contract](../src/Kora.Core/Voice/IActivatedVoiceRecognitionService.cs)).
+
+Exact stop is reserved before pending questions, grants and approvals. It is not an answer, approval, task cancellation or model fallback; pending visual decisions remain available ([command reservation](../src/Kora.Application/ViewModels/MainViewModel.cs)).
+Native question voice replies also reserve exact stop before parsing an answer ([native reply reservation](../src/Kora.Application/Interaction/HostQuestionVoiceReplyService.cs)).
+
+Manual disable retires queued capture/transcription and unlock-recovery generations. Refresh, endpoint/default changes, consent updates and unlock cannot restore readiness or restart capture automatically ([lifecycle integration](../src/Kora.Application/ViewModels/MainViewModel.VoicePrivacy.cs)).
+A **new deliberate Push to talk** gesture remains available after confirmed release and current consent/privacy/readiness checks, without enabling listening readiness ([PTT regression tests](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.VoicePrivacy.cs)).
+Old results cannot feed the new activation ([retired-callback tests](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.ListeningStop.cs)).
+Fresh native **Enable listening** restores readiness without opening capture ([readiness action](../src/Kora.Application/ViewModels/MainViewModel.cs)).
+Both PTT and native recovery refuse while the stop's terminal receipt is still finishing; unconfirmed capture quiescence blocks a new capture ([request fence](../src/Kora.Application/ViewModels/MainViewModel.VoicePrivacy.cs)).
+
+This is not Stop speaking, Cancel task, hiding, exit, stored-consent withdrawal or global microphone mute ([stop integration](../src/Kora.Application/ViewModels/MainViewModel.VoicePrivacy.cs)).
+Protected-call stop remains available without authorizing voice recovery or weakening other mutations ([call policy](../src/Kora.Application/Communication/CallCommunicationPolicy.cs)).
+There is no enable/unmute command or qualified model stop lane, and the six read-only capabilities remain observations ([catalogue](../src/Kora.Core/Commands/BuiltInCommandCatalog.cs), [model exclusion](../src/Kora.Windows/Dependencies/WindowsOllamaReasoner.cs), [read-only registry](../src/Kora.Core/Tools/ReadOnlyCapabilityCatalog.cs)).
+
+Deterministic fake-lifecycle tests cover exact typed/current-prefix activation, pending decisions, release failure, queued input and explicit recovery ([stop tests](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.ListeningStop.cs)).
+They do not claim physical microphone, acoustic or installed-native qualification ([native lifecycle tests](../tests/Kora.Windows.IntegrationTests/Audio/ActivatedVoiceRecognitionTests.cs)).
+
 The production wake engine is not selected or integrated. The previous ambient
 phrase grammar is not production wake and is no longer run on ambient audio.
 The microphone stays closed until explicit push-to-talk or an admitted native

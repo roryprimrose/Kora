@@ -139,6 +139,22 @@ unqualified-runtime reason, never emulate execution with a prompt.
 
 ## Delivered native skill metadata navigation
 
+Exact original typed input and current-name activated voice can open the existing bundled or registered shared-source singleton through `open skill packages` / `show skill package review` and `open shared skill sources` / `show shared skill sources`. No package/name/path selector or fallback surface is admitted ([whole-utterance grammar](../src/Kora.Application/Skills/SkillReviewCommand.cs)).
+
+The consumer-focused [Application navigation seam](../src/Kora.Application/Skills/ISkillReviewNavigation.cs) binds only to the [existing desktop controllers](../src/Kora/SkillPackagesWindowController.cs).
+
+The [queued route](../src/Kora.Application/ViewModels/MainViewModel.SkillReview.cs) retains original origin and rechecks captured owner, binding, privacy, call, name and activated-voice lifetime; questions/security previews remain intact.
+
+Unknown call observations and unconfirmed manual-call evidence deny both native and command review opening. A deliberate unavailable automatic detector remains distinct from unknown state; this increment does not qualify detection or reopen capture ([shared review eligibility](../src/Kora.Application/ViewModels/MainViewModel.SkillReview.cs)).
+
+Opening shared sources retains only registration-metadata refresh, whose failures remain separate native recovery. Registration, folder selection, discovery, recheck and withdrawal remain explicit native gestures ([shared controller](../src/Kora/SharedSkillSourcesWindowController.cs)).
+
+Embedded review still requires verified resource bytes/digests. Neither surface adds enablement, invocation, source consent, catalogue reload or model context ([bundled controller](../src/Kora/SkillPackagesWindowController.cs)).
+
+Voice keeps `ActivatedVoice` origin. Local-input-only admission refuses automatic metadata refresh; the open window reports native recovery, not invented `LocalUi` authority. Native Refresh remains explicit ([admission](../src/Kora.Application/Skills/SharedSkillAdmission.cs), [tests](../tests/Kora.Windows.IntegrationTests/SkillReviewNavigationTests.cs)).
+
+This is an I-only review-navigation increment, not the full Definitions management surface or E/Q qualification. Executors, agent profiles and unsupported definition kinds remain gated; no physical/acoustic/provider/installed proof or broader source authority is claimed ([delivery policy](Implementation_Roadmap.md#delivery-and-qualification-dependency-policy)).
+
 The separate [bundled](../src/Kora/SkillPackagesWindow.axaml.cs) and [registered shared-source](../src/Kora/SharedSkillSourcesWindow.axaml.cs) inspectors now provide explicit **Search/Clear** over already admitted immutable snapshots, not the broader Definitions management surface or voice/tool search grammar. Initial open/list still selects the first admitted package; subsequent search/filter/Clear never opens a different result.
 
 [Snapshot search](../src/Kora.Application/Skills/SkillCatalogueSearch.cs) uses literal `OrdinalIgnoreCase` substring matching without trimming, wildcard syntax or Unicode normalization. Bundled fields are declared name, native manifest ID and description; shared fields are validated declared name, source-qualified metadata identity when that name exists, and a valid declared description. Missing metadata is not invented; path-fallback identities and roots/files/bodies are not query fields.

@@ -26,7 +26,64 @@ public sealed partial class MainViewModelTests
     }
 
     [Fact]
-    public async Task Push_to_talk_is_exposed_for_one_shot_capture_when_listening_is_disabled()
+    public async Task OrdinaryPushToTalkAcceptsFreshCommandsWithoutCreatingAManualDisableHold()
+    {
+        var fixture = CreateVoicePrivacyFixture();
+        await fixture.ViewModel.InitializeAsync();
+
+        fixture.ViewModel.IsVoiceEnabled.Should().BeTrue();
+        fixture.ViewModel.CanPushToTalk.Should().BeTrue();
+        fixture.Voice.StartCalls.Should().Be(0);
+
+        foreach (var command in new[] { "help", "Kora, what version are you running" })
+        {
+            await fixture.ViewModel.BeginPushToTalkCommand.ExecuteAsync();
+            fixture.ViewModel.IsListening.Should().BeTrue();
+            fixture.ViewModel.CanPushToTalk.Should().BeFalse();
+            await fixture.ViewModel.EndPushToTalkCommand.ExecuteAsync();
+            await fixture.Voice.RaiseTranscriptAsync(command, 1);
+
+            fixture.ViewModel.IsVoiceEnabled.Should().BeTrue();
+            fixture.ViewModel.IsListening.Should().BeFalse();
+            fixture.Voice.IsCaptureQuiescent.Should().BeTrue();
+            fixture.ViewModel.CanPushToTalk.Should().BeTrue();
+        }
+
+        fixture.ViewModel.ResponseTitle.Should().Be("Kora version");
+        fixture.Voice.StartCalls.Should().Be(2);
+        fixture.VoiceConsent.Consent.Should().BeTrue();
+        fixture.Reasoner.Requests.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task OrdinaryOneShotPushToTalkRemainsEligibleWithoutTheExplicitManualDisableHold()
+    {
+        var fixture = CreateVoicePrivacyFixture();
+        await fixture.ViewModel.InitializeAsync();
+        fixture.Voice.RejectAcknowledgement = true;
+        await fixture.ViewModel.BeginPushToTalkCommand.ExecuteAsync();
+        fixture.ViewModel.IsVoiceEnabled.Should().BeFalse();
+        fixture.Voice.IsCaptureQuiescent.Should().BeTrue();
+
+        fixture.Voice.RejectAcknowledgement = false;
+
+        fixture.ViewModel.IsPushToTalkVisible.Should().BeTrue();
+        fixture.ViewModel.CanPushToTalk.Should().BeTrue();
+        fixture.ViewModel.BeginPushToTalkCommand.CanExecute(null).Should().BeTrue();
+        await fixture.ViewModel.BeginPushToTalkCommand.ExecuteAsync();
+        fixture.ViewModel.IsListening.Should().BeTrue();
+        fixture.ViewModel.IsVoiceEnabled.Should().BeFalse();
+        await fixture.ViewModel.EndPushToTalkCommand.ExecuteAsync();
+
+        fixture.ViewModel.IsListening.Should().BeFalse();
+        fixture.Voice.IsCaptureQuiescent.Should().BeTrue();
+        fixture.ViewModel.CanPushToTalk.Should().BeTrue();
+        fixture.Voice.StartCalls.Should().Be(2);
+        fixture.VoiceConsent.Consent.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task ManualDisablePreservesFreshDeliberatePushToTalkWithoutEnablingReadiness()
     {
         var fixture = CreateVoicePrivacyFixture();
         await fixture.ViewModel.InitializeAsync();
@@ -45,6 +102,12 @@ public sealed partial class MainViewModelTests
         fixture.Voice.StartCalls.Should().Be(1);
         fixture.ViewModel.IsListening.Should().BeTrue();
         fixture.ViewModel.CanPushToTalk.Should().BeFalse();
+        fixture.ViewModel.IsVoiceEnabled.Should().BeFalse();
+        await fixture.ViewModel.EndPushToTalkCommand.ExecuteAsync();
+        await fixture.Voice.RaiseTranscriptAsync("help", 1);
+        fixture.ViewModel.ResponseTitle.Should().Be("Built-in commands are ready.");
+        fixture.ViewModel.IsVoiceEnabled.Should().BeFalse();
+        fixture.ViewModel.CanPushToTalk.Should().BeTrue();
     }
 
     [Fact]
@@ -330,7 +393,7 @@ public sealed partial class MainViewModelTests
     }
 
     [Fact]
-    public async Task Manual_disable_refresh_selection_and_reinitialize_preserves_one_shot_PTT()
+    public async Task ManualDisableRefreshSelectionAndReinitializePreserveFreshOneShotPushToTalk()
     {
         var fixture = CreateVoicePrivacyFixture();
         await fixture.ViewModel.InitializeAsync();
@@ -344,6 +407,7 @@ public sealed partial class MainViewModelTests
         fixture.ViewModel.IsVoiceEnabled.Should().BeFalse();
         fixture.Voice.StartCalls.Should().Be(1);
 
+        await fixture.ViewModel.EndPushToTalkAsync();
         await fixture.ViewModel.ToggleListeningCommand.ExecuteAsync();
         fixture.ViewModel.IsVoiceEnabled.Should().BeTrue();
         fixture.Voice.StartCalls.Should().Be(1);
@@ -1253,10 +1317,10 @@ public sealed partial class MainViewModelTests
         var revisionField = typeof(MainViewModel).GetField("voiceRecoveryRevision", BindingFlags.Instance | BindingFlags.NonPublic)!;
         var revision = (long)revisionField.GetValue(fixture.ViewModel)!;
         var commit = typeof(MainViewModel).GetMethod("TryEnableVoiceReadiness", BindingFlags.Instance | BindingFlags.NonPublic)!
-            .CreateDelegate<Func<long, bool, bool>>(fixture.ViewModel);
+            .CreateDelegate<Func<long, bool, bool, bool>>(fixture.ViewModel);
         var held = fixture.ViewModel.IsPrivacyPresentationHeld;
 
-        commit(blocker is "revision" ? revision - 1 : revision, blocker is "no-unlock-intent").Should().BeFalse();
+        commit(blocker is "revision" ? revision - 1 : revision, blocker is "no-unlock-intent", true).Should().BeFalse();
 
         fixture.ViewModel.IsVoiceEnabled.Should().BeFalse();
         fixture.ViewModel.IsPrivacyPresentationHeld.Should().Be(held);
@@ -1475,7 +1539,7 @@ public sealed partial class MainViewModelTests
 
         await action.Should().NotThrowAsync();
         fixture.ViewModel.IsVoiceEnabled.Should().BeFalse();
-        fixture.ViewModel.ResponseTitle.Should().Be("Microphone cleanup needs attention.");
+        fixture.ViewModel.ResponseTitle.Should().Be("Listening disabled; microphone release unconfirmed.");
         fixture.ViewModel.ResponseBody.Should().Contain("Restart Kora");
     }
 

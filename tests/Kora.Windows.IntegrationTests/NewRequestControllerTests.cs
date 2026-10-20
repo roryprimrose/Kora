@@ -32,7 +32,8 @@ public sealed partial class NewRequestControllerTests
             using var sessions = new SessionsWindowController(fixture.Main, fixture.Sessions, fixture.Evidence,
                 fixture.Access, NullLogger<SessionsViewModel>.Instance, conversation: conversation);
             using var controller = new NewRequestWindowController(fixture.Main, fixture.Sessions, fixture.Access,
-                () => new(fixture.Sessions, conversation, fixture.Access, NullLogger<NewRequestComposer>.Instance), sessions);
+                () => new(fixture.Sessions, conversation, fixture.Access, NullLogger<NewRequestComposer>.Instance), sessions,
+                new AvaloniaUiDispatcher());
             controller.Bind();
             sessions.Bind();
             sessions.OpenNewRequest = controller.Open;
@@ -107,7 +108,7 @@ public sealed partial class NewRequestControllerTests
     }
 
     [Fact]
-    public void TrayEntryHasExactNativeCallbackAndDoesNotExpandLegacyVoiceOrTypedRouting()
+    public void TrayEntryAndWorkspaceKeepTheSameNativeNavigationCallback()
     {
         var directory = new DirectoryInfo(AppContext.BaseDirectory);
         while (directory is not null && !File.Exists(Path.Combine(directory.FullName, ".github", "copilot-instructions.md")))

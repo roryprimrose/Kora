@@ -205,6 +205,10 @@ public sealed class EmbeddedUserDocumentationProviderTests
             RegexOptions.Multiline, TimeSpan.FromSeconds(1))
             .Select(match => match.Groups["phrase"].Value).ToArray();
         sessionPhrases.Should().Equal("open sessions");
+        var newRequest = sections.Single(section => section.StartsWith(
+            "Open the existing New request composer", StringComparison.Ordinal));
+        newRequest.Should().Contain("open new request").And.Contain("Activated voice")
+            .And.Contain("current question or approval").And.Contain("Model-facing opening is unavailable");
         var appearance = sections.Single(section => section.StartsWith(
             "Inspect or change an admitted appearance option", StringComparison.Ordinal));
         var appearancePhrases = Regex.Matches(appearance, @"^- \*\*(?<phrase>.+?)\*\*\r?$",
@@ -310,7 +314,7 @@ public sealed class EmbeddedUserDocumentationProviderTests
             && !ReferenceEquals(section, sessionCommands) && !ReferenceEquals(section, summaries)).ToArray();
         sections = sections.Where(section => !ReferenceEquals(section, sharedSkills)
             && !ReferenceEquals(section, webPage) && !ReferenceEquals(section, conversationSearch)
-            && !ReferenceEquals(section, attachment)).ToArray();
+            && !ReferenceEquals(section, attachment) && !ReferenceEquals(section, newRequest)).ToArray();
         for (var index = 0; index < commands.Count; index++)
         {
             var phrases = Regex.Matches(

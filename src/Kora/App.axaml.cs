@@ -225,7 +225,8 @@ public sealed partial class App : Avalonia.Application
                 sessionsWindow.OpenRetentionReviewAsync);
             newRequestWindow = new(viewModel, Services.GetRequiredService<SessionWorkspaceService>(),
                 Services.GetRequiredService<Kora.Core.Storage.ISessionWorkspaceAccess>(),
-                () => Services.GetRequiredService<NewRequestComposer>(), sessionsWindow);
+                () => Services.GetRequiredService<NewRequestComposer>(), sessionsWindow,
+                Services.GetRequiredService<IUiDispatcher>());
             newRequestWindow.Bind();
             sessionsWindow.OpenNewRequest = newRequestWindow.Open;
             sessionsWindow.ReviewOriginalMessageReuse = newRequestWindow.ReviewOriginalReuseAsync;

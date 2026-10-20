@@ -90,6 +90,10 @@ There is no Find clipboard/paste/export, logging, persistence, provider or netwo
 
 Open **Tray > New request (fresh session only)** or **Sessions > New request (fresh target)**. Reopening activates the same window and preserves its isolated memory draft. Relatedness inference is unavailable: this entry never continues the selected, named, recent or Done session and never changes question/approval/voice focus.
 
+Without a mouse, type **open new request** or use activated voice **Kora, open new request** with the current configured name. This opens/activates the same window only; existing dirty/reviewed/held/busy state stays unchanged ([native controller](../src/Kora/NewRequestWindowController.cs)).
+
+No body or target arguments are accepted. Resolve pending questions/approvals first; input, privacy, ownership and call restrictions remain. Opening conveys no Create/Save/Submit authority or delayed opening after closure ([admission](../src/Kora.Application/ViewModels/MainViewModel.NewRequest.cs), [syntax](commands.md#open-the-existing-new-request-composer)).
+
 1. Type the original request; typing saves nothing.
 2. Choose **Create new empty target**. Inspect the accepted **New conversation** ID, name, generation and metadata revision. This commits only an empty Active session, not the body.
 3. Choose **Review frozen body for this target**, inspect the exact body/target, then separately **Submit reviewed exact body**. Edits or Cancel retire that review, even if the edited bytes later match.

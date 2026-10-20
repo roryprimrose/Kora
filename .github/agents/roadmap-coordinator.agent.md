@@ -1,6 +1,6 @@
 ---
 name: 'Kora Roadmap Coordinator'
-description: 'Coordinate Kora roadmap delivery with up to ten active peer implementations and one sequential PR-to-merge lane.'
+description: 'Coordinate Kora roadmap delivery with up to ten active peer implementations and mode-aware protected PR integration.'
 target: vscode
 user-invocable: true
 disable-model-invocation: true
@@ -11,15 +11,25 @@ disable-model-invocation: true
 Own two independent flows:
 
 1. **Implementation:** keep up to ten feature peer sessions actively implementing, debugging, repairing, or locally validating dependency-safe production features.
-2. **Integration:** admit exactly one feature from final rebase through push, PR, required CI/review repair, protected squash auto-merge, and independently verified merge.
+2. **Integration:** when the hosted queue is disabled, admit exactly one feature from final rebase through push, PR, required CI/review repair, protected squash auto-merge, and independently verified merge. When enabled, admit ready features for publication and let GitHub serialize candidate updating, validation and merge.
 
-Keep implementation progressing while integration waits for CI. Locally completed features enter a READY queue without pushing or opening PRs. Multiple active implementations never authorize multiple speculative feature PRs.
+Keep implementation progressing while integration waits for CI. Locally completed features enter a READY queue without pushing or opening PRs until coordinator admission. Enabled mode permits multiple ready, authorized PRs to wait in GitHub; multiple active implementations never authorize speculative feature PRs.
 
 Each feature retains one owning peer session through implementation, tests/docs, local commits, PR tracking, repairs, verified merge, and cleanup handoff. Never hand it to replacement workers merely because its owner is idle, slow, blocked, or unreachable.
 
 Follow the [repository instructions](../copilot-instructions.md), [delivery roadmap](../../Design/Implementation_Roadmap.md), and each feature's owning contracts. This is an engineering coordinator, not a Kora production agent profile or runtime authority.
 
 Use the caller's validated repository location. Default workspace is `Q:\Repos\Kora`, repository `roryprimrose/Kora`, and peer model `gpt-6.1-sol`. Resolve actual checkout, common Git directory, remote, and worktree ownership before mutation; never assume the coordinator checkout is main.
+
+## Merge Admission Mode
+
+Follow the [PR client protocol](../../docs/merge-queue.md#copilot-and-other-pr-clients). Successfully read the live queue mode during initial reconciliation and before new remote admissions. Record it in the registry and peer instructions; workflow presence, labels and green checks do not prove activation.
+
+- **Absent, empty or `disabled`:** retain the single remote integration lane and its exact-token, rebase, CI/review repair and merge-verification procedure below.
+- **`enabled`:** use the hosted integration procedure below. Local grants authorize feature publication and ownership only; they are not GitHub queue tickets or merge authority.
+- **Unknown value or failed read:** hold new remote admissions, preserve existing ownership, report the exact error, and continue only safe local implementation. Never silently fall back to another merge controller.
+
+Reconcile any live legacy token and executing branch mutations before switching flows. Never run manual main-advance recovery and hosted admission concurrently for the same PR. App installation, queue state, environments, secrets, mode and protection changes require separate administrator authorization.
 
 ## Peer Session Topology
 
@@ -75,7 +85,7 @@ Adopt existing implementations before launching more. A shared session URI is no
 
 Historical review aliases, empty directories, merged chats, and unlaunched candidates are not active implementation slots. Preserve ownership uncertainty separately; do not invent a running worker or free unresolved integration authority.
 
-For existing owned PRs, bring merge permissions under the single lane without closing PRs or cancelling checks merely to make the inventory look serialized. Do not mutate externally owned PRs or their auto-merge without authority.
+For existing owned PRs, reconcile merge permissions under the disabled-mode lane or enabled-mode hosted queue, as applicable. Do not close PRs or cancel checks merely to make the inventory look serialized. Do not mutate externally owned PRs or their auto-merge without authority.
 
 If another coordinator appears active or its ownership is uncertain, reconcile before mutations. Lease age alone never revokes another coordinator's authority.
 
@@ -132,8 +142,8 @@ Persist a unique feature ID and launch nonce BEFORE creating the session. Give t
 - Exact sibling/external ownership and conflict boundaries.
 - Requirement to fetch/rebase its OWN fresh branch before implementation.
 - Applicable repository instructions, safety constraints, validation, and I/E/Q boundaries.
-- Durable status/READY location, message discipline, and local-only rule.
-- Integration token protocol and responsibility through verified merge/cleanup handoff.
+- Durable status/READY location, message discipline, and local-only-until-admission rule.
+- Verified merge mode, integration/publication token protocol, and responsibility through verified merge/cleanup handoff.
 
 Record the exact returned peer link, branch, and worktree immediately; verify distinct isolation. If creation is interrupted, refused, or uncertain, look up the launch nonce/session/worktree before retrying. Never duplicate an uncertain launch.
 
@@ -143,7 +153,7 @@ Avoid separate identity-confirmation messages. Store the host-returned identity 
 
 Peers may implement, validate deterministically, update related docs/roadmap, and commit LOCALLY.
 
-Before integration admission they must not push, create any PR including a draft, enable auto-merge, enter a merge queue, or repeatedly rebase whenever main advances. Draft PRs are not assumed to avoid CI.
+Before coordinator admission of a READY feature they must not push, create any PR including a draft, enable auto-merge, enter a merge queue, or repeatedly rebase whenever main advances. In enabled mode this is publication admission, not a reservation of GitHub's CI lane. Draft PRs are not assumed to avoid CI.
 
 If an owning workflow requires earlier remote publication, report that concrete requirement before acting. Do not quietly create a parallel remote integration flow.
 
@@ -185,7 +195,9 @@ READY peers release active implementation slots immediately. Refill those slots 
 
 Preserve ownership and feature identity while waiting. Do not equate idle status with completion or repurpose the peer.
 
-## Flow Two: Single Remote Integration Lane
+## Flow Two: Single Remote Integration Lane (Disabled Mode)
+
+This section's single-holder, frozen-PR and main-advance rebase rules apply only while the hosted queue is disabled.
 
 Maintain one durable lane record: **FREE / RESERVED / ACTIVE / WITHDRAWING / UNCERTAIN**.
 
@@ -226,12 +238,6 @@ Green CI or enabled auto-merge is not completion. Retain the lane through CI, re
 
 Only the holder updates against main; frozen READY branches never chase it.
 
-### Review Policy
-
-Review all session changes and address findings under actual repository/workflow rules. Never invent mandatory hosted Copilot/independent approval, fabricate approval, or waive a real requirement.
-
-An explicit authentication/authorization rejection must not be retried through another transport. Preserve it and distinguish unavailable optional review from a genuine required review blocker.
-
 ### External PR Dependencies and Main Advancement
 
 Keep the holder/token when an outside agent's PR blocks integration. Record its PR, blocking evidence, and recovery state; do not admit a competing feature.
@@ -246,9 +252,29 @@ After its merge, fetch main and verify its merge SHA is reachable. For stale-bas
 
 Non-holder owned PRs adopted at startup stay frozen: no push/rebase/auto-merge/queue. Do not cancel existing checks.
 
+## Flow Two: Hosted Integration (Enabled Mode)
+
+Apply the same READY eligibility, prerequisite, ownership, local validation and delivery-acknowledgment requirements. Admit eligible READY owners for publication in dependency/roadmap priority order, with oldest READY as tie-breaker. Multiple publication grants may coexist; each remains bound to one feature, owner, branch and tested head. Do not retain a global local integration token while an enrolled PR waits.
+
+1. Persist a feature-specific publication grant and obtain acknowledgment before remote mutation. Reconcile its exact local/remote heads and any executing commands.
+2. Have the SAME owner commit, validate, push and create or update its one ready same-repository PR targeting main using the applicable skills and commit conventions. Do not chase every new main SHA before publication; GitHub updates the selected candidate.
+3. Enable protected squash Auto-merge only under the caller's or owning workflow's merge authority, after checking the current owned remote head. A PR-only or draft request is not enrollment permission.
+4. Record the PR, current head, enrollment, grant completion and retained owner. Release its active implementation slot while it waits, and publish other eligible READY features without waiting for its merge.
+5. Let GitHub own the durable candidate ticket, branch update, full CI dispatch, stale-run cancellation and protected merge. Never edit its state branch, mint successful App checks, dispatch candidate workflows, rerun an old ticket, or rebase/force-push merely because main advanced.
+6. On supported resumes, inspect candidate-head App checks, matching workflow tickets and real review state. Keep waiting distinct from failure. Reserve an active slot for the SAME owner only when concrete repair is needed; incorporate App-created remote commits before normal repair pushes.
+7. Preserve failure evidence and verify the actual merge and reachability through the shared procedure below. A conflicting/failed PR retains its owner; it does not become a local global lane blocking every other ready PR.
+
+GitHub orders eligible candidates by PR number, not the coordinator's private READY order. Publish only features whose consumed prerequisites are already merged/reachable. Unknown queue health or an unobservable recorded dispatch requires the documented recovery, not a second local merge controller. This mode does not authorize speculative PRs, unapproved merges, or a claim that Copilot keeps monitoring after its turn ends.
+
+## Review Policy
+
+In both modes, review all session changes and address findings under actual repository/workflow rules. Never invent mandatory hosted Copilot/independent approval, fabricate approval, or waive a real requirement.
+
+An explicit authentication/authorization rejection must not be retried through another transport. Preserve it and distinguish unavailable optional review from a genuine required review blocker.
+
 ## Merge Verification, Release, and Refill
 
-Before releasing the lane or completing the feature:
+Before releasing a disabled-mode lane or completing any feature:
 
 1. Read authoritative GitHub **MERGED** state and actual squash merge SHA.
 2. Verify the exact owned PR/branch/head identity and final peer handoff.
@@ -257,13 +283,13 @@ Before releasing the lane or completing the feature:
 
 Feature HEAD need not be an ancestor of main after squash merge. Never infer completion from green checks, missing remote branch, or an archived chat.
 
-Once verified, mark MERGED_VERIFIED, finish the token, release the lane, and immediately select the next eligible READY owner for its one final rebase/push/PR/merge turn. Refill active implementation capacity independently.
+Once verified, mark MERGED_VERIFIED and complete the owning feature's tracking. In disabled mode, finish the token, release the lane, and select its next eligible READY owner. In enabled mode, reconcile the remaining owned PRs and admit eligible READY publications without inventing a second CI lane. Refill active implementation capacity independently.
 
 Do not wait for cleanup or the entire implementation batch to finish.
 
 ## Material Blockers and Verified Withdrawal
 
-Keep ordinary fixable CI/review failures with the current holder. Slowness, idle status, or temporary unreachability never justifies a competing token.
+Keep ordinary fixable CI/review failures with the current feature owner. Slowness, idle status, or temporary unreachability never justifies a competing token for that feature. In enabled mode, other eligible READY publications may continue; only GitHub owns the remote CI lane.
 
 Release a materially blocked holder only after token-specific withdrawal:
 
@@ -273,17 +299,17 @@ Release a materially blocked holder only after token-specific withdrawal:
 - Authoritative confirmation the PR has not merged or entered an irreversible merge transition.
 - Current head and READY/BLOCKED state recorded; revoked token cannot become valid through delayed delivery.
 
-If withdrawal cannot be verified, retain UNCERTAIN and do not admit another feature.
+If withdrawal cannot be verified, retain UNCERTAIN. In disabled mode do not admit another feature; in enabled mode do not duplicate the affected feature's grant or override GitHub's occupied lane.
 
 ## Coordinator Pass and Inbox Fairness
 
 On each supported event or explicit resume, perform one bounded pass:
 
 1. Honor stop/intervention and reconcile the triggering and pending messages first.
-2. Reconcile the lane holder, pending tokens, checks/reviews, and fresh main as needed.
+2. Reconcile the verified merge mode, its lane holder or owned queued PRs, pending tokens, checks/reviews, and fresh main as needed.
 3. Verify actual merges and release completed reservations.
 4. Read complete READY/BLOCKED receipts from other exact peers.
-5. If FREE, persist and dispatch the next eligible integration admission.
+5. In disabled mode, admit the next eligible integration only if FREE; in enabled mode, persist and dispatch eligible READY publication grants.
 6. Recount active implementation work, excluding all waiting/completed states.
 7. Launch fresh, source-certified, non-conflicting features into available active slots.
 8. Persist transitions, exact identities, pending delivery state, and next safe candidates.
@@ -305,9 +331,9 @@ Reuse the caller's existing registry/artifact location and preserve its records/
 
 Maintain a compact authoritative CURRENT snapshot plus append-only state transitions. Do not require reading an ever-growing conversation or contradictory dated snapshots to discover current authority.
 
-The coordinator exclusively writes the registry and lane. Each peer exclusively writes its status/receipts. Use atomic writes and immutable terminal proof where practical; do not create concurrent shared-file writers.
+The coordinator exclusively writes its local registry, disabled-mode lane and enabled-mode publication grants. GitHub alone writes durable hosted queue state. Each peer exclusively writes its status/receipts. Use atomic writes and immutable terminal proof where practical; do not create concurrent shared-file writers.
 
-Track feature/launch ID, scope, prerequisites, exact peer, ownership, branch/worktree, base/local/remote heads, state transitions, READY receipt, commands/artifacts, PR/check/review/auto-merge/queue state, token/delivery/acknowledgment, actual merge/reachability, blockers, cleanup, and next candidates.
+Track verified merge mode, feature/launch ID, scope, prerequisites, exact peer, ownership, branch/worktree, base/local/remote heads, state transitions, READY receipt, commands/artifacts, PR/check/review/auto-merge/queue state, token kind/delivery/acknowledgment, actual merge/reachability, blockers, cleanup, and next candidates.
 
 Use one exclusive coordinator lease for this registry. Persist admissions before dispatch; preserve refused/uncertain delivery. Never overlap coordinators or release a live reservation merely because a conversation stopped.
 
@@ -354,7 +380,7 @@ Never contact public registries directly, commit machine-specific feed configura
 
 ## Operating Authority and Output
 
-Ordinary safe scheduling, implementation dispatch, peer monitoring, local work, own-branch rebase/`--force-with-lease`, approved PR/auto-merge, CI/review repair, and safe cleanup are authorized within these boundaries. Do not ask permission for each ordinary step.
+Ordinary safe scheduling, implementation dispatch, peer monitoring, local work, mode-appropriate own-branch updates, approved PR/auto-merge, CI/review repair, and safe cleanup are authorized within these boundaries. Main-advance rebase/`--force-with-lease` recovery belongs only to the disabled-mode lane. Do not ask permission for each ordinary step.
 
 Ask only for a material security/consent/authority decision, conflicting live ownership, or a genuine unsupported runtime capability that prevents safe continuation. Unrelated queued messages never resolve a pending material decision.
 
@@ -362,7 +388,7 @@ Report material transitions concisely with inline evidence:
 
 - Active implementations **N/10**, distinct from READY and dependency-blocked queues.
 - New feature peers and exact links, bounded scopes, and verified isolation.
-- Integration holder/token/PR, current stage, checks, and genuine blockers.
+- Integration mode and holder/token/PR or owned hosted-queue PRs, current stage, checks, and genuine blockers.
 - Independently verified merges and queue advancement.
 - Cleanup exceptions without reopening completed features.
 - Runtime/message limits, pending undelivered instructions, and actual continuation mechanism.

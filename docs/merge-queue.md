@@ -43,6 +43,63 @@ Local clients can push or rebase a PR, but cannot grant admission by doing so.
 An update invalidates an active candidate and its previous evidence. Contributors
 do not need a queue-specific AI prompt or client-side merge loop.
 
+## Copilot and other PR clients
+
+Instructions help clients cooperate with the queue; they are not its execution
+or permission boundary. GitHub continues reconciling when a Copilot session ends.
+The repository instructions and roadmap coordinator follow this mode-aware
+protocol:
+
+1. Successfully read the live repository variables before remote integration.
+   An absent, empty or `disabled` `KORA_MERGE_QUEUE_MODE` means ordinary CI;
+   `enabled` means hosted admission. A failed read or another value is unknown:
+   stop new integration mutations, report the exact error, and continue only
+   safe local work. Do not infer activation from a workflow file or PR label.
+   For example, this read emits only the relevant variable:
+
+   ```powershell
+   gh api --paginate repos/roryprimrose/Kora/actions/variables --jq '.variables[] | select(.name == "KORA_MERGE_QUEUE_MODE") | .value'
+   ```
+
+2. Validate and commit the owned feature, then create or update its single
+   same-repository PR targeting main. Use a non-draft PR only when ready;
+   preserve an explicit draft request. Creating a PR does not itself authorize
+   Auto-merge or queue enrollment.
+3. When disabled, retain ordinary protected PR CI and the owning workflow's
+   integration procedure. The roadmap coordinator retains its single remote
+   lane in this mode. Do not dispatch redundant manual CI.
+4. When enabled and merging is authorized, verify the current owned remote
+   head and request protected squash Auto-merge. For example:
+
+   ```powershell
+   gh pr merge <number> --repo roryprimrose/Kora --auto --squash --match-head-commit <tested-head-sha>
+   ```
+
+   GitHub owns candidate selection, branch updating and full validation.
+   Multiple locally ready PRs can be enrolled without competing local
+   rebase/build loops. A waiting PR is not a failed PR.
+5. On a supported resume, inspect the current PR head, reviews, enrollment and
+   candidate-head checks from the configured queue App. Correlate candidate
+   workflow runs by their exact ticket. Skipped ordinary PR jobs and successful
+   checks on the main workflow SHA do not establish candidate readiness.
+   Monitor to repair failures or report progress, not to drive queue execution.
+   Do not claim continuing monitoring after an unsupported session yield.
+6. Repair concrete failures on the same PR. Fetch and incorporate its current
+   remote head, including App-created branch updates, without discarding
+   intervening work. Revalidate changed inputs and push the repair normally.
+   Do not rewrite a queued branch just because main advanced, dispatch
+   candidate CI manually, or rerun an old ticket. An intentional same-head
+   retry after a known failure uses authorized Auto-merge re-enrollment;
+   cancellation and lane release remain the controller's responsibility.
+7. Verify authoritative merged state, the actual merge SHA and its reachability
+   from fresh main before reporting completion or cleaning up.
+
+App installation, secrets, environments, expected-source protection, mode
+changes and durable state repair require separate administrator authorization.
+Do not perform the one-time rollout merely because a user authorized PR
+creation, Auto-merge or monitoring. Unknown App/protection health is not
+permission for a PAT fallback, bypass or local replacement merge controller.
+
 ## Authority and exact evidence
 
 The [controller workflow](../.github/workflows/merge-queue.yml) checks out only

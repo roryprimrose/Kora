@@ -248,6 +248,11 @@ installation, GitHub permission configuration or this hosted canary has happened
   checks with **GitHub Actions** as source and remove the App admission
   requirement. Re-run ordinary PR CI before re-enabling native Auto-merge.
   Changing the mode alone intentionally does not make a PR mergeable.
+- If the trusted-main controller itself needs repair, keep the App checks
+  required while disabled-mode CI validates the repair PR. Before restoring
+  ordinary protection, ensure other open PRs cannot qualify using only skipped
+  queue-waiting checks. Merge the tested repair through ordinary protected CI,
+  retain the durable state history, then repeat the App-source canary.
 
 ## Deterministic validation
 
@@ -261,3 +266,6 @@ APIs and a temporary local version fixture; they do not mutate GitHub, install a
 App, change branch protection, call providers or exercise physical devices.
 Workflow contract tests accept `KORA_QUEUE_WORKFLOW_TEST_PATH` to test a
 separately prepared combined workflow without changing the working copy.
+Octokit's `paginate` returns normalized arrays for workflow runs, jobs and
+check runs. Pagination callbacks and test doubles must use that array contract,
+not the named object envelopes returned by individual REST requests.

@@ -915,7 +915,7 @@ Windows.
 - **set appearance.theme to dark**
 - **reset appearance.theme**
 
-Substitute one of the eleven exact IDs in [Appearance settings](settings.md#appearance).
+Substitute one of the twelve exact IDs in [Appearance settings](settings.md#appearance).
 The configured assistant-name prefix is supported for typed input and activated
 voice. Exact spoken names also work: replace dots/hyphens in the ID with
 spaces, for example **"Kora, set appearance theme to dark"**.
@@ -923,11 +923,37 @@ Capitalization is ignored, but this typed value grammar deliberately
 preserves signs and decimal punctuation: `-10` and `1.5` are rejected, never
 normalized into valid integers. Use numeric whole numbers without appended
 units, `system`/`light`/`dark`, or `true`/`false`. Extra words, invented IDs,
-relative changes and invalid ranges produce local clarification, without
+relative changes in this ID grammar and invalid ranges produce local clarification, without
 model/network interpretation. Changes and per-option reset share the direct
 UI service, domain validation, revision check, atomic persistence, audit and
 live notifications. There is no whole-profile reset or undo, model tool
 exposure, arbitrary JSON patch or configuration-file editing authority.
+
+### Natural exact app theme and native reader text scale
+
+Original typed input also accepts these whole-utterance commands; voice requires the **current configured assistant-name prefix**, for example **"Kora, use dark mode"** ([parser](../src/Kora.Application/Configuration/NaturalAppearanceCommand.cs)):
+
+- **use dark mode**
+- **use light mode**
+- **use system theme**
+- **get reader text scale**
+- **status reader text scale**
+- **reset reader text scale**
+- **set reader text scale to &lt;integer&gt; percent**
+- **increase reader text scale by &lt;positive integer&gt; percentage points**
+- **decrease reader text scale by &lt;positive integer&gt; percentage points**
+
+Reader scale is inclusive 75–200 percent; reset restores 100. An increase from 150 by 25 percentage points requests 175, not 187.5.
+Relative resolution reads fresh confirmed state at execution, uses checked arithmetic and the registry's validation, then submits the existing revision-bound proposal.
+A concurrent revision refuses instead of overwriting or recalculating ([registry](../src/Kora.Core/Configuration/AppearanceOptionRegistry.cs), [proposal](../src/Kora.Application/Configuration/AppearanceConfigurationService.cs)).
+
+Capitalization and outer whitespace are ignored. Number words, signs, decimals, vague pronouns, selected-window inference, extra clauses and substring commands are not accepted as changes.
+Invalid results clarify without clamping. Missing/corrupt/unconfirmed evidence is never guessed; an absent preference uses only the service-confirmed declared default
+([parser](../src/Kora.Application/Configuration/NaturalAppearanceCommand.cs), [confirmed state](../src/Kora.Application/Configuration/AppearanceConfigurationService.cs)).
+
+These aliases use the same admitted service, atomic preference/audit path and live notifications as exact IDs and native controls.
+They change only Kora's app theme or bounded native reader content typography: no OS/global UI scale, new content access, permission, speech/caption enablement or model-derived authority
+([executor](../src/Kora.Application/ViewModels/MainViewModel.Appearance.cs), [reader scope](../Design/Information_Display.md#bounded-native-reader-text-scale)).
 
 ### Inspect or change an exact output choice
 

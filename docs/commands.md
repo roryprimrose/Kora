@@ -58,6 +58,36 @@ stale/denied/unavailable requests report recovery in status. Pending questions,
 approvals, power proposals, grant editors and native security reviews stay
 unchanged, including for malformed clock commands.
 
+## Prepare an exact session name
+
+Use `session name prepare <session-id> "<literal-name>"`, or
+`session name help`. Activated voice requires the current assistant name,
+for example `Kora, session name prepare 12345678-1234-1234-abcd-123456789012 "Café notes"`.
+The ID must be a complete nonempty lowercase D GUID of an existing session;
+names never select sessions. Double a quote inside the final quoted name.
+The existing name rules apply without trimming, normalization, inference or
+repair: nonblank NFC single-line Unicode, no surrounding whitespace or invisible
+control/format characters, at most 120 scalars / 480 UTF-8 bytes.
+
+This opens the existing private **Sessions** window and an independent, volatile
+review of the exact ID, Active/Done state, generation, metadata revision and
+complete old/new literal names. It does not change the selected session or
+replace an independently dirty name editor. A dirty composer uses the existing
+explicit **Save / Discard / Cancel** decision; Cancel preserves both drafts.
+Preparation does not rename, resume, create, submit, enqueue, renew activity,
+copy to clipboard, speak, persist a name or send its text to a model or log.
+Help contains syntax only, never current names or session metadata.
+
+Review, then click **Rename exact prepared ID** as a separate deliberate native
+gesture, or **Cancel name preparation** to discard only the candidate. Escape
+on the focused review also cancels. Changed input, assistant-name revision,
+private/control/owner/call admission, native lifetime, selection, editor or
+composer buffer retires the candidate. Confirmation rereads the original exact
+metadata and source epoch; it never follows newer revisions or another session.
+An uncertain commit/readback remains visible and is not automatically retried.
+The authoritative `session rename <exact-id> <generation> <metadata-revision> "<name>"`
+and native name-editor **Rename selected ID** controls remain unchanged.
+
 ## Open an exact Settings tab
 
 Use one complete case-insensitive phrase below, optionally prefixed by the current assistant name when typed. Activated voice requires that current-name prefix. Outer spaces are accepted; punctuation, extra words, control characters and input over 256 characters are not ([exact grammar](../src/Kora.Application/Configuration/SettingsSectionCommand.cs)).

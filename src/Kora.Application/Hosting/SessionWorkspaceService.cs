@@ -51,9 +51,15 @@ public sealed partial class SessionWorkspaceService(
             (request, eligible) => store.CreateNamedSessionAsync(request, name, eligible, token), token);
 
     public Task<SessionWorkspaceEntry> RenameAsync(HostId<SessionIdentity> session, HostRevision expectedGeneration,
-        long expectedMetadataRevision, SessionName name, RequestOrigin origin, CancellationToken token) =>
+        long expectedMetadataRevision, SessionName name, RequestOrigin origin, CancellationToken token,
+        Func<bool>? admission = null, long? expectedSourceRevision = null) =>
         ControlAsync(session, origin,
-            (request, eligible) => store.RenameSessionAsync(request, expectedGeneration, expectedMetadataRevision, name, eligible, token), token);
+            (request, eligible) => expectedSourceRevision is { } source
+                ? (store as ISessionNameRevisionStore
+                    ?? throw new InvalidOperationException("Source-fenced native rename is unavailable."))
+                    .RenameSessionAsync(request, expectedGeneration, expectedMetadataRevision, name, source, eligible, token)
+                : store.RenameSessionAsync(request, expectedGeneration, expectedMetadataRevision, name, eligible, token),
+            token, admission);
 
     public Task<SessionPage<HostQuestionRecord>> ReadQuestionsAsync(HostId<SessionIdentity> session, Guid? after, int limit, CancellationToken token) =>
         ReadAsync(() => store.ReadQuestionPageAsync(session, after, limit, token), token);

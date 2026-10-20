@@ -255,7 +255,7 @@ public sealed partial class SessionsViewModelTests
         return File.ReadAllText(Path.Combine(directory!.FullName, "src", "Kora", name));
     }
 
-    private sealed class HeldStore : ISessionWorkspaceStore, ISessionHistoryStore
+    private sealed partial class HeldStore : ISessionWorkspaceStore, ISessionHistoryStore, ISessionRetentionControlStore
     {
         internal TaskCompletionSource<SessionHistoryPage> HistoryCompletion { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         internal int HistoryReads { get; private set; }
@@ -284,7 +284,7 @@ public sealed partial class SessionsViewModelTests
         public ValueTask<HostTaskObservation> CancelWaitingTaskAsync(HostRequest control, HostTaskCancellationTarget target,
             Func<bool> canControl, CancellationToken cancellationToken) => throw new NotSupportedException();
         public ValueTask<SessionWorkspaceEntry> ReadMetadataAsync(HostId<SessionIdentity> session, CancellationToken cancellationToken) =>
-            throw new NotSupportedException();
+            HoldNameReads ? new(NameCompletion.Task) : throw new NotSupportedException();
 
         public ValueTask<HostTaskRecord> RecordControlIntentAsync(HostRequest request, CancellationToken cancellationToken) =>
             throw new NotSupportedException();

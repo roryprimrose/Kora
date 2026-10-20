@@ -6,7 +6,7 @@ using Microsoft.Data.Sqlite;
 
 namespace Kora.Windows.Storage;
 
-public sealed partial class WindowsSqliteHostInteractionStore
+public sealed partial class WindowsSqliteHostInteractionStore : ISessionNameRevisionStore
 {
     public ValueTask<SessionWorkspaceEntry> ReadMetadataAsync(HostId<SessionIdentity> session,
         CancellationToken cancellationToken) => new(Task.Run(() =>
@@ -92,13 +92,33 @@ public sealed partial class WindowsSqliteHostInteractionStore
     }
 
     public ValueTask<SessionWorkspaceEntry> RenameSessionAsync(HostRequest request, HostRevision expectedGeneration,
-        long expectedMetadataRevision, SessionName name, Func<bool> canControl, CancellationToken cancellationToken)
+        long expectedMetadataRevision, SessionName name, Func<bool> canControl, CancellationToken cancellationToken) =>
+        RenameSessionCoreAsync(request, expectedGeneration, expectedMetadataRevision, name, null, canControl, cancellationToken);
+
+    public ValueTask<SessionWorkspaceEntry> RenameSessionAsync(HostRequest request, HostRevision expectedGeneration,
+        long expectedMetadataRevision, SessionName name, long expectedSourceRevision,
+        Func<bool> canControl, CancellationToken cancellationToken) =>
+        RenameSessionCoreAsync(request, expectedGeneration, expectedMetadataRevision, name, expectedSourceRevision, canControl, cancellationToken);
+
+    private ValueTask<SessionWorkspaceEntry> RenameSessionCoreAsync(HostRequest request, HostRevision expectedGeneration,
+        long expectedMetadataRevision, SessionName name, long? expectedSourceRevision,
+        Func<bool> canControl, CancellationToken cancellationToken)
     {
         RequireMetadataControl(request, name, canControl);
         ArgumentOutOfRangeException.ThrowIfNegative(expectedMetadataRevision);
         return RunHostMutationAsync(request, "session.rename", (connection, transaction, intent, audit) =>
         {
             RequireFreshMetadataIntent(intent);
+            if (expectedSourceRevision is { } source)
+            {
+                using var head = connection.CreateCommand();
+                head.Transaction = transaction;
+                head.CommandText = "SELECT sequence FROM authority_head WHERE singleton=1;";
+                if (head.ExecuteScalar() is not long current || current != source)
+                {
+                    throw new InvalidOperationException("The original name preparation source changed. Prepare again.");
+                }
+            }
             var session = RequireSession(connection, request.SessionId);
             var previous = ReadMetadata(connection, request.SessionId);
             if (session.State == 2 || session.Authority.Generation != expectedGeneration

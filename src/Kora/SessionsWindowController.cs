@@ -19,7 +19,7 @@ internal sealed partial class SessionsWindowController(
     SessionAttachmentWindowController? attachments = null,
     Kora.Application.Configuration.SessionProviderProfileConfigurationService? providers = null,
     SessionConversationService? conversation = null) : IDisposable, ISessionDispositionReviewPresenter,
-    ISessionQueueCancellationReviewPresenter, ISessionDiagnosticsPlanPresenter
+    ISessionQueueCancellationReviewPresenter, ISessionDiagnosticsPlanPresenter, ISessionNamePreparationPresenter
 {
     private SessionsWindow? window;
     private CompactSessionWindow? compact;
@@ -48,6 +48,7 @@ internal sealed partial class SessionsWindowController(
         main.BindSessionDispositionReview(this);
         main.BindQueueCancellationReview(this);
         main.BindSessionDiagnosticsPlan(this);
+        main.BindSessionNamePreparation(this);
         main.PrivacyClosureRequested += OnPrivacyClosure;
         service.SessionLifecycleChanged += RevokeSession;
         service.SessionRetired += RevokeSession;
@@ -76,6 +77,7 @@ internal sealed partial class SessionsWindowController(
                 {
                     Interlocked.Increment(ref dispositionOwnerEpoch);
                     model?.RevokeDispositionReview();
+                    model?.CancelNamePreparation();
                 }
             };
             opened.Closed += (_, _) =>
@@ -85,6 +87,7 @@ internal sealed partial class SessionsWindowController(
                     Volatile.Write(ref dispositionOwnerOpen, 0);
                     Interlocked.Increment(ref dispositionOwnerEpoch);
                     model?.RevokeDispositionReview();
+                    model?.CancelNamePreparation();
                     window = null;
                 }
                 ReleaseUnusedPresentation();
@@ -283,6 +286,7 @@ internal sealed partial class SessionsWindowController(
         main.BindSessionDispositionReview(null);
         main.BindQueueCancellationReview(null);
         main.BindSessionDiagnosticsPlan(null);
+        main.BindSessionNamePreparation(null);
         main.SessionsRequested -= OnOpen;
         main.PrivacyClosureRequested -= OnPrivacyClosure;
         service.SessionLifecycleChanged -= RevokeSession;

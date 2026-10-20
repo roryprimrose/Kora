@@ -16,7 +16,7 @@ public sealed partial record SessionCommand(
     public const int DefaultPageSize = 25;
     public const int MaximumInputBytes = 1024;
     public const int MaximumResultBytes = 65536;
-    public static IReadOnlyList<string> DiscoveryPhrases { get; } = ["session help", "session list", "session attachment help", "session request help", "session retention help", "session queue cancellation help", "task help", "queue help"];
+    public static IReadOnlyList<string> DiscoveryPhrases { get; } = ["session help", "session list", "session attachment help", "session name help", "session request help", "session retention help", "session queue cancellation help", "task help", "queue help"];
     public const string AttachmentSyntax =
         "session attachment inspect <session-id> | session attachment help. "
         + "Use a complete canonical lowercase D GUID, never a name, path, URI or selected window. "
@@ -35,7 +35,8 @@ public sealed partial record SessionCommand(
         + "No name, selected-window, delete, general executor or approval targeting. " + AttachmentSyntax + " " + RequestSyntax + " " + RetentionSyntax
         + " " + SessionDispositionReviewCommand.Syntax + ". " + SessionDispositionReviewCommand.Boundary
         + " " + SessionQueueCancellationReviewCommand.Syntax + ". " + SessionQueueCancellationReviewCommand.Boundary
-        + " " + SessionDiagnosticsPlanCommand.Syntax + ". " + SessionDiagnosticsPlanCommand.Boundary;
+        + " " + SessionDiagnosticsPlanCommand.Syntax + ". " + SessionDiagnosticsPlanCommand.Boundary
+        + " " + SessionNamePreparationCommand.Syntax + ". " + SessionNamePreparationCommand.Boundary;
 
     public string PageKind { get; init; } = "tasks";
     public Guid? TaskId { get; init; }

@@ -1163,6 +1163,38 @@ WAL engine comparison, crypto/artifact/keyed-backup/rekey/leakage/native-provide
 cases remain unique. See the
 [equivalence assessment](../experiments/r02-storage-proof/README.md#maintained-minimal-sessions-equivalence-assessment---2026-10-07).
 
+### Exact-session native name preparation
+
+`session name prepare <session-id> "<literal-name>"` and `session name help`
+reserve their sensitive route before generic transcript, model, question or
+approval handling. The parser reuses the authoritative session quote decoder
+and `SessionName` admission; canonical lowercase nonempty D IDs are mandatory.
+Names remain private content, never identity or selection authority.
+
+The existing private Sessions controller presents complete old/new names in
+an independent volatile pane, preserving both name-editor and composer drafts.
+Dirty-composer navigation retains the explicit Save/Discard/Cancel protection;
+there is no implicit save, rename, lifecycle transition, task/queue mutation,
+activity renewal, clipboard, speech, model submission or name persistence.
+The review does not select its target or borrow an existing name-editor draft.
+
+The separate native **Rename exact prepared ID** gesture uses the same
+revisioned `SessionWorkspaceService.RenameAsync` mutation as the existing
+native Rename control. It carries the captured literal, session, generation,
+metadata revision and original private/source/buffer/navigation admission,
+rereads exact metadata and passive source epoch, and requires exact readback.
+The narrow [source-fenced store seam](../src/Kora.Core/Storage/ISessionNameRevisionStore.cs)
+checks the original authority ceiling inside that same rename transaction;
+the existing command/native route retains its original revision checks and audit.
+Newer names/revisions are never substituted. Failures and uncertain receipts
+remain visible without replay or rollback claims. The existing full revisioned
+rename command remains authoritative and unchanged.
+
+The consumed I subset is the existing exact passive metadata reader, native
+private Sessions presentation, composer navigation and audited revisioned
+rename service. No provider, hardware, installed or retired experiment E/Q
+evidence is required or claimed.
+
 ### Delivered Bounded Session Metadata and Explicit Creation - 2026-10-07
 
 On dispatch baseline `d0a8e82` (#68), the native **Sessions** surface adds a

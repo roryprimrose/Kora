@@ -240,6 +240,12 @@ the [user guide](../docs/tools-and-built-in-skills.md) explains current behavior
 This page owns shared interaction semantics; [Interaction and Sessions](Interaction_And_Sessions.md)
 owns durable work-session identity, routing, history and concurrency.
 
+The [exact-session name preparation route](Interaction_And_Sessions.md#exact-session-native-name-preparation)
+is a private native review affordance, not another rename action or model tool.
+Its [direct command syntax](../docs/commands.md#prepare-an-exact-session-name)
+retains the existing revisioned rename service and a separately explicit native
+mutation gesture.
+
 "Built in" describes a capability's product ownership and source, not a single execution mechanism.
 Kora exposes its own functionality as host tools and packages repeatable outcomes as skills.
 The model selects or proposes; the trusted application validates, authorises, executes, and presents.

@@ -113,6 +113,7 @@ internal sealed partial class SessionsViewModel(
 
     internal void RevokeSessionList()
     {
+        CancelNamePreparation();
         RetireDraftRecovery();
         RetireComposerComparison();
         savedConversationDraftControlRevision = 0;
@@ -183,7 +184,7 @@ internal sealed partial class SessionsViewModel(
     public string NameDraft
     {
         get => nameDraft;
-        set { nameDraft = value; OnPropertyChanged(); Notify(); }
+        set { nameEditorRevision++; CancelNamePreparation(); nameDraft = value; OnPropertyChanged(); Notify(); }
     }
     public string Status => status;
     public string Detail
@@ -539,8 +540,7 @@ internal sealed partial class SessionsViewModel(
     public Task RenameAsync() => RunAsync(async () =>
     {
         var target = RequireSelected();
-        selected = await service.RenameAsync(target.Authority.SessionId, target.Authority.Generation,
-            target.Metadata?.Revision.Value ?? 0, new(nameDraft), RequestOrigin.LocalUi, lifetime.Token);
+        selected = await RenameAsync(target, new(nameDraft));
         Render();
         status = "Committed rename for exact ID " + selected.Authority.SessionId.Value.ToString("D")
             + ". Lifecycle, generation, work and approvals unchanged. Refresh for the current list.";
@@ -714,6 +714,7 @@ internal sealed partial class SessionsViewModel(
 
     private void ClearSelection()
     {
+        CancelNamePreparation();
         ClearConversation();
         InvalidateQueuePrerequisite(clearSource: true);
         ClearProviderReview();
@@ -775,6 +776,7 @@ internal sealed partial class SessionsViewModel(
             NotifyMemories();
             NotifyQueue();
             NotifyListSearch();
+            NotifyNamePreparation();
             OnPropertyChanged(nameof(Sessions));
             OnPropertyChanged(nameof(SelectedSessionRecord));
             OnPropertyChanged(nameof(TaskRecords));

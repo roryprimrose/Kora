@@ -36,6 +36,16 @@
     <ScrollViewer Grid.Row="3" MaxHeight="260" VerticalScrollBarVisibility="Auto"
                   AutomationProperties.Name="Selected-session controls and provider policy review; scroll for complete controls">
     <StackPanel Spacing="6">
+    <StackPanel IsVisible="{Binding HasNamePreparation}" Spacing="6">
+      <controls:NamedTextBlock x:Name="PreparedNameReview" Text="{Binding NamePreparationReview}" TextWrapping="Wrap"
+          Focusable="True" AutomationProperties.Name="Complete exact-session old and new literal name review; preparation only" />
+      <WrapPanel>
+        <Button x:Name="RenamePreparedName" Content="Rename exact prepared ID" IsEnabled="{Binding CanRenamePreparedName}"
+            AutomationProperties.Name="Explicitly rename only the original prepared session and proposed literal name with unchanged generation, metadata, private admission and source" />
+        <Button x:Name="CancelPreparedName" Content="Cancel name preparation"
+            AutomationProperties.Name="Discard only the volatile prepared name; preserve existing name editor and composer drafts" />
+      </WrapPanel>
+    </StackPanel>
     <Expander Header="Exact-session conversation and composer — generation unavailable" IsExpanded="True">
       <StackPanel Spacing="6">
         <controls:NamedTextBlock Text="{Binding ComposerTarget}" TextWrapping="Wrap"

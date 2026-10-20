@@ -26,6 +26,8 @@ internal static partial class ApplicationLog
 
     [LoggerMessage(118, LogLevel.Error, "Queue cancellation preparation failed with {FailureKind}; request a fresh exact native review.")]
     public static partial void QueueCancellationPreparationFailed(ILogger logger, string failureKind);
+    [LoggerMessage(117, LogLevel.Error, "Session-name preparation failed with {FailureKind}; request a fresh native review.")]
+    public static partial void SessionNamePreparationFailed(ILogger logger, string failureKind);
 
     [LoggerMessage(117, LogLevel.Error, "Session-diagnostics preparation failed with {FailureKind}; request a fresh native plan.")]
     public static partial void SessionDiagnosticsPlanFailed(ILogger logger, string failureKind);

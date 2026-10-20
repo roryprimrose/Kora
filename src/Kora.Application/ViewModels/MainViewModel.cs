@@ -635,6 +635,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
                   && (!IsBusy || IsSetupStatusCommand() || IsListeningStopCommand(CommandText)
                       || SessionCommand.Parse(CommandText, AssistantName) is not null
                       || SessionDispositionReviewCommand.Parse(CommandText, AssistantName) is not null
+                      || SessionNamePreparationCommand.Parse(CommandText, AssistantName) is not null
                       || WorkspaceSurfaceCommand.Parse(CommandText, AssistantName) is not null
                       || AttachmentCataloguePreparationCommand.Parse(CommandText, AssistantName) is not null
                       || MemoryCommand.Parse(CommandText, AssistantName) is not null
@@ -4095,6 +4096,13 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         }
         ApplicationLog.VoiceDispatchGate(logger, eventArgs.Generation, "Admitted");
         IsListening = voiceRecognition.IsListening;
+        if (SessionNamePreparationCommand.Parse(eventArgs.Transcript, manualInput.NavigationAssistantName) is { } namePreparation)
+        {
+            Interlocked.Increment(ref workspaceSurfaceInputRevision);
+            await ExecuteSessionNamePreparationAsync(namePreparation, eventArgs.Transcript,
+                SecurityAuditInitiator.VoiceCommand, manualInput);
+            return;
+        }
         if (SettingsSectionCommand.Parse(eventArgs.Transcript, AssistantName) is not null
             || LocalClockCommand.Parse(eventArgs.Transcript, AssistantName) is not null
             || manualInput.CataloguePreparation is not null)
@@ -4154,6 +4162,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             ?? AttachmentCataloguePreparationCommand.Parse(spokenText, AssistantName)) is { } cataloguePreparation)
         {
             await PrepareAttachmentCatalogue(cataloguePreparation, initiator, manualInput);
+            return;
+        }
+        if (SessionNamePreparationCommand.Parse(spokenText, AssistantName) is { } namePreparation)
+        {
+            await ExecuteSessionNamePreparationAsync(namePreparation, spokenText, initiator, manualInput);
             return;
         }
         if (Kora.Application.Skills.SkillReviewCommand.Parse(spokenText, AssistantName) is { } reviewCommand)
@@ -5696,9 +5709,10 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
                     + "Use “session help” for bounded exact-ID session observations and explicit lifecycle controls. "
                     + "Use “show fixed read queue settings” for exact inspect/set/independent-reset phrases for future-only fixed read queue limits; manual dispatch remains unchanged. "
                     + "Use “" + SessionDispositionReviewCommand.Syntax + "” for preview only in private native Sessions; confirmation is a separate native action. "
-                    + SessionQueueCancellationReviewCommand.Syntax + ". " + SessionQueueCancellationReviewCommand.Boundary + " "
                     + SessionDiagnosticsPlanCommand.Syntax + ". " + SessionDiagnosticsPlanCommand.Boundary + " "
                     + "Use “list response window settings” for exact device-local visibility/topmost controls; no response is reopened. "
+                    + SessionQueueCancellationReviewCommand.Syntax + ". " + SessionQueueCancellationReviewCommand.Boundary + " "
+                    + SessionNamePreparationCommand.Syntax + ". " + SessionNamePreparationCommand.Boundary + " "
                     + $"Use “{AssistantName}, list assistant settings” for the display/PTT command-prefix name. "
                     + NaturalAppearanceCommand.Syntax + " "
                     + "Natural name commands: “what is your name”, “call yourself <name>”, “change your name to <name>”, or “reset your name”. "

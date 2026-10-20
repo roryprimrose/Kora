@@ -10,6 +10,7 @@ internal sealed partial class SessionsWindow : Window
     private readonly SessionsPresentationOwner owner;
     internal Task ConversationOperation { get; private set; } = Task.CompletedTask;
     internal Task MemoryBatchOperation { get; private set; } = Task.CompletedTask;
+    internal void FocusNamePreparation() => PreparedNameReview.Focus();
     internal void ClosePrivate()
     {
         owner.Revoke();
@@ -105,6 +106,15 @@ internal sealed partial class SessionsWindow : Window
         };
         CreateSession.Click += async (_, _) => await model.CreateAsync();
         RenameSession.Click += async (_, _) => await model.RenameAsync();
+        RenamePreparedName.Click += async (_, _) => await (ConversationOperation = model.RenamePreparedNameAsync());
+        CancelPreparedName.Click += (_, _) => { model.CancelNamePreparation(); RenameSession.Focus(); };
+        PreparedNameReview.KeyDown += (_, args) =>
+        {
+            if (args.Key != Key.Escape) { return; }
+            args.Handled = true;
+            model.CancelNamePreparation();
+            RenameSession.Focus();
+        };
         AttachFile.Click += async (_, _) => await model.OpenAttachment(attach: true);
         InspectAttachment.Click += async (_, _) => await model.OpenAttachment(attach: false);
         RefreshProviders.Click += async (_, _) => await model.RefreshProviders();

@@ -1,5 +1,25 @@
 # Voice and typed commands
 
+## Open an exact Settings tab
+
+Use one complete case-insensitive phrase below, optionally prefixed by the current assistant name when typed. Activated voice requires that current-name prefix. Outer spaces are accepted; punctuation, extra words, control characters and input over 256 characters are not ([exact grammar](../src/Kora.Application/Configuration/SettingsSectionCommand.cs)).
+
+| Exact phrase | Existing tab |
+| --- | --- |
+| `open appearance settings` | Appearance |
+| `open speech settings`, `open audio settings`, `open microphone settings` | Speech & audio |
+| `open response settings` | Responses |
+| `open session settings` | Sessions |
+| `open call settings` | Calls |
+
+These routes open/activate the same singleton Settings window and select a named native tab, retaining unsaved state. Generic `open settings`, setup/readiness and voice recovery remain separate existing routes ([native controller](../src/Kora/SettingsWindowController.cs), [tab selection](../src/Kora/SettingsWindow.axaml.cs)).
+
+Navigation never chooses a microphone or endpoint, changes Windows defaults, starts listening/capture, grants permission, refreshes providers/network, saves a setting or confirms an action.
+Calls is not manual-call activation; Responses does not restore retired/private content. Native visibility/lifetime observation remains authoritative ([navigation admission](../src/Kora.Application/ViewModels/MainViewModel.SettingsSectionNavigation.cs), [native tests](../tests/Kora.Windows.IntegrationTests/SettingsSectionNavigationTests.cs)).
+
+Malformed reserved section requests clarify in the transcript before model/question/approval routing. Pending questions, approvals and security previews are not answered or replaced.
+Missing/revoked/disposed presenters and stale original host, privacy, ownership or voice generations report unavailable, never a default page or success fallback ([routing](../src/Kora.Application/ViewModels/MainViewModel.cs), [deterministic tests](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.SettingsSectionNavigation.cs)).
+
 ## Native saved conversation draft catalogue
 
 **Tray > Saved conversation drafts (metadata only)** is native-only; it has no typed/voice/model body query. Opening reads nothing. Explicit Refresh/Next/Cancel shows bounded saved composer metadata across retained All/Active/Done sessions, never a body preview or global count.

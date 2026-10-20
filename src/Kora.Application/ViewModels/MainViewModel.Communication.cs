@@ -75,6 +75,8 @@ public sealed partial class MainViewModel
     {
         RetireCurrentResponseSpeech();
         callOwnershipEligible = gate;
+        settingsOwnershipRevision = revision ?? (static () => 0);
+        Interlocked.Increment(ref settingsOwnershipBindingRevision);
         UpdateSpeechPreparation();
         auditImpactControlRevision = checked(auditImpactControlRevision + 1);
         auditImpactOwnerRevision = revision ?? (static () => 0);

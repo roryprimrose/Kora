@@ -6,6 +6,7 @@ using Avalonia.Layout;
 using Kora.Application.ViewModels;
 using Kora.Application.Infrastructure;
 using Kora.Core.Commands;
+using Kora.Application.Presentation;
 
 using Microsoft.Extensions.DependencyInjection;
 
@@ -16,6 +17,10 @@ public sealed partial class SettingsWindow : Window
     private readonly TabControl settingsTabs;
     private readonly TabItem readinessTab;
     private readonly TabItem speechAudioTab;
+    private readonly TabItem appearanceTab;
+    private readonly TabItem responsesTab;
+    private readonly TabItem sessionsTab;
+    private readonly TabItem callsTab;
     private bool isLocalModelReviewOpen;
     private bool isPowerShellReviewOpen;
 
@@ -34,6 +39,14 @@ public sealed partial class SettingsWindow : Window
             ?? throw new InvalidOperationException("The readiness settings tab is unavailable.");
         speechAudioTab = this.FindControl<TabItem>("SpeechAudioTab")
             ?? throw new InvalidOperationException("The speech and audio settings tab is unavailable.");
+        appearanceTab = this.FindControl<TabItem>("AppearanceTab")
+            ?? throw new InvalidOperationException("The appearance settings tab is unavailable.");
+        responsesTab = this.FindControl<TabItem>("ResponsesTab")
+            ?? throw new InvalidOperationException("The response settings tab is unavailable.");
+        sessionsTab = this.FindControl<TabItem>("SessionsTab")
+            ?? throw new InvalidOperationException("The session settings tab is unavailable.");
+        callsTab = this.FindControl<TabItem>("CallsTab")
+            ?? throw new InvalidOperationException("The call settings tab is unavailable.");
         DataContext = viewModel;
         if (captionDisplay is not null)
         {
@@ -48,6 +61,22 @@ public sealed partial class SettingsWindow : Window
     public void ShowReadiness() => settingsTabs.SelectedItem = readinessTab;
 
     public void ShowVoiceRecovery() => settingsTabs.SelectedItem = speechAudioTab;
+
+    public void ShowSection(SettingsSection section)
+    {
+        var tab = section switch
+        {
+            SettingsSection.Appearance => appearanceTab,
+            SettingsSection.SpeechAudio => speechAudioTab,
+            SettingsSection.Responses => responsesTab,
+            SettingsSection.Sessions => sessionsTab,
+            SettingsSection.Calls => callsTab,
+            _ => throw new ArgumentOutOfRangeException(nameof(section), section, "Unknown Settings section."),
+        };
+        settingsTabs.SelectedItem = tab;
+        if (!ReferenceEquals(settingsTabs.SelectedItem, tab))
+        { throw new InvalidOperationException("The native Settings section was not selected."); }
+    }
 
     private void OnMaintenanceClicked(object? sender, RoutedEventArgs eventArgs)
     {

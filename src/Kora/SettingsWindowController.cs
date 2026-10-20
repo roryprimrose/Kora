@@ -4,12 +4,13 @@ using Kora.Application.ViewModels;
 using Kora.Application.Hosting;
 using Kora.Core.Diagnostics;
 using Kora.Core.Hosting;
+using Kora.Application.Presentation;
 
 using Microsoft.Extensions.Logging;
 
 namespace Kora;
 
-public sealed class SettingsWindowController : IDisposable
+public sealed class SettingsWindowController : IDisposable, ISettingsSectionNavigation
 {
     private readonly MainViewModel viewModel;
     private readonly ILogger<SettingsWindowController> logger;
@@ -33,6 +34,7 @@ public sealed class SettingsWindowController : IDisposable
         viewModel.SettingsRequested += OnSettingsRequested;
         viewModel.ReadinessRequested += OnReadinessRequested;
         viewModel.VoiceRecoveryRequested += OnVoiceRecoveryRequested;
+        viewModel.BindSettingsSectionNavigation(this);
     }
 
     public void Dispose()
@@ -43,6 +45,7 @@ public sealed class SettingsWindowController : IDisposable
         }
 
         disposed = true;
+        viewModel.BindSettingsSectionNavigation(null);
         BindNativeLifetime(false);
         DesktopLog.Debug(logger, "Disposing the settings window controller");
         viewModel.SettingsRequested -= OnSettingsRequested;
@@ -59,30 +62,68 @@ public sealed class SettingsWindowController : IDisposable
 
     private void OnSettingsRequested(object? sender, EventArgs eventArgs)
     {
-        if (!viewModel.CanRevealPrivatePresentation)
+        if (disposed || !viewModel.CanRevealPrivatePresentation)
         {
             return;
         }
-        DesktopLog.Information(logger, "Settings window was requested");
-        window ??= CreateWindow();
-        if (!window.IsVisible)
+        OpenWindow(() => !disposed && viewModel.CanRevealPrivatePresentation);
+    }
+
+    public Func<bool> CaptureLifetime()
+    {
+        var revision = Volatile.Read(ref nativeVisibilityRevision);
+        return () => !disposed && Volatile.Read(ref nativeVisibilityRevision) == revision;
+    }
+
+    public void Navigate(SettingsSection section, Func<bool> admitted)
+    {
+        ArgumentNullException.ThrowIfNull(admitted);
+        if (!Enum.IsDefined(section)) { throw new ArgumentOutOfRangeException(nameof(section)); }
+        var target = OpenWindow(admitted);
+        if (!admitted())
         {
-            window.Show();
-            BindNativeLifetime(window.IsVisible);
+            target.Hide();
+            throw new InvalidOperationException("Settings navigation was revoked before tab selection.");
         }
-        window.Activate();
+        target.ShowSection(section);
+        if (!admitted())
+        {
+            target.Hide();
+            throw new InvalidOperationException("Settings navigation was revoked during tab selection.");
+        }
+    }
+
+    private SettingsWindow OpenWindow(Func<bool> admitted)
+    {
+        if (disposed || !viewModel.CanRevealPrivatePresentation || !admitted())
+        { throw new InvalidOperationException("The native Settings host is unavailable."); }
+        DesktopLog.Information(logger, "Settings window was requested");
+        var target = window ??= CreateWindow();
+        if (!admitted()) { throw new InvalidOperationException("Settings navigation was revoked before showing."); }
+        if (!target.IsVisible)
+        {
+            target.Show();
+            BindNativeLifetime(target.IsVisible);
+        }
+        if (disposed || !ReferenceEquals(window, target) || !target.IsVisible || !admitted())
+        {
+            target.Hide();
+            throw new InvalidOperationException("The native Settings view is not visible or admission was revoked.");
+        }
+        target.Activate();
+        return target;
     }
 
     private void OnReadinessRequested(object? sender, EventArgs eventArgs)
     {
-        OnSettingsRequested(sender, eventArgs);
-        window?.ShowReadiness();
+        if (!disposed && viewModel.CanRevealPrivatePresentation)
+        { OpenWindow(() => !disposed && viewModel.CanRevealPrivatePresentation).ShowReadiness(); }
     }
 
     private void OnVoiceRecoveryRequested(object? sender, EventArgs eventArgs)
     {
-        OnSettingsRequested(sender, eventArgs);
-        window?.ShowVoiceRecovery();
+        if (!disposed && viewModel.CanRevealPrivatePresentation)
+        { OpenWindow(() => !disposed && viewModel.CanRevealPrivatePresentation).ShowVoiceRecovery(); }
     }
 
     private SettingsWindow CreateWindow()

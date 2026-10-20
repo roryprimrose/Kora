@@ -4044,6 +4044,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             ApplicationLog.Debug(logger, "Rejected an unactivated or stale voice transcript");
             ApplicationLog.VoiceDispatchGate(logger, eventArgs.Generation, "RejectedAfterQueue");
             ReportRetiredSkillReview(eventArgs.Transcript);
+            if (SettingsSectionCommand.Parse(eventArgs.Transcript, AssistantName) is not null)
+            { Transcript = "Settings navigation unavailable: the original voice generation or host was revoked."; }
             return;
         }
         if (Interlocked.CompareExchange(ref acceptedTranscriptGeneration, -1, eventArgs.Generation) != eventArgs.Generation)
@@ -4053,6 +4055,12 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         }
         ApplicationLog.VoiceDispatchGate(logger, eventArgs.Generation, "Admitted");
         IsListening = voiceRecognition.IsListening;
+        if (SettingsSectionCommand.Parse(eventArgs.Transcript, AssistantName) is not null)
+        {
+            await HandleTranscriptAsync(eventArgs.Transcript, eventArgs.Confidence,
+                SecurityAuditInitiator.VoiceCommand, manualInput);
+            return;
+        }
         if (IsSpeaking)
         {
             await textToSpeech.StopAsync();
@@ -4085,6 +4093,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         {
             await ExecuteSkillReviewCommand(reviewCommand, spokenText, manualInput
                 ?? CaptureManualCallInput(OriginalOrigin(initiator), CallPolicyRevision), reviewEligibility);
+            return;
+        }
+        if (SettingsSectionCommand.Parse(spokenText, AssistantName) is { } settingsSectionCommand)
+        {
+            await ExecuteSettingsSectionCommand(settingsSectionCommand, spokenText, initiator, manualInput);
             return;
         }
         if (!IsHostInputEligible)
@@ -5581,6 +5594,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
                     + $"Use “{AssistantName}, list assistant settings” for the display/PTT command-prefix name. "
                     + NaturalAppearanceCommand.Syntax + " "
                     + "Natural name commands: “what is your name”, “call yourself <name>”, “change your name to <name>”, or “reset your name”. "
+                    + SettingsSectionCommand.Syntax + " "
                     + "Use “explain the clipboard” for exact native review and qualified local-only explanation; no hosted fallback. "
                     + "Use “show spoken summary limits” to inspect future ordinary-speech sentence/word budgets; “list speech settings” lists exact set/reset syntax. "
                     + "Use “open skill packages” or “open shared skill sources” for native review only; neither enables or runs skills. "
@@ -6064,6 +6078,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             .Concat(ResponseReadCommand.FixedPhrases)
             .Concat(SpeechCommand.FixedPhrases)
             .Concat(Kora.Application.Skills.SkillReviewCommand.FixedPhrases)
+            .Concat(SettingsSectionCommand.FixedPhrases)
             .Concat(Kora.Core.Maintenance.MaintenanceCommandParser.FixedPhrases)
             .Concat(Kora.Core.Interaction.LocalEventCommand.FixedPhrases)
             .Concat(ClipboardPreview is { } snapshot

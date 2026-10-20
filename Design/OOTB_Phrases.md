@@ -19,6 +19,9 @@ Related: [Interaction and Sessions](Interaction_And_Sessions.md), [Bundled Skill
 
 ## Invocation and Routing
 
+Delivered bounded Settings navigation has exactly [seven whole-utterance phrases](../docs/commands.md#open-an-exact-settings-tab) for the existing Appearance, Speech & audio, Responses, Sessions and Calls tabs.
+It is navigation only, not a setting, endpoint, consent, capture or approval action; the broader natural-language catalogue below remains proposed ([parser](../src/Kora.Application/Configuration/SettingsSectionCommand.cs), [singleton controller](../src/Kora/SettingsWindowController.cs)).
+
 Prepend any currently active activation name to every phrase below. Examples use the default "Kora", for example "Kora, lock the machine".
 Users can rename activation and choose custom-only or both default/custom through [Custom Activation Names](Activation_Name.md); the application remains Kora.
 Optional PTT supplies activation without the wake word. Typed requests enter

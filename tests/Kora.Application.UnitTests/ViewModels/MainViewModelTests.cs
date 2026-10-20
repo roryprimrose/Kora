@@ -4552,6 +4552,7 @@ public sealed partial class MainViewModelTests : IDisposable
             .Concat(SessionProviderProfileCommand.FixedPhrases)
             .Concat(PreapprovedUriCommand.FixedPhrases)
             .Concat(Kora.Application.Network.WebPageCommand.FixedPhrases)
+            .Concat(Kora.Application.Tools.UuidCommand.FixedPhrases)
             .Concat(Kora.Application.Network.WebSummaryCommand.FixedPhrases)
             .Concat(InCallFeedbackCommand.FixedPhrases)
             .Concat(SpeechTextCommand.FixedPhrases)
@@ -8535,7 +8536,8 @@ public sealed partial class MainViewModelTests : IDisposable
             bool enableQuestionReplies = false, bool enableAuditImpact = false, bool enableSessionRetentionPlanner = false,
             bool enableSpeechPreparation = false, bool enableDiagnosticImpact = false, bool enableClipboardExplanation = false,
             Kora.Application.Network.WebSummaryWorkflow? webSummary = null,
-            Kora.Application.Clock.LocalClockWorkflow? localClock = null)
+            Kora.Application.Clock.LocalClockWorkflow? localClock = null,
+            Kora.Core.Utilities.IUtilityUuidGenerator? uuidGenerator = null)
         {
             Catalog = new BuiltInCommandCatalog();
             CaptionPreferences.LoadFailure = captionReadFailure;
@@ -8719,7 +8721,10 @@ public sealed partial class MainViewModelTests : IDisposable
                 enableSessionRetentionPlanner ? new SessionRetentionPlannerService(SessionPlanReader, SessionRetentionConfiguration!) : null,
                 speechPreparation: enableSpeechPreparation ? SpeechPreparation : null,
                 diagnosticImpactPreview: enableDiagnosticImpact ? new DiagnosticImpactPreviewService(DiagnosticImpactReader, DiagnosticPreferences, DiagnosticConfiguration!) : null,
-                clipboardExplanation: clipboardWorkflow, localClock: localClock);
+                clipboardExplanation: clipboardWorkflow, localClock: localClock,
+                uuidGenerate: uuidGenerator is null ? null : new(uuidGenerator),
+                uuidInspect: uuidGenerator is null ? null : new(),
+                uuidHelp: uuidGenerator is null ? null : new());
             if (webSummary is not null) { ViewModel.BindWebSummaryWorkflow(webSummary); }
             ViewModel.BindCallOwnershipGate(static () => true);
             ViewModel.BindManualCallNativeLifetime(true);

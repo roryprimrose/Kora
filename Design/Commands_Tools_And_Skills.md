@@ -84,6 +84,35 @@ existing host input admission and deterministic presentation; provider,
 hardware, installed, retired experiment and E/Q qualification are not
 prerequisites. No unrelated calendar/reminder/scheduling behavior is delivered.
 
+## Standalone UUID utility boundary
+
+The [exact UUID commands](../docs/commands.md#standalone-uuid-format-utility)
+use [UtilityUuid](../src/Kora.Core/Utilities/UtilityUuid.cs) for pure bounded
+format/variant facts, not the historical correlation or host SessionId/TaskId
+types. The canonical text positions directly express wire byte order; mixed-endian
+`Guid.ToByteArray()` fields are not interpreted as network bytes.
+[UuidGenerate](../src/Kora.Tools/Utilities/UuidGenerate.cs),
+[UuidInspect](../src/Kora.Tools/Utilities/UuidInspect.cs), and
+[UuidHelp](../src/Kora.Tools/Utilities/UuidHelp.cs) are separate DI-registered
+host-owned actions. Only admitted generation calls the injected
+[IUtilityUuidGenerator](../src/Kora.Core/Utilities/IUtilityUuidGenerator.cs)
+once; the host implementation uses `Guid.NewGuid()`, with no retries on invalid
+output or failure. Empty/non-v4/non-RFC output fails explicitly.
+
+The [early reserved parser](../src/Kora.Application/Tools/UuidCommand.cs) and
+[host route](../src/Kora.Application/ViewModels/MainViewModel.Uuid.cs) preserve
+original input, privacy, current-name voice, ownership, call, pending question,
+approval and preview admission before ordinary response presentation. No model
+descriptor, authority registry, lookup, persistence, clipboard or egress route is
+added. Utility strings never replace host IDs, trace parents, baggage, logging
+scopes, approval IDs or trusted audit identity fields. Content-free outcome
+diagnostics use separate normal host operation correlation. Canonical formatting
+does not prove existence or trust, and grants no identity or security authority.
+
+This consumes only the existing deterministic command/host/ordinary-presentation
+I subset. No provider, installed-native, hardware or other E/Q evidence is required
+or claimed.
+
 ## Delivered Artifact Invocation
 
 Kora has one source-qualified artifact invocation route for bundled skills and

@@ -58,6 +58,30 @@ stale/denied/unavailable requests report recovery in status. Pending questions,
 approvals, power proposals, grant editors and native security reviews stay
 unchanged, including for malformed clock commands.
 
+## Standalone UUID format utility
+
+Use exactly `uuid generate`, `uuid inspect <canonical-uuid>`, or `uuid help`.
+Typed input may have the current assistant-name prefix; activated voice requires
+it (for example `Kora, uuid generate`). Verbs are lowercase and spacing is exact:
+no outer whitespace, punctuation, extra arguments or batches. Total command input
+is bounded to 128 characters. Inspection accepts exactly 36 ASCII characters in
+nonempty lowercase canonical D format (`12345678-9abc-4def-8123-456789abcdef`).
+Braces, URNs, uppercase, missing hyphens, Unicode lookalikes and repairs are refused.
+
+Generate returns one random version 4 RFC variant UUID. Inspect reports only
+canonical format, the numeric version nibble (including unknown versions), and
+RFC or unknown variant, derived in canonical wire byte order. Help is constant.
+Malformed reserved UUID input never answers a pending question or reaches a model.
+Original private owning-host input, call/input/privacy admission and pending
+questions, approvals and security previews remain authoritative.
+
+**Standalone utility UUID only: not Kora identity, not registered, and not
+permission, grant, approval, authentication, token or secret.** Format does not
+prove existence or trust. There is no cryptographic-strength or security-token
+promise, identity lookup, timestamp/MAC/provenance decoding, automatic clipboard
+copy, save, submission, paste or work-selecting link. Existing ordinary response
+and speech policy applies; this is not new copy or speech authority.
+
 ## Open an exact Settings tab
 
 Use one complete case-insensitive phrase below, optionally prefixed by the current assistant name when typed. Activated voice requires that current-name prefix. Outer spaces are accepted; punctuation, extra words, control characters and input over 256 characters are not ([exact grammar](../src/Kora.Application/Configuration/SettingsSectionCommand.cs)).

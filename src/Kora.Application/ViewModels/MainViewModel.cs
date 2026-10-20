@@ -281,8 +281,14 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         Kora.Application.Voice.SpeechPreparationCoordinator? speechPreparation = null,
         DiagnosticImpactPreviewService? diagnosticImpactPreview = null,
         Kora.Application.Context.ClipboardExplanationWorkflow? clipboardExplanation = null,
-        Kora.Application.Clock.LocalClockWorkflow? localClock = null)
+        Kora.Application.Clock.LocalClockWorkflow? localClock = null,
+        Kora.Tools.Utilities.UuidGenerate? uuidGenerate = null,
+        Kora.Tools.Utilities.UuidInspect? uuidInspect = null,
+        Kora.Tools.Utilities.UuidHelp? uuidHelp = null)
     {
+        this.uuidGenerate = uuidGenerate ?? new(new Kora.Tools.Utilities.RandomUtilityUuidGenerator());
+        this.uuidInspect = uuidInspect ?? new();
+        this.uuidHelp = uuidHelp ?? new();
         this.commandCatalog = commandCatalog;
         this.commandRouter = commandRouter;
         this.artifactCatalogue = artifactCatalogue;
@@ -4145,15 +4151,22 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             return;
         }
         var sessionCommand = SessionCommand.Parse(spokenText, AssistantName);
-        if (sessionCommand is null && LocalClockCommand.Parse(spokenText, AssistantName) is { } clockCommand)
+        var cataloguePreparation = manualInput?.CataloguePreparation
+            ?? AttachmentCataloguePreparationCommand.Parse(spokenText, AssistantName);
+        if (sessionCommand is null && cataloguePreparation is null
+            && LocalClockCommand.Parse(spokenText, AssistantName) is { } clockCommand)
         {
             ExecuteLocalClockCommand(clockCommand, initiator, manualInput);
             return;
         }
-        if ((manualInput?.CataloguePreparation
-            ?? AttachmentCataloguePreparationCommand.Parse(spokenText, AssistantName)) is { } cataloguePreparation)
+        if (cataloguePreparation is not null)
         {
             await PrepareAttachmentCatalogue(cataloguePreparation, initiator, manualInput);
+            return;
+        }
+        if (Kora.Application.Tools.UuidCommand.Parse(spokenText, AssistantName) is { } uuidCommand)
+        {
+            await ExecuteUuidCommandAsync(uuidCommand, initiator, manualInput);
             return;
         }
         if (Kora.Application.Skills.SkillReviewCommand.Parse(spokenText, AssistantName) is { } reviewCommand)
@@ -6188,6 +6201,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             .Concat(SessionProviderProfileCommand.FixedPhrases)
             .Concat(PreapprovedUriCommand.FixedPhrases)
             .Concat(WebPageCommand.FixedPhrases)
+            .Concat(Kora.Application.Tools.UuidCommand.FixedPhrases)
             .Concat(WebSummaryCommand.FixedPhrases)
             .Concat(webSummaryReview is { } summaryReview
                 ? [WebSummaryCommand.ConfirmPrefix + summaryReview.Id.ToString("D")] : [])

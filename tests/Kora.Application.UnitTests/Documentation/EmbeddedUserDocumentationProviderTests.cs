@@ -13,6 +13,21 @@ namespace Kora.Application.UnitTests.Documentation;
 public sealed class EmbeddedUserDocumentationProviderTests
 {
     [Fact]
+    public void Embedded_owned_editor_guide_distinguishes_private_displayed_buffer_find_from_metadata_and_mutations()
+    {
+        var guide = new EmbeddedUserDocumentationProvider().GetPages()
+            .Single(page => string.Equals(page.Id, "instruction-editor", StringComparison.Ordinal)).Markdown;
+        guide.Should().Contain("## Find in the displayed owned buffer")
+            .And.Contain("**Ctrl+F**").And.Contain("**Shift+F3**").And.Contain("**no wrap**")
+            .And.Contain("complete count, current ordinal").And.Contain("including unsaved changes")
+            .And.Contain("case-sensitive ordinal literal").And.Contain("256 UTF-16 units /")
+            .And.Contain("512 UTF-8 bytes").And.Contain("never opens")
+            .And.Contain("not search the").And.Contain("metadata inventory, disk")
+            .And.Contain("queries and body text are not logged, transcribed or spoken")
+            .And.Contain("read-only sources gain no edit or use authority");
+    }
+
+    [Fact]
     public void Embedded_response_mode_aliases_explain_exact_future_only_controls_and_refusals()
     {
         var pages = new EmbeddedUserDocumentationProvider().GetPages();

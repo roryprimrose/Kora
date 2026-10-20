@@ -102,6 +102,11 @@ The delivered owned native editor also provides literal metadata search, observe
 Explicit List/Refresh uses existing admission/reconciliation; filtering remains in-memory and model-free, with no source writes, activation or first-result loading. Typed/current-name activated List/Inspect opens the same native route; no new model tool or typed search grammar is registered.
 Observed catalogue state is not current disk integrity. Unavailable/stale choices require Refresh/reselection while the original/draft stays open. See [owned inventory controls](../docs/instruction-editor.md#search-observed-owned-metadata); profile-original editing and the full definition source matrix stay deferred.
 
+The editor's separate [displayed-buffer literal Find](../docs/instruction-editor.md#find-in-the-displayed-owned-buffer)
+is native-only (Ctrl+F, first/next/previous/clear), not an inventory query, typed/activated command,
+dictation route or model tool. It searches only the exact owned memory buffer, including dirty text,
+without source reads, selection retargeting, save/validation/rebase, enablement or execution.
+
 ### Proposed Instruction Authoring
 
 The existing native owned Instruction/literal Prompt editor delivers only [open-draft structural Validate](../docs/instruction-editor.md#validate-the-open-draft-without-saving), through its button and exact plural-kind `validate` controls. It shares Save proposal preparation, not a model tool or conversational authoring engine.

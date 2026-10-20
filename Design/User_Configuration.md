@@ -849,6 +849,20 @@ slice above; the original provider/voice slice supplies no rate authority.
 
 ### Delivered bounded spoken summary limits (R10)
 
+The [same speech parser](../src/Kora.Application/Configuration/SpeechCommand.cs) admits exact whole-utterance aliases: `show spoken summary limits`, `set spoken summary sentence limit to <integer>`, `set spoken summary word limit to <integer>`, `reset spoken summary sentence limit` and `reset spoken summary word limit`.
+
+The prefix is the current configured assistant name: optional for typed input, required for activated-voice natural aliases. Provider/installed-voice grammar is unchanged ([dispatch](../src/Kora.Application/ViewModels/MainViewModel.cs)).
+
+Canonical decimal values use the [authoritative domain validation](../src/Kora.Core/Configuration/SpokenSummaryLimits.cs); signs, leading zeroes, fractions, word numerals, suffixes and relative/vague requests are not natural budget commands. Reserved malformed aliases clarify locally before model/question/approval fallback ([early dispatch](../src/Kora.Application/ViewModels/MainViewModel.cs)).
+
+The [shared command action](../src/Kora.Application/ViewModels/MainViewModel.SpeechConfiguration.cs) preserves pending questions/approvals and reports that they must be finished/cancelled first. It uses the existing proposal/apply path and original channel; no model tool, new setter, provider selection or permission is introduced.
+
+Fixed exact phrases and help expose the bounded aliases ([parser](../src/Kora.Application/Configuration/SpeechCommand.cs), [discovery/help](../src/Kora.Application/ViewModels/MainViewModel.cs)).
+
+These settings affect future ordinary-speech admission only: no immediate speech, summary generation, truncation, regeneration or replay ([deterministic alias tests](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.NaturalSpeechBudgets.cs)).
+
+Reset changes only the requested cap and refuses unknown companion state ([service](../src/Kora.Application/Configuration/SpeechConfigurationService.cs)).
+
 Registry schema version 2 adds `speech.summary-sentences` (positive integer
 1-3, default 3) and `speech.summary-words` (1-80, default 80), with exact spoken
 names speech summary sentences / speech summary words. One

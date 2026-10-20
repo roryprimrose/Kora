@@ -775,6 +775,12 @@ The registry IDs are `speech.summary-sentences` and `speech.summary-words`;
 spoken names are **speech summary sentences** and **speech summary words**.
 Discovery/get/set/per-option reset use the same native/typed/activated-voice
 workflow. For example, **set speech.summary-words to 40**.
+Exact natural aliases also accept **show spoken summary limits**, **set spoken summary sentence limit to 2**, **set spoken summary word limit to 40**, **reset spoken summary sentence limit** and **reset spoken summary word limit**, optionally with the current assistant-name prefix ([parser](../src/Kora.Application/Configuration/SpeechCommand.cs)).
+
+Activated voice requires the current assistant-name prefix; typed input may omit it. Natural values use canonical decimal digits, not signs, leading zeroes, fractions or word numerals ([dispatch](../src/Kora.Application/ViewModels/MainViewModel.cs), [parser](../src/Kora.Application/Configuration/SpeechCommand.cs)).
+
+These are future admission budgets, not a request to speak, shorten or regenerate an answer. Pending questions/approvals remain unchanged and must be finished or cancelled first ([shared command path](../src/Kora.Application/ViewModels/MainViewModel.SpeechConfiguration.cs)).
+
 Status distinguishes unsaved defaults from saved limits and reports revision
 and recovery. The host checks original channel, live privacy/ownership and call
 revision adjacent to audited atomic persistence. Protected calls reject

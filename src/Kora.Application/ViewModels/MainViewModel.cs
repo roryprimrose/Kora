@@ -4223,6 +4223,18 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             ShowFailure("Assistant prefix routing is unavailable.", assistantNameConfiguration.Get().Recovery!);
             return;
         }
+        if (SpeechCommand.Parse(spokenText, AssistantName) is { IsNaturalSummary: true } speechCommand)
+        {
+            if (initiator == SecurityAuditInitiator.VoiceCommand
+                && !commandRouter.IsActivationPrefixed(spokenText, AssistantName))
+            {
+                Transcript = "Use the current assistant-name prefix for spoken summary limit voice commands. No speech setting was changed.";
+                return;
+            }
+            await Kora.Application.Hosting.HostRequestRunner.RunAsync(origin,
+                () => ExecuteSpeechCommandAsync(speechCommand, initiator));
+            return;
+        }
         if (Kora.Core.Interaction.LocalEventCommand.Parse(spokenText, AssistantName) is { } eventCommand)
         {
             await ExecuteLocalEventCommandAsync(eventCommand, initiator);
@@ -5537,6 +5549,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
                     + $"Use “{AssistantName}, list assistant settings” for the display/PTT command-prefix name. "
                     + NaturalAppearanceCommand.Syntax + " "
                     + "Use “explain the clipboard” for exact native review and qualified local-only explanation; no hosted fallback. "
+                    + "Use “show spoken summary limits” to inspect future ordinary-speech sentence/word budgets; “list speech settings” lists exact set/reset syntax. "
                     + (LocalModelsEnabled && Dependencies.Any(status =>
                         string.Equals(status.Id, "local.inference", StringComparison.Ordinal)
                         && status.Readiness == DependencyReadiness.Ready)
@@ -6006,6 +6019,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             .Concat(InCallFeedbackCommand.FixedPhrases)
             .Concat(SpeechTextCommand.FixedPhrases)
             .Concat(ResponseReadCommand.FixedPhrases)
+            .Concat(SpeechCommand.FixedPhrases)
             .Concat(Kora.Core.Maintenance.MaintenanceCommandParser.FixedPhrases)
             .Concat(Kora.Core.Interaction.LocalEventCommand.FixedPhrases)
             .Concat(ClipboardPreview is { } snapshot

@@ -1079,6 +1079,11 @@ See [the shared native controls](settings.md#speech-provider).
 
 ### Inspect or lower spoken summary caps
 
+- **show spoken summary limits**
+- **set spoken summary sentence limit to 2**
+- **set spoken summary word limit to 40**
+- **reset spoken summary sentence limit**
+- **reset spoken summary word limit**
 - **list speech settings**
 - **get speech.summary-sentences**
 - **get speech.summary-words**
@@ -1086,6 +1091,12 @@ See [the shared native controls](settings.md#speech-provider).
 - **set speech.summary-words to 40**
 - **reset speech.summary-sentences**
 - **reset speech.summary-words**
+
+Natural aliases are exact whole utterances. Typed input accepts an optional current-name prefix; activated voice requires it ([dispatch](../src/Kora.Application/ViewModels/MainViewModel.cs)).
+
+Use canonical decimal integers, without signs, leading zeroes, fractions or word numerals; no relative "be brief" interpretation is added. Malformed reserved aliases clarify locally ([parser](../src/Kora.Application/Configuration/SpeechCommand.cs)).
+
+These commands change future ordinary-speech admission budgets, not the current answer or an instruction to speak now. Pending questions/approvals remain untouched; finish or cancel them first. Discovery and acknowledgements remain visual, with no new speech, regeneration or replay ([shared dispatch](../src/Kora.Application/ViewModels/MainViewModel.SpeechConfiguration.cs)).
 
 The exact spoken names **speech summary sentences** and **speech summary words**
 also work, with the configured-name prefix for activated voice.

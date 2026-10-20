@@ -140,6 +140,11 @@ public sealed partial class MainViewModel
 
     internal Task ExecuteSpeechCommandAsync(SpeechCommand command, SecurityAuditInitiator initiator)
     {
+        if (IsResponseInteractionPending)
+        {
+            Transcript = "Finish or cancel the pending question or approval before inspecting or changing speech settings.";
+            return Task.CompletedTask;
+        }
         if (!AdmitAppearanceRequest()) { return Task.CompletedTask; }
         if (command.Operation == AppearanceCommandOperation.Clarify)
         {

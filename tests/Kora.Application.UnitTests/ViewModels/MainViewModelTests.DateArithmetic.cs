@@ -194,7 +194,11 @@ public sealed partial class MainViewModelTests
             HostActivityLayer.Application, HostOperation.Request);
         using var replacement = new System.Diagnostics.Activity("untrusted-replacement").Start();
         var body = f.ViewModel.ResponseBody;
-        await f.RunAsync("date help");
+        HostActivity.HasScope.Should().BeTrue();
+        HostActivity.Current.Should().BeNull();
+        var routing = typeof(Kora.Application.ViewModels.MainViewModel).GetMethod(
+            "HandleTranscriptAsync", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!;
+        await (Task)routing.Invoke(f.ViewModel, ["date help", 1f, SecurityAuditInitiator.TypedCommand, null, null, null])!;
         f.ViewModel.Transcript.Should().Contain("unavailable");
         f.ViewModel.ResponseBody.Should().Be(body);
         f.Reasoner.Requests.Should().BeEmpty();

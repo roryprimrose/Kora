@@ -1,1 +1,1 @@
-{"version":1,"active":{"number":362,"head":"9988268e61118932f65558c1fffeeff0838c97b9","base":"cc6475cf143f248d4a60ed6d8aaa8147e3ce8d48","ticket":"e5b4e23d-603b-43f9-ae00-f3207b4f8923","enrollment":"2026-10-20T20:44:31Z","created":"2026-10-20T20:44:45.739Z","phase":"dispatched","dispatchRecorded":true,"checks":{"Portable build, tests, coverage, and package":118876440227,"Windows integration tests":118876458492,"Build WiX MSI and custom Burn setup":118876477506,"Merge admission":118876496239}},"blocked":[]}
+{"version":1,"active":null,"blocked":[]}

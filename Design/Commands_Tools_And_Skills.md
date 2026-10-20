@@ -15,6 +15,26 @@ For capability-specific limits, use [configuration](User_Configuration.md),
 [security](Security_Data_Flows.md), rather than repeating their delivery
 narratives here.
 
+## Deterministic local arithmetic
+
+The exact [calculator command](../docs/commands.md#local-decimal-calculator) is an
+original typed/current-name activated, native-only route. Core
+`CalculateCommand` reserves raw requests before question/approval/model routing;
+`DecimalCalculator` owns the bounded pure decimal grammar and typed failure
+outcomes. The Application route delegates arithmetic to the single host-owned
+`Kora.Tools.Calculations.Calculate` action. That action requires live host
+context, original native/activated origin, no model invocation and current host
+admission, and creates a correlated tool activity with a truthful terminal
+outcome. Diagnostics include only the outcome, never expression or result.
+
+This route performs no consequential effect, persistence, source read, egress or
+grant mutation, so it creates no security-audit event. It preserves pending
+questions and approvals and reports only in the private native transcript,
+without automatic speech or response-source replacement. The existing private,
+ownership, consent, call and original voice-generation gates remain required.
+No speculative model descriptor, execution lane or provider qualification is
+enabled.
+
 ## Delivered Artifact Invocation
 
 Kora has one source-qualified artifact invocation route for bundled skills and

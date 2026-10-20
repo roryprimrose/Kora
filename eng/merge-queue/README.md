@@ -126,7 +126,11 @@ merge authority. Coverage comments remain informational.
 Before attestation, the controller rechecks head, base, queue intent, reviews
 and ancestry. Its merge request includes the expected head. Strict up-to-date
 protection handles a main-advance race at the final GitHub merge boundary.
-The App has no main-protection bypass and cannot approve PR reviews.
+The App has no main-protection bypass. The controller never creates or approves
+PR reviews. GitHub includes review APIs in the App's **Pull requests: read/write**
+permission; there is no separate App permission to disable those APIs. Keep its
+private key restricted to trusted main workflows rather than treating the
+permission name as a review-approval restriction.
 
 ## Durable scheduling and cancellation
 
@@ -153,6 +157,9 @@ Head/base/intent changes cancel only the matching candidate run. The lane stays
 occupied until that run terminates, so cancellation cannot accidentally admit a
 second expensive build while the first is still running. Reruns/duplicate ticket
 runs are not accepted as fresh evidence.
+An already-merged PR uses the same quiescence rule: its recorded dispatch must
+be observable and terminal before the lane is released. Recovery cancels any
+remaining matching run without overwriting previously successful check evidence.
 
 Main release builds and explicit version-tag/manual builds retain their existing
 behaviour; candidate dispatch does not cancel them. This initial change does not
@@ -196,7 +203,7 @@ These are administrator operations, **not performed by the implementation PR**:
    - Actions, Checks, Contents, Pull requests: **read/write**.
    - Administration: **read only**, to verify branch protection.
    - Metadata: the required read permission.
-   Do not give it bypass rights on main. Do not grant review approval.
+   Do not give it bypass rights on main or use it to approve PR reviews.
 3. Create a `merge-queue` Actions environment restricted to deployment from
    **main only**. Put the App private key in its environment secret
    `KORA_MERGE_QUEUE_PRIVATE_KEY`, never a repository-wide secret.
@@ -205,6 +212,9 @@ These are administrator operations, **not performed by the implementation PR**:
 4. Protect `automation/merge-queue-state` against ordinary updates, force-push
    and deletion. Permit the queue App to create/update this state branch;
    any exception is scoped to **that branch**, never main.
+   With repository rulesets, scope the App exception to creation and update.
+   Put deletion and non-fast-forward restrictions in a separate active ruleset
+   with no bypass actors, so the App cannot bypass those history safeguards.
 5. Pause enrollment and let existing expensive PR runs drain. With no ready
    auto-merging PRs, configure the following main checks to require the queue
    App as their expected source, retaining strict freshness/admin enforcement:
@@ -241,6 +251,11 @@ installation, GitHub permission configuration or this hosted canary has happened
   checks with **GitHub Actions** as source and remove the App admission
   requirement. Re-run ordinary PR CI before re-enabling native Auto-merge.
   Changing the mode alone intentionally does not make a PR mergeable.
+- If the trusted-main controller itself needs repair, keep the App checks
+  required while disabled-mode CI validates the repair PR. Before restoring
+  ordinary protection, ensure other open PRs cannot qualify using only skipped
+  queue-waiting checks. Merge the tested repair through ordinary protected CI,
+  retain the durable state history, then repeat the App-source canary.
 
 ## Deterministic validation
 
@@ -254,3 +269,6 @@ APIs and a temporary local version fixture; they do not mutate GitHub, install a
 App, change branch protection, call providers or exercise physical devices.
 Workflow contract tests accept `KORA_QUEUE_WORKFLOW_TEST_PATH` to test a
 separately prepared combined workflow without changing the working copy.
+Octokit's `paginate` returns normalized arrays for workflow runs, jobs and
+check runs. Pagination callbacks and test doubles must use that array contract,
+not the named object envelopes returned by individual REST requests.

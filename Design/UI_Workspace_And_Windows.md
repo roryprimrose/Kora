@@ -279,6 +279,26 @@ provider, memory-content or mutation authority is added.
 
 ### Delivered Retained Session Attachment Catalogue - 2026-10-11
 
+**Order this loaded page** is a pure bounded metadata presentation policy in
+Core. It validates the entire admitted page before ordering, preserves Source
+order by default and uses ascending canonical D-format session IDs (the
+authoritative unique retained-slot key) for ties in both directions. Retained
+byte ordering consumes only `RetainedStoredBytes`, with unknown values last.
+The current projection has no display names: both ordinal name choices disclose
+that every name is unavailable and resolve only ties, never recover names from
+source/path/body data. No projection, schema, scan, continuation or budget changes
+are implied.
+
+Order edits and the separate no-read Clear order retire selection/details/Find
+and exact-open readiness, cancel in-flight open work and replace presentation
+identities to reject stale native selection callbacks. The admitted source page
+and semantic Next token stay unchanged; late work cannot overwrite that new
+presentation. Private/control/session/source/window lifetime revocation still
+clears both. This is an I-only feature qualified by deterministic portable and
+headless accessibility tests, not provider, installed-screen-reader or hardware
+qualification. [User ordering workflow](../docs/windows-and-tray.md#order-this-loaded-page)
+owns the control instructions.
+
 **Tray > Retained session attachments** is a separate native metadata-only window, not the current-question recovery surface, All Work overview, model context or a conversation. Opening reads nothing. Refresh/Next/Cancel returns at most sixteen content-free summaries / 64 KiB, scanning sixty-four slots; optional removal provenance is independent of the sixteen retained-body cap.
 
 Native default Browse and explicit canonical **ExactId** share the same bounded validator/scan, with Search/Enter, Next/Cancel and memory-only Clear. ID/mode/removal-filter edits retire selection, results, continuation and pending work; private/source closure erases the volatile query and fences late disclosure.

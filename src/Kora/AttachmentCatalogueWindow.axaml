@@ -18,6 +18,13 @@
     <ScrollViewer Grid.Row="1" MaxHeight="380" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
     <StackPanel Spacing="6">
       <WrapPanel>
+        <ComboBox x:Name="AttachmentPageOrder" ItemsSource="{Binding PageOrders}" SelectedItem="{Binding PageOrder, Mode=TwoWay}"
+                  IsEnabled="{Binding CanOrderPage}" AutomationProperties.Name="Order this loaded page: Source order, display name ascending or descending ordinal (names unavailable), retained byte count ascending or descending (unknown last); metadata only; no read" />
+        <Button x:Name="ClearAttachmentPageOrder" Content="Clear _order (Source order)" IsEnabled="{Binding CanOrderPage}"
+                AutomationProperties.Name="Clear loaded-page order to Source order without a read; retires selection, details, Find and open readiness" />
+      </WrapPanel>
+      <controls:NamedTextBlock x:Name="AttachmentPageOrderDisclosure" Text="{Binding PageOrderHint}" TextWrapping="Wrap" />
+      <WrapPanel>
         <ComboBox x:Name="AttachmentSessionFilter" ItemsSource="{Binding Filters}" SelectedItem="{Binding Filter, Mode=TwoWay}"
                   IsEnabled="{Binding CanEdit}" AutomationProperties.Name="Stored session lifecycle: All, Active, Done or Removed; independent of removed attachment slots" />
         <ComboBox x:Name="AttachmentMediaType" ItemsSource="{Binding MediaTypes}" SelectedItem="{Binding MediaType, Mode=TwoWay}"

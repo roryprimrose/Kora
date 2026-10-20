@@ -452,6 +452,28 @@ the response window visible; idle presence still uses its own timeout.
 
 ## Retained session attachments (metadata only)
 
+### Order this loaded page
+
+After explicitly reading a page, use **Order this loaded page** to choose
+**Source order (default)**, **Display name ascending/descending (ordinal)**, or
+**Retained byte count ascending/descending**. This is **page-only, metadata-only**
+presentation: it never reads a file, body or path, refreshes a source, changes a
+query, scans more rows, changes storage order or gives a global order/count.
+
+This catalogue does not admit display names, so every name is unavailable in
+both name directions. Their ties use the canonical exact retained-slot session
+ID, ascending ordinal. Equal byte counts use the same tie-break; unknown byte
+counts remain last in either direction, not zero. Removed/unavailable provenance
+never recovers former names, counts, digest or source metadata.
+
+Changing order erases selection, details, literal Find and native open readiness,
+including pending open callbacks. Select a current row again explicitly.
+**Clear order (Source order)** restores the original loaded-page sequence
+without a read. **Next bounded page** still uses that page's original semantic
+continuation, not its last displayed row. The chosen order applies separately to
+the next admitted page. Clear query, privacy/source/control revocation and close
+restore Source order; existing lifetime and private-admission checks remain.
+
 ### Find within selected displayed metadata
 
 Read a catalogue page and select a row. Use **Private one-line Find** in its details pane: **Find first** (Enter), **Find next** (F3), **Find previous** (Shift+F3). Only that frozen displayed text is searched: exact case/spaces, no overlap or wrap, explicit invalid input ([state](../src/Kora.Application/Presentation/AttachmentMetadataFindState.cs)).

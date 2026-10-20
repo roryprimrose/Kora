@@ -19,6 +19,9 @@ internal sealed partial class AttachmentCatalogueViewModel(
 {
     private readonly HostRequest viewer = HostRequest.Create(RequestOrigin.LocalUi);
     private SessionAttachmentPage? page;
+    private IReadOnlyList<SessionAttachmentSummary> visibleRecords = [];
+    private AttachmentPageOrderChoice? pageOrder = new(SessionAttachmentPageOrder.Source, "Source order (default)");
+    private bool notifying;
     private SessionAttachmentSummary? selected;
     private string selectedDetails = string.Empty;
     private AdmittedMetadataFindState? metadataFind;
@@ -54,7 +57,53 @@ internal sealed partial class AttachmentCatalogueViewModel(
     private string status = "Refresh explicitly. Opening never captures a file. " + SessionAttachmentPage.Scope;
     internal event Action<SessionAttachmentSummary>? SelectionRevoked;
 
-    public IReadOnlyList<SessionAttachmentSummary> Records => page?.Records ?? [];
+    public IReadOnlyList<SessionAttachmentSummary> Records => visibleRecords;
+    public IReadOnlyList<AttachmentPageOrderChoice> PageOrders { get; } =
+        [new(SessionAttachmentPageOrder.Source, "Source order (default)"),
+            new(SessionAttachmentPageOrder.DisplayNameAscending, "Display name ascending (ordinal; unavailable)"),
+            new(SessionAttachmentPageOrder.DisplayNameDescending, "Display name descending (ordinal; unavailable)"),
+            new(SessionAttachmentPageOrder.RetainedBytesAscending, "Retained byte count ascending (unknown last)"),
+            new(SessionAttachmentPageOrder.RetainedBytesDescending, "Retained byte count descending (unknown last)")];
+    public bool CanOrderPage => CanEdit && page is not null;
+    public string PageOrderHint => "Order this loaded page only; metadata only. No read, query/scan/storage/global order or count change. "
+        + "Display names are not admitted by this catalogue: all are unavailable; both name directions use canonical session ID ties. "
+        + "Unknown retained byte counts stay last in either direction. Next keeps the original semantic continuation. "
+        + "Changing or clearing order retires selection, details, literal Find and native open readiness; select again explicitly.";
+    public AttachmentPageOrderChoice? PageOrder
+    {
+        get => pageOrder;
+        set
+        {
+            SynchronizeAuthority();
+            if (notifying || !CanOrderPage || pageOrder == value || page is not { } source) { return; }
+            epoch++;
+            operation?.Cancel();
+            RetireSelection();
+            SynchronizeAuthority();
+            if (!ReferenceEquals(page, source)) { return; }
+            pageOrder = value;
+            try
+            {
+                // New presentation identities reject delayed callbacks from the retired native list.
+                visibleRecords = [.. SessionAttachmentPageOrdering.Apply(source, RequirePageOrder()).Select(row => row with { })];
+                status = "Loaded-page order changed without a read. Selection retired; select again explicitly. " + SessionAttachmentPage.Scope;
+            }
+            catch (InvalidDataException exception)
+            {
+                visibleRecords = [];
+                status = "Invalid loaded-page order or metadata. No results; Clear order restores Source order after full validation.";
+                Failure(logger, exception.GetType().Name);
+            }
+            Notify();
+        }
+    }
+    public void ClearPageOrder() => PageOrder = PageOrders[0];
+    private SessionAttachmentPageOrder RequirePageOrder()
+    {
+        if (pageOrder is not { Value: var order } || !Enum.IsDefined(order))
+        { throw new InvalidDataException("Choose a defined loaded-page order; no fallback or read."); }
+        return order;
+    }
     public SessionAttachmentSummary? SelectedRecord => selected;
     public string SelectedDetails
     {
@@ -108,7 +157,7 @@ internal sealed partial class AttachmentCatalogueViewModel(
     public bool CanEdit => !disposed && access.CanInspect && admitted();
     public bool CanEditId => CanEdit && mode == AttachmentCatalogueMode.ExactId;
     public bool CanRead => CanEdit && operation is null;
-    public bool CanSearch => CanRead && ValidFileReference && ValidVersions && ValidCorrelation && ValidDigest && ValidCopyAndBytes && ValidMetadataText && ValidMediaType && Enum.IsDefined(filter) && (mode == AttachmentCatalogueMode.Browse
+    public bool CanSearch => CanRead && pageOrder is not null && Enum.IsDefined(pageOrder.Value) && ValidFileReference && ValidVersions && ValidCorrelation && ValidDigest && ValidCopyAndBytes && ValidMetadataText && ValidMediaType && Enum.IsDefined(filter) && (mode == AttachmentCatalogueMode.Browse
         || SessionListSearch.IsValid(SessionListSearchKind.ExactId, SessionListFilter.All, queryText));
     public bool CanNext => CanSearch && page?.Next is not null;
     public bool CanCancel => !disposed && operation is not null;
@@ -440,7 +489,8 @@ internal sealed partial class AttachmentCatalogueViewModel(
 
     public void Select(SessionAttachmentSummary? summary)
     {
-        if (!CanRead || summary is not null && !Records.Contains(summary)) { return; }
+        SynchronizeAuthority();
+        if (notifying || !CanRead || summary is not null && !Records.Any(row => ReferenceEquals(row, summary))) { return; }
         var previous = selected;
         RetireFind();
         selected = summary;
@@ -462,6 +512,7 @@ internal sealed partial class AttachmentCatalogueViewModel(
 
     public Task Refresh(bool next = false) => Run(async (current, token) =>
     {
+        var order = RequirePageOrder();
         if (!ValidMediaType) { throw new InvalidDataException("Unknown or noncanonical exact media-type filter."); }
         var bounds = CopyAndBytesQuery();
         var correlation = CorrelationQuery();
@@ -485,6 +536,7 @@ internal sealed partial class AttachmentCatalogueViewModel(
         result.Validate();
         if (result.Query != query) { throw new InvalidDataException("The attachment page does not match the original native query."); }
         if (!current()) { throw new OperationCanceledException("Private metadata observation was revoked."); }
+        visibleRecords = SessionAttachmentPageOrdering.Apply(result, order);
         page = result;
         status = "This page: " + result.Records.Length.ToString(CultureInfo.InvariantCulture) + " rows; "
             + result.ScannedRows.ToString(CultureInfo.InvariantCulture) + " slots scanned; "
@@ -530,13 +582,13 @@ internal sealed partial class AttachmentCatalogueViewModel(
         }
         catch (OperationCanceledException)
         {
-            Clear();
+            if (epoch == originalEpoch) { Clear(); }
             if (!disposed && epoch == originalEpoch) { status = "Cancelled or revoked. No late page or navigation remains current. Refresh."; }
             activity.Complete(HostOperationOutcome.Cancelled);
         }
         catch (Exception exception) when (exception is not OutOfMemoryException)
         {
-            Clear();
+            if (epoch == originalEpoch) { Clear(); }
             if (!disposed && epoch == originalEpoch) { status = "Attachment catalogue unavailable: " + exception.GetType().Name + ". No empty success; correct the canonical ID/literal query or refresh under private admission."; }
             Failure(logger, exception.GetType().Name);
             activity.Complete(HostOperationOutcome.Failed);
@@ -544,6 +596,7 @@ internal sealed partial class AttachmentCatalogueViewModel(
         finally
         {
             operation = null;
+            SynchronizeAuthority();
             Notify();
         }
     }
@@ -554,6 +607,7 @@ internal sealed partial class AttachmentCatalogueViewModel(
     {
         if (!CanEdit) { return; }
         InvalidateQuery();
+        pageOrder = PageOrders[0];
         mode = AttachmentCatalogueMode.Browse;
         queryText = string.Empty;
         metadataText = string.Empty;
@@ -589,6 +643,7 @@ internal sealed partial class AttachmentCatalogueViewModel(
         epoch++;
         operation?.Cancel();
         Clear();
+        pageOrder = PageOrders[0];
         mode = AttachmentCatalogueMode.Browse;
         queryText = string.Empty;
         metadataText = string.Empty;
@@ -603,10 +658,16 @@ internal sealed partial class AttachmentCatalogueViewModel(
 
     private void Clear()
     {
+        page = null;
+        visibleRecords = [];
+        RetireSelection();
+    }
+
+    private void RetireSelection()
+    {
         RetireFind();
         selectedDetails = string.Empty;
         var previous = selected;
-        page = null;
         selected = null;
         if (previous is not null) { SelectionRevoked?.Invoke(previous); }
     }
@@ -618,6 +679,7 @@ internal sealed partial class AttachmentCatalogueViewModel(
         epoch++;
         operation?.Cancel();
         Clear();
+        pageOrder = PageOrders[0];
         status = string.Empty;
         includeRemoved = false;
         filter = SessionAttachmentFilter.All;
@@ -653,51 +715,58 @@ internal sealed partial class AttachmentCatalogueViewModel(
 
     private void Notify()
     {
-        NotifyFind();
-        OnPropertyChanged(nameof(Records));
-        OnPropertyChanged(nameof(SelectedRecord));
-        OnPropertyChanged(nameof(SelectedDetails));
-        OnPropertyChanged(nameof(Status));
-        OnPropertyChanged(nameof(CanEdit));
-        OnPropertyChanged(nameof(CanEditId));
-        OnPropertyChanged(nameof(CanRead));
-        OnPropertyChanged(nameof(CanSearch));
-        OnPropertyChanged(nameof(CanNext));
-        OnPropertyChanged(nameof(CanCancel));
-        OnPropertyChanged(nameof(CanNavigate));
-        OnPropertyChanged(nameof(IncludeRemoved));
-        OnPropertyChanged(nameof(Filter));
-        OnPropertyChanged(nameof(MediaType));
-        OnPropertyChanged(nameof(MediaTypeHint));
-        OnPropertyChanged(nameof(CopyStatus));
-        OnPropertyChanged(nameof(MinimumBytesText));
-        OnPropertyChanged(nameof(MaximumBytesText));
-        OnPropertyChanged(nameof(CopyAndBytesHint));
-        OnPropertyChanged(nameof(Mode));
-        OnPropertyChanged(nameof(QueryText));
-        OnPropertyChanged(nameof(MetadataText));
-        OnPropertyChanged(nameof(MetadataHint));
-        OnPropertyChanged(nameof(DigestText));
-        OnPropertyChanged(nameof(DigestHint));
-        OnPropertyChanged(nameof(ObservationSourceText));
-        OnPropertyChanged(nameof(DeviceProfileText));
-        OnPropertyChanged(nameof(CapturedFromText));
-        OnPropertyChanged(nameof(CapturedUntilText));
-        OnPropertyChanged(nameof(CorrelationHint));
-        OnPropertyChanged(nameof(MinimumSessionGenerationText));
-        OnPropertyChanged(nameof(MaximumSessionGenerationText));
-        OnPropertyChanged(nameof(MinimumCapturedGenerationText));
-        OnPropertyChanged(nameof(MaximumCapturedGenerationText));
-        OnPropertyChanged(nameof(MinimumStorageRevisionText));
-        OnPropertyChanged(nameof(MaximumStorageRevisionText));
-        OnPropertyChanged(nameof(VersionHint));
-        OnPropertyChanged(nameof(GenerationRelationship));
-        OnPropertyChanged(nameof(GenerationRelationshipHint));
-        OnPropertyChanged(nameof(FileSourceIdText));
-        OnPropertyChanged(nameof(FileRevisionIdText));
-        OnPropertyChanged(nameof(FileItemIdText));
-        OnPropertyChanged(nameof(FileReferenceHint));
-        OnPropertyChanged(nameof(QueryHint));
+        notifying = true;
+        try
+        {
+            NotifyFind();
+            OnPropertyChanged(nameof(PageOrder));
+            OnPropertyChanged(nameof(CanOrderPage));
+            OnPropertyChanged(nameof(Records));
+            OnPropertyChanged(nameof(SelectedRecord));
+            OnPropertyChanged(nameof(SelectedDetails));
+            OnPropertyChanged(nameof(Status));
+            OnPropertyChanged(nameof(CanEdit));
+            OnPropertyChanged(nameof(CanEditId));
+            OnPropertyChanged(nameof(CanRead));
+            OnPropertyChanged(nameof(CanSearch));
+            OnPropertyChanged(nameof(CanNext));
+            OnPropertyChanged(nameof(CanCancel));
+            OnPropertyChanged(nameof(CanNavigate));
+            OnPropertyChanged(nameof(IncludeRemoved));
+            OnPropertyChanged(nameof(Filter));
+            OnPropertyChanged(nameof(MediaType));
+            OnPropertyChanged(nameof(MediaTypeHint));
+            OnPropertyChanged(nameof(CopyStatus));
+            OnPropertyChanged(nameof(MinimumBytesText));
+            OnPropertyChanged(nameof(MaximumBytesText));
+            OnPropertyChanged(nameof(CopyAndBytesHint));
+            OnPropertyChanged(nameof(Mode));
+            OnPropertyChanged(nameof(QueryText));
+            OnPropertyChanged(nameof(MetadataText));
+            OnPropertyChanged(nameof(MetadataHint));
+            OnPropertyChanged(nameof(DigestText));
+            OnPropertyChanged(nameof(DigestHint));
+            OnPropertyChanged(nameof(ObservationSourceText));
+            OnPropertyChanged(nameof(DeviceProfileText));
+            OnPropertyChanged(nameof(CapturedFromText));
+            OnPropertyChanged(nameof(CapturedUntilText));
+            OnPropertyChanged(nameof(CorrelationHint));
+            OnPropertyChanged(nameof(MinimumSessionGenerationText));
+            OnPropertyChanged(nameof(MaximumSessionGenerationText));
+            OnPropertyChanged(nameof(MinimumCapturedGenerationText));
+            OnPropertyChanged(nameof(MaximumCapturedGenerationText));
+            OnPropertyChanged(nameof(MinimumStorageRevisionText));
+            OnPropertyChanged(nameof(MaximumStorageRevisionText));
+            OnPropertyChanged(nameof(VersionHint));
+            OnPropertyChanged(nameof(GenerationRelationship));
+            OnPropertyChanged(nameof(GenerationRelationshipHint));
+            OnPropertyChanged(nameof(FileSourceIdText));
+            OnPropertyChanged(nameof(FileRevisionIdText));
+            OnPropertyChanged(nameof(FileItemIdText));
+            OnPropertyChanged(nameof(FileReferenceHint));
+            OnPropertyChanged(nameof(QueryHint));
+        }
+        finally { notifying = false; }
     }
 
     private void RetireFind()

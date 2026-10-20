@@ -248,6 +248,47 @@ public sealed partial class SessionWorkspaceServiceTests
     }
 
     [Fact]
+    public async Task NaturalSettingsNeverExecuteOrRewriteRowsAndOnlyFutureEnqueueAdmissionCapturesConfirmedValues()
+    {
+        using var f = new Fixture();
+        await using var settings = new SessionQueueConfigurationTestFixture();
+        settings.Service.Observe();
+        await using var queue = f.QueueService(configuration: settings.Service);
+        await queue.ExecuteCommandAsync(f.QueueCommand(SessionCommandOperation.QueueEnqueue), RequestOrigin.LocalUi, () => true, f.Token);
+        var original = f.QueueRows.Single();
+        foreach (var input in new[] { "set fixed read pending capacity to 2", "set fixed read execution slots to 2",
+            "set fixed read pending lifetime to 120 minutes", "set fixed read active budget to 60 minutes" })
+        {
+            var command = SessionQueueConfigurationCommand.Parse(input, "Kora")!;
+            await settings.Refresh();
+            await settings.Set(command.Value, command.Option!.Value);
+            f.QueueRows.Should().Equal(original);
+            f.QueueActions.Should().Be(0);
+        }
+        await queue.ExecuteCommandAsync(f.QueueCommand(SessionCommandOperation.QueueEnqueue) with { QueueRevision = f.QueueRevision },
+            RequestOrigin.LocalUi, () => true, f.Token);
+        var following = f.QueueRows.Last();
+        original.ExpiresAt.Should().Be(original.EnqueuedAt.AddMinutes(30));
+        following.ExpiresAt.Should().Be(following.EnqueuedAt.AddMinutes(120));
+        f.QueueActions.Should().Be(0);
+        var dispatched = await queue.ExecuteCommandAsync(f.QueueCommand(SessionCommandOperation.QueueDispatch) with { QueueRevision = f.QueueRevision },
+            RequestOrigin.LocalUi, () => true, f.Token);
+        dispatched.QueueDispatch.Should().HaveCount(2).And.OnlyContain(result => result.Entry.ActiveBudgetMinutes == 60
+            && result.Entry.ActiveDeadlineAt == result.Entry.AdmittedAt!.Value.AddMinutes(60));
+        var terminal = f.QueueRows.ToArray();
+        var actions = f.QueueActions;
+        foreach (var phrase in new[] { "pending capacity", "execution slots", "pending lifetime", "active budget" })
+        {
+            var command = SessionQueueConfigurationCommand.Parse("reset fixed read " + phrase, "Kora")!;
+            await settings.Refresh();
+            await settings.Set(null, command.Option!.Value);
+            f.QueueRows.Should().Equal(terminal);
+            f.QueueActions.Should().Be(actions);
+        }
+        settings.Service.Get().Saved!.IsDefault.Should().BeTrue();
+    }
+
+    [Fact]
     public async Task Configured_pending_capacity_feeds_admission_and_native_exact_observation_without_eviction_or_deadline_change()
     {
         using var f = new Fixture();

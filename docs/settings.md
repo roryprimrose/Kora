@@ -986,6 +986,9 @@ Each option resets independently; another Refresh is required before a new edit.
 The [exact typed/current-name commands](commands.md#fixed-queue-settings) use
 the same original-input host admission, revisions and audited confirmation.
 
+Use `show fixed read queue settings` to inspect all four options. Exact natural setters and independent resets are listed in the [fixed queue command table](commands.md#fixed-queue-settings), for example `set fixed read pending lifetime to 60 minutes` and `reset fixed read pending lifetime`.
+These aliases use the [existing configuration action](../src/Kora.Application/ViewModels/MainViewModel.QueueConfiguration.cs); they do not edit native selection properties, enqueue work or bypass confirmed activation. The canonical `minutes` token is required for both durations; vague worker/executor instructions are not settings commands ([parser](../src/Kora.Application/Configuration/SessionQueueConfigurationCommand.cs)).
+
 The displayed legacy settings-group name also covers the three additional
 [fixed first-page profiles](commands.md#deterministic-local-version-queue).
 Their captured deadlines and slots follow the same future-only rules;

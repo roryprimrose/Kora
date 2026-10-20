@@ -5546,6 +5546,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
                     $"{Commands.Count} deterministic commands are registered. Say “{AssistantName}, open documentation” and choose Commands for the full list. "
                     + "Use “list capabilities” for the admitted read-only registry, or “describe capability” followed by a canonical ID. "
                     + "Use “session help” for bounded exact-ID session observations and explicit lifecycle controls. "
+                    + "Use “show fixed read queue settings” for exact inspect/set/independent-reset phrases for future-only fixed read queue limits; manual dispatch remains unchanged. "
                     + $"Use “{AssistantName}, list assistant settings” for the display/PTT command-prefix name. "
                     + NaturalAppearanceCommand.Syntax + " "
                     + "Natural name commands: “what is your name”, “call yourself <name>”, “change your name to <name>”, or “reset your name”. "

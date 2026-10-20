@@ -1,11 +1,169 @@
 using AwesomeAssertions;
 using Kora.Application.Configuration;
+using Kora.Core.Auditing;
+using Kora.Core.Communication;
 using Kora.Core.Configuration;
 
 namespace Kora.Application.UnitTests.ViewModels;
 
 public sealed partial class MainViewModelTests
 {
+    [Theory]
+    [InlineData("set fixed read pending capacity to 1")]
+    [InlineData("reset fixed read active budget")]
+    public async Task NaturalSettingsCannotReplacePendingSecurityPreviewOrMutateLockedHost(string input)
+    {
+        var f = new Fixture(enableQueueConfiguration: true);
+        await using var admission = f.OutputAdmission;
+        await using var configuration = f.QueueConfiguration!;
+        f.Probe.Status = new("local.inference", "Local model inference (Ollama)", Kora.Core.Dependencies.DependencyReadiness.Ready, "ready");
+        f.Reasoner.Action = Kora.Core.Commands.BuiltInAction.LockMachine;
+        await f.ViewModel.InitializeAsync();
+        f.Session.IsUnlocked = false;
+        await f.RunAsync(input);
+        f.QueuePreferences.Writes.Should().Be(0);
+        f.Session.IsUnlocked = true;
+        await f.RunAsync("lock this workstation please");
+        await f.ViewModel.ActiveReasoningTask!;
+        var preview = f.ViewModel.ResponseBody;
+        await f.ViewModel.ExecuteQueueConfigurationCommandAsync(SessionQueueConfigurationCommand.Parse(input, "Kora")!,
+            SecurityAuditInitiator.TypedCommand, TestContext.Current.CancellationToken);
+        f.QueuePreferences.Writes.Should().Be(0);
+        f.ViewModel.ResponseBody.Should().Be(preview);
+        f.ViewModel.Transcript.Should().Contain("no pending exact question/approval");
+        f.ViewModel.Dispose();
+    }
+
+    [Fact]
+    public async Task QueueHelpAdvertisesOnlyBoundedFutureControls()
+    {
+        var f = new Fixture(enableQueueConfiguration: true);
+        await using var admission = f.OutputAdmission;
+        await using var configuration = f.QueueConfiguration!;
+        await f.ViewModel.InitializeAsync();
+        await f.RunAsync("help");
+        f.ViewModel.ResponseBody.Should().Contain("show fixed read queue settings").And.Contain("future-only")
+            .And.Contain("manual dispatch remains unchanged");
+        f.QueuePreferences.Writes.Should().Be(0);
+        f.ViewModel.Dispose();
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task NaturalQueueSettingsShareConfirmedOriginalInputAndIndependentSparseResets(bool voice)
+    {
+        var f = new Fixture(enableQueueConfiguration: true);
+        await using var admission = f.OutputAdmission;
+        await using var configuration = f.QueueConfiguration!;
+        await f.ViewModel.InitializeAsync();
+        await f.RunAsync("set assistant.name to Nova");
+        f.QueuePreferences.Value = new(3, 2, 45, 12);
+        foreach (var (phrase, value, option) in new[] {
+            ("pending capacity", "10", SessionQueueOption.PendingPerSession),
+            ("execution slots", "1", SessionQueueOption.ExecutionSlots),
+            ("pending lifetime", "120 minutes", SessionQueueOption.PendingLifetimeMinutes),
+            ("active budget", "60 minutes", SessionQueueOption.ActiveBudgetMinutes) })
+        {
+            var before = f.QueuePreferences.Value;
+            var integer = value.Split(' ')[0];
+            var set = "set fixed read " + phrase + " to " + value;
+            if (voice) { await f.RaiseActivatedTranscriptAsync("Nova, " + set, 1); }
+            else { await f.RunAsync(set); }
+            f.QueuePreferences.Value.Should().Be(before.With(option, integer));
+            f.QueuePreferences.Pending.Should().BeFalse();
+            var writes = f.QueuePreferences.Writes;
+            if (voice) { await f.RaiseActivatedTranscriptAsync("Nova, show fixed read " + phrase, 1); }
+            else { await f.RunAsync("show fixed read " + phrase); }
+            f.QueuePreferences.Writes.Should().Be(writes);
+            f.ViewModel.ResponseBody.Should().Contain("\"outcome\":\"observed\"").And.Contain("\"schema\":3");
+            if (voice) { await f.RaiseActivatedTranscriptAsync("Nova, reset fixed read " + phrase, 1); }
+            else { await f.RunAsync("reset fixed read " + phrase); }
+            f.QueuePreferences.Value.Should().Be(before.With(option, null));
+        }
+        f.QueuePreferences.Value.IsDefault.Should().BeTrue();
+        await f.RunAsync("show fixed read queue settings");
+        f.ViewModel.ResponseBody.Should().Contain("show fixed read queue settings").And.Contain("manual dispatch")
+            .And.Contain("existing pending metadata and admitted deadlines never change");
+        var audit = f.Audit.Events.Where(item => item.ActionId.StartsWith("configuration.queue-", StringComparison.Ordinal)).ToArray();
+        audit.Should().HaveCount(16);
+        audit.Chunk(2).Should().OnlyContain(pair => pair[0].Outcome == SecurityAuditOutcome.Requested
+            && pair[1].Outcome == SecurityAuditOutcome.Succeeded && pair[0].CorrelationId == pair[1].CorrelationId
+            && pair[0].Initiator == (voice ? SecurityAuditInitiator.VoiceCommand : SecurityAuditInitiator.TypedCommand));
+        f.Reasoner.Requests.Should().BeEmpty();
+        f.TextToSpeech.SpokenText.Should().BeNull();
+        f.ViewModel.Dispose();
+    }
+
+    [Theory]
+    [InlineData("set fixed read pending capacity to two")]
+    [InlineData("set fixed read execution slots to 3")]
+    [InlineData("set fixed read pending lifetime to 121 minutes")]
+    [InlineData("set fixed read active budget to 60 minutes apply-now")]
+    [InlineData("reset fixed read queue settings")]
+    public async Task MalformedNaturalSettingsAreConsumedWithoutModelOrMutation(string input)
+    {
+        var f = new Fixture(enableQueueConfiguration: true);
+        await using var admission = f.OutputAdmission;
+        await using var configuration = f.QueueConfiguration!;
+        await f.ViewModel.InitializeAsync();
+        await f.RunAsync(input);
+        f.ViewModel.ResponseTitle.Should().Contain("Clarify");
+        f.QueuePreferences.Writes.Should().Be(0);
+        f.Reasoner.Requests.Should().BeEmpty();
+        f.ViewModel.Dispose();
+    }
+
+    [Theory]
+    [InlineData(CallState.Active)]
+    [InlineData(CallState.Suspected)]
+    [InlineData(CallState.Unknown)]
+    public async Task NaturalVoiceWritesRemainProtectedCallSensitive(CallState call)
+    {
+        var f = new Fixture(enableQueueConfiguration: true);
+        await using var admission = f.OutputAdmission;
+        await using var configuration = f.QueueConfiguration!;
+        f.Voice.Microphones = [new("0", "Headset")];
+        f.Voice.DefaultMicrophoneId = "0";
+        await f.ViewModel.InitializeAsync();
+        await f.ViewModel.SetVoiceConsentAsync(true);
+        if (!f.ViewModel.IsVoiceEnabled) { await f.ViewModel.ToggleListeningCommand.ExecuteAsync(); }
+        f.CallState.SetState(call);
+        await f.Dispatcher.LastInvocation;
+        foreach (var input in new[] { "set fixed read pending capacity to 1", "set fixed read execution slots to 2",
+            "set fixed read pending lifetime to 120 minutes", "set fixed read active budget to 60 minutes",
+            "reset fixed read pending capacity", "reset fixed read execution slots",
+            "reset fixed read pending lifetime", "reset fixed read active budget" })
+        {
+            await f.ViewModel.ExecuteQueueConfigurationCommandAsync(SessionQueueConfigurationCommand.Parse(input, "Kora")!,
+                SecurityAuditInitiator.VoiceCommand, TestContext.Current.CancellationToken);
+            f.QueuePreferences.Writes.Should().Be(0);
+            f.ViewModel.ResponseBody.Should().Contain("\"outcome\":\"denied\"");
+        }
+        f.QueuePreferences.Value.IsDefault.Should().BeTrue();
+        f.Reasoner.Requests.Should().BeEmpty();
+        f.ViewModel.Dispose();
+    }
+
+    [Theory]
+    [InlineData("reset fixed read pending capacity")]
+    [InlineData("reset fixed read execution slots")]
+    [InlineData("reset fixed read pending lifetime")]
+    [InlineData("reset fixed read active budget")]
+    public async Task NaturalResetCannotDefaultCorruptCompanionState(string input)
+    {
+        var f = new Fixture(enableQueueConfiguration: true, queueReadFailure: new InvalidDataException("unknown saved companion"));
+        await using var admission = f.OutputAdmission;
+        await using var configuration = f.QueueConfiguration!;
+        await f.ViewModel.InitializeAsync();
+        await f.RunAsync(input);
+        f.QueuePreferences.Writes.Should().Be(0);
+        configuration.Get().Available.Should().BeFalse();
+        f.ViewModel.ResponseTitle.Should().Contain("not confirmed");
+        f.Reasoner.Requests.Should().BeEmpty();
+        f.ViewModel.Dispose();
+    }
+
     [Fact]
     public async Task Native_exact_typed_and_current_name_activated_settings_share_admission_without_model_audio_or_execution()
     {

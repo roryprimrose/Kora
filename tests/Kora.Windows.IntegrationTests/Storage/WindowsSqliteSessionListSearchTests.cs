@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Globalization;
 
 using AwesomeAssertions;
 
@@ -111,32 +112,69 @@ public sealed class WindowsSqliteSessionListSearchTests
         f.Count("host_tasks").Should().Be(tasks);
     }
 
-    [Fact]
-    public async Task CorruptionAtTheFullPageTailCannotHideBehindResultOrScalarLengthExclusions()
+    [Theory]
+    [InlineData(0)]
+    [InlineData(24)]
+    [InlineData(49)]
+    [InlineData(50)]
+    public async Task CorruptionAtTheFullPageTailCannotHideBehindResultOrScalarLengthExclusions(int unnamedPosition)
     {
-        using var f = new InteractionStorageFixture();
+        const int pageSize = 50;
+        SessionListSearchPage.MaximumScannedRecords.Should().Be(pageSize);
+        using var f = new InteractionStorageFixture
+        {
+            Request = InteractionStorageFixture.NewRequest(OrderedSessionId(2 * unnamedPosition + 1)),
+        };
         await f.InitializeAsync();
         var service = WindowsSqliteSessionWorkspaceTests.Service(f, new());
-        await service.RenameAsync(f.Request.SessionId, new(1), 0, new("needle"), RequestOrigin.LocalUi, f.Token);
-        for (var index = 0; index < SessionListSearchPage.MaximumScannedRecords; index++)
+        for (var index = 0; index < pageSize; index++)
         {
-            await service.CreateAsync(new("needle"), RequestOrigin.LocalUi, f.Token);
+            var request = InteractionStorageFixture.NewRequest(OrderedSessionId(2 * (index + 1)));
+            using var creation = HostActivity.BeginRoot(request, HostActivityLayer.Application, HostOperation.Request);
+            await f.Store.RecordControlIntentAsync(request, f.Token);
+            await f.Store.CreateNamedSessionAsync(request, new("needle"), static () => true, f.Token);
+            creation.Complete(HostOperationOutcome.Completed);
         }
-        f.Count("work_sessions").Should().Be(SessionListSearchPage.MaximumScannedRecords + 1);
-        using (var connection = f.OpenRaw())
-        using (var command = connection.CreateCommand())
-        {
-            command.CommandText = """
-                UPDATE session_metadata SET name='cafe' || char(769)
-                WHERE session_id=(SELECT session_id FROM work_sessions WHERE state<>2 ORDER BY session_id LIMIT 1 OFFSET $tail);
-                """;
-            command.Parameters.AddWithValue("$tail", SessionListSearchPage.MaximumScannedRecords - 1);
-            command.ExecuteNonQuery().Should().Be(1, "the page-tail session must have metadata to corrupt");
-        }
+        f.Count("work_sessions").Should().Be(pageSize + 1);
         using var root = HostActivity.BeginRoot(f.Request, HostActivityLayer.Application, HostOperation.Request);
+        var page = await f.Store.ReadMetadataPageAsync(null, pageSize, f.Token);
+        var remaining = await f.Store.ReadMetadataPageAsync(page.Next, pageSize, f.Token);
+        page.Records.Should().HaveCount(pageSize);
+        remaining.Records.Should().ContainSingle();
+        var all = page.Records.Concat(remaining.Records).ToArray();
+        all[unnamedPosition].Authority.SessionId.Should().Be(f.Request.SessionId);
+        all[unnamedPosition].Metadata.Should().BeNull();
+        var tail = page.Records[^1];
+        page.Next.Should().Be(tail.Authority.SessionId.Value);
+        tail.Authority.SessionId.Should().Be(unnamedPosition == pageSize - 1
+            ? f.Request.SessionId : OrderedSessionId(unnamedPosition < pageSize ? 2 * (pageSize - 1) : 2 * pageSize));
+
+        // Corrupt the exact source-page tail, even when it is the fixture's extra unnamed session.
+        if (tail.Metadata is null)
+        {
+            tail = await service.RenameAsync(tail.Authority.SessionId, tail.Authority.Generation, 0,
+                new("needle"), RequestOrigin.LocalUi, f.Token);
+        }
+        tail.Metadata!.Name.GetScalarCount().Should().Be(6);
+        var admitted = await service.SearchListAsync(SessionListSearchKind.Browse, SessionListFilter.All,
+            "", null, pageSize, f.Token, minimumNameLength: 6, maximumNameLength: 6);
+        admitted.Scanned.Should().Be(pageSize);
+        admitted.Next!.After.Should().Be(tail.Authority.SessionId.Value);
+        admitted.Records[^1].Should().Be(tail);
+
+        using (var connection = f.OpenRaw())
+        {
+            using var corruption = connection.CreateCommand();
+            corruption.CommandText = "UPDATE session_metadata SET name='cafe' || char(769) WHERE session_id=$tail;";
+            corruption.Parameters.AddWithValue("$tail", tail.Authority.SessionId.Value.ToString("D"));
+            (await corruption.ExecuteNonQueryAsync(f.Token)).Should().Be(1);
+        }
         var read = () => service.SearchListAsync(SessionListSearchKind.Browse, SessionListFilter.All,
             "", null, 1, f.Token, minimumNameLength: 6, maximumNameLength: 6);
         await read.Should().ThrowAsync<InvalidDataException>();
+
+        static HostId<SessionIdentity> OrderedSessionId(int order) =>
+            new(Guid.ParseExact("00000000-0000-0000-0000-" + order.ToString("x12", CultureInfo.InvariantCulture), "D"));
     }
 
     [Theory]

@@ -108,6 +108,8 @@ public sealed partial class MainViewModelTests
     [InlineData("call")]
     [InlineData("consent")]
     [InlineData("input")]
+    [InlineData("calculator")]
+    [InlineData("clipboard-status")]
     [InlineData("owner")]
     [InlineData("device")]
     [InlineData("dispose")]
@@ -130,6 +132,8 @@ public sealed partial class MainViewModelTests
             case "call": f.CallState.SetState(CallState.Unknown); break;
             case "consent": await f.ViewModel.WithdrawVoiceConsentCommand.ExecuteAsync(); break;
             case "input": await f.RunAsync("help"); break;
+            case "calculator": await f.RunAsync("calculate 1+1"); break;
+            case "clipboard-status": await f.RunAsync("clipboard snapshot status"); break;
             case "owner": f.ViewModel.BindVoiceOwnershipGate(static () => false); service.Revalidate(); break;
             case "device": f.ViewModel.SelectedMicrophone = new("other", "Unavailable"); break;
             case "dispose": f.ViewModel.Dispose(); break;

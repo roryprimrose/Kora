@@ -30,7 +30,8 @@ public sealed partial record SessionCommand(
         + "No name, selected-window, delete, general executor or approval targeting. " + RequestSyntax + " " + RetentionSyntax
         + " " + SessionDispositionReviewCommand.Syntax + ". " + SessionDispositionReviewCommand.Boundary
         + " " + SessionQueueCancellationReviewCommand.Syntax + ". " + SessionQueueCancellationReviewCommand.Boundary
-        + " " + SessionDiagnosticsPlanCommand.Syntax + ". " + SessionDiagnosticsPlanCommand.Boundary;
+        + " " + SessionDiagnosticsPlanCommand.Syntax + ". " + SessionDiagnosticsPlanCommand.Boundary
+        + " " + SessionQueueReplacementReviewCommand.Syntax + ". " + SessionQueueReplacementReviewCommand.Boundary;
 
     public string PageKind { get; init; } = "tasks";
     public Guid? TaskId { get; init; }

@@ -635,6 +635,24 @@ or approval authority; RT2/PV1 and production admission remain separate.
 
 ### Delivered reviewed expired pending removal and fresh tail decision - 2026-10-12
 
+The bounded `session queue replacement review <session-id> <task-id>` preparation
+route opens this existing native full review, not another planner or replacement
+implementation. It requires two exact nonempty lowercase D IDs and original
+typed/current-name activated admission. Its dedicated parser reserves only
+`session queue replacement`; legacy revisioned routes and other reserved
+prefixes remain independent. Help issues no proposal.
+
+Preparation fences the original input/private/call/native lifetime and composer
+buffer through queued navigation, exact authoritative observation and the native
+Save/Discard/Cancel guard. It compares the exact source again after the guard,
+then selects only the requested eligible expired current-run pending fixed read
+and invokes `ReviewExpiredRequeueAsync`. Held, old-run, missing, nonexpired,
+uncertain or stale observations refuse without latest/selected/name fallback or
+fresh retry. Existing previews/questions/approvals are not consumed. The
+resulting proposal retains those original admission fences through the separate
+native confirmation; native discard remains independent. No new model route,
+replacement authority or durable mutation is introduced by preparation.
+
 Native Sessions and [exact typed/current-name activated commands](../docs/commands.md#deterministic-local-version-queue) review one exact expired **stored Pending**, never-admitted fixed read in the active session/current run and original private admission epoch.
 Expiry is the original captured UTC deadline at or before now; previous-run Interrupted, Unknown, terminal, running and privacy-retired work are not replacement sources.
 

@@ -1907,6 +1907,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         {
             if (SetProperty(ref commandText, value))
             {
+                Interlocked.Increment(ref queueReplacementBufferRevision);
                 RefreshArtifactCommandOptions();
                 RunTypedCommand.NotifyCanExecuteChanged();
             }
@@ -4135,6 +4136,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             ExecuteLocalClockCommand(clockCommand, initiator, manualInput);
             return;
         }
+        if (SessionQueueReplacementReviewCommand.Parse(spokenText, AssistantName) is { } replacementReview)
+        {
+            await ExecuteQueueReplacementReviewAsync(replacementReview, spokenText, initiator, manualInput);
+            return;
+        }
         if (Kora.Application.Skills.SkillReviewCommand.Parse(spokenText, AssistantName) is { } reviewCommand)
         {
             await ExecuteSkillReviewCommand(reviewCommand, spokenText, manualInput
@@ -5677,6 +5683,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
                     + SessionQueueCancellationReviewCommand.Syntax + ". " + SessionQueueCancellationReviewCommand.Boundary + " "
                     + SessionDiagnosticsPlanCommand.Syntax + ". " + SessionDiagnosticsPlanCommand.Boundary + " "
                     + "Use “list response window settings” for exact device-local visibility/topmost controls; no response is reopened. "
+                    + "Use “" + SessionQueueReplacementReviewCommand.Syntax + "” to prepare the exact native expired replacement review, never confirmation. "
                     + $"Use “{AssistantName}, list assistant settings” for the display/PTT command-prefix name. "
                     + NaturalAppearanceCommand.Syntax + " "
                     + "Natural name commands: “what is your name”, “call yourself <name>”, “change your name to <name>”, or “reset your name”. "

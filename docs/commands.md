@@ -402,6 +402,8 @@ Typed syntax and arbitrary exact after-task semantics below are unchanged; no re
 | `queue requeue-expired-review <session-id> <generation> <queue-revision> <run-id> <pause-revision> <task-id> <entry-revision>` | Review removal of one exact expired current-run pending source and a separately host-issued fresh same-profile tail decision |
 | `queue requeue-expired-confirm <session-id> <generation> <queue-revision> <run-id> <pause-revision> <task-id> <entry-revision> <fresh-request-id> <fresh-task-id> <review-id> confirm` | Confirm all and only the complete host-held proposal atomically; fresh IDs must match the review |
 | `queue requeue-expired-discard <session-id> <review-id>` | Revoke the review and unadmitted fresh IDs without queue mutation |
+| `session queue replacement review <session-id> <task-id>` | Open the exact existing native Sessions review for one eligible expired current-run pending fixed read; no replacement is committed |
+| `session queue replacement help` | Show preparation syntax and the separate native-confirmation boundary without issuing a proposal |
 | `queue cancel-selected-review <session-id> <generation> <queue-revision> <run-id> <pause-revision> <task-id>:<entry-revision>[,<task-id>:<entry-revision>...]` | Review the complete exact pending subset, in displayed dispatch order |
 | `queue cancel-selected-confirm <session-id> <generation> <queue-revision> <run-id> <pause-revision> <task-id>:<entry-revision>[,...] <review-id> confirm` | Cancel all and only that host-reviewed exact pending subset atomically |
 | `queue cancel-selected-discard <session-id> <review-id>` | Revoke review without writes; pending selection and draft unchanged |
@@ -532,6 +534,28 @@ exact plan. There is no latest, selected-session, name or model fallback.
 ## Fixed queue settings
 
 Expired replacement is available in native Sessions as **Review expired removal and NEW tail task**, followed by separate exact confirmation or cancellation. The review shows original IDs/profile/dependency/deadlines and fresh host-issued IDs, captured pending lifetime and deadline. No arguments, name inference, automatic dispatch or probes are accepted.
+
+To prepare that same full native review without transcribing revisions, type
+`session queue replacement review <session-id> <task-id>` or speak it with the
+current assistant-name prefix. Both IDs must be nonempty lowercase canonical
+D GUIDs. No omitted IDs, names, selected/latest defaults, extra arguments or
+confirmation aliases are accepted. The command opens existing Sessions, protects
+the original dirty composer with Save/Discard/Cancel, and observes only the
+addressed session and task. Cancel or an unconfirmed save stops preparation
+without changing unrelated work selections. Finish any existing question,
+approval or native security preview separately; this route does not answer or
+replace it.
+
+Before separate native confirmation, the full review discloses old removal,
+retained history/task outcome, prerequisite and blocked dependents, original
+deadline, and proposed new request/task/profile/tail/deadline, configuration,
+run, pause and resulting capacity. Review may allocate host-owned proposal IDs
+but does not remove, cancel, create a durable task, enqueue, dispatch, resume,
+pause, extend the old deadline or replay anything. Changed host/input/native,
+buffer, session, source, control, queue, entry or settings admission refuses
+without selecting an alternate or silently retrying a newer source.
+`session queue replacement help` and status are passive and issue no proposal.
+The full legacy revisioned review/confirm/discard commands above remain intact.
 
 Only expired stored Pending entries with no dispatch order in this active session/current run and unchanged original private admission qualify. Stale queue/order/pause/settings/source/entry/session revisions reject the whole proposal. One replacement frees one slot atomically, never evicts, and cannot exceed lowered capacity. Original history/deadlines remain; old task is Cancelled with Removed queue outcome, new task is IntentRecorded/Pending at tail.
 

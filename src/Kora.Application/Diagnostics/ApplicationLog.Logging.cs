@@ -30,6 +30,9 @@ internal static partial class ApplicationLog
     [LoggerMessage(117, LogLevel.Error, "Session-diagnostics preparation failed with {FailureKind}; request a fresh native plan.")]
     public static partial void SessionDiagnosticsPlanFailed(ILogger logger, string failureKind);
 
+    [LoggerMessage(119, LogLevel.Error, "Queue replacement review preparation failed with {FailureKind}; inspect the exact native source before a fresh request.")]
+    public static partial void QueueReplacementReviewFailed(ILogger logger, string failureKind);
+
     [LoggerMessage(103, LogLevel.Information, "Call state changed to {CallState}.")]
     public static partial void CallStateChanged(ILogger logger, CallState callState);
 

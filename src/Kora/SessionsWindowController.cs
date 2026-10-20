@@ -19,7 +19,7 @@ internal sealed partial class SessionsWindowController(
     SessionAttachmentWindowController? attachments = null,
     Kora.Application.Configuration.SessionProviderProfileConfigurationService? providers = null,
     SessionConversationService? conversation = null) : IDisposable, ISessionDispositionReviewPresenter,
-    ISessionQueueCancellationReviewPresenter, ISessionDiagnosticsPlanPresenter
+    ISessionQueueCancellationReviewPresenter, ISessionDiagnosticsPlanPresenter, ISessionQueueReplacementReviewPresenter
 {
     private SessionsWindow? window;
     private CompactSessionWindow? compact;
@@ -48,6 +48,7 @@ internal sealed partial class SessionsWindowController(
         main.BindSessionDispositionReview(this);
         main.BindQueueCancellationReview(this);
         main.BindSessionDiagnosticsPlan(this);
+        main.BindSessionQueueReplacementReview(this);
         main.PrivacyClosureRequested += OnPrivacyClosure;
         service.SessionLifecycleChanged += RevokeSession;
         service.SessionRetired += RevokeSession;
@@ -283,6 +284,7 @@ internal sealed partial class SessionsWindowController(
         main.BindSessionDispositionReview(null);
         main.BindQueueCancellationReview(null);
         main.BindSessionDiagnosticsPlan(null);
+        main.BindSessionQueueReplacementReview(null);
         main.SessionsRequested -= OnOpen;
         main.PrivacyClosureRequested -= OnPrivacyClosure;
         service.SessionLifecycleChanged -= RevokeSession;

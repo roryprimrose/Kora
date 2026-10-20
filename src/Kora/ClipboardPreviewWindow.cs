@@ -15,10 +15,12 @@ internal sealed partial class ClipboardPreviewWindow(Action<Exception> reportFai
     private readonly NamedTextBlock source = new() { FontFamily = new FontFamily("Consolas") };
     private readonly NamedTextBlock explanation = new() { TextWrapping = TextWrapping.Wrap };
 
-    public void Show(ClipboardSnapshot snapshot, Func<Task> reuse, Func<Task> revoke, Func<bool> isCurrent, Func<Task>? explain = null)
+    public void Show(ClipboardSnapshot snapshot, Func<Task> reuse, Func<Task> revoke, Func<bool> isCurrent, Func<Task>? explain = null,
+        Func<CancellationToken, ClipboardJsonSyntaxResult>? validateJson = null, Func<bool>? isJsonCurrent = null)
     {
         typographyHost?.EnsureReaderTypographyAvailable();
         ClearFindState();
+        ClearJsonState();
         Title = "Local clipboard snapshot (untrusted plain text)";
         Width = 760;
         Height = 600;
@@ -77,6 +79,7 @@ internal sealed partial class ClipboardPreviewWindow(Action<Exception> reportFai
         DockPanel.SetDock(chrome, Dock.Top);
         body.Children.Add(chrome);
         var content = new StackPanel { Spacing = 12 };
+        if (validateJson is not null) { AddJsonValidation(content, isCurrent, isJsonCurrent ?? isCurrent, validateJson); }
         content.Children.Add(source);
         AutomationProperties.SetName(explanation, "Volatile local clipboard explanation; untrusted model response");
         content.Children.Add(explanation);
@@ -97,6 +100,7 @@ internal sealed partial class ClipboardPreviewWindow(Action<Exception> reportFai
     public void ClearAndClose()
     {
         ClearFindState();
+        ClearJsonState();
         source.Text = null;
         explanation.Text = null;
         Content = null;
@@ -107,6 +111,7 @@ internal sealed partial class ClipboardPreviewWindow(Action<Exception> reportFai
     {
         Closed -= OnFindClosed;
         ClearFindState();
+        ClearJsonState();
         source.Text = null;
         explanation.Text = null;
         Content = null;

@@ -912,6 +912,26 @@ Reader text scaling applies to the snapshot body and exact span without changing
 Cut/copy/paste/context routes are blocked, including query shortcuts. Private/owner/call loss, replacement, revoke, close and disposal clear volatile state and fence callbacks. Find never rereads the clipboard or invokes reuse/revoke, inference, persistence, history, activity renewal or a new timer.
 See the [canonical contract and automated evidence](../Design/Security_Data_Flows.md#delivered-r07-local-clipboard-preview---2026-10-07); installed-native accessibility/privacy qualification remains separate.
 
+**Validate this snapshot as JSON** is a separate explicit native button for the
+complete original snapshot, not the Find query or matching span. Opening the
+preview, editing Find and navigating matches do not validate. The source remains
+unchanged, inert and untrusted; validation neither reads the clipboard again nor
+formats, repairs, copies, saves or renews the capture/review.
+
+The separate focusable outcome reports **syntactically valid JSON** and its root
+kind, or an invalid-syntax/depth refusal with zero-based line and UTF-8 byte
+position only. Objects, arrays, strings, numbers, booleans and null can all be
+valid roots. One complete value is required: comments, trailing commas, extra
+values and nesting beyond 64 are refused without truncation. Duplicate property
+names are not checked; this is not semantic or schema validation. Valid does not
+mean safe, trusted, secret-free, schema-approved or approved for models/egress.
+Original capture eligibility and the existing 15-minute review ceiling apply,
+without renewal. Expiry retires only syntax state, not the source. Close,
+replacement, revoke, Cancel task and private/owner/call loss fence late results.
+An internal failure is explicitly unavailable with native recovery, never
+ordinary invalid JSON. No result enters response history, transcripts, speech,
+logs or persistence. No typed, voice or model JSON-validation route is added.
+
 The separate **Review local version (native question)** tray entry opens one
 owned native card bound to the original durable host question, not whichever
 window is focused. It shows exact target/revision/expiry, an unselected choice,

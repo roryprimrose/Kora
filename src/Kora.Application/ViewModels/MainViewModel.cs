@@ -4212,6 +4212,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         }
         if (SpeechTextCommand.Parse(spokenText, AssistantName) is { } speechTextCommand)
         {
+            if (!isAssistantNameAvailable && commandRouter.IsActivationPrefixed(spokenText, AssistantName))
+            {
+                Transcript = "Assistant prefix routing is unavailable; no speech-caption control was dispatched.";
+                return;
+            }
             await ExecuteSpeechTextCommandAsync(speechTextCommand, initiator);
             return;
         }

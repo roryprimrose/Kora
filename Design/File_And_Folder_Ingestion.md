@@ -13,6 +13,39 @@ Related: [Architecture](Architecture.md), [Security and Data Flows](Security_Dat
 [Internal Model Tools](Internal_Model_Tools.md), and
 [Implementation Roadmap](Implementation_Roadmap.md#optional-and-deferred-work).
 
+## Delivered passive native decoded-text measurement
+
+The [native measurement partial](../src/Kora/LocalFilePreviewWindow.Measurement.cs)
+delegates pure counting to [Core `DecodedTextMeasurement`](../src/Kora.Core/Presentation/DecodedTextMeasurement.cs).
+Only the actual displayed immutable admitted item is measured: UTF-16 code units,
+Unicode scalars and strict UTF-8 re-encoding bytes. No normalization, replacement,
+line/word policy, model tokens, text quota or folder aggregate is inferred.
+Strict invalid UTF-16 retains only the known code-unit count; scalar and byte
+measurements are unavailable. Existing `LocalFilePolicy.Decode` admits only
+strict UTF-8 (not UTF-16 source files), strips one optional leading BOM and
+guarantees well-formed admitted display text. An actual remaining BOM counts.
+Original byte length is separately labelled from existing admitted metadata,
+never inferred from decoded text or presented as current filesystem/storage size.
+
+Measurement occurs once when binding each exact displayed source/item/revision,
+not from getters, queries, layout, timers or notifications. Publication rechecks
+the source object, unchanged display text, window generation and existing
+controller/read-channel predicate, plus the host's captured input, privacy,
+call and ownership lifetime. Source changes clear before replacement; retirement,
+reentrancy, privacy/host changes and closure clear old controls and references.
+Queued retirement is bound to its old control, not a replacement view.
+
+The same view covers volatile singleton/folder-item and already loaded retained
+historical inspection. No original-path or retained-store read, decoding,
+recapture, renewal, I/O, copy/edit/save action or new authority is introduced.
+Find, ranked retrieval, citations and retained historical read guards are unchanged.
+Counts and text remain native-only, outside conversation, speech, diagnostics,
+Activities, persistence and clipboard. This bounded I increment makes no storage
+completeness, installed accessibility, provider/model, E-enablement or Q-RC claim.
+See [user labels and scope](../docs/windows-and-tray.md#decodedadmitted-display-text-size),
+[portable measurement tests](../tests/Kora.Core.UnitTests/Presentation/DecodedTextMeasurementTests.cs)
+and [native tests](../tests/Kora.Windows.IntegrationTests/LocalFileTextMeasurementWindowTests.cs).
+
 ## Delivered Durable Single-File Session Attachment - 2026-10-10
 
 ### Delivered Retained Attachment Metadata Catalogue - 2026-10-11

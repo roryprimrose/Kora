@@ -430,6 +430,30 @@ unchanged, without an automatic search. Soft-wrapped visual rows are **not logic
 source lines or citation positions**. Notices, excerpts and exact match spans are
 not reformatted by this control.
 
+### Decoded/admitted display text size
+
+The native preview passively shows **UTF-16 code units**, **Unicode scalars** and
+**strict UTF-8 re-encoding bytes** for only the exact currently displayed admitted
+text. Combining marks count separately; an astral scalar uses two UTF-16 units.
+Newlines and an actual displayed BOM character count as text, unchanged.
+An admitted empty text has zero counts; missing or retired text is unavailable,
+not an empty-file claim. Invalid Unicode makes scalar/byte measurement explicitly
+unavailable, never replacement text or a guessed zero.
+
+These are **decoded/admitted text metrics**, not the original file's encoding,
+on-disk size, retained storage bytes, folder totals or model tokens/capacity.
+The separate **Original source bytes at admission** comes from existing admitted
+metadata and includes a stripped leading UTF-8 BOM, so it can differ from the
+re-encoded text. It is not a fresh filesystem observation.
+
+Changing the folder item changes the measurement subject; no other item is
+counted. Retained inspection measures the already loaded historical text on its
+existing read channel, without recapture or storage reads. Source/window,
+privacy, host input and admission retirement clear the derived values.
+This native-only feedback does not search, edit, copy, save, refresh, renew
+activity, authorize model use or send text/counts to a response, speech, log or
+clipboard. No new text quota or model capacity is inferred.
+
 ### Find a literal in the currently inspected original file
 
 In an admitted file preview, selected captured-folder file or retained Session attachment, enter a one-line literal in **Literal Find** and explicitly choose **Find first**. This searches only the displayed immutable original, not every folder file, the current filesystem, a provider or a conversation.

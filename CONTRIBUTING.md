@@ -54,6 +54,8 @@ Run [Test-PortableTestScheduling.ps1](eng/Test-PortableTestScheduling.ps1) to ch
 
 For a controlled comparison, manually dispatch [CI](.github/workflows/ci.yml) with `compare_portable_tests=true`. Its opt-in job builds the main solution once, then runs [Compare-PortableTestScheduling.ps1](eng/Compare-PortableTestScheduling.ps1) in sequential/parallel/parallel/sequential order with identical coverage and reporting options. The artifact retains all four runs and their mean wall times.
 
+The separate `compare_native_evidence=true` input runs [17 representative headless cases](eng/Compare-NativeFixtureEvidence.ps1) in synchronous/buffered/buffered/synchronous order on one Windows runner. The [test-only selector](tests/Kora.Windows.IntegrationTests/NativeUxTestFixture.cs) uses the fixture's existing buffering option; normal CI remains synchronous, and unknown profiles fail explicitly.
+
 Restricted-storage fixtures create their unique, owner-only scratch directories
 under the discovered repository root, not the deeper testhost binary directory.
 This keeps nested segmented-store fixtures within native directory path limits

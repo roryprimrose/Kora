@@ -89,6 +89,15 @@ Assert ($workflow.Contains("if: always() && needs.version.outputs.already-publis
     [StringComparison]::Ordinal)) 'Failed or cancelled dependencies must not skip the required gate.'
 Assert ($workflow.Contains('name: Windows integration tests', [StringComparison]::Ordinal)) 'Preserve the required check identity.'
 Assert ($workflow.Contains('timeout-minutes: 30', [StringComparison]::Ordinal)) 'Preserve the Windows job deadline.'
+Assert ($workflow.Contains('KORA_TEST_NATIVE_EVIDENCE_MODE: synchronous',
+    [StringComparison]::Ordinal)) 'Normal Windows CI must retain synchronous fixture evidence.'
+Assert ($workflow.Contains("if: github.event_name == 'workflow_dispatch' && inputs.compare_native_evidence",
+    [StringComparison]::Ordinal)) 'Native evidence comparisons must remain opt-in and manual-only.'
+$comparisonCases = @(& (Join-Path $PSScriptRoot 'Compare-NativeFixtureEvidence.ps1') -ListCases)
+Assert ($comparisonCases.Count -eq 4) 'The native evidence comparison must retain its four representative case selectors.'
+foreach ($selector in $comparisonCases) {
+    Assert ($selector.StartsWith('FullyQualifiedName~Kora.Windows.IntegrationTests.', [StringComparison]::Ordinal)) 'Comparison selectors must stay inside the Windows test assembly.'
+}
 
 $gateMatch = [regex]::Match($workflow,
     '(?m)      - name: Require every Windows shard to succeed\r?\n[\s\S]*?        run: \|\r?\n(?<script>(?:          [^\r\n]*(?:\r?\n|$))+)')

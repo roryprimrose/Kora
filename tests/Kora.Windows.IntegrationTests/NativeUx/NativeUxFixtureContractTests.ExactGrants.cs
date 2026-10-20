@@ -40,7 +40,7 @@ public sealed partial class NativeUxFixtureContractTests
     {
         await HeadlessSession.RunAsync(async () =>
         {
-            using var fixture = new NativeUxFixtureSession(Path.GetTempPath(), exactGrants: true);
+            using var fixture = NativeUxTestFixture.Create(Path.GetTempPath(), exactGrants: true);
             await fixture.InitializeAsync();
             using var state = new ExactGrantsViewModel(fixture.Interactions, fixture.ExactGrantControl!, fixture.Access,
                 () => fixture.Access.Open, NullLogger<ExactGrantsViewModel>.Instance);

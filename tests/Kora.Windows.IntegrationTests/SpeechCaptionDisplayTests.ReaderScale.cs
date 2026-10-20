@@ -5,8 +5,6 @@ using Avalonia.VisualTree;
 
 using AwesomeAssertions;
 
-using Kora.NativeUxFixture;
-
 namespace Kora.Windows.IntegrationTests;
 
 public sealed partial class SpeechCaptionDisplayTests
@@ -88,7 +86,7 @@ public sealed partial class SpeechCaptionDisplayTests
     {
         await HeadlessSession.RunAsync(async () =>
         {
-            using var fixture = new NativeUxFixtureSession(Path.GetTempPath(), silentCaption: true);
+            using var fixture = NativeUxTestFixture.Create(Path.GetTempPath(), silentCaption: true);
             await fixture.InitializeAsync();
             fixture.Main.ReaderTextScalePercent = percent;
             await fixture.Main.AppearanceUpdate;
@@ -196,7 +194,7 @@ public sealed partial class SpeechCaptionDisplayTests
     {
         await HeadlessSession.RunAsync(async () =>
         {
-            using var fixture = new NativeUxFixtureSession(Path.GetTempPath());
+            using var fixture = NativeUxTestFixture.Create(Path.GetTempPath());
             await fixture.InitializeAsync();
             fixture.Main.ReaderTextScalePercent = 200;
             await fixture.Main.AppearanceUpdate;

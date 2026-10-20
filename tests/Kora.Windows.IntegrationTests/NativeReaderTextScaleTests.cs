@@ -13,7 +13,6 @@ using Kora.Controls;
 using Kora.Core.Context;
 using Kora.Core.Hosting;
 using Kora.Core.Presentation;
-using Kora.NativeUxFixture;
 
 using Microsoft.Extensions.Logging.Abstractions;
 
@@ -30,7 +29,7 @@ public sealed class NativeReaderTextScaleTests
     {
         await HeadlessSession.RunAsync(async () =>
         {
-            using var fixture = new NativeUxFixtureSession(Path.GetTempPath());
+            using var fixture = NativeUxTestFixture.Create(Path.GetTempPath());
             await fixture.InitializeAsync();
             var source = "# Heading\n\n" + string.Concat(Enumerable.Repeat("α 🙂 literal needle long line\n\n", 80));
             var content = new AdmittedDetailContent(new(new(Guid.NewGuid()), 1), DetailContentKind.Markdown,
@@ -123,7 +122,7 @@ public sealed class NativeReaderTextScaleTests
     {
         await HeadlessSession.RunAsync(async () =>
         {
-            using var fixture = new NativeUxFixtureSession(Path.GetTempPath());
+            using var fixture = NativeUxTestFixture.Create(Path.GetTempPath());
             await fixture.InitializeAsync();
             var text = string.Concat(Enumerable.Repeat("α 🙂 needle " + new string('x', 200) + "\r\n", 80));
             var request = HostRequest.Create(RequestOrigin.LocalUi);
@@ -220,7 +219,7 @@ public sealed class NativeReaderTextScaleTests
     {
         await HeadlessSession.RunAsync(async () =>
         {
-            using var fixture = new NativeUxFixtureSession(Path.GetTempPath());
+            using var fixture = NativeUxTestFixture.Create(Path.GetTempPath());
             await fixture.InitializeAsync();
             var window = new SettingsWindow(fixture.Main);
             window.Show();

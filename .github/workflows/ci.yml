@@ -14,12 +14,16 @@ on:
         description: Compare sequential and parallel portable tests on one runner
         type: boolean
         default: false
+      compare_native_evidence:
+        description: Compare synchronous and buffered headless fixture evidence
+        type: boolean
+        default: false
 
 permissions:
   contents: read
 
 concurrency:
-  group: ci-${{ github.event.pull_request.head.ref || github.ref_name }}${{ inputs.compare_portable_tests && '-portable-comparison' || '' }}
+  group: ci-${{ github.event.pull_request.head.ref || github.ref_name }}${{ (inputs.compare_portable_tests || inputs.compare_native_evidence) && '-test-comparison' || '' }}
   cancel-in-progress: true
 
 env:
@@ -105,6 +109,44 @@ jobs:
         with:
           name: portable-test-scheduling-comparison
           path: ${{ runner.temp }}/kora-portable-test-scheduling
+          if-no-files-found: error
+
+  native-evidence-comparison:
+    name: Compare native fixture evidence
+    if: github.event_name == 'workflow_dispatch' && inputs.compare_native_evidence
+    runs-on: windows-latest
+    timeout-minutes: 30
+    needs: version
+    env:
+      Version: ${{ needs.version.outputs.version }}
+    steps:
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Install .NET SDK
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+          cache: true
+          cache-dependency-path: |
+            **/packages.lock.json
+
+      - name: Restore locked dependencies
+        run: dotnet restore tests/Kora.Windows.IntegrationTests/Kora.Windows.IntegrationTests.csproj --locked-mode
+
+      - name: Build the same Windows integration tests once
+        run: dotnet build tests/Kora.Windows.IntegrationTests/Kora.Windows.IntegrationTests.csproj --configuration Release --runtime win-x64 --no-restore
+
+      - name: Compare native fixture evidence modes
+        shell: pwsh
+        run: .\eng\Compare-NativeFixtureEvidence.ps1 -ResultsDirectory (Join-Path $env:RUNNER_TEMP 'kora-native-fixture-evidence')
+
+      - name: Upload native fixture evidence comparison
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: native-fixture-evidence-comparison
+          path: ${{ runner.temp }}/kora-native-fixture-evidence
           if-no-files-found: error
 
   portable:
@@ -337,6 +379,7 @@ jobs:
         shard: [storage-heavy, storage-other, ui-definitions, native-ux, ui-platform]
     env:
       Version: ${{ needs.version.outputs.version }}
+      KORA_TEST_NATIVE_EVIDENCE_MODE: synchronous
 
     steps:
       # Keep the Windows job on the same reviewed action revisions as the portable job.

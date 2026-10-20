@@ -99,6 +99,7 @@ public sealed partial class MainViewModel
         {
             CloseForObservedPrivacyEvent("Microphone permission or selected endpoint is unavailable", hidePresentation: false);
         }
+        RetireStopwatch();
         if (SelectedOutputDevice?.IsSystemDefault == true && snapshot.DefaultSpeakerId is null)
         {
             InvalidateUnavailableOutput();
@@ -272,6 +273,8 @@ public sealed partial class MainViewModel
             if (disposed) { return; }
             disposed = true;
         }
+        RetireStopwatch();
+        stopwatch?.Dispose();
         if (auditImpactPreview is not null)
         {
             auditImpactPreview.Changed -= OnAuditImpactPreviewChanged;
@@ -1168,6 +1171,7 @@ public sealed partial class MainViewModel
         Interlocked.Exchange(ref handoffPreparationActive, 1);
         lifecycleAdmissionClosed = true;
         RetireWebResultDetails();
+        RetireStopwatch();
         ClearClipboardPreview();
         ClearFilePreview();
         HoldVoiceInput("Microphone closed · host handoff");

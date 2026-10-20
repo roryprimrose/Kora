@@ -37,6 +37,8 @@ public sealed partial class ResponseWindow : Window
         details = detailController;
         AvaloniaXamlLoader.Load(this);
         DataContext = viewModel;
+        viewModel.BindStopwatchNativeLifetime(true);
+        viewModel.ObserveStopwatchNativeVisibility(IsVisible);
         pushToTalkButton = this.FindControl<Button>("PushToTalkButton")
             ?? throw new InvalidOperationException("The push-to-talk control is unavailable.");
 #pragma warning disable MA0147 // Avalonia routed events require void event handlers.
@@ -79,6 +81,13 @@ public sealed partial class ResponseWindow : Window
         PointerPressed += OnInteraction;
         KeyDown += OnInteraction;
         Deactivated += OnPushToTalkSurfaceUnavailable;
+    }
+
+    protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
+    {
+        base.OnPropertyChanged(change);
+        if (change.Property == IsVisibleProperty && viewModel is not null)
+        { viewModel.ObserveStopwatchNativeVisibility(IsVisible); }
     }
 
     private async void OnDismissClicked(object? sender, RoutedEventArgs eventArgs)
@@ -308,6 +317,7 @@ public sealed partial class ResponseWindow : Window
 
     private void OnClosed(object? sender, EventArgs eventArgs)
     {
+        viewModel.BindStopwatchNativeLifetime(false);
         viewModel.RetireCurrentResponseSpeech();
         viewModel.EndPushToTalkCommand.Execute(null);
         viewModel.RetireWebResultDetails();

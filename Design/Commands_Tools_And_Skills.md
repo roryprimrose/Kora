@@ -84,6 +84,29 @@ existing host input admission and deterministic presentation; provider,
 hardware, installed, retired experiment and E/Q qualification are not
 prerequisites. No unrelated calendar/reminder/scheduling behavior is delivered.
 
+## Run-only visual stopwatch boundary
+
+The [exact stopwatch commands](../docs/commands.md#run-only-local-visual-stopwatch)
+are local host controls, not registered model tools or artifacts. Core owns
+typed grammar, states and transition/refusal rules; the injected Application
+`StopwatchWorkflow` owns one ephemeral run and the `TimeProvider` timestamp seam.
+The view-model partial delegates typed, current-name activated and explicit
+native operations to that same workflow. The existing response panel is a
+passive observed-elapsed projection with no timer or automatic transcript.
+
+Requested/terminal typed audit events and host-resolved activities preserve the
+original channel and admission epochs. Elapsed values are not logged, placed in
+trace tags, spoken, saved, or used to mint session/task/approval authority.
+Admission is revalidated after asynchronous audit boundaries. Revocation retires
+both run and result; unavailable composition, invalid monotonic observations and
+overflow fail closed without fabricated success. No countdown implementation or
+unmerged contract is consumed.
+
+This bounded implementation consumes only current host admission, native
+response presentation, audit/trace and deterministic time seams. It makes no
+provider, hardware, installed-native or RC qualification claim, and adds no
+runtime, device, egress, wake, scheduling or permission enablement.
+
 ## Delivered Artifact Invocation
 
 Kora has one source-qualified artifact invocation route for bundled skills and

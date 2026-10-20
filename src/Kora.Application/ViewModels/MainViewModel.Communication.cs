@@ -36,6 +36,7 @@ public sealed partial class MainViewModel
         internal long InputRevision { get; init; }
         internal AttachmentCataloguePreparationCommand? CataloguePreparation { get; init; }
         internal Func<bool> CatalogueEligible { get; init; } = static () => true;
+        internal string AssistantName { get; init; } = string.Empty;
     }
 
     public string ManualCallConfigurationStatus => manualCallControl is null
@@ -69,6 +70,7 @@ public sealed partial class MainViewModel
             AssistantNameRevision = assistantNameConfiguration.Get().Revision,
             OwnershipBindingRevision = Interlocked.Read(ref settingsOwnershipBindingRevision),
             InputRevision = Interlocked.Read(ref workspaceSurfaceInputRevision),
+            AssistantName = AssistantName,
         };
     }
 
@@ -89,6 +91,7 @@ public sealed partial class MainViewModel
 
     public void BindCallOwnershipGate(Func<bool> gate, Func<long>? revision = null)
     {
+        RetireStopwatch();
         RetireCurrentResponseSpeech();
         callOwnershipEligible = gate;
         settingsOwnershipRevision = revision ?? (static () => 0);
@@ -251,6 +254,7 @@ public sealed partial class MainViewModel
 
     private async void OnCommunicationPolicyChanged(object? sender, EventArgs args)
     {
+        RetireStopwatch();
         auditImpactPreview?.Retire("Call revision changed; preview retired.");
         diagnosticImpactPreview?.Retire("Call revision changed; preview retired.");
         sessionRetentionPlanner?.Retire("Call revision changed; preview retired.");

@@ -58,6 +58,39 @@ stale/denied/unavailable requests report recovery in status. Pending questions,
 approvals, power proposals, grant editors and native security reviews stay
 unchanged, including for malformed clock commands.
 
+## Run-only local visual stopwatch
+
+Use exactly `stopwatch start`, `stopwatch status`, `stopwatch stop`,
+`stopwatch reset`, or `stopwatch help`. Typed input may include the current
+assistant-name prefix; activated voice requires it, for example
+`Kora, stopwatch status`. Extra words, punctuation within/after the command,
+and control characters are refused locally, not passed to a model.
+The bare reserved family takes precedence over a colliding name such as
+`Stopwatch` or `Stopwatch Status`; use an explicit comma/colon after that name
+for unrelated activated commands, for example `Stopwatch, stop speaking`.
+
+There is one run per host process, not one per conversation. Start is allowed
+only from Idle. Starting while Running refuses without changing that run;
+starting while Stopped refuses until an explicit reset discards its result.
+Stop freezes elapsed; repeated Stop reports already stopped, not a new run.
+Reset explicitly discards even a running stopwatch and returns to Idle without
+restarting. There are no laps, alarms, background schedules or saved results.
+
+The existing response panel has **Stopwatch status**, **Stop stopwatch**, and
+**Reset stopwatch** controls using the same workflow. **Observed elapsed** is
+not a live clock: elapsed is projected only by explicit status/stop interaction,
+never by a per-second UI or transcript poll. Measurement uses monotonic
+timestamps, not wall-clock time. Invalid time observations or overflow report
+failure and discard the run/result rather than fabricating elapsed.
+
+Commands require current original input and private, unlocked, owning-host and
+call admission. Pending questions, approvals and security previews remain
+unchanged. Privacy/call/ownership revocation, native panel closure, host
+handoff/exit and disposal retire the run/result; restoring eligibility does not
+recover it. Native operations without their bound presenter report unavailable.
+No speech, capture, model, network, device permission, notification or persistent
+session/task/approval authority is created by stopwatch state.
+
 ## Open an exact Settings tab
 
 Use one complete case-insensitive phrase below, optionally prefixed by the current assistant name when typed. Activated voice requires that current-name prefix. Outer spaces are accepted; punctuation, extra words, control characters and input over 256 characters are not ([exact grammar](../src/Kora.Application/Configuration/SettingsSectionCommand.cs)).

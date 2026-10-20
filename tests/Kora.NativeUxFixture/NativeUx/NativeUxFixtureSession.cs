@@ -50,11 +50,14 @@ internal sealed partial class NativeUxFixtureSession : IApplicationDataPaths, ID
     private readonly EvidenceLoggerProvider? evidenceProvider;
     private readonly Serilog.Core.Logger? dailyEvidenceLogger;
     private AudioControlAdmission? captionAdmission;
+    private readonly Kora.Application.Timekeeping.StopwatchWorkflow? stopwatch;
 
     internal NativeUxFixtureSession(string scratchParent, bool silentCaption = false, bool listOverflow = false,
         bool exactGrants = false, bool allWork = false, bool bufferedEvidence = false,
-        ISqliteTransactionCheckpoint? evidenceCheckpoint = null)
+        ISqliteTransactionCheckpoint? evidenceCheckpoint = null,
+        Kora.Application.Timekeeping.StopwatchWorkflow? stopwatch = null)
     {
+        this.stopwatch = stopwatch;
         if ((silentCaption ? 1 : 0) + (listOverflow ? 1 : 0) + (exactGrants ? 1 : 0) + (allWork ? 1 : 0) > 1)
         {
             throw new ArgumentException("Synthetic caption, list-overflow, exact-grants and all-work fixture modes are separate.");
@@ -208,7 +211,7 @@ internal sealed partial class NativeUxFixtureSession : IApplicationDataPaths, ID
             new Kora.Application.Voice.BoundedAudioOutputCatalog(speech,
                 NullLogger<Kora.Application.Voice.BoundedAudioOutputCatalog>.Instance),
             speechTextConfiguration: captionConfiguration,
-            webPageGet: webPageGet);
+            webPageGet: webPageGet, stopwatch: stopwatch);
         if (webSummary is not null) { Main.BindWebSummaryWorkflow(webSummary); }
         Main.BindCallOwnershipGate(() => Access.Open);
         Main.BindClipboardOwnershipGate(static () => false);

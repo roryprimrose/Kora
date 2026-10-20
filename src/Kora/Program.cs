@@ -426,6 +426,7 @@ internal static class Program
         services.AddSingleton<Kora.Tools.Clock.LocalClockGetDate>();
         services.AddSingleton<Kora.Tools.Clock.LocalClockGetDateAndTime>();
         services.AddSingleton<Kora.Application.Clock.LocalClockWorkflow>();
+        services.AddSingleton<Kora.Application.Timekeeping.StopwatchWorkflow>();
         services.AddKeyedSingleton("release-metadata", (_, _) => new HttpClient(new HttpClientHandler
         {
             AllowAutoRedirect = false,

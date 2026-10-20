@@ -635,6 +635,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
                       || SessionCommand.Parse(CommandText, AssistantName) is not null
                       || SessionDispositionReviewCommand.Parse(CommandText, AssistantName) is not null
                       || WorkspaceSurfaceCommand.Parse(CommandText, AssistantName) is not null
+                      || AttachmentCataloguePreparationCommand.Parse(CommandText, AssistantName) is not null
                       || MemoryCommand.Parse(CommandText, AssistantName) is not null
                       || LocalClockCommand.Parse(CommandText, AssistantName) is not null
                       || IsInstructionEditorCommand(CommandText)
@@ -1905,6 +1906,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         {
             if (SetProperty(ref commandText, value))
             {
+                Interlocked.Increment(ref attachmentCatalogueComposerRevision);
                 RefreshArtifactCommandOptions();
                 RunTypedCommand.NotifyCanExecuteChanged();
             }
@@ -3997,6 +3999,14 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         try
         {
             var manualInput = CaptureManualCallInput(RequestOrigin.ActivatedVoice, CallPolicyRevision, eventArgs.Generation);
+            if (AttachmentCataloguePreparationCommand.Parse(eventArgs.Transcript, AssistantName) is { } catalogue)
+            {
+                manualInput = manualInput with
+                {
+                    CataloguePreparation = catalogue,
+                    CatalogueEligible = CaptureCatalogueVoiceEligibility(catalogue),
+                };
+            }
             var responseReadInput = CaptureResponseReadInput();
             var reviewEligibility = CaptureSkillReviewEligibility(manualInput);
             await uiDispatcher.InvokeAsync(
@@ -4056,6 +4066,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             { Transcript = "Local clock unavailable: the original voice generation or host was revoked."; }
             if (SettingsSectionCommand.Parse(eventArgs.Transcript, AssistantName) is not null)
             { Transcript = "Settings navigation unavailable: the original voice generation or host was revoked."; }
+            if (manualInput.CataloguePreparation is not null)
+            { Transcript = "Attachment catalogue preparation unavailable: the original voice generation or host was revoked."; }
             return;
         }
         if (Interlocked.CompareExchange(ref acceptedTranscriptGeneration, -1, eventArgs.Generation) != eventArgs.Generation)
@@ -4066,7 +4078,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         ApplicationLog.VoiceDispatchGate(logger, eventArgs.Generation, "Admitted");
         IsListening = voiceRecognition.IsListening;
         if (SettingsSectionCommand.Parse(eventArgs.Transcript, AssistantName) is not null
-            || LocalClockCommand.Parse(eventArgs.Transcript, AssistantName) is not null)
+            || LocalClockCommand.Parse(eventArgs.Transcript, AssistantName) is not null
+            || manualInput.CataloguePreparation is not null)
         {
             await HandleTranscriptAsync(eventArgs.Transcript, eventArgs.Confidence,
                 SecurityAuditInitiator.VoiceCommand, manualInput);
@@ -4116,6 +4129,12 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         if (LocalClockCommand.Parse(spokenText, AssistantName) is { } clockCommand)
         {
             ExecuteLocalClockCommand(clockCommand, initiator, manualInput);
+            return;
+        }
+        if ((manualInput?.CataloguePreparation
+            ?? AttachmentCataloguePreparationCommand.Parse(spokenText, AssistantName)) is { } cataloguePreparation)
+        {
+            await PrepareAttachmentCatalogue(cataloguePreparation, initiator, manualInput);
             return;
         }
         if (Kora.Application.Skills.SkillReviewCommand.Parse(spokenText, AssistantName) is { } reviewCommand)
@@ -6118,6 +6137,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             .Concat(PreparedLocalSearchCommand.DiscoveryPhrases)
             .Concat(Kora.Core.Calculations.CalculateCommand.DiscoveryPhrases)
             .Concat(LocalClockCommand.FixedPhrases)
+            .Concat(AttachmentCataloguePreparationCommand.DiscoveryPhrases)
             .Concat(SessionCommand.DiscoveryPhrases)
             .Concat(WorkspaceSurfaceCommand.FixedPhrases)
             .Concat(MemoryCommand.DiscoveryPhrases)

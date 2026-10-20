@@ -265,6 +265,22 @@ Production has no qualified catalogue models/auth adapters, so model-dependent s
 For a content-free overview, use **Tray > Retained session attachments > Search / refresh metadata**. Default Browse or volatile ExactId observes retained slots, never original paths or bodies.
 [Catalogue query rules and exact navigation](windows-and-tray.md#retained-session-attachments-metadata-only) cover canonical IDs, explicit Enter/Clear/Next, bounded empty pages and separate full-byte inspection. No typed/voice/model search or capture command is added.
 
+Exact typed or current-name activated `prepare attachment catalogue <session-id>`
+opens/focuses that same singleton native catalogue and prepares **ExactId** and
+the exact query ID only. Use one nonempty canonical lowercase D-format GUID;
+names, current/latest, corpus queries, extra clauses and malformed IDs refuse
+without model/question fallback. `attachment catalogue help` is constant,
+read-only syntax help and does not disclose IDs or current filters.
+This is **preparation, not search**: no metadata query/count/probe, session
+resolution/selection, body/path/source read, capture, inspection or task action
+runs. Other native filter drafts remain **AND-composed**, including invalid
+drafts. Review all visible filters, then separately choose **Search / refresh
+metadata**. Preparation retires prior pages, continuation, selection/details,
+Find and open readiness, cancelling/rejecting old callbacks. The supplied ID
+grants no ownership, read authority or proof a retained copy exists. Native
+focus/preparation must acknowledge the original private host request; stale,
+unbound or unavailable presentation refuses, never falls back to Browse.
+
 Open **Sessions**, select the exact Active session, then **Attach text file to this exact Session**. A trusted native picker opens only metadata; review canonical path/native identity, source and host session, bytes/time, fixed limits and local durable retention/copy disclosure. **Confirm: capture and retain this exact file for this Session** is separate persistence consent, not the existing volatile preview confirmation.
 
 One immutable UTF-8 `.txt`/`.md`/`.markdown` file per session; maximum 262,144 original bytes including BOM; sixteen retained files across the private profile; no eviction or silent overwrite. Attach refuses a second file. No typed/voice/model attachment path or confirmation command is delivered.

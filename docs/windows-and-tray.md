@@ -604,6 +604,19 @@ Find cannot change filters/selection, open/resume a session, read files/bodies/p
 
 Open **Tray > Retained session attachments**, then choose **Search / refresh metadata**. Opening alone reads nothing; listing never opens a picker, original file path or attachment body. It shows only already retained private Session slots.
 
+Alternatively, exact typed/current-name activated
+`prepare attachment catalogue <session-id>` opens/focuses the same catalogue and
+prepares only **ExactId** and its canonical nonempty lowercase D-format ID.
+This runs no I/O, metadata query/count/probe or session resolution. All other
+native filter drafts are retained and **AND-composed**, not reset; new-window
+defaults are unchanged. Check the full visible filters before separately
+choosing **Search / refresh metadata**. Invalid companion drafts still disable
+Search. Old rows, continuation, selection/details, Find and native-open
+readiness are retired, including in-flight late callbacks. Preparation is not
+session selection, current ownership, body/capture authority or proof a copy
+exists. Unavailable/stale native focus fails explicitly without Browse/latest
+fallback. `attachment catalogue help` returns only constant syntax.
+
 Default **Browse** preserves the removal filter. For one session, choose **ExactId**, enter its nonempty canonical lowercase D-format UUID, then explicitly Search or press Enter in the query field. Uppercase, empty, noncanonical, control-containing or oversized input is invalid, never Browse.
 
 Optionally enter a **literal metadata query** in the separate field, then Search or press Enter there. It matches a case-sensitive literal substring of already displayed Session/source/revision/item IDs, digest or media type, independently of ExactId and lifecycle. For example, `text/` matches retained text types; `TEXT/`, spaces and `*` are not normalized or wildcards. Names, paths, profile IDs, bodies, excerpts and OCR are never searched. Removed slots never match a literal, even with Include removed slots; clear the literal to browse their ordinary provenance. Held metadata can match but cannot open a body.

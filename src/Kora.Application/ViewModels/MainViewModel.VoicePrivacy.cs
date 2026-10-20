@@ -729,7 +729,12 @@ public sealed partial class MainViewModel
             Interlocked.Exchange(ref acceptedTranscriptGeneration, voiceRecognition.Generation);
             IsListening = voiceRecognition.IsListening;
             BeginPushToTalkCommand.NotifyCanExecuteChanged();
-            if (Volatile.Read(ref ordinaryResponse) is not null && !IsResponseInteractionPending)
+            if (HasWebResultDetails)
+            {
+                // Activated input must not replace the exact source before the user can name it.
+                ReportWebResultDetailStatus("Capturing your command. Release Push to talk to finish.");
+            }
+            else if (Volatile.Read(ref ordinaryResponse) is not null && !IsResponseInteractionPending)
             {
                 State = AssistantState.Listening;
                 Transcript = "Release Push to talk to finish. Only this explicitly activated command is transcribed locally. The current response remains unchanged.";
@@ -1035,7 +1040,7 @@ public sealed partial class MainViewModel
             || !outputCatalog.IsQuiescent || !OutputRefresh.IsCompleted || !outputDiscoveryPersistence.IsCompleted
             || Volatile.Read(ref pendingAuditWrites) != 0
             || Volatile.Read(ref stoppingAudioOperations) != 0
-            || !IsHandoffReviewQuiescent || speechPreparation?.IsQuiescent == false || IsBusy || IsWebPageRetrievalActive
+            || !IsHandoffReviewQuiescent || speechPreparation?.IsQuiescent == false || IsBusy || IsWebPageRetrievalActive || IsWebSummaryActive
             || !clipboardPreview.IsQuiescent || clipboardExplanation?.IsQuiescent == false
             || filePreview?.IsQuiescent == false || sessionFiles?.IsQuiescent == false
             || IsLocalModelSetupActive || IsPowerShellSetupActive || IsSpeechProviderOperationActive

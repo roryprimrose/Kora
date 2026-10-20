@@ -142,7 +142,8 @@ internal sealed partial class NativeUxFixtureSession : IApplicationDataPaths, ID
 
     internal Task InitializeAsync() => InitializeAsync(null);
 
-    internal async Task InitializeAsync(Kora.Tools.Network.WebPageGet? webPageGet)
+    internal async Task InitializeAsync(Kora.Tools.Network.WebPageGet? webPageGet,
+        Kora.Application.Network.WebSummaryWorkflow? webSummary = null)
     {
         if (initialized) { throw new InvalidOperationException("A fixture session may be initialized only once."); }
         await Tasks.InitializeAsync(Token);
@@ -206,6 +207,7 @@ internal sealed partial class NativeUxFixtureSession : IApplicationDataPaths, ID
                 NullLogger<Kora.Application.Voice.BoundedAudioOutputCatalog>.Instance),
             speechTextConfiguration: captionConfiguration,
             webPageGet: webPageGet);
+        if (webSummary is not null) { Main.BindWebSummaryWorkflow(webSummary); }
         Main.BindCallOwnershipGate(() => Access.Open);
         Main.BindClipboardOwnershipGate(static () => false);
         await Main.InitializeAsync();

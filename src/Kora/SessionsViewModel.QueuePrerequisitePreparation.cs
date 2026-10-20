@@ -116,7 +116,8 @@ internal sealed partial class SessionsViewModel
             activity.Complete(HostOperationOutcome.Completed);
             return true;
         }
-        catch (Exception exception) when (exception is not OutOfMemoryException)
+        catch (Exception exception) when (exception is InvalidOperationException or IOException
+            or InvalidDataException or UnauthorizedAccessException or OperationCanceledException or ArgumentException)
         {
             RetirePreparedQueuePrerequisite();
             prerequisitePreparationStatus = "Preparation unavailable/stale: " + exception.GetType().Name
@@ -189,7 +190,8 @@ internal sealed partial class SessionsViewModel
             prerequisitePreparationStatus = "Prepared exact choice applied once. Nothing enqueued. Use a separately named fixed Enqueue action.";
             activity.Complete(HostOperationOutcome.Completed);
         }
-        catch (Exception exception) when (exception is not OutOfMemoryException)
+        catch (Exception exception) when (exception is InvalidOperationException or IOException
+            or InvalidDataException or UnauthorizedAccessException or OperationCanceledException or ArgumentException)
         {
             prerequisitePreparationStatus = "Prepared choice not applied: " + exception.GetType().Name
                 + ". Existing selections unchanged. Request fresh exact preparation; no retry or fallback.";

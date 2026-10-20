@@ -77,6 +77,59 @@ public sealed class AttachmentMetadataFindStateTests
     }
 
     [Fact]
+    public void CountedPassivePresentationIsExactNonoverlappingAndDoesNotRetireOrScanOnRead()
+    {
+        var admitted = true;
+        using var state = new AdmittedMetadataFindState("aaaaa Aa Aa aa 😀 e\u0301 é", () => admitted);
+        state.ReadCurrent().Should().Be(new AdmittedMetadataFindSnapshot(true, "", "", null, false, "", 0, 0, false));
+        state.Edit("aa");
+        state.Find(SnapshotFindDirection.First);
+        state.ReadCurrent().Count.Should().Be(3);
+        state.ReadCurrent().HasCount.Should().BeTrue();
+        state.ReadCurrent().Ordinal.Should().Be(1);
+        state.ReadCurrent().Match.Should().Be(new SnapshotLiteralSpan(0, 2));
+        state.Find(SnapshotFindDirection.Next);
+        state.ReadCurrent().Ordinal.Should().Be(2);
+        state.ReadCurrent().Match.Should().Be(new SnapshotLiteralSpan(2, 2));
+        state.Find(SnapshotFindDirection.Previous);
+        state.ReadCurrent().Match.Should().Be(new SnapshotLiteralSpan(0, 2));
+        state.Find(SnapshotFindDirection.Previous);
+        state.ReadCurrent().Match.Should().BeNull();
+        state.ReadCurrent().Count.Should().Be(3);
+        state.ReadCurrent().Ordinal.Should().Be(1);
+        state.ReadCurrent().ExactMatch.Should().BeEmpty();
+        state.Find(SnapshotFindDirection.Next);
+        state.Find(SnapshotFindDirection.Next);
+        state.Find(SnapshotFindDirection.Next);
+        var end = state.ReadCurrent();
+        end.Ordinal.Should().Be(3);
+        end.Count.Should().Be(3);
+        end.Match.Should().BeNull();
+        end.Status.Should().Contain("no wrap");
+        admitted = false;
+        state.ReadCurrent().Should().Be(AdmittedMetadataFindSnapshot.Unavailable);
+        admitted = true;
+        state.ReadCurrent().Should().Be(end, "passive reads neither mutate nor notify; owners explicitly retire revoked lifetimes");
+        state.ReportFocusUnavailable();
+        state.ReadCurrent().Count.Should().Be(0);
+        state.ReadCurrent().HasCount.Should().BeFalse();
+        state.ReadCurrent().Ordinal.Should().Be(0);
+        state.Edit("Aa");
+        state.Find(SnapshotFindDirection.First);
+        state.ReadCurrent().Count.Should().Be(2);
+        state.ReadCurrent().ExactMatch.Should().Be("Aa");
+        state.Clear();
+        state.ReadCurrent().Count.Should().Be(0);
+        state.Edit("\n");
+        state.Find(SnapshotFindDirection.First);
+        state.ReadCurrent().Count.Should().Be(0);
+        var unsupported = () => state.Find((SnapshotFindDirection)1234);
+        unsupported.Should().Throw<ArgumentOutOfRangeException>();
+        state.Dispose();
+        state.ReadCurrent().Should().Be(AdmittedMetadataFindSnapshot.Unavailable);
+    }
+
+    [Fact]
     public void FindNavigatesExactImmutableTextWithoutWrapAndRetainsOnlyBoundaryCursor()
     {
         using var state = new AdmittedMetadataFindState("😀 Aa Aa aa", () => true);

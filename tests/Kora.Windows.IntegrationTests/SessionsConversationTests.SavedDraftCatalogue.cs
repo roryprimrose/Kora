@@ -251,6 +251,9 @@ public sealed partial class SessionsConversationTests
             model.Select(row);
             model.CanNext.Should().BeTrue();
             model.CanNavigate.Should().BeTrue();
+            model.MetadataFindQuery = "session";
+            model.FindMetadata(Kora.Core.Context.SnapshotFindDirection.First);
+            model.MetadataFindCount.Should().Be(1);
             var observedReads = reads;
             switch (field)
             {
@@ -273,12 +276,25 @@ public sealed partial class SessionsConversationTests
             model.CanNext.Should().BeFalse();
             model.CanNavigate.Should().BeFalse();
             model.CanSearch.Should().BeTrue();
+            model.MetadataFindQuery.Should().BeEmpty();
+            model.MetadataFindCount.Should().Be(0);
         }
         model.ClearQuery();
         model.MinimumScalarsText.Should().BeEmpty();
         model.MaximumScalarsText.Should().BeEmpty();
         model.SourceText.Should().BeEmpty();
         model.ProfileText.Should().BeEmpty();
+        await model.Refresh();
+        model.Select(model.Records[0]);
+        model.MetadataFindQuery = "session";
+        model.FindMetadata(Kora.Core.Context.SnapshotFindDirection.First);
+        model.CanNext.Should().BeTrue();
+        await model.Refresh(next: true);
+        model.Records.Should().ContainSingle();
+        model.SelectedRecord.Should().BeNull();
+        model.CanFindMetadata.Should().BeFalse();
+        model.MetadataFindCount.Should().Be(0);
+        model.MetadataFindQuery.Should().BeEmpty();
         f.Count("conversation_messages").Should().Be(0);
     }
 

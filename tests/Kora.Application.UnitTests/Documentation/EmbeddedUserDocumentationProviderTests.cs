@@ -13,6 +13,22 @@ namespace Kora.Application.UnitTests.Documentation;
 public sealed class EmbeddedUserDocumentationProviderTests
 {
     [Fact]
+    public void Embedded_response_mode_aliases_explain_exact_future_only_controls_and_refusals()
+    {
+        var pages = new EmbeddedUserDocumentationProvider().GetPages();
+        var commands = pages.Single(page => string.Equals(page.Id, "commands", StringComparison.Ordinal)).Markdown;
+        var settings = pages.Single(page => string.Equals(page.Id, "settings", StringComparison.Ordinal)).Markdown;
+        foreach (var phrase in new[] { "use visual responses", "use spoken responses", "use spoken and visual responses", "check response mode" })
+        {
+            commands.Should().Contain("**" + phrase + "**");
+            settings.Should().Contain("**" + phrase + "**");
+        }
+        commands.Should().Contain("future eligible responses only").And.Contain("stale or unconfirmed state refuses")
+            .And.Contain("they never answer a pending decision or reach the model");
+        settings.Should().Contain("VoiceOnly cannot override call/privacy suppression or speech caps");
+    }
+
+    [Fact]
     public void Embedded_all_work_guide_explains_inclusive_ranges_and_unavailable_omission_boundaries()
     {
         var guide = new EmbeddedUserDocumentationProvider().GetPages()

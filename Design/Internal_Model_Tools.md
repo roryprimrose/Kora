@@ -340,7 +340,7 @@ The delivered [native exact-session retention status and Keep/ordinary review](I
 | `calls.get_status`, `calls.set_manual_state` | Detector metadata or explicit manual Active/Clear request; current evidence/effective policy | M/E | Proposed A; manual preference cannot fabricate observations; manual-state mutation while protected requires UI initiation |
 
 The bounded [native and exact typed/current-name activated `speech.read_once` action](../src/Kora.Tools/Speech/SpeechReadOnce.cs) resolves only the current ordinary response through [existing host speech admission](../src/Kora.Application/ViewModels/MainViewModel.ResponseRead.cs).
-Its model lane is **Unavailable** with `current-response-model-tool-loop-not-qualified`: the generic parameterized model tool/result lane is not qualified. No descriptor is added to the six read-only family, and model transport is unchanged.
+Its model lane is **Unavailable** with `current-response-model-tool-loop-not-qualified`: the bounded model lane has no admitted current-response speech descriptor, exact-target input/result shape or playback authority. No descriptor is added to the six read-only family, and this action does not change model transport.
 
 This delivery does not admit prompt/question/approval or historical USER/HOST playback, raw source TTS, a VisualOnly override or a protected-call speak-once exception.
 [Current commands and blockers](../docs/commands.md#read-the-current-response-aloud-once) and [deterministic boundary tests](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.ResponseRead.cs) own its bounded implementation evidence.

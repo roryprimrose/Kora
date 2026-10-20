@@ -30,6 +30,26 @@ namespace Kora.Application.UnitTests.Context;
 public sealed class ClipboardExplanationWorkflowTests
 {
     [Fact]
+    public async Task AcceptedSourceCannotDispatchToolsOrPublishAnAdapterAnswerAfterIgnoringTheDenial()
+    {
+        await using var fixture = new Fixture();
+        using var root = fixture.Root();
+        await fixture.Action.ExecuteAsync(null, static () => true, fixture.Token);
+        fixture.Adapter.OnTool = async invoke =>
+        {
+            var reply = await invoke(ReadOnlyCapabilityCatalog.Version, "{}", fixture.Token);
+            reply.Outcome.Should().Be(CapabilityOutcome.Denied);
+        };
+        var result = await fixture.Action.ExecuteAsync(fixture.Broker.Current!.SnapshotId, static () => true, fixture.Token);
+        result.Outcome.Should().Be(ClipboardExplanationOutcome.Unavailable);
+        result.ModelReason.Should().Be(ModelTurnReason.ToolUseNotPermitted);
+        fixture.VersionReads.Should().Be(0);
+        fixture.Adapter.Calls.Should().Be(1);
+        fixture.Workflow.CurrentExplanation.Should().BeNull();
+        ModelToolProtocol.ReadContext(fixture.Adapter.Wire!, fixture.Adapter.Provenance!).ToolMode.Should().Be(ModelToolMode.None);
+    }
+
+    [Fact]
     public async Task ProductionSourceUsePolicyRemainsUnavailableEvenWithAQualifiedFakeProviderAndExplicitReview()
     {
         await using var fixture = new Fixture(productionSourcePolicy: true);
@@ -568,7 +588,8 @@ public sealed class ClipboardExplanationWorkflowTests
         public bool CanInspect => true;
         public long ControlRevision => 1;
         public bool IsCurrentHost => true;
-        public string Version => "1.0";
+        internal int VersionReads { get; private set; }
+        public string Version { get { VersionReads++; return "1.0"; } }
         public void Write(SecurityAuditEvent auditEvent) => Audits.Add(auditEvent);
         private readonly ModelTurnHost models;
         private readonly ClipboardExplanationAdmission admission;
@@ -690,9 +711,10 @@ public sealed class ClipboardExplanationWorkflowTests
         internal TaskCompletionSource<ModelProviderReply>? Pending { get; set; }
         internal ModelTurnOutcome Outcome { get; set; } = ModelTurnOutcome.Succeeded;
         internal Exception? Failure { get; set; }
+        internal Func<Func<string, string, CancellationToken, ValueTask<CapabilityReply>>, Task>? OnTool { get; set; }
         internal ModelProviderReply Reply() => new(Outcome, ModelProviderSelection.OllamaCandidate,
             new("Genuine synthetic local explanation.", null));
-        public Task<ModelProviderReply> RunAsync(ModelTurnProvenance provenance, ProviderProfileTuple? profile,
+        public async Task<ModelProviderReply> RunAsync(ModelTurnProvenance provenance, ProviderProfileTuple? profile,
             ReadOnlyMemory<byte> context, Func<string, string, CancellationToken, ValueTask<CapabilityReply>> invokeTool,
             CancellationToken cancellationToken)
         {
@@ -701,7 +723,8 @@ public sealed class ClipboardExplanationWorkflowTests
             Provenance = provenance;
             Started.TrySetResult();
             if (Failure is not null) { throw Failure; }
-            return Pending?.Task ?? Task.FromResult(Reply());
+            if (OnTool is { } invoke) { await invoke(invokeTool); }
+            return Pending is { } pending ? await pending.Task : Reply();
         }
     }
 }

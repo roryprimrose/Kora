@@ -128,7 +128,7 @@ public sealed partial class ClipboardExplanationWorkflow(
                     { result = new(ClipboardExplanationOutcome.Unavailable, ModelReason: admittedTurn.Result.Reason); }
                     else
                     {
-                        var response = await models.RunAsync(turn, admitted).ConfigureAwait(false);
+                        var response = await ((IModelTurnExecution)models).RunAsync(turn, current, admitted).ConfigureAwait(false);
                         if (!current()) { result = new(ClipboardExplanationOutcome.Cancelled); }
                         else if (response.Outcome == ModelTurnOutcome.Succeeded)
                         {

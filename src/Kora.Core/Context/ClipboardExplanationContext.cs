@@ -24,7 +24,8 @@ public static class ClipboardExplanationContext
         ConversationCredentialScreening.RequireAccepted(snapshot.Text);
         var context = new ModelContextEnvelope(request, Policy, Request,
             [new(new(snapshot.SnapshotId), request, new(snapshot.Version), snapshot.Text, ModelEvidenceDisclosure.LocalOnly)],
-            now, now.AddSeconds(15) < snapshot.CapturedAt + Lifetime ? now.AddSeconds(15) : snapshot.CapturedAt + Lifetime);
+            now, now.AddSeconds(15) < snapshot.CapturedAt + Lifetime ? now.AddSeconds(15) : snapshot.CapturedAt + Lifetime,
+            toolMode: ModelToolMode.None);
         context.RequireCompleteInputLimit();
         return context;
     }

@@ -8,13 +8,102 @@ local-version queue and its exact pending cancellation are delivered; cancellati
 of the separate genuine current-run local-version pre-dispatch question wait
 remains gateway-bound. Native exact-session composer, explicit saved drafts and
 immutable submitted user messages with truthful unavailable host outcomes are
-delivered below. Full conversation generation, effect and model-assisted routing
-integration remains proposed.
+delivered below. Bounded admitted local answer execution is implemented below; general effects
+and model-assisted routing remain proposed.
 
 Related: [Architecture](Architecture.md), [Work Management](Work_Management.md), [Information Display](Information_Display.md), [Security](Security_Data_Flows.md), [User Configuration](User_Configuration.md), [Acceptance Criteria](Acceptance_Criteria.md).
 
 This is the canonical interaction/session contract. It replaces the former single-conversation, single-executor, memory-only-history direction.
 Windows login sessions, voice capture generations, provider/SDK conversations, and Kora work sessions are different identities; none substitutes for another.
+
+## Bounded admitted local answer execution - 2026-10-20
+
+Explicit Sessions, shared compact, fresh New request and expanded-prompt
+submissions now consume the same [conversation execution workflow](../src/Kora.Application/Hosting/SessionConversationService.Execution.cs).
+The original USER body/task/request is committed first. Exactly one configured
+`IModelTurnAdmission.AdmitAsync` may issue a turn. Only the same
+[ModelTurnHost execution port](../src/Kora.Application/Dependencies/IModelTurnExecution.cs)
+calls its existing single-use `RunAsync`; no legacy reasoner, model-supplied
+delegate, bootstrap action, provider switch, retry or installation is used.
+Existing production registrations remain unqualified: their actual
+UnregisteredModel/QualificationPending/unavailable reason is retained without
+an assistant answer. This implementation does not qualify any runtime.
+
+The [canonical original-user submit](../src/Kora.Application/Hosting/SessionConversationService.cs)
+preserves either LocalUi or ActivatedVoice origin through the original message,
+model provenance, separate assistant response and typed audit. The existing
+[source-bound review/confirmation workflow](../src/Kora.Application/Hosting/SessionRequestCommandService.cs)
+remains authoritative; voice gains no native saved-draft writer authority and
+cannot be relabelled as LocalUi. Deterministic
+[host execution tests](../tests/Kora.Application.UnitTests/Dependencies/ModelTurnHostTests.ConversationExecution.cs)
+and [private completion/restart tests](../tests/Kora.Windows.IntegrationTests/Storage/WindowsSqliteConversationTests.Execution.cs)
+cover both original channels.
+
+For an admitted qualified local turn, one audited private transaction records
+DispatchRecorded on the **original** task and binds the original message to
+the host-issued turn/provenance and exact session metadata revision. The host
+keeps its owner/issuer/single-use/policy/provider/qualification/context/deadline,
+session/task/generation, registry and resource-quiescence checks. Consumer
+private/source callbacks and exact metadata are revalidated before/after model
+and tool continuations. Expanded-source asynchronous validation is also retained
+around the host callback. Only the host's existing read-only registry is callable;
+this creates no grant, approval, question or arbitrary-effect authority.
+
+Only a genuine successful **answer-only** host result can become
+[ConversationResponse](../src/Kora.Core/Conversation/ConversationResponse.cs).
+Exact request/session/task/turn/provider provenance, strict Unicode and complete
+serialized `LocalModelResponse` <=4096 UTF-8 bytes are validated, using shared
+ConversationText bounds and credential rejection without normalization,
+truncation or repair. Action/grant/question/malformed/oversized output cannot
+be silently retained as successful prose. A rejected answer is Unknown /
+InvalidProviderResponse, not an answer or successful task.
+
+Assistant data is a distinct nullable field of its original message, never USER
+text or HOST status. The [private completion transaction](../src/Kora.Windows/Storage/WindowsSqliteHostInteractionStore.ConversationExecution.cs)
+commits the complete response, terminal task and required content-free typed
+requested/terminal audit together. Strict exact-message and exact-task readback
+precedes publication. The host itself does not append a second task terminal.
+Cancellation/timeout after possible dispatch maps conservatively to an Unknown
+task rather than claiming physical cancellation; caller cancellation, source
+loss or uncertain commit/readback may leave DispatchRecorded held for inspection.
+Restart recovers that dispatched task as Unknown with no answer/replay. Intent-only
+legacy recovery remains Interrupted. Late output cannot append an answer or release
+an unquiesced provider slot prematurely.
+
+Schema 12 [migrates the message revision constraint](../src/Kora.Windows/Storage/WindowsSqliteHostInteractionStore.ConversationExecution.cs)
+transactionally from schema 11 to admit terminal revision 3; exact legacy schema,
+integrity and authority are validated before replacement. It retains every
+original payload, sequence, task and audit byte and the private-copy lifecycle. Legacy
+message format 1 canonical bytes/digests are unchanged (new null fields are
+omitted). Format 2 is admitted only for a bound execution: revision 2 is
+dispatched and revision 3 terminal, with independently versioned response
+format 1. Unknown/corrupt/noncanonical formats fail closed. Execution and
+terminal revisions invalidate existing conversation snapshot cursors. The
+100-message allowance and chronological sequence count original USER submissions,
+not assistant bodies. Complete 50-record/64-KiB pages include the response once;
+no separate body cache/table/index or unowned copy is added. Existing disposition,
+retention, private/tombstone and journal/free-page cleanup remove the entire cell,
+including assistant output, while preserving independent audit/grants.
+
+Sessions/compact rows, immediate submit outcomes, New request and retained
+Details show complete inert **ASSISTANT** text separately from original
+**USER** and typed **HOST**. Details exact-source/digest and original-text
+reuse remain USER-only; assistant output acquires no clipboard, export,
+rich-link or reuse authority. Existing USER/HOST lexical filters still search
+only original USER and typed HOST fields, not generated prose or full chat.
+All private/source/lifecycle/selection/close fences clear assistant projections.
+Saved-draft recovery, Compare, dirty-buffer decisions and immutable submission
+origins stay unchanged. No history/recall/egress assembly or automatic session Done
+is added.
+
+Deterministic [Core response tests](../tests/Kora.Core.UnitTests/Conversation/ConversationResponseTests.cs),
+[integrated retained loop tests](../tests/Kora.Application.UnitTests/Dependencies/ModelTurnHostTests.IntegratedExecution.cs),
+[private SQLite tests](../tests/Kora.Windows.IntegrationTests/Storage/WindowsSqliteConversationTests.Execution.cs)
+and [native tests](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.Execution.cs)
+cover this path. Compiler/analyzer, maintained checks and exact-source raw 100%
+portable line **and** branch proof remain required; authored tests are not
+passing validation. Installed/model/provider/hardware
+E/Q evidence remains unavailable and is not a bounded implementation prerequisite.
 
 ## Delivered passive exact-conversation lexical search — 2026-10-13
 
@@ -81,7 +170,7 @@ Punctuation is a separator, not regex, wildcard or instruction syntax. Blank/mal
 
 The [passive workflow](../src/Kora.Application/Hosting/SessionWorkspaceService.ConversationSearch.cs) delegates to existing admitted conversation pages; no SQL, schema, body representation or persisted query is added.
 Optional inclusive observed message Generation and Revision min/max join the [range filter](../src/Kora.Core/Conversation/ConversationRangeFilter.cs), AND-composed with lexical, role, terminal, correlation, sequence and submitted-UTC bounds.
-Generation is positive Int64; Revision is 1 or 2, using the same [domain rule](../src/Kora.Core/Conversation/ConversationMessageProvenance.cs) as message validation. Empty means Any; strict unsigned decimal input never trims, accepts signs/overflow or repairs inverted bounds.
+Generation is positive Int64; Revision is 1 through 3, using the same [domain rule](../src/Kora.Core/Conversation/ConversationMessageProvenance.cs) as message validation. Empty means Any; strict unsigned decimal input never trims, accepts signs/overflow or repairs inverted bounds.
 These are retained message values, not current session generation or proof that unknown/omitted evidence is absent. The version-2 complete semantic digest and explicit range identity bind every bound to continuation; omitted bounds preserve prior search semantics.
 The workflow validates each complete source page and every message before exclusion or result-limit/byte-budget stopping, including rows beyond the requested result limit, and validates the final snapshot page before publication ([tests](../tests/Kora.Application.UnitTests/Hosting/SessionWorkspaceServiceTests.ConversationRanges.cs)).
 Each call scans at most the existing 100-message session bound, returns default 25 / maximum 50 complete messages and caps the complete serialized result, counters and continuation at 64 KiB. Bodies, original request/task IDs, source generation and chronological sequence stay unchanged.
@@ -248,10 +337,11 @@ through `ModelTurnHost` while the issuing activity is still live. Original-sourc
 Production advertises no qualified models/adapters. The exact message remains
 retained with **HOST Unavailable / UnregisteredModel** and a terminal
 **Unavailable task**, not an invented assistant answer. Other admission
-denials keep their actual reason/task outcome. A future qualified admission is
-still **Unavailable / GenerationNotEnabled**: this increment does not run an
-adapter, parse raw provider JSON, authenticate, send HTTP, or enable arbitrary
-generation/tools. Rejected Ollama 0.35.1/qwen3:1.7b and 0.40.2 are never a
+denials keep their actual reason/task outcome. The original foundation's
+qualified-admission refusal is superseded by the bounded admitted local answer
+execution above; qualification is still required before any adapter can run.
+The conversation service does not parse raw provider JSON, authenticate, send
+HTTP or enable arbitrary effects. Rejected Ollama 0.35.1/qwen3:1.7b and 0.40.2 are never a
 fallback; installed-local initial desired service is not inference consent.
 Saved drafts stay independent after Submit; only the unchanged memory buffer
 clears after a known terminal/readback receipt.

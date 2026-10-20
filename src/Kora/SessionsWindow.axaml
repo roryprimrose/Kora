@@ -41,7 +41,7 @@
         <controls:NamedTextBlock Text="{Binding ComposerTarget}" TextWrapping="Wrap"
             AutomationProperties.Name="Composer exact target ID, name, generation, metadata and saved draft revisions, private control epoch" />
         <Button x:Name="CompactConversation" Content="Open / activate compact selected conversation" HorizontalAlignment="Left" />
-        <TextBlock Text="Submit retains accepted text exactly and records a truthful unavailable-provider host outcome. Local best-effort structural credential checks reject detected material before Save or Submit; they cannot identify arbitrary passwords or guarantee secret-free text. Correct the memory draft or use supported secure credential flows; no Save anyway or silent redaction. No generation, runtime fallback, history, tools or network. Drafts are memory-only unless explicitly saved." TextWrapping="Wrap" />
+        <TextBlock Text="Submit retains accepted USER text exactly. A separately qualified local host turn may use admitted read-only tools and retain a genuine ASSISTANT answer. Unqualified production runtime remains explicitly unavailable, with no fallback, history assembly, hosted egress or side effects. Best-effort structural credential checks cannot guarantee secret-free text; no Save anyway or silent redaction. Drafts are memory-only unless explicitly saved." TextWrapping="Wrap" />
         <WrapPanel>
           <Button x:Name="ReadConversation" Content="Read exact conversation / saved revision" IsEnabled="{Binding CanReadConversation}" />
           <Button x:Name="NextConversation" Content="Next bounded conversation page" IsEnabled="{Binding CanNextConversation}" />
@@ -81,12 +81,12 @@
         <TextBlock Text="Maximum observed message generation" />
         <TextBox x:Name="ConversationMaximumGeneration" Text="{Binding ConversationMaximumGeneration, Mode=TwoWay}" IsEnabled="{Binding CanReadConversation}"
             AutomationProperties.Name="Inclusive maximum observed message generation; positive unsigned decimal, empty means Any; editing does not read" />
-        <TextBlock Text="Minimum observed message revision (1-2)" />
+        <TextBlock Text="Minimum observed message revision (1-3)" />
         <TextBox x:Name="ConversationMinimumRevision" Text="{Binding ConversationMinimumRevision, Mode=TwoWay}" IsEnabled="{Binding CanReadConversation}"
-            AutomationProperties.Name="Inclusive minimum observed message revision; unsigned decimal 1-2, empty means Any; editing does not read" />
-        <TextBlock Text="Maximum observed message revision (1-2)" />
+            AutomationProperties.Name="Inclusive minimum observed message revision; unsigned decimal 1-3, empty means Any; editing does not read" />
+        <TextBlock Text="Maximum observed message revision (1-3)" />
         <TextBox x:Name="ConversationMaximumRevision" Text="{Binding ConversationMaximumRevision, Mode=TwoWay}" IsEnabled="{Binding CanReadConversation}"
-            AutomationProperties.Name="Inclusive maximum observed message revision; unsigned decimal 1-2, empty means Any; editing does not read" />
+            AutomationProperties.Name="Inclusive maximum observed message revision; unsigned decimal 1-3, empty means Any; editing does not read" />
         <TextBlock Text="Exact terminal HOST predicates (Any means unrestricted). USER-only with any predicate yields zero; all predicates AND with the query and role." TextWrapping="Wrap" />
         <TextBlock Text="Terminal outcome" />
         <ComboBox x:Name="ConversationOutcome" ItemsSource="{Binding ConversationOutcomes}"

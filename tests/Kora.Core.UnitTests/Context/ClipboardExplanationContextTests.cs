@@ -1,4 +1,5 @@
 using AwesomeAssertions;
+using System.Text.Json;
 
 using Kora.Core.Context;
 using Kora.Core.Conversation;
@@ -20,6 +21,9 @@ public sealed class ClipboardExplanationContextTests
         var request = HostRequest.Create(RequestOrigin.LocalUi);
         var context = ClipboardExplanationContext.Create(snapshot, request, Now);
         context.Request.Should().BeSameAs(request);
+        context.ToolMode.Should().Be(ModelToolMode.None);
+        using var wire = JsonDocument.Parse(context.Serialize());
+        wire.RootElement.GetProperty("Tools").GetArrayLength().Should().Be(0);
         var evidence = context.Evidence.Should().ContainSingle().Subject;
         evidence.Id.Value.Should().Be(snapshot.SnapshotId);
         evidence.Revision.Value.Should().Be(snapshot.Version);

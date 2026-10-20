@@ -66,4 +66,10 @@ Assert ($workflow.Contains("inputs.compare_portable_tests && '-portable-comparis
 $comparisonInput = [regex]::Match($workflow, '(?ms)^      compare_portable_tests:\r?\n(?<input>.*?)(?=^\S|\z)')
 Assert $comparisonInput.Success 'The manual comparison input was not found.'
 Assert ($comparisonInput.Groups['input'].Value.Contains('default: false', [StringComparison]::Ordinal)) 'Scheduling comparisons must default to disabled.'
+$comparisonJob = [regex]::Match($workflow, '(?ms)^  portable-test-comparison:\r?\n(?<job>.*?)(?=^  [a-z][a-z-]*:|\z)')
+Assert $comparisonJob.Success 'The comparison job was not found.'
+Assert ($comparisonJob.Groups['job'].Value.Contains('dotnet restore Kora.slnx --locked-mode',
+    [StringComparison]::Ordinal)) 'The comparison must restore the same complete project graph as portable CI.'
+Assert ($comparisonJob.Groups['job'].Value.Contains('dotnet build Kora.slnx --configuration Release --no-restore',
+    [StringComparison]::Ordinal)) 'The comparison must not mix Release tests with Debug dependencies omitted from the unit solution.'
 Write-Host "Portable test scheduling: $assertions assertions passed."

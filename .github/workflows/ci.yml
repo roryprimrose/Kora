@@ -89,11 +89,11 @@ jobs:
           cache-dependency-path: |
             **/packages.lock.json
 
-      - name: Restore locked unit-test dependencies
-        run: dotnet restore Kora.UnitTests.slnx --locked-mode
+      - name: Restore locked dependencies
+        run: dotnet restore Kora.slnx --locked-mode
 
-      - name: Build unit tests once
-        run: dotnet build Kora.UnitTests.slnx --configuration Release --no-restore
+      - name: Build the same Release solution as portable CI once
+        run: dotnet build Kora.slnx --configuration Release --no-restore
 
       - name: Compare sequential and parallel execution
         shell: pwsh

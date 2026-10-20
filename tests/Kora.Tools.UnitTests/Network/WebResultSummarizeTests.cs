@@ -78,15 +78,17 @@ public sealed class WebResultSummarizeTests
         var now = new DateTimeOffset(2026, 10, 20, 0, 0, 0, TimeSpan.Zero).AddTicks(fractionalTicks);
         var action = new WebResultSummarize();
         var seed = action.CreateContext(Capture(string.Empty, retrievedAt: now), request, now, now.AddMinutes(1));
+        ModelContextEnvelope Measure(WebResultSnapshot observation) => new(request, seed.SystemPolicy, seed.UserRequest,
+            [new(observation.Reference.ItemId, request, new(observation.Reference.Revision),
+                observation.Source, ModelEvidenceDisclosure.LocalOnly)],
+            now, now.AddMinutes(1), ModelToolMode.None);
         var count = 16000;
         WebResultSnapshot snapshot;
         ModelContextEnvelope measured;
         do
         {
             snapshot = Capture(new string('a', count), retrievedAt: now);
-            measured = new(request, seed.SystemPolicy, seed.UserRequest,
-                [new(snapshot.Reference.ItemId, request, new(snapshot.Reference.Revision), snapshot.Source, ModelEvidenceDisclosure.LocalOnly)],
-                now, now.AddMinutes(1), ModelToolMode.None);
+            measured = Measure(snapshot);
             var adjustment = ModelContextEnvelope.MaximumInputUtf8Bytes - measured.Serialize().Length;
             count += adjustment;
             if (adjustment == 0) { break; }
@@ -96,10 +98,7 @@ public sealed class WebResultSummarizeTests
             .Be(ModelContextEnvelope.MaximumInputUtf8Bytes);
         // Keep timestamp precision fixed so only the evidence body grows by one byte.
         var oversized = Capture(new string('a', count + 1), retrievedAt: now);
-        var measuredOversized = new ModelContextEnvelope(request, seed.SystemPolicy, seed.UserRequest,
-            [new(oversized.Reference.ItemId, request, new(oversized.Reference.Revision), oversized.Source, ModelEvidenceDisclosure.LocalOnly)],
-            now, now.AddMinutes(1), ModelToolMode.None);
-        measuredOversized.Serialize().Length.Should().Be(ModelContextEnvelope.MaximumInputUtf8Bytes + 1);
+        Measure(oversized).Serialize().Length.Should().Be(ModelContextEnvelope.MaximumInputUtf8Bytes + 1);
         var tooLarge = () => action.CreateContext(oversized, request, now, now.AddMinutes(1));
         tooLarge.Should().Throw<InvalidDataException>();
     }

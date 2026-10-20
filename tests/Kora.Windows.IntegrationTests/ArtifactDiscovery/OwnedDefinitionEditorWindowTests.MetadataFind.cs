@@ -160,6 +160,13 @@ public sealed partial class OwnedDefinitionEditorWindowTests
                 window.MetadataFindNext.IsEnabled.Should().BeFalse();
                 window.MetadataFindMatch.Text.Should().BeEmpty();
                 window.MetadataFindMatch.Focusable = true;
+                window.MetadataFindQuery.Focus();
+                EventHandler<FocusChangedEventArgs> stealFocus = (_, _) => window.Source.Focus();
+                window.MetadataFindMatch.GotFocus += stealFocus;
+                FindMetadataText(window, "bb");
+                window.MetadataFindStatus.Text.Should().Contain("focus is unavailable");
+                window.MetadataFindMatch.Text.Should().BeEmpty();
+                window.MetadataFindMatch.GotFocus -= stealFocus;
                 window.MetadataFindQuery.Focusable = false;
                 ClickMetadata(window.MetadataFindFocus);
                 window.MetadataFindStatus.Text.Should().Contain("focus is unavailable");

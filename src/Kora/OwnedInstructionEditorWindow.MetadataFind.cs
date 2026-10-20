@@ -68,7 +68,7 @@ internal sealed partial class OwnedInstructionEditorWindow
             var admitted = metadataFind;
             RenderMetadataFind();
             if (admitted is null || !ReferenceEquals(metadataFind, admitted)) { return; }
-            if (!MetadataFindQuery.Focus()) { admitted.ReportFocusUnavailable(); }
+            if (!MetadataFindQuery.Focus() || !MetadataFindQuery.IsFocused) { admitted.ReportFocusUnavailable(); }
             RenderMetadataFind();
         };
         MetadataFindFirst.Click += (_, _) => FindMetadata(SnapshotFindDirection.First);
@@ -141,7 +141,7 @@ internal sealed partial class OwnedInstructionEditorWindow
         if (!Current()) { RenderMetadataFind(); return; }
         MetadataFindMatch.BringIntoView();
         if (!Current()) { RenderMetadataFind(); return; }
-        if (!MetadataFindMatch.Focus()) { admitted!.ReportFocusUnavailable(); }
+        if (!MetadataFindMatch.Focus() || !MetadataFindMatch.IsFocused) { admitted!.ReportFocusUnavailable(); }
         RenderMetadataFind();
     }
 

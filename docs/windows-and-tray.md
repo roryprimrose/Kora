@@ -358,6 +358,26 @@ Original typed/current-name ACTIVATED `prepare file search for "<query>"` / `pre
 Quoted literals use doubled quotes, keep exact case/punctuation/Unicode/interior spaces, and reuse the existing bounded lexical validation. Preparation performs no metadata/content read, refresh, search, clipboard, model, attachment, retention or consent operation.
 Missing/wrong-kind/stale/closed previews or changed admission refuse rather than choosing another source; retained attachments and Literal Find are not targets ([host handoff](../src/Kora.Application/ViewModels/MainViewModel.PreparedLocalSearch.cs)).
 
+### Wrap admitted original text
+
+**Wrap admitted text** changes only the presentation of the complete admitted source
+in a file preview, selected captured-folder file or already inspected retained
+Session attachment. It starts unchecked, preserving each view's original unwrapped
+layout. Check it to fit visual rows to the available viewport; uncheck it to scroll
+horizontally. Window resizing and reader text scale do not change the source.
+
+The choice is volatile and belongs only to the current source in this window.
+Selecting another folder file, replacing/reopening the view, privacy revocation or
+closing resets it; returning to an earlier file starts unchecked again. Metadata
+and consent reviews have no wrap control. This does not read or revalidate an
+attachment, renew activity, save a preference, copy, or grant source-use permission.
+
+Original bytes, decoded text, newlines, spaces and tabs remain unchanged. Literal
+Find query, count, ordinal and UTF-16 offsets and lexical citation positions remain
+unchanged, without an automatic search. Soft-wrapped visual rows are **not logical
+source lines or citation positions**. Notices, excerpts and exact match spans are
+not reformatted by this control.
+
 ### Find a literal in the currently inspected original file
 
 In an admitted file preview, selected captured-folder file or retained Session attachment, enter a one-line literal in **Literal Find** and explicitly choose **Find first**. This searches only the displayed immutable original, not every folder file, the current filesystem, a provider or a conversation.

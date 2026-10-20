@@ -212,7 +212,8 @@ public sealed class ClipboardJsonWindowTests
         internal Func<CancellationToken, ClipboardJsonSyntaxResult>? Validate { get; private set; }
         internal int JsonClears { get; private set; }
         public void Show(ClipboardSnapshot snapshot, Func<Task> reuse, Func<Task> revoke, Func<bool> isCurrent,
-            Func<Task>? explain = null, Func<CancellationToken, ClipboardJsonSyntaxResult>? validateJson = null, Func<bool>? isJsonCurrent = null) =>
+            Func<Task>? explain = null, Func<CancellationToken, ClipboardJsonSyntaxResult>? validateJson = null, Func<bool>? isJsonCurrent = null,
+            Func<ClipboardSnapshot, Func<bool>, CancellationToken, ClipboardXmlValidationResult>? validateXml = null) =>
             Validate = validateJson;
         public void SetExplanation(string? text) { }
         public void ClearJsonValidation() => JsonClears++;

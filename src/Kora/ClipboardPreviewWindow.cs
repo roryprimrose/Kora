@@ -16,11 +16,13 @@ internal sealed partial class ClipboardPreviewWindow(Action<Exception> reportFai
     private readonly NamedTextBlock explanation = new() { TextWrapping = TextWrapping.Wrap };
 
     public void Show(ClipboardSnapshot snapshot, Func<Task> reuse, Func<Task> revoke, Func<bool> isCurrent, Func<Task>? explain = null,
-        Func<CancellationToken, ClipboardJsonSyntaxResult>? validateJson = null, Func<bool>? isJsonCurrent = null)
+        Func<CancellationToken, ClipboardJsonSyntaxResult>? validateJson = null, Func<bool>? isJsonCurrent = null,
+        Func<ClipboardSnapshot, Func<bool>, CancellationToken, ClipboardXmlValidationResult>? validateXml = null)
     {
         typographyHost?.EnsureReaderTypographyAvailable();
         ClearFindState();
         ClearJsonState();
+        ClearXmlValidation();
         Title = "Local clipboard snapshot (untrusted plain text)";
         Width = 760;
         Height = 600;
@@ -83,6 +85,7 @@ internal sealed partial class ClipboardPreviewWindow(Action<Exception> reportFai
         content.Children.Add(source);
         AutomationProperties.SetName(explanation, "Volatile local clipboard explanation; untrusted model response");
         content.Children.Add(explanation);
+        AddXmlValidation(content, snapshot, isCurrent, validateXml);
         body.Children.Add(new ScrollViewer
         {
             Content = content,
@@ -101,6 +104,7 @@ internal sealed partial class ClipboardPreviewWindow(Action<Exception> reportFai
     {
         ClearFindState();
         ClearJsonState();
+        ClearXmlValidation();
         source.Text = null;
         explanation.Text = null;
         Content = null;
@@ -112,6 +116,7 @@ internal sealed partial class ClipboardPreviewWindow(Action<Exception> reportFai
         Closed -= OnFindClosed;
         ClearFindState();
         ClearJsonState();
+        ClearXmlValidation();
         source.Text = null;
         explanation.Text = null;
         Content = null;

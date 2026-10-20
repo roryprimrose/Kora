@@ -863,6 +863,18 @@ or suppress it. A new capture replaces the prior selection with a new ID.
 **Literal Find is native-only**, not a typed/voice command or model tool. Use **Find first / Find next / Find previous / Clear literal Find** in the already captured preview; no clipboard reread, reuse/revoke action or activity renewal occurs.
 Exact case/spaces, one-line strict Unicode, 256 UTF-16 / 512 UTF-8 limits and visible invalid-input rejection apply. See [native clipboard Find](windows-and-tray.md#local-clipboard-preview) and its [contract](../Design/Security_Data_Flows.md#delivered-r07-local-clipboard-preview---2026-10-07).
 
+**Validate this snapshot as XML** is a separate explicit native button, not a
+typed/voice command or model tool. It checks the entire unchanged snapshot in
+memory as one XML document, without rereading the clipboard. DTDs are prohibited,
+external resources are never loaded, and element depth is limited to 64.
+The volatile result is WellFormedXML, Invalid or PolicyRefused with a bounded
+reason and line/column, never a source excerpt. Closing or retiring the preview
+clears it. Encoding declarations are text metadata, not proof of the original
+clipboard encoding. XML well-formedness does **not** establish schema validity,
+safety, trust, uniqueness, absence of secrets, egress approval or permission to
+send the text to a model. Explanation remains unavailable under its source-use
+policy; XML checking does not bypass it.
+
 The whole text must fit 256 KiB UTF-8, with valid paired Unicode surrogates.
 Empty, unsupported, oversize, busy, denied, changed-version and malformed
 reads are explicit; there is no truncation, queued retry, background watcher,

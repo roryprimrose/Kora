@@ -1026,6 +1026,19 @@ An internal failure is explicitly unavailable with native recovery, never
 ordinary invalid JSON. No result enters response history, transcripts, speech,
 logs or persistence. No typed, voice or model JSON-validation route is added.
 
+Scroll within the inert source area to **Validate this snapshot as XML**. Only
+pressing this separate button checks the full unchanged retained text in memory.
+It reports WellFormedXML, Invalid or PolicyRefused with a reason and numeric
+line/column, not source excerpts or parser messages. Nothing is repaired,
+formatted, copied, fetched, executed or sent to a model. DTDs are prohibited,
+external resources are disabled and at most 64 element levels are admitted.
+Encoding declarations describe text metadata, not the actual original
+clipboard encoding. Well-formedness is not schema validation, safety, trust,
+uniqueness, absence of secrets or source-use/egress approval. The result belongs
+only to this exact preview and is discarded when it retires; explanation's
+source-use policy remains unavailable. See the
+[XML boundary](../Design/Security_Data_Flows.md#native-clipboard-xml-well-formedness).
+
 The separate **Review local version (native question)** tray entry opens one
 owned native card bound to the original durable host question, not whichever
 window is focused. It shows exact target/revision/expiry, an unselected choice,

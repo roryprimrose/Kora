@@ -340,6 +340,34 @@ Typed syntax and arbitrary exact after-task semantics below are unchanged; no re
 
 **Review selected pending cancellation** uses a separate pending-only multi-selection, never the current work/question selection. Select one to ten current-run pending entries explicitly; no hidden/default select-all. Review shows every ID/revision/profile in current dispatch order with original deadlines and full count; **Cancel these pending entries only** is the separate confirmation.
 
+For preparation without copying revisions, use
+`session queue cancellation review <session-id> <task-id>[,<task-id>...]`,
+or `session queue cancellation help` for explicit help. Typed input and the
+current assistant-name activated voice route open this same private native
+selector/review. IDs must be nonempty lowercase canonical D GUIDs; specify
+one to the existing maximum ten unique task IDs, comma-separated without
+spaces. Input order is resolved to current dispatch order. Names, substrings,
+`latest`, `current`, omitted targets, duplicates and default/all selection are
+not accepted.
+
+Preparation freezes the original exact session, queue, run, pause and member
+revisions. Native opening uses the original dirty-composer Save/Discard/Cancel
+decision; Cancel or an unconfirmed save never prepares cancellation. The exact
+queue is observed again before the complete review displays every original
+ID/revision/deadline/prerequisite, count and queue/run/pause state. Missing,
+replaced, nonpending, previous-run or otherwise ineligible entries refuse the
+whole request; changed sources are unavailable, never silently reduced,
+retargeted or retried. Expired pending rows remain cancellable only under the
+existing cancellation policy, without renewing dispatch eligibility.
+
+This command cannot confirm or commit cancellation. Use the separate one-shot
+native **Cancel these pending entries only** action after reviewing the complete
+subset, or discard the review to retain the native selection and drafts.
+Preparation never enqueues, dispatches, pauses/resumes, probes, invokes a model,
+renews deadlines/activity, changes running work or removes history. Existing
+question/approval decisions remain separate. The full revisioned commands above
+retain their existing behavior.
+
 New selected-set syntax uses canonical lowercase D GUIDs and canonical decimal revisions. Repeat the full ordered member list and every displayed authority revision plus the host-issued review ID when confirming.
 Empty/duplicate/over-bound/unlisted/stale members, changed source/private epochs or queue mutations refuse the entire set; refresh and review again. Existing `cancel`, `remove` and `clear` syntax is unchanged.
 

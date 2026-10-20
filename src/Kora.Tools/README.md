@@ -25,7 +25,7 @@ helpers and brokers are not separately advertised actions.
 | [Capabilities](Capabilities) | [CapabilitiesList](Capabilities/CapabilitiesList.cs), [CapabilitiesGet](Capabilities/CapabilitiesGet.cs) | [ReadOnlyPage](Capabilities/ReadOnlyPage.cs) and Core descriptor catalogue. |
 | [Readiness](Readiness) | [ReadinessGet](Readiness/ReadinessGet.cs) | [RecordedDependencyObservation](Readiness/RecordedDependencyObservation.cs). |
 | [Runtime](Runtime) | [RuntimeList](Runtime/RuntimeList.cs), [RuntimeGetStatus](Runtime/RuntimeGetStatus.cs) | [RecordedRuntimeObservation](Runtime/RecordedRuntimeObservation.cs), reusing the readiness projection. |
-| [Clipboard](Clipboard) | [ClipboardRead](Clipboard/ClipboardRead.cs), [ClipboardReuse](Clipboard/ClipboardReuse.cs), [ClipboardRevoke](Clipboard/ClipboardRevoke.cs) | [ClipboardSnapshotBroker](Clipboard/ClipboardSnapshotBroker.cs) owns the snapshot and lifecycle policy. |
+| [Clipboard](Clipboard) | [ClipboardRead](Clipboard/ClipboardRead.cs), [ClipboardReuse](Clipboard/ClipboardReuse.cs), [ClipboardRevoke](Clipboard/ClipboardRevoke.cs), [ClipboardInspectBase64](Clipboard/ClipboardInspectBase64.cs) (native only) | [ClipboardSnapshotBroker](Clipboard/ClipboardSnapshotBroker.cs) owns the snapshot and lifecycle policy. |
 | [Files](Files) | [LocalFilePreview](Files/LocalFilePreview.cs), [LocalFileSearch](Files/LocalFileSearch.cs) | The existing preview owns admission/revocation and quiescence; Core `ILocalFileRetrieval` / `LocalFileLexicalRetrieval` own the bounded deterministic lexical policy. |
 | [Network](Network) | `WebPageGet`, `PreapprovedUriList`, `PreapprovedUriAdd`, `PreapprovedUriRemove`, `PreapprovedUriClear` | `WebPageGet` owns bounded redirect-aware retrieval over a pinned-address transport. Core owns URI/network validation and matching; Application owns configuration, native routing and authorization integration. |
 
@@ -77,6 +77,15 @@ checks the exact retained object through the same broker eligibility. Its
 document in memory, prohibits DTDs/external resources, and limits element depth
 to 64. It grants no model source-use or schema/safety authority. See the
 [owning contract](../../Design/Security_Data_Flows.md#native-clipboard-xml-well-formedness).
+
+[ClipboardInspectBase64](Clipboard/ClipboardInspectBase64.cs) is a separate
+native-gesture-only action on that exact existing immutable snapshot, not a
+registered typed/voice/model body route. It revalidates the broker's original
+admission and current native host eligibility around the authoritative
+[Core canonical grammar/size policy](../Kora.Core/Context/ClipboardBase64Policy.cs).
+It creates no decoded buffer or string. See the owning
+[Context contract](../../Design/Security_Data_Flows.md#native-standard-base64-syntax-and-size-inspection)
+for the strict profile, native-only result and unchanged authority boundaries.
 
 ### Preapproved network addresses
 

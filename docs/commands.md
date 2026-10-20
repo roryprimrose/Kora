@@ -896,6 +896,32 @@ not automatic rollback/replay. There is no model tool or pending-question bridge
 
 ## Explicit local clipboard preview
 
+In an existing native preview, **Inspect this snapshot as standard Base64** explicitly
+checks the complete exact encoded text, not the current clipboard. This is a
+syntax/size inspector, **not a decoder/export or security tool**. It accepts only
+the standard RFC 4648 `A-Z a-z 0-9 + /` alphabet, encoded length divisible by four,
+zero/one/two final `=` characters as required, and zero unused padding bits.
+Whitespace/line wrapping, trimming, case folding, Base64URL `-`/`_`, data URIs,
+prefixes, format guessing and repair are not supported.
+
+Native-only results are **AdmittedProfile** with the exact decoded **byte** count,
+or **InvalidProfile** with a typed reason and zero-based UTF-16 offset (an end
+position can indicate invalid length). Invalid input has no partial count.
+No decoded bytes/string are created, displayed, copied, saved or interpreted as
+text, JSON/XML, compressed/archive/file/command/URL data or model input. The
+original encoded text remains unchanged and may contain secrets. Admitted syntax
+does not mean safe, trusted, secret-free, encrypted, signature/schema verified,
+or approved for source use, egress or any action.
+
+There is no typed, voice or model Base64-body command, automatic inspection, or
+inspection from Find. The complete existing 256 KiB source budget applies without
+truncation. A canonical empty encoding represents zero bytes in the pure policy,
+but clipboard capture rejects empty text: missing/empty captures never create an
+invented snapshot. Close, revoke, replacement, Cancel task, privacy/owner/call
+changes and disposal retire native results and old callbacks. Inspection performs
+no clipboard I/O, recapture/reuse/revocation, model call, history/persistence,
+grant/TTL/activity renewal or source-use-policy change.
+
 These exact commands and the tray's **Preview clipboard (local plain text)**
 entry use the same request workflow without a model:
 

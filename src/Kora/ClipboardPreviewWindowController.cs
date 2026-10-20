@@ -93,6 +93,7 @@ internal sealed class ClipboardPreviewWindowController : IDisposable
         var admitted = admitJson?.Invoke(snapshot);
         jsonEligible = admitted;
         view.Closed += OnClosed;
+        if (host is not null) { view.SetBase64Inspection(host.InspectClipboardBase64); }
         bool IsCurrent() => !disposed && ReferenceEquals(window, view) && ReferenceEquals(current(), snapshot)
             && !disposed && ReferenceEquals(window, view) && ReferenceEquals(showing, snapshot);
         bool JsonCurrent() => IsCurrent() && admitted?.Invoke() != false;

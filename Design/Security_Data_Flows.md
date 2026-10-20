@@ -552,6 +552,61 @@ See [Call-Aware Speech](Call_Aware_Speech.md).
 
 ## Context Flow
 
+### Native standard Base64 syntax and size inspection
+
+The explicit **Inspect this snapshot as standard Base64** native button consumes
+only the existing clipboard snapshot/admission/lifetime **I - Implementation**
+subset. Provider/hardware/installed-native, unrelated E/Q and retired experiment
+evidence are not prerequisites and no provider capability is enabled.
+
+The [pure Core policy](../src/Kora.Core/Context/ClipboardBase64Policy.cs) admits one
+finite canonical RFC 4648 standard profile: `A-Z a-z 0-9 + /`, length divisible by
+four, required zero/one/two final `=` padding characters and zero unused pad bits.
+It rejects all whitespace/line wrapping/trim/case-fold transformations, Unicode
+outside that alphabet, Base64URL `-`/`_`, prefixes/data URIs, interior/excess/missing
+padding, trailing data and guessing/repair. It traverses the complete bounded
+source linearly with finite counters, cancellation checks and checked count math.
+Canonical decoded byte count is `encodedLength / 4 * 3 - padding`; no decoded
+buffer/string is allocated. Empty canonical encoding denotes zero bytes in the
+policy, but the existing capture contract rejects empty input and missing capture
+is not an empty snapshot.
+
+The [typed result](../src/Kora.Core/Context/ClipboardBase64Inspection.cs) is only
+`AdmittedProfile(DecodedByteCount)` or `InvalidProfile(Reason, Utf16Offset)`, with
+no character/token, raw source, decoded body or partial count on invalid input.
+The [Tools action](../src/Kora.Tools/Clipboard/ClipboardInspectBase64.cs) checks the
+exact source object (therefore original source/snapshot/request/version identity)
+against the existing broker and its original eligibility closure, and checks
+current native-origin/host admission before inspection and return. It does not
+read, recapture, reuse, revoke, renew review/TTL/activity or mutate the broker.
+The [host seam](../src/Kora.Application/ViewModels/MainViewModel.ClipboardBase64.cs)
+retains current input/privacy/ownership/call eligibility and content-free host
+Activities. Unexpected failures are generated type-only diagnostics and native
+unavailable errors, never fabricated `InvalidProfile` outcomes.
+
+The [dedicated native partial](../src/Kora/ClipboardPreviewWindow.Base64.cs)
+requires an explicit button gesture and checks exact native window/control
+generation and the [controller's existing admission](../src/Kora/ClipboardPreviewWindowController.cs)
+before inspection and publication. Cancellation, replacement/revoke/close/dispose
+and stale queued/reentrant controls drop derived output; no latest fallback or
+automatic Find/per-keystroke/idle inspection exists. Results stay volatile and
+native-only, outside Main response/transcript, speech, logging, clipboard,
+history/persistence, model context and all providers. Source view, Find and source
+admission/privacy guards are unchanged; actions/results are keyboard accessible
+within scrollable native chrome.
+
+This is not Base64URL, a decoder/export tool, token/password/secret generator,
+crypto/bulk functionality or a security tool. No bytes are interpreted as UTF-8,
+JSON/XML, compressed/archive/file/command/URL/model input. Encoded source is
+unchanged and may contain secrets. Admitted syntax is not safety, trust,
+secret-free/encryption/signature/schema verification, egress/source-use approval,
+grant or authority. The unavailable clipboard explanation source-use policy stays
+unavailable. [Policy tests](../tests/Kora.Core.UnitTests/Context/ClipboardBase64PolicyTests.cs),
+[action tests](../tests/Kora.Tools.UnitTests/Clipboard/ClipboardInspectBase64Tests.cs),
+[host tests](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.ClipboardBase64.cs)
+and [headless tests](../tests/Kora.Windows.IntegrationTests/ClipboardBase64WindowTests.cs)
+provide deterministic implementation evidence, not installed qualification.
+
 ### Delivered R07 Local Clipboard Preview - 2026-10-07
 
 Exact deliberate voice/typed preview/snapshot commands and the native

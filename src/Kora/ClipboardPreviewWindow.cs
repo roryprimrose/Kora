@@ -78,8 +78,9 @@ internal sealed partial class ClipboardPreviewWindow(Action<Exception> reportFai
             chrome.Children.Add(explainButton);
         }
         AddFind(chrome, snapshot, isCurrent);
+        AddBase64(chrome, snapshot, isCurrent);
         DockPanel.SetDock(chrome, Dock.Top);
-        body.Children.Add(chrome);
+        body.Children.Add(new ScrollViewer { Content = chrome, MaxHeight = 420 });
         var content = new StackPanel { Spacing = 12 };
         if (validateJson is not null) { AddJsonValidation(content, isCurrent, isJsonCurrent ?? isCurrent, validateJson); }
         content.Children.Add(source);
@@ -102,6 +103,7 @@ internal sealed partial class ClipboardPreviewWindow(Action<Exception> reportFai
 
     public void ClearAndClose()
     {
+        ClearBase64State();
         ClearFindState();
         ClearJsonState();
         ClearXmlValidation();
@@ -113,6 +115,7 @@ internal sealed partial class ClipboardPreviewWindow(Action<Exception> reportFai
 
     private void OnFindClosed(object? sender, EventArgs args)
     {
+        ClearBase64State();
         Closed -= OnFindClosed;
         ClearFindState();
         ClearJsonState();

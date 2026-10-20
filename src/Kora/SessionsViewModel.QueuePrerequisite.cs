@@ -52,7 +52,7 @@ internal sealed partial class SessionsViewModel
 
     public void ChooseNoQueuePrerequisite()
     {
-        if (!CanRead) { return; }
+        if (notifying || presentingQueuePrerequisites || !CanRead) { return; }
         ApplyQueuePrerequisiteChoice(null);
     }
 

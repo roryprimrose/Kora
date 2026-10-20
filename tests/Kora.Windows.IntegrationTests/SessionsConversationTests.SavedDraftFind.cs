@@ -264,6 +264,7 @@ public sealed partial class SessionsConversationTests
     [InlineData("focus-failure")]
     [InlineData("query-bring")]
     [InlineData("query-focus-failure")]
+    [InlineData("display")]
     public async Task SavedDraftFindReentrantCallbacksCannotPublishOrFocusRetiredMatch(string boundary)
     {
         await HeadlessSession.RunAsync(async () =>
@@ -295,6 +296,8 @@ public sealed partial class SessionsConversationTests
                 }
                 else if (boundary is "focus-failure") { span.Focusable = false; }
                 else if (boundary is "query-focus-failure") { query.Focusable = false; }
+                else if (boundary is "display")
+                { window.FindControl<TextBlock>("SelectedMetadataDetails")!.Text = "Not the selected admitted source"; }
                 else
                 {
                     var revoked = false;

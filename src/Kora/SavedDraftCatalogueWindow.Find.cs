@@ -19,12 +19,13 @@ internal sealed partial class SavedDraftCatalogueWindow
             if (args.Key == Key.F && args.KeyModifiers == KeyModifiers.Control)
             {
                 model.SynchronizeAuthority();
-                if (model.CanFindMetadata)
+                if (EnsureDisplayedSource())
                 {
                     var revision = model.MetadataFindRevision;
                     MetadataFindQuery.BringIntoView();
                     model.SynchronizeAuthority();
-                    if (model.IsMetadataFindRevisionCurrent(revision) && !MetadataFindQuery.Focus()) { model.MetadataFindFocusUnavailable(); }
+                    if (EnsureDisplayedSource() && model.IsMetadataFindRevisionCurrent(revision)
+                        && !MetadataFindQuery.Focus()) { model.MetadataFindFocusUnavailable(); }
                     model.SynchronizeAuthority();
                 }
                 args.Handled = true;
@@ -55,6 +56,7 @@ internal sealed partial class SavedDraftCatalogueWindow
 
         void Find(SnapshotFindDirection direction)
         {
+            if (!EnsureDisplayedSource()) { return; }
             var revision = model.FindMetadata(direction);
             if (!Current()) { return; }
             UpdateLayout();
@@ -67,8 +69,17 @@ internal sealed partial class SavedDraftCatalogueWindow
             bool Current()
             {
                 model.SynchronizeAuthority();
-                return model.IsMetadataFindRevisionCurrent(revision) && model.HasMetadataFindMatch;
+                return EnsureDisplayedSource() && model.IsMetadataFindRevisionCurrent(revision) && model.HasMetadataFindMatch;
             }
+        }
+
+        bool EnsureDisplayedSource()
+        {
+            model.SynchronizeAuthority();
+            if (!model.CanFindMetadata) { return false; }
+            if (string.Equals(SelectedMetadataDetails.Text, model.SelectedDetails, StringComparison.Ordinal)) { return true; }
+            model.Revoke();
+            return false;
         }
     }
 

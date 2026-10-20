@@ -34,4 +34,23 @@ public sealed partial class LocalContextTurnWorkflowTests
         fixture.Audit.Events.Last().Outcome.Should().Be(changed is "cancel"
             ? SecurityAuditOutcome.Cancelled : SecurityAuditOutcome.Denied);
     }
+
+    [Fact]
+    public async Task SeparateRunTokenStillClosesDisclosureAfterItsExecutionCancellationScopeHasEnded()
+    {
+        await using var fixture = new Fixture();
+        using var root = fixture.Root();
+        var issued = await fixture.Workflow.AdmitAsync(fixture.Target, () => fixture.Eligible, Token);
+        await using var turn = issued.Turn!;
+        using var runCancellation = new CancellationTokenSource();
+        fixture.Audit.OnWrite = audit =>
+        {
+            if (audit.Outcome == SecurityAuditOutcome.Succeeded) { runCancellation.Cancel(); }
+        };
+        var receipt = await turn.RunAsync(fixture.Context(), runCancellation.Token);
+        receipt.Outcome.Should().Be(ModelTurnOutcome.Cancelled);
+        receipt.Answer.Should().BeNull();
+        receipt.DurableState.Should().Be(HostTaskState.Succeeded);
+        fixture.Audit.Events.Last().Outcome.Should().Be(SecurityAuditOutcome.Cancelled);
+    }
 }

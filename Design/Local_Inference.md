@@ -324,7 +324,7 @@ Deterministic evidence:
 
 - [Application lifecycle tests](../tests/Kora.Application.UnitTests/Dependencies/LocalContextTurnWorkflowTests.cs).
 - [Two-phase admission and abandonment tests](../tests/Kora.Application.UnitTests/Dependencies/LocalContextTurnWorkflowTests.Admission.cs).
-- [Audit-delivery and exact-boundary tests](../tests/Kora.Application.UnitTests/Dependencies/LocalContextTurnWorkflowTests.Boundaries.cs).
+- [Audit-delivery and final cancellation tests](../tests/Kora.Application.UnitTests/Dependencies/LocalContextTurnWorkflowTests.AuditDelivery.cs).
 - [Envelope policy tests](../tests/Kora.Core.UnitTests/Dependencies/ModelContextEnvelopeToolPolicyTests.cs).
 - [Private SQLite ownership/non-persistence tests](../tests/Kora.Windows.IntegrationTests/Storage/WindowsSqliteLocalContextTurnTests.cs).
 

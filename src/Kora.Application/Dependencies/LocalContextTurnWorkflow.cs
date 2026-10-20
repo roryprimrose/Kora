@@ -90,13 +90,16 @@ public sealed partial class LocalContextTurnWorkflow(
             if (requestedCommitted) { audit.Write(requested.WithOutcome(AuditOutcome(receipt.Outcome))); }
             if (receipt.Outcome == ModelTurnOutcome.Succeeded)
             {
+                using var disclosureCancellation = CancellationTokenSource.CreateLinkedTokenSource(
+                    token, prepared.SubmissionCancellation);
+                var disclosureToken = disclosureCancellation.Token;
                 try
                 {
-                    await RequireSourceAsync(Live, validateSource, token).ConfigureAwait(false);
-                    var actual = await Workspace.ReadMetadataAsync(request.SessionId, token).ConfigureAwait(false);
+                    await RequireSourceAsync(Live, validateSource, disclosureToken).ConfigureAwait(false);
+                    var actual = await Workspace.ReadMetadataAsync(request.SessionId, disclosureToken).ConfigureAwait(false);
                     if (!actual.Authority.IsActive || actual.Authority.Generation != prepared.SessionGeneration)
                     { throw new SourceNotCurrentException(); }
-                    await RequireSourceAsync(Live, validateSource, token).ConfigureAwait(false);
+                    await RequireSourceAsync(Live, validateSource, disclosureToken).ConfigureAwait(false);
                 }
                 catch (OperationCanceledException)
                 {

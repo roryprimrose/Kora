@@ -709,6 +709,12 @@ device-local scope, presentation/routing effect, after-save timing, per-option
 reset, revision, saved/default provenance and explicit recovery.
 No Tools/model settings exposure or arbitrary option/path/patch is added.
 
+The [existing parser](../src/Kora.Application/Configuration/AssistantNameCommand.cs) also admits bounded, non-overlapping natural whole utterances: `what is your name` (optional final `?`), `call yourself <name>`, `change your name to <name>`, and `reset your name`.
+Natural set payloads retain raw spelling/case/content until the same service's authoritative name rules run; no generic command normalizer repairs a target.
+
+The configured old prefix admits the rename request; only a successfully committed new prefix admits subsequent prefixed commands. Recognized malformed natural grammar clarifies before pending question/approval or inference fallback ([consumer parity tests](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.AssistantNameConfiguration.cs)).
+Discovery and built-in help expose these aliases without a new registered tool, settings authority, preference store or capture lifecycle ([parser tests](../tests/Kora.Application.UnitTests/Configuration/AssistantNameCommandTests.cs)).
+
 The unchanged legacy `assistant-name.txt` format is read without rewriting.
 The existing preference domain and shared atomic preference store retain
 normalization and path/temporary-file/replacement ownership. Missing values are

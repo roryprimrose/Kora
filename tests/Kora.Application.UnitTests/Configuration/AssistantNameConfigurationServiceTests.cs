@@ -18,6 +18,32 @@ namespace Kora.Application.UnitTests.Configuration;
 public sealed class AssistantNameConfigurationServiceTests(ITestOutputHelper output)
     : LoggingTestsBase<AssistantNameConfigurationService>(output)
 {
+    [Theory]
+    [InlineData("call yourself ", RequestOrigin.LocalUi, SecurityAuditInitiator.TypedCommand)]
+    [InlineData("change your name to ", RequestOrigin.ActivatedVoice, SecurityAuditInitiator.VoiceCommand)]
+    public async Task Natural_proposals_preserve_original_request_and_delegate_normalization_and_audit(
+        string prefix, RequestOrigin origin, SecurityAuditInitiator initiator)
+    {
+        using var fixture = new Fixture();
+        var request = HostRequest.Create(origin);
+        using var host = HostActivity.BeginRoot(request, HostActivityLayer.Application, HostOperation.Request);
+        var command = AssistantNameCommand.Parse("Kora, " + prefix + "  ノヴァ\tPrImE  ", "Kora")!;
+        command.Value.Should().Be("  ノヴァ\tPrImE  ");
+        var proposal = fixture.Service.Propose(command.Value!, fixture.Service.Get().Revision,
+            fixture.Policy.Current.Revision, origin, initiator);
+        proposal.Request.Should().Be(request);
+        proposal.Value.Should().Be(command.Value);
+        var result = await fixture.ApplyAsync(proposal);
+        result.Succeeded.Should().BeTrue();
+        result.State.Name.Should().Be("ノヴァ PrImE");
+        fixture.Retirements.Should().Be(1);
+        fixture.Preferences.Writes.Should().Be(1);
+        fixture.Audit.Events.Select(item => item.Outcome)
+            .Should().Equal(SecurityAuditOutcome.Requested, SecurityAuditOutcome.Succeeded);
+        fixture.Audit.Events.Should().OnlyContain(item => item.Initiator == initiator
+            && item.ActionId == AssistantNameOption.AuditAction);
+    }
+
     [Fact]
     public async Task Defaults_legacy_normalization_reset_and_notifications_preserve_provenance()
     {

@@ -518,6 +518,20 @@ workflow as **Settings > Speech & audio > Apply name / Reset name to Kora**:
 | `set assistant.name to Nova Prime` | Validate with the existing name rules and atomically save one device-local value |
 | `reset assistant.name` | Restore Kora only; no durable identity, session-name, grant, approval, data-path or namespace reset |
 
+The [same parser](../src/Kora.Application/Configuration/AssistantNameCommand.cs) also admits these whole-utterance natural commands, case-insensitively with an optional current-name prefix:
+
+| Natural command | Same existing operation |
+|---|---|
+| `what is your name` or `what is your name?` | Get |
+| `call yourself <name>` | Set |
+| `change your name to <name>` | Set |
+| `reset your name` | Reset |
+
+Use the old **currently configured** prefix for the rename, for example **Kora, call yourself Nova Prime**; only after a successful commit use **Nova Prime, what is your name?**. There is no fuzzy, substring, old-prefix or generic agent-identity rename route ([parser and consumer tests](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.AssistantNameConfiguration.cs)).
+
+Natural set grammar uses the literal spaces shown above and preserves the entire raw proposed name, including case, Unicode and whitespace, until the [existing service](../src/Kora.Application/Configuration/AssistantNameConfigurationService.cs) applies authoritative normalization/validation.
+Empty proposals or malformed recognized grammar clarify locally; invalid domain names are audited denials, never repaired or sent to inference. Extra punctuation is not accepted for get/reset except the one optional query `?` ([grammar tests](../tests/Kora.Application.UnitTests/Configuration/AssistantNameCommandTests.cs)).
+
 The spoken target **assistant name** is equivalent to `assistant.name`.
 The active configured prefix is optional: **Kora, set assistant name to Nova**.
 After success use **Nova, get assistant name**; Kora is no hidden alias.

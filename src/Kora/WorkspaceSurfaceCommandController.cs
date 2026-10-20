@@ -14,7 +14,29 @@ internal sealed class WorkspaceSurfaceCommandController(
 {
     private bool disposed;
 
-    internal void Bind() => main.WorkspaceSurfaceRequested += Open;
+    internal void Bind()
+    {
+        main.WorkspaceSurfaceRequested += Open;
+        main.SavedDraftCataloguePreparationRequested += PrepareSavedDraftCatalogue;
+    }
+
+    private async Task<bool> PrepareSavedDraftCatalogue(SavedDraftCataloguePreparation preparation)
+    {
+        var revision = access.ControlRevision;
+        var lifetime = savedDrafts.CapturePreparationLifetime();
+        var source = savedDrafts.CapturePreparationSource();
+        bool Admitted() => !disposed && preparation.IsAdmitted() && main.CanRevealPrivatePresentation
+            && access.CanInspect && revision == access.ControlRevision && lifetime();
+        if (!Admitted()) { return false; }
+        var continuation = HostActivity.CaptureContinuation(HostActivityLayer.Desktop, HostOperation.Presentation);
+        return await Dispatcher.UIThread.InvokeAsync(() =>
+        {
+            using var activity = continuation();
+            var prepared = Admitted() && savedDrafts.PrepareExactId(preparation.SessionId, Admitted, source) && Admitted();
+            activity.Complete(prepared ? HostOperationOutcome.Completed : HostOperationOutcome.Cancelled);
+            return prepared;
+        });
+    }
 
     private async Task Open(WorkspaceSurfaceNavigation navigation)
     {
@@ -53,5 +75,6 @@ internal sealed class WorkspaceSurfaceCommandController(
     {
         disposed = true;
         main.WorkspaceSurfaceRequested -= Open;
+        main.SavedDraftCataloguePreparationRequested -= PrepareSavedDraftCatalogue;
     }
 }

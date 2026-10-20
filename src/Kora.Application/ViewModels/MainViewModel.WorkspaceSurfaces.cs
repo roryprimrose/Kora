@@ -26,23 +26,27 @@ public sealed partial class MainViewModel
             ReportHostInteractionFailure("Navigation unavailable: activated voice requires the current available assistant-name prefix.");
             return;
         }
-        var origin = OriginalOrigin(initiator);
-        var captured = originalInput ?? CaptureManualCallInput(origin, CallPolicyRevision);
-        var revision = Interlocked.Read(ref workspaceSurfaceInputRevision);
-        var sourceText = CommandText;
-        var owner = captured.NavigationOwnerRevision;
-        var name = AssistantName;
-        var initiallyAdmitted = captured.NavigationInitiallyAdmitted && captured.Eligible() && !IsProtectedCall;
-        bool Admitted() => initiallyAdmitted && captured.Eligible() && !IsProtectedCall
-            && captured.Revision == CallPolicyRevision && owner == auditImpactOwnerRevision()
-            && revision == Interlocked.Read(ref workspaceSurfaceInputRevision)
-            && string.Equals(sourceText, CommandText, StringComparison.Ordinal)
-            && string.Equals(name, AssistantName, StringComparison.Ordinal);
-        if (!Admitted() || WorkspaceSurfaceRequested is not { } handler)
+        var admitted = CaptureWorkspaceSurfaceAdmission(initiator, originalInput);
+        if (!admitted() || WorkspaceSurfaceRequested is not { } handler)
         {
             ReportHostInteractionFailure("Navigation unavailable: the native surface route or current private host admission is unavailable. No window or session was created.");
             return;
         }
-        await HostRequestRunner.RunAsync(origin, () => handler(new(command.Target, Admitted)));
+        await HostRequestRunner.RunAsync(OriginalOrigin(initiator), () => handler(new(command.Target, admitted)));
+    }
+
+    private Func<bool> CaptureWorkspaceSurfaceAdmission(SecurityAuditInitiator initiator, ManualCallInput? originalInput)
+    {
+        var captured = originalInput ?? CaptureManualCallInput(OriginalOrigin(initiator), CallPolicyRevision);
+        var revision = Interlocked.Read(ref workspaceSurfaceInputRevision);
+        var sourceText = CommandText;
+        var owner = captured.NavigationOwnerRevision;
+        var initiallyAdmitted = captured.NavigationInitiallyAdmitted && captured.Eligible() && !IsProtectedCall;
+        return () => initiallyAdmitted && captured.Eligible() && !IsProtectedCall
+            && captured.Revision == CallPolicyRevision && owner == auditImpactOwnerRevision()
+            && captured.OwnershipBindingRevision == Interlocked.Read(ref settingsOwnershipBindingRevision)
+            && revision == Interlocked.Read(ref workspaceSurfaceInputRevision)
+            && string.Equals(sourceText, CommandText, StringComparison.Ordinal)
+            && captured.AssistantNameRevision == assistantNameConfiguration.Get().Revision;
     }
 }

@@ -637,6 +637,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
                       || SessionDispositionReviewCommand.Parse(CommandText, AssistantName) is not null
                       || WorkspaceSurfaceCommand.Parse(CommandText, AssistantName) is not null
                       || AttachmentCataloguePreparationCommand.Parse(CommandText, AssistantName) is not null
+                      || SavedDraftCatalogueCommand.Parse(CommandText, AssistantName) is not null
                       || MemoryCommand.Parse(CommandText, AssistantName) is not null
                       || LocalClockCommand.Parse(CommandText, AssistantName) is not null
                       || IsInstructionEditorCommand(CommandText)
@@ -1910,6 +1911,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             if (SetProperty(ref commandText, value))
             {
                 Interlocked.Increment(ref attachmentCatalogueComposerRevision);
+                Interlocked.Increment(ref workspaceSurfaceInputRevision);
                 RefreshArtifactCommandOptions();
                 RunTypedCommand.NotifyCanExecuteChanged();
             }
@@ -4145,13 +4147,16 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             return;
         }
         var sessionCommand = SessionCommand.Parse(spokenText, AssistantName);
-        if (sessionCommand is null && LocalClockCommand.Parse(spokenText, AssistantName) is { } clockCommand)
+        var cataloguePreparation = manualInput?.CataloguePreparation
+            ?? AttachmentCataloguePreparationCommand.Parse(spokenText, AssistantName);
+        var catalogueCommand = SavedDraftCatalogueCommand.Parse(spokenText, AssistantName);
+        if (sessionCommand is null && cataloguePreparation is null && catalogueCommand is null
+            && LocalClockCommand.Parse(spokenText, AssistantName) is { } clockCommand)
         {
             ExecuteLocalClockCommand(clockCommand, initiator, manualInput);
             return;
         }
-        if ((manualInput?.CataloguePreparation
-            ?? AttachmentCataloguePreparationCommand.Parse(spokenText, AssistantName)) is { } cataloguePreparation)
+        if (cataloguePreparation is not null)
         {
             await PrepareAttachmentCatalogue(cataloguePreparation, initiator, manualInput);
             return;
@@ -4165,6 +4170,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         if (SettingsSectionCommand.Parse(spokenText, AssistantName) is { } settingsSectionCommand)
         {
             await ExecuteSettingsSectionCommand(settingsSectionCommand, spokenText, initiator, manualInput);
+            return;
+        }
+        if (catalogueCommand is not null)
+        {
+            await ExecuteSavedDraftCatalogueCommand(catalogueCommand, initiator, manualInput);
             return;
         }
         if (WorkspaceSurfaceCommand.Parse(spokenText, AssistantName) is { } surfaceCommand)
@@ -6171,6 +6181,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             .Concat(AttachmentCataloguePreparationCommand.DiscoveryPhrases)
             .Concat(SessionCommand.DiscoveryPhrases)
             .Concat(WorkspaceSurfaceCommand.FixedPhrases)
+            .Concat([SavedDraftCatalogueCommand.PreparePhrase, SavedDraftCatalogueCommand.HelpPhrase])
             .Concat(MemoryCommand.DiscoveryPhrases)
             .Concat(AssistantNameCommand.DiscoveryPhrases)
             .Concat(InputDeviceCommand.FixedPhrases)

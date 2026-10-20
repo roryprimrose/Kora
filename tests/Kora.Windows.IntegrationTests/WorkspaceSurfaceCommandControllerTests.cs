@@ -16,7 +16,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 namespace Kora.Windows.IntegrationTests;
 
 [Collection(nameof(HeadlessUiTestGroup))]
-public sealed class WorkspaceSurfaceCommandControllerTests
+public sealed partial class WorkspaceSurfaceCommandControllerTests
 {
     [WindowsFact]
     public async Task ExactRoutesUseExistingSingletonsAndKeepSharedDirtySelectionAndDoneAuthority()

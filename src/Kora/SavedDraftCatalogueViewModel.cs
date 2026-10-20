@@ -278,6 +278,22 @@ internal sealed partial class SavedDraftCatalogueViewModel(
     }
 
     public void Cancel() => Revoke();
+    internal Func<bool> CaptureQueryLifetime()
+    {
+        var originalEpoch = epoch;
+        return () => !disposed && epoch == originalEpoch;
+    }
+    internal void NotifyPresentationAdmission() => Notify();
+    internal bool PrepareExactId(Guid sessionId)
+    {
+        if (!CanEditQuery || sessionId == Guid.Empty) { return false; }
+        InvalidateQuery();
+        mode = SavedDraftCatalogueMode.ExactId;
+        queryText = sessionId.ToString("D");
+        status = "Prepared exact ID; no I/O yet. All other visible filter drafts retained and AND-composed with this ID. Review them, then explicitly Search. The ID is not permission, current ownership or proof a saved draft exists.";
+        Notify();
+        return true;
+    }
     public void ClearQuery()
     {
         if (!CanEditQuery) { return; }

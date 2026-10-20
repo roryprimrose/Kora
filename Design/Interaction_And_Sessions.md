@@ -258,6 +258,20 @@ of any scanned saved-draft summary, metadata name or authority prefix.
 Metadata predicates apply only after existing source/authority-prefix and candidate
 metadata validation; irrelevant authority commits are still validated before disclosure.
 No body decoding or inference is added.
+The strict typed/current-name-activated `prepare saved draft catalogue <session-id>`
+route opens/focuses the same native singleton and sets only ExactId and its canonical
+nonempty lowercase D-format GUID. All other native filter drafts remain unchanged
+and AND-compose with that selector; initial-window defaults remain unchanged.
+`saved draft catalogue help` is constant guidance, not an identity or metadata read.
+Preparation uses the native query-edit retirement path even for an unchanged ID.
+Original host/input/owner/call/privacy/name/voice and queued native source/lifetime
+admission must survive through focus and acknowledgement; failure is unavailable,
+not Browse/latest or a successful default. No query, count, body load, session
+resolve/selection, activity renewal, persistence or composer navigation occurs.
+The ID is a future metadata selector, not permission, current ownership or proof
+that a session/draft exists. Explicit Search and subsequent dirty-guarded exact
+navigation remain separate. Pending questions/approvals are not answered or replaced.
+
 Typing, query mode, lifecycle and revision/byte/scalar/source/profile/provenance-range filter edits immediately invalidate the catalogue page/cursor/selection/exact navigation and cancel pending callbacks without I/O or changing the current Sessions target/composer. **Search / refresh metadata** explicitly observes the new query; no first match is automatically selected. Clear and private/source/close revocation also clear the volatile metadata fields.
 Exact ID seeks the existing draft-row primary key after the same mandatory private source/authority validation. Missing/cleared/unretained/Removed/nonmatching targets end without falling back to a list; unavailable or broken authority remains a recovery failure, not a healthy empty inventory.
 

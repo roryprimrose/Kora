@@ -25,6 +25,14 @@ Type `open all work`, `open saved conversation drafts` or `open compact conversa
 
 Opening the overview or saved draft catalogue reads nothing. Opening compact retains the exact existing Sessions selection and memory buffer; it does not reload saved content or create a session when no target is selected. Dirty drafts and pending questions/approvals remain with their original target. There is no search, submit, resume, dispatch, implicit selection or all-clear claim.
 
+`prepare saved draft catalogue <session-id>` focuses the same saved-draft window
+and prepares only ExactId mode and the canonical lowercase nonempty D-format GUID.
+Every other visible filter draft is retained and AND-composed; review them and
+explicitly Search. Preparation retires old rows, cursor, selection/details and
+pending callbacks without I/O, body load or navigation. `saved draft catalogue help`
+is constant no-read guidance. The ID is not permission, current ownership or proof
+of a saved draft; exact navigation still uses the existing dirty-composer guards.
+
 Missing native composition or changed original/current ownership, private/call/input epochs or compact source refuses late opening/focus; issue a fresh command after recovery. See [exact syntax](commands.md#open-existing-workspace-surfaces) and [deterministic evidence](../Design/UI_Workspace_And_Windows.md#workspace-surface-command-evidence).
 
 ### Compact selected-session conversation

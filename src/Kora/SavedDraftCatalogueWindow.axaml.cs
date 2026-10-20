@@ -8,6 +8,17 @@ namespace Kora;
 internal sealed partial class SavedDraftCatalogueWindow : Window
 {
     internal Task Operation { get; private set; } = Task.CompletedTask;
+    internal bool PrepareExactId(Guid sessionId, Func<bool> admitted, Func<bool> sourceAdmitted)
+    {
+        if (!IsVisible || !admitted()) { return false; }
+        UpdateLayout();
+        DraftQueryText.BringIntoView();
+        if (!DraftQueryText.Focus() || !admitted() || !sourceAdmitted()
+            || DataContext is not SavedDraftCatalogueViewModel model) { return false; }
+        return model.PrepareExactId(sessionId) && IsVisible && admitted()
+            && model.Mode == SavedDraftCatalogueMode.ExactId
+            && string.Equals(model.QueryText, sessionId.ToString("D"), StringComparison.Ordinal);
+    }
     internal SavedDraftCatalogueWindow(SavedDraftCatalogueViewModel model)
     {
         InitializeComponent();

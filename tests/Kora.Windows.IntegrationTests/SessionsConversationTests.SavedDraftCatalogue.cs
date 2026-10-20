@@ -241,7 +241,7 @@ public sealed partial class SessionsConversationTests
         var access = new WindowsSqliteSessionWorkspaceTests.Access();
         using var model = new SavedDraftCatalogueViewModel(WindowsSqliteSessionWorkspaceTests.Service(f, access),
             (_, _, _) => Task.FromResult(false), access, () => true, NullLogger<SavedDraftCatalogueViewModel>.Instance);
-        foreach (var field in new[] { "minimum", "maximum", "source", "profile",
+        foreach (var field in new[] { "prepare", "minimum", "maximum", "source", "profile",
             "generation-minimum", "generation-maximum", "name-minimum", "name-maximum",
             "control-minimum", "control-maximum", "ceiling-minimum", "ceiling-maximum" })
         {
@@ -254,6 +254,7 @@ public sealed partial class SessionsConversationTests
             var observedReads = reads;
             switch (field)
             {
+                case "prepare": model.PrepareExactId(row.Session.SessionId.Value).Should().BeTrue(); break;
                 case "minimum": model.MinimumScalarsText = "1"; break;
                 case "maximum": model.MaximumScalarsText = "4096"; break;
                 case "source": model.SourceText = row.Source.ToString("D"); break;
@@ -406,6 +407,7 @@ public sealed partial class SessionsConversationTests
     [InlineData("ceiling-minimum")]
     [InlineData("ceiling-maximum")]
     [InlineData("order")]
+    [InlineData("prepare")]
     public async Task QueryEpochRevocationDuringExactDraftNavigationPreservesTheCurrentDirtyComposer(string boundary)
     {
         using var f = new InteractionStorageFixture();
@@ -449,6 +451,7 @@ public sealed partial class SessionsConversationTests
             else if (boundary is "ceiling-minimum") { model.MinimumAuthorityCeilingText = "1"; }
             else if (boundary is "ceiling-maximum") { model.MaximumAuthorityCeilingText = "1"; }
             else if (boundary is "order") { model.Order = SavedDraftPageOrder.SessionNameDescending; }
+            else if (boundary is "prepare") { model.PrepareExactId(f.Request.SessionId.Value).Should().BeTrue(); }
             else { model.Filter = SessionListFilter.Done; }
         };
         await model.Navigate();
@@ -486,6 +489,7 @@ public sealed partial class SessionsConversationTests
     [InlineData("ceiling-minimum")]
     [InlineData("ceiling-maximum")]
     [InlineData("order")]
+    [InlineData("prepare")]
     public async Task DraftQueryChangesRevokePendingPagesAndKeepLateCallbacksFromRestoringPrivateResults(string boundary)
     {
         using var f = new InteractionStorageFixture();
@@ -523,6 +527,7 @@ public sealed partial class SessionsConversationTests
             checkpoint.Read = null;
             switch (boundary)
             {
+                case "prepare": model.PrepareExactId(f.Request.SessionId.Value).Should().BeTrue(); break;
                 case "query": model.QueryText = Guid.NewGuid().ToString("D"); break;
                 case "mode": model.Mode = SavedDraftCatalogueMode.NameSubstring; break;
                 case "filter": model.Filter = SessionListFilter.Done; break;

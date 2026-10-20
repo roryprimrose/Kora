@@ -98,6 +98,22 @@ See [native windows](windows-and-tray.md#workspace-surface-navigation) and the [
 
 ## Native saved conversation draft catalogue
 
+`prepare saved draft catalogue <session-id>` opens/focuses that same singleton and
+sets only **ExactId** mode and its query ID. The ID must be a nonempty canonical
+lowercase D-format GUID, not a name, current/latest alias or body query.
+Activated voice requires the current available assistant name. `saved draft
+catalogue help` returns constant guidance without reading current identity or metadata.
+Preparation performs no I/O: every other visible filter draft is retained and
+**AND-composed** with the ID, including invalid filters that still refuse Search.
+Review those filters and explicitly **Search / refresh metadata** separately.
+Old rows, continuation, exact selection/details and pending callbacks are retired
+using the same query-edit path, even when preparing the same ID again.
+There is no automatic Search, Next, count, session resolution/selection, activity
+renewal, Resume, body load, Save or Submit. The ID establishes no permission,
+current ownership or proof that a session/draft exists. Missing or stale host/native
+admission reports unavailable; it never falls back to Browse or a guessed target.
+Pending questions and approvals are not answered or replaced.
+
 **Tray > Saved conversation drafts (metadata only)** or `open saved conversation drafts` opens the same native catalogue; it has no typed/voice/model body query. Opening reads nothing.
 Explicit Refresh/Next/Cancel shows bounded saved composer metadata across retained All/Active/Done sessions, never a body preview or global count.
 Cleared/empty/never-saved and question/parameter drafts are not saved-content results.

@@ -458,6 +458,21 @@
           </ComboBox>
           <controls:NamedTextBlock Text="{Binding QueuePrerequisiteStatus}" TextWrapping="Wrap"
                                   AutomationProperties.Name="Optional prerequisite choice and prospective fixed-read consequence; bounded observed metadata only" />
+          <Border BorderThickness="1" Padding="10">
+            <StackPanel Spacing="6">
+              <controls:NamedTextBlock Text="{Binding QueuePrerequisitePreparationStatus}" TextWrapping="Wrap"
+                                       AutomationProperties.Name="PREPARATION only: exact session, generation, task, revision, state, source and observation; separate Apply required; no enqueue" />
+              <WrapPanel>
+                <Button x:Name="ApplyPreparedQueuePrerequisite" Content="Apply prepared choice"
+                        Tag="{Binding PreparedQueuePrerequisiteChoice}"
+                        IsEnabled="{Binding CanApplyPreparedQueuePrerequisite}"
+                        AutomationProperties.Name="Apply this exact prepared prerequisite once; revalidate original source; nothing enqueued" />
+                <Button x:Name="CancelPreparedQueuePrerequisite" Content="Cancel prerequisite preparation"
+                        IsEnabled="{Binding CanCancelPreparedQueuePrerequisite}"
+                        AutomationProperties.Name="Cancel only prerequisite preparation; preserve existing choices and work selections" />
+              </WrapPanel>
+            </StackPanel>
+          </Border>
           <Button x:Name="NoQueuePrerequisite" Content="None: enqueue without a prerequisite" IsEnabled="{Binding CanRead}"
                   AutomationProperties.Name="Explicitly choose None for the next fixed read; never infer a prerequisite from work selection" />
           <controls:ScrollableListBox x:Name="QueuePrerequisites" MaxHeight="160"

@@ -19,7 +19,7 @@ internal sealed partial class SessionsWindowController(
     SessionAttachmentWindowController? attachments = null,
     Kora.Application.Configuration.SessionProviderProfileConfigurationService? providers = null,
     SessionConversationService? conversation = null) : IDisposable, ISessionDispositionReviewPresenter,
-    ISessionQueueCancellationReviewPresenter, ISessionDiagnosticsPlanPresenter
+    ISessionQueueCancellationReviewPresenter, ISessionDiagnosticsPlanPresenter, ISessionQueuePrerequisitePreparePresenter
 {
     private SessionsWindow? window;
     private CompactSessionWindow? compact;
@@ -48,6 +48,7 @@ internal sealed partial class SessionsWindowController(
         main.BindSessionDispositionReview(this);
         main.BindQueueCancellationReview(this);
         main.BindSessionDiagnosticsPlan(this);
+        main.BindQueuePrerequisitePreparation(this);
         main.PrivacyClosureRequested += OnPrivacyClosure;
         service.SessionLifecycleChanged += RevokeSession;
         service.SessionRetired += RevokeSession;
@@ -76,6 +77,7 @@ internal sealed partial class SessionsWindowController(
                 {
                     Interlocked.Increment(ref dispositionOwnerEpoch);
                     model?.RevokeDispositionReview();
+                    model?.CancelPreparedQueuePrerequisite();
                 }
             };
             opened.Closed += (_, _) =>
@@ -85,6 +87,7 @@ internal sealed partial class SessionsWindowController(
                     Volatile.Write(ref dispositionOwnerOpen, 0);
                     Interlocked.Increment(ref dispositionOwnerEpoch);
                     model?.RevokeDispositionReview();
+                    model?.CancelPreparedQueuePrerequisite();
                     window = null;
                 }
                 ReleaseUnusedPresentation();
@@ -239,6 +242,25 @@ internal sealed partial class SessionsWindowController(
         }
     }
 
+    public async Task<bool> PrepareQueuePrerequisiteAsync(SessionQueuePrerequisitePrepareCommand command, RequestOrigin origin,
+        Func<bool> admitted, CancellationToken token)
+    {
+        token.ThrowIfCancellationRequested();
+        var original = model?.CapturePrerequisitePreparationEligibility() ?? (static () => true);
+        if (disposed || origin is not (RequestOrigin.LocalUi or RequestOrigin.ActivatedVoice)
+            || command.Error is not null || command.Help || !access.CanInspect || !access.CanControl
+            || !main.CanRevealPrivatePresentation || !admitted())
+        { throw new OperationCanceledException("Private native prerequisite preparation is unavailable."); }
+        Open();
+        var owner = window ?? throw new InvalidOperationException("The native Sessions window is unavailable.");
+        var state = model ?? throw new InvalidOperationException("The native Sessions presentation is unavailable.");
+        var epoch = Volatile.Read(ref dispositionOwnerEpoch);
+        bool NativeAdmission() => !disposed && original() && ReferenceEquals(window, owner)
+            && Volatile.Read(ref dispositionOwnerOpen) == 1 && epoch == Volatile.Read(ref dispositionOwnerEpoch)
+            && ReferenceEquals(model, state) && main.CanRevealPrivatePresentation;
+        return await state.PrepareQueuePrerequisiteAsync(command, origin, admitted, NativeAdmission, token);
+    }
+
     internal void RevokeSession(Kora.Core.Hosting.HostId<Kora.Core.Hosting.SessionIdentity> session)
     {
         if (!Dispatcher.UIThread.CheckAccess())
@@ -283,6 +305,7 @@ internal sealed partial class SessionsWindowController(
         main.BindSessionDispositionReview(null);
         main.BindQueueCancellationReview(null);
         main.BindSessionDiagnosticsPlan(null);
+        main.BindQueuePrerequisitePreparation(null);
         main.SessionsRequested -= OnOpen;
         main.PrivacyClosureRequested -= OnPrivacyClosure;
         service.SessionLifecycleChanged -= RevokeSession;

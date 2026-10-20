@@ -39,7 +39,8 @@ internal sealed partial class SessionsViewModel
             + ". Use exact history/task status for other retained records. Eligibility is observed, never permission."
         : "Live work unavailable/not yet read; never interpreted as an empty queue. Refresh selected work.";
     public bool CanRefreshWork => (CanRead || dispatchingQueue && !closed && access.CanInspect)
-        && selected is not null && draftRecoveryCancellation is null;
+        && selected is not null && draftRecoveryCancellation is null
+        && !preparingPrerequisite && preparedQueuePrerequisite is null;
     public bool CanInspectWork => CanRead && selectedWork is not null;
     public bool CanCancelWork => CanCancelQueueEntry || CanCancelTask;
     public bool CanRemoveQueueEntry => CanCancelQueueEntry;
@@ -49,7 +50,7 @@ internal sealed partial class SessionsViewModel
 
     public void SelectWorkRecord(SessionWorkRow? row)
     {
-        if (closed || presentingWork || row is not null && !workRecords.Contains(row)) { return; }
+        if (notifying || closed || presentingWork || row is not null && !workRecords.Contains(row)) { return; }
         selectionEpoch++;
         selectedWork = row;
         selectedQueueEntry = row?.Queue?.Entry;

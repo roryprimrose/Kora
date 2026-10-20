@@ -634,6 +634,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
                   && (!IsBusy || IsSetupStatusCommand() || IsListeningStopCommand(CommandText)
                       || SessionCommand.Parse(CommandText, AssistantName) is not null
                       || SessionDispositionReviewCommand.Parse(CommandText, AssistantName) is not null
+                      || SessionQueuePrerequisitePrepareCommand.Parse(CommandText, AssistantName) is not null
                       || WorkspaceSurfaceCommand.Parse(CommandText, AssistantName) is not null
                       || MemoryCommand.Parse(CommandText, AssistantName) is not null
                       || LocalClockCommand.Parse(CommandText, AssistantName) is not null
@@ -802,6 +803,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         {
             if (SetProperty(ref isGrantEditorVisible, value))
             {
+                Interlocked.Increment(ref prerequisitePrepareEpoch);
                 PrepareGrantChangeCommand.NotifyCanExecuteChanged();
                 forceVisualResponse = ShouldForceVisualResponse(
                     value, IsResponseInteractionPending, State);
@@ -1907,6 +1909,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         {
             if (SetProperty(ref commandText, value))
             {
+                Interlocked.Increment(ref prerequisiteInputRevision);
                 RefreshArtifactCommandOptions();
                 RunTypedCommand.NotifyCanExecuteChanged();
             }
@@ -4125,6 +4128,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         }
         Interlocked.Increment(ref workspaceSurfaceInputRevision);
         Interlocked.Increment(ref diagnosticsPlanEpoch);
+        Interlocked.Increment(ref prerequisiteInputRevision);
         if (Kora.Core.Calculations.CalculateCommand.Parse(spokenText, AssistantName) is { } calculateCommand)
         {
             ExecuteCalculateCommand(calculateCommand, initiator, manualInput);
@@ -4357,6 +4361,14 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         {
             await ExecuteDiagnosticsPlanAsync(diagnosticsPlanCommand, initiator,
                 commandRouter.IsActivationPrefixed(spokenText, AssistantName));
+            return;
+        }
+        if (SessionQueuePrerequisitePrepareCommand.Parse(spokenText, AssistantName) is { } prerequisiteCommand)
+        {
+            await ExecuteQueuePrerequisitePreparationAsync(prerequisiteCommand, initiator,
+                commandRouter.IsActivationPrefixed(spokenText, AssistantName),
+                () => manualInput is null || manualInput.NavigationInitiallyAdmitted && manualInput.Eligible()
+                    && CallPolicyRevision == manualInput.Revision);
             return;
         }
         if (SessionDispositionReviewCommand.Parse(spokenText, AssistantName) is { } dispositionCommand)
@@ -5677,6 +5689,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
                     + SessionQueueCancellationReviewCommand.Syntax + ". " + SessionQueueCancellationReviewCommand.Boundary + " "
                     + SessionDiagnosticsPlanCommand.Syntax + ". " + SessionDiagnosticsPlanCommand.Boundary + " "
                     + "Use “list response window settings” for exact device-local visibility/topmost controls; no response is reopened. "
+                    + SessionQueuePrerequisitePrepareCommand.Syntax + ". " + SessionQueuePrerequisitePrepareCommand.Boundary + " "
                     + $"Use “{AssistantName}, list assistant settings” for the display/PTT command-prefix name. "
                     + NaturalAppearanceCommand.Syntax + " "
                     + "Natural name commands: “what is your name”, “call yourself <name>”, “change your name to <name>”, or “reset your name”. "

@@ -754,6 +754,7 @@ internal sealed partial class SessionsViewModel(
     public void Close()
     {
         if (closed) { return; }
+        RetirePreparedQueuePrerequisite();
         closed = true;
         RevokeListSearchPresentation();
         lifetime.Cancel();

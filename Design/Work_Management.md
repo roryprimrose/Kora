@@ -162,6 +162,52 @@ No experiment is modified or retired. Unique RT1/RT2/MG1/PV1, offline CPU/infere
 
 ### Delivered optional native enqueue prerequisite - 2026-10-12
 
+#### Exact-session choice preparation
+
+`session queue prerequisite prepare <session-id> <task-id|none>` and
+`session queue prerequisite help` are dedicated original typed/current-name
+activated routes. The [parser](../src/Kora.Core/Commands/SessionQueuePrerequisitePrepareCommand.cs)
+requires nonempty lowercase canonical D IDs and literal `none` only. Help does
+not open Sessions, read metadata or select a target. Sibling queue review
+families and the existing typed enqueue grammar are unchanged.
+
+The [consumer presenter](../src/Kora.Application/Hosting/ISessionQueuePrerequisitePreparePresenter.cs)
+opens only existing private Sessions. Its
+[partial workflow](../src/Kora/SessionsViewModel.QueuePrerequisitePreparation.cs)
+uses the shared bounded prerequisite projection and existing dirty composer
+Save/Discard/Cancel admission, without applying a work refresh over current
+prerequisite, diagnostics or work selections. The isolated PREPARATION pane
+discloses the exact candidate and dependency consequences. Applying another
+session explicitly replaces the native work presentation only on the separate
+one-shot **Apply prepared choice** gesture; preparation and cancellation do not.
+
+One bounded work read prepares; one separate explicit Apply revalidates the
+same session/generation, queue and real task revision/state/source before
+calling the existing choice policy. Unknown/missing/conflicting/over-bound
+metadata fails closed, including `none`, without history/task fallback scans.
+The existing separately clicked draft Save may add its audited control receipt
+to that metadata; this refuses preparation until explicit refresh and a fresh
+request rather than silently accepting a changed option source.
+Original host/input/private/control/call/native-owner/navigation/buffer,
+session/work/queue/prerequisite-source and proposed-choice epochs remain bound
+across deferred read and Apply. Changed sources retire the proposal rather
+than choosing a newer option. Automatic work refresh is suspended while a
+proposal is pending; there is no refresh/retry loop.
+
+The minimum consumed I subset is the existing exact work reader, bounded
+prerequisite projection and native choice policy. No new authority or model
+descriptor is introduced. Preparation performs no enqueue, task creation,
+dependency mutation, dispatch, resume, grant, probe or question answer.
+Only exact Succeeded permits subsequent dispatch; existing fixed enqueue and
+choice clearing remain authoritative. No unrelated E/Q, provider, hardware,
+installed-native or retired experiment evidence is claimed.
+
+Deterministic [grammar](../tests/Kora.Core.UnitTests/Commands/SessionQueuePrerequisitePrepareCommandTests.cs),
+[host admission](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.QueuePrerequisitePreparation.cs),
+[native preparation, bounded source, stale Apply and activity](../tests/Kora.Windows.IntegrationTests/SessionsQueuePrerequisiteTests.Preparation.cs)
+and [dirty draft](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.QueuePrerequisitePreparation.cs)
+tests cover the implementation boundary.
+
 Native Sessions offers explicit **None** or an independent exact prerequisite selection for each of the six fixed-read Enqueue buttons. The picker combines at most 50 nonqueue tasks with at most 50 already-observed same-session queued tasks, including pending/running and the existing recent terminal/recovery rows. It reads no task bodies, history, artifacts, providers or another session.
 Each inert row shows immutable task/session IDs, observed generation, actual host task state/revision, UTC observation time and host source. Queue-entry revision/state is a separate authority and is never substituted for host task metadata.
 

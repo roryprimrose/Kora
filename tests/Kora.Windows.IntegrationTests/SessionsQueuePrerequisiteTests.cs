@@ -443,8 +443,16 @@ public sealed partial class SessionsQueuePrerequisiteTests
     private sealed class MetadataQueueStore(WindowsSqliteHostInteractionStore store,
         Func<SessionWorkSnapshot, SessionWorkSnapshot> project) : ISessionQueueStore, ISessionWorkStore
     {
+        internal int WorkReads { get; private set; }
+        internal Func<Task>? BeforeReturn { get; set; }
         public async ValueTask<SessionWorkSnapshot> ReadWorkAsync(HostId<SessionIdentity> session, long revision,
-            SessionQueueLimits limits, CancellationToken token) => project(await store.ReadWorkAsync(session, revision, limits, token));
+            SessionQueueLimits limits, CancellationToken token)
+        {
+            WorkReads++;
+            var snapshot = await store.ReadWorkAsync(session, revision, limits, token);
+            if (BeforeReturn is { } before) { await before(); }
+            return project(snapshot);
+        }
         public ValueTask<SessionQueueSnapshot> ReadQueueAsync(HostId<SessionIdentity> session, CancellationToken token) => store.ReadQueueAsync(session, token);
         public ValueTask<SessionQueueEntry?> ReadQueueEntryAsync(HostId<SessionIdentity> session, HostId<TaskIdentity> task,
             CancellationToken token) => store.ReadQueueEntryAsync(session, task, token);

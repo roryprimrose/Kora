@@ -151,7 +151,12 @@ public sealed class EmbeddedUserDocumentationProviderTests
             .Skip(1)
             .ToArray();
 
-        sections.Should().HaveCount(commands.Count + 18);
+        sections.Should().HaveCount(commands.Count + 19);
+        var prerequisite = sections.Single(section => section.StartsWith("Prepare an exact native prerequisite choice", StringComparison.Ordinal));
+        prerequisite.Should().Contain("session queue prerequisite help")
+            .And.Contain("session queue prerequisite prepare <session-id> <task-id|none>")
+            .And.Contain("PREPARATION").And.Contain("Apply prepared choice").And.Contain("Only exact Succeeded")
+            .And.Contain("Help reads no metadata").And.Contain("preserves existing");
         var disposition = sections.Single(section => section.StartsWith("Review one exact session's logical disposition", StringComparison.Ordinal));
         disposition.Should().Contain(SessionDispositionReviewCommand.Syntax)
             .And.Contain("Nothing is removed by the command").And.Contain("separate deliberate native action")
@@ -299,6 +304,7 @@ public sealed class EmbeddedUserDocumentationProviderTests
             && !ReferenceEquals(section, naturalAppearance)
             && !ReferenceEquals(section, disposition)
             && !ReferenceEquals(section, responseWindow)
+            && !ReferenceEquals(section, prerequisite)
             && !ReferenceEquals(section, output)
             && !ReferenceEquals(section, volume)
             && !ReferenceEquals(section, rate)

@@ -41,6 +41,7 @@ internal sealed partial class SessionsViewModel
 
     private void NotifyQueueCapability()
     {
+        NotifyPreparedQueuePrerequisite();
         if (!QueueCapabilityCurrent) { InvalidateQueueCapability(); }
         OnPropertyChanged(nameof(SelectedQueueCapability));
         OnPropertyChanged(nameof(CanSelectQueueCapability));

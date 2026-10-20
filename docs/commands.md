@@ -378,6 +378,39 @@ Queued task metadata is optional on the work wire and comes from the same atomic
 
 Typed syntax and arbitrary exact after-task semantics below are unchanged; no revision token is added to typed enqueue. The native picker is a bounded same-session subset, not cross-session search or existing dependency editing.
 
+**Prepare an exact native prerequisite choice**
+
+Use `session queue prerequisite prepare <session-id> <task-id|none>` with
+nonempty lowercase canonical D GUIDs. Only literal `none` proposes **None**;
+names, partial IDs, selected/latest defaults and inferred choices are refused.
+Current-name activated voice uses the same grammar and normal consent.
+`session queue prerequisite help` shows syntax without reading metadata or
+selecting a target.
+
+The existing private **Sessions** window first uses its normal unsaved-draft
+**Save / Discard / Cancel** admission. The **PREPARATION** pane then shows only
+the exact requested bounded metadata candidate, including its session,
+generation, task, real host revision/state, source and UTC observation. It does
+not scan omitted tasks or history. Missing, conflicting or over-bound metadata
+refuses preparation, including for `none`.
+Save retains its existing audited draft control receipt. If that changes the
+bounded task source, preparation refuses until an explicit work refresh and
+fresh preparation; it never silently adopts the changed source.
+
+Preparation does not change an existing prerequisite, diagnostics plan or work
+selection. Separately click **Apply prepared choice** to revalidate and select
+that exact choice once. Applying a different session explicitly switches the
+native work presentation to that session. **Cancel prerequisite preparation**
+changes no existing choice. A changed original host/private/call/control,
+input, navigation, composer buffer, queue or prerequisite source retires Apply;
+request fresh preparation rather than accepting a newer option implicitly.
+
+This does not enqueue or dispatch. Pending, failed, cancelled or Unknown may be
+selected under the existing policy, but **only exact Succeeded** permits later
+dispatch. Use a separately named fixed **Enqueue** button afterward; its existing
+choice-clearing policy is unchanged. No dependency mutation, question answer,
+approval, grant, resume, model request or runtime probe follows preparation.
+
 | Exact syntax | Result |
 |---|---|
 | `queue help` | Bounded syntax and unavailable scope |
@@ -1013,6 +1046,20 @@ The complete native preview displays the exact ID, label, generation, metadata r
 Nothing is removed by the command. **Confirm logical disposition** remains a separate deliberate native action with a fresh native request. `confirm session disposition ...` explains this boundary and never confirms; `session delete` and model deletion tools remain unavailable ([native-only one-shot confirmation](../src/Kora.Application/Hosting/SessionWorkspaceService.Disposition.cs)).
 
 Stale generations/revisions, lost private/native ownership, busy or unbound presentation, cancellation and replaced previews require a fresh review. Dirty composer Save/Discard/Cancel remains a separate native decision; the command never saves, submits or discards implicitly ([native launch](../src/Kora/SessionsWindowController.cs), [deterministic tests](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.DispositionReview.cs)).
+
+### Prepare an exact native prerequisite choice
+
+- **session queue prerequisite help**
+- **session queue prerequisite prepare <session-id> <task-id|none>**
+
+PREPARATION only in private native Sessions. Nonempty lowercase canonical D IDs
+and literal `none` are required. Help reads no metadata and selects no target.
+The command preserves existing prerequisite, diagnostics and work selections.
+Separately **Apply prepared choice** once, or cancel without changing a choice.
+Only exact Succeeded permits later dispatch. Preparation never enqueues,
+dispatches, resumes, answers a question or grants authority. See the
+[bounded queue workflow](#deterministic-local-version-queue) for source, stale
+Apply, unsaved-draft and fixed-enqueue consequences.
 
 ### Bounded exact-ID session commands
 

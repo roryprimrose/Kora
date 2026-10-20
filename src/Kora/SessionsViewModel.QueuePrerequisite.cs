@@ -47,16 +47,18 @@ internal sealed partial class SessionsViewModel
     {
         if (notifying || presentingQueuePrerequisites || busy || closed || option is null) { return; }
         if (!CanSelectQueuePrerequisite || !queuePrerequisites.Any(item => ReferenceEquals(item, option))) { return; }
-        queuePrerequisite = option;
-        queuePrerequisiteDecisionRequired = false;
-        queuePrerequisiteEpoch++;
-        NotifyQueuePrerequisite();
+        ApplyQueuePrerequisiteChoice(option);
     }
 
     public void ChooseNoQueuePrerequisite()
     {
         if (!CanRead) { return; }
-        queuePrerequisite = null;
+        ApplyQueuePrerequisiteChoice(null);
+    }
+
+    private void ApplyQueuePrerequisiteChoice(QueuePrerequisiteOption? option)
+    {
+        queuePrerequisite = option;
         queuePrerequisiteDecisionRequired = false;
         queuePrerequisiteEpoch++;
         NotifyQueuePrerequisite();
@@ -76,23 +78,32 @@ internal sealed partial class SessionsViewModel
     {
         InvalidateQueuePrerequisite(clearSource: true);
         queuePrerequisiteAdmission = observedAdmission;
+        if (ReadQueuePrerequisiteOptions(snapshot) is not { } options) { return; }
+        queuePrerequisiteMetadataAvailable = true;
+        queuePrerequisites = options;
+    }
+
+    private static QueuePrerequisiteOption[]? ReadQueuePrerequisiteOptions(SessionWorkSnapshot snapshot)
+    {
+        snapshot.RequireSubject(snapshot.Session.Authority.SessionId);
         if (snapshot.Tasks.IsDefault || snapshot.Tasks.Length > SessionWorkSnapshot.MaximumRecords
             || snapshot.QueueRecords.IsDefault || snapshot.QueueRecords.Length > SessionWorkSnapshot.MaximumRecords
             || snapshot.Tasks.Any(task => task.Task.Request.SessionId != snapshot.Session.Authority.SessionId
-                || task.Generation != snapshot.Session.Authority.Generation)
+                || task.Generation != snapshot.Session.Authority.Generation || string.IsNullOrWhiteSpace(task.Source))
             || snapshot.QueueRecords.Any(row => row.TaskMetadata is not { } task
                 || task.TaskId != row.Entry.Request.TaskId || task.SessionId != row.Entry.Request.SessionId
                 || task.SessionId != snapshot.Session.Authority.SessionId
                 || task.Generation != snapshot.Session.Authority.Generation || row.Entry.Generation != task.Generation
-                || task.Revision.Value <= 0 || !Enum.IsDefined(task.State) || string.IsNullOrWhiteSpace(task.Source))) { return; }
+                || task.Revision.Value <= 0 || !Enum.IsDefined(task.State) || string.IsNullOrWhiteSpace(task.Source))) { return null; }
         var options = snapshot.Tasks.Select(task => new QueuePrerequisiteOption(
             task.Task.Request.TaskId, task.Task.Request.SessionId, task.Generation, task.Task.Revision,
-            task.Task.State, snapshot.ObservedAt, task.Source)).Concat(snapshot.QueueRecords.Select(row =>
+            task.Task.State, snapshot.ObservedAt, task.Source, task.CurrentSource)).Concat(snapshot.QueueRecords.Select(row =>
             new QueuePrerequisiteOption(row.TaskMetadata!.TaskId, row.TaskMetadata.SessionId, row.TaskMetadata.Generation,
-                row.TaskMetadata.Revision, row.TaskMetadata.State, snapshot.ObservedAt, row.TaskMetadata.Source))).ToArray();
-        if (options.Select(option => option.TaskId).Distinct().Count() != options.Length) { return; }
-        queuePrerequisiteMetadataAvailable = true;
-        queuePrerequisites = options;
+                row.TaskMetadata.Revision, row.TaskMetadata.State, snapshot.ObservedAt, row.TaskMetadata.Source,
+                row.TaskMetadata.CurrentSource))).ToArray();
+        if (options.Any(option => option.TaskId.Value == Guid.Empty)
+            || options.Select(option => option.TaskId).Distinct().Count() != options.Length) { return null; }
+        return options;
     }
 
     private bool QueuePrerequisiteStillCurrent(QueuePrerequisiteOption? option, long epoch) =>
@@ -102,6 +113,7 @@ internal sealed partial class SessionsViewModel
 
     private void NotifyQueuePrerequisite()
     {
+        NotifyPreparedQueuePrerequisite();
         if (!QueuePrerequisiteSourceCurrent && queuePrerequisite is not null) { InvalidateQueuePrerequisite(clearSource: true); }
         presentingQueuePrerequisites = true;
         try

@@ -244,6 +244,7 @@ internal sealed partial class SessionsViewModel
 
     private void NotifyDiagnosticsPlan()
     {
+        NotifyPreparedQueuePrerequisite();
         if (closed || !access.CanInspect) { RetireDiagnosticsReview(clearSelection: true); }
         else if (diagnosticsPlanReview is not null && !DiagnosticsReviewCurrent) { RetireDiagnosticsReview(); }
         OnPropertyChanged(nameof(DiagnosticsVersion));

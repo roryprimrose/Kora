@@ -34,7 +34,7 @@ internal sealed partial class SessionsViewModel
         get => composerBody;
         set
         {
-            if (closed || !access.CanInspect || conversationBusy || protectingComposer) { return; }
+            if (notifying || closed || !access.CanInspect || conversationBusy || protectingComposer) { return; }
             RetireComposerComparison();
             RetireDraftRecovery();
             Interlocked.Increment(ref composerBufferRevision);
@@ -107,6 +107,7 @@ internal sealed partial class SessionsViewModel
     public void DiscardComposerBuffer()
     {
         if (!CanReadConversation) { return; }
+        RetirePreparedQueuePrerequisite();
         RetireComposerComparison();
         RetireDraftRecovery();
         composerBody = string.Empty;
@@ -267,6 +268,7 @@ internal sealed partial class SessionsViewModel
         bool submission = false, bool sourceRead = false, long? searchDetailEpoch = null, bool draftWrite = false)
     {
         if (!CanReadConversation) { return; }
+        RetirePreparedQueuePrerequisite();
         RetireComposerComparison();
         RetireDraftRecovery();
         var target = RequireSelected();
@@ -364,6 +366,7 @@ internal sealed partial class SessionsViewModel
 
     private void NotifyConversation()
     {
+        NotifyPreparedQueuePrerequisite();
         CheckComposerComparison();
         CheckDraftRecovery();
         NotifyConversationSearch();

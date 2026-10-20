@@ -4128,6 +4128,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             return;
         }
         RetirePromptPreparationForNewInput();
+        if (PreparedLocalSearchCommand.Parse(spokenText, AssistantName) is { } preparedSearch)
+        {
+            HostRequestRunner.Run(OriginalOrigin(initiator), () => PrepareLocalSearch(preparedSearch, initiator));
+            return;
+        }
         if (IsInstructionEditorCommand(spokenText))
         {
             if (!isAssistantNameAvailable && commandRouter.IsActivationPrefixed(spokenText, AssistantName))
@@ -5605,6 +5610,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
                     + "Use “explain the clipboard” for exact native review and qualified local-only explanation; no hosted fallback. "
                     + "Use “show spoken summary limits” to inspect future ordinary-speech sentence/word budgets; “list speech settings” lists exact set/reset syntax. "
                     + "Use “open skill packages” or “open shared skill sources” for native review only; neither enables or runs skills. "
+                    + PreparedLocalSearchCommand.Syntax + " "
                     + (LocalModelsEnabled && Dependencies.Any(status =>
                         string.Equals(status.Id, "local.inference", StringComparison.Ordinal)
                         && status.Readiness == DependencyReadiness.Ready)
@@ -6060,6 +6066,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             .SelectMany(command => command.AllPhrases)
             .Concat(ClipboardCommand.FixedPhrases)
             .Concat(LocalFileCommand.FixedPhrases)
+            .Concat(PreparedLocalSearchCommand.DiscoveryPhrases)
             .Concat(SessionCommand.DiscoveryPhrases)
             .Concat(WorkspaceSurfaceCommand.FixedPhrases)
             .Concat(MemoryCommand.DiscoveryPhrases)

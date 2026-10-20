@@ -2,6 +2,7 @@
 using Avalonia.Platform.Storage;
 using Avalonia.Threading;
 using Kora.Application.ViewModels;
+using Kora.Application.Presentation;
 using Kora.Core.Context;
 
 namespace Kora;
@@ -29,6 +30,7 @@ internal sealed class LocalFilePreviewWindowController : IUserFilePicker, IUserF
         host.FilePreviewChanged += OnChanged;
         host.FileInspectionRequested += OnInspectionRequested;
         host.FileAnswerRequested += OnAnswerRequested;
+        host.LocalSearchPreparationRequested += OnSearchPreparationRequested;
         timer.Tick += OnChanged;
         timer.Start();
     }
@@ -189,6 +191,15 @@ internal sealed class LocalFilePreviewWindowController : IUserFilePicker, IUserF
         window?.FocusAnswer();
     }
 
+    private void OnSearchPreparationRequested(object? sender, PreparedLocalSearchEventArgs request)
+    {
+        if (disposed || !Dispatcher.UIThread.CheckAccess() || !request.IsCurrent) { return; }
+        Refresh();
+        var view = window;
+        if (view is null || showing != (request.File?.RevisionId ?? request.Folder!.RevisionId)) { return; }
+        request.TryPrepare(query => ReferenceEquals(window, view) && view.PrepareSearch(query));
+    }
+
     private void CloseView()
     {
         var view = window;
@@ -205,6 +216,7 @@ internal sealed class LocalFilePreviewWindowController : IUserFilePicker, IUserF
         host.FilePreviewChanged -= OnChanged;
         host.FileInspectionRequested -= OnInspectionRequested;
         host.FileAnswerRequested -= OnAnswerRequested;
+        host.LocalSearchPreparationRequested -= OnSearchPreparationRequested;
         timer.Stop();
         timer.Tick -= OnChanged;
         CloseView();

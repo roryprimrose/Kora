@@ -261,6 +261,7 @@ public sealed partial class MainViewModel
             + $"Preview folder reviews all immediate files only: {LocalFolderPolicy.MaximumFiles} files / "
             + $"{LocalFolderPolicy.MaximumCombinedBytes} combined bytes maximum; 256 KiB per file. "
             + "Any subdirectory, unsupported file or failed item rejects the whole selection. Search/inspect folder focuses native lexical search. "
+            + PreparedLocalSearchCommand.Syntax + " "
             + "Refresh file/folder reopens only the exact admitted physical source for a fresh metadata review; confirm again before reads. "
             + "Starting refresh retires the old preview and citations. Failure/cancel leaves no preview; use the native picker again. "
             + "Missing/replaced or aliased original roots cannot be rebound by refresh. Original files are never modified. "

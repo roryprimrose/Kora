@@ -492,6 +492,7 @@ See [Settings recovery](settings.md#in-call-feedback-override).
 | `search file` / `inspect file` | Focus admitted native query/inspection; no arguments or implicit source |
 | `preview folder` | Native picker and complete immediate-file inventory review |
 | `search folder` / `inspect folder` | Focus exact admitted folder retrieval |
+| `prepare file search for "<query>"` / `prepare folder search for "<query>"` | Prepare the exact current preview's native lexical query only; **REVIEW NEEDED**, then click native Search separately ([raw grammar](../src/Kora.Core/Context/PreparedLocalSearchCommand.cs)) |
 | `clear folder preview` | Discard volatile folder review/revision |
 | `refresh file` / `refresh folder` | Retire old preview, fresh exact metadata review and separate native confirmation |
 
@@ -508,7 +509,7 @@ sources need the picker again, never silent rebinding.
 | Native query | 256 UTF-16 characters / 512 UTF-8 bytes; 32 unique terms, 64 characters/term |
 | Results | Eight exact excerpts / 16 KiB UTF-8; each at most 2,048 UTF-16 characters / 128 lines |
 
-Queries belong only in native search, not conversation. Results carry exact
+Queries execute only in native search, not conversation. Results carry exact
 source/revision/item/digest and end-exclusive line/column/range citations.
 Search never rereads the path. Privacy/ownership/call/source/query retirement
 suppresses late results; clear/cancel/close never modifies originals.
@@ -516,6 +517,18 @@ No clipboard, speech/history, model/egress, watcher, vector index or durable
 folder attachment is added. Durable single-file attachments have separate
 consent. See [native file workflow](windows-and-tray.md#native-local-file-inspection)
 and [privacy](privacy-safety-and-logs.md#local-file-inspection).
+
+Preparation accepts original typed input or exact current-name ACTIVATED voice, before shared normalization. Double `"` in the final quoted literal (`"A ""quote"""` means `A "quote"`); case, punctuation, Unicode and interior spaces stay exact.
+Existing lexical/single-line bounds apply; malformed reserved `prepare file/folder` input refuses without question/model/approval fallback ([parser](../src/Kora.Core/Context/PreparedLocalSearchCommand.cs)).
+
+An explicit already-confirmed singleton file or complete folder preview must match the requested kind. Admission freezes its immutable reference, including every folder item, and rechecks source, current name, input, privacy, ownership, call and voice eligibility at queued UI delivery.
+No path, name or selected-window guessing occurs; stale/closed/replaced previews refuse ([host handoff](../src/Kora.Application/ViewModels/MainViewModel.PreparedLocalSearch.cs)).
+
+The existing inspection window opens/focuses with **PREPARED / REVIEW NEEDED**, lexical mode and no result claim. Typing, focus and preparation execute nothing. Only the separate native Search button reaches the existing canonical audited executor; ActivatedVoice is never relabelled LocalUi.
+No read, metadata capture, refresh, Attach, source-use consent, model/provider, clipboard, retention or query persistence is granted ([native hook](../src/Kora/LocalFilePreviewWindow.PreparedSearch.cs), [executor guard](../src/Kora.Application/ViewModels/MainViewModel.Files.cs)).
+
+The query is volatile native input, never a response, transcript, speech, log/audit field or Activity tag. Late/reused handoffs expire and repeated preparation clears old citations without searching. Retained attachments, native Literal Find and existing invalid `search file <query>` / `search folder <query>` forms are unchanged
+([deterministic host tests](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.PreparedLocalSearch.cs), [native tests](../tests/Kora.Windows.IntegrationTests/PreparedLocalSearchWindowTests.cs)).
 
 **Literal Find is native-only**, not a typed/PTT command or model tool. In the inspected original file use **Find first / Find next / Find previous / Clear literal Find**. Exact case/spaces/punctuation, nonoverlapping steps and no wrap apply; only one match is disclosed. Existing inspect/search phrases still focus ranked inspection, without accepting a query or selecting a new file.
 

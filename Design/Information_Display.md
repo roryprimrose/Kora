@@ -52,6 +52,14 @@ Only one exact bounded match is focused in the existing inert `NamedTextBlock` p
 
 See [semantics, private source admission and maintained evidence](File_And_Folder_Ingestion.md#delivered-native-current-source-literal-find---2026-10-12). Existing lexical/Markdown retrieval and citation limits are unchanged; native fixtures do not qualify installed/accessibility, model grounding or broader display/source authority.
 
+## Delivered Preparation-Only Local Search - 2026-10-20
+
+Original typed/current-name ACTIVATED `prepare file search for "<query>"` / `prepare folder search for "<query>"` pre-populates the existing exact volatile inspection window, not this viewer's Literal Find or a retained attachment.
+It resets run-only lexical mode and clears old citations, with **PREPARED / REVIEW NEEDED** and no search/result claim ([native hook](../src/Kora/LocalFilePreviewWindow.PreparedSearch.cs)).
+
+Raw final-quoted input preserves query characters. The scoped handoff freezes the admitted immutable source and rechecks queued admission; stale, closed, replaced or wrong-kind sources refuse. Only a separate native Search gesture executes the existing LocalUi-only audited path.
+No read/search/refresh/metadata capture, provider, clipboard, persistence, Attach or consent authority is added ([owning contract](File_And_Folder_Ingestion.md#delivered-preparation-only-native-lexical-query---2026-10-20)).
+
 ## Delivered Immutable Volatile Web-Result Details - 2026-10-10
 
 An actual successful original-user `get web page <URI>` result now offers **Open exact web-result details** in the compact response. It opens or activates the same immutable host-issued item/revision in the existing native-text-v1 viewer.

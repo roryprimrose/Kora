@@ -1085,6 +1085,43 @@ only to this exact preview and is discarded when it retires; explanation's
 source-use policy remains unavailable. See the
 [XML boundary](../Design/Security_Data_Flows.md#native-clipboard-xml-well-formedness).
 
+#### Inspect comma-separated rows (native only)
+
+Choose **Inspect this snapshot as comma-separated rows** for syntax and shape of
+the **complete existing immutable snapshot**, not the current Windows clipboard.
+Nothing parses on opening, typing or Find. The result is native-only and volatile;
+the source and Find remain unchanged. No new typed/voice/model route is provided.
+
+The finite [profile](../src/Kora.Core/Context/CommaSeparatedProfile.cs) uses comma
+only, double-quoted fields with doubled quotes as escapes, and CRLF or LF record
+separators. Quotes may open only at field start; after a closing quote only an
+escaped quote, comma, record separator or end of input is allowed. Quoted fields
+may contain literal CR, LF and commas. Lone CR outside quotes is refused.
+Spaces are literal, never trimmed, including before/after quotes. There is no
+delimiter, header, field-name or type guessing, format repair or normalization.
+Semicolons/tabs are ordinary field text, not alternative delimiters; invalid
+quoting never falls back to a successful one-column interpretation.
+
+The entire source must fit the existing **256 KiB strict UTF-8** budget; no
+sampling or truncated success. Empty input has zero records (ordinary clipboard
+capture still refuses empty snapshots). A blank record has one empty field;
+commas separate empty fields, and a trailing comma adds a final empty field.
+One final record separator ends the last record without inventing another;
+additional blank separators represent blank records. Success reports only the
+profile, record count, minimum/maximum fields and uniform/ragged shape.
+Ragged rows are shape, **not a schema violation**. Invalid syntax instead reports
+a zero-based UTF-16 offset and one-based logical record, without partial counts
+or field content. Quoted newlines do not advance the logical record number.
+
+Formula-like text is inert literal content. **CSV syntax does not make text
+spreadsheet-safe** or establish trust, safety, secrecy or redaction. There is no
+format/export, spreadsheet execution, clipboard copy/write, model/network,
+source-use consent, history/persistence, TTL renewal or automatic recapture.
+Revocation, replacement, privacy/owner/call loss, cancellation, close and disposal
+drop derived output and fence queued callbacks; re-opened eligibility does not
+retarget an old source. Internal failures are reported separately from a profile
+mismatch, without raw exceptions or source tokens.
+
 The separate **Review local version (native question)** tray entry opens one
 owned native card bound to the original durable host question, not whichever
 window is focused. It shows exact target/revision/expiry, an unselected choice,

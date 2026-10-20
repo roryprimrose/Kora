@@ -10,6 +10,9 @@ public sealed partial class MainViewModel
     [LoggerMessage(120, LogLevel.Error, "Native clipboard XML check failed internally; failure type {FailureType}. No XML result claimed.")]
     private static partial void ClipboardXmlFailed(ILogger logger, string failureType);
 
+    [LoggerMessage(742, LogLevel.Error, "Native comma-separated inspection failed internally; no source content or partial result retained")]
+    private partial void ClipboardCsvInspectionFailed();
+
     [LoggerMessage(630, LogLevel.Error, "Local web summary was not admitted: {FailureKind}")]
     private partial void WebSummaryFailed(string failureKind);
 

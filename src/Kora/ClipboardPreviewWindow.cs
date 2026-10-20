@@ -78,10 +78,12 @@ internal sealed partial class ClipboardPreviewWindow(Action<Exception> reportFai
             chrome.Children.Add(explainButton);
         }
         AddFind(chrome, snapshot, isCurrent);
+        var csvResult = AddCsvInspection(chrome, isCurrent);
         DockPanel.SetDock(chrome, Dock.Top);
         body.Children.Add(chrome);
         var content = new StackPanel { Spacing = 12 };
         if (validateJson is not null) { AddJsonValidation(content, isCurrent, isJsonCurrent ?? isCurrent, validateJson); }
+        content.Children.Add(csvResult);
         content.Children.Add(source);
         AutomationProperties.SetName(explanation, "Volatile local clipboard explanation; untrusted model response");
         content.Children.Add(explanation);
@@ -105,6 +107,7 @@ internal sealed partial class ClipboardPreviewWindow(Action<Exception> reportFai
         ClearFindState();
         ClearJsonState();
         ClearXmlValidation();
+        ClearCsvInspection();
         source.Text = null;
         explanation.Text = null;
         Content = null;
@@ -117,6 +120,7 @@ internal sealed partial class ClipboardPreviewWindow(Action<Exception> reportFai
         ClearFindState();
         ClearJsonState();
         ClearXmlValidation();
+        ClearCsvInspection();
         source.Text = null;
         explanation.Text = null;
         Content = null;

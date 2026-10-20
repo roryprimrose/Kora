@@ -216,6 +216,7 @@ public sealed class ClipboardJsonWindowTests
             Func<ClipboardSnapshot, Func<bool>, CancellationToken, ClipboardXmlValidationResult>? validateXml = null) =>
             Validate = validateJson;
         public void SetExplanation(string? text) { }
+        public void BindCsvInspection(Func<CancellationToken, ClipboardCsvResult>? inspect) { }
         public void ClearJsonValidation() => JsonClears++;
         public void ClearAndClose() { }
     }

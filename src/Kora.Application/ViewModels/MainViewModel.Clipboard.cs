@@ -7,6 +7,32 @@ namespace Kora.Application.ViewModels;
 
 public sealed partial class MainViewModel
 {
+    private readonly ClipboardInspectCsv clipboardInspectCsv = new();
+
+    public Func<CancellationToken, ClipboardCsvResult> BindClipboardCsvInspection(ClipboardSnapshot source)
+    {
+        var hostEligible = CapturePreferenceEligibility(Kora.Core.Auditing.SecurityAuditInitiator.LocalUser);
+        bool Eligible() => hostEligible() && clipboardOwnershipEligible();
+        return token =>
+        {
+            using var activity = HostActivity.BeginRoot(HostRequest.Create(RequestOrigin.LocalUi),
+                HostActivityLayer.Application, HostOperation.Presentation);
+            try
+            {
+                var result = clipboardInspectCsv.Execute(source, () => ClipboardPreview, Eligible, token);
+                activity.Complete(result.Outcome == ClipboardCsvOutcome.Inspected
+                    ? HostOperationOutcome.Completed : HostOperationOutcome.Cancelled);
+                return result;
+            }
+            catch (Exception exception) when (exception is not OutOfMemoryException)
+            {
+                ClipboardCsvInspectionFailed();
+                activity.Complete(HostOperationOutcome.Failed);
+                return new(ClipboardCsvOutcome.Unavailable);
+            }
+        };
+    }
+
     private readonly ClipboardSnapshotBroker clipboardPreview;
     private readonly ClipboardRead clipboardRead;
     private readonly ClipboardReuse clipboardReuse;
@@ -88,7 +114,8 @@ public sealed partial class MainViewModel
     {
         var origin = HostActivity.RequireCurrent().Request.Origin;
         var revision = CallPolicyRevision;
-        bool Eligible() => IsClipboardEligible(origin, revision);
+        var originalHostEligible = CapturePreferenceEligibility(Kora.Core.Auditing.SecurityAuditInitiator.LocalUser);
+        bool Eligible() => originalHostEligible() && IsClipboardEligible(origin, revision);
         ClipboardOutcome outcome;
         switch (command.Operation)
         {

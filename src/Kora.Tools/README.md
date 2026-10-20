@@ -78,6 +78,13 @@ document in memory, prohibits DTDs/external resources, and limits element depth
 to 64. It grants no model source-use or schema/safety authority. See the
 [owning contract](../../Design/Security_Data_Flows.md#native-clipboard-xml-well-formedness).
 
+The native-only [ClipboardInspectCsv](Clipboard/ClipboardInspectCsv.cs) action
+inspects the exact already-current source through the same host/broker eligibility
+seam and [finite Core profile](../Kora.Core/Context/CommaSeparatedProfile.cs).
+It has no typed/voice/model registry route and no capture, write, source-use or
+model authority. Its content-free syntax/shape result is volatile native state;
+see the [owning context boundary](../../Design/Security_Data_Flows.md#native-finite-comma-separated-syntaxshape-inspection).
+
 ### Preapproved network addresses
 
 The Network actions converge settings-window, typed-command and activated-voice

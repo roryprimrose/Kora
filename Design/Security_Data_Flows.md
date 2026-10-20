@@ -640,6 +640,61 @@ uniqueness, egress approval or model-source-use authority. This bounded
 deterministic implementation makes no installed-native or security
 qualification claim; the following source-use policy remains unavailable.
 
+### Native finite comma-separated syntax/shape inspection
+
+The explicit **Inspect this snapshot as comma-separated rows** button calls the
+host-owned [ClipboardInspectCsv action](../src/Kora.Tools/Clipboard/ClipboardInspectCsv.cs)
+and [authoritative pure profile](../src/Kora.Core/Context/CommaSeparatedProfile.cs).
+This is inert native inspection, not model source use. It consumes only the
+existing snapshot/broker, original host eligibility and native view lifecycle
+I contracts; it does not consume a provider, new consent, or E/Q qualification.
+The unavailable clipboard model source-use policy below is unchanged.
+
+The profile is comma-only; double quotes open at field start, doubled quotes
+escape a quote, and a closed quote permits only escape/comma/CRLF/LF/end.
+Spaces remain field content, not trimming. Quoted CR/LF/commas are literal;
+lone CR outside a quoted field and other invalid quoting are explicit typed
+profile mismatches, never a fallback one-column success. Unquoted semicolons or
+tabs remain literal text, not dialect detection. There is no general RFC claim.
+Empty input means zero records; a blank record means one empty field, trailing
+commas add empty fields, and a final separator adds no phantom record.
+Additional separators represent blank records. The [native guide](../docs/windows-and-tray.md#inspect-comma-separated-rows-native-only)
+owns the complete user-facing profile/disclosure.
+
+Only a fully traversed admitted source yields counts: logical records,
+minimum/maximum fields and ragged/uniform shape, not schema validation.
+Mismatches report only typed reason, zero-based UTF-16 offset and one-based
+logical record (quoted newlines are not record separators); partial counts are
+discarded. No field values, names, header/type inference, trust, safety,
+secret-free or injection-redaction claims are produced. Formula-like text is
+inert; syntactic admission does not make it spreadsheet-safe.
+
+The whole strict UTF-8 source fits the existing 262,144-byte bound, with no
+sampling/truncation. The parser uses a linear finite state scan, scalar checked
+counters and no per-field strings/rows/large graph. UTF-16 length is at most the
+byte budget; maximum fields is budget + 1 and records at most budget, so integer
+overflow is unreachable for an admitted source. Cancellation is checked before
+the bounded UTF-8 validation, each character step and final publication.
+No new package or experiment is consumed.
+
+The [native binding](../src/Kora.Application/ViewModels/MainViewModel.Clipboard.cs)
+captures original privacy topology, ownership revision, input eligibility and
+call revision. The action revalidates that gate plus exact source object identity
+(therefore its immutable IDs/request/native version) before parsing and returning.
+The [format partial](../src/Kora/ClipboardPreviewWindow.Csv.cs) also fences exact
+window/control generation before invocation and publication; reentrancy,
+cancellation, revocation/replacement, private/owner/call loss, close and disposal
+cancel/drop output without latest-source fallback. Unexpected internal failures
+have a fixed source-generated diagnostic and distinct native error, never raw
+exception messages, source tokens or ordinary invalid-syntax success.
+
+Opening, typing and Find do not parse. Inspection adds no clipboard read/write,
+reuse/revoke operation, refresh, new TTL, activity renewal, source-use approval,
+model/network route, transcript/speech, history, persistence, copy or table export.
+Existing source text, Find and clipboard-transfer guards remain unchanged.
+Portable parser/action/host tests and headless native lifecycle/accessibility
+checks are deterministic consumer evidence, not installed-native qualification.
+
 The [explicit clipboard workflow](../src/Kora.Application/Context/ClipboardExplanationWorkflow.cs) now separates review from explanation.
 The native **Validate this snapshot as JSON** gesture is independent of that inference workflow.
 [ClipboardJsonSyntax](../src/Kora.Core/Context/ClipboardJsonSyntax.cs) consumes only the exact immutable capture's canonical strict UTF-8 bytes,

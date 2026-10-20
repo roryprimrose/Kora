@@ -63,10 +63,16 @@ public sealed partial class MainViewModelTests
         using var hostile = new Activity("untrusted incoming").AddBaggage("kora.session.id", "hostile").Start();
         await f.RunAsync("convert 1 m to cm");
         await f.RunAsync("convert 2 m to cm");
-        activities.Should().HaveCount(4);
+        var tools = activities.Where(activity => string.Equals(activity.DisplayName, "tool.invoke", StringComparison.Ordinal)).ToArray();
+        tools.Should().HaveCount(2);
         var roots = activities.Where(activity => activity.ParentId is null).ToArray();
         roots.Should().HaveCount(2);
         roots[0].GetTagItem("kora.session.id").Should().NotBe(roots[1].GetTagItem("kora.session.id"));
+        foreach (var tool in tools)
+        {
+            var root = roots.Single(activity => activity.TraceId == tool.TraceId);
+            tool.GetTagItem("kora.session.id").Should().Be(root.GetTagItem("kora.session.id"));
+        }
         activities.Should().OnlyContain(activity => activity.Status == ActivityStatusCode.Ok);
         activities.SelectMany(activity => activity.Baggage).Should().BeEmpty();
         activities.SelectMany(activity => activity.TagObjects).Should().NotContain(pair => Equals(pair.Value, "hostile"));

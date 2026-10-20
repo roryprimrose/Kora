@@ -79,8 +79,9 @@ internal sealed partial class ClipboardPreviewWindow(Action<Exception> reportFai
         }
         AddFind(chrome, snapshot, isCurrent);
         AddBase64(chrome, snapshot, isCurrent);
-        DockPanel.SetDock(chrome, Dock.Top);
-        body.Children.Add(new ScrollViewer { Content = chrome, MaxHeight = 420 });
+        var chromeScroll = new ScrollViewer { Content = chrome, MaxHeight = 420 };
+        DockPanel.SetDock(chromeScroll, Dock.Top);
+        body.Children.Add(chromeScroll);
         var content = new StackPanel { Spacing = 12 };
         if (validateJson is not null) { AddJsonValidation(content, isCurrent, isJsonCurrent ?? isCurrent, validateJson); }
         content.Children.Add(source);

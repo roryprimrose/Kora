@@ -1,3 +1,4 @@
+using Avalonia;
 using Avalonia.Automation;
 using Avalonia.Automation.Peers;
 using Avalonia.Controls;
@@ -15,6 +16,47 @@ namespace Kora.Windows.IntegrationTests;
 public sealed class ClipboardBase64WindowTests
 {
     private const string Caption = "Inspect this snapshot as standard Base64";
+
+    [Theory]
+    [InlineData(640, 480)]
+    [InlineData(760, 600)]
+    public async Task NativeActionAndResultAreScrollableWithoutCollapsingOriginalSourcePane(int width, int height)
+    {
+        await HeadlessSession.RunAsync(async () =>
+        {
+            var window = new ClipboardPreviewWindow(_ => throw new InvalidOperationException("Unexpected failure"));
+            window.SetBase64Inspection((snapshot, token) => ClipboardBase64Policy.Inspect(snapshot.Text, token));
+            window.Show(Snapshot("AA=="), UnexpectedMutation, UnexpectedMutation, () => true);
+            try
+            {
+                window.Width = width;
+                window.Height = height;
+                window.UpdateLayout();
+                var source = window.GetVisualDescendants().OfType<NamedTextBlock>()
+                    .Single(control => AutomationProperties.GetName(control) is "Clipboard snapshot plain text content");
+                var sourceViewport = source.GetVisualAncestors().OfType<ScrollViewer>().Single();
+                sourceViewport.Viewport.Width.Should().BeGreaterThan(0);
+                sourceViewport.Viewport.Height.Should().BeGreaterThan(0);
+                var button = Button(window);
+                button.GetVisualAncestors().OfType<ScrollViewer>().Should().ContainSingle()
+                    .Which.Should().NotBeSameAs(sourceViewport);
+                button.BringIntoView();
+                window.UpdateLayout();
+                await ((AsyncCommand)button.Command!).ExecuteAsync();
+                var status = Status(window);
+                status.Text.Should().Contain("exact decoded byte count: 1");
+                status.BringIntoView();
+                window.UpdateLayout();
+                var location = status.TranslatePoint(default, window)!.Value;
+                location.X.Should().BeGreaterThanOrEqualTo(0);
+                location.Y.Should().BeGreaterThanOrEqualTo(0);
+                (location.X + status.Bounds.Width).Should().BeLessThanOrEqualTo(window.ClientSize.Width);
+                (location.Y + status.Bounds.Height).Should().BeLessThanOrEqualTo(window.ClientSize.Height);
+                source.Text.Should().Be("AA==");
+            }
+            finally { window.ClearAndClose(); }
+        });
+    }
 
     [Theory]
     [InlineData("AA==", "exact decoded byte count: 1")]

@@ -143,7 +143,8 @@ function coverageFixture(overrides = {}) {
     paginate: async (method, args, transform) => {
       assert.equal(method, 'listChecks');
       calls.push(['checks', args]);
-      return transform({ data: { check_runs: [{ app: { id: 42 }, external_id: ticket }] } });
+      const data = [{ app: { id: 42 }, external_id: ticket }];
+      return transform ? transform({ data }) : data;
     },
   };
   return { outputs, calls, github, run, execute: () => execute({ env: { QUEUE_APP_ID: '42' } },

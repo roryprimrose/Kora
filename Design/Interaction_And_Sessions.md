@@ -816,6 +816,22 @@ Exact missing/Removed IDs and unavailable/corrupt/ownership-denied/cancelled rea
 
 The [native surface](UI_Workspace_And_Windows.md#delivered-passive-session-list-metadata-navigation---2026-10-10) distinguishes metadata search from history and Evidence. Typing in ordinary list mode preserves selected work; unchanged exact visible results retain work/history/memory presentation without renewing inspected cancellation authority.
 Invalidated/changed selections clear their targets. Query/selection/source/privacy epochs, cancellation and close fence late content.
+The native **Order this loaded session page** control uses the pure
+[bounded page projection](../src/Kora.Core/Storage/SessionListPageOrdering.cs)
+only on already-admitted paged metadata search results (including Browse).
+Source is the exact unchanged default. Names ascend/descend with ordinal
+case-sensitive comparison and unnamed last in both directions; positive admitted
+authority generations ascend/descend. Every equal key uses canonical session ID
+ascending. Full-page validation precedes publication; no corrupt last row is
+excluded or repaired. The original raw page and semantic signed Next are
+unchanged, as are storage, query, scan/result budgets and ordinary Refresh.
+Ordering/Clear order are read-free, nonpersistent and not selection/navigation:
+row objects, selected subject, dirty shared composer/name editor, original
+questions and exact review fences are retained. Native rebinding suppresses
+selection callbacks during publication; pending navigation revalidates the exact
+candidate and source epoch after composer review. Sorting cannot mint admission,
+renew activity or resurrect retired rows. There is no all-session/global order
+or completeness claim and no change to gated physical/provider capabilities.
 The two accessible [native scalar-length fields](../src/Kora/SessionsWindow.axaml) share Enter/Search, Clear/Escape and no-read edit retirement of prior search rows, detail, exact selection, actions and cursor; private closure clears their input.
 No unset-bound consumer or serialized result shape changes ([native tests](../tests/Kora.Windows.IntegrationTests/SessionsListSearchTests.cs), [no-I/O and late-result tests](../tests/Kora.Windows.IntegrationTests/SessionsViewModelTests.ListSearch.cs)).
 

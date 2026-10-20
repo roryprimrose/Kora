@@ -22,6 +22,7 @@ internal sealed partial class SessionsWindow : Window
         this.owner = owner ?? new(model);
         InitializeComponent();
         DataContext = model;
+        BindListPageOrder(model);
         this.owner.Attach(this);
         CompactConversation.Click += (_, _) => CompactConversationRequested?.Invoke(this, EventArgs.Empty);
         ReadConversation.Click += async (_, _) => await (ConversationOperation = model.ReadConversationAsync());

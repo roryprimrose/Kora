@@ -4545,6 +4545,7 @@ public sealed partial class MainViewModelTests : IDisposable
             .Concat(SessionProviderProfileCommand.FixedPhrases)
             .Concat(PreapprovedUriCommand.FixedPhrases)
             .Concat(Kora.Application.Network.WebPageCommand.FixedPhrases)
+            .Concat(Kora.Application.Network.WebSummaryCommand.FixedPhrases)
             .Concat(InCallFeedbackCommand.FixedPhrases)
             .Concat(SpeechTextCommand.FixedPhrases)
             .Concat(Kora.Application.Voice.ResponseReadCommand.FixedPhrases)
@@ -8522,7 +8523,8 @@ public sealed partial class MainViewModelTests : IDisposable
             Exception? artifactReadFailure = null,
             bool enableMcpServerConfiguration = true, bool enableProviderProfiles = false,
             bool enableQuestionReplies = false, bool enableAuditImpact = false, bool enableSessionRetentionPlanner = false,
-            bool enableSpeechPreparation = false, bool enableDiagnosticImpact = false, bool enableClipboardExplanation = false)
+            bool enableSpeechPreparation = false, bool enableDiagnosticImpact = false, bool enableClipboardExplanation = false,
+            Kora.Application.Network.WebSummaryWorkflow? webSummary = null)
         {
             Catalog = new BuiltInCommandCatalog();
             CaptionPreferences.LoadFailure = captionReadFailure;
@@ -8705,6 +8707,7 @@ public sealed partial class MainViewModelTests : IDisposable
                 speechPreparation: enableSpeechPreparation ? SpeechPreparation : null,
                 diagnosticImpactPreview: enableDiagnosticImpact ? new DiagnosticImpactPreviewService(DiagnosticImpactReader, DiagnosticPreferences, DiagnosticConfiguration!) : null,
                 clipboardExplanation: clipboardWorkflow);
+            if (webSummary is not null) { ViewModel.BindWebSummaryWorkflow(webSummary); }
             ViewModel.BindCallOwnershipGate(static () => true);
             ViewModel.BindManualCallNativeLifetime(true);
             if (enableWindowsSpeechRate) { ViewModel.BindWindowsSpeechRateNativeLifetime(static () => true); }

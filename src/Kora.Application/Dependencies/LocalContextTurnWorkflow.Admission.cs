@@ -20,20 +20,19 @@ public sealed partial class LocalContextTurnWorkflow
         private readonly CancellationTokenSource lifetime = new();
         private readonly TaskCompletionSource<ModelContextAdmission> admission = new(TaskCreationOptions.RunContinuationsAsynchronously);
         private TaskCompletionSource<ContextSubmission>? submission = new(TaskCreationOptions.RunContinuationsAsynchronously);
-        private Task<LocalContextTurnReceipt>? completion;
+        private readonly TaskCompletionSource<Task<LocalContextTurnReceipt>> completion = new(TaskCreationOptions.RunContinuationsAsynchronously);
         private Task? disposal;
         private bool used;
         private bool retired;
 
         public HostRequest Request => request;
         public HostRevision SessionGeneration { get; private set; }
-        // The issuer binds completion before publishing either the admission or its rejection.
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "VSTHRD003",
-            Justification = "Returns this lease's owning lifecycle task, bound before publication; no synchronous or UI-thread join.")]
-        public Task<LocalContextTurnReceipt> Completion => completion!;
+            Justification = "The owning lifecycle binds this asynchronous completion before the lease is exposed; no external or UI-affine work is joined.")]
+        public Task<LocalContextTurnReceipt> Completion => completion.Task.Unwrap();
         internal CancellationToken Revocation => lifetime.Token;
 
-        internal void BindCompletion(Task<LocalContextTurnReceipt> pending) => completion = pending;
+        internal void BindCompletion(Task<LocalContextTurnReceipt> pending) => completion.SetResult(pending);
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "VSTHRD003",
             Justification = "This lease owns the asynchronously continued admission handshake; no UI-thread join or external task.")]
         internal Task<ModelContextAdmission> ReadAdmissionAsync() => admission.Task;
@@ -48,6 +47,7 @@ public sealed partial class LocalContextTurnWorkflow
             lock (gate)
             {
                 SessionGeneration = generation;
+                // The sole lifecycle worker owns Receive; retirement follows this receive's finally.
                 pending = submission!;
                 admission.SetResult(new(this));
             }
@@ -76,7 +76,8 @@ public sealed partial class LocalContextTurnWorkflow
                 var rejection = current is null || current.Activity!.IsStopped
                     || current.Outcome != HostOperationOutcome.Unknown || !ReferenceEquals(current.Request, sourceRequest)
                     ? LocalContextTurnReason.OriginalInputRequired : (LocalContextTurnReason?)null;
-                submission!.SetResult(new(rejection is null ? context : null, rejection, token));
+                (submission ?? throw new InvalidOperationException("Context submission is unavailable."))
+                    .SetResult(new(rejection is null ? context : null, rejection, token));
                 return Completion;
             }
         }

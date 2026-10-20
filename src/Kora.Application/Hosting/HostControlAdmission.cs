@@ -51,11 +51,11 @@ public abstract class HostControlAdmission(
         ObjectDisposedException.ThrowIf(disposed, this);
         var current = HostActivity.RequireCurrent();
         if (current.Activity!.IsStopped || current.Outcome != HostOperationOutcome.Unknown
-            || !ReferenceEquals(current.Request, request)
-            || request.Origin is not (RequestOrigin.LocalUi or RequestOrigin.ActivatedVoice))
+            || !ReferenceEquals(current.Request, request))
         {
             throw new InvalidOperationException("Exact local context requires the original live host request.");
         }
+        _ = CaptureOriginalOrigin(request.Origin);
         ActivityLink[] links = [new(current.Activity.Context)];
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, lifetime.Token);
         await gate.WaitAsync(linked.Token).ConfigureAwait(false);

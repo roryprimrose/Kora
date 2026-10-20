@@ -34,7 +34,7 @@ public sealed partial class LocalContextTurnWorkflow(
         var request = target.Request;
         var current = HostActivity.Current;
         if (current is null || current.Activity!.IsStopped || current.Outcome != HostOperationOutcome.Unknown
-            || !ReferenceEquals(current.Request, target.SourceRequest))
+            || !ReferenceEquals(current.Request, target.SourceRequest) || current.Request.Origin != request.Origin)
         {
             return new(new LocalContextTurnReceipt(request, ModelTurnOutcome.Denied, LocalContextTurnReason.OriginalInputRequired));
         }
@@ -154,7 +154,7 @@ public sealed partial class LocalContextTurnWorkflow(
             using var runCancellation = CancellationTokenSource.CreateLinkedTokenSource(token, submitted.Token);
             token = runCancellation.Token;
             if (submitted.Rejection is { } rejection) { throw new ContextRejectedException(rejection); }
-            // RunAsync rejects null before publishing; a null submission always carries a rejection handled above.
+            // RunAsync accepts a non-null envelope; rejected submissions were handled above.
             var context = submitted.Context!;
             if (!ReferenceEquals(context.Request, request) || context.ToolMode != ModelToolMode.None || context.Evidence.IsEmpty
                 || context.Evidence.Any(item => item.Disclosure != ModelEvidenceDisclosure.LocalOnly))
@@ -219,6 +219,7 @@ public sealed partial class LocalContextTurnWorkflow(
             {
                 try
                 {
+                    // Success is assigned only after ValidateTurnAsync was installed and executed.
                     await finalValidation!(token).ConfigureAwait(false);
                 }
                 catch (OperationCanceledException)

@@ -607,6 +607,21 @@ The current [model host](../src/Kora.Application/Dependencies/ModelTurnHost.cs) 
 These implementation checks do not qualify local answering quality, physical/native operation, containment, offline or hardware performance and do not close A0/A2; those E/Q gates do not block this fail-closed implementation ([delivery policy](Implementation_Roadmap.md#delivery-and-qualification-dependency-policy)).
 
 Rich content is untrusted presentation data under [Information Display](Information_Display.md).
+
+The [web-summary workflow](../src/Kora.Application/Network/WebSummaryWorkflow.cs) requires one-use source/local-model confirmation over one exact current snapshot. Fetch/view/search grants no inference permission; URLs confer no context or retrieval authority ([fetch](../src/Kora.Application/ViewModels/MainViewModel.WebPages.cs), [summary](../src/Kora.Application/ViewModels/MainViewModel.WebSummary.cs)).
+
+The [action](../src/Kora.Tools/Network/WebResultSummarize.cs) preserves complete normalized text and provenance as LocalOnly untrusted evidence. Its [credential checks](../src/Kora.Core/Conversation/ConversationText.cs) are narrow reject-only heuristics, not sensitivity classification. Page content grants no approvals, actions, tools or network authority.
+
+The independent [web-source policy](../src/Kora.Core/Network/IWebResultModelUsePolicy.cs) must affirm source-specific sensitivity/use admission before context construction. Its production [unavailable implementation](../src/Kora.Application/Network/UnavailableWebResultModelUsePolicy.cs) blocks before durable/model admission; no general detector or permissive default is claimed.
+
+Policy decisions are rechecked through the shared execution fence and before late disclosure; denial/unknown state permanently closes that use. Deterministic admitted/denied fakes do not establish production detection readiness ([bridge](../src/Kora.Application/Network/WebSummaryModelExecution.cs), [tests](../tests/Kora.Application.UnitTests/Network/WebSummaryModelExecutionTests.cs)).
+
+The [web bridge](../src/Kora.Application/Network/WebSummaryModelExecution.cs) consumes shared durable admission for a reviewed exact fresh `Local context` session. Only host session/task receipts persist; creation is disclosed before confirmation ([target](../src/Kora.Core/Dependencies/LocalContextSessionTarget.cs)).
+
+The volatile source request is lineage only. The [Core runner](../src/Kora.Core/Dependencies/IModelContextRunner.cs) resolves the separate reviewed durable request before evidence/envelope binding. An unknown/foreign lease receives no source; disposal waits for shared physical quiescence ([bridge tests](../tests/Kora.Application.UnitTests/Network/WebSummaryModelExecutionTests.cs)).
+
+The envelope disables tools, the shared host denies tool callbacks, and no adapter registration or bootstrap fallback is enabled. Review expiry, replacement, private/owner/call closure and cancellation suppress stale presentation ([host](../src/Kora.Application/Dependencies/ModelTurnHost.cs), [workflow](../src/Kora.Application/Network/WebSummaryWorkflow.cs)).
+
 The delivered `native-text-v1` viewer is passive native text/Markdown, entered
 only through the explicit Documentation **Open details** action for a host
 admitted immutable embedded page. Host reference/revision/digest, origin,

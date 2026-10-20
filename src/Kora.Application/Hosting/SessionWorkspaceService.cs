@@ -195,7 +195,7 @@ public sealed partial class SessionWorkspaceService(
         using var activity = HostActivity.BeginRoot(request, HostActivityLayer.Application, HostOperation.Request);
         HostTaskRecord? intent = null;
         var terminalAttempted = false;
-        var failureOutcome = HostOperationOutcome.Unknown;
+        var completed = false;
         try
         {
             if (!Eligible())
@@ -240,28 +240,25 @@ public sealed partial class SessionWorkspaceService(
                 await RecordTerminalAsync(terminalState?.Invoke(result) ?? HostTaskState.Succeeded).ConfigureAwait(false);
             }
             activity.Complete(HostOperationOutcome.Completed);
+            completed = true;
             return result;
         }
         catch (OperationCanceledException)
         {
-            failureOutcome = HostOperationOutcome.Cancelled;
+            activity.Complete(HostOperationOutcome.Cancelled);
             throw;
         }
         catch (Exception exception)
         {
-            failureOutcome = HostOperationOutcome.Failed;
             Failure(logger, exception.GetType().Name);
+            activity.Complete(HostOperationOutcome.Failed);
             throw;
         }
         finally
         {
-            if (failureOutcome != HostOperationOutcome.Unknown)
+            if (!completed && finalizeIncompleteOnFailure && intent is not null && !terminalAttempted)
             {
-                if (finalizeIncompleteOnFailure && intent is not null && !terminalAttempted)
-                {
-                    await tasks.RecordOutcomeAsync(intent, HostTaskState.Unknown, CancellationToken.None).ConfigureAwait(false);
-                }
-                activity.Complete(failureOutcome);
+                await tasks.RecordOutcomeAsync(intent, HostTaskState.Unknown, CancellationToken.None).ConfigureAwait(false);
             }
         }
     }

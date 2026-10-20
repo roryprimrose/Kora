@@ -261,6 +261,8 @@ The file consumer's required pre-context secret/sensitive-content detection prod
 Its file-owned policy seam therefore remains unavailable in production; deterministic allow/deny fakes demonstrate behavior only and do not qualify real source use.
 That is a concrete file-feature readiness boundary, separate from successful shared lifecycle tests and from model runtime qualification. No generic detector is implemented or claimed here.
 
+Web has no delivered source-specific sensitivity/use service. Its [policy contract](../src/Kora.Core/Network/IWebResultModelUsePolicy.cs) has an [unavailable implementation](../src/Kora.Application/Network/UnavailableWebResultModelUsePolicy.cs), blocking before durable admission or context construction. Credential heuristics and retrieval consent do not satisfy it.
+
 Tools and other Core-only consumers use a two-phase host contract, without referencing Application:
 
 ```csharp
@@ -305,7 +307,7 @@ SQLite resolves `local-context` ownership only from that typed, hash-validated a
 An arbitrary diagnostic/audit lookalike or an ordinary unclassified control intent is not a current model source. No new body store or schema is introduced.
 
 [ModelContextEnvelope](../src/Kora.Core/Dependencies/ModelContextEnvelope.cs) remains the sole input policy and serialization authority.
-Context consumers require `allowTools: false`, nonempty exact-request evidence and `LocalOnly` disclosure. The envelope emits an empty canonical tool catalogue.
+Context consumers require `ModelToolMode.None`, nonempty exact-request evidence and `LocalOnly` disclosure. The envelope emits an empty canonical tool catalogue.
 The host refuses any tool callback for that envelope and rejects an attempted proposal even if the adapter later returns an answer. Action, grant and question outputs remain invalid.
 
 The local choice uses existing model admission and does not confer model qualification or hosted egress.

@@ -4,6 +4,9 @@ namespace Kora.Application.ViewModels;
 
 public sealed partial class MainViewModel
 {
+    [LoggerMessage(630, LogLevel.Error, "Local web summary was not admitted: {FailureKind}")]
+    private partial void WebSummaryFailed(string failureKind);
+
     [LoggerMessage(119, LogLevel.Error, "Current-response one-shot unavailable; exception type {ExceptionType}.")]
     private static partial void ResponseReadFailed(ILogger logger, string exceptionType);
 

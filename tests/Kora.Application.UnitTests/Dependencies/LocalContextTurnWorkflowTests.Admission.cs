@@ -27,7 +27,7 @@ public sealed partial class LocalContextTurnWorkflowTests
         turn.Completion.IsCompleted.Should().BeFalse();
         var context = new ModelContextEnvelope(turn.Request, "untrusted", "explain",
             [new(new(Guid.NewGuid()), turn.Request, new(1), "volatile-source", ModelEvidenceDisclosure.LocalOnly)],
-            DateTimeOffset.UtcNow, DateTimeOffset.UtcNow.AddSeconds(15), toolMode: ModelToolMode.None);
+            DateTimeOffset.UtcNow, DateTimeOffset.UtcNow.AddSeconds(15), ModelToolMode.None);
         var receipt = await turn.RunAsync(context, Token);
         receipt.Outcome.Should().Be(ModelTurnOutcome.Succeeded);
         receipt.DurableState.Should().Be(HostTaskState.Succeeded);
@@ -136,7 +136,7 @@ public sealed partial class LocalContextTurnWorkflowTests
         var envelopeRequest = reuseSourceEnvelope ? fixture.Request : turn.Request;
         var envelope = new ModelContextEnvelope(envelopeRequest, "untrusted source", "summarize",
             [new(new(Guid.NewGuid()), envelopeRequest, new(1), "do-not-persist-web-source", ModelEvidenceDisclosure.LocalOnly)],
-            DateTimeOffset.UtcNow, DateTimeOffset.UtcNow.AddSeconds(15), toolMode: ModelToolMode.None);
+            DateTimeOffset.UtcNow, DateTimeOffset.UtcNow.AddSeconds(15), ModelToolMode.None);
         var receipt = await turn.RunAsync(envelope, Token);
         receipt.Request.Should().BeSameAs(durableRequest);
         receipt.Outcome.Should().Be(reuseSourceEnvelope ? ModelTurnOutcome.Denied : ModelTurnOutcome.Succeeded);

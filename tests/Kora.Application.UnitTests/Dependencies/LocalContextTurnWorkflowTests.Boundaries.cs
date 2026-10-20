@@ -1,283 +1,237 @@
 using AwesomeAssertions;
-using Kora.Application.Hosting;
+
+using Kora.Application.Dependencies;
+using Kora.Core.Commands;
 using Kora.Core.Dependencies;
 using Kora.Core.Diagnostics;
 using Kora.Core.Hosting;
-using Kora.Core.Storage;
-using Microsoft.Extensions.Logging.Abstractions;
+
+using Microsoft.Extensions.Logging;
 
 namespace Kora.Application.UnitTests.Dependencies;
 
 public sealed partial class LocalContextTurnWorkflowTests
 {
     [Theory]
-    [InlineData("stopped")]
-    [InlineData("completed")]
-    public async Task AdmissionRejectsRetiredOriginalScopeBeforeDurableWork(string change)
-    {
-        await using var f = new Fixture();
-        using var root = f.Root();
-        if (change is "stopped") { root.Activity!.Stop(); }
-        else { root.Complete(HostOperationOutcome.Completed); }
-        (await f.Workflow.AdmitAsync(f.Target, () => true, Token)).Rejection!.Reason
-            .Should().Be(LocalContextTurnReason.OriginalInputRequired);
-        f.Store.Tasks.Should().BeEmpty();
-    }
-
-    [Theory]
     [InlineData("missing")]
-    [InlineData("task")]
-    [InlineData("source")]
+    [InlineData("different-task")]
+    [InlineData("not-current")]
     [InlineData("generation")]
     [InlineData("state")]
     [InlineData("request")]
-    public async Task AdmissionRequiresExactDispatchReadbackWithoutIssuingALease(string defect)
+    public async Task AdmissionRejectsMalformedDurableDispatchBeforeIssuingATurn(string defect)
     {
-        await using var f = new Fixture(fresh: false);
-        using var root = f.Root();
-        f.Log.Enabled = true;
-        f.Store.TaskObservation = observation => defect switch
+        await using var fixture = new Fixture(fresh: false);
+        using var root = fixture.Root();
+        HostTaskRecord? dispatchReceipt = null;
+        fixture.Store.DispatchReceipt = dispatch =>
         {
-            "missing" => null,
-            "task" => observation! with { Task = observation.Task.Next(HostTaskState.Unknown) },
-            "source" => observation! with { CurrentSource = false },
-            "generation" => observation! with { Generation = new(2) },
-            _ => observation,
+            dispatchReceipt = defect switch
+            {
+                "state" => new(dispatch.Request, dispatch.Revision, HostTaskState.IntentRecorded),
+                "request" => new(HostRequest.Create(dispatch.Request.Origin), dispatch.Revision, dispatch.State),
+                _ => dispatch,
+            };
+            return dispatchReceipt;
         };
-        f.Store.DispatchResult = record => defect switch
+        fixture.Store.TaskReadback = observed =>
         {
-            "state" => new(record.Request, record.Revision, HostTaskState.IntentRecorded),
-            "request" => new(HostRequest.Create(RequestOrigin.LocalUi), record.Revision, record.State),
-            _ => record,
+            if (observed.Task.IsTerminal) { return observed; }
+            return defect switch
+            {
+                "missing" => null,
+                "different-task" => observed with
+                {
+                    Task = new(HostRequest.Create(fixture.Request.Origin), observed.Task.Revision, observed.Task.State),
+                },
+                "not-current" => observed with { CurrentSource = false },
+                "generation" => observed with { Generation = new(2) },
+                _ => observed with { Task = dispatchReceipt! },
+            };
         };
-        // Keep readback equal to the deliberately malformed returned receipt to reach its state/request checks.
-        if (defect is "state" or "request")
-        {
-            f.Store.TaskObservation = observation => observation! with
-            { Task = f.Store.DispatchResult(observation.Task) };
-        }
-        var result = await f.Workflow.AdmitAsync(f.Target, () => true, Token);
-        result.Turn.Should().BeNull();
-        result.Rejection!.Outcome.Should().Be(ModelTurnOutcome.Unknown);
-        f.Model.Calls.Should().Be(0);
-        f.Log.Messages.Should().NotBeEmpty().And.NotContain(message => message.Contains("never-persist-source-secret", StringComparison.Ordinal));
+
+        var admission = await fixture.Workflow.AdmitAsync(fixture.Target, () => fixture.Eligible, Token);
+
+        admission.Turn.Should().BeNull();
+        admission.Rejection!.Outcome.Should().Be(ModelTurnOutcome.Unknown);
+        admission.Rejection.Reason.Should().Be(LocalContextTurnReason.EvidenceUnavailable);
+        admission.Rejection.Answer.Should().BeNull();
+        fixture.Model.Calls.Should().Be(0);
+        fixture.Store.Tasks.Should().NotContain(task => task.State == HostTaskState.Succeeded);
+        fixture.Audit.Events.Select(item => item.Outcome).Should()
+            .Equal(Kora.Core.Auditing.SecurityAuditOutcome.Requested, Kora.Core.Auditing.SecurityAuditOutcome.Unknown);
     }
 
     [Theory]
-    [InlineData("unknown-outcome")]
-    [InlineData("unknown-reason")]
-    [InlineData("terminal")]
-    [InlineData("provenance")]
-    [InlineData("response")]
+    [InlineData("outcome")]
+    [InlineData("reason")]
+    [InlineData("missing-turn")]
+    [InlineData("missing-terminal")]
+    [InlineData("copied-terminal")]
+    [InlineData("missing-provenance")]
+    [InlineData("foreign-provenance")]
+    [InlineData("missing-response")]
+    [InlineData("missing-answer")]
     [InlineData("action")]
     [InlineData("grant")]
     [InlineData("question")]
-    public async Task SuccessfulModelPayloadRequiresExactTerminalIdentityAndAnswerOnlyShape(string defect)
+    public async Task RunSuppressesInvalidOrUnownedModelResultsAndCommitsUnknown(string defect)
     {
-        await using var f = new Fixture();
-        using var root = f.Root();
-        f.Log.Enabled = true;
-        f.Model.OmitTerminal = defect is "terminal";
-        f.Model.TransformResult = result => defect switch
+        await using var fixture = new Fixture(fresh: false);
+        using var root = fixture.Root();
+        if (defect is "missing-turn")
         {
-            "unknown-outcome" => result with { Outcome = (ModelTurnOutcome)999 },
-            "unknown-reason" => result with { Reason = (ModelTurnReason)999 },
-            "provenance" => result with { Provenance = result.Provenance! with { Turn = new(Guid.NewGuid()) } },
-            "response" => result with { Response = null },
-            "action" => result with { Response = new("x", Kora.Core.Commands.BuiltInAction.LockMachine) },
-            "grant" => result with { Response = new("x", null, new(Kora.Core.Commands.GrantChangeOperation.Add,
-                Kora.Core.Commands.BuiltInAction.LockMachine, Kora.Core.Commands.ModelApprovalScope.Once)) },
-            "question" => result with { Response = new("x", null, Question: new("choose", ["one", "two"])) },
+            fixture.Model.AdmissionResult = new(ModelTurnOutcome.Succeeded, ModelTurnReason.None,
+                Response: new("unowned answer", null));
+        }
+        fixture.Model.TransformResult = (turn, result) => defect switch
+        {
+            "outcome" => result with { Outcome = (ModelTurnOutcome)int.MaxValue },
+            "reason" => result with { Reason = (ModelTurnReason)int.MaxValue },
+            "missing-provenance" => result with { Provenance = null },
+            "foreign-provenance" => result with
+            {
+                Provenance = new(new(Guid.NewGuid()), turn.Provenance.Request, ModelProviderSelection.OllamaCandidate),
+            },
+            "missing-response" => result with { Response = null },
+            "missing-answer" => result with { Response = new(null, null) },
+            "action" => result with { Response = new("not answer-only", BuiltInAction.ShowVersion) },
+            "grant" => result with
+            {
+                Response = new("not answer-only", null,
+                    new(GrantChangeOperation.Add, BuiltInAction.ShowVersion, ModelApprovalScope.Session)),
+            },
+            "question" => result with { Response = new("not answer-only", null, Question: new("Choose", ["A", "B"])) },
             _ => result,
         };
-        var receipt = await f.Run();
+        fixture.Model.AfterResult = (turn, result) =>
+        {
+            if (defect is "missing-terminal") { turn.TerminalResult = null; }
+            if (defect is "copied-terminal") { turn.TerminalResult = result with { }; }
+        };
+
+        var receipt = await fixture.Run();
+
         receipt.Outcome.Should().Be(ModelTurnOutcome.Unknown);
+        receipt.Reason.Should().Be(LocalContextTurnReason.ModelOutcomeUncertain);
+        receipt.ModelResult!.Reason.Should().Be(ModelTurnReason.InvalidProviderResponse);
+        receipt.ModelResult.Response.Should().BeNull();
         receipt.Answer.Should().BeNull();
         receipt.DurableState.Should().Be(HostTaskState.Unknown);
+        fixture.Store.Tasks.Last().State.Should().Be(HostTaskState.Unknown);
+        fixture.Model.Calls.Should().Be(defect is "missing-turn" ? 0 : 1);
+        (await fixture.Run()).Reason.Should().Be(LocalContextTurnReason.TargetAlreadyUsed);
     }
 
     [Theory]
     [InlineData("missing")]
-    [InlineData("foreign")]
-    public async Task TerminalReadbackUncertaintySuppressesAnswerAndHoldsNewAdmission(string defect)
+    [InlineData("stale")]
+    [InlineData("read-error")]
+    [InlineData("commit-error")]
+    [InlineData("final-source-error")]
+    public async Task RunNeverDisclosesAnAnswerWhenItsTerminalEvidenceCannotBeConfirmed(string defect)
     {
-        await using var f = new Fixture();
-        using var root = f.Root();
-        f.Store.BeforeCommit = record =>
+        await using var fixture = new Fixture(fresh: false);
+        using var root = fixture.Root();
+        HostTaskRecord? dispatch = null;
+        var terminalCommitted = false;
+        fixture.Store.BeforeCommit = record =>
         {
-            if (record.State == HostTaskState.Succeeded && record.Request == f.Request)
-            {
-                f.Store.TaskObservation = observation => defect is "missing" ? null
-                    : observation! with { Task = observation.Task.Next(HostTaskState.Unknown) };
-            }
+            if (record.State == HostTaskState.Succeeded) { terminalCommitted = true; }
         };
-        var receipt = await f.Run();
+        fixture.Store.FailTerminal = defect is "commit-error";
+        fixture.Store.TaskReadback = observed =>
+        {
+            if (!observed.Task.IsTerminal) { dispatch = observed.Task; return observed; }
+            return defect switch
+            {
+                "missing" => null,
+                "stale" => observed with { Task = dispatch! },
+                "read-error" => throw new IOException("terminal read unavailable"),
+                _ => observed,
+            };
+        };
+        Task Validate(CancellationToken _)
+        {
+            if (defect is "final-source-error" && terminalCommitted)
+            {
+                throw new IOException("final source fence unavailable");
+            }
+            return Task.CompletedTask;
+        }
+
+        var receipt = await fixture.Run(validateSource: Validate);
+
         receipt.Outcome.Should().Be(ModelTurnOutcome.Unknown);
         receipt.Reason.Should().Be(LocalContextTurnReason.EvidenceUnavailable);
         receipt.Answer.Should().BeNull();
+        receipt.DurableState.Should().BeNull();
+        fixture.Model.Calls.Should().Be(1);
+        (await fixture.Run()).Reason.Should().Be(LocalContextTurnReason.TargetAlreadyUsed);
+        fixture.Model.Calls.Should().Be(1);
     }
 
     [Fact]
-    public async Task SourceValidationFailureAfterTerminalCommitSuppressesAnswer()
+    public async Task QueuedCancellationClosesOnlyTheWaitingAdmissionWithoutDispatchOrReplay()
     {
-        await using var f = new Fixture();
-        using var root = f.Root();
-        var terminal = false;
-        f.Store.BeforeCommit = record => terminal |= record.Request == f.Request && record.State == HostTaskState.Succeeded;
-        var result = await f.Run(validateSource: _ => terminal ? Task.FromException(new IOException("private-source-failure"))
-            : Task.CompletedTask);
-        result.Outcome.Should().Be(ModelTurnOutcome.Unknown);
-        result.Answer.Should().BeNull();
-    }
-
-    [Fact]
-    public async Task SourceGateIsCheckedAgainAfterItsAsyncValidator()
-    {
-        await using var f = new Fixture();
-        using var root = f.Root();
-        var result = await f.Run(validateSource: _ =>
-        {
-            f.Eligible = false;
-            return Task.CompletedTask;
-        });
-        result.Reason.Should().Be(LocalContextTurnReason.SourceNotCurrent);
-        f.Model.Calls.Should().Be(0);
-    }
-
-    [Theory]
-    [InlineData("cancel-create")]
-    [InlineData("cancel-intent")]
-    [InlineData("io-intent")]
-    [InlineData("denied-create")]
-    public async Task FreshSessionFailureHasTruthfulNonReplayableCreationOutcome(string failure)
-    {
-        await using var f = new Fixture();
-        using var root = f.Root();
+        await using var fixture = new Fixture(fresh: false);
+        using var root = fixture.Root();
         using var cancellation = new CancellationTokenSource();
-        f.Store.AsyncTerminalCommit = true;
-        if (failure is "cancel-create")
+        var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        fixture.Model.Pending = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        fixture.Model.BeforeRun = () => entered.TrySetResult();
+        var first = fixture.Run();
+        await entered.Task.WaitAsync(Token);
+        var queuedRequest = new HostRequest(new(Guid.NewGuid()), fixture.Request.SessionId, new(Guid.NewGuid()), fixture.Request.Origin);
+        Task<ModelContextAdmission> queued;
+        using (var queuedRoot = HostActivity.BeginRoot(queuedRequest, HostActivityLayer.Application, HostOperation.Request))
         {
-            f.Store.BeforeCreation = cancellation.Cancel;
-            f.Store.CreationFailure = new OperationCanceledException(cancellation.Token);
+            queued = fixture.Workflow.AdmitAsync(LocalContextSessionTarget.Existing(queuedRequest, new(1)),
+                static () => true, cancellation.Token);
         }
-        if (failure is "cancel-intent") { f.Store.IntentFailure = new OperationCanceledException(); }
-        if (failure is "io-intent") { f.Store.IntentFailure = new IOException("intent-unavailable"); }
-        if (failure is "denied-create") { f.Store.CreationFailure = new InvalidOperationException("denied"); }
-        var result = await f.Run(cancellation.Token);
-        result.Answer.Should().BeNull();
-        f.Model.Calls.Should().Be(0);
-    }
-
-    [Fact]
-    public async Task DisposedWorkflowRejectsWithoutPublishingAnUnownedLease()
-    {
-        await using var f = new Fixture();
-        using var root = f.Root();
-        f.Log.Enabled = true;
-        await f.Workflow.DisposeAsync();
-        var result = await f.Workflow.AdmitAsync(f.Target, () => true, Token);
-        result.Rejection!.Reason.Should().Be(LocalContextTurnReason.EvidenceUnavailable);
-        result.Turn.Should().BeNull();
-        f.Model.Calls.Should().Be(0);
-    }
-
-    [Fact]
-    public async Task DisposalInsideSourceFenceReportsCancellationEvenBeforeLinkedTokenPropagation()
-    {
-        await using var f = new Fixture();
-        using var root = f.Root();
-        var close = false;
-        Task? disposal = null;
-        bool Current()
-        {
-            if (!close) { return true; }
-            disposal = f.Workflow.DisposeAsync().AsTask();
-            return false;
-        }
-        var issued = await f.Workflow.AdmitAsync(f.Target, Current, Token);
-        await using var turn = issued.Turn ?? throw new InvalidOperationException("Missing durable admission.");
-        close = true;
-        var result = await turn.RunAsync(f.Context(), Token);
-        result.Outcome.Should().Be(ModelTurnOutcome.Cancelled);
-        result.Reason.Should().Be(LocalContextTurnReason.Cancelled);
-        result.DurableState.Should().Be(HostTaskState.Unknown);
-        result.Answer.Should().BeNull();
-        f.Model.Calls.Should().Be(0);
-        await (disposal ?? throw new InvalidOperationException("The source fence did not close the workflow."));
-    }
-
-    [Fact]
-    public async Task QueuedAdmissionCancellationReturnsWithoutWaitingForUnrelatedModelWork()
-    {
-        await using var f = new Fixture();
-        using var root = f.Root();
-        f.Model.Pending = new(TaskCreationOptions.RunContinuationsAsynchronously);
-        var first = f.Run();
-        using var cancellation = new CancellationTokenSource();
-        var secondRequest = new HostRequest(new(Guid.NewGuid()), f.Request.SessionId, new(Guid.NewGuid()), RequestOrigin.LocalUi);
-        async Task<ModelContextAdmission> Second()
-        {
-            using var secondRoot = HostActivity.BeginRoot(secondRequest, HostActivityLayer.Application, HostOperation.Request);
-            return await f.Workflow.AdmitAsync(LocalContextSessionTarget.Existing(secondRequest, new(1)), () => true, cancellation.Token);
-        }
-        var second = Second();
+        ModelContextAdmission rejected;
         try
         {
-            second.IsCompleted.Should().BeFalse();
+            queued.IsCompleted.Should().BeFalse();
             await cancellation.CancelAsync();
-            var result = await second;
-            result.Rejection!.Outcome.Should().Be(ModelTurnOutcome.Cancelled);
-            result.Turn.Should().BeNull();
+            rejected = await queued.WaitAsync(Token);
+            rejected.Turn.Should().BeNull();
+            rejected.Rejection!.Outcome.Should().Be(ModelTurnOutcome.Cancelled);
+            rejected.Rejection.DurableState.Should().BeNull();
+            fixture.Store.Tasks.Should().NotContain(task => task.Request == queuedRequest);
             first.IsCompleted.Should().BeFalse();
         }
-        finally { f.Model.Pending.TrySetResult(); }
+        finally { fixture.Model.Pending.TrySetResult(); }
         (await first).Outcome.Should().Be(ModelTurnOutcome.Succeeded);
+        fixture.Model.Calls.Should().Be(1);
+        fixture.Audit.Events.Where(item => string.Equals(item.TargetId, queuedRequest.TaskId.Value.ToString("D"), StringComparison.Ordinal))
+            .Select(item => item.Outcome).Should()
+            .Equal(Kora.Core.Auditing.SecurityAuditOutcome.Requested, Kora.Core.Auditing.SecurityAuditOutcome.Cancelled);
     }
 
     [Theory]
-    [InlineData("completed")]
-    [InlineData("stopped")]
-    [InlineData("foreign")]
-    public async Task LocalSessionCreationRequiresItsExactLiveOriginalRequest(string defect)
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task EnabledDiagnosticLoggerPreservesTruthfulFailureAndResultOutcomes(bool failTerminal)
     {
-        var store = new Store();
-        var sessions = new SessionWorkspaceService(store, new(store), new Access(), NullLogger<SessionWorkspaceService>.Instance);
-        var request = HostRequest.Create(RequestOrigin.LocalUi);
-        using var root = HostActivity.BeginRoot(request, HostActivityLayer.Application, HostOperation.Request);
-        if (defect is "completed") { root.Complete(HostOperationOutcome.Completed); }
-        if (defect is "stopped") { root.Activity!.Stop(); }
-        var call = () => sessions.CreateLocalContextSessionAsync(defect is "foreign" ? HostRequest.Create(RequestOrigin.LocalUi) : request,
-            () => true, Token);
-        await call.Should().ThrowAsync<InvalidOperationException>();
+        var logger = new EnabledContextLogger();
+        await using var fixture = new Fixture(fresh: false, logger: logger);
+        using var root = fixture.Root();
+        fixture.Store.FailTerminal = failTerminal;
+
+        var receipt = await fixture.Run();
+
+        receipt.Outcome.Should().Be(failTerminal ? ModelTurnOutcome.Unknown : ModelTurnOutcome.Succeeded);
+        receipt.Answer.Should().Be(failTerminal ? null : "volatile answer");
+        fixture.Audit.Events.Last().Outcome.Should().Be(failTerminal
+            ? Kora.Core.Auditing.SecurityAuditOutcome.Unknown : Kora.Core.Auditing.SecurityAuditOutcome.Succeeded);
     }
 
-    [Theory]
-    [InlineData("stopped")]
-    [InlineData("completed")]
-    [InlineData("foreign")]
-    [InlineData("system")]
-    [InlineData("cancel")]
-    [InlineData("failure")]
-    public async Task ExactControlAdmissionRejectsInvalidAmbientAuthorityAndPropagatesOperationFailure(string defect)
+    private sealed class EnabledContextLogger : ILogger<LocalContextTurnWorkflow>
     {
-        var store = new Store();
-        await using var admission = new ExactControlProbe(store);
-        var request = HostRequest.Create(defect is "system" ? RequestOrigin.HostSystem : RequestOrigin.LocalUi);
-        using var root = HostActivity.BeginRoot(request, HostActivityLayer.Application, HostOperation.Request);
-        if (defect is "stopped") { root.Activity!.Stop(); }
-        if (defect is "completed") { root.Complete(HostOperationOutcome.Completed); }
-        var run = () => admission.Run(defect is "foreign" ? HostRequest.Create(RequestOrigin.LocalUi) : request, defect);
-        if (defect is "cancel") { await run.Should().ThrowAsync<OperationCanceledException>(); }
-        else if (defect is "failure") { await run.Should().ThrowAsync<IOException>(); }
-        else { await run.Should().ThrowAsync<InvalidOperationException>(); }
-    }
-
-    private sealed class ExactControlProbe(Store store) : HostControlAdmission(store, new(store))
-    {
-        protected override ValueTask<Kora.Core.Authorization.WorkSessionAuthorization> CreateSessionAsync(
-            HostRequest request, Func<bool> eligible, CancellationToken token) => throw new NotSupportedException();
-        internal Task<int> Run(HostRequest request, string defect) => RunExactAsync(request, () => true,
-            (_, _) => defect is "cancel" ? Task.FromException<int>(new OperationCanceledException())
-                : Task.FromException<int>(new IOException()), _ => HostOperationOutcome.Completed, Token);
+        public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
+        public bool IsEnabled(LogLevel logLevel) => true;
+        public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception,
+            Func<TState, Exception?, string> formatter) => _ = formatter(state, exception);
     }
 }

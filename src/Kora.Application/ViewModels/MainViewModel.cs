@@ -1003,7 +1003,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
 
     public bool IsCancelTaskVisible => IsLocalTaskCancellable || IsSpeaking || clipboardPreview.IsReading
         || clipboardExplanation?.IsQuiescent == false
-        || IsWebPageRetrievalActive || HasWebResultDetails
+        || IsWebPageRetrievalActive || IsWebSummaryActive || HasWebResultDetails
         || filePreview?.IsBusy == true || sessionFiles?.IsQuiescent == false || FileReview is not null || FileRevision is not null
         || FolderReview is not null || FolderRevision is not null;
 
@@ -3021,6 +3021,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
 #pragma warning restore VSTHRD003
         RetireWebResultDetails();
         await StopWebPageRetrievalAsync();
+        await StopWebSummary();
         ClearClipboardPreview();
         ClearFilePreview();
         HoldVoiceInput("Microphone closed · application exiting");
@@ -4190,6 +4191,16 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             await ExecutePreapprovedUriCommandAsync(preapprovedUriCommand, initiator);
             return;
         }
+        if (WebSummaryCommand.Parse(spokenText, AssistantName) is { } webSummaryCommand)
+        {
+            if (!isAssistantNameAvailable && commandRouter.IsActivationPrefixed(spokenText, AssistantName))
+            {
+                ReportHostInteractionFailure("Assistant prefix routing is unavailable; no web summary was dispatched.");
+                return;
+            }
+            await ExecuteWebSummary(webSummaryCommand, initiator);
+            return;
+        }
         if (WebPageCommand.Parse(spokenText, AssistantName) is { } webPageCommand)
         {
             await ExecuteWebPageCommandAsync(webPageCommand, initiator);
@@ -4948,6 +4959,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         Interlocked.Increment(ref approvalPreparationRevision);
         RetireWebResultDetails();
         if (webPageCancellation is { } webCancellation) { await webCancellation.CancelAsync(); }
+        if (webSummaryCancellation is { } summaryCancellation) { await summaryCancellation.CancelAsync(); }
         RetireSpeechCaption();
         textToSpeech.InvalidateOutput();
         ClearClipboardPreview();
@@ -5988,6 +6000,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             .Concat(SessionProviderProfileCommand.FixedPhrases)
             .Concat(PreapprovedUriCommand.FixedPhrases)
             .Concat(WebPageCommand.FixedPhrases)
+            .Concat(WebSummaryCommand.FixedPhrases)
+            .Concat(webSummaryReview is { } summaryReview
+                ? [WebSummaryCommand.ConfirmPrefix + summaryReview.Id.ToString("D")] : [])
             .Concat(InCallFeedbackCommand.FixedPhrases)
             .Concat(SpeechTextCommand.FixedPhrases)
             .Concat(ResponseReadCommand.FixedPhrases)

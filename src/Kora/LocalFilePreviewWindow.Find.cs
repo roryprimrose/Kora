@@ -12,6 +12,7 @@ internal sealed partial class LocalFilePreviewWindow
 {
     private LocalFileRevision? findSource;
     private TextBox? findQuery;
+    private CheckBox? findMatchCase;
     private NamedTextBlock? findStatus;
     private Button? findNext;
     private Button? findPrevious;
@@ -36,10 +37,18 @@ internal sealed partial class LocalFilePreviewWindow
                 + $"{LocalFileRetrievalPolicy.MaximumQueryUtf8Bytes} UTF-8 bytes maximum",
         };
         findQuery = query;
-        AutomationProperties.SetName(query, "Case-sensitive literal Find in the currently displayed exact original file only");
+        AutomationProperties.SetName(query, "Literal Find in the currently displayed exact original file only");
         query.PropertyChanged += (_, args) =>
         {
-            if (args.Property == TextBox.TextProperty) { ClearFind(); }
+            if (args.Property == TextBox.TextProperty && ReferenceEquals(findQuery, query)) { ClearFind(); }
+        };
+        var matchCase = new CheckBox { Content = "Match case", IsChecked = true, IsThreeState = false };
+        findMatchCase = matchCase;
+        AutomationProperties.SetName(matchCase, "Match case");
+        ToolTip.SetTip(matchCase, "Checked: ordinal case-sensitive. Unchecked: ordinal ignore case, only in this original-file literal Find. Requires a fresh Find first.");
+        matchCase.PropertyChanged += (_, args) =>
+        {
+            if (args.Property == CheckBox.IsCheckedProperty && ReferenceEquals(findMatchCase, matchCase)) { ClearFind(); }
         };
         var status = new NamedTextBlock { TextWrapping = Avalonia.Media.TextWrapping.Wrap };
         findStatus = status;
@@ -47,7 +56,7 @@ internal sealed partial class LocalFilePreviewWindow
         Button Action(string caption, LocalFileFindDirection direction)
         {
             var button = new Button { Content = caption };
-            AutomationProperties.SetName(button, caption + " case-sensitive literal in current original file; no wrap");
+            AutomationProperties.SetName(button, caption + " literal in current original file using Match case; no wrap");
             button.Command = new AsyncCommand(() => FindLiteral(direction, query, current, resolveSource), exception =>
             {
                 if (!ReferenceEquals(findQuery, query)) { return; }
@@ -72,13 +81,15 @@ internal sealed partial class LocalFilePreviewWindow
         var panel = new StackPanel { Spacing = 4 };
         panel.Children.Add(new NamedTextBlock
         {
-            Text = "Literal Find: case-sensitive, unchanged spaces, nonoverlapping, no wrap. First starts at zero; "
+            Text = "Literal Find: Match case defaults on (ordinal); off uses ordinal ignore case only here. "
+                + "Unchanged spaces, nonoverlapping, no wrap. Changing Match case requires a fresh Find first. First starts at zero; "
                 + "Next starts after the match end; Previous reverses that same forward sequence. "
                 + "Total and selected ordinal cover this exact immutable original file only, not other files, "
                 + "ranked retrieval or live disk. Native only; ranked search below is unchanged.",
             TextWrapping = Avalonia.Media.TextWrapping.Wrap,
         });
         panel.Children.Add(query);
+        panel.Children.Add(matchCase);
         panel.Children.Add(actions);
         panel.Children.Add(status);
         DockPanel.SetDock(panel, Dock.Top);
@@ -90,10 +101,18 @@ internal sealed partial class LocalFilePreviewWindow
     {
         var file = findSource ?? throw new InvalidOperationException("No exact displayed file is available.");
         var query = queryBox.Text ?? string.Empty;
+        var matchCase = findMatchCase ?? throw new InvalidOperationException("Literal Find comparison is unavailable.");
+        var comparison = matchCase.IsChecked switch
+        {
+            true => StringComparison.Ordinal,
+            false => StringComparison.OrdinalIgnoreCase,
+            null => throw new InvalidOperationException("Literal Find comparison is unavailable."),
+        };
         var selected = findMatch;
         ClearNavigation();
         var generation = findGeneration;
         bool Current() => generation == findGeneration && ReferenceEquals(findQuery, queryBox)
+            && ReferenceEquals(findMatchCase, matchCase) && matchCase.IsChecked == (comparison == StringComparison.Ordinal)
             && ReferenceEquals(findSource, file) && string.Equals(queryBox.Text, query, StringComparison.Ordinal)
             && string.Equals(content.Text, file.Text, StringComparison.Ordinal) && current();
         void MarkStale()
@@ -104,7 +123,7 @@ internal sealed partial class LocalFilePreviewWindow
         }
         if (!Current()) { throw new InvalidOperationException("The displayed exact source is stale."); }
         // Validate and count the displayed immutable source before any retained read; never retain an occurrence index.
-        var result = LocalFileLiteralFind.FindCounted(file, query, direction, selected);
+        var result = LocalFileLiteralFind.FindCounted(file, query, direction, selected, comparison);
         var match = result.Match;
         using var cancellation = new CancellationTokenSource();
         finding = cancellation;
@@ -125,7 +144,8 @@ internal sealed partial class LocalFilePreviewWindow
             findPrevious!.IsEnabled = findMatch is not null;
             findStatus!.Text = match is not null
                 ? $"Literal match {result.Ordinal} of {result.Count} in this exact immutable original file only; "
-                    + "case-sensitive; nonoverlapping; no wrap."
+                    + (comparison == StringComparison.Ordinal ? "case-sensitive" : "ordinal ignore case")
+                    + "; nonoverlapping; no wrap."
                 : direction == LocalFileFindDirection.First
                     ? "No literal match in this exact immutable original file only; total 0; selected ordinal 0. No match or focus claimed."
                     : (direction == LocalFileFindDirection.Next ? "End of forward direction" : "End of backward direction")

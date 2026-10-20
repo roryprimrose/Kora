@@ -18,7 +18,7 @@ using Kora.Core.Storage;
 namespace Kora.Windows.IntegrationTests;
 
 [Collection(nameof(HeadlessUiTestGroup))]
-public sealed class LocalFileLiteralFindWindowTests
+public sealed partial class LocalFileLiteralFindWindowTests
 {
     [Theory]
     [InlineData("file")]
@@ -171,6 +171,8 @@ public sealed class LocalFileLiteralFindWindowTests
 
     [Theory]
     [InlineData("query")]
+    [InlineData("match-case")]
+    [InlineData("match-case-roundtrip")]
     [InlineData("mode")]
     [InlineData("ranked-query")]
     [InlineData("ranked-search")]
@@ -216,6 +218,8 @@ public sealed class LocalFileLiteralFindWindowTests
                 switch (change)
                 {
                     case "query": query.Text = "alpha "; query.Text = "alpha"; break;
+                    case "match-case": MatchCase(window).IsChecked = false; break;
+                    case "match-case-roundtrip": MatchCase(window).IsChecked = false; MatchCase(window).IsChecked = true; break;
                     case "mode": Mode(window).SelectedIndex = 1; break;
                     case "ranked-query": RankedQuery(window).Text = "alpha"; break;
                     case "ranked-search": await Press(window, "Search selected immutable revision locally"); break;
@@ -236,7 +240,8 @@ public sealed class LocalFileLiteralFindWindowTests
                 window.UpdateLayout();
                 Match(window).Should().BeNull();
                 (status.Text ?? string.Empty).Should().NotContain("Literal match ").And.NotContain("Total ");
-                query.IsFocused.Should().Be(change is "query" or "mode" or "ranked-query" or "ranked-search" or "cancel" or "clear" or "revoked");
+                query.IsFocused.Should().Be(change is "query" or "match-case" or "match-case-roundtrip"
+                    or "mode" or "ranked-query" or "ranked-search" or "cancel" or "clear" or "revoked");
                 failures.Should().BeEmpty();
             }
             finally { release.TrySetResult(); window.ClearAndClose(); }
@@ -376,7 +381,9 @@ public sealed class LocalFileLiteralFindWindowTests
     }
 
     private static TextBox Query(Window window) => window.GetVisualDescendants().OfType<TextBox>().Single(box =>
-        AutomationProperties.GetName(box)?.StartsWith("Case-sensitive literal Find", StringComparison.Ordinal) == true);
+        AutomationProperties.GetName(box)?.StartsWith("Literal Find in", StringComparison.Ordinal) == true);
+    private static CheckBox MatchCase(Window window) => window.GetVisualDescendants().OfType<CheckBox>().Single(box =>
+        string.Equals(AutomationProperties.GetName(box), "Match case", StringComparison.Ordinal));
     private static TextBox RankedQuery(Window window) => window.GetVisualDescendants().OfType<TextBox>().Single(box =>
         box.PlaceholderText?.StartsWith("Untrusted lexical query", StringComparison.Ordinal) == true);
     private static ComboBox FileSelector(Window window) => window.GetVisualDescendants().OfType<ComboBox>().Single(box =>

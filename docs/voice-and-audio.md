@@ -109,10 +109,11 @@ Acceptance disables input immediately; completion awaits native release and conf
 Exact stop is reserved before pending questions, grants and approvals. It is not an answer, approval, task cancellation or model fallback; pending visual decisions remain available ([command reservation](../src/Kora.Application/ViewModels/MainViewModel.cs)).
 Native question voice replies also reserve exact stop before parsing an answer ([native reply reservation](../src/Kora.Application/Interaction/HostQuestionVoiceReplyService.cs)).
 
-Manual disable also blocks PTT and retires queued capture/transcription and unlock-recovery generations. Refresh, endpoint/default changes, consent updates and unlock cannot release this hold ([lifecycle integration](../src/Kora.Application/ViewModels/MainViewModel.VoicePrivacy.cs)).
-This additional hold belongs only to explicit manual Disable. Ordinary eligible PTT, including the prior one-shot capture path outside that hold, retains its existing consent/privacy/readiness checks ([ordinary PTT regression tests](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.VoicePrivacy.cs)).
-Recover with a fresh native **Enable listening**, after confirmed release and current ownership/privacy/consent/readiness checks; enabling readies PTT without opening capture ([readiness action](../src/Kora.Application/ViewModels/MainViewModel.cs)).
-Native recovery refuses while the stop's terminal receipt is still finishing, so the stop cannot publish a stale disabled result over a newer enable ([request fence](../src/Kora.Application/ViewModels/MainViewModel.VoicePrivacy.cs)).
+Manual disable retires queued capture/transcription and unlock-recovery generations. Refresh, endpoint/default changes, consent updates and unlock cannot restore readiness or restart capture automatically ([lifecycle integration](../src/Kora.Application/ViewModels/MainViewModel.VoicePrivacy.cs)).
+A **new deliberate Push to talk** gesture remains available after confirmed release and current consent/privacy/readiness checks, without enabling listening readiness ([PTT regression tests](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.VoicePrivacy.cs)).
+Old results cannot feed the new activation ([retired-callback tests](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.ListeningStop.cs)).
+Fresh native **Enable listening** restores readiness without opening capture ([readiness action](../src/Kora.Application/ViewModels/MainViewModel.cs)).
+Both PTT and native recovery refuse while the stop's terminal receipt is still finishing; unconfirmed capture quiescence blocks a new capture ([request fence](../src/Kora.Application/ViewModels/MainViewModel.VoicePrivacy.cs)).
 
 This is not Stop speaking, Cancel task, hiding, exit, stored-consent withdrawal or global microphone mute ([stop integration](../src/Kora.Application/ViewModels/MainViewModel.VoicePrivacy.cs)).
 Protected-call stop remains available without authorizing voice recovery or weakening other mutations ([call policy](../src/Kora.Application/Communication/CallCommunicationPolicy.cs)).

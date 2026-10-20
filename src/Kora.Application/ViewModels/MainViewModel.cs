@@ -2037,7 +2037,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
     public bool IsPushToTalkVisible => !IsVoiceEnabled;
 
     public bool CanPushToTalk =>
-        !listeningStop.IsHeld && IsVoiceReadinessEligible(privacyObservation.Current)
+        Volatile.Read(ref listeningStopRequests) == 0 && listeningStop.CanRecover
+        && IsVoiceReadinessEligible(privacyObservation.Current)
         && IsHostInputEligible
         && microphoneCatalogCurrent
         && !IsListening
@@ -3977,7 +3978,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         ActivityLink[] causes = HostActivity.Current?.Activity is { } cause ? [new(cause.Context)] : [];
         using var activity = HostActivity.BeginRoot(HostRequest.Create(RequestOrigin.ActivatedVoice),
             HostActivityLayer.Application, HostOperation.Request, causes);
-        if (!IsVoiceEnabled || eventArgs.Generation != Interlocked.Read(ref acceptedTranscriptGeneration)
+        if (eventArgs.Generation != Interlocked.Read(ref acceptedTranscriptGeneration)
             || eventArgs.Generation != voiceRecognition.Generation)
         {
             ApplicationLog.Debug(logger, "Discarded an unactivated or retired voice callback before UI dispatch");
@@ -4010,8 +4011,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             ApplicationLog.Debug(logger, "Deferred locked-session recognition recovery to the privacy observer");
             return;
         }
-        if (!IsVoiceEnabled
-            || Interlocked.CompareExchange(ref acceptedTranscriptGeneration, -1, eventArgs.Generation) != eventArgs.Generation)
+        if (Interlocked.CompareExchange(ref acceptedTranscriptGeneration, -1, eventArgs.Generation) != eventArgs.Generation)
         {
             ApplicationLog.Debug(logger, "Rejected an unactivated or stale recognition failure");
             return;
@@ -4038,7 +4038,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         VoiceTranscriptEventArgs eventArgs, ManualCallInput manualInput, ResponseReadInput responseReadInput,
         Func<bool> reviewEligibility)
     {
-        if (!IsVoiceEnabled || eventArgs.Generation != voiceRecognition.Generation || lifecycleAdmissionClosed
+        if (eventArgs.Generation != voiceRecognition.Generation || lifecycleAdmissionClosed
             || !sessionController.IsCurrentSessionUnlocked())
         {
             ApplicationLog.Debug(logger, "Rejected an unactivated or stale voice transcript");
@@ -4060,7 +4060,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             IsSpeaking = false;
         }
 
-        if (!IsVoiceEnabled || eventArgs.Generation != voiceRecognition.Generation || !IsHostInputEligible)
+        if (eventArgs.Generation != voiceRecognition.Generation || !IsHostInputEligible)
         {
             ApplicationLog.Debug(logger, "Discarded voice input retired while waiting for output shutdown");
             ReportRetiredSkillReview(eventArgs.Transcript);
@@ -4095,8 +4095,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         if (IsListeningStopCommand(spokenText))
         {
             await Kora.Application.Hosting.HostRequestRunner.RunAsync(
-                HostActivity.Current?.Request.Origin ?? (initiator == SecurityAuditInitiator.VoiceCommand
-                    ? RequestOrigin.ActivatedVoice : RequestOrigin.LocalUi),
+                OriginalOrigin(initiator),
                 () => DisableListeningAsync(initiator));
             return;
         }
@@ -5440,7 +5439,6 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             or BuiltInAction.ExitApplication
             or BuiltInAction.RestartApplication
             or BuiltInAction.StopSpeaking
-            or BuiltInAction.DisableListening
             or BuiltInAction.LockMachine);
 
     private void HandleAudioOutputFailure(

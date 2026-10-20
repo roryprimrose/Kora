@@ -546,7 +546,7 @@ public sealed partial class MainViewModel
             if (revision != Interlocked.Read(ref voiceRecoveryRevision) || disposed || lifecycleAdmissionClosed
                 || !IsVoiceReadinessEligible(privacyObservation.Current)
                 || listeningStop.IsHeld && (!explicitListeningRecovery || OriginalOrigin() != RequestOrigin.LocalUi
-                    || Volatile.Read(ref listeningStopRequests) != 0 || !listeningStop.CanRecover)
+                    || Volatile.Read(ref listeningStopRequests) != 0)
                 || requireUnlockRecovery && revision != Interlocked.Read(ref automaticUnlockRecoveryRevision))
             {
                 return false;
@@ -681,7 +681,8 @@ public sealed partial class MainViewModel
     public async Task BeginPushToTalkAsync()
     {
         RetireQuestionVoiceReply();
-        if (listeningStop.IsHeld || lifecycleAdmissionClosed || IsBusy && !IsSpeaking
+        if (Volatile.Read(ref listeningStopRequests) != 0 || !listeningStop.CanRecover
+            || lifecycleAdmissionClosed || IsBusy && !IsSpeaking
             || !IsHostInputEligible || !RefreshVoiceReadiness())
         {
             if (IsVoiceEnabled)
@@ -690,9 +691,7 @@ public sealed partial class MainViewModel
             }
             ApplicationLog.Information(logger, "Denied push-to-talk without eligible one-shot capture readiness");
             ShowInformation("Push-to-talk is unavailable.",
-                listeningStop.IsHeld
-                    ? "Listening was disabled for this run. Use a fresh native Enable listening after confirmed microphone release."
-                    : "Review voice consent, microphone availability and Windows privacy, then try again.");
+                "Wait for confirmed microphone release, review voice consent, microphone availability and Windows privacy, then try again.");
             return;
         }
         if (Interlocked.Exchange(ref pushToTalkHeld, 1) != 0)
@@ -925,7 +924,11 @@ public sealed partial class MainViewModel
     {
         Interlocked.Increment(ref listeningStopRequests);
         try { await CompleteListeningStopAsync(initiator); }
-        finally { Interlocked.Decrement(ref listeningStopRequests); }
+        finally
+        {
+            Interlocked.Decrement(ref listeningStopRequests);
+            if (!disposed && !lifecycleAdmissionClosed) { NotifyVoiceEnablementChanged(); }
+        }
     }
 
     private async Task CompleteListeningStopAsync(SecurityAuditInitiator initiator)
@@ -973,13 +976,13 @@ public sealed partial class MainViewModel
                 : "Listening disabled; microphone release unconfirmed.",
             (released ? "Native microphone capture release is confirmed."
                 : "Native microphone release could not be confirmed. Restart Kora if native recovery remains unavailable.")
-            + " Saved voice consent is unchanged. Use a fresh native Enable listening to recover; capture will not reopen automatically."
+            + " Saved voice consent is unchanged. A fresh deliberate Push to talk can capture one command after confirmed release. Native Enable listening restores readiness; capture will not reopen automatically."
             + (auditFailed ? " Required audit evidence is unavailable; this is not an audited success." : string.Empty));
     }
 
     private void PresentListeningStop(string title, string body)
     {
-        if (disposed || !sessionController.IsCurrentSessionUnlocked() || IsPrivacyPresentationHeld) { return; }
+        if (disposed || lifecycleAdmissionClosed || !sessionController.IsCurrentSessionUnlocked() || IsPrivacyPresentationHeld) { return; }
         if (IsResponseInteractionPending)
         {
             Transcript = title + " " + body;

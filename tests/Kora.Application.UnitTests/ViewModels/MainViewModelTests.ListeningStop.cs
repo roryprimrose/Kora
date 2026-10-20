@@ -22,6 +22,113 @@ namespace Kora.Application.UnitTests.ViewModels;
 public sealed partial class MainViewModelTests
 {
     [Theory]
+    [InlineData("locked")]
+    [InlineData("handoff")]
+    [InlineData("dispose-during-retirement")]
+    [InlineData("disposed-late-action")]
+    public async Task ListeningStopNeverRevealsPresentationAfterPrivacyOrLifecycleRetirement(string boundary)
+    {
+        var f = CreateVoicePrivacyFixture();
+        await f.ViewModel.InitializeAsync();
+        var title = f.ViewModel.ResponseTitle;
+        if (string.Equals(boundary, "locked", StringComparison.Ordinal)) { f.Session.IsUnlocked = false; }
+        if (string.Equals(boundary, "handoff", StringComparison.Ordinal))
+        { (await f.ViewModel.TryPrepareHandoffAsync()).Should().BeTrue(); }
+        if (string.Equals(boundary, "dispose-during-retirement", StringComparison.Ordinal))
+        {
+            f.ViewModel.PropertyChanged += (_, args) =>
+            {
+                if (string.Equals(args.PropertyName, nameof(MainViewModel.MicrophoneTopologyRevision), StringComparison.Ordinal))
+                { f.ViewModel.Dispose(); }
+            };
+        }
+        if (string.Equals(boundary, "disposed-late-action", StringComparison.Ordinal)) { f.ViewModel.Dispose(); }
+        f.WindowActions.Clear();
+        var lateStop = typeof(MainViewModel).GetMethod("DisableListeningAsync",
+            System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!
+            .CreateDelegate<Func<SecurityAuditInitiator, Task>>(f.ViewModel);
+
+        await lateStop(SecurityAuditInitiator.LocalUser);
+
+        f.ViewModel.IsVoiceEnabled.Should().BeFalse();
+        f.Voice.IsCaptureQuiescent.Should().BeTrue();
+        f.WindowActions.Should().NotContain(WindowAction.Show);
+        f.ViewModel.ResponseTitle.Should().Be(title);
+    }
+
+    [Fact]
+    public async Task ListeningStopDuplicatePttWhileSpeechRetiresCannotOpenTwoCaptures()
+    {
+        var f = CreateVoicePrivacyFixture();
+        await f.ViewModel.InitializeAsync();
+        f.TextToSpeech.SpeakGate = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        f.TextToSpeech.HoldSpeechCompletionOnStop = true;
+        var speech = f.ViewModel.PreviewVoiceCommand.ExecuteAsync();
+        await f.TextToSpeech.SpeakStarted.Task.WaitAsync(TestContext.Current.CancellationToken);
+        f.ViewModel.IsSpeaking.Should().BeTrue();
+        f.TextToSpeech.StopGate = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        var opening = f.ViewModel.BeginPushToTalkAsync();
+
+        await f.ViewModel.BeginPushToTalkAsync();
+
+        f.Voice.StartCalls.Should().Be(0);
+        f.TextToSpeech.StopGate.SetResult();
+        await opening;
+        f.TextToSpeech.SpeakGate.SetResult();
+        await speech;
+        f.Voice.StartCalls.Should().Be(1);
+        await f.ViewModel.DisableListeningFromTrayAsync();
+        f.Voice.IsCaptureQuiescent.Should().BeTrue();
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task ListeningStopAllowsOnlyFreshDeliberatePttAndNeverAcceptsRetiredCallbacks(bool native)
+    {
+        var f = CreateVoicePrivacyFixture();
+        await f.ViewModel.InitializeAsync();
+        await f.ViewModel.BeginPushToTalkAsync();
+        await f.ViewModel.EndPushToTalkAsync();
+        var retired = f.Voice.Generation;
+        var freshPttNotified = false;
+        f.ViewModel.BeginPushToTalkCommand.CanExecuteChanged += (_, _) =>
+            freshPttNotified |= f.ViewModel.CanPushToTalk;
+        if (native) { await f.ViewModel.DisableListeningFromTrayAsync(); }
+        else { await f.RunAsync("stop listening"); }
+        freshPttNotified.Should().BeTrue();
+        var starts = f.Voice.StartCalls;
+        f.Voice.RaiseTranscriptForGeneration(retired);
+        await f.Dispatcher.LastInvocation;
+        f.Voice.StartCalls.Should().Be(starts);
+        f.Session.LockCalls.Should().Be(0);
+        f.ViewModel.IsVoiceEnabled.Should().BeFalse();
+
+        await f.ViewModel.BeginPushToTalkCommand.ExecuteAsync();
+        var fresh = f.Voice.Generation;
+        fresh.Should().BeGreaterThan(retired);
+        f.Voice.RaiseTranscriptForGeneration(retired);
+        await f.Dispatcher.LastInvocation;
+        f.Voice.PublishCaptureState(new(retired, false));
+        f.Voice.PublishCompletion(new(retired, VoiceRecognitionCompletionReason.NoSpeechRecognized));
+        f.ViewModel.IsListening.Should().BeTrue();
+        f.Session.LockCalls.Should().Be(0);
+        await f.ViewModel.EndPushToTalkCommand.ExecuteAsync();
+        await f.Voice.RaiseTranscriptAsync("Kora, help", 1);
+
+        f.ViewModel.ResponseTitle.Should().Be("Built-in commands are ready.");
+        f.ViewModel.IsVoiceEnabled.Should().BeFalse();
+        f.ViewModel.IsListening.Should().BeFalse();
+        f.Voice.StartCalls.Should().Be(starts + 1);
+        f.Voice.IsCaptureQuiescent.Should().BeTrue();
+        f.ViewModel.CanPushToTalk.Should().BeTrue();
+        f.Voice.RaiseTranscriptForGeneration(fresh);
+        await f.Dispatcher.LastInvocation;
+        f.Session.LockCalls.Should().Be(0);
+        f.Reasoner.Requests.Should().BeEmpty();
+    }
+
+    [Theory]
     [InlineData("stop listening", false)]
     [InlineData("disable listening", false)]
     [InlineData("Nova, stop listening", false)]
@@ -259,7 +366,7 @@ public sealed partial class MainViewModelTests
 
         f.ViewModel.ResponseTitle.Should().Be("Listening already disabled.");
         f.ViewModel.IsVoiceEnabled.Should().BeFalse();
-        f.ViewModel.CanPushToTalk.Should().BeFalse();
+        f.ViewModel.CanPushToTalk.Should().BeTrue();
         f.Voice.IsCaptureQuiescent.Should().BeTrue();
         f.VoiceConsent.Consent.Should().BeTrue();
         f.Voice.StartCalls.Should().Be(0);
@@ -368,7 +475,6 @@ public sealed partial class MainViewModelTests
         await f.ViewModel.PrivacyClosureTask;
         f.ViewModel.RequestVoiceRecovery();
         await f.ViewModel.RefreshMicrophonesAsync();
-        await f.ViewModel.BeginPushToTalkAsync();
 
         f.ViewModel.IsVoiceEnabled.Should().BeFalse();
         f.Voice.StartCalls.Should().Be(0);
@@ -453,7 +559,7 @@ public sealed partial class MainViewModelTests
             await f.ViewModel.ToggleListeningCommand.ExecuteAsync();
             await f.ViewModel.SetVoiceConsentAsync(true);
             f.ViewModel.IsVoiceEnabled.Should().BeFalse();
-            f.ViewModel.CanPushToTalk.Should().BeFalse();
+            f.ViewModel.CanPushToTalk.Should().BeTrue();
             HostActivity.RequireCurrent().Should().BeSameAs(voice);
             voice.Complete(HostOperationOutcome.Completed);
         }

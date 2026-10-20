@@ -1273,14 +1273,6 @@ while the button is visible. **Dismiss** hides the response without cancelling
 model work or stopping speech. **Stop speaking** remains the explicit voice
 command for stopping only speech playback.
 
-### Disable listening for this run
-
-- **stop listening**
-- **disable listening**
-
-The current assistant-name prefix is optional for typed/already activated input. These exact phrases reserve a privacy-reducing stop before pending answers/approvals and use the same action as native/tray Disable listening ([stop action](../src/Kora.Application/ViewModels/MainViewModel.VoicePrivacy.cs)).
-Native release is awaited; uncertain release is explicit. No task is cancelled or decision approved. Saved consent is retained; only fresh native Enable listening can recover PTT ([stop semantics and evidence](voice-and-audio.md#exact-stop-listening)).
-
 ### Stop speech playback
 - **stop speaking**
 - **stop talking**
@@ -1290,6 +1282,14 @@ Native release is awaited; uncertain release is explicit. No task is cancelled o
 
 **Stop** cancels the active task; it does not mean stop speaking. Use one of
 the speech-playback phrases to stop the voice instead.
+
+### Disable listening for this run
+
+- **stop listening**
+- **disable listening**
+
+The current assistant-name prefix is optional for typed/already activated input. These exact phrases reserve a privacy-reducing stop before pending answers/approvals and use the same action as native/tray Disable listening ([stop action](../src/Kora.Application/ViewModels/MainViewModel.VoicePrivacy.cs)).
+Native release is awaited; uncertain release is explicit. No task is cancelled or decision approved. Saved consent is retained. A new deliberate PTT gesture can capture one command after confirmed release and current gates; native Enable listening restores readiness separately ([stop semantics and evidence](voice-and-audio.md#exact-stop-listening)).
 
 ## Windows session task
 

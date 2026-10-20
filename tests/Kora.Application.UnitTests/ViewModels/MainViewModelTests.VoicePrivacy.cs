@@ -83,7 +83,7 @@ public sealed partial class MainViewModelTests
     }
 
     [Fact]
-    public async Task Manual_disable_requires_fresh_native_enable_before_push_to_talk()
+    public async Task ManualDisablePreservesFreshDeliberatePushToTalkWithoutEnablingReadiness()
     {
         var fixture = CreateVoicePrivacyFixture();
         await fixture.ViewModel.InitializeAsync();
@@ -94,17 +94,20 @@ public sealed partial class MainViewModelTests
 
         fixture.ViewModel.IsVoiceEnabled.Should().BeFalse();
         fixture.ViewModel.IsPushToTalkVisible.Should().BeTrue();
-        fixture.ViewModel.CanPushToTalk.Should().BeFalse();
-        fixture.ViewModel.BeginPushToTalkCommand.CanExecute(null).Should().BeFalse();
+        fixture.ViewModel.CanPushToTalk.Should().BeTrue();
+        fixture.ViewModel.BeginPushToTalkCommand.CanExecute(null).Should().BeTrue();
 
-        await fixture.ViewModel.BeginPushToTalkCommand.ExecuteAsync();
-        fixture.Voice.StartCalls.Should().Be(0);
-        await fixture.ViewModel.ToggleListeningCommand.ExecuteAsync();
         await fixture.ViewModel.BeginPushToTalkCommand.ExecuteAsync();
 
         fixture.Voice.StartCalls.Should().Be(1);
         fixture.ViewModel.IsListening.Should().BeTrue();
         fixture.ViewModel.CanPushToTalk.Should().BeFalse();
+        fixture.ViewModel.IsVoiceEnabled.Should().BeFalse();
+        await fixture.ViewModel.EndPushToTalkCommand.ExecuteAsync();
+        await fixture.Voice.RaiseTranscriptAsync("help", 1);
+        fixture.ViewModel.ResponseTitle.Should().Be("Built-in commands are ready.");
+        fixture.ViewModel.IsVoiceEnabled.Should().BeFalse();
+        fixture.ViewModel.CanPushToTalk.Should().BeTrue();
     }
 
     [Fact]
@@ -127,8 +130,6 @@ public sealed partial class MainViewModelTests
     {
         var fixture = CreateVoicePrivacyFixture();
         await fixture.ViewModel.InitializeAsync();
-        await fixture.ViewModel.ToggleListeningCommand.ExecuteAsync();
-        fixture.ViewModel.CanPushToTalk.Should().BeFalse();
         await fixture.ViewModel.ToggleListeningCommand.ExecuteAsync();
         fixture.ViewModel.CanPushToTalk.Should().BeTrue();
 
@@ -392,7 +393,7 @@ public sealed partial class MainViewModelTests
     }
 
     [Fact]
-    public async Task Manual_disable_refresh_selection_and_reinitialize_cannot_release_the_run_hold()
+    public async Task ManualDisableRefreshSelectionAndReinitializePreserveFreshOneShotPushToTalk()
     {
         var fixture = CreateVoicePrivacyFixture();
         await fixture.ViewModel.InitializeAsync();
@@ -404,11 +405,12 @@ public sealed partial class MainViewModelTests
 
         fixture.VoiceConsent.Consent.Should().BeTrue();
         fixture.ViewModel.IsVoiceEnabled.Should().BeFalse();
-        fixture.Voice.StartCalls.Should().Be(0);
+        fixture.Voice.StartCalls.Should().Be(1);
 
+        await fixture.ViewModel.EndPushToTalkAsync();
         await fixture.ViewModel.ToggleListeningCommand.ExecuteAsync();
         fixture.ViewModel.IsVoiceEnabled.Should().BeTrue();
-        fixture.Voice.StartCalls.Should().Be(0);
+        fixture.Voice.StartCalls.Should().Be(1);
     }
 
     [Fact]

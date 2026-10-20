@@ -691,8 +691,8 @@ No microphone test or ambient wake is provided by this recovery slice.
 Exact typed/current-name activated `stop listening` and `disable listening` use this same native/tray [Disable action](../src/Kora.Application/ViewModels/MainViewModel.VoicePrivacy.cs), not Stop speaking or Cancel task.
 Acceptance closes input admission; native release is awaited and unconfirmed release remains explicit. Repeated Disable never toggles back to Enable ([shared stop action](../src/Kora.Application/Voice/ListeningStopAction.cs)).
 
-After manual Disable, queued PTT/transcription, device/default refresh and unlock recovery cannot reopen input. Saved consent and device preferences remain unchanged ([voice stop and recovery](voice-and-audio.md#exact-stop-listening)).
-Use fresh native **Enable listening** after current release/readiness checks; opening the recovery card alone does not enable or capture ([deterministic tests](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.ListeningStop.cs)).
+After manual Disable, queued PTT/transcription, device/default refresh and unlock recovery cannot automatically reopen input. Saved consent and device preferences remain unchanged ([voice stop and recovery](voice-and-audio.md#exact-stop-listening)).
+A new deliberate **Push to talk** can capture one command after confirmed release and current gates; native **Enable listening** restores readiness separately. Opening the recovery card alone does neither ([deterministic tests](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.ListeningStop.cs)).
 
 ## Passive document details
 

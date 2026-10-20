@@ -4091,6 +4091,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         Func<bool>? reviewEligibility = null)
     {
         Interlocked.Increment(ref workspaceSurfaceInputRevision);
+        if (Kora.Core.Calculations.CalculateCommand.Parse(spokenText, AssistantName) is { } calculateCommand)
+        {
+            ExecuteCalculateCommand(calculateCommand, initiator, manualInput);
+            return;
+        }
         if (Kora.Application.Skills.SkillReviewCommand.Parse(spokenText, AssistantName) is { } reviewCommand)
         {
             await ExecuteSkillReviewCommand(reviewCommand, spokenText, manualInput
@@ -5616,6 +5621,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
                     + "Use “show spoken summary limits” to inspect future ordinary-speech sentence/word budgets; “list speech settings” lists exact set/reset syntax. "
                     + "Use “open skill packages” or “open shared skill sources” for native review only; neither enables or runs skills. "
                     + PreparedLocalSearchCommand.Syntax + " "
+                    + Kora.Core.Calculations.CalculateCommand.Syntax + " "
                     + (LocalModelsEnabled && Dependencies.Any(status =>
                         string.Equals(status.Id, "local.inference", StringComparison.Ordinal)
                         && status.Readiness == DependencyReadiness.Ready)
@@ -6072,6 +6078,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             .Concat(ClipboardCommand.FixedPhrases)
             .Concat(LocalFileCommand.FixedPhrases)
             .Concat(PreparedLocalSearchCommand.DiscoveryPhrases)
+            .Concat(Kora.Core.Calculations.CalculateCommand.DiscoveryPhrases)
             .Concat(SessionCommand.DiscoveryPhrases)
             .Concat(WorkspaceSurfaceCommand.FixedPhrases)
             .Concat(MemoryCommand.DiscoveryPhrases)

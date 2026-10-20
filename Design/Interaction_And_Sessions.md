@@ -669,11 +669,39 @@ Selection changes, closure, privacy loss, purged/removed/unknown or corrupt stat
 
 Inspection no longer runs maintenance. The replacement passive pre/post admission preserves confirmed retention-policy, ownership/privacy/call and verified copy-inventory checks.
 Due ordinary candidates without existing live/Unknown/question/control holds deny content inspection pending authoritative background maintenance; source authority revision changes suppress late results. Exact retention-status readback is non-content observation, not a cleanup bypass.
-No new apply-now, archive/delete, global default, typed/voice mutation or model descriptor is available.
+No new apply-now, archive/delete, global default, direct typed/voice hold mutation or model descriptor is available.
 The existing exact-ID field also supports native **Read exact ID retention**, using canonical immutable-ID validation. It keeps retention status/review available when due-content inspection is held, without reading names/history/work or fabricating active/resume authority; removed/purged status remains nonmutable.
 
 Maintained [actual SQLite controls](../tests/Kora.Windows.IntegrationTests/Storage/WindowsSqliteSessionRetentionControlTests.cs), [portable admission](../tests/Kora.Application.UnitTests/Hosting/SessionWorkspaceServiceTests.Retention.cs) and [headless native review](../tests/Kora.Windows.IntegrationTests/SessionsRetentionViewModelTests.cs) cover this subset.
 This does not qualify installed native/accessibility, forensic/full-copy deletion, general execution or full R12/RC acceptance.
+
+### Exact Typed And Activated-Voice Retention Review - 2026-10-20
+
+The strict reserved grammar accepts only canonical nonempty immutable session GUIDs, never names or current selection.
+Activated voice requires the current assistant-name prefix; invalid reserved input is not a question answer or model request ([parser](../src/Kora.Core/Commands/SessionCommand.Retention.cs), [input routing](../src/Kora.Application/ViewModels/MainViewModel.Sessions.cs)).
+
+```text
+session retention status <session-id>
+session retention review <session-id> keep
+session retention review <session-id> ordinary
+session retention confirm <session-id> <review-id>
+session retention cancel <session-id> <review-id>
+```
+
+Status is a passive exact metadata observation, not maintenance or cleanup eligibility.
+Review discloses the original recorded UTC dates, generation, committed exemption audit revision, channel and 60-second expiry; ordinary retention may already be due. Confirmation or cancellation consumes the memory-only review once.
+A changed source, privacy/call/input revision, expiry, generation, date or hold-change/restore ABA refuses the handoff ([command workflow](../src/Kora.Application/Hosting/SessionRetentionCommandService.cs)).
+
+**Route limit:** command confirmation opens the same exact native review; it does **not** change the hold.
+The original command channel remains attached to the review and linked presentation activity. A genuine **new native decision** is required because both owning application and SQLite write contracts require fresh native input.
+No voice input is relabelled LocalUi, and no requested/terminal hold audit is manufactured for opening a panel ([native handoff](../src/Kora/SessionsViewModel.Retention.cs), [owning action](../src/Kora.Application/Hosting/SessionWorkspaceService.Retention.cs), [private transaction](../src/Kora.Windows/Storage/WindowsSqliteHostInteractionStore.RetentionControl.cs)).
+
+The subsequent native decision uses the unchanged committed control intent, atomic audit/hold transaction, physical COMMIT admission and terminal/readback path. The shared recorded-state comparison includes the exemption audit sequence.
+Done sessions remain Done without resume; opening/status never reads content, renews activity or runs maintenance.
+Unknown/unconfirmed opening or commit outcomes are not success or rollback and are never automatically retried ([recorded-state rule](../src/Kora.Core/Storage/SessionRetentionObservation.cs), [deterministic native/private SQLite tests](../tests/Kora.Windows.IntegrationTests/SessionsRetentionCommandTests.cs)).
+
+This is one SESSION hold, not a grant, consent, memory, provider permission, cleanup action or global retention setting. Model retention control remains unavailable; the six read-only descriptor families are unchanged.
+Implementation consumes only the existing native retention seam with deterministic fakes/private SQLite tests; installed-native, acoustic, provider, hardware and RC qualification are not claimed ([bounded command tests](../tests/Kora.Application.UnitTests/Hosting/SessionWorkspaceServiceTests.RetentionCommands.cs)).
 
 ### Delivered Bounded Ordered Interaction History - 2026-10-09
 

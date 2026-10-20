@@ -5,4 +5,5 @@ public enum SessionCommandOperation { Help, List, Status, Inspect, Create, Renam
     QueuePause, QueueResume, QueuePauseStatus, QueueMoveUp, QueueMoveDown, QueueMoveConfirm, QueueMoveCancel,
     QueueCancelSelectedReview, QueueCancelSelectedConfirm, QueueCancelSelectedDiscard,
     QueueRequeueExpiredReview, QueueRequeueExpiredConfirm, QueueRequeueExpiredDiscard,
-    RequestReview, RequestConfirm, RequestCancel }
+    RequestReview, RequestConfirm, RequestCancel,
+    RetentionStatus, RetentionReview, RetentionConfirm, RetentionCancel }

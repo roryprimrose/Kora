@@ -126,7 +126,11 @@ merge authority. Coverage comments remain informational.
 Before attestation, the controller rechecks head, base, queue intent, reviews
 and ancestry. Its merge request includes the expected head. Strict up-to-date
 protection handles a main-advance race at the final GitHub merge boundary.
-The App has no main-protection bypass and cannot approve PR reviews.
+The App has no main-protection bypass. The controller never creates or approves
+PR reviews. GitHub includes review APIs in the App's **Pull requests: read/write**
+permission; there is no separate App permission to disable those APIs. Keep its
+private key restricted to trusted main workflows rather than treating the
+permission name as a review-approval restriction.
 
 ## Durable scheduling and cancellation
 
@@ -196,7 +200,7 @@ These are administrator operations, **not performed by the implementation PR**:
    - Actions, Checks, Contents, Pull requests: **read/write**.
    - Administration: **read only**, to verify branch protection.
    - Metadata: the required read permission.
-   Do not give it bypass rights on main. Do not grant review approval.
+   Do not give it bypass rights on main or use it to approve PR reviews.
 3. Create a `merge-queue` Actions environment restricted to deployment from
    **main only**. Put the App private key in its environment secret
    `KORA_MERGE_QUEUE_PRIVATE_KEY`, never a repository-wide secret.

@@ -630,6 +630,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
                   && (!IsBusy || IsSetupStatusCommand() || IsListeningStopCommand(CommandText)
                       || SessionCommand.Parse(CommandText, AssistantName) is not null
                       || SessionDispositionReviewCommand.Parse(CommandText, AssistantName) is not null
+                      || WorkspaceSurfaceCommand.Parse(CommandText, AssistantName) is not null
                       || MemoryCommand.Parse(CommandText, AssistantName) is not null
                       || IsInstructionEditorCommand(CommandText)
                       || Kora.Application.Skills.SkillReviewCommand.Parse(CommandText, AssistantName) is not null
@@ -4089,6 +4090,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         ResponseReadInput? responseReadInput = null,
         Func<bool>? reviewEligibility = null)
     {
+        Interlocked.Increment(ref workspaceSurfaceInputRevision);
         if (Kora.Application.Skills.SkillReviewCommand.Parse(spokenText, AssistantName) is { } reviewCommand)
         {
             await ExecuteSkillReviewCommand(reviewCommand, spokenText, manualInput
@@ -4098,6 +4100,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         if (SettingsSectionCommand.Parse(spokenText, AssistantName) is { } settingsSectionCommand)
         {
             await ExecuteSettingsSectionCommand(settingsSectionCommand, spokenText, initiator, manualInput);
+            return;
+        }
+        if (WorkspaceSurfaceCommand.Parse(spokenText, AssistantName) is { } surfaceCommand)
+        {
+            await ExecuteWorkspaceSurfaceCommand(surfaceCommand, spokenText, initiator, manualInput);
             return;
         }
         if (!IsHostInputEligible)
@@ -6054,6 +6061,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             .Concat(ClipboardCommand.FixedPhrases)
             .Concat(LocalFileCommand.FixedPhrases)
             .Concat(SessionCommand.DiscoveryPhrases)
+            .Concat(WorkspaceSurfaceCommand.FixedPhrases)
             .Concat(MemoryCommand.DiscoveryPhrases)
             .Concat(AssistantNameCommand.DiscoveryPhrases)
             .Concat(InputDeviceCommand.FixedPhrases)

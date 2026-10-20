@@ -27,7 +27,11 @@ public sealed partial class MainViewModel
         Interlocked.Increment(ref manualCallNativeRevision);
     }
 
-    private sealed record ManualCallInput(RequestOrigin Origin, long Revision, Func<bool> Eligible, Func<bool> RetiredEligible);
+    private sealed record ManualCallInput(RequestOrigin Origin, long Revision, Func<bool> Eligible, Func<bool> RetiredEligible)
+    {
+        internal long NavigationOwnerRevision { get; init; }
+        internal bool NavigationInitiallyAdmitted { get; init; }
+    }
 
     public string ManualCallConfigurationStatus => ManualCallCommandResult.Serialize(
         new("observed", manualCallControl is null ? "Manual control admission is unavailable." : null, communicationPolicy.Current));
@@ -52,7 +56,11 @@ public sealed partial class MainViewModel
                 && privacyObservation.Current.CanCapture && voiceRecognition.Generation == generation),
             () => IsCallMutationHostEligible && NativeEligible() && privacyObservation.Current.TopologyRevision == privacy.TopologyRevision
                 && Interlocked.Read(ref voiceRecoveryRevision) == recovery + 1
-                && !IsVoiceEnabled && Interlocked.Read(ref acceptedTranscriptGeneration) == -1);
+                && !IsVoiceEnabled && Interlocked.Read(ref acceptedTranscriptGeneration) == -1)
+        {
+            NavigationOwnerRevision = auditImpactOwnerRevision(),
+            NavigationInitiallyAdmitted = IsCallMutationHostEligible && !IsProtectedCall,
+        };
     }
 
     public bool IsManualCallActive => communicationPolicy.Current.ManualActive;

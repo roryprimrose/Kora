@@ -1,4 +1,4 @@
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using System.Globalization;
 using System.Text;
 
@@ -93,6 +93,11 @@ internal sealed partial class SessionsViewModel(
         : [.. sessions.Records.Where(record => sessionFilter == SessionListFilter.All
             || record.Authority.IsActive == (sessionFilter == SessionListFilter.Active))];
     public SessionWorkspaceEntry? SelectedSessionRecord => selected;
+    internal Func<bool> CaptureNavigationEligibility()
+    {
+        var epoch = selectionEpoch;
+        return () => !closed && selectionEpoch == epoch;
+    }
     internal bool ReferencesSession(HostId<SessionIdentity> session) =>
         !closed && (selected?.Authority.SessionId == session || workSnapshot?.Session.Authority.SessionId == session
         || string.Equals(historySessionId, session.Value.ToString("D"), StringComparison.Ordinal));

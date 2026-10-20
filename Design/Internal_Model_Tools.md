@@ -102,6 +102,11 @@ or additional catalogue capability is introduced.
 All six actions also have [closed queued Native reads](Work_Management.md#delivered-closed-targeted-metadata-reads---2026-10-12), not model autoexecution. The original four retain `{}`/default first pages. Queued `capabilities.get` requires one exact current descriptor ID; queued `runtime.get_status` supplies only host-fixed recorded `local.inference`.
 Catalogue Available is registry metadata, not live provider/worker/tool-loop qualification or authorization.
 
+The exact original-user navigation commands `open all work`, `open saved conversation drafts` and `open compact conversation` are **native navigation only**.
+The `AllWork`, `SavedConversationDrafts` and `CompactConversation` targets have no model bootstrap action or model-tool descriptor; the model route is unavailable because no qualified host-origin/window-focus contract is composed.
+Do not interpret model text as a navigation event or extend the six read-only descriptors with window-focus effects.
+The [native adapter](../src/Kora/WorkspaceSurfaceCommandController.cs) instead invokes the same tray/UI controllers under original/current private and source admission. Opening imports no session content, saved draft body, search or execution authority. See [exact command availability](../docs/commands.md#open-existing-workspace-surfaces).
+
 R26 selected-source lexical search is **host/native-only**. The six-ID schema
 has no unavailable model-only content-operation descriptor or admitted
 source/citation result shape. It is not extended to pretend retrieval is

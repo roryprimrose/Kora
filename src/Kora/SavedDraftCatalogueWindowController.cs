@@ -1,4 +1,4 @@
-using System.ComponentModel;
+﻿using System.ComponentModel;
 
 using Avalonia.Threading;
 
@@ -44,9 +44,10 @@ internal sealed class SavedDraftCatalogueWindowController : IDisposable
         if (!Dispatcher.UIThread.CheckAccess()) { return Dispatcher.UIThread.Invoke(Admitted); }
         return !disposed && access.CanInspect && main.CanRevealPrivatePresentation;
     }
-    internal void Open()
+    internal void Open() => Open(static () => true);
+    internal void Open(Func<bool> admitted)
     {
-        if (!Admitted())
+        if (!Admitted() || !admitted())
         {
             main.ReportHostInteractionFailure("Saved conversation draft catalogue unavailable under private ownership/privacy. No draft read.");
             return;
@@ -67,7 +68,13 @@ internal sealed class SavedDraftCatalogueWindowController : IDisposable
             view.Closed += OnClosed;
             view.Show();
         }
-        window.Activate();
+        if (!Admitted() || !admitted())
+        {
+            Close();
+            main.ReportHostInteractionFailure("Saved conversation draft catalogue unavailable: opening admission changed. No draft read.");
+            return;
+        }
+        window?.Activate();
     }
     private void OnSourceChanged(HostId<SessionIdentity> _)
     {

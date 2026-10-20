@@ -106,6 +106,7 @@ public sealed partial class OwnedDefinitionEditorWindowTests
     [InlineData("validate")]
     [InlineData("close")]
     [InlineData("dispose")]
+    [InlineData("detach")]
     public async Task EnteredRequestCannotNavigateAfterSourceOrNativeLifetimeChanges(string change)
     {
         await HeadlessSession.RunAsync(async () =>
@@ -129,6 +130,11 @@ public sealed partial class OwnedDefinitionEditorWindowTests
                 case "validate": await f.Run("instructions validate"); break;
                 case "close": editor.ClearPrivateText(); editor.Close(); break;
                 case "dispose": f.DisposeController(); break;
+                case "detach":
+                    var parent = (Panel)editor.Source.Parent!;
+                    parent.Children.Remove(editor.Source);
+                    parent.Children.Add(editor.Source);
+                    break;
             }
             var caret = editor.Source.CaretIndex;
             // Simulates delivery of a click queued before retirement.
@@ -231,6 +237,40 @@ public sealed partial class OwnedDefinitionEditorWindowTests
     }
 
     [Fact]
+    public async Task QueuedOldNativeGoControlCannotNavigateAnExplicitlyReopenedNewerBuffer()
+    {
+        await HeadlessSession.RunAsync(async () =>
+        {
+            var editor = new OwnedInstructionEditorWindow(_ => { });
+            editor.BindGoToLine(() => () => true);
+            editor.Show();
+            try
+            {
+                editor.Source.Text = "first\nold";
+                Click(editor.GoToLineButton);
+                editor.LineInput.Text = "2";
+                var retiredGo = editor.LineGo;
+                var queued = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+                Dispatcher.UIThread.Post(() => { Click(retiredGo); queued.SetResult(); });
+                editor.Source.Text = "new\ncurrent";
+                Click(editor.GoToLineButton);
+                editor.LineInput.Text = "2";
+                editor.LineGo.Should().NotBeSameAs(retiredGo);
+                var caret = editor.Source.CaretIndex;
+                await queued.Task.WaitAsync(TestContext.Current.CancellationToken);
+                editor.Source.CaretIndex.Should().Be(caret);
+                editor.LineInput.IsFocused.Should().BeTrue();
+                editor.LineGo.IsEnabled.Should().BeTrue();
+                Status(editor).Should().Contain("Earlier Go to line gesture retired").And.NotContain("completed");
+                Click(editor.LineGo);
+                editor.Source.CaretIndex.Should().Be(4);
+                Status(editor).Should().Contain("completed");
+            }
+            finally { editor.Close(); }
+        });
+    }
+
+    [Fact]
     public async Task KeyboardCancelReentrantFocusAndNativeCaretVisibilityAreExplicitAndFailClosed()
     {
         await HeadlessSession.RunAsync(() =>
@@ -275,7 +315,7 @@ public sealed partial class OwnedDefinitionEditorWindowTests
                 editor.LineInput.Text = "1";
                 editor.Source.IsEnabled = false;
                 Click(editor.LineGo);
-                Status(editor).Should().Contain("expired or unavailable");
+                Status(editor).Should().Contain("retired");
             }
             finally { editor.Close(); }
             return Task.CompletedTask;

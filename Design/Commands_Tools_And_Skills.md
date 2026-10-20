@@ -115,7 +115,10 @@ validation, writer or use authority and does not depend on literal Find.
 One bounded portable logical-line index preserves exact UTF-16 offsets and
 CRLF/CR/LF separators. Explicit Go consumes an ownership/private/buffer/lifetime
 fence before synchronous native focus/caret acknowledgement; stale requests
-require explicit retry. Profile/bundled/read-only/unknown sources stay unavailable.
+require explicit retry. Each native Go control binds its request epoch so
+delayed retired-control clicks cannot navigate an explicitly reopened buffer;
+native source detachment also retires the request.
+Profile/bundled/read-only/unknown sources stay unavailable.
 The consumed I subset is the existing owned editor and host/privacy admission;
 unrelated provider, hardware, installed or experiment E/Q evidence is not a
 prerequisite for deterministic native navigation validation.

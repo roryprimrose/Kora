@@ -14,7 +14,7 @@ internal sealed partial class OwnedInstructionEditorWindow
 {
     internal readonly Button GoToLineButton = new() { Content = "Go to line", Margin = new(3) };
     internal readonly TextBox LineInput = new() { Width = 120, ContextMenu = null };
-    internal readonly Button LineGo = new() { Content = "Go", Margin = new(3) };
+    internal Button LineGo { get; private set; } = new() { Content = "Go", Margin = new(3), IsEnabled = false };
     internal readonly Button LineCancel = new() { Content = "Cancel", Margin = new(3) };
     private readonly TextBlock lineStatus = new();
     private readonly StackPanel linePane = new() { Orientation = Orientation.Horizontal, IsVisible = false };
@@ -44,7 +44,6 @@ internal sealed partial class OwnedInstructionEditorWindow
         DockPanel.SetDock(linePane, Dock.Top);
         panel.Children.Add(linePane);
         GoToLineButton.Click += (_, _) => BeginGoToLine();
-        LineGo.Click += (_, _) => GoToEnteredLine();
         LineCancel.Click += (_, _) => CancelGoToLine();
         AddHandler(KeyDownEvent, (_, key) =>
         {
@@ -57,12 +56,14 @@ internal sealed partial class OwnedInstructionEditorWindow
         {
             input.PropertyChanged += (_, change) =>
             {
-                if (change.Property == TextBox.TextProperty || change.Property == TextBox.IsReadOnlyProperty)
+                if (change.Property == TextBox.TextProperty || change.Property == TextBox.IsReadOnlyProperty
+                    || change.Property == IsVisibleProperty || change.Property == IsEnabledProperty)
                 { InvalidateGoToLine(); }
             };
         }
         Files.SelectionChanged += (_, _) => InvalidateGoToLine();
         KindInput.SelectionChanged += (_, _) => InvalidateGoToLine();
+        Source.DetachedFromVisualTree += (_, _) => InvalidateGoToLine();
         Closing += (_, _) => InvalidateGoToLine();
     }
 
@@ -88,7 +89,12 @@ internal sealed partial class OwnedInstructionEditorWindow
             lineIndex = index;
             LineInput.Text = string.Empty;
             lineStatus.Text = $"Current displayed source: {index.Count} logical lines (one-based).";
-            LineGo.IsEnabled = true;
+            var go = new Button { Content = "Go", Margin = new(3) };
+            AutomationProperties.SetName(go, "Go to the entered line in the current displayed source only");
+            go.Click += (_, _) => GoToEnteredLine(epoch);
+            linePane.Children.Remove(LineGo);
+            linePane.Children.Insert(1, go);
+            LineGo = go;
             linePane.IsVisible = true;
             UpdateLayout();
             if (!Current() || !LineInput.Focus() || !LineInput.IsFocused || !Current())
@@ -97,8 +103,10 @@ internal sealed partial class OwnedInstructionEditorWindow
         finally { lineGesture = false; }
     }
 
-    private void GoToEnteredLine()
+    private void GoToEnteredLine(long epoch)
     {
+        if (epoch != lineEpoch)
+        { Report("Earlier Go to line gesture retired. No navigation performed; use the current Go explicitly."); return; }
         if (lineGesture) { return; }
         lineGesture = true;
         try

@@ -83,8 +83,10 @@ and line metrics are volatile, not logged, transcribed, spoken by Kora or
 copied to the clipboard; the line input has no clipboard transfers.
 
 An edit, source/ID/kind/file/copy change, editor operation, privacy/ownership
-revocation, close or disposal retires the request. Choose **Go to line** again
-explicitly for the new current buffer. Unknown/unavailable or read-only
+revocation, native source detachment, close or disposal retires the request.
+Choose **Go to line** again explicitly for the new current buffer. Each request
+has its own native Go control; a delayed click on a retired control cannot
+navigate a newer request even after explicit reopening. Unknown/unavailable or read-only
 sources do not gain edit, copy or use authority. Profile and bundled sources
 remain outside this owned-editor workflow.
 

@@ -5548,6 +5548,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
                     + "Use “session help” for bounded exact-ID session observations and explicit lifecycle controls. "
                     + $"Use “{AssistantName}, list assistant settings” for the display/PTT command-prefix name. "
                     + NaturalAppearanceCommand.Syntax + " "
+                    + "Natural name commands: “what is your name”, “call yourself <name>”, “change your name to <name>”, or “reset your name”. "
                     + "Use “explain the clipboard” for exact native review and qualified local-only explanation; no hosted fallback. "
                     + "Use “show spoken summary limits” to inspect future ordinary-speech sentence/word budgets; “list speech settings” lists exact set/reset syntax. "
                     + (LocalModelsEnabled && Dependencies.Any(status =>

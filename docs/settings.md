@@ -633,6 +633,8 @@ See [response window behavior](responses-and-calls.md#visual-response-window).
 
 **Apply name** and **Reset name to Kora** use the same typed, audited atomic
 workflow as [exact assistant settings commands](commands.md#assistant-display--ptt-command-prefix-setting).
+The [same name parser](../src/Kora.Application/Configuration/AssistantNameCommand.cs) accepts **what is your name** (optional **?**), **call yourself &lt;name&gt;**, **change your name to &lt;name&gt;**, and **reset your name**.
+Typed and current-name activated voice requests share Apply/reset; proposed spelling/case/content reach the existing validator unchanged. These change only the display/PTT command-prefix preference, not a production wake name or generic agent identity.
 Discovery/get show schema 1, `assistant.name` (spoken: **assistant name**),
 string type, bounds/default, device-local scope, effect/timing, process-local
 revision and saved-versus-unsaved-default provenance. Reset affects this option

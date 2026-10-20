@@ -492,6 +492,7 @@ public sealed partial class AllWorkWindowTests
         model.SelectedDetails.Should().BeEmpty();
         model.CanNext.Should().BeFalse();
         model.CanNavigate.Should().BeFalse();
+        if (boundary is "order") { model.Status.Should().Contain("cancelled/source changed"); }
         model.Close();
         model.Status.Should().BeEmpty();
         model.NeedsAnswer.Should().BeFalse();
@@ -534,8 +535,11 @@ public sealed partial class AllWorkWindowTests
             LastMetadataAfter = after;
             return store.ReadMetadataPageAsync(after, limit, token);
         }
-        public ValueTask<SessionWorkspaceEntry> ReadMetadataAsync(HostId<SessionIdentity> session, CancellationToken token) =>
-            store.ReadMetadataAsync(session, token);
+        public ValueTask<SessionWorkspaceEntry> ReadMetadataAsync(HostId<SessionIdentity> session, CancellationToken token)
+        {
+            MetadataReads++;
+            return store.ReadMetadataAsync(session, token);
+        }
         public ValueTask<SessionDispositionPreview> PreviewDispositionAsync(HostId<SessionIdentity> session,
             HostRevision generation, long metadataRevision, CancellationToken token) => throw new NotSupportedException();
         public ValueTask<SessionDispositionReceipt> DisposeSessionAsync(HostRequest request, SessionDispositionPreview preview,

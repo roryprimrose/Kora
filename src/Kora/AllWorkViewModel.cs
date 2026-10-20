@@ -304,7 +304,7 @@ internal sealed partial class AllWorkViewModel(
         }
         catch (OperationCanceledException)
         {
-            if (orderRetirementEpoch != epoch || admittedEpoch == epoch || closed
+            if (orderRetirementEpoch != epoch || admittedEpoch == epoch || page is null || closed
                 || !access.CanInspect || revision != access.ControlRevision)
             {
                 ClearPage();

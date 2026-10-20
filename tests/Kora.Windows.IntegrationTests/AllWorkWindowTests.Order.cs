@@ -100,10 +100,15 @@ public sealed partial class AllWorkWindowTests
                 window.FindControl<Button>("ClearLoadedPageOrder")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
                 model.Order.Should().Be(SessionWorkOverviewPageOrder.Source);
                 model.Records.Should().Equal(source);
+                model.Order = SessionWorkOverviewPageOrder.SessionIdDescending;
                 await model.RefreshAsync(next: true);
                 held.LastMetadataAfter.Should().Be(rawAfter, "Next uses the raw admitted continuation, not the visible last row");
                 model.Records.Should().HaveCount(3);
                 model.CanNext.Should().BeFalse();
+                model.Order.Should().Be(SessionWorkOverviewPageOrder.SessionIdDescending);
+                model.Records.Select(row => row.Session.Authority.SessionId.Value.ToString("D"))
+                    .Should().BeInDescendingOrder(StringComparer.Ordinal);
+                model.ClearOrder();
                 model.Select(model.Records[0]);
                 model.ClearOrder();
                 model.SelectedRecord.Should().BeNull("Clear retires selection even when Source was already selected");

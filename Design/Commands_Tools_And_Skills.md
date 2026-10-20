@@ -306,6 +306,30 @@ Identifiers and payloads below are illustrative contract concepts, not a publish
 
 ### Built-In Tool Source Layout and Implementation
 
+#### Delivered deterministic calendar arithmetic
+
+The exact [date command grammar](../docs/commands.md#calendar-date-arithmetic)
+routes before model/question/approval handling to the host-only
+`DateArithmeticRegistry`. `CalendarDateArithmetic` in Core owns strict invariant
+date/offset parsing, the DateOnly-derived finite bound, signed end-minus-start
+difference and checked day addition. `Calendar/DateDifference`, `Calendar/DateAdd`
+and `Calendar/DateHelp` in Tools are separate DI-registered actions; Application
+performs no duplicate arithmetic. No model descriptors or provider/runtime
+dependencies are added, and the six read-only discovery descriptors stay unchanged.
+
+Admission retains original user origin, current host ownership, unlocked/private
+presentation, voice consent/generation, input and call-policy gates and live
+host-resolved activity. Reserved malformed requests clarify without fallback;
+pending questions, approvals and action/security previews are not replaced or
+answered. Tool activities terminate truthfully and structured diagnostics log
+only operation/outcome, never dates or user input. Results use ordinary output
+policy without forced speech.
+
+Only the consumed implementation contracts and deterministic validation are
+required. This slice enables no calendar scheduling/reminders, model tool loop,
+provider/hardware capability or release qualification; unrelated E/Q and retired
+experiment evidence is not an implementation prerequisite.
+
 Built-in tool action implementations belong in the portable `Kora.Tools`
 project. Group actions by capability in source control and mirror the grouping
 in the C# namespace:

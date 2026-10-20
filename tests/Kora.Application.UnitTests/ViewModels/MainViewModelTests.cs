@@ -4553,6 +4553,7 @@ public sealed partial class MainViewModelTests : IDisposable
             .Concat(PreapprovedUriCommand.FixedPhrases)
             .Concat(Kora.Application.Network.WebPageCommand.FixedPhrases)
             .Concat(Kora.Application.Network.WebSummaryCommand.FixedPhrases)
+            .Concat(Kora.Application.Calendar.DateArithmeticCommand.FixedPhrases)
             .Concat(InCallFeedbackCommand.FixedPhrases)
             .Concat(SpeechTextCommand.FixedPhrases)
             .Concat(Kora.Application.Voice.ResponseReadCommand.FixedPhrases)
@@ -8535,7 +8536,7 @@ public sealed partial class MainViewModelTests : IDisposable
             bool enableQuestionReplies = false, bool enableAuditImpact = false, bool enableSessionRetentionPlanner = false,
             bool enableSpeechPreparation = false, bool enableDiagnosticImpact = false, bool enableClipboardExplanation = false,
             Kora.Application.Network.WebSummaryWorkflow? webSummary = null,
-            Kora.Application.Clock.LocalClockWorkflow? localClock = null)
+            Kora.Application.Clock.LocalClockWorkflow? localClock = null, bool enableDateArithmetic = true)
         {
             Catalog = new BuiltInCommandCatalog();
             CaptionPreferences.LoadFailure = captionReadFailure;
@@ -8719,7 +8720,10 @@ public sealed partial class MainViewModelTests : IDisposable
                 enableSessionRetentionPlanner ? new SessionRetentionPlannerService(SessionPlanReader, SessionRetentionConfiguration!) : null,
                 speechPreparation: enableSpeechPreparation ? SpeechPreparation : null,
                 diagnosticImpactPreview: enableDiagnosticImpact ? new DiagnosticImpactPreviewService(DiagnosticImpactReader, DiagnosticPreferences, DiagnosticConfiguration!) : null,
-                clipboardExplanation: clipboardWorkflow, localClock: localClock);
+                clipboardExplanation: clipboardWorkflow, localClock: localClock,
+                dateArithmetic: enableDateArithmetic ? new(
+                    new CapabilityHostAccess(Session), new(), new(), new(),
+                    NullLogger<Kora.Application.Calendar.DateArithmeticRegistry>.Instance) : null);
             if (webSummary is not null) { ViewModel.BindWebSummaryWorkflow(webSummary); }
             ViewModel.BindCallOwnershipGate(static () => true);
             ViewModel.BindManualCallNativeLifetime(true);

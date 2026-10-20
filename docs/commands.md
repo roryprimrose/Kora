@@ -58,6 +58,41 @@ stale/denied/unavailable requests report recovery in status. Pending questions,
 approvals, power proposals, grant editors and native security reviews stay
 unchanged, including for malformed clock commands.
 
+## Calendar date arithmetic
+
+Use these exact case-insensitive command words with **single ASCII spaces**:
+
+- `date difference <yyyy-MM-dd> <yyyy-MM-dd>`
+- `date add <yyyy-MM-dd> <signed-days>`
+- `date help`
+
+Dates must be complete canonical ASCII ISO calendar dates in `0001-01-01` through
+`9999-12-31`. Whole days use `0`, a positive integer without a sign, or a minus
+sign followed by a nonzero integer: `0`, `12`, `-12`. The finite range is
+`-3652058` through `3652058`, the distance between the supported minimum and
+maximum dates. Plus signs, signed zero, leading zeroes, locale digits, separators,
+expressions, control characters and whitespace repair are not accepted. The
+complete input, including an optional activation prefix, is limited to 256 characters.
+
+Difference returns **signed end minus start** whole calendar days: start excluded,
+end arithmetic, not an inclusive or business-day count.
+`date difference 2000-02-28 2000-03-01` returns `2`;
+reversing the dates returns `-2`; equal dates return `0`.
+`date add 2000-03-01 -1` returns `2000-02-29`.
+Invalid dates (including `1900-02-29`), out-of-range offsets and addition beyond
+either end of the date domain report an error: no clamping, default or model fallback.
+
+Typed input may use the current name followed by one space or comma-space,
+for example `Kora, date help`. Activated voice requires that current-name prefix.
+Outer spaces and repeated spaces are errors for this family. Malformed reserved
+`date` requests never answer a pending question or reach a model. Pending
+questions, approvals and previews must be finished or cancelled first and remain
+unchanged. Output uses ordinary response policy; the command does not force speech.
+
+This is deterministic calendar arithmetic, independent of the current clock,
+runtime readiness, provider and model. No relative dates, timezone, holidays,
+business days, month/year offsets, scheduling or reminders are implemented.
+
 ## Open an exact Settings tab
 
 Use one complete case-insensitive phrase below, optionally prefixed by the current assistant name when typed. Activated voice requires that current-name prefix. Outer spaces are accepted; punctuation, extra words, control characters and input over 256 characters are not ([exact grammar](../src/Kora.Application/Configuration/SettingsSectionCommand.cs)).

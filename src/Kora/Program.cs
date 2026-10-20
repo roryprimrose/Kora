@@ -496,6 +496,10 @@ internal static class Program
         services.AddSingleton<Kora.Tools.Runtime.RuntimeList>();
         services.AddSingleton<Kora.Tools.Runtime.RuntimeGetStatus>();
         services.AddSingleton<Kora.Application.Tools.ReadOnlyCapabilityRegistry>();
+        services.AddSingleton<Kora.Tools.Calendar.DateDifference>();
+        services.AddSingleton<Kora.Tools.Calendar.DateAdd>();
+        services.AddSingleton<Kora.Tools.Calendar.DateHelp>();
+        services.AddSingleton<Kora.Application.Calendar.DateArithmeticRegistry>();
         services.AddSingleton(provider => new BoundedModelTurnAdapter(
             new WindowsOllamaToolTransport(static _ => null, provider.GetRequiredService<TimeProvider>(),
                 provider.GetRequiredService<ILogger<WindowsOllamaToolTransport>>()),

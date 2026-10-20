@@ -281,7 +281,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         Kora.Application.Voice.SpeechPreparationCoordinator? speechPreparation = null,
         DiagnosticImpactPreviewService? diagnosticImpactPreview = null,
         Kora.Application.Context.ClipboardExplanationWorkflow? clipboardExplanation = null,
-        Kora.Application.Clock.LocalClockWorkflow? localClock = null)
+        Kora.Application.Clock.LocalClockWorkflow? localClock = null,
+        Kora.Application.Calendar.DateArithmeticRegistry? dateArithmetic = null)
     {
         this.commandCatalog = commandCatalog;
         this.commandRouter = commandRouter;
@@ -321,6 +322,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         this.privacyObservation = privacyObservation;
         this.durableVersionQuery = durableVersionQuery;
         this.capabilityRegistry = capabilityRegistry;
+        this.dateArithmetic = dateArithmetic;
         this.appearanceConfiguration = appearanceConfiguration;
         appearanceConfiguration.Changed += OnAppearanceChanged;
         this.speechConfiguration = speechConfiguration;
@@ -4177,6 +4179,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             ApplicationLog.Information(logger, "Rejected command input outside the active unlocked host");
             return;
         }
+        if (Kora.Application.Calendar.DateArithmeticCommand.Parse(spokenText, AssistantName) is { } dateCommand)
+        {
+            ExecuteDateArithmetic(dateCommand, spokenText, initiator, manualInput);
+            return;
+        }
         if (IsListeningStopCommand(spokenText))
         {
             await Kora.Application.Hosting.HostRequestRunner.RunAsync(
@@ -6189,6 +6196,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             .Concat(PreapprovedUriCommand.FixedPhrases)
             .Concat(WebPageCommand.FixedPhrases)
             .Concat(WebSummaryCommand.FixedPhrases)
+            .Concat(Kora.Application.Calendar.DateArithmeticCommand.FixedPhrases)
             .Concat(webSummaryReview is { } summaryReview
                 ? [WebSummaryCommand.ConfirmPrefix + summaryReview.Id.ToString("D")] : [])
             .Concat(InCallFeedbackCommand.FixedPhrases)

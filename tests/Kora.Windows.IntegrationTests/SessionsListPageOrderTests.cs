@@ -1,7 +1,6 @@
 using Avalonia.Automation.Peers;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
-using Avalonia.Threading;
 
 using AwesomeAssertions;
 
@@ -38,10 +37,10 @@ public sealed class SessionsListPageOrderTests
             var model = new SessionsViewModel(service,
                 new(new WindowsSqliteEvidenceReader(sink), access, f.Time, NullLogger<DurableEvidenceQuery>.Instance),
                 access, NullLogger<SessionsViewModel>.Instance);
-            var window = new SessionsWindow(model);
+            SessionsWindow? window = null;
             try
             {
-                // Load before opening the window to avoid its periodic work refresh during setup.
+                // Construct the native owner only after setup; Attach starts its refresh timer.
                 model.ListSearchKind = SessionListSearchKind.Browse;
                 await model.SearchListAsync();
                 var source = model.Sessions.ToArray();
@@ -56,6 +55,7 @@ public sealed class SessionsListPageOrderTests
                 model.ComposerBody = "unsaved exact composer";
                 model.NameDraft = "unsaved name";
                 var decisions = 0;
+                window = new SessionsWindow(model);
                 model.DecideComposerDraft = () => { decisions++; return Task.FromResult(ComposerDraftDecision.Cancel); };
                 var audits = f.Count("security_audit_events");
                 var tasks = f.Count("host_tasks");
@@ -84,7 +84,6 @@ public sealed class SessionsListPageOrderTests
                     foreach (var order in Enum.GetValues<SessionListPageOrder>())
                     {
                         combo.SelectedItem = order;
-                        Dispatcher.UIThread.RunJobs();
                         model.ListPageOrder.Should().Be(order, "binding and reentrant callbacks must not replace the requested order");
                         model.Sessions.Should().Equal(SessionListPageOrdering.Apply([.. source], order));
                         model.SelectedSessionRecord.Should().BeSameAs(exactSelection);
@@ -100,7 +99,6 @@ public sealed class SessionsListPageOrderTests
                 finally { model.PropertyChanged -= Reenter; }
                 notified.Should().BeTrue();
                 clear.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-                Dispatcher.UIThread.RunJobs();
                 model.ListPageOrder.Should().Be(SessionListPageOrder.Source);
                 model.Sessions.Should().Equal(source);
                 model.SelectedSessionRecord.Should().BeSameAs(exactSelection);
@@ -117,7 +115,7 @@ public sealed class SessionsListPageOrderTests
                 clear.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
                 model.Sessions.Should().BeEmpty();
             }
-            finally { window.Close(); model.Close(); }
+            finally { model.Close(); window?.Close(); }
         });
     }
 

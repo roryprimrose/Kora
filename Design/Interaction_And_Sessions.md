@@ -191,6 +191,24 @@ audit payload, model context, speech, clipboard/export or activity renewal.
 Typed HOST chrome and original bodies remain unchanged; no generated output,
 receipt-history search, schema/index/cache or provider/runtime authority is added.
 
+### Exact-address original-user conversation search commands - 2026-10-20
+
+Typed/current-name activated `conversation search <session-id> -- <verbatim query>` consumes the delivered lexical search above through the same `SessionConversationService.SearchAsync` used by native search.
+The [grammar](../src/Kora.Core/Commands/SessionCommand.ConversationSearch.cs) requires one canonical lowercase nonempty D GUID and preserves every query character after the explicit boundary; canonical query validation refuses empty/invalid content before body reads. Receipt `session search` syntax is unchanged.
+
+The [command action](../src/Kora.Application/Hosting/ConversationSearchCommandService.cs) owns orchestration outside the view model. It validates original-user channel/private control admission and the exact retained session/lifecycle/generation/metadata before and after the canonical read.
+Existing page validation, 25-result/100-scan/64-KiB complete output bounds and chronological USER/typed HOST provenance remain authoritative; no body/index/storage/model representation is added.
+
+Explicit `conversation search next <session-id>` consumes only a host-held cursor with its original query, channel, source admission and exact snapshot. Expiry is 60 seconds from first publication, never extended by Next. No caller cursor/JSON is accepted.
+Exact `cancel` or source retirement cancels an in-flight read and clears memory-only continuation. Privacy, control/call revision, name/voice readiness, lifecycle, generation, metadata, retention or snapshot loss fails closed; later source restoration does not grant new authority.
+
+The presenter checks its current source again before visual-only inert JSON publication and tracks the exact session for lifecycle/retention revocation. It does not open or select Sessions, so dirty composers never auto-save/discard, and question/approval/voice targets are unchanged.
+Query/body content never reaches transcript chrome, speech/captions, model context, audit/log/tag content or activity renewal. No model descriptor or change to the six read-only model capabilities is introduced.
+
+Evidence: [strict grammar/Unicode/limits](../tests/Kora.Core.UnitTests/Commands/ConversationSearchCommandTests.cs) and [canonical source/expiry/cancellation tests](../tests/Kora.Application.UnitTests/Hosting/SessionWorkspaceServiceTests.ConversationCommands.cs).
+Also see [original-source presentation and decision isolation](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.ConversationSearch.cs) and [private SQLite/headless dirty-composer proof](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.ConversationSearch.cs).
+This is minimum-I delivery; E/Q hardware/provider/wake/acoustic/installed/experiment trials remain outside scope.
+
 ## Delivered exact-session conversation/composer foundation — 2026-10-12
 
 ### Saved conversation draft catalogue — 2026-10-13

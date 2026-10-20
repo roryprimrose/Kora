@@ -1729,7 +1729,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         !IsSpeechOutputAvailable;
 
     public bool IsSpeechResponseEnabled =>
-        IsCallMutationHostEligible && !IsPrivacyPresentationHeld && sessionController.IsCurrentSessionUnlocked()
+        !conversationSearchPresentation
+        && IsCallMutationHostEligible && !IsPrivacyPresentationHeld && sessionController.IsCurrentSessionUnlocked()
         && privacyObservation.Current.SessionState == WindowsSessionState.Unlocked
         && !voiceRecognition.IsListening
         && EffectiveResponseMode != ResponseOutputMode.VisualOnly
@@ -1880,6 +1881,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         {
             RetireCurrentResponseSpeech();
             Interlocked.Increment(ref webResponseRevision);
+            conversationSearchPresentation = false;
             sessionPresentationSources.Clear();
             if (SetProperty(ref responseBody, value)) { RetireSpeechCaptionSource(); RetireWebResultDetails(retireControl: false); }
         }
@@ -4308,7 +4310,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         if (SessionCommand.Parse(spokenText, AssistantName) is { } sessionCommand)
         {
             if (initiator == SecurityAuditInitiator.VoiceCommand
-                && (sessionCommand.IsRetentionCommand
+                && (sessionCommand.IsRetentionCommand || sessionCommand.IsConversationSearch
                     || sessionCommand.Operation is SessionCommandOperation.RequestReview or SessionCommandOperation.RequestConfirm or SessionCommandOperation.RequestCancel)
                 && !commandRouter.IsActivationPrefixed(spokenText, AssistantName))
             {

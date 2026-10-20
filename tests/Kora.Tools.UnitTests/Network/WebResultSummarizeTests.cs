@@ -107,5 +107,5 @@ public sealed class WebResultSummarizeTests
         WebResultSnapshot.Capture(new(new(Guid.NewGuid()), 3), HostRequest.Create(RequestOrigin.LocalUi), 7,
             new("https://example.com/requested"),
             new(WebPageGetOutcome.Succeeded, "retrieved", new("https://example.com/final"), "text/plain", text, truncated, 1),
-            retrievedAt ?? DateTimeOffset.UtcNow).WebResult!;
+            retrievedAt ?? new DateTimeOffset(2026, 10, 20, 0, 0, 0, TimeSpan.Zero)).WebResult!;
 }

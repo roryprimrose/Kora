@@ -255,6 +255,8 @@ host-held choice/save and reset share the same service as
 `reset display.speech-text`. The current assistant-name prefix is accepted only
 on the exact activated route; no fuzzy/model interpretation is advertised.
 
+The [bounded natural caption grammar](Information_Display.md#bounded-natural-speech-caption-commands) now maps original typed/current-name activated whole utterances to these same commands. Show/on saves `CurrentUtterance`; hide/off saves `Off`, not one-shot visibility. `reset speech captions` resets mode only; placement/delay have independent reset phrases ([parser and syntax help](../src/Kora.Application/Configuration/SpeechTextCommand.cs)).
+
 Discovery choices bind owner, original channel, durable admitted configuration
 session/generation, preference revision and live ownership/privacy/call gates.
 Requested and terminal typed audit outcomes, atomic preference write, exact
@@ -315,8 +317,8 @@ there is no persisted native handle, arbitrary coordinate or display identity.
 Missing working area or unconfirmed placement fails presentation explicitly.
 Sentence alignment remains unavailable: the composed provider reports only
 utterance segment 0, not admitted sentence boundaries. No heuristic splitting,
-timing claim or new audio pipeline is introduced. Broader natural caption/viewer
-commands and native/accessibility/acoustic qualification remain open.
+timing claim or new audio pipeline is introduced. Commands outside the
+[bounded natural grammar](Information_Display.md#bounded-natural-speech-caption-commands) and native/accessibility/acoustic qualification remain open.
 Existing 3-sentence/80-word speech caps remain unchanged; brief spoken offers for
 over-limit detailed results are separate work, not delivered by captions.
 

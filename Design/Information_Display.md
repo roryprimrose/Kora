@@ -1086,7 +1086,7 @@ and display lifetimes.
 **Current sentence** and word alignment remain open: the actual adapter supplies
 utterance segment 0 only, so estimated boundaries are not advertised as
 host-admitted playback alignment. Arbitrary coordinates and
-broader natural caption/navigation commands below remain proposed. Native
+caption/navigation commands outside the [bounded natural grammar](#bounded-natural-speech-caption-commands) remain proposed. Native
 accessibility properties/selection/pin/settings are source-tested, not installed
 accessibility, installed multimonitor or acoustic qualification. Rich HTML/browser/diagram rendering is
 not delivered. The acoustic experiment remains maintained and is not retired.
@@ -1328,6 +1328,30 @@ Delivered caption options use [User Configuration](User_Configuration.md):
 
 All also have exact get/status/reset and `list speech text settings` discovery.
 
+### Bounded natural speech-caption commands
+
+Original typed input and current-name activated voice accept only the following whole utterances, case-insensitively, with an optional current assistant-name prefix. They map to the existing exact commands, not model inference; all phrases are included in recognition discovery and the configuration syntax help ([parser](../src/Kora.Application/Configuration/SpeechTextCommand.cs)).
+
+| Whole utterance | Existing action and scope |
+|---|---|
+| `turn on speech captions`, `show speech captions`, `show speech text`, `show the words you're saying` | Save device-local `CurrentUtterance`; this is persistent opt-in, not immediate display or replay |
+| `turn off speech captions`, `hide speech captions`, `hide speech text` | Save device-local `Off`; this is persistent opt-out, not one-shot hiding |
+| `list speech caption settings`, `inspect speech caption settings`, `status speech captions` | Inspect existing saved/effective settings and recovery |
+| `reset speech captions` | Save `Off` only; preserve placement and dismissal delay |
+| `get/status/reset speech caption placement` | Inspect or reset only placement |
+| `get/status/reset speech caption dismissal delay` | Inspect or reset only dismissal delay |
+| `put speech captions in the bottom-right/bottom-left/top-right/top-left` | Save one of the four existing working-area corners; no automatic display selection |
+| `keep speech text visible for <seconds> seconds` | Save canonical integer 0-30 seconds; use `1 second` for one, not number words |
+| `pin current speech caption`, `unpin current speech caption` | Run-only pin/unpin of the eligible host-owned current caption; never a content selector |
+
+The table abbreviates alternatives with `/`; a command contains one complete alternative. Unknown settings, trailing clauses, number words, noncanonical/out-of-range delays and vague `pin that text`/`unpin that text` clarify rather than falling through to inference or approval/question handling. Embedded or quoted instructions do not match ([grammar tests](../tests/Kora.Application.UnitTests/Configuration/NaturalSpeechCaptionCommandTests.cs)).
+
+Aliases retain original input origin, saved-preference confirmation, session/generation/choice identity, ownership/privacy/call admission and typed audit/atomic/readback outcomes. Configuration does not speak, stop listening or change response mode; options do not opt in. Pinning uses the existing observed playback identity and never restores retired speech ([execution](../src/Kora.Application/ViewModels/MainViewModel.SpeechText.cs), [configuration service](../src/Kora.Application/Configuration/SpeechTextConfigurationService.cs)).
+
+New speech, replacement, cancellation/failure, call/privacy/source/voice-generation changes and late callbacks retain the existing retirement rules. Activated input still uses the existing capture/interruption lifecycle; a caption retired by that lifecycle cannot be pinned afterward. No new playback, capture, re-reading, arbitrary response targeting, model/external-content authority or display-choice route is added ([caption lifetime](../src/Kora.Application/Voice/SpeechCaption.cs), [consumer tests](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.NaturalSpeechCaptions.cs)).
+
+This is bounded Implementation command parity only. Installed-native/accessibility/display/DPI, hardware/acoustic/provider and Enablement/RC qualification remain separate; deterministic tests do not qualify those capabilities ([delivery policy](Implementation_Roadmap.md#delivery-and-qualification-dependency-policy)).
+
 ### Bounded native reader text scale
 
 Appearance persistence runs off the dispatcher. During a known in-process save, new reader admission remains unavailable; existing Evidence content retains only its last confirmed typography and current private-content admission ([Evidence](../src/Kora/EvidenceWindow.axaml.cs)).
@@ -1356,16 +1380,16 @@ The broader proposed registry includes:
 
 | Preference | Default / choices | Example after "Kora" |
 |---|---|---|
-| Speech text | Off / sentence / utterance | "Show the words you're saying" |
-| Speech-text dismissal | 5 seconds; 0-30 seconds | "Keep speech text visible for ten seconds" |
-| Caption placement | Working-area corner/display; 24-DIP margin initially | "Put speech text in the top-left" |
+| Speech text | Sentence/word alignment remains proposed; bounded Off/CurrentUtterance aliases are [delivered above](#bounded-natural-speech-caption-commands) | "Show the current sentence" (proposed) |
+| Speech-text dismissal | Number-word parsing remains proposed; canonical integer 0-30 commands are [delivered above](#bounded-natural-speech-caption-commands) | "Keep speech text visible for ten seconds" (proposed) |
+| Caption placement | Arbitrary placement and voice display selection remain proposed; four corner aliases are [delivered above](#bounded-natural-speech-caption-commands) | "Put speech text on another display" (proposed) |
 | Text scale | 100%; 75-200% | "Make result text twenty percent larger" |
 | Detailed result opening | Offer (default) / Open automatically / Link only | "Always open detailed results" |
 | Browser target | Embedded when verified; external only by explicit selection | "Use my default browser for websites" |
 | Markdown mode | Rendered / source | "Show Markdown source by default" |
 | Mermaid | Enabled only after integration gate; source alternative always available | "Show Mermaid diagrams as source" |
 
-Content commands include "show the full answer", "hide speech text", "pin that text", "unpin that text", "show this page", "preview that HTML", "show the source", "show the diagram", "zoom in", "go back", and "close the content viewer".
+Broader proposed content commands include "show the full answer", "show this page", "preview that HTML", "show the source", "show the diagram", "zoom in", "go back", and "close the content viewer". `hide speech text` is a delivered persistent opt-out; caption pinning requires the explicit current-caption phrases above, never "pin that text" or "unpin that text" ([parser](../src/Kora.Application/Configuration/SpeechTextCommand.cs)).
 Remote assets remain blocked by default; "load the images for this page" initiates an exact reviewed asset operation, not a blanket setting or approval for future documents.
 Ambiguous "that" or multiple viewer targets requires clarification.
 Scrolling/diagram zoom/navigation operate on displayed content only; they cannot automate page forms or execute webpage instructions.

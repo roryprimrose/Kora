@@ -42,7 +42,7 @@ public sealed class SpeechTextCommandTests
         SpeechTextCommand.Parse("get display.speech-text " + new string('a', 1024), "Nova")!.Error.Should().Contain("byte limit");
         SpeechTextCommand.Parse("Kora", "Kora").Should().BeNull();
         SpeechTextCommand.Parse("Korax, get display.speech-text", "Kora").Should().BeNull();
-        SpeechTextCommand.Parse("show speech text", "Kora").Should().BeNull();
+        SpeechTextCommand.Parse("show speech text", "Kora")!.Value.Should().Be(SpeechTextMode.CurrentUtterance);
         SpeechTextCommand.Parse("list speech text settings", "Kora")!.Error.Should().BeNull();
     }
 }

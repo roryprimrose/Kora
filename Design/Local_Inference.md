@@ -121,6 +121,17 @@ under the same live original host activity. The bridge owns durable task intent,
 terminal task/audit receipts and source eligibility; these APIs do not save a
 conversation body or create source/session/task admission.
 
+After awaiting its run attempt, the owner uses
+`IModelTurnExecution.WaitForQuiescenceAsync(cancellationToken)` before releasing
+owned volatile source/runtime resources. The [host wait](../src/Kora.Application/Dependencies/ModelTurnHost.Execution.cs)
+observes the same physical completion gate held by cancelled/noncooperative
+adapter work, including late faults; cancelling only this wait cannot cancel the
+provider, release the gate or claim quiescence. Use a cleanup token independent
+of the cancelled request when cleanup must await termination. The observation
+grants no admission, prevents no future turn and is not a successful task receipt.
+Post-dispatch cancellation/timeout remains Unknown task certainty under the
+existing task invariant; do not wait by replaying or disposing the shared host.
+
 [ModelToolMode.None](../src/Kora.Core/Dependencies/ModelToolMode.cs) fixes the
 complete canonical catalogue to empty and rejects all tool history. Missing,
 unknown or mismatched wire mode/catalogue fails closed; text instructions alone

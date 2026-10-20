@@ -182,6 +182,12 @@ public sealed partial class ModelTurnHostTests
 
     private sealed class InvalidExecution(string fault) : IModelTurnExecution
     {
+        public Task WaitForQuiescenceAsync(CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            return Task.CompletedTask;
+        }
+
         public Task<ModelTurnResult> RunAsync(ModelTurn turn, Func<bool> admitted, CancellationToken token,
             Func<CancellationToken, Task>? validateSource = null)
         {

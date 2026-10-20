@@ -13,4 +13,10 @@ public interface IModelTurnExecution
     /// <returns>The host-correlated terminal outcome; only success can contain an answer.</returns>
     Task<ModelTurnResult> RunAsync(ModelTurn turn, Func<bool> admitted, CancellationToken token,
         Func<CancellationToken, Task>? validateSource = null);
+
+    /// <summary>Waits until this host's owned provider work has actually terminated, including cancelled late work.</summary>
+    /// <param name="cancellationToken">Cancels only this observation, never the provider or its ownership hold.</param>
+    /// <returns>Completion when no provider work is outstanding at the observed host boundary, not a successful turn receipt.</returns>
+    /// <remarks>Call after awaiting the owning RunAsync attempt. Completion grants no admission and cannot prevent a later turn.</remarks>
+    Task WaitForQuiescenceAsync(CancellationToken cancellationToken);
 }

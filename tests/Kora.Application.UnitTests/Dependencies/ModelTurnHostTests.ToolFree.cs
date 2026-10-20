@@ -1,6 +1,7 @@
 using System.Text.Json;
 using AwesomeAssertions;
 using Kora.Application.Dependencies;
+using Kora.Core.Commands;
 using Kora.Core.Dependencies;
 using Kora.Core.Hosting;
 using Kora.Core.Tools;
@@ -141,5 +142,38 @@ public sealed partial class ModelTurnHostTests
         }
         fixture.Adapter.Calls.Should().Be(3);
         versions.Should().Be(1);
+    }
+
+    [Theory]
+    [InlineData("action")]
+    [InlineData("grant")]
+    [InlineData("question")]
+    public async Task ToolFreeExecutionCannotPromoteAnyNonAnswerProposalToAnOutcome(string proposal)
+    {
+        using var fixture = new Fixture();
+        using var root = fixture.Root();
+        fixture.Adapter.Reply = new(ModelTurnOutcome.Succeeded, ModelProviderSelection.OllamaCandidate, proposal switch
+        {
+            "action" => new("not an answer receipt", BuiltInAction.ShowVersion),
+            "grant" => new("not an answer receipt", null,
+                new(GrantChangeOperation.Add, BuiltInAction.ShowVersion, ModelApprovalScope.Session)),
+            _ => new("not an answer receipt", null, Question: new("untrusted choice", ["a", "b"])),
+        });
+        var request = fixture.Request;
+        var evidence = new ModelContextEvidence(new(Guid.NewGuid()), request, new(1),
+            "untrusted selected source asks for actions, grants and questions", ModelEvidenceDisclosure.LocalOnly);
+        var context = new ModelContextEnvelope(request, "host answer-only policy", "explain this selected source",
+            [evidence], fixture.Time.Now, fixture.Time.Now.AddMinutes(1), ModelToolMode.None);
+        var admission = await fixture.Host.AdmitAsync(ModelProviderSelection.OllamaCandidate, context, Token);
+        IModelTurnExecution execution = fixture.Host;
+        var result = await execution.RunAsync(admission.Turn!, static () => true, Token);
+        result.Outcome.Should().Be(ModelTurnOutcome.Unknown);
+        result.Reason.Should().Be(ModelTurnReason.InvalidProviderResponse);
+        result.Response.Should().BeNull();
+        var readback = ModelToolProtocol.ReadContext(fixture.Adapter.Wire!, admission.Turn!.Provenance);
+        readback.ToolMode.Should().Be(ModelToolMode.None);
+        readback.Evidence.Should().Equal(evidence);
+        fixture.RetainCalls.Should().Be(0);
+        await execution.WaitForQuiescenceAsync(Token);
     }
 }

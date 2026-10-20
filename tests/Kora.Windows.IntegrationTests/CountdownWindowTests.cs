@@ -1,5 +1,6 @@
 using Avalonia.Controls;
 using Avalonia.Interactivity;
+using Avalonia.VisualTree;
 using AwesomeAssertions;
 using Kora.Application;
 using Kora.Application.Interaction;
@@ -32,26 +33,26 @@ public sealed class CountdownWindowTests
             await Run(f, "timer start 2");
             var transcript = f.Main.Transcript;
             window.Should().NotBeNull();
-            window!.FindControl<TextBlock>("CountdownStatus")!.Text.Should().Contain("2 seconds");
+            Find<TextBlock>(window!, "CountdownStatus").Text.Should().Contain("2 seconds");
             time.Advance(1);
-            window.FindControl<TextBlock>("CountdownStatus")!.Text.Should().Contain("1 seconds");
+            Find<TextBlock>(window!, "CountdownStatus").Text.Should().Contain("1 seconds");
             f.Main.Transcript.Should().Be(transcript);
-            window.FindControl<Button>("CountdownRefresh")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Find<Button>(window!, "CountdownRefresh").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             f.Main.Transcript.Should().Contain("1 seconds");
             await Run(f, "timer status");
             opens.Should().Be(1);
             transcript = f.Main.Transcript;
             time.Advance(1);
-            window.FindControl<TextBlock>("CountdownStatus")!.Text.Should().Contain("complete");
+            Find<TextBlock>(window!, "CountdownStatus").Text.Should().Contain("complete");
             opens.Should().Be(1);
             f.Main.Transcript.Should().Be(transcript);
             f.Main.ResponseTitle.Should().Be(title);
             f.Main.ResponseBody.Should().Be(body);
             await Run(f, "timer start 5");
-            window.FindControl<Button>("CountdownCancel")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Find<Button>(window!, "CountdownCancel").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             state.Status.Should().Contain("cancelled");
             await Run(f, "timer start 5");
-            window.Close();
+            window!.Close();
             state.Status.Should().Contain("cancelled");
             await Run(f, "timer status");
             opens.Should().Be(2);
@@ -93,6 +94,9 @@ public sealed class CountdownWindowTests
         f.Main.CommandText = command;
         await f.Main.RunTypedCommand.ExecuteAsync();
     }
+
+    private static T Find<T>(Window window, string name) where T : Control =>
+        window.GetVisualDescendants().OfType<T>().Single(control => string.Equals(control.Name, name, StringComparison.Ordinal));
 
     private sealed class ImmediateDispatcher : IUiDispatcher
     {

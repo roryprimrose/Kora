@@ -239,6 +239,54 @@ full clipboard answering and real native acceptance remain unavailable/open.
 
 ### Delivered Bounded Native Evidence Inspection
 
+#### Exact native Evidence trace preparation
+
+Original typed/current-name ACTIVATED `prepare evidence trace <trace-id>` uses a
+[dedicated parser](../src/Kora.Core/Commands/EvidenceTraceCommand.cs), the
+authoritative `TraceSnapshot.IsValidW3CId(value, 32)` validator and an
+[Application-only handoff](../src/Kora.Application/ViewModels/MainViewModel.EvidenceTrace.cs).
+The original value is exactly 32 nonzero lowercase ASCII hex characters, never
+trimmed, repaired, case-folded or inferred from GUIDs, spans, headers or links.
+The reserved malformed family is handled before question/model routing.
+`evidence trace help` is constant syntax, never current trace/source metadata.
+
+The [existing singleton controller](../src/Kora/EvidenceWindowController.cs)
+queues a native-only open/focus and
+[exact filter preparation](../src/Kora/EvidenceWindow.axaml.cs), requiring native
+focus and exact original value readback before success. Original input, assistant
+name, host/privacy, ownership binding/revision, call policy, activated voice
+generation, native controller/window, selected source and all filter/control
+revisions remain fenced through dispatcher opening and preparation. Unbound,
+disposed, denied, changed or unconfirmed presentation is explicitly unavailable,
+not a latest/unfiltered or alternative-source fallback.
+
+Only `TraceFilter` changes; **all other filters and the selected source remain
+unchanged and AND-composed**. New-window defaults are unchanged. The
+[same no-read filter invalidation](../src/Kora/EvidenceViewModel.Filters.cs)
+retires rows, selection/details, Find, actions, cursors and pending pages, even
+when preparing the same trace value. Late pages and old segment opens cannot
+restore retired content. Separate explicit Search / refresh and Next alone use
+the existing bounded retained reader under host-resolved admission; signed
+continuations, full-record validation before exclusion, budgets, privacy and
+cancellation are unchanged.
+
+No read/probe/count/scan, retention/cleanup/export, source capture, session
+selection, permission/approval response, audit promotion, model/provider/network,
+clipboard/persistence or meaningful activity renewal is introduced. Trace
+correlation remains untrusted diagnostic data, not Kora session/task/user
+identity, ownership or authority. It never selects AuthorityAudit or supplies
+an Activity parent, baggage, host session or current context. Existing admitted
+content-free host correlation remains separate from the trace-filter value.
+
+The consumed **I - Implementation** subset is the existing native Evidence
+singleton, exact trace validator, filter retirement and bounded retained reader.
+[Deterministic preparation tests](../tests/Kora.Windows.IntegrationTests/EvidenceTracePreparationTests.cs)
+cover no-read native acknowledgment, preserved filters/source and retired/late
+state. Portable parser/Application tests, maintained Release/analyzers and raw
+100% portable line **and** branch coverage remain required for readiness.
+Unrelated E/Q, providers, hardware, installed accessibility and retired
+experiments are not implementation prerequisites or newly qualified here.
+
 **Find first / Find next / Find previous / Clear literal Find** inspect only
 the exact immutable serialized `ResultText` page already returned by an explicit
 successful Search, Next, trace or segment read. They do not query a retained

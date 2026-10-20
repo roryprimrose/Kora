@@ -67,6 +67,8 @@ public sealed partial class SessionsConversationTests
         var count = f.Count("host_tasks");
         var review = model.PrepareExactReplacementReviewAsync(new(f.Request.SessionId.Value, entry.Request.TaskId.Value),
             RequestOrigin.ActivatedVoice, () => admitted, () => native, f.Token);
+        await Task.WhenAny(reached.Task, review);
+        reached.Task.IsCompleted.Should().BeTrue("the exact eligible source must reach the native dirty-buffer decision");
         await reached.Task;
         switch (decision)
         {
@@ -101,7 +103,11 @@ public sealed partial class SessionsConversationTests
             : decision is "cancel" ? ComposerDraftDecision.Cancel : ComposerDraftDecision.Discard);
         var shown = false;
         var error = await Record.ExceptionAsync(async () => shown = await review);
-        var accepted = decision is "discard" or "save" or "buffer";
+        var accepted = decision is "discard" or "buffer";
+        if (decision is "decision-failure" or "unconfirmed-save") { error.Should().BeOfType<IOException>(); }
+        else if (decision is "queue" or "save") { error.Should().BeOfType<InvalidOperationException>(); }
+        else if (decision is "entry") { error.Should().BeOfType<InvalidDataException>(); }
+        else { error.Should().BeNull(); }
         shown.Should().Be(accepted);
         model.CanConfirmExpiredRequeue.Should().Be(accepted);
         if (!accepted)
@@ -113,16 +119,16 @@ public sealed partial class SessionsConversationTests
         { model.ComposerBody.Should().Be("original private dirty buffer"); }
         if (decision is "save")
         {
-            error.Should().BeNull();
             model.ComposerDirty.Should().BeFalse();
             (await f.Store.ReadConversationDraftAsync(f.Request.SessionId, f.Token)).Draft.Body.Should().Be("original private dirty buffer");
         }
-        f.Count("host_tasks").Should().Be(count);
+        f.Count("host_tasks").Should().Be(count + (decision is "queue" or "save" or "unconfirmed-save" ? 1 : 0),
+            "only the separate explicit native save or the injected pause can create their own control receipt; preparation cannot create work");
         f.Count("conversation_messages").Should().Be(0);
         if (decision is not "entry")
         {
             (await f.Store.ReadQueueEntryAsync(f.Request.SessionId, entry.Request.TaskId, f.Token))!.State
-                .Should().Be(SessionQueueState.Pending);
+                .Should().Be(SessionQueueState.Expired);
         }
         action.Reads.Should().Be(0);
         model.Close();

@@ -652,6 +652,9 @@ fresh retry. Existing previews/questions/approvals are not consumed. The
 resulting proposal retains those original admission fences through the separate
 native confirmation; native discard remains independent. No new model route,
 replacement authority or durable mutation is introduced by preparation.
+A separate confirmed native draft Save may change the observed authority head;
+that preparation then refuses as stale, retaining the saved draft and original
+work selection. Only a new explicit exact request can observe that newer source.
 
 Native Sessions and [exact typed/current-name activated commands](../docs/commands.md#deterministic-local-version-queue) review one exact expired **stored Pending**, never-admitted fixed read in the active session/current run and original private admission epoch.
 Expiry is the original captured UTC deadline at or before now; previous-run Interrupted, Unknown, terminal, running and privacy-retired work are not replacement sources.

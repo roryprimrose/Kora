@@ -33,7 +33,8 @@ internal sealed partial class SessionsViewModel
         { throw new InvalidOperationException("Finish the existing native operation or review first; exact replacement preparation is unavailable."); }
         using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(token, lifetime.Token);
         ActivityLink[] causes = HostActivity.Current?.Activity is { } cause ? [new(cause.Context)] : [];
-        using var activity = HostActivity.BeginRoot(new(new(Guid.NewGuid()), new(command.SessionId), new(Guid.NewGuid()), origin),
+        // Save/Discard/Cancel are separate trusted native decisions, not execution under the command's voice origin.
+        using var activity = HostActivity.BeginRoot(new(new(Guid.NewGuid()), new(command.SessionId), new(Guid.NewGuid()), RequestOrigin.LocalUi),
             HostActivityLayer.Desktop, HostOperation.Presentation, causes);
         var epoch = selectionEpoch;
         var revision = access.ControlRevision;

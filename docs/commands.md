@@ -545,6 +545,9 @@ addressed session and task. Cancel or an unconfirmed save stops preparation
 without changing unrelated work selections. Finish any existing question,
 approval or native security preview separately; this route does not answer or
 replace it.
+If a confirmed native Save changes the observed authority source, the saved
+draft remains saved but this preparation refuses as stale. Request a new exact
+review explicitly; the command never silently retries after a source-changing save.
 
 Before separate native confirmation, the full review discloses old removal,
 retained history/task outcome, prerequisite and blocked dependents, original

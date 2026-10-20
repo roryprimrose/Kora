@@ -121,6 +121,18 @@ under the same live original host activity. The bridge owns durable task intent,
 terminal task/audit receipts and source eligibility; these APIs do not save a
 conversation body or create source/session/task admission.
 
+The execution port attaches the consumer's supplemental source-current/revocation
+predicate and optional asynchronous exact-source validator to the single-use
+turn; another call cannot replace that binding. The
+[host](../src/Kora.Application/Dependencies/ModelTurnHost.cs) rechecks around
+asynchronous source/profile/workspace reads, immediately before adapter dispatch,
+on each continuation/tool boundary and after output. The predicate is not
+request/session/task/tool authority and cannot retarget the captured envelope.
+[Deterministic source-fence tests](../tests/Kora.Application.UnitTests/Dependencies/ModelTurnHostTests.SourceAdmission.cs)
+cover revocation during awaited reads/provider output, continuation/handler
+boundaries, cancelled late output and missing durable task authority, without
+persisting a source in conversations.
+
 After awaiting its run attempt, the owner uses
 `IModelTurnExecution.WaitForQuiescenceAsync(cancellationToken)` before releasing
 owned volatile source/runtime resources. The [host wait](../src/Kora.Application/Dependencies/ModelTurnHost.Execution.cs)

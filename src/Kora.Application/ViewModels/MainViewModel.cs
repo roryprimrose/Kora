@@ -4375,11 +4375,12 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         {
             if (initiator == SecurityAuditInitiator.VoiceCommand
                 && (sessionCommand.IsRetentionCommand || sessionCommand.IsConversationSearch
-                    || sessionCommand.Operation is SessionCommandOperation.RequestReview or SessionCommandOperation.RequestConfirm or SessionCommandOperation.RequestCancel)
+                    || sessionCommand.Operation is SessionCommandOperation.RequestReview or SessionCommandOperation.RequestConfirm
+                        or SessionCommandOperation.RequestCancel or SessionCommandOperation.AttachmentInspect)
                 && !commandRouter.IsActivationPrefixed(spokenText, AssistantName))
             {
                 RetireSessionCommandReviews();
-                ShowInformation("Session request denied.", "Use the current assistant-name prefix and exact session request grammar. No pending question or model received this input.");
+                ShowInformation("Session request denied.", "Use the current assistant-name prefix and exact session grammar. No pending question or model received this input.");
                 return;
             }
             await ExecuteSessionCommandAsync(sessionCommand, initiator);

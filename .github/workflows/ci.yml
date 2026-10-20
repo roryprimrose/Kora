@@ -379,7 +379,7 @@ jobs:
         shard: [storage-heavy, storage-other, ui-definitions, native-ux, ui-platform]
     env:
       Version: ${{ needs.version.outputs.version }}
-      KORA_TEST_NATIVE_EVIDENCE_MODE: synchronous
+      KORA_TEST_NATIVE_EVIDENCE_MODE: ${{ matrix.shard == 'native-ux' && 'buffered' || 'synchronous' }}
 
     steps:
       # Keep the Windows job on the same reviewed action revisions as the portable job.

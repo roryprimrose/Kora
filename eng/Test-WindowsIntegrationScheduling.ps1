@@ -89,8 +89,8 @@ Assert ($workflow.Contains("if: always() && needs.version.outputs.already-publis
     [StringComparison]::Ordinal)) 'Failed or cancelled dependencies must not skip the required gate.'
 Assert ($workflow.Contains('name: Windows integration tests', [StringComparison]::Ordinal)) 'Preserve the required check identity.'
 Assert ($workflow.Contains('timeout-minutes: 30', [StringComparison]::Ordinal)) 'Preserve the Windows job deadline.'
-Assert ($workflow.Contains('KORA_TEST_NATIVE_EVIDENCE_MODE: synchronous',
-    [StringComparison]::Ordinal)) 'Normal Windows CI must retain synchronous fixture evidence.'
+Assert ($workflow.Contains('KORA_TEST_NATIVE_EVIDENCE_MODE: ${{ matrix.shard == ''native-ux'' && ''buffered'' || ''synchronous'' }}',
+    [StringComparison]::Ordinal)) 'Only the native-UX CI shard may select the measured buffered fixture profile.'
 Assert ($workflow.Contains("if: github.event_name == 'workflow_dispatch' && inputs.compare_native_evidence",
     [StringComparison]::Ordinal)) 'Native evidence comparisons must remain opt-in and manual-only.'
 $comparisonCases = @(& (Join-Path $PSScriptRoot 'Compare-NativeFixtureEvidence.ps1') -ListCases)

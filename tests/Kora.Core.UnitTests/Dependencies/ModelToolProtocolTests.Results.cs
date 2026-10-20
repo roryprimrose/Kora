@@ -25,6 +25,8 @@ public sealed partial class ModelToolProtocolTests
                 new(CapabilityOutcome.Succeeded, "read", Capabilities: new([ReadOnlyCapabilityCatalog.Descriptors[1]], 6, 2))),
             (ReadOnlyCapabilityCatalog.Readiness, "{}",
                 new(CapabilityOutcome.Succeeded, "read", Readiness: new([readiness], 1, null))),
+            (ReadOnlyCapabilityCatalog.Readiness, "{}",
+                new(CapabilityOutcome.Succeeded, "read", Readiness: new([readiness with { Readiness = DependencyReadiness.Ready }], 1, null))),
             (ReadOnlyCapabilityCatalog.RuntimeList, "{}",
                 new(CapabilityOutcome.Succeeded, "read", Runtimes: new([runtime], 1, null))),
             (ReadOnlyCapabilityCatalog.RuntimeStatus, """{"id":"local.inference"}""",
@@ -92,6 +94,15 @@ public sealed partial class ModelToolProtocolTests
     [InlineData("readiness-enum")]
     [InlineData("readiness-state")]
     [InlineData("readiness-control")]
+    [InlineData("descriptor-missing")]
+    [InlineData("readiness-missing")]
+    [InlineData("readiness-empty-id")]
+    [InlineData("readiness-empty-reason")]
+    [InlineData("runtime-list-missing")]
+    [InlineData("runtime-list-null-record")]
+    [InlineData("readiness-null-records")]
+    [InlineData("version-missing")]
+    [InlineData("runtime-status-missing")]
     public void Corrupt_recorded_shapes_enums_pagination_and_qualification_are_rejected(string fault)
     {
         var capability = ReadOnlyCapabilityCatalog.List;
@@ -113,18 +124,48 @@ public sealed partial class ModelToolProtocolTests
                 input = """{"id":"application.get_version"}""";
                 reply = new(CapabilityOutcome.Succeeded, "read", Descriptor: ReadOnlyCapabilityCatalog.Descriptors[0]);
                 break;
+            case "descriptor-missing":
+                capability = ReadOnlyCapabilityCatalog.Get;
+                input = """{"id":"application.get_version"}""";
+                reply = new(CapabilityOutcome.Succeeded, "read", Version: new("1", "unobserved"));
+                break;
+            case "readiness-missing":
+                capability = ReadOnlyCapabilityCatalog.Readiness;
+                reply = new(CapabilityOutcome.Succeeded, "read", Version: new("1", "unobserved"));
+                break;
+            case "readiness-null-records":
+                capability = ReadOnlyCapabilityCatalog.Readiness;
+                reply = new(CapabilityOutcome.Succeeded, "read", Readiness: new(null!, 1, null));
+                break;
+            case "version-missing":
+                capability = ReadOnlyCapabilityCatalog.Version;
+                reply = new(CapabilityOutcome.Succeeded, "read", Descriptor: ReadOnlyCapabilityCatalog.Descriptors[0]);
+                break;
+            case "runtime-status-missing":
+                capability = ReadOnlyCapabilityCatalog.RuntimeStatus;
+                input = """{"id":"local.inference"}""";
+                reply = new(CapabilityOutcome.Succeeded, "read", Version: new("1", "unobserved"));
+                break;
+            case "runtime-list-missing":
+                capability = ReadOnlyCapabilityCatalog.RuntimeList;
+                reply = new(CapabilityOutcome.Succeeded, "read", Version: new("1", "unobserved"));
+                break;
+            case "runtime-list-null-record":
+                capability = ReadOnlyCapabilityCatalog.RuntimeList;
+                reply = new(CapabilityOutcome.Succeeded, "read", Runtimes: new([null!], 1, null));
+                break;
             case "runtime":
             case "runtime-qualified":
             case "runtime-enum":
             case "runtime-page":
                 var runtime = new RuntimeObservation(ReadOnlyCapabilityCatalog.LocalRuntimeId, RuntimeLocality.Local,
-                    CapabilityAvailability.NotObserved, null, "not-observed", null, string.Equals(fault, "runtime-qualified", StringComparison.Ordinal));
-                if (string.Equals(fault, "runtime-enum", StringComparison.Ordinal)) { runtime = runtime with { Locality = (RuntimeLocality)999 }; }
-                capability = string.Equals(fault, "runtime-page", StringComparison.Ordinal) ? ReadOnlyCapabilityCatalog.RuntimeList : ReadOnlyCapabilityCatalog.RuntimeStatus;
-                input = string.Equals(fault, "runtime-page", StringComparison.Ordinal) ? "{}" : """{"id":"local.inference"}""";
-                reply = string.Equals(fault, "runtime-page"
-, StringComparison.Ordinal) ? new(CapabilityOutcome.Succeeded, "read", Runtimes: new([runtime, runtime], 2, null))
-                    : new(CapabilityOutcome.Succeeded, "read", Runtime: string.Equals(fault, "runtime", global::System.StringComparison.Ordinal) ? null : runtime);
+                    CapabilityAvailability.NotObserved, null, "not-observed", null, fault is "runtime-qualified");
+                if (fault is "runtime-enum") { runtime = runtime with { Locality = (RuntimeLocality)999 }; }
+                capability = fault is "runtime-page" ? ReadOnlyCapabilityCatalog.RuntimeList : ReadOnlyCapabilityCatalog.RuntimeStatus;
+                input = fault is "runtime-page" ? "{}" : """{"id":"local.inference"}""";
+                reply = fault is "runtime-page"
+                    ? new(CapabilityOutcome.Succeeded, "read", Runtimes: new([runtime, runtime], 2, null))
+                    : new(CapabilityOutcome.Succeeded, "read", Runtime: fault is "runtime" ? null : runtime);
                 break;
             default:
                 capability = ReadOnlyCapabilityCatalog.Readiness;
@@ -135,6 +176,8 @@ public sealed partial class ModelToolProtocolTests
                     "readiness-enum" => readiness with { Availability = (CapabilityAvailability)999 },
                     "readiness-state" => readiness with { Readiness = (DependencyReadiness)999 },
                     "readiness-control" => readiness with { Reason = "\u0000" },
+                    "readiness-empty-id" => readiness with { Id = "" },
+                    "readiness-empty-reason" => readiness with { Reason = "" },
                     _ => null!,
                 };
                 reply = new(CapabilityOutcome.Succeeded, "read", Readiness: new([readiness], 1, null));

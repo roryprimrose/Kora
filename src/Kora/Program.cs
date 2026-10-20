@@ -509,6 +509,7 @@ internal static class Program
         services.AddSingleton<IModelTurnAdmission>(provider => provider.GetRequiredService<ModelTurnHost>());
         services.AddSingleton<IModelTurnExecution>(provider => provider.GetRequiredService<ModelTurnHost>());
         services.AddSingleton<SessionConversationService>();
+        services.AddSingleton<SessionRequestCommandService>();
         services.AddTransient<NewRequestComposer>();
         services.AddSingleton<Kora.Application.Definitions.PromptConversationSubmission>();
         services.AddSingleton<ModelProviderHandoffWorkflow>();
@@ -519,20 +520,7 @@ internal static class Program
         services.AddSingleton<ILocalModelSetup, WindowsOllamaSetupService>();
 #endif
         services.AddSingleton<DependencySetupWorkflow>();
-        services.AddKeyedSingleton(
-            "ollama-reasoner",
-            (_, _) => new HttpClient(new HttpClientHandler
-            {
-                AllowAutoRedirect = false,
-                UseProxy = false,
-            })
-            {
-                Timeout = TimeSpan.FromMinutes(3),
-            });
-        services.AddSingleton<ILocalModelReasoner>(provider =>
-            new WindowsOllamaReasoner(
-                provider.GetRequiredKeyedService<HttpClient>("ollama-reasoner"),
-                provider.GetRequiredService<BuiltInCommandCatalog>()));
+        services.AddSingleton<ILocalModelReasoner, UnavailableLocalModelReasoner>();
         services.AddSingleton<IPreferenceStore, LocalPreferenceStore>();
         services.AddSingleton<IPlaybackVolumePreferences>(provider =>
             new LocalPlaybackVolumePreferences(provider.GetRequiredService<IPreferenceStore>()));
@@ -634,6 +622,12 @@ internal static class Program
         services.AddSingleton<Kora.Tools.Clipboard.ClipboardRead>();
         services.AddSingleton<Kora.Tools.Clipboard.ClipboardReuse>();
         services.AddSingleton<Kora.Tools.Clipboard.ClipboardRevoke>();
+        services.AddSingleton<Kora.Application.Context.ClipboardExplanationAdmission>();
+        services.AddSingleton<Kora.Application.Context.ClipboardExplanationWorkflow>();
+        services.AddSingleton<Kora.Core.Context.IClipboardSourceUsePolicy, Kora.Tools.Clipboard.UnavailableClipboardSourceUsePolicy>();
+        services.AddSingleton<Kora.Core.Context.IClipboardExplanationWorkflow>(provider =>
+            provider.GetRequiredService<Kora.Application.Context.ClipboardExplanationWorkflow>());
+        services.AddSingleton<Kora.Tools.Clipboard.ClipboardExplain>();
         services.AddSingleton<Kora.Core.Context.ILocalFileInspector, Kora.Windows.Context.WindowsLocalFileInspector>();
         services.AddSingleton<Kora.Tools.Files.LocalFilePreview>();
         services.AddSingleton<Kora.Tools.Files.LocalSessionFileAttach>();

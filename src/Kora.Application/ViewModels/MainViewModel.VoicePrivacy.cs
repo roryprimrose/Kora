@@ -272,6 +272,8 @@ public sealed partial class MainViewModel
             sessionRetentionPlanner.Dispose();
         }
         RetireWebResultDetails();
+        sessionRequests?.Retire();
+        PrivacyClosureRequested -= OnSessionRequestPrivacyClosure;
         RetireSpeechCaption();
         lifecycleAdmissionClosed = true;
         if (speechPreparation is not null)
@@ -286,6 +288,11 @@ public sealed partial class MainViewModel
         HoldVoiceInput("Microphone closed · host disposed");
         microphoneRefreshCancellation?.Cancel();
         clipboardPreview.Changed -= OnClipboardPreviewChanged;
+        if (clipboardExplanation is not null)
+        {
+            clipboardExplanation.Changed -= OnClipboardPreviewChanged;
+            clipboardExplanation.Dispose();
+        }
         clipboardPreview.Dispose();
         DisposeFilePreview();
         privacyObservation.Changed -= OnWindowsPrivacyChanged;
@@ -474,6 +481,7 @@ public sealed partial class MainViewModel
 
     private void HoldVoiceInput(string reason, WindowsSessionState? sessionState = null, bool restoreOnUnlock = false)
     {
+        sessionRequests?.Retire();
         RetireQuestionVoiceReply();
         long revision;
         lock (voiceReadinessGate)
@@ -1009,7 +1017,8 @@ public sealed partial class MainViewModel
             || Volatile.Read(ref pendingAuditWrites) != 0
             || Volatile.Read(ref stoppingAudioOperations) != 0
             || !IsHandoffReviewQuiescent || speechPreparation?.IsQuiescent == false || IsBusy || IsWebPageRetrievalActive
-            || !clipboardPreview.IsQuiescent || filePreview?.IsQuiescent == false || sessionFiles?.IsQuiescent == false
+            || !clipboardPreview.IsQuiescent || clipboardExplanation?.IsQuiescent == false
+            || filePreview?.IsQuiescent == false || sessionFiles?.IsQuiescent == false
             || IsLocalModelSetupActive || IsPowerShellSetupActive || IsSpeechProviderOperationActive
             || activeReasoningTask is { IsCompleted: false } || isModelActionDispatchActive
             || !sessionController.IsCurrentSessionUnlocked())

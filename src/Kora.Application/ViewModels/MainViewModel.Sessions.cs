@@ -11,27 +11,44 @@ namespace Kora.Application.ViewModels;
 public sealed partial class MainViewModel
 {
     private SessionWorkspaceService? sessionCommands;
+    private SessionRequestCommandService? sessionRequests;
     private readonly HashSet<Guid> sessionPresentationSources = [];
 
     public void RevokeSessionPresentation(HostId<SessionIdentity> session)
     {
         if (!sessionPresentationSources.Contains(session.Value)) { return; }
+        sessionRequests?.Retire();
         sessionPresentationSources.Clear();
         ResponseBody = "Session presentation revoked by inactivity retention. Refresh the exact retained session before inspecting it again.";
     }
 
-    public void BindSessionCommands(SessionWorkspaceService service) => sessionCommands = service;
+    public void BindSessionCommands(SessionWorkspaceService service, SessionRequestCommandService? requests = null)
+    {
+        sessionCommands = service;
+        sessionRequests = requests;
+        PrivacyClosureRequested -= OnSessionRequestPrivacyClosure;
+        PrivacyClosureRequested += OnSessionRequestPrivacyClosure;
+    }
+
+    private void OnSessionRequestPrivacyClosure(object? sender, EventArgs args)
+    {
+        sessionRequests?.Retire();
+        if (SessionCommand.Parse(CommandText, AssistantName) is { Operation: SessionCommandOperation.RequestReview })
+        { CommandText = string.Empty; }
+    }
 
     internal async Task ExecuteSessionCommandAsync(SessionCommand command, SecurityAuditInitiator initiator)
     {
         if (disposed) { return; }
         if (command.Operation == SessionCommandOperation.Invalid)
         {
+            sessionRequests?.Retire();
             ShowInformation("Session command not accepted.", command.Error!);
             return;
         }
         if (pendingModelQuestion is not null || IsGrantChangePending || IsModelActionApprovalPending)
         {
+            sessionRequests?.Retire();
             ShowInformation("Session command blocked.", "Resolve the current question or approval explicitly first. No target or decision changed.");
             return;
         }
@@ -43,10 +60,14 @@ public sealed partial class MainViewModel
         };
         var callRevision = CallPolicyRevision;
         var recoveryRevision = Volatile.Read(ref voiceRecoveryRevision);
+        var originalName = AssistantName;
+        var requestCommand = command.Operation is SessionCommandOperation.RequestReview
+            or SessionCommandOperation.RequestConfirm or SessionCommandOperation.RequestCancel;
         bool Eligible() => !disposed && IsHostInputEligible && CallPolicyRevision == callRevision
             && pendingModelQuestion is null && !IsGrantChangePending && !IsModelActionApprovalPending
             && (origin != RequestOrigin.ActivatedVoice || (IsVoiceEnabled && HasVoiceConsent
-                && CallObservation.AllowActivation && Volatile.Read(ref voiceRecoveryRevision) == recoveryRevision));
+                && CallObservation.AllowActivation && Volatile.Read(ref voiceRecoveryRevision) == recoveryRevision
+                && (!requestCommand || !IsProtectedCall && string.Equals(originalName, AssistantName, StringComparison.Ordinal))));
         if (sessionCommands is null)
         {
             ShowInformation("Session commands unavailable.", "The trusted durable workspace service is not bound. Use the native Sessions workspace when available.");
@@ -67,7 +88,10 @@ public sealed partial class MainViewModel
         }
         try
         {
-            var result = await sessionCommands.ExecuteCommandAsync(command, origin, Eligible, CancellationToken.None);
+            var result = requestCommand
+                ? await (sessionRequests ?? throw new InvalidOperationException("The canonical retained-request command service is unavailable."))
+                    .ExecuteAsync(command, origin, Eligible, CancellationToken.None)
+                : await sessionCommands.ExecuteCommandAsync(command, origin, Eligible, CancellationToken.None);
             if (!Eligible()) { return; }
             ShowInformation("Session command " + result.Outcome + ".", Encoding.UTF8.GetString(SessionCommandResult.Serialize(result)));
             if (command.SessionId is { } id) { sessionPresentationSources.Add(id); }

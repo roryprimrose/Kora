@@ -81,9 +81,12 @@ composition. Missing, malformed or changed runtime/model identity fails closed.
 
 ## Native Tool-Message Transport Boundary
 
-The Windows `WindowsOllamaToolTransport` implements the portable
-`IModelToolTransport` seam for native Ollama `api/chat` messages. This is a
-separate path from the unchanged bootstrap `api/generate` reasoner. Transport
+The Windows [native transport](../src/Kora.Windows/Dependencies/WindowsOllamaToolTransport.cs)
+implements the portable [IModelToolTransport](../src/Kora.Core/Dependencies/IModelToolTransport.cs)
+seam for native Ollama `api/chat` messages. Desktop [composition](../src/Kora/Program.cs)
+replaces the legacy `api/generate` registration with
+[explicit unavailability](../src/Kora.Application/Dependencies/UnavailableLocalModelReasoner.cs):
+bootstrap readiness cannot bypass exact host/session/task admission. Transport
 implementation is not candidate acceptance, qualification evidence, permission
 to start a server, or permission to install/download/select another model.
 
@@ -97,6 +100,85 @@ rejected runtime/model is qualified, no readiness observation sets
 That host supplies the live continuation guard around each exchange/tool and
 retains the session consumer's current-source fence; native composition does
 not call the engine's deliberately refused unguarded entry.
+
+### Shared execution seam for original-request consumers
+
+Voice requests, clipboard explanation, file answers and web summaries consume
+the same [admission port](../src/Kora.Application/Dependencies/IModelTurnAdmission.cs)
+and [execution port](../src/Kora.Application/Dependencies/IModelTurnExecution.cs)
+on one host. Their owning workflows supply the original host request/activity,
+exact admitted session/task, immutable [context envelope](../src/Kora.Core/Dependencies/ModelContextEnvelope.cs)
+and current-source fences. These ports do not infer a session or authorize a source.
+No consumer may route around qualification, relabel its origin as native input,
+or use transport correlation as host authority.
+
+For a source-qualified **local, tool-free** turn, the owning request/task bridge
+constructs the [immutable envelope](../src/Kora.Core/Dependencies/ModelContextEnvelope.cs)
+with the explicit final argument `toolMode: ModelToolMode.None` and calls
+`AdmitAsync(ModelTurnChoice.Local, envelope, null, token)`. It then passes the
+issued turn to `IModelTurnExecution.RunAsync(turn, admitted, token, validateSource)`
+under the same live original host activity. The bridge owns durable task intent,
+terminal task/audit receipts and source eligibility; these APIs do not save a
+conversation body or create source/session/task admission.
+
+The existing [clipboard context factory](../src/Kora.Core/Context/ClipboardExplanationContext.cs)
+selects `ModelToolMode.None`; its [workflow](../src/Kora.Application/Context/ClipboardExplanationWorkflow.cs)
+supplies the current immutable source fence through the same execution port.
+This wiring does not replace source-use policy or enable clipboard explanation:
+the production [source-use policy](../src/Kora.Tools/Clipboard/UnavailableClipboardSourceUsePolicy.cs)
+remains explicitly unavailable.
+
+The execution port attaches the consumer's supplemental source-current/revocation
+predicate and optional asynchronous exact-source validator to the single-use
+turn; another call cannot replace that binding. The
+[host](../src/Kora.Application/Dependencies/ModelTurnHost.cs) rechecks around
+asynchronous source/profile/workspace reads, immediately before adapter dispatch,
+on each continuation/tool boundary and after output. The predicate is not
+request/session/task/tool authority and cannot retarget the captured envelope.
+[Deterministic source-fence tests](../tests/Kora.Application.UnitTests/Dependencies/ModelTurnHostTests.SourceAdmission.cs)
+cover revocation during awaited reads/provider output, continuation/handler
+boundaries, cancelled late output and missing durable task authority, without
+persisting a source in conversations.
+
+After awaiting its run attempt, the owner uses
+`IModelTurnExecution.WaitForQuiescenceAsync(cancellationToken)` before releasing
+owned volatile source/runtime resources. The [host wait](../src/Kora.Application/Dependencies/ModelTurnHost.Execution.cs)
+observes the same physical completion gate held by cancelled/noncooperative
+adapter work, including late faults; cancelling only this wait cannot cancel the
+provider, release the gate or claim quiescence. Use a cleanup token independent
+of the cancelled request when cleanup must await termination. The observation
+grants no admission, prevents no future turn and is not a successful task receipt.
+Post-dispatch cancellation/timeout remains Unknown task certainty under the
+existing task invariant; do not wait by replaying or disposing the shared host.
+
+[ModelToolMode.None](../src/Kora.Core/Dependencies/ModelToolMode.cs) fixes the
+complete canonical catalogue to empty and rejects all tool history. Missing,
+unknown or mismatched wire mode/catalogue fails closed; text instructions alone
+never disable tools. The [native request](../src/Kora.Windows/Dependencies/OllamaToolWire.cs)
+omits the `tools` field, and [transport](../src/Kora.Windows/Dependencies/WindowsOllamaToolTransport.cs)
+rejects unsolicited tool calls. The [bounded adapter](../src/Kora.Application/Dependencies/BoundedModelTurnAdapter.cs)
+refuses tool-call messages before callback dispatch, including fake transports.
+The [host](../src/Kora.Application/Dependencies/ModelTurnHost.cs) independently
+refuses every tool callback and suppresses an adapter's claimed answer after
+a forbidden attempt (`Denied / ToolUseNotPermitted`). Existing default
+`ReadOnly` turns retain their six-tool behaviour. Qualification, exact local
+selection, byte/deadline limits and cancellation/quiescence fences still apply.
+The [complete-envelope/request tests](../tests/Kora.Core.UnitTests/Dependencies/ModelToolProtocolTests.ToolFree.cs)
+measure exact 32,768-byte success and one-byte overflow in both modes with
+source evidence preserved; [native budget tests](../tests/Kora.Windows.IntegrationTests/Dependencies/WindowsOllamaToolTransportTests.Budget.cs)
+also enforce the complete provider frame before HTTP without restoring tool declarations.
+
+The [retained native conversation workflow](../src/Kora.Application/Hosting/SessionConversationService.Execution.cs)
+owns its existing original USER/dispatch/terminal transaction and exact readback;
+it is not a generic voice or selected-source context broker. Source-policy owners
+retain source consent, classification, provenance and expiry. The
+[host continuation validator](../src/Kora.Application/Dependencies/ModelTurnHost.cs)
+rechecks live session-profile authority and the captured tuple's catalogue and
+installation around exchanges and tool callbacks. Later preference edits still
+affect later turns, not the captured tuple. Deterministic
+[integrated execution tests](../tests/Kora.Application.UnitTests/Dependencies/ModelTurnHostTests.IntegratedExecution.cs)
+cover retained original input through the real bounded loop and registry, plus
+authority loss before and after a tool; this is not provider qualification.
 
 A future enablement owner must supply an exact, unexpired host-created binding
 for the admitted provenance and complete account/catalogue/model/options

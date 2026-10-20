@@ -176,6 +176,8 @@ public sealed partial class WindowsOllamaToolTransport : IModelToolTransport
             if (time.GetUtcNow() >= deadline) { return Finish(request, ModelTurnOutcome.TimedOut); }
             if (parsed is { Message: ModelAssistantToolCalls calls })
             {
+                if (request.Context.ToolMode == ModelToolMode.None)
+                { return Finish(request, ModelTurnOutcome.Denied); }
                 var previousIds = exchanges.SelectMany(exchange => exchange.Calls.Calls).Select(call => call.CallId)
                     .ToHashSet(StringComparer.Ordinal);
                 if (calls.Calls.Length > ModelToolProtocol.MaximumCalls - previousIds.Count

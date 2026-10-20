@@ -98,15 +98,16 @@ public static partial class ModelToolProtocol
             }
             writer.WriteEndArray();
         }
-        else if (message is ModelToolResultMessage result)
+        else
         {
+            // The closed hierarchy's remaining concrete message is the host result.
+            var result = (ModelToolResultMessage)message;
             writer.WriteString("kind", "toolResult");
             writer.WriteString("callId", result.CallId);
             writer.WriteString("capabilityId", result.CapabilityId);
             writer.WritePropertyName("result");
             writer.WriteRawValue(result.Result.AsSpan());
         }
-        else { throw new InvalidDataException("Unknown conversation message type."); }
         writer.WriteEndObject();
     }
 

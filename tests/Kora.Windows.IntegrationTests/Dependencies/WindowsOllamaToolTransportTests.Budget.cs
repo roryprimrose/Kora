@@ -10,14 +10,16 @@ namespace Kora.Windows.IntegrationTests.Dependencies;
 public sealed partial class WindowsOllamaToolTransportTests
 {
     [Theory]
-    [InlineData(0, ModelTurnOutcome.Succeeded)]
-    [InlineData(-1, ModelTurnOutcome.Denied)]
+    [InlineData(ModelToolMode.ReadOnly, 0, ModelTurnOutcome.Succeeded)]
+    [InlineData(ModelToolMode.ReadOnly, -1, ModelTurnOutcome.Denied)]
+    [InlineData(ModelToolMode.None, 0, ModelTurnOutcome.Succeeded)]
+    [InlineData(ModelToolMode.None, -1, ModelTurnOutcome.Denied)]
     public async Task Remaining_native_input_budget_is_enforced_at_the_exact_complete_frame_boundary_before_HTTP(
-        int adjustment, ModelTurnOutcome expected)
+        ModelToolMode mode, int adjustment, ModelTurnOutcome expected)
     {
         await using var fixture = new Fixture();
         using var root = fixture.Root();
-        var initial = fixture.Request();
+        var initial = fixture.Request(toolMode: mode);
         var canonicalBytes = ModelToolProtocol.SerializeRequest(initial).Length;
         var originalNativeBytes = OllamaToolWire.WriteRequest(initial, Model, []).Length;
         fixture.BoundModel = Model + new string('m', Math.Max(1, canonicalBytes - originalNativeBytes + 1));
@@ -26,13 +28,16 @@ public sealed partial class WindowsOllamaToolTransportTests
         var answer = NativeAnswer(fixture.BoundModel);
         Encoding.UTF8.GetByteCount(answer).Should().BeLessThan(ModelToolProtocol.MaximumOutputUtf8Bytes);
         fixture.Chat = (message, _) => Task.FromResult(Json(message, answer));
-        var request = fixture.Request(budget: new(nativeBytes + adjustment, ModelToolProtocol.MaximumOutputUtf8Bytes));
+        var request = fixture.Request(budget: new(nativeBytes + adjustment, ModelToolProtocol.MaximumOutputUtf8Bytes),
+            toolMode: mode);
         var reply = await fixture.Transport.CompleteAsync(request, Token);
         reply.Outcome.Should().Be(expected);
         reply.Provenance.Should().BeSameAs(request.Provenance);
         if (expected == ModelTurnOutcome.Succeeded)
         {
             fixture.Bodies.Should().ContainSingle().Which.Length.Should().Be(nativeBytes);
+            using var body = JsonDocument.Parse(fixture.Bodies.Single());
+            body.RootElement.TryGetProperty("tools", out _).Should().Be(mode == ModelToolMode.ReadOnly);
             reply.Usage.Should().Be(new ModelToolUsage(nativeBytes,
                 Math.Max(Encoding.UTF8.GetByteCount(answer), ModelToolProtocol.SerializeMessage(reply.Message!).Length)));
         }

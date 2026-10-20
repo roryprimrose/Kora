@@ -31,4 +31,5 @@ public enum ModelTurnReason
     HostInterrupted,
     ToolLoopBudgetExceeded,
     ToolResultRejected,
+    ToolUseNotPermitted,
 }

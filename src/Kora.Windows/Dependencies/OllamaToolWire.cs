@@ -58,9 +58,12 @@ internal static partial class OllamaToolWire
             if (index != request.Messages.Length)
             { throw new InvalidDataException("The native conversation contains an unobserved or replayed exchange."); }
             writer.WriteEndArray();
-            writer.WriteStartArray("tools");
-            foreach (var descriptor in ReadOnlyCapabilityCatalog.Descriptors) { WriteTool(writer, descriptor); }
-            writer.WriteEndArray();
+            if (request.Context.ToolMode == ModelToolMode.ReadOnly)
+            {
+                writer.WriteStartArray("tools");
+                foreach (var descriptor in ReadOnlyCapabilityCatalog.Descriptors) { WriteTool(writer, descriptor); }
+                writer.WriteEndArray();
+            }
             writer.WriteEndObject();
         }
         var bytes = stream.ToArray();

@@ -15,7 +15,10 @@ public sealed class ClipboardPreviewWindowContractTests
             .And.Contain("AutomationProperties.SetName(reuseButton, \"Reuse this exact clipboard snapshot ID\")")
             .And.Contain("AutomationProperties.SetName(revokeButton, \"Revoke and clear this clipboard snapshot\")")
             .And.Contain("source.Text = null").And.Contain("Content = null").And.Contain("Close()")
-            .And.Contain("No inference, egress approval, copy/write or history")
+            .And.Contain("No inference without explicit review, egress approval, copy/write or history")
+            .And.Contain("Review and explain this exact clipboard snapshot locally")
+            .And.Contain("consent.IsChecked != true")
+            .And.Contain("explanation.Text = null")
             .And.Contain("Clipboard changes do not update this snapshot. Close revokes it.")
             .And.NotContain("Clipboard.").And.NotContain("HttpClient");
     }

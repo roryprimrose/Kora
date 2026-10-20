@@ -57,12 +57,14 @@ public sealed class DetailViewerTests
         selection.Should().BeNull();
         state.Status.Should().Contain("do not grant clipboard");
         state.ActiveText.Should().Be(message.Body);
+        state.AssistantText.Should().BeEmpty();
     }
     [Fact]
     public void Reopening_exact_reference_reuses_state_but_new_revision_is_separate()
     {
         var registry = new DetailViewerRegistry();
         var item = Item();
+        new DetailViewerState(item).AssistantText.Should().BeEmpty();
         var first = registry.Open(item, true);
         registry.Open(item, true).Should().BeSameAs(first);
         var revision = Item(reference: new(item.Reference.ItemId, 2), source: "new answer");

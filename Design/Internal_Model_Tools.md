@@ -78,11 +78,23 @@ presentation. The host keeps its slot and awaits actual engine/transport
 termination; cancellation acknowledgement is not quiescence. Host disposal
 also disposes its distinct owned adapters and their transports.
 
-Deterministic fake-transport tests are authored against the real admitted host
-and registry, with hostile messages, replay, authority drift, byte/call
-exhaustion, cancellation and noncooperative late completion. Execution and
-exact portable coverage remain pending the serial validation permit; these
-are not passing evidence. No production profile is qualified or enabled by
+The [explicit tool-free mode](Local_Inference.md#shared-execution-seam-for-original-request-consumers)
+captures `ModelToolMode.None` in the host envelope. It admits an empty catalogue,
+no continuation history and only a final answer. Native omission and transport,
+engine and independent host-callback refusal prohibit all tool dispatch even
+when lower-trust source text or a provider requests one; ordinary default
+read-only turns remain unchanged ([protocol tests](../tests/Kora.Core.UnitTests/Dependencies/ModelToolProtocolTests.ToolFree.cs),
+[host tests](../tests/Kora.Application.UnitTests/Dependencies/ModelTurnHostTests.ToolFree.cs),
+[native tests](../tests/Kora.Windows.IntegrationTests/Dependencies/WindowsOllamaToolTransportTests.ToolFree.cs)).
+
+Deterministic [fake-transport tests](../tests/Kora.Application.UnitTests/Dependencies/ModelTurnHostTests.ToolLoop.cs)
+exercise the real admitted host and registry, with hostile messages, replay,
+authority drift, byte/call exhaustion, cancellation and noncooperative late
+completion. The [retained integration tests](../tests/Kora.Application.UnitTests/Dependencies/ModelTurnHostTests.IntegratedExecution.cs)
+join that loop to the original USER/task/answer path and fence live
+session-profile/catalogue authority without changing frozen profile semantics.
+Maintained builds, test execution and exact portable coverage remain required;
+authored tests alone are not passing evidence. No production profile is qualified or enabled by
 this engine. Unknown/unqualified runtime/profile stays explicitly unavailable.
 No clipboard, files, URI, settings, shell, network, grants, skill/agent executor
 or additional catalogue capability is introduced.

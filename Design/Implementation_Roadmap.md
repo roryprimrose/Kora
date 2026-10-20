@@ -50,9 +50,9 @@ quiescence foundation and six read-only catalogue actions. Production
 transport composition belongs to its native adapter owner, and conversation
 retention/presentation to its session owner; neither is replaced here.
 Deterministic real-host/fake-transport tests and related documentation are
-authored. Build/test execution and exact raw 100% portable line **and** branch
-coverage remain pending the explicit serial validation permit, not claimed
-READY. Qualified fake evidence cannot qualify production. Runtime/profile
+authored. [Maintained build/test execution and exact raw 100% portable line **and** branch
+coverage](../CONTRIBUTING.md#development-checks) remain mandatory before READY.
+Qualified fake evidence cannot qualify production. Runtime/profile
 enablement and RC E/Q remain unavailable, independent of this bounded I
 implementation; no provider/hardware/network/experiment is executed.
 
@@ -68,15 +68,16 @@ Details share the path. Legacy USER/search/draft/reuse semantics remain distinct
 Consumed I is the existing admitted host execution, read-only registry and
 private original conversation/task/audit store, not complete R11/R12/R14 or an
 installed provider. Additive response format 1 / message format 2 reuse existing
-schema-11 cells, cursor revisions and private retention/removal lifecycle.
+cells, cursor revisions and private retention/removal lifecycle, with a
+[transactional schema-11-to-12 migration](Interaction_And_Sessions.md#bounded-admitted-local-answer-execution---2026-10-20)
+for terminal message revision 3.
 Unknown dispatch/cancellation/commit/source state fails closed without an answer,
 provider fallback, replay or automatic session Done.
 
 Implementation, deterministic real-host/fake-adapter, private SQLite and headless
 native tests are authored. This lane is **IMPLEMENTED_AWAITING_VALIDATION**, not
-READY: no build, restore, test or coverage runner was authorized or executed.
-Later exact-head maintained checks and raw 100% portable line AND branch proof
-remain mandatory. E/Q runtime/provider/installed/hardware evidence is unchanged;
+READY until [exact-head maintained checks and raw 100% portable line AND branch proof](../CONTRIBUTING.md#development-checks)
+pass. E/Q runtime/provider/installed/hardware evidence is unchanged;
 production unqualified profiles remain unavailable. No experiment is a prerequisite.
 
 ### Bounded exact sparse session-provider copy implementation - 2026-10-19

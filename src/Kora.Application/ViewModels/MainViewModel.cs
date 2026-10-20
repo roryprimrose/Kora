@@ -251,6 +251,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         Kora.Tools.Clipboard.ClipboardRead clipboardRead,
         Kora.Tools.Clipboard.ClipboardReuse clipboardReuse,
         Kora.Tools.Clipboard.ClipboardRevoke clipboardRevoke,
+        Kora.Tools.Clipboard.ClipboardExplain clipboardExplain,
         AuditedPreferenceWriter preferenceWriter,
         BoundedAudioOutputCatalog outputCatalog,
         BoundedMicrophoneCatalog? microphoneCatalog = null,
@@ -277,7 +278,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         AuditImpactPreviewService? auditImpactPreview = null,
         SessionRetentionPlannerService? sessionRetentionPlanner = null,
         Kora.Application.Voice.SpeechPreparationCoordinator? speechPreparation = null,
-        DiagnosticImpactPreviewService? diagnosticImpactPreview = null)
+        DiagnosticImpactPreviewService? diagnosticImpactPreview = null,
+        Kora.Application.Context.ClipboardExplanationWorkflow? clipboardExplanation = null)
     {
         this.commandCatalog = commandCatalog;
         this.commandRouter = commandRouter;
@@ -445,6 +447,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         this.clipboardRead = clipboardRead;
         this.clipboardReuse = clipboardReuse;
         this.clipboardRevoke = clipboardRevoke;
+        this.clipboardExplain = clipboardExplain;
+        this.clipboardExplanation = clipboardExplanation;
+        if (clipboardExplanation is not null) { clipboardExplanation.Changed += OnClipboardPreviewChanged; }
         clipboardPreview.Changed += OnClipboardPreviewChanged;
 
         AsyncCommand CreateCommand(Func<Task> execute, Func<bool>? canExecute = null) =>
@@ -994,6 +999,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
     }
 
     public bool IsCancelTaskVisible => IsLocalTaskCancellable || IsSpeaking || clipboardPreview.IsReading
+        || clipboardExplanation?.IsQuiescent == false
         || IsWebPageRetrievalActive || HasWebResultDetails
         || filePreview?.IsBusy == true || sessionFiles?.IsQuiescent == false || FileReview is not null || FileRevision is not null
         || FolderReview is not null || FolderRevision is not null;
@@ -3021,6 +3027,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             ApplicationLog.Error(logger, exception, "Stopping audio during application exit");
         }
         await clipboardPreview.WaitForQuiescenceAsync();
+        if (clipboardExplanation is not null) { await clipboardExplanation.WaitForQuiescenceAsync(); }
         if (filePreview is not null) { await filePreview.WaitForQuiescenceAsync(); }
         if (sessionFiles is not null) { await sessionFiles.WaitForQuiescence(); }
         WindowActionRequested?.Invoke(this, WindowAction.Close);
@@ -4188,6 +4195,14 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         }
         if (SessionCommand.Parse(spokenText, AssistantName) is { } sessionCommand)
         {
+            if (initiator == SecurityAuditInitiator.VoiceCommand
+                && sessionCommand.Operation is SessionCommandOperation.RequestReview or SessionCommandOperation.RequestConfirm or SessionCommandOperation.RequestCancel
+                && !commandRouter.IsActivationPrefixed(spokenText, AssistantName))
+            {
+                sessionRequests?.Retire();
+                ShowInformation("Session request denied.", "Use the current assistant-name prefix and exact session request grammar. No pending question or model received this input.");
+                return;
+            }
             await ExecuteSessionCommandAsync(sessionCommand, initiator);
             return;
         }
@@ -5445,7 +5460,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
                     + "Use “list capabilities” for the admitted read-only registry, or “describe capability” followed by a canonical ID. "
                     + "Use “session help” for bounded exact-ID session observations and explicit lifecycle controls. "
                     + $"Use “{AssistantName}, list assistant settings” for the display/PTT command-prefix name. "
-                    + "Use “preview clipboard” for an explicit local plain-text snapshot; clipboard explanation is unavailable. "
+                    + "Use “explain the clipboard” for exact native review and qualified local-only explanation; no hosted fallback. "
                     + (LocalModelsEnabled && Dependencies.Any(status =>
                         string.Equals(status.Id, "local.inference", StringComparison.Ordinal)
                         && status.Readiness == DependencyReadiness.Ready)
@@ -5935,6 +5950,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             StringComparison.Ordinal);
         if (!AssistantName.Equals(normalizedName, StringComparison.Ordinal))
         {
+            sessionRequests?.Retire();
             AssistantName = normalizedName;
             OnPropertyChanged(nameof(AssistantInitial));
             OnPropertyChanged(nameof(SettingsWindowTitle));

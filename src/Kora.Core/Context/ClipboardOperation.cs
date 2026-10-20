@@ -5,6 +5,6 @@ public enum ClipboardOperation
     Capture,
     Reuse,
     Revoke,
-    ExplainUnavailable,
+    Explain,
     Invalid,
 }

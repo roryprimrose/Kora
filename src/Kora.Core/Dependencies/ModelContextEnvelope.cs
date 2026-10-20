@@ -16,12 +16,13 @@ public sealed class ModelContextEnvelope
 
     public ModelContextEnvelope(HostRequest request, string systemPolicy, string userRequest,
         IEnumerable<ModelContextEvidence> evidence, DateTimeOffset createdAt, DateTimeOffset expiresAt,
-        bool allowTools = true)
+        ModelToolMode toolMode = ModelToolMode.ReadOnly)
     {
         ArgumentNullException.ThrowIfNull(request);
         ArgumentNullException.ThrowIfNull(systemPolicy);
         ArgumentNullException.ThrowIfNull(userRequest);
         ArgumentNullException.ThrowIfNull(evidence);
+        _ = ModelToolProtocol.GetTools(toolMode);
         if (expiresAt <= createdAt)
         {
             throw new InvalidDataException("A context envelope requires a finite positive validity interval.");
@@ -31,7 +32,7 @@ public sealed class ModelContextEnvelope
         UserRequest = userRequest;
         CreatedAt = createdAt;
         ExpiresAt = expiresAt;
-        AllowTools = allowTools;
+        ToolMode = toolMode;
         Evidence = ValidateContent(request, systemPolicy, userRequest, evidence);
     }
 
@@ -66,14 +67,15 @@ public sealed class ModelContextEnvelope
     public ImmutableArray<ModelContextEvidence> Evidence { get; }
     public DateTimeOffset CreatedAt { get; }
     public DateTimeOffset ExpiresAt { get; }
-    public bool AllowTools { get; }
+    public ModelToolMode ToolMode { get; }
 
     public byte[] Serialize() => JsonSerializer.SerializeToUtf8Bytes(new
     {
         SystemPolicy,
         UserRequest,
         Evidence,
-        Tools = AllowTools ? ReadOnlyCapabilityCatalog.Descriptors : [],
+        ToolMode,
+        Tools = ModelToolProtocol.GetTools(ToolMode),
         MaximumOutputUtf8Bytes,
     });
 

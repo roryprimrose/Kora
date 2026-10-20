@@ -3,10 +3,26 @@ using Kora.Core.Conversation;
 using Kora.Core.Dependencies;
 using Kora.Core.Hosting;
 
+using Microsoft.Data.Sqlite;
+
 namespace Kora.Windows.Storage;
 
 public sealed partial class WindowsSqliteHostInteractionStore
 {
+    private void MigrateConversationExecution(SqliteConnection connection, SqliteTransaction transaction, CancellationToken token)
+    {
+        ValidateAuthority(connection);
+        token.ThrowIfCancellationRequested();
+        Execute(connection, transaction, "ALTER TABLE conversation_messages RENAME TO previous_conversation_messages;");
+        Execute(connection, transaction, HostInteractionSchema.ConversationSchema[1]);
+        Execute(connection, transaction, """
+            INSERT INTO conversation_messages SELECT * FROM previous_conversation_messages;
+            DROP TABLE previous_conversation_messages;
+            """);
+        ValidateAuthority(connection);
+        checkpoint?.BeforeCommit(connection, transaction);
+    }
+
     public ValueTask<ConversationSubmissionReceipt> BeginConversationExecutionAsync(HostRequest request,
         ModelTurnProvenance provenance, long metadataRevision, Func<bool> admitted, CancellationToken token) =>
         RunHostMutationAsync(request, "conversation.execution", (connection, transaction, intent, audit) =>

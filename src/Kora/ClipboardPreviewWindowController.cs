@@ -13,6 +13,8 @@ internal sealed class ClipboardPreviewWindowController : IDisposable
     private readonly Func<Task> revoke;
     private readonly Func<IClipboardPreviewView> create;
     private readonly Action<string> reportFailure;
+    private readonly Func<Guid, Task>? explain;
+    private readonly Func<string?> explanation;
     private readonly DispatcherTimer? privacyTimer;
     private IClipboardPreviewView? window;
     private ClipboardSnapshot? showing;
@@ -22,7 +24,7 @@ internal sealed class ClipboardPreviewWindowController : IDisposable
         : this(() => host.ClipboardPreview, host.ReuseClipboardAsync, host.ClearClipboardPreview, host.RevokeClipboardAsync,
             () => new ClipboardPreviewWindow(exception => host.ReportHostInteractionFailure(
                 "Native clipboard preview failed. No success is claimed. Failure type: " + exception.GetType().Name), host),
-            host.ReportHostInteractionFailure)
+            host.ReportHostInteractionFailure, host.ExplainClipboardAsync, () => host.ClipboardExplanation)
     {
         this.host = host;
         host.ClipboardPreviewChanged += OnChanged;
@@ -33,7 +35,8 @@ internal sealed class ClipboardPreviewWindowController : IDisposable
     }
 
     internal ClipboardPreviewWindowController(Func<ClipboardSnapshot?> current, Func<Guid, Task> reuse,
-        Action clear, Func<Task> revoke, Func<IClipboardPreviewView> create, Action<string> reportFailure)
+        Action clear, Func<Task> revoke, Func<IClipboardPreviewView> create, Action<string> reportFailure,
+        Func<Guid, Task>? explain = null, Func<string?>? explanation = null)
     {
         this.current = current;
         this.reuse = reuse;
@@ -41,6 +44,8 @@ internal sealed class ClipboardPreviewWindowController : IDisposable
         this.revoke = revoke;
         this.create = create;
         this.reportFailure = reportFailure;
+        this.explain = explain;
+        this.explanation = explanation ?? (static () => null);
     }
 
     private void OnChanged(object? sender, EventArgs args)
@@ -59,7 +64,12 @@ internal sealed class ClipboardPreviewWindowController : IDisposable
         if (disposed) { return; }
         var snapshot = current();
         if (!ReferenceEquals(snapshot, showing)) { CloseView(); }
-        if (snapshot is null || window is not null) { return; }
+        if (snapshot is null) { return; }
+        if (window is not null)
+        {
+            window.SetExplanation(explanation());
+            return;
+        }
         var id = snapshot.SnapshotId;
         var view = create();
         window = view;
@@ -71,8 +81,10 @@ internal sealed class ClipboardPreviewWindowController : IDisposable
             ? reuse(id) : Task.FromException(new InvalidOperationException("Clipboard preview generation is stale; start a new explicit request.")),
             () => IsCurrent() ? revoke()
                 : Task.FromException(new InvalidOperationException("Clipboard preview generation is stale; nothing was revoked. Start a new explicit request.")),
-            IsCurrent);
+            IsCurrent, explain is null ? null : () => IsCurrent() ? explain(id)
+                : Task.FromException(new InvalidOperationException("Clipboard explanation source is stale; nothing was sent.")));
         if (!IsCurrent()) { CloseView(); }
+        else { view.SetExplanation(explanation()); }
     }
 
     private void OnClosed(object? sender, EventArgs args)

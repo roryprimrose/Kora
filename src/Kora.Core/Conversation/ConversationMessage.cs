@@ -34,7 +34,7 @@ public sealed record ConversationMessage(HostRequest Request, HostRevision Gener
     {
         if (Version is not (1 or 2) || Request is null || !ConversationMessageProvenance.IsValidGeneration(Generation.Value) || Sequence is <= 0 or > ConversationText.MaximumSessionMessages
             || !ConversationMessageProvenance.IsValidRevision(Revision) || SubmittedAt.Offset != TimeSpan.Zero
-            || Request.Origin != RequestOrigin.LocalUi || Request.InvocationId is not null
+            || Request.Origin is not (RequestOrigin.LocalUi or RequestOrigin.ActivatedVoice) || Request.InvocationId is not null
             || (Outcome is null) != (Reason is null)
             || Outcome is { } outcome && !Enum.IsDefined(outcome)
             || (Version == 1 && (Execution is not null || ExecutionMetadataRevision is not null || AssistantResponse is not null || Outcome == ModelTurnOutcome.Succeeded))

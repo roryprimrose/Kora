@@ -22,11 +22,17 @@ public sealed class WindowsOllamaToolEndpointBinding
         ArgumentException.ThrowIfNullOrWhiteSpace(runtimeVersion);
         ArgumentException.ThrowIfNullOrWhiteSpace(executablePath);
         ArgumentNullException.ThrowIfNull(isAdmitted);
-        if (profile.Service != ProviderService.Local || provenance.Selection.Provider != ModelProviderIdentity.Ollama
-            || profile.CatalogueRevision != provenance.Selection.Revision || processId <= 0
-            || !Path.IsPathFullyQualified(executablePath) || !IsDigest(executableSha256)
-            || executablePath.StartsWith(@"\\", StringComparison.Ordinal) || !IsDigest(modelDigest))
-        { throw new ArgumentException("An exact local endpoint/process/model observation target is required.", nameof(profile)); }
+        if (profile.Service != ProviderService.Local || profile.CatalogueRevision != provenance.Selection.Revision)
+        { throw new ArgumentException("The exact local profile must match the admitted catalogue revision.", nameof(profile)); }
+        if (provenance.Selection.Provider != ModelProviderIdentity.Ollama)
+        { throw new ArgumentException("An admitted local provider is required.", nameof(provenance)); }
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(processId);
+        if (!Path.IsPathFullyQualified(executablePath) || executablePath.StartsWith(@"\\", StringComparison.Ordinal))
+        { throw new ArgumentException("An absolute local executable path is required.", nameof(executablePath)); }
+        if (!IsDigest(executableSha256))
+        { throw new ArgumentException("The exact executable SHA-256 is required.", nameof(executableSha256)); }
+        if (!IsDigest(modelDigest))
+        { throw new ArgumentException("The exact model SHA-256 is required.", nameof(modelDigest)); }
         Provenance = provenance;
         Profile = profile;
         Model = model;

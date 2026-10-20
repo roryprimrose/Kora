@@ -260,6 +260,7 @@ public sealed partial class ModelToolProtocolTests
         {
             provenance with { Turn = default },
             provenance with { Request = null! },
+            provenance with { Selection = null! },
             provenance with { Selection = provenance.Selection with { Provider = (ModelProviderIdentity)999 } },
             provenance with { Selection = provenance.Selection with { Model = default } },
             provenance with { Selection = provenance.Selection with { Revision = default } },

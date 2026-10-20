@@ -26,13 +26,13 @@ public sealed partial class ModelTurnHostTests
         using var f = new Fixture();
         using var root = f.Root();
         var turn = (await f.Host.AdmitAsync(ModelProviderSelection.OllamaCandidate, f.Context(), Token)).Turn!;
-        IModelTurnExecution execution = string.Equals(fault, "foreign", StringComparison.Ordinal) ? f.Qualified(ModelProviderSelection.OllamaCandidate) : f.Host;
-        if (string.Equals(fault, "expired", StringComparison.Ordinal)) { f.Time.Now = DateTimeOffset.UnixEpoch.AddMinutes(1); }
-        if (string.Equals(fault, "generation", StringComparison.Ordinal)) { f.Session = f.Session with { Generation = new(2) }; }
-        if (string.Equals(fault, "stopped-context", StringComparison.Ordinal)) { root.Complete(Kora.Core.Diagnostics.HostOperationOutcome.Completed); }
+        IModelTurnExecution execution = fault is "foreign" ? f.Qualified(ModelProviderSelection.OllamaCandidate) : f.Host;
+        if (fault is "expired") { f.Time.Now = DateTimeOffset.UnixEpoch.AddMinutes(1); }
+        if (fault is "generation") { f.Session = f.Session with { Generation = new(2) }; }
+        if (fault is "stopped-context") { root.Complete(Kora.Core.Diagnostics.HostOperationOutcome.Completed); }
         using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(Token);
-        if (string.Equals(fault, "cancelled", StringComparison.Ordinal)) { cancellation.Cancel(); }
-        var response = await execution.RunAsync(turn, () => !string.Equals(fault, "closed-source", StringComparison.Ordinal), cancellation.Token);
+        if (fault is "cancelled") { cancellation.Cancel(); }
+        var response = await execution.RunAsync(turn, () => fault is not "closed-source", cancellation.Token);
         response.Outcome.Should().NotBe(ModelTurnOutcome.Succeeded);
         response.Response.Should().BeNull();
         f.Adapter.Calls.Should().Be(0);
@@ -54,10 +54,12 @@ public sealed partial class ModelTurnHostTests
         f.Messages.Should().NotContain(text => text.Contains("private source body", StringComparison.Ordinal));
     }
 
-    [Fact]
-    public async Task OriginalRetainedRequestExecutesExactlyOnceThroughRealHostToolCallbackAndReturnsRealAnswerAndExactReadback()
+    [Theory]
+    [InlineData(RequestOrigin.LocalUi)]
+    [InlineData(RequestOrigin.ActivatedVoice)]
+    public async Task OriginalRetainedRequestExecutesExactlyOnceThroughRealHostToolCallbackAndReturnsRealAnswerAndExactReadback(RequestOrigin origin)
     {
-        using var f = new Fixture();
+        using var f = new Fixture(origin);
         f.ProfileCatalogue.Status = Kora.Core.Providers.ProviderCatalogueStatus.Current;
         f.ProfilePreferences.Value = new(Kora.Core.Providers.ProviderService.Local, [Profile()]);
         var host = f.ConfiguredProfiles();
@@ -74,7 +76,7 @@ public sealed partial class ModelTurnHostTests
                 new("The admitted host reported " + observed.Version!.Version + ".", null));
         };
         var receipt = await service.SubmitAsync(new(f.Session, null), body, static () => true, Token,
-            beforeRetain: _ => { validations++; return System.Threading.Tasks.Task.CompletedTask; });
+            beforeRetain: _ => { validations++; return System.Threading.Tasks.Task.CompletedTask; }, origin: origin);
         f.RetainCalls.Should().Be(1);
         f.ExecutionStarts.Should().Be(1);
         f.ExecutionCompletions.Should().Be(1);
@@ -82,6 +84,7 @@ public sealed partial class ModelTurnHostTests
         tools.Should().Be(1);
         validations.Should().BeGreaterThan(4, "source validation surrounds execution and the actual host tool callback");
         receipt.Message.Body.Should().Be(body);
+        receipt.Message.Request.Origin.Should().Be(origin);
         receipt.Message.AssistantResponse!.Body.Should().Be("The admitted host reported 1.0.");
         receipt.Task.State.Should().Be(HostTaskState.Succeeded);
         receipt.Task.Revision.Value.Should().Be(3);
@@ -91,7 +94,9 @@ public sealed partial class ModelTurnHostTests
         wire.RootElement.GetProperty("Evidence").GetArrayLength().Should().Be(0);
         f.Messages.Should().NotContain(message => message.Contains(body, StringComparison.Ordinal)
             || message.Contains("host reported", StringComparison.Ordinal));
-        using var inspection = f.Root();
+        using var inspection = Kora.Core.Diagnostics.HostActivity.BeginRoot(
+            new(new(Guid.NewGuid()), f.Session.SessionId, new(Guid.NewGuid()), RequestOrigin.LocalUi),
+            Kora.Core.Diagnostics.HostActivityLayer.Application, Kora.Core.Diagnostics.HostOperation.Request);
         (await service.ReadPageAsync(f.Session.SessionId, null, 25, Token)).Messages.Single().Should().Be(receipt.Message);
         var details = await service.ReadDetailAsync(new(f.Session, null), receipt.Message, static () => true, Token);
         details.Source.Should().Be(body);
@@ -153,25 +158,25 @@ public sealed partial class ModelTurnHostTests
         var host = f.ConfiguredProfiles();
         var live = true;
         var toolCalls = 0;
-        if (string.Equals(boundary, "before-run", StringComparison.Ordinal)) { f.AfterExecutionStart = () => live = false; }
+        if (boundary is "before-run") { f.AfterExecutionStart = () => live = false; }
         f.OnVersion = () =>
         {
             toolCalls++;
-            if (string.Equals(boundary, "after-tool", StringComparison.Ordinal)) { live = false; }
+            if (boundary is "after-tool") { live = false; }
         };
         f.Adapter.OnTool = async invoke =>
         {
-            if (string.Equals(boundary, "before-tool", StringComparison.Ordinal)) { live = false; }
-            if (string.Equals(boundary, "metadata", StringComparison.Ordinal)) { f.Metadata = new(f.Session.SessionId, new(1), new("changed")); }
+            if (boundary is "before-tool") { live = false; }
+            if (boundary is "metadata") { f.Metadata = new(f.Session.SessionId, new(1), new("changed")); }
             await invoke(ReadOnlyCapabilityCatalog.Version, "{}", Token);
-            if (string.Equals(boundary, "terminal", StringComparison.Ordinal)) { live = false; }
+            if (boundary is "terminal") { live = false; }
         };
-        if (string.Equals(boundary, "audit", StringComparison.Ordinal)) { f.BeforeExecutionComplete = () => throw new IOException("required audit failed"); }
-        if (string.Equals(boundary, "readback", StringComparison.Ordinal)) { f.BadExecutionReadback = true; }
+        if (boundary is "audit") { f.BeforeExecutionComplete = () => throw new IOException("required audit failed"); }
+        if (boundary is "readback") { f.BadExecutionReadback = true; }
         await f.ConversationService(host, execution: host).Invoking(service =>
             service.SubmitAsync(new(f.Session, null), "immutable source", () => live, Token))
             .Should().ThrowAsync<ConversationSubmissionUnconfirmedException>();
-        f.Adapter.Calls.Should().Be(string.Equals(boundary, "before-run", StringComparison.Ordinal) ? 0 : 1);
+        f.Adapter.Calls.Should().Be(boundary is "before-run" ? 0 : 1);
         toolCalls.Should().Be(boundary is "before-run" or "before-tool" or "metadata" ? 0 : 1);
         f.RetainCalls.Should().Be(1);
         f.ExecutionStarts.Should().Be(1);
@@ -227,6 +232,8 @@ public sealed partial class ModelTurnHostTests
         internal Action? AfterExecutionStart { get; set; }
         internal Action? BeforeExecutionComplete { get; set; }
         internal bool BadExecutionReadback { get; set; }
+        internal string? StartReceiptFault { get; set; }
+        internal string? TerminalReceiptFault { get; set; }
 
         public ValueTask<ConversationSubmissionReceipt> BeginConversationExecutionAsync(HostRequest request,
             ModelTurnProvenance provenance, long metadataRevision, Func<bool> admitted, CancellationToken token)
@@ -237,7 +244,16 @@ public sealed partial class ModelTurnHostTests
             Task = Task! with { Task = Task.Task.Next(HostTaskState.DispatchRecorded) };
             var receipt = new ConversationSubmissionReceipt(Retained, Task.Task);
             AfterExecutionStart?.Invoke();
-            return ValueTask.FromResult(receipt);
+            return ValueTask.FromResult(StartReceiptFault switch
+            {
+                "body" => receipt with { Message = receipt.Message with { Body = "different receipt" } },
+                "generation" => receipt with { Message = receipt.Message with { Generation = new(2) } },
+                "sequence" => receipt with { Message = receipt.Message with { Sequence = 2 } },
+                "task-request" => receipt with { Task = new(HostRequest.Create(RequestOrigin.LocalUi), new(2), HostTaskState.DispatchRecorded) },
+                "task-state" => receipt with { Task = new(request, new(2), HostTaskState.IntentRecorded) },
+                "task-revision" => receipt with { Task = new(request, new(3), HostTaskState.DispatchRecorded) },
+                _ => receipt,
+            });
         }
 
         public ValueTask<ConversationSubmissionReceipt> CompleteConversationExecutionAsync(HostRequest request,
@@ -255,7 +271,18 @@ public sealed partial class ModelTurnHostTests
             Task = Task! with { Task = Task.Task.Next(Retained.ExpectedTaskState) };
             var receipt = new ConversationSubmissionReceipt(Retained, Task.Task);
             if (BadExecutionReadback) { Retained = Retained with { Body = "different durable original" }; }
-            return ValueTask.FromResult(receipt);
+            return ValueTask.FromResult(TerminalReceiptFault switch
+            {
+                "outcome" => receipt with { Message = receipt.Message with { Outcome = ModelTurnOutcome.Unknown } },
+                "reason" => receipt with { Message = receipt.Message with { Reason = ModelTurnReason.HostInterrupted } },
+                "answer" => receipt with { Message = receipt.Message with { AssistantResponse = null } },
+                "execution" => receipt with { Message = receipt.Message with { Execution = result.Provenance! with { Turn = new(Guid.NewGuid()) } } },
+                "generation" => receipt with { Message = receipt.Message with { Generation = new(2) } },
+                "sequence" => receipt with { Message = receipt.Message with { Sequence = 2 } },
+                "revision" => receipt with { Message = receipt.Message with { Revision = 2 } },
+                "task-revision" => receipt with { Task = new(request, new(4), HostTaskState.Succeeded) },
+                _ => receipt,
+            });
         }
     }
 }

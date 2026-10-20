@@ -70,6 +70,9 @@ public sealed class ConversationResponseTests
     [InlineData("surrogate")]
     [InlineData("control")]
     [InlineData("credential")]
+    [InlineData("null-provenance")]
+    [InlineData("invocation")]
+    [InlineData("invalid-selection")]
     public void InvalidAnswerCannotBecomeRetainedConversation(string fault)
     {
         var p = Provenance();
@@ -78,6 +81,10 @@ public sealed class ConversationResponseTests
         {
             "version" => response with { Version = 2 },
             "request" => response with { Provenance = p with { Request = null! } },
+            "null-provenance" => response with { Provenance = null! },
+            "invocation" => response with { Provenance = p with { Request = new(Request.RequestId, Request.SessionId,
+                Request.TaskId, RequestOrigin.LocalUi, new(Guid.NewGuid())) } },
+            "invalid-selection" => response with { Provenance = p with { Selection = p.Selection with { Revision = default } } },
             "origin" => response with { Provenance = p with { Request = HostRequest.Create(RequestOrigin.HostSystem) } },
             "null-body" => response with { Body = null! },
             "turn" => response with { Provenance = p with { Turn = default } },
@@ -89,7 +96,7 @@ public sealed class ConversationResponseTests
             "control" => response with { Body = "answer\0" },
             _ => response with { Body = "api_key=synthetic-only-value" },
         };
-        if (string.Equals(fault, "credential", StringComparison.Ordinal))
+        if (fault is "credential")
         { response.Invoking(value => value.Validate()).Should().Throw<ConversationCredentialException>(); }
         else { response.Invoking(value => value.Validate()).Should().Throw<InvalidDataException>(); }
     }
@@ -101,6 +108,7 @@ public sealed class ConversationResponseTests
     [InlineData("missing-answer")]
     [InlineData("foreign")]
     [InlineData("failure")]
+    [InlineData("null-answer")]
     public void OnlyExactSuccessfulAnswerOnlyHostResultIsAccepted(string fault)
     {
         var p = Provenance();
@@ -112,6 +120,7 @@ public sealed class ConversationResponseTests
             "grant" => result with { Response = new("not a grant", null,
                 new(GrantChangeOperation.Add, BuiltInAction.ShowVersion, ModelApprovalScope.Session)) },
             "missing-answer" => result with { Response = null },
+            "null-answer" => result with { Response = new(null, null) },
             "foreign" => result with { Provenance = Provenance() },
             _ => result with { Outcome = ModelTurnOutcome.Unknown },
         };
@@ -128,6 +137,10 @@ public sealed class ConversationResponseTests
     [InlineData("premature-answer")]
     [InlineData("legacy")]
     [InlineData("revision")]
+    [InlineData("invalid-execution-selection")]
+    [InlineData("missing-execution-selection")]
+    [InlineData("premature-terminal-revision")]
+    [InlineData("terminal-at-dispatch-revision")]
     public void MessageCannotLaunderAssistantDataOrSkipLifecycle(string fault)
     {
         var p = Provenance();
@@ -144,6 +157,11 @@ public sealed class ConversationResponseTests
             "missing-answer" => message with { AssistantResponse = null },
             "premature-answer" => message with { Revision = 2, Outcome = null, Reason = null },
             "legacy" => message with { Version = 1 },
+            "invalid-execution-selection" => message with
+            { Execution = p with { Selection = p.Selection with { Model = default } } },
+            "missing-execution-selection" => message with { Execution = p with { Selection = null! } },
+            "premature-terminal-revision" => message with { Revision = 1 },
+            "terminal-at-dispatch-revision" => message with { Revision = 2 },
             _ => message with { Revision = 4 },
         };
         message.Invoking(value => value.Validate()).Should().Throw<InvalidDataException>();

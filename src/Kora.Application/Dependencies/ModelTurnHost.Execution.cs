@@ -28,6 +28,22 @@ public sealed partial class ModelTurnHost : IModelTurnExecution
         return await RunAsync(turn, token).ConfigureAwait(false);
     }
 
+    /// <inheritdoc />
+    public async Task WaitForQuiescenceAsync(CancellationToken cancellationToken)
+    {
+        while (true)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            Task outstanding;
+            lock (dispatchGate)
+            {
+                if (IsQuiescent) { return; }
+                outstanding = quiescence!.Task;
+            }
+            await outstanding.WaitAsync(cancellationToken).ConfigureAwait(false);
+        }
+    }
+
     private bool ConsumerAdmissionCurrent(ModelTurn turn) =>
         !consumerAdmissions.TryGetValue(turn, out var consumer) || consumer.Admitted();
 

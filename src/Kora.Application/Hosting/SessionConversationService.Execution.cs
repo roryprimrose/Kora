@@ -28,7 +28,8 @@ public sealed partial class SessionConversationService
         var dispatched = await conversations.BeginConversationExecutionAsync(request, turn.Provenance,
             target.Metadata?.Revision.Value ?? 0, Current, token).ConfigureAwait(false);
         dispatched.Message.Validate();
-        if (dispatched.Message.Request != request || !string.Equals(dispatched.Message.Body, retained.Message.Body, StringComparison.Ordinal)
+        if (dispatched.Message.Request != request
+            || !string.Equals(dispatched.Message.Body, retained.Message.Body, StringComparison.Ordinal)
             || dispatched.Message.Generation != target.Authority.Generation || dispatched.Message.Sequence != retained.Message.Sequence
             || dispatched.Message.Execution != turn.Provenance || dispatched.Message.Revision != 2
             || dispatched.Task.Request != request || dispatched.Task.State != HostTaskState.DispatchRecorded
@@ -74,7 +75,8 @@ public sealed partial class SessionConversationService
         if (validateSource is not null) { await validateSource(token).ConfigureAwait(false); }
         var metadata = await store.ReadMetadataAsync(request.SessionId, token).ConfigureAwait(false);
         token.ThrowIfCancellationRequested();
-        if (!string.Equals(receipt.Message.Body, body, StringComparison.Ordinal) || receipt.Message.Request != request || observed?.Task != receipt.Task
+        if (!string.Equals(receipt.Message.Body, body, StringComparison.Ordinal)
+            || receipt.Message.Request != request || observed?.Task != receipt.Task
             || message != receipt.Message || !receipt.Task.IsTerminal || receipt.Task.State != receipt.Message.ExpectedTaskState
             || receipt.Task.Request != request || metadata != target || !live())
         { throw new IOException("Submission completion is unconfirmed; inspect exact retained content and task without retry."); }

@@ -35,6 +35,7 @@ public sealed partial class NewRequestComposerTests : IDisposable
         var changes = 0;
         c.PropertyChanged += (_, _) => changes++;
         c.Status.Should().Contain("Relatedness inference is unavailable");
+        c.AssistantResponse.Should().BeNull();
         c.Dirty.Should().BeFalse();
         c.CanReview.Should().BeFalse();
         c.CanInspectAttempt.Should().BeFalse();
@@ -65,6 +66,7 @@ public sealed partial class NewRequestComposerTests : IDisposable
         f.Retained.Outcome.Should().Be(ModelTurnOutcome.Unavailable);
         c.Submission.Should().Be(f.Retained.Request);
         c.Status.Should().Contain("HOST Unavailable").And.NotContain(body);
+        c.AssistantResponse.Should().BeNull();
         c.Body.Should().BeEmpty();
         c.CanEdit.Should().BeFalse();
         c.Body = "late callback";
@@ -79,6 +81,7 @@ public sealed partial class NewRequestComposerTests : IDisposable
         c.Body = body;
         c.Body.Should().BeEmpty();
         c.Target.Should().BeNull();
+        c.AssistantResponse.Should().BeNull();
         c.CanCreate.Should().BeFalse();
         c.CanInspectAttempt.Should().BeFalse();
     }
@@ -343,6 +346,7 @@ public sealed partial class NewRequestComposerTests : IDisposable
         await f.Composer.Create();
         f.Composer.CanInspectAttempt.Should().BeTrue();
         f.Access.CanInspect = false;
+        f.Composer.AssistantResponse.Should().BeNull();
         f.Composer.CanInspectAttempt.Should().BeFalse();
         f.Composer.Body = "late private edit";
         f.Composer.Body.Should().Be(body);
@@ -387,12 +391,14 @@ public sealed partial class NewRequestComposerTests : IDisposable
         public bool IsQuiescent { get; set; } = true;
         internal NewRequestComposer Composer { get; }
         internal SessionWorkspaceService Workspace { get; }
+        internal SessionConversationService Conversation { get; }
         internal Dictionary<HostId<TaskIdentity>, HostTaskRecord> Records { get; } = [];
         internal SessionWorkspaceEntry? Entry { get; set; }
         internal ConversationMessage? Retained { get; private set; }
         internal HostRequest? Attempted { get; private set; }
         internal int Creates { get; private set; }
         internal int Retentions { get; private set; }
+        internal int ModelAdmissions { get; private set; }
         internal int Rejections { get; private set; }
         internal int Writes { get; private set; }
         internal bool TerminalFailure { get; set; }
@@ -427,11 +433,15 @@ public sealed partial class NewRequestComposerTests : IDisposable
             Workspace = workspace;
             var conversation = new SessionConversationService(this, this, workspace, Access, this,
                 TimeProvider.System, NullLogger<SessionConversationService>.Instance);
+            Conversation = conversation;
             Composer = new(workspace, conversation, Access, enabledLogger ? this : NullLogger<NewRequestComposer>.Instance);
         }
 
-        public Task<ModelTurnAdmission> AdmitAsync(ModelTurnChoice choice, ModelContextEnvelope context, ModelHandoffReview? review, CancellationToken token) =>
-            Task.FromResult(new ModelTurnAdmission(new(ModelTurnOutcome.Unavailable, ModelTurnReason.UnregisteredModel)));
+        public Task<ModelTurnAdmission> AdmitAsync(ModelTurnChoice choice, ModelContextEnvelope context, ModelHandoffReview? review, CancellationToken token)
+        {
+            ModelAdmissions++;
+            return Task.FromResult(new ModelTurnAdmission(new(ModelTurnOutcome.Unavailable, ModelTurnReason.UnregisteredModel)));
+        }
 
         public ValueTask<HostTaskRecord> RecordControlIntentAsync(HostRequest request, CancellationToken token)
         {
@@ -572,7 +582,11 @@ public sealed partial class NewRequestComposerTests : IDisposable
             if (OriginalReadWait is { } wait) { await wait(); }
             BeforeOriginalRead?.Invoke();
             token.ThrowIfCancellationRequested();
-            return ReuseOriginal ?? throw new InvalidDataException("Original is omitted, private, tombstoned or unavailable.");
+            var original = ReuseOriginal ?? Retained
+                ?? throw new InvalidDataException("Original is omitted, private, tombstoned or unavailable.");
+            if (original.Request.SessionId != session || original.Request.RequestId != request)
+            { throw new InvalidDataException("The requested exact original is not retained."); }
+            return original;
         }
     }
 

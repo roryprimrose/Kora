@@ -56,15 +56,17 @@ public sealed partial class WindowsSqliteConversationTests
             .Should().ThrowAsync<InvalidOperationException>();
     }
 
-    [Fact]
-    public async Task PrivateAnswerTaskAndTypedAuditShareOneCompletionAndSurviveRestartWithoutChangingOriginalCountOrLegacyBytes()
+    [Theory]
+    [InlineData(RequestOrigin.LocalUi)]
+    [InlineData(RequestOrigin.ActivatedVoice)]
+    public async Task PrivateAnswerTaskAndTypedAuditShareOneCompletionAndSurviveRestartWithoutChangingOriginalCountOrLegacyBytes(RequestOrigin origin)
     {
         using var f = new InteractionStorageFixture();
         await f.InitializeAsync();
         await FinishInitial(f);
         var legacy = await Submit(f, f.Request.SessionId, "legacy original");
         var before = AuditText(f);
-        var request = Fresh(f.Request.SessionId);
+        var request = new HostRequest(new(Guid.NewGuid()), f.Request.SessionId, new(Guid.NewGuid()), origin);
         var provenance = new ModelTurnProvenance(new(Guid.NewGuid()), request, ModelProviderSelection.OllamaCandidate);
         ConversationSubmissionReceipt completed;
         using (var root = HostActivity.BeginRoot(request, HostActivityLayer.Application, HostOperation.Request))
@@ -77,6 +79,8 @@ public sealed partial class WindowsSqliteConversationTests
             completed = await f.Store.CompleteConversationExecutionAsync(request, result, static () => true, f.Token);
             completed.Task.State.Should().Be(HostTaskState.Succeeded);
             completed.Message.Revision.Should().Be(3);
+            completed.Message.Request.Origin.Should().Be(origin);
+            completed.Message.AssistantResponse!.Provenance.Request.Origin.Should().Be(origin);
             await f.Store.Invoking(store => store.CompleteConversationExecutionAsync(request, result,
                 static () => true, f.Token).AsTask()).Should().ThrowAsync<Exception>("terminal completion is single-use");
         }
@@ -132,12 +136,12 @@ public sealed partial class WindowsSqliteConversationTests
         var live = true;
         using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(f.Token);
         f.Reopen(new AnswerCheckpoint(
-            () => { if (armed && string.Equals(failure, "audit", StringComparison.Ordinal)) { throw new IOException("required audit failure"); } },
+            () => { if (armed && failure is "audit") { throw new IOException("required audit failure"); } },
             () =>
             {
                 if (!armed) { return; }
-                if (string.Equals(failure, "source-commit", StringComparison.Ordinal)) { live = false; }
-                if (string.Equals(failure, "cancel-commit", StringComparison.Ordinal)) { cancellation.Cancel(); }
+                if (failure is "source-commit") { live = false; }
+                if (failure is "cancel-commit") { cancellation.Cancel(); }
             }));
         var request = Fresh(f.Request.SessionId);
         var provenance = new ModelTurnProvenance(new(Guid.NewGuid()), request, ModelProviderSelection.OllamaCandidate);

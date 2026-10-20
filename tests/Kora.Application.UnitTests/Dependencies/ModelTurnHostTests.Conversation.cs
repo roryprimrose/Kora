@@ -335,11 +335,15 @@ public sealed partial class ModelTurnHostTests
             }
             if (CompletionFault is "wrong-outcome")
             {
-                var changed = Retained with { Outcome = ModelTurnOutcome.Denied };
+                Retained = Retained with { Outcome = ModelTurnOutcome.Denied };
                 Task = Task! with { Task = new(request, new(2), HostTaskState.Denied) };
-                receipt = receipt with { Task = Task.Task, Message = changed };
+                receipt = receipt with { Task = Task.Task, Message = Retained };
             }
-            if (CompletionFault is "wrong-reason") { receipt = receipt with { Message = Retained with { Reason = ModelTurnReason.InvalidPolicy } }; }
+            if (CompletionFault is "wrong-reason")
+            {
+                Retained = Retained with { Reason = ModelTurnReason.InvalidPolicy };
+                receipt = receipt with { Message = Retained };
+            }
             return ValueTask.FromResult(receipt);
         }
         public ValueTask<ConversationMessage> ReadConversationMessageAsync(HostId<SessionIdentity> session,

@@ -13,7 +13,7 @@ public sealed record ConversationResponse(ModelTurnProvenance Provenance, string
     public void Validate()
     {
         if (Version != 1 || Body is null || Provenance is null || Provenance.Request is null
-            || Provenance.Request.Origin != RequestOrigin.LocalUi || Provenance.Request.InvocationId is not null
+            || Provenance.Request.Origin is not (RequestOrigin.LocalUi or RequestOrigin.ActivatedVoice) || Provenance.Request.InvocationId is not null
             || Provenance.Selection is null || !Provenance.Selection.IsValid
             || Provenance.Selection.Provider != ModelProviderIdentity.Ollama)
         { throw new InvalidDataException("Assistant response provenance is invalid."); }

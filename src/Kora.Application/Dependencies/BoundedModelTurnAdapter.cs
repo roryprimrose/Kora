@@ -133,6 +133,8 @@ internal sealed partial class BoundedModelTurnAdapter(
             { return Finish(provenance, ModelTurnOutcome.Succeeded, ModelTurnReason.None, new(answer.Answer, null)); }
             // The closed Core hierarchy admits only a final answer or a fully validated call batch.
             var assistant = (ModelAssistantToolCalls)message;
+            if (context.ToolMode == ModelToolMode.None)
+            { return Finish(provenance, ModelTurnOutcome.Denied, ModelTurnReason.ToolUseNotPermitted); }
             if (assistant.Calls.Length > ModelToolProtocol.MaximumCalls - calls)
             { return Finish(provenance, ModelTurnOutcome.Denied, ModelTurnReason.ToolLoopBudgetExceeded); }
             if (assistant.Calls.Any(call => callIds.Contains(call.CallId)))

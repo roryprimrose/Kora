@@ -274,12 +274,12 @@ public sealed partial class ModelTurnHostTests
         fixture.OnVersion = () => versions++;
         var transport = new ToolTransport(Enumerable.Range(1, 7).Select(index =>
             VersionCall.Replace("version_1", "version_" + index, StringComparison.Ordinal)).ToArray());
-        if (!string.Equals(budget, "calls", StringComparison.Ordinal))
+        if (budget is not "calls")
         {
             transport.ChangeReply = (request, reply) => reply with
             {
-                Usage = string.Equals(budget, "input"
-, StringComparison.Ordinal) ? reply.Usage! with { InputUtf8Bytes = request.Budget.InputUtf8Bytes }
+                Usage = budget is "input"
+                    ? reply.Usage! with { InputUtf8Bytes = request.Budget.InputUtf8Bytes }
                     : reply.Usage! with { OutputUtf8Bytes = request.Budget.OutputUtf8Bytes },
             };
         }
@@ -287,8 +287,8 @@ public sealed partial class ModelTurnHostTests
         var result = await RunLoop(fixture, fixture.LoopHost(loop));
         result.Reason.Should().Be(ModelTurnReason.ToolLoopBudgetExceeded);
         result.Response.Should().BeNull();
-        transport.Requests.Should().HaveCount(string.Equals(budget, "calls", StringComparison.Ordinal) ? 7 : 1);
-        versions.Should().Be(string.Equals(budget, "calls", StringComparison.Ordinal) ? 6 : 1);
+        transport.Requests.Should().HaveCount(budget is "calls" ? 7 : 1);
+        versions.Should().Be(budget is "calls" ? 6 : 1);
     }
 
     [Theory]

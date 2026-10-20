@@ -11,7 +11,7 @@ using Microsoft.Extensions.Logging;
 
 namespace Kora.Application.Dependencies;
 
-/// <summary>R04-R08 host boundary. Production profiles remain unavailable; no adapter is composed.</summary>
+/// <summary>Exact host admission and execution boundary. Unqualified production profiles remain unavailable.</summary>
 public sealed partial class ModelTurnHost : IAsyncDisposable, IModelTurnAdmission
 {
     private readonly Guid owner = Guid.NewGuid();
@@ -215,13 +215,11 @@ public sealed partial class ModelTurnHost : IAsyncDisposable, IModelTurnAdmissio
         token.ThrowIfCancellationRequested();
         var reason = await RevalidateAsync(turn, token).ConfigureAwait(false);
         if (reason != ModelTurnReason.None) { return Finish(ModelTurnOutcome.Denied, reason, turn.Provenance); }
-        if (turn.Profile is { } profile)
+        if (turn.Profile is not null)
         {
-            if (sessionProfiles is null || (await sessionProfiles.ReadProviderProfile(
-                turn.Provenance.Request.SessionId, token).ConfigureAwait(false)).Held)
-            { return Finish(ModelTurnOutcome.Unavailable, ModelTurnReason.SessionNotAdmitted, turn.Provenance); }
-            if (!await providerProfileConfiguration!.ValidateTurnAsync(profile, token).ConfigureAwait(false))
-            { return Finish(ModelTurnOutcome.Unavailable, ModelTurnReason.UnregisteredModel, turn.Provenance); }
+            var profileReason = await RevalidateProfileAsync(turn, token).ConfigureAwait(false);
+            if (profileReason != ModelTurnReason.None)
+            { return Finish(ModelTurnOutcome.Unavailable, profileReason, turn.Provenance); }
             reason = await RevalidateAsync(turn, token).ConfigureAwait(false);
             if (reason != ModelTurnReason.None) { return Finish(ModelTurnOutcome.Denied, reason, turn.Provenance); }
         }
@@ -241,9 +239,11 @@ public sealed partial class ModelTurnHost : IAsyncDisposable, IModelTurnAdmissio
         try
         {
             token.ThrowIfCancellationRequested();
+            if (!ConsumerAdmissionCurrent(turn))
+            { return Finish(ModelTurnOutcome.Denied, ModelTurnReason.HostAdmissionClosed, turn.Provenance); }
             var pending = turn.Registration.Adapter!.RunAsync(turn.Provenance, turn.Profile, turn.Wire.AsMemory(),
                 (id, input, toolToken) => InvokeToolAsync(turn, id, input, token, toolToken),
-                continuationToken => RevalidateAsync(turn, continuationToken), token);
+                continuationToken => RevalidateContinuationAsync(turn, continuationToken), token);
             try { reply = await pending.WaitAsync(token).ConfigureAwait(false); }
             catch (OperationCanceledException) when (token.IsCancellationRequested)
             {
@@ -259,10 +259,10 @@ public sealed partial class ModelTurnHost : IAsyncDisposable, IModelTurnAdmissio
             if (!transferred) { released.TrySetResult(); }
         }
         token.ThrowIfCancellationRequested();
-        reason = await RevalidateAsync(turn, token).ConfigureAwait(false);
+        if (turn.HasForbiddenToolAttempt)
+        { return Finish(ModelTurnOutcome.Denied, ModelTurnReason.ToolUseNotPermitted, turn.Provenance); }
+        reason = await RevalidateContinuationAsync(turn, token).ConfigureAwait(false);
         if (reason != ModelTurnReason.None) { return Finish(ModelTurnOutcome.Denied, reason, turn.Provenance); }
-        if (turn.ToolProposalRejected)
-        { return Finish(ModelTurnOutcome.Denied, ModelTurnReason.ToolResultRejected, turn.Provenance); }
         if (reply is null || reply.ReportedSelection != turn.Provenance.Selection || !Enum.IsDefined(reply.Outcome)
             || !Enum.IsDefined(reply.Reason)
             || reply.Outcome == ModelTurnOutcome.Succeeded && !ValidResponse(reply.Response))
@@ -278,27 +278,51 @@ public sealed partial class ModelTurnHost : IAsyncDisposable, IModelTurnAdmissio
     {
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(turnToken, token);
         linked.Token.ThrowIfCancellationRequested();
-        if (!turn.Context.AllowTools)
+        // Refuse before asynchronous source validation so an unawaited callback cannot race a successful answer.
+        if (turn.Owner == owner && turn.Context.ToolMode == ModelToolMode.None)
         {
-            turn.ToolProposalRejected = true;
+            turn.RejectToolAttempt();
             ToolDenied(logger);
-            return new(CapabilityOutcome.Denied, "tool-free-context");
+            return new(CapabilityOutcome.Denied, "model-tools-not-permitted");
         }
         var current = HostActivity.Current;
         if (turn.Owner != owner || !turn.IsRunning || current is null || current.Activity!.IsStopped
             || !ReferenceEquals(current.Request, turn.Provenance.Request)
-            || await RevalidateAsync(turn, linked.Token).ConfigureAwait(false) != ModelTurnReason.None)
+            || await RevalidateContinuationAsync(turn, linked.Token).ConfigureAwait(false) != ModelTurnReason.None)
         {
             ToolDenied(logger);
             return new(CapabilityOutcome.Denied, "model-turn-not-admitted");
         }
         var reply = tools.Invoke(tools.Admit(CapabilityLane.Execution), id, input, linked.Token);
-        if (await RevalidateAsync(turn, linked.Token).ConfigureAwait(false) != ModelTurnReason.None)
+        if (await RevalidateContinuationAsync(turn, linked.Token).ConfigureAwait(false) != ModelTurnReason.None)
         {
             ToolDenied(logger);
             return new(CapabilityOutcome.Denied, "model-turn-admission-changed");
         }
         return reply;
+    }
+
+    private async ValueTask<ModelTurnReason> RevalidateProfileAsync(ModelTurn turn, CancellationToken token)
+    {
+        if (turn.Profile is not { } profile) { return ModelTurnReason.None; }
+        if (sessionProfiles is null || providerProfileConfiguration is null)
+        { return ModelTurnReason.SessionNotAdmitted; }
+        var observed = await sessionProfiles.ReadProviderProfile(turn.Provenance.Request.SessionId, token).ConfigureAwait(false);
+        token.ThrowIfCancellationRequested();
+        if (observed.Held || observed.Session.SessionId != turn.Provenance.Request.SessionId
+            || !observed.Session.IsActive || observed.Session.Generation != turn.SessionGeneration)
+        { return ModelTurnReason.SessionNotAdmitted; }
+        // Later preference edits affect later turns; only the captured tuple's live authority is revalidated.
+        return await providerProfileConfiguration.ValidateTurnAsync(profile, token).ConfigureAwait(false)
+            ? ModelTurnReason.None : ModelTurnReason.UnregisteredModel;
+    }
+
+    private async ValueTask<ModelTurnReason> RevalidateContinuationAsync(ModelTurn turn, CancellationToken token)
+    {
+        var reason = await RevalidateAsync(turn, token).ConfigureAwait(false);
+        if (reason != ModelTurnReason.None) { return reason; }
+        reason = await RevalidateProfileAsync(turn, token).ConfigureAwait(false);
+        return reason != ModelTurnReason.None ? reason : await RevalidateAsync(turn, token).ConfigureAwait(false);
     }
 
     private async ValueTask<ModelTurnReason> RevalidateAsync(ModelTurn turn, CancellationToken token)

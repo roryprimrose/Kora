@@ -69,7 +69,9 @@ public sealed partial class WindowsSqliteHostInteractionStore : IHostInteraction
             migrationAdmission: ValidateAttachmentMigrationAdmission,
             providerProfileMigration: new(8, 9, HostInteractionSchema.AttachmentTables, MigrateProviderProfiles),
             queueOrderMigration: new(9, 10, HostInteractionSchema.ProviderProfileTables, MigrateQueueOrder),
-            conversationMigration: new(10, HostInteractionSchema.Version, HostInteractionSchema.QueueOrderTables, MigrateConversation));
+            conversationMigration: new(10, 11, HostInteractionSchema.QueueOrderTables, MigrateConversation),
+            conversationExecutionMigration: new(11, HostInteractionSchema.Version,
+                HostInteractionSchema.LegacyConversationTables, MigrateConversationExecution));
     }
 
     public ValueTask InitializeAsync(CancellationToken cancellationToken) =>
@@ -725,7 +727,7 @@ public sealed partial class WindowsSqliteHostInteractionStore : IHostInteraction
         var queueControl = Same(audit.Audit.ActionId, "queue.pause") || Same(audit.Audit.ActionId, "queue.resume") || queueMove || queueCancel || queueRequeue;
         var credentialRejection = Same(audit.Audit.ActionId, "conversation.credential-rejected");
         var conversationControl = credentialRejection || audit.Audit.ActionId is "conversation.submit" or "conversation.terminal"
-            or "conversation.draft.save" or "conversation.draft.clear";
+            or "conversation.execution" or "conversation.answer" or "conversation.draft.save" or "conversation.draft.clear";
         if (queueRequeue != (audit.QueueRequeueReceipt is not null))
         {
             throw new InvalidDataException("Expired replacement requires exact typed original and fresh lineage.");
@@ -825,21 +827,25 @@ public sealed partial class WindowsSqliteHostInteractionStore : IHostInteraction
             || audit.Audit.Outcome is not (SecurityAuditOutcome.Succeeded or SecurityAuditOutcome.Denied)
                 && !(conversationControl && audit.Audit.Outcome is SecurityAuditOutcome.Cancelled or SecurityAuditOutcome.Unknown)
             || !(Same(requested.ActionId, "approval.revoke-exact") || batch || queueControl || conversationControl)
-            || !queueControl && audit.Request.Origin != RequestOrigin.LocalUi))
+            || !queueControl && !conversationControl && audit.Request.Origin != RequestOrigin.LocalUi))
         {
             throw new InvalidDataException("The exact-revocation requested and terminal audit pair is invalid.");
         }
-        if (conversationControl && (audit.Request.Origin != RequestOrigin.LocalUi || audit.Request.InvocationId is not null
+        if (conversationControl && (audit.Request.Origin is not (RequestOrigin.LocalUi or RequestOrigin.ActivatedVoice)
+            || audit.Request.Origin == RequestOrigin.ActivatedVoice && audit.Audit.ActionId.StartsWith("conversation.draft.", StringComparison.Ordinal)
+            || audit.Request.InvocationId is not null
             || audit.RequestedGrantRevision is not null || audit.RequestedGrants is not null || audit.Audit.ApprovalId is not null
             || audit.Outcome is not null || audit.QuestionId is not null || audit.ApprovalId is not null
-            || audit.Audit.Initiator != SecurityAuditInitiator.TypedCommand || audit.Changes.Length != (credentialRejection ? 1 : 2)
+            || audit.Audit.Initiator != (audit.Request.Origin == RequestOrigin.ActivatedVoice
+                ? SecurityAuditInitiator.VoiceCommand : SecurityAuditInitiator.TypedCommand)
+            || audit.Changes.Length != (credentialRejection ? 1 : 2)
             || !audit.Changes.Any(change => Same(change.Kind, "task") && Same(change.Id, Id(audit.Request.TaskId)))
             || !credentialRejection && !audit.Changes.Any(change =>
                 Same(change.Kind, audit.Audit.ActionId.StartsWith("conversation.draft.", StringComparison.Ordinal)
                     ? "conversation-draft" : "conversation-message")
                 && Same(change.Id, audit.Audit.ActionId.StartsWith("conversation.draft.", StringComparison.Ordinal)
                     ? Id(audit.Request.SessionId) : Id(audit.Request.RequestId)))))
-        { throw new InvalidDataException("Conversation requires exact original native input, requested/terminal audit and task lineage without grants."); }
+        { throw new InvalidDataException("Conversation requires exact original user input, requested/terminal audit and task lineage without grants; drafts remain native-only."); }
         if (credentialRejection && (audit.Audit.Outcome != SecurityAuditOutcome.Denied
             || !Same(audit.Audit.ReasonCode ?? string.Empty, "credential-like-content")))
         { throw new InvalidDataException("Credential rejection audit must be a content-free denial."); }

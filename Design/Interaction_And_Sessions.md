@@ -29,6 +29,16 @@ Existing production registrations remain unqualified: their actual
 UnregisteredModel/QualificationPending/unavailable reason is retained without
 an assistant answer. This implementation does not qualify any runtime.
 
+The [canonical original-user submit](../src/Kora.Application/Hosting/SessionConversationService.cs)
+preserves either LocalUi or ActivatedVoice origin through the original message,
+model provenance, separate assistant response and typed audit. The existing
+[source-bound review/confirmation workflow](../src/Kora.Application/Hosting/SessionRequestCommandService.cs)
+remains authoritative; voice gains no native saved-draft writer authority and
+cannot be relabelled as LocalUi. Deterministic
+[host execution tests](../tests/Kora.Application.UnitTests/Dependencies/ModelTurnHostTests.ConversationExecution.cs)
+and [private completion/restart tests](../tests/Kora.Windows.IntegrationTests/Storage/WindowsSqliteConversationTests.Execution.cs)
+cover both original channels.
+
 For an admitted qualified local turn, one audited private transaction records
 DispatchRecorded on the **original** task and binds the original message to
 the host-issued turn/provenance and exact session metadata revision. The host
@@ -60,7 +70,10 @@ Restart recovers that dispatched task as Unknown with no answer/replay. Intent-o
 legacy recovery remains Interrupted. Late output cannot append an answer or release
 an unquiesced provider slot prematurely.
 
-Schema 11 retains its existing tables and private-copy lifecycle. Legacy
+Schema 12 [migrates the message revision constraint](../src/Kora.Windows/Storage/WindowsSqliteHostInteractionStore.ConversationExecution.cs)
+transactionally from schema 11 to admit terminal revision 3; exact legacy schema,
+integrity and authority are validated before replacement. It retains every
+original payload, sequence, task and audit byte and the private-copy lifecycle. Legacy
 message format 1 canonical bytes/digests are unchanged (new null fields are
 omitted). Format 2 is admitted only for a bound execution: revision 2 is
 dispatched and revision 3 terminal, with independently versioned response
@@ -83,10 +96,13 @@ Saved-draft recovery, Compare, dirty-buffer decisions and immutable submission
 origins stay unchanged. No history/recall/egress assembly or automatic session Done
 is added.
 
-Deterministic Core, real-host callback, private SQLite and headless native tests
-are authored; **not executed in this implementation lane**. Compiler/analyzer,
-maintained checks and exact-source raw 100% portable line **and** branch proof
-require the later explicit validation permit. Installed/model/provider/hardware
+Deterministic [Core response tests](../tests/Kora.Core.UnitTests/Conversation/ConversationResponseTests.cs),
+[integrated retained loop tests](../tests/Kora.Application.UnitTests/Dependencies/ModelTurnHostTests.IntegratedExecution.cs),
+[private SQLite tests](../tests/Kora.Windows.IntegrationTests/Storage/WindowsSqliteConversationTests.Execution.cs)
+and [native tests](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.Execution.cs)
+cover this path. Compiler/analyzer, maintained checks and exact-source raw 100%
+portable line **and** branch proof remain required; authored tests are not
+passing validation. Installed/model/provider/hardware
 E/Q evidence remains unavailable and is not a bounded implementation prerequisite.
 
 ## Delivered passive exact-conversation lexical search — 2026-10-13
@@ -310,13 +326,13 @@ baggage, preferences, Work/AllWork or diagnostic history.
 
 Submit atomically commits the exact frozen body, fresh original host request
 and task intent, current-run source binding and correlated typed requested/
-retention receipt. It then builds one bounded envelope from the trusted
+retention receipt. Before retaining, it validates one bounded envelope from the trusted
 versioned host policy and **this original body only**, with no conversation
 history, attachments, memories, evidence or tool results. Actual complete
 serialization must fit 32768 UTF-8 bytes; the independent output budget stays
 4096. Existing registered read-only descriptors are host framing, not new tool
 execution permission. It reads fresh exact-session/app policy and qualification
-through `ModelTurnHost` while the issuing activity is still live.
+through `ModelTurnHost` while the issuing activity is still live. Original-source callbacks and their live admission fence are rechecked after retention and immediately before model admission in the [canonical submission action](../src/Kora.Application/Hosting/SessionConversationService.cs).
 
 Production advertises no qualified models/adapters. The exact message remains
 retained with **HOST Unavailable / UnregisteredModel** and a terminal
@@ -1220,6 +1236,28 @@ support them safely.
 Kora neither bypasses these requirements nor dictates credentials into a model.
 
 ## Conversational Voice Turns
+
+### Delivered explicit exact-session request commands
+
+Typed input and current-name activated voice can deliberately address one exact Active session using the [strict reserved request grammar](../src/Kora.Core/Commands/SessionCommand.Request.cs). This does not add selected-window, session-title, relatedness, pending-question or approval routing.
+
+```text
+session request review <session-id> <generation> <metadata-revision> -- <original body>
+session request confirm <session-id> <review-id>
+session request cancel <session-id> <review-id>
+```
+
+For voice, prefix each command with the current assistant name, for example `Kora, session request review ...`. The body starts immediately after the single separator space in ` -- `; every subsequent character, including case, leading/trailing spaces, tabs and line endings, is original content. [ConversationText](../src/Kora.Core/Conversation/ConversationText.cs) supplies the existing independent bounds and reject-only credential rules.
+
+The [application command workflow](../src/Kora.Application/Hosting/SessionRequestCommandService.cs) returns the exact frozen body, target, original channel, host-issued review ID and 60-second expiry for explicit review. Confirmation consumes that review before asynchronous work. It revalidates original source admission, private ownership/control revision, exact session/generation/metadata and expiry before retention, at its commit fence and before model admission.
+
+A local confirmation of an ActivatedVoice review still submits ActivatedVoice; confirmation cannot cleanse origin or reopen stale admission. Call/privacy/voice recovery, name changes and host closure retire pending review authority through the [host entry points](../src/Kora.Application/ViewModels/MainViewModel.Sessions.cs). Invalid reserved commands are rejected before the question/model fallback; current questions and approvals remain separate decisions.
+
+Both command confirmation and native Sessions/compact/New request Submit call [SessionConversationService.SubmitAsync](../src/Kora.Application/Hosting/SessionConversationService.cs), not parallel adapters. The complete original-body envelope is bounded before retention. On this base, absent production model admission remains a retained USER message plus truthful terminal HOST/task Unavailable reason; no assistant answer, replay or bootstrap fallback is invented.
+
+The [SQLite writer](../src/Kora.Windows/Storage/WindowsSqliteHostInteractionStore.Conversation.cs) and [audit readback validator](../src/Kora.Windows/Storage/WindowsSqliteHostInteractionStore.cs) preserve ActivatedVoice on request/task/audit records; draft writes remain native-only. Request IDs and deferred activity links carry correlation without body text in logs, tags or baggage. Model/provider submission remains unavailable because the [registered read-only descriptors](../src/Kora.Core/Tools/ReadOnlyCapabilityCatalog.cs) grant no original-user submission authority.
+
+[Grammar cases](../tests/Kora.Core.UnitTests/Commands/SessionRequestCommandTests.cs), [source/one-shot cases](../tests/Kora.Application.UnitTests/Hosting/NewRequestComposerTests.SessionRequests.cs), [host routing cases](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.SessionRequests.cs) and [private-store restart/audit cases](../tests/Kora.Windows.IntegrationTests/Storage/WindowsSqliteConversationTests.VoiceRequests.cs) exercise this bounded I implementation. No runtime/provider/wake/hardware/acoustic/containment or installed-accessibility enablement/qualification is claimed.
 
 ### Delivered bounded native-question increment
 

@@ -13,6 +13,19 @@ namespace Kora.Windows.IntegrationTests.Dependencies;
 
 public sealed partial class WindowsOllamaToolTransportTests
 {
+    [Fact]
+    public void DesktopCompositionCannotUseTheLegacyHttpReasonerAsAnEligibilityBypass()
+    {
+        var directory = new DirectoryInfo(AppContext.BaseDirectory);
+        while (directory is not null && !File.Exists(Path.Combine(directory.FullName, ".github", "copilot-instructions.md")))
+        { directory = directory.Parent; }
+        var root = directory?.FullName ?? throw new InvalidOperationException("The repository source root is unavailable.");
+        File.ReadAllText(Path.Combine(root, "src", "Kora", "Program.cs"))
+            .Should().Contain("services.AddSingleton<ILocalModelReasoner, UnavailableLocalModelReasoner>();")
+            .And.NotContain("new WindowsOllamaReasoner(")
+            .And.NotContain("\"ollama-reasoner\"");
+    }
+
     [Theory]
     [InlineData(false)]
     [InlineData(true)]

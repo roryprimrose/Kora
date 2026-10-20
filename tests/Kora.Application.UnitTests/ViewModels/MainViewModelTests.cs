@@ -8521,7 +8521,7 @@ public sealed partial class MainViewModelTests : IDisposable
             Exception? artifactReadFailure = null,
             bool enableMcpServerConfiguration = true, bool enableProviderProfiles = false,
             bool enableQuestionReplies = false, bool enableAuditImpact = false, bool enableSessionRetentionPlanner = false,
-            bool enableSpeechPreparation = false, bool enableDiagnosticImpact = false)
+            bool enableSpeechPreparation = false, bool enableDiagnosticImpact = false, bool enableClipboardExplanation = false)
         {
             Catalog = new BuiltInCommandCatalog();
             CaptionPreferences.LoadFailure = captionReadFailure;
@@ -8617,6 +8617,19 @@ public sealed partial class MainViewModelTests : IDisposable
                     new string('0', 64),
                     "Select only for an explicit request to lock the current session."),
             ]);
+            Kora.Application.Context.ClipboardExplanationWorkflow? clipboardWorkflow = null;
+            Kora.Tools.Clipboard.ClipboardExplain clipboardAction;
+            if (enableClipboardExplanation)
+            {
+                (clipboardAction, clipboardWorkflow, ClipboardWorkflowLifetime) =
+                    Kora.Application.UnitTests.Context.ClipboardExplanationWorkflowTests.CreateWorkflow(clipboard);
+                ClipboardWorkflow = clipboardWorkflow;
+            }
+            else
+            {
+                ClipboardExplainFake = new(clipboard);
+                clipboardAction = new(ClipboardExplainFake);
+            }
             ViewModel = new MainViewModel(
                 Catalog,
                 new BuiltInCommandRouter(Catalog),
@@ -8668,6 +8681,7 @@ public sealed partial class MainViewModelTests : IDisposable
                 new Kora.Tools.Clipboard.ClipboardRead(clipboard),
                 new Kora.Tools.Clipboard.ClipboardReuse(clipboard),
                 new Kora.Tools.Clipboard.ClipboardRevoke(clipboard),
+                clipboardAction,
                 new AuditedPreferenceWriter(Audit), outputCatalog,
                 microphoneCatalog, OutputConfiguration, VolumeConfiguration, enableResponseModeConfiguration
                     ? new ResponseModeConfigurationService(OutputPreferences, OutputAdmission, Audit, TextToSpeech) : null,
@@ -8688,7 +8702,8 @@ public sealed partial class MainViewModelTests : IDisposable
                 enableAuditImpact ? new AuditImpactPreviewService(ImpactReader, AuditPreferences, AuditConfiguration!) : null,
                 enableSessionRetentionPlanner ? new SessionRetentionPlannerService(SessionPlanReader, SessionRetentionConfiguration!) : null,
                 speechPreparation: enableSpeechPreparation ? SpeechPreparation : null,
-                diagnosticImpactPreview: enableDiagnosticImpact ? new DiagnosticImpactPreviewService(DiagnosticImpactReader, DiagnosticPreferences, DiagnosticConfiguration!) : null);
+                diagnosticImpactPreview: enableDiagnosticImpact ? new DiagnosticImpactPreviewService(DiagnosticImpactReader, DiagnosticPreferences, DiagnosticConfiguration!) : null,
+                clipboardExplanation: clipboardWorkflow);
             ViewModel.BindCallOwnershipGate(static () => true);
             ViewModel.BindManualCallNativeLifetime(true);
             if (enableWindowsSpeechRate) { ViewModel.BindWindowsSpeechRateNativeLifetime(static () => true); }
@@ -9159,6 +9174,9 @@ public sealed partial class MainViewModelTests : IDisposable
         }
 
         public FakeClipboardReader ClipboardReader { get; } = new();
+        public PreviewExplanation? ClipboardExplainFake { get; }
+        public IAsyncDisposable? ClipboardWorkflowLifetime { get; }
+        public Kora.Application.Context.ClipboardExplanationWorkflow? ClipboardWorkflow { get; }
 
         public async Task RunAsync(string command)
         {

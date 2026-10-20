@@ -1,5 +1,35 @@
 # Voice and typed commands
 
+## Local decimal calculator
+
+Type `calculate <expression>`, or use the current assistant-name prefix with
+activated voice, for example `Kora, calculate (1.25 + 2.75) * -3`.
+Use `calculate help` for the exact grammar. The result appears in the transcript
+only; it does not replace the response, automatically speak, or create retained
+conversation content.
+
+Supported syntax is invariant decimal literals (`12`, `0.25`), ASCII spaces,
+`+`, `-`, `*`, `/`, parentheses and unary signs. Multiplication/division precede
+addition/subtraction; binary operators associate left to right. A decimal point
+requires digits on both sides. No exponents, functions, units, evaluation engine,
+scripts, shell, model or network are used.
+
+Limits are 512 expression characters, 128 tokens and 16 nested parentheses/unary
+signs combined. Literals must be exactly representable as .NET decimal (up to 28
+fractional places after trailing zeros are removed). Checked decimal arithmetic
+uses .NET's decimal rounding, including division and underflow; for example
+`calculate 1/3` returns `0.3333333333333333333333333333`. Results are invariant,
+non-exponential, at most 31 characters, with insignificant trailing zeros removed.
+Invalid syntax, limit failures, overflow and division by zero are explicit
+outcomes with no value or default answer.
+
+Malformed reserved `calculate` requests never answer a pending question, grant
+an approval or reach a model. Calculator requests leave pending questions,
+approvals and grant reviews unchanged and report unavailable until resolved.
+Original private host, instance ownership, current-name voice activation and
+call/privacy admission must remain valid; protected or unknown call state
+refuses calculation. This native-only command adds no model descriptor.
+
 ## Open an exact Settings tab
 
 Use one complete case-insensitive phrase below, optionally prefixed by the current assistant name when typed. Activated voice requires that current-name prefix. Outer spaces are accepted; punctuation, extra words, control characters and input over 256 characters are not ([exact grammar](../src/Kora.Application/Configuration/SettingsSectionCommand.cs)).

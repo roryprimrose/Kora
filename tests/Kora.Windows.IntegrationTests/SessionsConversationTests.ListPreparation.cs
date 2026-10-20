@@ -66,10 +66,13 @@ public sealed partial class SessionsConversationTests
     }
 
     [Theory]
-    [InlineData(0)]
-    [InlineData(1)]
-    [InlineData(2)]
-    public async Task NativeListPreparationUsesTheActualDirtyGuardAndNativeSaveRequiresAFreshCommand(int decision)
+    [InlineData(0, false)]
+    [InlineData(1, false)]
+    [InlineData(2, false)]
+    [InlineData(0, true)]
+    [InlineData(1, true)]
+    [InlineData(2, true)]
+    public async Task NativeListPreparationUsesTheActualDirtyGuardAndNativeSaveRequiresAFreshCommand(int decision, bool searched)
     {
         var choice = (ComposerDraftDecision)decision;
         await HeadlessSession.RunAsync(async () =>
@@ -83,8 +86,12 @@ public sealed partial class SessionsConversationTests
             window.Show();
             try
             {
-                model.ListSearchKind = SessionListSearchKind.Browse;
-                await model.SearchListAsync();
+                if (searched)
+                {
+                    model.ListSearchKind = SessionListSearchKind.Browse;
+                    await model.SearchListAsync();
+                }
+                else { await model.RefreshAsync(); }
                 await model.SelectAsync(model.Sessions.Single());
                 await model.ReadConversationAsync();
                 var original = model.SelectedSessionRecord;
@@ -110,7 +117,8 @@ public sealed partial class SessionsConversationTests
                 if (choice == ComposerDraftDecision.Discard)
                 {
                     model.ComposerBody.Should().BeEmpty();
-                    model.SelectedSessionRecord.Should().BeNull();
+                    if (searched) { model.SelectedSessionRecord.Should().BeNull(); }
+                    else { model.SelectedSessionRecord.Should().Be(original); }
                     model.ListQuery.Should().Be(id.Value.ToString("D"));
                     model.Sessions.Should().BeEmpty();
                 }
@@ -151,9 +159,9 @@ public sealed partial class SessionsConversationTests
         var original = model.SelectedSessionRecord;
         model.NameDraft = "unsaved exact name editor";
         model.ComposerBody = "nonempty shared composer";
-        model.DecideComposerDraft = () => throw new InvalidOperationException("Name editor must not be dropped");
+        model.DecideComposerDraft = () => Task.FromResult(ComposerDraftDecision.Cancel);
         var draft = await f.Store.ReadConversationDraftAsync(f.Request.SessionId, f.Token);
-        (await model.PrepareListQueryAsync(new(Guid.NewGuid()), () => true, () => true)).Should().Be(!searched);
+        (await model.PrepareListQueryAsync(new(Guid.NewGuid()), () => true, () => true)).Should().BeFalse();
         model.NameDraft.Should().Be("unsaved exact name editor");
         model.ComposerBody.Should().Be("nonempty shared composer");
         model.SelectedSessionRecord.Should().Be(original);

@@ -116,8 +116,10 @@ exact native result. The ID proves neither existence nor absence, ownership
 nor permission. There is no read, count, automatic refresh, body access,
 resume, model work, task/action authority or activity renewal.
 
-Preparation preserves an ordinary selected session and shared composer/name
-drafts. Editing a published metadata search retires its old rows, cursor,
+Preparation preserves an ordinary selected session and name draft. Entering
+search mode requires a clean composer under the existing native query-edit
+policy; a dirty buffer remains intact unless the user explicitly discards it.
+Editing a published metadata search retires its old rows, cursor,
 search selection, details, action readiness and late callbacks through the
 same no-read query-edit path. An unsaved name editor or open review refuses
 that retirement rather than discarding it. If a dirty shared composer must

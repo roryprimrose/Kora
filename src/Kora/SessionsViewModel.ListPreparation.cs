@@ -52,13 +52,14 @@ internal sealed partial class SessionsViewModel
         if (listSearchMode && (dispositionPreview is not null || providerProposal is not null
             || retentionReview is not null || queueMoveReview is not null || queueRequeueReview is not null
             || queueCancelReview is not null || diagnosticsPlanReview is not null || memoryBatchReview is not null
-            || composerComparison is not null || draftRecoveryCancellation is not null || clearDraftReviewed))
+            || composerComparison is not null || draftRecoveryCancellation is not null || clearDraftReviewed
+            || attachments?.HasOpenPresentation == true))
         { return PreparationRefused("Finish the existing native review explicitly first; it was not replaced."); }
         // A list-search edit retires its selection. Never silently drop an unsaved name editor.
         if (listSearchMode && selected is not null
             && !string.Equals(nameDraft, selected.Metadata?.Name.Value ?? string.Empty, StringComparison.Ordinal))
         { return PreparationRefused("Finish the native session-name edit first; its draft was retained."); }
-        if (listSearchMode && ComposerDirty)
+        if (ComposerDirty)
         {
             if (draftSaveUnconfirmed || conversationSourceHeld)
             { return PreparationRefused("Reconcile the unconfirmed native draft source first; the memory buffer was retained."); }

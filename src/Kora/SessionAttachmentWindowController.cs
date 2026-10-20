@@ -27,6 +27,8 @@ internal sealed class SessionAttachmentWindowController : IUserFilePicker, IReta
     private long viewRevision;
     private bool disposed;
 
+    internal bool HasOpenPresentation => lifetime is not null;
+
     internal SessionAttachmentWindowController(Action<string> reportFailure, SessionFileAttachmentService service,
         SessionWorkspaceService sessions, ISessionWorkspaceAccess access, IUserFilePicker picker, MainViewModel? typographyHost = null)
     {

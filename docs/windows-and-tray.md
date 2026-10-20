@@ -371,7 +371,9 @@ An ID is only future query data, not existence/absence, ownership, permission
 or selection authority. No read, corpus count, activity renewal or action is
 performed by preparation.
 
-Ordinary selection and shared composer/name drafts remain intact. A published
+Ordinary selection and name drafts remain intact. Existing native query-edit
+policy requires a clean composer on entering search mode; a dirty buffer is
+retained unless explicitly discarded through the native decision. A published
 search query edit uses the same no-read retirement described below; an unsaved
 name editor or existing review refuses rather than silently losing it.
 Dirty composer retirement uses the real native Save/Discard/Cancel dialog.

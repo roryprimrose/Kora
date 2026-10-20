@@ -840,7 +840,10 @@ No metadata/body/count/search/refresh/Next/selection/service action is invoked.
 The [preparation seam](../src/Kora/SessionsViewModel.ListPreparation.cs)
 reuses authoritative no-read list invalidation, retiring prior search pages,
 cursors, selected search details/readiness and late callbacks. Ordinary
-selection and shared drafts are preserved. An unsaved name editor or existing
+selection and name drafts are preserved. Existing query-edit policy requires
+a clean composer in search mode, so entering that mode also uses the native
+dirty guard rather than silently dropping a buffer or acknowledging a disabled
+query field. An unsaved name editor or existing
 review refuses search-selection retirement. Dirty composer retirement uses
 the existing real native Save/Discard/Cancel guard: Cancel preserves, Discard
 permits retirement, and only a real native Save event may save under new

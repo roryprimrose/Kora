@@ -137,6 +137,24 @@ maintained equivalent executable was found. Native accessibility, automatic
 provider detection, real-call/acoustic/runtime/installed and A0-A4 qualification
 remain separately gated.
 
+## Delivered Natural Manual Call Phrases
+
+The [same parser and fixed phrase/help catalogue](../src/Kora.Application/Communication/ManualCallCommand.cs) accepts these exact whole utterances, case-insensitively, with an optional current assistant-name prefix:
+
+| Phrase | Existing manual operation |
+| --- | --- |
+| `turn on manual call protection` | Set the current-run manual layer on. |
+| `turn off manual call protection` | Clear only that manual layer, like `set call.manual-active to off`; schema `reset call.manual-active` remains available. |
+| `show manual call status` | Inspect the cached combined manual/automatic observation and its availability/recovery information. |
+
+The [shared consumer route](../src/Kora.Application/ViewModels/MainViewModel.cs) uses this parser for busy-state command availability, transcript dispatch and recognition phrases. Reserved malformed natural commands clarify before model/question fallback; there is no substring/fuzzy invocation or alias for the ambiguous conversational claims `I am on a call` / `my call is over`.
+
+The aliases use [existing committed control](../src/Kora.Application/Communication/ManualCallControl.cs), preserving original input, session generation, observed revision and host/privacy/native-lifetime/voice admission. Protected-call voice writes remain denied; capture may be unavailable. No exception, grant, replay or microphone reopening is introduced.
+
+Off/reset never assert automatic Clear while Active/Unknown evidence or a lost-receipt hold remains. [Passive status and retirement](../src/Kora.Application/ViewModels/MainViewModel.Communication.cs) preserve pending questions/security previews. Changed manual state awaits owned resource retirement; late old callbacks cannot replay or reopen input.
+
+Bounded **I - Implementation** uses [parser tests](../tests/Kora.Application.UnitTests/Communication/ManualCallCommandTests.cs) and [consumer tests](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.ManualCallCommands.cs). These deterministic fakes do not qualify real-call, acoustic, hardware or installed **E - Enablement / Q - RC** profiles.
+
 ## Delivered Bounded In-Call Feedback
 
 The independent device-local **`calls.feedback-mode`** defaults to **UI** and

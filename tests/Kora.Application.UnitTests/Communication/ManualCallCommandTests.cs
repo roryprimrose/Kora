@@ -1,3 +1,4 @@
+using System.Text;
 using System.Text.Json;
 using AwesomeAssertions;
 using Kora.Application.Communication;
@@ -17,13 +18,19 @@ public sealed class ManualCallCommandTests
     [InlineData("reset call.manual-active", AppearanceCommandOperation.Reset, false)]
     [InlineData(" Nova, SET CALL.MANUAL-ACTIVE TO ON ", AppearanceCommandOperation.Set, true)]
     [InlineData("Nova get call.manual-active", AppearanceCommandOperation.Get, null)]
+    [InlineData("turn on manual call protection", AppearanceCommandOperation.Set, true)]
+    [InlineData("turn off manual call protection", AppearanceCommandOperation.Set, false)]
+    [InlineData("show manual call status", AppearanceCommandOperation.Get, null)]
+    [InlineData(" Nova, TURN ON MANUAL CALL PROTECTION ", AppearanceCommandOperation.Set, true)]
+    [InlineData("Nova turn off manual call protection", AppearanceCommandOperation.Set, false)]
+    [InlineData("Nova, show manual call status", AppearanceCommandOperation.Get, null)]
     public void Exact_grammar_uses_current_prefix_and_host_boolean(string input, AppearanceCommandOperation operation, bool? active)
     {
         var command = ManualCallCommand.Parse(input, "Nova")!;
         command.Operation.Should().Be(operation);
         command.Active.Should().Be(active);
         command.Error.Should().BeNull();
-        ManualCallCommand.FixedPhrases.Should().HaveCount(6);
+        ManualCallCommand.FixedPhrases.Should().HaveCount(9);
     }
 
     [Theory]
@@ -32,6 +39,16 @@ public sealed class ManualCallCommandTests
     [InlineData("Nova")]
     [InlineData("Kora get call.manual-active")]
     [InlineData("speak once during call")]
+    [InlineData("")]
+    [InlineData("Novation turn on manual call protection")]
+    [InlineData("Nova.turn on manual call protection")]
+    [InlineData("Kora turn on manual call protection")]
+    [InlineData("please turn on manual call protection")]
+    [InlineData("quote: turn off manual call protection")]
+    [InlineData("\"turn on manual call protection\"")]
+    [InlineData("I am on a call")]
+    [InlineData("my call is over")]
+    [InlineData("turn off call protection")]
     public void Unrelated_and_noncurrent_prefix_do_not_route(string input) =>
         ManualCallCommand.Parse(input, "Nova").Should().BeNull();
 
@@ -43,10 +60,36 @@ public sealed class ManualCallCommandTests
     [InlineData("reset call.manual-active now")]
     [InlineData("status call.manual-active\n")]
     [InlineData("Nova\tget call.manual-active")]
+    [InlineData("turn on manual call")]
+    [InlineData("turn off manual call")]
+    [InlineData("show manual call")]
+    [InlineData("turn on manual call protection please")]
+    [InlineData("turn off manual call protection and approve once")]
+    [InlineData("show manual call status now")]
+    [InlineData("show manual call status.")]
+    [InlineData("turn on manual call protection\n")]
+    [InlineData("Nova\tturn off manual call protection")]
+    [InlineData("turn on manual call\0 protection")]
     public void Reserved_malformed_input_clarifies_without_fallthrough(string input)
     {
         ManualCallCommand.Parse(input, "Nova")!.Operation.Should().Be(AppearanceCommandOperation.Clarify);
         ManualCallCommand.Parse(input, "Nova")!.Error.Should().NotBeNullOrWhiteSpace();
+    }
+
+    [Theory]
+    [InlineData("turn on manual call protection")]
+    [InlineData("turn off manual call protection")]
+    [InlineData("show manual call status")]
+    public void NaturalPhrasesShareDiscoveryHelpAndOriginalInputByteBounds(string phrase)
+    {
+        ManualCallCommand.FixedPhrases.Should().Contain(phrase);
+        ManualCallCommand.Syntax.Should().Contain(phrase);
+        var exactBound = phrase.PadRight(1024);
+        Encoding.UTF8.GetByteCount(exactBound).Should().Be(1024);
+        ManualCallCommand.Parse(exactBound, "Nova")!.Operation.Should().NotBe(AppearanceCommandOperation.Clarify);
+        ManualCallCommand.Parse(exactBound + " ", "Nova")!.Error.Should().Contain("1024");
+        ManualCallCommand.Parse("Nova, " + exactBound, "Nova")!.Error.Should().Contain("1024");
+        ManualCallCommand.Parse(phrase + new string('é', 513), "Nova")!.Error.Should().Contain("1024");
     }
 
     [Fact]

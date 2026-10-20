@@ -1111,6 +1111,12 @@ New call-protection downgrades and temporary/speak-once exceptions remain
 unavailable pending complete exact trusted review; they are not exposed as
 working verbal/model operations. See the [bounded R15 manual parity](Call_Aware_Speech.md#delivered-manual-command-parity---2026-10-08).
 
+Exact whole-utterance `turn on manual call protection`, `turn off manual call protection` and `show manual call status` also use the [authoritative manual parser](../src/Kora.Application/Communication/ManualCallCommand.cs) and its fixed recognition/help phrases, optionally after the current assistant name. Quoted, embedded, fuzzy and conversational call claims are not command aliases.
+
+These are run-only manual-layer operations, not detector controls. Off/reset never assert automatic Clear; Active/Unknown evidence and unavailable receipts retain protection. [Admission and retirement](../src/Kora.Application/ViewModels/MainViewModel.Communication.cs) are unchanged: protected-call voice writes remain denied, and host/privacy/listening gates may make voice unavailable.
+
+Bounded **I - Implementation** uses [deterministic route tests](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.ManualCallCommands.cs). Automatic detection, new call exceptions, manual persistence and hardware/acoustic/installed **E - Enablement / Q - RC** qualification are not enabled; see [delivery boundaries](Call_Aware_Speech.md#delivered-natural-manual-call-phrases).
+
 Each registered option declares:
 
 - Stable ID/category, description, spoken names/aliases, type, units, allowed values/range, and default.

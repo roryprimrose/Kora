@@ -157,6 +157,9 @@ Head/base/intent changes cancel only the matching candidate run. The lane stays
 occupied until that run terminates, so cancellation cannot accidentally admit a
 second expensive build while the first is still running. Reruns/duplicate ticket
 runs are not accepted as fresh evidence.
+An already-merged PR uses the same quiescence rule: its recorded dispatch must
+be observable and terminal before the lane is released. Recovery cancels any
+remaining matching run without overwriting previously successful check evidence.
 
 Main release builds and explicit version-tag/manual builds retain their existing
 behaviour; candidate dispatch does not cancel them. This initial change does not

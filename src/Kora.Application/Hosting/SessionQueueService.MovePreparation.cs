@@ -24,9 +24,9 @@ public sealed partial class SessionQueueService
             && access.CanInspect && access.CanControl && access.ControlRevision == revision
             && ConfigurationRevision == configurationRevision
             && (configuration is null || configuredLimits is { } current && configuration.IsCurrent(current));
-        ActivityLink[] causes = HostActivity.Current?.Activity is { } cause ? [new(cause.Context)] : [];
+        ActivityLink[] preparationLinks = HostActivity.Current?.Activity is { } cause ? [new(cause.Context)] : [];
         using var activity = HostActivity.BeginRoot(new(new(Guid.NewGuid()), session, new(Guid.NewGuid()), origin),
-            HostActivityLayer.Application, HostOperation.Request, causes);
+            HostActivityLayer.Application, HostOperation.Request, preparationLinks);
         try
         {
             token.ThrowIfCancellationRequested();

@@ -4,6 +4,7 @@ using Kora.Application.Interaction;
 using Kora.Core.Commands;
 using Kora.Core.Diagnostics;
 using Kora.Core.Hosting;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Kora.Application.UnitTests.Interaction;
@@ -115,7 +116,8 @@ public sealed class CountdownWorkflowTests
         };
         ActivitySource.AddActivityListener(listener);
         var time = new CountdownTestClock();
-        using var state = new CountdownWorkflow(time, new Dispatcher(), NullLogger<CountdownWorkflow>.Instance);
+        var logger = new EnabledLogger();
+        using var state = new CountdownWorkflow(time, new Dispatcher(), logger);
         var request = HostRequest.Create(RequestOrigin.LocalUi);
         using (var root = HostActivity.BeginRoot(request, HostActivityLayer.Application, HostOperation.Request))
         {
@@ -131,6 +133,16 @@ public sealed class CountdownWorkflowTests
         expiry.Status.Should().Be(ActivityStatusCode.Ok);
         expiry.Baggage.Should().BeEmpty();
         expiry.TagObjects.Should().NotContain(pair => pair.Key.Contains("seconds", StringComparison.Ordinal));
+        logger.Events.Should().Equal((8920, cause.Context), (8920, expiry.Context));
+    }
+
+    private sealed class EnabledLogger : ILogger<CountdownWorkflow>
+    {
+        internal List<(int Id, ActivityContext Context)> Events { get; } = [];
+        public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
+        public bool IsEnabled(LogLevel logLevel) => true;
+        public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception,
+            Func<TState, Exception?, string> formatter) => Events.Add((eventId.Id, Activity.Current!.Context));
     }
 
     private sealed class Dispatcher : IUiDispatcher

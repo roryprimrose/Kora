@@ -17,12 +17,11 @@ public sealed partial class CountdownWorkflow(
     private long started;
     private int duration;
     private bool disposed;
-    private bool running;
     private Func<bool> lifetimeEligible = static () => false;
     private string status = "No timer started in this run.";
 
     public string Status => status;
-    public bool IsRunning => running;
+    public bool IsRunning => timer is not null;
 
     public string Execute(CountdownCommand command, Func<bool> eligible)
     {
@@ -41,7 +40,7 @@ public sealed partial class CountdownWorkflow(
             switch (command.Operation)
             {
                 case CountdownOperation.Start when CountdownCommand.IsValidSeconds(command.Seconds):
-                    if (running) { result = "Timer already active; use timer cancel first. The existing timer was not replaced."; break; }
+                    if (IsRunning) { result = "Timer already active; use timer cancel first. The existing timer was not replaced."; break; }
                     Start(command.Seconds, eligible);
                     result = status;
                     break;
@@ -68,7 +67,6 @@ public sealed partial class CountdownWorkflow(
             null, TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(1));
         lifetimeEligible = eligible;
         duration = seconds;
-        running = true;
         status = Remaining(seconds);
         OnPropertyChanged(nameof(IsRunning));
         OnPropertyChanged(nameof(Status));
@@ -96,12 +94,12 @@ public sealed partial class CountdownWorkflow(
 
     private void Refresh()
     {
-        if (!running) { return; }
+        if (timer is not { } ownedTimer) { return; }
         if (!lifetimeEligible()) { Retire(); return; }
         var elapsed = time.GetElapsedTime(started);
         if (elapsed >= TimeSpan.FromSeconds(duration))
         {
-            Stop("Timer complete. Visual completion only.");
+            Stop(ownedTimer, "Timer complete. Visual completion only.");
             Outcome(logger, CountdownOperation.Status, "Expired");
             return;
         }
@@ -112,19 +110,18 @@ public sealed partial class CountdownWorkflow(
     {
         lock (gate)
         {
-            if (!running) { return; }
-            Stop("Timer cancelled. No completion or reminder is pending.");
+            if (timer is not { } ownedTimer) { return; }
+            Stop(ownedTimer, "Timer cancelled. No completion or reminder is pending.");
             Outcome(logger, CountdownOperation.Cancel, "Cancelled");
         }
     }
 
-    private void Stop(string terminalStatus)
+    private void Stop(ITimer ownedTimer, string terminalStatus)
     {
         generation++;
-        timer?.Dispose();
+        ownedTimer.Dispose();
         timer = null;
         lifetimeEligible = static () => false;
-        running = false;
         status = terminalStatus;
         OnPropertyChanged(nameof(IsRunning));
         OnPropertyChanged(nameof(Status));

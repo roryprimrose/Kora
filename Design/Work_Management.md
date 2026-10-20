@@ -16,6 +16,35 @@ The [exact-conversation search](Interaction_And_Sessions.md#delivered-passive-ex
 
 Search, Next, Cancel and Clear issue no control intent, renew no meaningful activity, run no cleanup and change no queue/task/approval/provider/retention authority. Done remains readable without Resume. Query edits and result closure leave memory composer/dirty-draft decisions and current foreground question/voice target independent.
 
+### All Work selected metadata literal Find
+
+The native [All Work guide](../docs/windows-and-tray.md#all-work--attention-overview)
+provides Ctrl+F / First / Next / Previous / Clear over exactly the immutable
+displayed selected-row details projection. The explicit row admission captures
+that string and its existing selection/page/control epoch; binding getters are
+cached and do not construct Find state, scan or perform I/O. Existing selection
+retirement hooks also retire Find, including future ordering/query controls that
+retire selection. It does not depend on outstanding ordering or query-preparation
+implementations.
+
+The shared `AdmittedMetadataFindState` opts into the authoritative
+`SnapshotLiteralFind.FindCounted` nonoverlapping policy. Counts and selected
+ordinal are complete only within that exact captured metadata string; boundary
+navigation does not wrap or claim a displayed match. Native focus must be
+acknowledged and remain admitted; failure clears the match and navigation.
+Unavailable rows admit only their displayed safe projection, never former
+observed metadata. No additional fields, bodies, source paths or other rows are
+retrieved. Query edits/Clear are read-free; source/private/control/page/selection
+retirement and close erase query, capture, match, counts and navigation.
+
+Find is native-only presentation, not current task/session selection, identity,
+ownership, permission, execution or clipboard authority. No query/capture/count
+or match is sent to Main response, transcript, speech, logs, activities or baggage.
+The consumed implementation contracts are the existing bounded row admission,
+selection retirement, shared literal validation/scanner and native focus controls;
+unrelated provider, installed/hardware or retired experiment qualification is
+not a prerequisite.
+
 ## Delivered deterministic local-version queue
 
 ### Bounded fixed local diagnostics queue plan - 2026-10-19

@@ -57,6 +57,37 @@ or use state, write, send content, announce through speech or renew activity.
 **Validate** remains a separate full structural/schema check; counts grant no
 save, trust, approval or execution authority. Read-only sources stay read-only.
 
+## Go to a line in the displayed source
+
+Choose **Go to line** or press **Ctrl+G** in the native editor. The accessible
+line input refers only to the exact currently displayed owned Instruction or
+Prompt source, including an unsaved or structurally invalid draft. It shows
+the current total logical line count. Enter a one-based ASCII positive integer
+and choose **Go** explicitly. Typing does not navigate; **Cancel** or **Escape**
+dismisses the input without changing the source selection.
+
+Only canonical input is accepted: no whitespace, signs, leading zeros,
+non-ASCII digits, overflow or numbers beyond the actual line count. No input
+is trimmed, repaired or truncated. CRLF is one separator; lone CR and LF also
+separate lines. An empty buffer has one empty line, and a trailing separator
+creates a final empty line. Unicode characters are not line separators.
+Navigation is unavailable above the existing 65,536-character owned source
+bound; an oversized draft is retained unchanged, not shortened.
+
+**Go** focuses the same native source, moves its caret to the exact line start
+and brings it into view. Native focus/caret failure is reported, not treated
+as success. It does not edit text, add an undo edit, load/read a file, validate,
+save, rebase, activate a catalogue row or enable use. Opening/typing in the
+input preserves independent source selection until explicit **Go**. Input
+and line metrics are volatile, not logged, transcribed, spoken by Kora or
+copied to the clipboard; the line input has no clipboard transfers.
+
+An edit, source/ID/kind/file/copy change, editor operation, privacy/ownership
+revocation, close or disposal retires the request. Choose **Go to line** again
+explicitly for the new current buffer. Unknown/unavailable or read-only
+sources do not gain edit, copy or use authority. Profile and bundled sources
+remain outside this owned-editor workflow.
+
 ## Search observed owned metadata
 
 **List** / **Refresh** explicitly enumerates the selected kind's existing bounded owned directory and runs the existing source-reconciliation pipeline. That refresh can read source files and reconcile revision preferences; typing a search or changing a use-state filter cannot.

@@ -108,6 +108,17 @@ The existing skill inspectors have exact typed/current-name activated navigation
 They activate the same singleton native controllers, not artifact `run`/`use`/`apply`, a model tool or a selector ([owning definition boundary](Definition_Management.md#delivered-native-skill-metadata-navigation)).
 
 The delivered owned native editor also provides literal metadata search, observed-use filters and exact stale-safe row inspection for its existing Instruction/Prompt filename inventories only.
+Its independent [native Go to line](../docs/instruction-editor.md#go-to-a-line-in-the-displayed-source)
+is a local caret gesture over the exact currently displayed owned source,
+including dirty/invalid drafts. It has no command/model/voice route, source I/O,
+validation, writer or use authority and does not depend on literal Find.
+One bounded portable logical-line index preserves exact UTF-16 offsets and
+CRLF/CR/LF separators. Explicit Go consumes an ownership/private/buffer/lifetime
+fence before synchronous native focus/caret acknowledgement; stale requests
+require explicit retry. Profile/bundled/read-only/unknown sources stay unavailable.
+The consumed I subset is the existing owned editor and host/privacy admission;
+unrelated provider, hardware, installed or experiment E/Q evidence is not a
+prerequisite for deterministic native navigation validation.
 Explicit List/Refresh uses existing admission/reconciliation; filtering remains in-memory and model-free, with no source writes, activation or first-result loading. Typed/current-name activated List/Inspect opens the same native route; no new model tool or typed search grammar is registered.
 Observed catalogue state is not current disk integrity. Unavailable/stale choices require Refresh/reselection while the original/draft stays open. See [owned inventory controls](../docs/instruction-editor.md#search-observed-owned-metadata); profile-original editing and the full definition source matrix stay deferred.
 

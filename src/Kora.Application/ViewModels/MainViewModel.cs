@@ -1292,10 +1292,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
 
     public Task<bool> SetResponseAlwaysVisibleAsync(
         bool value,
-        SecurityAuditInitiator initiator = SecurityAuditInitiator.LocalUser) =>
+        SecurityAuditInitiator initiator = SecurityAuditInitiator.LocalUser,
+        Action<string, string>? reportFailure = null) =>
         SetResponseWindowSettingsAsync(
             responseWindowSettings with { AlwaysShow = value },
-            initiator);
+            initiator, reportFailure);
 
     public bool IsResponseWindowTopmost
     {
@@ -1305,10 +1306,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
 
     public Task<bool> SetResponseWindowTopmostAsync(
         bool value,
-        SecurityAuditInitiator initiator = SecurityAuditInitiator.LocalUser) =>
+        SecurityAuditInitiator initiator = SecurityAuditInitiator.LocalUser,
+        Action<string, string>? reportFailure = null) =>
         SetResponseWindowSettingsAsync(
             responseWindowSettings with { Topmost = value },
-            initiator);
+            initiator, reportFailure);
 
     public ResponseWindowPosition? ResponseWindowPosition =>
         responseWindowSettings.Position;
@@ -3122,6 +3124,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
                 nameof(HostedModelsEnabled));
             OnPropertyChanged(nameof(HostedModelExecutionDescription));
 
+            responseWindowPreferencesUnconfirmed = true;
             var savedPresencePosition =
                 appearancePreferences.LoadPresencePosition();
             var savedResponseWindowSettings = appearancePreferences.LoadResponseWindowSettings();
@@ -3136,6 +3139,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
                     savedPresencePosition,
                     nameof(PresencePosition));
                 ApplyResponseWindowSettings(savedResponseWindowSettings ?? ResponseWindowSettings.Default);
+                responseWindowPreferencesUnconfirmed = false;
             }
             finally
             {
@@ -3867,8 +3871,21 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
 
     private async Task<bool> SetResponseWindowSettingsAsync(
         ResponseWindowSettings value,
-        SecurityAuditInitiator initiator)
+        SecurityAuditInitiator initiator,
+        Action<string, string>? reportFailure = null)
     {
+        Action<string, string> notifyFailure = reportFailure ?? ShowFailure;
+        try
+        {
+            ReadConfirmedResponseWindowSettings();
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or InvalidDataException
+            or InvalidOperationException)
+        {
+            ApplicationLog.Error(logger, exception, "Confirming response-window preferences");
+            notifyFailure("The response window settings could not be saved.", exception.Message);
+            return false;
+        }
         if (responseWindowSettings == value)
         {
             return true;
@@ -3876,7 +3893,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
 
         if (!suppressResponseWindowPreferenceSave
             && !await SavePreferenceAsync(() => appearancePreferences.SaveResponseWindowSettings(value),
-                ResponseWindowConfigurationAction, initiator, "response window settings"))
+                ResponseWindowConfigurationAction, initiator, "response window settings", reportFailure: reportFailure))
         {
             OnPropertyChanged(nameof(IsResponseAlwaysVisible));
             OnPropertyChanged(nameof(IsResponseWindowTopmost));
@@ -4144,6 +4161,16 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             await Kora.Application.Hosting.HostRequestRunner.RunAsync(
                 OriginalOrigin(initiator),
                 () => DisableListeningAsync(initiator));
+            return;
+        }
+        if (ResponseWindowCommand.Parse(spokenText, AssistantName) is { } responseWindowCommand)
+        {
+            if (!isAssistantNameAvailable && commandRouter.IsActivationPrefixed(spokenText, AssistantName))
+            {
+                Transcript = "Assistant prefix routing is unavailable; no response-window control was dispatched.";
+                return;
+            }
+            await ExecuteResponseWindowCommandAsync(responseWindowCommand, initiator);
             return;
         }
         Interlocked.Increment(ref dispositionReviewEpoch);
@@ -5649,6 +5676,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
                     + "Use “" + SessionDispositionReviewCommand.Syntax + "” for preview only in private native Sessions; confirmation is a separate native action. "
                     + SessionQueueCancellationReviewCommand.Syntax + ". " + SessionQueueCancellationReviewCommand.Boundary + " "
                     + SessionDiagnosticsPlanCommand.Syntax + ". " + SessionDiagnosticsPlanCommand.Boundary + " "
+                    + "Use “list response window settings” for exact device-local visibility/topmost controls; no response is reopened. "
                     + $"Use “{AssistantName}, list assistant settings” for the display/PTT command-prefix name. "
                     + NaturalAppearanceCommand.Syntax + " "
                     + "Natural name commands: “what is your name”, “call yourself <name>”, “change your name to <name>”, or “reset your name”. "
@@ -6131,6 +6159,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             .Concat(AuditRetentionCommand.FixedPhrases)
             .Concat(ManualCallCommand.FixedPhrases)
             .Concat(ResponseModeCommand.FixedPhrases)
+            .Concat(ResponseWindowCommand.FixedPhrases)
             .Concat(ProviderModeCommand.FixedPhrases)
             .Concat(ProviderProfileCommand.FixedPhrases)
             .Concat(SessionProviderProfileCommand.FixedPhrases)

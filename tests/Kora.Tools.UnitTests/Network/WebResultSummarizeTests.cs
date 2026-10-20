@@ -67,19 +67,22 @@ public sealed class WebResultSummarizeTests
         context.Evidence[0].Content.Should().Contain(new string('a', 8000));
     }
 
-    [Fact]
-    public void AcceptsExactlyMaximumCompleteInputAndRefusesOneAdditionalByte()
+    [Theory]
+    [InlineData(0)]
+    [InlineData(1)]
+    [InlineData(1000000)]
+    public void AcceptsExactlyMaximumCompleteInputAndRefusesOneAdditionalByte(int fractionalTicks)
     {
         var request = HostRequest.Create(RequestOrigin.LocalUi);
-        var now = DateTimeOffset.UtcNow;
+        var now = new DateTimeOffset(2026, 10, 20, 0, 0, 0, TimeSpan.Zero).AddTicks(fractionalTicks);
         var action = new WebResultSummarize();
-        var seed = action.CreateContext(Capture(string.Empty), request, now, now.AddMinutes(1));
+        var seed = action.CreateContext(Capture(string.Empty, retrievedAt: now), request, now, now.AddMinutes(1));
         var count = 16000;
         WebResultSnapshot snapshot;
         ModelContextEnvelope measured;
         do
         {
-            snapshot = Capture(new string('a', count));
+            snapshot = Capture(new string('a', count), retrievedAt: now);
             measured = new(request, seed.SystemPolicy, seed.UserRequest,
                 [new(snapshot.Reference.ItemId, request, new(snapshot.Reference.Revision), snapshot.Source, ModelEvidenceDisclosure.LocalOnly)],
                 now, now.AddMinutes(1), ModelToolMode.None);
@@ -90,13 +93,19 @@ public sealed class WebResultSummarizeTests
         measured.Serialize().Length.Should().Be(ModelContextEnvelope.MaximumInputUtf8Bytes);
         action.CreateContext(snapshot, request, now, now.AddMinutes(1)).Serialize().Length.Should()
             .Be(ModelContextEnvelope.MaximumInputUtf8Bytes);
-        var tooLarge = () => action.CreateContext(Capture(new string('a', count + 1)), request, now, now.AddMinutes(1));
+        // Keep timestamp precision fixed so only the evidence body grows by one byte.
+        var oversized = Capture(new string('a', count + 1), retrievedAt: now);
+        var measuredOversized = new ModelContextEnvelope(request, seed.SystemPolicy, seed.UserRequest,
+            [new(oversized.Reference.ItemId, request, new(oversized.Reference.Revision), oversized.Source, ModelEvidenceDisclosure.LocalOnly)],
+            now, now.AddMinutes(1), ModelToolMode.None);
+        measuredOversized.Serialize().Length.Should().Be(ModelContextEnvelope.MaximumInputUtf8Bytes + 1);
+        var tooLarge = () => action.CreateContext(oversized, request, now, now.AddMinutes(1));
         tooLarge.Should().Throw<InvalidDataException>();
     }
 
-    private static WebResultSnapshot Capture(string text, bool truncated = false) =>
+    private static WebResultSnapshot Capture(string text, bool truncated = false, DateTimeOffset? retrievedAt = null) =>
         WebResultSnapshot.Capture(new(new(Guid.NewGuid()), 3), HostRequest.Create(RequestOrigin.LocalUi), 7,
             new("https://example.com/requested"),
             new(WebPageGetOutcome.Succeeded, "retrieved", new("https://example.com/final"), "text/plain", text, truncated, 1),
-            DateTimeOffset.UtcNow).WebResult!;
+            retrievedAt ?? DateTimeOffset.UtcNow).WebResult!;
 }

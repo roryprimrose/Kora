@@ -73,6 +73,21 @@ Refresh, unlock, call end and output recovery never retry it ([playback](../src/
 Push-to-talk preserves an existing eligible current answer while showing capture progress separately; it does not select an older answer. **Stop speaking** remains available during playback.
 The model lane remains unavailable with `current-response-model-tool-loop-not-qualified`; the six read-only descriptors and model transport are unchanged ([capture](../src/Kora.Application/ViewModels/MainViewModel.VoicePrivacy.cs), [action boundary](../src/Kora.Tools/Speech/SpeechReadOnce.cs)).
 
+## Open existing skill reviews
+
+| Whole typed utterance, or current-name activated voice | Existing native surface |
+|---|---|
+| `open skill packages` / `show skill package review` | Verified bundled skill-package review |
+| `open shared skill sources` / `show shared skill sources` | Registered shared-skill source review |
+
+Use exactly one phrase, ignoring case, optionally prefixed by the current assistant name for typing; activated voice requires that prefix. Outer spaces are accepted; punctuation, extra words, selectors, paths, controls and input over 1,024 UTF-8 bytes are not. Reserved malformed input clarifies, without selecting another surface ([grammar](../src/Kora.Application/Skills/SkillReviewCommand.cs)).
+
+Reopening activates the existing singleton and preserves its unsaved search/filter state. These commands are distinct from artifact `run`/`use` invocation. They do not answer pending questions or replace security previews; unavailable native binding or retired ownership/privacy/call/voice state reports unavailable ([routing](../src/Kora.Application/ViewModels/MainViewModel.SkillReview.cs)).
+
+Shared sources retain registration-metadata refresh with its own status. Register/folder selection, Discover, Verify and Unregister remain separate native gestures. Navigation grants no consent, enablement, reload, execution, agent-profile qualification or model authority ([controllers](../src/Kora/SkillPackagesWindowController.cs), [refresh](../src/Kora/SharedSkillSourcesWindowController.cs)).
+
+Activated voice opens the shared inspector without becoming native `LocalUi` authority. Its automatic metadata refresh is refused by the existing local-input-only admission; use the inspector's separate native Refresh control. No synthetic local-input origin or successful metadata/discovery claim is substituted ([shared admission](../src/Kora.Application/Skills/SharedSkillAdmission.cs)).
+
 ## Inspect or change the device-local provider mode
 
 Native Settings > Providers and exact typed/current-name activated commands:

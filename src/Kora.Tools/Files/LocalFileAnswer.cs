@@ -20,7 +20,7 @@ public sealed partial class LocalFileAnswer(LocalFilePreview preview, ILocalFile
         ArgumentNullException.ThrowIfNull(canPresent);
         var context = HostActivity.RequireCurrent();
         if (context.Outcome != HostOperationOutcome.Unknown || context.Request.InvocationId is not null
-            || !ReferenceEquals(reviewedTarget.Request, context.Request))
+            || !ReferenceEquals(reviewedTarget.SourceRequest, context.Request))
         {
             return LocalFileAnswerResult.Empty(LocalFileAnswerOutcome.Denied);
         }
@@ -79,12 +79,12 @@ public sealed partial class LocalFileAnswer(LocalFilePreview preview, ILocalFile
                 {
                     var rejection = admission.Rejection
                         ?? throw new InvalidOperationException("Model context admission returned neither a lease nor a rejection.");
-                    return ResolveReceipt(request, null, rejection, search);
+                    return ResolveReceipt(reviewedTarget.Request, null, rejection, search);
                 }
                 await using var turn = admitted;
                 token.ThrowIfCancellationRequested();
                 if (!current()) { return LocalFileAnswerResult.Empty(LocalFileAnswerOutcome.Stale); }
-                if (!ReferenceEquals(turn.Request, request) || turn.SessionGeneration.Value <= 0)
+                if (!ReferenceEquals(turn.Request, reviewedTarget.Request) || turn.SessionGeneration.Value <= 0)
                 {
                     return LocalFileAnswerResult.Empty(LocalFileAnswerOutcome.Denied);
                 }
@@ -94,13 +94,13 @@ public sealed partial class LocalFileAnswer(LocalFilePreview preview, ILocalFile
                 {
                     await turn.DisposeAsync().ConfigureAwait(false);
                     var terminal = await turn.Completion.ConfigureAwait(false);
-                    return ReferenceEquals(terminal.Request, request)
+                    return ReferenceEquals(terminal.Request, reviewedTarget.Request)
                         ? LocalFileAnswerResult.Empty(outcome) with
                         { ExecutionReason = terminal.Reason, ExecutionState = terminal.DurableState }
                         : LocalFileAnswerResult.Empty(LocalFileAnswerOutcome.InvalidResponse);
                 }
                 LocalFileAnswerContext binding;
-                try { binding = new(source, search, question, turn.Request, new(generation), time.GetUtcNow()); }
+                try { binding = new(source, search, question, turn.Request, new(generation), time.GetUtcNow(), request); }
                 catch (InvalidDataException)
                 {
                     return await Abandon(LocalFileAnswerOutcome.Denied).ConfigureAwait(false);

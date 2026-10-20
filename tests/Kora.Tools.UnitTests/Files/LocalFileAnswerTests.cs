@@ -40,7 +40,8 @@ public sealed class LocalFileAnswerTests : IDisposable
         var citation = result.Claims.Single().Citations.Single();
         LocalFileLexicalRetrieval.ResolveCitation(f.Source, citation, LocalFileRetrievalMode.LexicalLines).Text.Should().Be(f.Text);
         citation.Source.Should().Be(f.Source.Reference);
-        f.Context!.Request.Should().BeSameAs(root.Request);
+        f.Context!.Request.Should().BeSameAs(f.AdmittedRequest);
+        f.Context.Request.SessionId.Should().NotBe(root.Request.SessionId);
         f.AdmissionCalls.Should().Be(1);
         f.LeaseDisposals.Should().Be(1);
         f.Context.UserRequest.Should().Be(question);
@@ -408,7 +409,8 @@ public sealed class LocalFileAnswerTests : IDisposable
         using var voice = HostActivity.BeginRoot(new(new(Guid.NewGuid()), root.Request.SessionId, root.Request.TaskId,
             RequestOrigin.ActivatedVoice), HostActivityLayer.Application, HostOperation.Request);
         (await f.ExecuteAsync(f.Source.Reference, "private", () => true, Token)).Outcome.Should().Be(LocalFileAnswerOutcome.Succeeded);
-        f.Context!.Request.Should().BeSameAs(voice.Request);
+        f.Context!.Request.Should().BeSameAs(f.AdmittedRequest);
+        f.Context.Request.Origin.Should().Be(voice.Request.Origin);
         f.Audits.Last().Initiator.Should().Be(SecurityAuditInitiator.VoiceCommand);
     }
 
@@ -510,6 +512,7 @@ public sealed class LocalFileAnswerTests : IDisposable
         internal int Reads { get; private set; }
         internal int ModelCalls { get; private set; }
         internal int AdmissionCalls { get; private set; }
+        internal HostRequest? AdmittedRequest { get; private set; }
         internal int LeaseDisposals { get; private set; }
         internal LocalContextTurnReceipt? AdmissionRejection { get; init; }
         internal Func<HostRequest, HostRequest>? LeaseRequest { get; init; }
@@ -549,7 +552,9 @@ public sealed class LocalFileAnswerTests : IDisposable
             Func<bool> eligible, CancellationToken cancellation) =>
             Action.ExecuteAsync(source, question, LocalContextSessionTarget.ReviewedFresh(
                 HostActivity.RequireCurrent().Request.Origin == RequestOrigin.HostSystem
-                    ? Source.Review.Request : HostActivity.RequireCurrent().Request),
+                    ? Source.Review.Request : HostActivity.RequireCurrent().Request,
+                HostRequest.Create(HostActivity.RequireCurrent().Request.Origin == RequestOrigin.HostSystem
+                    ? RequestOrigin.LocalUi : HostActivity.RequireCurrent().Request.Origin)),
                 eligible, cancellation);
         internal async Task Admit()
         {
@@ -591,8 +596,9 @@ public sealed class LocalFileAnswerTests : IDisposable
             AdmissionCalls++;
             Context.Should().BeNull();
             sourceCurrent().Should().BeTrue();
-            target.Request.Should().BeSameAs(HostActivity.RequireCurrent().Request);
-            return Task.FromResult(AdmissionRejection is { } rejected ? new ModelContextAdmission(rejected)
+            target.SourceRequest.Should().BeSameAs(HostActivity.RequireCurrent().Request);
+            AdmittedRequest = target.Request;
+            return Task.FromResult(AdmissionRejection is { } rejected ? new ModelContextAdmission(rejected with { Request = target.Request })
                 : new ModelContextAdmission(new Lease(this, LeaseRequest?.Invoke(target.Request) ?? target.Request)));
         }
         private sealed class Lease(Fixture owner, HostRequest request) : IAdmittedModelContextTurn

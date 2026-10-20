@@ -22,10 +22,12 @@ public sealed class LocalFileAnswerContext
     private readonly LocalFileRevision exactRevision;
 
     public LocalFileAnswerContext(LocalFileRevision source, LocalFileSearchResult search, string question,
-        HostRequest request, HostRevision generation, DateTimeOffset now)
+        HostRequest request, HostRevision generation, DateTimeOffset now, HostRequest? sourceRequest = null)
     {
+        sourceRequest ??= request;
         if (!LocalFileRetrievalPolicy.TryQuery(question, out _) || search.Outcome != LocalFileSearchOutcome.Matched
-            || source.Review.Request.SessionId != request.SessionId || source.Review.Request.TaskId != request.TaskId
+            || source.Review.Request.SessionId != sourceRequest.SessionId || source.Review.Request.TaskId != sourceRequest.TaskId
+            || sourceRequest.Origin != request.Origin || sourceRequest.InvocationId is not null
             || !ClipboardCommand.IsDeliberateOrigin(request.Origin) || request.InvocationId is not null
             || search.Mode != LocalFileRetrievalMode.LexicalLines
             || !string.Equals(search.PolicyVersion, LocalFileRetrievalPolicy.Version, StringComparison.Ordinal)
@@ -56,7 +58,7 @@ public sealed class LocalFileAnswerContext
         }
         citations = bindings.ToImmutable();
         exactRevision = source;
-        Envelope = new(request, Policy, question, evidence, now, now.AddSeconds(30), allowTools: false);
+        Envelope = new(request, Policy, question, evidence, now, now.AddSeconds(30), toolMode: ModelToolMode.None);
     }
 
     public ModelContextEnvelope Envelope { get; }

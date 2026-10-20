@@ -18,9 +18,10 @@ public sealed class ModelContextEnvelopeToolPolicyTests
         var request = HostRequest.Create(RequestOrigin.LocalUi);
         var envelope = new ModelContextEnvelope(request, "policy", "user",
             [new(new(Guid.NewGuid()), request, new(1), "untrusted source", ModelEvidenceDisclosure.LocalOnly)],
-            DateTimeOffset.UnixEpoch, DateTimeOffset.UnixEpoch.AddSeconds(15), allowTools);
+            DateTimeOffset.UnixEpoch, DateTimeOffset.UnixEpoch.AddSeconds(15),
+            allowTools ? ModelToolMode.ReadOnly : ModelToolMode.None);
         using var json = JsonDocument.Parse(envelope.Serialize());
-        envelope.AllowTools.Should().Be(allowTools);
+        envelope.ToolMode.Should().Be(allowTools ? ModelToolMode.ReadOnly : ModelToolMode.None);
         json.RootElement.GetProperty("Tools").GetArrayLength()
             .Should().Be(allowTools ? ReadOnlyCapabilityCatalog.Descriptors.Count : 0);
         envelope.RequireCompleteInputLimit();
@@ -32,6 +33,6 @@ public sealed class ModelContextEnvelopeToolPolicyTests
         var request = HostRequest.Create(RequestOrigin.LocalUi);
         var envelope = new ModelContextEnvelope(request, "policy", "user", [],
             DateTimeOffset.UnixEpoch, DateTimeOffset.UnixEpoch.AddSeconds(15));
-        envelope.AllowTools.Should().BeTrue();
+        envelope.ToolMode.Should().Be(ModelToolMode.ReadOnly);
     }
 }

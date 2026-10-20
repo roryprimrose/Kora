@@ -42,7 +42,8 @@ public sealed partial class MainViewModelTests
     {
         var fixture = new Fixture();
         var source = new LocalFileReference(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), "unadmitted");
-        (await fixture.ViewModel.AnswerFileAsync(source, "question", () => true, TestContext.Current.CancellationToken))
+        (await fixture.ViewModel.AnswerFileAsync(source, "question",
+            LocalContextSessionTarget.ReviewedFresh(HostRequest.Create(RequestOrigin.LocalUi)), () => true, TestContext.Current.CancellationToken))
             .Outcome.Should().Be(LocalFileAnswerOutcome.Denied);
     }
 
@@ -59,7 +60,7 @@ public sealed partial class MainViewModelTests
         await f.ViewModel.ConfirmFilePreviewAsync(f.ViewModel.FileReview!.ReviewId);
         var source = f.ViewModel.FileRevision!;
         const string question = "private marker";
-        var result = await f.ViewModel.AnswerFileAsync(source.Reference, question, () => true, TestContext.Current.CancellationToken);
+        var result = await f.ViewModel.AnswerFileAsync(source.Reference, question, ReviewedFileTarget(source), () => true, TestContext.Current.CancellationToken);
         result.Outcome.Should().Be(LocalFileAnswerOutcome.SourceUseUnavailable);
         result.SourceUseDecision.Should().Be(LocalFileModelUseDecision.SourceUsePolicyMissing);
         result.Claims.Should().BeEmpty();
@@ -99,15 +100,17 @@ public sealed partial class MainViewModelTests
         await f.ViewModel.RequestFileAnswerAsync();
         openings.Should().Be(1);
         const string question = "  private marker? ";
+        var target = ReviewedFileTarget(source);
         var result = await f.ViewModel.AnswerFileAsync(source.Reference,
-            string.Equals(outcome, "none", StringComparison.Ordinal) ? "absent" : question, () => true, TestContext.Current.CancellationToken);
+            string.Equals(outcome, "none", StringComparison.Ordinal) ? "absent" : question, target, () => true, TestContext.Current.CancellationToken);
         result.Outcome.Should().Be(expected);
         if (model.Context is { } context)
         {
             context.UserRequest.Should().Be(question);
             context.Request.Origin.Should().Be(RequestOrigin.LocalUi);
-            context.Request.SessionId.Should().Be(source.Review.Request.SessionId);
-            context.Request.TaskId.Should().Be(source.Review.Request.TaskId);
+            context.Request.Should().BeSameAs(target.Request);
+            context.Request.SessionId.Should().NotBe(source.Review.Request.SessionId);
+            context.Request.TaskId.Should().NotBe(source.Review.Request.TaskId);
             context.Request.RequestId.Should().NotBe(source.Review.Request.RequestId);
         }
         f.ViewModel.Transcript.Should().NotContain(question);
@@ -117,7 +120,7 @@ public sealed partial class MainViewModelTests
         using var scope = HostActivity.BeginRoot(source.Review.Request, HostActivityLayer.Application, HostOperation.Request);
         await f.ViewModel.RequestFileAnswerAsync();
         openings.Should().Be(2);
-        (await f.ViewModel.AnswerFileAsync(source.Reference, "private", () => true, TestContext.Current.CancellationToken))
+        (await f.ViewModel.AnswerFileAsync(source.Reference, "private", ReviewedFileTarget(source), () => true, TestContext.Current.CancellationToken))
             .Outcome.Should().Be(string.Equals(outcome, "none", StringComparison.Ordinal) ? LocalFileAnswerOutcome.Unsupported : expected);
     }
 
@@ -158,7 +161,7 @@ public sealed partial class MainViewModelTests
         if (string.Equals(boundary, "missing", StringComparison.Ordinal)) { f.ViewModel.ClearFilePreview(); }
         if (string.Equals(boundary, "owner", StringComparison.Ordinal)) { f.ViewModel.BindClipboardOwnershipGate(() => false); }
         var exact = string.Equals(boundary, "revision", StringComparison.Ordinal) ? source.Reference with { RevisionId = Guid.NewGuid() } : source.Reference;
-        (await f.ViewModel.AnswerFileAsync(exact, "private", () => !string.Equals(boundary, "native", StringComparison.Ordinal),
+        (await f.ViewModel.AnswerFileAsync(exact, "private", ReviewedFileTarget(source), () => !string.Equals(boundary, "native", StringComparison.Ordinal),
             TestContext.Current.CancellationToken)).Outcome.Should().Be(expected);
         model.Context.Should().BeNull();
     }
@@ -197,7 +200,8 @@ public sealed partial class MainViewModelTests
         await f.ViewModel.PreviewFileAsync();
         await f.ViewModel.ConfirmFilePreviewAsync(f.ViewModel.FileReview!.ReviewId);
         await f.ViewModel.RequestFileAnswerAsync();
-        var result = await f.ViewModel.AnswerFileAsync(f.ViewModel.FileRevision!.Reference, "private", () => current,
+        var source = f.ViewModel.FileRevision!;
+        var result = await f.ViewModel.AnswerFileAsync(source.Reference, "private", ReviewedFileTarget(source), () => current,
             TestContext.Current.CancellationToken);
         result.Outcome.Should().Be(LocalFileAnswerOutcome.Stale);
         result.Claims.Should().BeEmpty();
@@ -211,6 +215,10 @@ public sealed partial class MainViewModelTests
             LocalFileSearchResult excerpts, CancellationToken cancellationToken) => Task.FromResult(LocalFileModelUseDecision.Allowed);
     }
 
+    private static LocalContextSessionTarget ReviewedFileTarget(LocalFileRevision source) =>
+        LocalContextSessionTarget.ReviewedFresh(new(new(Guid.NewGuid()), source.Review.Request.SessionId,
+            source.Review.Request.TaskId, RequestOrigin.LocalUi), HostRequest.Create(RequestOrigin.LocalUi));
+
     private sealed class NativeFileAnswerModel : IModelContextRunner
     {
         internal int AdmissionCalls { get; private set; }
@@ -223,7 +231,7 @@ public sealed partial class MainViewModelTests
         {
             AdmissionCalls++;
             sourceCurrent().Should().BeTrue();
-            target.Request.Should().BeSameAs(HostActivity.RequireCurrent().Request);
+            target.SourceRequest.Should().BeSameAs(HostActivity.RequireCurrent().Request);
             return Task.FromResult(new ModelContextAdmission(new Lease(this, target.Request)));
         }
         private sealed class Lease(NativeFileAnswerModel owner, HostRequest request) : IAdmittedModelContextTurn

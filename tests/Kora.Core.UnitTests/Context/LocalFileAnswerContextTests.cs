@@ -24,7 +24,7 @@ public sealed class LocalFileAnswerContextTests
     {
         var (source, search, context) = Create();
         context.Envelope.Evidence.Single().Disclosure.Should().Be(ModelEvidenceDisclosure.LocalOnly);
-        context.Envelope.AllowTools.Should().BeFalse();
+        context.Envelope.ToolMode.Should().Be(ModelToolMode.None);
         using var wire = JsonDocument.Parse(context.Envelope.Serialize());
         wire.RootElement.GetProperty("Tools").GetArrayLength().Should().Be(0);
         context.Envelope.Evidence.Single().Content.Should().Be(search.Citations.Single().Excerpt);

@@ -140,7 +140,7 @@ internal sealed class LocalFilePreviewWindowController : IUserFilePicker, IUserF
                 () => !disposed && ReferenceEquals(window, view) && host.FileRevision?.Reference == exactSource
                     ? host.RefreshFilePreviewAsync(exactSource)
                     : Task.FromException(new InvalidOperationException("The exact file preview is stale; no refresh was authorized.")),
-                (question, current, token) => host.AnswerFileAsync(exactSource, question, current, token));
+                (question, target, current, token) => host.AnswerFileAsync(exactSource, question, target, current, token));
         }
         else if (folderRevision is not null)
         {

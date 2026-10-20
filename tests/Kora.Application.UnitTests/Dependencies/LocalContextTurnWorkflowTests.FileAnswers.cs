@@ -23,7 +23,7 @@ public sealed partial class LocalContextTurnWorkflowTests
         await using var turn = admitted.Turn ?? throw new InvalidOperationException("Missing durable admission.");
         f.Store.Tasks.Last().State.Should().Be(HostTaskState.DispatchRecorded);
         var binding = new LocalFileAnswerContext(source, search, "alpha?", turn.Request, new(1), DateTimeOffset.UtcNow);
-        binding.Envelope.AllowTools.Should().BeFalse();
+        binding.Envelope.ToolMode.Should().Be(ModelToolMode.None);
         var result = await turn.RunAsync(binding.Envelope, Token);
         result.Outcome.Should().Be(ModelTurnOutcome.Succeeded);
         result.Request.Should().BeSameAs(f.Request);

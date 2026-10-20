@@ -28,11 +28,16 @@ public sealed class LocalFileAnswerWindowTests
                 ExecutionState = HostTaskState.Succeeded,
             };
             var calls = 0;
+            LocalContextSessionTarget? actualTarget = null;
             var window = new LocalFilePreviewWindow(_ => { });
             window.ShowRevision(source, (_, _, _) => Task.FromResult(LocalFileSearchResult.Empty(
                 LocalFileSearchOutcome.NoMatch, DateTimeOffset.UnixEpoch)), () => true, () => Task.CompletedTask,
-                (question, gate, token) =>
+                (question, target, gate, token) =>
                 {
+                    actualTarget = target;
+                    target.Request.SessionId.Should().NotBe(source.Review.Request.SessionId);
+                    target.Request.TaskId.Should().NotBe(source.Review.Request.TaskId);
+                    target.SourceRequest.SessionId.Should().Be(source.Review.Request.SessionId);
                     question.Should().Be("alpha?");
                     gate().Should().BeTrue();
                     token.IsCancellationRequested.Should().BeFalse();
@@ -46,8 +51,7 @@ public sealed class LocalFileAnswerWindowTests
                 calls.Should().Be(0);
                 window.GetVisualDescendants().OfType<NamedTextBlock>().Should().Contain(block =>
                     block.Text != null && block.Text.Contains("Only host session/task receipts are retained", StringComparison.Ordinal)
-                    && block.Text.Contains(source.Review.Request.SessionId.Value.ToString("D"), StringComparison.Ordinal)
-                    && block.Text.Contains(source.Review.Request.TaskId.Value.ToString("D"), StringComparison.Ordinal));
+                    && block.Text.Contains("Reviewed session:", StringComparison.Ordinal));
                 window.FocusAnswer();
                 var question = Question(window);
                 question.IsFocused.Should().BeTrue();
@@ -55,6 +59,9 @@ public sealed class LocalFileAnswerWindowTests
                 calls.Should().Be(0);
                 await Press(window, "Use this exact snapshot once to answer locally");
                 calls.Should().Be(1);
+                window.GetVisualDescendants().OfType<NamedTextBlock>().Should().Contain(block =>
+                    block.Text != null && block.Text.Contains(actualTarget!.Request.SessionId.Value.ToString("D"), StringComparison.Ordinal)
+                    && block.Text.Contains(actualTarget.Request.TaskId.Value.ToString("D"), StringComparison.Ordinal));
                 window.GetVisualDescendants().OfType<Button>().Single(button => string.Equals(button.Content as string,
                     "Use this exact snapshot once to answer locally", StringComparison.Ordinal)).IsEnabled.Should().BeFalse();
                 question.IsFocused.Should().BeTrue();
@@ -93,7 +100,7 @@ public sealed class LocalFileAnswerWindowTests
             Func<bool>? gate = null;
             var window = new LocalFilePreviewWindow(_ => { });
             window.ShowRevision(source, (_, _, _) => throw new NotSupportedException(), () => current, () => Task.CompletedTask,
-                async (_, isCurrent, _) =>
+                async (_, _, isCurrent, _) =>
                 {
                     gate = isCurrent;
                     await release.Task;
@@ -132,7 +139,7 @@ public sealed class LocalFileAnswerWindowTests
         {
             var window = new LocalFilePreviewWindow(_ => { });
             window.ShowRevision(Source(), (_, _, _) => throw new NotSupportedException(), () => true, () => Task.CompletedTask,
-                (_, _, _) => Task.FromResult(LocalFileAnswerResult.Empty(outcome) with
+                (_, _, _, _) => Task.FromResult(LocalFileAnswerResult.Empty(outcome) with
                 { SourceUseDecision = outcome == LocalFileAnswerOutcome.SourceUseUnavailable
                     ? LocalFileModelUseDecision.SourceUsePolicyMissing : null }));
             window.Show();

@@ -156,7 +156,7 @@ public sealed partial class LocalContextTurnWorkflow(
             if (submitted.Rejection is { } rejection) { throw new ContextRejectedException(rejection); }
             var context = submitted.Context
                 ?? throw new InvalidDataException("The admitted context submission is missing.");
-            if (!ReferenceEquals(context.Request, request) || context.AllowTools || context.Evidence.IsEmpty
+            if (!ReferenceEquals(context.Request, request) || context.ToolMode != ModelToolMode.None || context.Evidence.IsEmpty
                 || context.Evidence.Any(item => item.Disclosure != ModelEvidenceDisclosure.LocalOnly))
             {
                 throw new ContextRejectedException(LocalContextTurnReason.ContextMismatch);

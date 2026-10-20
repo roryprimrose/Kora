@@ -25,6 +25,7 @@ public sealed partial class MainViewModel
             Interlocked.Read(ref manualCallSpeechRevision)));
 
     public async Task<LocalFileAnswerResult> AnswerFileAsync(LocalFileReference exactSource, string question,
+        LocalContextSessionTarget reviewedTarget,
         Func<bool> nativeRequestIsCurrent, CancellationToken cancellationToken)
     {
         var origin = HostActivity.Current?.Request.Origin ?? RequestOrigin.LocalUi;
@@ -39,6 +40,12 @@ public sealed partial class MainViewModel
         {
             return LocalFileAnswerResult.Empty(LocalFileAnswerOutcome.Stale);
         }
+        if (reviewedTarget.SourceRequest.SessionId != admitted.Review.Request.SessionId
+            || reviewedTarget.SourceRequest.TaskId != admitted.Review.Request.TaskId
+            || reviewedTarget.SourceRequest.Origin != origin || reviewedTarget.SourceRequest.InvocationId is not null)
+        {
+            return LocalFileAnswerResult.Empty(LocalFileAnswerOutcome.Denied);
+        }
         if (HostActivity.Current is { } incoming
             && (incoming.Request.SessionId != admitted.Review.Request.SessionId
                 || incoming.Request.TaskId != admitted.Review.Request.TaskId || incoming.Request.InvocationId is not null))
@@ -46,11 +53,11 @@ public sealed partial class MainViewModel
             return LocalFileAnswerResult.Empty(LocalFileAnswerOutcome.Denied);
         }
         // The displayed fresh target is a reviewed proposal, not durable authority. The Core runner must admit it.
-        var request = new HostRequest(new(Guid.NewGuid()), admitted.Review.Request.SessionId, admitted.Review.Request.TaskId, origin);
+        var request = reviewedTarget.SourceRequest;
         using var activity = HostActivity.BeginRoot(request, HostActivityLayer.Application, HostOperation.Request,
             [new ActivityLink(admitted.Review.Cause)]);
         var result = await fileAnswer.ExecuteAsync(exactSource, question,
-            LocalContextSessionTarget.ReviewedFresh(request), Eligible, cancellationToken);
+            reviewedTarget, Eligible, cancellationToken);
         if (!Eligible() || FileRevision?.Reference != exactSource)
         {
             result = LocalFileAnswerResult.Empty(LocalFileAnswerOutcome.Stale);

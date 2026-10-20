@@ -6,6 +6,7 @@ using Avalonia.Media;
 using Kora.Application.Infrastructure;
 using Kora.Application.Presentation;
 using Kora.Core.Dependencies;
+using Kora.Core.Hosting;
 using Kora.Controls;
 using Kora.Core.Context;
 
@@ -19,8 +20,11 @@ internal sealed partial class LocalFilePreviewWindow
     private ListBox? answerCitations;
 
     private void ShowAnswer(DockPanel body, LocalFileRevision source,
-        Func<string, Func<bool>, CancellationToken, Task<LocalFileAnswerResult>> answer, Func<bool> isCurrent)
+        Func<string, LocalContextSessionTarget, Func<bool>, CancellationToken, Task<LocalFileAnswerResult>> answer, Func<bool> isCurrent)
     {
+        var sourceInput = new HostRequest(new(Guid.NewGuid()), source.Review.Request.SessionId,
+            source.Review.Request.TaskId, RequestOrigin.LocalUi);
+        var reviewedTarget = LocalContextSessionTarget.ReviewedFresh(sourceInput, HostRequest.Create(RequestOrigin.LocalUi));
         var selection = new LocalFileAnswerSelection();
         answerSelection = selection;
         var question = new TextBox
@@ -72,7 +76,8 @@ internal sealed partial class LocalFilePreviewWindow
         {
             submit.IsEnabled = false;
             Invalidate();
-            var result = await selection.Run(question.Text ?? string.Empty, answer, Current);
+            var result = await selection.Run(question.Text ?? string.Empty,
+                (text, current, token) => answer(text, reviewedTarget, current, token), Current);
             if (result is null || !Current()) { return; }
             text.Text = $"Outcome: {result.Outcome}; model reason: {result.ModelReason?.ToString() ?? "(none)"}.\n"
                 + $"Source-use decision: {result.SourceUseDecision?.ToString() ?? "(no refusal decision)"}.\n"
@@ -106,7 +111,7 @@ internal sealed partial class LocalFilePreviewWindow
         {
             Text = "ONE current immutable file only: " + DescribeItem(source) + "\n"
                 + LocalContextSessionTarget.FreshSessionDisclosure + "\n"
-                + $"Reviewed session: {source.Review.Request.SessionId.Value:D}; one-shot task: {source.Review.Request.TaskId.Value:D}.\n"
+                + $"Reviewed session: {reviewedTarget.Request.SessionId.Value:D}; one-shot task: {reviewedTarget.Request.TaskId.Value:D}.\n"
                 + "Separate explicit request: send bounded exact excerpts and this question only to an admitted LOCAL model. "
                 + "Source-use/sensitive-content policy and qualified runtime must independently admit use. "
                 + "No hosted fallback, retention, fresh read, folder expansion, tools or speech. Unavailable gates stay closed.",

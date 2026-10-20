@@ -469,7 +469,8 @@ Inline questions/paths after the fixed command are rejected ([command](../src/Ko
 
 The native **Use this exact snapshot once to answer locally** control is a separate explicit source-use request for the displayed exact revision and unchanged native question. Preview consent is not model-use consent.
 Question/excerpts/claims stay native and volatile, outside conversation history, speech, clipboard and retained bodies ([native control](../src/Kora/LocalFilePreviewWindow.Answers.cs), [host continuation](../src/Kora.Application/ViewModels/MainViewModel.FileAnswers.cs)).
-The control separately discloses creation of the exact displayed `Local context` session and one-shot task. Only content-free host lifecycle receipts are durable; preview consent never authorizes that creation implicitly.
+The control separately discloses creation of the exact displayed `Local context` session and one-shot task, distinct from volatile file-preview lineage.
+Only content-free host lifecycle receipts are durable; preview consent never authorizes that creation implicitly.
 
 The registered per-action [LocalFileAnswer](../src/Kora.Tools/Files/LocalFileAnswer.cs) holds the existing [immutable preview broker](../src/Kora.Tools/Files/LocalFilePreview.cs) generation/cancellation/terminal-audit boundary through retrieval and answer resolution.
 It uses `ILocalFileRetrieval` / `lexical-lines-v1`, the unchanged 256-character / 512-UTF-8-byte question, 32 unique terms / 64-character term and eight-citation / 16-KiB-excerpt limits ([policy](../src/Kora.Core/Context/LocalFileRetrievalPolicy.cs)).
@@ -479,7 +480,8 @@ Every excerpt uses the authoritative immutable citation resolver before context 
 Cancel/clear/refresh/revocation, native question edit/close and private/call/ownership changes retire the owned work and suppress late claims ([action](../src/Kora.Tools/Files/LocalFileAnswer.cs), [generation owner](../src/Kora.Application/Presentation/LocalFileAnswerSelection.cs)).
 
 The [file-specific binding](../src/Kora.Core/Context/LocalFileAnswerContext.cs) creates only `LocalOnly` `ModelContextEvidence` with host-owned opaque evidence IDs and exact unmodified excerpts.
-It uses the existing [ModelContextEnvelope serializer](../src/Kora.Core/Dependencies/ModelContextEnvelope.cs) with `allowTools: false`; complete JSON and escaping must fit 32,768 UTF-8 bytes. The authoritative serializer emits an empty tool catalogue; file code does not duplicate envelope serialization.
+It uses the existing [ModelContextEnvelope serializer](../src/Kora.Core/Dependencies/ModelContextEnvelope.cs) with `ModelToolMode.None`; complete JSON and escaping must fit 32,768 UTF-8 bytes.
+The authoritative serializer emits an empty tool catalogue; file code does not duplicate envelope serialization.
 Over-limit input is explicitly rejected, never shortened. Lexical matching count/truncation is disclosed separately from complete envelope admission.
 
 The [file action](../src/Kora.Tools/Files/LocalFileAnswer.cs) directly consumes the shared Core [IModelContextRunner](../src/Kora.Core/Dependencies/IModelContextRunner.cs), not a file-specific executor interface, Application wrapper, durable-task bridge, direct reasoner/transport or hosted fallback.
@@ -508,6 +510,8 @@ Revocation/cancellation while classification is pending suppresses context const
 Evidence IDs from another question are rejected even when both questions use the same immutable source revision.
 
 **Shared execution integration:** consumes the peer-owned two-phase Core contract at `470a03444d07a07a776f82572ce87dff90cf4bbf` plus the explicit source-policy boundary at `d881bd2d85d99b0a554625213b3e5576bc224b1c` and their committed dependencies.
+The reviewed-target refinement at `4109d2857a9ae746ec5fbfc7ba92e02037ad91c1` keeps original volatile source lineage separate from the distinct durable execution target.
+The native view displays the fixed target before consent; file code never treats the source's transient session/task as durable execution authority, and evidence binds only the target request returned by actual admission.
 The source gate and broker/native cancellation remain attached through the shared executor and [model-host consumer fence](../src/Kora.Application/Dependencies/ModelTurnHost.Execution.cs), including asynchronous revalidation, tool rejection and final disclosure.
 This consumer does not edit shared execution, serializer, transport, protocol or durable writers ([file action](../src/Kora.Tools/Files/LocalFileAnswer.cs), [shared execution contract](Local_Inference.md)).
 

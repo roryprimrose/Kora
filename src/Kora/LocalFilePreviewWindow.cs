@@ -93,7 +93,7 @@ internal sealed partial class LocalFilePreviewWindow(Action<string> reportFailur
     internal void ShowRevision(LocalFileRevision revision,
         Func<string, LocalFileRetrievalMode, CancellationToken, Task<LocalFileSearchResult>> search, Func<bool> isCurrent,
         Func<Task> refresh,
-        Func<string, Func<bool>, CancellationToken, Task<LocalFileAnswerResult>>? answer = null)
+        Func<string, Kora.Core.Dependencies.LocalContextSessionTarget, Func<bool>, CancellationToken, Task<LocalFileAnswerResult>>? answer = null)
     {
         Title = "Immutable local file preview (untrusted plain text)";
         var body = Compose(Describe(revision.Review) + $"\nRevision: {revision.RevisionId:D} / item: {revision.ItemId:D}\n"

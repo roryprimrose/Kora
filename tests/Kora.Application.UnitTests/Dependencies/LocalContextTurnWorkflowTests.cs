@@ -372,12 +372,14 @@ public sealed partial class LocalContextTurnWorkflowTests : IDisposable
         internal List<SecurityAuditEvent> Events { get; } = [];
         internal bool FailRequested { get; set; }
         internal bool FailTerminal { get; set; }
+        internal Action<SecurityAuditEvent>? OnWrite { get; set; }
         public void Write(SecurityAuditEvent auditEvent)
         {
             if (auditEvent.Outcome == SecurityAuditOutcome.Requested ? FailRequested : FailTerminal)
             { throw new IOException("test audit unavailable"); }
             HostActivity.RequireCurrent().Request.TaskId.Value.ToString("D").Should().Be(auditEvent.TargetId);
             lock (gate) { Events.Add(auditEvent); }
+            OnWrite?.Invoke(auditEvent);
         }
     }
 

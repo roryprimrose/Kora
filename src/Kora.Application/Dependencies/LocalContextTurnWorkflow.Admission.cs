@@ -24,6 +24,7 @@ public sealed partial class LocalContextTurnWorkflow
         private Task? disposal;
         private bool used;
         private bool retired;
+        private CancellationToken submissionCancellation;
 
         public HostRequest Request => request;
         public HostRevision SessionGeneration { get; private set; }
@@ -31,6 +32,7 @@ public sealed partial class LocalContextTurnWorkflow
             Justification = "The owning lifecycle binds this asynchronous completion before the lease is exposed; no external or UI-affine work is joined.")]
         public Task<LocalContextTurnReceipt> Completion => completion.Task.Unwrap();
         internal CancellationToken Revocation => lifetime.Token;
+        internal CancellationToken SubmissionCancellation { get { lock (gate) { return submissionCancellation; } } }
 
         internal void BindCompletion(Task<LocalContextTurnReceipt> pending) => completion.SetResult(pending);
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "VSTHRD003",
@@ -72,6 +74,7 @@ public sealed partial class LocalContextTurnWorkflow
                         ModelTurnOutcome.Denied, LocalContextTurnReason.TargetAlreadyUsed));
                 }
                 used = true;
+                submissionCancellation = token;
                 var current = HostActivity.Current;
                 var rejection = current is null || current.Activity!.IsStopped
                     || current.Outcome != HostOperationOutcome.Unknown || !ReferenceEquals(current.Request, sourceRequest)

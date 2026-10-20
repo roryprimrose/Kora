@@ -646,6 +646,21 @@ Unanswered/unseen items remain accessible through the workspace/attention entry 
 The composer always names its session; New session is separate from sending to the selected session.
 An explicit New request entry from tray/compact/workspace offers an untargeted composer labeled Auto-route; show the accepted new/related destination before presenting it as a session message.
 The delivered [native New request fallback](Interaction_And_Sessions.md#delivered-native-new-request-fresh-session-fallback--2026-10-13) is narrower: tray and Sessions open/activate one isolated memory composer, explicitly disclose unavailable relatedness inference and offer only fresh **New conversation**.
+Its [native draft Find](../src/Kora/NewRequestWindow.Find.cs) searches only the current
+editable in-memory draft, even if dirty or invalid, using the authoritative
+`SnapshotLiteralFind.FindCounted` bounded ordinal one-line grammar and full
+nonoverlapping count/ordinal/no-wrap sequence. Explicit Ctrl+F/first/next/previous/clear
+never searches frozen reviewed bodies, assistant answers, saved text or other composers.
+Exact native editable-source selection/focus is fenced before and after reentrant
+callbacks by buffer, composer, view/control, host input and control/privacy/ownership
+lifetimes; stale operations cannot publish results. Composer/host notifications retire
+volatile query/navigation/count; a disposable native observer also checks the captured
+host lease for authority changes without notifications. Closing/detaching releases
+observers and private query state, without restoring/collapsing user-owned selection.
+Find has no I/O, composer mutation, review approval, transcript/speech/logging, capture,
+model, navigation or new clipboard authority. Existing editing/copy/paste is unchanged;
+missing focus is explicit. Deterministic headless tests are implementation evidence,
+not installed accessibility/hardware/provider qualification.
 Audited empty-target creation is acknowledged with its exact ID/name/generation/metadata revision before separately reviewing/submitting the frozen original body; these are not an atomic transaction.
 The same confirmed created Active target permits a distinct revision-reviewed draft Save: show exact saved revision, confirmed memory baseline and complete old/new bodies in inert native text, then explicitly confirm the frozen proposal. Save and Submit reviews cannot authorize each other. Concurrent named-window revision/metadata changes fail stale rather than follow/overwrite newer data.
 Eligible dirty close offers Save/Discard/Cancel and a separate frozen Save confirmation; only an exact receipt without newer edits/revocation permits closing. Before confirmed creation or while held, only Discard/Cancel is offered. No autosave/Reload or implicit text transfer is added. Privacy closes without saving. Cancel leaves the disclosed session and saved data; uncertainty retains exact holds without retry.

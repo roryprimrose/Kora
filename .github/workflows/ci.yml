@@ -111,6 +111,10 @@ jobs:
         shell: pwsh
         run: ./eng/Test-WindowsIntegrationScheduling.ps1
 
+      - name: Test portable test scheduling contracts
+        shell: pwsh
+        run: ./eng/Test-PortableTestScheduling.ps1
+
       - name: Test static immutable source-tool distribution
         shell: pwsh
         run: ./eng/Test-SourceToolsContracts.ps1 -OutputDirectory (Join-Path $env:RUNNER_TEMP 'kora-source-tool-contracts')
@@ -123,53 +127,18 @@ jobs:
           path: ${{ runner.temp }}/kora-source-tool-contracts/tests.json
           if-no-files-found: error
 
-      - name: Test portable core with coverage
+      - name: Test portable projects with coverage
         run: >
           dotnet test
-          --project tests/Kora.Core.UnitTests/Kora.Core.UnitTests.csproj
+          --solution Kora.UnitTests.slnx
           --configuration Release
           --no-build
-          --results-directory .net-test-artifacts/core
+          --results-directory .net-test-artifacts/unit
+          --results-directory-layout per-module
           --report-trx
           --coverlet
           --coverlet-output-format cobertura
-          --coverlet-file-prefix core
-
-      - name: Test application orchestration with coverage
-        run: >
-          dotnet test
-          --project tests/Kora.Application.UnitTests/Kora.Application.UnitTests.csproj
-          --configuration Release
-          --no-build
-          --results-directory .net-test-artifacts/application
-          --report-trx
-          --coverlet
-          --coverlet-output-format cobertura
-          --coverlet-file-prefix application
-
-      - name: Test built-in tools with coverage
-        run: >
-          dotnet test
-          --project tests/Kora.Tools.UnitTests/Kora.Tools.UnitTests.csproj
-          --configuration Release
-          --no-build
-          --results-directory .net-test-artifacts/tools
-          --report-trx
-          --coverlet
-          --coverlet-output-format cobertura
-          --coverlet-file-prefix tools
-
-      - name: Test bundled definitions with coverage
-        run: >
-          dotnet test
-          --project tests/Kora.Definitions.UnitTests/Kora.Definitions.UnitTests.csproj
-          --configuration Release
-          --no-build
-          --results-directory .net-test-artifacts/definitions
-          --report-trx
-          --coverlet
-          --coverlet-output-format cobertura
-          --coverlet-file-prefix definitions
+          --coverlet-file-prefix unit
 
       - name: Generate and enforce coverage report
         run: >

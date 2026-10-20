@@ -66,8 +66,8 @@ public sealed partial class SessionsConversationTests
                 reader.DenyReads = false;
                 model.DiscardComposerBuffer();
                 AssertShared("0 UTF-8 bytes; 0 Unicode scalars", 0);
-                model.ComposerBody = "saved";
-                await model.SaveConversationDraftAsync();
+                await WindowsSqliteConversationTests.Save(f,
+                    await f.Store.ReadConversationDraftAsync(f.Request.SessionId, f.Token), "saved");
                 model.ComposerBody = "different";
                 AssertShared("9 UTF-8 bytes", 9);
                 model.DecideComposerDraft = () => Task.FromResult(ComposerDraftDecision.Discard);

@@ -1,0 +1,193 @@
+const { test } = require('node:test');
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
+const vm = require('node:vm');
+const { execution, CHECKS, GATE } = require('./policy.cjs');
+const root = path.resolve(__dirname, '..', '..');
+const read = name => fs.readFileSync(path.join(root, name), 'utf8').replaceAll('\r\n', '\n');
+const ci = process.env.KORA_QUEUE_WORKFLOW_TEST_PATH
+  ? fs.readFileSync(process.env.KORA_QUEUE_WORKFLOW_TEST_PATH, 'utf8').replaceAll('\r\n', '\n')
+  : read('.github/workflows/ci.yml');
+const controller = read('.github/workflows/merge-queue.yml');
+const coverage = read('.github/workflows/coverage-comment.yml');
+const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor;
+
+function job(name) {
+  const match = ci.match(new RegExp(`\\n  ${name}:\\n([\\s\\S]*?)(?=\\n  [a-z][\\w-]*:\\n|$)`));
+  assert.ok(match, `Missing job ${name}`);
+  return match[1];
+}
+
+test('CI admission inline policy matches the deterministic ordinary and comparison routing contract', async () => {
+  const script = job('admission').match(/          script: \|\n([\s\S]*)/)[1]
+    .split('\n').map(line => line.replace(/^            /, '')).join('\n');
+  const execute = new AsyncFunction('process', 'context', 'core', 'github', 'require', script);
+  for (const modeValue of ['', 'disabled', 'enabled', 'typo']) {
+    for (const eventName of ['pull_request', 'push', 'workflow_dispatch']) {
+      for (const ref of ['refs/heads/main', 'refs/heads/topic', 'refs/tags/v1.2.3']) {
+        for (const inputs of [{}, { compare_portable_tests: true }, { compare_native_evidence: true }]) {
+          const outputs = {};
+          const operation = execute({ env: { QUEUE_MODE: modeValue, QUEUE_INPUTS: JSON.stringify(inputs) } },
+            { eventName, ref, sha: 'a'.repeat(40) },
+            { setOutput: (key, value) => { outputs[key] = value; }, notice() {} }, {}, name => {
+              assert.equal(name, './eng/merge-queue/policy.cjs');
+              return { execution };
+            });
+          if (modeValue === 'typo') { await assert.rejects(operation); continue; }
+          await operation;
+          const expected = execution({ modeValue, eventName, ref, sha: 'a'.repeat(40), inputs });
+          assert.equal(outputs.full, String(expected.full), JSON.stringify({ modeValue, eventName, ref, inputs }));
+          assert.equal(outputs.source, expected.source);
+          assert.equal(outputs.candidate, 'false');
+        }
+      }
+    }
+  }
+});
+
+test('candidate routing rejects disabled mode and delegates source identity to trusted admission', async () => {
+  const script = job('admission').match(/          script: \|\n([\s\S]*)/)[1]
+    .split('\n').map(line => line.replace(/^            /, '')).join('\n');
+  const execute = new AsyncFunction('process', 'context', 'core', 'github', 'require', script);
+  await assert.rejects(execute({ env: { QUEUE_MODE: '', QUEUE_INPUTS: '{"queue_head":"x"}' } },
+    {}, {}, {}, () => assert.fail()));
+  const outputs = {};
+  await execute({ env: { QUEUE_MODE: 'enabled', QUEUE_INPUTS: '{"queue_ticket":"ticket"}', QUEUE_APP_ID: '42' } },
+    { eventName: 'workflow_dispatch', ref: 'refs/heads/main', sha: 'main' },
+    { setOutput: (key, value) => { outputs[key] = value; } }, {},
+    name => {
+      if (name === './eng/merge-queue/policy.cjs') return { execution };
+      assert.equal(name, './eng/merge-queue/github.cjs');
+      return { admit: async ({ inputs }) => { assert.equal(inputs.app_id, '42'); return 'candidate'; } };
+    });
+  assert.equal(outputs.full, 'true');
+  assert.equal(outputs.source, 'candidate');
+  assert.equal(outputs.candidate, 'true');
+  await assert.rejects(execute({ env: { QUEUE_MODE: 'enabled',
+    QUEUE_INPUTS: '{"queue_ticket":"ticket","compare_portable_tests":true}' } },
+    { eventName: 'workflow_dispatch', ref: 'refs/heads/main', sha: 'main' }, {}, {},
+    () => ({ execution })), /timing comparison/);
+});
+
+test('candidate jobs check out the admitted SHA, preserve all required identities and cannot publish', () => {
+  assert.match(ci, /^run-name: "\$\{\{[^\n]*\}\}"$/m);
+  for (const name of CHECKS) assert.ok(ci.includes(`name: ${name}`));
+  assert.match(job('version'), /needs: admission\n    if: needs\.admission\.outputs\.full == 'true'/);
+  assert.match(job('version'), /ref: \$\{\{ needs\.admission\.outputs\.source \}\}/);
+  assert.match(job('version'), /publish: \$\{\{ needs\.admission\.outputs\.candidate != 'true'/);
+  assert.match(job('version'), /if: steps\.version\.outputs\.publish == 'true' && needs\.admission\.outputs\.candidate != 'true'/);
+  for (const name of ['portable', 'windows-integration-shards', 'installer']) {
+    assert.match(job(name), /ref: \$\{\{ needs\.version\.outputs\.source-revision \}\}/);
+    assert.match(job(name), /persist-credentials: false/);
+    assert.doesNotMatch(job(name), /permission[s]?:[\s\S]*write/);
+  }
+  for (const name of ['portable', 'installer']) {
+    assert.match(job(name), /SOURCE_REVISION: \$\{\{ needs\.version\.outputs\.source-revision \}\}/);
+    assert.doesNotMatch(job(name), /SourceRevision "\$env:GITHUB_SHA"|Revision "\$env:GITHUB_SHA"/);
+  }
+  assert.match(job('release'), /inputs\.queue_ticket == ''/);
+  assert.match(job('windows-integration'), /needs: \[admission, version, windows-integration-shards\]/);
+  assert.match(ci, /cancel-in-progress: \$\{\{ !inputs\.queue_ticket \}\}/);
+});
+
+test('required aggregate skips only an explicitly waiting admission or an already-published release', () => {
+  const expression = job('windows-integration').match(/^    if: (.+)$/m)[1]
+    .replace('always()', 'true')
+    .replaceAll('needs.version.outputs.already-published', "needs.version.outputs['already-published']");
+  const evaluate = new Function('needs', `return ${expression};`);
+  for (const result of ['success', 'failure', 'cancelled', 'skipped']) {
+    for (const full of ['true', 'false', '']) {
+      for (const versionResult of ['success', 'failure', 'cancelled', 'skipped']) {
+        const needs = { admission: { result, outputs: { full } },
+          version: { result: versionResult, outputs: {} } };
+        assert.equal(evaluate(needs), !(result === 'success' && full === 'false'),
+          JSON.stringify(needs));
+        needs.version.outputs['already-published'] = 'true';
+        assert.equal(evaluate(needs), false);
+      }
+    }
+  }
+});
+
+test('privileged controller never checks out PR code, bypasses protection or waits for CI on a runner', () => {
+  assert.match(controller, /environment: merge-queue/);
+  assert.match(controller, /ref: refs\/heads\/main/);
+  assert.match(controller, /persist-credentials: false/);
+  assert.match(controller, /cancel-in-progress: false/);
+  assert.match(controller, /permission-administration: read/);
+  assert.doesNotMatch(controller, /permission-administration: write|persist-credentials: true|pull_request\.head|sleep|while \(/);
+  assert.match(controller, /if: vars\.KORA_MERGE_QUEUE_MODE == 'enabled'/);
+  assert.ok(GATE);
+  for (const uses of (ci + controller).matchAll(/uses: ([^\s]+)/g)) {
+    assert.match(uses[1], /^[^@]+@[0-9a-f]{40}$/);
+  }
+  new vm.Script(`(async () => { ${controller.match(/          script: \|\n([\s\S]*)/)[1]
+    .split('\n').map(line => line.replace(/^            /, '')).join('\n')} })`);
+});
+
+function coverageFixture(overrides = {}) {
+  const script = coverage.match(/          script: \|\n([\s\S]*?)(?=\n      - name: Download coverage report)/)[1]
+    .split('\n').map(line => line.replace(/^            /, '')).join('\n');
+  const execute = new AsyncFunction('process', 'context', 'core', 'github', script);
+  const outputs = {};
+  const calls = [];
+  const ticket = '01234567-89ab-cdef-0123-456789abcdef';
+  const run = { event: 'workflow_dispatch', display_title: `Merge queue PR #17 [${ticket}]`,
+    head_branch: 'main', ...overrides };
+  const github = {
+    rest: {
+      pulls: { get: async args => { calls.push(['pull', args]); return { data: { head: { sha: 'current-head' } } }; } },
+      checks: { listForRef: 'listChecks' },
+    },
+    paginate: async (method, args, transform) => {
+      assert.equal(method, 'listChecks');
+      calls.push(['checks', args]);
+      return transform({ data: { check_runs: [{ app: { id: 42 }, external_id: ticket }] } });
+    },
+  };
+  return { outputs, calls, github, run, execute: () => execute({ env: { QUEUE_APP_ID: '42' } },
+    { repo: { owner: 'owner', repo: 'repo' }, payload: { workflow_run: run } },
+    { setOutput: (key, value) => { outputs[key] = value; }, notice: message => calls.push(['notice', message]) }, github) };
+}
+
+test('ordinary PR coverage keeps its associated destination and rejects missing PR identity', async () => {
+  const value = coverageFixture({ event: 'pull_request', pull_requests: [{ number: 12 }] });
+  await value.execute();
+  assert.equal(value.outputs.number, 12);
+  assert.deepEqual(value.calls, []);
+  await assert.rejects(coverageFixture({ event: 'pull_request', pull_requests: [] }).execute(), /no associated pull request/);
+});
+
+test('candidate coverage requires the queue App ticket on the current head', async () => {
+  const value = coverageFixture();
+  await value.execute();
+  assert.equal(value.outputs.number, 17);
+  assert.equal(value.calls[0][1].pull_number, 17);
+  assert.equal(value.calls[1][1].ref, 'current-head');
+  assert.equal(value.calls[1][1].check_name, GATE);
+  assert.equal(value.calls[1][1].per_page, 100);
+});
+
+test('stale-head, unrelated ticket and wrong-App coverage is not posted as current evidence', async () => {
+  for (const checks of [[], [{ app: { id: 42 }, external_id: 'other-ticket' }],
+    [{ app: { id: 7 }, external_id: '01234567-89ab-cdef-0123-456789abcdef' }]]) {
+    const value = coverageFixture();
+    value.github.paginate = async () => checks;
+    await value.execute();
+    assert.equal(value.outputs.number, undefined);
+    assert.equal(value.calls.at(-1)[0], 'notice');
+  }
+  assert.equal((coverage.match(/if: steps\.destination\.outputs\.number != ''/g) || []).length, 2);
+});
+
+test('malformed candidate coverage titles and untrusted workflow branches fail explicitly', async () => {
+  for (const overrides of [{ display_title: 'Merge queue PR #17 [not-a-ticket]' },
+    { display_title: 'Merge queue PR #0 [01234567-89ab-cdef-0123-456789abcdef]' },
+    { head_branch: 'topic' }]) {
+    const value = coverageFixture(overrides);
+    await assert.rejects(value.execute(), /Invalid candidate coverage source/);
+    assert.equal(value.outputs.number, undefined);
+    assert.deepEqual(value.calls, []);
+  }
+});

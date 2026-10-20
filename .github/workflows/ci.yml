@@ -1,4 +1,5 @@
 name: CI
+run-name: "${{ inputs.queue_ticket && format('Merge queue PR #{0} [{1}]', inputs.queue_pr, inputs.queue_ticket) || format('CI {0}', github.ref_name) }}"
 
 on:
   push:
@@ -18,32 +19,96 @@ on:
         description: Compare synchronous and buffered headless fixture evidence
         type: boolean
         default: false
+      queue_pr:
+        description: Controller-owned candidate PR number; leave empty for ordinary manual CI
+        type: string
+      queue_head:
+        description: Controller-owned candidate source SHA
+        type: string
+      queue_base:
+        description: Controller-owned main SHA
+        type: string
+      queue_ticket:
+        description: Controller-owned admission ticket
+        type: string
 
 permissions:
   contents: read
 
 concurrency:
-  group: ci-${{ github.event.pull_request.head.ref || github.ref_name }}${{ (inputs.compare_portable_tests || inputs.compare_native_evidence) && '-test-comparison' || '' }}
-  cancel-in-progress: true
+  group: ci-${{ inputs.queue_ticket && 'merge-queue-candidate' || github.event.pull_request.head.ref || github.ref_name }}${{ (inputs.compare_portable_tests || inputs.compare_native_evidence) && '-test-comparison' || '' }}
+  cancel-in-progress: ${{ !inputs.queue_ticket }}
 
 env:
   DOTNET_CLI_TELEMETRY_OPTOUT: true
   DOTNET_NOLOGO: true
 
 jobs:
+  admission:
+    name: Admit CI execution
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      full: ${{ steps.admit.outputs.full }}
+      source: ${{ steps.admit.outputs.source }}
+      candidate: ${{ steps.admit.outputs.candidate }}
+    steps:
+      - name: Check out trusted candidate admission policy
+        if: vars.KORA_MERGE_QUEUE_MODE == 'enabled'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: refs/heads/main
+          persist-credentials: false
+
+      - name: Admit ordinary or selected validation
+        id: admit
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          QUEUE_MODE: ${{ vars.KORA_MERGE_QUEUE_MODE }}
+          QUEUE_INPUTS: ${{ toJSON(inputs) }}
+          QUEUE_APP_ID: ${{ vars.KORA_MERGE_QUEUE_APP_ID }}
+        with:
+          script: |
+            const mode = process.env.QUEUE_MODE;
+            if (!['', 'disabled', 'enabled'].includes(mode)) throw new Error('Unknown merge queue mode.');
+            const inputs = JSON.parse(process.env.QUEUE_INPUTS);
+            const candidate = ['queue_pr', 'queue_head', 'queue_base', 'queue_ticket'].some(key => inputs[key]);
+            let source = context.sha;
+            let full = true;
+            if (mode === 'enabled') {
+              const { execution } = require('./eng/merge-queue/policy.cjs');
+              full = execution({ modeValue: mode, eventName: context.eventName,
+                ref: context.ref, sha: context.sha, inputs }).full;
+              if (candidate) {
+                const { admit } = require('./eng/merge-queue/github.cjs');
+                source = await admit({ github, context, inputs: { ...inputs, app_id: process.env.QUEUE_APP_ID } });
+              }
+            } else if (candidate) {
+              throw new Error('Candidate dispatch requires the enabled queue.');
+            }
+            core.setOutput('full', String(full));
+            core.setOutput('source', source);
+            core.setOutput('candidate', String(candidate));
+            if (!full) core.notice('Full validation waits for GitHub merge queue admission.');
+
   version:
     name: Resolve build version
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    needs: admission
+    if: needs.admission.outputs.full == 'true'
     outputs:
       version: ${{ steps.version.outputs.version }}
       product-version: ${{ steps.version.outputs.product-version }}
-      publish: ${{ steps.version.outputs.publish }}
+      publish: ${{ needs.admission.outputs.candidate != 'true' && steps.version.outputs.publish || 'false' }}
       already-published: ${{ steps.publication.outputs.already-published }}
+      source-revision: ${{ needs.admission.outputs.source }}
     steps:
       - name: Check out complete version history
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          ref: ${{ needs.admission.outputs.source }}
+          persist-credentials: false
           fetch-depth: 0
       - name: Install .NET SDK
         uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
@@ -57,14 +122,19 @@ jobs:
             dotnet tool restore
             if ($LASTEXITCODE -ne 0) { throw 'Local tool restore failed.' }
           }
-          $resolved = ./eng/Get-BuildVersion.ps1
+          $parameters = @{}
+          if ('${{ needs.admission.outputs.candidate }}' -eq 'true') {
+            $parameters.ExpectedRevision = '${{ needs.admission.outputs.source }}'
+            $parameters.ValidationOnly = $true
+          }
+          $resolved = ./eng/Get-BuildVersion.ps1 @parameters
           "version=$($resolved.Version)" >> $env:GITHUB_OUTPUT
           "product-version=$($resolved.ProductVersion)" >> $env:GITHUB_OUTPUT
           "publish=$($resolved.Publish.ToString().ToLowerInvariant())" >> $env:GITHUB_OUTPUT
 
       - name: Check exact-version release before rebuilding
         id: publication
-        if: steps.version.outputs.publish == 'true'
+        if: steps.version.outputs.publish == 'true' && needs.admission.outputs.candidate != 'true'
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
@@ -157,12 +227,16 @@ jobs:
     if: needs.version.outputs.already-published != 'true'
     env:
       Version: ${{ needs.version.outputs.version }}
+      SOURCE_REVISION: ${{ needs.version.outputs.source-revision }}
 
     steps:
       # Pin third-party actions to immutable commits to prevent a moved tag from changing trusted CI code.
       # Dependabot still tracks the version comments and proposes reviewed commit updates.
       - name: Check out source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.version.outputs.source-revision }}
+          persist-credentials: false
 
       - name: Install .NET SDK
         uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
@@ -199,6 +273,9 @@ jobs:
       - name: Test portable test scheduling contracts
         shell: pwsh
         run: ./eng/Test-PortableTestScheduling.ps1
+
+      - name: Test hosted merge queue policy and workflow contracts
+        run: node --test eng/merge-queue/*.test.cjs
 
       - name: Test static immutable source-tool distribution
         shell: pwsh
@@ -274,7 +351,7 @@ jobs:
         env:
           BUILD_VERSION: ${{ needs.version.outputs.version }}
         run: >
-          ./eng/Build-SourceTools.ps1 -Revision "$env:GITHUB_SHA"
+          ./eng/Build-SourceTools.ps1 -Revision "$env:SOURCE_REVISION"
           -Version "$env:BUILD_VERSION" -OutputDirectory artifacts/source-tools
 
       - name: Retain main source-tool candidate
@@ -319,7 +396,7 @@ jobs:
         shell: pwsh
         run: |
           foreach ($rid in @('win-x64', 'win-x86')) {
-            ./eng/Test-InstallerPayload.ps1 -PayloadPath "artifacts/Kora-$rid" -Version "$env:Version" -SourceRevision "$env:GITHUB_SHA" -WriteManifest
+            ./eng/Test-InstallerPayload.ps1 -PayloadPath "artifacts/Kora-$rid" -Version "$env:Version" -SourceRevision "$env:SOURCE_REVISION" -WriteManifest
           }
 
       - name: Inspect approved Windows native and runtime payloads
@@ -328,7 +405,7 @@ jobs:
           foreach ($rid in @('win-x64', 'win-x86')) {
             $evidence = "artifacts/publish-inspection/$rid"
             ./eng/Test-EmbeddedSkillResources.ps1 -AssemblyPath "artifacts/Kora-$rid/Kora.Definitions.dll"
-            ./eng/Inspect-Publish.ps1 -Payload "artifacts/Kora-$rid" -Rid $rid -Revision "$env:GITHUB_SHA" -EvidenceDirectory $evidence -BuildOrigin "GitHub Actions $env:GITHUB_RUN_ID/$env:GITHUB_RUN_ATTEMPT; Linux cross-publish; static-only"
+            ./eng/Inspect-Publish.ps1 -Payload "artifacts/Kora-$rid" -Rid $rid -Revision "$env:SOURCE_REVISION" -EvidenceDirectory $evidence -BuildOrigin "GitHub Actions $env:GITHUB_RUN_ID/$env:GITHUB_RUN_ATTEMPT; Linux cross-publish; static-only"
             $tests = Join-Path $env:RUNNER_TEMP "kora-publish-contracts-$rid"
             ./eng/Test-PublishContracts.ps1 -Payload "artifacts/Kora-$rid" -Rid $rid -Inspection "$evidence/payload.json" -OutputDirectory $tests
             Copy-Item -LiteralPath (Join-Path $tests 'tests.json') -Destination "$evidence/contract-tests.json"
@@ -366,6 +443,19 @@ jobs:
           if-no-files-found: error
           include-hidden-files: true
 
+  queue-feedback:
+    name: Queue policy feedback
+    if: vars.KORA_MERGE_QUEUE_MODE == 'enabled' && github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - run: node --test eng/merge-queue/*.test.cjs
+      - shell: pwsh
+        run: ./eng/Test-WindowsIntegrationScheduling.ps1
+
   windows-integration-shards:
     name: Windows integration shard (${{ matrix.shard }})
     runs-on: windows-latest
@@ -385,6 +475,9 @@ jobs:
       # Keep the Windows job on the same reviewed action revisions as the portable job.
       - name: Check out source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.version.outputs.source-revision }}
+          persist-credentials: false
 
       - name: Install .NET SDK
         uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
@@ -437,8 +530,8 @@ jobs:
     name: Windows integration tests
     runs-on: ubuntu-latest
     timeout-minutes: 5
-    needs: [version, windows-integration-shards]
-    if: always() && needs.version.outputs.already-published != 'true'
+    needs: [admission, version, windows-integration-shards]
+    if: always() && needs.version.outputs.already-published != 'true' && (needs.admission.result != 'success' || needs.admission.outputs.full != 'false')
     steps:
       - name: Require every Windows shard to succeed
         shell: pwsh
@@ -454,9 +547,14 @@ jobs:
     runs-on: windows-latest
     timeout-minutes: 20
     needs: [version, portable]
+    env:
+      SOURCE_REVISION: ${{ needs.version.outputs.source-revision }}
     steps:
       - name: Check out source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.version.outputs.source-revision }}
+          persist-credentials: false
 
       - name: Install .NET SDK
         uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
@@ -480,7 +578,7 @@ jobs:
           .\eng\Test-InstallerPayload.ps1
           -PayloadPath .\artifacts\Kora-win-x64
           -Version "$env:BUILD_VERSION"
-          -SourceRevision "$env:GITHUB_SHA"
+          -SourceRevision "$env:SOURCE_REVISION"
 
       - name: Restore locked installer dependencies
         shell: pwsh
@@ -517,7 +615,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     needs: [version, portable, windows-integration, installer]
-    if: needs.version.outputs.publish == 'true' && needs.version.outputs.already-published != 'true'
+    if: needs.version.outputs.publish == 'true' && needs.version.outputs.already-published != 'true' && inputs.queue_ticket == ''
     permissions:
       contents: write
     concurrency:

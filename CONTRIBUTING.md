@@ -30,6 +30,10 @@ the authoritative policy sources.
 
 ## Development checks
 
+PR merge orchestration can run entirely on GitHub, without a local agent.
+See [GitHub-hosted merge admission](docs/merge-queue.md) for queue intent,
+failure/retry behaviour, the disabled-by-default rollout and administrator setup.
+
 Restore, build, and test with the pinned SDK and locked dependencies:
 
 ```powershell

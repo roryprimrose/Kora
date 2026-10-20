@@ -102,11 +102,11 @@ permission for a PAT fallback, bypass or local replacement merge controller.
 
 ## Authority and exact evidence
 
-The [controller workflow](../.github/workflows/merge-queue.yml) checks out only
+The [controller workflow](../../.github/workflows/merge-queue.yml) checks out only
 protected main. Its repository-scoped GitHub App token is never passed to a
 candidate build, a PR script or a candidate artifact.
 
-The [CI workflow](../.github/workflows/ci.yml) is dispatched on **main**, with a
+The [CI workflow](../../.github/workflows/ci.yml) is dispatched on **main**, with a
 controller-owned PR number, candidate SHA, base SHA and unique ticket. Its
 read-only admission job verifies the durable reservation, current PR head,
 Auto-merge intent, current main and base ancestry. Test/package jobs check out

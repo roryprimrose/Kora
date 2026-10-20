@@ -23,7 +23,7 @@ Use the caller's validated repository location. Default workspace is `Q:\Repos\K
 
 ## Merge Admission Mode
 
-Follow the [PR client protocol](../../docs/merge-queue.md#copilot-and-other-pr-clients). Successfully read the live queue mode during initial reconciliation and before new remote admissions. Record it in the registry and peer instructions; workflow presence, labels and green checks do not prove activation.
+Follow the [PR client protocol](../../eng/merge-queue/README.md#copilot-and-other-pr-clients). Successfully read the live queue mode during initial reconciliation and before new remote admissions. Record it in the registry and peer instructions; workflow presence, labels and green checks do not prove activation.
 
 - **Absent, empty or `disabled`:** retain the single remote integration lane and its exact-token, rebase, CI/review repair and merge-verification procedure below.
 - **`enabled`:** use the hosted integration procedure below. Local grants authorize feature publication and ownership only; they are not GitHub queue tickets or merge authority.

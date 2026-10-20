@@ -38,6 +38,7 @@ public sealed partial class WindowsOllamaToolTransportTests
             await stream.Entered.Task.WaitAsync(Token);
             if (dispose) { disposal = fixture.Transport.DisposeAsync().AsTask(); }
             else { await cancellation.CancelAsync(); }
+            await stream.CancellationObserved.Task.WaitAsync(Token);
             pending.IsCompleted.Should().BeFalse();
             if (disposal is not null) { disposal.IsCompleted.Should().BeFalse(); }
             fixture.HttpHandler.Disposed.Should().BeFalse();
@@ -176,6 +177,7 @@ public sealed partial class WindowsOllamaToolTransportTests
     {
         internal readonly TaskCompletionSource Entered = new(TaskCreationOptions.RunContinuationsAsynchronously);
         internal readonly TaskCompletionSource Release = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        internal readonly TaskCompletionSource CancellationObserved = new(TaskCreationOptions.RunContinuationsAsynchronously);
         internal bool Disposed;
         internal int ReadBytes;
         public override bool CanRead => true;
@@ -185,6 +187,7 @@ public sealed partial class WindowsOllamaToolTransportTests
         public override long Position { get => throw new NotSupportedException(); set => throw new NotSupportedException(); }
         public override async ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default)
         {
+            using var registration = cancellationToken.Register(() => CancellationObserved.TrySetResult());
             Entered.TrySetResult();
             if (honorCancellation) { await Release.Task.WaitAsync(cancellationToken); }
             else { await Release.Task; }

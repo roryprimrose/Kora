@@ -15,6 +15,15 @@ public sealed class BuiltInCommandRouter(BuiltInCommandCatalog catalog)
 
         var normalizedAssistantName = Normalize(AssistantNameRules.Normalize(assistantName));
         var normalized = Normalize(transcript);
+        var commands = catalog.GetCommands(assistantName)
+            .SelectMany(command => command.AllPhrases.Select(phrase => (Phrase: Normalize(phrase), Command: command)))
+            .DistinctBy(item => (item.Phrase, item.Command.Action))
+            .ToDictionary(item => item.Phrase, item => item.Command, StringComparer.Ordinal);
+        // A valid prefix such as "Stop" must not consume the exact privacy-reducing command.
+        if (commands.TryGetValue(normalized, out var stop) && stop.Action == BuiltInAction.DisableListening)
+        {
+            return new CommandMatch(true, transcript, normalized, stop);
+        }
         if (string.Equals(normalized, normalizedAssistantName, StringComparison.Ordinal))
         {
             return CommandMatch.NotMatched(transcript, string.Empty);
@@ -26,10 +35,6 @@ public sealed class BuiltInCommandRouter(BuiltInCommandCatalog catalog)
             normalized = normalized[activationName.Length..];
         }
 
-        var commands = catalog.GetCommands(assistantName)
-            .SelectMany(command => command.AllPhrases.Select(phrase => (Phrase: Normalize(phrase), Command: command)))
-            .DistinctBy(item => (item.Phrase, item.Command.Action))
-            .ToDictionary(item => item.Phrase, item => item.Command, StringComparer.Ordinal);
         return commands.TryGetValue(normalized, out var command)
             ? new CommandMatch(true, transcript, normalized, command)
             : CommandMatch.NotMatched(transcript, normalized);

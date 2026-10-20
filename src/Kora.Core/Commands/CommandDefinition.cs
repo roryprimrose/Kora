@@ -6,6 +6,8 @@ public sealed record CommandDefinition(
     string Description,
     IReadOnlyList<string> Aliases)
 {
+    public bool SupportsModelSuggestion => Action != BuiltInAction.DisableListening;
+
     public IEnumerable<string> AllPhrases
     {
         get

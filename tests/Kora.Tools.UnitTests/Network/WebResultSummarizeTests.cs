@@ -71,6 +71,7 @@ public sealed class WebResultSummarizeTests
     [InlineData(0)]
     [InlineData(1)]
     [InlineData(1000000)]
+    [InlineData(1234567)]
     public void AcceptsExactlyMaximumCompleteInputAndRefusesOneAdditionalByte(int fractionalTicks)
     {
         var request = HostRequest.Create(RequestOrigin.LocalUi);

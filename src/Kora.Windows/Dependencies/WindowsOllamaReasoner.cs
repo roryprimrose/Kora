@@ -19,6 +19,7 @@ public sealed class WindowsOllamaReasoner(HttpClient client, BuiltInCommandCatal
         },
     };
     private readonly Dictionary<string, BuiltInAction> actions = catalog.GetCommands()
+        .Where(command => command.SupportsModelSuggestion)
         .ToDictionary(command => command.Action.ToString(), command => command.Action, StringComparer.Ordinal);
     private readonly BuiltInCommandCatalog commandCatalog = catalog;
     private static readonly Uri ModelsEndpoint = new("http://127.0.0.1:11434/api/tags");
@@ -47,6 +48,7 @@ public sealed class WindowsOllamaReasoner(HttpClient client, BuiltInCommandCatal
             var actionInstructions = string.Join(
                 "\n",
                 commandCatalog.GetCommands(context.AssistantName)
+                    .Where(command => command.SupportsModelSuggestion)
                     .Select(command => $"{command.Action}: {command.Description}"));
             var artifactInstructions = artifact is null || artifact.IsLiteralPrompt
                 ? string.Empty

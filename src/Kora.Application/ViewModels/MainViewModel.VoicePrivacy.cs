@@ -5,6 +5,8 @@ using Kora.Core.Platform;
 using Kora.Core.Voice;
 using Kora.Core.Hosting;
 using Kora.Application.Voice;
+using Kora.Core.Auditing;
+using Kora.Core.Commands;
 
 namespace Kora.Application.ViewModels;
 
@@ -16,6 +18,8 @@ public sealed partial class MainViewModel
     private Task privacyClosureTask = Task.CompletedTask;
     private long observedTopologyRevision = -1;
     private bool disposed;
+    private readonly ListeningStopAction listeningStop;
+    private int listeningStopRequests;
     private readonly BoundedMicrophoneCatalog microphoneCatalog;
     private CancellationTokenSource? microphoneRefreshCancellation;
     private long catalogPrivacyRevision;
@@ -491,7 +495,6 @@ public sealed partial class MainViewModel
     private void HoldVoiceInput(string reason, WindowsSessionState? sessionState = null, bool restoreOnUnlock = false)
     {
         RetireSessionCommandReviews();
-        RetireQuestionVoiceReply();
         long revision;
         lock (voiceReadinessGate)
         {
@@ -504,6 +507,7 @@ public sealed partial class MainViewModel
         }
         voiceRecognition.InvalidateCapture();
         captureOpenCancellation?.Cancel();
+        RetireQuestionVoiceReply();
         uiDispatcher.Post(() =>
         {
             if (revision != Interlocked.Read(ref voiceRecoveryRevision))
@@ -530,7 +534,8 @@ public sealed partial class MainViewModel
             && IsVoiceActivationAvailable && !disposed && !lifecycleAdmissionClosed
             && SelectedMicrophone is { } microphone && privacy.CanCaptureFrom(microphone);
 
-    private bool TryEnableVoiceReadiness(long revision, bool requireUnlockRecovery = false)
+    private bool TryEnableVoiceReadiness(long revision, bool requireUnlockRecovery = false,
+        bool explicitListeningRecovery = false)
     {
         lock (voiceReadinessGate)
         {
@@ -540,10 +545,13 @@ public sealed partial class MainViewModel
             }
             if (revision != Interlocked.Read(ref voiceRecoveryRevision) || disposed || lifecycleAdmissionClosed
                 || !IsVoiceReadinessEligible(privacyObservation.Current)
+                || listeningStop.IsHeld && (!explicitListeningRecovery || OriginalOrigin() != RequestOrigin.LocalUi
+                    || Volatile.Read(ref listeningStopRequests) != 0)
                 || requireUnlockRecovery && revision != Interlocked.Read(ref automaticUnlockRecoveryRevision))
             {
                 return false;
             }
+            if (listeningStop.IsHeld && !listeningStop.TryRecover()) { return false; }
             Interlocked.Exchange(ref automaticUnlockRecoveryRevision, -1);
             Interlocked.Exchange(ref voiceEnabled, 1);
             Interlocked.Exchange(ref privacyPresentationHeld, 0);
@@ -673,7 +681,8 @@ public sealed partial class MainViewModel
     public async Task BeginPushToTalkAsync()
     {
         RetireQuestionVoiceReply();
-        if (lifecycleAdmissionClosed || IsBusy && !IsSpeaking
+        if (Volatile.Read(ref listeningStopRequests) != 0 || !listeningStop.CanRecover
+            || lifecycleAdmissionClosed || IsBusy && !IsSpeaking
             || !IsHostInputEligible || !RefreshVoiceReadiness())
         {
             if (IsVoiceEnabled)
@@ -682,7 +691,7 @@ public sealed partial class MainViewModel
             }
             ApplicationLog.Information(logger, "Denied push-to-talk without eligible one-shot capture readiness");
             ShowInformation("Push-to-talk is unavailable.",
-                "Review voice consent, microphone availability and Windows privacy, then try again.");
+                "Wait for confirmed microphone release, review voice consent, microphone availability and Windows privacy, then try again.");
             return;
         }
         if (Interlocked.Exchange(ref pushToTalkHeld, 1) != 0)
@@ -905,22 +914,86 @@ public sealed partial class MainViewModel
         }
     }
 
-    public Task DisableListeningFromTrayAsync()
+    public Task DisableListeningFromTrayAsync() => disposed ? Task.CompletedTask
+        : Kora.Application.Hosting.HostRequestRunner.RunAsync(OriginalOrigin(), () => DisableListeningAsync());
+
+    private bool IsListeningStopCommand(string text) =>
+        commandRouter.Match(text, AssistantName).Command?.Action == BuiltInAction.DisableListening;
+
+    private async Task DisableListeningAsync(SecurityAuditInitiator initiator = SecurityAuditInitiator.LocalUser)
     {
-        if (disposed) { return Task.CompletedTask; }
-        // A stale Disable must never become Enable. Stop remains available during busy work.
-        return DisableListeningAsync();
+        Interlocked.Increment(ref listeningStopRequests);
+        try { await CompleteListeningStopAsync(initiator); }
+        finally
+        {
+            Interlocked.Decrement(ref listeningStopRequests);
+            if (!disposed && !lifecycleAdmissionClosed) { NotifyVoiceEnablementChanged(); }
+        }
     }
 
-    private async Task DisableListeningAsync()
+    private async Task CompleteListeningStopAsync(SecurityAuditInitiator initiator)
     {
-        HoldVoiceInput("Microphone closed · listening was disabled manually");
-        if (!await TryStopFailedCaptureAsync("Disabling voice activation"))
+        if (disposed) { return; }
+        using var activity = HostActivity.BeginOperation(HostActivityLayer.Application, HostOperation.Policy, OriginalOrigin(initiator));
+        // Release must not wait for audit storage or be cancelled by an unrelated request.
+        var release = listeningStop.DisableAsync(() =>
+            HoldVoiceInput("Microphone closed · listening was disabled manually"));
+        PresentListeningStop("Listening stop accepted.", "Voice input is disabled. Native capture release is pending.");
+        SecurityAuditEvent? audit = null;
+        var auditFailed = false;
+        try
         {
-            return;
+            audit = await StartAuditAsync(SecurityAuditCategory.ConfigurationWrite,
+                "configuration.listening-disabled", initiator, DeviceLocalPreferencesTarget);
         }
-        ApplicationLog.Information(logger, "Voice activation was disabled by the user");
-        ShowInformation("Listening disabled.", "The microphone capture device has been released.");
+        catch (Exception exception) when (exception is not OutOfMemoryException)
+        {
+            auditFailed = true;
+            ApplicationLog.Error(logger, exception, "Recording listening stop request");
+        }
+        var outcome = await release;
+        if (audit is not null)
+        {
+            try
+            {
+                await CompleteAuditAsync(audit,
+                    outcome == ListeningStopOutcome.ReleaseUnconfirmed ? SecurityAuditOutcome.Failed : SecurityAuditOutcome.Succeeded,
+                    outcome == ListeningStopOutcome.ReleaseUnconfirmed ? "capture-release-unconfirmed" : null);
+            }
+            catch (Exception exception) when (exception is not OutOfMemoryException)
+            {
+                auditFailed = true;
+                ApplicationLog.Error(logger, exception, "Recording listening stop outcome");
+            }
+        }
+        activity.Complete(outcome == ListeningStopOutcome.ReleaseUnconfirmed || auditFailed
+            ? HostOperationOutcome.Failed : HostOperationOutcome.Completed);
+        if (disposed || lifecycleAdmissionClosed) { return; }
+        NotifyVoiceEnablementChanged();
+        var released = outcome != ListeningStopOutcome.ReleaseUnconfirmed;
+        PresentListeningStop(released ? outcome == ListeningStopOutcome.AlreadyDisabled
+                ? "Listening already disabled." : "Listening disabled."
+                : "Listening disabled; microphone release unconfirmed.",
+            (released ? "Native microphone capture release is confirmed."
+                : "Native microphone release could not be confirmed. Restart Kora if native recovery remains unavailable.")
+            + " Saved voice consent is unchanged. A fresh deliberate Push to talk can capture one command after confirmed release. Native Enable listening restores readiness; capture will not reopen automatically."
+            + (auditFailed ? " Required audit evidence is unavailable; this is not an audited success." : string.Empty));
+    }
+
+    private void PresentListeningStop(string title, string body)
+    {
+        if (disposed || lifecycleAdmissionClosed || !sessionController.IsCurrentSessionUnlocked() || IsPrivacyPresentationHeld) { return; }
+        if (IsResponseInteractionPending)
+        {
+            Transcript = title + " " + body;
+        }
+        else
+        {
+            PresentResponse(AssistantState.Information, title, body, requestWindow: false, refreshOutput: false);
+        }
+        forceVisualResponse = true;
+        NotifyOutputPolicyChanged();
+        WindowActionRequested?.Invoke(this, WindowAction.Show);
     }
 
     public Task StopSpeakingFromTrayAsync() => disposed ? Task.CompletedTask : StopSpeakingAsync();

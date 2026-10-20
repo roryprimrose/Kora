@@ -121,6 +121,13 @@ under the same live original host activity. The bridge owns durable task intent,
 terminal task/audit receipts and source eligibility; these APIs do not save a
 conversation body or create source/session/task admission.
 
+The existing [clipboard context factory](../src/Kora.Core/Context/ClipboardExplanationContext.cs)
+selects `ModelToolMode.None`; its [workflow](../src/Kora.Application/Context/ClipboardExplanationWorkflow.cs)
+supplies the current immutable source fence through the same execution port.
+This wiring does not replace source-use policy or enable clipboard explanation:
+the production [source-use policy](../src/Kora.Tools/Clipboard/UnavailableClipboardSourceUsePolicy.cs)
+remains explicitly unavailable.
+
 The execution port attaches the consumer's supplemental source-current/revocation
 predicate and optional asynchronous exact-source validator to the single-use
 turn; another call cannot replace that binding. The

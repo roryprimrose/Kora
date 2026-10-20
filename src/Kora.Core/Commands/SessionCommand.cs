@@ -16,7 +16,7 @@ public sealed partial record SessionCommand(
     public const int DefaultPageSize = 25;
     public const int MaximumInputBytes = 1024;
     public const int MaximumResultBytes = 65536;
-    public static IReadOnlyList<string> DiscoveryPhrases { get; } = ["session help", "session list", "task help", "queue help"];
+    public static IReadOnlyList<string> DiscoveryPhrases { get; } = ["session help", "session list", "session request help", "task help", "queue help"];
     public const string Syntax =
         "session help | session list [after <exact-id>] [limit <1-50>] | session status <exact-id> | "
         + "session inspect <exact-id> [tasks|questions] [after <exact-id>] [limit <1-50>] | "
@@ -27,7 +27,7 @@ public sealed partial record SessionCommand(
         + "session search <exact-id> [after <generation>:<snapshot>:<sequence>:<query-digest>] [limit <1-50>] \"<lexical query>\". "
         + "IDs use canonical D GUIDs; revisions use decimal integers. Names use NFC single-line Unicode, "
         + "at most 120 scalars/480 UTF-8 bytes. Inside quotes, double a quote to include it. "
-        + "No name, selected-window, delete, general executor or approval targeting.";
+        + "No name, selected-window, delete, general executor or approval targeting. " + RequestSyntax;
 
     public string PageKind { get; init; } = "tasks";
     public Guid? TaskId { get; init; }
@@ -48,13 +48,15 @@ public sealed partial record SessionCommand(
 
     public static SessionCommand? Parse(string input, string assistantName)
     {
-        var text = input.Trim();
+        var text = input.TrimStart();
         var prefix = AssistantNameRules.Normalize(assistantName);
         if (text.StartsWith(prefix, StringComparison.OrdinalIgnoreCase) && text.Length > prefix.Length
             && (text[prefix.Length] == ',' || char.IsWhiteSpace(text[prefix.Length])))
         {
             text = text[prefix.Length..].TrimStart(' ', ',', '\t');
         }
+        if (ParseRequest(text) is { } request) { return request; }
+        text = text.TrimEnd();
         if (text.Equals("queue", StringComparison.OrdinalIgnoreCase)
             || text.StartsWith("queue ", StringComparison.OrdinalIgnoreCase))
         {

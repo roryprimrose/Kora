@@ -54,10 +54,12 @@ public sealed partial class ModelTurnHostTests
         f.Messages.Should().NotContain(text => text.Contains("private source body", StringComparison.Ordinal));
     }
 
-    [Fact]
-    public async Task OriginalRetainedRequestExecutesExactlyOnceThroughRealHostToolCallbackAndReturnsRealAnswerAndExactReadback()
+    [Theory]
+    [InlineData(RequestOrigin.LocalUi)]
+    [InlineData(RequestOrigin.ActivatedVoice)]
+    public async Task OriginalRetainedRequestExecutesExactlyOnceThroughRealHostToolCallbackAndReturnsRealAnswerAndExactReadback(RequestOrigin origin)
     {
-        using var f = new Fixture();
+        using var f = new Fixture(origin);
         f.ProfileCatalogue.Status = Kora.Core.Providers.ProviderCatalogueStatus.Current;
         f.ProfilePreferences.Value = new(Kora.Core.Providers.ProviderService.Local, [Profile()]);
         var host = f.ConfiguredProfiles();
@@ -74,7 +76,7 @@ public sealed partial class ModelTurnHostTests
                 new("The admitted host reported " + observed.Version!.Version + ".", null));
         };
         var receipt = await service.SubmitAsync(new(f.Session, null), body, static () => true, Token,
-            beforeRetain: _ => { validations++; return System.Threading.Tasks.Task.CompletedTask; });
+            beforeRetain: _ => { validations++; return System.Threading.Tasks.Task.CompletedTask; }, origin: origin);
         f.RetainCalls.Should().Be(1);
         f.ExecutionStarts.Should().Be(1);
         f.ExecutionCompletions.Should().Be(1);
@@ -82,6 +84,7 @@ public sealed partial class ModelTurnHostTests
         tools.Should().Be(1);
         validations.Should().BeGreaterThan(4, "source validation surrounds execution and the actual host tool callback");
         receipt.Message.Body.Should().Be(body);
+        receipt.Message.Request.Origin.Should().Be(origin);
         receipt.Message.AssistantResponse!.Body.Should().Be("The admitted host reported 1.0.");
         receipt.Task.State.Should().Be(HostTaskState.Succeeded);
         receipt.Task.Revision.Value.Should().Be(3);
@@ -91,7 +94,9 @@ public sealed partial class ModelTurnHostTests
         wire.RootElement.GetProperty("Evidence").GetArrayLength().Should().Be(0);
         f.Messages.Should().NotContain(message => message.Contains(body, StringComparison.Ordinal)
             || message.Contains("host reported", StringComparison.Ordinal));
-        using var inspection = f.Root();
+        using var inspection = Kora.Core.Diagnostics.HostActivity.BeginRoot(
+            new(new(Guid.NewGuid()), f.Session.SessionId, new(Guid.NewGuid()), RequestOrigin.LocalUi),
+            Kora.Core.Diagnostics.HostActivityLayer.Application, Kora.Core.Diagnostics.HostOperation.Request);
         (await service.ReadPageAsync(f.Session.SessionId, null, 25, Token)).Messages.Single().Should().Be(receipt.Message);
         var details = await service.ReadDetailAsync(new(f.Session, null), receipt.Message, static () => true, Token);
         details.Source.Should().Be(body);

@@ -391,12 +391,14 @@ public sealed partial class NewRequestComposerTests : IDisposable
         public bool IsQuiescent { get; set; } = true;
         internal NewRequestComposer Composer { get; }
         internal SessionWorkspaceService Workspace { get; }
+        internal SessionConversationService Conversation { get; }
         internal Dictionary<HostId<TaskIdentity>, HostTaskRecord> Records { get; } = [];
         internal SessionWorkspaceEntry? Entry { get; set; }
         internal ConversationMessage? Retained { get; private set; }
         internal HostRequest? Attempted { get; private set; }
         internal int Creates { get; private set; }
         internal int Retentions { get; private set; }
+        internal int ModelAdmissions { get; private set; }
         internal int Rejections { get; private set; }
         internal int Writes { get; private set; }
         internal bool TerminalFailure { get; set; }
@@ -431,11 +433,15 @@ public sealed partial class NewRequestComposerTests : IDisposable
             Workspace = workspace;
             var conversation = new SessionConversationService(this, this, workspace, Access, this,
                 TimeProvider.System, NullLogger<SessionConversationService>.Instance);
+            Conversation = conversation;
             Composer = new(workspace, conversation, Access, enabledLogger ? this : NullLogger<NewRequestComposer>.Instance);
         }
 
-        public Task<ModelTurnAdmission> AdmitAsync(ModelTurnChoice choice, ModelContextEnvelope context, ModelHandoffReview? review, CancellationToken token) =>
-            Task.FromResult(new ModelTurnAdmission(new(ModelTurnOutcome.Unavailable, ModelTurnReason.UnregisteredModel)));
+        public Task<ModelTurnAdmission> AdmitAsync(ModelTurnChoice choice, ModelContextEnvelope context, ModelHandoffReview? review, CancellationToken token)
+        {
+            ModelAdmissions++;
+            return Task.FromResult(new ModelTurnAdmission(new(ModelTurnOutcome.Unavailable, ModelTurnReason.UnregisteredModel)));
+        }
 
         public ValueTask<HostTaskRecord> RecordControlIntentAsync(HostRequest request, CancellationToken token)
         {

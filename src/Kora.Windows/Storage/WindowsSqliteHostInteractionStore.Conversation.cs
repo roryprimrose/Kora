@@ -23,7 +23,7 @@ public sealed partial class WindowsSqliteHostInteractionStore : ISessionConversa
             using var connection = Open(created: false, token);
             var session = RequireSession(connection, request.SessionId);
             var existing = ReadTask(connection, request.TaskId);
-            if (request.Origin != RequestOrigin.LocalUi || request.InvocationId is not null || session.State != 0
+            if (request.Origin is not (RequestOrigin.LocalUi or RequestOrigin.ActivatedVoice) || request.InvocationId is not null || session.State != 0
                 || session.Authority.Generation != generation || !admitted()
                 || existing is not null && (existing.Request != request || existing.Revision.Value != 1
                     || existing.State != HostTaskState.IntentRecorded)
@@ -32,7 +32,8 @@ public sealed partial class WindowsSqliteHostInteractionStore : ISessionConversa
             var intent = existing ?? new HostTaskRecord(request, new(1), HostTaskState.IntentRecorded);
             var terminal = intent.Next(HostTaskState.Denied);
             var audit = new SecurityAuditEvent(Guid.NewGuid(), SecurityAuditCategory.SecurityApproval,
-                "conversation.credential-rejected", SecurityAuditOutcome.Denied, SecurityAuditInitiator.TypedCommand,
+                "conversation.credential-rejected", SecurityAuditOutcome.Denied,
+                request.Origin == RequestOrigin.ActivatedVoice ? SecurityAuditInitiator.VoiceCommand : SecurityAuditInitiator.TypedCommand,
                 Id(request.TaskId), reasonCode: "credential-like-content");
             using var activity = HostActivity.BeginAudit(request, audit);
             using var transaction = connection.BeginTransaction();
@@ -170,7 +171,7 @@ public sealed partial class WindowsSqliteHostInteractionStore : ISessionConversa
             using var connection = Open(created: false, token);
             var intent = new HostTaskRecord(request, new(1), HostTaskState.IntentRecorded);
             var session = RequireSession(connection, request.SessionId);
-            if (request.Origin != RequestOrigin.LocalUi || request.InvocationId is not null || session.State != 0
+            if (request.Origin is not (RequestOrigin.LocalUi or RequestOrigin.ActivatedVoice) || request.InvocationId is not null || session.State != 0
                 || session.Authority.Generation != generation
                 || (ReadMetadata(connection, request.SessionId)?.Revision.Value ?? 0) != expectedMetadataRevision || !admitted())
             { throw new InvalidOperationException("Submission requires the exact existing Active session and current private generation."); }
@@ -190,7 +191,9 @@ public sealed partial class WindowsSqliteHostInteractionStore : ISessionConversa
             var message = new ConversationMessage(request, generation, count + 1, 1, time.GetUtcNow().ToUniversalTime(),
                 body, null, null);
             var audit = new SecurityAuditEvent(Guid.NewGuid(), SecurityAuditCategory.SecurityApproval, "conversation.submit",
-                SecurityAuditOutcome.Succeeded, SecurityAuditInitiator.TypedCommand, Id(request.TaskId));
+                SecurityAuditOutcome.Succeeded,
+                request.Origin == RequestOrigin.ActivatedVoice ? SecurityAuditInitiator.VoiceCommand : SecurityAuditInitiator.TypedCommand,
+                Id(request.TaskId));
             using var activity = HostActivity.BeginAudit(request, audit);
             using var transaction = connection.BeginTransaction();
             WindowsSqliteHostTaskStore.WriteTask(connection, transaction, intent);

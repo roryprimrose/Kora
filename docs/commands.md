@@ -778,8 +778,25 @@ entry use the same request workflow without a model:
 | **reuse clipboard snapshot {exact snapshot ID}** | Reopen/select that same snapshot only; never reread or silently substitute changed clipboard text |
 | **clear clipboard preview** / **revoke clipboard snapshot** | Discard Kora's snapshot and preview, not the Windows clipboard |
 
+**clipboard snapshot status {snapshot-id}** reports only whether that exact
+currently admitted immutable snapshot is present, its host snapshot ID and its
+existing UTF-8 byte count. **clipboard snapshot help** shows syntax without
+revealing the current ID. These commands require single ASCII spaces; status
+requires a nonempty lowercase `D` GUID (`xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx`), without
+braces, punctuation repair, extra arguments or trailing whitespace. Command
+words are case-insensitive. Voice requires the current assistant-name prefix.
+Malformed reserved `clipboard snapshot` input is rejected locally before
+questions, approvals or model routing.
+
+Status is transcript-only, with no automatic speech or response/pending-panel
+replacement. Missing, replaced, revoked or ineligible snapshots are explicitly
+unavailable, not an empty-clipboard claim. Status never reads or refreshes the
+system clipboard, reuses/revokes a snapshot, extends review lifetime, or admits
+source use. No source text, excerpt, fingerprint, capture time, native read
+version, source ID or inferred sensitivity is reported.
+
 Configured-name prefixes and the normal exact-command case/punctuation rules
-apply. The preview shows the host source/snapshot IDs, `CF_UNICODETEXT` format,
+apply to the older preview/reuse/revoke commands. The preview shows the host source/snapshot IDs, `CF_UNICODETEXT` format,
 read version, capture time and exact UTF-8 byte count. Its **Reuse this exact
 snapshot ID** button uses the displayed ID; **Revoke and clear**, closing the
 preview, cancel, privacy/ownership loss, call-policy change and host exit clear

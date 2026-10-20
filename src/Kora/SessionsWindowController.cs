@@ -129,6 +129,11 @@ internal sealed class SessionsWindowController(
 
     internal async Task OpenRetentionReviewAsync(SessionRetentionReview review, Func<bool> admitted, CancellationToken token)
     {
+        if (!Dispatcher.UIThread.CheckAccess())
+        {
+            await Dispatcher.UIThread.InvokeAsync(() => OpenRetentionReviewAsync(review, admitted, token));
+            return;
+        }
         token.ThrowIfCancellationRequested();
         if (disposed || !access.CanInspect || !access.CanControl || !main.CanRevealPrivatePresentation || !admitted())
         { throw new OperationCanceledException("Exact retention navigation is no longer admitted."); }

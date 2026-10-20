@@ -1,9 +1,12 @@
+using Avalonia.Controls;
+
 using AwesomeAssertions;
 
 using Kora.Application.Diagnostics;
 using Kora.Application.Hosting;
 using Kora.Core.Commands;
 using Kora.Core.Hosting;
+using Kora.NativeUxFixture;
 using Kora.Windows.IntegrationTests.Audio;
 using Kora.Windows.IntegrationTests.Storage;
 using Kora.Windows.Storage;
@@ -12,8 +15,41 @@ using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Kora.Windows.IntegrationTests;
 
+[Collection(nameof(HeadlessUiTestGroup))]
 public sealed class SessionsRetentionCommandTests
 {
+    [WindowsFact]
+    public async Task WorkerContinuationOpensExactNativeReviewOnUiThreadWithoutWritingHold()
+    {
+        await HeadlessSession.RunAsync(async () =>
+        {
+            var parent = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", ".net-test-artifacts"));
+            Directory.CreateDirectory(parent);
+            using var fixture = new NativeUxFixtureSession(parent);
+            await fixture.InitializeAsync();
+            using var controller = new SessionsWindowController(fixture.Main, fixture.Sessions, fixture.Evidence,
+                fixture.Access, NullLogger<SessionsViewModel>.Instance);
+            controller.Bind();
+            SessionsWindow? window = null;
+            using var opened = Window.WindowOpenedEvent.AddClassHandler<SessionsWindow>((view, _) => window = view);
+            var id = fixture.LifecycleTarget!.SessionId;
+            var commands = new SessionRetentionCommandService(fixture.Sessions, fixture.Access, TimeProvider.System);
+            var before = await fixture.Interactions.ReadRetentionObservationAsync(id, fixture.Token);
+            var review = (await commands.ExecuteAsync(new(SessionCommandOperation.RetentionReview, id.Value) { KeepRetention = true },
+                RequestOrigin.ActivatedVoice, () => true, controller.OpenRetentionReviewAsync, fixture.Token)).RetentionReview!;
+            var result = await Task.Run(() => commands.ExecuteAsync(new(SessionCommandOperation.RetentionConfirm, id.Value)
+                { RetentionReviewId = review.Id }, RequestOrigin.LocalUi, () => true, controller.OpenRetentionReviewAsync, fixture.Token));
+            result.Outcome.Should().Be("native-review");
+            window!.IsVisible.Should().BeTrue();
+            var model = (SessionsViewModel)window.DataContext!;
+            model.RetentionPreview.Should().Contain(id.Value.ToString("D")).And.Contain("ActivatedVoice");
+            model.CanConfirmRetention.Should().BeTrue();
+            var after = await fixture.Interactions.ReadRetentionObservationAsync(id, fixture.Token);
+            after.MatchesRecordedState(before).Should().BeTrue();
+            window.Close();
+        });
+    }
+
     [WindowsFact]
     public async Task VoiceHandoffToSameNativeReviewRequiresNewNativeDecisionAndNeverResumesDoneOrRenewsDueDates()
     {

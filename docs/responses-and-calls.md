@@ -27,6 +27,19 @@ not just a warning. A later eligible response uses the freshly resolved output;
 unmuting or changing configuration never replays retired speech. This applies
 to **System** and a selected speaker. See [the existing fallback boundary](settings.md#muted-speaker-fallback).
 
+## Exact current-response window actions
+
+`dismiss current response` and `open current response details` use the same native
+controllers as **Dismiss** and **Current response details**. `current response help`
+lists the exact grammar. Activated voice requires the current assistant-name prefix.
+Only the original visible ordinary response is eligible: never a question,
+approval, preview, raw source or a newer response selected while work was queued.
+Native acknowledgement is required; privacy/ownership/input/call changes, source
+retirement or an unavailable native host fail closed. Details retire with that
+response and grant no clipboard authority. These actions do not change topmost,
+always-show or any other saved preference, speak, invoke a model or pin content.
+See [exact commands](commands.md#dismiss-or-inspect-the-exact-current-response).
+
 ## Deliberate current-response playback
 
 **Read current response**, `read that aloud` and `read current response` share one exact current ordinary-response action.

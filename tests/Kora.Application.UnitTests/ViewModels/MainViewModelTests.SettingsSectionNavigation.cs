@@ -247,7 +247,7 @@ public sealed partial class MainViewModelTests
         f.ViewModel.BindSettingsSectionNavigation(presenter);
         var routing = typeof(Kora.Application.ViewModels.MainViewModel).GetMethod(
             "HandleTranscriptAsync", BindingFlags.Instance | BindingFlags.NonPublic)!;
-        await (Task)routing.Invoke(f.ViewModel, ["open audio settings", 1f, initiator, null, null, null])!;
+        await (Task)routing.Invoke(f.ViewModel, ["open audio settings", 1f, initiator, null, null, null, null])!;
         presenter.Sections.Should().BeEmpty();
         f.ViewModel.Transcript.Should().StartWith("Settings navigation unavailable:");
     }

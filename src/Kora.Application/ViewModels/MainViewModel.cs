@@ -13,6 +13,7 @@ using Kora.Application.Diagnostics;
 using Kora.Application.Infrastructure;
 using Kora.Application.Hosting;
 using Kora.Application.Network;
+using Kora.Application.Presentation;
 using Kora.Application.Voice;
 using Kora.Core;
 using Kora.Core.Auditing;
@@ -4026,9 +4027,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
                 };
             }
             var responseReadInput = CaptureResponseReadInput();
+            var currentResponseInput = CaptureCurrentResponseInput(manualInput,
+                Interlocked.Read(ref workspaceSurfaceInputRevision) + 1);
             var reviewEligibility = CaptureSkillReviewEligibility(manualInput);
             await uiDispatcher.InvokeAsync(
-                () => HandleRecognizedVoiceTranscriptAsync(eventArgs, manualInput, responseReadInput, reviewEligibility));
+                () => HandleRecognizedVoiceTranscriptAsync(eventArgs, manualInput, responseReadInput, reviewEligibility, currentResponseInput));
             activity.Complete(HostOperationOutcome.Completed);
         }
         catch (Exception exception) when (exception is not OutOfMemoryException)
@@ -4072,7 +4075,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
 
     private async Task HandleRecognizedVoiceTranscriptAsync(
         VoiceTranscriptEventArgs eventArgs, ManualCallInput manualInput, ResponseReadInput responseReadInput,
-        Func<bool> reviewEligibility)
+        Func<bool> reviewEligibility, CurrentResponseInput currentResponseInput)
     {
         if (eventArgs.Generation != voiceRecognition.Generation || lifecycleAdmissionClosed
             || !sessionController.IsCurrentSessionUnlocked())
@@ -4095,6 +4098,12 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         }
         ApplicationLog.VoiceDispatchGate(logger, eventArgs.Generation, "Admitted");
         IsListening = voiceRecognition.IsListening;
+        if (CurrentResponseCommand.Parse(eventArgs.Transcript, AssistantName) is not null)
+        {
+            await HandleTranscriptAsync(eventArgs.Transcript, eventArgs.Confidence,
+                SecurityAuditInitiator.VoiceCommand, manualInput, currentResponseInput: currentResponseInput);
+            return;
+        }
         if (SettingsSectionCommand.Parse(eventArgs.Transcript, AssistantName) is not null
             || LocalClockCommand.Parse(eventArgs.Transcript, AssistantName) is not null
             || manualInput.CataloguePreparation is not null)
@@ -4129,7 +4138,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         SecurityAuditInitiator initiator,
         ManualCallInput? manualInput = null,
         ResponseReadInput? responseReadInput = null,
-        Func<bool>? reviewEligibility = null)
+        Func<bool>? reviewEligibility = null,
+        CurrentResponseInput? currentResponseInput = null)
     {
         if (ClipboardSnapshotStatusCommand.Parse(spokenText, AssistantName) is { } snapshotStatusCommand)
         {
@@ -4145,15 +4155,22 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             return;
         }
         var sessionCommand = SessionCommand.Parse(spokenText, AssistantName);
-        if (sessionCommand is null && LocalClockCommand.Parse(spokenText, AssistantName) is { } clockCommand)
+        var cataloguePreparation = manualInput?.CataloguePreparation
+            ?? AttachmentCataloguePreparationCommand.Parse(spokenText, AssistantName);
+        if (sessionCommand is null && cataloguePreparation is null
+            && LocalClockCommand.Parse(spokenText, AssistantName) is { } clockCommand)
         {
             ExecuteLocalClockCommand(clockCommand, initiator, manualInput);
             return;
         }
-        if ((manualInput?.CataloguePreparation
-            ?? AttachmentCataloguePreparationCommand.Parse(spokenText, AssistantName)) is { } cataloguePreparation)
+        if (cataloguePreparation is not null)
         {
             await PrepareAttachmentCatalogue(cataloguePreparation, initiator, manualInput);
+            return;
+        }
+        if (CurrentResponseCommand.Parse(spokenText, AssistantName) is { } currentResponseCommand)
+        {
+            await ExecuteCurrentResponseCommandAsync(currentResponseCommand, spokenText, initiator, manualInput, currentResponseInput);
             return;
         }
         if (Kora.Application.Skills.SkillReviewCommand.Parse(spokenText, AssistantName) is { } reviewCommand)
@@ -5703,6 +5720,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
                     + NaturalAppearanceCommand.Syntax + " "
                     + "Natural name commands: “what is your name”, “call yourself <name>”, “change your name to <name>”, or “reset your name”. "
                     + SettingsSectionCommand.Syntax + " "
+                    + CurrentResponseCommand.Syntax + " "
                     + "Use “explain the clipboard” for exact native review and qualified local-only explanation; no hosted fallback. "
                     + "Use “show spoken summary limits” to inspect future ordinary-speech sentence/word budgets; “list speech settings” lists exact set/reset syntax. "
                     + "Use “open skill packages” or “open shared skill sources” for native review only; neither enables or runs skills. "
@@ -6194,6 +6212,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             .Concat(InCallFeedbackCommand.FixedPhrases)
             .Concat(SpeechTextCommand.FixedPhrases)
             .Concat(ResponseReadCommand.FixedPhrases)
+            .Concat(CurrentResponseCommand.FixedPhrases)
             .Concat(SpeechCommand.FixedPhrases)
             .Concat(Kora.Application.Skills.SkillReviewCommand.FixedPhrases)
             .Concat(SettingsSectionCommand.FixedPhrases)

@@ -224,6 +224,12 @@ All voice-setting/in-call-option mutations, including reset/undo and speak-once 
 
 ## Verbal Settings
 
+Delivered spoken-summary budget aliases are **show spoken summary limits**, **set spoken summary sentence limit to 2**, **set spoken summary word limit to 40**, **reset spoken summary sentence limit** and **reset spoken summary word limit**. Use exact whole utterances and canonical integers ([parser](../src/Kora.Application/Configuration/SpeechCommand.cs)).
+
+Activated voice requires the current assistant-name prefix; typed input may omit it ([dispatch](../src/Kora.Application/ViewModels/MainViewModel.cs)).
+
+These change future ordinary-speech admission only, not output content or an instruction to speak now. Each reset preserves the valid companion cap; unknown saved companion state is refused. Pending questions/approvals remain untouched ([workflow and scope](User_Configuration.md#delivered-bounded-spoken-summary-limits-r10)).
+
 Delivered caption controls are exact `list speech text settings` and
 `get/status/set/reset display.speech-text`, `display.speech-text-placement`,
 `display.speech-text-dismissal-delay` and run-only `display.speech-text-pin`.

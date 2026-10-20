@@ -117,6 +117,9 @@
             AutomationProperties.Name="Memory-only exact-session conversation draft; not a question answer or approval" />
         <controls:NamedTextBlock x:Name="DraftSizeFeedback" Text="{Binding ComposerDraftSizeFeedback}" TextWrapping="Wrap"
             AutomationProperties.Name="Current editable shared conversation draft size and shape" />
+        <CheckBox x:Name="WrapDraftText" Content="Wrap draft text" IsEnabled="{Binding CanCompose}"
+            AutomationProperties.Name="Wrap draft text"
+            ToolTip.Tip="Visual rows only, not logical lines or tokens. Exact draft text is unchanged. Uncheck to scroll long lines horizontally; this view and source only, until closed." />
         <WrapPanel>
           <Button x:Name="CompareComposer" Content="Compare observed saved draft / memory buffer" IsEnabled="{Binding CanCompareComposer}"
               AutomationProperties.Name="Explicit passive comparison of historical observed saved revision and exact raw composer memory; no read, save or submit" />

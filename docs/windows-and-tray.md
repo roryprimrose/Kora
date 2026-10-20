@@ -44,6 +44,26 @@ Privacy, ownership or session retirement revokes both views without saving or st
 Questions, approvals, voice focus and legacy response presentation remain in their existing surfaces. Explicit Submit uses the same qualified local host execution as Sessions, not legacy inference. No relatedness, voice routing, history assembly, clipboard or export authority is added.
 Installed accessibility, physical storage and provider qualification remain separate ([delivery boundary](../Design/UI_Workspace_And_Windows.md#delivered-compact-selected-session-projection)).
 
+### Wrap editable draft text
+
+**Wrap draft text** is a native keyboard-focusable checkbox beside the editable
+draft in New request, Sessions and compact Sessions. Each starts checked, as
+before. Uncheck it to scroll long lines horizontally; check it to soft-wrap to
+the available width. Only visual rows change, not logical lines or token counts.
+
+The choice is transient and independent in each view. Sessions and compact
+still edit the same authoritative body; changing wrapping in one does not change
+the other's choice. Closing a view or retiring its private source resets the
+choice; changing the selected Sessions source starts with wrapping again.
+It is not a saved preference.
+
+Wrapping, resizing and existing reader scaling do not change exact text,
+newlines, caret/selection offsets, undo history, dirty state or Save/Submit
+reviews. They do not save, read, submit, answer a question or run a model.
+Invalid or oversized drafts remain editable with the same limits and rejection
+policy. Reviewed bodies, comparisons, ASSISTANT answers, questions, approvals
+and source Details are unaffected.
+
 ### Exact retained original message Details
 
 After **Read exact conversation** or explicit conversation Search, choose **Details - exact original USER / separate HOST** on one row. The shared row uses the same action in Sessions and compact projections; selecting a session or opening either window does not read/open Details automatically ([shared action](../src/Kora/ConversationPresentation.axaml)).

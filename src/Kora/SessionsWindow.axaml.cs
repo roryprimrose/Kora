@@ -23,6 +23,7 @@ internal sealed partial class SessionsWindow : Window
         InitializeComponent();
         DataContext = model;
         BindListPageOrder(model);
+        _ = new NativeDraftWrapping(this, ConversationComposer, WrapDraftText, model, model.CaptureDraftPresentationEligibility);
         this.owner.Attach(this);
         CompactConversation.Click += (_, _) => CompactConversationRequested?.Invoke(this, EventArgs.Empty);
         ReadConversation.Click += async (_, _) => await (ConversationOperation = model.ReadConversationAsync());

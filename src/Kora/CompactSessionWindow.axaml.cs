@@ -13,6 +13,7 @@ internal sealed partial class CompactSessionWindow : Window
     {
         InitializeComponent();
         DataContext = model;
+        _ = new NativeDraftWrapping(this, ConversationComposer, WrapDraftText, model, model.CaptureDraftPresentationEligibility);
         owner.Attach(this);
         Sessions.Click += (_, _) => SessionsRequested?.Invoke(this, EventArgs.Empty);
         NewRequest.Click += (_, _) => NewRequestRequested?.Invoke(this, EventArgs.Empty);

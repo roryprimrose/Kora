@@ -39,7 +39,13 @@ internal sealed partial class NewRequestWindowController(
         {
             var state = seedTarget ?? create();
             var opened = new NewRequestWindow(new(state), () => Navigate(state),
-                exception => main.ReportHostInteractionFailure("New request native navigation/closing failed; memory edits remain recoverable unless privacy revoked. No implicit Save or selection. Failure type: " + exception.GetType().Name));
+                exception => main.ReportHostInteractionFailure("New request native navigation/closing failed; memory edits remain recoverable unless privacy revoked. No implicit Save or selection. Failure type: " + exception.GetType().Name),
+                () =>
+                {
+                    var revision = access.ControlRevision;
+                    return () => !disposed && ReferenceEquals(composer, state) && access.CanInspect
+                        && access.CanControl && access.ControlRevision == revision;
+                });
             opened.Closed += (_, _) =>
             {
                 if (ReferenceEquals(window, opened)) { window = null; composer = null; }

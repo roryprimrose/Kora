@@ -628,6 +628,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             () => !string.IsNullOrWhiteSpace(CommandText)
                   && (!IsBusy || IsSetupStatusCommand()
                       || SessionCommand.Parse(CommandText, AssistantName) is not null
+                      || SessionDispositionReviewCommand.Parse(CommandText, AssistantName) is not null
                       || MemoryCommand.Parse(CommandText, AssistantName) is not null
                       || IsInstructionEditorCommand(CommandText)
                       || Kora.Core.Interaction.LocalEventCommand.Parse(CommandText, AssistantName) is not null
@@ -4078,6 +4079,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             ApplicationLog.Information(logger, "Rejected command input outside the active unlocked host");
             return;
         }
+        Interlocked.Increment(ref dispositionReviewEpoch);
         if (ResponseReadCommand.Parse(spokenText, AssistantName) is { } responseReadCommand)
         {
             await ExecuteResponseReadCommandAsync(responseReadCommand, spokenText, initiator, responseReadInput);
@@ -4243,6 +4245,12 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         if (Kora.Core.Maintenance.MaintenanceCommandParser.Parse(spokenText, AssistantName) is { } maintenanceCommand)
         {
             await ExecuteMaintenanceCommandAsync(maintenanceCommand, initiator);
+            return;
+        }
+        if (SessionDispositionReviewCommand.Parse(spokenText, AssistantName) is { } dispositionCommand)
+        {
+            await ExecuteSessionDispositionReviewAsync(dispositionCommand, initiator,
+                commandRouter.IsActivationPrefixed(spokenText, AssistantName));
             return;
         }
         if (SessionCommand.Parse(spokenText, AssistantName) is { } sessionCommand)
@@ -5547,6 +5555,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
                     + "Use “list capabilities” for the admitted read-only registry, or “describe capability” followed by a canonical ID. "
                     + "Use “session help” for bounded exact-ID session observations and explicit lifecycle controls. "
                     + "Use “show fixed read queue settings” for exact inspect/set/independent-reset phrases for future-only fixed read queue limits; manual dispatch remains unchanged. "
+                    + "Use “" + SessionDispositionReviewCommand.Syntax + "” for preview only in private native Sessions; confirmation is a separate native action. "
                     + $"Use “{AssistantName}, list assistant settings” for the display/PTT command-prefix name. "
                     + NaturalAppearanceCommand.Syntax + " "
                     + "Natural name commands: “what is your name”, “call yourself <name>”, “change your name to <name>”, or “reset your name”. "

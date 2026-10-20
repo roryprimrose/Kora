@@ -899,6 +899,20 @@ retention and model-facing session tools remain unimplemented.
 
 ### Delivered Bounded Exact-ID Logical Disposition - 2026-10-08
 
+**Preview-launch consumer - 2026-10-20:** original typed/current-name activated voice accepts only `review session disposition <canonical-D-guid> <positive-generation> <nonnegative-metadata-revision>`. The reserved grammar rejects malformed, oversized, control-bearing, quoted/name/selected and command-confirmation inputs before question/model fallback ([parser](../src/Kora.Core/Commands/SessionDispositionReviewCommand.cs)).
+
+Application admission delegates to a narrow private-native presenter; desktop opens the existing authoritative preview action for the supplied revisions, without following a newer generation or metadata revision. The native surface shows the complete eight-count inventory and existing scope/exclusions; none is returned to speech, model context or automatic clipboard ([Application seam](../src/Kora.Application/Hosting/ISessionDispositionReviewPresenter.cs), [shared action](../src/Kora/SessionsViewModel.cs)).
+
+The command cannot remove data. Confirmation remains a separate deliberate native input and fresh LocalUi request; original voice origin is preserved for preview, never promoted to native confirmation authority. A single current host-held preview is required, replaced/late previews cannot revive, and native-owner loss fails closed ([host gate](../src/Kora.Application/Hosting/SessionWorkspaceService.Disposition.cs), [native owner](../src/Kora/SessionsWindowController.cs)).
+
+Dirty composer protection retains separate native Save/Discard/Cancel decisions. Missing presentation is explicitly unavailable; stale store/control/session/copy/resource/private admission retains existing refusal and recovery rather than retry, cleanup or synthetic consent ([native tests](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.DispositionReview.cs), [authoritative store tests](../tests/Kora.Windows.IntegrationTests/Storage/WindowsSqliteSessionDispositionTests.cs)).
+
+This consumes the delivered preview/private-native-confirmation Implementation subset only. It adds no cleanup, forensic-erasure, provider, physical/audio or installed-native qualification claim; unrelated Enablement and RC qualification remain outside this bounded command ([scope](../src/Kora.Core/Storage/SessionDispositionPreview.cs)).
+
+New original input retires an in-flight launch without overwriting the newer response. Preview has its own exact-session request with original origin and a causal ActivityLink; a later native confirmation gets only its ordinary fresh native authority ([routing](../src/Kora.Application/ViewModels/MainViewModel.SessionDispositionReview.cs), [desktop action](../src/Kora/SessionsViewModel.cs)).
+
+An existing private draft-recovery review blocks command launch rather than being stolen; passive refresh pauses during that review, while explicit source/lifecycle controls retain their existing revocation behavior ([presentation gate](../src/Kora/SessionsViewModel.Work.cs), [regression tests](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.DispositionReview.cs)).
+
 The native Sessions workspace has separate **Preview logical disposition** and
 **Confirm logical disposition** actions. This is explicitly not full R12
 deletion. Preview resolves the exact existing ID, displayed authorization

@@ -27,7 +27,8 @@ public sealed partial record SessionCommand(
         + "session search <exact-id> [after <generation>:<snapshot>:<sequence>:<query-digest>] [limit <1-50>] \"<lexical query>\". "
         + "IDs use canonical D GUIDs; revisions use decimal integers. Names use NFC single-line Unicode, "
         + "at most 120 scalars/480 UTF-8 bytes. Inside quotes, double a quote to include it. "
-        + "No name, selected-window, delete, general executor or approval targeting. " + RequestSyntax + " " + RetentionSyntax;
+        + "No name, selected-window, delete, general executor or approval targeting. " + RequestSyntax + " " + RetentionSyntax
+        + " " + SessionDispositionReviewCommand.Syntax + ". " + SessionDispositionReviewCommand.Boundary;
 
     public string PageKind { get; init; } = "tasks";
     public Guid? TaskId { get; init; }

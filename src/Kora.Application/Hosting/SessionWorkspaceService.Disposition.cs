@@ -7,19 +7,50 @@ public sealed partial class SessionWorkspaceService
 {
     private readonly Lock dispositionGate = new();
     private PendingDisposition? pendingDisposition;
+    private long dispositionPreviewEpoch;
+
+    public bool IsDispositionPreviewCurrent(SessionDispositionPreview preview)
+    {
+        lock (dispositionGate)
+        {
+            return pendingDisposition is { } pending && pending.Preview == preview
+                && access.CanInspect && access.CanControl && access.ControlRevision == pending.ControlRevision;
+        }
+    }
+
+    public void DiscardDispositionPreview(SessionDispositionPreview preview)
+    {
+        lock (dispositionGate)
+        {
+            if (pendingDisposition?.Preview != preview) { return; }
+            pendingDisposition = null;
+            dispositionPreviewEpoch++;
+        }
+    }
 
     public async Task<SessionDispositionPreview> PreviewDispositionAsync(HostId<SessionIdentity> session,
         HostRevision generation, long metadataRevision, CancellationToken token)
     {
         var revision = access.ControlRevision;
-        lock (dispositionGate) { pendingDisposition = null; }
+        long epoch;
+        lock (dispositionGate)
+        {
+            pendingDisposition = null;
+            epoch = ++dispositionPreviewEpoch;
+        }
         var preview = await ReadAsync(() => store.PreviewDispositionAsync(session, generation, metadataRevision, token), token)
             .ConfigureAwait(false);
         if (!access.CanControl || access.ControlRevision != revision)
         {
             throw new InvalidOperationException("Disposition preview requires unchanged private host control admission.");
         }
-        lock (dispositionGate) { pendingDisposition = new(preview, revision); }
+        token.ThrowIfCancellationRequested();
+        lock (dispositionGate)
+        {
+            if (epoch != dispositionPreviewEpoch)
+            { throw new InvalidOperationException("Disposition preview was replaced. Request a fresh exact preview."); }
+            pendingDisposition = new(preview, revision);
+        }
         return preview;
     }
 

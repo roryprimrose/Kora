@@ -124,7 +124,12 @@ public sealed class EmbeddedUserDocumentationProviderTests
             .Skip(1)
             .ToArray();
 
-        sections.Should().HaveCount(commands.Count + 15);
+        sections.Should().HaveCount(commands.Count + 16);
+        var disposition = sections.Single(section => section.StartsWith("Review one exact session's logical disposition", StringComparison.Ordinal));
+        disposition.Should().Contain(SessionDispositionReviewCommand.Syntax)
+            .And.Contain("Nothing is removed by the command").And.Contain("separate deliberate native action")
+            .And.Contain("confirm session disposition").And.Contain("never confirms")
+            .And.Contain("all eight inventory counts").And.Contain("current").And.Contain("never saves");
         var editor = sections.Single(section => section.StartsWith("Edit an owned instruction or literal prompt without a model", StringComparison.Ordinal));
         editor.Should().Contain("instructions editor").And.Contain("prompts editor")
             .And.Contain("same").And.Contain("Reload/Overwrite/Cancel").And.Contain("No paths or body dictation");
@@ -245,6 +250,7 @@ public sealed class EmbeddedUserDocumentationProviderTests
             .And.Contain("session done").And.Contain("session resume");
         sections = sections.Where(section => !ReferenceEquals(section, appearance)
             && !ReferenceEquals(section, naturalAppearance)
+            && !ReferenceEquals(section, disposition)
             && !ReferenceEquals(section, output)
             && !ReferenceEquals(section, volume)
             && !ReferenceEquals(section, rate)

@@ -126,7 +126,8 @@ internal sealed partial class AllWorkViewModel
         var statusText = admitted.Status;
         var matchText = admitted.ExactMatch;
         var navigation = admitted.CanNavigate;
-        if (!ReferenceEquals(find, admitted) || !FindCurrent()) { RetireFind(); return; }
+        if (!ReferenceEquals(find, admitted)) { return; }
+        if (!admitted.Available || !FindCurrent()) { RetireFind(); return; }
         findQuery = query;
         findStatus = statusText;
         findMatch = matchText;

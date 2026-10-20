@@ -253,6 +253,7 @@ public sealed partial class MainViewModel
         sessionRetentionPlanner?.Retire("Call revision changed; preview retired.");
         RetireSessionCommandReviews();
         RetireQuestionVoiceReply();
+        RetireComposerDictation();
         try
         {
             var observation = communicationPolicy.Current;

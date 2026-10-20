@@ -94,6 +94,28 @@ Open **Tray > New request (fresh session only)** or **Sessions > New request (fr
 2. Choose **Create new empty target**. Inspect the accepted **New conversation** ID, name, generation and metadata revision. This commits only an empty Active session, not the body.
 3. Choose **Review frozen body for this target**, inspect the exact body/target, then separately **Submit reviewed exact body**. Edits or Cancel retire that review, even if the edited bytes later match.
 
+**Hold to dictate literal draft text** is an explicit native gesture on this
+same buffer (left mouse button, Space or Enter; release to finish). It never
+opens New request through voice or infers a target from focus. Literal dictation
+is **currently unavailable in production** until the capture/transcriber is
+qualified; an installed recognizer alone is not qualification. The gesture
+cannot enable listening, grant consent or select a microphone.
+
+When qualified and admitted through current consented PTT readiness, one
+transcription is inert draft text, including words such as "stop listening",
+"approve" or "submit". Capture must be released before insertion. An empty
+buffer is never filled by a late open: releasing before capture opens cancels
+that activation, and opening has a five-second deadline. An empty
+buffer receives the exact literal text; any nonempty buffer first shows complete
+original/transcribed text and requires separate **Append**, **Replace** or
+**Cancel**. Append adds no separator. Neither choice creates, saves, submits,
+attaches or executes anything. Cancel preserves the original memory.
+Edits (even identical bytes), target rename/lifecycle changes, changed private,
+call/input/device/ownership epochs, Escape, loss of the native arm or closing
+discard stale results. Close/revocation awaits capture release; failed release
+is explicit and prevents another activation. Pending questions and approvals,
+ordinary PTT and separate saved-draft/submission review keep their own authority.
+
 Submit uses the same body bounds, best-effort credential rejection, exact USER retention and admitted execution as the [named-session composer](#exact-session-conversation-and-composer). A separately qualified local host turn may use admitted read-only tools and retain its genuine bounded ASSISTANT answer, displayed separately from HOST/task status. Production profiles remain unqualified and explicitly unavailable; no provider setup, hosted egress, fallback or implicit routing is performed. Cancellation or uncertain commit/readback holds the original attempt without retry; no answer is inferred from admission alone.
 
 To retain a draft instead, choose **Review exact saved revision and new body** after confirmed creation. Inspect the saved revision, confirmed memory baseline and complete old/new bodies, then separately **Confirm Save reviewed draft only**. Saving leaves the body in memory; it does not submit, run a model, renew activity or grant approval. Submit always needs its own fresh review and leaves saved data independent.

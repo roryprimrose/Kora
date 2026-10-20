@@ -224,6 +224,7 @@ public sealed partial class App : Avalonia.Application
             newRequestWindow = new(viewModel, Services.GetRequiredService<SessionWorkspaceService>(),
                 Services.GetRequiredService<Kora.Core.Storage.ISessionWorkspaceAccess>(),
                 () => Services.GetRequiredService<NewRequestComposer>(), sessionsWindow);
+            newRequestWindow.BindDictation(Services.GetRequiredService<ILogger<Kora.Application.Voice.ComposerDictationService>>());
             newRequestWindow.Bind();
             sessionsWindow.OpenNewRequest = newRequestWindow.Open;
             sessionsWindow.ReviewOriginalMessageReuse = newRequestWindow.ReviewOriginalReuseAsync;

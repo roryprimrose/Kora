@@ -100,6 +100,7 @@ public sealed partial class SessionWorkspaceService
                     result = Changed(created, "Created empty Active session. No execution, context or permission created.");
                     break;
                 case SessionCommandOperation.Rename:
+                    SessionMetadataChanging?.Invoke(subject);
                     var renamed = await store.RenameSessionAsync(request, new(command.Generation), command.MetadataRevision,
                         RequireName(command), eligible, token).ConfigureAwait(false);
                     result = Changed(renamed, "Renamed exact ID. Name is content only; generation and approvals unchanged.");

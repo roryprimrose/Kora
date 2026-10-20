@@ -75,6 +75,7 @@ public sealed partial class MainViewModel
         sessionRetentionPlanner?.Retire("Private/lock/desktop revision changed; preview retired.");
         RetireQuestionVoiceReply();
         var snapshot = eventArgs.Current;
+        RetireComposerDictation();
         var voicePrivacyChanged = (eventArgs.Reason & (WindowsPrivacyChangeReason.Power
             | WindowsPrivacyChangeReason.MicrophonePermission | WindowsPrivacyChangeReason.InputTopology
             | WindowsPrivacyChangeReason.DefaultMicrophone)) != WindowsPrivacyChangeReason.Unknown
@@ -297,6 +298,9 @@ public sealed partial class MainViewModel
         questionVoiceReplies?.CloseAdmission();
         RetireQuestionVoiceReply();
         PropertyChanged -= OnQuestionVoiceReadinessChanged;
+        PropertyChanged -= ComposerVoiceReadinessChanged;
+        composerDictation?.CloseAdmission();
+        if (dictationQuestions is not null) { dictationQuestions.ReplyTargetChanging -= OnComposerQuestionChanging; }
         // Refresh cancellation can release an awaiting caller before Dispose returns.
         HoldVoiceInput("Microphone closed · host disposed");
         RetireMicrophoneRefresh();
@@ -509,6 +513,7 @@ public sealed partial class MainViewModel
         voiceRecognition.InvalidateCapture();
         captureOpenCancellation?.Cancel();
         RetireQuestionVoiceReply();
+        RetireComposerDictation();
         uiDispatcher.Post(() =>
         {
             if (revision != Interlocked.Read(ref voiceRecoveryRevision))
@@ -681,6 +686,10 @@ public sealed partial class MainViewModel
 
     public async Task BeginPushToTalkAsync()
     {
+        RetireComposerDictation();
+#pragma warning disable VSTHRD003 // Explicit command activation joins the independently owned native dictation release first.
+        if (composerDictation is not null) { await composerDictation.Quiescence; }
+#pragma warning restore VSTHRD003
         RetireQuestionVoiceReply();
         if (Volatile.Read(ref listeningStopRequests) != 0 || !listeningStop.CanRecover
             || lifecycleAdmissionClosed || IsBusy && !IsSpeaking

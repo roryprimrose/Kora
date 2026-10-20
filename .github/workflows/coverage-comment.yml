@@ -9,6 +9,7 @@ on:
 
 permissions:
   actions: read
+  checks: read
   contents: read
   pull-requests: write
 
@@ -17,12 +18,43 @@ jobs:
     name: Post portable coverage
     if: >
       github.event.workflow_run.conclusion == 'success' &&
-      github.event.workflow_run.event == 'pull_request'
+      (github.event.workflow_run.event == 'pull_request' ||
+       (github.event.workflow_run.event == 'workflow_dispatch' &&
+        startsWith(github.event.workflow_run.display_title, 'Merge queue PR #')))
     runs-on: ubuntu-latest
     timeout-minutes: 5
 
     steps:
+      - name: Resolve validated coverage destination
+        id: destination
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          QUEUE_APP_ID: ${{ vars.KORA_MERGE_QUEUE_APP_ID }}
+        with:
+          script: |
+            const run = context.payload.workflow_run;
+            if (run.event === 'pull_request') {
+              const number = run.pull_requests[0]?.number;
+              if (!number) throw new Error('PR coverage run has no associated pull request.');
+              core.setOutput('number', number);
+            } else {
+              const match = /^Merge queue PR #([1-9][0-9]*) \[([0-9a-f-]{36})\]$/.exec(run.display_title);
+              if (!match || run.head_branch !== 'main') throw new Error('Invalid candidate coverage source.');
+              const number = Number(match[1]);
+              const { data: pr } = await github.rest.pulls.get({ ...context.repo, pull_number: number });
+              const checks = await github.paginate(github.rest.checks.listForRef,
+                { ...context.repo, ref: pr.head.sha, check_name: 'Merge admission', per_page: 100 },
+                response => response.data.check_runs);
+              if (!checks.some(check => check.app.id === Number(process.env.QUEUE_APP_ID) &&
+                check.external_id === match[2])) {
+                core.notice('Candidate head changed; its coverage is not posted as current PR evidence.');
+                return;
+              }
+              core.setOutput('number', number);
+            }
+
       - name: Download coverage report
+        if: steps.destination.outputs.number != ''
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: coverage-report
@@ -31,13 +63,14 @@ jobs:
           run-id: ${{ github.event.workflow_run.id }}
 
       - name: Post or update coverage comment
+        if: steps.destination.outputs.number != ''
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
             const fs = require('fs');
             const marker = '<!-- portable-code-coverage -->';
-            const issue_number = context.payload.workflow_run.pull_requests[0].number;
+            const issue_number = Number('${{ steps.destination.outputs.number }}');
             const summary = fs.readFileSync('coverage-report/SummaryGithub.md', 'utf8').trim();
             const body = `${marker}\n${summary}`;
             const comments = await github.paginate(github.rest.issues.listComments, {

@@ -70,3 +70,12 @@ dotnet test --project .\tests\Kora.Windows.IntegrationTests\Kora.Windows.Integra
 
 - Treat warnings as errors and keep analyzer suppressions narrowly scoped with a concrete justification.
 - Do not modify files under `experiments` as production code or treat experiment evidence as a production contract unless the task explicitly targets an experiment.
+- Markdown files directly under `docs` are embedded in Kora's end-user guide. Keep developer/CI documentation beside its engineering scripts or in contributor documentation, not in `docs`.
+
+## Pull requests and merge admission
+
+- Follow the [merge admission guide](../eng/merge-queue/README.md#copilot-and-other-pr-clients) before publishing, enrolling, or monitoring a PR. Confirm the live queue mode; a failed lookup or unknown value is not permission to assume either mode.
+- Create or update one owned, same-repository PR targeting main for each ready feature. Preserve an explicit draft request, and enable protected squash Auto-merge only when the user or owning workflow authorizes merging, not merely PR creation.
+- When the hosted queue is enabled, let GitHub select the candidate, update its branch, dispatch validation, and cancel stale work. Do not chase main with repeated rebases/force-pushes, launch candidate workflows, or rerun an old ticket. When disabled, retain the ordinary protected CI/integration workflow.
+- Monitor current candidate-head App checks and actual PR/review state; skipped waiting-PR jobs or successful main workflow checks are not candidate admission. Repair concrete failures on the same PR, incorporating any App branch updates before pushing, and verify the actual merge and its reachability before claiming completion.
+- Copilot monitoring supports review and repair; it does not keep the hosted queue running. Never claim background monitoring without a supported continuation, or change App installation, secrets, environments, protection, queue mode, or durable queue state without separate administrator authorization.

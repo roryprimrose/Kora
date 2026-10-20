@@ -637,6 +637,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
                       || SessionDispositionReviewCommand.Parse(CommandText, AssistantName) is not null
                       || WorkspaceSurfaceCommand.Parse(CommandText, AssistantName) is not null
                       || AttachmentCataloguePreparationCommand.Parse(CommandText, AssistantName) is not null
+                      || PendingQuestionCommand.Parse(CommandText, AssistantName) is not null
                       || MemoryCommand.Parse(CommandText, AssistantName) is not null
                       || LocalClockCommand.Parse(CommandText, AssistantName) is not null
                       || IsInstructionEditorCommand(CommandText)
@@ -4027,8 +4028,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             }
             var responseReadInput = CaptureResponseReadInput();
             var reviewEligibility = CaptureSkillReviewEligibility(manualInput);
+            var questionTarget = CapturePendingQuestion(eventArgs.Transcript, beforeRouting: true);
             await uiDispatcher.InvokeAsync(
-                () => HandleRecognizedVoiceTranscriptAsync(eventArgs, manualInput, responseReadInput, reviewEligibility));
+                () => HandleRecognizedVoiceTranscriptAsync(eventArgs, manualInput, responseReadInput, reviewEligibility, questionTarget));
             activity.Complete(HostOperationOutcome.Completed);
         }
         catch (Exception exception) when (exception is not OutOfMemoryException)
@@ -4072,7 +4074,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
 
     private async Task HandleRecognizedVoiceTranscriptAsync(
         VoiceTranscriptEventArgs eventArgs, ManualCallInput manualInput, ResponseReadInput responseReadInput,
-        Func<bool> reviewEligibility)
+        Func<bool> reviewEligibility, PendingQuestionCapture questionTarget)
     {
         if (eventArgs.Generation != voiceRecognition.Generation || lifecycleAdmissionClosed
             || !sessionController.IsCurrentSessionUnlocked())
@@ -4086,6 +4088,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             { Transcript = "Settings navigation unavailable: the original voice generation or host was revoked."; }
             if (manualInput.CataloguePreparation is not null)
             { Transcript = "Attachment catalogue preparation unavailable: the original voice generation or host was revoked."; }
+            if (questionTarget.Command is not null)
+            { PendingQuestionNavigationStatus = "Pending question navigation unavailable: original voice or host admission was revoked."; }
             return;
         }
         if (Interlocked.CompareExchange(ref acceptedTranscriptGeneration, -1, eventArgs.Generation) != eventArgs.Generation)
@@ -4095,6 +4099,12 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         }
         ApplicationLog.VoiceDispatchGate(logger, eventArgs.Generation, "Admitted");
         IsListening = voiceRecognition.IsListening;
+        if (questionTarget.Command is not null)
+        {
+            await HandleTranscriptAsync(eventArgs.Transcript, eventArgs.Confidence,
+                SecurityAuditInitiator.VoiceCommand, manualInput, questionTarget: questionTarget);
+            return;
+        }
         if (SettingsSectionCommand.Parse(eventArgs.Transcript, AssistantName) is not null
             || LocalClockCommand.Parse(eventArgs.Transcript, AssistantName) is not null
             || manualInput.CataloguePreparation is not null)
@@ -4129,7 +4139,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         SecurityAuditInitiator initiator,
         ManualCallInput? manualInput = null,
         ResponseReadInput? responseReadInput = null,
-        Func<bool>? reviewEligibility = null)
+        Func<bool>? reviewEligibility = null, PendingQuestionCapture? questionTarget = null)
     {
         if (ClipboardSnapshotStatusCommand.Parse(spokenText, AssistantName) is { } snapshotStatusCommand)
         {
@@ -4145,15 +4155,22 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             return;
         }
         var sessionCommand = SessionCommand.Parse(spokenText, AssistantName);
-        if (sessionCommand is null && LocalClockCommand.Parse(spokenText, AssistantName) is { } clockCommand)
+        var cataloguePreparation = manualInput?.CataloguePreparation
+            ?? AttachmentCataloguePreparationCommand.Parse(spokenText, AssistantName);
+        if (sessionCommand is null && cataloguePreparation is null
+            && LocalClockCommand.Parse(spokenText, AssistantName) is { } clockCommand)
         {
             ExecuteLocalClockCommand(clockCommand, initiator, manualInput);
             return;
         }
-        if ((manualInput?.CataloguePreparation
-            ?? AttachmentCataloguePreparationCommand.Parse(spokenText, AssistantName)) is { } cataloguePreparation)
+        if (cataloguePreparation is not null)
         {
             await PrepareAttachmentCatalogue(cataloguePreparation, initiator, manualInput);
+            return;
+        }
+        if ((questionTarget?.Command ?? PendingQuestionCommand.Parse(spokenText, AssistantName)) is { } pendingQuestionCommand)
+        {
+            await ExecutePendingQuestionCommand(pendingQuestionCommand, spokenText, initiator, manualInput, questionTarget);
             return;
         }
         if (Kora.Application.Skills.SkillReviewCommand.Parse(spokenText, AssistantName) is { } reviewCommand)
@@ -6171,6 +6188,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             .Concat(AttachmentCataloguePreparationCommand.DiscoveryPhrases)
             .Concat(SessionCommand.DiscoveryPhrases)
             .Concat(WorkspaceSurfaceCommand.FixedPhrases)
+            .Concat(["pending question help"])
             .Concat(MemoryCommand.DiscoveryPhrases)
             .Concat(AssistantNameCommand.DiscoveryPhrases)
             .Concat(InputDeviceCommand.FixedPhrases)

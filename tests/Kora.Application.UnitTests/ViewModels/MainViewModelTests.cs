@@ -4535,6 +4535,7 @@ public sealed partial class MainViewModelTests : IDisposable
             .Concat(AttachmentCataloguePreparationCommand.DiscoveryPhrases)
             .Concat(SessionCommand.DiscoveryPhrases)
             .Concat(WorkspaceSurfaceCommand.FixedPhrases)
+            .Concat(["pending question help"])
             .Concat(MemoryCommand.DiscoveryPhrases)
             .Concat(AssistantNameCommand.DiscoveryPhrases)
             .Concat(InputDeviceCommand.FixedPhrases)

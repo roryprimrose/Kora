@@ -41,6 +41,7 @@ public sealed partial class App : Avalonia.Application
     private SessionsWindowController? sessionsWindow;
     private NewRequestWindowController? newRequestWindow;
     private AllWorkWindowController? allWorkWindow;
+    private WorkspaceSurfaceCommandController? workspaceSurfaceCommands;
     private ClipboardPreviewWindowController? clipboardWindow;
     private LocalFilePreviewWindowController? fileWindow;
     private SessionAttachmentWindowController? attachmentWindow;
@@ -235,6 +236,10 @@ public sealed partial class App : Avalonia.Application
                 Services.GetRequiredService<ILogger<AllWorkViewModel>>(), sessionsWindow);
             allWorkWindow.Bind();
             sessionsWindow.OpenAllWork = allWorkWindow.Open;
+            workspaceSurfaceCommands = new(viewModel,
+                Services.GetRequiredService<Kora.Core.Storage.ISessionWorkspaceAccess>(),
+                allWorkWindow, savedDraftCatalogue, sessionsWindow);
+            workspaceSurfaceCommands.Bind();
             var localEvents = Services.GetRequiredService<Kora.Application.Interaction.LocalEventBroker>();
             Services.GetRequiredService<SessionWorkspaceService>().BindLocalEvents(localEvents);
             viewModel.BindLocalEvents(localEvents);
@@ -371,6 +376,8 @@ public sealed partial class App : Avalonia.Application
         evidenceWindow = null;
         skillPackagesWindow?.Dispose();
         skillPackagesWindow = null;
+        workspaceSurfaceCommands?.Dispose();
+        workspaceSurfaceCommands = null;
         allWorkWindow?.Dispose();
         allWorkWindow = null;
         sessionsWindow?.Dispose();

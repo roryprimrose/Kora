@@ -27,6 +27,15 @@ internal sealed class SessionsWindowController(
     private bool disposed;
     private long dispositionOwnerEpoch;
     private int dispositionOwnerOpen;
+
+    internal Func<bool> CaptureCompactNavigationEligibility()
+    {
+        var originalModel = model;
+        var originalPresentation = presentation;
+        var source = model?.CaptureNavigationEligibility() ?? (static () => true);
+        return () => !disposed && ReferenceEquals(model, originalModel)
+            && ReferenceEquals(presentation, originalPresentation) && source();
+    }
     internal Action? OpenAllWork { get; set; }
     internal Action? OpenNewRequest { get; set; }
     internal Func<SessionWorkspaceEntry, Kora.Core.Conversation.ConversationMessage, Avalonia.Controls.Window?,
@@ -83,16 +92,19 @@ internal sealed class SessionsWindowController(
         window.Activate();
     }
 
-    internal void OpenCompact()
+    internal void OpenCompact() => OpenCompact(static () => true);
+    internal void OpenCompact(Func<bool> admitted)
     {
-        if (disposed || !access.CanInspect)
+        if (disposed || !access.CanInspect || !admitted())
         {
             main.ReportHostInteractionFailure("Compact conversation unavailable: live private desktop ownership is required.");
             return;
         }
+        var source = model?.CaptureNavigationEligibility() ?? (static () => true);
         if (compact is null)
         {
             EnsurePresentation();
+            source = model!.CaptureNavigationEligibility();
             var opened = new CompactSessionWindow(model!, presentation!);
             opened.SessionsRequested += (_, _) => Open();
             opened.NewRequestRequested += (_, _) => OpenNewRequest?.Invoke();
@@ -104,7 +116,13 @@ internal sealed class SessionsWindowController(
             compact = opened;
             opened.Show();
         }
-        compact.Activate();
+        if (disposed || !access.CanInspect || !admitted() || !source())
+        {
+            if (!access.CanInspect || !main.CanRevealPrivatePresentation) { presentation?.Revoke(); }
+            main.ReportHostInteractionFailure("Compact conversation unavailable: opening admission changed. No selection or draft was loaded.");
+            return;
+        }
+        compact?.Activate();
     }
 
     private void EnsurePresentation()

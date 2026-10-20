@@ -594,6 +594,21 @@ Standalone question/approval/voice and legacy response presenters are unchanged.
 
 Maintained [shared-view tests](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.Compact.cs) and [controller tests](../tests/Kora.Windows.IntegrationTests/CompactSessionControllerTests.cs) cover this bounded projection, not full coordinated R14, installed accessibility, provider/hardware, physical-storage or STOP qualification.
 
+### Workspace surface command evidence
+
+The [typed navigation grammar](../src/Kora.Core/Commands/WorkspaceSurfaceCommand.cs) owns three exact routes to existing surfaces.
+The [application event](../src/Kora.Application/ViewModels/MainViewModel.WorkspaceSurfaces.cs) precedes pending-answer routing and carries original admission; the [native adapter](../src/Kora/WorkspaceSurfaceCommandController.cs) rechecks epochs and compact presentation/selection before invoking the same composed controllers.
+It uses a linked, content-free presentation activity, not model/session authority.
+
+[Grammar tests](../tests/Kora.Core.UnitTests/Commands/WorkspaceSurfaceCommandTests.cs) cover exact/current-name routes, conflicts and malformed reserved input.
+[Application tests](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.WorkspaceSurfaces.cs) cover recognition phrases, unavailable composition, busy input, pending-decision buffers and epoch retirement.
+[Headless controller tests](../tests/Kora.Windows.IntegrationTests/WorkspaceSurfaceCommandControllerTests.cs) cover singleton reuse, shared dirty memory, inert opening, Done authority and queued source/ownership/closure/disposal.
+
+Only consumed implementation contracts and deterministic fixtures are required. Model navigation remains unavailable: no bootstrap or six-read-only-descriptor expansion. No native-installed, hardware, provider, acoustic or containment qualification is claimed.
+[Commands](../docs/commands.md#open-existing-workspace-surfaces) and [windows](../docs/windows-and-tray.md#workspace-surface-navigation) own user syntax and recovery.
+
+### Compact layout illustration
+
 Illustrative layout, not pixel dimensions or final styling:
 
 ```text

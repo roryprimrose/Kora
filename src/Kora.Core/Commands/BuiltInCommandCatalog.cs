@@ -1,4 +1,4 @@
-using Kora.Core.Configuration;
+﻿using Kora.Core.Configuration;
 
 namespace Kora.Core.Commands;
 
@@ -54,6 +54,13 @@ public sealed class BuiltInCommandCatalog
                 nameof(assistantName));
         }
 
+        if (commands.SelectMany(command => command.AllPhrases)
+            .Any(phrase => WorkspaceSurfaceCommand.FixedPhrases.Contains(
+                BuiltInCommandRouter.Normalize(phrase), StringComparer.Ordinal)))
+        {
+            throw new ArgumentException("The assistant name conflicts with an exact workspace navigation phrase.",
+                nameof(assistantName));
+        }
         return commands;
     }
 

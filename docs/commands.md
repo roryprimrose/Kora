@@ -20,9 +20,28 @@ Calls is not manual-call activation; Responses does not restore retired/private 
 Malformed reserved section requests clarify in the transcript before model/question/approval routing. Pending questions, approvals and security previews are not answered or replaced.
 Missing/revoked/disposed presenters and stale original host, privacy, ownership or voice generations report unavailable, never a default page or success fallback ([routing](../src/Kora.Application/ViewModels/MainViewModel.cs), [deterministic tests](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.SettingsSectionNavigation.cs)).
 
+## Open existing workspace surfaces
+
+| Exact typed phrase | Existing native surface |
+|---|---|
+| `open all work` | Bounded All work / attention overview |
+| `open saved conversation drafts` | Saved conversation draft metadata catalogue |
+| `open compact conversation` | Compact projection of the current Sessions selection and shared memory composer |
+
+Activated voice requires the current available assistant name, for example `Kora, open all work`. Renaming replaces that prefix in the recognition grammar.
+These phrases accept no extra words, selectors, body queries or punctuation after the phrase; malformed reserved navigation input is refused, not sent to a model. The existing `open sessions` behavior is unchanged.
+
+Opening activates the same controller/window as tray and UI. It does not create/select/resume a session, discard a dirty buffer, reload a saved draft, submit work, answer a question or confirm an approval.
+No selection means an untargeted compact view, not a new conversation. Catalogue and overview opening perform no read, search, automatic refresh or corpus count; use their explicit metadata controls. All work remains a bounded observer, not an atomic global snapshot or all-clear.
+
+Native composition and original/current private ownership, input, call/privacy epochs and compact source must remain admitted through queued opening; otherwise initiate a fresh command. Protected calls refuse these routes.
+Model navigation is explicitly unavailable: these window-focus actions are not added to bootstrap or the six read-only model descriptors.
+See [native windows](windows-and-tray.md#workspace-surface-navigation) and the [deterministic evidence](../Design/UI_Workspace_And_Windows.md#workspace-surface-command-evidence).
+
 ## Native saved conversation draft catalogue
 
-**Tray > Saved conversation drafts (metadata only)** is native-only; it has no typed/voice/model body query. Opening reads nothing. Explicit Refresh/Next/Cancel shows bounded saved composer metadata across retained All/Active/Done sessions, never a body preview or global count.
+**Tray > Saved conversation drafts (metadata only)** or `open saved conversation drafts` opens the same native catalogue; it has no typed/voice/model body query. Opening reads nothing.
+Explicit Refresh/Next/Cancel shows bounded saved composer metadata across retained All/Active/Done sessions, never a body preview or global count.
 Cleared/empty/never-saved and question/parameter drafts are not saved-content results.
 Its **Browse / NameSubstring / ExactId** modes search session metadata only. Name matching is literal, ordinal case-sensitive under the session-name bounds; exact IDs require canonical lowercase D format. ID-shaped names are not targets. Invalid/empty queries never become All.
 Optional **Exact saved revision**, **Minimum UTF-8 bytes**, **Maximum UTF-8 bytes**,

@@ -19,7 +19,12 @@ public sealed record LocalClockCommand(LocalClockOperation Operation, bool IsAct
         var normalized = BuiltInCommandRouter.Normalize(input);
         var name = BuiltInCommandRouter.Normalize(AssistantNameRules.Normalize(assistantName)) + " ";
         var activated = Match(normalized) == LocalClockOperation.Invalid && normalized.StartsWith(name, StringComparison.Ordinal);
-        if (activated) { normalized = normalized[name.Length..]; }
+        if (activated)
+        {
+            var remainder = normalized[name.Length..];
+            if (Match(remainder) != LocalClockOperation.Invalid || IsReserved(remainder)) { normalized = remainder; }
+            else { activated = false; }
+        }
         var operation = Match(normalized);
         if (operation == LocalClockOperation.Invalid && !IsReserved(normalized)) { return null; }
         return new(input.Length > 256 || input.Any(char.IsControl) ? LocalClockOperation.Invalid : operation, activated);

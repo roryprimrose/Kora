@@ -32,8 +32,11 @@ public sealed class LocalClockCommandTests
     [InlineData("help local clock please")]
     [InlineData("what\ttime is it")]
     [InlineData("what time is it\n")]
-    public void OnlyBoundedReservedFamiliesClarifyInsteadOfFallingThrough(string text) =>
+    public void OnlyBoundedReservedFamiliesClarifyInsteadOfFallingThrough(string text)
+    {
         LocalClockCommand.Parse(text, "Nova")!.Operation.Should().Be(LocalClockOperation.Invalid);
+        LocalClockCommand.Parse("Nova, " + text, "Nova")!.Operation.Should().Be(LocalClockOperation.Invalid);
+    }
 
     [Theory]
     [InlineData("")]
@@ -43,10 +46,19 @@ public sealed class LocalClockCommandTests
     [InlineData("what timepiece is this")]
     [InlineData("please tell me what time is it")]
     [InlineData("what is today's weather")]
+    [InlineData("Nova, explain this")]
     public void UnrelatedRequestsAreNotClockCommands(string text) =>
         LocalClockCommand.Parse(text, "Nova").Should().BeNull();
 
     [Fact]
     public void OversizeReservedCommandsAreInvalid() =>
         LocalClockCommand.Parse("what time is it" + new string(' ', 256), "Nova")!.Operation.Should().Be(LocalClockOperation.Invalid);
+
+    [Fact]
+    public void AnAssistantNameCannotConsumeAReservedMalformedClockRequest()
+    {
+        LocalClockCommand.Parse("what time is it please", "What Time")!.Operation.Should().Be(LocalClockOperation.Invalid);
+        LocalClockCommand.Parse("What Time, what time is it please", "What Time")!.Operation.Should().Be(LocalClockOperation.Invalid);
+        LocalClockCommand.Parse("What Time, what time is it", "What Time")!.Operation.Should().Be(LocalClockOperation.Time);
+    }
 }

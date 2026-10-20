@@ -270,6 +270,9 @@ public sealed partial class MainViewModelTests
         f.ViewModel.ResponseBody.Should().Contain("previous ownership was retired");
         await f.RunAsync("stopwatch status");
         f.ViewModel.StopwatchDisplay.Should().StartWith("Idle");
+        f.CallState.SetState(CallState.Active);
+        await f.RunAsync("stopwatch status");
+        f.ViewModel.ResponseBody.Should().Contain("denied");
     }
 
     [Fact]

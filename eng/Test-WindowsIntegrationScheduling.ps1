@@ -29,14 +29,34 @@ try { & $runner -Shard 'unknown' -ListShards | Out-Null }
 catch [System.Management.Automation.ParameterBindingException] { $rejected = $true }
 Assert $rejected 'Unknown shards must fail, not run a default or empty success.'
 
-$classes = @(
-    'Storage.WindowsSqliteSessionAttachmentTests', 'Storage.WindowsSqliteConversationTests',
-    'Storage.WindowsSqliteSessionQueueTests', 'Storage.WindowsSqliteMemoryTests',
-    'Storage.WindowsSqliteExactGrantFilterTests', 'Storage.WindowsSqliteEvidenceQueryTests',
-    'ArtifactDiscovery.OwnedDefinitionEditorWindowTests', 'NativeUx.NativeUxFixtureContractTests',
-    'EvidenceAdvancedFilterTests', 'EvidenceLiteralFindTests', 'NativeQuestionTests'
-)
-foreach ($class in $classes) {
+$classes = [ordered]@{
+    'Storage.WindowsSqliteSessionAttachmentTests' = 'storage-heavy'
+    'Storage.WindowsSqliteConversationTests' = 'storage-heavy'
+    'Storage.WindowsSqliteSessionQueueTests' = 'storage-heavy'
+    'Storage.WindowsSqliteMemoryTests' = 'storage-heavy'
+    'Storage.WindowsSqliteExactGrantFilterTests' = 'storage-heavy'
+    'Storage.WindowsSqliteEvidenceQueryTests' = 'storage-other'
+    'Storage.FutureStorageTests' = 'storage-other'
+    'ArtifactDiscovery.OwnedDefinitionEditorWindowTests' = 'ui-definitions'
+    'ArtifactDiscovery.FutureDefinitionTests' = 'ui-definitions'
+    'EvidenceLiteralFindTests' = 'ui-definitions'
+    'BoundedSurfaceAccessibilityTests' = 'ui-definitions'
+    'NativeUx.NativeUxFixtureContractTests' = 'native-ux'
+    'NativeUx.FutureNativeUxTests' = 'native-ux'
+    'Presentation.DispatcherEvidenceResponsivenessTests' = 'native-ux'
+    'NativeReaderTextScaleTests' = 'native-ux'
+    'SpeechCaptionDisplayTests' = 'native-ux'
+    'EvidenceAdvancedFilterTests' = 'ui-platform'
+    'EvidenceLiteralFindTestsExtra' = 'ui-platform'
+    'BoundedSurfaceAccessibilityTestsExtra' = 'ui-platform'
+    'Presentation.DispatcherEvidenceResponsivenessTestsExtra' = 'ui-platform'
+    'NativeReaderTextScaleTestsExtra' = 'ui-platform'
+    'SpeechCaptionDisplayTestsExtra' = 'ui-platform'
+    'SessionsConversationTests' = 'ui-platform'
+    'NativeQuestionTests' = 'ui-platform'
+    'FuturePlatformTests' = 'ui-platform'
+}
+foreach ($class in $classes.Keys) {
     $qualified = "Kora.Windows.IntegrationTests.$class.Test"
     $matching = @($all | Where-Object {
         $matchesFilter = $false
@@ -54,6 +74,7 @@ foreach ($class in $classes) {
         $matchesFilter
     })
     Assert ($matching.Count -eq 1) "Partition must cover $class exactly once."
+    Assert ($matching[0].Name -ceq $classes[$class]) "Partition placed $class in the wrong shard."
 }
 
 Assert ($workflow.Contains('shard: [storage-heavy, storage-other, ui-definitions, native-ux, ui-platform]',
@@ -68,6 +89,15 @@ Assert ($workflow.Contains("if: always() && needs.version.outputs.already-publis
     [StringComparison]::Ordinal)) 'Failed or cancelled dependencies must not skip the required gate.'
 Assert ($workflow.Contains('name: Windows integration tests', [StringComparison]::Ordinal)) 'Preserve the required check identity.'
 Assert ($workflow.Contains('timeout-minutes: 30', [StringComparison]::Ordinal)) 'Preserve the Windows job deadline.'
+Assert ($workflow.Contains('KORA_TEST_NATIVE_EVIDENCE_MODE: ${{ matrix.shard == ''native-ux'' && ''buffered'' || ''synchronous'' }}',
+    [StringComparison]::Ordinal)) 'Only the native-UX CI shard may select the measured buffered fixture profile.'
+Assert ($workflow.Contains("if: github.event_name == 'workflow_dispatch' && inputs.compare_native_evidence",
+    [StringComparison]::Ordinal)) 'Native evidence comparisons must remain opt-in and manual-only.'
+$comparisonCases = @(& (Join-Path $PSScriptRoot 'Compare-NativeFixtureEvidence.ps1') -ListCases)
+Assert ($comparisonCases.Count -eq 4) 'The native evidence comparison must retain its four representative case selectors.'
+foreach ($selector in $comparisonCases) {
+    Assert ($selector.StartsWith('FullyQualifiedName~Kora.Windows.IntegrationTests.', [StringComparison]::Ordinal)) 'Comparison selectors must stay inside the Windows test assembly.'
+}
 
 $gateMatch = [regex]::Match($workflow,
     '(?m)      - name: Require every Windows shard to succeed\r?\n[\s\S]*?        run: \|\r?\n(?<script>(?:          [^\r\n]*(?:\r?\n|$))+)')

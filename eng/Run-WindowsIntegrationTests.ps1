@@ -23,6 +23,20 @@ $repositoryRoot = Split-Path -Parent $PSScriptRoot
 $projectPath = Join-Path $repositoryRoot 'tests\Kora.Windows.IntegrationTests\Kora.Windows.IntegrationTests.csproj'
 $resultsRoot = [System.IO.Path]::GetFullPath((Join-Path $repositoryRoot $ResultsDirectory))
 
+# Balance slow headless UI classes across processes without parallelizing the process-wide UI thread.
+$definitionUiPrefixes = @(
+    'Kora.Windows.IntegrationTests.ArtifactDiscovery.'
+    'Kora.Windows.IntegrationTests.EvidenceLiteralFindTests.'
+    'Kora.Windows.IntegrationTests.BoundedSurfaceAccessibilityTests.'
+)
+$nativeUiPrefixes = @(
+    'Kora.Windows.IntegrationTests.NativeUx.'
+    'Kora.Windows.IntegrationTests.Presentation.DispatcherEvidenceResponsivenessTests.'
+    'Kora.Windows.IntegrationTests.NativeReaderTextScaleTests.'
+    'Kora.Windows.IntegrationTests.SpeechCaptionDisplayTests.'
+)
+$uiPlatformExclusions = @('Kora.Windows.IntegrationTests.Storage.') + $definitionUiPrefixes + $nativeUiPrefixes
+
 $shards = @(
     [pscustomobject]@{
         Name = 'storage-heavy'
@@ -34,15 +48,15 @@ $shards = @(
     }
     [pscustomobject]@{
         Name = 'ui-definitions'
-        Filter = 'FullyQualifiedName~Kora.Windows.IntegrationTests.ArtifactDiscovery.'
+        Filter = ($definitionUiPrefixes | ForEach-Object { "FullyQualifiedName~$_" }) -join '|'
     }
     [pscustomobject]@{
         Name = 'native-ux'
-        Filter = 'FullyQualifiedName~Kora.Windows.IntegrationTests.NativeUx.'
+        Filter = ($nativeUiPrefixes | ForEach-Object { "FullyQualifiedName~$_" }) -join '|'
     }
     [pscustomobject]@{
         Name = 'ui-platform'
-        Filter = 'FullyQualifiedName!~Kora.Windows.IntegrationTests.Storage.&FullyQualifiedName!~Kora.Windows.IntegrationTests.ArtifactDiscovery.&FullyQualifiedName!~Kora.Windows.IntegrationTests.NativeUx.'
+        Filter = ($uiPlatformExclusions | ForEach-Object { "FullyQualifiedName!~$_" }) -join '&'
     }
 )
 

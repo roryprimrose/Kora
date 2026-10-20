@@ -26,7 +26,7 @@ public sealed partial class MainViewModelTests
         fixture.ViewModel.CanPreviewAuditImpact.Should().BeTrue();
         await fixture.ViewModel.PreviewAuditImpactCommand.ExecuteAsync();
         fixture.ViewModel.AuditImpactPreviewStatus.Should().Contain("1 newly due").And.Contain("0 newly due")
-            .And.Contain("Required-authority").And.Contain("Diagnostic-audit").And.Contain("Committed UTC").And.Contain("Proposed due UTC");
+            .And.Contain("Security records").And.Contain("diagnostic copies").And.Contain("Recorded between").And.Contain("Proposed deletion dates");
         fixture.AuditPreferences.Value.Should().BeNull();
         fixture.ViewModel.ProposedAuditImpactDays = 31;
         fixture.ViewModel.ProposedAuditImpactDays = null;

@@ -1,6 +1,7 @@
 using Kora.Application.Configuration;
 using Kora.Application.Diagnostics;
 using Kora.Application.Infrastructure;
+using Kora.Application.Presentation;
 using Kora.Core;
 using Kora.Core.Auditing;
 using Kora.Core.Diagnostics;
@@ -27,8 +28,8 @@ public sealed partial class MainViewModel
     public bool CanChangeResponseMode => responseModeConfiguration is not null && !disposed
         && IsCallMutationHostEligible && !responseModeControlActive && !IsResponseInteractionPending;
     public string ResponseModeConfigurationStatus => responseModeConfiguration is null
-        ? "Response-mode control admission is unavailable; existing saved state is retained."
-        : ResponseModeCommandResult.Serialize(DescribeResponseMode());
+        ? "Response mode settings are unavailable. Your saved choice is unchanged."
+        : SettingsText.Describe(DescribeResponseMode());
 
     private ResponseModeCommandResult DescribeResponseMode(string outcome = "observed") =>
         responseModeConfiguration!.Get(CallPolicyRevision, outcome, QueueResponseMode, TaskResponseMode) with

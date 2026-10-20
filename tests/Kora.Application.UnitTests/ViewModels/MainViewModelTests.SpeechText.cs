@@ -113,7 +113,7 @@ public sealed partial class MainViewModelTests
         await fixture.ViewModel.InitializeAsync();
         fixture.TextToSpeech.ClearSpokenResponse();
         await fixture.RunAsync("show your window");
-        fixture.ViewModel.SpeechTextConfigurationStatus.Should().Contain("\"available\":false");
+        fixture.ViewModel.SpeechTextConfigurationStatus.Should().Contain("Setting unavailable");
         fixture.ViewModel.SpeechCaptionPlacement.Should().BeNull();
         fixture.TextToSpeech.SpokenText.Should().NotBeNull();
         fixture.TextToSpeech.CaptionPlaybackId.Should().BeNull();
@@ -147,7 +147,12 @@ public sealed partial class MainViewModelTests
         missing.ViewModel.SpeechTextChoices.Should().BeEmpty();
         missing.ViewModel.SpeechCaptionPlacement.Should().BeNull();
         missing.ViewModel.SpeechCaptionOptionChoices.Should().BeEmpty();
-        missing.ViewModel.SpeechCaptionOptionsList.Should().Equal(SpeechCaptionOption.Placement, SpeechCaptionOption.DismissalDelay);
+        missing.ViewModel.SpeechCaptionOptionsList.Select(choice => choice.Option)
+            .Should().Equal(SpeechCaptionOption.Placement, SpeechCaptionOption.DismissalDelay);
+        missing.ViewModel.SelectedSpeechCaptionOptionChoice = missing.ViewModel.SpeechCaptionOptionsList[1];
+        missing.ViewModel.SelectedSpeechCaptionOption.Should().Be(SpeechCaptionOption.DismissalDelay);
+        missing.ViewModel.SelectedSpeechCaptionOption = SpeechCaptionOption.Placement;
+        missing.ViewModel.SelectedSpeechCaptionOptionChoice.Label.Should().Be("Position on screen");
         missing.ViewModel.SpeechCaptionLabel.Should().Be("CURRENT PLAYBACK - UTTERANCE");
         missing.ViewModel.SpeechTextConfigurationStatus.Should().Contain("unavailable");
         await missing.ViewModel.ResetSpeechTextCommand.ExecuteAsync();
@@ -159,7 +164,7 @@ public sealed partial class MainViewModelTests
         await fixture.ViewModel.ExecuteSpeechTextCommandAsync(new(AppearanceCommandOperation.Reset),
             Kora.Core.Auditing.SecurityAuditInitiator.TypedCommand, cancellationToken: new CancellationToken(true));
         fixture.ViewModel.ResponseTitle.Should().Be("Speech-text preference not confirmed.");
-        fixture.ViewModel.SpeechTextConfigurationStatus.Should().Contain("\"available\":false");
+        fixture.ViewModel.SpeechTextConfigurationStatus.Should().Contain("Setting unavailable");
         fixture.ViewModel.Dispose();
         await fixture.ViewModel.ResetSpeechTextCommand.ExecuteAsync();
         fixture.ViewModel.CanChangeSpeechText.Should().BeFalse();

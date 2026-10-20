@@ -78,7 +78,7 @@ public sealed partial class MainWindow
         nativePresenceFailed = true;
         nativePresence?.Suspend();
         DesktopLog.Error(logger, exception, "Presenting the opt-in native presence");
-        viewModel.ReportPresenceRendererStatus("Native renderer unavailable. Select Avalonia in Settings; no automatic fallback was performed.");
+        viewModel.ReportPresenceRendererStatus("Experimental animation mode is unavailable. Choose Standard in Settings; Kora did not switch automatically.");
         HidePresenceWindow();
         viewModel.ReportHostInteractionFailure(
             "The native presence renderer is unavailable. Other presentation and audio services remain independent. "

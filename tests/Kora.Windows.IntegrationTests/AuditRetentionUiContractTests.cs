@@ -16,22 +16,29 @@ public sealed class AuditRetentionUiContractTests
         var root = directory?.FullName ?? throw new InvalidOperationException("Source root unavailable.");
         var controls = XDocument.Load(Path.Combine(root, "src", "Kora", "SettingsWindow.axaml")).Descendants().ToArray();
         var selector = controls.Single(control =>
-            string.Equals(control.Attribute("SelectedItem")?.Value, "{Binding SelectedAuditRetentionDays}", StringComparison.Ordinal));
-        selector.Attribute("ItemsSource")!.Value.Should().Be("{Binding AuditRetentionChoices}");
+            string.Equals(control.Attribute("Value")?.Value, "{Binding SelectedAuditRetentionDays}", StringComparison.Ordinal));
+        selector.Name.LocalName.Should().Be("SettingsNumberField");
+        selector.Attribute("Minimum")!.Value.Should().Be("{x:Static configuration:AuditRetentionDays.Minimum}");
+        selector.Attribute("Maximum")!.Value.Should().Be("{x:Static configuration:AuditRetentionDays.Maximum}");
+        selector.Attribute("SavedValue")!.Value.Should().Be("{Binding SavedAuditRetentionDays}");
         selector.Attribute("IsEnabled")!.Value.Should().Be("{Binding CanChangeAuditRetentionNative}");
         foreach (var command in new[] { "SaveAuditRetentionCommand", "ResetAuditRetentionCommand", "RefreshAuditRetentionCommand" })
         {
-            controls.Single(control => string.Equals(control.Attribute("Command")?.Value, "{Binding " + command + "}", StringComparison.Ordinal))
+            controls.Single(control => string.Equals((control.Attribute("Command") ?? control.Attribute("ActionCommand"))?.Value, "{Binding " + command + "}", StringComparison.Ordinal))
                 .Attribute("IsEnabled")!.Value.Should().Be("{Binding CanChangeAuditRetentionNative}");
         }
         var proposal = controls.Single(control =>
-            string.Equals(control.Attribute("SelectedItem")?.Value, "{Binding ProposedAuditImpactDays}", StringComparison.Ordinal));
-        proposal.Attribute("ItemsSource")!.Value.Should().Be("{Binding AuditRetentionChoices}");
-        proposal.Attribute("AutomationProperties.Name")!.Value.Should().Be("Proposed audit retention days for read-only preview");
-        proposal.Attribute("AutomationProperties.HelpText")!.Value.Should().Contain("Selecting does not save");
+            string.Equals(control.Attribute("Value")?.Value, "{Binding ProposedAuditImpactDays}", StringComparison.Ordinal));
+        proposal.Name.LocalName.Should().Be("SettingsNumberField");
+        proposal.Attribute("Minimum")!.Value.Should().Be("{x:Static configuration:AuditRetentionDays.Minimum}");
+        proposal.Attribute("Maximum")!.Value.Should().Be("{x:Static configuration:AuditRetentionDays.Maximum}");
+        proposal.Attribute("AutomationProperties.Name")!.Value.Should().Be("Proposed security record storage days");
+        proposal.Attribute("AutomationProperties.HelpText")!.Value.Should().Contain("This does not save");
         var preview = controls.Single(control =>
-            string.Equals(control.Attribute("Command")?.Value, "{Binding PreviewAuditImpactCommand}", StringComparison.Ordinal));
-        preview.Attribute("IsEnabled")!.Value.Should().Be("{Binding CanPreviewAuditImpact}");
+            string.Equals(control.Attribute("ActionCommand")?.Value, "{Binding PreviewAuditImpactCommand}", StringComparison.Ordinal));
+        preview.Should().BeSameAs(proposal);
+        preview.Attribute("ActionText")!.Value.Should().Be("Preview");
+        preview.Attribute("IsEnabled")!.Value.Should().Be("{Binding CanChangeAuditRetentionNative}");
         controls.Single(control =>
             string.Equals(control.Attribute("Text")?.Value, "{Binding AuditImpactPreviewStatus}", StringComparison.Ordinal))
             .Attribute("AutomationProperties.Name")!.Value.Should().Be("Read-only audit impact preview status");

@@ -38,7 +38,7 @@ public sealed class ProviderModeConfigurationServiceTests : IDisposable
         f.Service.Get().Source.Should().Be("default");
         await f.Refresh();
         f.Service.Choices.Select(choice => choice.Mode).Should().Equal(ModelProviderModePreference.Choices);
-        f.Service.Choices.Select(choice => choice.Label).Should().Equal("LocalOnly", "LocalFirst", "HostedPreferred");
+        f.Service.Choices.Select(choice => choice.Label).Should().Equal("On-device only", "Prefer on-device", "Prefer online");
         var revision = f.Service.Get().Revision;
         (await f.Select(mode)).Should().BeTrue();
         f.Service.Get().Revision.Should().BeGreaterThan(revision);

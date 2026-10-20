@@ -175,6 +175,10 @@ public sealed partial class MainViewModelTests
         f.ViewModel.QueueSlotChoices.Should().Equal(1, 2);
         f.ViewModel.QueueLifetimeMinuteChoices.Should().Equal(Enumerable.Range(1, 120));
         f.ViewModel.SelectedQueueLifetimeMinutes.Should().Be(30);
+        f.ViewModel.SavedQueuePending.Should().Be(10);
+        f.ViewModel.SavedQueueSlots.Should().Be(1);
+        f.ViewModel.SavedQueueLifetimeMinutes.Should().Be(30);
+        f.ViewModel.SavedQueueActiveBudgetMinutes.Should().Be(5);
         f.ViewModel.QueueActiveBudgetMinuteChoices.Should().Equal(Enumerable.Range(1, 60));
         f.ViewModel.SelectedQueueActiveBudgetMinutes.Should().Be(5);
         f.ViewModel.CanChangeQueueConfigurationNative.Should().BeFalse();
@@ -182,11 +186,13 @@ public sealed partial class MainViewModelTests
         f.QueuePreferences.Writes.Should().Be(0);
         f.ViewModel.BindQueueConfigurationNativeLifetime(() => true);
         f.ViewModel.CanChangeQueueConfigurationNative.Should().BeTrue();
-        f.ViewModel.QueueConfigurationStatus.Should().Contain("\"available\":true");
+        f.ViewModel.QueueConfigurationStatus.Should().Contain("Using the default").And.Contain("10 waiting tasks");
         await f.ViewModel.RefreshQueueConfigurationCommand.ExecuteAsync();
         f.ViewModel.SelectedQueuePending = 1;
+        f.ViewModel.SavedQueuePending.Should().Be(10);
         await f.ViewModel.SaveQueuePendingCommand.ExecuteAsync();
         f.QueuePreferences.Value.PendingPerSession.Should().Be(1);
+        f.ViewModel.SavedQueuePending.Should().Be(1);
         await f.ViewModel.RefreshQueueConfigurationCommand.ExecuteAsync();
         f.ViewModel.SelectedQueueSlots = 2;
         await f.ViewModel.SaveQueueSlotsCommand.ExecuteAsync();
@@ -194,6 +200,7 @@ public sealed partial class MainViewModelTests
         await f.ViewModel.RefreshQueueConfigurationCommand.ExecuteAsync();
         await f.ViewModel.ResetQueuePendingCommand.ExecuteAsync();
         f.QueuePreferences.Value.Should().Be(new SessionQueuePreferences(null, 2));
+        f.ViewModel.SavedQueuePending.Should().Be(10);
         await f.ViewModel.RefreshQueueConfigurationCommand.ExecuteAsync();
         await f.ViewModel.ResetQueueSlotsCommand.ExecuteAsync();
         f.QueuePreferences.Value.IsDefault.Should().BeTrue();

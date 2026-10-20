@@ -50,7 +50,7 @@ public sealed partial class MainViewModelTests
     {
         var fixture = await Fixture.CreateInitializedAsync();
         fixture.ViewModel.PresenceRenderers.Select(item => item.Name).Should()
-            .Equal("Avalonia", "Native (experimental)");
+            .Equal("Standard", "Experimental");
         var notifications = new List<string?>();
         fixture.ViewModel.PropertyChanged += (_, args) => notifications.Add(args.PropertyName);
         fixture.ViewModel.SelectedPresenceRenderer = fixture.ViewModel.PresenceRenderers[1];
@@ -125,11 +125,11 @@ public sealed partial class MainViewModelTests
         fixture.ViewModel.PresenceTimeoutSeconds.Should().Be(PresenceSettings.DefaultTimeoutSeconds);
         fixture.ViewModel.ResponseTimeoutSeconds.Should().Be(ResponseWindowSettings.DefaultTimeoutSeconds);
         fixture.ViewModel.PresenceSizePixels.Should().Be(PresenceSettings.DefaultSizePixels);
-        fixture.ViewModel.PresenceDisplayDescription.Should().Contain("Show the animated presence");
+        fixture.ViewModel.PresenceDisplayDescription.Should().Contain("Show animated dots");
         fixture.ViewModel.IsPresenceDisplayEnabled = false;
         await fixture.ViewModel.AppearanceUpdate;
         fixture.ViewModel.IsPresenceDisplayEnabled.Should().BeFalse();
-        fixture.ViewModel.PresenceDisplayDescription.Should().Contain("hidden");
+        fixture.ViewModel.PresenceDisplayDescription.Should().Contain("Hide the animated dots");
         fixture.AppearancePreferences.SavedPresenceDisplayEnabled.Should().BeFalse();
         fixture.ViewModel.SetPresenceDisplayEnabled(true).Should().BeTrue();
         fixture.ViewModel.IsPresenceDisplayEnabled.Should().BeTrue();

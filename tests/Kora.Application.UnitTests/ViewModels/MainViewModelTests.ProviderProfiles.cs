@@ -22,7 +22,7 @@ public sealed partial class MainViewModelTests
         await f.ViewModel.InitializeAsync();
         f.TextToSpeech.ClearSpokenResponse();
         await f.RunAsync("Kora, list app provider settings");
-        f.ViewModel.ProviderProfileConfigurationStatus.Should().Contain(expected.ToString());
+        f.ViewModel.ProviderProfileConfigurationStatus.Should().Contain(Kora.Application.Presentation.SettingsText.Service(expected));
         f.ViewModel.ProviderProfileModels.Should().BeEmpty();
         f.ViewModel.CanSaveProviderProfile.Should().BeFalse();
         f.ViewModel.CanSignInProvider.Should().BeFalse();
@@ -104,7 +104,7 @@ public sealed partial class MainViewModelTests
         await f.RunAsync($"set providers.app.profile to {model} {reasoning} {context} for {account} at {revision}");
         f.ViewModel.ResponseTitle.Should().Be("App provider configuration not confirmed.");
         f.ProfilePreferences.Value.Should().BeNull();
-        f.ViewModel.ProviderProfileConfigurationStatus.Should().Contain("Unavailable");
+        f.ViewModel.ProviderProfileConfigurationStatus.Should().Contain("unavailable");
         f.Reasoner.Requests.Should().BeEmpty();
     }
 
@@ -116,12 +116,12 @@ public sealed partial class MainViewModelTests
         missing.ViewModel.ProviderProfileModels.Should().BeEmpty();
         missing.ViewModel.ProviderReasoningChoices.Should().BeEmpty();
         missing.ViewModel.ProviderContextChoices.Should().BeEmpty();
-        missing.ViewModel.ProviderProfileDraftStatus.Should().Contain("Unavailable");
+        missing.ViewModel.ProviderProfileDraftStatus.Should().Contain("No models are currently available");
         missing.ViewModel.SelectedProviderServiceChoice = new(new(ProviderService.Local, []), 1, Guid.NewGuid(),
             new(new(Guid.NewGuid()), new(1), true), Kora.Core.Hosting.RequestOrigin.LocalUi, static () => true);
         missing.ViewModel.ProviderProfileModels.Should().BeEmpty();
-        missing.ViewModel.ProviderProfileDraftStatus.Should().Contain("Unavailable");
-        missing.ViewModel.ProviderProfileConfigurationStatus.Should().Contain("not composed");
+        missing.ViewModel.ProviderProfileDraftStatus.Should().Contain("No models are currently available");
+        missing.ViewModel.ProviderProfileConfigurationStatus.Should().Contain("unavailable");
         await missing.RunAsync("reset providers.app.default-service");
         missing.Reasoner.Requests.Should().BeEmpty();
         var f = new Fixture(enableProviderProfiles: true);
@@ -233,8 +233,8 @@ public sealed partial class MainViewModelTests
         f.ViewModel.SelectedProviderProfileModel = model;
         f.ViewModel.SelectedProviderReasoning = model.Reasoning[0];
         f.ViewModel.SelectedProviderContext = model.Context[0];
-        f.ViewModel.ProviderProfileDraftStatus.Should().Contain("exact-model").And.Contain("managed-effort").And.Contain("managed-window")
-            .And.Contain("account").And.Contain("catalogueRevision");
+        f.ViewModel.ProviderProfileDraftStatus.Should().Contain(model.Label).And.Contain(model.Reasoning[0].Label).And.Contain(model.Context[0].Label)
+            .And.Contain("Not yet saved").And.NotContain("catalogueRevision");
         f.ViewModel.SelectedProviderServiceChoice = f.ViewModel.ProviderServiceChoices.Single(choice => choice.Service == ProviderService.Claude);
         f.ProfilePreferences.Value.Should().BeNull();
         f.ViewModel.SelectedProviderProfileModel.Should().BeNull();
@@ -249,12 +249,12 @@ public sealed partial class MainViewModelTests
         f.ProfilePreferences.Value!.Service.Should().Be(ProviderService.Claude);
         f.ProfilePreferences.Value.For(ProviderService.Claude).Should().NotBeNull();
         await f.ViewModel.RefreshProviderProfileCommand.ExecuteAsync();
-        f.ViewModel.ProviderProfileDraftStatus.Should().Contain("savedTuple");
+        f.ViewModel.ProviderProfileDraftStatus.Should().Contain("Not yet saved").And.Contain("Claude");
         await f.ViewModel.ResetProviderProfileCommand.ExecuteAsync();
         f.ProfilePreferences.Value.For(ProviderService.Claude).Should().BeNull();
         f.ViewModel.SelectedProviderServiceChoice = null;
         f.ViewModel.CanSaveProviderService.Should().BeFalse();
-        f.ViewModel.ProviderProfileDraftStatus.Should().Contain("\"service\":null").And.Contain("\"savedTuple\":null");
+        f.ViewModel.ProviderProfileDraftStatus.Should().Contain("Service: not selected").And.Contain("model: not selected");
         f.ViewModel.SelectedProviderServiceChoice = new(new(ProviderService.Local, []), 1, Guid.NewGuid(),
             new(new(Guid.NewGuid()), new(1), true), Kora.Core.Hosting.RequestOrigin.LocalUi, static () => true);
         f.ViewModel.CanSaveProviderService.Should().BeFalse();

@@ -19,13 +19,18 @@ public sealed class SessionRetentionPlannerUiContractTests
         foreach (var proposal in new[] { "ProposedSessionArchiveDays", "ProposedSessionDeleteDays" })
         {
             var control = controls.Single(c =>
-                string.Equals(c.Attribute("SelectedItem")?.Value, "{Binding " + proposal + "}", StringComparison.Ordinal));
-            control.Attribute("ItemsSource")!.Value.Should().Be("{Binding SessionRetentionChoices}");
+                string.Equals(c.Attribute("Value")?.Value, "{Binding " + proposal + "}", StringComparison.Ordinal));
+            control.Name.LocalName.Should().Be("SettingsNumberField");
+            control.Attribute("Minimum")!.Value.Should().Be("1");
+            control.Attribute("Maximum")!.Value.Should().Be("{x:Static configuration:SessionRetentionSettings.MaximumDays}");
             control.Attribute("IsEnabled")!.Value.Should().Be("{Binding CanChangeSessionRetentionNative}");
             control.Attribute("AutomationProperties.Name")!.Value.Should().Contain("read-only preview");
         }
-        controls.Single(c => c.Attribute("Command")?.Value is "{Binding PreviewSessionRetentionCommand}")
-            .Attribute("IsEnabled")!.Value.Should().Be("{Binding CanPreviewSessionRetention}");
+        var previewGate = controls.Single(c => c.Attribute("Command")?.Value is "{Binding PreviewSessionRetentionCommand}")
+            .Descendants().Single(element => element.Name.LocalName is "MultiBinding");
+        previewGate.Attribute("Converter")!.Value.Should().Be("{x:Static converters:BoolConverters.And}");
+        previewGate.Elements().Select(element => (element.Attribute("ElementName")?.Value, element.Attribute("Path")?.Value))
+            .Should().Equal((null, "CanPreviewSessionRetention"), ("ProposedArchiveDaysField", "IsInputValid"), ("ProposedDeleteDaysField", "IsInputValid"));
         controls.Single(c => c.Attribute("Text")?.Value is "{Binding SessionRetentionPlanStatus}")
             .Attribute("AutomationProperties.Name")!.Value.Should().Be("Read-only session retention impact result");
         var source = File.ReadAllText(Path.Combine(root, "src", "Kora.Application", "Configuration", "SessionRetentionPlannerService.cs"));

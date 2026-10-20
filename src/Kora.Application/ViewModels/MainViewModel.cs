@@ -945,8 +945,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
     }
 
     public string HostedModelExecutionDescription => HostedModelsEnabled
-        ? "Hosted model use is allowed, but no hosted provider is configured in this build."
-        : "Hosted model use is blocked. No hosted provider is configured in this build.";
+        ? "Online AI models are allowed, but no online service is set up in this version."
+        : "Online AI models are blocked. No online service is set up in this version.";
 
     private async Task<bool> TrySetModelExecutionSettingsAsync(
         bool enableLocalModels,
@@ -1096,17 +1096,17 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
 
     public IReadOnlyList<ResponseModeOverrideOption> ResponseModeOptions { get; } =
     [
-        new("Both audible and visual", ResponseOutputMode.Hybrid),
-        new("Audible only", ResponseOutputMode.VoiceOnly),
-        new("Visual only", ResponseOutputMode.VisualOnly),
+        new(Presentation.SettingsText.ResponseMode(ResponseOutputMode.Hybrid), ResponseOutputMode.Hybrid),
+        new(Presentation.SettingsText.ResponseMode(ResponseOutputMode.VoiceOnly), ResponseOutputMode.VoiceOnly),
+        new(Presentation.SettingsText.ResponseMode(ResponseOutputMode.VisualOnly), ResponseOutputMode.VisualOnly),
     ];
 
     public IReadOnlyList<ResponseModeOverrideOption> ResponseModeOverrideOptions { get; } =
     [
-        new("Inherit", null),
-        new("Both audible and visual", ResponseOutputMode.Hybrid),
-        new("Audible only", ResponseOutputMode.VoiceOnly),
-        new("Visual only", ResponseOutputMode.VisualOnly),
+        new("Use default", null),
+        new(Presentation.SettingsText.ResponseMode(ResponseOutputMode.Hybrid), ResponseOutputMode.Hybrid),
+        new(Presentation.SettingsText.ResponseMode(ResponseOutputMode.VoiceOnly), ResponseOutputMode.VoiceOnly),
+        new(Presentation.SettingsText.ResponseMode(ResponseOutputMode.VisualOnly), ResponseOutputMode.VisualOnly),
     ];
 
     public IReadOnlyList<ApplicationThemeMode> ThemeModes { get; } =
@@ -1192,33 +1192,33 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
     public string SettingsSubtitle => $"{AssistantName} preferences on this device";
 
     public string AppearanceSettingsDescription =>
-        $"Choose the theme and ambient-presence behavior used by every {AssistantName} visual surface.";
+        $"Choose how {AssistantName} looks, including text size and animated status dots.";
 
     public string AppearanceThemeDescription =>
-        $"System follows the current Windows light or dark preference. Light and Dark override it for all {AssistantName} surfaces.";
+        $"System follows your Windows theme. Light or Dark sets the theme for all {AssistantName} windows.";
 
     public string PresenceTimeoutDescription =>
         "Hide the presence after this many seconds of inactivity when no prompts are waiting.";
 
     public string PresenceDisplayDescription =>
         IsPresenceDisplayEnabled
-            ? "Show the animated presence when the assistant provides status feedback."
-            : "Keep the animated presence hidden while other interactive surfaces remain available.";
+            ? "Show animated dots to indicate what the assistant is doing."
+            : "Hide the animated dots. You can still use all other windows and controls.";
 
     public string ResponseTimeoutDescription =>
         "Hide an unpinned response window after this many seconds without interaction.";
 
     public string PresenceSizeDescription =>
-        $"Overall presence footprint: {PresenceSizePixels} pixels.";
+        $"Overall size: {PresenceSizePixels} pixels.";
 
     public string PresenceDotSizeDescription =>
-        $"Relative particle diameter: {PresenceDotSizePercent}%.";
+        $"Dot size: {PresenceDotSizePercent}% of normal.";
 
     public string PresenceDotDensityDescription =>
-        $"Relative particle density: {PresenceDotDensityPercent}% ({PresenceSettings.GetParticleCount(PresenceDotDensityPercent)} dots).";
+        $"Number of dots: {PresenceSettings.GetParticleCount(PresenceDotDensityPercent)} ({PresenceDotDensityPercent}% of normal).";
 
     public string PresenceMovementSpeedDescription =>
-        $"Relative particle movement speed: {PresenceMovementSpeedPercent}%.";
+        $"Movement speed: {PresenceMovementSpeedPercent}% of normal.";
 
     public string PresenceSpeechScalingDescription =>
         IsPresenceSpeechScalingEnabled
@@ -1226,10 +1226,10 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             : "The presence stays at its normal size during speech playback.";
 
     public string PresenceSpeechScaleAmountDescription =>
-        $"Relative speech-driven size change: {PresenceSpeechScaleAmountPercent}%.";
+        $"How much the dots grow and shrink with speech: {PresenceSpeechScaleAmountPercent}%.";
 
     public string MainCaptureDescription =>
-        $"{AssistantName} enumerates devices without recording. Capture starts only after you enable listening.";
+        $"{AssistantName} checks for devices without recording. Recording starts only after you enable listening.";
 
     public string SpeechAudioSettingsDescription =>
         $"Choose how {AssistantName} listens and speaks on this device.";
@@ -1238,7 +1238,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         $"Choose when {AssistantName} uses visual text, speech, or both.";
 
     public string ReadinessSettingsDescription =>
-        $"Review local dependencies used by {AssistantName}.";
+        $"Check what {AssistantName} needs and complete setup.";
 
     public ApplicationThemeMode ThemeMode
     {
@@ -1811,8 +1811,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         : "Show visual text during calls";
 
     public string CallVisualOverrideStatus => ShowVisualTextDuringCalls
-        ? "On · protected calls suppress speech and require full visual output"
-        : "Off · legacy speech policy is relaxed; independent feedback and hard gates still apply";
+        ? "On · Kora stays quiet during protected calls and shows the full response on screen"
+        : "Off · other call, audio and privacy protections still apply";
 
     public string CallVoiceActivationButtonText => AllowVoiceActivationDuringCalls
         ? "Disable voice activation during calls"
@@ -1846,10 +1846,10 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             var fallback = IsVisualResponseVisible
                            && !IsCallVisualOverrideActive
                            && EffectiveResponseMode == ResponseOutputMode.VoiceOnly
-                ? " Visual text is forced because speech output is unavailable or failed."
+                ? " The full response is shown on screen because speech is unavailable or failed."
                 : string.Empty;
             var callOverride = IsCallVisualOverrideActive
-                ? " Call speech protection: speech withheld and full visual required; feedback and voice activation remain independent."
+                ? " Kora stays quiet during this call and shows the full response on screen. Listening has its own setting."
                 : string.Empty;
             var modeLabel = ResponseModeOptions.Single(
                 option => option.Mode == EffectiveResponseMode).Label;
@@ -2057,25 +2057,25 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
     public long MicrophoneTopologyRevision => Interlocked.Read(ref microphoneTopologyRevision);
 
     public string VoiceConsentDescription =>
-        "Voice consent is saved for this Windows profile and device. Activated command audio is processed locally. "
-        + "Production wake detection is not available in this build: no ambient audio is recorded or transcribed. "
-        + "Use push-to-talk in the response window when offered; Settings manages consent and readiness only. "
-        + "Disable listening closes capture for this run; "
-        + "Withdraw consent keeps it closed across restart. Normal unlock restores previously enabled readiness after fresh checks, "
-        + "without resuming capture. Disconnect, suspend and device/permission loss require explicit recovery.";
+        "Your listening permission is saved for your Windows account on this device. Voice commands are processed on this device. "
+        + "Wake-word listening is not available: Kora does not record or transcribe background audio. "
+        + "Use push-to-talk in the response window when offered; Settings only manages listening permission and readiness. "
+        + "Disable listening turns the microphone off until you enable it again. Remove listening permission also keeps it off after a restart. "
+        + "Unlocking can restore push-to-talk readiness after safety checks, but never starts recording. "
+        + "After a disconnect, sleep or loss of microphone access, enable listening again.";
 
     public string ListeningButtonText => IsVoiceEnabled ? "Disable listening" : "Enable listening";
 
     public string ListeningStatus => IsListening
         ? SelectedMicrophone is { } activeMicrophone
-            ? $"Push-to-talk capture on {activeMicrophone.Name}"
-            : "Push-to-talk capture active · microphone selection is refreshing"
+            ? $"Recording on {activeMicrophone.Name}"
+            : "Recording · checking microphone selection"
         : IsVoiceEnabled
             ? SelectedMicrophone is { } readyMicrophone
-                ? $"Push-to-talk ready on {readyMicrophone.Name} · microphone closed · production wake unavailable"
+                ? $"Push-to-talk ready on {readyMicrophone.Name} · microphone off"
                 : "Microphone closed · selected microphone is unavailable"
         : !HasVoiceConsent
-            ? "Microphone closed · ongoing voice consent not granted"
+            ? "Microphone closed · listening permission not granted"
         : IsMicrophoneAccessDenied
             ? "Microphone closed · Windows access is blocked"
             : listeningPauseSessionState is { } sessionState
@@ -6249,7 +6249,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
                 AssistantName,
                 StringComparison.Ordinal)
                 ? $"The current name is {AssistantName}."
-                : $"Apply to use {normalizedName} in the interface, command prefix, and speech.";
+                : $"Apply to use {normalizedName} on screen, in spoken responses and when addressing the assistant.";
         }
         catch (ArgumentException exception)
         {

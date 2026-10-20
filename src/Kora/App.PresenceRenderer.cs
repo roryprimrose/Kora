@@ -48,8 +48,8 @@ public sealed partial class App
                 rendererSwitchContext = null;
             }
             viewModel.ReportPresenceRendererStatus(presenceWindows.HasPendingChange
-                ? "Renderer changed; a newer saved choice is waiting to be applied."
-                : presenceWindows.ActiveNative ? "Native (experimental) renderer active." : "Avalonia renderer active.");
+                ? "Animation mode changed; a newer saved choice is waiting to be applied."
+                : presenceWindows.ActiveNative ? "Experimental animation mode is active." : "Standard animation mode is active.");
             RendererApplied(logger, presenceWindows.ActiveNative);
             PresenceSwitchTiming.Mark(PresenceSwitchPhase.ReplacementReturned);
             activity.Complete(HostOperationOutcome.Completed);
@@ -62,8 +62,8 @@ public sealed partial class App
             rendererSwitchContext = null;
             RendererSwitchFailed(logger, exception);
             activity.Complete(HostOperationOutcome.Failed);
-            const string message = "The saved renderer could not be applied. No automatic fallback was performed. "
-                + "Select the other renderer to make a fresh attempt. If retirement failed, exit Kora normally.";
+            const string message = "The saved animation mode could not be applied. Kora did not switch to another mode automatically. "
+                + "Choose the other animation mode to try again. If Kora could not close the old animation, exit Kora normally.";
             viewModel.ReportPresenceRendererStatus(message);
             viewModel.ReportHostInteractionFailure(message);
         }

@@ -34,7 +34,7 @@ public sealed partial class LocalContextTurnWorkflow(
         var request = target.Request;
         var current = HostActivity.Current;
         if (current is null || current.Activity!.IsStopped || current.Outcome != HostOperationOutcome.Unknown
-            || !ReferenceEquals(current.Request, request) || current.Request.Origin != request.Origin)
+            || !ReferenceEquals(current.Request, target.SourceRequest) || current.Request.Origin != request.Origin)
         {
             return new(new LocalContextTurnReceipt(request, ModelTurnOutcome.Denied, LocalContextTurnReason.OriginalInputRequired));
         }
@@ -42,7 +42,7 @@ public sealed partial class LocalContextTurnWorkflow(
         {
             return new(new LocalContextTurnReceipt(request, ModelTurnOutcome.Denied, LocalContextTurnReason.TargetAlreadyUsed));
         }
-        var prepared = new AdmittedContextTurn(request);
+        var prepared = new AdmittedContextTurn(request, target.SourceRequest);
         var completion = RunLifecycleAsync(target, prepared, current, sourceCurrent, validateSource, token);
         prepared.BindCompletion(completion);
         var result = await prepared.ReadAdmissionAsync().ConfigureAwait(false);
@@ -61,7 +61,7 @@ public sealed partial class LocalContextTurnWorkflow(
             "model.context.local", SecurityAuditOutcome.Requested,
             request.Origin == RequestOrigin.ActivatedVoice ? SecurityAuditInitiator.VoiceCommand : SecurityAuditInitiator.LocalUser,
             request.TaskId.Value.ToString("D"));
-        using var auditActivity = HostActivity.BeginAudit(request, requested);
+        using var auditActivity = HostActivity.BeginAudit(request, requested, [new(current.Activity!.Context)]);
         LocalContextTurnReceipt receipt;
         var requestedCommitted = false;
         try

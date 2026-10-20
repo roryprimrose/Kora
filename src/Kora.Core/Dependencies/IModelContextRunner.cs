@@ -9,6 +9,7 @@ public interface IModelContextRunner
     /// any envelope or evidence. This runner supplies no detector or sensitivity approval; preview, freshness,
     /// durable task admission and local-only execution do not confer source-use authority. Missing source policy
     /// must remain unavailable, not an implicitly approved callback.
+    /// The live original input must match the target's SourceRequest; that volatile lineage does not confer target ownership.
     /// </remarks>
     Task<ModelContextAdmission> AdmitAsync(LocalContextSessionTarget target, Func<bool> sourceCurrent,
         CancellationToken token, Func<CancellationToken, Task>? validateSource = null);

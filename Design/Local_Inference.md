@@ -278,15 +278,19 @@ Task<LocalContextTurnReceipt> RunAsync(
 ```
 
 The caller reviews either an exact active session generation or a fresh exact session identity using [LocalContextSessionTarget](../src/Kora.Core/Dependencies/LocalContextSessionTarget.cs).
+For a volatile source/fetch request, use `ReviewedFresh(sourceRequest, reviewedDurableRequest)` or `Existing(sourceRequest, reviewedDurableRequest, generation)`.
+The source request is lineage only: its transient session/task cannot establish durable ownership or be rebound into a new envelope.
+Distinct reviewed target requests must preserve original origin and use distinct request/task identities; no target is silently selected by the runner.
 Fresh creation is explicitly disclosed as `Local context`; a missing, changed or unavailable existing target never silently creates or selects another session.
 Original local UI or activated-voice origin is preserved, not relabelled.
 
-The source workflow first calls [IModelContextRunner.AdmitAsync](../src/Kora.Core/Dependencies/IModelContextRunner.cs) under its exact original live host request.
+The source workflow first calls [IModelContextRunner.AdmitAsync](../src/Kora.Core/Dependencies/IModelContextRunner.cs) under its exact original live source-input request.
 The host creates/resolves the genuine active session, commits intent and typed source dispatch, and verifies current-source/generation/task readback before issuing [IAdmittedModelContextTurn](../src/Kora.Core/Dependencies/IAdmittedModelContextTurn.cs).
 Only then does the consumer construct the complete existing envelope and evidence using `turn.Request`. Proposed reviewed target identifiers are not admission authority.
 An admission failure returns `ModelContextAdmission.Rejection`, not a substitute task, model or answer.
+The durable operation/audit has a causal activity link to the original source input, not fabricated source-session ownership.
 
-The caller owns the lease with `await using`, and invokes its `RunAsync` once under the same original request.
+The caller owns the lease with `await using`, and invokes its `RunAsync` once under the same original source-input request.
 The lease retains the original host, call/privacy/control-revision, cancellation and source fences; the second phase cannot supply replacement eligibility or authority.
 Idle cancellation and abandoned-lease disposal close the actual task without model work. Disposal awaits terminal evidence and physical resource quiescence, and `Completion` exposes the truthful receipt.
 The former envelope-first Application entry point is removed, not retained as an alternate bridge.

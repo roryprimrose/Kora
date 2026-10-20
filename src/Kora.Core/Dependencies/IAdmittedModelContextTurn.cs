@@ -14,6 +14,6 @@ public interface IAdmittedModelContextTurn : IAsyncDisposable
     /// <summary>Truthful terminal completion, including idle cancellation and abandonment; no automatic retry.</summary>
     Task<LocalContextTurnReceipt> Completion { get; }
 
-    /// <summary>Consumes one complete LocalOnly, tool-free envelope; disposal cancels and awaits terminal resource quiescence.</summary>
+    /// <summary>Consumes one complete LocalOnly, tool-free envelope under the original source input; disposal awaits quiescence.</summary>
     Task<LocalContextTurnReceipt> RunAsync(ModelContextEnvelope context, CancellationToken token);
 }

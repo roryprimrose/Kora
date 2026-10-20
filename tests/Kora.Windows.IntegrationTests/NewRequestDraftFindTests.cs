@@ -5,6 +5,7 @@ using Avalonia.Automation.Peers;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
+using Avalonia.Threading;
 using Avalonia.VisualTree;
 
 using AwesomeAssertions;
@@ -315,6 +316,7 @@ public sealed class NewRequestDraftFindTests
         f.Query.Text = "alpha";
         f.Click("DraftFindFirst");
         await Task.Run(f.Host.Change, TestContext.Current.CancellationToken);
+        await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Background);
         f.Query.Text.Should().BeEmpty();
         f.Next.IsEnabled.Should().BeFalse();
         f.Window.DecideDraft = () => Task.FromResult(ComposerDraftDecision.Discard);

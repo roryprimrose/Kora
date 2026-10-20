@@ -209,6 +209,9 @@ These are administrator operations, **not performed by the implementation PR**:
 4. Protect `automation/merge-queue-state` against ordinary updates, force-push
    and deletion. Permit the queue App to create/update this state branch;
    any exception is scoped to **that branch**, never main.
+   With repository rulesets, scope the App exception to creation and update.
+   Put deletion and non-fast-forward restrictions in a separate active ruleset
+   with no bypass actors, so the App cannot bypass those history safeguards.
 5. Pause enrollment and let existing expensive PR runs drain. With no ready
    auto-merging PRs, configure the following main checks to require the queue
    App as their expected source, retaining strict freshness/admin enforcement:

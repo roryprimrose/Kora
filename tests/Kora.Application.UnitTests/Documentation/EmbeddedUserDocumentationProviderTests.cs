@@ -227,7 +227,9 @@ public sealed class EmbeddedUserDocumentationProviderTests
         var summaryPhrases = Regex.Matches(summaries, @"^- \*\*(?<phrase>.+?)\*\*\r?$",
             RegexOptions.Multiline, TimeSpan.FromSeconds(1))
             .Select(match => match.Groups["phrase"].Value).ToArray();
-        summaryPhrases.Should().Equal("list speech settings", "get speech.summary-sentences", "get speech.summary-words",
+        summaryPhrases.Should().Equal("show spoken summary limits", "set spoken summary sentence limit to 2",
+            "set spoken summary word limit to 40", "reset spoken summary sentence limit", "reset spoken summary word limit",
+            "list speech settings", "get speech.summary-sentences", "get speech.summary-words",
             "set speech.summary-sentences to 2", "set speech.summary-words to 40",
             "reset speech.summary-sentences", "reset speech.summary-words");
         summaryPhrases.Should().OnlyContain(phrase => SpeechCommand.Parse(phrase, "Kora") != null);

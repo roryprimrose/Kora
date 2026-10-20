@@ -167,6 +167,33 @@ public sealed partial class MainViewModelTests
     }
 
     [Theory]
+    [InlineData("session")]
+    [InlineData("task")]
+    [InlineData("origin")]
+    [InlineData("invocation")]
+    public async Task NativeFileAnswerRejectsReviewedTargetWithForeignSourceLineage(string defect)
+    {
+        var f = new Fixture();
+        using var preview = new LocalFilePreview(new FakeFileInspector(), f.Audit, TimeProvider.System, NullLogger<LocalFilePreview>.Instance);
+        var runner = new NativeFileAnswerModel();
+        f.ViewModel.BindFilePreview(preview, new FakeFilePicker());
+        f.ViewModel.BindFileAnswer(new(preview, new LocalFileLexicalRetrieval(), new NativeFileAnswerPolicy(), runner,
+            f.Audit, TimeProvider.System, NullLogger<LocalFileAnswer>.Instance));
+        await f.ViewModel.PreviewFileAsync();
+        await f.ViewModel.ConfirmFilePreviewAsync(f.ViewModel.FileReview!.ReviewId);
+        var file = f.ViewModel.FileRevision!;
+        var original = file.Review.Request;
+        var source = new HostRequest(new(Guid.NewGuid()), defect is "session" ? new(Guid.NewGuid()) : original.SessionId,
+            defect is "task" ? new(Guid.NewGuid()) : original.TaskId,
+            defect is "origin" ? RequestOrigin.ActivatedVoice : RequestOrigin.LocalUi,
+            defect is "invocation" ? new HostId<InvocationIdentity>(Guid.NewGuid()) : null);
+        var target = LocalContextSessionTarget.ReviewedFresh(source, HostRequest.Create(source.Origin));
+        (await f.ViewModel.AnswerFileAsync(file.Reference, "private", target, () => true, TestContext.Current.CancellationToken))
+            .Outcome.Should().Be(LocalFileAnswerOutcome.Denied);
+        runner.AdmissionCalls.Should().Be(0);
+    }
+
+    [Theory]
     [InlineData("source")]
     [InlineData("question")]
     [InlineData("privacy")]

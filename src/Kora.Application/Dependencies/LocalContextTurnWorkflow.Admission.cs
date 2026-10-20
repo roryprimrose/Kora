@@ -27,8 +27,10 @@ public sealed partial class LocalContextTurnWorkflow
 
         public HostRequest Request => request;
         public HostRevision SessionGeneration { get; private set; }
-        public Task<LocalContextTurnReceipt> Completion => completion
-            ?? throw new InvalidOperationException("The host has not bound context completion.");
+        // The issuer binds completion before publishing either the admission or its rejection.
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "VSTHRD003",
+            Justification = "Returns this lease's owning lifecycle task, bound before publication; no synchronous or UI-thread join.")]
+        public Task<LocalContextTurnReceipt> Completion => completion!;
         internal CancellationToken Revocation => lifetime.Token;
 
         internal void BindCompletion(Task<LocalContextTurnReceipt> pending) => completion = pending;
@@ -46,7 +48,7 @@ public sealed partial class LocalContextTurnWorkflow
             lock (gate)
             {
                 SessionGeneration = generation;
-                pending = submission ?? throw new InvalidOperationException("Context submission was already retired.");
+                pending = submission!;
                 admission.SetResult(new(this));
             }
             try { return await pending.Task.WaitAsync(token).ConfigureAwait(false); }
@@ -74,8 +76,7 @@ public sealed partial class LocalContextTurnWorkflow
                 var rejection = current is null || current.Activity!.IsStopped
                     || current.Outcome != HostOperationOutcome.Unknown || !ReferenceEquals(current.Request, sourceRequest)
                     ? LocalContextTurnReason.OriginalInputRequired : (LocalContextTurnReason?)null;
-                (submission ?? throw new InvalidOperationException("Context submission is unavailable."))
-                    .SetResult(new(rejection is null ? context : null, rejection, token));
+                submission!.SetResult(new(rejection is null ? context : null, rejection, token));
                 return Completion;
             }
         }

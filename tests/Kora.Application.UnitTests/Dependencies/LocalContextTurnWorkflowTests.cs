@@ -13,6 +13,7 @@ using Kora.Core.Hosting;
 using Kora.Core.Storage;
 
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Logging;
 
 namespace Kora.Application.UnitTests.Dependencies;
 
@@ -323,7 +324,7 @@ public sealed partial class LocalContextTurnWorkflowTests : IDisposable
             if (!fresh) { Store.Authority = new(Request.SessionId, new(1), true); }
             var tasks = new HostTaskCoordinator(Store);
             var sessions = new SessionWorkspaceService(Store, tasks, Access, NullLogger<SessionWorkspaceService>.Instance);
-            Workflow = new(Store, Store, sessions, tasks, Access, Model, Model, Audit, NullLogger<LocalContextTurnWorkflow>.Instance);
+            Workflow = new(Store, Store, sessions, tasks, Access, Model, Model, Audit, Log);
         }
         internal HostRequest Request { get; }
         internal LocalContextSessionTarget Target { get; }
@@ -331,6 +332,7 @@ public sealed partial class LocalContextTurnWorkflowTests : IDisposable
         internal Access Access { get; } = new();
         internal Model Model { get; } = new();
         internal Audit Audit { get; } = new();
+        internal CaptureLog Log { get; } = new();
         internal LocalContextTurnWorkflow Workflow { get; }
         internal bool Eligible { get; set; } = true;
         internal HostActivity Root() => HostActivity.BeginRoot(Request, HostActivityLayer.Application, HostOperation.Request);
@@ -377,8 +379,22 @@ public sealed partial class LocalContextTurnWorkflowTests : IDisposable
         }
     }
 
-    private sealed class Store : AudioControlTestStore, ISessionWorkspaceStore, ILocalContextTaskStore
+    private sealed class Store : AudioControlTestStore, ISessionWorkspaceStore, ILocalContextTaskStore, IHostTaskStore
     {
+        internal bool AsyncTerminalCommit { get; set; }
+        public new async ValueTask CommitAsync(HostTaskRecord record, long expectedRevision, CancellationToken token)
+        {
+            await base.CommitAsync(record, expectedRevision, token);
+            if (AsyncTerminalCommit && record.IsTerminal) { await Task.Yield(); }
+        }
+        internal Func<HostTaskRecord, HostTaskRecord>? DispatchResult { get; set; }
+        internal Func<HostTaskObservation?, HostTaskObservation?>? TaskObservation { get; set; }
+        internal Func<SessionWorkspaceEntry, SessionWorkspaceEntry>? MetadataObservation { get; set; }
+        internal Exception? IntentFailure { get; set; }
+        internal Exception? CreationFailure { get; set; }
+        internal Action? BeforeCreation { get; set; }
+        public new ValueTask<HostTaskRecord> RecordControlIntentAsync(HostRequest request, CancellationToken token) =>
+            IntentFailure is { } failure ? throw failure : base.RecordControlIntentAsync(request, token);
         public async ValueTask<HostTaskRecord> AdmitLocalContextDispatchAsync(HostRequest request, HostRevision generation,
             Func<bool> eligible, CancellationToken token)
         {
@@ -386,25 +402,31 @@ public sealed partial class LocalContextTurnWorkflowTests : IDisposable
             var prior = Tasks.Last(item => item.Request == request);
             var dispatch = prior.Next(HostTaskState.DispatchRecorded);
             await CommitAsync(dispatch, prior.Revision.Value, token);
-            return dispatch;
+            return DispatchResult?.Invoke(dispatch) ?? dispatch;
         }
         internal bool FailCreation { get; set; }
         public new ValueTask<SessionWorkspaceEntry> CreateNamedSessionAsync(HostRequest request, SessionName name,
             Func<bool> canControl, CancellationToken cancellationToken)
         {
+            BeforeCreation?.Invoke();
+            if (CreationFailure is { } failure) { throw failure; }
             if (FailCreation) { throw new IOException("test creation unavailable"); }
             if (!canControl() || Authority is not null) { throw new InvalidOperationException("test target conflict"); }
             Authority = new(request.SessionId, new(1), true);
             return ValueTask.FromResult(new SessionWorkspaceEntry(Authority, new(request.SessionId, new(1), name)));
         }
         public override ValueTask<SessionWorkspaceEntry> ReadMetadataAsync(HostId<SessionIdentity> session,
-            CancellationToken cancellationToken) => ValueTask.FromResult(new SessionWorkspaceEntry(
-                Authority ?? throw new InvalidDataException("test session missing"), null));
+            CancellationToken cancellationToken)
+        {
+            var result = new SessionWorkspaceEntry(Authority ?? throw new InvalidDataException("test session missing"), null);
+            return ValueTask.FromResult(MetadataObservation?.Invoke(result) ?? result);
+        }
         public override ValueTask<HostTaskObservation?> ReadTaskAsync(HostId<SessionIdentity> session,
             HostId<TaskIdentity> task, CancellationToken cancellationToken)
         {
             var record = Tasks.LastOrDefault(item => item.Request.SessionId == session && item.Request.TaskId == task);
-            return ValueTask.FromResult(record is null ? null : new HostTaskObservation(record, Authority!.Generation, "host", true, null));
+            HostTaskObservation? observation = record is null ? null : new(record, Authority!.Generation, "host", true, null);
+            return ValueTask.FromResult(TaskObservation is { } transform ? transform(observation) : observation);
         }
     }
 
@@ -416,6 +438,9 @@ public sealed partial class LocalContextTurnWorkflowTests : IDisposable
         internal Action? BeforeRun { get; set; }
         internal TaskCompletionSource? Quiescence { get; set; }
         internal TaskCompletionSource? Pending { get; set; }
+        internal Func<ModelTurnResult, ModelTurnResult>? TransformResult { get; set; }
+        internal bool OmitTerminal { get; set; }
+        internal Action? AfterValidation { get; set; }
         public bool IsQuiescent => Quiescence is null || Quiescence.Task.IsCompleted;
         public Task WaitForQuiescenceAsync(CancellationToken token) => (Quiescence?.Task ?? Task.CompletedTask).WaitAsync(token);
         public Task<ModelTurnAdmission> AdmitAsync(ModelTurnChoice choice, ModelContextEnvelope context,
@@ -438,8 +463,20 @@ public sealed partial class LocalContextTurnWorkflowTests : IDisposable
             if (validateSource is not null) { await validateSource(token); }
             var result = new ModelTurnResult(Outcome, ModelTurnReason.None, turn.Provenance,
                 Outcome == ModelTurnOutcome.Succeeded ? new("volatile answer", null) : null);
-            turn.TerminalResult = result;
+            AfterValidation?.Invoke();
+            result = TransformResult?.Invoke(result) ?? result;
+            if (!OmitTerminal) { turn.TerminalResult = result; }
             return result;
         }
+    }
+
+    private sealed class CaptureLog : ILogger<LocalContextTurnWorkflow>
+    {
+        internal bool Enabled { get; set; }
+        internal List<string> Messages { get; } = [];
+        public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
+        public bool IsEnabled(LogLevel logLevel) => Enabled;
+        public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception,
+            Func<TState, Exception?, string> formatter) => Messages.Add(formatter(state, exception));
     }
 }

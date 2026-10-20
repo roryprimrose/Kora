@@ -188,7 +188,7 @@ public sealed class WindowsSqliteLocalContextTurnTests
             {
                 var result = await invokeTool(ReadOnlyCapabilityCatalog.Version, "{}", cancellationToken);
                 result.Outcome.Should().Be(CapabilityOutcome.Denied);
-                result.Reason.Should().Be("tool-free-context");
+                result.Reason.Should().Be("model-tools-not-permitted");
             }
             return new(ModelTurnOutcome.Succeeded, provenance.Selection, new(Answer, null));
         }

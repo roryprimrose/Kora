@@ -34,7 +34,7 @@ public sealed partial class LocalContextTurnWorkflow(
         var request = target.Request;
         var current = HostActivity.Current;
         if (current is null || current.Activity!.IsStopped || current.Outcome != HostOperationOutcome.Unknown
-            || !ReferenceEquals(current.Request, target.SourceRequest) || current.Request.Origin != request.Origin)
+            || !ReferenceEquals(current.Request, target.SourceRequest))
         {
             return new(new LocalContextTurnReceipt(request, ModelTurnOutcome.Denied, LocalContextTurnReason.OriginalInputRequired));
         }
@@ -154,8 +154,8 @@ public sealed partial class LocalContextTurnWorkflow(
             using var runCancellation = CancellationTokenSource.CreateLinkedTokenSource(token, submitted.Token);
             token = runCancellation.Token;
             if (submitted.Rejection is { } rejection) { throw new ContextRejectedException(rejection); }
-            var context = submitted.Context
-                ?? throw new InvalidDataException("The admitted context submission is missing.");
+            // RunAsync rejects null before publishing; a null submission always carries a rejection handled above.
+            var context = submitted.Context!;
             if (!ReferenceEquals(context.Request, request) || context.ToolMode != ModelToolMode.None || context.Evidence.IsEmpty
                 || context.Evidence.Any(item => item.Disclosure != ModelEvidenceDisclosure.LocalOnly))
             {
@@ -219,9 +219,7 @@ public sealed partial class LocalContextTurnWorkflow(
             {
                 try
                 {
-                    var validate = finalValidation
-                        ?? throw new InvalidDataException("Successful local context execution has no final source fence.");
-                    await validate(token).ConfigureAwait(false);
+                    await finalValidation!(token).ConfigureAwait(false);
                 }
                 catch (OperationCanceledException)
                 {

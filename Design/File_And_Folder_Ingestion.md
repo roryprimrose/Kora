@@ -529,9 +529,9 @@ Maintained deterministic evidence:
 
 No experiments or E/Q gates are retired or rerun by this increment.
 
-Two-phase integration validation on 2026-10-20: the Release solution build passes with zero warnings/errors; Core 3,296, Application 8,497, Tools 259, Definitions 6 and selected native/SQLite 58 tests pass.
-The earlier `d5cfa31` disposal-outcome failure is superseded by the peer's two-phase revision and passing [shared lifecycle checks](../tests/Kora.Application.UnitTests/Dependencies/LocalContextTurnWorkflowTests.cs), not by a file-owned shared-lifecycle repair.
-File-owned portable source paths retain 100% line/branch coverage. Aggregate coverage remains below the maintained 100% gate after dependency import and is not a passing repository readiness claim.
+The earlier `d5cfa31` disposal-outcome failure is superseded by the peer's two-phase revision and maintained [shared lifecycle checks](../tests/Kora.Application.UnitTests/Dependencies/LocalContextTurnWorkflowTests.cs).
+The consumed workflow additionally tests malformed dispatch readback, exact terminal identity, abandonment, queued cancellation, source-validation failures and exception-safe terminal cleanup ([boundary tests](../tests/Kora.Application.UnitTests/Dependencies/LocalContextTurnWorkflowTests.Boundaries.cs)).
+The unchanged [100% portable line/branch gate](../.github/workflows/ci.yml) remains required, alongside the Release build and maintained deterministic native/SQLite consumers; passing those checks is not production source-use qualification.
 Production sensitivity/source-use admission and model qualification remain unavailable. Passing fake/source-identity checks do not qualify semantic answer grounding, an empty-tool transport or real source classification.
 This is a bounded production-path implementation, not a shipped functional file-answer capability: the missing production contract must classify/detect secrets and sensitive content for the exact immutable revision, question and selected excerpts before use.
 Preview consent, narrow credential screening, a fake allow, local-only disclosure and generic durable admission do not fulfill that source-use detection contract. No permissive detector or automatic fallback is composed.

@@ -51,7 +51,8 @@ public abstract class HostControlAdmission(
         ObjectDisposedException.ThrowIf(disposed, this);
         var current = HostActivity.RequireCurrent();
         if (current.Activity!.IsStopped || current.Outcome != HostOperationOutcome.Unknown
-            || !ReferenceEquals(current.Request, request) || CaptureOriginalOrigin(request.Origin) != request.Origin)
+            || !ReferenceEquals(current.Request, request)
+            || request.Origin is not (RequestOrigin.LocalUi or RequestOrigin.ActivatedVoice))
         {
             throw new InvalidOperationException("Exact local context requires the original live host request.");
         }

@@ -296,6 +296,8 @@ diagnostic/audit/status/model payloads. Diagnostics record only the typed
 outcome/failure type under host activity correlation. This slice has no content
 store, history index or persisted context.
 
+The exact [clipboard Find preparation command](commands.md#explicit-local-clipboard-preview) is intercepted before generic transcript echo and pending question/approval routing. Its unchanged literal is volatile native input only, not a response, transcript, speech, log/audit field, Activity tag or persisted context. It binds the exact retained capture object and lowercase D-format snapshot ID, revalidating original private/owner/input/call/voice epochs through deferred native opening and focus. It never reads/changes the Windows clipboard, runs Find/model work or selects a newer source. Only the separate native Find gesture produces count, ordinal and an inert match. Preparation is not renewed capture, consent or egress authority.
+
 All model explanation and egress are unavailable, even for apparently harmless
 text and even after reuse. This follows the accepted policy that secret
 detection is best-effort, not a safety guarantee; no redaction or secret-free

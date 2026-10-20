@@ -3999,8 +3999,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             var manualInput = CaptureManualCallInput(RequestOrigin.ActivatedVoice, CallPolicyRevision, eventArgs.Generation);
             var responseReadInput = CaptureResponseReadInput();
             var reviewEligibility = CaptureSkillReviewEligibility(manualInput);
+            var clipboardFindInput = CaptureClipboardFindInput(eventArgs.Transcript, SecurityAuditInitiator.VoiceCommand, queued: true);
             await uiDispatcher.InvokeAsync(
-                () => HandleRecognizedVoiceTranscriptAsync(eventArgs, manualInput, responseReadInput, reviewEligibility));
+                () => HandleRecognizedVoiceTranscriptAsync(eventArgs, manualInput, responseReadInput, reviewEligibility, clipboardFindInput));
             activity.Complete(HostOperationOutcome.Completed);
         }
         catch (Exception exception) when (exception is not OutOfMemoryException)
@@ -4044,7 +4045,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
 
     private async Task HandleRecognizedVoiceTranscriptAsync(
         VoiceTranscriptEventArgs eventArgs, ManualCallInput manualInput, ResponseReadInput responseReadInput,
-        Func<bool> reviewEligibility)
+        Func<bool> reviewEligibility, ClipboardFindInput? clipboardFindInput)
     {
         if (eventArgs.Generation != voiceRecognition.Generation || lifecycleAdmissionClosed
             || !sessionController.IsCurrentSessionUnlocked())
@@ -4089,7 +4090,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             eventArgs.Transcript,
             eventArgs.Confidence,
             SecurityAuditInitiator.VoiceCommand,
-            manualInput, responseReadInput, reviewEligibility);
+            manualInput, responseReadInput, reviewEligibility, clipboardFindInput);
     }
 
     private async Task HandleTranscriptAsync(
@@ -4098,7 +4099,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         SecurityAuditInitiator initiator,
         ManualCallInput? manualInput = null,
         ResponseReadInput? responseReadInput = null,
-        Func<bool>? reviewEligibility = null)
+        Func<bool>? reviewEligibility = null,
+        ClipboardFindInput? clipboardFindInput = null)
     {
         if (ClipboardSnapshotStatusCommand.Parse(spokenText, AssistantName) is { } snapshotStatusCommand)
         {
@@ -4155,6 +4157,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             return;
         }
         RetirePromptPreparationForNewInput();
+        if ((clipboardFindInput ?? CaptureClipboardFindInput(spokenText, initiator)) is { } clipboardFind)
+        {
+            HostRequestRunner.Run(OriginalOrigin(initiator), () => PrepareClipboardFind(clipboardFind));
+            return;
+        }
         if (PreparedLocalSearchCommand.Parse(spokenText, AssistantName) is { } preparedSearch)
         {
             HostRequestRunner.Run(OriginalOrigin(initiator), () => PrepareLocalSearch(preparedSearch, initiator));
@@ -5659,6 +5666,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
                     + PreparedLocalSearchCommand.Syntax + " "
                     + Kora.Core.Calculations.CalculateCommand.Syntax + " "
                     + LocalClockCommand.Syntax + " "
+                    + ClipboardFindCommand.Syntax + " "
                     + (LocalModelsEnabled && Dependencies.Any(status =>
                         string.Equals(status.Id, "local.inference", StringComparison.Ordinal)
                         && status.Readiness == DependencyReadiness.Ready)
@@ -6114,6 +6122,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             .SelectMany(command => command.AllPhrases)
             .Concat(ClipboardCommand.FixedPhrases)
             .Concat(ClipboardSnapshotStatusCommand.DiscoveryPhrases)
+            .Concat(["clipboard find"])
             .Concat(LocalFileCommand.FixedPhrases)
             .Concat(PreparedLocalSearchCommand.DiscoveryPhrases)
             .Concat(Kora.Core.Calculations.CalculateCommand.DiscoveryPhrases)

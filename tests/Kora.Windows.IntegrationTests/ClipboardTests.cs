@@ -190,6 +190,7 @@ public sealed class ClipboardTests
         public void UserClose() => Closed?.Invoke(this, EventArgs.Empty);
         public void SetExplanation(string? text) { }
         public void ClearJsonValidation() { }
+        public bool PrepareFind(ClipboardSnapshot snapshot, string query, Func<bool> isCurrent) => false;
         public void ClearAndClose()
         {
             Snapshot = null;

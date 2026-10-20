@@ -4,6 +4,7 @@ using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Layout;
 using Avalonia.Media;
+using Avalonia.Threading;
 
 using Kora.Application.Infrastructure;
 using Kora.Controls;
@@ -23,6 +24,29 @@ internal sealed partial class ClipboardPreviewWindow
     private ClipboardLiteralMatch? findMatch;
     private long findGeneration;
     private long matchGeneration;
+
+    public bool PrepareFind(ClipboardSnapshot snapshot, string query, Func<bool> isCurrent)
+    {
+        var generation = findGeneration;
+        bool Current() => Dispatcher.UIThread.CheckAccess() && IsVisible
+            && ReferenceEquals(findSource, snapshot) && findQuery is not null
+            && EnsureFindCurrent(generation) && isCurrent();
+        if (!SnapshotLiteralFind.IsValidQuery(query) || !Current()) { return false; }
+        ClearFindMatch();
+        findQuery!.Text = query;
+        if (!Current()) { return Refuse(); }
+        findStatus!.Text = "PREPARED / REVIEW NEEDED. No Find has run. Review this exact snapshot and press Find separately.";
+        Activate();
+        if (!Current() || !findQuery.Focus() || !Current()) { return Refuse(); }
+        return true;
+
+        bool Refuse()
+        {
+            ClearFindMatch();
+            if (findQuery is not null) { findQuery.Text = null; }
+            return false;
+        }
+    }
 
     private void AddFind(StackPanel chrome, ClipboardSnapshot snapshot, Func<bool> isCurrent)
     {

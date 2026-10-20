@@ -1,4 +1,5 @@
 using Avalonia.Threading;
+using Kora.Application.Presentation;
 using Kora.Application.ViewModels;
 using Kora.Core.Context;
 
@@ -33,6 +34,7 @@ internal sealed class ClipboardPreviewWindowController : IDisposable
     {
         this.host = host;
         host.ClipboardPreviewChanged += OnChanged;
+        host.ClipboardFindPreparationRequested += OnFindPreparationRequested;
         // Metadata-only revalidation also closes a preview if host ownership is lost.
         privacyTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(250) };
         privacyTimer.Tick += OnChanged;
@@ -81,6 +83,12 @@ internal sealed class ClipboardPreviewWindowController : IDisposable
             jsonEligible = null;
         }
         if (snapshot is null) { return; }
+        RefreshSnapshot(snapshot);
+    }
+
+    private void RefreshSnapshot(ClipboardSnapshot snapshot, Func<bool>? openingEligible = null)
+    {
+        if (!ReferenceEquals(current(), snapshot) || openingEligible?.Invoke() == false) { return; }
         if (window is not null)
         {
             window.SetExplanation(explanation());
@@ -88,12 +96,18 @@ internal sealed class ClipboardPreviewWindowController : IDisposable
         }
         var id = snapshot.SnapshotId;
         var view = create();
+        if (!ReferenceEquals(current(), snapshot) || openingEligible?.Invoke() == false)
+        {
+            view.ClearAndClose();
+            return;
+        }
         window = view;
         showing = snapshot;
         var admitted = admitJson?.Invoke(snapshot);
         jsonEligible = admitted;
         view.Closed += OnClosed;
         bool IsCurrent() => !disposed && ReferenceEquals(window, view) && ReferenceEquals(current(), snapshot)
+            && openingEligible?.Invoke() != false
             && !disposed && ReferenceEquals(window, view) && ReferenceEquals(showing, snapshot);
         bool JsonCurrent() => IsCurrent() && admitted?.Invoke() != false;
         // A queued callback cannot reuse or retarget another generation.
@@ -111,6 +125,28 @@ internal sealed class ClipboardPreviewWindowController : IDisposable
             }, JsonCurrent, validateXml);
         if (!IsCurrent()) { CloseView(); }
         else { view.SetExplanation(explanation()); }
+        openingEligible = null;
+    }
+
+    internal void OnFindPreparationRequested(object? sender, PreparedClipboardFindEventArgs request)
+    {
+        if (disposed || !Dispatcher.UIThread.CheckAccess() || !request.IsCurrent
+            || !ReferenceEquals(current(), request.Snapshot)) { return; }
+        try
+        {
+            if (!ReferenceEquals(showing, request.Snapshot)) { CloseView(); }
+            RefreshSnapshot(request.Snapshot, () => request.IsCurrent);
+            var view = window;
+            if (view is null || !request.IsCurrent || !ReferenceEquals(showing, request.Snapshot)) { return; }
+            request.TryPrepare((query, eligible) => ReferenceEquals(window, view)
+                && view.PrepareFind(request.Snapshot, query, () => eligible() && ReferenceEquals(window, view)
+                    && ReferenceEquals(current(), request.Snapshot)));
+        }
+        catch (InvalidOperationException)
+        {
+            CloseView();
+            reportFailure("Native clipboard Find preparation unavailable. No Find or capture was performed.");
+        }
     }
 
     private void OnClosed(object? sender, EventArgs args)
@@ -135,7 +171,11 @@ internal sealed class ClipboardPreviewWindowController : IDisposable
     public void Dispose()
     {
         disposed = true;
-        if (host is not null) { host.ClipboardPreviewChanged -= OnChanged; }
+        if (host is not null)
+        {
+            host.ClipboardPreviewChanged -= OnChanged;
+            host.ClipboardFindPreparationRequested -= OnFindPreparationRequested;
+        }
         if (privacyTimer is not null)
         {
             privacyTimer.Stop();

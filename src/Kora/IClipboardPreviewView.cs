@@ -10,5 +10,6 @@ internal interface IClipboardPreviewView
         Func<ClipboardSnapshot, Func<bool>, CancellationToken, ClipboardXmlValidationResult>? validateXml = null);
     void ClearJsonValidation();
     void SetExplanation(string? text);
+    bool PrepareFind(ClipboardSnapshot snapshot, string query, Func<bool> isCurrent);
     void ClearAndClose();
 }

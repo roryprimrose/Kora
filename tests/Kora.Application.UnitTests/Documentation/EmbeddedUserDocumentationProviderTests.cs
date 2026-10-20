@@ -40,6 +40,24 @@ public sealed class EmbeddedUserDocumentationProviderTests
     }
 
     [Fact]
+    public void Embedded_clipboard_find_guide_distinguishes_private_preparation_from_native_execution()
+    {
+        var pages = new EmbeddedUserDocumentationProvider().GetPages();
+        var commands = pages.Single(page => string.Equals(page.Id, "commands", StringComparison.Ordinal)).Markdown;
+        commands.Should().Contain("clipboard find {snapshot-id} {literal-query}")
+            .And.Contain("single space after the ID is syntax")
+            .And.Contain("PREPARED / REVIEW NEEDED")
+            .And.Contain("before generic transcript echo")
+            .And.Contain("Pending questions and approvals remain intact")
+            .And.Contain("no latest-source fallback or recapture")
+            .And.NotContain("**Literal Find is native-only**, not a typed/voice command");
+        var windows = pages.Single(page => string.Equals(page.Id, "windows-and-tray", StringComparison.Ordinal)).Markdown;
+        windows.Should().Contain("press native Find separately");
+        var privacy = pages.Single(page => string.Equals(page.Id, "privacy-safety-and-logs", StringComparison.Ordinal)).Markdown;
+        privacy.Should().Contain("Its unchanged literal is volatile native input only");
+    }
+
+    [Fact]
     public void Embedded_response_mode_aliases_explain_exact_future_only_controls_and_refusals()
     {
         var pages = new EmbeddedUserDocumentationProvider().GetPages();

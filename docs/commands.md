@@ -905,6 +905,7 @@ entry use the same request workflow without a model:
 | **explain clipboard** / **explain the clipboard** | The same local preview, with explanation explicitly unavailable |
 | **reuse clipboard snapshot {exact snapshot ID}** | Reopen/select that same snapshot only; never reread or silently substitute changed clipboard text |
 | **clear clipboard preview** / **revoke clipboard snapshot** | Discard Kora's snapshot and preview, not the Windows clipboard |
+| **clipboard find {snapshot-id} {literal-query}** | Open/focus that same retained immutable snapshot and prepare its native literal query only; press Find separately |
 
 **clipboard snapshot status {snapshot-id}** reports only whether that exact
 currently admitted immutable snapshot is present, its host snapshot ID and its
@@ -930,7 +931,9 @@ snapshot ID** button uses the displayed ID; **Revoke and clear**, closing the
 preview, cancel, privacy/ownership loss, call-policy change and host exit clear
 or suppress it. A new capture replaces the prior selection with a new ID.
 
-**Literal Find is native-only**, not a typed/voice command or model tool. Use **Find first / Find next / Find previous / Clear literal Find** in the already captured preview; no clipboard reread, reuse/revoke action or activity renewal occurs.
+Type **clipboard find {snapshot-id} {literal-query}**, or address the current assistant name with the same exact command, to prepare **Literal Find** in the existing native preview. The ID must be the exact nonempty lowercase hyphenated D-format GUID shown in that preview. The single space after the ID is syntax; all remaining text, including leading/trailing spaces, punctuation and quotes, is the unchanged literal (do not add quoting unless quotes are part of the query). There is no fuzzy matching, repair, regex or case folding.
+Preparation opens/focuses only that same retained snapshot, clears old count/ordinal/match and shows **PREPARED / REVIEW NEEDED**. It does not run Find, capture, reuse/revoke, model inference or broaden consent. Press **Find first / Find next / Find previous** separately in the native preview; **Clear literal Find** clears only Find state.
+Reserved malformed routes are refused before generic transcript echo, question answers, approval handling or model routing. Query/source/matches are not echoed in responses, transcripts, speech, logs or history. Pending questions and approvals remain intact. Missing/stale snapshots, unavailable native views and changed original input/private/owner/call/voice epochs refuse with no latest-source fallback or recapture.
 Exact case/spaces, one-line strict Unicode, 256 UTF-16 / 512 UTF-8 limits and visible invalid-input rejection apply. See [native clipboard Find](windows-and-tray.md#local-clipboard-preview) and its [contract](../Design/Security_Data_Flows.md#delivered-r07-local-clipboard-preview---2026-10-07).
 
 **Validate this snapshot as XML** is a separate explicit native button, not a

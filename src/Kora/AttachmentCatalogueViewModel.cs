@@ -131,6 +131,7 @@ internal sealed partial class AttachmentCatalogueViewModel(
     private AdmittedMetadataFindState? CurrentFind()
     {
         SynchronizeAuthority();
+        metadataFind?.CheckAdmission();
         return metadataFind;
     }
 

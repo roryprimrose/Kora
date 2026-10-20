@@ -60,7 +60,11 @@ internal sealed partial class OwnedInstructionEditorWindow : Window
         Height = 720;
         var controls = new WrapPanel { Orientation = Orientation.Horizontal };
         controls.Children.Add(KindInput);
-        KindInput.SelectionChanged += (_, _) => { if (!selectingKind) { run("Kind"); } };
+        KindInput.SelectionChanged += (_, _) =>
+        {
+            RetireMetadataFind();
+            if (!selectingKind) { run("Kind"); }
+        };
         controls.Children.Add(Files);
         controls.Children.Add(NameInput);
         controls.Children.Add(CopyNameInput);
@@ -131,13 +135,20 @@ internal sealed partial class OwnedInstructionEditorWindow : Window
             { key.Handled = true; ClearSearch(); run("Filter"); }
         };
         NextPage.Click += (_, _) => run("Next");
-        Files.SelectionChanged += (_, _) => inventoryDetails.Text = (Files.SelectedItem as OwnedDefinitionInventoryRow)?.Details ?? string.Empty;
+        Files.SelectionChanged += (_, _) =>
+        {
+            RetireMetadataFind();
+            inventoryDetails.Text = (Files.SelectedItem as OwnedDefinitionInventoryRow)?.Details ?? string.Empty;
+        };
         DockPanel.SetDock(search, Dock.Top);
         panel.Children.Add(search);
         DockPanel.SetDock(inventoryStatus, Dock.Top);
         panel.Children.Add(inventoryStatus);
         DockPanel.SetDock(inventoryDetails, Dock.Top);
         panel.Children.Add(inventoryDetails);
+        var metadataFindControls = BuildMetadataFind();
+        DockPanel.SetDock(metadataFindControls, Dock.Top);
+        panel.Children.Add(metadataFindControls);
         var disclosure = new TextBlock
         {
             Text = "Source: Kora-owned roaming Instructions/*.instructions.md or Prompts/*.prompt.md; select kind explicitly. Profile files and bundled definitions are read-only. "
@@ -176,12 +187,14 @@ internal sealed partial class OwnedInstructionEditorWindow : Window
     internal void ReportValidation(string text) => validationStatus.Text = text;
     internal void ClearValidation()
     {
+        RetireMetadataFind();
         validationStatus.Text = string.Empty;
         activeComparison?.Close();
     }
     internal void ReportInventory(string text) => inventoryStatus.Text = text;
     internal void ShowInventory(OwnedDefinitionInventoryPage page)
     {
+        RetireMetadataFind();
         var selected = Files.SelectedItem;
         Files.ItemsSource = page.Rows;
         Files.SelectedItem = selected is OwnedDefinitionInventoryRow row && page.Rows.Contains(row) ? selected : null;
@@ -192,6 +205,7 @@ internal sealed partial class OwnedInstructionEditorWindow : Window
     }
     internal void ClearInventory()
     {
+        RetireMetadataFind();
         Files.SelectedItem = null; Files.ItemsSource = null; NextPage.IsEnabled = false; inventoryDetails.Text = string.Empty;
     }
     internal void SelectKind(ArtifactKind kind)
@@ -200,7 +214,11 @@ internal sealed partial class OwnedInstructionEditorWindow : Window
         try { KindInput.SelectedItem = kind; }
         finally { selectingKind = false; }
     }
-    internal void CancelReview() => activeReview?.Close();
+    internal void CancelReview()
+    {
+        RetireMetadataFind();
+        activeReview?.Close();
+    }
     internal void SetUseReviewAvailable(bool available)
     {
         ReviewUse.IsEnabled = available;

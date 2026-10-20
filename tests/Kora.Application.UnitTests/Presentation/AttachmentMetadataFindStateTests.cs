@@ -67,6 +67,7 @@ public sealed class AttachmentMetadataFindStateTests
         state.Count.Should().Be(1);
         state.Ordinal.Should().Be(1);
         current = false;
+        state.CheckAdmission().Should().BeFalse();
         state.Count.Should().Be(0);
         state.Ordinal.Should().Be(0);
         state.Query.Should().BeEmpty();
@@ -138,15 +139,17 @@ public sealed class AttachmentMetadataFindStateTests
         state.CanNavigate.Should().BeFalse();
     }
 
-    [Fact]
-    public void FindUsesAuthoritativeUnicodeAndByteBoundsOverEntireSnapshot()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void FindUsesAuthoritativeUnicodeAndByteBoundsOverEntireSnapshot(bool counted)
     {
         var maximum = new string('x', LocalFileRetrievalPolicy.MaximumQueryCharacters);
         var unicode = string.Concat(Enumerable.Repeat("😀", LocalFileRetrievalPolicy.MaximumQueryUtf8Bytes / 4));
         var suffix = maximum + unicode + " e\u0301 é";
         var text = new string('z', SessionPageBudget - suffix.Length) + suffix;
         text.Length.Should().Be(SessionPageBudget);
-        using var state = new AdmittedMetadataFindState(text, () => true);
+        using var state = new AdmittedMetadataFindState(text, () => true, counted);
         foreach (var query in new[] { maximum, unicode, "e\u0301", "é", " " })
         {
             state.Edit(query);
@@ -180,6 +183,7 @@ public sealed class AttachmentMetadataFindStateTests
         state.CanNavigate.Should().BeFalse();
         state.Find(SnapshotFindDirection.First);
         admitted = false;
+        state.CheckAdmission().Should().BeFalse();
         state.Available.Should().BeFalse();
         admitted = true;
         state.Edit("private");
@@ -220,6 +224,7 @@ public sealed class AttachmentMetadataFindStateTests
         oldIdentity.Find(SnapshotFindDirection.First);
         oldIdentity.ExactMatch.Should().Be("Aa");
         selected = false;
+        oldIdentity.CheckAdmission().Should().BeFalse();
         oldIdentity.Available.Should().BeFalse();
         selected = true;
         using var replacement = new AdmittedMetadataFindState("Replacement identity | Aa", () => selected);

@@ -84,17 +84,24 @@ internal sealed partial class OwnedInstructionEditorController(
         window.BindGoToLine(CaptureGoToLine);
         window.Source.PropertyChanged += (_, change) =>
         {
-            if (change.Property == TextBox.TextProperty) { Interlocked.Increment(ref sourceRevision); window?.CancelRebaseReview(); window?.ClearValidation(); }
+            if (change.Property == TextBox.TextProperty || change.Property == TextBox.IsReadOnlyProperty || change.Property == TextBox.IsEnabledProperty)
+            { Interlocked.Increment(ref sourceRevision); window?.CancelRebaseReview(); window?.ClearValidation(); }
         };
         window.CopyNameInput.PropertyChanged += (_, change) =>
         {
-            if (change.Property == TextBox.TextProperty) { Interlocked.Increment(ref sourceRevision); window?.CancelRebaseReview(); }
+            if (change.Property == TextBox.TextProperty) { Interlocked.Increment(ref sourceRevision); window?.CancelRebaseReview(); window?.RetireMetadataFind(); }
         };
         window.NameInput.PropertyChanged += (_, change) =>
         {
             if (change.Property == TextBox.TextProperty) { Interlocked.Increment(ref sourceRevision); inventoryChoiceWithdrawn = false; window?.CancelRebaseReview(); window?.ClearValidation(); }
         };
-        window.Files.SelectionChanged += (_, _) => { Interlocked.Increment(ref sourceRevision); window?.CancelRebaseReview(); window?.ClearValidation(); };
+        window.Files.SelectionChanged += (_, _) =>
+        {
+            Interlocked.Increment(ref sourceRevision);
+            window?.CancelRebaseReview();
+            window?.ClearValidation();
+            if (window is { } opened) { AdmitSelectedMetadata(opened); }
+        };
         window.KindInput.SelectionChanged += (_, _) => { Interlocked.Increment(ref sourceRevision); window?.CancelRebaseReview(); window?.ClearValidation(); };
         window.SelectKind(kind);
         window.Closing += OnClosing;
@@ -159,6 +166,7 @@ internal sealed partial class OwnedInstructionEditorController(
         if (!Eligible() || ownership != windowOwnershipRevision) { OnPrivacyClosed(this, EventArgs.Empty); return; }
         opened.RetireBufferFind(clearQuery: true);
         busy = true;
+        opened.RetireMetadataFind();
         try
         {
             switch (action)

@@ -2,25 +2,27 @@ using Kora.Core.Context;
 
 namespace Kora.Application.Presentation;
 
+// Getters are cached reads. Owners must check admission before disclosure and at each native focus boundary.
 public sealed class AdmittedMetadataFindState(string admittedDetails, Func<bool> current, bool counted = false) : IDisposable
 {
     private string snapshot = admittedDetails;
     private Func<bool>? admission = current;
     private string query = string.Empty;
     private string status = string.Empty;
+    private string exactMatch = string.Empty;
     private SnapshotLiteralSpan? cursor;
     private SnapshotLiteralSpan? match;
     private int count;
     private int ordinal;
 
-    public bool Available => EnsureCurrent();
-    public string Query => EnsureCurrent() ? query : string.Empty;
-    public string Status => EnsureCurrent() ? status : string.Empty;
-    public SnapshotLiteralSpan? Match => EnsureCurrent() ? match : null;
-    public bool CanNavigate => EnsureCurrent() && cursor is not null;
-    public int Count => EnsureCurrent() ? count : 0;
-    public int Ordinal => EnsureCurrent() ? ordinal : 0;
-    public string ExactMatch => EnsureCurrent() && match is { } span ? snapshot.Substring(span.Start, span.Length) : string.Empty;
+    public int Count => count;
+    public int Ordinal => ordinal;
+    public bool Available => admission is not null;
+    public string Query => query;
+    public string Status => status;
+    public SnapshotLiteralSpan? Match => match;
+    public bool CanNavigate => cursor is not null;
+    public string ExactMatch => exactMatch;
 
     public void Edit(string value)
     {
@@ -28,6 +30,7 @@ public sealed class AdmittedMetadataFindState(string admittedDetails, Func<bool>
         if (!EnsureCurrent()) { return; }
         query = value;
         cursor = match = null;
+        exactMatch = string.Empty;
         count = ordinal = 0;
         status = string.Empty;
     }
@@ -37,6 +40,7 @@ public sealed class AdmittedMetadataFindState(string admittedDetails, Func<bool>
         if (!EnsureCurrent()) { return; }
         query = status = string.Empty;
         cursor = match = null;
+        exactMatch = string.Empty;
         count = ordinal = 0;
     }
 
@@ -44,6 +48,7 @@ public sealed class AdmittedMetadataFindState(string admittedDetails, Func<bool>
     {
         if (!EnsureCurrent()) { return; }
         cursor = match = null;
+        exactMatch = string.Empty;
         count = ordinal = 0;
         status = "Exact metadata match focus is unavailable; no match or focus claimed. Find first to retry.";
     }
@@ -52,6 +57,7 @@ public sealed class AdmittedMetadataFindState(string admittedDetails, Func<bool>
     {
         if (!EnsureCurrent()) { return; }
         match = null;
+        exactMatch = string.Empty;
         if (!SnapshotLiteralFind.IsValidQuery(query))
         {
             cursor = null;
@@ -64,17 +70,13 @@ public sealed class AdmittedMetadataFindState(string admittedDetails, Func<bool>
             status = "Find first after editing or clearing; no current match to navigate.";
             return;
         }
-        SnapshotLiteralSpan? found;
-        if (counted)
-        {
-            var result = SnapshotLiteralFind.FindCounted(snapshot, query, direction, cursor);
-            found = result.Match;
-            count = result.Count;
-            ordinal = result.Ordinal;
-        }
-        else { found = SnapshotLiteralFind.Find(snapshot, query, direction, cursor); }
+        var result = counted ? SnapshotLiteralFind.FindCounted(snapshot, query, direction, cursor)
+            : (SnapshotLiteralFind.Find(snapshot, query, direction, cursor), 0, 0);
         if (!EnsureCurrent()) { return; }
+        var (found, total, position) = result;
+        if (counted) { count = total; ordinal = position; }
         match = found;
+        exactMatch = found is { } span ? snapshot.Substring(span.Start, span.Length) : string.Empty;
         cursor = found ?? (direction == SnapshotFindDirection.First ? null : cursor);
         status = found is not null
             ? $"One exact literal match: UTF-16 [{found.Start}, {found.Start + found.Length}); end exclusive."
@@ -88,9 +90,12 @@ public sealed class AdmittedMetadataFindState(string admittedDetails, Func<bool>
         }
     }
 
+    public bool CheckAdmission() => EnsureCurrent();
+
     private bool EnsureCurrent()
     {
-        if (admission?.Invoke() == true) { return true; }
+        var admitted = admission;
+        if (admitted?.Invoke() == true && ReferenceEquals(admission, admitted)) { return true; }
         Dispose();
         return false;
     }
@@ -98,7 +103,7 @@ public sealed class AdmittedMetadataFindState(string admittedDetails, Func<bool>
     public void Dispose()
     {
         admission = null;
-        snapshot = query = status = string.Empty;
+        snapshot = query = status = exactMatch = string.Empty;
         cursor = match = null;
         count = ordinal = 0;
     }

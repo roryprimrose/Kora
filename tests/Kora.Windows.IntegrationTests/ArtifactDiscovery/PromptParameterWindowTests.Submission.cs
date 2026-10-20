@@ -119,7 +119,10 @@ public sealed partial class PromptParameterWindowTests
                     WindowsOwnedInstructionStoreTests.WriteOwnedFile(replacement, File.ReadAllBytes(path));
                     File.Move(replacement, path, overwrite: true);
                     break;
-                case "privacy": f.Main.CloseForObservedPrivacyEvent("Synthetic closure", hidePresentation: true); break;
+                case "privacy":
+                    f.Main.CloseForObservedPrivacyEvent("Synthetic closure", hidePresentation: true);
+                    await f.Main.PrivacyClosureTask;
+                    break;
                 case "disable": actions.SuspendReviewedUse(); break;
             }
             if (action is not "cancel" and not "privacy" and not "disable")
@@ -169,7 +172,6 @@ public sealed partial class PromptParameterWindowTests
             (await store.Read("example", f.Token))!.Document.CopyBytes().Should().Equal(original.CopyBytes());
             native.Close();
             await controller.CloseAndWait();
-            if (action is "privacy") { await f.Main.PrivacyClosureTask; }
         });
     }
 

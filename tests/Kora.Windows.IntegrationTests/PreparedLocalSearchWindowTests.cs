@@ -100,7 +100,7 @@ public sealed class PreparedLocalSearchWindowTests : IDisposable
                 await Drain();
                 view.UpdateLayout();
                 box.Text.Should().Be(literal);
-                view.GetVisualDescendants().OfType<ListBox>().Single().ItemsSource.Should().BeNull();
+                CitationRows(view).ItemsSource.Should().BeNull();
                 engine.Calls.Should().Be(1);
                 var oldBox = box;
                 view.ClearAndClose();
@@ -177,7 +177,7 @@ public sealed class PreparedLocalSearchWindowTests : IDisposable
                 view.UpdateLayout();
                 calls.Should().Be(1);
                 Query(view).Text.Should().Be("New private query");
-                view.GetVisualDescendants().OfType<ListBox>().Single().ItemsSource.Should().BeNull();
+                CitationRows(view).ItemsSource.Should().BeNull();
                 view.GetVisualDescendants().OfType<TextBlock>().Should().Contain(block =>
                     block.Text != null && block.Text.StartsWith("PREPARED / REVIEW NEEDED", StringComparison.Ordinal));
             }
@@ -188,6 +188,8 @@ public sealed class PreparedLocalSearchWindowTests : IDisposable
     private static Task Drain() => Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Background).GetTask();
     private static TextBox Query(LocalFilePreviewWindow view) => view.GetVisualDescendants().OfType<TextBox>().Single(item =>
         AutomationProperties.GetName(item)?.StartsWith("Search only", StringComparison.Ordinal) == true);
+    private static ListBox CitationRows(LocalFilePreviewWindow view) => view.GetVisualDescendants().OfType<ListBox>().Single(item =>
+        string.Equals(AutomationProperties.GetName(item), "Select a citation from this exact successful admitted search", StringComparison.Ordinal));
     private static Task Press(LocalFilePreviewWindow view, string title) => ((AsyncCommand)view.GetVisualDescendants()
         .OfType<Button>().Single(button => string.Equals(button.Content?.ToString(), title, StringComparison.Ordinal)).Command!).ExecuteAsync();
 

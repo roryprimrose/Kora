@@ -575,6 +575,9 @@ public sealed partial class NewRequestComposerTests : IDisposable
         public async ValueTask<ConversationMessage> ReadConversationMessageAsync(HostId<SessionIdentity> session,
             HostId<RequestIdentity> request, CancellationToken token)
         {
+            token.ThrowIfCancellationRequested();
+            if (Retained is { } retained && retained.Request.SessionId == session && retained.Request.RequestId == request)
+            { return retained; }
             OriginalReads++;
             if (OriginalReadWait is { } wait) { await wait(); }
             BeforeOriginalRead?.Invoke();

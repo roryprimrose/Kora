@@ -170,7 +170,8 @@ public sealed partial class SessionWorkspaceService(
         Func<HostRequest, Func<bool>, ValueTask<T>> mutation, CancellationToken token,
         Func<bool>? additionalAdmission = null, bool inspection = false, bool existingSubject = false,
         bool terminalCommitted = false, Func<T, HostTaskState>? terminalState = null,
-        bool resolveTerminalReceipt = false, HostId<TaskIdentity>? originalTask = null, HostRequest? originalRequest = null)
+        bool resolveTerminalReceipt = false, HostId<TaskIdentity>? originalTask = null, HostRequest? originalRequest = null,
+        bool finalizeIncompleteOnFailure = false)
     {
         if (origin is not (RequestOrigin.LocalUi or RequestOrigin.ActivatedVoice))
         {
@@ -192,15 +193,19 @@ public sealed partial class SessionWorkspaceService(
         }
         var request = originalRequest ?? new HostRequest(new(Guid.NewGuid()), session, originalTask ?? new(Guid.NewGuid()), origin);
         using var activity = HostActivity.BeginRoot(request, HostActivityLayer.Application, HostOperation.Request);
+        HostTaskRecord? intent = null;
+        var terminalAttempted = false;
+        var completed = false;
         try
         {
             if (!Eligible())
             {
                 throw new InvalidOperationException("Session control denied by privacy, call or ownership admission.");
             }
-            var intent = await store.RecordControlIntentAsync(request, token).ConfigureAwait(false);
+            intent = await store.RecordControlIntentAsync(request, token).ConfigureAwait(false);
             async Task RecordTerminalAsync(HostTaskState state)
             {
+                terminalAttempted = true;
                 if (resolveTerminalReceipt)
                 {
                     var observed = await store.ReadTaskAsync(request.SessionId, request.TaskId, CancellationToken.None).ConfigureAwait(false);
@@ -235,6 +240,7 @@ public sealed partial class SessionWorkspaceService(
                 await RecordTerminalAsync(terminalState?.Invoke(result) ?? HostTaskState.Succeeded).ConfigureAwait(false);
             }
             activity.Complete(HostOperationOutcome.Completed);
+            completed = true;
             return result;
         }
         catch (OperationCanceledException)
@@ -247,6 +253,13 @@ public sealed partial class SessionWorkspaceService(
             Failure(logger, exception.GetType().Name);
             activity.Complete(HostOperationOutcome.Failed);
             throw;
+        }
+        finally
+        {
+            if (!completed && finalizeIncompleteOnFailure && intent is not null && !terminalAttempted)
+            {
+                await tasks.RecordOutcomeAsync(intent, HostTaskState.Unknown, CancellationToken.None).ConfigureAwait(false);
+            }
         }
     }
 }

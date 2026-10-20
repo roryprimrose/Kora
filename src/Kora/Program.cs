@@ -391,12 +391,19 @@ internal static class Program
         services.AddSingleton<Kora.Tools.Network.PreapprovedUriClear>();
         services.AddSingleton<Kora.Core.Network.IWebPageTransport, Kora.Windows.Network.WindowsWebPageTransport>();
         services.AddSingleton<Kora.Tools.Network.WebPageGet>();
+        services.AddSingleton<Kora.Tools.Network.WebResultSummarize>();
+        services.AddSingleton<Kora.Core.Network.IWebResultModelUsePolicy, Kora.Application.Network.UnavailableWebResultModelUsePolicy>();
+        services.AddSingleton<Kora.Application.Network.IWebSummaryModelExecution, Kora.Application.Network.WebSummaryModelExecution>();
+        services.AddSingleton<Kora.Application.Network.WebSummaryWorkflow>();
         services.AddSingleton<InCallFeedbackConfigurationService>();
         services.AddSingleton<IInCallFeedbackPreferences>(provider =>
             new LocalInCallFeedbackPreferences(provider.GetRequiredService<IPreferenceStore>()));
         services.AddSingleton<SpeechTextConfigurationService>();
         services.AddSingleton<ISessionWorkspaceAccess, DesktopSessionWorkspaceAccess>();
         services.AddSingleton<SessionWorkspaceService>();
+        services.AddSingleton<ILocalContextTaskStore>(interactions);
+        services.AddSingleton<LocalContextTurnWorkflow>();
+        services.AddSingleton<IModelContextRunner>(provider => provider.GetRequiredService<LocalContextTurnWorkflow>());
         services.AddSingleton<ISessionQueueStore>(interactions);
         services.AddSingleton<ISessionWorkStore>(interactions);
         services.AddSingleton<Kora.Core.Memory.IMemoryStore>(interactions);

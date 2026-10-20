@@ -245,3 +245,84 @@ cessation and enablement qualification remain separate and unclaimed.
 Maintained tests use fake HTTP, process observations and in-memory listener
 tables only; they do not contact a model/server, invoke Windows process
 observation, install software or establish runtime qualification.
+
+## Deliberate volatile local context turns
+
+Clipboard, selected-file and fetched-web consumers share [LocalContextTurnWorkflow](../src/Kora.Application/Dependencies/LocalContextTurnWorkflow.cs), not source-specific request/task bridges.
+Source workflows retain exact immutable review, fresh source validation, provenance, citations and retirement policy.
+Their eligibility fence stays attached across queued work, model callbacks and final disclosure.
+
+The shared bridge does not detect secrets/sensitive content or approve source use.
+Each consumer must obtain an affirmative source-specific sensitivity/source-use decision before constructing any envelope or evidence.
+Preview permission, a freshness callback, durable task ownership and `LocalOnly` disclosure are not substitutes for that decision.
+Missing or unknown source policy remains explicitly unavailable; the shared runner has no permissive source-policy default.
+
+The file consumer's required pre-context secret/sensitive-content detection production contract is currently missing.
+Its file-owned policy seam therefore remains unavailable in production; deterministic allow/deny fakes demonstrate behavior only and do not qualify real source use.
+That is a concrete file-feature readiness boundary, separate from successful shared lifecycle tests and from model runtime qualification. No generic detector is implemented or claimed here.
+
+Web has no delivered source-specific sensitivity/use service. Its [policy contract](../src/Kora.Core/Network/IWebResultModelUsePolicy.cs) has an [unavailable implementation](../src/Kora.Application/Network/UnavailableWebResultModelUsePolicy.cs), blocking before durable admission or context construction. Credential heuristics and retrieval consent do not satisfy it.
+
+Tools and other Core-only consumers use a two-phase host contract, without referencing Application:
+
+```csharp
+// IModelContextRunner: no source envelope or body is accepted during durable admission.
+Task<ModelContextAdmission> AdmitAsync(
+    LocalContextSessionTarget target,
+    Func<bool> sourceCurrent,
+    CancellationToken token,
+    Func<CancellationToken, Task>? validateSource = null);
+
+// IAdmittedModelContextTurn: construct the envelope only after receiving this real host lease.
+Task<LocalContextTurnReceipt> RunAsync(
+    ModelContextEnvelope context,
+    CancellationToken token);
+```
+
+The caller reviews either an exact active session generation or a fresh exact session identity using [LocalContextSessionTarget](../src/Kora.Core/Dependencies/LocalContextSessionTarget.cs).
+For a volatile source/fetch request, use `ReviewedFresh(sourceRequest, reviewedDurableRequest)` or `Existing(sourceRequest, reviewedDurableRequest, generation)`.
+The source request is lineage only: its transient session/task cannot establish durable ownership or be rebound into a new envelope.
+Distinct reviewed target requests must preserve original origin and use distinct request/task identities; no target is silently selected by the runner.
+Fresh creation is explicitly disclosed as `Local context`; a missing, changed or unavailable existing target never silently creates or selects another session.
+Original local UI or activated-voice origin is preserved, not relabelled.
+
+The source workflow first calls [IModelContextRunner.AdmitAsync](../src/Kora.Core/Dependencies/IModelContextRunner.cs) under its exact original live source-input request.
+The host creates/resolves the genuine active session, commits intent and typed source dispatch, and verifies current-source/generation/task readback before issuing [IAdmittedModelContextTurn](../src/Kora.Core/Dependencies/IAdmittedModelContextTurn.cs).
+Only then does the consumer construct the complete existing envelope and evidence using `turn.Request`. Proposed reviewed target identifiers are not admission authority.
+An admission failure returns `ModelContextAdmission.Rejection`, not a substitute task, model or answer.
+The durable operation/audit has a causal activity link to the original source input, not fabricated source-session ownership.
+
+The caller owns the lease with `await using`, and invokes its `RunAsync` once under the same original source-input request.
+The lease retains the original host, call/privacy/control-revision, cancellation and source fences; the second phase cannot supply replacement eligibility or authority.
+Idle cancellation and abandoned-lease disposal close the actual task without model work. Disposal awaits terminal evidence and physical resource quiescence, and `Completion` exposes the truthful receipt.
+The former envelope-first Application entry point is removed, not retained as an alternate bridge.
+
+The shared workflow uses real named-session creation and durable control intent/dispatch/terminal records.
+It never retains source text, the prompt or model answer as a conversation, draft, history body or diagnostic value.
+Only host identities and lifecycle receipts are durable. Trusted `model.context.local` requested and terminal audits are content-free.
+A target is single-use, including cancellation or uncertainty; no automatic retry is authorized.
+
+[ILocalContextTaskStore](../src/Kora.Core/Storage/ILocalContextTaskStore.cs) commits exact-generation dispatch and its source-classification receipt in one existing authority-ledger transaction.
+SQLite resolves `local-context` ownership only from that typed, hash-validated authority audit and the current host-run task binding.
+An arbitrary diagnostic/audit lookalike or an ordinary unclassified control intent is not a current model source. No new body store or schema is introduced.
+
+[ModelContextEnvelope](../src/Kora.Core/Dependencies/ModelContextEnvelope.cs) remains the sole input policy and serialization authority.
+Context consumers require `ModelToolMode.None`, nonempty exact-request evidence and `LocalOnly` disclosure. The envelope emits an empty canonical tool catalogue.
+The host refuses any tool callback for that envelope and rejects an attempted proposal even if the adapter later returns an answer. Action, grant and question outputs remain invalid.
+
+The local choice uses existing model admission and does not confer model qualification or hosted egress.
+The [protocol](../src/Kora.Core/Dependencies/ModelToolProtocol.Context.cs) and [native transport](../src/Kora.Windows/Dependencies/OllamaToolWire.cs) owner must add support for the empty tool catalogue; unsupported transports refuse rather than substituting the normal catalogue.
+Production profiles remain unavailable until separately qualified. Synthetic success at the model seam is not runtime or containment evidence.
+
+Cancellation closes source authority immediately, but terminal task recording and disposal wait for actual adapter quiescence.
+A dispatched cancelled/timed-out task uses durable `Unknown`, not a false claim of unstarted work.
+Receipt/audit uncertainty suppresses the answer and holds further admission; inspect the exact existing task rather than replaying it.
+
+Deterministic evidence:
+
+- [Application lifecycle tests](../tests/Kora.Application.UnitTests/Dependencies/LocalContextTurnWorkflowTests.cs).
+- [Two-phase admission and abandonment tests](../tests/Kora.Application.UnitTests/Dependencies/LocalContextTurnWorkflowTests.Admission.cs).
+- [Envelope policy tests](../tests/Kora.Core.UnitTests/Dependencies/ModelContextEnvelopeToolPolicyTests.cs).
+- [Private SQLite ownership/non-persistence tests](../tests/Kora.Windows.IntegrationTests/Storage/WindowsSqliteLocalContextTurnTests.cs).
+
+No hardware, real-provider, installed-native, offline or containment trial is required or claimed by this implementation slice.

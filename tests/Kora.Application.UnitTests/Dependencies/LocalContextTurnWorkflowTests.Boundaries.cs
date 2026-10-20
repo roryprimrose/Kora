@@ -182,6 +182,31 @@ public sealed partial class LocalContextTurnWorkflowTests
     }
 
     [Fact]
+    public async Task DisposalInsideSourceFenceReportsCancellationEvenBeforeLinkedTokenPropagation()
+    {
+        await using var f = new Fixture();
+        using var root = f.Root();
+        var close = false;
+        Task? disposal = null;
+        bool Current()
+        {
+            if (!close) { return true; }
+            disposal = f.Workflow.DisposeAsync().AsTask();
+            return false;
+        }
+        var issued = await f.Workflow.AdmitAsync(f.Target, Current, Token);
+        await using var turn = issued.Turn ?? throw new InvalidOperationException("Missing durable admission.");
+        close = true;
+        var result = await turn.RunAsync(f.Context(), Token);
+        result.Outcome.Should().Be(ModelTurnOutcome.Cancelled);
+        result.Reason.Should().Be(LocalContextTurnReason.Cancelled);
+        result.DurableState.Should().Be(HostTaskState.Unknown);
+        result.Answer.Should().BeNull();
+        f.Model.Calls.Should().Be(0);
+        await (disposal ?? throw new InvalidOperationException("The source fence did not close the workflow."));
+    }
+
+    [Fact]
     public async Task QueuedAdmissionCancellationReturnsWithoutWaitingForUnrelatedModelWork()
     {
         await using var f = new Fixture();

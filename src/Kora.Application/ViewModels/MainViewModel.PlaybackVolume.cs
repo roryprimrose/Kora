@@ -59,7 +59,12 @@ public sealed partial class MainViewModel
         }
         var origin = OriginalOrigin(initiator);
         if (initiator == SecurityAuditInitiator.VoiceCommand && HostActivity.Current is null) { origin = RequestOrigin.ActivatedVoice; }
-        var eligible = CaptureAudioControlEligibility(origin);
+        var hostEligible = CaptureAudioControlEligibility(origin);
+        var nameRevision = assistantNameConfiguration.Get().Revision;
+        var generation = voiceRecognition.Generation;
+        bool Eligible() => hostEligible() && assistantNameConfiguration.Get().Revision == nameRevision
+            && (origin != RequestOrigin.ActivatedVoice || voiceRecognition.Generation == generation);
+        Func<bool> eligible = Eligible;
         var preserveResponse = IsSpeaking;
         volumeControlActive = true;
         OnPropertyChanged(nameof(CanChangePlaybackVolume));
@@ -67,18 +72,36 @@ public sealed partial class MainViewModel
         {
             await playbackVolumeConfiguration!.RefreshAsync(origin, eligible, cancellationToken);
             var saved = false;
-            if (command.Operation is AppearanceCommandOperation.Set or AppearanceCommandOperation.Reset)
+            var outcome = "observed";
+            PlaybackVolume? previousDesired = null;
+            if (command.Adjustment is { } adjustment)
+            {
+                var current = playbackVolumeConfiguration.Get();
+                var proposal = playbackVolumeConfiguration.ProposeAdjustment(adjustment, current.Revision, CallPolicyRevision);
+                previousDesired = current.Desired;
+                if (proposal is null)
+                {
+                    outcome = adjustment == AudioPreferenceAdjustment.Increase ? "unchanged-upper-boundary" : "unchanged-lower-boundary";
+                }
+                else
+                {
+                    saved = await playbackVolumeConfiguration.ApplyAsync(proposal, origin, initiator, communicationPolicy, eligible, cancellationToken);
+                    outcome = !saved ? "denied" : proposal.Value!.Value.Percent == PlaybackVolume.MaximumPercent ? "saved-upper-boundary"
+                        : proposal.Value.Value.Percent == 0 ? "saved-lower-boundary" : "saved";
+                }
+            }
+            else if (command.Operation is AppearanceCommandOperation.Set or AppearanceCommandOperation.Reset)
             {
                 var proposal = playbackVolumeConfiguration.Propose(command.Operation == AppearanceCommandOperation.Reset ? null
                     : command.Value ?? throw new InvalidOperationException("An exact percent is required."),
                     playbackVolumeConfiguration.Get().Revision, CallPolicyRevision);
                 saved = await playbackVolumeConfiguration.ApplyAsync(proposal, origin, initiator, communicationPolicy, eligible, cancellationToken);
+                outcome = saved ? "saved" : "denied";
             }
             if (!eligible()) { return; }
             if (saved && IsSpeaking) { await textToSpeech.StopAsync(CancellationToken.None); }
             if (!eligible()) { return; }
-            var result = PlaybackVolumeState.Serialize(playbackVolumeConfiguration.Get(), CallPolicyRevision,
-                command.Operation is AppearanceCommandOperation.Set or AppearanceCommandOperation.Reset ? saved ? "saved" : "denied" : "observed");
+            var result = PlaybackVolumeState.Serialize(playbackVolumeConfiguration.Get(), CallPolicyRevision, outcome, previousDesired);
             if (preserveResponse)
             {
                 Transcript = result;

@@ -16,9 +16,7 @@ public sealed class PlaybackVolumeConfigurationService(
     private readonly Lock gate = new();
     private PlaybackVolumeState state = new(null, null, "unavailable", 0, "Refresh the volume preference in the owning unlocked host.");
     private PlaybackVolumeProposal? proposal;
-    private WorkSessionAuthorization? session;
-    private RequestOrigin origin;
-    private Func<bool>? eligible;
+    private (WorkSessionAuthorization Session, RequestOrigin Origin, Func<bool> Eligible)? input;
     private bool applying;
     private bool publishing;
 
@@ -55,14 +53,12 @@ public sealed class PlaybackVolumeConfigurationService(
                 {
                     if (applying || publishing) { throw new InvalidOperationException("Volume is committing or notifying."); }
                     var saved = preferences.Load();
-                    if (session != authority || origin != request.Origin || eligible is null || !eligible())
+                    if (input is not { } current || current.Session != authority || current.Origin != request.Origin || !current.Eligible())
                     {
                         proposal = null;
                         state = state with { Revision = checked(state.Revision + 1) };
                     }
-                    session = authority;
-                    origin = request.Origin;
-                    eligible = remainsEligible;
+                    input = (authority, request.Origin, remainsEligible);
                     return saved;
                 }
             }, token).ConfigureAwait(false);
@@ -80,14 +76,39 @@ public sealed class PlaybackVolumeConfigurationService(
         var parsed = value is null ? (PlaybackVolume?)null : PlaybackVolume.Parse(value);
         lock (gate)
         {
-            if (applying || publishing || expectedRevision != state.Revision || session is null || eligible is null || !eligible()
-                || !state.Available)
-            {
-                throw new InvalidOperationException("Refresh volume under the current original input and choose again.");
-            }
-            proposal = new(parsed, expectedRevision, callRevision, session, origin, eligible);
+            var current = RequireProposalAdmission(expectedRevision);
+            proposal = new(parsed, expectedRevision, callRevision, current.Session, current.Origin, current.Eligible);
             return proposal;
         }
+    }
+
+    /// <summary>Proposes one step from admitted desired state; returns <c>null</c> only at an unchanged boundary.</summary>
+    public PlaybackVolumeProposal? ProposeAdjustment(AudioPreferenceAdjustment adjustment, long expectedRevision, long callRevision)
+    {
+        lock (gate)
+        {
+            var current = RequireProposalAdmission(expectedRevision);
+            proposal = null;
+            var desired = state.Desired!.Value;
+            if ((preferences.Load() ?? PlaybackVolume.Default) != desired)
+            {
+                throw new InvalidOperationException("Saved volume changed; refresh before proposing a relative step.");
+            }
+            var adjusted = desired.Adjust(adjustment);
+            if (adjusted == desired) { return null; }
+            proposal = new(adjusted, expectedRevision, callRevision, current.Session, current.Origin, current.Eligible);
+            return proposal;
+        }
+    }
+
+    private (WorkSessionAuthorization Session, RequestOrigin Origin, Func<bool> Eligible) RequireProposalAdmission(long expectedRevision)
+    {
+        if (applying || publishing || expectedRevision != state.Revision || input is not { } current || !current.Eligible()
+            || !state.Available)
+        {
+            throw new InvalidOperationException("Refresh volume under the current original input and choose again.");
+        }
+        return current;
     }
 
     public async Task<bool> ApplyAsync(PlaybackVolumeProposal candidate, RequestOrigin originalOrigin,

@@ -215,6 +215,8 @@ public sealed partial class App : Avalonia.Application
                 Services.GetRequiredService<Kora.Application.Configuration.SessionProviderProfileConfigurationService>(),
                 Services.GetRequiredService<SessionConversationService>());
             sessionsWindow.Bind();
+            viewModel.BindSessionRetentionCommands(Services.GetRequiredService<SessionRetentionCommandService>(),
+                sessionsWindow.OpenRetentionReviewAsync);
             newRequestWindow = new(viewModel, Services.GetRequiredService<SessionWorkspaceService>(),
                 Services.GetRequiredService<Kora.Core.Storage.ISessionWorkspaceAccess>(),
                 () => Services.GetRequiredService<NewRequestComposer>(), sessionsWindow);

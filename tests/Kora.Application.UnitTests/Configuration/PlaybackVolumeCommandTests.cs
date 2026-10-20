@@ -1,5 +1,6 @@
 using AwesomeAssertions;
 using Kora.Application.Configuration;
+using Kora.Core.Commands;
 using Kora.Core.Configuration;
 
 namespace Kora.Application.UnitTests.Configuration;
@@ -19,7 +20,7 @@ public sealed class PlaybackVolumeCommandTests
         var command = PlaybackVolumeCommand.Parse(text, "Nova");
         command!.Operation.Should().Be(operation);
         command.Value.Should().Be(value);
-        PlaybackVolumeCommand.FixedPhrases.Should().HaveCount(4);
+        PlaybackVolumeCommand.FixedPhrases.Should().HaveCount(6);
     }
 
     [Theory]
@@ -29,6 +30,10 @@ public sealed class PlaybackVolumeCommandTests
     [InlineData("set speech.playback-volume to ")]
     [InlineData("list volume")]
     [InlineData("set speech.playback-volume\n to 1")]
+    [InlineData("speak louder please")]
+    [InlineData("speak quieter by 20")]
+    [InlineData("speak louder\n")]
+    [InlineData("speak quieter and reset speech.playback-volume")]
     public void Partial_or_control_grammar_clarifies_without_execution(string text) =>
         PlaybackVolumeCommand.Parse(text, "Kora")!.Operation.Should().Be(AppearanceCommandOperation.Clarify);
 
@@ -56,4 +61,36 @@ public sealed class PlaybackVolumeCommandTests
     [InlineData("get speech.provider")]
     public void Old_name_and_unrelated_grammars_are_not_volume_aliases(string text) =>
         PlaybackVolumeCommand.Parse(text, "Nova").Should().BeNull();
+
+    [Theory]
+    [InlineData("speak louder", AudioPreferenceAdjustment.Increase)]
+    [InlineData("Nova, speak quieter", AudioPreferenceAdjustment.Decrease)]
+    [InlineData("nova SPEAK LOUDER", AudioPreferenceAdjustment.Increase)]
+    public void RelativeAliasesAreExactTypedSteps(string text, AudioPreferenceAdjustment expected)
+    {
+        var command = PlaybackVolumeCommand.Parse(text, "Nova")!;
+        command.Operation.Should().Be(AppearanceCommandOperation.Set);
+        command.Adjustment.Should().Be(expected);
+        command.Value.Should().BeNull();
+        WindowsSpeechRateCommand.Parse(text, "Nova").Should().BeNull();
+        SpeechTextCommand.Parse(text, "Nova").Should().BeNull();
+        new BuiltInCommandRouter(new BuiltInCommandCatalog()).Match(text, "Nova").IsMatch.Should().BeFalse();
+    }
+
+    [Theory]
+    [InlineData("Kora, speak louder")]
+    [InlineData("NovaX speak quieter")]
+    [InlineData("please speak louder")]
+    [InlineData("speak faster")]
+    [InlineData("speak slower")]
+    public void RelativeAliasesDoNotConsumeOtherNamesOrRateCommands(string text) =>
+        PlaybackVolumeCommand.Parse(text, "Nova").Should().BeNull();
+
+    [Theory]
+    [InlineData("speak louder", AudioPreferenceAdjustment.Increase)]
+    [InlineData("speak quieter", AudioPreferenceAdjustment.Decrease)]
+    [InlineData("Speak speak louder", AudioPreferenceAdjustment.Increase)]
+    [InlineData("Speak, speak quieter", AudioPreferenceAdjustment.Decrease)]
+    public void RelativeAliasIsNotConsumedByOverlappingAssistantName(string text, AudioPreferenceAdjustment expected) =>
+        PlaybackVolumeCommand.Parse(text, "Speak")!.Adjustment.Should().Be(expected);
 }

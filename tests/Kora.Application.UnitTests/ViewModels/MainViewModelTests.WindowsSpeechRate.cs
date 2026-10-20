@@ -88,6 +88,8 @@ public sealed partial class MainViewModelTests
         await fixture.RunAsync("get speech.windows-rate");
         fixture.ViewModel.ResponseBody.Should().Contain("\"available\":false").And.Contain("Kokoro synthesis is unchanged");
         await fixture.RunAsync("set speech.windows-rate to 4");
+        await fixture.RunAsync("speak faster");
+        await fixture.RunAsync("speak slower");
         fixture.RatePreferences.Value.Should().Be(new WindowsSpeechRate(3));
         fixture.ViewModel.IsSpeechOutputAvailable.Should().BeTrue();
         await fixture.RunAsync("what power action is pending");

@@ -6,23 +6,30 @@ namespace Kora.Application.Configuration;
 
 public sealed record PlaybackVolumeCommand(AppearanceCommandOperation Operation, string? Value = null, string? Error = null)
 {
+    public AudioPreferenceAdjustment? Adjustment { get; init; }
+
     public const string OptionId = "speech.playback-volume";
     public const string Syntax = "list volume settings | get speech.playback-volume | status speech.playback-volume | "
-        + "set speech.playback-volume to <integer 0-100> | reset speech.playback-volume. "
+        + "set speech.playback-volume to <integer 0-100> | reset speech.playback-volume | speak louder | speak quieter. "
+        + "Relative steps are up to 10 percentage points, stopping explicitly at 0/100; already at the boundary is unchanged. "
         + "Kora speech only; 0 blocks synthesis and keeps full visual output. Reset restores unscaled 100. Never replays stopped speech.";
     public static IReadOnlyList<string> FixedPhrases { get; } =
-        ["list volume settings", "get " + OptionId, "status " + OptionId, "reset " + OptionId];
+        ["list volume settings", "get " + OptionId, "status " + OptionId, "reset " + OptionId, "speak louder", "speak quieter"];
 
     public static PlaybackVolumeCommand? Parse(string input, string assistantName)
     {
         var text = input.Trim();
         var name = AssistantNameRules.Normalize(assistantName);
-        if (text.StartsWith(name, StringComparison.OrdinalIgnoreCase) && text.Length > name.Length
+        var exactRelative = text.Equals("speak louder", StringComparison.OrdinalIgnoreCase)
+            || text.Equals("speak quieter", StringComparison.OrdinalIgnoreCase);
+        if (!exactRelative && text.StartsWith(name, StringComparison.OrdinalIgnoreCase) && text.Length > name.Length
             && (char.IsWhiteSpace(text[name.Length]) || text[name.Length] == ','))
         {
             text = text[name.Length..].TrimStart(' ', ',', '\t');
         }
-        if (!text.StartsWith("list volume", StringComparison.OrdinalIgnoreCase)
+        var relative = text.StartsWith("speak louder", StringComparison.OrdinalIgnoreCase)
+            || text.StartsWith("speak quieter", StringComparison.OrdinalIgnoreCase);
+        if (!relative && !text.StartsWith("list volume", StringComparison.OrdinalIgnoreCase)
             && !text.StartsWith("get speech.playback", StringComparison.OrdinalIgnoreCase)
             && !text.StartsWith("status speech.playback", StringComparison.OrdinalIgnoreCase)
             && !text.StartsWith("set speech.playback", StringComparison.OrdinalIgnoreCase)
@@ -33,6 +40,14 @@ public sealed record PlaybackVolumeCommand(AppearanceCommandOperation Operation,
         if (Encoding.UTF8.GetByteCount(input) > SessionCommand.MaximumInputBytes || input.Any(char.IsControl))
         {
             return new(AppearanceCommandOperation.Clarify, Error: "Volume input exceeds 1024 UTF-8 bytes or contains controls. " + Syntax);
+        }
+        if (text.Equals("speak louder", StringComparison.OrdinalIgnoreCase))
+        {
+            return new(AppearanceCommandOperation.Set) { Adjustment = AudioPreferenceAdjustment.Increase };
+        }
+        if (text.Equals("speak quieter", StringComparison.OrdinalIgnoreCase))
+        {
+            return new(AppearanceCommandOperation.Set) { Adjustment = AudioPreferenceAdjustment.Decrease };
         }
         if (text.Equals("list volume settings", StringComparison.OrdinalIgnoreCase)) { return new(AppearanceCommandOperation.List); }
         if (text.Equals("get " + OptionId, StringComparison.OrdinalIgnoreCase)

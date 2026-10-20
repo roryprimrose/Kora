@@ -240,6 +240,7 @@ public sealed partial class SessionWorkspaceServiceTests
         }
         public ValueTask<SessionRetentionObservation> ReadRetentionObservationAsync(HostId<SessionIdentity> session, CancellationToken token)
         {
+            RetentionReading?.Invoke();
             var value = Retention;
             if (savedRetention is not null)
             {

@@ -108,7 +108,7 @@ public sealed class EmbeddedUserDocumentationProviderTests
             .Skip(1)
             .ToArray();
 
-        sections.Should().HaveCount(commands.Count + 14);
+        sections.Should().HaveCount(commands.Count + 15);
         var editor = sections.Single(section => section.StartsWith("Edit an owned instruction or literal prompt without a model", StringComparison.Ordinal));
         editor.Should().Contain("instructions editor").And.Contain("prompts editor")
             .And.Contain("same").And.Contain("Reload/Overwrite/Cancel").And.Contain("No paths or body dictation");
@@ -143,6 +143,25 @@ public sealed class EmbeddedUserDocumentationProviderTests
             "status appearance.reader-text-scale", "set appearance.reader-text-scale to 200",
             "set appearance.theme to dark", "reset appearance.theme");
         appearancePhrases.Should().OnlyContain(phrase => AppearanceCommand.Parse(phrase, "Kora") != null);
+        var naturalAppearance = sections.Single(section => section.StartsWith(
+            "Natural exact app theme and native reader text scale", StringComparison.Ordinal));
+        var naturalPhrases = Regex.Matches(naturalAppearance, @"^- \*\*(?<phrase>.+?)\*\*\r?$",
+            RegexOptions.Multiline, TimeSpan.FromSeconds(1))
+            .Select(match => match.Groups["phrase"].Value).ToArray();
+        naturalPhrases.Should().Equal("use dark mode", "use light mode", "use system theme",
+            "get reader text scale", "status reader text scale", "reset reader text scale",
+            "set reader text scale to &lt;integer&gt; percent",
+            "increase reader text scale by &lt;positive integer&gt; percentage points",
+            "decrease reader text scale by &lt;positive integer&gt; percentage points");
+        foreach (var phrase in naturalPhrases)
+        {
+            var example = phrase.Replace("&lt;integer&gt;", "125", StringComparison.Ordinal)
+                .Replace("&lt;positive integer&gt;", "25", StringComparison.Ordinal);
+            NaturalAppearanceCommand.Parse(example, "Kora")!.Operation.Should().NotBe(AppearanceCommandOperation.Clarify);
+        }
+        naturalAppearance.Should().Contain("current configured assistant-name prefix")
+            .And.Contain("fresh confirmed state").And.Contain("percentage points")
+            .And.Contain("revision-bound proposal").And.Contain("no OS/global UI scale");
         var output = sections.Single(section => section.StartsWith(
             "Inspect or change an exact output choice", StringComparison.Ordinal));
         var outputPhrases = Regex.Matches(output, @"^- \*\*(?<phrase>.+?)\*\*\r?$",
@@ -157,7 +176,7 @@ public sealed class EmbeddedUserDocumentationProviderTests
             RegexOptions.Multiline, TimeSpan.FromSeconds(1))
             .Select(match => match.Groups["phrase"].Value).ToArray();
         volumePhrases.Should().Equal("list volume settings", "get speech.playback-volume", "status speech.playback-volume",
-            "set speech.playback-volume to 30", "reset speech.playback-volume");
+            "set speech.playback-volume to 30", "reset speech.playback-volume", "speak louder", "speak quieter");
         volumePhrases.Should().OnlyContain(phrase => PlaybackVolumeCommand.Parse(phrase, "Kora") != null);
         var rate = sections.Single(section => section.StartsWith(
             "Inspect or change Windows-native speech rate", StringComparison.Ordinal));
@@ -165,7 +184,8 @@ public sealed class EmbeddedUserDocumentationProviderTests
             RegexOptions.Multiline, TimeSpan.FromSeconds(1))
             .Select(match => match.Groups["phrase"].Value).ToArray();
         ratePhrases.Should().Equal("list rate settings", "get speech.windows-rate", "status speech.windows-rate",
-            "set speech.windows-rate to -10", "set speech.windows-rate to 0", "set speech.windows-rate to 10", "reset speech.windows-rate");
+            "set speech.windows-rate to -10", "set speech.windows-rate to 0", "set speech.windows-rate to 10", "reset speech.windows-rate",
+            "speak faster", "speak slower");
         ratePhrases.Should().OnlyContain(phrase => WindowsSpeechRateCommand.Parse(phrase, "Kora") != null);
         rate.Should().Contain("Kokoro is unsupported and unchanged").And.Contain("default/reset **0**");
         var responseMode = sections.Single(section => section.StartsWith(
@@ -206,6 +226,7 @@ public sealed class EmbeddedUserDocumentationProviderTests
             .And.Contain("session inspect").And.Contain("session create").And.Contain("session rename")
             .And.Contain("session done").And.Contain("session resume");
         sections = sections.Where(section => !ReferenceEquals(section, appearance)
+            && !ReferenceEquals(section, naturalAppearance)
             && !ReferenceEquals(section, output)
             && !ReferenceEquals(section, volume)
             && !ReferenceEquals(section, rate)

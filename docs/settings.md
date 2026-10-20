@@ -187,6 +187,9 @@ never reported as a Kokoro speed effect. Unknown state stays unavailable.
 [Exact typed/current-name ACTIVATED commands](commands.md#inspect-or-change-windows-native-speech-rate)
 use the same admitted host workflow, not model settings tools.
 
+Exact typed/current-name activated **speak faster** and **speak slower** adjust the freshly admitted desired Windows rate by **1 provider-native unit** ([domain step](../src/Kora.Core/Configuration/WindowsSpeechRate.cs#L21)).
+At -10/10 the result explicitly reports unchanged without a write or success audit; reaching a bound is reported explicitly. Kokoro remains unsupported; aliases never select Windows for you ([rate action](../src/Kora.Application/Configuration/WindowsSpeechRateConfigurationService.cs#L118)).
+
 Saving/resetting retires active and queued speech. Only future eligible Windows
 synthesis consumes the owned engine rate, after the previous synthesis lifetime
 quiesces; changing it never starts or replays speech. Full interrupted responses
@@ -536,7 +539,14 @@ Successful changes update all open visual surfaces without reopening them.
 Speech scaling changes only animation, not audio output or call policy.
 
 **Native reader text scale** applies an absolute integer percentage immediately; its **Reset setting** action restores 100 ([editor](../src/Kora/SettingsWindow.axaml)).
-Exact commands include `get/status appearance.reader-text-scale`, `set appearance.reader-text-scale to 75` (or 100/200), and `reset appearance.reader-text-scale`. Relative changes and number words are not inferred ([registry](../src/Kora.Core/Configuration/AppearanceOptionRegistry.cs), [parser](../src/Kora.Application/Configuration/AppearanceCommand.cs)).
+Exact commands include `get/status appearance.reader-text-scale`, `set appearance.reader-text-scale to 75` (or 100/200), and `reset appearance.reader-text-scale` ([registry](../src/Kora.Core/Configuration/AppearanceOptionRegistry.cs), [ID parser](../src/Kora.Application/Configuration/AppearanceCommand.cs)).
+
+Natural exact aliases add `use dark mode`, `use light mode`, `use system theme`, `get/status reader text scale`, `reset reader text scale`, and `set reader text scale to <integer> percent`.
+Voice requires the current configured assistant-name prefix ([grammar](../src/Kora.Application/Configuration/NaturalAppearanceCommand.cs), [command reference](commands.md#natural-exact-app-theme-and-native-reader-text-scale)).
+
+`increase/decrease reader text scale by <positive integer> percentage points` resolves fresh confirmed state at execution, with checked arithmetic and the same 75–200 registry bounds.
+It submits the existing revision-bound proposal; stale concurrent changes refuse, not overwrite or silently clamp.
+Number words and vague/selected-window requests are not inferred ([proposal workflow](../src/Kora.Application/Configuration/AppearanceConfigurationService.cs)).
 
 It scales only shared native DetailWindow Rendered/Source/continuous text, file/folder/retained attachment source bodies and exact cited/literal-match spans, the native clipboard snapshot source body, admitted complete serialized Evidence page bodies and their inert focused literal-Find spans, and the currently observed native speech-caption content text. New windows and live confirmed changes use original typography, never cumulative scaling. Trusted chrome, search inputs/result navigation, identity/location labels, consent/approval/question/error controls and caption labels, Pin/Unpin and display selector/status retain their own typography. Strings, bytes, digests and offsets are unchanged; the preference grants no content access/copy/export or persistence consent ([detail](../src/Kora/DetailWindow.axaml.cs), [file](../src/Kora/LocalFilePreviewWindow.cs), [span](../src/Kora/LocalFilePreviewWindow.Citations.cs), [clipboard](../src/Kora/ClipboardPreviewWindow.cs), [Evidence](../src/Kora/EvidenceWindow.axaml.cs), [caption](../src/Kora/SpeechCaptionWindow.axaml.cs)).
 
@@ -740,6 +750,9 @@ padding, fractions, `%` or leading zeros. The current assistant-name prefix
 works. Results show saved/default/unavailable source, desired/effective percent,
 bounds/default, revisions and recovery. Protected/unknown calls deny original
 voice mutations; use a new eligible typed/Settings request.
+
+Exact typed/current-name activated **speak louder** and **speak quieter** adjust the freshly admitted desired Kora volume by **up to 10 percentage points** ([domain step](../src/Kora.Core/Configuration/PlaybackVolume.cs#L21)).
+A shorter final step explicitly reports the reached 0/100 boundary and old/new values (`adjustment.previousPercent` / `adjustment.currentPercent`, e.g. 95 to 100 or 5 to 0); already there reports unchanged with no write or success audit. Settings controls and aliases use the same [audited apply path](../src/Kora.Application/Configuration/PlaybackVolumeConfigurationService.cs#L86).
 
 Only Kora-owned Windows speech instance gain and Kokoro PCM attenuation change.
 No Windows/system/call volume, mute, microphone, consent, provider, output

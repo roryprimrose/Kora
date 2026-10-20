@@ -21,9 +21,15 @@ public sealed record PlaybackVolumeState(PlaybackVolume? Desired, PlaybackVolume
     public string ResetEffect => "removes only volume override; restores unscaled 100; no replay";
     public string Syntax => PlaybackVolumeCommand.Syntax;
 
-    public static string Serialize(PlaybackVolumeState state, long callRevision, string outcome)
+    public static string Serialize(PlaybackVolumeState state, long callRevision, string outcome, PlaybackVolume? previousDesired = null)
     {
-        var bytes = JsonSerializer.SerializeToUtf8Bytes(new { State = state, CallRevision = callRevision, Outcome = outcome }, Json);
+        var bytes = previousDesired is { } previous
+            ? JsonSerializer.SerializeToUtf8Bytes(new
+            {
+                State = state, CallRevision = callRevision, Outcome = outcome,
+                Adjustment = new { PreviousPercent = previous.Percent, CurrentPercent = state.Desired?.Percent },
+            }, Json)
+            : JsonSerializer.SerializeToUtf8Bytes(new { State = state, CallRevision = callRevision, Outcome = outcome }, Json);
         if (bytes.Length > SessionCommand.MaximumResultBytes)
         {
             throw new InvalidDataException("Volume result exceeds 64 KiB; no partial result is presented.");

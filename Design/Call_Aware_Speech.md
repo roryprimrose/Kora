@@ -80,6 +80,9 @@ Related: [Proactive Interaction](Proactive_Interaction.md), [Task Lifecycle](Tas
 
 ## Delivered Manual Command Parity - 2026-10-08
 
+The separately delivered [deliberate current-response read](../docs/commands.md#read-the-current-response-aloud-once) uses the same speech admission and summary caps. It refuses Active/Suspected/Unknown protection even for native initiation; this is not the proposed speak-once call exception or a protection downgrade.
+Call revision changes retire the request, and clearance does not replay it ([host boundary](../src/Kora.Application/ViewModels/MainViewModel.ResponseRead.cs), [tests](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.ResponseRead.cs)).
+
 The existing run-only layer now has shared native and exact typed/activated
 `list call settings`, `get/status call.manual-active`, `set ... to on/off` and
 `reset call.manual-active` routes. The current installed prefix is optional;

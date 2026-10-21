@@ -41,15 +41,18 @@ public sealed partial class MainViewModelTests
     }
 
     [Theory]
-    [InlineData(false, "typed")]
-    [InlineData(true, "typed")]
-    [InlineData(false, "voice")]
-    [InlineData(true, "voice")]
-    [InlineData(false, "native")]
-    [InlineData(true, "native")]
-    public async Task CurrentResponseRoutesConvergeWithoutModelSpeechCopyOrSettings(bool dismiss, string lane)
+    [InlineData(false, "typed", "Kora")]
+    [InlineData(true, "typed", "Kora")]
+    [InlineData(false, "voice", "Kora")]
+    [InlineData(true, "voice", "Kora")]
+    [InlineData(false, "native", "Kora")]
+    [InlineData(true, "native", "Kora")]
+    [InlineData(false, "voice", "What Time")]
+    [InlineData(true, "voice", "What Time")]
+    public async Task CurrentResponseRoutesConvergeWithoutModelSpeechCopyOrSettings(bool dismiss, string lane, string assistantName)
     {
         var f = await CreateReadableResponseAsync();
+        await f.RunAsync("set assistant name to " + assistantName);
         var native = new ResponsePresenter(f.ViewModel);
         f.ViewModel.BindCurrentResponsePresentation(native);
         var title = f.ViewModel.ResponseTitle;
@@ -62,7 +65,7 @@ public sealed partial class MainViewModelTests
             else { await f.ViewModel.OpenCurrentResponseDetailsAsync(); }
         }
         else if (string.Equals(lane, "voice", StringComparison.Ordinal))
-        { await f.RaiseActivatedTranscriptAsync("Kora, " + phrase, 1); }
+        { await f.RaiseActivatedTranscriptAsync(assistantName + ", " + phrase, 1); }
         else { await f.RunAsync(phrase); }
         native.Calls.Should().Be(1);
         f.ViewModel.ResponseTitle.Should().Be(title);

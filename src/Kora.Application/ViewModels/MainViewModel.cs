@@ -4130,7 +4130,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             ExecuteCalculateCommand(calculateCommand, initiator, manualInput);
             return;
         }
-        if (LocalClockCommand.Parse(spokenText, AssistantName) is { } clockCommand)
+        var sessionCommand = SessionCommand.Parse(spokenText, AssistantName);
+        if (sessionCommand is null && LocalClockCommand.Parse(spokenText, AssistantName) is { } clockCommand)
         {
             ExecuteLocalClockCommand(clockCommand, initiator, manualInput);
             return;
@@ -4371,7 +4372,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
                 commandRouter.IsActivationPrefixed(spokenText, AssistantName));
             return;
         }
-        if (SessionCommand.Parse(spokenText, AssistantName) is { } sessionCommand)
+        if (sessionCommand is not null)
         {
             if (initiator == SecurityAuditInitiator.VoiceCommand
                 && (sessionCommand.IsRetentionCommand || sessionCommand.IsConversationSearch

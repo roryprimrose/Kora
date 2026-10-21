@@ -21,6 +21,7 @@ public sealed partial class MainViewModelTests
     [InlineData("unprefixed")]
     [InlineData("protected")]
     [InlineData("renamed")]
+    [InlineData("renamed-clock")]
     [InlineData("late-call")]
     [InlineData("late-name")]
     [InlineData("late-owner")]
@@ -77,15 +78,16 @@ public sealed partial class MainViewModelTests
             fixture.CallState.SetState(CallState.Active);
             await fixture.Dispatcher.LastInvocation;
         }
-        if (boundary is "renamed")
+        if (boundary is "renamed" or "renamed-clock")
         {
-            fixture.ViewModel.AssistantNameInput = "Nova";
+            fixture.ViewModel.AssistantNameInput = boundary is "renamed-clock" ? "What Time" : "Nova";
             await fixture.ViewModel.ApplyAssistantNameCommand.ExecuteAsync();
         }
         if (boundary is "typed" or "failure" or "late-failure" or "late-owner" or "late-dispose" or "unbound")
         { await fixture.RunAsync(command); }
-        else { await fixture.RaiseActivatedTranscriptAsync((boundary is "unprefixed" ? "" : boundary is "renamed" ? "Nova, " : "Kora, ") + command, 1); }
-        if (boundary is "typed" or "voice" or "renamed")
+        else { await fixture.RaiseActivatedTranscriptAsync((boundary is "unprefixed" ? "" : boundary is "renamed" ? "Nova, "
+            : boundary is "renamed-clock" ? "What Time, " : "Kora, ") + command, 1); }
+        if (boundary is "typed" or "voice" or "renamed" or "renamed-clock")
         {
             viewer.Calls.Should().Be(1);
             fixture.ViewModel.ResponseTitle.Should().Be("Retained attachment inspection opened.");

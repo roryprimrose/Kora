@@ -279,6 +279,26 @@ provider, memory-content or mutation authority is added.
 
 ### Delivered Retained Session Attachment Catalogue - 2026-10-11
 
+**Order this loaded page** is a pure bounded metadata presentation policy in
+Core. It validates the entire admitted page before ordering, preserves Source
+order by default and uses ascending canonical D-format session IDs (the
+authoritative unique retained-slot key) for ties in both directions. Retained
+byte ordering consumes only `RetainedStoredBytes`, with unknown values last.
+Only Source order and retained-byte ascending/descending are offered.
+The current projection has no display names, so no name-sort modes exist and no
+names are recovered from source/path/body data. No projection, schema, scan,
+continuation or budget changes are implied.
+
+Order edits and the separate no-read Clear order retire selection/details/Find
+and exact-open readiness, cancel in-flight open work and replace presentation
+identities to reject stale native selection callbacks. The admitted source page
+and semantic Next token stay unchanged; late work cannot overwrite that new
+presentation. Private/control/session/source/window lifetime revocation still
+clears both. This is an I-only feature qualified by deterministic portable and
+headless accessibility tests, not provider, installed-screen-reader or hardware
+qualification. [User ordering workflow](../docs/windows-and-tray.md#order-this-loaded-page)
+owns the control instructions.
+
 **Tray > Retained session attachments** is a separate native metadata-only window, not the current-question recovery surface, All Work overview, model context or a conversation. Opening reads nothing. Refresh/Next/Cancel returns at most sixteen content-free summaries / 64 KiB, scanning sixty-four slots; optional removal provenance is independent of the sixteen retained-body cap.
 
 Native default Browse and explicit canonical **ExactId** share the same bounded validator/scan, with Search/Enter, Next/Cancel and memory-only Clear. ID/mode/removal-filter edits retire selection, results, continuation and pending work; private/source closure erases the volatile query and fences late disclosure.
@@ -577,6 +597,11 @@ List/Refresh reconciles the existing bounded source pipeline; query/filter/Next 
 Selection alone never opens another file, grants use or retargets an unsaved draft. Inspect revalidates the original kind/filename/digest/native revision and catalogue/private epoch. Stale choices require Refresh/reselection; failed reload clears availability, while the original/draft remains subject to existing privacy guards.
 Private closure clears query/rows/selection/editor text and suppresses late publication. Keyboard-native controls and current exact List/Inspect commands share the editor; broader profile editing, source filters and accessibility/installed qualification remain deferred. See [owned inventory controls](../docs/instruction-editor.md#search-observed-owned-metadata).
 
+The same editor has a separate native-only **Displayed owned buffer Find** toolbar: Ctrl+F, first/next/previous/clear, exact case-sensitive bounded literals, complete nonoverlapping count/ordinal and no wrap.
+It selects only the exact occurrence in the existing displayed source control, including dirty drafts; metadata inventory selection and source editing/undo/accessibility stay native.
+Buffer, chosen identity, loading and private/control lifetime changes retire matches and callbacks; focus failure reports recovery rather than a match.
+No disk/discovery, mutation, validation, use or clipboard authority is added. See the [owning definition contract](Definition_Management.md) and [native buffer workflow](../docs/instruction-editor.md#find-in-the-displayed-owned-buffer).
+
 The owned Instruction/Prompt editor's explicit **Compare** opens only a Close-only passive native viewer: frozen inspected baseline beside exact current memory draft, or labelled missing/new baseline. Raw source and separately labelled prepared-Save validation are distinct. Identity/input/source/private changes withdraw and clear it; it has no mutation, consent, copy/export or use-review authority. See [Compare source presentation](../docs/instruction-editor.md#compare-the-open-draft-without-saving); this is not the planned full profile/diff workspace or installed/accessibility qualification.
 
 ## Compact Session Interaction
@@ -646,6 +671,21 @@ Unanswered/unseen items remain accessible through the workspace/attention entry 
 The composer always names its session; New session is separate from sending to the selected session.
 An explicit New request entry from tray/compact/workspace offers an untargeted composer labeled Auto-route; show the accepted new/related destination before presenting it as a session message.
 The delivered [native New request fallback](Interaction_And_Sessions.md#delivered-native-new-request-fresh-session-fallback--2026-10-13) is narrower: tray and Sessions open/activate one isolated memory composer, explicitly disclose unavailable relatedness inference and offer only fresh **New conversation**.
+Its [native draft Find](../src/Kora/NewRequestWindow.Find.cs) searches only the current
+editable in-memory draft, even if dirty or invalid, using the authoritative
+`SnapshotLiteralFind.FindCounted` bounded ordinal one-line grammar and full
+nonoverlapping count/ordinal/no-wrap sequence. Explicit Ctrl+F/first/next/previous/clear
+never searches frozen reviewed bodies, assistant answers, saved text or other composers.
+Exact native editable-source selection/focus is fenced before and after reentrant
+callbacks by buffer, composer, view/control, host input and control/privacy/ownership
+lifetimes; stale operations cannot publish results. Composer/host notifications retire
+volatile query/navigation/count; a disposable native observer also checks the captured
+host lease for authority changes without notifications. Closing/detaching releases
+observers and private query state, without restoring/collapsing user-owned selection.
+Find has no I/O, composer mutation, review approval, transcript/speech/logging, capture,
+model, navigation or new clipboard authority. Existing editing/copy/paste is unchanged;
+missing focus is explicit. Deterministic headless tests are implementation evidence,
+not installed accessibility/hardware/provider qualification.
 Audited empty-target creation is acknowledged with its exact ID/name/generation/metadata revision before separately reviewing/submitting the frozen original body; these are not an atomic transaction.
 The same confirmed created Active target permits a distinct revision-reviewed draft Save: show exact saved revision, confirmed memory baseline and complete old/new bodies in inert native text, then explicitly confirm the frozen proposal. Save and Submit reviews cannot authorize each other. Concurrent named-window revision/metadata changes fail stale rather than follow/overwrite newer data.
 Eligible dirty close offers Save/Discard/Cancel and a separate frozen Save confirmation; only an exact receipt without newer edits/revocation permits closing. Before confirmed creation or while held, only Discard/Cancel is offered. No autosave/Reload or implicit text transfer is added. Privacy closes without saving. Cancel leaves the disclosed session and saved data; uncertainty retains exact holds without retry.

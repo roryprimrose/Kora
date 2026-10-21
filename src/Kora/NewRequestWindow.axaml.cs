@@ -52,6 +52,7 @@ internal sealed partial class NewRequestWindow : Window
         };
         Closed += (_, _) =>
         {
+            DisposeDraftFind();
             model.Dispose();
             DecideDraft = null;
             ConfirmDraftSave = null;
@@ -67,6 +68,7 @@ internal sealed partial class NewRequestWindow : Window
     internal void ClosePrivate()
     {
         privateClose = true;
+        DisposeDraftFind();
         model.Dispose();
         discardDialog?.Close();
         if (!openingPrivate) { Close(); }

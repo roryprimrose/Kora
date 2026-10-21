@@ -136,6 +136,32 @@ Native Sessions has an independent current-run pending-only multi-selection, not
 
 Exact typed/current-name activated `cancel-selected-review`, `cancel-selected-confirm` and `cancel-selected-discard` share the same host-issued review and audited service/store path. One to the shared maximum ten unique IDs/revisions is allowed, even after configured capacity falls. Input remains 1024 UTF-8 bytes; complete review/receipt projection remains 64 KiB, never silently truncated.
 
+The ergonomic preparation route is
+`session queue cancellation review <session-id> <task-id>[,<task-id>...]`,
+with `session queue cancellation help`. It accepts only explicit nonempty
+lowercase canonical D GUIDs and one to the shared maximum pending subset,
+without duplicates or target inference. It resolves every member against one
+exact current-run work observation, freezes revisions in dispatch order, then
+uses the existing native pending selector/review and separate one-shot
+confirmation. No model descriptor or new cancellation service is introduced.
+
+Original host/private/input/call/control and native navigation/buffer lifetimes
+fence deferred reads and opening. Dirty composer Save/Discard/Cancel admission
+must complete before changing the native target; cancellation or unconfirmed
+save preserves the buffer and refuses preparation. A fresh exact work
+observation must still match the original session/queue/run/pause and all
+members. Unknown, missing, replaced, nonpending, previous-run or changed sources
+refuse the complete preparation, without partial selection, retry or a
+latest-source fallback. Disclosure retains complete IDs, revisions, deadlines,
+prerequisites, count and queue/run/pause state. Existing work/question selection
+is independent of the pending subset.
+
+Preparation is read/review only: no cancellation commit, enqueue, confirmation,
+dispatch, pause/resume, model/probe, renewal, running-work effects or history
+removal. Existing revisioned command and native discard/review semantics remain
+authoritative. This consumes the delivered pending cancellation implementation
+only; unrelated enablement/qualification evidence is not a prerequisite.
+
 The short existing private SQLite mutation/admission fence validates the entire set, queue revision, exact session generation, current run, pause receipt and private/source admission again at physical commit. One stale/missing/nonpending member or intervening enqueue/admission/removal/reorder refuses all, requiring fresh review; no loop of independently committed single cancels.
 
 Selected rows/tasks become retained Cancelled receipts in the same transaction as requested/terminal typed audit, complete member provenance, existing schema-10 order lineage and terminal control task.

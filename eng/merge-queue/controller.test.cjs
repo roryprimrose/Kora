@@ -337,10 +337,65 @@ test('recovery recognises native auto-merge without overwriting successful evide
   const api = new Fake();
   api.state.active = active();
   api.prs[0].merged = true;
+  api.workflowRuns = [run()];
   assert.equal(await step(api), 'already-merged');
   assert.equal(api.state.active, null);
   assert.equal(count(api, 'finish'), 0);
   assert.equal(count(api, 'merge'), 0);
+});
+
+test('merged recovery cancels an active ticket and waits for terminal evidence before another dispatch', async () => {
+  const api = new Fake();
+  api.state.active = active();
+  api.prs = [pr(1, { state: 'closed', merged: true }), pr(2)];
+  api.workflowRuns = [run({ status: 'in_progress', conclusion: null })];
+  assert.equal(await step(api), 'retiring');
+  assert.equal(api.state.active.phase, 'retiring');
+  assert.equal(count(api, 'cancel'), 1);
+  assert.equal(count(api, 'finish'), 0);
+  assert.equal(count(api, 'dispatch'), 0);
+  api.workflowRuns[0] = run({ conclusion: 'cancelled' });
+  assert.equal(await step(api), 'already-merged');
+  assert.equal(api.state.active, null);
+  assert.equal(count(api, 'dispatch'), 0);
+  assert.equal(await step(api), 'dispatched');
+  assert.equal(api.state.active.number, 2);
+});
+
+test('merged recovery never treats an unobservable recorded dispatch as quiescent', async () => {
+  for (const elapsed of [0, 11 * 60_000]) {
+    const api = new Fake();
+    api.state.active = active();
+    api.prs = [pr(1, { state: 'closed', merged: true }), pr(2)];
+    assert.equal(await step(api, { now: new Date(NOW.getTime() + elapsed) }), 'retiring');
+    assert.equal(api.state.active.phase, 'retiring');
+    assert.equal(count(api, 'notice'), elapsed === 0 ? 0 : 1);
+    assert.equal(count(api, 'finish'), 0);
+    assert.equal(count(api, 'dispatch'), 0);
+  }
+});
+
+test('merged recovery can release a reservation with no recorded dispatch', async () => {
+  const api = new Fake();
+  api.state.active = active({ phase: 'reserved', dispatchRecorded: false });
+  api.prs[0].merged = true;
+  assert.equal(await step(api), 'already-merged');
+  assert.equal(api.state.active, null);
+  assert.equal(count(api, 'finish'), 0);
+});
+
+test('merged recovery lookup and cancellation failures preserve the occupied lane', async () => {
+  for (const boundary of ['runs', 'cancel']) {
+    const api = new Fake();
+    api.state.active = active();
+    api.prs[0].merged = true;
+    api.workflowRuns = [run({ status: 'in_progress', conclusion: null })];
+    api[boundary] = async () => { throw new Error(`Failed ${boundary}`); };
+    await assert.rejects(step(api), new RegExp(boundary));
+    assert.notEqual(api.state.active, null);
+    assert.equal(count(api, 'finish'), 0);
+    assert.equal(count(api, 'dispatch'), 0);
+  }
 });
 
 test('a native auto-merge racing the final API response is recognised as an actual merge', async () => {

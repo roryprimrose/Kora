@@ -147,6 +147,7 @@ public sealed partial class DetailWindow : Window, IDetailView
         if (!string.Equals(search.Text ?? string.Empty, state.SearchQuery, StringComparison.Ordinal)) { search.Text = state.SearchQuery; }
         findSpan.Text = state.MatchStart < 0 ? null : state.FindText.Substring(state.MatchStart, state.MatchLength);
         findSpan.IsVisible = state.MatchStart >= 0;
+        Required<NamedTextBlock>("FindSummary").Text = state.FindSummary;
         Required<Button>("NextMatch").IsEnabled = state.CanNavigateFind;
         Required<Button>("PreviousMatch").IsEnabled = state.CanNavigateFind;
         var structured = !state.IsSource && readingText.IsChecked != true
@@ -280,7 +281,7 @@ public sealed partial class DetailWindow : Window, IDetailView
         findSpan.Text = null;
         findSpan.IsVisible = false;
         disclosure.IsChecked = false;
-        foreach (var name in new[] { "DetailTitle", "ProvenanceLabel", "ReferenceLabel", "DigestLabel", "ConversationHostLabel", "ConversationAssistantLabel", "RendererStatus", "RenderStatus" })
+        foreach (var name in new[] { "DetailTitle", "ProvenanceLabel", "ReferenceLabel", "DigestLabel", "ConversationHostLabel", "ConversationAssistantLabel", "RendererStatus", "RenderStatus", "FindSummary" })
         {
             Required<TextBlock>(name).Text = string.Empty;
         }

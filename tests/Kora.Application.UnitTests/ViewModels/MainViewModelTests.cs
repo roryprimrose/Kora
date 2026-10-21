@@ -4527,8 +4527,10 @@ public sealed partial class MainViewModelTests : IDisposable
         fixture.Voice.StartedMicrophone.Should().Be(fixture.ViewModel.SelectedMicrophone);
         var commandPhrases = fixture.Catalog.GetCommands().SelectMany(command => command.AllPhrases)
             .Concat(Kora.Core.Context.ClipboardCommand.FixedPhrases)
+            .Concat(Kora.Core.Context.ClipboardSnapshotStatusCommand.DiscoveryPhrases)
             .Concat(Kora.Core.Context.LocalFileCommand.FixedPhrases)
             .Concat(Kora.Core.Context.PreparedLocalSearchCommand.DiscoveryPhrases)
+            .Concat(Kora.Core.Calculations.CalculateCommand.DiscoveryPhrases)
             .Concat(SessionCommand.DiscoveryPhrases)
             .Concat(WorkspaceSurfaceCommand.FixedPhrases)
             .Concat(MemoryCommand.DiscoveryPhrases)
@@ -8690,6 +8692,8 @@ public sealed partial class MainViewModelTests : IDisposable
                 new Kora.Tools.Clipboard.ClipboardReuse(clipboard),
                 new Kora.Tools.Clipboard.ClipboardRevoke(clipboard),
                 clipboardAction,
+                new Kora.Tools.Clipboard.ClipboardValidateJson(clipboard, TimeProvider.System,
+                    Microsoft.Extensions.Logging.Abstractions.NullLogger<Kora.Tools.Clipboard.ClipboardValidateJson>.Instance),
                 new AuditedPreferenceWriter(Audit), outputCatalog,
                 microphoneCatalog, OutputConfiguration, VolumeConfiguration, enableResponseModeConfiguration
                     ? new ResponseModeConfigurationService(OutputPreferences, OutputAdmission, Audit, TextToSpeech) : null,

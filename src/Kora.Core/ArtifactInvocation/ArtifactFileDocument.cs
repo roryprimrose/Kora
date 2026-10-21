@@ -4,7 +4,7 @@ using System.Text;
 
 namespace Kora.Core.Artifacts;
 
-public sealed class ArtifactFileDocument
+public sealed partial class ArtifactFileDocument
 {
     private static readonly UTF8Encoding Utf8 = new(false, true);
     private readonly byte[] bytes;

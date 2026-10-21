@@ -49,6 +49,7 @@ class Fake {
   async createCheck(value, name) { this.calls.push(['check', value.head, name]); return this.calls.length + 100; }
   async finishCheck(id, conclusion, message) { this.calls.push(['finish', id, conclusion, message]); }
   async dispatch(value) { this.calls.push(['dispatch', clone(value)]); }
+  async wake() { this.calls.push(['wake']); }
   async cancel(id) { this.calls.push(['cancel', id]); }
   async updateBranch(value) { this.calls.push(['update', clone(value)]); }
   async merge(value) { this.calls.push(['merge', clone(value)]); return { merged: true }; }
@@ -273,6 +274,102 @@ test('conflicting candidates produce explicit failure without launching CI', asy
   assert.equal(api.state.blocked.length, 1);
 });
 
+test('conflicts are quarantined in order and a later runnable candidate dispatches in the same reconciliation', async () => {
+  const api = new Fake();
+  api.prs = [pr(4), pr(3, { mergeable: false }), pr(2, { mergeable: false }), pr(1, { mergeable: false })];
+  assert.equal(await step(api), 'dispatched');
+  assert.deepEqual(api.state.blocked.map(item => item.number), [1, 2, 3]);
+  assert.equal(api.state.active.number, 4);
+  assert.equal(count(api, 'dispatch'), 1);
+  assert.equal(count(api, 'wake'), 0);
+  assert.equal(api.calls.filter(call => call[0] === 'finish' && call[2] === 'failure').length, 12);
+});
+
+test('a reconciliation reserves at most ten new candidates and checkpoints before requesting continuation', async () => {
+  const api = new Fake();
+  api.prs = Array.from({ length: 11 }, (_, index) => pr(index + 1, { mergeable: index === 10 }));
+  assert.equal(await step(api), 'continuing');
+  assert.deepEqual(api.state.blocked.map(item => item.number), [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
+  assert.equal(api.state.active, null);
+  assert.equal(count(api, 'check'), 40);
+  assert.equal(count(api, 'dispatch'), 0);
+  assert.equal(count(api, 'wake'), 1);
+  assert.equal(api.calls.at(-2)[0], 'save');
+  assert.equal(api.calls.at(-1)[0], 'wake');
+  assert.equal(await step(api), 'dispatched');
+  assert.equal(api.state.active.number, 11);
+  assert.equal(count(api, 'check'), 44);
+  assert.equal(count(api, 'dispatch'), 1);
+  assert.equal(count(api, 'wake'), 1);
+});
+
+test('an entirely conflicting queue stops self-waking after the blocked heads are observed', async () => {
+  const api = new Fake();
+  api.prs = [pr(1, { mergeable: false }), pr(2, { mergeable: false })];
+  assert.equal(await step(api), 'blocked');
+  assert.equal(count(api, 'wake'), 1);
+  assert.equal(await step(api), 'idle');
+  assert.equal(count(api, 'wake'), 1);
+  assert.equal(count(api, 'check'), 8);
+  assert.equal(count(api, 'dispatch'), 0);
+});
+
+test('released candidate lanes request another trusted reconciliation without waiting for the schedule', async () => {
+  for (const result of ['blocked', 'merged', 'already-merged', 'retired']) {
+    const api = new Fake();
+    api.state.active = active();
+    api.workflowRuns = [run()];
+    if (result === 'blocked') api.workflowRuns[0].conclusion = 'failure';
+    if (result === 'already-merged') api.prs[0].merged = true;
+    if (result === 'retired') api.prs[0].auto_merge = null;
+    assert.equal(await step(api), result);
+    assert.equal(api.state.active, null);
+    assert.equal(count(api, 'wake'), 1);
+    assert.equal(api.calls.findLast(call => call[0] === 'save')[1].active, null);
+    assert.equal(api.calls.at(-1)[0], 'wake');
+    assert.equal(count(api, 'dispatch'), 0);
+  }
+});
+
+test('occupied lanes and idle queues do not create self-dispatch loops', async () => {
+  for (const result of ['validating', 'waiting-for-run', 'retiring', 'updating', 'idle']) {
+    const api = new Fake();
+    api.state.active = active();
+    api.prs.push(pr(2));
+    if (result === 'validating') api.workflowRuns = [run({ status: 'in_progress', conclusion: null })];
+    if (result === 'retiring') api.base = OTHER;
+    if (result === 'updating') {
+      api.state.active = active({ phase: 'updating', dispatchRecorded: false, checks: {} });
+      api.contains = false;
+    }
+    if (result === 'idle') { api.state.active = null; api.prs = []; }
+    assert.equal(await step(api), result);
+    assert.equal(count(api, 'wake'), 0);
+    assert.equal(count(api, 'dispatch'), 0);
+  }
+});
+
+test('a failed continuation is explicit and cannot erase quarantines or launch duplicate validation', async () => {
+  const api = new Fake();
+  api.prs[0].mergeable = false;
+  api.wake = async () => { throw new Error('Wakeup response lost'); };
+  await assert.rejects(step(api), /Wakeup response lost/);
+  assert.equal(api.state.active, null);
+  assert.equal(api.state.blocked.length, 1);
+  assert.equal(count(api, 'dispatch'), 0);
+  assert.equal(await step(api), 'idle');
+  assert.equal(count(api, 'check'), 4);
+});
+
+test('each newly reserved conflicting or runnable candidate receives a separate production ticket', async () => {
+  const api = new Fake();
+  api.prs = [pr(1, { mergeable: false }), pr(2)];
+  assert.equal(await reconcile(api, { now: NOW }), 'dispatched');
+  const tickets = new Set(api.calls.filter(call => call[0] === 'save' && call[1].active?.phase === 'reserved')
+    .map(call => call[1].active.ticket));
+  assert.equal(tickets.size, 2);
+});
+
 test('ambiguous dispatch failures are persisted and never retried automatically', async () => {
   const api = new Fake();
   api.dispatch = async () => { throw new Error('Network response lost'); };
@@ -337,10 +434,65 @@ test('recovery recognises native auto-merge without overwriting successful evide
   const api = new Fake();
   api.state.active = active();
   api.prs[0].merged = true;
+  api.workflowRuns = [run()];
   assert.equal(await step(api), 'already-merged');
   assert.equal(api.state.active, null);
   assert.equal(count(api, 'finish'), 0);
   assert.equal(count(api, 'merge'), 0);
+});
+
+test('merged recovery cancels an active ticket and waits for terminal evidence before another dispatch', async () => {
+  const api = new Fake();
+  api.state.active = active();
+  api.prs = [pr(1, { state: 'closed', merged: true }), pr(2)];
+  api.workflowRuns = [run({ status: 'in_progress', conclusion: null })];
+  assert.equal(await step(api), 'retiring');
+  assert.equal(api.state.active.phase, 'retiring');
+  assert.equal(count(api, 'cancel'), 1);
+  assert.equal(count(api, 'finish'), 0);
+  assert.equal(count(api, 'dispatch'), 0);
+  api.workflowRuns[0] = run({ conclusion: 'cancelled' });
+  assert.equal(await step(api), 'already-merged');
+  assert.equal(api.state.active, null);
+  assert.equal(count(api, 'dispatch'), 0);
+  assert.equal(await step(api), 'dispatched');
+  assert.equal(api.state.active.number, 2);
+});
+
+test('merged recovery never treats an unobservable recorded dispatch as quiescent', async () => {
+  for (const elapsed of [0, 11 * 60_000]) {
+    const api = new Fake();
+    api.state.active = active();
+    api.prs = [pr(1, { state: 'closed', merged: true }), pr(2)];
+    assert.equal(await step(api, { now: new Date(NOW.getTime() + elapsed) }), 'retiring');
+    assert.equal(api.state.active.phase, 'retiring');
+    assert.equal(count(api, 'notice'), elapsed === 0 ? 0 : 1);
+    assert.equal(count(api, 'finish'), 0);
+    assert.equal(count(api, 'dispatch'), 0);
+  }
+});
+
+test('merged recovery can release a reservation with no recorded dispatch', async () => {
+  const api = new Fake();
+  api.state.active = active({ phase: 'reserved', dispatchRecorded: false });
+  api.prs[0].merged = true;
+  assert.equal(await step(api), 'already-merged');
+  assert.equal(api.state.active, null);
+  assert.equal(count(api, 'finish'), 0);
+});
+
+test('merged recovery lookup and cancellation failures preserve the occupied lane', async () => {
+  for (const boundary of ['runs', 'cancel']) {
+    const api = new Fake();
+    api.state.active = active();
+    api.prs[0].merged = true;
+    api.workflowRuns = [run({ status: 'in_progress', conclusion: null })];
+    api[boundary] = async () => { throw new Error(`Failed ${boundary}`); };
+    await assert.rejects(step(api), new RegExp(boundary));
+    assert.notEqual(api.state.active, null);
+    assert.equal(count(api, 'finish'), 0);
+    assert.equal(count(api, 'dispatch'), 0);
+  }
 });
 
 test('a native auto-merge racing the final API response is recognised as an actual merge', async () => {

@@ -579,6 +579,25 @@ callbacks. Clearing releases references, not a managed-memory zeroization
 claim. Logs retain content-minimizing typed outcomes/failure types under host
 correlation, never text/digest/excerpts or raw native exception messages.
 
+Exact `clipboard snapshot status <snapshot-id>` and `clipboard snapshot help`
+use a dedicated raw-input parser before question/approval/model routing; they
+do not inherit normalized GUID repair from reuse. The nonempty lowercase `D`
+ID must name only the current immutable capture. The shared
+[metadata policy](../src/Kora.Core/Context/ClipboardSnapshotStatusResult.cs)
+exposes only presence, that exact host ID and the already admitted UTF-8 byte
+count; help exposes no current ID. No new content-derived counts or timestamps,
+history, retention, native clipboard status or source-use admission is added.
+The host-owned [status action](../src/Kora.Tools/Clipboard/ClipboardSnapshotStatus.cs)
+publishes under the broker's source lock after original source eligibility,
+current input/ownership/privacy/call checks and cancellation/generation checks.
+It does not call the broker's retiring `Current` getter, read native state,
+capture, reuse, revoke or renew source/review lifetime. Missing, replaced,
+revoked or ineligible is explicitly unavailable. Presentation changes only the
+transcript, not pending question/approval/security preview or response/speech.
+Logs contain only a typed presence outcome under host correlation; no ID,
+count, source text, excerpt, digest or provenance is logged or tagged.
+Clipboard explanation and its source-use policy remain unchanged.
+
 Native **Find first / Find next / Find previous / Clear literal Find** navigates only this already captured immutable snapshot.
 Exact case/spaces and original UTF-16 offsets use the [shared pure literal policy](../src/Kora.Core/Context/SnapshotLiteralFind.cs); the [clipboard adapter](../src/Kora.Core/Context/ClipboardLiteralFind.cs) binds directional spans to the exact capture object, without file/session identities.
 Queries wholly fit the existing 256 UTF-16 / 512 strict UTF-8 limits and are nonempty, well-formed, one-line text without unsafe controls; invalid input is visibly rejected, never truncated or normalized ([query policy](../src/Kora.Core/Context/SnapshotLiteralFind.cs)).
@@ -590,6 +609,23 @@ Keyboard access remains native-only and blocks built-in cut/copy/paste/context r
 [Portable policy tests](../tests/Kora.Core.UnitTests/Context/ClipboardLiteralFindTests.cs) and [headless lifecycle/transfer tests](../tests/Kora.Windows.IntegrationTests/ClipboardLiteralFindWindowTests.cs) are consumer evidence, not installed-native/privacy qualification.
 
 The [explicit clipboard workflow](../src/Kora.Application/Context/ClipboardExplanationWorkflow.cs) now separates review from explanation.
+The native **Validate this snapshot as JSON** gesture is independent of that inference workflow.
+[ClipboardJsonSyntax](../src/Kora.Core/Context/ClipboardJsonSyntax.cs) consumes only the exact immutable capture's canonical strict UTF-8 bytes,
+using the maintained `System.Text.Json` reader with an explicit 64-container depth ceiling, one whole value, comments disallowed and trailing commas disallowed.
+It returns [bounded typed syntax evidence](../src/Kora.Core/Context/ClipboardJsonSyntaxResult.cs): valid plus standard root kind,
+invalid syntax or explicit excessive-depth refusal plus zero-based line/UTF-8 byte coordinates. It never renders parser messages, paths, properties, tokens or excerpts.
+Duplicate names and Unicode scalar semantics of escaped surrogate sequences are outside this syntax check; canonical source Unicode validation remains unchanged.
+Syntax success grants no safety, trust, secret-free, schema, source-use, model, egress or execution authority.
+The [registered host action](../src/Kora.Tools/Clipboard/ClipboardValidateJson.cs) checks local native origin, the same object/reference/ID,
+original capture and host/private/owner/input/call eligibility, cancellation and the existing 15-minute review ceiling before parsing and after completion.
+The [native controller](../src/Kora/ClipboardPreviewWindowController.cs) and [syntax control](../src/Kora/ClipboardPreviewWindow.Json.cs) additionally fence window/control generations,
+reentrant close/revoke/replacement/disposal and final presentation/focus. Revocation retires derived state; syntax expiry does not revoke or refresh the original capture.
+The source text, bytes, IDs, native version, capture time and original request remain unchanged; no digest is manufactured or rewritten.
+No source fallback, recapture, clipboard I/O, history, persistence, model/provider, shell, device, network, schema/reference resolution or dependencies are added.
+Find edits/navigation and opening/idle presentation never parse. Syntax results stay only in the exact native preview, outside generic response/transcript/speech/log/audit content.
+Unexpected parser/internal failure is a generated content-free diagnostic and explicit native recovery, not invalid syntax.
+This consumes only existing immutable capture, host/native admission and portable parsing **I** contracts; no model policy approval or E/Q/installed-native security qualification is claimed.
+
 Exact `explain the clipboard` requests review of the current immutable snapshot, capturing once only when none is selected; preview/reuse/Find never run inference.
 The [native review control](../src/Kora/ClipboardPreviewWindow.cs) requires a deliberate checkbox and button gesture requesting admission of the exact shown snapshot ID; review alone does not admit inference, and closing/replacing/revoking fences old callbacks ([controller](../src/Kora/ClipboardPreviewWindowController.cs)).
 The owning clipboard rule requires secret/sensitive-content source-use classification before envelope construction. No authoritative production rule is implemented: [IClipboardSourceUsePolicy](../src/Kora.Core/Context/IClipboardSourceUsePolicy.cs) is composed with [UnavailableClipboardSourceUsePolicy](../src/Kora.Tools/Clipboard/UnavailableClipboardSourceUsePolicy.cs).

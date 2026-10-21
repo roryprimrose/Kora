@@ -8,6 +8,75 @@ namespace Kora.Application.UnitTests.Presentation;
 public sealed class AttachmentMetadataFindStateTests
 {
     [Fact]
+    public void CountedModeUsesCompleteForwardNonoverlappingSequenceAndErasesAllPrivateState()
+    {
+        var current = true;
+        using var state = new AdmittedMetadataFindState("😀 aaaaa Aa aa", () => current, counted: true);
+        state.Count.Should().Be(0);
+        state.Ordinal.Should().Be(0);
+        state.Edit("aa");
+        state.Find(SnapshotFindDirection.First);
+        state.Count.Should().Be(3);
+        state.Ordinal.Should().Be(1);
+        state.Match.Should().Be(new SnapshotLiteralSpan(3, 2));
+        state.Status.Should().Contain("3 nonoverlapping matches").And.Contain("selected 1 of 3");
+        state.Find(SnapshotFindDirection.Previous);
+        state.Match.Should().BeNull();
+        state.Count.Should().Be(3);
+        state.Ordinal.Should().Be(1);
+        state.Status.Should().Contain("no displayed match").And.Contain("no wrap");
+        state.Find(SnapshotFindDirection.Next);
+        state.Match.Should().Be(new SnapshotLiteralSpan(5, 2));
+        state.Ordinal.Should().Be(2);
+        state.Find(SnapshotFindDirection.Previous);
+        state.Match.Should().Be(new SnapshotLiteralSpan(3, 2));
+        state.Find(SnapshotFindDirection.Next);
+        state.Find(SnapshotFindDirection.Next);
+        state.Ordinal.Should().Be(3);
+        state.Find(SnapshotFindDirection.Next);
+        state.Match.Should().BeNull();
+        state.Count.Should().Be(3);
+        state.Ordinal.Should().Be(3);
+        state.Status.Should().Contain("no displayed match");
+        state.ReportFocusUnavailable();
+        state.Count.Should().Be(0);
+        state.Ordinal.Should().Be(0);
+        state.CanNavigate.Should().BeFalse();
+        state.Find(SnapshotFindDirection.Next);
+        state.Status.Should().Contain("Find first");
+        state.Find(SnapshotFindDirection.First);
+        state.Clear();
+        state.Count.Should().Be(0);
+        state.Ordinal.Should().Be(0);
+        state.Edit("missing");
+        state.Find(SnapshotFindDirection.First);
+        state.Count.Should().Be(0);
+        state.Ordinal.Should().Be(0);
+        state.Status.Should().Contain("No literal match").And.Contain("0 nonoverlapping matches");
+        state.Edit("\n");
+        state.Find(SnapshotFindDirection.First);
+        state.Count.Should().Be(0);
+        state.Ordinal.Should().Be(0);
+        state.Status.Should().StartWith("Invalid");
+        state.Edit("aa");
+        state.Find(SnapshotFindDirection.First);
+        state.Edit("Aa");
+        state.Count.Should().Be(0);
+        state.Ordinal.Should().Be(0);
+        state.Find(SnapshotFindDirection.First);
+        state.Count.Should().Be(1);
+        state.Ordinal.Should().Be(1);
+        current = false;
+        state.Count.Should().Be(0);
+        state.Ordinal.Should().Be(0);
+        state.Query.Should().BeEmpty();
+        current = true;
+        state.Find(SnapshotFindDirection.First);
+        state.Count.Should().Be(0);
+        state.Ordinal.Should().Be(0);
+    }
+
+    [Fact]
     public void FindNavigatesExactImmutableTextWithoutWrapAndRetainsOnlyBoundaryCursor()
     {
         using var state = new AdmittedMetadataFindState("😀 Aa Aa aa", () => true);
@@ -128,11 +197,13 @@ public sealed class AttachmentMetadataFindStateTests
         editNull.Should().Throw<ArgumentNullException>();
     }
 
-    [Fact]
-    public void RevocationDuringFindCannotPublishComputedMatch()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void RevocationDuringFindCannotPublishComputedMatch(bool counted)
     {
         var calls = 0;
-        using var state = new AdmittedMetadataFindState("private", () => ++calls < 3);
+        using var state = new AdmittedMetadataFindState("private", () => ++calls < 3, counted);
         state.Edit("private");
         state.Find(SnapshotFindDirection.First);
         state.Query.Should().BeEmpty();

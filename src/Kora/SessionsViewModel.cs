@@ -744,7 +744,7 @@ internal sealed partial class SessionsViewModel(
     {
         if (closed) { return; }
         closed = true;
-        unsent.Clear();
+        ClearUnsent();
         composerBody = string.Empty;
         RevokeListSearchPresentation();
         lifetime.Cancel();

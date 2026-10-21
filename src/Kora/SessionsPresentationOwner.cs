@@ -18,8 +18,19 @@ internal sealed partial class SessionsPresentationOwner
     private bool revoked;
     internal Task CloseOperation { get; private set; } = Task.CompletedTask;
     internal Task DetailOperation { get; private set; } = Task.CompletedTask;
-    internal Task<bool> PrepareShutdown() => model.CanRead
-        ? model.ConfirmUnsentDiscardAsync(all: true) : Task.FromResult(!model.HasUnsentMessages);
+    internal async Task<bool> PrepareShutdown()
+    {
+        try
+        {
+            if (!model.CanRead) { throw new InvalidOperationException("Finish the current native operation before voluntary shutdown."); }
+            return await model.ConfirmUnsentDiscardAsync(all: true);
+        }
+        catch (Exception exception) when (exception is not OutOfMemoryException)
+        {
+            model.ReportComposerCloseFailure(exception);
+            return false;
+        }
+    }
 
     internal SessionsPresentationOwner(SessionsViewModel model)
     {
@@ -71,6 +82,14 @@ internal sealed partial class SessionsPresentationOwner
 
     private void Closing(object? sender, WindowClosingEventArgs args)
     {
+        if (NativeShutdownPolicy.RequiresImmediateRetirement(args.CloseReason))
+        {
+            revoked = true;
+            model.Close();
+            draftDialog?.Close();
+            Release();
+            return;
+        }
         if (revoked) { return; }
         if (draftDialog is not null || closing) { args.Cancel = true; return; }
         if (surfaces.Count > 1 || !model.HasUnsentMessages) { return; }

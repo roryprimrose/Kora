@@ -226,8 +226,7 @@ public sealed partial class App : Avalonia.Application
                 Services.GetRequiredService<Kora.Core.Storage.ISessionWorkspaceAccess>(),
                 () => Services.GetRequiredService<NewRequestComposer>(), sessionsWindow);
             newRequestWindow.Bind();
-            viewModel.BindConversationShutdown(async () =>
-                await newRequestWindow.PrepareShutdown() && await sessionsWindow.PrepareShutdown());
+            ConversationShutdownGuard.Bind(viewModel, newRequestWindow, sessionsWindow);
             sessionsWindow.OpenNewRequest = newRequestWindow.Open;
             sessionsWindow.ReviewOriginalMessageReuse = newRequestWindow.ReviewOriginalReuseAsync;
             allWorkWindow = new AllWorkWindowController(viewModel,

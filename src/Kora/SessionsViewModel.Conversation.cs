@@ -102,7 +102,15 @@ internal sealed partial class SessionsViewModel
     public async Task DiscardComposerBufferAsync()
     {
         if (!CanReadConversation) { return; }
-        if (!await ConfirmUnsentDiscardAsync(all: false)) { return; }
+        try
+        {
+            if (!await ConfirmUnsentDiscardAsync(all: false)) { return; }
+        }
+        catch (Exception exception) when (exception is not OutOfMemoryException)
+        {
+            ReportComposerCloseFailure(exception);
+            return;
+        }
         composerBody = string.Empty;
         RememberUnsent();
         conversationStatus = "This session's unsent message explicitly discarded. Legacy saved text and submitted history are unchanged.";

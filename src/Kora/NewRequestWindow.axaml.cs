@@ -6,6 +6,7 @@ namespace Kora;
 internal sealed partial class NewRequestWindow : Window
 {
     private readonly NewRequestViewModel model;
+    private readonly Func<Func<bool>> captureSource;
     private bool privateClose;
     private bool choosing;
     private bool openingPrivate;
@@ -17,6 +18,7 @@ internal sealed partial class NewRequestWindow : Window
         Func<Func<bool>>? captureDraftSource = null)
     {
         this.model = model;
+        captureSource = captureDraftSource ?? (() => static () => true);
         InitializeComponent();
         DataContext = model;
         _ = new NativeDraftWrapping(this, NewRequestBody, WrapDraftText, model,
@@ -34,6 +36,14 @@ internal sealed partial class NewRequestWindow : Window
         };
         Closing += async (_, args) =>
         {
+            if (NativeShutdownPolicy.RequiresImmediateRetirement(args.CloseReason))
+            {
+                privateClose = true;
+                DisposeDraftFind();
+                model.Dispose();
+                discardDialog?.Close();
+                return;
+            }
             if (privateClose) { return; }
             if (!model.Composer.Dirty) { model.Composer.Cancel(); return; }
             args.Cancel = true;
@@ -73,13 +83,15 @@ internal sealed partial class NewRequestWindow : Window
 
     internal async Task<bool> PrepareShutdown()
     {
-        if (privateClose || !IsVisible) { return true; }
+        if (privateClose || !IsVisible) { return false; }
         if (choosing || model.Composer.Busy)
         { throw new InvalidOperationException("Finish the pending New request operation before closing."); }
+        if (!captureSource()() || !model.Composer.CaptureUnsentCloseEligibility()())
+        { throw new InvalidOperationException("Private New request source is unavailable; no voluntary close was confirmed."); }
         if (!model.Composer.Dirty) { Close(); return !IsVisible; }
         model.Composer.Cancel();
         choosing = true;
-        try { await ProtectClose(); return !IsVisible; }
+        try { return await ProtectClose(); }
         finally { choosing = false; }
     }
 
@@ -91,12 +103,17 @@ internal sealed partial class NewRequestWindow : Window
         if (privateClose) { Hide(); Close(); }
     }
 
-    private async Task ProtectClose()
+    private async Task<bool> ProtectClose()
     {
+        var current = model.Composer.CaptureUnsentCloseEligibility();
+        var source = captureSource();
         var decision = DecideDraft is null ? ComposerDraftDecision.Cancel : await DecideDraft();
-        if (!IsVisible) { return; }
-        if (decision != ComposerDraftDecision.Discard) { return; }
+        if (!IsVisible || privateClose) { return false; }
+        if (decision != ComposerDraftDecision.Discard) { return false; }
+        if (!current() || !source())
+        { throw new OperationCanceledException("New request input or private source changed during discard review; the current input remains open."); }
         if (IsVisible) { privateClose = true; Close(); }
+        return !IsVisible;
     }
 
     private async Task<ComposerDraftDecision> ChooseDraft()

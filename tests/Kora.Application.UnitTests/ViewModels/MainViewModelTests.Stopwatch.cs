@@ -15,8 +15,10 @@ namespace Kora.Application.UnitTests.ViewModels;
 
 public sealed partial class MainViewModelTests
 {
-    [Fact]
-    public async Task StopwatchNativeTypedAndCurrentNameVoiceShareOneRunWithoutAutomaticProjectionOrSideEffects()
+    [Theory]
+    [InlineData("StopwatchStatus")]
+    [InlineData("What Time")]
+    public async Task StopwatchNativeTypedAndCurrentNameVoiceShareOneRunWithoutAutomaticProjectionOrSideEffects(string assistantName)
     {
         var time = new StopwatchTime();
         var f = await CreateStopwatchFixture(time);
@@ -48,10 +50,10 @@ public sealed partial class MainViewModelTests
         f.ViewModel.StopwatchDisplay.Should().Contain("00:00:02");
         await f.ViewModel.StopwatchResetCommand.ExecuteAsync();
         f.ViewModel.StopwatchDisplay.Should().StartWith("Idle").And.Contain("00:00:00");
-        await f.RunAsync("set assistant name to StopwatchStatus");
-        await f.RaiseActivatedTranscriptAsync("StopwatchStatus, stopwatch start", 1);
+        await f.RunAsync("set assistant name to " + assistantName);
+        await f.RaiseActivatedTranscriptAsync(assistantName + ", stopwatch start", 1);
         f.ViewModel.StopwatchDisplay.Should().StartWith("Running");
-        f.Voice.StartedPhrases.Should().Contain("stopwatch start").And.Contain("StopwatchStatus stopwatch start");
+        f.Voice.StartedPhrases.Should().Contain("stopwatch start").And.Contain(assistantName + " stopwatch start");
         await f.RaiseActivatedTranscriptAsync("stopwatch stop", 1);
         f.ViewModel.ResponseBody.Should().Contain("denied");
         f.ViewModel.StopwatchDisplay.Should().StartWith("Idle");

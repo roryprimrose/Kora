@@ -20,7 +20,6 @@ public sealed class SessionAttachmentMetadataBoundsTests
         foreach (var removed in new[] { false, true })
         foreach (var exact in new[] { false, true })
         foreach (var media in new string?[] { null, "text/plain", "text/markdown" })
-        foreach (var literal in new string?[] { null, "text/", "TEXT/" })
         {
             if (state == AttachmentSessionState.Removed && copy != AttachmentCopyStatus.Unavailable) { continue; }
             var row = SessionAttachmentSummaryTests.Summary() with
@@ -37,12 +36,11 @@ public sealed class SessionAttachmentMetadataBoundsTests
             })
             {
                 var query = new SessionAttachmentQuery(removed, exact ? row.Session.Value.ToString("D") : null,
-                    filter, literal, media, status, minimum, maximum);
+                    filter, media, status, minimum, maximum);
                 var retained = copy != AttachmentCopyStatus.Unavailable;
                 var matches = (removed || retained) && (status is null || copy == status)
                     && (filter == SessionAttachmentFilter.All || string.Equals(filter.ToString(), state.ToString(), StringComparison.Ordinal))
                     && (media is null || retained && string.Equals(media, row.MediaType, StringComparison.Ordinal))
-                    && (literal is null || retained && string.Equals(literal, "text/", StringComparison.Ordinal))
                     && (minimum is null && maximum is null || retained
                         && (minimum is null || row.StoredBytes >= minimum) && (maximum is null || row.StoredBytes <= maximum));
                 query.Matches(row).Should().Be(matches);

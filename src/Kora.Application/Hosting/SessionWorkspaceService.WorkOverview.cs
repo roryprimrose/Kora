@@ -22,15 +22,13 @@ public sealed partial class SessionWorkspaceService
 
     public async Task<SessionWorkOverviewPage> ReadWorkOverviewAsync(SessionListFilter filter, bool needsAnswer,
         SessionWorkOverviewCursor? cursor, CancellationToken token, SessionListSearch? query = null,
-        SessionWorkOverviewAvailability? availability = null, SessionWorkOverviewContent content = SessionWorkOverviewContent.Any,
-        SessionWorkOverviewRanges ranges = default, HostTaskState? taskState = null,
-        SessionWorkOverviewTaskQuery taskQuery = default)
+        HostTaskState? taskState = null)
     {
         using var timeout = new CancellationTokenSource(WorkOverviewTimeout, overviewTime ?? TimeProvider.System);
         using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(token, timeout.Token);
         try
         {
-            var result = await ReadAsync(() => ReadWorkOverviewCoreAsync(filter, needsAnswer, cursor, query, availability, content, ranges, taskState, taskQuery, cancellation.Token),
+            var result = await ReadAsync(() => ReadWorkOverviewCoreAsync(filter, needsAnswer, cursor, query, taskState, cancellation.Token),
                 cancellation.Token).WaitAsync(cancellation.Token).ConfigureAwait(false);
             cancellation.Token.ThrowIfCancellationRequested();
             return result;
@@ -42,15 +40,9 @@ public sealed partial class SessionWorkspaceService
     }
 
     private async ValueTask<SessionWorkOverviewPage> ReadWorkOverviewCoreAsync(SessionListFilter filter, bool needsAnswer,
-        SessionWorkOverviewCursor? cursor, SessionListSearch? query, SessionWorkOverviewAvailability? availability,
-        SessionWorkOverviewContent content, SessionWorkOverviewRanges ranges, HostTaskState? taskState,
-        SessionWorkOverviewTaskQuery taskQuery, CancellationToken readToken)
+        SessionWorkOverviewCursor? cursor, SessionListSearch? query, HostTaskState? taskState, CancellationToken readToken)
     {
-        SessionWorkOverviewFilter.Validate(availability);
-        SessionWorkOverviewFilter.Validate(content);
         SessionWorkOverviewFilter.ValidateTaskState(taskState);
-        taskQuery.Validate();
-        ranges.Validate();
         if (!Enum.IsDefined(filter)) { throw new ArgumentOutOfRangeException(nameof(filter)); }
         if (query is not null && query.Filter != filter)
         {
@@ -60,8 +52,7 @@ public sealed partial class SessionWorkspaceService
         var epoch = Interlocked.Read(ref workOverviewEpoch);
         if (cursor is not null && (cursor.Host != workOverviewHost || cursor.AdmissionRevision != revision
             || cursor.SourceEpoch != epoch || cursor.After == Guid.Empty || cursor.Filter != filter
-            || cursor.NeedsAnswer != needsAnswer || cursor.Availability != availability || cursor.Content != content || cursor.Ranges != ranges
-            || cursor.TaskState != taskState || cursor.TaskQuery != taskQuery
+            || cursor.NeedsAnswer != needsAnswer || cursor.TaskState != taskState
             || !string.Equals(cursor.QueryDigest, query?.Digest, StringComparison.Ordinal)))
         {
             throw new ArgumentException("The overview continuation expired or belongs to another host/query/filter/source. Refresh.", nameof(cursor));
@@ -95,7 +86,7 @@ public sealed partial class SessionWorkspaceService
         {
             readToken.ThrowIfCancellationRequested();
             var id = entry.Authority.SessionId.Value;
-            var continuation = new SessionWorkOverviewCursor(workOverviewHost, revision, epoch, id, filter, needsAnswer, query?.Digest, availability, content, ranges, taskState, taskQuery);
+            var continuation = new SessionWorkOverviewCursor(workOverviewHost, revision, epoch, id, filter, needsAnswer, query?.Digest, taskState);
             SessionWorkOverviewRow? row = null;
             if ((filter == SessionListFilter.All || entry.Authority.IsActive == (filter == SessionListFilter.Active))
                 && (query is null || query.Matches(entry)))
@@ -111,8 +102,8 @@ public sealed partial class SessionWorkspaceService
                 {
                     row = new(entry, SessionWorkOverviewAvailability.OutputBound, null);
                 }
-                var matches = SessionWorkOverviewFilter.Matches(availability, row, content, taskState, taskQuery);
-                if (!matches || !ranges.Matches(row) || needsAnswer && row.Work is { PendingQuestions.IsEmpty: true, OmittedQuestions: 0 })
+                var matches = SessionWorkOverviewFilter.Matches(row, taskState);
+                if (!matches || needsAnswer && row.Work is { PendingQuestions.IsEmpty: true, OmittedQuestions: 0 })
                 {
                     nonmatches++;
                     scanned++;

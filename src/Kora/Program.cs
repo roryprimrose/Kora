@@ -539,7 +539,18 @@ internal static class Program
         services.AddSingleton<DiagnosticRetentionConfigurationService>();
         services.AddSingleton<ISessionQueuePreferences>(provider =>
             new LocalSessionQueuePreferences(provider.GetRequiredService<IPreferenceStore>()));
-        services.AddSingleton<SessionQueueConfigurationService>();
+        services.AddSingleton(provider =>
+        {
+            var configuration = ActivatorUtilities.CreateInstance<SessionQueueConfigurationService>(provider);
+            try { configuration.Observe(); }
+            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or InvalidDataException)
+            {
+                configuration.HoldUnavailable();
+                ApplicationLog.Error(provider.GetRequiredService<ILogger<SessionQueueConfigurationService>>(),
+                    exception, "Reading fixed local-version queue settings");
+            }
+            return configuration;
+        });
         services.AddSingleton<ISessionRetentionPreferences>(provider =>
             new LocalSessionRetentionPreferences(provider.GetRequiredService<IPreferenceStore>()));
         services.AddSingleton<SessionRetentionConfigurationService>();

@@ -154,19 +154,11 @@ public sealed partial class AllWorkWindowTests
                     () => model.QueryText = "query", model.ClearQuery,
                     () => model.Filter = SessionListFilter.Active,
                     () => model.NeedsAnswer = true,
-                    () => model.Availability = SessionWorkOverviewAvailability.Observed,
-                    () => model.Content = SessionWorkOverviewContent.Task,
-                    () => model.TaskIdText = Guid.NewGuid().ToString("D"),
-                    () => model.RangeInputs[0].Minimum = "1"
                 })
                 {
                     model.QueryText = string.Empty;
-                    model.ClearTaskQuery();
-                    model.ClearRanges();
                     model.Filter = SessionListFilter.All;
                     model.NeedsAnswer = false;
-                    model.Availability = null;
-                    model.Content = SessionWorkOverviewContent.Any;
                     await model.RefreshAsync();
                     model.Select(model.Records.Single());
                     query.Text = "Exact";
@@ -175,7 +167,7 @@ public sealed partial class AllWorkWindowTests
                     retire();
                     AssertRetired();
                 }
-                model.ClearRanges();
+                model.NeedsAnswer = false;
                 await model.RefreshAsync();
                 model.Select(model.Records.Single());
                 query.Text = "Exact";

@@ -10,15 +10,11 @@ public sealed partial class SessionWorkspaceService
 
     public Task<SessionListSearchPage> SearchListAsync(SessionListSearchKind kind, SessionListFilter filter,
         string query, SessionListSearchCursor? cursor, int limit, CancellationToken token,
-        long? minimumGeneration = null, long? maximumGeneration = null,
-        long? minimumMetadataRevision = null, long? maximumMetadataRevision = null,
-        SessionNameAvailability nameAvailability = SessionNameAvailability.Any,
-        long? minimumNameLength = null, long? maximumNameLength = null) =>
+        SessionNameAvailability nameAvailability = SessionNameAvailability.Any) =>
         ReadAsync(async () =>
         {
             token.ThrowIfCancellationRequested();
-            var search = new SessionListSearch(kind, filter, query, minimumGeneration, maximumGeneration,
-                minimumMetadataRevision, maximumMetadataRevision, nameAvailability, minimumNameLength, maximumNameLength);
+            var search = new SessionListSearch(kind, filter, query, nameAvailability);
             SessionListSearchPage.ValidateLimit(limit);
             cursor?.Validate(listSearchHost, access.ControlRevision, search);
             if (search.ExactId is { } id)

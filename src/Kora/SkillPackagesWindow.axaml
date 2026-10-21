@@ -29,15 +29,6 @@
         <ComboBox x:Name="PackageOrder" Grid.Column="1" HorizontalAlignment="Stretch"
                   AutomationProperties.Name="Bundled metadata order; source default, ordinal names, unknown names last" />
       </Grid>
-      <TextBlock Text="Exact snapshot digests: empty means Any; otherwise 64 lowercase hexadecimal characters. These filters do not verify live content or grant authority." TextWrapping="Wrap" />
-      <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto" ColumnSpacing="8" RowSpacing="6">
-        <Label Content="Definition digest" Target="{Binding #PackageDefinitionDigest}" />
-        <TextBox x:Name="PackageDefinitionDigest" Grid.Column="1" IsUndoEnabled="False"
-                 AutomationProperties.Name="Exact bundled DefinitionDigest, empty means Any, lowercase SHA-256" />
-        <Label Grid.Row="1" Content="Declared resource digest" Target="{Binding #PackageDeclaredResourceDigest}" />
-        <TextBox x:Name="PackageDeclaredResourceDigest" Grid.Row="1" Grid.Column="1" IsUndoEnabled="False"
-                 AutomationProperties.Name="Exact bundled DeclaredResourceDigest, empty means Any, lowercase SHA-256" />
-      </Grid>
     </StackPanel>
     <controls:NamedTextBlock x:Name="PackageSearchStatus" Grid.Row="2" TextWrapping="Wrap"
                             AutomationProperties.Name="Bundled metadata search results and validation" />

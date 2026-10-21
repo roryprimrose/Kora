@@ -162,8 +162,6 @@ public sealed partial class AllWorkWindowTests
                 accepted = admitted();
                 cancelled = token.IsCancellationRequested;
             });
-        model.TaskIdText = f.Request.TaskId.Value.ToString("D");
-        model.RequestIdText = f.Request.RequestId.Value.ToString("D");
         model.TaskState = (await f.Store.ReadTaskPageAsync(f.Request.SessionId, null, 50, f.Token)).Records.Single().State;
         await model.RefreshAsync();
         model.Order = SessionWorkOverviewPageOrder.SessionIdAscending;
@@ -193,8 +191,6 @@ public sealed partial class AllWorkWindowTests
         if (boundary is "order" or "clear")
         {
             model.Records.Should().ContainSingle().Which.Should().Be(stale);
-            model.TaskIdText.Should().Be(f.Request.TaskId.Value.ToString("D"));
-            model.RequestIdText.Should().Be(f.Request.RequestId.Value.ToString("D"));
             model.TaskState.Should().NotBeNull();
             model.Select(model.Records.Single());
             model.CanNavigate.Should().BeTrue("only a new explicit exact-row selection can restore readiness");

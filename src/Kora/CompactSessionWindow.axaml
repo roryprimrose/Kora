@@ -40,51 +40,6 @@
        <ComboBox x:Name="ConversationRole" ItemsSource="{Binding ConversationRoles}"
           SelectedItem="{Binding ConversationRole, Mode=TwoWay}" IsEnabled="{Binding CanReadConversation}"
           AutomationProperties.Name="Shared conversation search field filter: All original USER and typed HOST fields, USER original body only, HOST outcome reason and task state only; editing does not read" />
-      <TextBlock Text="Inclusive original-message ranges (empty means Any). Minimum must not exceed maximum; all ranges AND with the query, role and terminal predicates." TextWrapping="Wrap" />
-      <TextBlock Text="Exact request ID (empty means Any)" />
-      <TextBox x:Name="ConversationRequestId" Text="{Binding ConversationRequestId, Mode=TwoWay}" IsEnabled="{Binding CanReadConversation}"
-          AutomationProperties.Name="Shared exact conversation request ID; canonical lowercase nonempty D GUID, empty means Any; AND with all predicates; editing does not read" />
-      <TextBlock Text="Exact task ID (empty means Any)" />
-      <TextBox x:Name="ConversationTaskId" Text="{Binding ConversationTaskId, Mode=TwoWay}" IsEnabled="{Binding CanReadConversation}"
-          AutomationProperties.Name="Shared exact conversation task ID; canonical lowercase nonempty D GUID, empty means Any; AND with all predicates; editing does not read" />
-      <TextBlock Text="Request/task IDs are passive correlation metadata only. They cannot retarget a session or task, establish identity, intent, ownership, permission, approval or execution authority." TextWrapping="Wrap" />
-      <TextBlock Text="Minimum message sequence" />
-      <TextBox x:Name="ConversationMinimumSequence" Text="{Binding ConversationMinimumSequence, Mode=TwoWay}" IsEnabled="{Binding CanReadConversation}"
-          AutomationProperties.Name="Shared inclusive minimum original message sequence; invariant decimal within conversation limits, empty means Any; editing does not read" />
-      <TextBlock Text="Maximum message sequence" />
-      <TextBox x:Name="ConversationMaximumSequence" Text="{Binding ConversationMaximumSequence, Mode=TwoWay}" IsEnabled="{Binding CanReadConversation}"
-          AutomationProperties.Name="Shared inclusive maximum original message sequence; invariant decimal within conversation limits, empty means Any; editing does not read" />
-      <TextBlock Text="Submitted from UTC (yyyy-MM-ddTHH:mm:ss.fffffff+00:00)" />
-      <TextBox x:Name="ConversationSubmittedFrom" Text="{Binding ConversationSubmittedFrom, Mode=TwoWay}" IsEnabled="{Binding CanReadConversation}"
-          AutomationProperties.Name="Shared inclusive submitted from canonical UTC time; yyyy-MM-ddTHH:mm:ss.fffffff+00:00, empty means Any; editing does not read" />
-      <TextBlock Text="Submitted through UTC (yyyy-MM-ddTHH:mm:ss.fffffff+00:00)" />
-      <TextBox x:Name="ConversationSubmittedThrough" Text="{Binding ConversationSubmittedThrough, Mode=TwoWay}" IsEnabled="{Binding CanReadConversation}"
-          AutomationProperties.Name="Shared inclusive submitted through canonical UTC time; yyyy-MM-ddTHH:mm:ss.fffffff+00:00, empty means Any; editing does not read" />
-      <TextBlock Text="Minimum observed message generation" />
-      <TextBox x:Name="ConversationMinimumGeneration" Text="{Binding ConversationMinimumGeneration, Mode=TwoWay}" IsEnabled="{Binding CanReadConversation}"
-          AutomationProperties.Name="Shared inclusive minimum observed message generation; positive unsigned decimal, empty means Any; editing does not read" />
-      <TextBlock Text="Maximum observed message generation" />
-      <TextBox x:Name="ConversationMaximumGeneration" Text="{Binding ConversationMaximumGeneration, Mode=TwoWay}" IsEnabled="{Binding CanReadConversation}"
-          AutomationProperties.Name="Shared inclusive maximum observed message generation; positive unsigned decimal, empty means Any; editing does not read" />
-      <TextBlock Text="Minimum observed message revision (1-3)" />
-      <TextBox x:Name="ConversationMinimumRevision" Text="{Binding ConversationMinimumRevision, Mode=TwoWay}" IsEnabled="{Binding CanReadConversation}"
-          AutomationProperties.Name="Shared inclusive minimum observed message revision; unsigned decimal 1-3, empty means Any; editing does not read" />
-      <TextBlock Text="Maximum observed message revision (1-3)" />
-      <TextBox x:Name="ConversationMaximumRevision" Text="{Binding ConversationMaximumRevision, Mode=TwoWay}" IsEnabled="{Binding CanReadConversation}"
-          AutomationProperties.Name="Shared inclusive maximum observed message revision; unsigned decimal 1-3, empty means Any; editing does not read" />
-      <TextBlock Text="Exact terminal HOST predicates (Any means unrestricted). USER-only with any predicate yields zero; all predicates AND with the query and role." TextWrapping="Wrap" />
-      <TextBlock Text="Terminal outcome" />
-      <ComboBox x:Name="ConversationOutcome" ItemsSource="{Binding ConversationOutcomes}"
-          SelectedItem="{Binding ConversationOutcomeChoice, Mode=TwoWay}" IsEnabled="{Binding CanReadConversation}"
-          AutomationProperties.Name="Shared exact terminal HOST ModelTurnOutcome; Any or one defined outcome; editing does not read" />
-      <TextBlock Text="Terminal reason" />
-      <ComboBox x:Name="ConversationReason" ItemsSource="{Binding ConversationReasons}"
-          SelectedItem="{Binding ConversationReasonChoice, Mode=TwoWay}" IsEnabled="{Binding CanReadConversation}"
-          AutomationProperties.Name="Shared exact terminal HOST ModelTurnReason; Any or one defined reason; editing does not read" />
-      <TextBlock Text="Expected terminal task state" />
-      <ComboBox x:Name="ConversationTaskState" ItemsSource="{Binding ConversationTaskStates}"
-          SelectedItem="{Binding ConversationTaskStateChoice, Mode=TwoWay}" IsEnabled="{Binding CanReadConversation}"
-          AutomationProperties.Name="Shared exact terminal HOST expected HostTaskState; Any or one defined state; editing does not read" />
       <WrapPanel>
         <Button x:Name="SearchConversation" Content="Search this conversation" IsEnabled="{Binding CanSearchConversation}" />
         <Button x:Name="NextConversationSearch" Content="Next conversation matches" IsEnabled="{Binding CanNextConversationSearch}" />

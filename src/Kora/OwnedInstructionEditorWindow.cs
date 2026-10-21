@@ -22,10 +22,6 @@ internal sealed partial class OwnedInstructionEditorWindow : Window
         Width = 210, ItemsSource = Enum.GetValues<OwnedDefinitionInventoryOrder>(),
         SelectedItem = OwnedDefinitionInventoryOrder.FileNameAscending,
     };
-    internal readonly TextBox DigestInput = new() { Width = 300, PlaceholderText = "Exact SHA-256 (empty means Any)" };
-    internal readonly TextBox RevisionInput = new() { Width = 300, PlaceholderText = "Exact native revision (empty means Any)" };
-    internal readonly TextBox ObservedFromInput = new() { Width = 300, PlaceholderText = "yyyy-MM-ddTHH:mm:ss.fffffff+00:00" };
-    internal readonly TextBox ObservedUntilInput = new() { Width = 300, PlaceholderText = "yyyy-MM-ddTHH:mm:ss.fffffff+00:00" };
     internal readonly Button ReviewUse = new() { Content = "Review use", Margin = new(3), IsEnabled = false };
     internal readonly Button DisableReviewedUse = new() { Content = "Disable reviewed use", Margin = new(3), IsEnabled = false };
     internal readonly ComboBox UseStateInput = new()
@@ -88,28 +84,12 @@ internal sealed partial class OwnedInstructionEditorWindow : Window
         AutomationProperties.SetName(QueryInput, "Literal metadata substring; ordinal ignore case; metadata only");
         search.Children.Add(QueryInput);
         search.Children.Add(UseStateInput);
-        AutomationProperties.SetName(DigestInput, "Exact artifact SHA-256 digest; empty means Any");
-        search.Children.Add(new TextBlock { Text = "Exact SHA-256: ", VerticalAlignment = VerticalAlignment.Center });
-        search.Children.Add(DigestInput);
-        AutomationProperties.SetName(RevisionInput, "Exact native owned revision; empty means Any; metadata only");
-        search.Children.Add(new TextBlock { Text = "Exact native revision: ", VerticalAlignment = VerticalAlignment.Center });
-        search.Children.Add(RevisionInput);
-        AutomationProperties.SetName(ObservedFromInput, "Observed UTC From inclusive; canonical UTC; empty means Any; snapshot metadata only");
-        search.Children.Add(new TextBlock { Text = "Observed UTC From (inclusive): ", VerticalAlignment = VerticalAlignment.Center });
-        search.Children.Add(ObservedFromInput);
-        AutomationProperties.SetName(ObservedUntilInput, "Observed UTC Until inclusive; canonical UTC; empty means Any; snapshot metadata only");
-        search.Children.Add(new TextBlock { Text = "Observed UTC Until (inclusive): ", VerticalAlignment = VerticalAlignment.Center });
-        search.Children.Add(ObservedUntilInput);
         search.Children.Add(NextPage);
         var clear = new Button { Content = "Clear search", Margin = new(3) };
-        AutomationProperties.SetName(clear, "Clear all owned metadata predicates and order; FileNameAscending, Literal mode, empty query, All use state, Any digest, revision and observed UTC bounds");
+        AutomationProperties.SetName(clear, "Clear owned name query and order; FileNameAscending, Literal mode, empty query, All use state");
         clear.Click += (_, _) => { ClearSearch(); run("Filter"); };
         search.Children.Add(clear);
         QueryInput.PropertyChanged += (_, change) => { if (change.Property == TextBox.TextProperty) { run("Filter"); } };
-        DigestInput.PropertyChanged += (_, change) => { if (change.Property == TextBox.TextProperty) { run("Filter"); } };
-        RevisionInput.PropertyChanged += (_, change) => { if (change.Property == TextBox.TextProperty) { run("Filter"); } };
-        ObservedFromInput.PropertyChanged += (_, change) => { if (change.Property == TextBox.TextProperty) { run("Filter"); } };
-        ObservedUntilInput.PropertyChanged += (_, change) => { if (change.Property == TextBox.TextProperty) { run("Filter"); } };
         UseStateInput.SelectionChanged += (_, _) => run("Filter");
         OrderInput.SelectionChanged += (_, _) => run("Filter");
         QueryModeInput.SelectionChanged += (_, _) =>
@@ -170,8 +150,7 @@ internal sealed partial class OwnedInstructionEditorWindow : Window
     {
         OrderInput.SelectedItem = OwnedDefinitionInventoryOrder.FileNameAscending;
         QueryModeInput.SelectedItem = OwnedDefinitionInventoryQueryMode.Literal;
-        QueryInput.Text = string.Empty; UseStateInput.SelectedItem = OwnedDefinitionUseFilter.All; DigestInput.Text = string.Empty;
-        RevisionInput.Text = string.Empty; ObservedFromInput.Text = string.Empty; ObservedUntilInput.Text = string.Empty;
+        QueryInput.Text = string.Empty; UseStateInput.SelectedItem = OwnedDefinitionUseFilter.All;
     }
     internal void ReportValidation(string text) => validationStatus.Text = text;
     internal void ClearValidation()

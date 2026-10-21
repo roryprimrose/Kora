@@ -58,8 +58,7 @@ public sealed partial class SessionQueueService : IAsyncDisposable
         Func<bool> admission, CancellationToken token) => ExecuteCommandCoreAsync(command, origin, admission, token);
 
     private async Task<SessionCommandResult> ExecuteCommandCoreAsync(SessionCommand command, RequestOrigin origin,
-        Func<bool> admission, CancellationToken token, SessionDiagnosticsPlanReview? plan = null,
-        Action<SessionQueueSnapshot>? enqueueCommitted = null)
+        Func<bool> admission, CancellationToken token)
     {
         ArgumentNullException.ThrowIfNull(command);
         ArgumentNullException.ThrowIfNull(admission);
@@ -168,18 +167,12 @@ public sealed partial class SessionQueueService : IAsyncDisposable
                 {
                     SessionCommandOperation.QueueEnqueue => await WithLimitsAsync(async current =>
                     {
-                        if (plan is not null && (current != plan.Limits || ConfigurationRevision != plan.ConfigurationRevision))
-                        {
-                            throw new InvalidOperationException("The reviewed queue limits changed; review a fresh plan.");
-                        }
                         var committed = await store.EnqueueAsync(request,
                         new(new(command.WorkRequestId ?? throw new InvalidOperationException("An exact request ID is required.")),
                             session, RequireTask(command), origin),
                         generation, command.QueueRevision, revision, command.DependencyTaskId is { } dependency ? new(dependency) : null,
                         current, () => Eligible() && (configuration is null || configuration.IsCurrent(current)), token,
-                        command.QueueProfile, command.ExpectedDependencyRevision, command.QueueTarget,
-                        plan?.Queue.DispatchControl).ConfigureAwait(false);
-                        enqueueCommitted?.Invoke(committed);
+                        command.QueueProfile, command.ExpectedDependencyRevision, command.QueueTarget).ConfigureAwait(false);
                         return committed;
                     }, token).ConfigureAwait(false),
                     SessionCommandOperation.QueueCancel or SessionCommandOperation.QueueRemove =>
@@ -468,7 +461,7 @@ public sealed partial class SessionQueueService : IAsyncDisposable
         }
         await lifetime.CancelAsync().ConfigureAwait(false);
         await dispatchGate.WaitAsync(CancellationToken.None).ConfigureAwait(false);
-        lock (causeGate) { causes.Clear(); moveReviews.Clear(); cancelReviews.Clear(); requeueReviews.Clear(); diagnosticsReview = null; diagnosticsAdmission = static () => false; }
+        lock (causeGate) { causes.Clear(); moveReviews.Clear(); cancelReviews.Clear(); requeueReviews.Clear(); }
         dispatchGate.Dispose();
         lifetime.Dispose();
     }

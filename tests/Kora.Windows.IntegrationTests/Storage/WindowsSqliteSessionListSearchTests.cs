@@ -37,78 +37,36 @@ public sealed class WindowsSqliteSessionListSearchTests
         var clocks = await f.Store.ReadRetentionAsync(last.Authority.SessionId, f.Token);
         using var root = HostActivity.BeginRoot(f.Request, HostActivityLayer.Application, HostOperation.Request);
         var value = kind is SessionListSearchKind.ExactName ? last.Metadata!.Name.Value : "café 🐈 100%_";
-        var length = last.Metadata!.Name.GetScalarCount();
         var first = await service.SearchListAsync(kind, SessionListFilter.All, value, null, 25, f.Token,
-            1, 1, 2, 2, SessionNameAvailability.Named, length, length);
+            SessionNameAvailability.Named);
         first.Scanned.Should().Be(50);
         first.Records.Should().BeEmpty();
         first.Next.Should().NotBeNull("nonmatching pages must not be confused with search exhaustion");
         var next = await service.SearchListAsync(kind, SessionListFilter.All, value, first.Next, 25, f.Token,
-            1, 1, 2, 2, SessionNameAvailability.Named, length, length);
+            SessionNameAvailability.Named);
         next.Records.Should().Equal(duplicate, last);
         next.Next.Should().BeNull();
         var exact = await service.SearchListAsync(SessionListSearchKind.ExactId, SessionListFilter.All,
-            last.Authority.SessionId.Value.ToString("D"), null, 25, f.Token, 1, 1, 2, 2,
-            minimumNameLength: length, maximumNameLength: length);
+            last.Authority.SessionId.Value.ToString("D"), null, 25, f.Token);
         exact.Records.Should().ContainSingle().Which.Should().Be(last);
-        var excluded = await service.SearchListAsync(SessionListSearchKind.ExactId, SessionListFilter.All,
-            last.Authority.SessionId.Value.ToString("D"), null, 25, f.Token, 1, 1, 3, null);
+        var excluded = await service.SearchListAsync(SessionListSearchKind.ExactId, SessionListFilter.Done,
+            last.Authority.SessionId.Value.ToString("D"), null, 25, f.Token);
         excluded.Records.Should().BeEmpty();
         excluded.Scanned.Should().Be(1);
         var unnamed = await service.SearchListAsync(SessionListSearchKind.Browse, SessionListFilter.Active,
-            "", null, 25, f.Token, 1, 1, nameAvailability: SessionNameAvailability.Unnamed);
+            "", null, 25, f.Token, nameAvailability: SessionNameAvailability.Unnamed);
         unnamed.Scanned.Should().Be(50);
         unnamed.Next.Should().NotBeNull();
         var remainingUnnamed = await service.SearchListAsync(SessionListSearchKind.Browse, SessionListFilter.Active,
-            "", unnamed.Next, 25, f.Token, 1, 1, nameAvailability: SessionNameAvailability.Unnamed);
+            "", unnamed.Next, 25, f.Token, nameAvailability: SessionNameAvailability.Unnamed);
         unnamed.Records.Concat(remainingUnnamed.Records).Should().ContainSingle().Which.Authority.SessionId.Should().Be(f.Request.SessionId);
         unnamed.Records.Concat(remainingUnnamed.Records).Single().Metadata.Should().BeNull();
         remainingUnnamed.Next.Should().BeNull();
-        var excludedUnnamed = await service.SearchListAsync(SessionListSearchKind.Browse, SessionListFilter.Active,
-            "", null, 25, f.Token, 1, 1, 1, 1, SessionNameAvailability.Unnamed);
-        excludedUnnamed.Records.Should().BeEmpty();
-        excludedUnnamed.Scanned.Should().Be(50);
-        excludedUnnamed.Next.Should().NotBeNull();
         f.Count("security_audit_events").Should().Be(audits);
         f.Count("host_tasks").Should().Be(tasks);
         (await f.Store.ReadRetentionAsync(last.Authority.SessionId, f.Token)).Should().Be(clocks);
         (await f.Store.ReadGrantsAsync(f.Token)).Should().ContainSingle().Which.Should().Be(perpetual);
         (await f.Tasks.ReadTaskAsync(f.Request.TaskId, f.Token))!.State.Should().Be(HostTaskState.IntentRecorded);
-    }
-
-    [Fact]
-    public async Task PrivateScalarRangesTreatSupplementaryNamesAsOneAndUnnamedAsUnknownNotZero()
-    {
-        using var f = new InteractionStorageFixture();
-        await f.InitializeAsync();
-        var service = WindowsSqliteSessionWorkspaceTests.Service(f, new());
-        var one = await service.CreateAsync(new("\U0001F408"), RequestOrigin.LocalUi, f.Token);
-        var two = await service.CreateAsync(new("q\u0301"), RequestOrigin.LocalUi, f.Token);
-        var maximum = await service.CreateAsync(new(string.Concat(Enumerable.Repeat("\U0001F408", SessionName.MaximumScalars))),
-            RequestOrigin.LocalUi, f.Token);
-        var audits = f.Count("security_audit_events");
-        var tasks = f.Count("host_tasks");
-        using var root = HostActivity.BeginRoot(f.Request, HostActivityLayer.Application, HostOperation.Request);
-        var single = await service.SearchListAsync(SessionListSearchKind.Browse, SessionListFilter.Active, "", null, 25, f.Token,
-            1, 1, 1, 1, SessionNameAvailability.Named, 1, 1);
-        single.Records.Should().Equal(one);
-        var pair = await service.SearchListAsync(SessionListSearchKind.NameSubstring, SessionListFilter.All, "q", null, 25, f.Token,
-            minimumNameLength: 2, maximumNameLength: 2);
-        pair.Records.Should().Equal(two);
-        var full = await service.SearchListAsync(SessionListSearchKind.ExactName, SessionListFilter.All, maximum.Metadata!.Name.Value,
-            null, 25, f.Token, minimumNameLength: SessionName.MaximumScalars, maximumNameLength: SessionName.MaximumScalars);
-        full.Records.Should().Equal(maximum);
-        var unnamed = await service.SearchListAsync(SessionListSearchKind.ExactId, SessionListFilter.Active,
-            f.Request.SessionId.Value.ToString("D"), null, 25, f.Token, maximumNameLength: 1);
-        unnamed.Records.Should().BeEmpty();
-        unnamed.Scanned.Should().Be(1);
-        unnamed.Unnamed.Should().Be(1);
-        var unknown = await service.SearchListAsync(SessionListSearchKind.Browse, SessionListFilter.Active,
-            "", null, 25, f.Token, nameAvailability: SessionNameAvailability.Unnamed, minimumNameLength: 1);
-        unknown.Records.Should().BeEmpty();
-        unknown.Unnamed.Should().Be(1);
-        f.Count("security_audit_events").Should().Be(audits);
-        f.Count("host_tasks").Should().Be(tasks);
     }
 
     [Fact]
@@ -135,7 +93,7 @@ public sealed class WindowsSqliteSessionListSearchTests
         }
         using var root = HostActivity.BeginRoot(f.Request, HostActivityLayer.Application, HostOperation.Request);
         var read = () => service.SearchListAsync(SessionListSearchKind.Browse, SessionListFilter.All,
-            "", null, 1, f.Token, minimumNameLength: 6, maximumNameLength: 6);
+            "", null, 1, f.Token);
         await read.Should().ThrowAsync<InvalidDataException>();
     }
 
@@ -213,7 +171,7 @@ public sealed class WindowsSqliteSessionListSearchTests
         var service = WindowsSqliteSessionWorkspaceTests.Service(f, access);
         using var root = HostActivity.BeginRoot(f.Request, HostActivityLayer.Application, HostOperation.Request);
         var read = () => service.SearchListAsync(SessionListSearchKind.ExactName, SessionListFilter.All,
-            "needle", null, 50, cancellation.Token, minimumNameLength: 1, maximumNameLength: 1);
+            "needle", null, 50, cancellation.Token);
         await read.Should().ThrowAsync<Exception>();
         if (mode is "replacement" or "missing") { File.Exists(f.DatabasePath).Should().BeFalse(); }
     }

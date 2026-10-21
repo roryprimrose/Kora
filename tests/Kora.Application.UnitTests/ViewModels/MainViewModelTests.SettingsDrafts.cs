@@ -78,8 +78,6 @@ public sealed partial class MainViewModelTests
     private static int?[] NumericSavedBaselines(MainViewModel viewModel) =>
     [
         viewModel.SavedPlaybackVolume, viewModel.SavedWindowsSpeechRate,
-        viewModel.SavedQueuePending, viewModel.SavedQueueSlots,
-        viewModel.SavedQueueLifetimeMinutes, viewModel.SavedQueueActiveBudgetMinutes,
         viewModel.SavedSessionArchiveDays, viewModel.SavedSessionDeleteDays,
         viewModel.SavedDiagnosticRetentionDays, viewModel.SavedAuditRetentionDays,
     ];

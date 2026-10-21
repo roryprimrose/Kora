@@ -50,9 +50,6 @@ public sealed partial class AllWorkWindowTests
                 model.QueryKind = SessionListSearchKind.ExactId;
                 model.QueryText = f.Request.SessionId.Value.ToString("D");
                 model.NeedsAnswer = true;
-                model.Availability = SessionWorkOverviewAvailability.Observed;
-                model.Content = SessionWorkOverviewContent.PendingQuestion;
-                model.RangeInputs[0].Minimum = "1";
                 await model.RefreshAsync();
                 var observed = model.Records.Single().Work!.Tasks.Select(task => task.State).ToArray();
                 foreach (var choice in model.TaskStateChoices.Skip(1))
@@ -98,9 +95,6 @@ public sealed partial class AllWorkWindowTests
                 model.CanNext.Should().BeFalse();
                 var invalid = () => model.TaskState = (HostTaskState)99;
                 invalid.Should().Throw<ArgumentOutOfRangeException>();
-                model.ClearRanges();
-                model.Content = SessionWorkOverviewContent.Any;
-                model.Availability = SessionWorkOverviewAvailability.ReadUnavailable;
                 held.Fail = true;
                 await model.RefreshAsync();
                 model.Records.Should().BeEmpty();

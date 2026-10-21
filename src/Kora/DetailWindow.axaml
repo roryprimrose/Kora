@@ -49,6 +49,9 @@
                 AutomationProperties.Name="Clear literal Find query and match" />
       </WrapPanel>
       <TextBlock Text="Literal Find: exact case and spaces; one line, 256 UTF-16 characters / 512 UTF-8 bytes maximum; nonoverlapping, no wrap. Searches only current admitted text, never reads a source." TextWrapping="Wrap" />
+      <controls:NamedTextBlock x:Name="FindSummary" TextWrapping="Wrap"
+                              AutomationProperties.Name="Literal Find count and selected ordinal in current admitted text only"
+                              AutomationProperties.LiveSetting="Off" />
       <ScrollViewer MaxHeight="100" VerticalScrollBarVisibility="Auto"
                     AutomationProperties.Name="Bounded inert literal match viewport">
         <controls:NamedTextBlock x:Name="FindSpan" Focusable="True" IsVisible="False" TextWrapping="Wrap" TabIndex="14"

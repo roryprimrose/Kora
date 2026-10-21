@@ -26,7 +26,7 @@ public sealed partial class SessionsConversationTests
             await WindowsSqliteConversationTests.FinishInitial(f);
             var saved = await WindowsSqliteConversationTests.Save(f,
                 await f.Store.ReadConversationDraftAsync(f.Request.SessionId, f.Token), "saved exact baseline");
-            var reader = new SearchReader(f.Store.ReadConversationPageAsync, f.Store.ReadConversationDraftAsync);
+            var reader = new SearchReader(f.Store.ReadConversationPageAsync, f.Store.ReadConversationDraftAsync, f.Store.ReadMetadataAsync);
             await using var composed = new Composition(f, conversationReader: reader);
             var model = composed.Model;
             var owner = new SessionsPresentationOwner(model);
@@ -39,10 +39,8 @@ public sealed partial class SessionsConversationTests
                 await model.RefreshAsync();
                 await model.SelectAsync(model.Sessions.Single());
                 await model.ReadConversationAsync();
-                await model.ReloadConversationDraftAsync();
-                model.ComposerDirty.Should().BeFalse();
-                model.ReviewClearConversationDraft();
-                var clearReview = model.SavedConversationDraftReview;
+                await model.RecoverLegacyUnsentAsync();
+                model.ComposerDirty.Should().BeTrue();
                 var target = model.ComposerTarget;
                 var before = WindowsSqliteConversationTests.AuditText(f);
                 var retention = await f.Store.ReadRetentionAsync(f.Request.SessionId, f.Token);
@@ -59,16 +57,12 @@ public sealed partial class SessionsConversationTests
                 editor.TextWrapping.Should().Be(TextWrapping.Wrap);
                 AssertDraftLayout(first, editor, choice);
                 model.ComposerBody.Should().BeSameAs(original);
-                model.ComposerDirty.Should().BeFalse();
-                model.CanClearConversationDraft.Should().BeTrue();
-                model.SavedConversationDraftReview.Should().Be(clearReview);
+                model.ComposerDirty.Should().BeTrue();
 
                 var raw = "  \U0001f642e\u0301\t" + new string('x', 1800) + "\r\n exact end  ";
                 editor.Text = raw;
                 var exact = model.ComposerBody;
                 otherEditor.Text.Should().BeSameAs(exact);
-                using var comparison = model.CompareComposer()!;
-                comparison.Available.Should().BeTrue();
                 choice.IsChecked = false;
                 first.UpdateLayout();
                 editor.TextWrapping.Should().Be(TextWrapping.NoWrap);
@@ -76,12 +70,8 @@ public sealed partial class SessionsConversationTests
                 otherEditor.TextWrapping.Should().Be(TextWrapping.Wrap);
                 AssertDraftLayout(first, editor, choice);
                 model.ComposerBody.Should().BeSameAs(exact).And.Be(raw);
-                comparison.Available.Should().BeTrue("presentation must not increment buffer revision or retire review");
-                comparison.SavedBody.Should().Be(saved.Draft.Body);
-                comparison.Buffer.Should().BeSameAs(exact);
                 model.ComposerDirty.Should().BeTrue();
                 model.ComposerTarget.Should().Be(target);
-                model.SavedConversationDraftReview.Should().BeEmpty();
                 (reader.Reads, reader.DraftReads).Should().Be(reads);
                 composed.Audit.Events.Should().BeEmpty();
                 WindowsSqliteConversationTests.AuditText(f).Should().Be(before);
@@ -137,26 +127,13 @@ public sealed partial class SessionsConversationTests
                 choice.IsChecked.Should().BeTrue();
                 editor.TextWrapping.Should().Be(TextWrapping.Wrap);
                 await composer.Create();
-                editor.Text = " confirmed memory baseline ";
-                await composer.ReviewSave();
-                (await composer.Save()).Should().BeTrue();
-                var baseline = composer.BaselineBody;
                 editor.Text = "  \U0001f642e\u0301\t" + new string('x', 1800) + "\r\n exact end  ";
-                await composer.ReviewSave();
-                var saveOld = composer.SavedBodyReview;
-                var saveProposed = composer.ProposedSavedBody;
                 AssertDraftLayout(window, editor, choice);
-                composer.CanSave.Should().BeTrue();
-                composer.SavedBodyReview.Should().Be(saveOld);
-                composer.ProposedSavedBody.Should().BeSameAs(saveProposed);
                 composer.Review();
                 var original = composer.Body;
                 var reviewed = composer.ReviewedBody;
-                var old = composer.SavedBodyReview;
-                var proposed = composer.ProposedSavedBody;
                 var target = composer.Target;
                 var creation = composer.Creation;
-                var revision = composer.SavedRevision;
                 var status = composer.Status;
                 var readonlyBodies = window.GetVisualDescendants().OfType<TextBlock>()
                     .Select(block => (Block: block, block.Text, block.TextWrapping)).ToArray();
@@ -166,14 +143,9 @@ public sealed partial class SessionsConversationTests
                 AssertDraftLayout(window, editor, choice);
                 composer.Body.Should().BeSameAs(original);
                 composer.ReviewedBody.Should().BeSameAs(reviewed);
-                composer.SavedBodyReview.Should().Be(old);
-                composer.ProposedSavedBody.Should().Be(proposed);
-                composer.BaselineBody.Should().Be(baseline);
-                composer.SavedRevision.Should().Be(revision);
                 composer.Target.Should().BeSameAs(target);
                 composer.Creation.Should().BeSameAs(creation);
                 composer.Submission.Should().BeNull();
-                composer.CanSave.Should().BeFalse("Submit review remains separate from Save review");
                 composer.CanSubmit.Should().BeTrue();
                 composer.Dirty.Should().BeTrue();
                 composer.Status.Should().Be(status);

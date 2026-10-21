@@ -9,7 +9,6 @@ namespace Kora;
 internal sealed partial class SessionsViewModel
 {
     private string composerBody = string.Empty;
-    private string composerBaseline = string.Empty;
     private ConversationDraftSnapshot? savedConversationDraft;
     private ConversationPage? conversationPage;
     private ConversationMessage? completedConversationMessage;
@@ -17,41 +16,46 @@ internal sealed partial class SessionsViewModel
     private bool conversationSourceHeld;
     private bool conversationBusy;
     private bool protectingComposer;
-    private bool clearDraftReviewed;
-    private string conversationStatus = "Select an exact session. Drafts stay in memory unless explicitly saved.";
+    private long composerBufferRevision;
+    private string conversationStatus = "Select a session. Unsent messages stay in memory per session; nothing is autosaved.";
     internal Func<Task<ComposerDraftDecision>>? DecideComposerDraft { get; set; }
     internal void ReportComposerCloseFailure(Exception exception)
     {
-        RetireDraftRecovery();
-        draftSaveUnconfirmed = true;
         Failure(logger, exception.GetType().Name);
-        conversationStatus = "Draft save/close is unconfirmed; the memory buffer remains open. Inspect saved revision before another decision.";
+        conversationStatus = "Discard/close is unconfirmed; unsent messages remain in memory. Nothing was saved or submitted.";
         NotifyConversation();
     }
-    public bool ComposerDirty => !string.Equals(composerBody, composerBaseline, StringComparison.Ordinal);
+    public bool ComposerDirty => composerBody.Length != 0;
     public string ComposerBody
     {
-        get => composerBody;
+        get => !closed && access.CanInspect && composerControl == access.ControlRevision ? composerBody : string.Empty;
         set
         {
             if (closed || !access.CanInspect || conversationBusy || protectingComposer) { return; }
-            RetireComposerComparison();
-            RetireDraftRecovery();
-            Interlocked.Increment(ref composerBufferRevision);
+            if (selected is null)
+            {
+                if (value.Length != 0)
+                {
+                    Interlocked.Increment(ref composerBufferRevision);
+                    conversationStatus = "Unsent input refused: select an exact session first. Pending native input admission was retired; nothing saved or submitted.";
+                    NotifyConversation();
+                }
+                return;
+            }
+            RestoreUnsent();
             composerBody = value;
-            clearDraftReviewed = false;
+            Interlocked.Increment(ref composerBufferRevision);
+            RememberUnsent();
             NotifyConversation();
         }
     }
     public string ConversationStatus => conversationStatus;
-    public string SavedConversationDraftReview => clearDraftReviewed ? savedConversationDraft?.Draft.Body ?? string.Empty : string.Empty;
     public string ComposerTarget => selected is { } target
         ? "Message exact session " + target.Authority.SessionId.Value.ToString("D")
             + " | name: " + (target.Metadata?.Name.Value ?? "Unnamed")
             + " | generation " + target.Authority.Generation.Value.ToString(CultureInfo.InvariantCulture)
             + " | metadata revision " + (target.Metadata?.Revision.Value ?? 0).ToString(CultureInfo.InvariantCulture)
             + " | private control epoch " + access.ControlRevision.ToString(CultureInfo.InvariantCulture)
-            + " | saved draft revision " + (savedConversationDraft?.Draft.Revision ?? catalogueDraft?.DraftRevision ?? 0).ToString(CultureInfo.InvariantCulture)
         : "Select an exact session; no global or question-reply target.";
     public IReadOnlyList<ConversationMessage> ConversationMessages => conversationPage is { } page ? page.Messages
         : completedConversationMessage is { } completed ? [completed] : [];
@@ -97,22 +101,15 @@ internal sealed partial class SessionsViewModel
     }, sourceRead: true, searchDetailEpoch:
         ConversationSearchMessages.Any(record => ReferenceEquals(record, message)) ? conversationSearchEpoch : null);
     public bool CanCompose => CanReadConversation && access.CanControl && selected?.Authority.IsActive == true
-        && !conversationHeld && !conversationSourceHeld && !draftSaveUnconfirmed;
-    public bool CanSaveConversationDraft => CanCompose && savedConversationDraft is not null;
-    public bool CanReloadConversationDraft => CanReadConversation
-        && (savedConversationDraft?.Draft.Body is not null || catalogueDraft is not null);
-    public bool CanReviewClearConversationDraft => CanSaveConversationDraft && savedConversationDraft?.Draft.Body is not null;
-    public bool CanClearConversationDraft => CanReviewClearConversationDraft && clearDraftReviewed;
+        && !conversationHeld && !conversationSourceHeld;
     public bool CanSubmitConversation => CanCompose && !string.IsNullOrWhiteSpace(composerBody);
-    public void DiscardComposerBuffer()
+    public async Task DiscardComposerBufferAsync()
     {
         if (!CanReadConversation) { return; }
-        RetireComposerComparison();
-        RetireDraftRecovery();
+        if (!await ConfirmUnsentDiscardAsync(all: false)) { return; }
         composerBody = string.Empty;
-        composerBaseline = string.Empty;
-        clearDraftReviewed = false;
-        conversationStatus = "Memory-only composer buffer explicitly discarded. Saved draft and immutable submitted messages are unchanged.";
+        RememberUnsent();
+        conversationStatus = "This session's unsent message explicitly discarded. Legacy saved text and submitted history are unchanged.";
         NotifyConversation();
     }
 
@@ -128,76 +125,14 @@ internal sealed partial class SessionsViewModel
         completedConversationMessage = null;
         savedConversationDraft = draft;
         savedConversationDraftControlRevision = access.ControlRevision;
-        catalogueDraft = null;
         conversationSourceHeld = false;
-        draftSaveUnconfirmed = false;
-        clearDraftReviewed = false;
+        composerAuthority = target.Authority;
+        RememberUnsent();
         conversationStatus = "Observed " + page.Messages.Length.ToString(CultureInfo.InvariantCulture)
             + " exact immutable user messages with any separately retained ASSISTANT answer. HOST status is not assistant prose. "
             + (page.Next is null ? "End of this sequence snapshot." : "More bounded records available.")
             + (conversationHeld ? " Submission uncertainty remains held; inspect task receipts/restart recovery, never retry automatically." : string.Empty);
     }, sourceRead: true);
-
-    public Task SaveConversationDraftAsync() => RunConversationAsync(async (target, live) =>
-    {
-        var expected = savedConversationDraft ?? await conversation!.ReadDraftAsync(target.Authority.SessionId, lifetime.Token);
-        var body = composerBody;
-        var saved = await conversation!.SaveDraftAsync(expected, body, live, lifetime.Token);
-        if (!live() || saved.Session != target.Authority || !string.Equals(saved.Draft.Body, body, StringComparison.Ordinal))
-        { throw new IOException("Saved draft receipt is unconfirmed; inspect exact durable revision."); }
-        savedConversationDraft = saved;
-        savedConversationDraftControlRevision = access.ControlRevision;
-        conversationSourceHeld = false;
-        composerBaseline = body;
-        clearDraftReviewed = false;
-        conversationStatus = "Exact draft explicitly saved at revision " + saved.Draft.Revision.ToString(CultureInfo.InvariantCulture)
-            + ". Not a submitted message, task dispatch, approval or retention heartbeat.";
-    }, draftWrite: true);
-
-    public Task ReloadConversationDraftAsync() => RunConversationAsync(async (target, live) =>
-    {
-        if (ComposerDirty && !await ProtectComposerAsync())
-        { return; }
-        await VerifyCatalogueReload(live, lifetime.Token);
-        var saved = await conversation!.ReadDraftAsync(target.Authority.SessionId, lifetime.Token);
-        if (catalogueDraft is { } exact && (saved.Draft.Revision != exact.DraftRevision || saved.Draft.Body is null))
-        { throw new InvalidOperationException("The catalogue saved revision changed. Refresh; no newer body imported."); }
-        await VerifyCatalogueReload(live, lifetime.Token);
-        if (!live() || saved.Session != target.Authority) { throw new OperationCanceledException("The draft target changed."); }
-        savedConversationDraft = saved;
-        savedConversationDraftControlRevision = access.ControlRevision;
-        conversationSourceHeld = false;
-        draftSaveUnconfirmed = false;
-        composerBody = saved.Draft.Body ?? string.Empty;
-        composerBaseline = composerBody;
-        clearDraftReviewed = false;
-        conversationStatus = "Exact saved draft reloaded as data only. A new explicit Submit is required under current admission.";
-    }, sourceRead: true);
-
-    public void ReviewClearConversationDraft()
-    {
-        if (!CanReviewClearConversationDraft) { return; }
-        RetireComposerComparison();
-        RetireDraftRecovery();
-        clearDraftReviewed = true;
-        conversationStatus = "Review clear of saved body for " + ComposerTarget
-            + ". Only this exact saved revision will be removed; the memory buffer and submitted messages stay unchanged.";
-        NotifyConversation();
-    }
-
-    public Task ClearSavedConversationDraftAsync() => RunConversationAsync(async (target, live) =>
-    {
-        if (!clearDraftReviewed) { throw new InvalidOperationException("Review the exact saved body and revision before confirming Clear."); }
-        clearDraftReviewed = false;
-        var saved = await conversation!.SaveDraftAsync(savedConversationDraft
-            ?? throw new InvalidOperationException("Read the exact saved draft first."), null, live, lifetime.Token);
-        if (!live() || saved.Session != target.Authority || saved.Draft.Body is not null)
-        { throw new IOException("Draft clear receipt is unconfirmed; inspect durable state without retry."); }
-        savedConversationDraft = saved;
-        savedConversationDraftControlRevision = access.ControlRevision;
-        composerBaseline = string.Empty;
-        conversationStatus = "Exact saved draft cleared; memory-only edits remain, with no implicit save or submission.";
-    }, draftWrite: true);
 
     public Task SubmitConversationAsync() => RunConversationAsync(async (target, live) =>
     {
@@ -205,7 +140,8 @@ internal sealed partial class SessionsViewModel
         var body = composerBody;
         var receipt = await conversation!.SubmitAsync(target, body, live, lifetime.Token);
         if (!live()) { throw new OperationCanceledException("The selected private presentation changed."); }
-        if (string.Equals(composerBody, body, StringComparison.Ordinal)) { composerBody = string.Empty; composerBaseline = string.Empty; }
+        if (string.Equals(composerBody, body, StringComparison.Ordinal)) { composerBody = string.Empty; }
+        RememberUnsent();
         conversationPage = null;
         completedConversationMessage = receipt.Message;
         conversationStatus = "Original user message retained exactly; request " + receipt.Message.Request.RequestId.Value.ToString("D")
@@ -213,62 +149,20 @@ internal sealed partial class SessionsViewModel
             + " | HOST " + receipt.Message.Outcome + " / " + receipt.Message.Reason
             + " | task " + receipt.Task.State
             + (receipt.Message.AssistantResponse is null ? ". No assistant answer retained." : ". Genuine ASSISTANT answer retained separately below.")
-            + " No fallback or automatic retry. Saved drafts remain independently retained; Refresh for the full bounded conversation.";
+            + " No fallback or automatic retry. Refresh for the full bounded conversation.";
     }, submission: true);
 
-    internal async Task<bool> ProtectComposerAsync(Func<bool>? admitted = null)
+    internal Task<bool> ProtectComposerAsync(Func<bool>? admitted = null)
     {
-        RetireComposerComparison();
-        RetireDraftRecovery();
-        if (protectingComposer) { return false; }
         if (admitted?.Invoke() == false) { throw new OperationCanceledException("Original composer navigation admission changed."); }
-        if (!ComposerDirty) { return true; }
-        var target = RequireSelected();
-        var epoch = selectionEpoch;
-        var revision = access.ControlRevision;
-        var body = composerBody;
-        bool Live() => !closed && access.CanInspect && access.ControlRevision == revision
-            && selectionEpoch == epoch && selected == target && string.Equals(composerBody, body, StringComparison.Ordinal)
-            && (admitted?.Invoke() ?? true);
-        protectingComposer = true;
-        Notify();
-        try
-        {
-            var decision = DecideComposerDraft is null ? ComposerDraftDecision.Cancel : await DecideComposerDraft();
-            if (!Live() || decision == ComposerDraftDecision.Cancel) { return false; }
-            if (decision == ComposerDraftDecision.Discard)
-            { composerBody = string.Empty; composerBaseline = string.Empty; return true; }
-            if (draftSaveUnconfirmed || conversationSourceHeld)
-            { throw new InvalidOperationException("Reconcile the exact saved draft source before saving uncertain composer state."); }
-            var draft = savedConversationDraft ?? await conversation!.ReadDraftAsync(target.Authority.SessionId, lifetime.Token);
-            var saved = await conversation!.SaveDraftAsync(draft, body,
-                () => Live() && access.CanControl, lifetime.Token);
-            if (!Live() || saved.Session != target.Authority || !string.Equals(saved.Draft.Body, body, StringComparison.Ordinal))
-            { throw new IOException("Saved draft receipt is unconfirmed; inspect exact durable revision."); }
-            savedConversationDraft = saved;
-            savedConversationDraftControlRevision = access.ControlRevision;
-            composerBaseline = body;
-            return true;
-        }
-        catch (Exception exception) when (exception is not OutOfMemoryException)
-        {
-            draftSaveUnconfirmed |= exception is not (ConversationDraftConflictException or ConversationCredentialException);
-            throw;
-        }
-        finally
-        {
-            protectingComposer = false;
-            Notify();
-            if (closed && !busy && !refreshingWork && !changingRoutineQuiet && !changingQueueControl) { lifetime.Dispose(); }
-        }
+        RememberUnsent();
+        return Task.FromResult(!protectingComposer);
     }
 
     private async Task RunConversationAsync(Func<Kora.Core.Storage.SessionWorkspaceEntry, Func<bool>, Task> operation,
-        bool submission = false, bool sourceRead = false, long? searchDetailEpoch = null, bool draftWrite = false)
+        bool submission = false, bool sourceRead = false, long? searchDetailEpoch = null)
     {
         if (!CanReadConversation) { return; }
-        RetireComposerComparison();
-        RetireDraftRecovery();
         var target = RequireSelected();
         var epoch = selectionEpoch;
         var revision = access.ControlRevision;
@@ -281,16 +175,14 @@ internal sealed partial class SessionsViewModel
             new(Guid.NewGuid()), RequestOrigin.LocalUi), HostActivityLayer.Desktop, HostOperation.Request);
         try
         {
-            if ((draftWrite || submission) && (draftSaveUnconfirmed || conversationSourceHeld))
-            { throw new InvalidOperationException("Explicitly read/reconcile the exact saved source before another draft write or submission."); }
+            if (submission && (conversationHeld || conversationSourceHeld))
+            { throw new InvalidOperationException("Submission is held; inspect the exact conversation/task receipts before proceeding."); }
             await operation(target, Live);
             if (!Live()) { throw new OperationCanceledException("Private conversation presentation was revoked."); }
             activity.Complete(HostOperationOutcome.Completed);
         }
         catch (Exception exception) when (exception is not OutOfMemoryException)
         {
-            draftSaveUnconfirmed |= draftWrite
-                && exception is not (ConversationDraftConflictException or ConversationCredentialException);
             var searchNavigationRevoked = searchDetailEpoch is { } searchEpoch && searchEpoch != conversationSearchEpoch && Live();
             if (searchNavigationRevoked)
             {
@@ -301,14 +193,17 @@ internal sealed partial class SessionsViewModel
                 ClearConversationSearch();
                 conversationPage = null;
                 completedConversationMessage = null;
-                clearDraftReviewed = false;
                 conversationStatus = "Terminal snapshot changed; Refresh conversation. Memory draft retained; no retry or submission.";
             }
             else if (sourceRead)
             {
-                ClearConversation();
+                ClearConversationSearch();
+                conversationPage = null;
+                completedConversationMessage = null;
+                savedConversationDraft = null;
+                savedConversationDraftControlRevision = 0;
                 conversationSourceHeld = true;
-                conversationStatus = "Exact conversation source unavailable or changed. Private page/draft text revoked; refresh the exact session before restoring data.";
+                conversationStatus = "Exact conversation source unavailable or changed. Unsent input retained and held; refresh the exact session before proceeding.";
             }
             else if (Live())
             {
@@ -335,6 +230,7 @@ internal sealed partial class SessionsViewModel
         }
         finally
         {
+            RememberUnsent();
             conversationBusy = false;
             busy = false;
             Notify();
@@ -342,35 +238,29 @@ internal sealed partial class SessionsViewModel
         }
     }
 
-    private void ClearConversation()
+    private void ClearConversation(bool preserveUnsent = true)
     {
-        RetireComposerComparison();
-        RetireDraftRecovery();
+        if (preserveUnsent) { RememberUnsent(); }
         if (selected is { } target) { revokeConversationDetails?.Invoke(target.Authority.SessionId); }
-        catalogueDraft = null;
         ClearConversationSearch();
         composerBody = string.Empty;
-        composerBaseline = string.Empty;
         savedConversationDraft = null;
         savedConversationDraftControlRevision = 0;
         conversationPage = null;
         completedConversationMessage = null;
         conversationHeld = false;
         conversationSourceHeld = false;
-        draftSaveUnconfirmed = false;
-        clearDraftReviewed = false;
+        composerSession = null;
         conversationStatus = "Private conversation cleared. Explicitly read an exact session before restoring saved data.";
     }
 
     private void NotifyConversation()
     {
-        CheckComposerComparison();
-        CheckDraftRecovery();
+        RestoreUnsent();
         NotifyConversationSearch();
         foreach (var name in new[] { nameof(ComposerBody), nameof(ComposerDirty), nameof(ComposerTarget),
-            nameof(ConversationMessages), nameof(ConversationStatus), nameof(SavedConversationDraftReview), nameof(CanReadConversation), nameof(CanNextConversation),
-            nameof(CanOpenConversationDetails), nameof(CanReviewOriginalMessageReuse), nameof(CanCompose), nameof(CanSaveConversationDraft), nameof(CanReloadConversationDraft),
-            nameof(CanReviewClearConversationDraft), nameof(CanClearConversationDraft), nameof(CanSubmitConversation), nameof(CanCompareComposer),
+            nameof(ConversationMessages), nameof(ConversationStatus), nameof(CanReadConversation), nameof(CanNextConversation),
+            nameof(CanOpenConversationDetails), nameof(CanReviewOriginalMessageReuse), nameof(CanCompose), nameof(CanSubmitConversation),
             nameof(CanRecoverConversationDraft), nameof(ComposerDraftSizeFeedback) })
         { OnPropertyChanged(name); }
     }

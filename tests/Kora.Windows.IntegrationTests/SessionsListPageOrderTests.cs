@@ -141,7 +141,6 @@ public sealed class SessionsListPageOrderTests
             model.ListSearchKind = SessionListSearchKind.Browse;
             await model.SearchListAsync();
             await model.SelectAsync(model.Sessions[0]);
-            var original = model.SelectedSessionRecord;
             var candidate = model.Sessions[1];
             model.ComposerBody = "dirty";
             var decision = new TaskCompletionSource<ComposerDraftDecision>();
@@ -157,8 +156,7 @@ public sealed class SessionsListPageOrderTests
             decision.SetResult(ComposerDraftDecision.Discard);
             await navigation;
             model.SelectedSessionRecord.Should().NotBeSameAs(candidate);
-            if (change is "control") { model.SelectedSessionRecord.Should().BeSameAs(original); }
-            else { model.SelectedSessionRecord.Should().BeNull(); }
+            model.SelectedSessionRecord.Should().BeNull("source/control loss retires pending navigation instead of restoring old selection authority");
             model.ListPageOrder.Should().Be(SessionListPageOrder.Source);
         }
         finally { model.Close(); }

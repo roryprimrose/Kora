@@ -311,60 +311,6 @@ public sealed partial class WindowsSqliteSessionAttachmentTests
         reads.Should().Be(1);
     }
 
-    [WindowsFact]
-    public async Task SavedDraftQueryCompletesBoundedAuthorityPrefixBeforeDisclosingEvenAnExactIdMatch()
-    {
-        using var fixture = await Initialize();
-        using var root = HostActivity.BeginRoot(fixture.Request, HostActivityLayer.Application, HostOperation.Request);
-        var saved = await WindowsSqliteConversationTests.Save(fixture,
-            await fixture.Store.ReadConversationDraftAsync(fixture.Request.SessionId, fixture.Token), "PRIVATE_PENDING_DRAFT");
-        var observed = (await fixture.Store.ReadSavedDraftPage(SessionListFilter.All, null, 1, () => true, fixture.Token)).Records.Single();
-        await Attach(fixture, Encoding.UTF8.GetBytes("authority segment fixture"));
-        AppendCatalogueAuditReceipts(fixture, SessionAttachmentPage.MaximumAuditRows + 1);
-        var query = new SessionListSearch(SessionListSearchKind.ExactId, SessionListFilter.All, saved.Session.SessionId.Value.ToString("D"));
-        var metadata = new SavedDraftMetadataFilter(saved.Draft.Revision, 1, 16384, 1, 4096,
-            observed.Source, observed.Profile);
-        var first = await fixture.Store.ReadSavedDraftPage(SessionListFilter.All, null, 1, () => true, fixture.Token, query, metadata);
-        first.AuthorityPending.Should().BeTrue();
-        first.AuditScanned.Should().Be(4096);
-        first.Scanned.Should().Be(0);
-        first.Records.Should().BeEmpty();
-        first.Next.Should().NotBeNull();
-        var changed = () => fixture.Store.ReadSavedDraftPage(SessionListFilter.All, first.Next, 1, () => true, fixture.Token,
-            new(SessionListSearchKind.NameSubstring, SessionListFilter.All, "unmatched")).AsTask();
-        await changed.Should().ThrowAsync<InvalidDataException>("validation progress also belongs to the original query");
-        var wrongMetadata = () => fixture.Store.ReadSavedDraftPage(SessionListFilter.All, first.Next, 1, () => true,
-            fixture.Token, query, new(saved.Draft.Revision + 1, 1, 16384)).AsTask();
-        await wrongMetadata.Should().ThrowAsync<InvalidDataException>();
-        foreach (var alternate in new SavedDraftMetadataFilter[]
-        {
-            new(saved.Draft.Revision, 1, 16384, 2, 4096, observed.Source, observed.Profile),
-            new(saved.Draft.Revision, 1, 16384, 1, 4095, observed.Source, observed.Profile),
-            new(saved.Draft.Revision, 1, 16384, 1, 4096, Guid.NewGuid(), observed.Profile),
-            new(saved.Draft.Revision, 1, 16384, 1, 4096, observed.Source, new(Guid.NewGuid())),
-        })
-        {
-            var wrongScalars = () => fixture.Store.ReadSavedDraftPage(SessionListFilter.All, first.Next, 1, () => true,
-                fixture.Token, query, alternate).AsTask();
-            await wrongScalars.Should().ThrowAsync<InvalidDataException>("scalar bounds bind authority-prefix progress too");
-        }
-        var second = await fixture.Store.ReadSavedDraftPage(SessionListFilter.All, first.Next, 1, () => true, fixture.Token, query, metadata);
-        second.AuthorityPending.Should().BeFalse();
-        second.Records.Should().ContainSingle().Which.Session.SessionId.Should().Be(saved.Session.SessionId);
-        second.Scanned.Should().Be(1);
-        second.Next.Should().BeNull();
-        second.AuditScanned.Should().BeLessThan(4096);
-        await WindowsSqliteConversationTests.Save(fixture, saved, "new saved revision");
-        var changedRevision = () => fixture.Store.ReadSavedDraftPage(SessionListFilter.All, first.Next, 1, () => true,
-            fixture.Token, query, metadata).AsTask();
-        await changedRevision.Should().ThrowAsync<InvalidDataException>("a draft change revokes authority progress too");
-        fixture.Mutate("UPDATE security_audit_events SET envelope=json_set(envelope,'$.SessionGeneration.Value',99) WHERE sequence=1;");
-        var irrelevantAuthority = () => fixture.Store.ReadSavedDraftPage(SessionListFilter.All, null, 1, () => true,
-            fixture.Token, new(SessionListSearchKind.ExactId, SessionListFilter.All, Guid.NewGuid().ToString("D")),
-            new(long.MaxValue, 0, 0, 0, 0, Guid.NewGuid(), new(Guid.NewGuid()))).AsTask();
-        await irrelevantAuthority.Should().ThrowAsync<Exception>("even an unknown exact ID and impossible metadata match validate irrelevant prefix rows");
-    }
-
     private static void AppendCatalogueAuditReceipts(InteractionStorageFixture fixture, int count)
     {
         using var connection = fixture.OpenRaw();

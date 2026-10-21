@@ -48,8 +48,8 @@ public sealed partial class SessionsConversationTests
                 await model.RefreshAsync();
                 await model.SelectAsync(model.Sessions.Single());
                 await model.ReadConversationAsync();
-                await model.ReloadConversationDraftAsync();
-                model.ComposerDirty.Should().BeFalse();
+                await model.RecoverLegacyUnsentAsync();
+                model.ComposerDirty.Should().BeTrue();
                 model.ComposerBody = "dirty independent";
                 var before = await f.Store.ReadRetentionAsync(f.Request.SessionId, f.Token);
                 var audit = WindowsSqliteConversationTests.AuditText(f);
@@ -101,7 +101,7 @@ public sealed partial class SessionsConversationTests
                 model.ConversationQuery.Should().Be("marker");
                 Click(survivor, "ClearConversationSearch");
                 model.ComposerBody = "saved baseline";
-                model.ComposerDirty.Should().BeFalse("search must preserve the confirmed save baseline");
+                model.ComposerDirty.Should().BeTrue("nonempty unsent text is never treated as saved");
                 (await f.Store.ReadConversationDraftAsync(f.Request.SessionId, f.Token)).Draft.Body.Should().Be("saved baseline");
                 (await f.Store.ReadRetentionAsync(f.Request.SessionId, f.Token)).Should().Be(before);
                 WindowsSqliteConversationTests.AuditText(f).Should().Be(audit);

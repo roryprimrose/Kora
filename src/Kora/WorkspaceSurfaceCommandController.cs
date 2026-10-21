@@ -10,7 +10,7 @@ namespace Kora;
 
 internal sealed class WorkspaceSurfaceCommandController(
     MainViewModel main, ISessionWorkspaceAccess access, AllWorkWindowController allWork,
-    SavedDraftCatalogueWindowController savedDrafts, SessionsWindowController sessions) : IDisposable
+    SessionsWindowController sessions) : IDisposable
 {
     private bool disposed;
 
@@ -41,7 +41,6 @@ internal sealed class WorkspaceSurfaceCommandController(
             switch (navigation.Target)
             {
                 case WorkspaceSurfaceTarget.AllWork: allWork.Open(Admitted); break;
-                case WorkspaceSurfaceTarget.SavedConversationDrafts: savedDrafts.Open(Admitted); break;
                 case WorkspaceSurfaceTarget.CompactConversation: sessions.OpenCompact(Admitted); break;
                 default: throw new InvalidOperationException("The native navigation target is unavailable.");
             }

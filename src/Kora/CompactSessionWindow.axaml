@@ -21,13 +21,13 @@
         <Button x:Name="NewRequest" Content="_New request (fresh target)" />
       </WrapPanel>
       <controls:NamedTextBlock Text="{Binding ComposerTarget}" TextWrapping="Wrap"
-          AutomationProperties.Name="Shared exact selected ID, name, generation, metadata and saved draft revisions, private control epoch" />
+          AutomationProperties.Name="Shared exact selected ID, name, generation, metadata revision and private control epoch" />
       <TextBlock Text="{Binding SelectedSessionRecord.Authority.IsActive, TargetNullValue='No selected target', StringFormat='Observed Active lifecycle: {0}'}" />
       <controls:NamedTextBlock Text="{Binding WorkStatus}" TextWrapping="Wrap"
           AutomationProperties.Name="Observed exact selected-session work source and time; not inferred execution or current success" />
       <TextBlock Text="No target? Open Sessions and explicitly select one. Opening never selects, loads bodies, resumes work or grants permission. Questions, approvals and voice stay in their existing windows." TextWrapping="Wrap" />
       <WrapPanel>
-        <Button x:Name="ReadConversation" Content="Read exact conversation / saved revision" IsEnabled="{Binding CanReadConversation}" />
+        <Button x:Name="ReadConversation" Content="Read exact conversation / legacy availability" IsEnabled="{Binding CanReadConversation}" />
         <Button x:Name="NextConversation" Content="Next bounded page" IsEnabled="{Binding CanNextConversation}" />
         <Button x:Name="RefreshWork" Content="Refresh observed work" IsEnabled="{Binding CanRefreshWork}" />
       </WrapPanel>
@@ -62,19 +62,13 @@
           AutomationProperties.Name="Wrap draft text"
           ToolTip.Tip="Visual rows only, not logical lines or tokens. Exact draft text is unchanged. Uncheck to scroll long lines horizontally; this view and source only, until closed." />
       <WrapPanel>
-        <Button x:Name="SaveConversationDraft" Content="Explicitly Save draft" IsEnabled="{Binding CanSaveConversationDraft}" />
-        <Button x:Name="RecoverConversationDraft" Content="Review latest saved baseline; retain shared buffer" IsEnabled="{Binding CanRecoverConversationDraft}"
-            AutomationProperties.Name="Explicit saved conversation draft recovery review; old, latest and raw; no Save or Submit" />
-        <Button x:Name="ReloadConversationDraft" Content="Reload saved draft" IsEnabled="{Binding CanReloadConversationDraft}" />
-        <Button x:Name="DiscardComposer" Content="Discard shared memory buffer only" IsEnabled="{Binding CanReadConversation}" />
-        <Button x:Name="ReviewClearConversationDraft" Content="Review Clear saved draft" IsEnabled="{Binding CanReviewClearConversationDraft}" />
-        <Button x:Name="ClearConversationDraft" Content="Confirm exact saved draft Clear" IsEnabled="{Binding CanClearConversationDraft}" />
+        <Button x:Name="RecoverConversationDraft" Content="Recover existing legacy text into empty input" IsEnabled="{Binding CanRecoverConversationDraft}"
+            AutomationProperties.Name="Read-only compatibility recovery for this exact session; no save, delete or submit" />
+        <Button x:Name="DiscardComposer" Content="Discard this unsent message..." IsEnabled="{Binding CanReadConversation}" />
         <Button x:Name="SubmitConversation" Content="Submit exact message — unavailable provider" IsEnabled="{Binding CanSubmitConversation}" />
       </WrapPanel>
-      <TextBlock Text="{Binding SavedConversationDraftReview}" TextWrapping="Wrap"
-          AutomationProperties.Name="Exact saved body under clear review, inert data" />
       <controls:NamedTextBlock Text="{Binding ConversationStatus}" TextWrapping="Wrap"
-          AutomationProperties.Name="Actual shared conversation save, submission, unavailable or recovery outcome" />
+          AutomationProperties.Name="Actual shared conversation submission, unavailable or legacy recovery outcome" />
       <Button x:Name="CloseView" Content="_Close compact view (work unchanged)" HorizontalAlignment="Right" />
     </StackPanel>
   </ScrollViewer>

@@ -17,18 +17,14 @@ namespace Kora.Application.UnitTests.Dependencies;
 
 public sealed partial class ModelTurnHostTests
 {
-    [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public async Task DetectedCandidateIsAuditedBeforeAnyDraftMessageOrModelAdmission(bool draft)
+    [Fact]
+    public async Task DetectedCandidateIsAuditedBeforeAnyMessageOrModelAdmission()
     {
         using var f = new Fixture();
         var admission = new TestAdmission(ModelTurnOutcome.Unavailable);
         var service = f.ConversationService(admission);
         const string candidate = "password=synthetic-rejection-only";
-        Func<Task> action = draft
-            ? async () => { await service.SaveDraftAsync(new(f.Session, new(f.Session.SessionId, 0, null)), candidate, static () => true, Token); }
-            : async () => { await service.SubmitAsync(new(f.Session, null), candidate, static () => true, Token); };
+        Func<Task> action = async () => { await service.SubmitAsync(new(f.Session, null), candidate, static () => true, Token); };
         await action.Should().ThrowAsync<ConversationCredentialException>();
         f.CredentialRejections.Should().Be(1);
         f.RetainCalls.Should().Be(0);
@@ -178,21 +174,15 @@ public sealed partial class ModelTurnHostTests
     }
 
     [Fact]
-    public async Task MemoryOnlyDraftControlsShareWorkspaceAdmissionWithoutSubmissionOrActivityRenewal()
+    public async Task LegacyDraftObservationSharesWorkspaceReadAdmissionWithoutSubmission()
     {
         using var f = new Fixture();
         using var viewer = f.Root();
         var service = f.ConversationService(f.ConfiguredProfiles(production: true));
         var expected = await service.ReadDraftAsync(f.Session.SessionId, Token);
-        var saved = await service.SaveDraftAsync(expected, " exact draft\r\n", static () => true, Token);
-        saved.Draft.Body.Should().Be(" exact draft\r\n");
-        saved.Draft.Revision.Should().Be(1);
-        var cleared = await service.SaveDraftAsync(saved, null, static () => true, Token);
-        cleared.Draft.Body.Should().BeNull();
+        expected.Draft.Revision.Should().Be(0);
+        expected.Draft.Body.Should().BeNull();
         f.RetainCalls.Should().Be(0);
-        using var root = HostActivity.BeginRoot(HostRequest.Create(RequestOrigin.HostSystem), HostActivityLayer.Desktop, HostOperation.Request);
-        var denied = () => service.SaveDraftAsync(cleared, "must not save", static () => true, Token);
-        await denied.Should().ThrowAsync<InvalidOperationException>();
         f.Adapter.Calls.Should().Be(0);
     }
 
@@ -234,18 +224,6 @@ public sealed partial class ModelTurnHostTests
         receipt.Message.Body.Should().Be("exact private body");
         f.Messages.Should().NotContain(message => message.Contains("private native label", StringComparison.Ordinal)
             || message.Contains("exact private body", StringComparison.Ordinal));
-    }
-
-    [Fact]
-    public async Task FreshNativeDraftGestureWithoutAnInheritedTraceCreatesItsOwnExactControlAdmission()
-    {
-        using var f = new Fixture();
-        HostActivity.Current.Should().BeNull();
-        var expected = new ConversationDraftSnapshot(f.Session, new(f.Session.SessionId, 0, null));
-        var saved = await f.ConversationService(new TestAdmission(ModelTurnOutcome.Unavailable))
-            .SaveDraftAsync(expected, "native memory draft", static () => true, Token);
-        saved.Draft.Body.Should().Be("native memory draft");
-        HostActivity.Current.Should().BeNull();
     }
 
     [Theory]

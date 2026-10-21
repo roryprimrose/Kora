@@ -46,15 +46,17 @@ public sealed class EmbeddedUserDocumentationProviderTests
     }
 
     [Fact]
-    public void Saved_draft_guide_limits_ordering_to_the_loaded_page_without_reads_or_authority()
+    public void ConversationGuideRetiresSavedDraftManagementAndExplainsReadOnlyLegacyRecovery()
     {
         var commands = new EmbeddedUserDocumentationProvider().GetPages()
             .Single(page => string.Equals(page.Id, "commands", StringComparison.Ordinal)).Markdown;
-        commands.Should().Contain("Order this loaded page").And.Contain("Source order (default)")
-            .And.Contain("ordinal case-sensitive ordering").And.Contain("unnamed sessions last")
-            .And.Contain("canonical session ID ascending").And.Contain("not global ordering")
-            .And.Contain("original source continuation").And.Contain("Clear restores Source order without reading")
-            .And.Contain("dirty-buffer Save/Discard/Cancel protection remains");
+        commands.Should().Contain("Unsent input stays separately in memory for each exact session")
+            .And.Contain("no ordinary draft Save/Reload/Clear")
+            .And.Contain("Recover existing legacy text into empty input")
+            .And.Contain("cannot overwrite nonempty unsent input")
+            .And.Contain("no silent migration or purge")
+            .And.Contain("Switching topics preserves text without prompting")
+            .And.NotContain("open saved conversation drafts");
     }
 
     [Fact]
@@ -178,7 +180,7 @@ public sealed class EmbeddedUserDocumentationProviderTests
             .And.Contain("conversation search cancel <session-id>")
             .And.Contain("current assistant-name prefix")
             .And.Contain("not a caller-supplied cursor or JSON")
-            .And.Contain("dirty composer buffers")
+            .And.Contain("unsent buffers")
             .And.Contain("visual-only")
             .And.Contain("same")
             .And.Contain("canonical search service");

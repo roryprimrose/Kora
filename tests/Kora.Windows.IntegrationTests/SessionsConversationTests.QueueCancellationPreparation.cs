@@ -104,20 +104,17 @@ public sealed partial class SessionsConversationTests
             if (choice is "revoked") { admitted = false; }
             if (choice is "control") { h.Access.ControlRevision++; }
             if (choice is "closed") { model.Close(); }
-            return Task.FromResult(choice is "save" ? ComposerDraftDecision.Save
-                : choice is "discard" ? ComposerDraftDecision.Discard : ComposerDraftDecision.Cancel);
+            return Task.FromResult(choice is "discard" ? ComposerDraftDecision.Discard : ComposerDraftDecision.Cancel);
         };
         var tasks = f.Count("host_tasks");
-        (await model.PrepareQueueCancellationAsync(prepared, () => admitted, f.Token)).Should().Be(choice is "save" or "discard");
-        model.CanConfirmPendingCancellation.Should().Be(choice is "save" or "discard");
+        (await model.PrepareQueueCancellationAsync(prepared, () => admitted, f.Token)).Should().BeTrue();
+        model.CanConfirmPendingCancellation.Should().BeTrue();
         if (choice is not "closed")
-        { model.ComposerBody.Should().Be(choice is "discard" ? "" : "original private unsaved buffer"); }
-        if (choice is "unconfirmed") { model.Status.Should().Contain("unconfirmed"); }
+        { model.ComposerBody.Should().Be("original private unsaved buffer"); }
         (await f.Store.ReadQueueAsync(f.Request.SessionId, f.Token)).Entries.Should().Equal(original);
         (await f.Store.ReadConversationDraftAsync(f.Request.SessionId, f.Token)).Draft.Body
-            .Should().Be(choice is "save" ? "original private unsaved buffer" : null);
-        f.Count("host_tasks").Should().Be(tasks + (choice is "save" ? 1 : 0),
-            "only the separate explicit original-composer Save may retain a draft-control receipt");
+            .Should().BeNull();
+        f.Count("host_tasks").Should().Be(tasks, "preparation preserves unsent input without saving");
         f.Count("conversation_messages").Should().Be(0);
         h.Action.Reads.Should().Be(0);
     }

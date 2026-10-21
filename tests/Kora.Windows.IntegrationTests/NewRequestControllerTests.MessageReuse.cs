@@ -76,7 +76,6 @@ public sealed partial class NewRequestControllerTests
                 composer.Target.Should().BeNull();
                 composer.Submission.Should().BeNull();
                 composer.CanSubmit.Should().BeFalse();
-                composer.CanSave.Should().BeFalse();
                 (await f.Interactions.ReadMetadataPageAsync(null, 50, f.Token)).Records.Should().HaveCount(count);
                 (await f.Interactions.ReadRetentionAsync(source.Authority.SessionId, f.Token)).Should().Be(before);
                 (await f.Interactions.ReadConversationMessageAsync(source.Authority.SessionId, original.Request.RequestId, f.Token)).Should().Be(original);
@@ -161,7 +160,6 @@ public sealed partial class NewRequestControllerTests
                     : decision is "close" ? string.Empty : "existing memory");
                 composer.Submission.Should().BeNull();
                 composer.CanSubmit.Should().BeFalse();
-                composer.CanSave.Should().BeFalse();
             }
             finally { controller.Dispose(); owner.Close(); }
         });

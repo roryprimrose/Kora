@@ -16,6 +16,7 @@ public sealed partial class SessionWorkspaceServiceTests
 {
     [Theory]
     [InlineData("success")]
+    [InlineData("known-target")]
     [InlineData("unavailable")]
     [InlineData("cancel")]
     [InlineData("corrupt")]
@@ -31,22 +32,18 @@ public sealed partial class SessionWorkspaceServiceTests
             if (outcome is "unavailable") { throw new IOException("private marker"); }
             if (outcome is "cancel") { throw new OperationCanceledException(); }
             if (outcome is "corrupt") { f.Draft = f.Draft with { Draft = f.Draft.Draft with { Version = 2 } }; }
+            if (outcome is "known-target") { f.Draft = f.Draft with { ExpectedTarget = target }; }
         };
         using var root = HostActivity.BeginRoot(f.Request, HostActivityLayer.Application, HostOperation.Request);
-        var operation = () => service.ReviewDraftRecoveryAsync(target, original, "raw",
-            (review, _) =>
-            {
-                outcome.Should().Be("success");
-                review.Buffer.Should().Be("raw");
-                return Task.FromResult(true);
-            }, () => true, f.Token);
-        if (outcome is "success")
+        var operation = () => service.ReadLegacyUnsentAsync(target, () => true, f.Token);
+        if (outcome is "success" or "known-target")
         {
             (await operation()).Should().Be(original with { ExpectedTarget = target });
-            f.DraftReads.Should().Be(2);
+            f.DraftReads.Should().Be(1);
         }
         else if (outcome is "cancel") { await operation.Should().ThrowAsync<OperationCanceledException>(); }
-        else { await operation.Should().ThrowAsync<ConversationDraftRecoverySourceException>(); }
+        else if (outcome is "unavailable") { await operation.Should().ThrowAsync<IOException>(); }
+        else { await operation.Should().ThrowAsync<InvalidDataException>(); }
         f.TaskWrites.Should().BeEmpty();
         f.ControlCalls.Should().Be(0);
     }
@@ -109,6 +106,8 @@ public sealed partial class SessionWorkspaceServiceTests
     [InlineData("cancel")]
     [InlineData("read-failure")]
     [InlineData("draft-generation")]
+    [InlineData("draft-session")]
+    [InlineData("expected-target")]
     [InlineData("invalid")]
     public async Task DraftRecoveryRejectsLateSourceOrAdmissionChangesWithoutPublishingOrWriting(string fault)
     {
@@ -127,6 +126,8 @@ public sealed partial class SessionWorkspaceServiceTests
             if (fault is "cancel") { cancellation.Cancel(); }
             if (fault is "read-failure") { throw new IOException("Synthetic source failure."); }
             if (fault is "draft-generation") { f.Draft = f.Draft with { Session = f.Session with { Generation = new(2) } }; }
+            if (fault is "draft-session") { f.Draft = f.Draft with { Draft = f.Draft.Draft with { SessionId = new(Guid.NewGuid()) } }; }
+            if (fault is "expected-target") { f.Draft = f.Draft with { ExpectedTarget = target with { Authority = target.Authority with { Generation = new(2) } } }; }
             if (fault is "invalid") { f.Draft = f.Draft with { Draft = f.Draft.Draft with { Body = "\ud800" } }; }
         };
         using var root = HostActivity.BeginRoot(f.Request, HostActivityLayer.Application, HostOperation.Request);

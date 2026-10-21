@@ -39,6 +39,7 @@ internal sealed partial class SessionsWindowController(
     }
     internal Action? OpenAllWork { get; set; }
     internal Action? OpenNewRequest { get; set; }
+    internal Task<bool> PrepareShutdown() => presentation?.PrepareShutdown() ?? Task.FromResult(true);
     internal Func<SessionWorkspaceEntry, Kora.Core.Conversation.ConversationMessage, Avalonia.Controls.Window?,
         Func<bool>, CancellationToken, Task<string>>? ReviewOriginalMessageReuse { get; set; }
 
@@ -215,20 +216,10 @@ internal sealed partial class SessionsWindowController(
         details?.RevokeSession(session);
         if (model is { } state)
         {
+            state.RetireUnsent(session);
             if (state.ReferencesSession(session)) { presentation?.Revoke(); }
             else { state.RevokeSessionList(); }
         }
-    }
-
-    internal async Task<bool> NavigateSavedDraftAsync(SavedDraftSummary exact, Func<bool> admitted, CancellationToken token)
-    {
-        token.ThrowIfCancellationRequested();
-        if (disposed || !access.CanInspect || !main.CanRevealPrivatePresentation || !admitted())
-        { throw new OperationCanceledException("Original saved draft navigation was revoked."); }
-        Open();
-        if (window?.DataContext is not SessionsViewModel model)
-        { throw new InvalidOperationException("The native Sessions window is unavailable."); }
-        return await model.SelectSavedDraftAsync(exact, admitted, token);
     }
 
     private void OnOpen(object? sender, EventArgs args) => Open();

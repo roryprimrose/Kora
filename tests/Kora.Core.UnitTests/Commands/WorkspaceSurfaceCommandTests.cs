@@ -8,7 +8,6 @@ public sealed class WorkspaceSurfaceCommandTests
 {
     [Theory]
     [InlineData("open all work", WorkspaceSurfaceTarget.AllWork)]
-    [InlineData("open saved conversation drafts", WorkspaceSurfaceTarget.SavedConversationDrafts)]
     [InlineData("open compact conversation", WorkspaceSurfaceTarget.CompactConversation)]
     public void ExactRoutesAreTypedAndCurrentNameQualified(string phrase, WorkspaceSurfaceTarget target)
     {
@@ -27,6 +26,7 @@ public sealed class WorkspaceSurfaceCommandTests
     [InlineData("open\tall work")]
     [InlineData("open all work\n")]
     [InlineData("open saved conversation")]
+    [InlineData("open saved conversation drafts")]
     [InlineData("open saved conversation drafts search \"private body\"")]
     [InlineData("open saved conversation drafts\0")]
     [InlineData("open compact")]
@@ -49,7 +49,6 @@ public sealed class WorkspaceSurfaceCommandTests
 
     [Theory]
     [InlineData("All Work")]
-    [InlineData("Saved Conversation Drafts")]
     [InlineData("Compact Conversation")]
     public void AssistantNamesCannotStealNavigation(string name)
     {

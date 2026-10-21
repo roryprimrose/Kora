@@ -81,7 +81,8 @@ public sealed partial class OwnedDefinitionEditorWindowTests
                 }
                 var sourceCtrlF = new KeyEventArgs { RoutedEvent = InputElement.KeyDownEvent, Key = Key.F, KeyModifiers = KeyModifiers.Control };
                 window.Source.RaiseEvent(sourceCtrlF);
-                sourceCtrlF.Handled.Should().BeFalse();
+                sourceCtrlF.Handled.Should().BeTrue();
+                window.MetadataFindQuery.IsFocused.Should().BeFalse();
                 window.MetadataFindQuery.Text = "AA";
                 window.MetadataFindStatus.Text.Should().BeEmpty();
                 window.MetadataFindMatch.Text.Should().BeEmpty();

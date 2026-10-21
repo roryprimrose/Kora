@@ -24,10 +24,11 @@ internal sealed partial class OwnedInstructionEditorWindow
     private AdmittedMetadataFindState? metadataFind;
     private bool renderingMetadataFind;
     private long metadataFindRevision;
+    private readonly StackPanel metadataFindPanel = new();
 
     private StackPanel BuildMetadataFind()
     {
-        var panel = new StackPanel();
+        var panel = metadataFindPanel;
         panel.Children.Add(new TextBlock
         {
             Text = "Find only in the selected displayed owned inventory metadata details, not source or draft. "

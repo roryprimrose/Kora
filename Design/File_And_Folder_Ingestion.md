@@ -66,6 +66,24 @@ This bounded I increment has [portable tests](../tests/Kora.Application.UnitTest
 
 **Tray > Retained session attachments** opens a separate native, content-free catalogue. Opening performs no read; explicit Refresh/Next/Cancel observes already retained private Session slots. It never opens a picker, reopens an original path, reads new file data, captures, replaces, removes, exports or ingests model context.
 
+The bounded command `prepare attachment catalogue <session-id>` is a
+preparation-only route to this same singleton, not typed/voice search. Original
+typed/current-name activated input prepares only ExactId and its canonical
+nonempty lowercase D-format ID; other visible filter drafts remain AND-composed.
+Native preparation uses the same query-edit retirement path as manual editing,
+including page/cursor/selection/details/Find/open revocation and cancellation of
+late pages/opens. No query/count/probe, session resolution, body/path/source read
+or capture runs; explicit native Search is still the only query admission.
+Original input, name, voice, privacy, call, ownership, binding and native-window
+lifetimes are rechecked across queued opening and native focus acknowledgement.
+Missing/stale/unbound/disposed/focus-failed presentation is unavailable, never
+Browse/latest success. Help is constant and reveals no current metadata.
+An ID is future metadata query data, not session selection, authority, freshness
+or proof a retained copy exists. Existing retained Done/tombstone privacy and
+strict field rules remain unchanged. The consumed I subset is the existing
+catalogue/edit/navigation and original-input admission contracts; no unrelated
+provider/hardware/installed or E/Q qualification is required or claimed.
+
 The native **Browse / ExactId** query increment reuses `SessionListSearch` as the sole nonempty canonical lowercase D-GUID policy. ExactId filters only fully validated slots; it never selects session authority or skips irrelevant/corrupt records or audit-prefix admission.
 The exact ID, stored session lifecycle filter and removal flag are bound together in authenticated source/profile/viewer/authority continuations. Nonmatching scans may return empty pages with Next; changed ID/mode/filter/flag retires rows, selection and pending work. Clear returns to Browse without I/O; no automatic selection/navigation or saved query exists.
 See [native query interaction and recovery](../docs/windows-and-tray.md#retained-session-attachments-metadata-only). Names, paths, bodies and excerpts are not searched, and no session-name join/read, persisted schema/index/layout/copy/cache or timeout change is introduced.

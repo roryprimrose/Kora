@@ -34,6 +34,8 @@ public sealed partial class MainViewModel
         internal long AssistantNameRevision { get; init; }
         internal long OwnershipBindingRevision { get; init; }
         internal long InputRevision { get; init; }
+        internal AttachmentCataloguePreparationCommand? CataloguePreparation { get; init; }
+        internal Func<bool> CatalogueEligible { get; init; } = static () => true;
     }
 
     public string ManualCallConfigurationStatus => manualCallControl is null

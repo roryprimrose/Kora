@@ -34,7 +34,8 @@ public sealed class ClipboardLiteralFindWindowTests
             var window = new ClipboardPreviewWindow(_ => throw new InvalidOperationException("Unexpected native explanation failure"));
             window.Show(Snapshot("untrusted exact source"), UnexpectedMutation, UnexpectedMutation, () => current,
                 () => { calls++; return Task.CompletedTask; });
-            var consent = window.GetVisualDescendants().OfType<CheckBox>().Single();
+            var consent = window.GetVisualDescendants().OfType<CheckBox>()
+                .Single(control => AutomationProperties.GetName(control) is "Admit this exact clipboard snapshot to local-only inference");
             var explain = (AsyncCommand)Button(window, "Review and explain locally").Command!;
             var withoutReview = () => explain.ExecuteAsync();
             await withoutReview.Should().ThrowAsync<InvalidOperationException>();

@@ -15,6 +15,8 @@ namespace Kora.Windows.IntegrationTests;
 [Collection(nameof(HeadlessUiTestGroup))]
 public sealed class ClipboardTextStatisticsWindowTests
 {
+    private static readonly bool[] WrappingDirections = [true, false];
+
     [Fact]
     public async Task OnlyExplicitAccessibleButtonCountsFullSnapshotAndPreservesFindAndInertSource()
     {
@@ -50,6 +52,15 @@ public sealed class ClipboardTextStatisticsWindowTests
             calls.Should().Be(1);
             status.Text.Should().Be("UTF-8 bytes: 13; UTF-16 code units: 13; Unicode scalars: 13; whitespace-delimited words: 2; logical lines: 2.");
             status.Text.Should().NotContain("hello").And.NotContain("world");
+            var measured = status.Text;
+            var wrapping = window.GetVisualDescendants().OfType<CheckBox>()
+                .Single(control => Equals(control.Content, "Wrap snapshot text"));
+            foreach (var wrap in WrappingDirections)
+            {
+                wrapping.IsChecked = wrap;
+                status.Text.Should().Be(measured);
+                calls.Should().Be(1);
+            }
             findStatus.Text.Should().Be(previous);
             window.GetVisualDescendants().OfType<NamedTextBlock>()
                 .Single(control => AutomationProperties.GetName(control) is "Clipboard snapshot plain text content").Text.Should().Be(snapshot.Text);

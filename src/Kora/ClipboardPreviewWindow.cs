@@ -25,6 +25,7 @@ internal sealed partial class ClipboardPreviewWindow(Action<Exception> reportFai
         ClearJsonState();
         ClearXmlValidation();
         ClearTextStatistics();
+        ClearWrappingState();
         Title = "Local clipboard snapshot (untrusted plain text)";
         Width = 760;
         Height = 600;
@@ -89,12 +90,14 @@ internal sealed partial class ClipboardPreviewWindow(Action<Exception> reportFai
         content.Children.Add(explanation);
         AddXmlValidation(content, snapshot, isCurrent, validateXml);
         AddTextStatistics(content, snapshot, isCurrent, isJsonCurrent ?? isCurrent, countText);
-        body.Children.Add(new ScrollViewer
+        var sourceScrollViewer = new ScrollViewer
         {
             Content = content,
             HorizontalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Auto,
             VerticalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Auto,
-        });
+        };
+        AddSourceWrapping(chrome, snapshot, sourceScrollViewer);
+        body.Children.Add(sourceScrollViewer);
         Content = body;
         Closed += OnFindClosed;
         base.Show();
@@ -110,6 +113,7 @@ internal sealed partial class ClipboardPreviewWindow(Action<Exception> reportFai
         ClearXmlValidation();
         ClearTextStatistics();
         source.Text = null;
+        ClearWrappingState();
         explanation.Text = null;
         Content = null;
         Close();
@@ -123,6 +127,7 @@ internal sealed partial class ClipboardPreviewWindow(Action<Exception> reportFai
         ClearXmlValidation();
         ClearTextStatistics();
         source.Text = null;
+        ClearWrappingState();
         explanation.Text = null;
         Content = null;
     }

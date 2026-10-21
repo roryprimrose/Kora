@@ -70,7 +70,9 @@ internal sealed partial class SavedDraftCatalogueViewModel(
             SynchronizeAuthority();
             epoch++;
             operation?.Cancel();
+            RetireMetadataFind();
             selected = null;
+            selectedDetails = string.Empty;
             order = value;
             records = page is null ? [] : SavedDraftPageOrdering.Apply(page, order);
             status = "Order this loaded page changed. Exact selection/details/navigation retired; select explicitly again. "
@@ -183,8 +185,9 @@ internal sealed partial class SavedDraftCatalogueViewModel(
         : mode == SavedDraftCatalogueMode.NameSubstring
             ? "Name substring: nonempty NFC, no surrounding whitespace, controls or formats; 120 scalars / 480 UTF-8 bytes. Ordinal case-sensitive; not body search."
             : "Exact ID: nonempty canonical lowercase D-format session UUID; never interpreted as a name or permission.";
-    public string SelectedDetails => selected is null ? string.Empty
-        : "Exact session " + selected.Session.SessionId.Value.ToString("D")
+    public string SelectedDetails => selected is not null && !disposed && access.CanInspect
+        && access.ControlRevision == controlRevision && admitted() ? selectedDetails : string.Empty;
+    private static string Describe(SavedDraftSummary selected) => "Exact session " + selected.Session.SessionId.Value.ToString("D")
             + " | stored " + (selected.Session.IsActive ? "Active" : "Done")
             + " | generation " + selected.Session.Generation.Value.ToString(CultureInfo.InvariantCulture)
             + " | metadata revision " + (selected.Metadata?.Revision.Value.ToString(CultureInfo.InvariantCulture) ?? "Unnamed (no name metadata)")
@@ -200,7 +203,10 @@ internal sealed partial class SavedDraftCatalogueViewModel(
     public void Select(SavedDraftSummary? row)
     {
         if (notifying || !CanRead || row is not null && !Records.Contains(row)) { return; }
+        RetireMetadataFind();
         selected = row;
+        selectedDetails = row is null ? string.Empty : Describe(row);
+        AdmitMetadataFind();
         Notify();
     }
 
@@ -241,6 +247,7 @@ internal sealed partial class SavedDraftCatalogueViewModel(
     private async Task Run(Func<Func<bool>, CancellationToken, Task> action)
     {
         if (!CanRead) { return; }
+        RetireMetadataFind();
         var originalEpoch = epoch;
         var control = access.ControlRevision;
         using var cancellation = new CancellationTokenSource();
@@ -314,7 +321,7 @@ internal sealed partial class SavedDraftCatalogueViewModel(
         ClearMetadata();
         Notify();
     }
-    private void Clear() { page = null; records = []; selected = null; }
+    private void Clear() { RetireMetadataFind(); page = null; records = []; selected = null; selectedDetails = string.Empty; }
     private void ClearMetadata()
     {
         revisionText = string.Empty;
@@ -353,6 +360,8 @@ internal sealed partial class SavedDraftCatalogueViewModel(
         notifying = true;
         try
         {
+            SynchronizeMetadataFind();
+            NotifyMetadataFind();
             foreach (var name in new[] { nameof(Records), nameof(SelectedRecord), nameof(SelectedDetails), nameof(Status),
                 nameof(Order), nameof(OrderChoice),
                 nameof(Filter), nameof(Mode), nameof(QueryText), nameof(QueryHint), nameof(CanEditQuery),

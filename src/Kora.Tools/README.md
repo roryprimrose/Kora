@@ -20,8 +20,6 @@ helpers and brokers are not separately advertised actions.
 | Folder / namespace suffix | Action classes | Shared collaborators |
 |---|---|---|
 | [Application](Application) | [ApplicationGetVersion](Application/ApplicationGetVersion.cs) | Core `IApplicationVersion`; running-assembly implementation in Application. |
-| [Calculations](Calculations) | [Calculate](Calculations/Calculate.cs) | Core `CalculateCommand` and `DecimalCalculator` own the exact bounded grammar; native Application routing calls the same internal action. No model descriptor. |
-| [Clock](Clock) | [LocalClockGetTime](Clock/LocalClockGetTime.cs), [LocalClockGetDate](Clock/LocalClockGetDate.cs), [LocalClockGetDateAndTime](Clock/LocalClockGetDateAndTime.cs) | [LocalClockService](Clock/LocalClockService.cs) samples one injected `TimeProvider` instant and one host-owned Core `ILocalClockContextProvider` context. Original-command only; no model descriptor. |
 | [Capabilities](Capabilities) | [CapabilitiesList](Capabilities/CapabilitiesList.cs), [CapabilitiesGet](Capabilities/CapabilitiesGet.cs) | [ReadOnlyPage](Capabilities/ReadOnlyPage.cs) and Core descriptor catalogue. |
 | [Readiness](Readiness) | [ReadinessGet](Readiness/ReadinessGet.cs) | [RecordedDependencyObservation](Readiness/RecordedDependencyObservation.cs). |
 | [Runtime](Runtime) | [RuntimeList](Runtime/RuntimeList.cs), [RuntimeGetStatus](Runtime/RuntimeGetStatus.cs) | [RecordedRuntimeObservation](Runtime/RecordedRuntimeObservation.cs), reusing the readiness projection. |
@@ -70,13 +68,6 @@ and desktop controls use the same actions.
 owns immutable reuse/revoke, exact bounds and privacy/quiescence requirements.
 No clipboard write or model submission is delivered; preview is not transmission
 consent. Do not create separate provider or view-model implementations.
-
-The native-only [ClipboardValidateXml](Clipboard/ClipboardValidateXml.cs) action
-checks the exact retained object through the same broker eligibility. Its
-[Core policy](../Kora.Core/Context/ClipboardXmlPolicy.cs) checks one complete XML
-document in memory, prohibits DTDs/external resources, and limits element depth
-to 64. It grants no model source-use or schema/safety authority. See the
-[owning contract](../../Design/Security_Data_Flows.md#native-clipboard-xml-well-formedness).
 
 ### Preapproved network addresses
 

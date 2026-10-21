@@ -27,6 +27,27 @@ Opening the overview or saved draft catalogue reads nothing. Opening compact ret
 
 Missing native composition or changed original/current ownership, private/call/input epochs or compact source refuses late opening/focus; issue a fresh command after recovery. See [exact syntax](commands.md#open-existing-workspace-surfaces) and [deterministic evidence](../Design/UI_Workspace_And_Windows.md#workspace-surface-command-evidence).
 
+### Find in selected saved-draft metadata
+
+In **Tray > Saved conversation drafts (metadata only)**, explicitly refresh and
+select a row. **Ctrl+F** focuses its private metadata Find query; Enter / **Find
+first**, **Next** / F3 and **Previous** / Shift+F3 search only the complete
+currently displayed selected metadata details. Matching is exact, case-sensitive,
+nonoverlapping and does not wrap. The count and ordinal cover this one string,
+never a page, all saved drafts, hidden metadata or saved/composer/conversation bodies.
+
+Queries are nonempty well-formed one-line literals, at most 256 UTF-16 characters
+and 512 UTF-8 bytes, without unsafe controls/format characters. No trimming,
+normalization, regex or wildcard expansion occurs. Editing performs no I/O and
+clears the old match/count. **Clear Find** or Escape inside Find clears its query
+without closing the catalogue. The exact inert match is focused separately from
+the row. If focus fails, no match/focus is claimed; use Ctrl+F or Find first again.
+
+Selection, page/query/filter/source/private/control/lifetime changes retire Find.
+It never refreshes, changes the Sessions target or dirty composer, loads/saves/
+submits a body, opens a session, or grants copy, speech, transcript or model access.
+See the [catalogue contract](../Design/Interaction_And_Sessions.md#saved-conversation-draft-catalogue--2026-10-13).
+
 ### Compact selected-session conversation
 
 Open **Tray > Compact selected-session conversation** or **Sessions > Compact conversation**.
@@ -1056,6 +1077,15 @@ The separate [clipboard preview](commands.md#explicit-local-clipboard-preview)
 uses inert native plain text, not Markdown/HTML parsing or the document viewer's
 copy controls. It has exact-ID reuse, revoke/clear and native literal Find. Closing it revokes
 the selected snapshot. It does not authorize explanation or model transmission.
+
+**Wrap snapshot text** soft-wraps only the original source body to the available
+width. It starts unchecked (the existing unwrapped view); uncheck it to scroll
+long lines horizontally. Resizing and reader text scaling change visual lines,
+not snapshot text, tabs, line endings, identity, Find offsets/counts or explanation
+policy. This is a volatile choice for this source view only: replacement,
+revocation, privacy/ownership/call loss, close and disposal clear it. It never
+rereads or writes the clipboard, inserts newlines, parses text, grants model use,
+renews snapshot lifetime or saves a preference.
 
 Enter an unchanged one-line query and choose **Find first** (or Enter in the query). **Find next** (F3) starts at the selected span's exclusive end; **Find previous** (Shift+F3) returns to the preceding span in that same forward nonoverlapping sequence ([clipboard Find policy](../src/Kora.Core/Context/ClipboardLiteralFind.cs)).
 Ctrl+F focuses the query without retargeting questions or voice. Case/spaces/punctuation remain exact; limits are 256 UTF-16 characters / 512 strict UTF-8 bytes, with visible rejection rather than truncation.

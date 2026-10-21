@@ -25,6 +25,7 @@ internal sealed partial class LocalFilePreviewWindow
         SetWrappingSource(file);
         ClearFind(clearQuery: true);
         findSource = file;
+        SetMeasurementSource(file);
     }
 
     private void ShowFind(DockPanel body, Func<bool> current,

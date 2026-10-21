@@ -34,18 +34,21 @@ public sealed class SessionQueueConfigurationUiContractTests
     {
         var root = SourceRoot();
         var controls = XDocument.Load(Path.Combine(root, "src", "Kora", "SettingsWindow.axaml")).Descendants().ToArray();
-        foreach (var (selected, choices) in new[] { ("SelectedQueuePending", "QueuePendingChoices"), ("SelectedQueueSlots", "QueueSlotChoices"),
-            ("SelectedQueueLifetimeMinutes", "QueueLifetimeMinuteChoices"), ("SelectedQueueActiveBudgetMinutes", "QueueActiveBudgetMinuteChoices") })
+        foreach (var (selected, maximum) in new[] { ("SelectedQueuePending", "MaximumPendingPerSession"), ("SelectedQueueSlots", "MaximumExecutionSlots"),
+            ("SelectedQueueLifetimeMinutes", "MaximumPendingLifetimeMinutes"), ("SelectedQueueActiveBudgetMinutes", "MaximumActiveBudgetMinutes") })
         {
-            var selector = controls.Single(control => string.Equals(control.Attribute("SelectedItem")?.Value, "{Binding " + selected + "}", StringComparison.Ordinal));
-            selector.Attribute("ItemsSource")!.Value.Should().Be("{Binding " + choices + "}");
+            var selector = controls.Single(control => string.Equals(control.Attribute("Value")?.Value, "{Binding " + selected + "}", StringComparison.Ordinal));
+            selector.Name.LocalName.Should().Be("SettingsNumberField");
+            selector.Attribute("Minimum")!.Value.Should().Be("1");
+            selector.Attribute("Maximum")!.Value.Should().Be("{x:Static hosting:SessionQueueLimits." + maximum + "}");
+            selector.Attribute("SavedValue")!.Value.Should().Be("{Binding " + selected.Replace("Selected", "Saved", StringComparison.Ordinal) + "}");
             selector.Attribute("IsEnabled")!.Value.Should().Be("{Binding CanChangeQueueConfigurationNative}");
         }
         foreach (var command in new[] { "RefreshQueueConfigurationCommand", "SaveQueuePendingCommand", "ResetQueuePendingCommand",
             "SaveQueueSlotsCommand", "ResetQueueSlotsCommand", "SaveQueueLifetimeCommand", "ResetQueueLifetimeCommand",
             "SaveQueueActiveBudgetCommand", "ResetQueueActiveBudgetCommand" })
         {
-            controls.Single(control => string.Equals(control.Attribute("Command")?.Value, "{Binding " + command + "}", StringComparison.Ordinal))
+            controls.Single(control => string.Equals((control.Attribute("Command") ?? control.Attribute("ActionCommand"))?.Value, "{Binding " + command + "}", StringComparison.Ordinal))
                 .Attribute("IsEnabled")!.Value.Should().Be("{Binding CanChangeQueueConfigurationNative}");
         }
         var controller = File.ReadAllText(Path.Combine(root, "src", "Kora", "SettingsWindowController.cs"));

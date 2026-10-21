@@ -12,12 +12,15 @@ public sealed class PlaybackVolumeUiContractTests
         var root = SourceRoot();
         var controls = XDocument.Load(Path.Combine(root, "src", "Kora", "SettingsWindow.axaml")).Descendants().ToArray();
         var selector = controls.Single(control =>
-            string.Equals(control.Attribute("SelectedItem")?.Value, "{Binding SelectedPlaybackVolume}", StringComparison.Ordinal));
-        selector.Attribute("ItemsSource")!.Value.Should().Be("{Binding PlaybackVolumeChoices}");
+            string.Equals(control.Attribute("Value")?.Value, "{Binding SelectedPlaybackVolume}", StringComparison.Ordinal));
+        selector.Name.LocalName.Should().Be("SettingsNumberField");
+        selector.Attribute("Minimum")!.Value.Should().Be("0");
+        selector.Attribute("Maximum")!.Value.Should().Be("{x:Static configuration:PlaybackVolume.MaximumPercent}");
+        selector.Attribute("SavedValue")!.Value.Should().Be("{Binding SavedPlaybackVolume}");
         selector.Attribute("IsEnabled")!.Value.Should().Be("{Binding CanChangePlaybackVolume}");
         foreach (var command in new[] { "SavePlaybackVolumeCommand", "ResetPlaybackVolumeCommand", "RefreshPlaybackVolumeCommand" })
         {
-            controls.Single(control => string.Equals(control.Attribute("Command")?.Value, "{Binding " + command + "}", StringComparison.Ordinal))
+            controls.Single(control => string.Equals((control.Attribute("Command") ?? control.Attribute("ActionCommand"))?.Value, "{Binding " + command + "}", StringComparison.Ordinal))
                 .Attribute("IsEnabled")!.Value.Should().Be("{Binding CanChangePlaybackVolume}");
         }
         controls.Any(control => string.Equals(control.Attribute("Text")?.Value, "{Binding PlaybackVolumeStatus}", StringComparison.Ordinal))

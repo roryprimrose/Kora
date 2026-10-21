@@ -41,11 +41,11 @@ public sealed partial class MainViewModel
         get
         {
             var preview = auditImpactPreview?.Get();
-            if (preview is null) { return "Audit impact preview unavailable. Apply-now/deletion unavailable."; }
+            if (preview is null) { return "Security record preview unavailable. No settings or records were changed."; }
             var heading = preview.Status;
             if (preview.ProposedDays is { } days)
             {
-                heading += $" Proposed: {days.ToString(CultureInfo.InvariantCulture)} days. Fixed cutoff: {preview.CutoffUtc:O}.";
+                heading += $" Proposed storage period: {days.ToString(CultureInfo.InvariantCulture)} days.";
             }
             return heading + DescribeAuditImpact(preview.RequiredAuthority) + DescribeAuditImpact(preview.DiagnosticProjection);
         }
@@ -54,12 +54,12 @@ public sealed partial class MainViewModel
     private static string DescribeAuditImpact(AuditImpactResult? result)
     {
         if (result is null) { return string.Empty; }
-        var source = result.Source == AuditImpactSource.RequiredAuthority ? "Required-authority audit" : "Diagnostic-audit projection";
+        var source = result.Source == AuditImpactSource.RequiredAuthority ? "Security records" : "Security record diagnostic copies";
         if (result.Aggregate is not { } aggregate) { return $" {source}: {result.Status}; no count available."; }
-        if (aggregate.AffectedCount == 0) { return $" {source}: Complete; 0 newly due records; no timestamp range."; }
+        if (aggregate.AffectedCount == 0) { return $" {source}: Complete; 0 newly due records."; }
         return $" {source}: Complete; {aggregate.AffectedCount.ToString(CultureInfo.InvariantCulture)} newly due records."
-            + $" Committed UTC: {aggregate.OldestCommittedUtc:O} to {aggregate.NewestCommittedUtc:O}."
-            + $" Proposed due UTC: {aggregate.EarliestDueUtc:O} to {aggregate.LatestDueUtc:O}.";
+            + $" Recorded between {aggregate.OldestCommittedUtc:u} and {aggregate.NewestCommittedUtc:u}."
+            + $" Proposed deletion dates: {aggregate.EarliestDueUtc:u} to {aggregate.LatestDueUtc:u} (UTC).";
     }
 
     private void OnAuditImpactPreviewChanged(object? sender, EventArgs args) => uiDispatcher.Post(() =>
@@ -71,7 +71,7 @@ public sealed partial class MainViewModel
     {
         OnPropertyChanged(nameof(AuditImpactPreviewStatus));
         OnPropertyChanged(nameof(CanPreviewAuditImpact));
-        PreviewAuditImpactCommand?.NotifyCanExecuteChanged();
+        PreviewAuditImpactCommand.NotifyCanExecuteChanged();
     }
 
     private void RetireIneligibleAuditImpact()

@@ -1,0 +1,66 @@
+<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <Style Selector="Button:not(.settings-actions)">
+    <Setter Property="MinHeight" Value="30" />
+    <Setter Property="Padding" Value="10,4" />
+    <Setter Property="CornerRadius" Value="3" />
+    <Setter Property="FontSize" Value="13" />
+    <Setter Property="FontWeight" Value="Normal" />
+    <Setter Property="HorizontalAlignment" Value="Left" />
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="BorderBrush" Value="{DynamicResource KoraBorderBrush}" />
+    <Setter Property="BorderThickness" Value="1" />
+  </Style>
+  <Style Selector="Button.primary, Button.pending">
+    <Setter Property="Background" Value="{DynamicResource KoraPrimaryBrush}" />
+    <Setter Property="Foreground" Value="{DynamicResource KoraAccentForegroundBrush}" />
+  </Style>
+  <Style Selector="Button.toolbar">
+    <Setter Property="BorderBrush" Value="Transparent" />
+    <Setter Property="Padding" Value="6,4" />
+    <Setter Property="Foreground" Value="{DynamicResource KoraMutedForegroundBrush}" />
+  </Style>
+  <Style Selector="ComboBox, TextBox, NumericUpDown">
+    <Setter Property="MinHeight" Value="30" />
+    <Setter Property="FontSize" Value="13" />
+    <Setter Property="CornerRadius" Value="3" />
+    <Setter Property="HorizontalAlignment" Value="Left" />
+  </Style>
+  <Style Selector="ComboBox">
+    <Setter Property="MinWidth" Value="112" />
+    <Setter Property="MaxWidth" Value="360" />
+    <Setter Property="Padding" Value="8,3" />
+  </Style>
+  <Style Selector="TextBox">
+    <Setter Property="MinWidth" Value="200" />
+    <Setter Property="MaxWidth" Value="360" />
+    <Setter Property="Padding" Value="8,3" />
+  </Style>
+  <Style Selector="NumericUpDown">
+    <Setter Property="Padding" Value="8,3" />
+  </Style>
+  <Style Selector="TextBox#PART_TextBox">
+    <Setter Property="MinWidth" Value="0" />
+    <Setter Property="HorizontalAlignment" Value="Stretch" />
+  </Style>
+  <Style Selector="Border.settings-card">
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="BorderBrush" Value="Transparent" />
+    <Setter Property="BorderThickness" Value="0" />
+    <Setter Property="CornerRadius" Value="0" />
+    <Setter Property="Padding" Value="0,10,0,14" />
+  </Style>
+  <Style Selector=":is(TextBlock).settings-description">
+    <Setter Property="FontSize" Value="12" />
+    <Setter Property="LineHeight" Value="17" />
+    <Setter Property="Foreground" Value="{DynamicResource KoraMutedForegroundBrush}" />
+  </Style>
+  <Style Selector="TextBlock.settings-title">
+    <Setter Property="FontSize" Value="14" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+  </Style>
+  <Style Selector="ListBoxItem, ComboBoxItem">
+    <Setter Property="MinHeight" Value="28" />
+    <Setter Property="Padding" Value="8,4" />
+  </Style>
+</Styles>

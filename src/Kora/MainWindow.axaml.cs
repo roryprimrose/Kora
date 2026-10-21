@@ -199,7 +199,7 @@ public sealed partial class MainWindow : Window
             if (!presenceInputFailed && !nativePresenceFailed && !windowActionFailed)
             {
                 viewModel.ReportPresenceRendererStatus(useNativePresence
-                    ? "Native (experimental) renderer active." : "Avalonia renderer active.");
+                    ? "Experimental animation mode is active." : "Standard animation mode is active.");
             }
         }
     }

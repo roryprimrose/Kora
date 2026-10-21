@@ -1,0 +1,39 @@
+<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <Style Selector="Button.settings-actions">
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="BorderBrush" Value="Transparent" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="4" />
+    <Setter Property="Foreground" Value="{DynamicResource KoraMutedForegroundBrush}" />
+  </Style>
+  <Style Selector="Button.settings-actions:pointerover, Button.settings-actions:pressed, Button.settings-actions:flyout-open, Button.settings-actions:focus-visible">
+    <Setter Property="Foreground" Value="{DynamicResource KoraForegroundBrush}" />
+  </Style>
+  <Style Selector="Button.settings-actions /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="BorderBrush" Value="Transparent" />
+    <Setter Property="Foreground" Value="{DynamicResource KoraMutedForegroundBrush}" />
+  </Style>
+  <Style Selector="Button.settings-actions:pointerover /template/ ContentPresenter#PART_ContentPresenter, Button.settings-actions:pressed /template/ ContentPresenter#PART_ContentPresenter, Button.settings-actions:flyout-open /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource KoraSurfaceAltBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource KoraBorderBrush}" />
+    <Setter Property="Foreground" Value="{DynamicResource KoraForegroundBrush}" />
+  </Style>
+  <Style Selector="Button.settings-actions:pressed /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="BorderBrush" Value="{DynamicResource KoraMutedForegroundBrush}" />
+  </Style>
+  <Style Selector="Button.settings-actions:focus-visible /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="BorderBrush" Value="{DynamicResource KoraAccentBrush}" />
+    <Setter Property="Foreground" Value="{DynamicResource KoraForegroundBrush}" />
+  </Style>
+  <Style Selector="Button.settings-actions:disabled">
+    <Setter Property="Foreground" Value="{DynamicResource KoraMutedForegroundBrush}" />
+    <Setter Property="Opacity" Value="0.45" />
+  </Style>
+  <Style Selector="Button.settings-actions:disabled /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="BorderBrush" Value="Transparent" />
+    <Setter Property="Foreground" Value="{DynamicResource KoraMutedForegroundBrush}" />
+  </Style>
+</Styles>

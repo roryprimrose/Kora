@@ -185,7 +185,7 @@ public sealed partial class MainViewModelTests
         await fixture.ViewModel.ExecuteResponseModeCommandAsync(new(AppearanceCommandOperation.Reset),
             SecurityAuditInitiator.TypedCommand, cancellationToken: cancelled.Token);
         fixture.ViewModel.State.Should().Be(AssistantState.Failure);
-        fixture.ViewModel.ResponseModeConfigurationStatus.Should().Contain("\"available\":false");
+        fixture.ViewModel.ResponseModeConfigurationStatus.Should().Contain("Setting unavailable");
         fixture.ViewModel.Dispose();
         await fixture.ViewModel.ResetResponseModeCommand.ExecuteAsync();
         fixture.OutputPreferences.SavedMode.Should().BeNull();
@@ -218,7 +218,7 @@ public sealed partial class MainViewModelTests
         await fixture.RunAsync("get responses.default-mode");
         fixture.OutputPreferences.SavedMode.Should().BeNull();
         fixture.TextToSpeech.SpokenText.Should().BeNull();
-        if (stage is "receipt") { fixture.ViewModel.ResponseModeConfigurationStatus.Should().Contain("\"available\":false"); }
+        if (stage is "receipt") { fixture.ViewModel.ResponseModeConfigurationStatus.Should().Contain("Setting unavailable"); }
         if (stage is "disposed") { fixture.ViewModel.CanChangeResponseMode.Should().BeFalse(); }
     }
 

@@ -62,8 +62,8 @@ public sealed partial class MainViewModelTests
         f.ProfilePreferences.Writes.Should().Be(0);
         f.ViewModel.CanConfirmProviderField.Should().BeTrue();
         var preview = f.ViewModel.ProviderFieldPreviewStatus;
-        preview.Should().Contain("savedTuple").And.Contain("proposedTuple").And.Contain("dependentValidity")
-            .And.Contain("preferenceRevision").And.Contain("ObservedAt").And.Contain("ValidUntil").And.Contain(id);
+        preview.Should().Contain("Current:").And.Contain("Proposed:").And.Contain("Nothing is saved until you confirm")
+            .And.Contain("Account: account").And.NotContain("preferenceRevision").And.Contain(id);
         var confirm = "confirm providers.app.profile " + f.ViewModel.ProviderFieldConfirmationId!.Value.ToString("D");
         if (route is "native") { await f.ViewModel.ConfirmProviderFieldCommand.ExecuteAsync(); }
         if (route is "typed") { await f.RunAsync(confirm); }
@@ -202,7 +202,7 @@ public sealed partial class MainViewModelTests
         missing.ViewModel.CanReviewProviderReasoning.Should().BeFalse();
         missing.ViewModel.CanReviewProviderContext.Should().BeFalse();
         missing.ViewModel.CanConfirmProviderField.Should().BeFalse();
-        missing.ViewModel.ProviderFieldPreviewStatus.Should().Contain("No pending");
+        missing.ViewModel.ProviderFieldPreviewStatus.Should().Contain("No change awaiting confirmation");
         missing.ViewModel.SelectedProviderServiceChoice = new(new(ProviderService.Local, []), 1, Guid.NewGuid(),
             new(new(Guid.NewGuid()), new(1), true), Kora.Core.Hosting.RequestOrigin.LocalUi, static () => true);
         missing.ViewModel.ProviderReasoningFieldChoices.Should().BeEmpty();

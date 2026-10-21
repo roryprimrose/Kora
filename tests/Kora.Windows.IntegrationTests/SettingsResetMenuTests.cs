@@ -19,30 +19,52 @@ namespace Kora.Windows.IntegrationTests;
 [Collection(nameof(HeadlessUiTestGroup))]
 public sealed class SettingsResetMenuTests
 {
+    public static TheoryData<string, string, string?, string> MigratedRefreshes => new()
+    {
+        { "RefreshCommand", "Speech and audio", null, "Refresh devices and readiness" },
+        { "RefreshMicrophonesCommand", "Microphone", null, "Refresh microphones" },
+        { "RefreshOutputDevicesCommand", "Audio output", "CanChangeAudioOutputDevice", "Refresh speakers" },
+        { "RefreshPlaybackVolumeCommand", "Kora playback volume", "CanChangePlaybackVolume", "Refresh volume" },
+        { "RefreshWindowsSpeechRateCommand", "Windows voice speed", "CanInspectWindowsSpeechRateNative", "Refresh voice speed" },
+        { "RefreshResponseModeCommand", "Device-default response mode", "CanChangeResponseMode", "Refresh response mode" },
+        { "RefreshSpeechTextCommand", "Speech captions", "CanChangeSpeechText", "Refresh captions" },
+        { "RefreshQueueConfigurationCommand", "Task queue limits", "CanChangeQueueConfigurationNative", "Refresh queue settings" },
+        { "RefreshSessionRetentionCommand", "Session inactivity retention", "CanChangeSessionRetentionNative", "Refresh archive and deletion settings" },
+        { "RefreshDiagnosticRetentionCommand", "Diagnostic record storage", "CanChangeDiagnosticRetentionNative", "Refresh diagnostic settings" },
+        { "RefreshAuditRetentionCommand", "Security record storage", "CanChangeAuditRetentionNative", "Refresh security record settings" },
+        { "GetManualCallStatusCommand", "Manual call mode", null, "Show last known call status" },
+        { "RefreshInCallFeedbackCommand", "Responses during calls", "CanInspectInCallFeedbackNative", "Inspect in-call feedback preference only" },
+        { "RefreshPreapprovedUrisCommand", "Preapproved addresses", null, "Refresh preapproved addresses" },
+        { "RefreshArtifactDirectoriesCommand", "Custom content sources", "CanChangeArtifactDirectories", "Refresh custom content sources" },
+        { "RefreshProviderModeCommand", "AI service preferences", "CanChangeProviderMode", "Refresh service mode" },
+        { "RefreshProviderProfileCommand", "Default service and model", "CanChangeProviderProfile", "Refresh services and models" },
+        { "RefreshCommand", "Readiness", null, "Refresh readiness" },
+    };
+
     public static TheoryData<string, string, string?> MigratedResets => new()
     {
         { "ResetAssistantNameCommand", "Reset name to Kora", null },
         { "ResetSpeechVoiceCommand", "Reset speech voice", null },
-        { "ResetSummarySentencesCommand", "Reset sentence cap", null },
-        { "ResetSummaryWordsCommand", "Reset word cap", null },
-        { "ResetOutputDeviceCommand", "Reset output to System", "CanChangeAudioOutputDevice" },
+        { "ResetSummarySentencesCommand", "Reset sentence limit", null },
+        { "ResetSummaryWordsCommand", "Reset word limit", null },
+        { "ResetOutputDeviceCommand", "Use system default speaker", "CanChangeAudioOutputDevice" },
         { "ResetPlaybackVolumeCommand", "Reset volume to 100%", "CanChangePlaybackVolume" },
-        { "ResetWindowsSpeechRateCommand", "Reset Windows rate to normal (0)", "CanChangeWindowsSpeechRateNative" },
-        { "ResetResponseModeCommand", "Reset device default to Hybrid", "CanChangeResponseMode" },
-        { "ResetSpeechTextCommand", "Reset speech text to Off", "CanChangeSpeechText" },
+        { "ResetWindowsSpeechRateCommand", "Reset voice speed to normal (0)", "CanChangeWindowsSpeechRateNative" },
+        { "ResetResponseModeCommand", "Reset to text and speech", "CanChangeResponseMode" },
+        { "ResetSpeechTextCommand", "Turn captions off", "CanChangeSpeechText" },
         { "ResetSpeechCaptionOptionCommand", "Reset selected caption option", "CanChangeSpeechText" },
-        { "ResetQueuePendingCommand", "Reset pending capacity to 10", "CanChangeQueueConfigurationNative" },
-        { "ResetQueueSlotsCommand", "Reset fixed read-only slots to 1", "CanChangeQueueConfigurationNative" },
-        { "ResetQueueLifetimeCommand", "Reset future pending lifetime to 30 minutes", "CanChangeQueueConfigurationNative" },
-        { "ResetQueueActiveBudgetCommand", "Reset future active budget to 5 minutes", "CanChangeQueueConfigurationNative" },
-        { "ResetSessionRetentionCommand", "Reset future session retention to 1 / 30 days", "CanChangeSessionRetentionNative" },
-        { "ResetDiagnosticRetentionCommand", "Reset future SQLite retention to 30 days", "CanChangeDiagnosticRetentionNative" },
-        { "ResetAuditRetentionCommand", "Reset future audit retention to 90 days", "CanChangeAuditRetentionNative" },
-        { "ResetManualCallCommand", "Reset manual off", null },
-        { "ResetInCallFeedbackCommand", "Reset call feedback to UI", "CanChangeInCallFeedbackNative" },
-        { "ResetProviderModeCommand", "Reset provider mode to LocalOnly", "CanChangeProviderMode" },
-        { "ResetProviderServiceCommand", "Reset app service using installed-or-Unset rule", "CanChangeProviderProfile" },
-        { "ResetProviderProfileCommand", "Reset selected service tuple to unresolved; retain other services", "CanChangeProviderProfile" },
+        { "ResetQueuePendingCommand", "Reset waiting task limit to 10", "CanChangeQueueConfigurationNative" },
+        { "ResetQueueSlotsCommand", "Reset running task limit to 1", "CanChangeQueueConfigurationNative" },
+        { "ResetQueueLifetimeCommand", "Reset waiting time limit to 30 minutes", "CanChangeQueueConfigurationNative" },
+        { "ResetQueueActiveBudgetCommand", "Reset running time limit to 5 minutes", "CanChangeQueueConfigurationNative" },
+        { "ResetSessionRetentionCommand", "Reset archive to 1 day and deletion to 30 days", "CanChangeSessionRetentionNative" },
+        { "ResetDiagnosticRetentionCommand", "Reset diagnostic storage to 30 days", "CanChangeDiagnosticRetentionNative" },
+        { "ResetAuditRetentionCommand", "Reset security record storage to 90 days", "CanChangeAuditRetentionNative" },
+        { "ResetManualCallCommand", "Reset call mode", null },
+        { "ResetInCallFeedbackCommand", "Reset to on-screen responses", "CanChangeInCallFeedbackNative" },
+        { "ResetProviderModeCommand", "Reset to on-device only", "CanChangeProviderMode" },
+        { "ResetProviderServiceCommand", "Reset default service", "CanChangeProviderProfile" },
+        { "ResetProviderProfileCommand", "Clear model settings for this service", "CanChangeProviderProfile" },
     };
 
     [Theory]
@@ -59,7 +81,13 @@ public sealed class SettingsResetMenuTests
         var cog = item.Ancestors().Single(element =>
             string.Equals(element.Name.LocalName, nameof(SettingActionsButton), StringComparison.Ordinal));
         cog.Attribute("SettingName")!.Value.Should().NotBeNullOrWhiteSpace();
-        cog.Attribute("IsEnabled")?.Value.Should().Be(item.Attribute("IsEnabled")?.Value);
+        var menuGuard = command switch
+        {
+            "ResetWindowsSpeechRateCommand" => "CanInspectWindowsSpeechRateNative",
+            "ResetInCallFeedbackCommand" => "CanInspectInCallFeedbackNative",
+            _ => guard,
+        };
+        cog.Attribute("IsEnabled")?.Value.Should().Be(menuGuard is null ? null : "{Binding " + menuGuard + "}");
         var grid = cog.Parent!;
         grid.Name.LocalName.Should().Be("Grid");
         var columns = grid.Attribute("ColumnDefinitions")!.Value.Split(',');
@@ -69,12 +97,55 @@ public sealed class SettingsResetMenuTests
 
         if (string.Equals(command, "ResetManualCallCommand", StringComparison.Ordinal))
         {
-            item.Attribute("AutomationProperties.Name")!.Value.Should().Be("Reset manual call layer off for this run");
+            item.Attribute("AutomationProperties.Name")!.Value.Should().Be("Reset manual call mode to off");
         }
         else if (string.Equals(command, "ResetInCallFeedbackCommand", StringComparison.Ordinal))
         {
             item.Attribute("AutomationProperties.Name")!.Value.Should().Be("Remove saved in-call feedback override only");
         }
+    }
+
+    [Theory]
+    [MemberData(nameof(MigratedRefreshes))]
+    public void Refresh_is_first_in_its_cog_with_the_original_command_guard_and_accessible_name(
+        string command, string settingName, string? guard, string accessibleName)
+    {
+        var cog = LoadSettings().Descendants().Single(element =>
+            string.Equals(element.Attribute("SettingName")?.Value, settingName, StringComparison.Ordinal));
+        cog.Name.LocalName.Should().Be(nameof(SettingActionsButton));
+        cog.Attribute("IsEnabled")?.Value.Should().Be(guard is null ? null : "{Binding " + guard + "}");
+        var item = cog.Descendants().Single(element =>
+            string.Equals(element.Attribute("Command")?.Value, "{Binding " + command + "}", StringComparison.Ordinal));
+        item.Name.LocalName.Should().Be("MenuItem");
+        item.Attribute("Header")!.Value.Should().Be("Refresh");
+        item.Attribute("AutomationProperties.Name")!.Value.Should().Be(accessibleName);
+        item.Attribute("IsEnabled")?.Value.Should().Be(guard is null ? null : "{Binding " + guard + "}");
+        var menu = item.Parent!;
+        menu.Elements().First().Should().BeSameAs(item);
+        if (menu.Elements().Count(element => element.Name.LocalName is "MenuItem") > 1)
+        {
+            item.ElementsAfterSelf().First().Name.LocalName.Should().Be("Separator");
+        }
+        var grid = cog.Parent!;
+        grid.Name.LocalName.Should().Be("Grid");
+        var columns = grid.Attribute("ColumnDefinitions")!.Value.Split(',');
+        cog.Attribute("Grid.Column")!.Value.Should().Be(
+            (columns.Length - 1).ToString(System.Globalization.CultureInfo.InvariantCulture));
+        columns[^1].Should().Be("Auto");
+    }
+
+    [Fact]
+    public void No_refresh_action_remains_as_a_button_on_the_settings_form()
+    {
+        var buttons = LoadSettingsMarkup().SelectMany(document => document.Descendants())
+            .Where(element => element.Name.LocalName is "Button");
+        buttons.Where(element =>
+            (element.Attribute("Command")?.Value.StartsWith("{Binding Refresh", StringComparison.Ordinal) ?? false)
+            || element.Attribute("Command")?.Value is "{Binding GetManualCallStatusCommand}"
+            || (element.Attribute("Content")?.Value.StartsWith("Refresh", StringComparison.Ordinal) ?? false))
+            .Should().BeEmpty();
+        LoadSettings().Descendants().Count(element => element.Name.LocalName is "MenuItem"
+            && element.Attribute("Header")?.Value is "Refresh").Should().Be(MigratedRefreshes.Count);
     }
 
     [Fact]
@@ -89,7 +160,7 @@ public sealed class SettingsResetMenuTests
         bindings.Select(attribute => attribute.Value).Distinct(StringComparer.Ordinal).Should().HaveCount(36);
         elements.Count(element =>
             string.Equals(element.Name.LocalName, nameof(SettingActionsButton), StringComparison.Ordinal))
-            .Should().Be(31);
+            .Should().Be(36);
         foreach (var binding in bindings)
         {
             var element = binding.Parent!;
@@ -109,10 +180,10 @@ public sealed class SettingsResetMenuTests
         nativeResets.Should().ContainSingle();
         var reset = nativeResets[0];
         reset.Name.LocalName.Should().Be("MenuItem");
-        reset.Attribute("Header")!.Value.Should().Be("Return to primary");
+        reset.Attribute("Header")!.Value.Should().Be("Use main screen");
         reset.Attribute("IsEnabled")!.Value.Should().Be("{Binding CanSelect}");
         reset.Attribute("AutomationProperties.HelpText")!.Value.Should().Be(
-            "Explicitly return to the current primary display. Does not restore retired text or repair caption preferences.");
+            "Return captions to the main screen. Previous captions are not restored. Other caption settings are unchanged.");
         var owner = reset.Ancestors().Single(element =>
             string.Equals(element.Name.LocalName, nameof(SettingActionsButton), StringComparison.Ordinal));
         owner.Attribute("IsEnabled")!.Value.Should().Be("{Binding CanSelect}");
@@ -124,15 +195,18 @@ public sealed class SettingsResetMenuTests
     }
 
     [Theory]
-    [InlineData("Appearance", 14, 14)]
-    [InlineData("Speech & audio", 6, 7)]
-    [InlineData("Responses", 3, 4)]
-    [InlineData("Sessions", 2, 5)]
-    [InlineData("Logging", 2, 2)]
-    [InlineData("Calls", 2, 2)]
-    [InlineData("Providers", 2, 3)]
+    [InlineData("Appearance", 14, 14, 0)]
+    [InlineData("Speech & audio", 8, 7, 5)]
+    [InlineData("Responses", 3, 4, 2)]
+    [InlineData("Sessions", 2, 5, 2)]
+    [InlineData("Logging", 2, 2, 2)]
+    [InlineData("Calls", 2, 2, 2)]
+    [InlineData("Providers", 2, 3, 2)]
+    [InlineData("Network", 1, 0, 1)]
+    [InlineData("Custom content", 1, 0, 1)]
+    [InlineData("Readiness", 1, 0, 1)]
     public async Task Every_tab_has_top_right_cogs_with_live_named_reset_commands(
-        string tabName, int expectedCogs, int expectedResets)
+        string tabName, int expectedCogs, int expectedResets, int expectedRefreshes)
     {
         await HeadlessSession.RunAsync(async () =>
         {
@@ -154,9 +228,10 @@ public sealed class SettingsResetMenuTests
                 var cogs = window.GetVisualDescendants().OfType<SettingActionsButton>().ToArray();
                 cogs.Should().HaveCount(expectedCogs);
                 var resets = 0;
+                var refreshes = 0;
                 foreach (var cog in cogs)
                 {
-                    cog.Content.Should().BeOfType<PathIcon>();
+                    cog.Content.Should().BeOfType<Avalonia.Controls.Shapes.Path>();
                     cog.HorizontalAlignment.Should().Be(HorizontalAlignment.Right);
                     cog.VerticalAlignment.Should().Be(VerticalAlignment.Top);
                     cog.Bounds.Top.Should().BeApproximately(0, 0.1);
@@ -175,21 +250,31 @@ public sealed class SettingsResetMenuTests
                             if (cog.FindAncestorOfType<CaptionDisplaySelector>() is not null)
                             {
                                 item.Command.Should().BeNull();
-                                item.Header.Should().Be("Return to primary");
+                                item.Header.Should().Be("Use main screen");
                                 item.IsEffectivelyEnabled.Should().Be(cog.IsEffectivelyEnabled);
                             }
                             else
                             {
                                 item.Command.Should().NotBeNull();
-                                item.IsEffectivelyEnabled.Should().Be(
-                                    cog.IsEffectivelyEnabled && item.Command!.CanExecute(null));
+                                var admitted = cog.IsEffectivelyEnabled && item.Command!.CanExecute(null);
+                                if (ReferenceEquals(item.Command, fixture.Main.ResetWindowsSpeechRateCommand))
+                                {
+                                    admitted &= fixture.Main.CanChangeWindowsSpeechRateNative;
+                                }
+                                else if (ReferenceEquals(item.Command, fixture.Main.ResetInCallFeedbackCommand))
+                                {
+                                    admitted &= fixture.Main.CanChangeInCallFeedbackNative;
+                                }
+                                item.IsEffectivelyEnabled.Should().Be(admitted);
                             }
-                            resets++;
+                            if (item.Header is "Refresh") { refreshes++; }
+                            else { resets++; }
                         }
                     }
                     finally { flyout.Hide(); }
                 }
                 resets.Should().Be(expectedResets);
+                refreshes.Should().Be(expectedRefreshes);
             }
             finally { window.Close(); }
         });
@@ -281,5 +366,8 @@ public sealed class SettingsResetMenuTests
     private static bool IsResetLabel(string? text) =>
         text is not null && (text.StartsWith("Reset ", StringComparison.OrdinalIgnoreCase)
             || string.Equals(text, "Reset", StringComparison.OrdinalIgnoreCase)
-            || string.Equals(text, "Return to primary", StringComparison.OrdinalIgnoreCase));
+            || string.Equals(text, "Use main screen", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(text, "Use system default speaker", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(text, "Turn captions off", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(text, "Clear model settings for this service", StringComparison.OrdinalIgnoreCase));
 }

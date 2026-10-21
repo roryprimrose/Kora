@@ -33,7 +33,7 @@ public sealed class SpeechTextConfigurationServiceTests : IDisposable
         fixture.Service.Get().Effective.Should().Be(SpeechTextMode.Off);
         fixture.Service.Get().Source.Should().Be("default");
         await fixture.Refresh();
-        fixture.Service.Choices.Select(choice => choice.Label).Should().Equal("Off", "CurrentUtterance");
+        fixture.Service.Choices.Select(choice => choice.Label).Should().Equal("Off", "Show spoken words");
         await fixture.Apply();
         fixture.Service.Get().Saved.Should().Be(SpeechTextMode.CurrentUtterance);
         fixture.Service.Get().Source.Should().Be("saved");
@@ -203,7 +203,7 @@ public sealed class SpeechTextConfigurationServiceTests : IDisposable
         fixture.Service.Get().EffectiveCaptionOptions.Should().Be(SpeechCaptionOptions.Default);
         await fixture.Refresh();
         fixture.Service.CaptionChoices.Should().HaveCount(35);
-        fixture.Service.CaptionChoices.Select(choice => choice.Label).Should().Contain("TopLeft").And.Contain("30");
+        fixture.Service.CaptionChoices.Select(choice => choice.Label).Should().Contain("Top left").And.Contain("30");
         await fixture.Apply(fixture.Service.CaptionChoices.Single(choice => choice.CaptionValue == new SpeechCaptionValue.Placement(SpeechCaptionPlacement.TopLeft)));
         fixture.Service.Get().Effective.Should().Be(SpeechTextMode.Off);
         fixture.Create().Get().EffectiveCaptionOptions.Should().BeNull();

@@ -1,6 +1,7 @@
 using Kora.Application.Configuration;
 using Kora.Application.Diagnostics;
 using Kora.Application.Infrastructure;
+using Kora.Application.Presentation;
 using Kora.Core;
 using Kora.Core.Auditing;
 using Kora.Core.Configuration;
@@ -15,6 +16,7 @@ public sealed partial class MainViewModel
     private bool diagnosticRetentionControlActive;
     private Func<bool> diagnosticRetentionNativeLifetime = static () => false;
 
+    public int? SavedDiagnosticRetentionDays => diagnosticRetentionConfiguration?.Get().Effective?.Days;
     public void BindDiagnosticRetentionNativeLifetime(Func<bool> lifetime)
     {
         diagnosticRetentionNativeLifetime = lifetime;
@@ -46,8 +48,8 @@ public sealed partial class MainViewModel
         && !diagnosticRetentionControlActive && !auditRetentionControlActive && !IsResponseInteractionPending;
     public bool CanChangeDiagnosticRetentionNative => CanChangeDiagnosticRetention && diagnosticRetentionNativeLifetime();
     public string DiagnosticRetentionStatus => diagnosticRetentionConfiguration is null
-        ? "SQLite diagnostic-retention admission unavailable; no preference change. Apply-now unavailable."
-        : DiagnosticRetentionState.Serialize(diagnosticRetentionConfiguration.Get(), CallPolicyRevision, "observed");
+        ? "Diagnostic storage settings are unavailable. No settings were changed."
+        : SettingsText.Describe(diagnosticRetentionConfiguration.Get());
 
     private void OnDiagnosticRetentionChanged(object? sender, EventArgs args)
     {
@@ -60,6 +62,7 @@ public sealed partial class MainViewModel
         if (disposed) { return; }
         if (diagnosticRetentionConfiguration!.Get().Desired is { } days) { SelectedDiagnosticRetentionDays = days.Days; }
         OnPropertyChanged(nameof(DiagnosticRetentionStatus));
+        OnPropertyChanged(nameof(SavedDiagnosticRetentionDays));
         OnPropertyChanged(nameof(CanChangeDiagnosticRetention));
         OnPropertyChanged(nameof(CanChangeDiagnosticRetentionNative));
         NotifyDiagnosticImpactPreview();

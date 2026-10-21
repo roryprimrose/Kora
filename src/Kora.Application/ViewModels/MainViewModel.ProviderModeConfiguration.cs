@@ -1,6 +1,7 @@
 using Kora.Application.Configuration;
 using Kora.Application.Diagnostics;
 using Kora.Application.Infrastructure;
+using Kora.Application.Presentation;
 using Kora.Core;
 using Kora.Core.Auditing;
 using Kora.Core.Dependencies;
@@ -27,8 +28,8 @@ public sealed partial class MainViewModel
     public bool CanChangeProviderMode => providerModeConfiguration is not null && !disposed
         && IsCallMutationHostEligible && !providerModeControlActive && !IsResponseInteractionPending;
     public string ProviderModeConfigurationStatus => providerModeConfiguration is null
-        ? "Provider-mode control admission is unavailable; existing saved state is retained."
-        : ProviderModeCommandResult.Serialize(providerModeConfiguration.Get(CallPolicyRevision));
+        ? "AI service mode settings are unavailable. Your saved choice is unchanged."
+        : SettingsText.Describe(providerModeConfiguration.Get(CallPolicyRevision));
 
     private void OnProviderModeConfigurationChanged(object? sender, EventArgs args) =>
         uiDispatcher.Post(SynchronizeProviderModeConfiguration);

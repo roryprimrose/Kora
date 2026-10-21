@@ -11,7 +11,7 @@ public sealed class SqliteDependencyProbe(
 {
     public string TaskId => "kora.sqlite";
 
-    public string TaskName => "Local SQLite storage";
+    public string TaskName => "Setup record storage";
 
     public async ValueTask<DependencyStatus> ProbeAsync(CancellationToken cancellationToken)
     {
@@ -37,9 +37,9 @@ public sealed class SqliteDependencyProbe(
                 {
                     return new DependencyStatus(
                         "kora.sqlite",
-                        "Local SQLite storage",
+                        "Setup record storage",
                         DependencyReadiness.Failed,
-                        $"Database integrity check failed: {result}. The database was not replaced; restore a known-good backup.");
+                        $"Setup record check failed: {result}. Existing records were not replaced; restore a known-good backup.");
                 }
             }
 
@@ -52,9 +52,9 @@ public sealed class SqliteDependencyProbe(
             {
                 return new DependencyStatus(
                     "kora.sqlite",
-                    "Local SQLite storage",
+                    "Setup record storage",
                     DependencyReadiness.Incompatible,
-                    $"Database schema version {version} is newer than this Kora release supports. Existing data was not modified.");
+                    "These setup records use a newer format than this version of Kora supports. Update Kora to open them. Existing data was not modified.");
             }
 
             if (version == 0)
@@ -74,18 +74,18 @@ public sealed class SqliteDependencyProbe(
             await transaction.CommitAsync(cancellationToken);
             status = new DependencyStatus(
                 "kora.sqlite",
-                "Local SQLite storage",
+                "Setup record storage",
                 DependencyReadiness.Ready,
-                "Bootstrap setup database passed its integrity check and schema initialization. Durable content and authoritative evidence storage remain unavailable pending encrypted-storage admission.");
+                "Setup records are ready. Saving content and verified activity history requires protected storage that is not yet available through this setup.");
         }
         catch (SqliteException exception)
         {
             CoreLog.SqliteStorageUnavailable(logger, exception, databasePath);
             status = new DependencyStatus(
                 "kora.sqlite",
-                "Local SQLite storage",
+                "Setup record storage",
                 DependencyReadiness.Failed,
-                $"Local database could not be opened or migrated: {exception.Message}. Existing data was not replaced.");
+                "Setup records could not be opened or updated. Existing data was not replaced. Check disk space and access to Kora's data folder, then try again.");
         }
         return status;
     }

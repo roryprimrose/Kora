@@ -3,6 +3,7 @@ using System.Windows.Input;
 using Avalonia;
 using Avalonia.Automation;
 using Avalonia.Controls;
+using Avalonia.Data;
 using Avalonia.Layout;
 using Avalonia.Media;
 
@@ -27,7 +28,18 @@ public sealed class SettingActionsButton : Button
 
     public SettingActionsButton()
     {
-        Content = new PathIcon { Data = CogGeometry, Width = 16, Height = 16 };
+        Classes.Add("settings-actions");
+        var icon = new Avalonia.Controls.Shapes.Path
+        {
+            Data = CogGeometry,
+            Width = 14,
+            Height = 14,
+            Stretch = Stretch.Uniform,
+            StrokeThickness = 1.2,
+            StrokeJoin = PenLineJoin.Round,
+        };
+        icon.Bind(Avalonia.Controls.Shapes.Shape.StrokeProperty, new Binding(nameof(Foreground)) { Source = this });
+        Content = icon;
         Width = 32;
         Height = 32;
         Padding = new Thickness(6);

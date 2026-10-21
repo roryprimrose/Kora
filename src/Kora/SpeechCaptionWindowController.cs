@@ -30,7 +30,7 @@ public sealed class SpeechCaptionWindowController : ObservableObject, IDisposabl
     private bool refreshing;
     private IReadOnlyList<CaptionDisplayChoice> choices = [];
     private CaptionDisplayChoice? selectedChoice;
-    private string displayStatus = "Primary display (run-only default).";
+    private string displayStatus = "Main screen (default until Kora restarts).";
 
     public SpeechCaptionWindowController(ISpeechCaptionPresentation presentation, SpeechCaptionWindow window,
         ICaptionDisplaySource displays)
@@ -89,7 +89,7 @@ public sealed class SpeechCaptionWindowController : ObservableObject, IDisposabl
                 if (!targetUnavailable)
                 {
                     targetUnavailable = true;
-                    SetProperty(ref displayStatus, "Caption display unavailable. Explicitly choose a live display or Return to primary; retired text will not return.", nameof(DisplayStatus));
+                    SetProperty(ref displayStatus, "Caption screen unavailable. Choose a connected screen or Use main screen. Previous captions will not return.", nameof(DisplayStatus));
                     presentation.ReportSpeechCaptionDisplayUnavailable();
                 }
                 else { presentation.ReportSpeechCaptionDisplayUnavailable(reportRecovery: false); }
@@ -175,7 +175,7 @@ public sealed class SpeechCaptionWindowController : ObservableObject, IDisposabl
                 if (!reset && (choice is null || choice.Revision != snapshot.Revision || choice.SelectionRevision != selectionRevision
                     || !choices.Any(current => ReferenceEquals(current, choice))))
                 {
-                    SetProperty(ref displayStatus, "Display choice expired. Inspect and select a current display.", nameof(DisplayStatus));
+                    SetProperty(ref displayStatus, "Screen selection expired. Choose a connected screen again.", nameof(DisplayStatus));
                     return;
                 }
                 var target = reset ? snapshot.Displays.Where(display => display.IsPrimary).ToArray()
@@ -190,8 +190,8 @@ public sealed class SpeechCaptionWindowController : ObservableObject, IDisposabl
                 selectionRevision = checked(selectionRevision + 1);
                 observedRevision = -1;
                 targetUnavailable = false;
-                SetProperty(ref displayStatus, reset ? "Primary display (run-only default)."
-                    : "Explicit display selected for this run only. Caption mode and original dismissal deadline are unchanged.", nameof(DisplayStatus));
+                SetProperty(ref displayStatus, reset ? "Main screen (default until Kora restarts)."
+                    : "Selected screen will be used until Kora restarts. Caption mode and display time are unchanged.", nameof(DisplayStatus));
                 Refresh();
             }, HostActivityLayer.Desktop, HostOperation.Presentation);
         }

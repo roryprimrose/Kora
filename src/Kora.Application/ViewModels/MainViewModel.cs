@@ -280,7 +280,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         SessionRetentionPlannerService? sessionRetentionPlanner = null,
         Kora.Application.Voice.SpeechPreparationCoordinator? speechPreparation = null,
         DiagnosticImpactPreviewService? diagnosticImpactPreview = null,
-        Kora.Application.Context.ClipboardExplanationWorkflow? clipboardExplanation = null)
+        Kora.Application.Context.ClipboardExplanationWorkflow? clipboardExplanation = null,
+        Kora.Application.Clock.LocalClockWorkflow? localClock = null)
     {
         this.commandCatalog = commandCatalog;
         this.commandRouter = commandRouter;
@@ -451,6 +452,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         this.clipboardExplain = clipboardExplain;
         this.clipboardValidateJson = clipboardValidateJson;
         this.clipboardExplanation = clipboardExplanation;
+        this.localClock = localClock;
         if (clipboardExplanation is not null) { clipboardExplanation.Changed += OnClipboardPreviewChanged; }
         clipboardPreview.Changed += OnClipboardPreviewChanged;
 
@@ -634,6 +636,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
                       || SessionDispositionReviewCommand.Parse(CommandText, AssistantName) is not null
                       || WorkspaceSurfaceCommand.Parse(CommandText, AssistantName) is not null
                       || MemoryCommand.Parse(CommandText, AssistantName) is not null
+                      || LocalClockCommand.Parse(CommandText, AssistantName) is not null
                       || IsInstructionEditorCommand(CommandText)
                       || Kora.Application.Skills.SkillReviewCommand.Parse(CommandText, AssistantName) is not null
                       || Kora.Core.Interaction.LocalEventCommand.Parse(CommandText, AssistantName) is not null
@@ -4049,6 +4052,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             ApplicationLog.Debug(logger, "Rejected an unactivated or stale voice transcript");
             ApplicationLog.VoiceDispatchGate(logger, eventArgs.Generation, "RejectedAfterQueue");
             ReportRetiredSkillReview(eventArgs.Transcript);
+            if (LocalClockCommand.Parse(eventArgs.Transcript, AssistantName) is not null)
+            { Transcript = "Local clock unavailable: the original voice generation or host was revoked."; }
             if (SettingsSectionCommand.Parse(eventArgs.Transcript, AssistantName) is not null)
             { Transcript = "Settings navigation unavailable: the original voice generation or host was revoked."; }
             return;
@@ -4060,7 +4065,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         }
         ApplicationLog.VoiceDispatchGate(logger, eventArgs.Generation, "Admitted");
         IsListening = voiceRecognition.IsListening;
-        if (SettingsSectionCommand.Parse(eventArgs.Transcript, AssistantName) is not null)
+        if (SettingsSectionCommand.Parse(eventArgs.Transcript, AssistantName) is not null
+            || LocalClockCommand.Parse(eventArgs.Transcript, AssistantName) is not null)
         {
             await HandleTranscriptAsync(eventArgs.Transcript, eventArgs.Confidence,
                 SecurityAuditInitiator.VoiceCommand, manualInput);
@@ -4104,6 +4110,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         if (Kora.Core.Calculations.CalculateCommand.Parse(spokenText, AssistantName) is { } calculateCommand)
         {
             ExecuteCalculateCommand(calculateCommand, initiator, manualInput);
+            return;
+        }
+        if (LocalClockCommand.Parse(spokenText, AssistantName) is { } clockCommand)
+        {
+            ExecuteLocalClockCommand(clockCommand, initiator, manualInput);
             return;
         }
         if (Kora.Application.Skills.SkillReviewCommand.Parse(spokenText, AssistantName) is { } reviewCommand)
@@ -5639,6 +5650,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
                     + "Use “open skill packages” or “open shared skill sources” for native review only; neither enables or runs skills. "
                     + PreparedLocalSearchCommand.Syntax + " "
                     + Kora.Core.Calculations.CalculateCommand.Syntax + " "
+                    + LocalClockCommand.Syntax + " "
                     + (LocalModelsEnabled && Dependencies.Any(status =>
                         string.Equals(status.Id, "local.inference", StringComparison.Ordinal)
                         && status.Readiness == DependencyReadiness.Ready)
@@ -6097,6 +6109,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             .Concat(LocalFileCommand.FixedPhrases)
             .Concat(PreparedLocalSearchCommand.DiscoveryPhrases)
             .Concat(Kora.Core.Calculations.CalculateCommand.DiscoveryPhrases)
+            .Concat(LocalClockCommand.FixedPhrases)
             .Concat(SessionCommand.DiscoveryPhrases)
             .Concat(WorkspaceSurfaceCommand.FixedPhrases)
             .Concat(MemoryCommand.DiscoveryPhrases)

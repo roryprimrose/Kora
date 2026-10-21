@@ -48,11 +48,18 @@ internal sealed partial class EvidenceViewModel(
         SessionId = currentQuery?.SessionId,
     }, next: false);
 
-    public Task NavigateAsync(EvidenceSegment segment) => RunAsync(() => new()
+    public Task NavigateAsync(EvidenceSegment segment) => RunAsync(() =>
     {
-        Source = segment.Record?.Source == EvidenceSource.AuthorityAudit ? EvidenceSource.AuthorityAudit : EvidenceSource.All,
-        Record = segment.Record ?? throw new InvalidOperationException("This segment is missing or removed; no retained record can be opened."),
-        SessionId = currentQuery?.SessionId,
+        if (!Segments.Contains(segment))
+        {
+            throw new InvalidOperationException("The selected segment is no longer part of the current evidence page.");
+        }
+        return new()
+        {
+            Source = segment.Record?.Source == EvidenceSource.AuthorityAudit ? EvidenceSource.AuthorityAudit : EvidenceSource.All,
+            Record = segment.Record ?? throw new InvalidOperationException("This segment is missing or removed; no retained record can be opened."),
+            SessionId = currentQuery?.SessionId,
+        };
     }, next: false);
 
     public void Select(EvidenceRecord? record)

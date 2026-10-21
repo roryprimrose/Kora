@@ -145,12 +145,34 @@ internal sealed partial class EvidenceViewModel
         field = value;
         if (!closed)
         {
-            filterRevision++;
-            readCancellation?.Cancel();
-            Clear("Filters changed. Search / refresh starts a fresh bounded snapshot; previous results and selection were cleared.");
+            RetireFilterResults();
         }
         OnPropertyChanged(name);
         Notify();
+    }
+
+    internal int FilterRevision => filterRevision;
+    internal bool IsClosed => closed;
+
+    internal void PrepareTraceFilter(string traceId)
+    {
+        if (closed || !canInspect() || !TraceSnapshot.IsValidW3CId(traceId, 32))
+        {
+            throw new InvalidOperationException("Exact trace preparation is no longer admitted.");
+        }
+        if (string.Equals(TraceFilter, traceId, StringComparison.Ordinal))
+        {
+            RetireFilterResults();
+            Notify();
+        }
+        else { TraceFilter = traceId; }
+    }
+
+    private void RetireFilterResults()
+    {
+        filterRevision++;
+        readCancellation?.Cancel();
+        Clear("Filters changed. Search / refresh starts a fresh bounded snapshot; previous results and selection were cleared.");
     }
 
     private EvidenceQuery CreateQuery() => new()

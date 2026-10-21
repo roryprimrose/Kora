@@ -135,9 +135,15 @@ test('privileged controller never checks out PR code, bypasses protection or wai
     .split('\n').map(line => line.replace(/^            /, '')).join('\n')} })`);
 });
 
-function coverageFixture(overrides = {}) {
-  const script = coverage.match(/          script: \|\n([\s\S]*?)(?=\n      - name: Download coverage report)/)[1]
+function coverageScript(name) {
+  const match = coverage.match(new RegExp(`      - name: ${name}\\n[\\s\\S]*?          script: \\|\\n([\\s\\S]*?)(?=\\n      - name: |$)`));
+  assert.ok(match, `Missing coverage script ${name}`);
+  return match[1]
     .split('\n').map(line => line.replace(/^            /, '')).join('\n');
+}
+
+function coverageFixture(overrides = {}) {
+  const script = coverageScript('Resolve validated coverage destination');
   const execute = new AsyncFunction('process', 'context', 'core', 'github', script);
   const outputs = {};
   const calls = [];
@@ -188,7 +194,7 @@ test('stale-head, unrelated ticket and wrong-App coverage is not posted as curre
     assert.equal(value.outputs.number, undefined);
     assert.equal(value.calls.at(-1)[0], 'notice');
   }
-  assert.equal((coverage.match(/if: steps\.destination\.outputs\.number != ''/g) || []).length, 2);
+  assert.equal((coverage.match(/if: steps\.destination\.outputs\.number != ''/g) || []).length, 1);
 });
 
 test('malformed candidate coverage titles and untrusted workflow branches fail explicitly', async () => {
@@ -200,4 +206,104 @@ test('malformed candidate coverage titles and untrusted workflow branches fail e
     assert.equal(value.outputs.number, undefined);
     assert.deepEqual(value.calls, []);
   }
+});
+
+function coverageProducerFixture({ event = 'pull_request', jobs = [
+  { name: CHECKS[0], status: 'completed', conclusion: 'success' },
+] } = {}) {
+  const execute = new AsyncFunction('context', 'core', 'github', coverageScript('Verify coverage producer'));
+  const outputs = {};
+  const notices = [];
+  const calls = [];
+  const github = {
+    rest: { actions: { listJobsForWorkflowRun: 'listJobs' } },
+    paginate: async (method, args) => {
+      calls.push({ method, args });
+      return jobs;
+    },
+  };
+  return { outputs, notices, calls, github, execute: () => execute(
+    { repo: { owner: 'owner', repo: 'repo' }, payload: { workflow_run: { id: 123, event } } },
+    { setOutput: (key, value) => { outputs[key] = value; }, notice: message => notices.push(message) }, github) };
+}
+
+test('ordinary and candidate coverage requires a successful portable producer from the latest run attempt', async () => {
+  for (const event of ['pull_request', 'workflow_dispatch']) {
+    const value = coverageProducerFixture({ event });
+    await value.execute();
+    assert.equal(value.outputs.ready, 'true');
+    assert.deepEqual(value.notices, []);
+    assert.deepEqual(value.calls, [{ method: 'listJobs', args: {
+      owner: 'owner', repo: 'repo', run_id: 123, filter: 'latest', per_page: 100,
+    } }]);
+  }
+});
+
+test('policy-only PR coverage skips reporting with an explicit notice and no ready output', async () => {
+  const value = coverageProducerFixture({ jobs: [
+    { name: CHECKS[0], status: 'completed', conclusion: 'skipped' },
+    { name: 'Queue policy feedback', status: 'completed', conclusion: 'success' },
+  ] });
+  await value.execute();
+  assert.deepEqual(value.outputs, {});
+  assert.equal(value.notices.length, 1);
+  assert.match(value.notices[0], /policy-only.*coverage was not produced/i);
+});
+
+test('missing, duplicate and unfinished coverage producers fail instead of silently skipping', async () => {
+  const producer = { name: CHECKS[0], status: 'completed', conclusion: 'success' };
+  for (const jobs of [[], [{ ...producer, name: 'Other job' }], [producer, producer],
+    [{ ...producer, status: 'in_progress' }]]) {
+    const value = coverageProducerFixture({ jobs });
+    await assert.rejects(value.execute(), /exactly one completed portable build job/);
+    assert.deepEqual(value.outputs, {});
+    assert.deepEqual(value.notices, []);
+  }
+});
+
+test('unsuccessful portable producers cannot publish coverage for ordinary or candidate runs', async () => {
+  for (const event of ['pull_request', 'workflow_dispatch']) {
+    for (const conclusion of ['skipped', 'failure', 'cancelled', 'neutral', null]) {
+      const value = coverageProducerFixture({ event, jobs: [
+        { name: CHECKS[0], status: 'completed', conclusion },
+      ] });
+      await assert.rejects(value.execute(), /portable build did not succeed/);
+      assert.deepEqual(value.outputs, {});
+      assert.deepEqual(value.notices, []);
+    }
+  }
+});
+
+test('only successful policy feedback can justify a skipped PR producer, never a candidate producer', async () => {
+  const producer = { name: CHECKS[0], status: 'completed', conclusion: 'skipped' };
+  const feedback = { name: 'Queue policy feedback', status: 'completed', conclusion: 'success' };
+  for (const jobs of [[producer, { ...feedback, conclusion: 'failure' }],
+    [producer, { ...feedback, conclusion: 'skipped' }],
+    [producer, { ...feedback, status: 'in_progress' }], [producer, feedback, feedback]]) {
+    const value = coverageProducerFixture({ jobs });
+    await assert.rejects(value.execute(), /portable build did not succeed/);
+    assert.deepEqual(value.outputs, {});
+    assert.deepEqual(value.notices, []);
+  }
+  const candidate = coverageProducerFixture({ event: 'workflow_dispatch', jobs: [producer, feedback] });
+  await assert.rejects(candidate.execute(), /portable build did not succeed/);
+  assert.deepEqual(candidate.outputs, {});
+  assert.deepEqual(candidate.notices, []);
+});
+
+test('coverage job lookup failures remain explicit and cannot authorize reporting', async () => {
+  const value = coverageProducerFixture();
+  value.github.paginate = async () => { throw new Error('Job lookup unavailable'); };
+  await assert.rejects(value.execute(), /Job lookup unavailable/);
+  assert.deepEqual(value.outputs, {});
+  assert.deepEqual(value.notices, []);
+});
+
+test('coverage download and publication require producer readiness without hiding missing artifacts', () => {
+  assert.equal((coverage.match(/if: steps\.producer\.outputs\.ready == 'true'/g) || []).length, 2);
+  assert.match(coverage, /name: Verify coverage producer\n        if: steps\.destination\.outputs\.number != ''\n        id: producer/);
+  assert.match(coverage, /run-id: \$\{\{ github\.event\.workflow_run\.id \}\}/);
+  assert.match(coverage, /name: coverage-report/);
+  assert.match(coverage, /fs\.readFileSync\('coverage-report\/SummaryGithub\.md', 'utf8'\)/);
+  assert.doesNotMatch(coverage, /continue-on-error|actions\/checkout|KORA_MERGE_QUEUE_MODE/);
 });

@@ -165,6 +165,18 @@ names qualify. Missing, duplicate, skipped, neutral, failed or cancelled require
 jobs do not qualify. No downloaded artifact, PR text or rendered log grants
 merge authority. Coverage comments remain informational.
 
+The [coverage-comment workflow](../../.github/workflows/coverage-comment.yml)
+checks the source run's latest-attempt jobs before downloading its report.
+A skipped portable job with successful queue-policy feedback identifies a
+policy-only PR run: reporting stops with an explicit notice, without downloading
+an artifact or changing the existing coverage comment. Full ordinary PR runs and
+validated queue candidates require exactly one completed, successful portable
+job. A missing report from those runs still fails; unknown, duplicate or
+unsuccessful producers are not treated as policy-only skips. This decision uses
+the source run's evidence rather than the current queue-mode variable, which may
+have changed since that run. Candidate ticket and current-head checks remain
+required, and the 100% line/branch coverage gates are unchanged.
+
 Before attestation, the controller rechecks head, base, queue intent, reviews
 and ancestry. Its merge request includes the expected head. Strict up-to-date
 protection handles a main-advance race at the final GitHub merge boundary.

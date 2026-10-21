@@ -64,6 +64,7 @@ public sealed partial class OwnedDefinitionEditorWindowTests
             editor.Should().NotBeNull();
             editor!.KindInput.SelectedItem.Should().Be(ArtifactKind.Prompt);
             editor.Source.Text.Should().Contain("literal saved user request");
+            editor.SourceSizeStatus.Text.Should().Contain($"{ArtifactFileDocument.MeasureSourceBuffer(editor.Source.Text!).Utf8Bytes} UTF-8 bytes");
             reviewOpened = new(TaskCreationOptions.RunContinuationsAsynchronously);
             var save = Run("prompts save");
             (await Task.WhenAny(save, reviewOpened.Task)).Should().BeSameAs(reviewOpened.Task,
@@ -83,6 +84,7 @@ public sealed partial class OwnedDefinitionEditorWindowTests
             await switchKind;
             editor.KindInput.SelectedItem.Should().Be(ArtifactKind.Prompt);
             editor.Source.Text.Should().Be(draft);
+            editor.SourceSizeStatus.Text.Should().Contain($"{ArtifactFileDocument.MeasureSourceBuffer(draft!).Utf8Bytes} UTF-8 bytes");
             var closing = f.Main.TryPrepareHandoffAsync();
             dialog!.GetVisualDescendants().OfType<Button>().Single(button => Equals(button.Content, "Cancel"))
                 .RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
@@ -98,6 +100,7 @@ public sealed partial class OwnedDefinitionEditorWindowTests
             await closed.Task.WaitAsync(TestContext.Current.CancellationToken);
             await f.Main.PrivacyClosureTask;
             editor.Source.Text.Should().BeEmpty();
+            editor.SourceSizeStatus.Text.Should().BeEmpty();
             editor.IsVisible.Should().BeFalse();
             File.Exists(Path.Combine(f.RoamingRoot, "Prompts", "example.prompt.md")).Should().BeFalse();
         });

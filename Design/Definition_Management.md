@@ -37,6 +37,16 @@ file reads, secret substitution, or implicit network access.
 
 ## Source and Format Matrix
 
+The native owned Instruction/Prompt editor's [live source-buffer size feedback](../docs/instruction-editor.md#live-source-buffer-size)
+measures only the exact displayed buffer through the source document's strict
+UTF-8 encoder, without parsing or I/O. The existing `ArtifactFileDocument.Parse`
+whole-source bound is `ArtifactDefinition.MaximumContentLength` bytes, including
+the retained file BOM; the displayed buffer excludes that separately retained
+BOM. UTF-16 and scalar counts have no invented whole-source limits. Malformed
+Unicode has unavailable byte/scalar values, never replacement encoding.
+This passive observation neither retires reviews nor changes drafts or
+admission. Full Validate and exact save/use reviews remain independent.
+
 | Source | Skills | Prompts | Instructions | Agent profiles | Mutation boundary |
 |---|---|---|---|---|---|
 | Bundled `Kora.Definitions` resources | Explicit embedded packages | Actual embedded templates when introduced | Actual embedded scoped guidance when introduced | Actual embedded profiles when qualified | Immutable; inspect and create a distinct declarative adaptation, never overwrite or extract writable executable content. |

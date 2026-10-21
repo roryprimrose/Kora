@@ -82,14 +82,22 @@ internal sealed partial class LocalFilePreviewWindow
             AutomationProperties.SetName(citedSpan,
                 $"Exact cited original source span; item {span.File.ItemId:D}; lines {citation.StartLine}:{citation.StartColumn}–{citation.EndLine}:{citation.EndColumn}");
             exactSpanPanel!.IsVisible = true;
+            var target = citedSpan;
+            var layoutGeneration = sourceLayoutGeneration;
             UpdateLayout();
-            if (!current())
+            var admitted = current();
+            if (generation != navigationGeneration || !ReferenceEquals(citedSpan, target)) { return; }
+            if (!admitted)
             {
                 ClearNavigation();
                 throw new InvalidOperationException("Exact source disclosure was revoked before focus.");
             }
-            citedSpan.BringIntoView();
-            if (!citedSpan.Focus()) { throw new InvalidOperationException("Exact source span focus is unavailable."); }
+            if (!IsSourceLayoutCurrent(layoutGeneration, target, span.File, current)
+                || generation != navigationGeneration) { return; }
+            target.BringIntoView();
+            if (!IsSourceLayoutCurrent(layoutGeneration, target, span.File, current)
+                || generation != navigationGeneration) { return; }
+            if (!target.Focus()) { throw new InvalidOperationException("Exact source span focus is unavailable."); }
         }
         catch (OperationCanceledException) when (cancellation.IsCancellationRequested) { }
         catch (Exception) when (cancellation.IsCancellationRequested || generation != navigationGeneration || !current()) { }

@@ -515,6 +515,7 @@ internal static class Program
         services.AddSingleton<SessionConversationService>();
         services.AddSingleton<SessionRequestCommandService>();
         services.AddSingleton<SessionRetentionCommandService>();
+        services.AddSingleton<ConversationSearchCommandService>();
         services.AddTransient<NewRequestComposer>();
         services.AddSingleton<Kora.Application.Definitions.PromptConversationSubmission>();
         services.AddSingleton<ModelProviderHandoffWorkflow>();

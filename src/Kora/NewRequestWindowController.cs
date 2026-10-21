@@ -46,6 +46,7 @@ internal sealed partial class NewRequestWindowController(
             };
             composer = state;
             window = opened;
+            BindDraftFind(opened, state);
             try { opened.OpenPrivate(); }
             catch
             {

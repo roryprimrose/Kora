@@ -49,7 +49,9 @@ function fixture(overrides = {}) {
   const github = { rest,
     paginate: async (method, args, transform) => {
       const response = await method(args);
-      return transform ? transform(response) : response.data;
+      const data = Array.isArray(response.data) ? response.data : response.data.workflow_runs ?? response.data.jobs;
+      assert.ok(Array.isArray(data), 'Octokit pagination returns a normalized array.');
+      return transform ? transform({ ...response, data }) : data;
     },
     graphql: async (query, args) => {
       calls.push(['graphql', args]);
@@ -169,6 +171,16 @@ test('expected protected merge refusals are explicit, infrastructure failures ar
   await assert.rejects(fixture({ merge: () => { throw error(500); } }).api.merge(candidate()));
 });
 
+test('continuation wakes only the trusted controller on main without candidate inputs', async () => {
+  const value = fixture();
+  await value.api.wake();
+  assert.deepEqual(value.calls, [['createWorkflowDispatch',
+    { owner: 'owner', repo: 'repo', workflow_id: 'merge-queue.yml', ref: 'main' }]]);
+  for (const status of [403, 500]) {
+    await assert.rejects(fixture({ createWorkflowDispatch: () => { throw error(status); } }).api.wake());
+  }
+});
+
 test('candidate admission requires trusted main, the exact ticket and still-current head/base', async () => {
   assert.equal(await admit({ github: fixture().github, context, inputs: inputs() }), HEAD);
   for (const changed of [{ eventName: 'pull_request' }, { ref: 'refs/heads/topic' }, { sha: OTHER }]) {
@@ -207,4 +219,15 @@ test('paginated run and job lookups cannot accidentally select an unrelated work
   }
   value.github.graphql = async () => ({});
   await assert.rejects(value.api.reviewReady(1));
+});
+
+test('normalized pagination preserves empty and multiple workflow run and job records', async () => {
+  for (const records of [[], [{ id: 1 }, { id: 2 }], [{ id: 1 }, { id: 1 }]]) {
+    const value = fixture({
+      listWorkflowRuns: () => ({ total_count: records.length, workflow_runs: records }),
+      listJobsForWorkflowRun: () => ({ total_count: records.length, jobs: records }),
+    });
+    assert.deepEqual(await value.api.runs(candidate()), records);
+    assert.deepEqual(await value.api.jobs(1), records);
+  }
 });

@@ -132,11 +132,30 @@
           </DataTemplate>
         </ListBox.ItemTemplate>
       </controls:ScrollableListBox>
-      <ScrollViewer Grid.Column="1" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto"
-                    AutomationProperties.Name="Complete bounded selected group work metadata and policy reasons">
-        <controls:NamedTextBlock Text="{Binding SelectedDetails}" TextWrapping="Wrap"
-                             AutomationProperties.Name="Exact observation provenance, stored lifecycle, queue/task states, deadlines and pending-question metadata; no bodies or authority" />
-      </ScrollViewer>
+      <Grid Grid.Column="1" RowDefinitions="Auto,*" RowSpacing="8">
+        <StackPanel Spacing="6">
+          <TextBlock Text="Find only in the selected displayed metadata details. Literal, case-sensitive, nonoverlapping; no wrap. Counts are not inventory, completeness, trust, safety or authority." TextWrapping="Wrap" />
+          <WrapPanel>
+            <TextBox x:Name="DetailsFindQuery" MinWidth="180" IsUndoEnabled="False"
+                     AutomationProperties.Name="Private selected metadata Find query; Ctrl F; one line, at most 256 UTF-16 units and 512 UTF-8 bytes; Enter finds first; typing performs no read" />
+            <Button x:Name="DetailsFindFirst" Content="First" AutomationProperties.Name="Find first exact selected metadata match" />
+            <Button x:Name="DetailsFindNext" Content="Next" AutomationProperties.Name="Find next exact selected metadata match; F3; no wrap" />
+            <Button x:Name="DetailsFindPrevious" Content="Previous" AutomationProperties.Name="Find previous exact selected metadata match; Shift F3; no wrap" />
+            <Button x:Name="DetailsFindClear" Content="Clear" AutomationProperties.Name="Clear private selected metadata Find query, count and match; Escape" />
+          </WrapPanel>
+          <controls:NamedTextBlock x:Name="DetailsFindStatus" Text="{Binding FindStatus}" TextWrapping="Wrap"
+                                  AutomationProperties.Name="Selected metadata Find result, complete nonoverlapping count and selected ordinal; no inventory or authority claim" />
+          <ScrollViewer MaxHeight="70" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
+            <controls:NamedTextBlock x:Name="DetailsFindMatch" Text="{Binding FindMatch}" Focusable="True"
+                                    AutomationProperties.Name="Exact inert selected metadata Find match; not a row selection or action target" />
+          </ScrollViewer>
+        </StackPanel>
+        <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto"
+                      AutomationProperties.Name="Complete bounded selected group work metadata and policy reasons">
+          <controls:NamedTextBlock x:Name="SelectedMetadataDetails" Text="{Binding SelectedDetails}" TextWrapping="Wrap"
+                                 AutomationProperties.Name="Exact observation provenance, stored lifecycle, queue/task states, deadlines and pending-question metadata; no bodies or authority" />
+        </ScrollViewer>
+      </Grid>
     </Grid>
     <WrapPanel Grid.Row="4">
       <Button x:Name="Navigate" Content="Open exact _session with fresh passive read" IsEnabled="{Binding CanNavigate}"

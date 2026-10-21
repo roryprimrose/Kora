@@ -173,7 +173,7 @@ public sealed partial class MainViewModelTests
         public ValueTask<ConversationDraftSnapshot> CommitConversationDraftAsync(HostRequest control, ConversationDraftSnapshot expected,
             string? body, Func<bool> admitted, CancellationToken token) => throw new NotSupportedException();
         public ValueTask<ConversationPage> ReadConversationPageAsync(HostId<SessionIdentity> session, ConversationCursor? cursor,
-            int limit, CancellationToken token) => throw new NotSupportedException();
+            int limit, CancellationToken token) => ReadSearchPage(session, cursor, limit, token);
         public ValueTask<ConversationMessage> ReadConversationMessageAsync(HostId<SessionIdentity> session,
             HostId<RequestIdentity> request, CancellationToken token)
         {

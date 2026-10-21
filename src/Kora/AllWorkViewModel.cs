@@ -13,12 +13,13 @@ namespace Kora;
 
 internal sealed partial class AllWorkViewModel(
     SessionWorkspaceService service, ISessionWorkspaceAccess access, ILogger<AllWorkViewModel> logger,
-    Func<HostId<SessionIdentity>, Func<bool>, CancellationToken, Task> navigate) : ObservableObject
+    Func<HostId<SessionIdentity>, Func<bool>, CancellationToken, Task> navigate) : ObservableObject, IDisposable
 {
     private readonly HostRequest viewer = HostRequest.Create(RequestOrigin.LocalUi);
     private readonly CancellationTokenSource lifetime = new();
     private CancellationTokenSource? operation;
     private SessionWorkOverviewPage? page;
+    private long pageControlRevision;
     private SessionWorkOverviewRow? selected;
     private SessionListFilter filter;
     private SessionWorkOverviewAvailability? availability;
@@ -76,7 +77,7 @@ internal sealed partial class AllWorkViewModel(
     public bool CanNext => CanSearch && (busy ? hadNext : page?.Next is not null);
     public bool CanCancel => !closed && operation is not null;
     public bool CanNavigate => CanEdit && selected is { Availability: SessionWorkOverviewAvailability.Observed };
-    public string SelectedDetails => selected is null ? string.Empty : Describe(selected);
+    public string SelectedDetails => selectedDetails;
     public string QueryHint => queryText.Length == 0
         ? "No query: bounded overview scan. Typing never reads; Search/Refresh starts a fresh scan."
         : SessionListSearch.IsValid(queryKind, filter, queryText)
@@ -212,10 +213,18 @@ internal sealed partial class AllWorkViewModel(
     public void Select(SessionWorkOverviewRow? row)
     {
         if (closed || busy || row is not null && !Records.Contains(row)) { return; }
+        RetireFind();
         selected = row;
+        selectedDetails = row is null ? string.Empty : Describe(row);
+        AdmitFind();
         Notify();
     }
-    public void Cancel() => operation?.Cancel();
+    public void Cancel()
+    {
+        RetireFind();
+        operation?.Cancel();
+        NotifyFind();
+    }
 
     public Task RefreshAsync(bool next = false)
     {
@@ -238,9 +247,11 @@ internal sealed partial class AllWorkViewModel(
             var cursor = next ? page?.Next ?? throw new InvalidOperationException("Refresh before Next.") : null;
             var query = queryText.Length == 0 ? null : new SessionListSearch(queryKind, filter, queryText);
             ClearPage();
+            var revision = access.ControlRevision;
             var result = await service.ReadWorkOverviewAsync(filter, needsAnswer, cursor, token, query, availability, content, ranges, taskState, taskQuery);
             token.ThrowIfCancellationRequested();
             page = result;
+            pageControlRevision = revision;
             status = "This page: " + result.Records.Length.ToString(CultureInfo.InvariantCulture) + " groups; "
                 + result.Scanned.ToString(CultureInfo.InvariantCulture) + " consumed/scanned; "
                 + result.Nonmatches.ToString(CultureInfo.InvariantCulture) + " filter nonmatches; "
@@ -273,6 +284,7 @@ internal sealed partial class AllWorkViewModel(
         var revision = access.ControlRevision;
         var admittedEpoch = epoch;
         hadNext = page?.Next is not null;
+        RetireFind();
         busy = true;
         using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(lifetime.Token);
         operation = cancellation;
@@ -317,7 +329,13 @@ internal sealed partial class AllWorkViewModel(
         status = "Session lifecycle, disposition or retention source changed. Page and continuation revoked; Refresh.";
         Notify();
     }
-    private void ClearPage() { page = null; selected = null; }
+    private void ClearPage()
+    {
+        RetireFind();
+        page = null;
+        selected = null;
+        selectedDetails = string.Empty;
+    }
     private void Invalidate() { epoch++; hadNext = false; operation?.Cancel(); ClearPage(); }
     public void Close()
     {
@@ -343,11 +361,19 @@ internal sealed partial class AllWorkViewModel(
         Notify();
     }
 
+    public void Dispose()
+    {
+        Close();
+        GC.SuppressFinalize(this);
+    }
+
     private void Notify()
     {
+        if (find is not null && !FindCurrent()) { RetireFind(); }
         OnPropertyChanged(nameof(Records));
         OnPropertyChanged(nameof(SelectedRecord));
         OnPropertyChanged(nameof(SelectedDetails));
+        NotifyFind();
         OnPropertyChanged(nameof(Filter));
         OnPropertyChanged(nameof(Availability));
         OnPropertyChanged(nameof(SelectedAvailabilityChoice));

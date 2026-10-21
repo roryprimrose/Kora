@@ -113,15 +113,17 @@ class GitHubQueue {
     await this.github.rest.actions.createWorkflowDispatch({ ...this.repo, workflow_id: WORKFLOW, ref: 'main',
       inputs: { queue_pr: String(active.number), queue_head: active.head, queue_base: active.base, queue_ticket: active.ticket } });
   }
+  async wake() {
+    await this.github.rest.actions.createWorkflowDispatch({ ...this.repo, workflow_id: 'merge-queue.yml', ref: 'main' });
+  }
   async runs(active) {
     return this.github.paginate(this.github.rest.actions.listWorkflowRuns, { ...this.repo, workflow_id: WORKFLOW,
       event: 'workflow_dispatch', branch: 'main',
-      created: `>=${new Date(Date.parse(active.created) - 5 * 60_000).toISOString()}`, per_page: 100 },
-    response => response.data.workflow_runs);
+      created: `>=${new Date(Date.parse(active.created) - 5 * 60_000).toISOString()}`, per_page: 100 });
   }
   async jobs(runId) {
     return this.github.paginate(this.github.rest.actions.listJobsForWorkflowRun, { ...this.repo,
-      run_id: runId, filter: 'latest', per_page: 100 }, response => response.data.jobs);
+      run_id: runId, filter: 'latest', per_page: 100 });
   }
   async cancel(runId) {
     try {

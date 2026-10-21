@@ -1,5 +1,35 @@
 # Voice and typed commands
 
+## Local decimal calculator
+
+Type `calculate <expression>`, or use the current assistant-name prefix with
+activated voice, for example `Kora, calculate (1.25 + 2.75) * -3`.
+Use `calculate help` for the exact grammar. The result appears in the transcript
+only; it does not replace the response, automatically speak, or create retained
+conversation content.
+
+Supported syntax is invariant decimal literals (`12`, `0.25`), ASCII spaces,
+`+`, `-`, `*`, `/`, parentheses and unary signs. Multiplication/division precede
+addition/subtraction; binary operators associate left to right. A decimal point
+requires digits on both sides. No exponents, functions, units, evaluation engine,
+scripts, shell, model or network are used.
+
+Limits are 512 expression characters, 128 tokens and 16 nested parentheses/unary
+signs combined. Literals must be exactly representable as .NET decimal (up to 28
+fractional places after trailing zeros are removed). Checked decimal arithmetic
+uses .NET's decimal rounding, including division and underflow; for example
+`calculate 1/3` returns `0.3333333333333333333333333333`. Results are invariant,
+non-exponential, at most 31 characters, with insignificant trailing zeros removed.
+Invalid syntax, limit failures, overflow and division by zero are explicit
+outcomes with no value or default answer.
+
+Malformed reserved `calculate` requests never answer a pending question, grant
+an approval or reach a model. Calculator requests leave pending questions,
+approvals and grant reviews unchanged and report unavailable until resolved.
+Original private host, instance ownership, current-name voice activation and
+call/privacy admission must remain valid; protected or unknown call state
+refuses calculation. This native-only command adds no model descriptor.
+
 ## Open an exact Settings tab
 
 Use one complete case-insensitive phrase below, optionally prefixed by the current assistant name when typed. Activated voice requires that current-name prefix. Outer spaces are accepted; punctuation, extra words, control characters and input over 256 characters are not ([exact grammar](../src/Kora.Application/Configuration/SettingsSectionCommand.cs)).
@@ -339,6 +369,34 @@ Typed syntax and arbitrary exact after-task semantics below are unchanged; no re
 | `queue cancel-selected-discard <session-id> <review-id>` | Revoke review without writes; pending selection and draft unchanged |
 
 **Review selected pending cancellation** uses a separate pending-only multi-selection, never the current work/question selection. Select one to ten current-run pending entries explicitly; no hidden/default select-all. Review shows every ID/revision/profile in current dispatch order with original deadlines and full count; **Cancel these pending entries only** is the separate confirmation.
+
+For preparation without copying revisions, use
+`session queue cancellation review <session-id> <task-id>[,<task-id>...]`,
+or `session queue cancellation help` for explicit help. Typed input and the
+current assistant-name activated voice route open this same private native
+selector/review. IDs must be nonempty lowercase canonical D GUIDs; specify
+one to the existing maximum ten unique task IDs, comma-separated without
+spaces. Input order is resolved to current dispatch order. Names, substrings,
+`latest`, `current`, omitted targets, duplicates and default/all selection are
+not accepted.
+
+Preparation freezes the original exact session, queue, run, pause and member
+revisions. Native opening uses the original dirty-composer Save/Discard/Cancel
+decision; Cancel or an unconfirmed save never prepares cancellation. The exact
+queue is observed again before the complete review displays every original
+ID/revision/deadline/prerequisite, count and queue/run/pause state. Missing,
+replaced, nonpending, previous-run or otherwise ineligible entries refuse the
+whole request; changed sources are unavailable, never silently reduced,
+retargeted or retried. Expired pending rows remain cancellable only under the
+existing cancellation policy, without renewing dispatch eligibility.
+
+This command cannot confirm or commit cancellation. Use the separate one-shot
+native **Cancel these pending entries only** action after reviewing the complete
+subset, or discard the review to retain the native selection and drafts.
+Preparation never enqueues, dispatches, pauses/resumes, probes, invokes a model,
+renews deadlines/activity, changes running work or removes history. Existing
+question/approval decisions remain separate. The full revisioned commands above
+retain their existing behavior.
 
 New selected-set syntax uses canonical lowercase D GUIDs and canonical decimal revisions. Repeat the full ordered member list and every displayed authority revision plus the host-issued review ID when confirming.
 Empty/duplicate/over-bound/unlisted/stale members, changed source/private epochs or queue mutations refuse the entire set; refresh and review again. Existing `cancel`, `remove` and `clear` syntax is unchanged.
@@ -778,8 +836,25 @@ entry use the same request workflow without a model:
 | **reuse clipboard snapshot {exact snapshot ID}** | Reopen/select that same snapshot only; never reread or silently substitute changed clipboard text |
 | **clear clipboard preview** / **revoke clipboard snapshot** | Discard Kora's snapshot and preview, not the Windows clipboard |
 
+**clipboard snapshot status {snapshot-id}** reports only whether that exact
+currently admitted immutable snapshot is present, its host snapshot ID and its
+existing UTF-8 byte count. **clipboard snapshot help** shows syntax without
+revealing the current ID. These commands require single ASCII spaces; status
+requires a nonempty lowercase `D` GUID (`xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx`), without
+braces, punctuation repair, extra arguments or trailing whitespace. Command
+words are case-insensitive. Voice requires the current assistant-name prefix.
+Malformed reserved `clipboard snapshot` input is rejected locally before
+questions, approvals or model routing.
+
+Status is transcript-only, with no automatic speech or response/pending-panel
+replacement. Missing, replaced, revoked or ineligible snapshots are explicitly
+unavailable, not an empty-clipboard claim. Status never reads or refreshes the
+system clipboard, reuses/revokes a snapshot, extends review lifetime, or admits
+source use. No source text, excerpt, fingerprint, capture time, native read
+version, source ID or inferred sensitivity is reported.
+
 Configured-name prefixes and the normal exact-command case/punctuation rules
-apply. The preview shows the host source/snapshot IDs, `CF_UNICODETEXT` format,
+apply to the older preview/reuse/revoke commands. The preview shows the host source/snapshot IDs, `CF_UNICODETEXT` format,
 read version, capture time and exact UTF-8 byte count. Its **Reuse this exact
 snapshot ID** button uses the displayed ID; **Revoke and clear**, closing the
 preview, cancel, privacy/ownership loss, call-policy change and host exit clear
@@ -913,11 +988,42 @@ queue, scheduler, automatic resume or playback. History does not import volatile
 file previews/shared skills or reconstruct captions. See the
 [native workflow](windows-and-tray.md#bounded-passive-interaction-history).
 
-The separate native [selected-conversation search](windows-and-tray.md#search-one-exact-retained-conversation) searches actual retained USER bodies and typed HOST outcomes in the selected exact session. This older `session search` command remains Question/Answer/task receipt `HistorySearch`; it is not implicitly remapped to body search. Conversation query content stays native and adds no typed/voice/model descriptor or transcript entry.
+The separate [exact-conversation search](#search-one-explicitly-addressed-retained-conversation) and native [selected-conversation search](windows-and-tray.md#search-one-exact-retained-conversation) search actual retained USER bodies and typed HOST outcomes.
+This older `session search` command remains Question/Answer/task receipt `HistorySearch`; it is not implicitly remapped to body search.
 
 Native transcript search additionally accepts optional inclusive observed message Generation (positive Int64) and Revision (1-2) min/max, AND with its existing predicates. Empty means Any; strict decimal input is not trimmed or repaired. This adds no command syntax, routing, submission or hidden body read ([range contract](../src/Kora.Core/Conversation/ConversationRangeFilter.cs)).
 
 Search uses the [shared lexical query rules](../src/Kora.Core/Context/LocalFileRetrievalPolicy.cs): 1-256 UTF-16 characters, at most 512 strict UTF-8 bytes, 1-32 distinct words of at most 64 characters, NFC/invariant case and literal whole-word OR matching. Punctuation separates words, not operators, wildcards or regular expressions. Quotes inside the final quoted query are doubled.
+
+### Search one explicitly addressed retained conversation
+
+Typed input and current-name activated voice share the distinct `conversation search` family:
+
+```text
+conversation search <session-id> -- <verbatim query>
+conversation search next <session-id>
+conversation search cancel <session-id>
+Kora, conversation search abcdef12-1234-1234-1234-123456789012 -- café
+```
+
+Use a complete nonempty canonical lowercase D-format session GUID, never a name, selected window, partial ID or model-supplied destination. Voice requires the current assistant-name prefix.
+The query is everything after the single space following `--`, including any additional leading/trailing spaces, case, quotes, Unicode or later `--`. It is not trimmed or repaired.
+The canonical lexical limits above apply; empty/invalid input refuses before body reads, never Browse, a question answer or model fallback.
+
+One original-user action calls the same [canonical search service](../src/Kora.Application/Hosting/SessionConversationService.cs) as native search. Active and retained Done are readable without Resume.
+Results are inert chronological original USER messages and separate typed HOST outcomes with exact session/generation/request/task/sequence/revision provenance, not generated snippets.
+Each page returns at most 25 messages, scans at most the existing 100-message session bound and preserves the complete serialized 64 KiB limit, counters and source-qualified cursor.
+
+`next` accepts only the same exact session ID, not a caller-supplied cursor or JSON. The host holds one memory-only cursor, original query/channel, private control revision, exact lifecycle/generation/metadata snapshot and original admission, expiring 60 seconds after the first page without renewal.
+Zero matches do not imply Browse or unavailable content. Changed source, snapshot, origin, privacy, call revision, voice/name readiness or expiry requires a fresh search. Cancel clears the exact host-held search and cancels its in-flight read.
+
+Search results are visual-only, including in Voice Only mode. No query/body is spoken, captioned, logged, persisted, sent to a model or added to transcript chrome.
+No session navigation occurs: dirty composer buffers and Save/Discard/Cancel decisions, saved drafts, question/approval/voice targets and retention activity remain unchanged.
+There is no draft/history/all-session body search, model descriptor, submission, replay or automatic resume.
+
+Deterministic evidence: [grammar and query bytes](../tests/Kora.Core.UnitTests/Commands/ConversationSearchCommandTests.cs) and [source-bound continuation/cancellation](../tests/Kora.Application.UnitTests/Hosting/SessionWorkspaceServiceTests.ConversationCommands.cs).
+Also see [typed/voice and decision isolation](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.ConversationSearch.cs) and [private SQLite/headless dirty-composer checks](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.ConversationSearch.cs).
+Hardware/provider/wake/acoustic/installed qualification is not enabled or required by this bounded implementation.
 
 The native receipt-history controls additionally offer exact kind, task state,
 decision, question status and answer-channel choices, each with explicit Any.

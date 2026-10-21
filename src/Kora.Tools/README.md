@@ -20,6 +20,7 @@ helpers and brokers are not separately advertised actions.
 | Folder / namespace suffix | Action classes | Shared collaborators |
 |---|---|---|
 | [Application](Application) | [ApplicationGetVersion](Application/ApplicationGetVersion.cs) | Core `IApplicationVersion`; running-assembly implementation in Application. |
+| [Calculations](Calculations) | [Calculate](Calculations/Calculate.cs) | Core `CalculateCommand` and `DecimalCalculator` own the exact bounded grammar; native Application routing calls the same internal action. No model descriptor. |
 | [Capabilities](Capabilities) | [CapabilitiesList](Capabilities/CapabilitiesList.cs), [CapabilitiesGet](Capabilities/CapabilitiesGet.cs) | [ReadOnlyPage](Capabilities/ReadOnlyPage.cs) and Core descriptor catalogue. |
 | [Readiness](Readiness) | [ReadinessGet](Readiness/ReadinessGet.cs) | [RecordedDependencyObservation](Readiness/RecordedDependencyObservation.cs). |
 | [Runtime](Runtime) | [RuntimeList](Runtime/RuntimeList.cs), [RuntimeGetStatus](Runtime/RuntimeGetStatus.cs) | [RecordedRuntimeObservation](Runtime/RecordedRuntimeObservation.cs), reusing the readiness projection. |

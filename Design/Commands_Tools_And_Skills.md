@@ -9,11 +9,40 @@ owns delivered status; [Commands](../docs/commands.md) owns current exact syntax
 Native delivery or instruction selection never grants model, execution,
 approval, session or egress authority.
 
+Pending-queue cancellation preparation uses
+`session queue cancellation review <session-id> <task-id>[,<task-id>...]`
+and explicit `session queue cancellation help`. This reserved exact-session
+family opens the existing private native pending subset selector/review; it
+does not confirm cancellation or introduce a model descriptor. The
+[command guide](../docs/commands.md) owns grammar and
+[Work Management](Work_Management.md#delivered-atomic-selected-pending-cancellation---2026-10-12) owns the
+complete-subset/revision and separate native-confirmation boundary.
+
 For capability-specific limits, use [configuration](User_Configuration.md),
 [source storage](Skill_Storage.md), [file ingestion](File_And_Folder_Ingestion.md),
 [providers/memory](Model_Providers_Memory_And_Knowledge.md) and
 [security](Security_Data_Flows.md), rather than repeating their delivery
 narratives here.
+
+## Deterministic local arithmetic
+
+The exact [calculator command](../docs/commands.md#local-decimal-calculator) is an
+original typed/current-name activated, native-only route. Core
+`CalculateCommand` reserves raw requests before question/approval/model routing;
+`DecimalCalculator` owns the bounded pure decimal grammar and typed failure
+outcomes. The Application route delegates arithmetic to the single host-owned
+`Kora.Tools.Calculations.Calculate` action. That action requires live host
+context, original native/activated origin, no model invocation and current host
+admission, and creates a correlated tool activity with a truthful terminal
+outcome. Diagnostics include only the outcome, never expression or result.
+
+This route performs no consequential effect, persistence, source read, egress or
+grant mutation, so it creates no security-audit event. It preserves pending
+questions and approvals and reports only in the private native transcript,
+without automatic speech or response-source replacement. The existing private,
+ownership, consent, call and original voice-generation gates remain required.
+No speculative model descriptor, execution lane or provider qualification is
+enabled.
 
 ## Delivered Artifact Invocation
 
@@ -81,6 +110,11 @@ They activate the same singleton native controllers, not artifact `run`/`use`/`a
 The delivered owned native editor also provides literal metadata search, observed-use filters and exact stale-safe row inspection for its existing Instruction/Prompt filename inventories only.
 Explicit List/Refresh uses existing admission/reconciliation; filtering remains in-memory and model-free, with no source writes, activation or first-result loading. Typed/current-name activated List/Inspect opens the same native route; no new model tool or typed search grammar is registered.
 Observed catalogue state is not current disk integrity. Unavailable/stale choices require Refresh/reselection while the original/draft stays open. See [owned inventory controls](../docs/instruction-editor.md#search-observed-owned-metadata); profile-original editing and the full definition source matrix stay deferred.
+
+The editor's separate [displayed-buffer literal Find](../docs/instruction-editor.md#find-in-the-displayed-owned-buffer)
+is native-only (Ctrl+F, first/next/previous/clear), not an inventory query, typed/activated command,
+dictation route or model tool. It searches only the exact owned memory buffer, including dirty text,
+without source reads, selection retargeting, save/validation/rebase, enablement or execution.
 
 ### Proposed Instruction Authoring
 

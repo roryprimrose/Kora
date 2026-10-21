@@ -216,18 +216,20 @@ internal sealed partial class SessionsViewModel
             + " No fallback or automatic retry. Saved drafts remain independently retained; Refresh for the full bounded conversation.";
     }, submission: true);
 
-    internal async Task<bool> ProtectComposerAsync()
+    internal async Task<bool> ProtectComposerAsync(Func<bool>? admitted = null)
     {
         RetireComposerComparison();
         RetireDraftRecovery();
         if (protectingComposer) { return false; }
+        if (admitted?.Invoke() == false) { throw new OperationCanceledException("Original composer navigation admission changed."); }
         if (!ComposerDirty) { return true; }
         var target = RequireSelected();
         var epoch = selectionEpoch;
         var revision = access.ControlRevision;
         var body = composerBody;
         bool Live() => !closed && access.CanInspect && access.ControlRevision == revision
-            && selectionEpoch == epoch && selected == target && string.Equals(composerBody, body, StringComparison.Ordinal);
+            && selectionEpoch == epoch && selected == target && string.Equals(composerBody, body, StringComparison.Ordinal)
+            && (admitted?.Invoke() ?? true);
         protectingComposer = true;
         Notify();
         try
@@ -369,7 +371,7 @@ internal sealed partial class SessionsViewModel
             nameof(ConversationMessages), nameof(ConversationStatus), nameof(SavedConversationDraftReview), nameof(CanReadConversation), nameof(CanNextConversation),
             nameof(CanOpenConversationDetails), nameof(CanReviewOriginalMessageReuse), nameof(CanCompose), nameof(CanSaveConversationDraft), nameof(CanReloadConversationDraft),
             nameof(CanReviewClearConversationDraft), nameof(CanClearConversationDraft), nameof(CanSubmitConversation), nameof(CanCompareComposer),
-            nameof(CanRecoverConversationDraft) })
+            nameof(CanRecoverConversationDraft), nameof(ComposerDraftSizeFeedback) })
         { OnPropertyChanged(name); }
     }
 }

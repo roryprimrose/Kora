@@ -56,13 +56,13 @@ These conversation Details grant **no clipboard/export disclosure authority**. C
 
 ### Find a literal in open Details
 
-Type a query in **Literal Find** (`Ctrl+F`), then choose **Find first** or press Enter. **Next** (`F3`) starts after the match end; **Previous** (`Shift+F3`) finds the last match ending at or before its start. Find is case-sensitive with unchanged spaces, nonoverlapping and **does not wrap**. At a direction boundary the match hides; you can reverse direction using the retained cursor. A no-match result is distinct from an unavailable or rejected query.
+Type a query in **Literal Find** (`Ctrl+F`), then choose **Find first** or press Enter. **Next** (`F3`) starts after the match end; **Previous** (`Shift+F3`) returns to the previous match in that same nonoverlapping sequence. Find is case-sensitive with unchanged spaces and **does not wrap**. The count status shows the selected match and complete nonoverlapping count, for example **Match 2 of 5**. At a direction boundary the match hides but its ordinal remains; you can reverse direction using the retained cursor. **0 matches** means a completed search found none, not an unavailable or rejected query.
 
 Queries must wholly fit 256 UTF-16 characters / 512 UTF-8 bytes: nonempty well-formed one-line text without unsafe controls. Nothing is normalized or truncated. Only one inert match with an exact end-exclusive UTF-16 location is focused; the complete displayed text and origin stay unchanged.
 
-Find uses only the current frozen in-memory reader projection, never another source read. **Exact source** switches to the admitted source and resets Find. In retained conversation Details, **Find separate typed HOST observation** searches only the separate already-displayed HOST chrome, not the original USER body. Switching targets resets Find.
+Find counts only the current frozen, bounded in-memory reader projection, never another source read or the complete source/corpus/history. **Exact source** switches to the admitted source and resets Find. In retained conversation Details, **Find separate typed HOST observation** counts only the separate already-displayed HOST chrome, not the original USER body or ASSISTANT answer. No targets or hidden fields are combined. Switching targets resets Find.
 
-**Cancel Find** releases the match/cursor and retains the query; **Clear literal Find** also releases the query. Both return focus to the query. Query edits reset navigation. Escape closes Details; private/source loss, replacement or closure clears text and prevents old controls from publishing a match. The match follows the reader text scale and has native accessibility names/status.
+**Cancel Find** releases the match/cursor, count and ordinal and retains the query; **Clear literal Find** also releases the query. Both return focus to the query. Query edits and rendering changes reset navigation and make the count unavailable until an explicit Find. Escape closes Details; private/source loss, replacement or closure clears text and prevents old controls from publishing a match or stale count. Failed match focus retires the result. The match follows the reader text scale; the separate accessible count status is not a live region repeatedly announcing query edits.
 
 There is no Find clipboard/paste/export, logging, persistence, provider or network operation, broader Detail opening authority or installed/accessibility/hardware qualification. See the [admitted-text contract](../Design/Information_Display.md#native-admitted-text-literal-find).
 
@@ -86,6 +86,28 @@ Dirty means the current body differs exactly from its last confirmed saved memor
 
 **Open this exact session** is explicit navigation only and protects an unsaved named composer with its existing Save/Discard/Cancel decision. It does not transfer this New request body.
 **Inspect exact attempt (no retry)** reads the disclosed original session/request/task identity without renewing activity. Storage/audit/admission uncertainty keeps the recoverable draft and exact hold; do not blindly create another target or resubmit.
+
+#### Find in the current memory draft
+
+In New request, **Ctrl+F** focuses **Find in current memory DRAFT BODY only**.
+Enter a case-sensitive one-line literal, then **Find first in draft** (Enter).
+**Find next** (F3) and **Find previous** (Shift+F3) follow the complete forward
+nonoverlapping sequence without wrapping. Total and ordinal describe only this
+exact current editable buffer, including dirty or invalid drafts. A match selects
+and focuses its exact UTF-16 span in the native editable source; unavailable
+focus is reported explicitly.
+
+The whole query must fit 256 UTF-16 characters / 512 UTF-8 bytes and be
+well-formed, nonempty one-line text without unsafe controls. Spaces and Unicode
+are not normalized or truncated. This does not search reviewed text, the
+assistant answer, saved drafts, Sessions buffers or hidden sources.
+
+**Clear draft Find**, query edits, body edits (including any future dictation
+insertion), reset, review/target/source changes, host input/control changes and
+closure retire navigation/count. Private closure clears the volatile query.
+Retirement never restores or collapses a potentially user-owned selection.
+Find does not edit, save/reload, create, review, submit, capture, invoke a model,
+copy or grant new clipboard authority. Existing native editing/copy/paste is unchanged.
 
 ### Search one exact retained conversation
 
@@ -171,6 +193,20 @@ messages; there is no aggregate retained-session, draft-bearing-session or
 message storage quota and no automatic eviction. Read pages have at most
 50 records/64 KiB complete output. These are predictable work/UI bounds,
 not a total database-size or unlimited physical-disk promise.
+
+**Current draft size and shape** updates beside the editable buffer in New
+request, Sessions and the expanded conversation window. It shows actual UTF-8
+bytes, Unicode scalars and UTF-16 code units, with the same Save/Submit bounds
+above. There is no separate scalar-count maximum: an astral character counts as
+one scalar but two UTF-16 units. Empty/whitespace drafts may be saved, but cannot
+be submitted. Malformed Unicode has no byte/scalar total; the display reports it
+explicitly rather than counting replacement characters. Unsupported control
+content and over-limit drafts remain editable, never shortened or repaired.
+This is size/Unicode feedback only, not credential clearance, model readiness
+or permission to Save/Submit. It measures only the current buffer, not saved or
+reviewed bodies, questions, approvals or assistant answers. Reading it does not
+save, submit, renew activity, log content or start any model/device/network work.
+Private presentation revocation removes the metrics along with private content.
 
 Save/Submit also perform bounded **local best-effort credential-like checks**:
 private-key PEM blocks/candidates, Authorization Bearer/Basic values, explicit
@@ -282,6 +318,9 @@ Open **Tray > Sessions > All work / attention overview**, then **Refresh overvie
 - Expand **Optional inclusive observed work metadata ranges** to set minimum/maximum authority revision, queue revision, pending count/capacity, execution slots, observed current fixed reads, or omitted queue-receipt/task/pending-question counts. Empty means Any; endpoints are inclusive and minimum must not exceed maximum. Enter ASCII decimal Int64 only, without signs, whitespace or separators. Authority revision, capacity and slots must be positive; queue revision and counts may be zero. Invalid bounds show recovery and disable Search/Refresh/Next without reading or falling back to Any. **Clear work metadata ranges** clears just these bounds and results without reading.
 - Ranges AND-compose with lifecycle, Browse/name/exact-ID, Needs answer, **Observation availability** and positive **Observed content** choices. Only validated **Observed** work matches an active range; Source changed, Read unavailable and Output bound never do. Matching an omission count supplies no retained records and proves no absence, completeness, success or authority. Zero is just the observed scalar, not all-clear. Edits retire rows/selection/continuation and late callbacks, remain available during reads, and clear on close/private closure.
 - Select a group to read exact IDs/generations, source revisions/UTC time, fixed-profile slots/capacity, observed current fixed reads, queue/task states, scheduler reasons and captured deadlines. Full private bodies, history, attachments, memory and diagnostic text are not collected.
+- **Ctrl+F** focuses native Find for that selected group's **displayed metadata details only**. Enter or **First** finds the first exact case-sensitive literal; **Next / F3** and **Previous / Shift+F3** follow the complete nonoverlapping sequence without wrapping. A native inert match and selected ordinal/count describe only this one captured details string, never page/global inventory, completeness, trust, safety or authority. Match focus requires native acknowledgement; focus failure clears the match/navigation and offers First to retry.
+- Find queries are private one-line, well-formed text, at most 256 UTF-16 units / 512 UTF-8 bytes, without control/format/line/paragraph separators. No case folding, normalization, regex, trimming or truncation occurs. Query edits and **Clear** (or Escape within Find) clear the match/count/navigation without reading; Escape keeps the overview open. Find supplies no new clipboard/copy/paste action and does not change existing metadata-query editing.
+- Find never searches other rows, row labels, hidden metadata, bodies, conversation, original task input, source paths or retired observations. If an unavailable row has only a suppressed safe projection, only that currently displayed text is searchable; old observed details are not recovered. Selection/page/filter/query/source/control/private changes, read/cancel, selection retirement and closure retire its capture and private query. It performs no store read, refresh, scan, session/task navigation, action, persistence, model/device/network work or activity renewal. A Find match is not a row selection or action target.
 - **Observed task state** offers **Any** plus every defined task state, independently AND-composed with all filters above. Only a validated retained task with that exact state matches, including Unknown/Unavailable.
   Missing, unavailable, empty or omitted-only observations cannot match a positive state or prove absence, completion, current dispatch, ownership or authority ([contract](../Design/Work_Management.md#delivered-passive-cross-session-work-observation---2026-10-11)).
 - State edits perform no read and retire results/details/navigation/Next and late callbacks. **Clear query** and Escape in its field retire those results without changing independent filters; close clears the volatile state to Any. The labelled accessible selector grants no task/provider/device action ([native controls](../src/Kora/AllWorkWindow.axaml)).
@@ -357,6 +396,26 @@ Original typed/current-name ACTIVATED `prepare file search for "<query>"` / `pre
 
 Quoted literals use doubled quotes, keep exact case/punctuation/Unicode/interior spaces, and reuse the existing bounded lexical validation. Preparation performs no metadata/content read, refresh, search, clipboard, model, attachment, retention or consent operation.
 Missing/wrong-kind/stale/closed previews or changed admission refuse rather than choosing another source; retained attachments and Literal Find are not targets ([host handoff](../src/Kora.Application/ViewModels/MainViewModel.PreparedLocalSearch.cs)).
+
+### Wrap admitted original text
+
+**Wrap admitted text** changes only the presentation of the complete admitted source
+in a file preview, selected captured-folder file or already inspected retained
+Session attachment. It starts unchecked, preserving each view's original unwrapped
+layout. Check it to fit visual rows to the available viewport; uncheck it to scroll
+horizontally. Window resizing and reader text scale do not change the source.
+
+The choice is volatile and belongs only to the current source in this window.
+Selecting another folder file, replacing/reopening the view, privacy revocation or
+closing resets it; returning to an earlier file starts unchecked again. Metadata
+and consent reviews have no wrap control. This does not read or revalidate an
+attachment, renew activity, save a preference, copy, or grant source-use permission.
+
+Original bytes, decoded text, newlines, spaces and tabs remain unchanged. Literal
+Find query, count, ordinal and UTF-16 offsets and lexical citation positions remain
+unchanged, without an automatic search. Soft-wrapped visual rows are **not logical
+source lines or citation positions**. Notices, excerpts and exact match spans are
+not reformatted by this control.
 
 ### Find a literal in the currently inspected original file
 
@@ -451,6 +510,28 @@ Presence and response timeouts are independent. **Always show** keeps only
 the response window visible; idle presence still uses its own timeout.
 
 ## Retained session attachments (metadata only)
+
+### Order this loaded page
+
+After explicitly reading a page, use **Order this loaded page** to choose
+**Source order (default)** or **Retained byte count ascending/descending**
+(unknown last). This is **page-only, metadata-only**
+presentation: it never reads a file, body or path, refreshes a source, changes a
+query, scans more rows, changes storage order or gives a global order/count.
+
+This catalogue does not admit display names, so no display-name ordering is
+offered. Equal byte counts use the canonical exact retained-slot session ID,
+ascending ordinal, as a stable tie-break in both directions. Unknown byte
+counts remain last in either direction, not zero. Removed/unavailable provenance
+never recovers former names, counts, digest or source metadata.
+
+Changing order erases selection, details, literal Find and native open readiness,
+including pending open callbacks. Select a current row again explicitly.
+**Clear order (Source order)** restores the original loaded-page sequence
+without a read. **Next bounded page** still uses that page's original semantic
+continuation, not its last displayed row. The chosen order applies separately to
+the next admitted page. Clear query, privacy/source/control revocation and close
+restore Source order; existing lifetime and private-admission checks remain.
 
 ### Find within selected displayed metadata
 

@@ -579,6 +579,25 @@ callbacks. Clearing releases references, not a managed-memory zeroization
 claim. Logs retain content-minimizing typed outcomes/failure types under host
 correlation, never text/digest/excerpts or raw native exception messages.
 
+Exact `clipboard snapshot status <snapshot-id>` and `clipboard snapshot help`
+use a dedicated raw-input parser before question/approval/model routing; they
+do not inherit normalized GUID repair from reuse. The nonempty lowercase `D`
+ID must name only the current immutable capture. The shared
+[metadata policy](../src/Kora.Core/Context/ClipboardSnapshotStatusResult.cs)
+exposes only presence, that exact host ID and the already admitted UTF-8 byte
+count; help exposes no current ID. No new content-derived counts or timestamps,
+history, retention, native clipboard status or source-use admission is added.
+The host-owned [status action](../src/Kora.Tools/Clipboard/ClipboardSnapshotStatus.cs)
+publishes under the broker's source lock after original source eligibility,
+current input/ownership/privacy/call checks and cancellation/generation checks.
+It does not call the broker's retiring `Current` getter, read native state,
+capture, reuse, revoke or renew source/review lifetime. Missing, replaced,
+revoked or ineligible is explicitly unavailable. Presentation changes only the
+transcript, not pending question/approval/security preview or response/speech.
+Logs contain only a typed presence outcome under host correlation; no ID,
+count, source text, excerpt, digest or provenance is logged or tagged.
+Clipboard explanation and its source-use policy remain unchanged.
+
 Native **Find first / Find next / Find previous / Clear literal Find** navigates only this already captured immutable snapshot.
 Exact case/spaces and original UTF-16 offsets use the [shared pure literal policy](../src/Kora.Core/Context/SnapshotLiteralFind.cs); the [clipboard adapter](../src/Kora.Core/Context/ClipboardLiteralFind.cs) binds directional spans to the exact capture object, without file/session identities.
 Queries wholly fit the existing 256 UTF-16 / 512 strict UTF-8 limits and are nonempty, well-formed, one-line text without unsafe controls; invalid input is visibly rejected, never truncated or normalized ([query policy](../src/Kora.Core/Context/SnapshotLiteralFind.cs)).

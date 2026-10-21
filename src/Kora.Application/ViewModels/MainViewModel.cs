@@ -4157,7 +4157,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         var sessionCommand = SessionCommand.Parse(spokenText, AssistantName);
         var cataloguePreparation = manualInput?.CataloguePreparation
             ?? AttachmentCataloguePreparationCommand.Parse(spokenText, AssistantName);
-        if (sessionCommand is null && cataloguePreparation is null
+        var pendingQuestionCommand = questionTarget?.Command ?? PendingQuestionCommand.Parse(spokenText, AssistantName);
+        if (sessionCommand is null && cataloguePreparation is null && pendingQuestionCommand is null
             && LocalClockCommand.Parse(spokenText, AssistantName) is { } clockCommand)
         {
             ExecuteLocalClockCommand(clockCommand, initiator, manualInput);
@@ -4168,7 +4169,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             await PrepareAttachmentCatalogue(cataloguePreparation, initiator, manualInput);
             return;
         }
-        if ((questionTarget?.Command ?? PendingQuestionCommand.Parse(spokenText, AssistantName)) is { } pendingQuestionCommand)
+        if (pendingQuestionCommand is not null)
         {
             await ExecutePendingQuestionCommand(pendingQuestionCommand, spokenText, initiator, manualInput, questionTarget);
             return;

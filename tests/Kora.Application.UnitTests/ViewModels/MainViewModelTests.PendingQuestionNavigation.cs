@@ -112,15 +112,17 @@ public sealed partial class MainViewModelTests
         f.Reasoner.Requests.Should().BeEmpty();
     }
 
-    [Fact]
-    public async Task PendingQuestionNavigationUsesCurrentActivatedVoiceWithoutTouchingDirtyComposer()
+    [Theory]
+    [InlineData("Nova")]
+    [InlineData("What Time")]
+    public async Task PendingQuestionNavigationUsesCurrentActivatedVoiceWithoutTouchingDirtyComposer(string assistantName)
     {
         var f = await Fixture.CreateInitializedAsync();
-        await f.RunAsync("set assistant name to Nova");
+        await f.RunAsync("set assistant name to " + assistantName);
         var native = new PendingNavigationFake();
         f.ViewModel.BindPendingQuestionNavigation(native);
         f.ViewModel.CommandText = "unfinished independent answer";
-        await f.RaiseActivatedTranscriptAsync("Nova, " + PendingNavigation, 1);
+        await f.RaiseActivatedTranscriptAsync(assistantName + ", " + PendingNavigation, 1);
         native.FocusCalls.Should().Be(1);
         f.ViewModel.CommandText.Should().Be("unfinished independent answer");
         await f.RaiseActivatedTranscriptAsync(PendingNavigation, 1);

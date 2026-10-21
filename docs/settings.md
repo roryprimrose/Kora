@@ -1071,55 +1071,14 @@ the microphone.
 Select **Open Windows microphone settings** to manage Kora's Windows microphone
 permission without navigating through Windows Settings manually.
 
-## Sessions: fixed read-only local-version queue
+## Sessions: diagnostic queue controls retired
 
-**Settings > Sessions > Fixed read-only local-version queue** provides pending
-capacity (1-10, default/reset 10), fixed synchronous read-only slots (1-2,
-default/reset 1), **future pending lifetime** (1-120 integer minutes,
-default/reset 30) and **future-admission active budget** (1-60 integer minutes,
-default/reset 5). Highlighting a choice does not save or enqueue work.
-Use **Refresh fixed queue settings**, then the option's **Save** or **Reset**.
-Each option resets independently; another Refresh is required before a new edit.
-The [exact typed/current-name commands](commands.md#fixed-queue-settings) use
-the same original-input host admission, revisions and audited confirmation.
+Normal **Settings > Sessions** no longer exposes diagnostic-only pending capacity, slots or waiting/running lifetime controls.
+Former fixed-read settings commands report retirement without writing preferences or changing existing records.
+Session retention and actual task/response policies remain separate ([settings](../src/Kora/SettingsWindow.axaml), [input boundary](../src/Kora.Application/ViewModels/MainViewModel.cs)).
 
-Use `show fixed read queue settings` to inspect all four options. Exact natural setters and independent resets are listed in the [fixed queue command table](commands.md#fixed-queue-settings), for example `set fixed read pending lifetime to 60 minutes` and `reset fixed read pending lifetime`.
-These aliases use the [existing configuration action](../src/Kora.Application/ViewModels/MainViewModel.QueueConfiguration.cs); they do not edit native selection properties, enqueue work or bypass confirmed activation.
-The canonical `minutes` token is required for both durations; vague worker/executor instructions are not settings commands ([parser](../src/Kora.Application/Configuration/SessionQueueConfigurationCommand.cs)).
-
-The displayed legacy settings-group name also covers the three additional
-[fixed first-page profiles](commands.md#deterministic-local-version-queue).
-Their captured deadlines and slots follow the same future-only rules;
-settings never supply page controls, probes or dispatch authority.
-
-Only newly enqueued admitted fixed reads after confirmed activation capture
-the chosen pending lifetime. Existing pending/cancelled/expired/running entries
-keep their exact pending deadlines and identities. The chosen active budget
-is captured once at future admission, including from old pending entries.
-Already-admitted/running/Unknown/terminal records keep their original deadline;
-legacy admissions retain five minutes. Separate question/model/provider clocks
-do not change. No apply-now/current-task extension,
-automatic dispatch, worker/model/provider/effect scheduler or expanded slot
-qualification is available. Refresh and preference edits never dispatch,
-cancel, expire old work or extend meaningful activity.
-
-Protected original activated-voice mutations remain denied without UI
-relabelling. Hidden/reopened settings, stale revisions, changed ownership/privacy,
-failed required audit/control receipt or mismatched readback cannot activate
-a draft. Unconfirmed writes remain unavailable across restart: inspect saved
-state and receipts, explicitly repair, then refresh; no automatic retry or false
-rollback. Existing queue authority remains independently inspectable.
-
-Schema-3 `session-queue.txt` contains capacity/slots and both minutes overrides.
-Known valid schemas 1/2 preserve prior fields and supply new defaults (active 5;
-pending 30 for schema 1); observation never rewrites source bytes. Unknown/malformed/noncanonical,
-oversize or invalid UTF-8 data never becomes a default. Legacy queue records
-remain exact fixed-30 with original payloads/digests; format-2 entries capture
-the configured minutes and exact expiry under committed enqueue authority,
-without a database schema or historical authority migration. Explicit format-3
-admissions bind active minutes and precise UTC deadline to their original
-dispatch audit/digest; actual callbacks enforce the same captured monotonic
-budget. Equal/late results suppress output without physical termination claims.
+Internal scheduler configuration remains validated, including malformed/unknown persisted-state refusal.
+Retirement neither rewrites saved settings nor changes captured pending/active deadlines, automatically dispatches work or qualifies new execution paths ([configuration service](../src/Kora.Application/Configuration/SessionQueueConfigurationService.cs), [scheduler](../src/Kora.Application/Hosting/SessionQueueService.cs)).
 
 ## Where settings are stored
 

@@ -850,42 +850,6 @@
             <Border Classes="settings-card">
               <StackPanel Spacing="8">
                 <Grid ColumnDefinitions="*,Auto" ColumnSpacing="24">
-                  <TextBlock Text="Task queue limits" Classes="settings-title" />
-                  <controls:SettingActionsButton Grid.Column="1" SettingName="Task queue limits"
-                                                 IsEnabled="{Binding CanChangeQueueConfigurationNative}">
-                    <controls:SettingActionsButton.Flyout>
-                      <MenuFlyout>
-                        <MenuItem Header="Refresh" Command="{Binding RefreshQueueConfigurationCommand}" IsEnabled="{Binding CanChangeQueueConfigurationNative}" AutomationProperties.Name="Refresh queue settings" />
-                        <Separator />
-                        <MenuItem Header="Reset waiting task limit to 10" Command="{Binding ResetQueuePendingCommand}" IsEnabled="{Binding CanChangeQueueConfigurationNative}" />
-                        <MenuItem Header="Reset running task limit to 1" Command="{Binding ResetQueueSlotsCommand}" IsEnabled="{Binding CanChangeQueueConfigurationNative}" />
-                        <MenuItem Header="Reset waiting time limit to 30 minutes" Command="{Binding ResetQueueLifetimeCommand}" IsEnabled="{Binding CanChangeQueueConfigurationNative}" />
-                        <MenuItem Header="Reset running time limit to 5 minutes" Command="{Binding ResetQueueActiveBudgetCommand}" IsEnabled="{Binding CanChangeQueueConfigurationNative}" />
-                      </MenuFlyout>
-                    </controls:SettingActionsButton.Flyout>
-                  </controls:SettingActionsButton>
-                </Grid>
-                <TextBlock Text="These limits currently apply only to manually started tasks that check Kora's local version. Changes affect newly queued or newly started tasks, not tasks already running. Choose Refresh from the cog menu before each Save or Reset."
-                           Classes="settings-description" TextWrapping="Wrap" />
-                <TextBlock Text="{Binding QueueConfigurationStatus}" Classes="settings-description" TextWrapping="Wrap" />
-                <controls:SettingsNumberField Label="Waiting tasks per session" Value="{Binding SelectedQueuePending}" SavedValue="{Binding SavedQueuePending}"
-                    Minimum="1" Maximum="{x:Static hosting:SessionQueueLimits.MaximumPendingPerSession}"
-                    ActionCommand="{Binding SaveQueuePendingCommand}" IsEnabled="{Binding CanChangeQueueConfigurationNative}" />
-                <controls:SettingsNumberField Label="Tasks running at once" Value="{Binding SelectedQueueSlots}" SavedValue="{Binding SavedQueueSlots}"
-                    Minimum="1" Maximum="{x:Static hosting:SessionQueueLimits.MaximumExecutionSlots}"
-                    ActionCommand="{Binding SaveQueueSlotsCommand}" IsEnabled="{Binding CanChangeQueueConfigurationNative}" />
-                <controls:SettingsNumberField Label="Waiting time limit" Unit="min" Value="{Binding SelectedQueueLifetimeMinutes}" SavedValue="{Binding SavedQueueLifetimeMinutes}"
-                    Minimum="1" Maximum="{x:Static hosting:SessionQueueLimits.MaximumPendingLifetimeMinutes}"
-                    ActionCommand="{Binding SaveQueueLifetimeCommand}" IsEnabled="{Binding CanChangeQueueConfigurationNative}" />
-                <TextBlock Text="Running time limit for tasks started after saving (1-60 minutes; default 5). Tasks already running keep their deadline. Results received after the limit are hidden; the underlying work may still finish." Classes="settings-description" />
-                <controls:SettingsNumberField Label="Running time limit" Unit="min" Value="{Binding SelectedQueueActiveBudgetMinutes}" SavedValue="{Binding SavedQueueActiveBudgetMinutes}"
-                    Minimum="1" Maximum="{x:Static hosting:SessionQueueLimits.MaximumActiveBudgetMinutes}"
-                    ActionCommand="{Binding SaveQueueActiveBudgetCommand}" IsEnabled="{Binding CanChangeQueueConfigurationNative}" />
-              </StackPanel>
-            </Border>
-            <Border Classes="settings-card">
-              <StackPanel Spacing="8">
-                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="24">
                   <TextBlock Text="Archive and delete inactive sessions" Classes="settings-title" TextWrapping="Wrap" />
                   <controls:SettingActionsButton Grid.Column="1" SettingName="Session inactivity retention"
                                                  IsEnabled="{Binding CanChangeSessionRetentionNative}">

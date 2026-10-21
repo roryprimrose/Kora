@@ -28,7 +28,6 @@ public sealed class SettingsResetMenuTests
         { "RefreshWindowsSpeechRateCommand", "Windows voice speed", "CanInspectWindowsSpeechRateNative", "Refresh voice speed" },
         { "RefreshResponseModeCommand", "Device-default response mode", "CanChangeResponseMode", "Refresh response mode" },
         { "RefreshSpeechTextCommand", "Speech captions", "CanChangeSpeechText", "Refresh captions" },
-        { "RefreshQueueConfigurationCommand", "Task queue limits", "CanChangeQueueConfigurationNative", "Refresh queue settings" },
         { "RefreshSessionRetentionCommand", "Session inactivity retention", "CanChangeSessionRetentionNative", "Refresh archive and deletion settings" },
         { "RefreshDiagnosticRetentionCommand", "Diagnostic record storage", "CanChangeDiagnosticRetentionNative", "Refresh diagnostic settings" },
         { "RefreshAuditRetentionCommand", "Security record storage", "CanChangeAuditRetentionNative", "Refresh security record settings" },
@@ -53,10 +52,6 @@ public sealed class SettingsResetMenuTests
         { "ResetResponseModeCommand", "Reset to text and speech", "CanChangeResponseMode" },
         { "ResetSpeechTextCommand", "Turn captions off", "CanChangeSpeechText" },
         { "ResetSpeechCaptionOptionCommand", "Reset selected caption option", "CanChangeSpeechText" },
-        { "ResetQueuePendingCommand", "Reset waiting task limit to 10", "CanChangeQueueConfigurationNative" },
-        { "ResetQueueSlotsCommand", "Reset running task limit to 1", "CanChangeQueueConfigurationNative" },
-        { "ResetQueueLifetimeCommand", "Reset waiting time limit to 30 minutes", "CanChangeQueueConfigurationNative" },
-        { "ResetQueueActiveBudgetCommand", "Reset running time limit to 5 minutes", "CanChangeQueueConfigurationNative" },
         { "ResetSessionRetentionCommand", "Reset archive to 1 day and deletion to 30 days", "CanChangeSessionRetentionNative" },
         { "ResetDiagnosticRetentionCommand", "Reset diagnostic storage to 30 days", "CanChangeDiagnosticRetentionNative" },
         { "ResetAuditRetentionCommand", "Reset security record storage to 90 days", "CanChangeAuditRetentionNative" },
@@ -156,11 +151,11 @@ public sealed class SettingsResetMenuTests
             .Where(attribute => attribute.Name.LocalName is "Command" or "ResetCommand"
                 && attribute.Value.StartsWith("{Binding Reset", StringComparison.Ordinal))
             .ToArray();
-        bindings.Should().HaveCount(36);
-        bindings.Select(attribute => attribute.Value).Distinct(StringComparer.Ordinal).Should().HaveCount(36);
+        bindings.Should().HaveCount(32);
+        bindings.Select(attribute => attribute.Value).Distinct(StringComparer.Ordinal).Should().HaveCount(32);
         elements.Count(element =>
             string.Equals(element.Name.LocalName, nameof(SettingActionsButton), StringComparison.Ordinal))
-            .Should().Be(36);
+            .Should().Be(35);
         foreach (var binding in bindings)
         {
             var element = binding.Parent!;
@@ -198,7 +193,7 @@ public sealed class SettingsResetMenuTests
     [InlineData("Appearance", 14, 14, 0)]
     [InlineData("Speech & audio", 8, 7, 5)]
     [InlineData("Responses", 3, 4, 2)]
-    [InlineData("Sessions", 2, 5, 2)]
+    [InlineData("Sessions", 1, 1, 1)]
     [InlineData("Logging", 2, 2, 2)]
     [InlineData("Calls", 2, 2, 2)]
     [InlineData("Providers", 2, 3, 2)]

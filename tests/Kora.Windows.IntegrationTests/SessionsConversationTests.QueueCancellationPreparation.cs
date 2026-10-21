@@ -141,10 +141,9 @@ public sealed partial class SessionsConversationTests
         var snapshot = preparation.Work.Queue;
         if (change is "queue")
         {
-            h.Model.ChooseNoQueuePrerequisite();
-            await h.Model.EnqueueVersionAsync();
+            await h.ChangeQueueAsync(SessionCommandOperation.QueueEnqueue);
         }
-        if (change is "pause") { await h.Model.PauseQueueAsync(); }
+        if (change is "pause") { await h.ChangeQueueAsync(SessionCommandOperation.QueuePause); }
         if (change is "task")
         {
             h.Model.SelectQueueEntry(original[1]);
@@ -216,9 +215,20 @@ public sealed partial class SessionsConversationTests
         {
             await Model.RefreshAsync();
             await Model.SelectAsync(Model.Sessions.Single());
-            await Model.EnqueueVersionAsync();
-            Model.ChooseNoQueuePrerequisite();
-            await Model.EnqueueCapabilitiesAsync();
+            await ChangeQueueAsync(SessionCommandOperation.QueueEnqueue);
+            await ChangeQueueAsync(SessionCommandOperation.QueueEnqueue, SessionQueueReadProfile.Capabilities);
+        }
+        internal async Task ChangeQueueAsync(SessionCommandOperation operation,
+            SessionQueueReadProfile profile = SessionQueueReadProfile.Version)
+        {
+            var snapshot = await fixture.Store.ReadQueueAsync(fixture.Request.SessionId, fixture.Token);
+            await queue.ExecuteCommandAsync(new(operation, snapshot.SessionId.Value, snapshot.Generation.Value)
+            {
+                QueueRevision = snapshot.Revision, WorkRequestId = Guid.NewGuid(), TaskId = Guid.NewGuid(),
+                QueueProfile = profile, QueueRunId = snapshot.DispatchControl!.RunId,
+                QueueControlRevision = snapshot.DispatchControl.Revision,
+            }, RequestOrigin.LocalUi, () => true, fixture.Token);
+            await Model.RefreshWorkAsync();
         }
         internal Task<SessionQueueCancellationPreparation> PrepareAsync(IReadOnlyList<SessionQueueEntry> entries) =>
             Workspace.PrepareQueueCancellationAsync(new(fixture.Request.SessionId.Value,

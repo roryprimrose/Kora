@@ -32,8 +32,7 @@ internal sealed partial class SessionsWindow : Window
         NextConversationSearch.Click += async (_, _) => await (ConversationOperation = model.SearchConversationAsync(next: true));
         CancelConversationSearch.Click += (_, _) => model.ClearConversationSearch();
         ClearConversationSearch.Click += (_, _) => model.ClearConversationSearch();
-        foreach (var field in new[] { ConversationQuery, ConversationMinimumGeneration, ConversationMaximumGeneration,
-            ConversationMinimumRevision, ConversationMaximumRevision })
+        foreach (var field in new[] { ConversationQuery })
         {
             field.KeyDown += async (_, args) =>
             {
@@ -82,8 +81,7 @@ internal sealed partial class SessionsWindow : Window
         NextListSearch.Click += async (_, _) => await model.SearchListAsync(next: true);
         CancelListSearch.Click += (_, _) => model.CancelListSearch();
         ClearListSearch.Click += (_, _) => { model.ClearListSearch(); ListQuery.Focus(); };
-        foreach (var field in new[] { ListQuery, ListMinimumGeneration, ListMaximumGeneration,
-            ListMinimumMetadataRevision, ListMaximumMetadataRevision, ListMinimumNameLength, ListMaximumNameLength })
+        foreach (var field in new[] { ListQuery })
         {
             field.KeyDown += async (_, args) =>
             {
@@ -135,10 +133,7 @@ internal sealed partial class SessionsWindow : Window
         NextHistorySearch.Click += async (_, _) => await model.SearchHistoryAsync(next: true);
         CancelHistorySearch.Click += (_, _) => model.CancelHistorySearch();
         ClearHistorySearch.Click += (_, _) => { model.ClearHistorySearchInputs(); HistoryQuery.Focus(); };
-        foreach (var field in new[] { HistoryQuery, HistoryRequestId, HistoryTaskId, HistorySourceId,
-            HistoryMinimumSequence, HistoryMaximumSequence,
-            HistoryMinimumGeneration, HistoryMaximumGeneration, HistoryMinimumSourceRevision,
-            HistoryMaximumSourceRevision, HistoryMinimumAuditSequence, HistoryMaximumAuditSequence })
+        foreach (var field in new[] { HistoryQuery })
         {
             field.KeyDown += async (_, args) =>
             {
@@ -161,36 +156,12 @@ internal sealed partial class SessionsWindow : Window
             model.SelectWorkRecord(WorkRecords.SelectedItem as SessionWorkRow);
         InspectWork.Click += async (_, _) => await model.InspectWorkAsync();
         RemoveQueueEntry.Click += async (_, _) => await model.RemoveQueueEntryAsync();
-        MoveQueueUp.Click += async (_, _) => await model.ReviewQueueMoveUpAsync();
-        MoveQueueDown.Click += async (_, _) => await model.ReviewQueueMoveDownAsync();
-        ConfirmQueueMove.Click += async (_, _) => await model.ConfirmQueueMoveAsync();
-        CancelQueueMove.Click += async (_, _) => await model.CancelQueueMoveAsync();
-        ReviewExpiredRequeue.Click += async (_, _) => await model.ReviewExpiredRequeueAsync();
-        ConfirmExpiredRequeue.Click += async (_, _) => await model.ConfirmExpiredRequeueAsync();
-        DiscardExpiredRequeue.Click += async (_, _) => await model.DiscardExpiredRequeueAsync();
         PendingCancellationEntries.SelectionChanged += (_, _) =>
             model.SelectPendingCancellationEntries(PendingCancellationEntries.SelectedItems?.OfType<Kora.Core.Hosting.SessionQueueEntry>().ToArray() ?? []);
         ReviewPendingCancellation.Click += async (_, _) => await model.ReviewPendingCancellationAsync();
         ConfirmPendingCancellation.Click += async (_, _) => await model.ConfirmPendingCancellationAsync();
         DiscardPendingCancellation.Click += async (_, _) => await model.DiscardPendingCancellationAsync();
         ReadQueue.Click += async (_, _) => await model.RefreshWorkAsync();
-        NoQueuePrerequisite.Click += (_, _) => model.ChooseNoQueuePrerequisite();
-        QueuePrerequisites.SelectionChanged += (_, _) =>
-            model.SelectQueuePrerequisite(QueuePrerequisites.SelectedItem as QueuePrerequisiteOption);
-        EnqueueVersion.Click += async (_, _) => await model.EnqueueVersionAsync();
-        EnqueueCapabilities.Click += async (_, _) => await model.EnqueueCapabilitiesAsync();
-        EnqueueReadiness.Click += async (_, _) => await model.EnqueueReadinessAsync();
-        EnqueueRuntimes.Click += async (_, _) => await model.EnqueueRuntimesAsync();
-        ReviewDiagnosticsPlan.Click += async (_, _) => await model.ReviewDiagnosticsPlanAsync();
-        ConfirmDiagnosticsPlan.Click += async (_, _) => await model.ConfirmDiagnosticsPlanAsync();
-        DiscardDiagnosticsPlan.Click += (_, _) => model.DiscardDiagnosticsPlan();
-        QueueCapabilities.SelectionChanged += (_, _) =>
-            model.SelectQueueCapability(QueueCapabilities.SelectedItem as QueueCapabilityOption);
-        EnqueueCapability.Click += async (_, _) => await model.EnqueueCapabilityAsync();
-        EnqueueRuntimeStatus.Click += async (_, _) => await model.EnqueueRuntimeStatusAsync();
-        DispatchQueue.Click += async (_, _) => await model.DispatchQueueAsync();
-        PauseQueue.Click += async (_, _) => await model.PauseQueueAsync();
-        ResumeQueue.Click += async (_, _) => await model.ResumeQueueAsync();
         CancelQueueEntry.Click += async (_, _) => await model.CancelWorkAsync();
         ClearQueue.Click += async (_, _) => await model.ClearQueueAsync();
         EventRecords.SelectionChanged += (_, _) =>

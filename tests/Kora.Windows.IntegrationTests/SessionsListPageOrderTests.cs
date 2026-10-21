@@ -66,7 +66,7 @@ public sealed class SessionsListPageOrderTests
                 combo.Focus().Should().BeTrue();
                 combo.IsEnabled.Should().BeTrue();
                 ControlAutomationPeer.CreatePeerForElement(combo)!.GetName().Should().Contain("loaded session page only")
-                    .And.Contain("Source").And.Contain("GenerationDescending").And.Contain("never global");
+                    .And.Contain("Source").And.Contain("NameDescending").And.Contain("never global");
                 ControlAutomationPeer.CreatePeerForElement(clear)!.GetName().Should().Contain("without reading or changing selection");
                 model.ListPageOrderScope.Should().Contain("not the ordinary Refresh list").And.Contain("unnamed last")
                     .And.Contain("canonical session ID").And.Contain("Next keeps the original scan");
@@ -75,7 +75,7 @@ public sealed class SessionsListPageOrderTests
                 {
                     if (!string.Equals(args.PropertyName, nameof(model.Sessions), StringComparison.Ordinal)) { return; }
                     notified = true;
-                    model.ListPageOrder = SessionListPageOrder.GenerationAscending;
+                    model.ListPageOrder = SessionListPageOrder.NameAscending;
                     _ = model.SelectAsync(model.Sessions[0]);
                 }
                 model.PropertyChanged += Reenter;

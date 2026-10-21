@@ -143,7 +143,6 @@ public sealed class SettingsTextTests
             SettingsText.Describe(new AuditRetentionState(new(90), null, "unavailable", 1, recovery)),
             SettingsText.Describe(new PlaybackVolumeState(new(50), null, "unavailable", 1, recovery)),
             SettingsText.Describe(new WindowsSpeechRateState(new(3), null, null, default, 0, "unavailable", 1, recovery)),
-            SettingsText.Describe(new SessionQueueConfigurationState(null, null, 1, recovery)),
             SettingsText.Describe(new ResponseModeCommandResult("observed", recovery, 1, 1,
                 ResponseOutputMode.Hybrid, ResponseOutputMode.Hybrid, null, "unavailable", false)),
             SettingsText.Describe(new ProviderModeCommandResult("observed", recovery, 1, 1,
@@ -167,14 +166,6 @@ public sealed class SettingsTextTests
             .Should().Contain("0%").And.Contain("Speech is off").And.Contain("on screen");
         SettingsText.Describe(new WindowsSpeechRateState(new(3), new(3), SpeechProviderIds.Windows,
             default, 0, "saved", 1, null)).Should().Contain("Windows voice speed: 3");
-    }
-
-    [Fact]
-    public void Queue_summary_keeps_all_four_limits()
-    {
-        var limits = new SessionQueueLimits(4, 2, 45, 10);
-        SettingsText.Describe(new SessionQueueConfigurationState(new(4, 2, 45, 10), limits, 1, null))
-            .Should().Contain("4 waiting").And.Contain("2 running").And.Contain("45 minutes").And.Contain("10 minutes");
     }
 
     [Fact]

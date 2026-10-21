@@ -4,7 +4,6 @@ using System.Text.Json;
 using Kora.Core.Hosting;
 using Kora.Core.Interaction;
 using Kora.Core.Diagnostics;
-using Kora.Core.Tools;
 
 namespace Kora;
 
@@ -56,159 +55,6 @@ internal sealed partial class SessionsViewModel
         [new(null), .. Enum.GetValues<LocalEventCategory>().Select(value => new LocalEventFilterOption<LocalEventCategory>(value))];
     public IReadOnlyList<LocalEventFilterOption<LocalEventReason>> LocalEventReasonFilters { get; } =
         [new(null), .. Enum.GetValues<LocalEventReason>().Select(value => new LocalEventFilterOption<LocalEventReason>(value))];
-    public LocalEventSource? LocalEventSourceFilter
-    {
-        get => eventFilter.Source;
-        set
-        {
-            if (presentingEvents || !CanFilterLocalEvents || value == eventFilter.Source) { return; }
-            eventFilter = eventFilter with { Source = value };
-            ChangeLocalEventFilters();
-        }
-    }
-    public LocalEventType? LocalEventTypeFilter
-    {
-        get => eventFilter.Type;
-        set
-        {
-            if (presentingEvents || !CanFilterLocalEvents || value == eventFilter.Type) { return; }
-            eventFilter = eventFilter with { Type = value };
-            ChangeLocalEventFilters();
-        }
-    }
-    public IReadOnlyList<LocalEventFilterOption<LocalEventSource>> LocalEventSourceFilters { get; } =
-        [new(null), .. Enum.GetValues<LocalEventSource>().Select(value => new LocalEventFilterOption<LocalEventSource>(value))];
-    public IReadOnlyList<LocalEventFilterOption<LocalEventType>> LocalEventTypeFilters { get; } =
-        [new(null), .. Enum.GetValues<LocalEventType>().Select(value => new LocalEventFilterOption<LocalEventType>(value))];
-    public RequestOrigin? LocalEventOriginFilter
-    {
-        get => eventFilter.Origin;
-        set
-        {
-            if (presentingEvents || !CanFilterLocalEvents || value == eventFilter.Origin) { return; }
-            eventFilter = eventFilter with { Origin = value };
-            ChangeLocalEventFilters();
-        }
-    }
-    public LocalEventQueueReasonFilter LocalEventQueueReasonFilter
-    {
-        get => eventFilter.QueueReason;
-        set
-        {
-            if (presentingEvents || !CanFilterLocalEvents || value == eventFilter.QueueReason) { return; }
-            eventFilter = eventFilter with { QueueReason = value };
-            ChangeLocalEventFilters();
-        }
-    }
-    public IReadOnlyList<LocalEventFilterOption<RequestOrigin>> LocalEventOriginFilters { get; } =
-        [new(null, "Any"), .. Enum.GetValues<RequestOrigin>().Select(value => new LocalEventFilterOption<RequestOrigin>(value))];
-    public IReadOnlyList<LocalEventQueueReasonFilterOption> LocalEventQueueReasonFilters { get; } =
-        [new(new()), new(new(LocalEventQueueReasonMatch.None)),
-            .. Enum.GetValues<SessionQueueEligibility>().Select(value =>
-                new LocalEventQueueReasonFilterOption(new(LocalEventQueueReasonMatch.Exact, value)))];
-    public LocalEventQueueProfileFilter LocalEventQueueProfileFilter
-    {
-        get => eventFilter.QueueProfile;
-        set => ChangeLocalEventRange(eventFilter with { QueueProfile = value });
-    }
-    public SessionQueueCapabilityTarget? LocalEventQueueTargetFilter
-    {
-        get => eventFilter.QueueTarget;
-        set => ChangeLocalEventRange(eventFilter with { QueueTarget = value });
-    }
-    public IReadOnlyList<LocalEventQueueProfileFilterOption> LocalEventQueueProfileFilters { get; } =
-        [new(new()), new(new(LocalEventQueueProfileMatch.Absent)),
-            .. Enum.GetValues<SessionQueueReadProfile>().Select(value =>
-                new LocalEventQueueProfileFilterOption(new(LocalEventQueueProfileMatch.Exact, value)))];
-    public IReadOnlyList<LocalEventQueueTargetFilterOption> LocalEventQueueTargetFilters { get; } =
-        [new(null), .. ReadOnlyCapabilityCatalog.Descriptors.Select(value =>
-            new LocalEventQueueTargetFilterOption(new(value.Id)))];
-    public LocalEventQueueProfileFilterOption LocalEventQueueProfileChoice
-    {
-        get => LocalEventQueueProfileFilters.FirstOrDefault(option => option.Value == eventFilter.QueueProfile) ?? new(eventFilter.QueueProfile);
-        set { if (value is not null) { LocalEventQueueProfileFilter = value.Value; } }
-    }
-    public LocalEventQueueTargetFilterOption LocalEventQueueTargetChoice
-    {
-        get => LocalEventQueueTargetFilters.FirstOrDefault(option => option.Value == eventFilter.QueueTarget) ?? new(eventFilter.QueueTarget);
-        set { if (value is not null) { LocalEventQueueTargetFilter = value.Value; } }
-    }
-    public string LocalEventSessionIdFilter
-    {
-        get => eventFilter.SessionId;
-        set
-        {
-            if (presentingEvents || !CanFilterLocalEvents || string.Equals(value, eventFilter.SessionId, StringComparison.Ordinal)) { return; }
-            eventFilter = eventFilter with { SessionId = value };
-            ChangeLocalEventFilters();
-        }
-    }
-    public string LocalEventTaskIdFilter
-    {
-        get => eventFilter.TaskId;
-        set
-        {
-            if (presentingEvents || !CanFilterLocalEvents || string.Equals(value, eventFilter.TaskId, StringComparison.Ordinal)) { return; }
-            eventFilter = eventFilter with { TaskId = value };
-            ChangeLocalEventFilters();
-        }
-    }
-    public string LocalEventSubjectIdFilter
-    {
-        get => eventFilter.SubjectId;
-        set
-        {
-            if (presentingEvents || !CanFilterLocalEvents || string.Equals(value, eventFilter.SubjectId, StringComparison.Ordinal)) { return; }
-            eventFilter = eventFilter with { SubjectId = value };
-            ChangeLocalEventFilters();
-        }
-    }
-    public string LocalEventMinimumRevisionFilter
-    {
-        get => eventFilter.MinimumRevision;
-        set => ChangeLocalEventRange(eventFilter with { MinimumRevision = value });
-    }
-    public string LocalEventMaximumRevisionFilter
-    {
-        get => eventFilter.MaximumRevision;
-        set => ChangeLocalEventRange(eventFilter with { MaximumRevision = value });
-    }
-    public string LocalEventMinimumGenerationFilter
-    {
-        get => eventFilter.MinimumGeneration;
-        set => ChangeLocalEventRange(eventFilter with { MinimumGeneration = value });
-    }
-    public string LocalEventMaximumGenerationFilter
-    {
-        get => eventFilter.MaximumGeneration;
-        set => ChangeLocalEventRange(eventFilter with { MaximumGeneration = value });
-    }
-    public string LocalEventObservedFromUtcFilter
-    {
-        get => eventFilter.ObservedFromUtc;
-        set => ChangeLocalEventRange(eventFilter with { ObservedFromUtc = value });
-    }
-    public string LocalEventObservedUntilUtcFilter
-    {
-        get => eventFilter.ObservedUntilUtc;
-        set => ChangeLocalEventRange(eventFilter with { ObservedUntilUtc = value });
-    }
-    public string LocalEventExpiresFromUtcFilter
-    {
-        get => eventFilter.ExpiresFromUtc;
-        set => ChangeLocalEventRange(eventFilter with { ExpiresFromUtc = value });
-    }
-    public string LocalEventExpiresUntilUtcFilter
-    {
-        get => eventFilter.ExpiresUntilUtc;
-        set => ChangeLocalEventRange(eventFilter with { ExpiresUntilUtc = value });
-    }
-    private void ChangeLocalEventRange(LocalEventFilter value)
-    {
-        if (presentingEvents || !CanFilterLocalEvents || value == eventFilter) { return; }
-        eventFilter = value;
-        ChangeLocalEventFilters();
-    }
     public LocalEventFilterOption<LocalEventCategory> LocalEventCategoryChoice
     {
         get => LocalEventCategoryFilters.FirstOrDefault(option => option.Value == eventFilter.Category) ?? new(eventFilter.Category);
@@ -219,28 +65,8 @@ internal sealed partial class SessionsViewModel
         get => LocalEventReasonFilters.FirstOrDefault(option => option.Value == eventFilter.Reason) ?? new(eventFilter.Reason);
         set { if (value is not null) { LocalEventReasonFilter = value.Value; } }
     }
-    public LocalEventFilterOption<LocalEventSource> LocalEventSourceChoice
-    {
-        get => LocalEventSourceFilters.FirstOrDefault(option => option.Value == eventFilter.Source) ?? new(eventFilter.Source);
-        set { if (value is not null) { LocalEventSourceFilter = value.Value; } }
-    }
-    public LocalEventFilterOption<LocalEventType> LocalEventTypeChoice
-    {
-        get => LocalEventTypeFilters.FirstOrDefault(option => option.Value == eventFilter.Type) ?? new(eventFilter.Type);
-        set { if (value is not null) { LocalEventTypeFilter = value.Value; } }
-    }
-    public LocalEventFilterOption<RequestOrigin> LocalEventOriginChoice
-    {
-        get => LocalEventOriginFilters.FirstOrDefault(option => option.Value == eventFilter.Origin) ?? new(eventFilter.Origin);
-        set { if (value is not null) { LocalEventOriginFilter = value.Value; } }
-    }
-    public LocalEventQueueReasonFilterOption LocalEventQueueReasonChoice
-    {
-        get => LocalEventQueueReasonFilters.FirstOrDefault(option => option.Value == eventFilter.QueueReason) ?? new(eventFilter.QueueReason);
-        set { if (value is not null) { LocalEventQueueReasonFilter = value.Value; } }
-    }
     public string LocalEventFilterStatus => !eventFilter.IsValid
-        ? "Unknown category, reason, source, type, origin, queue reason, queue profile or exact catalogue target, invalid exact ID or invalid range filter; no results. IDs require complete nonempty lowercase D GUIDs. Revision/generation require positive Int64 decimals; UTC requires yyyy-MM-ddTHH:mm:ss.fffffff+00:00; inclusive minimum/from <= maximum/until. Empty means Any. Clear filters to recover."
+        ? "Unknown category or delivery reason; no results. Clear filters to recover."
         : !EventSourceCurrent ? "No current bounded local-event snapshot. Refresh selected work; no empty source is inferred."
         : LocalEvents.Count.ToString(CultureInfo.InvariantCulture) + " of "
             + eventSnapshot!.Events.Count.ToString(CultureInfo.InvariantCulture)
@@ -276,30 +102,6 @@ internal sealed partial class SessionsViewModel
     internal sealed record LocalEventFilterOption<T>(T? Value, string AnyLabel = "All") where T : struct, Enum
     {
         public override string ToString() => Value?.ToString() ?? AnyLabel;
-    }
-    internal sealed record LocalEventQueueReasonFilterOption(LocalEventQueueReasonFilter Value)
-    {
-        public override string ToString() => !Value.IsValid ? "Unknown"
-            : Value.Match switch
-            {
-                LocalEventQueueReasonMatch.Any => "Any",
-                LocalEventQueueReasonMatch.None => "No queue reason / not applicable",
-                _ => Value.Value!.Value.ToString(),
-            };
-    }
-    internal sealed record LocalEventQueueProfileFilterOption(LocalEventQueueProfileFilter Value)
-    {
-        public override string ToString() => !Value.IsValid ? "Unknown"
-            : Value.Match switch
-            {
-                LocalEventQueueProfileMatch.Any => "Any",
-                LocalEventQueueProfileMatch.Absent => "Absent retained queue profile",
-                _ => SessionQueueReadProfiles.CapabilityId(Value.Value!.Value),
-            };
-    }
-    internal sealed record LocalEventQueueTargetFilterOption(SessionQueueCapabilityTarget? Value)
-    {
-        public override string ToString() => Value?.Id ?? "Any";
     }
     public string RoutineQuietStatus => localEvents is { } broker
         ? "Quiet routine notices for this run: " + (broker.RoutineQuiet.Enabled ? "On" : "Off")
@@ -462,31 +264,8 @@ internal sealed partial class SessionsViewModel
             OnPropertyChanged(nameof(LocalEventStatus));
             OnPropertyChanged(nameof(LocalEventCategoryFilter));
             OnPropertyChanged(nameof(LocalEventReasonFilter));
-            OnPropertyChanged(nameof(LocalEventSourceFilter));
-            OnPropertyChanged(nameof(LocalEventTypeFilter));
-            OnPropertyChanged(nameof(LocalEventOriginFilter));
-            OnPropertyChanged(nameof(LocalEventQueueReasonFilter));
-            OnPropertyChanged(nameof(LocalEventQueueProfileFilter));
-            OnPropertyChanged(nameof(LocalEventQueueTargetFilter));
-            OnPropertyChanged(nameof(LocalEventQueueProfileChoice));
-            OnPropertyChanged(nameof(LocalEventQueueTargetChoice));
-            OnPropertyChanged(nameof(LocalEventSessionIdFilter));
-            OnPropertyChanged(nameof(LocalEventTaskIdFilter));
-            OnPropertyChanged(nameof(LocalEventSubjectIdFilter));
-            OnPropertyChanged(nameof(LocalEventMinimumRevisionFilter));
-            OnPropertyChanged(nameof(LocalEventMaximumRevisionFilter));
-            OnPropertyChanged(nameof(LocalEventMinimumGenerationFilter));
-            OnPropertyChanged(nameof(LocalEventMaximumGenerationFilter));
-            OnPropertyChanged(nameof(LocalEventObservedFromUtcFilter));
-            OnPropertyChanged(nameof(LocalEventObservedUntilUtcFilter));
-            OnPropertyChanged(nameof(LocalEventExpiresFromUtcFilter));
-            OnPropertyChanged(nameof(LocalEventExpiresUntilUtcFilter));
             OnPropertyChanged(nameof(LocalEventCategoryChoice));
             OnPropertyChanged(nameof(LocalEventReasonChoice));
-            OnPropertyChanged(nameof(LocalEventSourceChoice));
-            OnPropertyChanged(nameof(LocalEventTypeChoice));
-            OnPropertyChanged(nameof(LocalEventOriginChoice));
-            OnPropertyChanged(nameof(LocalEventQueueReasonChoice));
             OnPropertyChanged(nameof(LocalEventFilterStatus));
             OnPropertyChanged(nameof(CanFilterLocalEvents));
             OnPropertyChanged(nameof(CanControlLocalEvent));

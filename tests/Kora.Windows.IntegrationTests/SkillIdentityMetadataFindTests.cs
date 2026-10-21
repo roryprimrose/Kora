@@ -20,7 +20,7 @@ namespace Kora.Windows.IntegrationTests;
 [Collection(nameof(HeadlessUiTestGroup))]
 public sealed class SkillIdentityMetadataFindTests
 {
-    private static readonly string[] BundledQueryFields = ["PackageQuery", "PackageDefinitionDigest", "PackageDeclaredResourceDigest"];
+    private static readonly string[] BundledQueryFields = ["PackageQuery"];
     private static readonly string[] BundledSelectors = ["PackageFilter", "PackageOrder"];
     private static readonly string[] SharedAbsentQueries = ["BodyOnlySecret", "HiddenOnlySecret", "missing"];
 
@@ -139,7 +139,6 @@ public sealed class SkillIdentityMetadataFindTests
                     () => window.SetCatalogue(catalogue),
                     () => window.SetSources([source]),
                     () => window.FindControl<TextBox>("SharedQuery")!.Text = "edit",
-                    () => window.FindControl<TextBox>("SharedRevisionDigest")!.Text = "edit",
                     () => window.FindControl<ComboBox>("SharedOrder")!.SelectedIndex = 1,
                     () => window.FindControl<ComboBox>("SharedFilter")!.SelectedIndex = 1,
                     () => Click(window, "SearchSharedPackages"),

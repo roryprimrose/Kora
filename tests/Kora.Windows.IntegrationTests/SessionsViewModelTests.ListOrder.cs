@@ -129,7 +129,7 @@ public sealed partial class SessionsViewModelTests
                 null);
             ImmutableArray<SessionWorkspaceEntry> raw = [first, second];
             var search = model.SearchListAsync();
-            model.ListPageOrder = SessionListPageOrder.GenerationDescending;
+            model.ListPageOrder = SessionListPageOrder.NameDescending;
             model.ListPageOrder.Should().Be(SessionListPageOrder.Source, "pending reads cannot be ordered");
             held.Completion.SetResult(new(raw, second.Authority.SessionId.Value));
             await search;
@@ -147,7 +147,7 @@ public sealed partial class SessionsViewModelTests
             model.ClearListPageOrder();
             model.Sessions.Should().Equal(raw);
             model.SelectedSessionRecord.Should().BeNull();
-            if (retirement is "query") { model.ListMinimumGeneration = "1"; }
+            if (retirement is "query") { model.ListQuery = "changed query"; }
             if (retirement is "source") { model.RevokeSessionList(); }
             if (retirement is "privacy") { access.CanInspect = false; }
             if (retirement is "control") { access.ControlRevision++; }

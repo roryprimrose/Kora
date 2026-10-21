@@ -25,8 +25,6 @@ public static class SessionListPageOrdering
                 .ThenBy(row => row.Metadata?.Name.Value, StringComparer.Ordinal),
             SessionListPageOrder.NameDescending => records.OrderBy(row => row.Metadata is null)
                 .ThenByDescending(row => row.Metadata?.Name.Value, StringComparer.Ordinal),
-            SessionListPageOrder.GenerationAscending => records.OrderBy(row => row.Authority.Generation.Value),
-            SessionListPageOrder.GenerationDescending => records.OrderByDescending(row => row.Authority.Generation.Value),
             _ => throw new InvalidDataException("Unknown loaded session page order. Clear order to restore Source order."),
         };
         return [.. ordered.ThenBy(row => row.Authority.SessionId.Value.ToString("D"), StringComparer.Ordinal)];

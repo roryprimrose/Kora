@@ -149,8 +149,6 @@ public sealed class SettingsWindowController : IDisposable, ISettingsSectionNavi
         Volatile.Write(ref nativeVisible, visible && !disposed ? 1 : 0);
         viewModel.BindDiagnosticRetentionNativeLifetime(() =>
             Volatile.Read(ref nativeVisible) == 1 && Volatile.Read(ref nativeVisibilityRevision) == revision);
-        viewModel.BindQueueConfigurationNativeLifetime(() =>
-            Volatile.Read(ref nativeVisible) == 1 && Volatile.Read(ref nativeVisibilityRevision) == revision);
         viewModel.BindAuditRetentionNativeLifetime(() =>
             Volatile.Read(ref nativeVisible) == 1 && Volatile.Read(ref nativeVisibilityRevision) == revision);
         viewModel.BindSessionRetentionNativeLifetime(() =>

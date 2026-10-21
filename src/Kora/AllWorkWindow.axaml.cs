@@ -14,17 +14,7 @@ internal sealed partial class AllWorkWindow : Window
         Refresh.Click += async (_, _) => await model.RefreshAsync();
         Search.Click += async (_, _) => await model.RefreshAsync();
         ClearQuery.Click += (_, _) => { model.ClearQuery(); MetadataQuery.Focus(); };
-        ClearRanges.Click += (_, _) => model.ClearRanges();
-        ClearTaskQuery.Click += (_, _) => { model.ClearTaskQuery(); RetainedTaskId.Focus(); };
         ClearLoadedPageOrder.Click += (_, _) => { model.ClearOrder(); LoadedPageOrder.Focus(); };
-        RetainedTaskId.KeyDown += (_, args) => ClearTaskCorrelation(args);
-        RetainedRequestId.KeyDown += (_, args) => ClearTaskCorrelation(args);
-        void ClearTaskCorrelation(KeyEventArgs args)
-        {
-            if (args.Key != Key.Escape) { return; }
-            model.ClearTaskQuery();
-            args.Handled = true;
-        }
         MetadataQuery.KeyDown += async (_, args) =>
         {
             if (args.Key == Key.Escape)

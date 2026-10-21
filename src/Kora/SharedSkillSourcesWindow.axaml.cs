@@ -49,12 +49,11 @@ public sealed partial class SharedSkillSourcesWindow : Window
         {
             RetireSearch();
             this.FindControl<TextBox>("SharedQuery")!.Text = string.Empty;
-            this.FindControl<TextBox>("SharedRevisionDigest")!.Text = string.Empty;
             filter.SelectedIndex = 0;
             order.SelectedIndex = 0;
             Search();
         };
-        foreach (var name in new[] { "SharedQuery", "SharedRevisionDigest" })
+        foreach (var name in new[] { "SharedQuery" })
         {
             this.FindControl<TextBox>(name)!.PropertyChanged += (_, change) =>
             { if (change.Property == TextBox.TextProperty) { RetireSearch(); } };
@@ -106,7 +105,6 @@ public sealed partial class SharedSkillSourcesWindow : Window
         catalogue = value;
         CatalogueGeneration++;
         this.FindControl<TextBox>("SharedQuery")!.Text = string.Empty;
-        this.FindControl<TextBox>("SharedRevisionDigest")!.Text = string.Empty;
         this.FindControl<ComboBox>("SharedFilter")!.SelectedIndex = 0;
         this.FindControl<ComboBox>("SharedOrder")!.SelectedIndex = 0;
         SetResults(value.Packages, null);
@@ -127,7 +125,6 @@ public sealed partial class SharedSkillSourcesWindow : Window
         this.FindControl<ComboBox>("SourceSelector")!.IsEnabled = !busy;
         this.FindControl<ComboBox>("SharedPackageSelector")!.IsEnabled = !busy;
         this.FindControl<TextBox>("SharedQuery")!.IsEnabled = !busy;
-        this.FindControl<TextBox>("SharedRevisionDigest")!.IsEnabled = !busy;
         this.FindControl<ComboBox>("SharedFilter")!.IsEnabled = !busy;
         this.FindControl<ComboBox>("SharedOrder")!.IsEnabled = !busy;
     }
@@ -144,7 +141,6 @@ public sealed partial class SharedSkillSourcesWindow : Window
         catalogue = null;
         results = [];
         this.FindControl<TextBox>("SharedQuery")!.Text = string.Empty;
-        this.FindControl<TextBox>("SharedRevisionDigest")!.Text = string.Empty;
         this.FindControl<ComboBox>("SharedFilter")!.SelectedIndex = 0;
         this.FindControl<ComboBox>("SharedOrder")!.SelectedIndex = 0;
         this.FindControl<TextBlock>("SharedSearchStatus")!.Text = string.Empty;
@@ -215,7 +211,6 @@ public sealed partial class SharedSkillSourcesWindow : Window
             var matching = SkillCatalogueSearch.Shared(catalogue,
                 this.FindControl<TextBox>("SharedQuery")!.Text ?? string.Empty,
                 (SkillInstructionFilter)this.FindControl<ComboBox>("SharedFilter")!.SelectedIndex,
-                this.FindControl<TextBox>("SharedRevisionDigest")!.Text ?? string.Empty,
                 (SkillCatalogueOrder)this.FindControl<ComboBox>("SharedOrder")!.SelectedIndex);
             SetResults(matching, selected);
             this.FindControl<TextBlock>("SharedSearchStatus")!.Text =

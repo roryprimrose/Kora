@@ -266,7 +266,6 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         InCallFeedbackConfigurationService? inCallFeedbackConfiguration = null,
         SpeechTextConfigurationService? speechTextConfiguration = null,
         SessionRetentionConfigurationService? sessionRetentionConfiguration = null,
-        SessionQueueConfigurationService? queueConfiguration = null,
         ProviderModeConfigurationService? providerModeConfiguration = null,
         Kora.Tools.Network.PreapprovedUriList? preapprovedUriList = null,
         Kora.Tools.Network.PreapprovedUriAdd? preapprovedUriAdd = null,
@@ -385,17 +384,6 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             speechTextConfiguration.Changed += OnSpeechTextConfigurationChanged;
         }
         this.diagnosticRetentionConfiguration = diagnosticRetentionConfiguration;
-        this.queueConfiguration = queueConfiguration;
-        if (queueConfiguration is not null)
-        {
-            try { queueConfiguration.Observe(); }
-            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or InvalidDataException)
-            {
-                queueConfiguration.HoldUnavailable();
-                ApplicationLog.Error(logger, exception, "Reading fixed local-version queue settings");
-            }
-            queueConfiguration.Changed += OnQueueConfigurationChanged;
-        }
         this.sessionRetentionConfiguration = sessionRetentionConfiguration;
         this.sessionRetentionPlanner = sessionRetentionPlanner;
         if (sessionRetentionPlanner is not null) { sessionRetentionPlanner.Changed += OnSessionRetentionPlannerChanged; }
@@ -498,23 +486,6 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             SelectedWindowsSpeechRate.ToString(System.Globalization.CultureInfo.InvariantCulture)), SecurityAuditInitiator.LocalUser));
         ResetWindowsSpeechRateCommand = CreateCommand(() => ExecuteWindowsSpeechRateCommandAsync(new(AppearanceCommandOperation.Reset), SecurityAuditInitiator.LocalUser));
         RefreshDiagnosticRetentionCommand = CreateCommand(() => ExecuteDiagnosticRetentionCommandAsync(new(AppearanceCommandOperation.Get), SecurityAuditInitiator.LocalUser));
-        RefreshQueueConfigurationCommand = CreateCommand(() => ExecuteQueueConfigurationCommandAsync(new(AppearanceCommandOperation.Get), SecurityAuditInitiator.LocalUser));
-        SaveQueuePendingCommand = CreateCommand(() => ExecuteQueueConfigurationCommandAsync(new(AppearanceCommandOperation.Set,
-            Kora.Core.Configuration.SessionQueueOption.PendingPerSession, SelectedQueuePending.ToString(System.Globalization.CultureInfo.InvariantCulture)), SecurityAuditInitiator.LocalUser));
-        ResetQueuePendingCommand = CreateCommand(() => ExecuteQueueConfigurationCommandAsync(new(AppearanceCommandOperation.Reset,
-            Kora.Core.Configuration.SessionQueueOption.PendingPerSession), SecurityAuditInitiator.LocalUser));
-        SaveQueueSlotsCommand = CreateCommand(() => ExecuteQueueConfigurationCommandAsync(new(AppearanceCommandOperation.Set,
-            Kora.Core.Configuration.SessionQueueOption.ExecutionSlots, SelectedQueueSlots.ToString(System.Globalization.CultureInfo.InvariantCulture)), SecurityAuditInitiator.LocalUser));
-        ResetQueueSlotsCommand = CreateCommand(() => ExecuteQueueConfigurationCommandAsync(new(AppearanceCommandOperation.Reset,
-            Kora.Core.Configuration.SessionQueueOption.ExecutionSlots), SecurityAuditInitiator.LocalUser));
-        SaveQueueLifetimeCommand = CreateCommand(() => ExecuteQueueConfigurationCommandAsync(new(AppearanceCommandOperation.Set,
-            Kora.Core.Configuration.SessionQueueOption.PendingLifetimeMinutes, SelectedQueueLifetimeMinutes.ToString(System.Globalization.CultureInfo.InvariantCulture)), SecurityAuditInitiator.LocalUser));
-        ResetQueueLifetimeCommand = CreateCommand(() => ExecuteQueueConfigurationCommandAsync(new(AppearanceCommandOperation.Reset,
-            Kora.Core.Configuration.SessionQueueOption.PendingLifetimeMinutes), SecurityAuditInitiator.LocalUser));
-        SaveQueueActiveBudgetCommand = CreateCommand(() => ExecuteQueueConfigurationCommandAsync(new(AppearanceCommandOperation.Set,
-            Kora.Core.Configuration.SessionQueueOption.ActiveBudgetMinutes, SelectedQueueActiveBudgetMinutes.ToString(System.Globalization.CultureInfo.InvariantCulture)), SecurityAuditInitiator.LocalUser));
-        ResetQueueActiveBudgetCommand = CreateCommand(() => ExecuteQueueConfigurationCommandAsync(new(AppearanceCommandOperation.Reset,
-            Kora.Core.Configuration.SessionQueueOption.ActiveBudgetMinutes), SecurityAuditInitiator.LocalUser));
         RefreshSessionRetentionCommand = CreateCommand(() => ConfigureSessionRetentionAsync(save: false, reset: false));
         SaveSessionRetentionCommand = CreateCommand(() => ConfigureSessionRetentionAsync(save: true, reset: false));
         ResetSessionRetentionCommand = CreateCommand(() => ConfigureSessionRetentionAsync(save: true, reset: true));
@@ -4138,7 +4109,6 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             return;
         }
         Interlocked.Increment(ref workspaceSurfaceInputRevision);
-        Interlocked.Increment(ref diagnosticsPlanEpoch);
         if (Kora.Core.Calculations.CalculateCommand.Parse(spokenText, AssistantName) is { } calculateCommand)
         {
             ExecuteCalculateCommand(calculateCommand, initiator, manualInput);
@@ -4265,14 +4235,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             await ExecuteDiagnosticRetentionCommandAsync(diagnosticRetentionCommand, initiator);
             return;
         }
-        if (SessionQueueConfigurationCommand.Parse(spokenText, AssistantName) is { } queueConfigurationCommand)
+        if (SessionQueueConfigurationCommand.Parse(spokenText, AssistantName) is not null)
         {
-            if (!isAssistantNameAvailable && commandRouter.IsActivationPrefixed(spokenText, AssistantName))
-            {
-                Transcript = "Assistant prefix routing is unavailable; no queue-setting control was dispatched.";
-                return;
-            }
-            await ExecuteQueueConfigurationCommandAsync(queueConfigurationCommand, initiator);
+            Transcript = "Diagnostic queue settings retired. Existing records and their original deadlines are unchanged.";
             return;
         }
         if (WindowsSpeechRateCommand.Parse(spokenText, AssistantName) is { } rateCommand)
@@ -4372,12 +4337,6 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         if (Kora.Core.Maintenance.MaintenanceCommandParser.Parse(spokenText, AssistantName) is { } maintenanceCommand)
         {
             await ExecuteMaintenanceCommandAsync(maintenanceCommand, initiator);
-            return;
-        }
-        if (SessionDiagnosticsPlanCommand.Parse(spokenText, AssistantName) is { } diagnosticsPlanCommand)
-        {
-            await ExecuteDiagnosticsPlanAsync(diagnosticsPlanCommand, initiator,
-                commandRouter.IsActivationPrefixed(spokenText, AssistantName));
             return;
         }
         if (SessionDispositionReviewCommand.Parse(spokenText, AssistantName) is { } dispositionCommand)
@@ -5694,10 +5653,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
                     $"{Commands.Count} deterministic commands are registered. Say “{AssistantName}, open documentation” and choose Commands for the full list. "
                     + "Use “list capabilities” for the admitted read-only registry, or “describe capability” followed by a canonical ID. "
                     + "Use “session help” for bounded exact-ID session observations and explicit lifecycle controls. "
-                    + "Use “show fixed read queue settings” for exact inspect/set/independent-reset phrases for future-only fixed read queue limits; manual dispatch remains unchanged. "
                     + "Use “" + SessionDispositionReviewCommand.Syntax + "” for preview only in private native Sessions; confirmation is a separate native action. "
                     + SessionQueueCancellationReviewCommand.Syntax + ". " + SessionQueueCancellationReviewCommand.Boundary + " "
-                    + SessionDiagnosticsPlanCommand.Syntax + ". " + SessionDiagnosticsPlanCommand.Boundary + " "
                     + "Use “list response window settings” for exact device-local visibility/topmost controls; no response is reopened. "
                     + $"Use “{AssistantName}, list assistant settings” for the display/PTT command-prefix name. "
                     + NaturalAppearanceCommand.Syntax + " "
@@ -6135,7 +6092,6 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         OnPropertyChanged(nameof(CanChangeDiagnosticRetention));
         OnPropertyChanged(nameof(CanChangeDiagnosticRetentionNative));
         OnPropertyChanged(nameof(DiagnosticRetentionStatus));
-        SynchronizeQueueConfiguration();
         OnPropertyChanged(nameof(CanChangeAuditRetention));
         OnPropertyChanged(nameof(CanChangeAuditRetentionNative));
         OnPropertyChanged(nameof(AuditRetentionStatus));
@@ -6178,7 +6134,6 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             .Concat(PlaybackVolumeCommand.FixedPhrases)
             .Concat(WindowsSpeechRateCommand.FixedPhrases)
             .Concat(DiagnosticRetentionCommand.FixedPhrases)
-            .Concat(SessionQueueConfigurationCommand.FixedPhrases)
             .Concat(AuditRetentionCommand.FixedPhrases)
             .Concat(ManualCallCommand.FixedPhrases)
             .Concat(ResponseModeCommand.FixedPhrases)

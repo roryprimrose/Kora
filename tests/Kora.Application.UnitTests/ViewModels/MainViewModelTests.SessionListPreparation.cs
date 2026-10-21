@@ -14,6 +14,21 @@ public sealed partial class MainViewModelTests
     private const string ListPreparationId = "abcdef01-2345-6789-abcd-ef0123456789";
 
     [Theory]
+    [InlineData("prepare session list time", "prepare session list")]
+    [InlineData("session list help", "session list")]
+    public async Task SessionListPreparationRetainsPrecedenceOverClockShapedAssistantAlias(string command, string alias)
+    {
+        var f = new Fixture();
+        await f.ViewModel.SetAssistantNameAsync(alias);
+
+        await f.RunAsync(command);
+
+        f.ViewModel.ResponseBody.Should().Be(SessionListPreparationCommand.Syntax);
+        f.ViewModel.ResponseTitle.Should().NotBe("Host-local date and time.");
+        f.Reasoner.Requests.Should().BeEmpty();
+    }
+
+    [Theory]
     [InlineData(false)]
     [InlineData(true)]
     public async Task ExactListPreparationIsScopedQueryDataAndNeverExecutesWorkspaceOrModelWork(bool voice)

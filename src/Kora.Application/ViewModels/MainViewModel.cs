@@ -4148,7 +4148,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         var sessionCommand = SessionCommand.Parse(spokenText, AssistantName);
         var cataloguePreparation = manualInput?.CataloguePreparation
             ?? AttachmentCataloguePreparationCommand.Parse(spokenText, AssistantName);
-        if (sessionCommand is null && cataloguePreparation is null
+        var convertCommand = Kora.Core.Conversions.ConvertCommand.Parse(spokenText, AssistantName);
+        if (sessionCommand is null && cataloguePreparation is null && convertCommand is null
             && LocalClockCommand.Parse(spokenText, AssistantName) is { } clockCommand)
         {
             ExecuteLocalClockCommand(clockCommand, initiator, manualInput);
@@ -4159,7 +4160,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             await PrepareAttachmentCatalogue(cataloguePreparation, initiator, manualInput);
             return;
         }
-        if (Kora.Core.Conversions.ConvertCommand.Parse(spokenText, AssistantName) is { } convertCommand)
+        if (convertCommand is not null)
         {
             ExecuteConvertCommand(convertCommand, initiator, manualInput);
             return;

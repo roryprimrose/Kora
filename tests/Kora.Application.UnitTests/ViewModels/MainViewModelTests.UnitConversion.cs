@@ -12,17 +12,19 @@ namespace Kora.Application.UnitTests.ViewModels;
 
 public sealed partial class MainViewModelTests
 {
-    [Fact]
-    public async Task UnitConversionTypedAndCurrentNameVoiceUseLocalActionAndOrdinaryOutput()
+    [Theory]
+    [InlineData("Nova")]
+    [InlineData("What Time")]
+    public async Task UnitConversionTypedAndCurrentNameVoiceUseLocalActionAndOrdinaryOutput(string assistantName)
     {
         var f = await Fixture.CreateInitializedAsync();
-        await f.RunAsync("set assistant name to Nova");
+        await f.RunAsync("set assistant name to " + assistantName);
         f.TextToSpeech.ClearSpokenResponse();
         var mode = f.ViewModel.DefaultResponseMode;
         await f.RunAsync("convert 1 in to cm");
         f.ViewModel.ResponseTitle.Should().Be("Unit conversion result");
         f.ViewModel.ResponseBody.Should().StartWith("2.54 cm. Exact.");
-        await f.RaiseActivatedTranscriptAsync("Nova, convert 1 m to in", 1);
+        await f.RaiseActivatedTranscriptAsync(assistantName + ", convert 1 m to in", 1);
         f.ViewModel.ResponseBody.Should().StartWith("39.370078740157 in. Rounded.");
         f.ViewModel.ResponseBody.Should().Contain("midpoint to even");
         await f.RunAsync("convert help");

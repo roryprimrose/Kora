@@ -79,6 +79,8 @@ internal sealed partial class OwnedInstructionEditorController(
             if (action is "Filter" or "Next") { FilterInventory(action is "Next", edited: action is "Filter"); }
             else { _ = Run(action); }
         });
+        var findOwner = window;
+        window.BindBufferFind(() => CaptureBufferFind(findOwner));
         window.Source.PropertyChanged += (_, change) =>
         {
             if (change.Property == TextBox.TextProperty) { Interlocked.Increment(ref sourceRevision); window?.CancelRebaseReview(); window?.ClearValidation(); }
@@ -153,6 +155,7 @@ internal sealed partial class OwnedInstructionEditorController(
             && ReferenceEquals(window, opened) && captured();
         var token = lifetime.Token;
         if (!Eligible() || ownership != windowOwnershipRevision) { OnPrivacyClosed(this, EventArgs.Empty); return; }
+        opened.RetireBufferFind(clearQuery: true);
         busy = true;
         try
         {

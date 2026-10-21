@@ -44,6 +44,7 @@ internal sealed partial class AttachmentCatalogueWindow : Window
         NextPage.Click += async (_, _) => await (Operation = model.Refresh(next: true));
         CancelRead.Click += (_, _) => model.Cancel();
         ClearQuery.Click += (_, _) => model.ClearQuery();
+        ClearAttachmentPageOrder.Click += (_, _) => model.ClearPageOrder();
         SlotRecords.SelectionChanged += (_, _) => model.Select(SlotRecords.SelectedItem as SessionAttachmentSummary);
         OpenExact.Click += async (_, _) => await (Operation = model.Navigate());
         CloseView.Click += (_, _) => Close();

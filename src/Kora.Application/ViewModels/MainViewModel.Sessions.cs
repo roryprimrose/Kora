@@ -2,6 +2,7 @@ using System.Text;
 
 using Kora.Application.Hosting;
 using Kora.Application.Diagnostics;
+using Kora.Core;
 using Kora.Core.Auditing;
 using Kora.Core.Commands;
 using Kora.Core.Hosting;
@@ -12,6 +13,8 @@ public sealed partial class MainViewModel
 {
     private SessionWorkspaceService? sessionCommands;
     private SessionRequestCommandService? sessionRequests;
+    private ConversationSearchCommandService? conversationSearchCommands;
+    private bool conversationSearchPresentation;
     private readonly HashSet<Guid> sessionPresentationSources = [];
 
     public void RevokeSessionPresentation(HostId<SessionIdentity> session)
@@ -22,10 +25,13 @@ public sealed partial class MainViewModel
         ResponseBody = "Session presentation revoked by inactivity retention. Refresh the exact retained session before inspecting it again.";
     }
 
-    public void BindSessionCommands(SessionWorkspaceService service, SessionRequestCommandService? requests = null)
+    public void BindSessionCommands(SessionWorkspaceService service, SessionRequestCommandService? requests = null,
+        ConversationSearchCommandService? searches = null)
     {
+        conversationSearchCommands?.Retire();
         sessionCommands = service;
         sessionRequests = requests;
+        conversationSearchCommands = searches;
         PrivacyClosureRequested -= OnSessionRequestPrivacyClosure;
         PrivacyClosureRequested += OnSessionRequestPrivacyClosure;
     }
@@ -34,7 +40,7 @@ public sealed partial class MainViewModel
     {
         RetireSessionCommandReviews();
         if (SessionCommand.Parse(CommandText, AssistantName) is { } command
-            && (command.Operation == SessionCommandOperation.RequestReview || command.IsRetentionCommand))
+            && (command.Operation == SessionCommandOperation.RequestReview || command.IsRetentionCommand || command.IsConversationSearch))
         { CommandText = string.Empty; }
     }
 
@@ -73,7 +79,9 @@ public sealed partial class MainViewModel
             && pendingModelQuestion is null && !IsGrantChangePending && !IsModelActionApprovalPending
             && (origin != RequestOrigin.ActivatedVoice || (IsVoiceEnabled && HasVoiceConsent
                 && CallObservation.AllowActivation && Volatile.Read(ref voiceRecoveryRevision) == recoveryRevision
-                && (!sourceBoundCommand || !IsProtectedCall && string.Equals(originalName, AssistantName, StringComparison.Ordinal))));
+                && (!sourceBoundCommand || !IsProtectedCall && string.Equals(originalName, AssistantName, StringComparison.Ordinal))
+                && (!command.IsConversationSearch
+                    || isAssistantNameAvailable && string.Equals(originalName, AssistantName, StringComparison.Ordinal))));
         if (sessionCommands is null)
         {
             ShowInformation("Session commands unavailable.", "The trusted durable workspace service is not bound. Use the native Sessions workspace when available.");
@@ -94,6 +102,23 @@ public sealed partial class MainViewModel
         }
         try
         {
+            if (command.IsConversationSearch)
+            {
+                var page = await (conversationSearchCommands
+                    ?? throw new InvalidOperationException("The canonical conversation search command service is unavailable."))
+                    .ExecuteAsync(command, origin, Eligible, CancellationToken.None);
+                if (!Eligible()) { return; }
+                PresentResponse(AssistantState.Information, "Exact conversation search.",
+                    page is null ? "Host-held search cancelled. No content, submission or session change."
+                        : Encoding.UTF8.GetString(Kora.Core.Conversation.ConversationSearchPage.Serialize(page)),
+                    refreshOutput: false, sourceAssigned: () =>
+                    {
+                        conversationSearchPresentation = true;
+                        forceVisualResponse = true;
+                    });
+                sessionPresentationSources.Add(command.SessionId!.Value);
+                return;
+            }
             var result = command.IsRetentionCommand
                 ? await ExecuteSessionRetentionCommandAsync(command, origin, Eligible, CancellationToken.None)
                 : requestCommand

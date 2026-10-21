@@ -16,7 +16,7 @@ public sealed partial record SessionCommand(
     public const int DefaultPageSize = 25;
     public const int MaximumInputBytes = 1024;
     public const int MaximumResultBytes = 65536;
-    public static IReadOnlyList<string> DiscoveryPhrases { get; } = ["session help", "session list", "session request help", "session retention help", "task help", "queue help"];
+    public static IReadOnlyList<string> DiscoveryPhrases { get; } = ["session help", "session list", "session request help", "session retention help", "session queue cancellation help", "task help", "queue help"];
     public const string Syntax =
         "session help | session list [after <exact-id>] [limit <1-50>] | session status <exact-id> | "
         + "session inspect <exact-id> [tasks|questions] [after <exact-id>] [limit <1-50>] | "
@@ -28,7 +28,8 @@ public sealed partial record SessionCommand(
         + "IDs use canonical D GUIDs; revisions use decimal integers. Names use NFC single-line Unicode, "
         + "at most 120 scalars/480 UTF-8 bytes. Inside quotes, double a quote to include it. "
         + "No name, selected-window, delete, general executor or approval targeting. " + RequestSyntax + " " + RetentionSyntax
-        + " " + SessionDispositionReviewCommand.Syntax + ". " + SessionDispositionReviewCommand.Boundary;
+        + " " + SessionDispositionReviewCommand.Syntax + ". " + SessionDispositionReviewCommand.Boundary
+        + " " + SessionQueueCancellationReviewCommand.Syntax + ". " + SessionQueueCancellationReviewCommand.Boundary;
 
     public string PageKind { get; init; } = "tasks";
     public Guid? TaskId { get; init; }
@@ -57,6 +58,7 @@ public sealed partial record SessionCommand(
             text = text[prefix.Length..].TrimStart(' ', ',', '\t');
         }
         if (ParseRetention(text, input) is { } retention) { return retention; }
+        if (ParseConversationSearch(text) is { } search) { return search; }
         if (ParseRequest(text) is { } request) { return request; }
         text = text.TrimEnd();
         if (text.Equals("queue", StringComparison.OrdinalIgnoreCase)

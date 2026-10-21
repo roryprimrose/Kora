@@ -4,6 +4,9 @@ namespace Kora.Application.ViewModels;
 
 public sealed partial class MainViewModel
 {
+    [LoggerMessage(121, LogLevel.Information, "Local calculator outcome {CalculationOutcome}")]
+    private partial void CalculatorFinished(Kora.Core.Calculations.CalculationOutcome calculationOutcome);
+
     [LoggerMessage(630, LogLevel.Error, "Local web summary was not admitted: {FailureKind}")]
     private partial void WebSummaryFailed(string failureKind);
 

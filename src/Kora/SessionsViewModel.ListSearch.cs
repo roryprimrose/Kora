@@ -173,12 +173,15 @@ internal sealed partial class SessionsViewModel
             {
                 throw new OperationCanceledException("The metadata query, selected subject or source changed. Start a fresh Search.");
             }
+            var projection = SessionListPageOrdering.Apply(result.Records, listPageOrder);
             var retained = selected is null ? null : result.Records.FirstOrDefault(record =>
                 record.Authority.SessionId == selected.Authority.SessionId);
             if (selected is not null && retained != selected) { ClearSelection(); }
             else if (retained is not null) { selected = retained; }
             sessions = new(result.Records, null);
             listSearch = result;
+            orderedListPage = projection;
+            listPageControlRevision = admission;
             listSearchMode = true;
             status = "Passive session metadata: " + result.Records.Length.ToString(CultureInfo.InvariantCulture)
                 + " matches; " + result.Scanned.ToString(CultureInfo.InvariantCulture) + " scanned; "
@@ -198,6 +201,7 @@ internal sealed partial class SessionsViewModel
         listSearchEpoch++;
         listSearchCancellation?.Cancel();
         listSearch = null;
+        orderedListPage = [];
         if (listSearchMode)
         {
             sessions = null;
@@ -234,6 +238,7 @@ internal sealed partial class SessionsViewModel
 
     private void NotifyListSearch()
     {
+        NotifyListPageOrder();
         OnPropertyChanged(nameof(ListQuery));
         OnPropertyChanged(nameof(ListMinimumGeneration));
         OnPropertyChanged(nameof(ListMaximumGeneration));

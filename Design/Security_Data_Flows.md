@@ -609,6 +609,23 @@ Keyboard access remains native-only and blocks built-in cut/copy/paste/context r
 [Portable policy tests](../tests/Kora.Core.UnitTests/Context/ClipboardLiteralFindTests.cs) and [headless lifecycle/transfer tests](../tests/Kora.Windows.IntegrationTests/ClipboardLiteralFindWindowTests.cs) are consumer evidence, not installed-native/privacy qualification.
 
 The [explicit clipboard workflow](../src/Kora.Application/Context/ClipboardExplanationWorkflow.cs) now separates review from explanation.
+The native **Validate this snapshot as JSON** gesture is independent of that inference workflow.
+[ClipboardJsonSyntax](../src/Kora.Core/Context/ClipboardJsonSyntax.cs) consumes only the exact immutable capture's canonical strict UTF-8 bytes,
+using the maintained `System.Text.Json` reader with an explicit 64-container depth ceiling, one whole value, comments disallowed and trailing commas disallowed.
+It returns [bounded typed syntax evidence](../src/Kora.Core/Context/ClipboardJsonSyntaxResult.cs): valid plus standard root kind,
+invalid syntax or explicit excessive-depth refusal plus zero-based line/UTF-8 byte coordinates. It never renders parser messages, paths, properties, tokens or excerpts.
+Duplicate names and Unicode scalar semantics of escaped surrogate sequences are outside this syntax check; canonical source Unicode validation remains unchanged.
+Syntax success grants no safety, trust, secret-free, schema, source-use, model, egress or execution authority.
+The [registered host action](../src/Kora.Tools/Clipboard/ClipboardValidateJson.cs) checks local native origin, the same object/reference/ID,
+original capture and host/private/owner/input/call eligibility, cancellation and the existing 15-minute review ceiling before parsing and after completion.
+The [native controller](../src/Kora/ClipboardPreviewWindowController.cs) and [syntax control](../src/Kora/ClipboardPreviewWindow.Json.cs) additionally fence window/control generations,
+reentrant close/revoke/replacement/disposal and final presentation/focus. Revocation retires derived state; syntax expiry does not revoke or refresh the original capture.
+The source text, bytes, IDs, native version, capture time and original request remain unchanged; no digest is manufactured or rewritten.
+No source fallback, recapture, clipboard I/O, history, persistence, model/provider, shell, device, network, schema/reference resolution or dependencies are added.
+Find edits/navigation and opening/idle presentation never parse. Syntax results stay only in the exact native preview, outside generic response/transcript/speech/log/audit content.
+Unexpected parser/internal failure is a generated content-free diagnostic and explicit native recovery, not invalid syntax.
+This consumes only existing immutable capture, host/native admission and portable parsing **I** contracts; no model policy approval or E/Q/installed-native security qualification is claimed.
+
 Exact `explain the clipboard` requests review of the current immutable snapshot, capturing once only when none is selected; preview/reuse/Find never run inference.
 The [native review control](../src/Kora/ClipboardPreviewWindow.cs) requires a deliberate checkbox and button gesture requesting admission of the exact shown snapshot ID; review alone does not admit inference, and closing/replacing/revoking fences old callbacks ([controller](../src/Kora/ClipboardPreviewWindowController.cs)).
 The owning clipboard rule requires secret/sensitive-content source-use classification before envelope construction. No authoritative production rule is implemented: [IClipboardSourceUsePolicy](../src/Kora.Core/Context/IClipboardSourceUsePolicy.cs) is composed with [UnavailableClipboardSourceUsePolicy](../src/Kora.Tools/Clipboard/UnavailableClipboardSourceUsePolicy.cs).

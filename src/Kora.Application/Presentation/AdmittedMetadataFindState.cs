@@ -86,7 +86,7 @@ public sealed class AdmittedMetadataFindState(string admittedDetails, Func<bool>
         if (counted)
         {
             status += $" Selected metadata only: {count} nonoverlapping matches; "
-                + (found is null ? "no displayed match." : $"selected {ordinal} of {count}.");
+                + (found is null ? $"no displayed match; boundary ordinal {ordinal} of {count}." : $"selected {ordinal} of {count}.");
         }
     }
 

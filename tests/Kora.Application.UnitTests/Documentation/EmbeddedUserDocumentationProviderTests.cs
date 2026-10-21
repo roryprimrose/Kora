@@ -151,7 +151,7 @@ public sealed class EmbeddedUserDocumentationProviderTests
             .Skip(1)
             .ToArray();
 
-        sections.Should().HaveCount(commands.Count + 17);
+        sections.Should().HaveCount(commands.Count + 18);
         var disposition = sections.Single(section => section.StartsWith("Review one exact session's logical disposition", StringComparison.Ordinal));
         disposition.Should().Contain(SessionDispositionReviewCommand.Syntax)
             .And.Contain("Nothing is removed by the command").And.Contain("separate deliberate native action")
@@ -167,6 +167,16 @@ public sealed class EmbeddedUserDocumentationProviderTests
             .And.Contain("visual-only")
             .And.Contain("same")
             .And.Contain("canonical search service");
+        var responseWindow = sections.Single(section => section.StartsWith(
+            "Inspect or change Kora's response-window visibility preferences", StringComparison.Ordinal));
+        var responseWindowPhrases = Regex.Matches(responseWindow[..responseWindow.IndexOf("These are complete", StringComparison.Ordinal)],
+            @"\*\*(?<phrase>[^*]+)\*\*", RegexOptions.None, TimeSpan.FromSeconds(1))
+            .Select(match => match.Groups["phrase"].Value).ToArray();
+        responseWindowPhrases.Should().HaveCount(15).And.OnlyContain(phrase =>
+            ResponseWindowCommand.Parse(phrase, "Kora") != null
+            && ResponseWindowCommand.Parse(phrase, "Kora")!.Operation != AppearanceCommandOperation.Clarify);
+        responseWindow.Should().Contain("No automatic rewrite").And.Contain("pending question/approval")
+            .And.Contain("AlwaysShow=false").And.Contain("Topmost=true");
         var editor = sections.Single(section => section.StartsWith("Edit an owned instruction or literal prompt without a model", StringComparison.Ordinal));
         editor.Should().Contain("instructions editor").And.Contain("prompts editor")
             .And.Contain("same").And.Contain("Reload/Overwrite/Cancel").And.Contain("No paths or body dictation");
@@ -288,6 +298,7 @@ public sealed class EmbeddedUserDocumentationProviderTests
         sections = sections.Where(section => !ReferenceEquals(section, appearance)
             && !ReferenceEquals(section, naturalAppearance)
             && !ReferenceEquals(section, disposition)
+            && !ReferenceEquals(section, responseWindow)
             && !ReferenceEquals(section, output)
             && !ReferenceEquals(section, volume)
             && !ReferenceEquals(section, rate)

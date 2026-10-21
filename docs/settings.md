@@ -517,6 +517,23 @@ the animated presence optional. It is displayed by default. Turning it off
 keeps the presence hidden across restarts while response, settings, approval
 and other interactive surfaces remain available.
 
+**Response-window visibility and topmost**
+
+The native **Always show responses** and **Keep responses on top** controls share their existing audited setters with the [exact typed/current-name activated commands](commands.md#inspect-or-change-koras-response-window-visibility-preferences).
+They remain separate from the appearance registry, output response mode, speech captions and content retention ([native setters](../src/Kora.Application/ViewModels/MainViewModel.cs), [command workflow](../src/Kora.Application/ViewModels/MainViewModel.ResponseWindowCommands.cs)).
+
+| Device-local option | Default | Exact natural on / off |
+| --- | --- | --- |
+| `response-window.always-show` | `false` | `keep responses visible` / `allow responses to hide` |
+| `response-window.topmost` | `true` | `keep response window on top` / `stop keeping response window on top` |
+
+Use `get/status <exact ID>`, `set <exact ID> to true/false` or `reset <exact ID>`; the spoken targets `response window always show` and `response window topmost` also work. Each off/reset affects only its Boolean, preserving its companion, position and timeout.
+Inspection distinguishes saved evidence from unsaved defaults, while malformed or changed/uncertain evidence requires explicit inspection/repair before restart, not saving assumed defaults
+([parser](../src/Kora.Application/Configuration/ResponseWindowCommand.cs), [confirmation](../src/Kora.Application/ViewModels/MainViewModel.ResponseWindowCommands.cs)).
+
+Command results stay in the transcript without immediate speech or replacing question/security panels. Saving AlwaysShow does not reopen a dismissed window or resurrect old/private/revoked content; native source, privacy, call and presentation admission remain authoritative.
+Topmost applies only to Kora's response window, not arbitrary OS windows, geometry, activation or foreground rights ([window controller](../src/Kora/ResponseWindowController.cs), [native response](../src/Kora/ResponseWindow.axaml.cs)).
+
 Under **Appearance > Presence**, **Presence renderer** switches
 between **Avalonia** and **Native (experimental)** without restarting Kora's
 host services. Both use the same particle cloud. The old presence fades out

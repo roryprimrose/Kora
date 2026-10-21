@@ -271,6 +271,38 @@ One immutable UTF-8 `.txt`/`.md`/`.markdown` file per session; maximum 262,144 o
 
 **Inspect retained attachment / remove Kora copies** reads full inert historical source and same lexical-lines exact citations after restart, including retained Done sessions. Browsing/search never resume a session, renew activity or trigger cleanup. The snapshot does not watch, refresh or re-read the original file.
 
+### Inspect one retained attachment by exact session address
+
+| Exact typed command | Result |
+|---|---|
+| `session attachment help` | Discover the bounded grammar |
+| `session attachment inspect <session-id>` | Open the addressed session's currently admitted retained historical attachment in the same private native inert viewer used by Sessions |
+
+For voice, use the **current** assistant-name prefix, for example
+`Kora, session attachment inspect 12345678-1234-1234-1234-123456789012`.
+The address must be a complete nonempty canonical lowercase D GUID.
+Names (including same-name sessions), selected windows, paths, URIs, digest-only
+identity, model targets, extra arguments and mutation verbs are not admitted.
+Invalid reserved input never answers a pending question or falls back to a model.
+
+The host observes exact source/revision/item/digest, session generation and
+storage revision, then re-resolves that same provenance before native disclosure.
+A swap or revision change refuses; it never opens a newer/same-name source.
+Active and retained Done sessions are inspectable; Done stays Done.
+Private ownership, original input/call/name admission and source lifetime remain
+live gates. Protected/Unknown voice input, missing/held/corrupt/stale sources or
+current-work/storage holds report unavailable with native recovery, never
+recapture or read-original fallback. Finish or discard an existing native file
+review explicitly first; inspection cannot silently cancel it.
+
+This command opens an **inspection-only** view: no capture, attach, replacement
+or removal controls/consent are granted. Those remain separate reviewed genuine
+native gestures through Sessions. Bytes stay in the native inert viewer, never
+the command response, transcript, speech/readback, model, log or clipboard.
+Opening does not renew meaningful activity, resume, trigger retention/cleanup,
+enqueue work or replay a request. No provider, hardware or installed-native
+qualification is claimed. See the [source-bound route and evidence](../Design/File_And_Folder_Ingestion.md#delivered-exact-session-retained-attachment-inspection-command---2026-10-20).
+
 Removal reviews the exact session/generation, source/revision/item/digest, storage revision and all owned copies, then requires **Confirm: Remove attachment and Kora copies**. Native use is revoked before secure SQLite body/free-page removal and committed-journal verification. Live/Unknown work and uninventoried copies hold completion; inspect durable state after uncertainty. Original files and unrelated/kept sessions/Perpetual grants remain unchanged.
 
 For an **Active** session with a retained file, choose **Replace retained attachment** from its historical viewer. A fresh picker selects the source; review old identity/digest/captured time/storage and inventory revisions alongside new metadata, persistence and copy-removal consequences.

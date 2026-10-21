@@ -282,6 +282,54 @@ Evidence: [Core exact-byte restoration](../tests/Kora.Core.UnitTests/Context/Loc
 
 Experiment assessment: these maintained tests close only this single-file capture/storage/native consumer. They do not supersede unique encrypted-artifact/DPAPI/rekey/backup, actual native/runtime/inference, RT1/RT2/MG1, containment or historical receipt failures. All experiment consumers and proofs remain retained. Full R26, managed knowledge, model use, OCR/vector/egress and installed/accessibility acceptance remain open.
 
+## Delivered Exact-Session Retained Attachment Inspection Command - 2026-10-20
+
+`session attachment inspect <session-id>` (typed or current-name ACTIVATED
+voice) consumes only the existing retained-read **I - Implementation** contract.
+`session attachment help` is included in recognition discovery. The reserved
+session parser admits only a canonical nonempty lowercase D GUID; names,
+paths/URIs, digests, selected windows and model targets are not addresses.
+Malformed reserved input cannot become an answer or model fallback.
+
+The [Application command orchestrator](../src/Kora.Application/Hosting/SessionAttachmentCommandService.cs)
+observes one [exact-ID metadata slot](../src/Kora.Windows/Storage/WindowsSqliteHostInteractionStore.AttachmentInspection.cs), retains its strongly typed source/storage
+identity and uses the [shared provenance resolver](../src/Kora.Application/Hosting/SessionFileAttachmentService.Inspection.cs)
+to verify current session generation, lifecycle, captured generation, source/
+revision/item/digest, original byte length/time and storage observation before
+calling the [existing native controller](../src/Kora/SessionAttachmentWindowController.cs).
+The controller repeats authoritative resolution before showing an inspection-only
+instance of the same inert viewer. No fallback to the latest row or original path
+is allowed after binding. Native source navigation continues to revalidate the
+same retained source, and cancellation/privacy/ownership/source revocation clears
+the native view. An outstanding review/control refuses without retiring it.
+
+[Retained reads](../src/Kora.Application/Hosting/SessionFileAttachmentService.cs)
+accept live original LocalUi or ActivatedVoice authority without invocation
+authority; their trusted audit retains the original channel and content-free
+HostActivity identity. The native-only capture/mutation gate is unchanged.
+The general metadata catalogue remains native-only; command inspection has no
+browse, predicate or continuation capability.
+Retained searches remain separate native viewer gestures, not another voice
+permission or command.
+Command invocation never fabricates LocalUi capture consent. Capture/attach/
+replace/remove are not exposed in the command-opened view and remain separate
+reviewed native gestures. Core/Tools stay portable; Application orchestrates and
+desktop owns windows. There is no new model catalogue or attachment model-use
+policy.
+
+Retained Active/Done inspection is passive: no task commit, activity renewal,
+resume, cleanup, queue, model, transcript/speech/readback or clipboard payload.
+Held/missing/corrupt/stale/current-work copies fail closed with native recovery;
+no capture/read-original or automatic retry. Unknown runtime readiness is not
+success. **E - Enablement / Q - RC** provider, physical storage, acoustic/hardware,
+installed/accessibility and broader R26 qualifications are not asserted or run
+by this bounded deterministic implementation.
+
+Evidence: [strict grammar](../tests/Kora.Core.UnitTests/Commands/SessionAttachmentCommandTests.cs),
+[source/revision/admission and nonmutation tests](../tests/Kora.Application.UnitTests/Hosting/SessionWorkspaceServiceTests.AttachmentCommands.cs),
+[reserved host routing and no content/speech/model tests](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.AttachmentCommands.cs),
+and [private SQLite/headless same-controller inspection and pending-review preservation](../tests/Kora.Windows.IntegrationTests/SessionAttachmentWindowTests.Commands.cs).
+
 ## Delivered Reviewed Retained Attachment Replacement - 2026-10-10
 
 **Sessions > exact Active session > Inspect retained attachment / remove Kora copies > Replace retained attachment** opens a fresh trusted native picker. It never automatically reads the old original path. The old source is historical, not present filesystem authority.

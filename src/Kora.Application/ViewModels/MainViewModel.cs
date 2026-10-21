@@ -4131,7 +4131,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             ExecuteCalculateCommand(calculateCommand, initiator, manualInput);
             return;
         }
-        if (LocalClockCommand.Parse(spokenText, AssistantName) is { } clockCommand)
+        var sessionCommand = SessionCommand.Parse(spokenText, AssistantName);
+        if (sessionCommand is null && LocalClockCommand.Parse(spokenText, AssistantName) is { } clockCommand)
         {
             ExecuteLocalClockCommand(clockCommand, initiator, manualInput);
             return;
@@ -4372,15 +4373,16 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
                 commandRouter.IsActivationPrefixed(spokenText, AssistantName));
             return;
         }
-        if (SessionCommand.Parse(spokenText, AssistantName) is { } sessionCommand)
+        if (sessionCommand is not null)
         {
             if (initiator == SecurityAuditInitiator.VoiceCommand
                 && (sessionCommand.IsRetentionCommand || sessionCommand.IsConversationSearch
-                    || sessionCommand.Operation is SessionCommandOperation.RequestReview or SessionCommandOperation.RequestConfirm or SessionCommandOperation.RequestCancel)
+                    || sessionCommand.Operation is SessionCommandOperation.RequestReview or SessionCommandOperation.RequestConfirm
+                        or SessionCommandOperation.RequestCancel or SessionCommandOperation.AttachmentInspect)
                 && !commandRouter.IsActivationPrefixed(spokenText, AssistantName))
             {
                 RetireSessionCommandReviews();
-                ShowInformation("Session request denied.", "Use the current assistant-name prefix and exact session request grammar. No pending question or model received this input.");
+                ShowInformation("Session request denied.", "Use the current assistant-name prefix and exact session grammar. No pending question or model received this input.");
                 return;
             }
             await ExecuteSessionCommandAsync(sessionCommand, initiator);

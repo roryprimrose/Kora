@@ -151,7 +151,7 @@ public sealed class EmbeddedUserDocumentationProviderTests
             .Skip(1)
             .ToArray();
 
-        sections.Should().HaveCount(commands.Count + 18);
+        sections.Should().HaveCount(commands.Count + 19);
         var disposition = sections.Single(section => section.StartsWith("Review one exact session's logical disposition", StringComparison.Ordinal));
         disposition.Should().Contain(SessionDispositionReviewCommand.Syntax)
             .And.Contain("Nothing is removed by the command").And.Contain("separate deliberate native action")
@@ -177,6 +177,9 @@ public sealed class EmbeddedUserDocumentationProviderTests
             && ResponseWindowCommand.Parse(phrase, "Kora")!.Operation != AppearanceCommandOperation.Clarify);
         responseWindow.Should().Contain("No automatic rewrite").And.Contain("pending question/approval")
             .And.Contain("AlwaysShow=false").And.Contain("Topmost=true");
+        var attachment = sections.Single(section => section.StartsWith("Inspect one retained attachment by exact session address", StringComparison.Ordinal));
+        attachment.Should().Contain("session attachment inspect <session-id>").And.Contain("inspection-only")
+            .And.Contain("never answers a pending question");
         var editor = sections.Single(section => section.StartsWith("Edit an owned instruction or literal prompt without a model", StringComparison.Ordinal));
         editor.Should().Contain("instructions editor").And.Contain("prompts editor")
             .And.Contain("same").And.Contain("Reload/Overwrite/Cancel").And.Contain("No paths or body dictation");
@@ -306,7 +309,8 @@ public sealed class EmbeddedUserDocumentationProviderTests
             && !ReferenceEquals(section, sessions) && !ReferenceEquals(section, speech)
             && !ReferenceEquals(section, sessionCommands) && !ReferenceEquals(section, summaries)).ToArray();
         sections = sections.Where(section => !ReferenceEquals(section, sharedSkills)
-            && !ReferenceEquals(section, webPage) && !ReferenceEquals(section, conversationSearch)).ToArray();
+            && !ReferenceEquals(section, webPage) && !ReferenceEquals(section, conversationSearch)
+            && !ReferenceEquals(section, attachment)).ToArray();
         for (var index = 0; index < commands.Count; index++)
         {
             var phrases = Regex.Matches(

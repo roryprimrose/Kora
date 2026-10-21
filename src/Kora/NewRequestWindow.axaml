@@ -17,6 +17,9 @@
           AutomationProperties.Name="Isolated native New request buffer; saving requires its confirmed fresh target and separate revision review, never question reply, approval or voice input" />
       <controls:NamedTextBlock x:Name="DraftSizeFeedback" Text="{Binding DraftSizeFeedback}" TextWrapping="Wrap"
           AutomationProperties.Name="Current editable New request draft size and shape" />
+      <CheckBox x:Name="WrapDraftText" Content="Wrap draft text" IsEnabled="{Binding CanEdit}"
+          AutomationProperties.Name="Wrap draft text"
+          ToolTip.Tip="Visual rows only, not logical lines or tokens. Exact draft text is unchanged. Uncheck to scroll long lines horizontally; this view only, until closed." />
       <TextBlock Text="Best-effort structural credential checks reject detected material before body retention; they cannot identify arbitrary passwords or guarantee secret-free text. No save-anyway, redaction, provider setup or fallback." TextWrapping="Wrap" />
       <Button x:Name="CreateTarget" Content="_Create new empty target" IsEnabled="{Binding CanCreate}"
           AutomationProperties.Name="Explicitly commit one fresh empty New conversation; separate from body submission" />

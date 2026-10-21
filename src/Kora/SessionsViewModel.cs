@@ -100,6 +100,13 @@ internal sealed partial class SessionsViewModel(
         var epoch = selectionEpoch;
         return () => !closed && selectionEpoch == epoch;
     }
+    internal Func<bool> CaptureDraftPresentationEligibility()
+    {
+        var source = CaptureNavigationEligibility();
+        var control = access.ControlRevision;
+        var target = selected;
+        return () => source() && access.CanInspect && access.CanControl && access.ControlRevision == control && selected == target;
+    }
     internal bool ReferencesSession(HostId<SessionIdentity> session) =>
         !closed && (selected?.Authority.SessionId == session || workSnapshot?.Session.Authority.SessionId == session
         || string.Equals(historySessionId, session.Value.ToString("D"), StringComparison.Ordinal));

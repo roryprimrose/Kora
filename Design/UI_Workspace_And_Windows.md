@@ -117,6 +117,28 @@ owner loss clears presentation and late callbacks without saving. Known
 submission receipt clears only its unchanged buffer; uncertainty retains/holds
 it with exact conversation/task inspection guidance.
 
+#### Transient native draft wrapping
+
+New request, Sessions and compact Sessions each expose an accessible native
+**Wrap draft text** checkbox for their editable draft only, preserving each
+control's initial `Wrap` layout. Unchecked uses `NoWrap` and native automatic
+horizontal scrolling; checked wraps visual rows to the viewport, not logical
+lines or tokens. This is per-view presentation, not a preference or another body
+buffer. Sessions projections keep the existing shared authoritative body.
+
+The [native helper](../src/Kora/NativeDraftWrapping.cs) changes only wrapping and
+horizontal scrollbar policy synchronously. It never writes text, offsets,
+selection, focus or undo state and never queues a layout/focus restoration.
+Source/control epoch changes reset presentation; native closure, private
+retirement, replaced data context or detached controls retire the helper.
+No late callback can target a replacement buffer/window. Existing privacy,
+ownership, dirty decisions and domain Save/Submit validation remain authoritative.
+Exact code units/newlines, revisions, baselines, reviews and task/target authority
+are unchanged; invalid drafts remain editable. No I/O, logging, clipboard,
+capture, model, question or approval route is added. Existing reader typography
+is unchanged. Reviewed/comparison/assistant/question/source readers are out of
+scope.
+
 The [canonical conversation contract](Interaction_And_Sessions.md#delivered-exact-session-conversationcomposer-foundation--2026-10-12)
 owns body/session/page limits, no aggregate session/draft/message quota,
 audit/migration, no-replay and copy/deletion semantics. Plain native historical

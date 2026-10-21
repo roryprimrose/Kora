@@ -303,6 +303,19 @@ submissions are explicit failures, never normalization or truncation. With
 valid Unicode the character bound can be reached before the byte bound;
 neither is a whole-database size guarantee.
 
+Native New request and both shared conversation composer surfaces expose passive,
+accessible current-buffer size/shape feedback. `ConversationText.Measure` shares
+the strict UTF-8 and unsupported-content parsing with admission; its typed result
+contains counts/flags only, never source content. It reports Unicode scalars
+without inventing a scalar limit (the policy uses UTF-16 units), the existing
+byte/unit maxima, malformed Unicode without replacement totals, and empty/white
+Save-versus-Submit semantics. This projection excludes credential screening and
+grants no admission authority. Getter-only projections use existing buffer
+notifications, do not retire reviews or trigger I/O, telemetry, activity renewal
+or model/capture/device work, and return unavailable after privacy/close
+retirement. Existing edit, reuse, reload, reset and future insertion paths remain
+authoritative; no TextBox length constraint or repair is introduced.
+
 The first native composer applies one local deterministic **best-effort,
 reject-only** Core screening rule before draft/message writes or model
 admission. It checks structurally delimited private-key PEM candidates,

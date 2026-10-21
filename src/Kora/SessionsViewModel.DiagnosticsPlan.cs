@@ -39,7 +39,7 @@ internal sealed partial class SessionsViewModel
     internal async Task<bool> PrepareDiagnosticsPlanAsync(SessionDiagnosticsPlanPreparation preparation,
         Func<bool> admitted, Func<bool> nativeAdmission, CancellationToken token, Func<bool>? sourceAdmission = null)
     {
-        if (!CanRead || draftRecoveryCancellation is not null)
+        if (!CanRead)
         { throw new InvalidOperationException("Sessions is busy or unavailable; finish the current native review and retry."); }
         var prepared = false;
         var epoch = selectionEpoch;
@@ -64,7 +64,7 @@ internal sealed partial class SessionsViewModel
             catch (Exception exception) when (exception is not OutOfMemoryException)
             {
                 ReportComposerCloseFailure(exception);
-                status = "Diagnostics plan not opened: the original composer save is unconfirmed. Reconcile the exact draft.";
+                status = "Diagnostics plan not opened: original input admission changed. Unsent messages remain held; inspect the exact source.";
                 return;
             }
             using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(lifetime.Token, token);

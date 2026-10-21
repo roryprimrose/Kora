@@ -60,13 +60,9 @@ public sealed partial class SessionsConversationTests
         });
     }
 
-    [Theory]
-    [InlineData(0)]
-    [InlineData(1)]
-    [InlineData(2)]
-    public async Task DirtySessionSwitchUsesSaveDiscardCancelAndNeverPostsToAnotherSession(int choice)
+    [Fact]
+    public async Task DirtySessionSwitchRetainsSeparateExactBuffersWithoutDecisionSaveOrSubmission()
     {
-        var decision = (ComposerDraftDecision)choice;
         using var f = new InteractionStorageFixture();
         await f.InitializeAsync();
         await WindowsSqliteConversationTests.FinishInitial(f);
@@ -80,20 +76,17 @@ public sealed partial class SessionsConversationTests
         await model.SelectAsync(model.Sessions.Single(entry => entry.Authority.SessionId == original));
         await model.ReadConversationAsync();
         model.ComposerBody = "unsaved original-session buffer";
-        model.DecideComposerDraft = () => Task.FromResult(decision);
+        model.DecideComposerDraft = () => throw new InvalidOperationException("Switching topics must not prompt.");
         await model.SelectAsync(model.Sessions.Single(entry => entry.Authority.SessionId != original));
-        if (decision == ComposerDraftDecision.Cancel)
-        {
-            model.SelectedSessionRecord!.Authority.SessionId.Should().Be(original);
-            model.ComposerBody.Should().Be("unsaved original-session buffer");
-        }
-        else
-        {
-            model.SelectedSessionRecord!.Authority.SessionId.Should().NotBe(original);
-            model.ComposerBody.Should().BeEmpty();
-        }
+        model.SelectedSessionRecord!.Authority.SessionId.Should().NotBe(original);
+        model.ComposerBody.Should().BeEmpty();
+        model.ComposerBody = "second topic input";
+        await model.SelectAsync(model.Sessions.Single(entry => entry.Authority.SessionId == original));
+        model.ComposerBody.Should().Be("unsaved original-session buffer");
+        await model.SelectAsync(model.Sessions.Single(entry => entry.Authority.SessionId != original));
+        model.ComposerBody.Should().Be("second topic input");
         var saved = await f.Store.ReadConversationDraftAsync(original, f.Token);
-        saved.Draft.Body.Should().Be(decision == ComposerDraftDecision.Save ? "unsaved original-session buffer" : null);
+        saved.Draft.Body.Should().BeNull();
         f.Count("conversation_messages").Should().Be(0);
         model.Close();
     }
@@ -123,28 +116,32 @@ public sealed partial class SessionsConversationTests
     }
 
     [Fact]
-    public async Task ExplicitDraftSaveClearAndReloadUseExactNativeRevisionAndCannotAnswerQuestionsOrImplicitlySubmit()
+    public async Task LegacyRecoveryReadsOnlyExactExistingTextIntoEmptyInputWithoutWritesOrSubmission()
     {
         using var f = new InteractionStorageFixture();
         await f.InitializeAsync();
         await WindowsSqliteConversationTests.FinishInitial(f);
+        var legacy = await WindowsSqliteConversationTests.Save(f,
+            await f.Store.ReadConversationDraftAsync(f.Request.SessionId, f.Token), "existing legacy text");
+        var audits = WindowsSqliteConversationTests.AuditText(f);
+        var retention = await f.Store.ReadRetentionAsync(f.Request.SessionId, f.Token);
         await using var composed = new Composition(f);
         var model = composed.Model;
         await model.RefreshAsync();
         await model.SelectAsync(model.Sessions.Single());
         await model.ReadConversationAsync();
-        model.ComposerBody = "only explicitly saved draft";
-        await model.SaveConversationDraftAsync();
-        model.ComposerDirty.Should().BeFalse();
-        model.DiscardComposerBuffer();
-        await model.ReloadConversationDraftAsync();
-        model.ComposerBody.Should().Be("only explicitly saved draft");
-        model.CanClearConversationDraft.Should().BeFalse();
-        model.ReviewClearConversationDraft();
-        model.SavedConversationDraftReview.Should().Be("only explicitly saved draft");
-        await model.ClearSavedConversationDraftAsync();
-        (await f.Store.ReadConversationDraftAsync(f.Request.SessionId, f.Token)).Draft.Body.Should().BeNull();
-        model.ComposerBody.Should().Be("only explicitly saved draft", "clearing saved storage never discards current memory edits");
+        model.ComposerBody.Should().BeEmpty("reading history never imports legacy input");
+        model.CanRecoverConversationDraft.Should().BeTrue();
+        await model.RecoverLegacyUnsentAsync();
+        model.ComposerBody.Should().Be("existing legacy text");
+        model.ComposerDirty.Should().BeTrue();
+        model.CanRecoverConversationDraft.Should().BeFalse();
+        model.ComposerBody = "new unsent input";
+        await model.RecoverLegacyUnsentAsync();
+        model.ComposerBody.Should().Be("new unsent input", "legacy recovery must never overwrite dirty text");
+        (await f.Store.ReadConversationDraftAsync(f.Request.SessionId, f.Token)).Should().Be(legacy);
+        (await f.Store.ReadRetentionAsync(f.Request.SessionId, f.Token)).Should().Be(retention);
+        WindowsSqliteConversationTests.AuditText(f).Should().Be(audits);
         f.Count("conversation_messages").Should().Be(0);
         f.Count("host_questions").Should().Be(0);
         model.Close();
@@ -184,7 +181,6 @@ public sealed partial class SessionsConversationTests
         await model.ReadConversationAsync();
         const string candidate = "password=synthetic-native-correction-only";
         model.ComposerBody = candidate;
-        await model.SaveConversationDraftAsync();
         model.ComposerBody.AsSpan().SequenceEqual(candidate.AsSpan()).Should().BeTrue();
         model.CanCompose.Should().BeTrue();
         f.Count("conversation_drafts").Should().Be(0);

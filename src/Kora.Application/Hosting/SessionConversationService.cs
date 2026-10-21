@@ -39,35 +39,6 @@ public sealed partial class SessionConversationService(
         Func<bool> admitted, CancellationToken token) =>
         workspace.ReadConversationDetailAsync(target, expected, admitted, token);
 
-    public async Task<ConversationDraftSnapshot> SaveDraftAsync(ConversationDraftSnapshot expected, string? body,
-        Func<bool> admitted, CancellationToken token)
-    {
-        if (HostActivity.Current is { Request.Origin: not RequestOrigin.LocalUi })
-        { throw new InvalidOperationException("Only fresh original native input may save or clear a conversation draft."); }
-        if (body is not null)
-        {
-            try { ConversationText.Validate(body); }
-            catch (ConversationCredentialException)
-            {
-                await RejectCredentialAsync(expected.Session.SessionId, expected.Session.Generation, admitted, token).ConfigureAwait(false);
-                throw;
-            }
-        }
-        var saved = await workspace.CommitConversationDraftAsync(expected, body, admitted, token).ConfigureAwait(false);
-        RequireDraftSaveReceipt(expected, body, saved);
-        return saved;
-    }
-
-    internal static void RequireDraftSaveReceipt(ConversationDraftSnapshot expected, string? body, ConversationDraftSnapshot saved)
-    {
-        saved.Draft.Validate();
-        if (saved.Session != expected.Session || saved.ExpectedTarget != expected.ExpectedTarget
-            || saved.Draft.SessionId != expected.Draft.SessionId
-            || saved.Draft.Revision != checked(expected.Draft.Revision + 1)
-            || !string.Equals(saved.Draft.Body, body, StringComparison.Ordinal))
-        { throw new IOException("Saved draft receipt is unconfirmed; inspect exact durable revision before another decision."); }
-    }
-
     public async Task<ConversationSubmissionReceipt> SubmitAsync(SessionWorkspaceEntry target, string body,
         Func<bool> admitted, CancellationToken token, Func<CancellationToken, Task>? beforeRetain = null,
         IEnumerable<ActivityLink>? links = null, RequestOrigin origin = RequestOrigin.LocalUi)

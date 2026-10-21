@@ -6,7 +6,7 @@ authority with bounded ordered interaction history and inventoried configurable
 session retention implemented. The deterministic
 local-version queue and its exact pending cancellation are delivered; cancellation
 of the separate genuine current-run local-version pre-dispatch question wait
-remains gateway-bound. Native exact-session composer, explicit saved drafts and
+remains gateway-bound. Native exact-session composer, session-local unsent input and
 immutable submitted user messages with truthful unavailable host outcomes are
 delivered below. Bounded admitted local answer execution is implemented below; general effects
 and model-assisted routing remain proposed.
@@ -211,118 +211,13 @@ This is minimum-I delivery; E/Q hardware/provider/wake/acoustic/installed/experi
 
 ## Delivered exact-session conversation/composer foundation — 2026-10-12
 
-### Saved conversation draft catalogue — 2026-10-13
+### Session-local unsent input and legacy compatibility - 2026-10-21
 
-Native **Ctrl+F / Find first / Next / Previous / Clear Find** now operates only on
-the exact already admitted selected-row metadata detail string. The
-[saved-draft Find partial](../src/Kora/SavedDraftCatalogueViewModel.Find.cs)
-freezes the same displayed serialization, never a summary serializer, body,
-other row or hidden source/profile/authority field. It consumes the existing
-catalogue selection/lifetime I subset and shared
-[admitted metadata Find state](../src/Kora.Application/Presentation/AdmittedMetadataFindState.cs) /
-[literal scanner](../src/Kora.Core/Context/SnapshotLiteralFind.cs); it does not
-depend on unmerged loaded-page ordering.
+Saved conversation drafts are retired as a product. Sessions remain ongoing topic conversations with Active/Done lifecycle; unsent input is separately held per exact session in memory, shared by Sessions and compact views. Switching topics/filter/list views does not prompt, save, discard or submit. Explicit discard and last-view/application close protect nonempty input with Discard/Cancel, including buffers for nonselected sessions ([session ownership](../src/Kora/SessionsViewModel.Unsent.cs), [close owner](../src/Kora/SessionsPresentationOwner.cs)).
 
-Explicit actions count the complete nonoverlapping ordinal case-sensitive
-sequence in that one string and cache count/ordinal; getters do not scan, mutate
-or notify. No wrap, query normalization or truncation occurs. Shared one-line
-Unicode/control and 256-UTF-16 / 512-UTF-8 limits apply. Editing/clear retires the
-match/count without I/O; selection/page/query/mode/filter, source/private/control,
-cancel/native lifetime/close/dispose retire the private query too. Existing
-selection retirement also fences future ordering edits. Reentrant native
-notification/layout/bring/focus callbacks cannot revive a retired revision.
-Focus failure explicitly withdraws the match/count/navigation and offers retry.
+Ordinary Save/Reload/Clear, draft catalogue/tray/navigation/filter/find/order and saved-buffer comparison/rebase management windows are removed. Existing private `conversation_drafts` schema, legacy write/audit decoding, authority checks, retention/disposition and restart compatibility remain; no data is silently migrated, purged or reinterpreted. Explicit read-only recovery admits only an exact existing session's observed legacy body into empty unsent input. Changed source/revision refuses publication; recovery grants no submission authority or activity renewal ([recovery read](../src/Kora.Application/Hosting/SessionWorkspaceService.Conversation.cs), [regression tests](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.Unsent.cs)).
 
-The [native controls](../src/Kora/SavedDraftCatalogueWindow.Find.cs) expose inert
-exact match text, bounded-string-only count and accessible keyboard navigation,
-not row selection, session navigation or native-open authority. They block
-clipboard transfers and add no logging, transcript, speech, persistence,
-source/store reads, refresh, body load, save, submit, review or mutation.
-[Headless tests](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.SavedDraftFind.cs)
-cover the deterministic slice; installed-native/accessibility, hardware,
-provider and RC qualification remain separate E/Q gates, not implementation blockers.
-
-**Tray > Saved conversation drafts (metadata only)** opens without reading. Explicit Refresh/Next/Cancel observes only saved nonempty composer draft metadata across retained private sessions.
-All (default), Active and Done filters show exact immutable session ID, current stored state/generation, optional inert private name/metadata revision, saved revision and SQL UTF-8 byte/Unicode scalar lengths. No body, excerpt, body digest or invented saved timestamp is projected.
-
-Browse remains the default. **NameSubstring** and **ExactId** reuse the authoritative [session metadata policy](../src/Kora.Core/Storage/SessionListSearch.cs): ordinal case-sensitive literal name matching, NFC/no-control/format/no-surrounding-whitespace, 120 scalars / 480 UTF-8 bytes; or a separate nonempty canonical lowercase D-format ID.
-An ID-shaped name is only a name. Unnamed sessions cannot match names but can match exact IDs. Invalid/empty queries never trim, normalize or fall back to Browse; **Clear query (Browse)** resets explicitly without reading.
-Optional **Exact saved revision**, **Minimum UTF-8 bytes**, **Maximum UTF-8 bytes**,
-**Minimum Unicode scalars** and **Maximum Unicode scalars**
-compose with Browse/name/exact-ID and All/Active/Done. The portable
-[metadata filter](../src/Kora.Core/Storage/SavedDraftMetadataFilter.cs) owns parsing,
-validation and matching: empty means Any, revision is a positive Int64, and
-inclusive byte bounds are 0 through `ConversationText.MaximumUtf8Bytes` (16384),
-with minimum <= maximum. Inclusive Unicode scalar bounds are 0 through
-`ConversationText.MaximumUtf16Characters` (4096), also with minimum <= maximum.
-Scalar matching uses only already exposed validated `SavedDraftSummary.UnicodeScalars`,
-never body reads, inference or code-unit filtering. Nonempty input accepts only invariant decimal digits;
-no signs, whitespace repair, separators, truncation or clamping. Invalid fields
-visibly refuse Search/Refresh. Zero byte or scalar bounds can truthfully match no nonempty draft.
-Optional **Exact observation source GUID** and **Exact device profile GUID** compose
-with every existing predicate using AND. Empty fields mean Any; nonempty fields
-must be complete nonempty canonical lowercase `D` GUIDs. Braces, uppercase,
-whitespace, trimming, partial matches, repair and reinterpretation are refused.
-The portable metadata filter owns this parsing once and reuses host identity
-validation for the typed profile. Source matches `SavedDraftSummary.Source`;
-profile matches `SavedDraftSummary.Profile.Value`, both exact. These IDs are
-metadata/correlation only, never device ownership, identity or authority.
-Optional inclusive **Minimum/Maximum session generation**,
-**Minimum/Maximum name metadata revision**, **Minimum/Maximum control revision**
-and **Minimum/Maximum authority ceiling** ranges AND with all these predicates.
-Empty means Any. The shared strict decimal admission accepts positive Int64
-generation, name revision and ceiling, and nonnegative Int64 control revision;
-each supplied minimum must be <= its supplied maximum. Leading decimal zeros
-retain their existing semantic value; no signs, whitespace, separators, overflow,
-clamping or repair are accepted. Either name-revision bound requires validated
-name metadata: unnamed rows never become revision-zero or unknown matches.
-Every `SavedDraftSummary` is validated before matching, including nonmatches.
-Session generation, control revision, ceiling and digest are observed provenance
-only, never current authority, permission, body integrity, device ownership or
-navigation authority. Exact selection still requires independent current admission.
-The filter digest binds all numeric and GUID predicates; the signed cursor binds
-the complete filter alongside every existing query/source/private/control/head
-and authority fence. Nonmatching source/profile criteria do not bypass validation
-of any scanned saved-draft summary, metadata name or authority prefix.
-Metadata predicates apply only after existing source/authority-prefix and candidate
-metadata validation; irrelevant authority commits are still validated before disclosure.
-No body decoding or inference is added.
-Typing, query mode, lifecycle and revision/byte/scalar/source/profile/provenance-range filter edits immediately invalidate the catalogue page/cursor/selection/exact navigation and cancel pending callbacks without I/O or changing the current Sessions target/composer. **Search / refresh metadata** explicitly observes the new query; no first match is automatically selected. Clear and private/source/close revocation also clear the volatile metadata fields.
-Exact ID seeks the existing draft-row primary key after the same mandatory private source/authority validation. Missing/cleared/unretained/Removed/nonmatching targets end without falling back to a list; unavailable or broken authority remains a recovery failure, not a healthy empty inventory.
-
-Each click consumes at most 50 candidate draft slots and returns at most 25 complete rows / 64 KiB. Cleared/null/empty slots consume scan positions but are not saved-content results; never-saved sessions and question/parameter drafts are not sources.
-Empty pages can have Next. End is an observation, not a global count or immutable inventory. Canonical-UUID keyset pages are mutable; changes behind the cursor require Refresh.
-
-**Order this loaded page** is a separate volatile display choice: **Source order
-(default)** preserves the existing source sequence, **Session name ascending /
-descending** compares ordinal case-sensitive names with unnamed last in either
-direction, and **Saved revision ascending / descending** compares positive saved
-revisions. Every non-source order uses canonical lowercase D session ID ascending
-as its deterministic tie break. The pure [loaded-page ordering policy](../src/Kora.Core/Storage/SavedDraftPageOrdering.cs)
-validates the entire original page before projection, without excluding, truncating
-or repairing candidates. The original page, source scan order, query/filter
-contracts, budgets and signed continuation remain unchanged; Next never derives
-its cursor from display order. This is not global ordering, completeness or a count.
-Order edits perform zero I/O, retire exact selection/details/navigation and cancel
-stale callbacks, while retaining the admitted page and its original continuation.
-An in-flight read cannot publish after an order edit; refresh explicitly if its
-page was not yet admitted. Clear restores Source order without reading.
-Source/control/privacy/lifecycle/draft/close revocation still clears page authority.
-No composer discard, body read, saved-draft load, session retarget, command/model
-route or new authority is introduced; dirty-buffer navigation guards are unchanged.
-
-Private signed continuation binds the store/profile/current run, native viewer, private control revision, query kind/digest (or Browse), exact saved revision/byte/scalar bounds, state filter and last consumed exact ID. Complete typed audit-chain validation precedes disclosure in bounded existing 4096-commit segments; pending pages contain no draft rows.
-Any committed authority change invalidates continuation. Existing consolidated whole-store SQL provenance/retention checks remain costs, not per-click body decoding or a performance qualification.
-
-Metadata observes saved revision, body presence/length and current lifecycle; it does **not** verify body integrity or admit Reload/Submit. Exact navigation re-resolves the original metadata, generation, saved revision/presence and private source authority.
-Changed/cleared/retired/held sources refuse with Refresh, never follow newer bodies or names. Navigation selects only the existing Sessions metadata target; Done stays Done, without automatic body import, Resume, work/question/voice retarget or activity renewal.
-
-The same Sessions owner protects its existing dirty buffer with Save/Discard/Cancel. Cancel leaves its target unchanged. An explicitly chosen Save can change the conservative authority head; then Refresh is required before catalogue navigation.
-After selection, **Reload saved draft** is a separate explicit body read under exact revalidation; Save, reviewed Clear and Submit remain distinct. Catalogue close/source/control/privacy/lifecycle/draft revocation clears its volatile private query/rows/continuation/selection without closing unrelated Sessions content.
-
-No schema/layout/index/file-copy change or aggregate session/draft quota is added. Existing private admission, credential rejection, required audit, retention/copy inventory, migration IDs and restart no-replay rules remain authoritative.
-Names and query text/digests grant no authority; queries are never saved to preferences/history or sent to models, speech, clipboard or logs/activity tags. This metadata query is distinct from selected-session submitted-message body search and ordered interaction-receipt history search.
-Native-only metadata delivery is not model retrieval, generated conversation/history assembly, provider qualification or installed accessibility acceptance.
+Submission/source uncertainty stays held across switches and passive reads do not clear an unknown commit. Privacy/control closure retires volatile text, and session retirement removes only affected unsent state. USER/ASSISTANT/HOST history, question-answer drafts and owned instruction/prompt editor drafts remain separate ([conversation](../src/Kora/SessionsViewModel.Conversation.cs), [legacy storage](../src/Kora.Windows/Storage/WindowsSqliteHostInteractionStore.Conversation.cs)).
 
 **Sessions > Exact-session conversation and composer** is a real native
 consumer of the private authority and configured provider-neutral
@@ -333,14 +228,7 @@ generation, metadata revision, saved-draft revision and private control epoch.
 Only a fresh explicit native submission to that existing Active session is
 admitted; Done is readable and requires explicit Resume before new work.
 
-Drafts are memory-only until **Explicitly Save draft**. Read observes the saved
-revision; **Reload saved draft** explicitly restores its data without replay.
-One saved draft belongs to each exact session. Overwrite requires the complete
-unchanged saved snapshot; **Review Clear saved draft** shows its exact body
-and revision before separate confirmation. Clear removes only that saved
-body, not the current memory buffer or submitted messages. Switching/closing
-dirty input uses Save/Discard/Cancel; privacy, owner/control/source retirement
-clears private presentation and callbacks without an implicit save.
+Unsent input is memory-only and kept per session while switching views/topics. Reading observes legacy saved text without importing it. Explicit read-only compatibility recovery never overwrites nonempty input; new ordinary saves are unavailable. Privacy and owner/control/session retirement clear volatile private presentation without implicit persistence ([session buffers](../src/Kora/SessionsViewModel.Unsent.cs)).
 
 One authoritative [content policy](../src/Kora.Core/Conversation/ConversationText.cs)
 checks **4096 UTF-16 characters and 16384 UTF-8 bytes** independently, preserving
@@ -465,32 +353,6 @@ allows these host contracts/orchestration/UI without reviving retired proof
 scaffolding or rejected runtimes. Generic conversation generation, global/
 voice routing, model history assembly, execution, hardware/native accessibility,
 provider/authentication and full R12/R14/RC acceptance remain separately gated.
-
-### Passive observed saved-draft / composer Compare - 2026-10-18
-
-**Sessions > Exact-session conversation and composer > Compare observed saved draft / memory buffer** explicitly freezes the already observed saved body and current raw memory buffer. It requires an observed draft for the exact selected session/generation under the same private control epoch; it never reads an unobserved baseline ([admission](../src/Kora/SessionsViewModel.ComposerComparison.cs)).
-
-The left label names the exact session ID, generation and observed saved revision as historical, **not current disk**. A missing saved body is an absent baseline, not empty/equal. The right preserves all spaces, newlines and Unicode. Both complete bodies pass authoritative [ConversationText](../src/Kora.Core/Conversation/ConversationText.cs) validation; invalid/oversize text is refused, never normalized or truncated.
-
-Only ordinal equality/difference of those frozen bodies is reported: no semantic safety, durable freshness, Save or Submit claim. Compare does not change composer body/baseline/dirty or unsaved-close decisions, saved revision, activity, audit, task/grant/approval authority or existing draft operations ([portable state](../src/Kora.Application/Presentation/ConversationDraftComparison.cs)).
-
-The native window offers only pane-local existing literal Find and Close/Escape. It reuses the [inert source/transfer-blocking pane](../src/Kora/SnapshotComparisonFindPane.cs), independently of owned-artifact serialization. No source read/reload/save/submit/clear, clipboard, model or network action is added; neither automatic Compare nor snapshot refresh occurs ([window](../src/Kora/ConversationDraftComparisonWindow.cs)).
-
-Composer edits (including through compact shared controls), source/selection/generation/private control changes, read/save/reload/clear/submit and dirty-close protection retire the snapshots/window/queries. Replacement, owner close/disposal and reentrant opening/match/focus callbacks clear retained controls and fence resurrection ([native tests](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.ComposerComparison.cs), [portable tests](../tests/Kora.Application.UnitTests/Presentation/ConversationDraftComparisonTests.cs)).
-
-This consumes only the existing composer/observed-draft/text/pane I subset. No schema, provider, runtime, egress, wake, profile writer or new authority is enabled; installed-native/accessibility, physical/hardware/acoustic/provider and RC qualification remain separate ([delivery policy](Implementation_Roadmap.md#delivery-and-qualification-dependency-policy)).
-
-### Source-preserving saved conversation draft recovery - 2026-10-19
-
-**Sessions or compact conversation > Review latest saved baseline; retain buffer** is a separate explicit action for one already selected existing Active session. It is not Reload, automatic conflict resolution, or the passive Compare above. An exact observed saved draft under the current private control epoch is required. The [portable recovery workflow](../src/Kora.Application/Hosting/ConversationDraftRecovery.cs) explicitly reads the admitted latest draft, then displays three **complete inert snapshots**: old observed saved body/revision, latest explicitly observed saved body/revision, and exact raw unsaved buffer. A removed/never-saved body remains absent; a saved empty string remains present. Authoritative [ConversationText](../src/Kora.Core/Conversation/ConversationText.cs) admission rejects malformed, over-limit or screened text without normalization, truncation or a Save-anyway path.
-
-**Adopt latest baseline only** is a separate one-shot confirmation. It rereads and verifies exact latest session authority, generation, metadata target, draft revision and body, with unchanged private/control/source/selection and composer buffer revision. Revision ABA, a deleted/changed saved body, source replacement, or a buffer edit during either read refuses adoption. A revision tombstone with an absent body may be adopted only when that exact observation is reviewed and unchanged at confirmation. No arbitrary merge is attempted.
-
-Successful adoption changes only the in-memory saved baseline and expected optimistic-save snapshot; the raw composer body is untouched. It grants no store write, submitted USER message, task, retention heartbeat, approval or review-use authority. A later ordinary **Explicitly Save draft** still uses the existing fresh exact optimistic transaction and can conflict again. Cancel/Escape/close preserves the old baseline and raw buffer. The shared save service verifies complete receipt identity, target, revision and body; only the store's typed pre-write optimistic rejection is a known conflict rather than a possible commit. Unknown source or an unconfirmed prior save stays held until a separate explicit exact source Read/reconciliation; recovery cannot manufacture a confirmed save receipt. Such a Read observes current durable state, not historical rollback or proof that an earlier write did not commit.
-
-Edits, including same-text/ABA and compact shared-composer edits, retire recovery without hidden reads. Selection, source, generation, private/control changes, operation start, Save/Submit, dirty-close protection, cancellation, native close and reentrancy retire reviews and Find state. Both native surfaces publish owner visibility through the same thread-safe one-way admission lifetime; storage continuations never read UI-affine visibility, and hiding/showing an owner cannot revive its review. Pending reads and retained callbacks cannot reopen a review or adopt late data. The [native review](../src/Kora/ConversationDraftRecoveryWindow.cs) reuses the existing inert transfer-blocking Find panes; existing Compare methods and pane semantics remain unchanged ([portable workflow/admission tests](../tests/Kora.Application.UnitTests/Hosting/ConversationDraftRecoveryTests.cs), [native/private SQLite tests](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.DraftRecovery.cs)).
-
-This consumes only merged draft read/save, exact-session/private admission, text validation and inert native pane I contracts. No schema, owned-definition parser, original-profile writer, provider/runtime/egress, device or enablement is added. Installed-native/accessibility and other E/Q evidence remain separate and unclaimed under the [delivery policy](Implementation_Roadmap.md#delivery-and-qualification-dependency-policy). Exact-head maintained builds, tests and raw portable line-and-branch coverage are required before merge; authored tests are not passing validation.
 
 ## Delivered explicit expanded-prompt submission — 2026-10-13
 The native owned-v2 prompt form can independently review an exact existing Active target and explicitly retain its current expanded USER text through the same `SessionConversationService`, screening, atomic message/task/audit and provider-neutral admission. Preview and old Use remain nonpersisting. No new schema, separate form-value storage, source-authority inheritance or draft import is introduced.
@@ -887,7 +749,7 @@ They cannot silently restart on changed predicates, host/source or admission.
 Names, name availability, generations and name revisions in this search are volatile passive
 metadata only: not session selection, ownership, permission, freshness,
 historical completeness or action authority. Selection and actions still require the host-resolved immutable SessionId and fresh authority; an exact name never supplies ownership, approval, routing or mutation authority. The ExactName, Browse, availability and numeric native controls do not
-extend the separate All Work or saved-draft catalogue interfaces.
+extend the separate All Work interfaces.
 
 Mutable metadata has no committed historical sequence ceiling. Later renames/state/removal are observed only in subsequently read rows; earlier changes and additions behind the cursor require Search again. Later appended IDs can appear, and end describes only that observation. No finite atomic snapshot is fabricated.
 Exact missing/Removed IDs and unavailable/corrupt/ownership-denied/cancelled reads are explicit recovery states, never empty-success unfiltered inventories.
@@ -999,7 +861,7 @@ Application admission delegates to a narrow private-native presenter; desktop op
 
 The command cannot remove data. Confirmation remains a separate deliberate native input and fresh LocalUi request; original voice origin is preserved for preview, never promoted to native confirmation authority. A single current host-held preview is required, replaced/late previews cannot revive, and native-owner loss fails closed ([host gate](../src/Kora.Application/Hosting/SessionWorkspaceService.Disposition.cs), [native owner](../src/Kora/SessionsWindowController.cs)).
 
-Dirty composer protection retains separate native Save/Discard/Cancel decisions. Missing presentation is explicitly unavailable; stale store/control/session/copy/resource/private admission retains existing refusal and recovery rather than retry, cleanup or synthetic consent ([native tests](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.DispositionReview.cs), [authoritative store tests](../tests/Kora.Windows.IntegrationTests/Storage/WindowsSqliteSessionDispositionTests.cs)).
+Review navigation preserves session-local unsent input without a Save decision. Confirmed disposition retires affected volatile text; stale store/control/session/copy/resource/private admission retains refusal and recovery, never retry or synthetic consent ([native tests](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.DispositionReview.cs), [store tests](../tests/Kora.Windows.IntegrationTests/Storage/WindowsSqliteSessionDispositionTests.cs)).
 
 This consumes the delivered preview/private-native-confirmation Implementation subset only. It adds no cleanup, forensic-erasure, provider, physical/audio or installed-native qualification claim; unrelated Enablement and RC qualification remain outside this bounded command ([scope](../src/Kora.Core/Storage/SessionDispositionPreview.cs)).
 
@@ -1646,20 +1508,9 @@ Creation and body retention are separate authority operations, not atomic or rol
 Submission reuses `SessionConversationService`: reject-only credential screening before any body write, exact immutable USER text, retained original task/request and separate truthful HOST outcome through configured provider-neutral admission. Current production generation stays unavailable.
 No model answer, automatic routing, context assembly, adapter/bootstrap fallback, network/auth/setup or legacy typed/voice expansion is delivered.
 
-Edits, including same-byte reassignment, cancel and control/private/source changes retire both review authorities. The original attempt and epoch fence physical COMMIT. **Open this exact session** uses existing explicit navigation and dirty named-buffer protection, never transfers the New request body.
+Edits, including same-byte reassignment, cancel and control/private/source changes retire submission review. The original attempt and epoch fence physical COMMIT. **Open this exact session** uses explicit navigation that preserves other topics' memory-only input, never transfers the New request body ([composer](../src/Kora.Application/Hosting/NewRequestComposer.cs)).
 
-**Review exact saved revision and new body** is available only for the same confirmed created Active target under its original exact generation, metadata and private control epoch, with no creation/submission/save uncertainty.
-The [draft workflow](../src/Kora.Application/Hosting/NewRequestComposer.Drafts.cs) observes the canonical snapshot and displays its revision, the confirmed memory baseline and complete old/new bodies. Separate **Confirm Save reviewed draft only** consumes that frozen proposal.
-
-Saving reuses `SaveDraftAsync` and the canonical `ConversationDraftSnapshot`; an optional exact reviewed target is checked inside the existing [private draft transaction](../src/Kora.Windows/Storage/WindowsSqliteHostInteractionStore.Conversation.cs).
-A known snapshot is never silently updated to follow a concurrent named-window change. Stale target/revision, failed audit, COMMIT or readback uncertainty holds the unchanged memory buffer without retry; observation never restores Save or Submit authority.
-
-Save uses the existing reject-only screening and required content-free draft audit. It retains accepted bytes exactly without clearing the current body, submitting USER data, invoking admission, executing a conversation task, renewing meaningful activity or changing provider/approval authority. Legitimate native control receipts remain distinct from conversation outcomes. Submit requires its own new review and leaves the saved draft independent.
-
-Dirty means exact body inequality against the last confirmed saved memory baseline, not merely nonempty text. The [native close workflow](../src/Kora/NewRequestWindow.axaml.cs) offers eligible **Save/Discard/Cancel** and a separate frozen revision/body confirmation.
-It closes only after an exact acknowledged receipt with no newer edits/revocation. Before confirmed creation or while held, only Discard/Cancel is offered. Failed/cancelled Save keeps the recoverable window; private/owner/call/lifecycle/source closure clears private text and fences callbacks without saving.
-
-The existing saved-draft catalogue discovers these records through its unchanged metadata source. Reload is still a separate explicit Sessions action. No autosave, New request Reload, implicit target creation, profile-global draft, implicit body transfer, serializer/schema/layout/index or aggregate quota is added.
+The New request composer retains unsent text only in memory; nonempty input is dirty until explicit submission or discard. The native close/application-exit workflow offers Discard/Cancel, not Save-as-document. Topic navigation preserves other sessions' unsent buffers without a decision or persistence; it does not transfer this isolated New request body. Existing saved private text is available only through exact-session read-only compatibility recovery; no catalogue, new save, schema migration or purge is introduced ([composer](../src/Kora.Application/Hosting/NewRequestComposer.cs), [close workflow](../src/Kora/NewRequestWindow.axaml.cs)).
 
 Unknown creation, retention, terminal or receipt outcomes hold the exact attempt without a second target or submission retry. **Inspect exact attempt** reads its retained target/task under current private/retention authority, changes no meaningful activity and grants no submission authority. A changed observed target remains held. Known or possible partial success stays disclosed; no automatic Done/delete is claimed.
 
@@ -1673,7 +1524,7 @@ The [Application review](../src/Kora.Application/Hosting/OriginalMessageReuseRev
 
 The [private native review](../src/Kora/OriginalMessageReuseWindow.cs) shows the **entire exact original USER body**, original session/request/task IDs, sequence, record revision and submission time as historical data. It reuses the inert source/transfer-blocking comparison pane; no clipboard authority is added. It also shows the complete existing isolated New request memory buffer. A dirty buffer requires an explicit **Replace reviewed existing New request memory** choice; **Keep existing memory / cancel reuse** never overwrites it.
 
-Only separate confirmation opens/activates the existing single New request path and copies the exact text into **memory only**. An already created/held/busy/unavailable New request cannot receive reuse; close it through its ordinary decisions before explicitly starting another review. No session/target creation, persistence, Save, Submit, task enqueue, approval, activity heartbeat or provider operation occurs during review or copying. Fresh target creation and separately reviewed Save/Submit retain ordinary screening and new host-owned identities; historical IDs confer no authority.
+Only separate confirmation opens/activates the existing single New request path and copies the exact text into **memory only**. An already created/held/busy/unavailable New request cannot receive reuse; close it through its ordinary decisions before explicitly starting another review. No session/target creation, persistence, Save, Submit, task enqueue, approval, activity heartbeat or provider operation occurs during review or copying. Fresh target creation and separately reviewed Submit retain ordinary screening and new host-owned identities; historical IDs confer no authority.
 
 The source is authoritatively reread after native opening/activation and immediately before seeding. Source/private/control/generation/lifecycle/selection/search edits, target buffer edits (including same-byte reassignment), cancellation, closing or reentrant opening retire the whole proposal; repeated confirmation and late callbacks cannot revive it. Native owner visibility is observed on the UI thread and published as a thread-safe one-way admission fence for storage continuations: hiding and showing the owner cannot revive a withdrawn proposal. Source revocation or cancellation-token cancellation during synchronous binding handoff cancels and erases the uncompleted seed, preserving newer independent user edits. After a completed explicit handoff the new memory is independent user-confirmed content, not a live source reference or replay grant.
 

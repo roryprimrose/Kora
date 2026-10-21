@@ -100,8 +100,7 @@ internal sealed partial class SessionsViewModel
         }
     }
 
-    public bool CanEditListSearch => !closed && access.CanInspect && (!busy || listSearching)
-        && (!listSearchMode || !ComposerDirty);
+    public bool CanEditListSearch => !closed && access.CanInspect && (!busy || listSearching);
     public bool CanSearchList => CanRead && !refreshingWork
         && IsListQueryValid;
     public bool CanNextListSearch => CanSearchList && sessions is not null && listSearch?.Next is not null;

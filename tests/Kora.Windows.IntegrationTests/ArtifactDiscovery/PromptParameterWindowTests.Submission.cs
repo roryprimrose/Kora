@@ -69,9 +69,12 @@ public sealed partial class PromptParameterWindowTests
             var target = await f.Sessions.CreateAsync(new("Chosen exact target"), RequestOrigin.LocalUi, f.Token);
             var other = await f.Sessions.CreateAsync(new("Unrelated target"), RequestOrigin.LocalUi, f.Token);
             ConversationDraftSnapshot savedDraft;
-            using (var read = HostActivity.BeginOperation(HostActivityLayer.Desktop, HostOperation.Storage, RequestOrigin.LocalUi))
+            var legacyControl = new HostRequest(new(Guid.NewGuid()), target.Authority.SessionId, new(Guid.NewGuid()), RequestOrigin.LocalUi);
+            using (var read = HostActivity.BeginRoot(legacyControl, HostActivityLayer.Application, HostOperation.Request))
             {
-                savedDraft = await conversation.SaveDraftAsync(await conversation.ReadDraftAsync(target.Authority.SessionId, f.Token),
+                await f.Interactions.RecordControlIntentAsync(legacyControl, f.Token);
+                savedDraft = await f.Interactions.CommitConversationDraftAsync(legacyControl,
+                    await conversation.ReadDraftAsync(target.Authority.SessionId, f.Token),
                     "independent saved composer draft", () => true, f.Token);
             }
             var composer = new SessionsViewModel(f.Sessions, f.Evidence, f.Access, NullLogger<SessionsViewModel>.Instance,

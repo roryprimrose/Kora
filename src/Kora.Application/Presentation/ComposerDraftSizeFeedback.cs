@@ -19,6 +19,6 @@ public static class ComposerDraftSizeFeedback
         var submit = measurement.IsSaveShapeValid && !measurement.IsSubmissionShapeValid
             ? "empty/whitespace cannot be submitted" : shape;
         return string.Create(CultureInfo.InvariantCulture,
-            $"Current draft: {counts}; {measurement.Utf16CodeUnits} UTF-16 code units. Save and Submit maxima: {ConversationText.MaximumUtf8Bytes} UTF-8 bytes / {ConversationText.MaximumUtf16Characters} UTF-16 code units each. Save shape: {shape}; Submit shape: {submit}. Size/Unicode only; credential checks and target/authority admission remain separate.");
+            $"Current unsent input: {counts}; {measurement.Utf16CodeUnits} UTF-16 code units. Submit maxima: {ConversationText.MaximumUtf8Bytes} UTF-8 bytes / {ConversationText.MaximumUtf16Characters} UTF-16 code units. Input shape: {shape}; Submit shape: {submit}. Size/Unicode only; credential checks and target/authority admission remain separate.");
     }
 }

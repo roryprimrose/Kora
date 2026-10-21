@@ -3021,6 +3021,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
 
     public async Task ExitAsync(bool fromModelActionDispatch = false)
     {
+        if (conversationShutdown is not null && !await conversationShutdown()) { return; }
         if (instructionEditorShutdown is not null && !await instructionEditorShutdown()) { return; }
         await ClosePromptPreparation();
         ApplicationLog.Information(logger, "Kora exit was requested");

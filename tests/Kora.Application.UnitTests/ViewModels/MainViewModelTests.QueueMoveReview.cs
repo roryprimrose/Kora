@@ -14,18 +14,22 @@ public sealed partial class MainViewModelTests
         + "12345678-1234-1234-abcd-123456789013 12345678-1234-1234-abcd-123456789014 up";
 
     [Theory]
-    [InlineData(false, true)]
-    [InlineData(true, true)]
-    [InlineData(false, false)]
-    public async Task MoveReviewRoutesOnlyToNativePresenterWithOriginalChannelAndNoModelOrSpeech(bool voice, bool displayed)
+    [InlineData(false, true, "Nova")]
+    [InlineData(true, true, "Nova")]
+    [InlineData(false, false, "Nova")]
+    [InlineData(false, true, "What Time")]
+    [InlineData(true, true, "What Time")]
+    public async Task MoveReviewRoutesOnlyToNativePresenterWithOriginalChannelAndNoModelOrSpeech(
+        bool voice, bool displayed, string assistantName)
     {
         var f = await Fixture.CreateInitializedAsync();
         var presenter = new MoveReviewPresenter { Displayed = displayed };
         f.ViewModel.BindSessionQueueMoveReview(presenter);
-        await f.RunAsync("set assistant name to Nova");
-        if (voice) { await f.RaiseActivatedTranscriptAsync("Nova, " + MoveReviewInput, 1); }
-        else { await f.RunAsync(MoveReviewInput); }
-        presenter.Commands.Should().ContainSingle().Which.Should().Be(SessionQueueMoveReviewCommand.Parse(MoveReviewInput, "Nova"));
+        await f.RunAsync("set assistant name to " + assistantName);
+        if (voice) { await f.RaiseActivatedTranscriptAsync(assistantName + ", " + MoveReviewInput, 1); }
+        else { await f.RunAsync(string.Equals(assistantName, "What Time", StringComparison.Ordinal)
+            ? assistantName + ", " + MoveReviewInput : MoveReviewInput); }
+        presenter.Commands.Should().ContainSingle().Which.Should().Be(SessionQueueMoveReviewCommand.Parse(MoveReviewInput, assistantName));
         presenter.Origins.Should().Equal(voice ? RequestOrigin.ActivatedVoice : RequestOrigin.LocalUi);
         presenter.LastAdmission.Should().BeTrue();
         f.ViewModel.Transcript.Should().StartWith(displayed ? "Queue move review prepared." : "Queue move review not prepared.")

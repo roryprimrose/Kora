@@ -51,15 +51,21 @@ Domain-specific calculations, conversions, format analysis and repeatable workfl
 
 ### Approved retirement and simplification
 
-The following are target changes, not claims that the existing code has already been removed. The linked source and [delivery inventory](Implementation_Roadmap.md#current-delivery) distinguish implemented behavior from the approved destination; each removal PR must update its affected user documentation and tests.
+The table records approved destinations and distinguishes completed removals from remaining targets. Historical source links describe retired behavior, not current availability. The [delivery inventory](Implementation_Roadmap.md#current-delivery) tracks implementation; each removal PR must update its affected user documentation and tests.
 
-| Area | Approved destination | Existing implementation being retired or simplified |
+| Area | Approved destination | Status and implementation references |
 | --- | --- | --- |
-| Native utilities | Remove standalone calculator and date/time-answer commands; do not add conversion, UUID, calendar arithmetic, stopwatch or timer utilities. Keep internal time, numerical and identity mechanisms. | [Calculator](../src/Kora.Application/ViewModels/MainViewModel.Calculator.cs), [clock](../src/Kora.Application/ViewModels/MainViewModel.LocalClock.cs) |
-| Clipboard analysis | Remove standalone JSON/XML analysis controls and reject CSV, Base64, URL-syntax and text-statistics expansions. Keep capture, immutable preview, Find, wrapping and governed source use. | [JSON](../src/Kora/ClipboardPreviewWindow.Json.cs), [XML](../src/Kora/ClipboardPreviewWindow.Xml.cs) |
+| Native utilities | Remove standalone calculator and date/time-answer commands; do not add conversion, UUID, calendar arithmetic, stopwatch or timer utilities. Keep internal time, numerical and identity mechanisms. | Removed in [#420][utility-removal]. Historical [calculator][retired-calculator] and [clock][retired-clock]. |
+| Clipboard analysis | Remove standalone JSON/XML analysis controls and reject CSV, Base64, URL-syntax and text-statistics expansions. Keep capture, immutable preview, Find, wrapping and governed source use. | Removed in [#420][utility-removal]. Historical [JSON][retired-json] and [XML][retired-xml]. |
 | Conversation input | Replace saved-draft document management with per-conversation in-memory unsent text. No new disk autosave, catalogue, comparison or rebase workflow. | [Composer](../src/Kora/SessionsViewModel.Conversation.cs), [saved-draft catalogue](../src/Kora/SavedDraftCatalogueViewModel.cs) |
 | Normal workspace | Remove engineering-only range/digest/provenance query controls from ordinary browsing; retain useful names, content search, lifecycle/state and readable source details. | [Sessions](../src/Kora/SessionsWindow.axaml), [All Work ranges](../src/Kora/AllWorkViewModel.Ranges.cs), [attachments](../src/Kora/AttachmentCatalogueWindow.axaml) |
 | Diagnostic queue scaffold | Retire normal fixed-job admission and plan/configuration/reordering surfaces; retain internal scheduling, direct status reads and safe existing-work inspection/cancellation. | [Plans](../src/Kora.Application/Hosting/SessionQueueService.DiagnosticsPlan.cs), [controls](../docs/commands.md#deterministic-local-version-queue) |
+
+[utility-removal]: https://github.com/roryprimrose/Kora/pull/420
+[retired-calculator]: https://github.com/roryprimrose/Kora/blob/fb08302d91768a1535d5a536c6f58eeb651f484e/src/Kora.Application/ViewModels/MainViewModel.Calculator.cs
+[retired-clock]: https://github.com/roryprimrose/Kora/blob/fb08302d91768a1535d5a536c6f58eeb651f484e/src/Kora.Application/ViewModels/MainViewModel.LocalClock.cs
+[retired-json]: https://github.com/roryprimrose/Kora/blob/fb08302d91768a1535d5a536c6f58eeb651f484e/src/Kora/ClipboardPreviewWindow.Json.cs
+[retired-xml]: https://github.com/roryprimrose/Kora/blob/fb08302d91768a1535d5a536c6f58eeb651f484e/src/Kora/ClipboardPreviewWindow.Xml.cs
 
 Existing saved text must remain recoverable read-only into its exact conversation's unsent buffer under the current retention/privacy rules. Do not silently purge it or break historical schema/audit validation.
 Preserve question-answer drafts, definition-editing buffers, submitted history, grants and audit. Legacy compatibility is not permission to continue ordinary saved-draft writes or create a new permanent draft-management product.

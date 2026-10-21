@@ -19,6 +19,12 @@ public sealed partial class SessionWorkspaceService
     internal Task<SessionWorkspaceEntry> ReadAttachmentTarget(HostId<SessionIdentity> session, CancellationToken token) =>
         ReadAsync(() => store.ReadMetadataAsync(session, token), token);
 
+    internal Task<SessionAttachmentSummary?> ReadAttachmentInspection(HostId<SessionIdentity> session,
+        Func<bool> admitted, CancellationToken token) =>
+        ReadAsync(() => (store as ISessionAttachmentInspectionStore
+            ?? throw new InvalidOperationException("Exact retained attachment inspection is unavailable."))
+            .ReadAttachmentInspection(session, admitted, token), token, retentionStatusOnly: true);
+
     private ISessionAttachmentCatalogueStore AttachmentCatalogue => store as ISessionAttachmentCatalogueStore
         ?? throw new InvalidOperationException("The private attachment metadata catalogue is unavailable.");
 
@@ -75,5 +81,13 @@ public sealed partial class SessionWorkspaceService
         {
             throw new InvalidOperationException("Session attachment controls require fresh original native user input.");
         }
+
+    }
+
+    internal static RequestOrigin RequireRetainedFileInput()
+    {
+        var origin = HostActivity.Current?.Request.Origin ?? RequestOrigin.LocalUi;
+        SessionConversationService.RequireOriginalSource(origin);
+        return origin;
     }
 }

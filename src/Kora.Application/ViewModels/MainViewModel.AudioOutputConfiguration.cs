@@ -1,6 +1,7 @@
 using Kora.Application.Configuration;
 using Kora.Core;
 using Kora.Application.Infrastructure;
+using Kora.Application.Presentation;
 using Kora.Application.Voice;
 using Kora.Core.Auditing;
 using Kora.Core.Diagnostics;
@@ -29,8 +30,8 @@ public sealed partial class MainViewModel
         set => SetProperty(ref selectedOutputChoice, value);
     }
     public string AudioOutputConfigurationStatus => outputConfiguration is null
-        ? "Audio control admission is unavailable; existing saved routing is retained."
-        : OutputDeviceCommandResult.Serialize(outputConfiguration.Get(CallPolicyRevision));
+        ? "Speaker settings are unavailable. Your saved speaker choice is unchanged."
+        : SettingsText.Describe(outputConfiguration.Get(CallPolicyRevision));
 
     private void OnOutputConfigurationChanged(object? sender, EventArgs args)
     {
@@ -65,7 +66,7 @@ public sealed partial class MainViewModel
             OnPropertyChanged(nameof(OutputDeviceChoices));
             OnPropertyChanged(nameof(AudioOutputConfigurationStatus));
             OnPropertyChanged(nameof(CanChangeAudioOutputDevice));
-            OutputDeviceAvailabilityMessage = current.Recovery ?? "Exact saved output route is ready for the next eligible speech; audibility is not guaranteed.";
+            OutputDeviceAvailabilityMessage = current.Recovery ?? "Your selected speaker is ready for Kora's next spoken response. Check its volume if you cannot hear it.";
         }
         finally { synchronizingOutput = false; }
         NotifyOutputPolicyChanged();

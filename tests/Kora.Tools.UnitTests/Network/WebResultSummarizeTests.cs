@@ -76,8 +76,10 @@ public sealed class WebResultSummarizeTests
     {
         var request = HostRequest.Create(RequestOrigin.LocalUi);
         var now = new DateTimeOffset(2026, 10, 20, 0, 0, 0, TimeSpan.Zero).AddTicks(fractionalTicks);
+        var reference = new DetailContentReference(new(Guid.NewGuid()), 3);
+        var originalRequest = HostRequest.Create(RequestOrigin.LocalUi);
         var action = new WebResultSummarize();
-        var seed = action.CreateContext(Capture(string.Empty, retrievedAt: now), request, now, now.AddMinutes(1));
+        var seed = action.CreateContext(CaptureBounded(string.Empty), request, now, now.AddMinutes(1));
         ModelContextEnvelope Measure(WebResultSnapshot observation) => new(request, seed.SystemPolicy, seed.UserRequest,
             [new(observation.Reference.ItemId, request, new(observation.Reference.Revision),
                 observation.Source, ModelEvidenceDisclosure.LocalOnly)],
@@ -87,7 +89,7 @@ public sealed class WebResultSummarizeTests
         ModelContextEnvelope measured;
         do
         {
-            snapshot = Capture(new string('a', count), retrievedAt: now);
+            snapshot = CaptureBounded(new string('a', count));
             measured = Measure(snapshot);
             var adjustment = ModelContextEnvelope.MaximumInputUtf8Bytes - measured.Serialize().Length;
             count += adjustment;
@@ -97,10 +99,15 @@ public sealed class WebResultSummarizeTests
         action.CreateContext(snapshot, request, now, now.AddMinutes(1)).Serialize().Length.Should()
             .Be(ModelContextEnvelope.MaximumInputUtf8Bytes);
         // Keep timestamp precision fixed so only the evidence body grows by one byte.
-        var oversized = Capture(new string('a', count + 1), retrievedAt: now);
+        var oversized = CaptureBounded(new string('a', count + 1));
         Measure(oversized).Serialize().Length.Should().Be(ModelContextEnvelope.MaximumInputUtf8Bytes + 1);
         var tooLarge = () => action.CreateContext(oversized, request, now, now.AddMinutes(1));
         tooLarge.Should().Throw<InvalidDataException>();
+
+        WebResultSnapshot CaptureBounded(string text) =>
+            WebResultSnapshot.Capture(reference, originalRequest, 7, new("https://example.com/requested"),
+                new(WebPageGetOutcome.Succeeded, "retrieved", new("https://example.com/final"), "text/plain", text, false, 1),
+                now).WebResult!;
     }
 
     private static WebResultSnapshot Capture(string text, bool truncated = false, DateTimeOffset? retrievedAt = null) =>

@@ -1,5 +1,6 @@
 using Kora.Application.Configuration;
 using Kora.Application.Infrastructure;
+using Kora.Application.Presentation;
 using Kora.Core;
 using Kora.Core.Auditing;
 using Kora.Core.Configuration;
@@ -16,6 +17,7 @@ public sealed partial class MainViewModel
     private bool rateControlActive;
     private Func<bool> windowsSpeechRateNativeLifetime = static () => false;
 
+    public int? SavedWindowsSpeechRate => windowsSpeechRateConfiguration?.Get().Effective?.Value;
     public void BindWindowsSpeechRateNativeLifetime(Func<bool> lifetime)
     {
         windowsSpeechRateNativeLifetime = lifetime;
@@ -39,8 +41,8 @@ public sealed partial class MainViewModel
     public bool CanInspectWindowsSpeechRateNative => CanInspectWindowsSpeechRate && windowsSpeechRateNativeLifetime();
     public bool CanChangeWindowsSpeechRateNative => CanChangeWindowsSpeechRate && windowsSpeechRateNativeLifetime();
     public string WindowsSpeechRateStatus => windowsSpeechRateConfiguration is null
-        ? "Windows-native rate admission is unavailable; Kokoro synthesis is unchanged."
-        : WindowsSpeechRateState.Serialize(windowsSpeechRateConfiguration.Get(), CallPolicyRevision, "observed");
+        ? "Windows voice speed settings are unavailable. Other voices are unchanged."
+        : SettingsText.Describe(windowsSpeechRateConfiguration.Get());
 
     private bool IsWindowsSpeechRateOutputEligible => windowsSpeechRateConfiguration is null
         || windowsSpeechRateConfiguration.Get().AllowsProviderOutput(activeSpeechVoice!.ProviderId);
@@ -56,6 +58,7 @@ public sealed partial class MainViewModel
         if (disposed) { return; }
         if (windowsSpeechRateConfiguration!.Get().Desired is { } rate) { SelectedWindowsSpeechRate = rate.Value; }
         OnPropertyChanged(nameof(WindowsSpeechRateStatus));
+        OnPropertyChanged(nameof(SavedWindowsSpeechRate));
         OnPropertyChanged(nameof(CanInspectWindowsSpeechRate));
         OnPropertyChanged(nameof(CanChangeWindowsSpeechRate));
         OnPropertyChanged(nameof(CanInspectWindowsSpeechRateNative));

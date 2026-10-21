@@ -50,12 +50,14 @@ public sealed partial class MainViewModelTests
         await fixture.RunAsync("status " + AuditRetentionCommand.OptionId);
         fixture.ViewModel.ResponseBody.Should().Contain("\"source\":\"saved\"");
         fixture.ViewModel.SelectedAuditRetentionDays = 365;
+        fixture.ViewModel.SavedAuditRetentionDays.Should().Be(30);
         await fixture.ViewModel.SaveAuditRetentionCommand.ExecuteAsync();
         fixture.AuditPreferences.Value.Should().Be(new AuditRetentionDays(365));
+        fixture.ViewModel.SavedAuditRetentionDays.Should().Be(365);
         await fixture.ViewModel.RefreshAuditRetentionCommand.ExecuteAsync();
         await fixture.ViewModel.ResetAuditRetentionCommand.ExecuteAsync();
         fixture.ViewModel.SelectedAuditRetentionDays.Should().Be(90);
-        fixture.ViewModel.AuditRetentionStatus.Should().Contain("\"source\":\"default\"");
+        fixture.ViewModel.AuditRetentionStatus.Should().Contain("Using the default");
         await fixture.RunAsync("set assistant.name to Nova");
         fixture.TextToSpeech.ClearSpokenResponse();
         var starts = fixture.Voice.StartCalls;

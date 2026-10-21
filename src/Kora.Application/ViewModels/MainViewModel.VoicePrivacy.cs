@@ -57,7 +57,12 @@ public sealed partial class MainViewModel
     private Task voiceUnlockRecoveryTask = Task.CompletedTask;
     private Func<bool> voiceOwnershipEligible = static () => false;
 
-    public void BindVoiceOwnershipGate(Func<bool> gate) => voiceOwnershipEligible = gate;
+    private long voiceOwnershipBindingRevision;
+    public void BindVoiceOwnershipGate(Func<bool> gate)
+    {
+        voiceOwnershipEligible = gate;
+        Interlocked.Increment(ref voiceOwnershipBindingRevision);
+    }
 
     public bool IsPrivacyPresentationHeld => Volatile.Read(ref privacyPresentationHeld) != 0;
 

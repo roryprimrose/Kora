@@ -90,7 +90,7 @@ public sealed partial class App : Avalonia.Application
             presenceWindows.Start(viewModel.IsNativePresenceRenderer);
             presenceRendererTimer.Tick += OnPresenceRendererTick;
             viewModel.ReportPresenceRendererStatus(viewModel.IsNativePresenceRenderer
-                ? "Native (experimental) selected; initializing presence." : "Avalonia selected; initializing presence.");
+                ? "Experimental animation mode selected; starting animation." : "Standard animation mode selected; starting animation.");
             microphoneRecovery = new MicrophoneRecoveryWindowController(viewModel,
                 Services.GetRequiredService<ILogger<MicrophoneRecoveryWindow>>());
             var captionView = new SpeechCaptionWindow(viewModel);
@@ -205,6 +205,8 @@ public sealed partial class App : Avalonia.Application
             attachmentWindow = new SessionAttachmentWindowController(viewModel.ReportHostInteractionFailure, sessionFiles,
                 Services.GetRequiredService<SessionWorkspaceService>(),
                 Services.GetRequiredService<Kora.Core.Storage.ISessionWorkspaceAccess>(), fileWindow, viewModel);
+            viewModel.BindSessionAttachmentCommands(new(Services.GetRequiredService<SessionWorkspaceService>(), sessionFiles,
+                Services.GetRequiredService<Kora.Core.Storage.ISessionWorkspaceAccess>(), attachmentWindow));
             attachmentCatalogue = new(viewModel, Services.GetRequiredService<SessionWorkspaceService>(), sessionFiles,
                 attachmentWindow, Services.GetRequiredService<Kora.Core.Storage.ISessionWorkspaceAccess>(),
                 Services.GetRequiredService<ILogger<AttachmentCatalogueViewModel>>(),
@@ -412,7 +414,7 @@ public sealed partial class App : Avalonia.Application
                 rendererSwitchContext = HostActivity.CaptureContinuation(HostActivityLayer.Desktop,
                     HostOperation.Presentation, RequestOrigin.LocalUi);
                 viewModel.ReportPresenceRendererStatus(
-                    "Renderer change saved. Waiting for startup, mouse gestures and owned dialogs to finish.");
+                    "Animation mode saved. Waiting for startup, dragging and open dialogs to finish.");
                 presenceRendererTimer.Start();
                 PresenceSwitchTiming.Mark(PresenceSwitchPhase.TimerStarted);
             }
@@ -421,7 +423,7 @@ public sealed partial class App : Avalonia.Application
                 presenceRendererTimer.Stop();
                 rendererSwitchContext = null;
                 viewModel.ReportPresenceRendererStatus(viewModel.IsNativePresenceRenderer
-                    ? "Native (experimental) renderer selected." : "Avalonia renderer selected.");
+                    ? "Experimental animation mode selected." : "Standard animation mode selected.");
             }
         }
         if (string.Equals(

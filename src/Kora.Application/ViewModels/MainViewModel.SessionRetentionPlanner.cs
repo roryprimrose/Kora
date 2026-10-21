@@ -47,34 +47,26 @@ public sealed partial class MainViewModel
             var text = preview.Status;
             if (preview.Proposed is { } proposed)
             {
-                text += $" Hypothetical policy: archive {proposed.ArchiveDays} / delete {proposed.DeleteDays} idle days."
-                    + $" Fixed UTC cutoff: {preview.CutoffUtc:O}. Expires UTC: {preview.ExpiresUtc:O}.";
+                text += $" Proposed limits: archive after {proposed.ArchiveDays} inactive days; delete after {proposed.DeleteDays}."
+                    + " This preview expires after 30 seconds.";
             }
             if (preview.Preference is { } preference)
             {
-                text += $" Future-only current policy: {preference.Effective.ArchiveDays} / {preference.Effective.DeleteDays}."
-                    + $" Preference revision {preference.PreferenceRevision}; policy revision {preference.PolicyRevision}.";
-            }
-            if (preview.Admission is { } admission)
-            {
-                text += $" Control revision {admission.ControlRevision}; private revision {admission.PrivateRevision};"
-                    + $" owner revision {admission.OwnerRevision}; call revision {admission.CallRevision}.";
+                text += $" Current limits: archive after {preference.Effective.ArchiveDays} inactive days; delete after {preference.Effective.DeleteDays}.";
             }
             if (preview.Result is { } result)
             {
-                text += $" Source: {result.Status}.";
-                if (result.Snapshot is { } snapshot) { text += $" Exact metadata snapshot: {snapshot}."; }
+                text += $" Results: {result.Status}.";
                 if (result.Aggregate is { } counts)
                 {
-                    text += $" Sessions observed: {counts.Sessions}. Hypothetically newly archive-due: {counts.NewlyArchiveDue};"
-                        + $" newly delete-due: {counts.NewlyDeleteDue}. Already due by recorded deadlines (not recomputed):"
+                    text += $" Sessions checked: {counts.Sessions}. Newly due with these limits:"
+                        + $" archive {counts.NewlyArchiveDue}; delete {counts.NewlyDeleteDue}. Already due under existing dates:"
                         + $" archive {counts.RecordedArchiveDue}; delete {counts.RecordedDeleteDue}."
-                        + $" Exclusions: kept {counts.Kept}; known work-held {counts.WorkHeld};"
-                        + $" unknown work hold {counts.UnknownHold}; removed {counts.Removed}."
-                        + " Due counts exclude these categories. Unknown holds never imply eligible."
-                        + " This is not cleanup eligibility or a storage-removal forecast.";
+                        + $" Not counted: marked to keep {counts.Kept}; ongoing work {counts.WorkHeld};"
+                        + $" unknown work status {counts.UnknownHold}; already removed {counts.Removed}."
+                        + " These are estimates, not a promise that sessions can be archived or deleted.";
                 }
-                else { text += " No aggregate available; do not interpret this as zero."; }
+                else { text += " No count is available. This does not mean zero sessions are affected."; }
             }
             return text;
         }

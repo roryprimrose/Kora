@@ -27,6 +27,27 @@ Opening the overview or saved draft catalogue reads nothing. Opening compact ret
 
 Missing native composition or changed original/current ownership, private/call/input epochs or compact source refuses late opening/focus; issue a fresh command after recovery. See [exact syntax](commands.md#open-existing-workspace-surfaces) and [deterministic evidence](../Design/UI_Workspace_And_Windows.md#workspace-surface-command-evidence).
 
+### Find in selected saved-draft metadata
+
+In **Tray > Saved conversation drafts (metadata only)**, explicitly refresh and
+select a row. **Ctrl+F** focuses its private metadata Find query; Enter / **Find
+first**, **Next** / F3 and **Previous** / Shift+F3 search only the complete
+currently displayed selected metadata details. Matching is exact, case-sensitive,
+nonoverlapping and does not wrap. The count and ordinal cover this one string,
+never a page, all saved drafts, hidden metadata or saved/composer/conversation bodies.
+
+Queries are nonempty well-formed one-line literals, at most 256 UTF-16 characters
+and 512 UTF-8 bytes, without unsafe controls/format characters. No trimming,
+normalization, regex or wildcard expansion occurs. Editing performs no I/O and
+clears the old match/count. **Clear Find** or Escape inside Find clears its query
+without closing the catalogue. The exact inert match is focused separately from
+the row. If focus fails, no match/focus is claimed; use Ctrl+F or Find first again.
+
+Selection, page/query/filter/source/private/control/lifetime changes retire Find.
+It never refreshes, changes the Sessions target or dirty composer, loads/saves/
+submits a body, opens a session, or grants copy, speech, transcript or model access.
+See the [catalogue contract](../Design/Interaction_And_Sessions.md#saved-conversation-draft-catalogue--2026-10-13).
+
 ### Compact selected-session conversation
 
 Open **Tray > Compact selected-session conversation** or **Sessions > Compact conversation**.
@@ -603,6 +624,19 @@ Find cannot change filters/selection, open/resume a session, read files/bodies/p
 ### Catalogue reading and filters
 
 Open **Tray > Retained session attachments**, then choose **Search / refresh metadata**. Opening alone reads nothing; listing never opens a picker, original file path or attachment body. It shows only already retained private Session slots.
+
+Alternatively, exact typed/current-name activated
+`prepare attachment catalogue <session-id>` opens/focuses the same catalogue and
+prepares only **ExactId** and its canonical nonempty lowercase D-format ID.
+This runs no I/O, metadata query/count/probe or session resolution. All other
+native filter drafts are retained and **AND-composed**, not reset; new-window
+defaults are unchanged. Check the full visible filters before separately
+choosing **Search / refresh metadata**. Invalid companion drafts still disable
+Search. Old rows, continuation, selection/details, Find and native-open
+readiness are retired, including in-flight late callbacks. Preparation is not
+session selection, current ownership, body/capture authority or proof a copy
+exists. Unavailable/stale native focus fails explicitly without Browse/latest
+fallback. `attachment catalogue help` returns only constant syntax.
 
 Default **Browse** preserves the removal filter. For one session, choose **ExactId**, enter its nonempty canonical lowercase D-format UUID, then explicitly Search or press Enter in the query field. Uppercase, empty, noncanonical, control-containing or oversized input is invalid, never Browse.
 

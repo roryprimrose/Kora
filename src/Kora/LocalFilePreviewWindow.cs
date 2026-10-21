@@ -301,7 +301,7 @@ internal sealed partial class LocalFilePreviewWindow(Action<string> reportFailur
 
     internal void ShowAttachment(SessionFileAttachment attachment,
         Func<string, LocalFileRetrievalMode, CancellationToken, Task<LocalFileSearchResult>> search,
-        Func<bool> isCurrent, Func<Task> remove, Func<Task>? replace = null,
+        Func<bool> isCurrent, Func<Task>? remove, Func<Task>? replace = null,
         Func<CancellationToken, Task<LocalFileRevision>>? resolveCurrent = null)
     {
         Title = "Exact retained historical Session file (inert source)";
@@ -325,12 +325,15 @@ internal sealed partial class LocalFilePreviewWindow(Action<string> reportFailur
             }
             return [current];
         }, _ => { });
-        var button = new Button { Content = "Review Remove attachment and Kora copies" };
-        AutomationProperties.SetName(button, "Review exact attachment, owning Session, revisions and all owned Kora copies before removal");
-        button.Command = new AsyncCommand(remove, exception => reportFailure(
-            "Removal held; no full-copy removal claimed. Failure type: " + exception.GetType().Name));
-        DockPanel.SetDock(button, Dock.Top);
-        body.Children.Insert(1, button);
+        if (remove is not null)
+        {
+            var button = new Button { Content = "Review Remove attachment and Kora copies" };
+            AutomationProperties.SetName(button, "Review exact attachment, owning Session, revisions and all owned Kora copies before removal");
+            button.Command = new AsyncCommand(remove, exception => reportFailure(
+                "Removal held; no full-copy removal claimed. Failure type: " + exception.GetType().Name));
+            DockPanel.SetDock(button, Dock.Top);
+            body.Children.Insert(1, button);
+        }
         if (replace is not null)
         {
             var replacement = new Button { Content = "Replace retained attachment" };

@@ -7,10 +7,10 @@ namespace Kora.Application.ViewModels;
 public sealed partial class MainViewModel
 {
     private static readonly ReadOnlyCollection<PresenceRendererChoice> RendererChoices =
-        Array.AsReadOnly<PresenceRendererChoice>([new("Avalonia", false), new("Native (experimental)", true)]);
+        Array.AsReadOnly<PresenceRendererChoice>([new("Standard", false), new("Experimental", true)]);
     private bool isNativePresenceRenderer;
     private bool nativePresenceRendererObserved;
-    private string presenceRendererStatus = "The presence renderer has not been initialized.";
+    private string presenceRendererStatus = "Animation mode has not been checked yet.";
 
     public IReadOnlyList<PresenceRendererChoice> PresenceRenderers => RendererChoices;
 

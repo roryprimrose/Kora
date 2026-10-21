@@ -13,6 +13,22 @@ native answer/approval controls.
 The separate [exact Settings-section navigation contract](User_Configuration.md#exact-existing-settings-section-navigation) selects an existing named native tab in the singleton Settings surface only.
 Responses-tab navigation is not a retained-body, retired-response, model or private-content disclosure route ([native selection](../src/Kora/SettingsWindow.axaml.cs), [admission](../src/Kora.Application/ViewModels/MainViewModel.SettingsSectionNavigation.cs)).
 
+## Delivered bounded response-window preference commands
+
+The [exact response-window grammar](../src/Kora.Application/Configuration/ResponseWindowCommand.cs) admits inspect/set/per-option reset for existing device-local AlwaysShow and Topmost, plus four explicit natural on/off phrases.
+Typed and current-name activated voice routes delegate to the same native setters and trusted audited preference writer; they add no tool/model/external-content or arbitrary window authority
+([command workflow](../src/Kora.Application/ViewModels/MainViewModel.ResponseWindowCommands.cs), [native setters](../src/Kora.Application/ViewModels/MainViewModel.cs)).
+
+Results use transcript status rather than response presentation: no immediate speech, response reveal, source restoration, question answer/cancellation or security-panel replacement. Reserved malformed commands clarify before those routes.
+Mutation requires the original owning unlocked host admission; the existing writer rechecks privacy/owner/call/voice epochs around commit and suppresses stale success
+([command workflow](../src/Kora.Application/ViewModels/MainViewModel.ResponseWindowCommands.cs), [writer](../src/Kora.Application/ViewModels/MainViewModel.Preferences.cs)).
+
+AlwaysShow suppresses inactivity hiding only; dismissal and private/source/call revocation still win. Topmost changes only Kora's response preference, never OS-wide state, activation, foreground consent, geometry, retention or speech/caption mode.
+Each off/reset preserves the companion Boolean, saved position and separate timeout ([defaults](../src/Kora.Core/Configuration/ResponseWindowSettings.cs), [native notifications](../src/Kora/ResponseWindow.axaml.cs), [show admission](../src/Kora/ResponseWindowController.cs)).
+
+Unknown/malformed or externally changed saved state cannot be overwritten using cached defaults; failures and uncertain commits require explicit saved-state/audit inspection and a fresh request after repair/restart.
+[Deterministic tests](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.ResponseWindowCommands.cs) are implementation evidence only: no new hardware, installed UI/accessibility, acoustic, provider or RC qualification is claimed.
+
 ## Delivered retained original USER / typed HOST Details - 2026-10-14
 
 After an explicit conversation Read or Search, the [shared native row](../src/Kora/ConversationPresentation.axaml) offers **Details - exact original USER / separate HOST** in Sessions and compact wherever that row is projected. Opening either surface or selecting session metadata reads/opens no Details automatically.

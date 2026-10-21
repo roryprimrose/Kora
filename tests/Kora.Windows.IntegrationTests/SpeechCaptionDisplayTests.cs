@@ -39,7 +39,7 @@ public sealed partial class SpeechCaptionDisplayTests
                 menu.IsOpen.Should().BeTrue();
                 AssertContained(window, other);
                 var item = menu.Items.OfType<MenuItem>().Single();
-                item.Header.Should().Be("Return to primary");
+                item.Header.Should().Be("Use main screen");
                 item.IsEffectivelyEnabled.Should().BeTrue();
                 caption.SpeechCaptionText.Should().Be("Observed private utterance.");
 

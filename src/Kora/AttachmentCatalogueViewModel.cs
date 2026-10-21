@@ -622,6 +622,29 @@ internal sealed partial class AttachmentCatalogueViewModel(
         status = "Query/mode/session lifecycle/media type/copy status/byte bounds/digest/correlation/version ranges/generation relationship/file-reference IDs/removal filter edited. Page, continuation and selection cleared; explicit Search/Refresh required.";
     }
 
+    internal void PrepareExactSession(Guid sessionId)
+    {
+        var text = sessionId.ToString("D");
+        if (!CanEdit || !SessionListSearch.IsValid(SessionListSearchKind.ExactId, SessionListFilter.All, text))
+        { throw new InvalidOperationException("Exact metadata query preparation is unavailable."); }
+        InvalidateQuery();
+        mode = AttachmentCatalogueMode.ExactId;
+        queryText = text;
+        status = "PREPARED / REVIEW NEEDED. No I/O, query, count or read ran. Other filter drafts remain AND-composed. "
+            + "Review all visible filters, then explicitly Search. This ID is future metadata query data, not session selection, "
+            + "current ownership, read/capture authority or proof a retained copy exists.";
+        Notify();
+    }
+
+    internal void PreparationUnavailable()
+    {
+        if (disposed) { return; }
+        InvalidateQuery();
+        status = "Native catalogue preparation unavailable: exact-session query focus was not acknowledged. "
+            + "No search or read ran. Filter drafts remain AND-composed; review them before explicit Search.";
+        Notify();
+    }
+
     internal void SynchronizeAuthority()
     {
         if (disposed || synchronizingAuthority) { return; }

@@ -1,8 +1,10 @@
 using System.ComponentModel;
 
+using Avalonia;
 using Avalonia.Threading;
 
 using Kora.Application.Hosting;
+using Kora.Application.Presentation;
 using Kora.Application.ViewModels;
 using Kora.Core.Hosting;
 using Kora.Core.Storage;
@@ -11,7 +13,7 @@ using Microsoft.Extensions.Logging;
 
 namespace Kora;
 
-internal sealed class AttachmentCatalogueWindowController : IDisposable
+internal sealed class AttachmentCatalogueWindowController : IAttachmentCataloguePreparation, IDisposable
 {
     private readonly MainViewModel main;
     private readonly SessionWorkspaceService sessions;
@@ -23,6 +25,7 @@ internal sealed class AttachmentCatalogueWindowController : IDisposable
     private readonly DispatcherTimer timer = new() { Interval = TimeSpan.FromMilliseconds(250) };
     private AttachmentCatalogueWindow? window;
     private bool disposed;
+    private long lifetimeRevision;
 
     internal AttachmentCatalogueWindowController(MainViewModel main, SessionWorkspaceService sessions,
         SessionFileAttachmentService files, SessionAttachmentWindowController attachments,
@@ -35,6 +38,7 @@ internal sealed class AttachmentCatalogueWindowController : IDisposable
         this.access = access;
         this.logger = logger;
         this.service = service;
+        main.BindAttachmentCataloguePreparation(this);
         main.PrivacyClosureRequested += OnPrivacyClosure;
         main.PropertyChanged += OnMainChanged;
         sessions.WorkOverviewInvalidated += OnSourceChanged;
@@ -74,9 +78,30 @@ internal sealed class AttachmentCatalogueWindowController : IDisposable
             owned = view;
             window = view;
             view.Closed += OnClosed;
+            view.PropertyChanged += OnWindowChanged;
             view.Show();
         }
         window.Activate();
+    }
+
+    public Func<bool> CaptureLifetime()
+    {
+        var revision = Volatile.Read(ref lifetimeRevision);
+        var control = access.ControlRevision;
+        var initiallyAdmitted = Admitted();
+        return () => initiallyAdmitted && !disposed && Volatile.Read(ref lifetimeRevision) == revision
+            && access.ControlRevision == control && Admitted();
+    }
+
+    public void Prepare(Guid sessionId, Func<bool> admitted)
+    {
+        if (!Dispatcher.UIThread.CheckAccess() || !Admitted() || !admitted())
+        { throw new InvalidOperationException("The original catalogue preparation host is unavailable."); }
+        Open();
+        var target = window;
+        if (target is null || !target.IsVisible || !Admitted() || !admitted())
+        { throw new InvalidOperationException("Native catalogue opening was not acknowledged."); }
+        target.PrepareExactSession(sessionId, () => ReferenceEquals(window, target) && Admitted() && admitted());
     }
 
     private async Task Navigate(SessionAttachmentSummary exact, Func<bool> admitted, CancellationToken token)
@@ -118,10 +143,23 @@ internal sealed class AttachmentCatalogueWindowController : IDisposable
     }
 
     private void OnPrivacyClosure(object? sender, EventArgs args) => Close();
+    private void OnWindowChanged(object? sender, AvaloniaPropertyChangedEventArgs args)
+    {
+        if (ReferenceEquals(window, sender) && args.Property == Visual.IsVisibleProperty && !window!.IsVisible)
+        {
+            Interlocked.Increment(ref lifetimeRevision);
+            if (window.DataContext is AttachmentCatalogueViewModel model) { model.Revoke(); }
+        }
+    }
     private void OnClosed(object? sender, EventArgs args)
     {
+        Interlocked.Increment(ref lifetimeRevision);
         if (window?.DataContext is AttachmentCatalogueViewModel model) { model.SelectionRevoked -= attachments.CloseExact; }
-        if (window is not null) { window.Closed -= OnClosed; }
+        if (window is not null)
+        {
+            window.Closed -= OnClosed;
+            window.PropertyChanged -= OnWindowChanged;
+        }
         window = null;
     }
 
@@ -137,6 +175,8 @@ internal sealed class AttachmentCatalogueWindowController : IDisposable
     {
         if (disposed) { return; }
         disposed = true;
+        Interlocked.Increment(ref lifetimeRevision);
+        main.BindAttachmentCataloguePreparation(null);
         timer.Stop();
         timer.Tick -= OnTick;
         main.PrivacyClosureRequested -= OnPrivacyClosure;

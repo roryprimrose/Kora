@@ -34,10 +34,13 @@ public sealed partial class MainViewModel
         internal long AssistantNameRevision { get; init; }
         internal long OwnershipBindingRevision { get; init; }
         internal long InputRevision { get; init; }
+        internal AttachmentCataloguePreparationCommand? CataloguePreparation { get; init; }
+        internal Func<bool> CatalogueEligible { get; init; } = static () => true;
     }
 
-    public string ManualCallConfigurationStatus => ManualCallCommandResult.Serialize(
-        new("observed", manualCallControl is null ? "Manual control admission is unavailable." : null, communicationPolicy.Current));
+    public string ManualCallConfigurationStatus => manualCallControl is null
+        ? "Manual call controls are unavailable. Call protections remain active."
+        : CallStateStatus;
     public Kora.Application.Infrastructure.AsyncCommand GetManualCallStatusCommand { get; }
     public Kora.Application.Infrastructure.AsyncCommand ResetManualCallCommand { get; }
 
@@ -78,12 +81,11 @@ public sealed partial class MainViewModel
     public bool CanEnableCallVisualProtection => !ShowVisualTextDuringCalls;
     public bool CanDisableCallVoiceActivation => AllowVoiceActivationDuringCalls;
     public string CallManualStatus => IsManualCallActive
-        ? "Manual call mode is active for this run. Clearing it does not clear automatic observations."
-        : "Manual call mode is off. It is not saved across restart.";
+        ? "Manual call mode is on until you turn it off or restart Kora. Automatic detection is unchanged."
+        : "Manual call mode is off. It resets when Kora restarts.";
     public string CallProtectionLimitations =>
-        "Automatic detection is unavailable in this build. Saved output/activation choices are retained. "
-        + "Reusable grants are ignored during protected calls. New speech/activation protection downgrades, "
-        + "temporary exceptions and speak-once call exceptions are unavailable: exact trusted review is not implemented.";
+        "Automatic call detection is not available in this version. Your saved response and listening choices are kept. "
+        + "Previous approvals cannot be reused during protected calls. Call protections cannot be relaxed temporarily.";
 
     public void BindCallOwnershipGate(Func<bool> gate, Func<long>? revision = null)
     {
@@ -158,7 +160,8 @@ public sealed partial class MainViewModel
         if (command.Operation is AppearanceCommandOperation.List or AppearanceCommandOperation.Get)
         {
             // Passive cached inspection never touches intent/audit, speech, question or preview state.
-            Transcript = ManualCallConfigurationStatus;
+            Transcript = ManualCallCommandResult.Serialize(
+                new("observed", manualCallControl is null ? "Manual control admission is unavailable." : null, communicationPolicy.Current));
             return;
         }
         if (command.Operation == AppearanceCommandOperation.Clarify)

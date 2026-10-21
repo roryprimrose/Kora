@@ -4,22 +4,22 @@
 
 Kora supports three response modes:
 
-- **Both audible and visual** - show text and speak when speech is available.
-- **Audible only** - prefer speech without ordinary response text.
-- **Visual only** - show text and do not speak.
+- **Text and speech** - show text and speak when speech is available.
+- **Speech only** - prefer speech without ordinary response text.
+- **Text only** - show text and do not speak.
 
 Safety and recovery information remains visible even in VoiceOnly mode.
 
 Ordinary speech is additionally admitted only when its complete title/body
 fits the device-local spoken summary caps (default **3 sentences / 80 words**).
 Either cap can be lowered in Speech & audio. Over-cap results retain their full
-visual text, with an explicit **Speech withheld** status even in Audible only
+visual text, with an explicit **Speech withheld** status even in Speech only
 mode; there is no truncation, extra model call or replay.
 Required questions/options and exact security-sensitive readback keep their
 existing mandatory bounds and privacy gates, not ordinary-summary truncation.
 See [the exact counting contract](settings.md#spoken-summary-limits).
 
-The independently stored legacy **Muted speaker fallback** preference remains
+The independently stored **Earlier muted-speaker preference** remains
 outside the delivered mode registry. Its default and storage are unchanged;
 it cannot suppress mandatory complete visual recovery for missing, muted,
 zero-volume, unavailable or failed output. The original response remains available,
@@ -47,14 +47,15 @@ Response selection has this precedence, before all mandatory policy gates:
 4. **Session** - shared resolver seam; no new session control is delivered.
 5. **Device default** - persisted locally.
 
-Choose **Inherit** for the task or queue choice to return to the next broader
+Choose **Use default** for the task or queue choice to return to the next broader
 scope. These presentation controls are outside the admitted device-default
 registry, not delivered durable session/task/queue configuration or execution.
 The device default and independent in-call preference have shared admitted
 native/exact workflows; neither changes call policy or the legacy fallback.
 
-In-call **Voice / UI / Both** map to audible/visual/both preference, never
-speech permission. **Inherit** restores ordinary selection. Unknown/invalid call
+In-call **Speech only / Text only / Text and speech** map to the internal
+Voice/UI/Both preferences, never speech permission. **Use normal response settings**
+(Inherit in typed commands) restores ordinary selection. Unknown/invalid call
 evidence does not activate feedback but always withholds speech and requires
 full visual recovery; Clear/Unavailable uses ordinary output. A Voice/Both choice
 cannot bypass independent call suppression, privacy/lock/capture, mute/zero,

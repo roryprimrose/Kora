@@ -497,6 +497,38 @@ Only pending dispatch order changes. Original arrival, enqueue/expiry, active de
 Running callbacks remain independent; previous-run Interrupted/Unknown work never replays. Audit/storage/delivery uncertainty holds admission with explicit recovery, never an optimistic success-shaped list.
 Queue snapshots include at most two latest order lineages with `omittedOrders`; older exact move receipts remain in authoritative audit/history, not fabricated current ordering.
 
+## Prepare an exact local diagnostics plan
+
+Use typed input, or the current assistant-name prefix for activated voice:
+
+```text
+session diagnostics plan <session-id> <profiles>
+session diagnostics plan help
+Kora, session diagnostics plan 12345678-1234-1234-abcd-123456789012 version,readiness
+```
+
+The session ID must be a nonempty lowercase canonical D GUID. Profiles are an
+explicit nonempty comma-separated subset of `version,capabilities,readiness,runtimes`
+in that canonical order. Do not put spaces inside the list. Duplicates, empty
+elements, unknown or targeted profiles, reordered lists, names, `selected`,
+`current`, `all`, inferred defaults and extra confirmation words are rejected.
+Malformed reserved diagnostics input never becomes a model question or approval answer.
+
+This opens only the existing exact private **Sessions** target, prepares the
+chosen profiles and displays its complete diagnostics review: capacity, original
+deadlines, limits, run/private control, explicit None prerequisites and the
+sequential, possibly partial enqueue disclosure. It runs no diagnostic probes,
+model or network request, enqueues nothing and never dispatches, resumes,
+reorders or renews work. **Enqueue reviewed diagnostics plan** remains a separate
+one-shot native confirmation using the existing authoritative single-item enqueues.
+
+An existing dirty composer still requires **Save / Discard / Cancel** before
+navigation. Cancel or an unconfirmed save keeps the original buffer and target.
+Pending questions and approvals must be resolved explicitly. Changed original
+input, host/private/call admission, native navigation source, session generation,
+queue/control or confirmed limits makes the route unavailable; request a fresh
+exact plan. There is no latest, selected-session, name or model fallback.
+
 ## Fixed queue settings
 
 Expired replacement is available in native Sessions as **Review expired removal and NEW tail task**, followed by separate exact confirmation or cancellation. The review shows original IDs/profile/dependency/deadlines and fresh host-issued IDs, captured pending lifetime and deadline. No arguments, name inference, automatic dispatch or probes are accepted.

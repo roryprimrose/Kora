@@ -18,6 +18,7 @@ internal sealed class ClipboardPreviewWindowController : IDisposable
     private readonly Func<ClipboardSnapshot, Func<bool>>? admitJson;
     private readonly Func<ClipboardSnapshot, Func<bool>, CancellationToken, ClipboardJsonSyntaxResult>? validateJson;
     private Func<bool>? jsonEligible;
+    private readonly Func<ClipboardSnapshot, Func<bool>, CancellationToken, ClipboardXmlValidationResult>? validateXml;
     private readonly DispatcherTimer? privacyTimer;
     private IClipboardPreviewView? window;
     private ClipboardSnapshot? showing;
@@ -28,7 +29,7 @@ internal sealed class ClipboardPreviewWindowController : IDisposable
             () => new ClipboardPreviewWindow(exception => host.ReportHostInteractionFailure(
                 "Native clipboard preview failed. No success is claimed. Failure type: " + exception.GetType().Name), host),
             host.ReportHostInteractionFailure, host.ExplainClipboardAsync, () => host.ClipboardExplanation,
-            host.CaptureClipboardJsonEligibility, host.ValidateClipboardJson)
+            host.CaptureClipboardJsonEligibility, host.ValidateClipboardJson, host.ValidateClipboardXml)
     {
         this.host = host;
         host.ClipboardPreviewChanged += OnChanged;
@@ -42,7 +43,8 @@ internal sealed class ClipboardPreviewWindowController : IDisposable
         Action clear, Func<Task> revoke, Func<IClipboardPreviewView> create, Action<string> reportFailure,
         Func<Guid, Task>? explain = null, Func<string?>? explanation = null,
         Func<ClipboardSnapshot, Func<bool>>? admitJson = null,
-        Func<ClipboardSnapshot, Func<bool>, CancellationToken, ClipboardJsonSyntaxResult>? validateJson = null)
+        Func<ClipboardSnapshot, Func<bool>, CancellationToken, ClipboardJsonSyntaxResult>? validateJson = null,
+        Func<ClipboardSnapshot, Func<bool>, CancellationToken, ClipboardXmlValidationResult>? validateXml = null)
     {
         this.current = current;
         this.reuse = reuse;
@@ -54,6 +56,7 @@ internal sealed class ClipboardPreviewWindowController : IDisposable
         this.explanation = explanation ?? (static () => null);
         this.admitJson = admitJson;
         this.validateJson = validateJson;
+        this.validateXml = validateXml;
     }
 
     private void OnChanged(object? sender, EventArgs args)
@@ -90,7 +93,8 @@ internal sealed class ClipboardPreviewWindowController : IDisposable
         var admitted = admitJson?.Invoke(snapshot);
         jsonEligible = admitted;
         view.Closed += OnClosed;
-        bool IsCurrent() => !disposed && ReferenceEquals(window, view) && ReferenceEquals(current(), snapshot);
+        bool IsCurrent() => !disposed && ReferenceEquals(window, view) && ReferenceEquals(current(), snapshot)
+            && !disposed && ReferenceEquals(window, view) && ReferenceEquals(showing, snapshot);
         bool JsonCurrent() => IsCurrent() && admitted?.Invoke() != false;
         // A queued callback cannot reuse or retarget another generation.
         view.Show(snapshot, () => IsCurrent()
@@ -104,7 +108,7 @@ internal sealed class ClipboardPreviewWindowController : IDisposable
                 if (!JsonCurrent()) { return new(ClipboardJsonSyntaxOutcome.Unavailable); }
                 var result = validateJson(snapshot, JsonCurrent, token);
                 return JsonCurrent() ? result : new(ClipboardJsonSyntaxOutcome.Cancelled);
-            }, JsonCurrent);
+            }, JsonCurrent, validateXml);
         if (!IsCurrent()) { CloseView(); }
         else { view.SetExplanation(explanation()); }
     }

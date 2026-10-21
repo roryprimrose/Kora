@@ -608,6 +608,38 @@ Query edits retire matches and counts without I/O; clear, close, replacement, re
 Keyboard access remains native-only and blocks built-in cut/copy/paste/context routes. Find adds no clipboard reads/writes, reuse/revoke dispatch, typed/voice/model/tool query, provider/egress/context/persistence/history, activity renewal or timer.
 [Portable policy tests](../tests/Kora.Core.UnitTests/Context/ClipboardLiteralFindTests.cs) and [headless lifecycle/transfer tests](../tests/Kora.Windows.IntegrationTests/ClipboardLiteralFindWindowTests.cs) are consumer evidence, not installed-native/privacy qualification.
 
+### Native clipboard XML well-formedness
+
+Only **Validate this snapshot as XML** in the exact native preview invokes
+[the host-owned action](../src/Kora.Tools/Clipboard/ClipboardValidateXml.cs).
+There is no typed, voice or model raw-body route, automatic parse or source-use
+admission. The original broker eligibility and native window/control generation
+must still match the exact immutable snapshot object before parsing and before
+publishing; retirement clears the volatile derived result. No latest-source
+fallback, capture/reuse/revoke, TTL/activity renewal, grant, persistence, history,
+clipboard write, model envelope or provider call is introduced.
+
+[The portable policy](../src/Kora.Core/Context/ClipboardXmlPolicy.cs) consumes the
+entire unchanged admitted text through disposed in-memory `StringReader` /
+`System.Xml.XmlReader` resources, as one XML document. The existing strict
+256 KiB UTF-8 source admission also bounds parser characters; element depth is
+at most 64 (root is level one). DTD processing is prohibited before internal or
+external entity expansion, the resolver is null, and no schema, XInclude,
+stylesheet, transformation, file, URL or execution processing is performed.
+Encoding declarations remain text metadata: they authorize no byte-source or
+encoding lookup and do not establish the original clipboard encoding.
+
+The native-only result is `WellFormedXML`, `Invalid` or `PolicyRefused`, with
+only a typed reason and numeric line/column. Expected `XmlException` messages
+are never exposed; unexpected failures are reported separately with generated,
+content-minimized failure-type logging, not mislabelled invalid XML.
+Cancellation and stale eligibility suppress publication. Source names and
+bodies never enter diagnostic/audit fields, transcripts, speech or clipboard.
+Well-formedness is **not** schema validation, safety, trust, secret screening,
+uniqueness, egress approval or model-source-use authority. This bounded
+deterministic implementation makes no installed-native or security
+qualification claim; the following source-use policy remains unavailable.
+
 The [explicit clipboard workflow](../src/Kora.Application/Context/ClipboardExplanationWorkflow.cs) now separates review from explanation.
 The native **Validate this snapshot as JSON** gesture is independent of that inference workflow.
 [ClipboardJsonSyntax](../src/Kora.Core/Context/ClipboardJsonSyntax.cs) consumes only the exact immutable capture's canonical strict UTF-8 bytes,

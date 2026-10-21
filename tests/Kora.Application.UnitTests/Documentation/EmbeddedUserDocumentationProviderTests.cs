@@ -28,6 +28,18 @@ public sealed class EmbeddedUserDocumentationProviderTests
     }
 
     [Fact]
+    public void Saved_draft_guide_limits_ordering_to_the_loaded_page_without_reads_or_authority()
+    {
+        var commands = new EmbeddedUserDocumentationProvider().GetPages()
+            .Single(page => string.Equals(page.Id, "commands", StringComparison.Ordinal)).Markdown;
+        commands.Should().Contain("Order this loaded page").And.Contain("Source order (default)")
+            .And.Contain("ordinal case-sensitive ordering").And.Contain("unnamed sessions last")
+            .And.Contain("canonical session ID ascending").And.Contain("not global ordering")
+            .And.Contain("original source continuation").And.Contain("Clear restores Source order without reading")
+            .And.Contain("dirty-buffer Save/Discard/Cancel protection remains");
+    }
+
+    [Fact]
     public void Embedded_response_mode_aliases_explain_exact_future_only_controls_and_refusals()
     {
         var pages = new EmbeddedUserDocumentationProvider().GetPages();

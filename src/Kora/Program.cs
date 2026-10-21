@@ -420,6 +420,12 @@ internal static class Program
             provider.GetRequiredService<ILogger<SessionQueueService>>(),
             configuration: provider.GetRequiredService<SessionQueueConfigurationService>()));
         services.AddSingleton(TimeProvider.System);
+        services.AddSingleton<Kora.Core.Clock.ILocalClockContextProvider, HostLocalClockContextProvider>();
+        services.AddSingleton<Kora.Tools.Clock.LocalClockService>();
+        services.AddSingleton<Kora.Tools.Clock.LocalClockGetTime>();
+        services.AddSingleton<Kora.Tools.Clock.LocalClockGetDate>();
+        services.AddSingleton<Kora.Tools.Clock.LocalClockGetDateAndTime>();
+        services.AddSingleton<Kora.Application.Clock.LocalClockWorkflow>();
         services.AddKeyedSingleton("release-metadata", (_, _) => new HttpClient(new HttpClientHandler
         {
             AllowAutoRedirect = false,

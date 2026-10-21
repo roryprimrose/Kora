@@ -446,6 +446,7 @@ public sealed partial class AllWorkWindowTests
     [InlineData("range-minimum")]
     [InlineData("range-maximum")]
     [InlineData("clear-ranges")]
+    [InlineData("order")]
     public async Task InFlightPrivateSnapshotNeverRepopulatesClosedOrChangedOverview(string boundary)
     {
         using var f = new InteractionStorageFixture();
@@ -484,12 +485,14 @@ public sealed partial class AllWorkWindowTests
         if (boundary is "range-minimum") { model.RangeInputs[0].Minimum = "2"; }
         if (boundary is "range-maximum") { model.RangeInputs[1].Maximum = "0"; }
         if (boundary is "clear-ranges") { model.ClearRanges(); }
+        if (boundary is "order") { model.Order = SessionWorkOverviewPageOrder.SessionNameDescending; }
         held.Release.SetResult();
         await read;
         model.Records.Should().BeEmpty();
         model.SelectedDetails.Should().BeEmpty();
         model.CanNext.Should().BeFalse();
         model.CanNavigate.Should().BeFalse();
+        if (boundary is "order") { model.Status.Should().Contain("cancelled/source changed"); }
         model.Close();
         model.Status.Should().BeEmpty();
         model.NeedsAnswer.Should().BeFalse();
@@ -508,6 +511,8 @@ public sealed partial class AllWorkWindowTests
         internal bool Hold { get; set; }
         internal bool Fail { get; set; }
         internal int Reads { get; private set; }
+        internal int MetadataReads { get; private set; }
+        internal Guid? LastMetadataAfter { get; private set; }
         internal int Writes { get; private set; }
         internal TaskCompletionSource Entered { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         internal TaskCompletionSource Release { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -524,10 +529,17 @@ public sealed partial class AllWorkWindowTests
             }
             return result;
         }
-        public ValueTask<SessionPage<SessionWorkspaceEntry>> ReadMetadataPageAsync(Guid? after, int limit, CancellationToken token) =>
-            store.ReadMetadataPageAsync(after, limit, token);
-        public ValueTask<SessionWorkspaceEntry> ReadMetadataAsync(HostId<SessionIdentity> session, CancellationToken token) =>
-            store.ReadMetadataAsync(session, token);
+        public ValueTask<SessionPage<SessionWorkspaceEntry>> ReadMetadataPageAsync(Guid? after, int limit, CancellationToken token)
+        {
+            MetadataReads++;
+            LastMetadataAfter = after;
+            return store.ReadMetadataPageAsync(after, limit, token);
+        }
+        public ValueTask<SessionWorkspaceEntry> ReadMetadataAsync(HostId<SessionIdentity> session, CancellationToken token)
+        {
+            MetadataReads++;
+            return store.ReadMetadataAsync(session, token);
+        }
         public ValueTask<SessionDispositionPreview> PreviewDispositionAsync(HostId<SessionIdentity> session,
             HostRevision generation, long metadataRevision, CancellationToken token) => throw new NotSupportedException();
         public ValueTask<SessionDispositionReceipt> DisposeSessionAsync(HostRequest request, SessionDispositionPreview preview,

@@ -44,6 +44,46 @@ ownership, consent, call and original voice-generation gates remain required.
 No speculative model descriptor, execution lane or provider qualification is
 enabled.
 
+## Bounded host-local clock answers
+
+The [exact clock grammar](../docs/commands.md#host-local-date-and-time) is an
+original typed/current-name activated route before ordinary question/approval
+supersession. [LocalClockCommand](../src/Kora.Core/Commands/LocalClockCommand.cs)
+owns the finite phrases, normalized whole-word reserved malformed families,
+control-character refusal and 256-character bound; it is not fuzzy NLP.
+
+[LocalClockAnswer](../src/Kora.Core/Clock/LocalClockAnswer.cs) owns portable
+instant-to-local conversion and culture-specific formatting, always including
+UTC offset and timezone ID. [LocalClockService](../src/Kora.Tools/Clock/LocalClockService.cs)
+samples `TimeProvider.GetUtcNow()` exactly once and captures one injected
+host-local context per answer. The three action classes in
+[Clock](../src/Kora.Tools/Clock) are `LocalClockGetTime`, `LocalClockGetDate`
+and `LocalClockGetDateAndTime`; all admitted routes converge on these actions.
+The desktop [context provider](../src/Kora/HostLocalClockContextProvider.cs)
+supplies `TimeZoneInfo.Local` and `CultureInfo.CurrentCulture`, with an immutable
+culture snapshot. No native timezone mechanism or Windows dependency enters
+portable layers.
+
+The injected [Application workflow](../src/Kora.Application/Clock/LocalClockWorkflow.cs)
+requires live host correlation, original local/activated origin, fresh admission
+before and after observation and cancellation checks. Typed outcomes and
+source-generated content-free logs terminate the Application tool activity
+truthfully. No clock answer is authority, audit evidence, persisted preference
+or a consequential operation. Missing context fails explicitly; there is no
+UTC/default-zone, model or network fallback.
+
+[Presentation admission](../src/Kora.Application/ViewModels/MainViewModel.LocalClock.cs)
+retains original privacy, owner/binding, name, input, voice generation/recovery
+and call revisions. Protected calls refuse the route. Questions, approvals,
+power proposals, grant editors and native security review remain intact.
+The answer/help is an ordinary visual response without automatic output
+enumeration or forced speech; a separate existing read-once request retains its
+own speech policy and admission. No model registry descriptor or model action
+enum entry is added. The consumed I subset is portable clock formatting,
+existing host input admission and deterministic presentation; provider,
+hardware, installed, retired experiment and E/Q qualification are not
+prerequisites. No unrelated calendar/reminder/scheduling behavior is delivered.
+
 ## Delivered Artifact Invocation
 
 Kora has one source-qualified artifact invocation route for bundled skills and
@@ -108,6 +148,20 @@ The existing skill inspectors have exact typed/current-name activated navigation
 They activate the same singleton native controllers, not artifact `run`/`use`/`apply`, a model tool or a selector ([owning definition boundary](Definition_Management.md#delivered-native-skill-metadata-navigation)).
 
 The delivered owned native editor also provides literal metadata search, observed-use filters and exact stale-safe row inspection for its existing Instruction/Prompt filename inventories only.
+Its independent [native Go to line](../docs/instruction-editor.md#go-to-a-line-in-the-displayed-source)
+is a local caret gesture over the exact currently displayed owned source,
+including dirty/invalid drafts. It has no command/model/voice route, source I/O,
+validation, writer or use authority and does not depend on literal Find.
+One bounded portable logical-line index preserves exact UTF-16 offsets and
+CRLF/CR/LF separators. Explicit Go consumes an ownership/private/buffer/lifetime
+fence before synchronous native focus/caret acknowledgement; stale requests
+require explicit retry. Each native Go control binds its request epoch so
+delayed retired-control clicks cannot navigate an explicitly reopened buffer;
+native source detachment also retires the request.
+Profile/bundled/read-only/unknown sources stay unavailable.
+The consumed I subset is the existing owned editor and host/privacy admission;
+unrelated provider, hardware, installed or experiment E/Q evidence is not a
+prerequisite for deterministic native navigation validation.
 Explicit List/Refresh uses existing admission/reconciliation; filtering remains in-memory and model-free, with no source writes, activation or first-result loading. Typed/current-name activated List/Inspect opens the same native route; no new model tool or typed search grammar is registered.
 Observed catalogue state is not current disk integrity. Unavailable/stale choices require Refresh/reselection while the original/draft stays open. See [owned inventory controls](../docs/instruction-editor.md#search-observed-owned-metadata); profile-original editing and the full definition source matrix stay deferred.
 

@@ -3,6 +3,7 @@ using System.Text;
 
 using Kora.Application.Hosting;
 using Kora.Core.Hosting;
+using Kora.Core.Diagnostics;
 
 namespace Kora;
 
@@ -12,6 +13,14 @@ internal sealed partial class SessionsViewModel
     private SessionDiagnosticsPlanReview? diagnosticsPlanReview;
     private SessionDiagnosticsPlanOutcome? diagnosticsPlanOutcome;
     private long diagnosticsSelectionEpoch;
+    private Func<bool> diagnosticsCommandAdmission = static () => true;
+
+    internal Func<bool> CaptureDiagnosticsNavigationEligibility()
+    {
+        var navigation = CaptureNavigationEligibility();
+        var bufferRevision = Interlocked.Read(ref composerBufferRevision);
+        return () => navigation() && Interlocked.Read(ref composerBufferRevision) == bufferRevision;
+    }
 
     public bool DiagnosticsVersion { get => diagnosticsProfiles.Contains(SessionQueueReadProfile.Version); set => SetDiagnosticsProfile(SessionQueueReadProfile.Version, value); }
     public bool DiagnosticsCapabilities { get => diagnosticsProfiles.Contains(SessionQueueReadProfile.Capabilities); set => SetDiagnosticsProfile(SessionQueueReadProfile.Capabilities, value); }
@@ -24,7 +33,73 @@ internal sealed partial class SessionsViewModel
     private bool DiagnosticsReviewCurrent => diagnosticsPlanReview is { } review && !closed && access.CanInspect && access.CanControl
         && diagnosticsSelectionEpoch == selectionEpoch && access.ControlRevision == review.AdmissionRevision
         && selected?.Authority.SessionId == review.Queue.SessionId && selected.Authority.Generation == review.Queue.Generation
-        && queueSnapshot?.Revision == review.Queue.Revision && queueSnapshot.DispatchControl == review.Queue.DispatchControl;
+        && queueSnapshot?.Revision == review.Queue.Revision && queueSnapshot.DispatchControl == review.Queue.DispatchControl
+        && diagnosticsCommandAdmission();
+
+    internal async Task<bool> PrepareDiagnosticsPlanAsync(SessionDiagnosticsPlanPreparation preparation,
+        Func<bool> admitted, Func<bool> nativeAdmission, CancellationToken token, Func<bool>? sourceAdmission = null)
+    {
+        if (!CanRead || draftRecoveryCancellation is not null)
+        { throw new InvalidOperationException("Sessions is busy or unavailable; finish the current native review and retry."); }
+        var prepared = false;
+        var epoch = selectionEpoch;
+        bool Eligible() => !closed && selectionEpoch == epoch && admitted() && nativeAdmission()
+            && (sourceAdmission?.Invoke() ?? true);
+        System.Diagnostics.ActivityLink[] causes = [new(preparation.Cause)];
+        await RunAsync(async () =>
+        {
+            if (!Eligible())
+            {
+                status = "Diagnostics plan unavailable: original source/admission changed. No target or buffer changed.";
+                return;
+            }
+            try
+            {
+                if (!await ProtectComposerAsync())
+                {
+                    status = "Diagnostics plan not opened: the original composer draft and selection were kept.";
+                    return;
+                }
+            }
+            catch (Exception exception) when (exception is not OutOfMemoryException)
+            {
+                ReportComposerCloseFailure(exception);
+                status = "Diagnostics plan not opened: the original composer save is unconfirmed. Reconcile the exact draft.";
+                return;
+            }
+            using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(lifetime.Token, token);
+            try
+            {
+                await service.ValidateDiagnosticsPlanPreparationAsync(preparation, Eligible, cancellation.Token);
+                cancellation.Token.ThrowIfCancellationRequested();
+                if (!Eligible()) { throw new OperationCanceledException("Original diagnostics source changed."); }
+            }
+            catch (Exception exception) when (exception is InvalidOperationException or IOException
+                or UnauthorizedAccessException or OperationCanceledException or ArgumentException)
+            {
+                Failure(logger, exception.GetType().Name);
+                status = "Diagnostics plan unavailable: original source/admission changed. Request a fresh exact plan; no target or buffer changed.";
+                return;
+            }
+            LeaveListSearch();
+            ClearSelection();
+            sessionFilter = Kora.Core.Storage.SessionListFilter.All;
+            sessions = new([preparation.Work.Session], null);
+            nameDraft = preparation.Work.Session.Metadata?.Name.Value ?? string.Empty;
+            historySessionId = preparation.Review.Queue.SessionId.Value.ToString("D");
+            ApplyWork(preparation.Work, preparation.Review.AdmissionRevision);
+            diagnosticsProfiles.Clear();
+            diagnosticsProfiles.UnionWith(preparation.Review.Profiles);
+            diagnosticsPlanOutcome = null;
+            diagnosticsSelectionEpoch = selectionEpoch;
+            diagnosticsCommandAdmission = () => admitted() && nativeAdmission();
+            diagnosticsPlanReview = preparation.Review;
+            prepared = true;
+            OnPropertyChanged(nameof(SessionFilter));
+            status = "Exact command preparation only. Inspect the complete original review; nothing was queued or dispatched.";
+        }, activitySession: preparation.Review.Queue.SessionId, activityLinks: causes);
+        return prepared && CanConfirmDiagnosticsPlan;
+    }
 
     public string DiagnosticsPlanStatus
     {
@@ -139,9 +214,11 @@ internal sealed partial class SessionsViewModel
         var review = diagnosticsPlanReview ?? throw new InvalidOperationException("Review your exact selected profiles first.");
         if (!DiagnosticsReviewCurrent) { RetireDiagnosticsReview(); throw new InvalidOperationException("Diagnostics review is stale."); }
         diagnosticsPlanReview = null;
+        var commandAdmission = diagnosticsCommandAdmission;
+        diagnosticsCommandAdmission = static () => true;
         var epoch = selectionEpoch;
         var outcome = await service.ConfirmDiagnosticsPlanAsync(review, () => !closed && selectionEpoch == epoch
-            && selected?.Authority.SessionId == review.Queue.SessionId, lifetime.Token);
+            && selected?.Authority.SessionId == review.Queue.SessionId && commandAdmission(), lifetime.Token);
         // Keep exact partial/uncertain receipts even when the follow-up passive observation is unavailable.
         diagnosticsPlanOutcome = outcome;
         status = "Sequential diagnostics enqueue finished; inspect every item outcome. Earlier commits remain queued. No dispatch or retry.";
@@ -161,6 +238,7 @@ internal sealed partial class SessionsViewModel
     {
         if (diagnosticsPlanReview is { } review) { service.RetireDiagnosticsPlan(review); }
         diagnosticsPlanReview = null;
+        diagnosticsCommandAdmission = static () => true;
         if (clearSelection) { diagnosticsProfiles.Clear(); diagnosticsPlanOutcome = null; }
     }
 

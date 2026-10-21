@@ -17,7 +17,10 @@ internal sealed partial class SavedDraftCatalogueViewModel(
 {
     private readonly HostRequest viewer = HostRequest.Create(RequestOrigin.LocalUi);
     private SavedDraftPage? page;
+    private IReadOnlyList<SavedDraftSummary> records = [];
     private SavedDraftSummary? selected;
+    private SavedDraftPageOrder order;
+    private bool notifying;
     private CancellationTokenSource? operation;
     private SessionListFilter filter;
     private SavedDraftCatalogueMode mode;
@@ -41,9 +44,40 @@ internal sealed partial class SavedDraftCatalogueViewModel(
     private long epoch;
     private long controlRevision = access.ControlRevision;
     private string status = "Refresh explicitly; opening performs no metadata read. " + SavedDraftPage.Scope;
-    public IReadOnlyList<SavedDraftSummary> Records => page?.Records ?? [];
+    public IReadOnlyList<SavedDraftSummary> Records => records;
     public SavedDraftSummary? SelectedRecord => selected;
     public string Status => status;
+    public string OrderHint => "Only the already loaded page is reordered, not all saved drafts. No read or refresh. "
+        + "Session names use ordinal case-sensitive order; unnamed last in either direction. "
+        + "Ties use canonical session ID ascending. Next keeps its original source continuation; no global order, completeness or total.";
+    public IReadOnlyList<OrderOption> Orders { get; } =
+        [new(SavedDraftPageOrder.Source, "Source order (default)"),
+            new(SavedDraftPageOrder.SessionNameAscending, "Session name ascending"),
+            new(SavedDraftPageOrder.SessionNameDescending, "Session name descending"),
+            new(SavedDraftPageOrder.SavedRevisionAscending, "Saved revision ascending"),
+            new(SavedDraftPageOrder.SavedRevisionDescending, "Saved revision descending")];
+    public OrderOption OrderChoice
+    {
+        get => Orders.Single(option => option.Value == order);
+        set { if (value is not null) { Order = value.Value; } }
+    }
+    public SavedDraftPageOrder Order
+    {
+        get => order;
+        set
+        {
+            if (notifying || !CanEditQuery || !Enum.IsDefined(value) || order == value) { return; }
+            SynchronizeAuthority();
+            epoch++;
+            operation?.Cancel();
+            selected = null;
+            order = value;
+            records = page is null ? [] : SavedDraftPageOrdering.Apply(page, order);
+            status = "Order this loaded page changed. Exact selection/details/navigation retired; select explicitly again. "
+                + OrderHint;
+            Notify();
+        }
+    }
     public IReadOnlyList<SessionListFilter> Filters { get; } = Enum.GetValues<SessionListFilter>();
     public SessionListFilter Filter
     {
@@ -165,7 +199,7 @@ internal sealed partial class SavedDraftCatalogueViewModel(
 
     public void Select(SavedDraftSummary? row)
     {
-        if (!CanRead || row is not null && !Records.Contains(row)) { return; }
+        if (notifying || !CanRead || row is not null && !Records.Contains(row)) { return; }
         selected = row;
         Notify();
     }
@@ -181,6 +215,7 @@ internal sealed partial class SavedDraftCatalogueViewModel(
         Clear();
         var result = await service.ReadSavedDraftCatalogue(filter, cursor, current, token, query, metadataFilter);
         if (!current()) { throw new OperationCanceledException("Private catalogue observation revoked."); }
+        records = SavedDraftPageOrdering.Apply(result, order);
         page = result;
         status = "This page: " + result.Records.Length.ToString(CultureInfo.InvariantCulture) + " saved drafts; "
             + result.Scanned.ToString(CultureInfo.InvariantCulture) + " candidate slots consumed; "
@@ -222,14 +257,20 @@ internal sealed partial class SavedDraftCatalogueViewModel(
         }
         catch (OperationCanceledException)
         {
-            Clear();
-            if (!disposed && epoch == originalEpoch) { status = "Cancelled/revoked; no late catalogue page or selection remains current. Refresh."; }
+            if (epoch == originalEpoch)
+            {
+                Clear();
+                if (!disposed) { status = "Cancelled/revoked; no late catalogue page or selection remains current. Refresh."; }
+            }
             activity.Complete(HostOperationOutcome.Cancelled);
         }
         catch (Exception exception) when (exception is not OutOfMemoryException)
         {
-            Clear();
-            if (!disposed && epoch == originalEpoch) { status = "Saved draft catalogue unavailable: " + exception.GetType().Name + ". Refresh; no empty success or newer source followed."; }
+            if (epoch == originalEpoch)
+            {
+                Clear();
+                if (!disposed) { status = "Saved draft catalogue unavailable: " + exception.GetType().Name + ". Refresh; no empty success or newer source followed."; }
+            }
             Failure(logger, exception.GetType().Name);
             activity.Complete(HostOperationOutcome.Failed);
         }
@@ -241,6 +282,7 @@ internal sealed partial class SavedDraftCatalogueViewModel(
     {
         if (!CanEditQuery) { return; }
         InvalidateQuery();
+        order = SavedDraftPageOrder.Source;
         mode = SavedDraftCatalogueMode.Browse;
         queryText = string.Empty;
         ClearMetadata();
@@ -265,13 +307,14 @@ internal sealed partial class SavedDraftCatalogueViewModel(
         epoch++;
         operation?.Cancel();
         Clear();
+        order = SavedDraftPageOrder.Source;
         mode = SavedDraftCatalogueMode.Browse;
         queryText = string.Empty;
         status = "Private source/lifecycle/draft changed. Page, continuation and selection cleared; Refresh.";
         ClearMetadata();
         Notify();
     }
-    private void Clear() { page = null; selected = null; }
+    private void Clear() { page = null; records = []; selected = null; }
     private void ClearMetadata()
     {
         revisionText = string.Empty;
@@ -297,6 +340,7 @@ internal sealed partial class SavedDraftCatalogueViewModel(
         epoch++;
         operation?.Cancel();
         Clear();
+        order = SavedDraftPageOrder.Source;
         mode = SavedDraftCatalogueMode.Browse;
         queryText = string.Empty;
         ClearMetadata();
@@ -305,16 +349,27 @@ internal sealed partial class SavedDraftCatalogueViewModel(
     }
     private void Notify()
     {
-        foreach (var name in new[] { nameof(Records), nameof(SelectedRecord), nameof(SelectedDetails), nameof(Status),
-            nameof(Filter), nameof(Mode), nameof(QueryText), nameof(QueryHint), nameof(CanEditQuery),
-            nameof(RevisionText), nameof(MinimumBytesText), nameof(MaximumBytesText), nameof(MetadataHint),
-            nameof(MinimumScalarsText), nameof(MaximumScalarsText),
-            nameof(SourceText), nameof(ProfileText),
-            nameof(MinimumSessionGenerationText), nameof(MaximumSessionGenerationText),
-            nameof(MinimumNameMetadataRevisionText), nameof(MaximumNameMetadataRevisionText),
-            nameof(MinimumControlRevisionText), nameof(MaximumControlRevisionText),
-            nameof(MinimumAuthorityCeilingText), nameof(MaximumAuthorityCeilingText),
-            nameof(CanSearch), nameof(CanRead), nameof(CanNext), nameof(CanNavigate), nameof(CanCancel) })
-        { OnPropertyChanged(name); }
+        var previous = notifying;
+        notifying = true;
+        try
+        {
+            foreach (var name in new[] { nameof(Records), nameof(SelectedRecord), nameof(SelectedDetails), nameof(Status),
+                nameof(Order), nameof(OrderChoice),
+                nameof(Filter), nameof(Mode), nameof(QueryText), nameof(QueryHint), nameof(CanEditQuery),
+                nameof(RevisionText), nameof(MinimumBytesText), nameof(MaximumBytesText), nameof(MetadataHint),
+                nameof(MinimumScalarsText), nameof(MaximumScalarsText),
+                nameof(SourceText), nameof(ProfileText),
+                nameof(MinimumSessionGenerationText), nameof(MaximumSessionGenerationText),
+                nameof(MinimumNameMetadataRevisionText), nameof(MaximumNameMetadataRevisionText),
+                nameof(MinimumControlRevisionText), nameof(MaximumControlRevisionText),
+                nameof(MinimumAuthorityCeilingText), nameof(MaximumAuthorityCeilingText),
+                nameof(CanSearch), nameof(CanRead), nameof(CanNext), nameof(CanNavigate), nameof(CanCancel) })
+            { OnPropertyChanged(name); }
+        }
+        finally { notifying = previous; }
+    }
+    internal sealed record OrderOption(SavedDraftPageOrder Value, string Label)
+    {
+        public override string ToString() => Label;
     }
 }

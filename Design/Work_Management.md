@@ -49,6 +49,29 @@ not a prerequisite.
 
 ### Bounded fixed local diagnostics queue plan - 2026-10-19
 
+The [exact diagnostics preparation command](../docs/commands.md#prepare-an-exact-local-diagnostics-plan)
+adds only a preparation route to this existing workflow. Original typed input or
+current-name activated voice supplies one nonempty lowercase D session GUID and
+one explicit canonical-order comma-separated subset of the four profiles.
+The parser reserves malformed `session diagnostics` input without model/question/
+approval fallback. Help is inert; no command confirms, enqueues, dispatches,
+resumes, probes or reads a model.
+
+The host captures the existing passive work/source and host-issued diagnostics
+review before deferred native opening. Original input/call/private ownership,
+session generation, source metadata, queue/run/control/deadlines and confirmed
+configuration revisions remain bound; changed observations refuse rather than
+replacing the review with latest state. Opening uses only the existing private
+Sessions owner and preserves its Save/Discard/Cancel composer guard. The complete
+original review and explicit profile selection are adopted only after unchanged
+source/admission validation. Native owner closure, new input or admission changes
+retire confirmation, including throughout each subsequent single enqueue.
+No second planner, limit policy, queue transaction, confirmation route or
+execution authority is introduced. This consumes only the existing command,
+private Sessions, passive work and diagnostics-review **I** subset; unrelated
+E/Q, installed, hardware/provider and retired experiments are not prerequisites
+or claimed qualifications.
+
 The native Sessions **queue** region adds one convenient choose/review/separately-confirm
 workflow for one exact selected active session. Initial selection is empty. The
 user explicitly selects a nonempty subset of at most four unique existing

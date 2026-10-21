@@ -331,6 +331,8 @@ screen-reader/DPI acceptance remains open.
 
 Open **Tray > Sessions > All work / attention overview**, then **Refresh overview**. Opening alone grants nothing and starts no collection. **Next session page** and **Cancel read** are explicit; there is no automatic refresh.
 
+- **Order this loaded page** changes presentation only: **Source (unchanged)** is the default; canonical session ID ascending/descending compares lowercase D-format IDs ordinally; **Observed rows first (category only)** places other availability rows last; saved session name ascending/descending uses case-sensitive Ordinal comparison with unnamed rows last. Observed/name ties use canonical session ID ascending. Only the already admitted metadata is used, including explicit unavailable/unnamed rows; no former name or state is recovered.
+- Ordering is not global sorting, filtering, a count, completeness or an atomic overview. **Observed** does not mean ready, allowed, succeeded, healthy, all-clear or current, and grants no navigation authority, selection or permission. Order edits retire exact selection/details and queued navigation without reading, selecting another session/task, changing a composer, renewing activity or performing any action. Select a fresh exact row before explicit navigation. **Clear page order** restores only Source; all query, task/request, state and range filters remain unchanged. The raw page, counters and authenticated **Next** remain unchanged; explicit Next reads its original continuation and orders that new loaded page. Closing or source/private revocation retires the derived rows too.
 - Each click scans at most ten session identities. The complete page stays within 64 KiB; each independent session source retains the existing fifty task/question bounds and recent queue receipt limit. Scanned/nonmatching/unavailable groups, omitted records and end/byte-limit markers are visible. Next works after zero matches and never skips a byte-deferred session.
 - **All / Active / Done** is the stored session lifecycle, not a task state. **Observed needs answer** means pending-question metadata at that snapshot; unavailable sources remain visible. Question IDs are not freshly admitted reply targets.
 - Optional **NameSubstring / ExactId** and **Search metadata** (or Enter in the field) narrow the bounded scan using the same [session-list query rules](#search-the-session-list). Names are literal case-sensitive saved-name substrings; exact GUIDs require nonempty canonical lowercase D format. Both modes scan at most ten session identities per click here, not the Sessions direct-ID lookup. Empty query browses; invalid nonempty text is rejected without fallback. Typing performs no read. Search and Refresh start fresh with the current query, All/Active/Done and Needs answer filters; Next continues that exact admitted query/filter/source epoch, even after zero matches.
@@ -449,6 +451,30 @@ Find query, count, ordinal and UTF-16 offsets and lexical citation positions rem
 unchanged, without an automatic search. Soft-wrapped visual rows are **not logical
 source lines or citation positions**. Notices, excerpts and exact match spans are
 not reformatted by this control.
+
+### Decoded/admitted display text size
+
+The native preview passively shows **UTF-16 code units**, **Unicode scalars** and
+**strict UTF-8 re-encoding bytes** for only the exact currently displayed admitted
+text. Combining marks count separately; an astral scalar uses two UTF-16 units.
+Newlines and an actual displayed BOM character count as text, unchanged.
+An admitted empty text has zero counts; missing or retired text is unavailable,
+not an empty-file claim. Invalid Unicode makes scalar/byte measurement explicitly
+unavailable, never replacement text or a guessed zero.
+
+These are **decoded/admitted text metrics**, not the original file's encoding,
+on-disk size, retained storage bytes, folder totals or model tokens/capacity.
+The separate **Original source bytes at admission** comes from existing admitted
+metadata and includes a stripped leading UTF-8 BOM, so it can differ from the
+re-encoded text. It is not a fresh filesystem observation.
+
+Changing the folder item changes the measurement subject; no other item is
+counted. Retained inspection measures the already loaded historical text on its
+existing read channel, without recapture or storage reads. Source/window,
+privacy, host input and admission retirement clear the derived values.
+This native-only feedback does not search, edit, copy, save, refresh, renew
+activity, authorize model use or send text/counts to a response, speech, log or
+clipboard. No new text quota or model capacity is inferred.
 
 ### Find a literal in the currently inspected original file
 
@@ -1045,6 +1071,19 @@ replacement, revoke, Cancel task and private/owner/call loss fence late results.
 An internal failure is explicitly unavailable with native recovery, never
 ordinary invalid JSON. No result enters response history, transcripts, speech,
 logs or persistence. No typed, voice or model JSON-validation route is added.
+
+Scroll within the inert source area to **Validate this snapshot as XML**. Only
+pressing this separate button checks the full unchanged retained text in memory.
+It reports WellFormedXML, Invalid or PolicyRefused with a reason and numeric
+line/column, not source excerpts or parser messages. Nothing is repaired,
+formatted, copied, fetched, executed or sent to a model. DTDs are prohibited,
+external resources are disabled and at most 64 element levels are admitted.
+Encoding declarations describe text metadata, not the actual original
+clipboard encoding. Well-formedness is not schema validation, safety, trust,
+uniqueness, absence of secrets or source-use/egress approval. The result belongs
+only to this exact preview and is discarded when it retires; explanation's
+source-use policy remains unavailable. See the
+[XML boundary](../Design/Security_Data_Flows.md#native-clipboard-xml-well-formedness).
 
 The separate **Review local version (native question)** tray entry opens one
 owned native card bound to the original durable host question, not whichever

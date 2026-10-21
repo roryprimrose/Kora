@@ -255,6 +255,7 @@ public sealed partial class OwnedDefinitionEditorWindowTests
 
         internal async Task Run(string command)
         { Session.Main.CommandText = command; await Session.Main.RunTypedCommand.ExecuteAsync(); }
+        internal void DisposeController() => controller.Dispose();
         public async ValueTask DisposeAsync()
         { controller.Dispose(); opened.Dispose(); reload.Dispose(); await Admission.DisposeAsync(); Session.Dispose(); }
     }

@@ -62,6 +62,8 @@ internal sealed partial class LocalFilePreviewWindow(Action<string> reportFailur
         Title = "Immutable complete local folder preview (untrusted plain text)";
         var body = Compose(Describe(revision.Review) + $"\nFolder revision: {revision.Reference.RevisionId:D}",
             null, revision.Files[0].Text);
+        ShowSourceMeasurement(body, isCurrent, revision.Files);
+        var displayedContent = content;
         var files = new ComboBox
         {
             ItemsSource = revision.Files,
@@ -74,12 +76,15 @@ internal sealed partial class LocalFilePreviewWindow(Action<string> reportFailur
         AutomationProperties.SetName(files, "Inspect each exact admitted folder file and digest");
         files.SelectionChanged += (_, _) =>
         {
+            if (!ReferenceEquals(content, displayedContent)) { return; }
             ClearNavigation();
             SetFindSource(null);
-            if (isCurrent() && files.SelectedItem is LocalFileRevision file && revision.Files.Contains(file))
+            content.Text = null;
+            if (isCurrent() && ReferenceEquals(content, displayedContent)
+                && files.SelectedItem is LocalFileRevision file && revision.Files.Contains(file))
             {
                 content.Text = file.Text;
-                SetFindSource(file);
+                if (ReferenceEquals(content, displayedContent)) { SetFindSource(file); }
             }
         };
         DockPanel.SetDock(files, Dock.Top);
@@ -99,6 +104,7 @@ internal sealed partial class LocalFilePreviewWindow(Action<string> reportFailur
         var body = Compose(Describe(revision.Review) + $"\nRevision: {revision.RevisionId:D} / item: {revision.ItemId:D}\n"
             + $"SHA-256 (exact source bytes): {revision.Digest}\nAdmitted: {revision.AdmittedAt:O}",
             null, revision.Text);
+        ShowSourceMeasurement(body, isCurrent, [revision]);
         SetFindSource(revision);
         ShowSearch(body, search, isCurrent, folder: false,
             _ => Task.FromResult<IReadOnlyList<LocalFileRevision>>([revision]), _ => { });
@@ -304,6 +310,7 @@ internal sealed partial class LocalFilePreviewWindow(Action<string> reportFailur
             + $"Original session generation: {attachment.Generation.Value} / captured: {file.AdmittedAt:O}\n"
             + $"Revision: {file.RevisionId:D} / item: {file.ItemId:D}\nSHA-256 of original bytes: {file.Digest}",
             null, file.Text, AttachmentDisclosure);
+        ShowSourceMeasurement(body, isCurrent, [file]);
         SetFindSource(file);
         ShowSearch(body, search, isCurrent, folder: false, async token =>
         {
@@ -439,6 +446,7 @@ internal sealed partial class LocalFilePreviewWindow(Action<string> reportFailur
         ClearSourceWrapping();
         wrappingPanel = null;
         wrappingViewport = null;
+        ClearSourceMeasurement();
         ClearAnswer();
         ClearNavigation();
         SetFindSource(null);

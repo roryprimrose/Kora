@@ -15,11 +15,14 @@ internal sealed partial class NewRequestWindow : Window
     internal Func<Task<ComposerDraftDecision>>? DecideDraft { get; set; }
     internal Func<Task<bool>>? ConfirmDraftSave { get; set; }
 
-    internal NewRequestWindow(NewRequestViewModel model, Func<Task> navigate, Action<Exception> navigationFailure)
+    internal NewRequestWindow(NewRequestViewModel model, Func<Task> navigate, Action<Exception> navigationFailure,
+        Func<Func<bool>>? captureDraftSource = null)
     {
         this.model = model;
         InitializeComponent();
         DataContext = model;
+        _ = new NativeDraftWrapping(this, NewRequestBody, WrapDraftText, model,
+            captureDraftSource ?? (() => () => model.CanEdit));
         DecideDraft = ChooseDraft;
         ConfirmDraftSave = ConfirmSave;
         CreateTarget.Click += async (_, _) => await (Operation = model.Composer.Create());

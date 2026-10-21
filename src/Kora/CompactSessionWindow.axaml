@@ -103,6 +103,9 @@
           AutomationProperties.Name="Shared exact-session memory draft, not question input or approval" />
       <controls:NamedTextBlock x:Name="DraftSizeFeedback" Text="{Binding ComposerDraftSizeFeedback}" TextWrapping="Wrap"
           AutomationProperties.Name="Current editable shared conversation draft size and shape" />
+      <CheckBox x:Name="WrapDraftText" Content="Wrap draft text" IsEnabled="{Binding CanCompose}"
+          AutomationProperties.Name="Wrap draft text"
+          ToolTip.Tip="Visual rows only, not logical lines or tokens. Exact draft text is unchanged. Uncheck to scroll long lines horizontally; this view and source only, until closed." />
       <WrapPanel>
         <Button x:Name="SaveConversationDraft" Content="Explicitly Save draft" IsEnabled="{Binding CanSaveConversationDraft}" />
         <Button x:Name="RecoverConversationDraft" Content="Review latest saved baseline; retain shared buffer" IsEnabled="{Binding CanRecoverConversationDraft}"

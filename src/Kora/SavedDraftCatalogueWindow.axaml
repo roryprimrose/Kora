@@ -137,8 +137,29 @@
         </ListBox.ItemTemplate>
       </controls:ScrollableListBox>
       <ScrollViewer Grid.Column="1" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
-        <controls:NamedTextBlock Text="{Binding SelectedDetails}" TextWrapping="Wrap"
+        <StackPanel Spacing="8">
+        <controls:NamedTextBlock x:Name="SelectedMetadataDetails" Text="{Binding SelectedDetails}" TextWrapping="Wrap"
           AutomationProperties.Name="Selected immutable saved draft metadata only, no body, excerpt or digest" />
+        <StackPanel x:Name="MetadataFindPanel" Spacing="6">
+          <TextBlock Text="Find in this selected metadata string only (Ctrl+F)." TextWrapping="Wrap" />
+          <controls:NamedTextBlock Text="{Binding MetadataFindHint}" TextWrapping="Wrap" />
+          <TextBox x:Name="MetadataFindQuery" Text="{Binding MetadataFindQuery, Mode=TwoWay}" IsEnabled="{Binding CanFindMetadata}"
+                   IsUndoEnabled="False" AcceptsReturn="False"
+                   AutomationProperties.Name="{Binding MetadataFindHint}" />
+          <WrapPanel>
+            <Button x:Name="MetadataFindFirst" Content="Find _first" IsEnabled="{Binding CanFindMetadata}" AutomationProperties.Name="Find first exact literal metadata match; Enter in Find query" />
+            <Button x:Name="MetadataFindNext" Content="Find ne_xt" IsEnabled="{Binding CanNavigateMetadataFind}" AutomationProperties.Name="Find next nonoverlapping metadata match; F3; no wrap" />
+            <Button x:Name="MetadataFindPrevious" Content="Find _previous" IsEnabled="{Binding CanNavigateMetadataFind}" AutomationProperties.Name="Find previous nonoverlapping metadata match; Shift F3; no wrap" />
+            <Button x:Name="MetadataFindClear" Content="Clear _Find" IsEnabled="{Binding CanFindMetadata}" AutomationProperties.Name="Clear private metadata Find query, match and count; Escape in Find" />
+          </WrapPanel>
+          <controls:NamedTextBlock x:Name="MetadataFindStatus" Text="{Binding MetadataFindStatus}" TextWrapping="Wrap"
+                                  AutomationProperties.Name="Metadata literal Find outcome and exact UTF-16 coordinates" />
+          <controls:NamedTextBlock x:Name="MetadataFindPosition" Text="{Binding MetadataFindPosition}" TextWrapping="Wrap"
+                                  AutomationProperties.Name="Nonoverlapping count and ordinal in this selected admitted metadata string only" />
+          <controls:NamedTextBlock x:Name="MetadataFindSpan" Text="{Binding MetadataFindMatch}" IsVisible="{Binding HasMetadataFindMatch}"
+                                  Focusable="True" TextWrapping="Wrap" AutomationProperties.Name="Exact inert selected metadata literal match" />
+        </StackPanel>
+        </StackPanel>
       </ScrollViewer>
     </Grid>
     <WrapPanel Grid.Row="4">

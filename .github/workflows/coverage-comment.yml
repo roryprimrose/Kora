@@ -43,8 +43,7 @@ jobs:
               const number = Number(match[1]);
               const { data: pr } = await github.rest.pulls.get({ ...context.repo, pull_number: number });
               const checks = await github.paginate(github.rest.checks.listForRef,
-                { ...context.repo, ref: pr.head.sha, check_name: 'Merge admission', per_page: 100 },
-                response => response.data.check_runs);
+                { ...context.repo, ref: pr.head.sha, check_name: 'Merge admission', per_page: 100 });
               if (!checks.some(check => check.app.id === Number(process.env.QUEUE_APP_ID) &&
                 check.external_id === match[2])) {
                 core.notice('Candidate head changed; its coverage is not posted as current PR evidence.');

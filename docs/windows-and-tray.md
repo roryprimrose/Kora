@@ -194,6 +194,20 @@ message storage quota and no automatic eviction. Read pages have at most
 50 records/64 KiB complete output. These are predictable work/UI bounds,
 not a total database-size or unlimited physical-disk promise.
 
+**Current draft size and shape** updates beside the editable buffer in New
+request, Sessions and the expanded conversation window. It shows actual UTF-8
+bytes, Unicode scalars and UTF-16 code units, with the same Save/Submit bounds
+above. There is no separate scalar-count maximum: an astral character counts as
+one scalar but two UTF-16 units. Empty/whitespace drafts may be saved, but cannot
+be submitted. Malformed Unicode has no byte/scalar total; the display reports it
+explicitly rather than counting replacement characters. Unsupported control
+content and over-limit drafts remain editable, never shortened or repaired.
+This is size/Unicode feedback only, not credential clearance, model readiness
+or permission to Save/Submit. It measures only the current buffer, not saved or
+reviewed bodies, questions, approvals or assistant answers. Reading it does not
+save, submit, renew activity, log content or start any model/device/network work.
+Private presentation revocation removes the metrics along with private content.
+
 Save/Submit also perform bounded **local best-effort credential-like checks**:
 private-key PEM blocks/candidates, Authorization Bearer/Basic values, explicit
 password/client_secret/api_key assignments, declared GitHub token shapes and
@@ -473,6 +487,28 @@ Presence and response timeouts are independent. **Always show** keeps only
 the response window visible; idle presence still uses its own timeout.
 
 ## Retained session attachments (metadata only)
+
+### Order this loaded page
+
+After explicitly reading a page, use **Order this loaded page** to choose
+**Source order (default)** or **Retained byte count ascending/descending**
+(unknown last). This is **page-only, metadata-only**
+presentation: it never reads a file, body or path, refreshes a source, changes a
+query, scans more rows, changes storage order or gives a global order/count.
+
+This catalogue does not admit display names, so no display-name ordering is
+offered. Equal byte counts use the canonical exact retained-slot session ID,
+ascending ordinal, as a stable tie-break in both directions. Unknown byte
+counts remain last in either direction, not zero. Removed/unavailable provenance
+never recovers former names, counts, digest or source metadata.
+
+Changing order erases selection, details, literal Find and native open readiness,
+including pending open callbacks. Select a current row again explicitly.
+**Clear order (Source order)** restores the original loaded-page sequence
+without a read. **Next bounded page** still uses that page's original semantic
+continuation, not its last displayed row. The chosen order applies separately to
+the next admitted page. Clear query, privacy/source/control revocation and close
+restore Source order; existing lifetime and private-admission checks remain.
 
 ### Find within selected displayed metadata
 

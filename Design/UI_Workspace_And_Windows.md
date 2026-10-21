@@ -279,6 +279,26 @@ provider, memory-content or mutation authority is added.
 
 ### Delivered Retained Session Attachment Catalogue - 2026-10-11
 
+**Order this loaded page** is a pure bounded metadata presentation policy in
+Core. It validates the entire admitted page before ordering, preserves Source
+order by default and uses ascending canonical D-format session IDs (the
+authoritative unique retained-slot key) for ties in both directions. Retained
+byte ordering consumes only `RetainedStoredBytes`, with unknown values last.
+Only Source order and retained-byte ascending/descending are offered.
+The current projection has no display names, so no name-sort modes exist and no
+names are recovered from source/path/body data. No projection, schema, scan,
+continuation or budget changes are implied.
+
+Order edits and the separate no-read Clear order retire selection/details/Find
+and exact-open readiness, cancel in-flight open work and replace presentation
+identities to reject stale native selection callbacks. The admitted source page
+and semantic Next token stay unchanged; late work cannot overwrite that new
+presentation. Private/control/session/source/window lifetime revocation still
+clears both. This is an I-only feature qualified by deterministic portable and
+headless accessibility tests, not provider, installed-screen-reader or hardware
+qualification. [User ordering workflow](../docs/windows-and-tray.md#order-this-loaded-page)
+owns the control instructions.
+
 **Tray > Retained session attachments** is a separate native metadata-only window, not the current-question recovery surface, All Work overview, model context or a conversation. Opening reads nothing. Refresh/Next/Cancel returns at most sixteen content-free summaries / 64 KiB, scanning sixty-four slots; optional removal provenance is independent of the sixteen retained-body cap.
 
 Native default Browse and explicit canonical **ExactId** share the same bounded validator/scan, with Search/Enter, Next/Cancel and memory-only Clear. ID/mode/removal-filter edits retire selection, results, continuation and pending work; private/source closure erases the volatile query and fences late disclosure.
@@ -576,6 +596,11 @@ Labelled keyboard-focusable exact digest/native revision and inclusive canonical
 List/Refresh reconciles the existing bounded source pipeline; query/filter/Next only projects its admitted immutable owned metadata snapshot. Complete labels/details are bounded to 64 KiB UTF-8 with explicit omissions and Next when needed.
 Selection alone never opens another file, grants use or retargets an unsaved draft. Inspect revalidates the original kind/filename/digest/native revision and catalogue/private epoch. Stale choices require Refresh/reselection; failed reload clears availability, while the original/draft remains subject to existing privacy guards.
 Private closure clears query/rows/selection/editor text and suppresses late publication. Keyboard-native controls and current exact List/Inspect commands share the editor; broader profile editing, source filters and accessibility/installed qualification remain deferred. See [owned inventory controls](../docs/instruction-editor.md#search-observed-owned-metadata).
+
+The same editor has a separate native-only **Displayed owned buffer Find** toolbar: Ctrl+F, first/next/previous/clear, exact case-sensitive bounded literals, complete nonoverlapping count/ordinal and no wrap.
+It selects only the exact occurrence in the existing displayed source control, including dirty drafts; metadata inventory selection and source editing/undo/accessibility stay native.
+Buffer, chosen identity, loading and private/control lifetime changes retire matches and callbacks; focus failure reports recovery rather than a match.
+No disk/discovery, mutation, validation, use or clipboard authority is added. See the [owning definition contract](Definition_Management.md) and [native buffer workflow](../docs/instruction-editor.md#find-in-the-displayed-owned-buffer).
 
 The owned Instruction/Prompt editor's explicit **Compare** opens only a Close-only passive native viewer: frozen inspected baseline beside exact current memory draft, or labelled missing/new baseline. Raw source and separately labelled prepared-Save validation are distinct. Identity/input/source/private changes withdraw and clear it; it has no mutation, consent, copy/export or use-review authority. See [Compare source presentation](../docs/instruction-editor.md#compare-the-open-draft-without-saving); this is not the planned full profile/diff workspace or installed/accessibility qualification.
 

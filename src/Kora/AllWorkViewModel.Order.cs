@@ -40,9 +40,11 @@ internal sealed partial class AllWorkViewModel
         if (!Enum.IsDefined(value)) { throw new ArgumentOutOfRangeException(nameof(value)); }
         if (!CanEdit || notifyingOrder || !clear && order == value) { return; }
         var projection = page is null ? [] : ProjectRows(page, value);
+        RetireFind();
         epoch++;
         orderRetirementEpoch = epoch;
         selected = null;
+        selectedDetails = string.Empty;
         order = value;
         orderedRecords = projection;
         notifyingOrder = true;

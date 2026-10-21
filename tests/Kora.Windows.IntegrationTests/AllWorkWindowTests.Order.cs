@@ -64,6 +64,9 @@ public sealed partial class AllWorkWindowTests
                 model.CanNext.Should().BeTrue();
                 model.Select(source[0]);
                 model.CanNavigate.Should().BeTrue();
+                model.EditFind("Session");
+                model.FindMetadata(Kora.Core.Context.SnapshotFindDirection.First);
+                model.CanFind.Should().BeTrue();
                 var reads = held.Reads;
                 var metadataReads = held.MetadataReads;
                 var reentrant = 0;
@@ -84,6 +87,10 @@ public sealed partial class AllWorkWindowTests
                 model.Records.Should().Equal(source.Reverse());
                 model.SelectedRecord.Should().BeNull();
                 model.SelectedDetails.Should().BeEmpty();
+                model.FindQuery.Should().BeEmpty();
+                model.FindMatch.Should().BeEmpty();
+                model.FindStatus.Should().BeEmpty();
+                model.CanFind.Should().BeFalse();
                 model.CanNavigate.Should().BeFalse();
                 model.Select(source[0]);
                 model.SelectedRecord.Should().BeNull("callbacks from an older projection are retired");

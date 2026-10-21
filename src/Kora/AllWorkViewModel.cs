@@ -35,7 +35,7 @@ internal sealed partial class AllWorkViewModel(
     private long epoch;
     private string status = "Refresh manually to inspect a bounded page. Opening grants nothing. " + SessionWorkOverviewPage.Scope;
 
-    public IReadOnlyList<SessionWorkOverviewRow> Records => page?.Records ?? [];
+    public IReadOnlyList<SessionWorkOverviewRow> Records => orderedRecords;
     public SessionWorkOverviewRow? SelectedRecord => selected;
     public IReadOnlyList<SessionListFilter> Filters { get; } = Enum.GetValues<SessionListFilter>();
     public IReadOnlyList<SessionListSearchKind> QueryKinds { get; } =
@@ -212,7 +212,7 @@ internal sealed partial class AllWorkViewModel(
 
     public void Select(SessionWorkOverviewRow? row)
     {
-        if (closed || busy || row is not null && !Records.Contains(row)) { return; }
+        if (closed || busy || notifyingOrder || row is not null && !Records.Any(current => ReferenceEquals(current, row))) { return; }
         RetireFind();
         selected = row;
         selectedDetails = row is null ? string.Empty : Describe(row);
@@ -250,8 +250,10 @@ internal sealed partial class AllWorkViewModel(
             var revision = access.ControlRevision;
             var result = await service.ReadWorkOverviewAsync(filter, needsAnswer, cursor, token, query, availability, content, ranges, taskState, taskQuery);
             token.ThrowIfCancellationRequested();
+            var projection = ProjectRows(result, order);
             page = result;
             pageControlRevision = revision;
+            orderedRecords = projection;
             status = "This page: " + result.Records.Length.ToString(CultureInfo.InvariantCulture) + " groups; "
                 + result.Scanned.ToString(CultureInfo.InvariantCulture) + " consumed/scanned; "
                 + result.Nonmatches.ToString(CultureInfo.InvariantCulture) + " filter nonmatches; "
@@ -302,8 +304,12 @@ internal sealed partial class AllWorkViewModel(
         }
         catch (OperationCanceledException)
         {
-            ClearPage();
-            if (!closed) { status = "Overview cancelled/source changed. No late or partial page is current; Refresh."; }
+            if (orderRetirementEpoch != epoch || admittedEpoch == epoch || page is null || closed
+                || !access.CanInspect || revision != access.ControlRevision)
+            {
+                ClearPage();
+                if (!closed) { status = "Overview cancelled/source changed. No late or partial page is current; Refresh."; }
+            }
             activity.Complete(HostOperationOutcome.Cancelled);
         }
         catch (Exception exception) when (exception is not OutOfMemoryException)
@@ -333,6 +339,7 @@ internal sealed partial class AllWorkViewModel(
     {
         RetireFind();
         page = null;
+        orderedRecords = [];
         selected = null;
         selectedDetails = string.Empty;
     }
@@ -344,6 +351,7 @@ internal sealed partial class AllWorkViewModel(
         closing = true;
         epoch++;
         ClearPage();
+        order = SessionWorkOverviewPageOrder.Source;
         filter = SessionListFilter.All;
         availability = null;
         content = SessionWorkOverviewContent.Any;
@@ -371,6 +379,8 @@ internal sealed partial class AllWorkViewModel(
     {
         if (find is not null && !FindCurrent()) { RetireFind(); }
         OnPropertyChanged(nameof(Records));
+        OnPropertyChanged(nameof(Order));
+        OnPropertyChanged(nameof(SelectedOrderChoice));
         OnPropertyChanged(nameof(SelectedRecord));
         OnPropertyChanged(nameof(SelectedDetails));
         NotifyFind();

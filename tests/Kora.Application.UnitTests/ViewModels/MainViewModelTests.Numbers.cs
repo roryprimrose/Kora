@@ -125,21 +125,23 @@ public sealed partial class MainViewModelTests
         f.Reasoner.Requests.Should().BeEmpty();
     }
 
-    [Fact]
-    public async Task NumberVoiceUsesCurrentNameAndPreservesOutputPolicy()
+    [Theory]
+    [InlineData("Nova")]
+    [InlineData("What Time")]
+    public async Task NumberVoiceUsesCurrentNameAndPreservesOutputPolicy(string assistantName)
     {
         var f = await Fixture.CreateInitializedAsync();
         var outputMode = f.ViewModel.DefaultResponseMode;
-        await f.RunAsync("set assistant name to Nova");
-        await f.RaiseActivatedTranscriptAsync("Nova, number convert -FF from hex to decimal", 1);
+        await f.RunAsync("set assistant name to " + assistantName);
+        await f.RaiseActivatedTranscriptAsync(assistantName + ", number convert -FF from hex to decimal", 1);
         f.ViewModel.ResponseBody.Should().Be("-255");
         f.ViewModel.DefaultResponseMode.Should().Be(outputMode);
         await f.RaiseActivatedTranscriptAsync("number help", 1);
         f.ViewModel.Transcript.Should().StartWith("Number conversion unavailable:");
-        await f.RaiseActivatedTranscriptAsync("Nova:number help", 1);
+        await f.RaiseActivatedTranscriptAsync(assistantName + ":number help", 1);
         f.ViewModel.ResponseTitle.Should().Be("Invalid number command.");
         f.ViewModel.BindVoiceOwnershipGate(static () => false);
-        await f.RaiseActivatedTranscriptAsync("Nova, number help", 1);
+        await f.RaiseActivatedTranscriptAsync(assistantName + ", number help", 1);
         f.ViewModel.Transcript.Should().StartWith("Number conversion unavailable:");
         f.Reasoner.Requests.Should().BeEmpty();
     }

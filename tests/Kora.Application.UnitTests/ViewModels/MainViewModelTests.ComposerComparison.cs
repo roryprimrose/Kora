@@ -121,11 +121,13 @@ public sealed partial class MainViewModelTests
             CaptureLaunch(session, origin, admitted);
     }
 
-    [Fact]
-    public async Task CompareTypedAndActivatedVoiceCaptureBeforeFeedbackAndPublishOnlyNativeAcknowledgement()
+    [Theory]
+    [InlineData("Nova")]
+    [InlineData("What Time")]
+    public async Task CompareTypedAndActivatedVoiceCaptureBeforeFeedbackAndPublishOnlyNativeAcknowledgement(string assistantName)
     {
         var f = await Fixture.CreateInitializedAsync();
-        await f.RunAsync("set assistant name to Nova");
+        await f.RunAsync("set assistant name to " + assistantName);
         var captures = 0;
         var opens = 0;
         var origins = new List<RequestOrigin>();
@@ -143,7 +145,7 @@ public sealed partial class MainViewModelTests
         f.ViewModel.BindComposerComparisonNavigation(native);
         await f.RunAsync(CompareInput);
         f.ViewModel.Transcript.Should().Contain("native view only");
-        await f.RaiseActivatedTranscriptAsync("Nova, " + CompareInput, 1);
+        await f.RaiseActivatedTranscriptAsync(assistantName + ", " + CompareInput, 1);
         captures.Should().Be(2);
         opens.Should().Be(2);
         origins.Should().Equal(RequestOrigin.LocalUi, RequestOrigin.ActivatedVoice);

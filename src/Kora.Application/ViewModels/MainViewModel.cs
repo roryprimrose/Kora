@@ -4154,7 +4154,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         var sessionCommand = SessionCommand.Parse(spokenText, AssistantName);
         var cataloguePreparation = manualInput?.CataloguePreparation
             ?? AttachmentCataloguePreparationCommand.Parse(spokenText, AssistantName);
-        if (sessionCommand is null && cataloguePreparation is null
+        var compareCommand = SessionDraftCompareCommand.Parse(spokenText, AssistantName);
+        if (sessionCommand is null && cataloguePreparation is null && compareCommand is null
             && LocalClockCommand.Parse(spokenText, AssistantName) is { } clockCommand)
         {
             ExecuteLocalClockCommand(clockCommand, initiator, manualInput);
@@ -4165,7 +4166,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             await PrepareAttachmentCatalogue(cataloguePreparation, initiator, manualInput);
             return;
         }
-        if (SessionDraftCompareCommand.Parse(spokenText, AssistantName) is { } compareCommand)
+        if (compareCommand is not null)
         {
             await ExecuteComposerComparisonCommand(compareCommand, spokenText, initiator, manualInput);
             return;

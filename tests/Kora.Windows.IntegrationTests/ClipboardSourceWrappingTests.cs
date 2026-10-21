@@ -58,6 +58,8 @@ public sealed class ClipboardSourceWrappingTests
                 peer.GetAutomationControlType().Should().Be(AutomationControlType.CheckBox);
                 source.Focusable.Should().BeFalse();
                 window.GetVisualDescendants().OfType<TextBox>().Should().ContainSingle();
+                window.GetVisualDescendants().OfType<Button>().Select(button => button.Content)
+                    .Should().NotContain("Validate this snapshot as JSON").And.NotContain("Validate this snapshot as XML");
                 fixture.Main.ReaderTextScalePercent = percent;
                 await fixture.Main.AppearanceUpdate;
                 foreach (var width in Widths)

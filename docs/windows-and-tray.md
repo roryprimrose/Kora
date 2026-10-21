@@ -1,5 +1,8 @@
 # Windows, tray, and appearance
 
+**Product realignment:** conversation input is moving from saved-draft document management to per-conversation in-memory unsent text. The saved-draft catalogue/comparison and engineering-heavy normal workspace controls below describe current implementations approved for retirement or simplification, not the target workflow.
+Existing saved content remains governed by retention and private recovery. See the [approved scope](../Design/MVP_Scope.md#approved-retirement-and-simplification).
+
 ## Native app provider field review
 
 **Settings > Providers** retains the complete app tuple workflow and adds individual exact model/reasoning/context review. Inspect current catalogue, select the service, review one field, inspect the whole resulting tuple/account/revision/provenance, then confirm or cancel separately. Individual edits retain the app default, other service tuples and session overrides.
@@ -1063,39 +1066,6 @@ Editing immediately clears count, ordinal and match without I/O. **Clear literal
 Reader text scaling applies to the snapshot body and exact span without changing query text, offsets or focus; query/status controls remain unscaled ([headless scaling contract](../tests/Kora.Windows.IntegrationTests/NativeReaderTextScaleTests.cs)).
 Cut/copy/paste/context routes are blocked, including query shortcuts. Private/owner/call loss, replacement, revoke, close and disposal clear volatile state and fence callbacks. Find never rereads the clipboard or invokes reuse/revoke, inference, persistence, history, activity renewal or a new timer.
 See the [canonical contract and automated evidence](../Design/Security_Data_Flows.md#delivered-r07-local-clipboard-preview---2026-10-07); installed-native accessibility/privacy qualification remains separate.
-
-**Validate this snapshot as JSON** is a separate explicit native button for the
-complete original snapshot, not the Find query or matching span. Opening the
-preview, editing Find and navigating matches do not validate. The source remains
-unchanged, inert and untrusted; validation neither reads the clipboard again nor
-formats, repairs, copies, saves or renews the capture/review.
-
-The separate focusable outcome reports **syntactically valid JSON** and its root
-kind, or an invalid-syntax/depth refusal with zero-based line and UTF-8 byte
-position only. Objects, arrays, strings, numbers, booleans and null can all be
-valid roots. One complete value is required: comments, trailing commas, extra
-values and nesting beyond 64 are refused without truncation. Duplicate property
-names are not checked; this is not semantic or schema validation. Valid does not
-mean safe, trusted, secret-free, schema-approved or approved for models/egress.
-Original capture eligibility and the existing 15-minute review ceiling apply,
-without renewal. Expiry retires only syntax state, not the source. Close,
-replacement, revoke, Cancel task and private/owner/call loss fence late results.
-An internal failure is explicitly unavailable with native recovery, never
-ordinary invalid JSON. No result enters response history, transcripts, speech,
-logs or persistence. No typed, voice or model JSON-validation route is added.
-
-Scroll within the inert source area to **Validate this snapshot as XML**. Only
-pressing this separate button checks the full unchanged retained text in memory.
-It reports WellFormedXML, Invalid or PolicyRefused with a reason and numeric
-line/column, not source excerpts or parser messages. Nothing is repaired,
-formatted, copied, fetched, executed or sent to a model. DTDs are prohibited,
-external resources are disabled and at most 64 element levels are admitted.
-Encoding declarations describe text metadata, not the actual original
-clipboard encoding. Well-formedness is not schema validation, safety, trust,
-uniqueness, absence of secrets or source-use/egress approval. The result belongs
-only to this exact preview and is discarded when it retires; explanation's
-source-use policy remains unavailable. See the
-[XML boundary](../Design/Security_Data_Flows.md#native-clipboard-xml-well-formedness).
 
 The separate **Review local version (native question)** tray entry opens one
 owned native card bound to the original durable host question, not whichever

@@ -7,6 +7,9 @@ source-revision: 2f33199
 
 ## What you can use today
 
+**Product realignment:** the [approved scope](Design/MVP_Scope.md#approved-retirement-and-simplification) retires native utilities and saved-draft document management and simplifies engineering-heavy workspace/diagnostic-queue surfaces.
+These are target changes, not claims of completed removal. The entries below describe existing behavior until the corresponding code and documentation changes merge.
+
 **Exact retained message Details:** explicitly open one original USER record and separately typed HOST status from the shared Sessions/compact conversation row. Source/revision checks refuse stale content; Done remains passive. This is not generated assistant output or clipboard/export permission. See the [Details guide](docs/windows-and-tray.md#exact-retained-original-message-details).
 
 **Compact selected-session conversation:** open it from tray or Sessions to use the same selected target and memory composer in a lightweight view.

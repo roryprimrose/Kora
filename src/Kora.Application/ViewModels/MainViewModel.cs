@@ -252,7 +252,6 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         Kora.Tools.Clipboard.ClipboardReuse clipboardReuse,
         Kora.Tools.Clipboard.ClipboardRevoke clipboardRevoke,
         Kora.Tools.Clipboard.ClipboardExplain clipboardExplain,
-        Kora.Tools.Clipboard.ClipboardValidateJson clipboardValidateJson,
         AuditedPreferenceWriter preferenceWriter,
         BoundedAudioOutputCatalog outputCatalog,
         BoundedMicrophoneCatalog? microphoneCatalog = null,
@@ -280,8 +279,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         SessionRetentionPlannerService? sessionRetentionPlanner = null,
         Kora.Application.Voice.SpeechPreparationCoordinator? speechPreparation = null,
         DiagnosticImpactPreviewService? diagnosticImpactPreview = null,
-        Kora.Application.Context.ClipboardExplanationWorkflow? clipboardExplanation = null,
-        Kora.Application.Clock.LocalClockWorkflow? localClock = null)
+        Kora.Application.Context.ClipboardExplanationWorkflow? clipboardExplanation = null)
     {
         this.commandCatalog = commandCatalog;
         this.commandRouter = commandRouter;
@@ -447,9 +445,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         this.clipboardReuse = clipboardReuse;
         this.clipboardRevoke = clipboardRevoke;
         this.clipboardExplain = clipboardExplain;
-        this.clipboardValidateJson = clipboardValidateJson;
         this.clipboardExplanation = clipboardExplanation;
-        this.localClock = localClock;
         if (clipboardExplanation is not null) { clipboardExplanation.Changed += OnClipboardPreviewChanged; }
         clipboardPreview.Changed += OnClipboardPreviewChanged;
 
@@ -637,8 +633,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
                       || SessionDispositionReviewCommand.Parse(CommandText, AssistantName) is not null
                       || WorkspaceSurfaceCommand.Parse(CommandText, AssistantName) is not null
                       || AttachmentCataloguePreparationCommand.Parse(CommandText, AssistantName) is not null
+                      || EvidenceTraceCommand.Parse(CommandText, AssistantName) is not null
                       || MemoryCommand.Parse(CommandText, AssistantName) is not null
-                      || LocalClockCommand.Parse(CommandText, AssistantName) is not null
                       || IsInstructionEditorCommand(CommandText)
                       || Kora.Application.Skills.SkillReviewCommand.Parse(CommandText, AssistantName) is not null
                       || Kora.Core.Interaction.LocalEventCommand.Parse(CommandText, AssistantName) is not null
@@ -1910,6 +1906,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             if (SetProperty(ref commandText, value))
             {
                 Interlocked.Increment(ref attachmentCatalogueComposerRevision);
+                Interlocked.Increment(ref evidenceTraceInputRevision);
                 RefreshArtifactCommandOptions();
                 RunTypedCommand.NotifyCanExecuteChanged();
             }
@@ -4081,12 +4078,12 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             ApplicationLog.Debug(logger, "Rejected an unactivated or stale voice transcript");
             ApplicationLog.VoiceDispatchGate(logger, eventArgs.Generation, "RejectedAfterQueue");
             ReportRetiredSkillReview(eventArgs.Transcript);
-            if (LocalClockCommand.Parse(eventArgs.Transcript, AssistantName) is not null)
-            { Transcript = "Local clock unavailable: the original voice generation or host was revoked."; }
             if (SettingsSectionCommand.Parse(eventArgs.Transcript, AssistantName) is not null)
             { Transcript = "Settings navigation unavailable: the original voice generation or host was revoked."; }
             if (manualInput.CataloguePreparation is not null)
             { Transcript = "Attachment catalogue preparation unavailable: the original voice generation or host was revoked."; }
+            if (EvidenceTraceCommand.Parse(eventArgs.Transcript, AssistantName) is not null)
+            { Transcript = "Evidence trace unavailable: the original voice generation or host was revoked."; }
             return;
         }
         if (Interlocked.CompareExchange(ref acceptedTranscriptGeneration, -1, eventArgs.Generation) != eventArgs.Generation)
@@ -4097,8 +4094,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         ApplicationLog.VoiceDispatchGate(logger, eventArgs.Generation, "Admitted");
         IsListening = voiceRecognition.IsListening;
         if (SettingsSectionCommand.Parse(eventArgs.Transcript, AssistantName) is not null
-            || LocalClockCommand.Parse(eventArgs.Transcript, AssistantName) is not null
-            || manualInput.CataloguePreparation is not null)
+            || manualInput.CataloguePreparation is not null
+            || EvidenceTraceCommand.Parse(eventArgs.Transcript, AssistantName) is not null)
         {
             await HandleTranscriptAsync(eventArgs.Transcript, eventArgs.Confidence,
                 SecurityAuditInitiator.VoiceCommand, manualInput);
@@ -4140,21 +4137,19 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         }
         Interlocked.Increment(ref workspaceSurfaceInputRevision);
         Interlocked.Increment(ref diagnosticsPlanEpoch);
-        if (Kora.Core.Calculations.CalculateCommand.Parse(spokenText, AssistantName) is { } calculateCommand)
-        {
-            ExecuteCalculateCommand(calculateCommand, initiator, manualInput);
-            return;
-        }
+        Interlocked.Increment(ref evidenceTraceInputRevision);
         var sessionCommand = SessionCommand.Parse(spokenText, AssistantName);
-        if (sessionCommand is null && LocalClockCommand.Parse(spokenText, AssistantName) is { } clockCommand)
-        {
-            ExecuteLocalClockCommand(clockCommand, initiator, manualInput);
-            return;
-        }
-        if ((manualInput?.CataloguePreparation
-            ?? AttachmentCataloguePreparationCommand.Parse(spokenText, AssistantName)) is { } cataloguePreparation)
+        var cataloguePreparation = manualInput?.CataloguePreparation
+            ?? AttachmentCataloguePreparationCommand.Parse(spokenText, AssistantName);
+        var evidenceTraceCommand = EvidenceTraceCommand.Parse(spokenText, AssistantName);
+        if (cataloguePreparation is not null)
         {
             await PrepareAttachmentCatalogue(cataloguePreparation, initiator, manualInput);
+            return;
+        }
+        if (evidenceTraceCommand is not null)
+        {
+            await PrepareEvidenceTraceAsync(evidenceTraceCommand, initiator, manualInput);
             return;
         }
         if (Kora.Application.Skills.SkillReviewCommand.Parse(spokenText, AssistantName) is { } reviewCommand)
@@ -5708,8 +5703,6 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
                     + "Use “show spoken summary limits” to inspect future ordinary-speech sentence/word budgets; “list speech settings” lists exact set/reset syntax. "
                     + "Use “open skill packages” or “open shared skill sources” for native review only; neither enables or runs skills. "
                     + PreparedLocalSearchCommand.Syntax + " "
-                    + Kora.Core.Calculations.CalculateCommand.Syntax + " "
-                    + LocalClockCommand.Syntax + " "
                     + (LocalModelsEnabled && Dependencies.Any(status =>
                         string.Equals(status.Id, "local.inference", StringComparison.Ordinal)
                         && status.Readiness == DependencyReadiness.Ready)
@@ -6167,11 +6160,10 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             .Concat(ClipboardSnapshotStatusCommand.DiscoveryPhrases)
             .Concat(LocalFileCommand.FixedPhrases)
             .Concat(PreparedLocalSearchCommand.DiscoveryPhrases)
-            .Concat(Kora.Core.Calculations.CalculateCommand.DiscoveryPhrases)
-            .Concat(LocalClockCommand.FixedPhrases)
             .Concat(AttachmentCataloguePreparationCommand.DiscoveryPhrases)
             .Concat(SessionCommand.DiscoveryPhrases)
             .Concat(WorkspaceSurfaceCommand.FixedPhrases)
+            .Concat(EvidenceTraceCommand.DiscoveryPhrases)
             .Concat(MemoryCommand.DiscoveryPhrases)
             .Concat(AssistantNameCommand.DiscoveryPhrases)
             .Concat(InputDeviceCommand.FixedPhrases)

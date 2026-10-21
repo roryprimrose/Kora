@@ -749,7 +749,11 @@ public sealed partial class MainViewModel
                 // Activated input must not replace the exact source before the user can name it.
                 ReportWebResultDetailStatus("Capturing your command. Release Push to talk to finish.");
             }
-            else if (Volatile.Read(ref ordinaryResponse) is not null && !IsResponseInteractionPending)
+            else if (IsResponseInteractionPending)
+            {
+                Transcript = "Release Push to talk to finish. The pending question or approval remains unchanged.";
+            }
+            else if (Volatile.Read(ref ordinaryResponse) is not null)
             {
                 State = AssistantState.Listening;
                 Transcript = "Release Push to talk to finish. Only this explicitly activated command is transcribed locally. The current response remains unchanged.";

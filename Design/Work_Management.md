@@ -10,6 +10,14 @@ management/execution lanes below are shipped.
 
 Related: [Interaction and Sessions](Interaction_And_Sessions.md), [Architecture](Architecture.md), [Task Lifecycle](Task_Lifecycle.md), [Security and Data Flows](Security_Data_Flows.md), [Acceptance Criteria](Acceptance_Criteria.md).
 
+## Product delivery boundary
+
+The [approved realignment](MVP_Scope.md#approved-retirement-and-simplification) retires productisation of the fixed diagnostic-read scaffold.
+Preserve its internal lifecycle/authority checks and inspect/cancel existing work safely; do not create further user-facing diagnostics plans, prerequisite/replacement/reordering preparation or capacity-setting variants as substitutes for useful conversation/tool tasks.
+
+Normal work surfaces should answer what is running, waiting, blocked or pending and let users manage admitted work through shared voice/UI operations. Internal IDs/revisions remain host bindings rather than the required ordinary spoken vocabulary.
+The existing fixed-read delivery descriptions below remain implementation evidence until their code retirement; they do not qualify full task execution or authorize expansions.
+
 ## Passive selected-conversation search - 2026-10-13
 
 The [exact-conversation search](Interaction_And_Sessions.md#delivered-passive-exact-conversation-lexical-search--2026-10-13) reads original retained USER messages and typed HOST observations only. Work/AllWork/task/question summaries remain body-free authoritative projections; old receipt history is not retroactively populated with composer messages.

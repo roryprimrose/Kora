@@ -16,6 +16,15 @@ Related: [Architecture](Architecture.md), [Work Management](Work_Management.md),
 This is the canonical interaction/session contract. It replaces the former single-conversation, single-executor, memory-only-history direction.
 Windows login sessions, voice capture generations, provider/SDK conversations, and Kora work sessions are different identities; none substitutes for another.
 
+## Conversation Input Realignment
+
+The [approved product decision](MVP_Scope.md#approved-retirement-and-simplification) replaces first-class saved-conversation-draft management with unsent composer text. A session is an ongoing conversation/work stream, not a draft document; Active/Done lifecycle is independent of whether text is waiting in its input box.
+
+Keep unsent input per exact conversation in memory across view/session switching, share it consistently between Sessions and compact views, and never submit or merge it implicitly. Do not add disk autosave. Protect deliberate discard/exit and apply privacy/ownership retirement without cross-session leakage.
+
+The saved-draft catalogue, explicit ordinary Save/Reload/Clear, comparison and rebase/recovery management documented below are existing implementation approved for retirement, not the target UX.
+Preserve only necessary read-only recovery of already saved text, historical audit/schema compatibility and existing retention/deletion handling. Question-answer drafts and skill/instruction/prompt editing buffers are separate concepts and remain supported.
+
 ## Bounded admitted local answer execution - 2026-10-20
 
 Explicit Sessions, shared compact, fresh New request and expanded-prompt

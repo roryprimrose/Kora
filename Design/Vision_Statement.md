@@ -24,6 +24,10 @@ Primary goals:
 - Enterprise integration through Work IQ and other connectors
 - Strong security and approval boundaries
 
+The [approved core outcomes and product-admission rule](MVP_Scope.md#product-admission-and-realignment) constrain delivery of this long-term vision. Kora is an interaction and governed execution platform, not a native general-purpose utility suite or an engineering console.
+
+The particle-cloud presence provides state feedback; session conversations and expandable complex-data, Markdown and admitted browser surfaces provide readable interaction. Models may propose registered setting changes, and useful static commands share the same host services. Permissions/grants, audit, logging, multi-session work and retention remain core responsibilities under that scope.
+
 ---
 
 # Product Principles

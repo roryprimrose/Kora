@@ -106,7 +106,6 @@ internal sealed partial class SessionsViewModel(
 
     internal void RevokeSessionList()
     {
-        savedConversationDraftControlRevision = 0;
         ClearLocalEvents();
         InvalidateQueuePrerequisite(clearSource: true);
         InvalidateListSearch();

@@ -43,7 +43,7 @@
         <Button x:Name="CompactConversation" Content="Open / activate compact selected conversation" HorizontalAlignment="Left" />
         <TextBlock Text="Submit retains accepted USER text exactly. A separately qualified local host turn may use admitted read-only tools and retain a genuine ASSISTANT answer. Unqualified production runtime remains explicitly unavailable, with no fallback, history assembly, hosted egress or side effects. Best-effort structural credential checks cannot guarantee secret-free text; no silent redaction. Unsent input stays separately in memory per session while switching topics. No draft saves or autosave." TextWrapping="Wrap" />
         <WrapPanel>
-          <Button x:Name="ReadConversation" Content="Read exact conversation / legacy availability" IsEnabled="{Binding CanReadConversation}" />
+          <Button x:Name="ReadConversation" Content="Read exact conversation" IsEnabled="{Binding CanReadConversation}" />
           <Button x:Name="NextConversation" Content="Next bounded conversation page" IsEnabled="{Binding CanNextConversation}" />
         </WrapPanel>
         <controls:ScrollableListBox ItemsSource="{Binding ConversationMessages}" MaxHeight="160"

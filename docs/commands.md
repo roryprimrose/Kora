@@ -76,7 +76,9 @@ See [native windows](windows-and-tray.md#workspace-surface-navigation) and the [
 
 Sessions are ongoing topic conversations with Active/Done lifecycle. Unsent input stays separately in memory for each exact session while switching topics; Sessions and compact views share the same buffer. There is no ordinary draft Save/Reload/Clear, catalogue, search or saved-buffer comparison workflow ([session buffers](../src/Kora/SessionsViewModel.Unsent.cs)).
 
-After explicitly reading an exact session, **Recover existing legacy text into empty input** reads only that session's existing saved text. It cannot overwrite nonempty unsent input, write or remove legacy data, submit, renew activity or grant authority. Legacy data remains under existing private storage, retention and exact disposition; no silent migration or purge occurs ([read admission](../src/Kora.Application/Hosting/SessionWorkspaceService.Conversation.cs), [regressions](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.Unsent.cs)).
+After selecting an exact session, **Recover existing legacy text into empty input** reads only that session's existing saved text, independently of ordinary conversation reads. It cannot overwrite nonempty unsent input, write/remove legacy data, submit or renew activity ([admission](../src/Kora.Application/Hosting/SessionWorkspaceService.Conversation.cs)).
+
+Legacy data retains existing privacy/retention; no silent migration or purge occurs. Missing or unavailable legacy text leaves history and unsent input unchanged ([regressions](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.Unsent.cs)).
 
 Explicit discard and closing the last view/application protect nonempty unsent input with Discard/Cancel, not Save-as-document. Switching topics preserves text without prompting. Privacy/ownership/session retirement clears affected volatile text without saving ([owner](../src/Kora/SessionsPresentationOwner.cs)).
 

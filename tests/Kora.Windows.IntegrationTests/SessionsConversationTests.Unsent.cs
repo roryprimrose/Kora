@@ -92,19 +92,88 @@ public sealed partial class SessionsConversationTests
         await WindowsSqliteConversationTests.FinishInitial(f);
         var legacy = await WindowsSqliteConversationTests.Save(f,
             await f.Store.ReadConversationDraftAsync(f.Request.SessionId, f.Token), "old legacy");
-        await using var composed = new Composition(f);
+        var reader = new SearchReader(f.Store.ReadConversationPageAsync, f.Store.ReadConversationDraftAsync, f.Store.ReadMetadataAsync);
+        await using var composed = new Composition(f, conversationReader: reader);
         var model = composed.Model;
         await model.RefreshAsync();
         await model.SelectAsync(model.Sessions.Single());
         await model.ReadConversationAsync();
-        await WindowsSqliteConversationTests.Save(f, legacy, "changed source");
+        reader.DraftReads.Should().Be(0);
+        reader.AfterDraftRead = async () =>
+        {
+            reader.AfterDraftRead = null;
+            await WindowsSqliteConversationTests.Save(f, legacy, "changed source");
+        };
         await model.RecoverLegacyUnsentAsync();
         model.ComposerBody.Should().BeEmpty();
-        model.CanSubmitConversation.Should().BeFalse();
-        model.CanRecoverConversationDraft.Should().BeFalse();
-        await model.ReadConversationAsync();
+        model.ConversationStatus.Should().Contain("Legacy recovery unavailable");
+        model.CanCompose.Should().BeTrue("an optional legacy recovery failure does not revoke ordinary conversation admission");
+        model.CanRecoverConversationDraft.Should().BeTrue();
         await model.RecoverLegacyUnsentAsync();
         model.ComposerBody.Should().Be("changed source");
+        f.Count("conversation_messages").Should().Be(0);
+    }
+
+    [Fact]
+    public async Task OrdinaryHistoryAndNextRemainReadableWithoutAnyLegacyReadAndRecoveryFailureLeavesHistoryIntact()
+    {
+        using var f = new InteractionStorageFixture();
+        await f.InitializeAsync();
+        await WindowsSqliteConversationTests.FinishInitial(f);
+        for (var index = 0; index < 26; index++)
+        { await WindowsSqliteConversationTests.Submit(f, f.Request.SessionId, "original " + index); }
+        var reader = new SearchReader(f.Store.ReadConversationPageAsync, f.Store.ReadConversationDraftAsync, f.Store.ReadMetadataAsync)
+        { DenyDraftReads = true };
+        await using var composed = new Composition(f, conversationReader: reader);
+        var model = composed.Model;
+        await model.RefreshAsync();
+        await model.SelectAsync(model.Sessions.Single());
+        model.ComposerBody = "independent unsent input";
+        await model.ReadConversationAsync();
+        model.ConversationMessages.Should().HaveCount(25);
+        model.CanNextConversation.Should().BeTrue();
+        await model.ReadConversationAsync(next: true);
+        model.ConversationMessages.Should().ContainSingle().Which.Body.Should().Be("original 25");
+        model.ComposerBody.Should().Be("independent unsent input");
+        model.CanCompose.Should().BeTrue();
+        reader.DraftReads.Should().Be(0);
+        model.DecideComposerDraft = () => Task.FromResult(ComposerDraftDecision.Discard);
+        await model.DiscardComposerBufferAsync();
+        var history = model.ConversationMessages;
+        await model.RecoverLegacyUnsentAsync();
+        reader.DraftReads.Should().Be(1);
+        model.ConversationStatus.Should().Contain("Legacy recovery unavailable");
+        model.ConversationMessages.Should().Equal(history);
+        model.ComposerBody.Should().BeEmpty();
+        model.CanCompose.Should().BeTrue();
+        await model.ReadConversationAsync();
+        model.ConversationMessages.Should().HaveCount(25);
+        reader.DraftReads.Should().Be(1, "history refresh never retries legacy recovery");
+        f.Count("conversation_drafts").Should().Be(0);
+    }
+
+    [Fact]
+    public async Task MissingLegacyTextIsExplicitAndIndependentOfHistoryReadWithNoWrites()
+    {
+        using var f = new InteractionStorageFixture();
+        await f.InitializeAsync();
+        await WindowsSqliteConversationTests.FinishInitial(f);
+        var reader = new SearchReader(f.Store.ReadConversationPageAsync, f.Store.ReadConversationDraftAsync, f.Store.ReadMetadataAsync);
+        await using var composed = new Composition(f, conversationReader: reader);
+        var model = composed.Model;
+        await model.RefreshAsync();
+        await model.SelectAsync(model.Sessions.Single());
+        var audit = WindowsSqliteConversationTests.AuditText(f);
+        var retention = await f.Store.ReadRetentionAsync(f.Request.SessionId, f.Token);
+        await model.RecoverLegacyUnsentAsync();
+        model.ConversationStatus.Should().Contain("No existing legacy text");
+        model.ComposerBody.Should().BeEmpty();
+        model.CanCompose.Should().BeTrue();
+        reader.Reads.Should().Be(0, "explicit recovery does not implicitly read history");
+        reader.DraftReads.Should().Be(1);
+        WindowsSqliteConversationTests.AuditText(f).Should().Be(audit);
+        (await f.Store.ReadRetentionAsync(f.Request.SessionId, f.Token)).Should().Be(retention);
+        f.Count("conversation_drafts").Should().Be(0);
         f.Count("conversation_messages").Should().Be(0);
     }
 

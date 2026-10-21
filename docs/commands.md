@@ -1,5 +1,38 @@
 # Voice and typed commands
 
+## Prepare an exact Evidence trace filter
+
+Type `prepare evidence trace 0123456789abcdef0123456789abcdef`, or use the
+current assistant-name prefix for activated voice, for example
+`Kora, prepare evidence trace 0123456789abcdef0123456789abcdef`.
+The trace value must be exactly 32 lowercase ASCII hexadecimal characters and
+not all zero. It is not a GUID, span ID, traceparent header, URI or link.
+There is no trimming, case folding, punctuation repair or inferred context
+([exact parser](../src/Kora.Core/Commands/EvidenceTraceCommand.cs)).
+
+This opens/focuses the **same native Evidence window** and prepares only
+**Trace correlation filter**, with exact native value and focus confirmation.
+**All other filters and the selected source remain unchanged and AND-composed**,
+even if they restrict or conflict with the trace. A new window keeps its usual
+defaults. Old rows, Details/selection, Find, actions and next-page cursors retire,
+including a pending page; preparation does not search, scan, read or count.
+Click **Search / refresh** separately to query the existing bounded retained
+reader. **Next page** remains a separate action over that exact snapshot.
+
+`evidence trace help` returns constant syntax/disclosure only; it reads no
+current trace, source, metadata or evidence. Malformed reserved commands do not
+answer pending questions or fall through to a model. Missing/stale native
+binding, original private/owner/input/call/voice admission or failed focus means
+explicit unavailable, never an unfiltered/latest/source fallback.
+
+Trace correlation is untrusted diagnostic data, not Kora session/task/user
+identity, ownership, permission, approval or authority. Preparation cannot select
+an authoritative audit source, promote diagnostics to audit, set activity parents,
+baggage or host context, copy/export/persist, renew session activity, capture a
+source, run retention maintenance or contact a model/provider/network.
+See the [Evidence guide](privacy-safety-and-logs.md#read-only-evidence-inspection)
+and [native contract](../Design/Information_Display.md#exact-native-evidence-trace-preparation).
+
 ## Open an exact Settings tab
 
 Use one complete case-insensitive phrase below, optionally prefixed by the current assistant name when typed. Activated voice requires that current-name prefix. Outer spaces are accepted; punctuation, extra words, control characters and input over 256 characters are not ([exact grammar](../src/Kora.Application/Configuration/SettingsSectionCommand.cs)).

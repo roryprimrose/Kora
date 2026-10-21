@@ -342,7 +342,8 @@ internal sealed class NativeUxFixtureWindow : Window, IDisposable
             controllers.Add(new SkillPackagesWindowController(session.Main, () => session.Access.Open,
                 NullLogger<SkillPackagesWindowController>.Instance, new NativeDetailRenderer(NullLogger<NativeDetailRenderer>.Instance),
                 session.SharedSkills, NullLogger<SharedSkillSourcesWindowController>.Instance));
-            var evidence = new EvidenceWindowController(session.Main, session.Evidence, session.Access, NullLogger<EvidenceViewModel>.Instance);
+            var evidence = new EvidenceWindowController(session.Main, session.Evidence, session.Access,
+                NullLogger<EvidenceViewModel>.Instance, session.Access);
             evidence.Bind();
             controllers.Add(evidence);
             var sessions = new SessionsWindowController(session.Main, session.Sessions, session.Evidence,

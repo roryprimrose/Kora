@@ -633,6 +633,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
                       || SessionDispositionReviewCommand.Parse(CommandText, AssistantName) is not null
                       || WorkspaceSurfaceCommand.Parse(CommandText, AssistantName) is not null
                       || AttachmentCataloguePreparationCommand.Parse(CommandText, AssistantName) is not null
+                      || EvidenceTraceCommand.Parse(CommandText, AssistantName) is not null
                       || MemoryCommand.Parse(CommandText, AssistantName) is not null
                       || IsInstructionEditorCommand(CommandText)
                       || Kora.Application.Skills.SkillReviewCommand.Parse(CommandText, AssistantName) is not null
@@ -1905,6 +1906,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             if (SetProperty(ref commandText, value))
             {
                 Interlocked.Increment(ref attachmentCatalogueComposerRevision);
+                Interlocked.Increment(ref evidenceTraceInputRevision);
                 RefreshArtifactCommandOptions();
                 RunTypedCommand.NotifyCanExecuteChanged();
             }
@@ -4079,6 +4081,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             { Transcript = "Settings navigation unavailable: the original voice generation or host was revoked."; }
             if (manualInput.CataloguePreparation is not null)
             { Transcript = "Attachment catalogue preparation unavailable: the original voice generation or host was revoked."; }
+            if (EvidenceTraceCommand.Parse(eventArgs.Transcript, AssistantName) is not null)
+            { Transcript = "Evidence trace unavailable: the original voice generation or host was revoked."; }
             return;
         }
         if (Interlocked.CompareExchange(ref acceptedTranscriptGeneration, -1, eventArgs.Generation) != eventArgs.Generation)
@@ -4089,7 +4093,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         ApplicationLog.VoiceDispatchGate(logger, eventArgs.Generation, "Admitted");
         IsListening = voiceRecognition.IsListening;
         if (SettingsSectionCommand.Parse(eventArgs.Transcript, AssistantName) is not null
-            || manualInput.CataloguePreparation is not null)
+            || manualInput.CataloguePreparation is not null
+            || EvidenceTraceCommand.Parse(eventArgs.Transcript, AssistantName) is not null)
         {
             await HandleTranscriptAsync(eventArgs.Transcript, eventArgs.Confidence,
                 SecurityAuditInitiator.VoiceCommand, manualInput);
@@ -4131,11 +4136,19 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         }
         Interlocked.Increment(ref workspaceSurfaceInputRevision);
         Interlocked.Increment(ref diagnosticsPlanEpoch);
+        Interlocked.Increment(ref evidenceTraceInputRevision);
         var sessionCommand = SessionCommand.Parse(spokenText, AssistantName);
-        if ((manualInput?.CataloguePreparation
-            ?? AttachmentCataloguePreparationCommand.Parse(spokenText, AssistantName)) is { } cataloguePreparation)
+        var cataloguePreparation = manualInput?.CataloguePreparation
+            ?? AttachmentCataloguePreparationCommand.Parse(spokenText, AssistantName);
+        var evidenceTraceCommand = EvidenceTraceCommand.Parse(spokenText, AssistantName);
+        if (cataloguePreparation is not null)
         {
             await PrepareAttachmentCatalogue(cataloguePreparation, initiator, manualInput);
+            return;
+        }
+        if (evidenceTraceCommand is not null)
+        {
+            await PrepareEvidenceTraceAsync(evidenceTraceCommand, initiator, manualInput);
             return;
         }
         if (Kora.Application.Skills.SkillReviewCommand.Parse(spokenText, AssistantName) is { } reviewCommand)
@@ -6149,6 +6162,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             .Concat(AttachmentCataloguePreparationCommand.DiscoveryPhrases)
             .Concat(SessionCommand.DiscoveryPhrases)
             .Concat(WorkspaceSurfaceCommand.FixedPhrases)
+            .Concat(EvidenceTraceCommand.DiscoveryPhrases)
             .Concat(MemoryCommand.DiscoveryPhrases)
             .Concat(AssistantNameCommand.DiscoveryPhrases)
             .Concat(InputDeviceCommand.FixedPhrases)

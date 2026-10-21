@@ -56,13 +56,13 @@ These conversation Details grant **no clipboard/export disclosure authority**. C
 
 ### Find a literal in open Details
 
-Type a query in **Literal Find** (`Ctrl+F`), then choose **Find first** or press Enter. **Next** (`F3`) starts after the match end; **Previous** (`Shift+F3`) finds the last match ending at or before its start. Find is case-sensitive with unchanged spaces, nonoverlapping and **does not wrap**. At a direction boundary the match hides; you can reverse direction using the retained cursor. A no-match result is distinct from an unavailable or rejected query.
+Type a query in **Literal Find** (`Ctrl+F`), then choose **Find first** or press Enter. **Next** (`F3`) starts after the match end; **Previous** (`Shift+F3`) returns to the previous match in that same nonoverlapping sequence. Find is case-sensitive with unchanged spaces and **does not wrap**. The count status shows the selected match and complete nonoverlapping count, for example **Match 2 of 5**. At a direction boundary the match hides but its ordinal remains; you can reverse direction using the retained cursor. **0 matches** means a completed search found none, not an unavailable or rejected query.
 
 Queries must wholly fit 256 UTF-16 characters / 512 UTF-8 bytes: nonempty well-formed one-line text without unsafe controls. Nothing is normalized or truncated. Only one inert match with an exact end-exclusive UTF-16 location is focused; the complete displayed text and origin stay unchanged.
 
-Find uses only the current frozen in-memory reader projection, never another source read. **Exact source** switches to the admitted source and resets Find. In retained conversation Details, **Find separate typed HOST observation** searches only the separate already-displayed HOST chrome, not the original USER body. Switching targets resets Find.
+Find counts only the current frozen, bounded in-memory reader projection, never another source read or the complete source/corpus/history. **Exact source** switches to the admitted source and resets Find. In retained conversation Details, **Find separate typed HOST observation** counts only the separate already-displayed HOST chrome, not the original USER body or ASSISTANT answer. No targets or hidden fields are combined. Switching targets resets Find.
 
-**Cancel Find** releases the match/cursor and retains the query; **Clear literal Find** also releases the query. Both return focus to the query. Query edits reset navigation. Escape closes Details; private/source loss, replacement or closure clears text and prevents old controls from publishing a match. The match follows the reader text scale and has native accessibility names/status.
+**Cancel Find** releases the match/cursor, count and ordinal and retains the query; **Clear literal Find** also releases the query. Both return focus to the query. Query edits and rendering changes reset navigation and make the count unavailable until an explicit Find. Escape closes Details; private/source loss, replacement or closure clears text and prevents old controls from publishing a match or stale count. Failed match focus retires the result. The match follows the reader text scale; the separate accessible count status is not a live region repeatedly announcing query edits.
 
 There is no Find clipboard/paste/export, logging, persistence, provider or network operation, broader Detail opening authority or installed/accessibility/hardware qualification. See the [admitted-text contract](../Design/Information_Display.md#native-admitted-text-literal-find).
 
@@ -393,6 +393,26 @@ Original typed/current-name ACTIVATED `prepare file search for "<query>"` / `pre
 
 Quoted literals use doubled quotes, keep exact case/punctuation/Unicode/interior spaces, and reuse the existing bounded lexical validation. Preparation performs no metadata/content read, refresh, search, clipboard, model, attachment, retention or consent operation.
 Missing/wrong-kind/stale/closed previews or changed admission refuse rather than choosing another source; retained attachments and Literal Find are not targets ([host handoff](../src/Kora.Application/ViewModels/MainViewModel.PreparedLocalSearch.cs)).
+
+### Wrap admitted original text
+
+**Wrap admitted text** changes only the presentation of the complete admitted source
+in a file preview, selected captured-folder file or already inspected retained
+Session attachment. It starts unchecked, preserving each view's original unwrapped
+layout. Check it to fit visual rows to the available viewport; uncheck it to scroll
+horizontally. Window resizing and reader text scale do not change the source.
+
+The choice is volatile and belongs only to the current source in this window.
+Selecting another folder file, replacing/reopening the view, privacy revocation or
+closing resets it; returning to an earlier file starts unchecked again. Metadata
+and consent reviews have no wrap control. This does not read or revalidate an
+attachment, renew activity, save a preference, copy, or grant source-use permission.
+
+Original bytes, decoded text, newlines, spaces and tabs remain unchanged. Literal
+Find query, count, ordinal and UTF-16 offsets and lexical citation positions remain
+unchanged, without an automatic search. Soft-wrapped visual rows are **not logical
+source lines or citation positions**. Notices, excerpts and exact match spans are
+not reformatted by this control.
 
 ### Find a literal in the currently inspected original file
 

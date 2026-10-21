@@ -4318,6 +4318,12 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
                 commandRouter.IsActivationPrefixed(spokenText, AssistantName));
             return;
         }
+        if (SessionQueueCancellationReviewCommand.Parse(spokenText, AssistantName) is { } cancellationPreparation)
+        {
+            await ExecuteQueueCancellationPreparationAsync(cancellationPreparation, initiator,
+                commandRouter.IsActivationPrefixed(spokenText, AssistantName));
+            return;
+        }
         if (SessionCommand.Parse(spokenText, AssistantName) is { } sessionCommand)
         {
             if (initiator == SecurityAuditInitiator.VoiceCommand
@@ -5621,6 +5627,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
                     + "Use “session help” for bounded exact-ID session observations and explicit lifecycle controls. "
                     + "Use “show fixed read queue settings” for exact inspect/set/independent-reset phrases for future-only fixed read queue limits; manual dispatch remains unchanged. "
                     + "Use “" + SessionDispositionReviewCommand.Syntax + "” for preview only in private native Sessions; confirmation is a separate native action. "
+                    + SessionQueueCancellationReviewCommand.Syntax + ". " + SessionQueueCancellationReviewCommand.Boundary + " "
                     + $"Use “{AssistantName}, list assistant settings” for the display/PTT command-prefix name. "
                     + NaturalAppearanceCommand.Syntax + " "
                     + "Natural name commands: “what is your name”, “call yourself <name>”, “change your name to <name>”, or “reset your name”. "

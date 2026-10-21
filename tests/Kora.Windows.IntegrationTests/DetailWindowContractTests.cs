@@ -62,6 +62,8 @@ public sealed class DetailWindowContractTests
         Named(document, "SearchInput").Attribute("MaxLength").Should().BeNull();
         Named(document, "FindSpan").Parent!.Name.LocalName.Should().Be("ScrollViewer");
         Named(document, "FindSpan").Parent!.Attribute("MaxHeight")!.Value.Should().Be("100");
+        Named(document, "FindSummary").Attribute("AutomationProperties.Name")!.Value.Should().Contain("current admitted text only");
+        Named(document, "FindSummary").Attribute("AutomationProperties.LiveSetting")!.Value.Should().Be("Off");
         Read("DetailWindow.axaml").Should().Contain("DynamicResource").And.Contain("Rich HTML copy is not supported")
             .And.Contain("Clipboard content leaves Kora").And.NotContain("Animation").And.NotContain("WebView");
     }

@@ -419,6 +419,7 @@ internal sealed partial class LocalFilePreviewWindow(Action<string> reportFailur
         };
         Grid.SetRow(sourceViewport, 1);
         source.Children.Add(sourceViewport);
+        if (text is not null) { PrepareSourceWrapping(body, sourceViewport); }
         var layout = new Grid { Margin = new Avalonia.Thickness(16), RowDefinitions = new RowDefinitions("2*,3*") };
         layout.Children.Add(new ScrollViewer
         {
@@ -435,6 +436,9 @@ internal sealed partial class LocalFilePreviewWindow(Action<string> reportFailur
 
     private void ClearContent()
     {
+        ClearSourceWrapping();
+        wrappingPanel = null;
+        wrappingViewport = null;
         ClearAnswer();
         ClearNavigation();
         SetFindSource(null);

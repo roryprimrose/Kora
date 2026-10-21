@@ -24,6 +24,9 @@ internal static partial class ApplicationLog
     [LoggerMessage(116, LogLevel.Error, "Session-disposition review failed with {FailureKind}; request a fresh native preview.")]
     public static partial void SessionDispositionReviewFailed(ILogger logger, string failureKind);
 
+    [LoggerMessage(118, LogLevel.Error, "Queue cancellation preparation failed with {FailureKind}; request a fresh exact native review.")]
+    public static partial void QueueCancellationPreparationFailed(ILogger logger, string failureKind);
+
     [LoggerMessage(103, LogLevel.Information, "Call state changed to {CallState}.")]
     public static partial void CallStateChanged(ILogger logger, CallState callState);
 

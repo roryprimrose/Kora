@@ -1,7 +1,15 @@
 const { randomUUID } = require('node:crypto');
 const { CHECKS, GATE, invariant, validateState, ready, matchingRuns, successfulJobs } = require('./policy.cjs');
 
-async function reconcile(api, { now = new Date(), ticket = randomUUID() } = {}) {
+const MAX_CANDIDATES = 10;
+
+async function reconcile(api, options = {}) {
+  const result = await reconcileOnce(api, options);
+  if (['blocked', 'continuing', 'merged', 'already-merged', 'retired'].includes(result)) await api.wake();
+  return result;
+}
+
+async function reconcileOnce(api, { now = new Date(), ticket } = {}) {
   await api.verifyProtection();
   const state = validateState(await api.load());
   const base = await api.main();
@@ -140,6 +148,7 @@ async function reconcile(api, { now = new Date(), ticket = randomUUID() } = {}) 
     return 'merged';
   }
 
+  let selected = 0;
   for (const candidate of eligible.sort((left, right) => left.number - right.number)) {
     const enrollment = await api.enrollment(candidate.number);
     if (!enrollment) continue;
@@ -148,11 +157,16 @@ async function reconcile(api, { now = new Date(), ticket = randomUUID() } = {}) 
     state.blocked = state.blocked.filter(item => item.number !== candidate.number);
     const pr = await api.pull(candidate.number);
     if (!ready(pr, api.repository) || typeof pr.mergeable !== 'boolean' || !(await api.reviewReady(pr.number))) continue;
-    const active = { number: pr.number, head: pr.head.sha, base, ticket,
+    if (selected === MAX_CANDIDATES) {
+      await persist();
+      return 'continuing';
+    }
+    selected++;
+    const active = { number: pr.number, head: pr.head.sha, base, ticket: ticket ?? randomUUID(),
       enrollment, created: now.toISOString(), phase: 'reserved', dispatchRecorded: false, checks: {} };
     state.active = active;
     await persist();
-    if (pr.mergeable === false) { await block(active, 'Selected PR conflicts with main.'); return 'blocked'; }
+    if (pr.mergeable === false) { await block(active, 'Selected PR conflicts with main.'); continue; }
     if (!(await api.containsBase(base, active.head))) {
       active.phase = 'updating';
       await persist();
@@ -162,7 +176,7 @@ async function reconcile(api, { now = new Date(), ticket = randomUUID() } = {}) 
     return dispatch(active);
   }
   await persist();
-  return 'idle';
+  return selected > 0 ? 'blocked' : 'idle';
 }
 
 module.exports = { reconcile };

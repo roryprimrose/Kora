@@ -171,6 +171,16 @@ test('expected protected merge refusals are explicit, infrastructure failures ar
   await assert.rejects(fixture({ merge: () => { throw error(500); } }).api.merge(candidate()));
 });
 
+test('continuation wakes only the trusted controller on main without candidate inputs', async () => {
+  const value = fixture();
+  await value.api.wake();
+  assert.deepEqual(value.calls, [['createWorkflowDispatch',
+    { owner: 'owner', repo: 'repo', workflow_id: 'merge-queue.yml', ref: 'main' }]]);
+  for (const status of [403, 500]) {
+    await assert.rejects(fixture({ createWorkflowDispatch: () => { throw error(status); } }).api.wake());
+  }
+});
+
 test('candidate admission requires trusted main, the exact ticket and still-current head/base', async () => {
   assert.equal(await admit({ github: fixture().github, context, inputs: inputs() }), HEAD);
   for (const changed of [{ eventName: 'pull_request' }, { ref: 'refs/heads/topic' }, { sha: OTHER }]) {

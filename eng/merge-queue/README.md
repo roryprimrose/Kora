@@ -140,6 +140,27 @@ PR changes, Auto-merge changes, main pushes and CI completion wake it.
 A five-minute scheduled reconciliation provides recovery from missed events and
 eventual review/mergeability updates; GitHub may delay schedules under load.
 
+One reconciliation quarantines up to ten newly selected conflicting revisions
+in PR-number order and continues looking for a runnable candidate, rather than
+stopping at the first conflict. Previously blocked head/enrollment pairs do not
+consume this selection budget. Each new reservation has its own ticket; at most
+one full candidate workflow is dispatched.
+
+After releasing a candidate lane (merge, failed validation or completed
+retirement), or reaching the selection budget with another selectable PR, the
+controller checkpoints state and explicitly dispatches `merge-queue.yml` on
+trusted main using its existing App identity. This continuation does not dispatch
+candidate CI or carry candidate inputs. It avoids relying on delayed scheduled
+wakeups to advance an empty lane. Idle, updating, validating and still-retiring
+lanes do not self-dispatch, so an exhausted blocked queue stops rather than
+creating an idle run loop. A continuation failure propagates; persisted state
+remains authoritative and later events or the schedule can recover it.
+
+Controller workflow success means reconciliation completed, not that a PR
+merged. Inspect its `Merge queue:` outcome and the durable active/blocked state.
+Conflicts still require a contributor repair; the controller does not resolve
+them or retry the same failed head/enrollment automatically.
+
 State is a versioned JSON file on `automation/merge-queue-state`, not an artifact,
 runner cache or local file. Updates are linear, compare the observed parent and
 never force-update that branch. GitHub retains the state commit history.

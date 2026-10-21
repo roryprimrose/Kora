@@ -182,7 +182,7 @@ public sealed partial class NewRequestComposer(
         foreach (var name in new[] { nameof(Body), nameof(ReviewedBody), nameof(Status), nameof(Creation), nameof(Submission),
             nameof(Target), nameof(AssistantResponse), nameof(Dirty), nameof(Busy), nameof(CanEdit), nameof(CanCreate), nameof(CanReview), nameof(CanSubmit), nameof(CanInspectAttempt),
             nameof(CanReviewSave), nameof(CanSave), nameof(SavedRevision), nameof(SavedBodyReview), nameof(ProposedSavedBody),
-            nameof(BaselineBody), nameof(CanCloseSaved) })
+            nameof(BaselineBody), nameof(CanCloseSaved), nameof(DraftMeasurement) })
         { OnPropertyChanged(name); }
     }
 

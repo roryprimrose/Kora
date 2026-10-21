@@ -168,7 +168,7 @@ public sealed partial class MainViewModelTests
         var f = new Fixture(localClock: clock.CreateWorkflow());
         var routing = typeof(Kora.Application.ViewModels.MainViewModel).GetMethod(
             "HandleTranscriptAsync", BindingFlags.Instance | BindingFlags.NonPublic)!;
-        await (Task)routing.Invoke(f.ViewModel, ["what time is it", 1f, initiator, null, null, null])!;
+        await (Task)routing.Invoke(f.ViewModel, ["what time is it", 1f, initiator, null, null, null, null])!;
         clock.Reads.Should().Be(0);
     }
 

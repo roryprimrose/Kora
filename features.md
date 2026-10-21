@@ -16,6 +16,12 @@ Closing one view preserves the other; the last dirty view protects Save/Discard/
 Browse all retained drafts by default, or explicitly search literal case-sensitive session names / canonical exact session IDs. Typing reads nothing; query/filter edits clear stale catalogue selections, not the current composer. Clear returns to Browse. No draft-body search or new storage/index/quota is added.
 It never automatically reloads, saves, submits or resumes. Use the separate **Reload saved draft** in Sessions. See the [catalogue contract](Design/Interaction_And_Sessions.md#saved-conversation-draft-catalogue--2026-10-13).
 
+Native **Ctrl+F** in the catalogue finds exact case-sensitive literals only in
+the selected displayed metadata details, with complete nonoverlapping count/
+ordinal and no-wrap First/Next/Previous. It never searches bodies, hidden fields
+or other rows, reads a source or changes the composer. See
+[selected metadata Find](docs/windows-and-tray.md#find-in-selected-saved-draft-metadata).
+
 Kora is a Windows desktop assistant with typed commands, push-to-talk voice input, local spoken responses, and optional local AI answers. Many built-in commands need no AI model or internet connection. See [Getting started](docs/getting-started.md#requirements) and [Voice and typed commands](docs/commands.md).
 
 This guide describes the implementation reviewed on **10 October 2026**, starting from `origin/main` at `2f33199`. It separates working features from the larger product design. Delivered does **not** mean the complete product has passed every real-device or release check; see the [delivery and qualification policy](Design/Acceptance_Criteria.md#three-tier-qualification-policy).

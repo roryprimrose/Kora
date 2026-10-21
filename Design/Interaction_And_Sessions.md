@@ -213,6 +213,35 @@ This is minimum-I delivery; E/Q hardware/provider/wake/acoustic/installed/experi
 
 ### Saved conversation draft catalogue — 2026-10-13
 
+Native **Ctrl+F / Find first / Next / Previous / Clear Find** now operates only on
+the exact already admitted selected-row metadata detail string. The
+[saved-draft Find partial](../src/Kora/SavedDraftCatalogueViewModel.Find.cs)
+freezes the same displayed serialization, never a summary serializer, body,
+other row or hidden source/profile/authority field. It consumes the existing
+catalogue selection/lifetime I subset and shared
+[admitted metadata Find state](../src/Kora.Application/Presentation/AdmittedMetadataFindState.cs) /
+[literal scanner](../src/Kora.Core/Context/SnapshotLiteralFind.cs); it does not
+depend on unmerged loaded-page ordering.
+
+Explicit actions count the complete nonoverlapping ordinal case-sensitive
+sequence in that one string and cache count/ordinal; getters do not scan, mutate
+or notify. No wrap, query normalization or truncation occurs. Shared one-line
+Unicode/control and 256-UTF-16 / 512-UTF-8 limits apply. Editing/clear retires the
+match/count without I/O; selection/page/query/mode/filter, source/private/control,
+cancel/native lifetime/close/dispose retire the private query too. Existing
+selection retirement also fences future ordering edits. Reentrant native
+notification/layout/bring/focus callbacks cannot revive a retired revision.
+Focus failure explicitly withdraws the match/count/navigation and offers retry.
+
+The [native controls](../src/Kora/SavedDraftCatalogueWindow.Find.cs) expose inert
+exact match text, bounded-string-only count and accessible keyboard navigation,
+not row selection, session navigation or native-open authority. They block
+clipboard transfers and add no logging, transcript, speech, persistence,
+source/store reads, refresh, body load, save, submit, review or mutation.
+[Headless tests](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.SavedDraftFind.cs)
+cover the deterministic slice; installed-native/accessibility, hardware,
+provider and RC qualification remain separate E/Q gates, not implementation blockers.
+
 **Tray > Saved conversation drafts (metadata only)** opens without reading. Explicit Refresh/Next/Cancel observes only saved nonempty composer draft metadata across retained private sessions.
 All (default), Active and Done filters show exact immutable session ID, current stored state/generation, optional inert private name/metadata revision, saved revision and SQL UTF-8 byte/Unicode scalar lengths. No body, excerpt, body digest or invented saved timestamp is projected.
 

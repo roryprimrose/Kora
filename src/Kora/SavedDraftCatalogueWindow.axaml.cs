@@ -12,6 +12,7 @@ internal sealed partial class SavedDraftCatalogueWindow : Window
     {
         InitializeComponent();
         DataContext = model;
+        InitializeMetadataFind(model);
         RefreshPage.Click += async (_, _) => await (Operation = model.Refresh());
         NextPage.Click += async (_, _) => await (Operation = model.Refresh(next: true));
         CancelRead.Click += (_, _) => model.Cancel();

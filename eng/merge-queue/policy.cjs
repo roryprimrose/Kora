@@ -12,6 +12,7 @@ const JOBS = Object.freeze([
 const STATE_BRANCH = 'automation/merge-queue-state';
 const SHA = /^[0-9a-f]{40}$/;
 const TICKET = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+const PRIORITY_LABELS = Object.freeze(['queue:priority-high', 'queue:priority-normal', 'queue:priority-low']);
 
 function invariant(condition, message) {
   if (!condition) throw new Error(message);
@@ -66,6 +67,18 @@ function ready(pr, repository) {
     && pr.auto_merge?.merge_method === 'squash';
 }
 
+function priority(pr) {
+  invariant(Array.isArray(pr.labels), 'PR labels are unavailable for queue priority.');
+  const labels = pr.labels.map(label => {
+    const name = typeof label === 'string' ? label : label?.name;
+    invariant(typeof name === 'string', 'Invalid PR label metadata.');
+    return name.toLowerCase();
+  }).filter(name => name.startsWith('queue:priority-'));
+  const ranks = new Set(labels.map(name => PRIORITY_LABELS.indexOf(name)));
+  if (ranks.has(-1) || ranks.size > 1) return null;
+  return ranks.size === 0 ? 1 : [...ranks][0];
+}
+
 function title(active) {
   return `Merge queue PR #${active.number} [${active.ticket}]`;
 }
@@ -83,4 +96,4 @@ function successfulJobs(jobs) {
 }
 
 module.exports = { CHECKS, GATE, JOBS, STATE_BRANCH, SHA, TICKET, invariant, mode, execution,
-  validateState, ready, title, matchingRuns, successfulJobs };
+  validateState, ready, priority, title, matchingRuns, successfulJobs };

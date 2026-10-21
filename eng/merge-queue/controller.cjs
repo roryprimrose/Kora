@@ -1,5 +1,5 @@
 const { randomUUID } = require('node:crypto');
-const { CHECKS, GATE, invariant, validateState, ready, matchingRuns, successfulJobs } = require('./policy.cjs');
+const { CHECKS, GATE, invariant, validateState, ready, priority, matchingRuns, successfulJobs } = require('./policy.cjs');
 
 const MAX_CANDIDATES = 10;
 
@@ -148,8 +148,17 @@ async function reconcileOnce(api, { now = new Date(), ticket } = {}) {
     return 'merged';
   }
 
+  function candidatePriority(pr) {
+    const rank = priority(pr);
+    if (rank === null)
+      api.notice(`PR #${pr.number} has invalid or conflicting queue priority labels; use at most one supported priority label.`);
+    return rank;
+  }
+  const candidates = eligible.map(pr => ({ pr, rank: candidatePriority(pr) }))
+    .filter(candidate => candidate.rank !== null)
+    .sort((left, right) => left.rank - right.rank || left.pr.number - right.pr.number);
   let selected = 0;
-  for (const candidate of eligible.sort((left, right) => left.number - right.number)) {
+  for (const { pr: candidate, rank } of candidates) {
     const enrollment = await api.enrollment(candidate.number);
     if (!enrollment) continue;
     const blocked = state.blocked.find(item => item.number === candidate.number && item.head === candidate.head.sha);
@@ -157,6 +166,13 @@ async function reconcileOnce(api, { now = new Date(), ticket } = {}) {
     state.blocked = state.blocked.filter(item => item.number !== candidate.number);
     const pr = await api.pull(candidate.number);
     if (!ready(pr, api.repository) || typeof pr.mergeable !== 'boolean' || !(await api.reviewReady(pr.number))) continue;
+    const currentRank = candidatePriority(pr);
+    if (currentRank === null) continue;
+    if (currentRank !== rank) {
+      await persist();
+      api.notice(`PR #${pr.number} priority changed during selection; refreshing queue order.`);
+      return 'continuing';
+    }
     if (selected === MAX_CANDIDATES) {
       await persist();
       return 'continuing';

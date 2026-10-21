@@ -3,7 +3,7 @@ name: Merge queue controller
 on:
   pull_request_target:
     branches: [main]
-    types: [opened, reopened, synchronize, ready_for_review, converted_to_draft, closed, edited, auto_merge_enabled, auto_merge_disabled]
+    types: [opened, reopened, synchronize, ready_for_review, converted_to_draft, closed, edited, labeled, unlabeled, auto_merge_enabled, auto_merge_disabled]
   push:
     branches: [main]
   workflow_run:

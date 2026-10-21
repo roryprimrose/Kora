@@ -15,8 +15,9 @@ Do not enable the queue merely by merging its implementation PR.
 1. Open a non-draft, same-repository PR targeting `main`.
 2. Enable GitHub's **Auto-merge**, using squash. This is queue intent, not
    permission to bypass checks or review.
-3. GitHub selects the oldest eligible PR by PR number. Unmet required reviews
-   and unknown mergeability do not occupy the lane.
+3. The controller selects eligible PRs by priority label (high, normal, low),
+   then ascending PR number within each priority. Unlabeled PRs are normal.
+   Unmet required reviews and unknown mergeability do not occupy the lane.
 4. If needed, GitHub updates **only that PR** from main using the branch-update
    API with an expected head. It does not rebase/force-push every waiting branch.
    The update can add a merge commit on the topic branch; squash merging keeps
@@ -42,6 +43,47 @@ They must be brought into a reviewed same-repository branch before admission.
 Local clients can push or rebase a PR, but cannot grant admission by doing so.
 An update invalidates an active candidate and its previous evidence. Contributors
 do not need a queue-specific AI prompt or client-side merge loop.
+
+## PR priority labels
+
+Use GitHub PR labels to reorganize the waiting queue without withdrawing
+Auto-merge or editing branches:
+
+| Label | Selection priority |
+| --- | --- |
+| `queue:priority-high` | First |
+| `queue:priority-normal` or no priority label | Default |
+| `queue:priority-low` | Last |
+
+Priority is case-insensitive. Other labels have no scheduling effect. Use at
+most one priority label: multiple different priorities or an unsupported
+`queue:priority-*` label make a waiting PR ineligible, with an explicit warning
+in the controller run. Remove or replace those labels to restore eligibility;
+this does not quarantine the revision or require a new commit.
+
+For example, once these labels exist in the repository:
+
+```powershell
+gh pr edit <number> --repo roryprimrose/Kora --add-label "queue:priority-high" --remove-label "queue:priority-normal" --remove-label "queue:priority-low"
+```
+
+Create the three labels in GitHub's repository Labels settings before using
+them. Labels are repository metadata, not workflow configuration or App
+permissions; this implementation does not create or apply them automatically.
+Adding or removing a label wakes the controller, which rereads live PR metadata
+rather than trusting the event payload. A priority change observed during
+selection requests a fresh reconciliation before reserving that candidate.
+
+Priority affects only the next reservation. It never interrupts an updating,
+reserved, validating or retiring candidate, and changing the active PR's labels
+does not invalidate its validation. Priority does not enroll a PR, resolve
+conflicts, satisfy reviews, retry a quarantined head/enrollment, or bypass any
+required check. Existing failed revisions still require a repaired commit or
+intentional Auto-merge re-enrollment.
+
+Within each tier, lower PR numbers come first. There is no automatic aging or
+fair-share rotation: a continuing supply of high-priority work can delay normal
+and low-priority PRs. Raise or lower labels deliberately when priorities change.
 
 ## Copilot and other PR clients
 
@@ -136,13 +178,14 @@ permission name as a review-approval restriction.
 
 Only short controller reconciliations are serialised; no runner waits for CI.
 Pending wakeups may coalesce safely because each run rereads GitHub state.
-PR changes, Auto-merge changes, main pushes and CI completion wake it.
+PR changes (including label additions/removals), Auto-merge changes, main pushes
+and CI completion wake it.
 A five-minute scheduled reconciliation provides recovery from missed events and
 eventual review/mergeability updates; GitHub may delay schedules under load.
 
 One reconciliation quarantines up to ten newly selected conflicting revisions
-in PR-number order and continues looking for a runnable candidate, rather than
-stopping at the first conflict. Previously blocked head/enrollment pairs do not
+in priority/PR-number order and continues looking for a runnable candidate,
+rather than stopping at the first conflict. Previously blocked head/enrollment pairs do not
 consume this selection budget. Each new reservation has its own ticket; at most
 one full candidate workflow is dispatched.
 

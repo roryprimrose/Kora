@@ -180,11 +180,9 @@ Reading retained Done never resumes or renews activity, creates task authority, 
 
 ### Exact-session conversation and composer
 
-Open **Sessions**, select the exact session and use **Exact-session conversation
-and composer**. Its header names the immutable ID, name label, generation,
-metadata revision and private control epoch. Read/Next show bounded
-chronological **USER** messages and separate **HOST** statuses; no model answer
-is invented. Done history stays readable, but new work requires explicit Resume.
+Open **Sessions**, select the exact session and use **Exact-session conversation and composer**. Its header shows the readable conversation name (or **Unnamed conversation**) and full stable session ID to distinguish identical names. Sessions and compact share this label; internal generations, revisions and private-control epochs are not ordinary chat chrome ([target label](../src/Kora/SessionsViewModel.Conversation.cs)).
+
+Read/Next show bounded chronological **USER** messages and separate **HOST** statuses; no model answer is invented. Done history stays readable, but new work requires explicit Resume. Exact authority checks and target/effect disclosures for consequential reviews remain unchanged ([submission admission](../src/Kora.Application/Hosting/SessionConversationService.cs), [disposition review](../src/Kora/SessionsViewModel.cs)).
 
 Typing writes nothing. Switching topics preserves a separate memory-only unsent message per exact session, shared by Sessions and compact views. No ordinary Save/Reload/Clear or saved-draft management exists ([buffers](../src/Kora/SessionsViewModel.Unsent.cs)).
 

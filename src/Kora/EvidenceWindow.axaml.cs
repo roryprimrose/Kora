@@ -14,6 +14,40 @@ namespace Kora;
 
 internal sealed partial class EvidenceWindow : Window
 {
+    internal async Task<bool> PrepareTraceAsync(string traceId, Func<bool> admitted)
+    {
+        if (!admitted() || !IsVisible || DataContext is not EvidenceViewModel model || model.IsClosed)
+        {
+            return false;
+        }
+        var revision = model.FilterRevision;
+        bool Current() => admitted() && ReferenceEquals(DataContext, model) && !model.IsClosed
+            && model.FilterRevision == revision;
+        var activation = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        void OnActivated(object? sender, EventArgs args) => activation.TrySetResult(true);
+        void OnClosed(object? sender, EventArgs args) => activation.TrySetResult(false);
+        Activated += OnActivated;
+        Closed += OnClosed;
+        try
+        {
+            Activate();
+            if (!IsActive && !await activation.Task.WaitAsync(TimeSpan.FromSeconds(5))) { return false; }
+            UpdateLayout();
+            if (!Current() || !IsActive || !TraceId.Focus() || !Current()) { return false; }
+            model.PrepareTraceFilter(traceId);
+            return admitted() && ReferenceEquals(DataContext, model) && !model.IsClosed
+                && model.FilterRevision == revision + 1 && IsActive && TraceId.IsFocused
+                && string.Equals(model.TraceFilter, traceId, StringComparison.Ordinal)
+                && string.Equals(TraceId.Text, traceId, StringComparison.Ordinal);
+        }
+        catch (TimeoutException) { return false; }
+        finally
+        {
+            Activated -= OnActivated;
+            Closed -= OnClosed;
+        }
+    }
+
     internal EvidenceWindow(EvidenceViewModel model, MainViewModel? typographyHost = null)
     {
         typographyHost?.EnsureReaderTypographyAvailable();
@@ -126,8 +160,7 @@ internal sealed partial class EvidenceWindow : Window
                     scaleBody(ReaderTextScaleSettings.DefaultPercent);
                     scaleMatch(ReaderTextScaleSettings.DefaultPercent);
                     Close();
-                    typographyHost!.ReportHostInteractionFailure(
-                        "Evidence reader unavailable: reader text scale is unconfirmed or preference evidence changed. Inspect saved preference evidence before explicit repair.");
+                    typographyHost!.ReportEvidencePresentationUnavailable();
                     return;
                 }
                 var admitted = model.EnsureFindAdmission();

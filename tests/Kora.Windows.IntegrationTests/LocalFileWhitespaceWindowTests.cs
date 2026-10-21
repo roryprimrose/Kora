@@ -179,8 +179,10 @@ public sealed class LocalFileWhitespaceWindowTests
         {
             LocalFilePreviewWindow? window = null;
             var calls = 0;
+            var armed = false;
             bool Current()
             {
+                if (!armed) { return true; }
                 calls++;
                 if (string.Equals(boundary, "failure", StringComparison.Ordinal)) { throw new InvalidOperationException("PRIVATE source-bearing message"); }
                 if (string.Equals(boundary, "before", StringComparison.Ordinal)) { return false; }
@@ -198,6 +200,7 @@ public sealed class LocalFileWhitespaceWindowTests
             try
             {
                 var status = Status(window);
+                armed = true;
                 Click(Button(window, Inspect));
                 status.Text.Should().NotContain("CRLF pairs:").And.NotContain("PRIVATE").And.NotContain("secret");
                 if (string.Equals(boundary, "failure", StringComparison.Ordinal)) { status.Text.Should().Contain("failed; no counts claimed"); }
@@ -329,14 +332,16 @@ public sealed class LocalFileWhitespaceWindowTests
         await HeadlessSession.RunAsync(() =>
         {
             var logger = new RecordingLogger();
+            var armed = false;
             var window = new LocalFilePreviewWindow(_ => throw new InvalidOperationException("Must remain native."), logger: logger,
                 captureWhitespaceAdmission: AdmittedHost);
             window.ShowRevision(Folder("PRIVATE_BODY \r\n").Files[0], NoSearch,
-                () => throw new InvalidOperationException("PRIVATE_PATH_OR_BODY"), () => Task.CompletedTask);
+                () => armed ? throw new InvalidOperationException("PRIVATE_PATH_OR_BODY") : true, () => Task.CompletedTask);
             window.Show();
             window.UpdateLayout();
             try
             {
+                armed = true;
                 Click(Button(window, Inspect));
                 Status(window).Text.Should().Be("Whitespace inspection failed; no counts claimed. Close and inspect the current source again.");
                 logger.Messages.Should().ContainSingle().Which.Should()

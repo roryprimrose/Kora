@@ -4,6 +4,7 @@ using System.Diagnostics;
 using Avalonia.Automation;
 using Avalonia.Controls;
 using Avalonia.Layout;
+using Avalonia.Threading;
 
 using Kora.Controls;
 using Kora.Core.Context;
@@ -121,6 +122,16 @@ internal sealed partial class LocalFilePreviewWindow
 
     private void OnWhitespaceHostChanged(object? sender, PropertyChangedEventArgs args)
     {
+        if (!Dispatcher.UIThread.CheckAccess())
+        {
+            var status = whitespaceStatus;
+            Interlocked.Increment(ref whitespaceGeneration);
+            Dispatcher.UIThread.Post(() =>
+            {
+                if (status is not null) { status.Text = null; }
+            });
+            return;
+        }
         if (whitespaceCurrent?.Invoke() != true) { ClearWhitespace(); }
     }
 
@@ -134,7 +145,7 @@ internal sealed partial class LocalFilePreviewWindow
 
     private void ClearWhitespace()
     {
-        whitespaceGeneration++;
+        Interlocked.Increment(ref whitespaceGeneration);
         if (whitespaceStatus is not null) { whitespaceStatus.Text = null; }
     }
 

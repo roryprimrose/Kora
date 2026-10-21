@@ -9,6 +9,15 @@ owns delivered status; [Commands](../docs/commands.md) owns current exact syntax
 Native delivery or instruction selection never grants model, execution,
 approval, session or egress authority.
 
+Pending-queue cancellation preparation uses
+`session queue cancellation review <session-id> <task-id>[,<task-id>...]`
+and explicit `session queue cancellation help`. This reserved exact-session
+family opens the existing private native pending subset selector/review; it
+does not confirm cancellation or introduce a model descriptor. The
+[command guide](../docs/commands.md) owns grammar and
+[Work Management](Work_Management.md#delivered-atomic-selected-pending-cancellation---2026-10-12) owns the
+complete-subset/revision and separate native-confirmation boundary.
+
 For capability-specific limits, use [configuration](User_Configuration.md),
 [source storage](Skill_Storage.md), [file ingestion](File_And_Folder_Ingestion.md),
 [providers/memory](Model_Providers_Memory_And_Knowledge.md) and

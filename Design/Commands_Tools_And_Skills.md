@@ -9,6 +9,8 @@ owns delivered status; [Commands](../docs/commands.md) owns current exact syntax
 Native delivery or instruction selection never grants model, execution,
 approval, session or egress authority.
 
+Apply the [product-admission and retirement decision](MVP_Scope.md#product-admission-and-realignment) before adding or exposing an action. The current calculator/clock delivery sections below describe implementations approved for retirement, not continuing approval for utility expansion.
+
 Pending-queue cancellation preparation uses
 `session queue cancellation review <session-id> <task-id>[,<task-id>...]`
 and explicit `session queue cancellation help`. This reserved exact-session
@@ -265,6 +267,8 @@ Conversely, selecting a skill does not execute a script or create a grant.
 
 ### Action exposure is the default
 
+This rule applies only after a user-visible capability has passed [feature admission](MVP_Scope.md#feature-admission). It does not require exposing every helper, metadata field or intermediate preparation step as a command, native control or model tool.
+
 For every new user-visible Kora action, design review must consider three
 entry points backed by the same registered host action:
 
@@ -297,6 +301,8 @@ action, that both routes apply the same policy, and that unavailable,
 unauthorized, ambiguous, or invented actions fail closed. Catalogue tests must
 also detect conflicting normalized phrases and descriptors that advertise an
 action with no registered dispatcher.
+
+Report completion against the approved user operation. Merely opening a surface or filling a field is navigation/preparation, not completion of Find, rename, request submission or task management. Provide equivalent voice/UI review and confirmation where permitted; mandatory OS/provider authentication and documented privacy/channel exceptions remain intact.
 
 An executable task here means a registered effect; a scheduled user task in the work ledger can contain several such invocations.
 Keep their identities distinct in proposals, approvals, and receipts.

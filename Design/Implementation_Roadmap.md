@@ -10,6 +10,15 @@ contracts; [Acceptance Criteria](Acceptance_Criteria.md) owns qualification;
 [Deferred Validation](Deferred_Validation.md) owns outstanding environment
 trials. Update those owners rather than copying status narratives between them.
 
+## Product Realignment and Delivery Priority
+
+Apply the [product owner's approved scope](MVP_Scope.md#product-admission-and-realignment) before selecting work from this inventory. Dated delivery entries record what was implemented, not approval to keep extending it.
+The calculator/clock utilities, clipboard-analysis buttons, saved-draft management, engineering-only normal browsing filters and diagnostic-only queue product surfaces are retirement/simplification targets until their removal PRs land.
+
+Prioritize the approved removals and compatibility safeguards, then complete useful conversation/model turns, shared setting proposals, governed tool/result and MCP/skill/agent workflows, voice interaction, coordinated sessions and readable results. Choose a bounded increment toward one of those outcomes, not an unrelated convenience feature because a dependency is available.
+
+Retired PRs must not be re-enrolled or recreated without a new explicit product decision. Deferred preparation-only work needs an approved complete interaction before resumption. Bug fixes and proportionate usability within retained outcomes remain valid. The existing I/E/Q distinction below continues to govern implementation and enablement independently of product admission.
+
 ## Delivery and Qualification Dependency Policy
 
 Follow the [three-tier qualification policy](Acceptance_Criteria.md#three-tier-qualification-policy):

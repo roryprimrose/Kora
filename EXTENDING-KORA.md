@@ -6,9 +6,11 @@ the linked design owners define policy and availability.
 
 ## Choose the Right Extension
 
+First apply [feature admission](Design/MVP_Scope.md#feature-admission). This table chooses the mechanism for approved behavior; it does not approve a feature or require a native action for every useful domain operation. Do not commission replacements for retired utilities without a new product decision.
+
 | Need | Choose | Implementation guide |
 |---|---|---|
-| A typed observation or effect | Host action/tool; a skill wrapper is optional | [Tools](src/Kora.Tools/README.md) |
+| An approved host-owned observation or effect | Host action/tool; a skill wrapper is optional | [Tools](src/Kora.Tools/README.md) |
 | A reusable outcome and workflow over admitted operations | Versioned skill definition | [Definitions](src/Kora.Definitions/README.md) |
 | Reusable task/response framing with explicit inputs | Prompt with a real bounded consumer | [Definitions](src/Kora.Definitions/README.md) |
 | Scoped guidance shared by tasks or profiles | Instructions; skill-only guidance stays with the skill | [Definitions](src/Kora.Definitions/README.md) |
@@ -39,6 +41,8 @@ Legacy command handlers are not all registered tools; migrate only an actual
 capability and its common authority path.
 
 ## Contribution Workflow
+
+State the approved user outcome and complete interaction first. An intermediate field-preparation command must be labelled preparation, not completion. Preserve shared voice/UI confirmation and mandatory privacy/authentication exceptions.
 
 1. Define the explicit capability ID/schema, bounded inputs/results, effects,
    caller lanes, dependencies, supported routes and unavailable reasons.

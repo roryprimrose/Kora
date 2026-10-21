@@ -1,5 +1,8 @@
 # Windows, tray, and appearance
 
+**Product realignment:** conversation input is moving from saved-draft document management to per-conversation in-memory unsent text. The saved-draft catalogue/comparison and engineering-heavy normal workspace controls below describe current implementations approved for retirement or simplification, not the target workflow.
+Existing saved content remains governed by retention and private recovery. See the [approved scope](../Design/MVP_Scope.md#approved-retirement-and-simplification).
+
 ## Native app provider field review
 
 **Settings > Providers** retains the complete app tuple workflow and adds individual exact model/reasoning/context review. Inspect current catalogue, select the service, review one field, inspect the whole resulting tuple/account/revision/provenance, then confirm or cancel separately. Individual edits retain the app default, other service tuples and session overrides.

@@ -3,6 +3,13 @@
 Status: canonical three-tier qualification policy and capability acceptance
 criteria. Targets are not claims of measured performance.
 
+## Product Admission Before Qualification
+
+The [approved product scope](MVP_Scope.md#product-admission-and-realignment) decides what work belongs in Kora; the tiers below decide whether its implementation, enabled profile or release is proven. Passing tests, coverage or containment does not approve a feature. Product approval likewise does not waive any required test, security boundary or qualification.
+
+For each new feature, state the approved user outcome and demonstrate the useful interaction, including denial, cancellation and unavailable behavior.
+Label navigation/preparation as such; do not claim that filling a field completes the requested task or that a diagnostic-only scaffold proves general execution. Bounded deterministic increments remain admissible toward approved outcomes without unrelated E/Q trials.
+
 Related: [MVP Scope](MVP_Scope.md), [Architecture](Architecture.md), [Extensibility](Extensibility.md), [Security and Data Flows](Security_Data_Flows.md), [Task Lifecycle](Task_Lifecycle.md).
 
 The [Implementation Status and Delivery Roadmap](Implementation_Roadmap.md)

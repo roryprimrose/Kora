@@ -1,5 +1,7 @@
 # Voice and typed commands
 
+**Product realignment:** standalone utility commands and fixed diagnostic-queue product surfaces are approved for retirement. This guide continues to describe current implementation until each code removal lands; retirement is not permission to bypass existing checks. See the [approved scope](../Design/MVP_Scope.md#approved-retirement-and-simplification).
+
 ## Local decimal calculator
 
 Type `calculate <expression>`, or use the current assistant-name prefix with

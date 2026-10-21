@@ -105,6 +105,7 @@ internal sealed partial class SessionsViewModel
         {
             pendingCancellationSelection = [];
             queueCancelReview = null;
+            queueCancellationAdmission = static () => true;
             pendingCancellationEpoch++;
             OnPropertyChanged(nameof(PendingCancellationEntries));
         }

@@ -6,6 +6,10 @@ namespace Kora.Tools.Clipboard;
 
 public sealed partial class ClipboardSnapshotBroker
 {
+    [LoggerMessage(EventId = 742, Level = LogLevel.Information,
+        Message = "Exact local clipboard snapshot status present {SnapshotPresent}; no source use authorized")]
+    private static partial void StatusReported(ILogger logger, bool snapshotPresent);
+
     [LoggerMessage(EventId = 740, Level = LogLevel.Information,
         Message = "Explicit local clipboard preview outcome {ClipboardOutcome}; no inference or egress authorized")]
     private static partial void Report(ILogger logger, ClipboardOutcome clipboardOutcome);

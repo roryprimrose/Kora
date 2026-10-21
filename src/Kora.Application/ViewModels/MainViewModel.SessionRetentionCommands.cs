@@ -31,5 +31,6 @@ public sealed partial class MainViewModel
     {
         sessionRequests?.Retire();
         sessionRetentionCommands?.Service.Retire();
+        conversationSearchCommands?.Retire();
     }
 }

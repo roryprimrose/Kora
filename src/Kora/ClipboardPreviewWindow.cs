@@ -17,12 +17,14 @@ internal sealed partial class ClipboardPreviewWindow(Action<Exception> reportFai
 
     public void Show(ClipboardSnapshot snapshot, Func<Task> reuse, Func<Task> revoke, Func<bool> isCurrent, Func<Task>? explain = null,
         Func<CancellationToken, ClipboardJsonSyntaxResult>? validateJson = null, Func<bool>? isJsonCurrent = null,
-        Func<ClipboardSnapshot, Func<bool>, CancellationToken, ClipboardXmlValidationResult>? validateXml = null)
+        Func<ClipboardSnapshot, Func<bool>, CancellationToken, ClipboardXmlValidationResult>? validateXml = null,
+        Func<ClipboardSnapshot, Func<bool>, CancellationToken, ClipboardTextStatisticsResult>? countText = null)
     {
         typographyHost?.EnsureReaderTypographyAvailable();
         ClearFindState();
         ClearJsonState();
         ClearXmlValidation();
+        ClearTextStatistics();
         Title = "Local clipboard snapshot (untrusted plain text)";
         Width = 760;
         Height = 600;
@@ -86,6 +88,7 @@ internal sealed partial class ClipboardPreviewWindow(Action<Exception> reportFai
         AutomationProperties.SetName(explanation, "Volatile local clipboard explanation; untrusted model response");
         content.Children.Add(explanation);
         AddXmlValidation(content, snapshot, isCurrent, validateXml);
+        AddTextStatistics(content, snapshot, isCurrent, isJsonCurrent ?? isCurrent, countText);
         body.Children.Add(new ScrollViewer
         {
             Content = content,
@@ -105,6 +108,7 @@ internal sealed partial class ClipboardPreviewWindow(Action<Exception> reportFai
         ClearFindState();
         ClearJsonState();
         ClearXmlValidation();
+        ClearTextStatistics();
         source.Text = null;
         explanation.Text = null;
         Content = null;
@@ -117,6 +121,7 @@ internal sealed partial class ClipboardPreviewWindow(Action<Exception> reportFai
         ClearFindState();
         ClearJsonState();
         ClearXmlValidation();
+        ClearTextStatistics();
         source.Text = null;
         explanation.Text = null;
         Content = null;

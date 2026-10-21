@@ -34,6 +34,11 @@ do not depend on hosted management, and speech preferences do not qualify wake.
 
 ## Current Delivery
 
+### Bounded native clipboard text statistics
+
+The [text-statistics contract](Security_Data_Flows.md#native-clipboard-text-statistics) adds explicit full-snapshot UTF-8, UTF-16, Unicode-scalar, whitespace-delimited-word and logical-line counts through the existing private clipboard preview. Exact source/opening and original nonrenewing inspection admission fence publication; derived results remain volatile native-only, without recapture, model/network context, persistence, speech or new source-use authority.
+This consumes the existing immutable snapshot/inspection I subset, not R06 inference or full R07 explanation. Maintained local build, portable suites and exact portable line/branch coverage, plus focused [headless lifecycle](../tests/Kora.Windows.IntegrationTests/ClipboardTextStatisticsWindowTests.cs) checks passed for the implementation; hosted candidate admission remains separate. [Policy](../tests/Kora.Core.UnitTests/Context/ClipboardTextStatisticsTests.cs) and [host](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.ClipboardTextStatistics.cs) tests define the deterministic behavior. Installed-native/hardware/provider E/Q qualification is unchanged.
+
 ### Bounded host-local clock answers
 
 The [clock contract](Commands_Tools_And_Skills.md#bounded-host-local-clock-answers)

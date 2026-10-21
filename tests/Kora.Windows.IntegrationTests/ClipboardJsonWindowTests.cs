@@ -213,10 +213,12 @@ public sealed class ClipboardJsonWindowTests
         internal int JsonClears { get; private set; }
         public void Show(ClipboardSnapshot snapshot, Func<Task> reuse, Func<Task> revoke, Func<bool> isCurrent,
             Func<Task>? explain = null, Func<CancellationToken, ClipboardJsonSyntaxResult>? validateJson = null, Func<bool>? isJsonCurrent = null,
-            Func<ClipboardSnapshot, Func<bool>, CancellationToken, ClipboardXmlValidationResult>? validateXml = null) =>
+            Func<ClipboardSnapshot, Func<bool>, CancellationToken, ClipboardXmlValidationResult>? validateXml = null,
+            Func<ClipboardSnapshot, Func<bool>, CancellationToken, ClipboardTextStatisticsResult>? countText = null) =>
             Validate = validateJson;
         public void SetExplanation(string? text) { }
         public void ClearJsonValidation() => JsonClears++;
+        public void ClearTextStatistics() { }
         public void ClearAndClose() { }
     }
 }

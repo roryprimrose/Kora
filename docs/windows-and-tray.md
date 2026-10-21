@@ -1052,6 +1052,10 @@ and approvals are preserved and must be resolved explicitly.
 
 ### Local clipboard preview
 
+**Count this snapshot text** explicitly measures the complete unchanged snapshot, not the Find query or span. The native-only result reports UTF-8 bytes, UTF-16 code units, Unicode scalars, whitespace-delimited words and logical lines ([count policy](../src/Kora.Core/Context/ClipboardTextStatistics.cs), [native action](../src/Kora/ClipboardPreviewWindow.TextStatistics.cs)).
+Words are maximal runs of non-whitespace Unicode scalars, not linguistic words or model tokens. CRLF counts as one line break; CR, LF, NEL, line separator and paragraph separator also break lines. A trailing break includes an empty final line. Scalars are not displayed-character/grapheme counts ([count policy](../src/Kora.Core/Context/ClipboardTextStatistics.cs)).
+Opening the preview and using Find do not count. The original private snapshot, native generation and 15-minute inspection ceiling remain required; results clear on expiry or retirement without renewing capture. No clipboard reread, formatting, copy, speech, history, model or network route is added ([host admission](../src/Kora.Application/ViewModels/MainViewModel.ClipboardTextStatistics.cs), [lifecycle tests](../tests/Kora.Windows.IntegrationTests/ClipboardTextStatisticsWindowTests.cs)).
+
 The separate [clipboard preview](commands.md#explicit-local-clipboard-preview)
 uses inert native plain text, not Markdown/HTML parsing or the document viewer's
 copy controls. It has exact-ID reuse, revoke/clear and native literal Find. Closing it revokes

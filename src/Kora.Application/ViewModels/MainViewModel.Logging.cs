@@ -4,6 +4,9 @@ namespace Kora.Application.ViewModels;
 
 public sealed partial class MainViewModel
 {
+    [LoggerMessage(123, LogLevel.Error, "Native clipboard text counting failed internally; failure type {FailureType}. No counts claimed.")]
+    private static partial void ClipboardTextStatisticsFailed(ILogger logger, string failureType);
+
     [LoggerMessage(122, LogLevel.Warning, "Exact retained attachment inspection unavailable; exception type {ExceptionType}.")]
     private static partial void RetainedAttachmentInspectionFailed(ILogger logger, string exceptionType);
 

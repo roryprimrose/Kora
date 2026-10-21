@@ -13,12 +13,11 @@ public sealed class DurableVersionQuery(
     ILogger<DurableVersionQuery> logger)
 {
     public const string StorageDisclosure =
-        "Kora stores task and content-free diagnostic/audit records in private local Windows-profile SQLite files. "
-        + "These files are not encrypted: copies outside the private location are readable, and same-user/admin access is not prevented. "
-        + "Database records receive 30-day diagnostic and 90-day audit due dates. "
-        + "Each admitted startup prunes at most 128 due diagnostics and 32 due spans with their links; due backlog can remain. "
-        + "Audit, task and session deletion is not implemented. Reading evidence does not extend retention. "
-        + "Daily files retain at most 30 days/30 files. Credentials remain Windows-protected.";
+        "Kora stores task records and diagnostic and security records on this device. "
+        + "Diagnostic and security records do not include your content. These records are not encrypted: "
+        + "copies are readable, as are the originals by administrators or other apps running as you. "
+        + "Storage limits apply to new records, and cleanup may be delayed. "
+        + "Security, task and session records are not automatically deleted. Windows protects saved credentials.";
 
     public async Task<HostTaskRecord> RunAsync(
         RequestOrigin origin, Func<Task> query, CancellationToken cancellationToken,

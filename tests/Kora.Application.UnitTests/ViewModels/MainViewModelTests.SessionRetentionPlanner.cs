@@ -35,10 +35,10 @@ public sealed partial class MainViewModelTests
         fixture.ViewModel.CanPreviewSessionRetention.Should().BeTrue();
         await fixture.ViewModel.PreviewSessionRetentionCommand.ExecuteAsync();
         fixture.ViewModel.SessionRetentionPlanStatus.Should().Contain("Complete")
-            .And.Contain("Fixed UTC cutoff").And.Contain("newly delete-due: 1")
-            .And.Contain("not recomputed").And.Contain("unknown work hold")
-            .And.Contain("Preference revision").And.Contain("private revision")
-            .And.Contain("Exact metadata snapshot");
+            .And.Contain("archive 0; delete 1")
+            .And.Contain("existing dates").And.Contain("unknown work status")
+            .And.Contain("Current limits").And.NotContain("revision")
+            .And.NotContain("metadata snapshot");
         fixture.SessionRetentionPreferences.Value.Should().BeNull();
         fixture.SessionRetentionConfiguration!.Settings.Should().Be(SessionRetentionSettings.Default);
         fixture.ViewModel.SelectedSessionArchiveDays.Should().Be(1);
@@ -48,15 +48,15 @@ public sealed partial class MainViewModelTests
         fixture.ViewModel.SessionRetentionPlanStatus.Should().Contain("edited");
         fixture.SessionPlanReader.Result = new(SessionRetentionPlanStatus.Incomplete, null, "stamp");
         await fixture.ViewModel.PreviewSessionRetentionCommand.ExecuteAsync();
-        fixture.ViewModel.SessionRetentionPlanStatus.Should().Contain("Incomplete").And.Contain("No aggregate available");
+        fixture.ViewModel.SessionRetentionPlanStatus.Should().Contain("Incomplete").And.Contain("No count is available");
         fixture.SessionPlanReader.Result = new(SessionRetentionPlanStatus.Unavailable, null, null);
         await fixture.ViewModel.PreviewSessionRetentionCommand.ExecuteAsync();
-        fixture.ViewModel.SessionRetentionPlanStatus.Should().Contain("Unavailable").And.Contain("No aggregate available");
+        fixture.ViewModel.SessionRetentionPlanStatus.Should().Contain("Unavailable").And.Contain("No count is available");
         await fixture.ViewModel.RefreshSessionRetentionCommand.ExecuteAsync();
         fixture.ViewModel.SessionRetentionPlanStatus.Should().Contain("retired");
         fixture.SessionPlanReader.Result = new(SessionRetentionPlanStatus.Complete, new(0, 0, 0, 0, 0, 0, 0, 0, 0), "stamp");
         await fixture.ViewModel.PreviewSessionRetentionCommand.ExecuteAsync();
-        fixture.ViewModel.SessionRetentionPlanStatus.Should().Contain("Sessions observed: 0");
+        fixture.ViewModel.SessionRetentionPlanStatus.Should().Contain("Sessions checked: 0");
         fixture.ViewModel.BindSessionRetentionNativeLifetime(static () => false);
         fixture.ViewModel.SessionRetentionPlanStatus.Should().Contain("retired");
         fixture.ViewModel.CanPreviewSessionRetention.Should().BeFalse();

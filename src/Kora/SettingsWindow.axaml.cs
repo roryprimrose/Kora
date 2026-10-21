@@ -107,7 +107,7 @@ public sealed partial class SettingsWindow : Window
                     {
                         new TextBlock
                         {
-                            Text = "Install Ollama 0.35.1 for this Windows user via the winget Ollama.Ollama package if needed, then download qwen3:1.7b (about 1.36 GB) from the Ollama registry. The Qwen3 model is Apache-2.0 licensed. Kora will verify the model digest and run a local inference check. This uses network, disk space and CPU. Existing models will not be replaced.",
+                            Text = "Install Ollama 0.35.1 for your Windows account if needed, then download the Qwen3 1.7B AI model (about 1.36 GB) from Ollama. The model uses the Apache 2.0 license. Kora will check the download and test the model on this device. This uses internet access, disk space and processing power. Existing models will not be replaced.",
                             TextWrapping = Avalonia.Media.TextWrapping.Wrap,
                         },
                         new StackPanel
@@ -165,7 +165,7 @@ public sealed partial class SettingsWindow : Window
                     {
                         new TextBlock
                         {
-                            Text = "Kora will reuse a healthy PowerShell 7 (pwsh.exe) installation, or install Microsoft.PowerShell for this Windows user through winget. Installation may use the network and disk space. Kora verifies the runtime in a no-profile process afterward. No skill script is run or granted by this setup.",
+                            Text = "Kora will use an existing working PowerShell 7 installation, or install it from Microsoft's package using Windows Package Manager for your Windows account. Installation may use internet access and disk space. Kora will check that PowerShell starts correctly. This setup does not run skill scripts or give them permission to run.",
                             TextWrapping = Avalonia.Media.TextWrapping.Wrap,
                         },
                         new StackPanel

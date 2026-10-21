@@ -12,6 +12,60 @@ namespace Kora.Application.UnitTests.Configuration;
 [Collection("Host tracing")]
 public sealed class AuditImpactPreviewServiceTests
 {
+    [Theory]
+    [InlineData("idle")]
+    [InlineData("edited")]
+    [InlineData("expired")]
+    [InlineData("source-retired")]
+    [InlineData("disposed")]
+    public async Task Source_changes_without_an_active_preview_do_not_queue_presentation_work(string phase)
+    {
+        await using var fixture = new Fixture();
+        if (!string.Equals(phase, "idle", StringComparison.Ordinal)) { await fixture.Preview(); }
+        if (string.Equals(phase, "edited", StringComparison.Ordinal)) { fixture.Service.Retire("Proposal edited."); }
+        if (string.Equals(phase, "expired", StringComparison.Ordinal)) { fixture.Time.Advance(AuditRetentionImpact.PreviewLifetime); }
+        if (string.Equals(phase, "source-retired", StringComparison.Ordinal)) { fixture.Reader.Signal(); }
+        if (string.Equals(phase, "disposed", StringComparison.Ordinal)) { fixture.Service.Dispose(); }
+        var state = fixture.Service.Get();
+        var notices = 0;
+        fixture.Service.Changed += (_, _) => notices++;
+
+        fixture.Reader.Signal();
+        fixture.Reader.Signal();
+        fixture.Configuration.Observe();
+
+        notices.Should().Be(0);
+        fixture.Service.Get().Should().BeSameAs(state);
+        fixture.Reader.Requests.Should().HaveCount(string.Equals(phase, "idle", StringComparison.Ordinal) ? 0 : 2);
+    }
+
+    [Fact]
+    public async Task Source_retirement_notifies_once_and_its_presentation_evidence_cannot_feed_back()
+    {
+        await using var fixture = new Fixture();
+        await fixture.Preview();
+        var presentation = new Queue<Action>();
+        var notices = 0;
+        fixture.Service.Changed += (_, _) =>
+        {
+            notices++;
+            presentation.Enqueue(fixture.Reader.Signal);
+        };
+
+        fixture.Reader.Signal();
+        for (var count = 0; count < 8 && presentation.TryDequeue(out var writePresentationEvidence); count++)
+        {
+            writePresentationEvidence();
+        }
+
+        fixture.Service.Get().RequiredAuthority.Should().BeNull();
+        fixture.Service.Get().DiagnosticProjection.Should().BeNull();
+        fixture.Service.Get().Status.Should().Contain("retired");
+        notices.Should().Be(1);
+        presentation.Should().BeEmpty();
+        fixture.Reader.Requests.Should().HaveCount(2);
+    }
+
     [Fact]
     public async Task Observation_trace_is_content_free_rooted_and_never_adopts_hostile_authority()
     {

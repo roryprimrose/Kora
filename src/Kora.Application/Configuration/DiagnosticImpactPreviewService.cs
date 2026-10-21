@@ -37,7 +37,16 @@ public sealed class DiagnosticImpactPreviewService : IDisposable
     }
 
     public event EventHandler? Changed;
-    private void OnSourceChanged(object? sender, EventArgs args) => Retire("Source or configuration observation changed; preview retired.");
+    private void OnSourceChanged(object? sender, EventArgs args)
+    {
+        lock (gate)
+        {
+            // Presentation notifications write evidence, so idle source changes must not queue more presentation work.
+            if (disposed || admitted is null) { return; }
+            RetireLocked("Source or configuration observation changed; preview retired.");
+        }
+        Notify();
+    }
 
     public DiagnosticImpactPreviewState Get()
     {

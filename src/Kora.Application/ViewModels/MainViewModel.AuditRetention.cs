@@ -1,6 +1,7 @@
 using Kora.Application.Configuration;
 using Kora.Application.Diagnostics;
 using Kora.Application.Infrastructure;
+using Kora.Application.Presentation;
 using Kora.Core;
 using Kora.Core.Auditing;
 using Kora.Core.Configuration;
@@ -15,6 +16,7 @@ public sealed partial class MainViewModel
     private bool auditRetentionControlActive;
     private Func<bool> auditRetentionNativeLifetime = static () => false;
 
+    public int? SavedAuditRetentionDays => auditRetentionConfiguration?.Get().Effective?.Days;
     public void BindAuditRetentionNativeLifetime(Func<bool> lifetime)
     {
         auditImpactPreview?.Retire("Native lifetime changed; preview retired.");
@@ -37,8 +39,8 @@ public sealed partial class MainViewModel
         && !auditRetentionControlActive && !diagnosticRetentionControlActive && !IsResponseInteractionPending;
     public bool CanChangeAuditRetentionNative => CanChangeAuditRetention && auditRetentionNativeLifetime();
     public string AuditRetentionStatus => auditRetentionConfiguration is null
-        ? "Audit-retention admission unavailable; no preference change. Apply-now unavailable."
-        : AuditRetentionState.Serialize(auditRetentionConfiguration.Get(), CallPolicyRevision, "observed");
+        ? "Security record settings are unavailable. No settings were changed."
+        : SettingsText.Describe(auditRetentionConfiguration.Get());
 
     private void OnAuditRetentionChanged(object? sender, EventArgs args) => uiDispatcher.Post(SynchronizeAuditRetention);
 
@@ -48,6 +50,7 @@ public sealed partial class MainViewModel
         auditImpactPreview?.Retire("Preference refreshed or changed; preview retired.");
         SelectedAuditRetentionDays = auditRetentionConfiguration!.Get().Desired.Days;
         OnPropertyChanged(nameof(AuditRetentionStatus));
+        OnPropertyChanged(nameof(SavedAuditRetentionDays));
         OnPropertyChanged(nameof(CanChangeAuditRetention));
         OnPropertyChanged(nameof(CanChangeAuditRetentionNative));
         OnPropertyChanged(nameof(CanChangeDiagnosticRetention));

@@ -33,7 +33,7 @@ public sealed class ResponseModeConfigurationServiceTests : IDisposable
         fixture.Service.Get().Source.Should().Be("default");
         fixture.Service.Get().Saved.Should().BeNull();
         await fixture.Refresh();
-        fixture.Service.Choices.Select(choice => choice.Label).Should().Equal("Hybrid", "VoiceOnly", "VisualOnly");
+        fixture.Service.Choices.Select(choice => choice.Label).Should().Equal("Text and speech", "Speech only", "Text only");
         var revision = fixture.Service.Get().Revision;
         await fixture.Select(ResponseOutputMode.VoiceOnly);
         fixture.Service.Get().Revision.Should().BeGreaterThan(revision);

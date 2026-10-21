@@ -51,7 +51,7 @@ public sealed partial class MainViewModelTests
         await fixture.ViewModel.ResetWindowsSpeechRateCommand.ExecuteAsync();
         fixture.RatePreferences.Value.Should().BeNull();
         fixture.ViewModel.SelectedWindowsSpeechRate.Should().Be(0);
-        fixture.ViewModel.WindowsSpeechRateStatus.Should().Contain("\"source\":\"default\"");
+        fixture.ViewModel.WindowsSpeechRateStatus.Should().Contain("Using the default");
         fixture.Voice.StartCalls.Should().Be(microphones);
         await fixture.RunAsync("set assistant.name to Nova");
         fixture.TextToSpeech.ClearSpokenResponse();
@@ -156,7 +156,7 @@ public sealed partial class MainViewModelTests
         using var cancelled = new CancellationTokenSource();
         cancelled.Cancel();
         await fixture.ViewModel.ExecuteWindowsSpeechRateCommandAsync(new(AppearanceCommandOperation.Get), SecurityAuditInitiator.TypedCommand, cancelled.Token);
-        fixture.ViewModel.WindowsSpeechRateStatus.Should().Contain("\"source\":\"unavailable\"");
+        fixture.ViewModel.WindowsSpeechRateStatus.Should().Contain("Setting unavailable");
     }
 
     [Fact]

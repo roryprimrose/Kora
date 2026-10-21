@@ -37,7 +37,7 @@ public sealed class ProviderProfileConfigurationServiceTests : IDisposable
         f.Service.Get().AuthenticationAvailable.Should().BeFalse();
         f.Service.Get().ExecutionEnabled.Should().BeFalse();
         f.Service.Get().Installation.Should().Be(installation);
-        f.Service.Choices.Select(choice => choice.Label).Should().Equal("Unset", "Local", "Copilot", "Claude", "Codex");
+        f.Service.Choices.Select(choice => choice.Label).Should().Equal("Not selected", "On-device (Ollama)", "GitHub Copilot", "Claude", "Codex");
         f.Service.Models.Should().BeEmpty();
         f.Preferences.Writes.Should().Be(0);
         f.Audit.Hosts.Should().OnlyContain(host => host != null);

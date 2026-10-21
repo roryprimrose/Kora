@@ -49,7 +49,7 @@ public sealed partial class MainViewModelTests
             fixture.ViewModel.Transcript.Should().Contain("not confirmed");
             fixture.ViewModel.ResponseTitle.Should().Be(title);
             fixture.ViewModel.ResponseBody.Should().Be(body);
-            fixture.ViewModel.SpeechTextConfigurationStatus.Should().Contain("\"available\":false");
+            fixture.ViewModel.SpeechTextConfigurationStatus.Should().Contain("Setting unavailable");
             if (!grantCompletesFirst)
             {
                 preparation.IsCompleted.Should().BeFalse();

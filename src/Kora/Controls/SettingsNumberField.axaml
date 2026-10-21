@@ -1,0 +1,22 @@
+<UserControl x:Class="Kora.Controls.SettingsNumberField"
+             x:Name="Root"
+             xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="using:Kora.Controls">
+  <StackPanel Spacing="4">
+    <WrapPanel ItemSpacing="12" LineSpacing="6">
+      <TextBlock Text="{Binding Label, ElementName=Root}" Width="220"
+                 VerticalAlignment="Center" TextWrapping="Wrap" />
+      <StackPanel Orientation="Horizontal" Spacing="8">
+        <TextBox x:Name="NumberInput" Width="96" MinWidth="0" MaxLength="12" />
+        <TextBlock x:Name="UnitLabel" Text="{Binding Unit, ElementName=Root}" VerticalAlignment="Center" />
+        <Button x:Name="ActionButton" Content="{Binding ActionText, ElementName=Root}"
+                Command="{Binding ActionCommand, ElementName=Root}" />
+      </StackPanel>
+    </WrapPanel>
+    <controls:NamedTextBlock x:Name="ValidationText" IsVisible="False" TextWrapping="Wrap" FontSize="12"
+                             Foreground="{DynamicResource KoraWarningBrush}"
+                             AutomationProperties.Name="Setting validation"
+                             AutomationProperties.LiveSetting="Polite" />
+  </StackPanel>
+</UserControl>

@@ -2,6 +2,7 @@ using System.Globalization;
 using Kora.Application.Configuration;
 using Kora.Application.Diagnostics;
 using Kora.Application.Infrastructure;
+using Kora.Application.Presentation;
 using Kora.Core;
 using Kora.Core.Auditing;
 using Kora.Core.Configuration;
@@ -22,6 +23,10 @@ public sealed partial class MainViewModel
     private int selectedQueueActiveBudgetMinutes = SessionQueueLimits.DefaultActiveBudgetMinutes;
     private bool queueConfigurationActive;
 
+    public int? SavedQueuePending => queueConfiguration?.Get().Effective?.PendingPerSession;
+    public int? SavedQueueSlots => queueConfiguration?.Get().Effective?.ExecutionSlots;
+    public int? SavedQueueLifetimeMinutes => queueConfiguration?.Get().Effective?.PendingLifetimeMinutes;
+    public int? SavedQueueActiveBudgetMinutes => queueConfiguration?.Get().Effective?.ActiveBudgetMinutes;
     public void BindQueueConfigurationNativeLifetime(Func<bool> lifetime)
     {
         queueNativeLifetime = lifetime;
@@ -66,14 +71,18 @@ public sealed partial class MainViewModel
         && !queueConfigurationActive && !IsResponseInteractionPending;
     public bool CanChangeQueueConfigurationNative => CanChangeQueueConfiguration && queueNativeLifetime();
     public string QueueConfigurationStatus => queueConfiguration is null
-        ? "Fixed local-version queue configuration unavailable; no change."
-        : SessionQueueConfigurationState.Serialize(queueConfiguration.Get(), CallPolicyRevision, "observed");
+        ? "Task queue settings are unavailable. No settings were changed."
+        : SettingsText.Describe(queueConfiguration.Get());
 
     private void OnQueueConfigurationChanged(object? sender, EventArgs args) => uiDispatcher.Post(SynchronizeQueueConfiguration);
     private void SynchronizeQueueConfiguration()
     {
         if (disposed) { return; }
         OnPropertyChanged(nameof(QueueConfigurationStatus));
+        OnPropertyChanged(nameof(SavedQueuePending));
+        OnPropertyChanged(nameof(SavedQueueSlots));
+        OnPropertyChanged(nameof(SavedQueueLifetimeMinutes));
+        OnPropertyChanged(nameof(SavedQueueActiveBudgetMinutes));
         OnPropertyChanged(nameof(CanChangeQueueConfiguration));
         OnPropertyChanged(nameof(CanChangeQueueConfigurationNative));
     }

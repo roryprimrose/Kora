@@ -4,6 +4,9 @@ namespace Kora.Application.ViewModels;
 
 public sealed partial class MainViewModel
 {
+    [LoggerMessage(122, LogLevel.Warning, "Exact retained attachment inspection unavailable; exception type {ExceptionType}.")]
+    private static partial void RetainedAttachmentInspectionFailed(ILogger logger, string exceptionType);
+
     [LoggerMessage(121, LogLevel.Information, "Local calculator outcome {CalculationOutcome}")]
     private partial void CalculatorFinished(Kora.Core.Calculations.CalculationOutcome calculationOutcome);
 

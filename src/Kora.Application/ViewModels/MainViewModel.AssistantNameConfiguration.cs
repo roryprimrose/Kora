@@ -11,14 +11,25 @@ public sealed partial class MainViewModel
     private bool isAssistantNameAvailable = true;
 
     public AsyncCommand ResetAssistantNameCommand { get; }
-    public string AssistantNameConfigurationDescription => DescribeAssistantName(assistantNameConfiguration.Get());
+    public string AssistantNameConfigurationDescription
+    {
+        get
+        {
+            var current = assistantNameConfiguration.Get();
+            return current.IsAvailable
+                ? $"Use {current.Name} on screen, in spoken responses and when addressing the assistant. "
+                    + $"Choose 1-{AssistantNameOption.MaximumWordCount} words, up to {AssistantNameOption.MaximumLength} characters. "
+                    + "Changing the name turns listening off; enable it again when ready. This does not enable wake-word listening."
+                : "Assistant name unavailable. " + current.Recovery;
+        }
+    }
 
     private void OnAssistantNameConfigurationChanged(object? sender, EventArgs args)
     {
         var current = assistantNameConfiguration.Get();
         if (!current.IsAvailable || !string.Equals(current.Name, AssistantName, StringComparison.Ordinal))
         {
-            HoldVoiceInput("Microphone closed · display/PTT prefix changed or unavailable; use Enable listening");
+            HoldVoiceInput("Microphone closed · assistant name changed or unavailable; use Enable listening");
         }
         uiDispatcher.Post(SynchronizeAssistantNameConfiguration);
     }
@@ -48,7 +59,7 @@ public sealed partial class MainViewModel
     private async Task RetireAssistantNameCaptureAsync()
     {
         var needsStop = IsVoiceEnabled || IsListening || !voiceRecognition.IsCaptureQuiescent;
-        HoldVoiceInput("Microphone closed · display/PTT prefix changed; use Enable listening");
+        HoldVoiceInput("Microphone closed · assistant name changed; use Enable listening");
         if (needsStop) { await StopListeningAsync(); }
         if (!voiceRecognition.IsCaptureQuiescent)
         {
@@ -72,7 +83,7 @@ public sealed partial class MainViewModel
         else if (result.Changed)
         {
             ShowSuccess($"{AssistantName} is ready.",
-                $"The display name, command prefix, and spoken identity now use {AssistantName}. Listening remains held until explicit recovery.");
+                $"Use {AssistantName} on screen, in spoken responses and when addressing the assistant. Listening is off; use Enable listening when ready.");
         }
         else { AssistantNameInput = AssistantName; }
     }

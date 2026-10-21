@@ -26,7 +26,7 @@ public sealed partial class MainViewModelTests
         await fixture.ViewModel.CallClosureTask;
         await fixture.ViewModel.EnableManualCallCommand.ExecuteAsync();
         fixture.ViewModel.IsManualCallActive.Should().BeTrue();
-        fixture.ViewModel.CallManualStatus.Should().Contain("active for this run");
+        fixture.ViewModel.CallManualStatus.Should().Contain("on until you turn it off or restart Kora");
         fixture.ViewModel.CallStateStatus.Should().StartWith("Manual call mode");
         fixture.ViewModel.CallObservation.ManualActive.Should().BeTrue();
         fixture.ViewModel.AutomaticCallState.Should().Be(automatic);
@@ -40,8 +40,8 @@ public sealed partial class MainViewModelTests
         fixture.ViewModel.CurrentCallState.Should().Be(automatic);
         fixture.ViewModel.IsCallDetected.Should().Be(automatic is CallState.Active or CallState.Suspected);
         fixture.CallPreferences.SavedSettings.Should().BeNull();
-        fixture.ViewModel.CallProtectionLimitations.Should().Contain("unavailable");
-        fixture.ViewModel.CallManualStatus.Should().Contain("not saved");
+        fixture.ViewModel.CallProtectionLimitations.Should().Contain("not available");
+        fixture.ViewModel.CallManualStatus.Should().Contain("resets when Kora restarts");
         if (!Enum.IsDefined(automatic)) { fixture.ViewModel.CallStateStatus.Should().Contain("invalid"); }
         fixture.ViewModel.CanEnableCallVisualProtection.Should().BeFalse();
         fixture.ViewModel.CanDisableCallVoiceActivation.Should().BeTrue();

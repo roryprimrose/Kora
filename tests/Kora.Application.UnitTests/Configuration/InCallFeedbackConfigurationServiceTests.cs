@@ -38,7 +38,7 @@ public sealed class InCallFeedbackConfigurationServiceTests : IDisposable
         foreach (var mode in Enum.GetValues<InCallFeedbackMode>())
         {
             await fixture.Refresh();
-            fixture.Service.Choices.Select(choice => choice.Label).Should().Equal("Voice", "UI", "Both", "Inherit");
+            fixture.Service.Choices.Select(choice => choice.Label).Should().Equal("Speech only", "Text only", "Text and speech", "Use normal response settings");
             (await fixture.Select(mode)).Should().BeTrue();
             fixture.Service.Get().Saved.Should().Be(mode);
             fixture.Service.Get().Source.Should().Be("saved");

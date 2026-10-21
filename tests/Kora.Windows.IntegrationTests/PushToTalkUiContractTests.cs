@@ -1,11 +1,14 @@
 using System.Xml.Linq;
 
+using Avalonia.Automation.Peers;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
 using Avalonia.LogicalTree;
+using Avalonia.VisualTree;
 
 using AwesomeAssertions;
 
+using Kora.Controls;
 using Kora.NativeUxFixture;
 
 namespace Kora.Windows.IntegrationTests;
@@ -55,18 +58,27 @@ public sealed class PushToTalkUiContractTests
                 {
                     fixture.Main.EnableVoiceConsentCommand,
                     fixture.Main.WithdrawVoiceConsentCommand,
-                    fixture.Main.RefreshMicrophonesCommand,
                     fixture.Main.ToggleListeningCommand,
                     fixture.Main.OpenMicrophonePrivacySettingsCommand,
                 })
                 {
                     buttons.Should().Contain(button => ReferenceEquals(button.Command, command));
                 }
+                buttons.Should().NotContain(button => ReferenceEquals(button.Command, fixture.Main.RefreshMicrophonesCommand));
+                var microphoneActions = window.GetVisualDescendants().OfType<SettingActionsButton>().Single(button =>
+                    string.Equals(button.SettingName, "Microphone", StringComparison.Ordinal));
+                var microphoneMenu = (MenuFlyout)microphoneActions.Flyout!;
+                microphoneMenu.ShowAt(microphoneActions);
+                window.UpdateLayout();
+                var refresh = microphoneMenu.Items.OfType<MenuItem>().Single();
+                refresh.Command.Should().BeSameAs(fixture.Main.RefreshMicrophonesCommand);
+                ControlAutomationPeer.CreatePeerForElement(refresh)!.GetName().Should().Be("Refresh microphones");
+                microphoneMenu.Hide();
                 var recovery = window.FindControl<Button>("ChooseMicrophone")!;
                 recovery.IsEnabled.Should().BeTrue();
                 recovery.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
                 recoveryRequests.Should().Be(1);
-                fixture.Main.VoiceConsentDescription.Should().Contain("Settings manages consent and readiness only");
+                fixture.Main.VoiceConsentDescription.Should().Contain("Settings only manages listening permission and readiness");
             }
             finally { window.Close(); }
         });

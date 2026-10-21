@@ -4,6 +4,7 @@ using System.Text.Json.Serialization;
 using Kora.Application.Configuration;
 using Kora.Application.Diagnostics;
 using Kora.Application.Infrastructure;
+using Kora.Application.Presentation;
 using Kora.Core;
 using Kora.Core.Auditing;
 using Kora.Core.Diagnostics;
@@ -65,7 +66,13 @@ public sealed partial class MainViewModel
         && ProviderReasoningFieldChoices.Any(option => ReferenceEquals(option, SelectedProviderReasoningField));
     public bool CanReviewProviderContext => CanChangeProviderProfile && SelectedProviderContextField is not null
         && ProviderContextFieldChoices.Any(option => ReferenceEquals(option, SelectedProviderContextField));
-    public string ProviderFieldPreviewStatus => providerFieldPreview is { } preview ? JsonSerializer.Serialize(new
+    public string ProviderFieldPreviewStatus => providerFieldPreview is { } preview
+        ? $"Review changes for {SettingsText.Service(preview.Service)}. Nothing is saved until you confirm. "
+            + "Current: " + SettingsText.Describe(preview.BaseTuple!)
+            + " Proposed: " + SettingsText.Describe(preview.Tuple!)
+        : "No change awaiting confirmation. Save a complete set of model settings before changing an individual option.";
+
+    private string? SerializeProviderFieldPreview() => providerFieldPreview is { } preview ? JsonSerializer.Serialize(new
     {
         scope = "App individual field review; no write before confirmation",
         field = preview.Field,
@@ -76,7 +83,7 @@ public sealed partial class MainViewModel
         preferenceRevision = preview.Revision,
         catalogue = providerProfileConfiguration!.CatalogueFor(preview),
         confirmation = preview.Confirmation,
-    }, ProviderProfileJsonOptions) : "No pending app field review. Select an advertised exact field; a current saved complete tuple is required.";
+    }, ProviderProfileJsonOptions) : null;
     public IReadOnlyList<ProviderProfileChoice> ProviderServiceChoices => providerProfileConfiguration?.Choices ?? [];
     public IReadOnlyList<ProviderCatalogueModel> ProviderProfileModels => SelectedProviderServiceChoice is { } choice
         && providerProfileConfiguration is { } configuration ? configuration.ModelsFor(choice) : [];
@@ -145,27 +152,16 @@ public sealed partial class MainViewModel
     {
         get
         {
-            var current = SelectedProviderServiceChoice is { } choice ? providerProfileConfiguration?.CatalogueFor(choice) : null;
-            return JsonSerializer.Serialize(new
-            {
-                scope = "App draft; nothing authenticated or executed",
-                service = SelectedProviderServiceChoice?.Service,
-                savedTuple = providerProfileConfiguration?.Get().Saved?.For(SelectedProviderServiceChoice?.Service ?? ProviderService.Unset),
-                account = current?.Account,
-                catalogueRevision = current?.Revision,
-                catalogueStatus = current?.Status.ToString() ?? "Unavailable",
-                availableModels = ProviderProfileModels.Count,
-                model = SelectedProviderProfileModel?.Id,
-                reasoning = SelectedProviderReasoning?.Id,
-                context = SelectedProviderContext?.Id,
-                current?.ObservedAt,
-                current?.ValidUntil,
-            }, ProviderProfileJsonOptions);
+            return $"Not yet saved. Service: {SelectedProviderServiceChoice?.Label ?? "not selected"}; "
+                + $"model: {SelectedProviderProfileModel?.Label ?? "not selected"}; "
+                + $"thinking level: {SelectedProviderReasoning?.Label ?? "not selected"}; "
+                + $"conversation size: {SelectedProviderContext?.Label ?? "not selected"}. "
+                + (ProviderProfileModels.Count == 0 ? "No models are currently available to choose." : $"{ProviderProfileModels.Count} models available.");
         }
     }
     public string ProviderProfileConfigurationStatus => providerProfileConfiguration is null
-        ? "Unavailable: app provider profile control is not composed."
-        : JsonSerializer.Serialize(providerProfileConfiguration.Get(), ProviderProfileJsonOptions);
+        ? "AI service settings are unavailable."
+        : SettingsText.Describe(providerProfileConfiguration.Get());
 
     private void OnProviderProfileConfigurationChanged(object? sender, EventArgs args) => uiDispatcher.Post(SynchronizeProviderProfileConfiguration);
     private void SynchronizeProviderProfileConfiguration()
@@ -299,7 +295,7 @@ public sealed partial class MainViewModel
                     : saved ? "Desired configuration saved only; nothing authenticated, sent or executed"
                     : command.Operation is AppearanceCommandOperation.Set or AppearanceCommandOperation.Reset ? "Denied; no confirmed write"
                     : "Observed; no execution authority",
-                fieldReview = reviewed ? ProviderFieldPreviewStatus : null,
+                fieldReview = reviewed ? SerializeProviderFieldPreview() : null,
                 state = service.Get(),
                 models = service.Models,
                 syntax = ProviderProfileCommand.Syntax,

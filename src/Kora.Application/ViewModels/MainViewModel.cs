@@ -402,9 +402,6 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         this.auditRetentionConfiguration = auditRetentionConfiguration;
         this.auditImpactPreview = auditImpactPreview;
         this.diagnosticImpactPreview = diagnosticImpactPreview;
-        if (diagnosticImpactPreview is not null) { diagnosticImpactPreview.Changed += OnDiagnosticImpactPreviewChanged; }
-        PropertyChanged += OnDiagnosticImpactHostPropertyChanged;
-        if (auditImpactPreview is not null) { auditImpactPreview.Changed += OnAuditImpactPreviewChanged; }
         if (auditRetentionConfiguration is not null)
         {
             try { auditRetentionConfiguration.Observe(); }
@@ -539,6 +536,10 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             () => CanClearDiagnosticImpact);
         CancelDiagnosticImpactCommand = new(CancelDiagnosticImpactAsync, FailDiagnosticImpactPreview,
             () => CanCancelDiagnosticImpact);
+        // Preference observation can retire previews synchronously; attach only after their commands exist.
+        if (diagnosticImpactPreview is not null) { diagnosticImpactPreview.Changed += OnDiagnosticImpactPreviewChanged; }
+        PropertyChanged += OnDiagnosticImpactHostPropertyChanged;
+        if (auditImpactPreview is not null) { auditImpactPreview.Changed += OnAuditImpactPreviewChanged; }
         RefreshResponseModeCommand = CreateCommand(() => RunNativeResponseModeAsync(AppearanceCommandOperation.Get));
         SaveResponseModeCommand = CreateCommand(() => RunNativeResponseModeAsync(AppearanceCommandOperation.Set));
         ResetResponseModeCommand = CreateCommand(() => RunNativeResponseModeAsync(AppearanceCommandOperation.Reset));
@@ -635,6 +636,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
                       || SessionCommand.Parse(CommandText, AssistantName) is not null
                       || SessionDispositionReviewCommand.Parse(CommandText, AssistantName) is not null
                       || WorkspaceSurfaceCommand.Parse(CommandText, AssistantName) is not null
+                      || AttachmentCataloguePreparationCommand.Parse(CommandText, AssistantName) is not null
                       || MemoryCommand.Parse(CommandText, AssistantName) is not null
                       || LocalClockCommand.Parse(CommandText, AssistantName) is not null
                       || IsInstructionEditorCommand(CommandText)
@@ -945,8 +947,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
     }
 
     public string HostedModelExecutionDescription => HostedModelsEnabled
-        ? "Hosted model use is allowed, but no hosted provider is configured in this build."
-        : "Hosted model use is blocked. No hosted provider is configured in this build.";
+        ? "Online AI models are allowed, but no online service is set up in this version."
+        : "Online AI models are blocked. No online service is set up in this version.";
 
     private async Task<bool> TrySetModelExecutionSettingsAsync(
         bool enableLocalModels,
@@ -1096,17 +1098,17 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
 
     public IReadOnlyList<ResponseModeOverrideOption> ResponseModeOptions { get; } =
     [
-        new("Both audible and visual", ResponseOutputMode.Hybrid),
-        new("Audible only", ResponseOutputMode.VoiceOnly),
-        new("Visual only", ResponseOutputMode.VisualOnly),
+        new(Presentation.SettingsText.ResponseMode(ResponseOutputMode.Hybrid), ResponseOutputMode.Hybrid),
+        new(Presentation.SettingsText.ResponseMode(ResponseOutputMode.VoiceOnly), ResponseOutputMode.VoiceOnly),
+        new(Presentation.SettingsText.ResponseMode(ResponseOutputMode.VisualOnly), ResponseOutputMode.VisualOnly),
     ];
 
     public IReadOnlyList<ResponseModeOverrideOption> ResponseModeOverrideOptions { get; } =
     [
-        new("Inherit", null),
-        new("Both audible and visual", ResponseOutputMode.Hybrid),
-        new("Audible only", ResponseOutputMode.VoiceOnly),
-        new("Visual only", ResponseOutputMode.VisualOnly),
+        new("Use default", null),
+        new(Presentation.SettingsText.ResponseMode(ResponseOutputMode.Hybrid), ResponseOutputMode.Hybrid),
+        new(Presentation.SettingsText.ResponseMode(ResponseOutputMode.VoiceOnly), ResponseOutputMode.VoiceOnly),
+        new(Presentation.SettingsText.ResponseMode(ResponseOutputMode.VisualOnly), ResponseOutputMode.VisualOnly),
     ];
 
     public IReadOnlyList<ApplicationThemeMode> ThemeModes { get; } =
@@ -1192,33 +1194,33 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
     public string SettingsSubtitle => $"{AssistantName} preferences on this device";
 
     public string AppearanceSettingsDescription =>
-        $"Choose the theme and ambient-presence behavior used by every {AssistantName} visual surface.";
+        $"Choose how {AssistantName} looks, including text size and animated status dots.";
 
     public string AppearanceThemeDescription =>
-        $"System follows the current Windows light or dark preference. Light and Dark override it for all {AssistantName} surfaces.";
+        $"System follows your Windows theme. Light or Dark sets the theme for all {AssistantName} windows.";
 
     public string PresenceTimeoutDescription =>
         "Hide the presence after this many seconds of inactivity when no prompts are waiting.";
 
     public string PresenceDisplayDescription =>
         IsPresenceDisplayEnabled
-            ? "Show the animated presence when the assistant provides status feedback."
-            : "Keep the animated presence hidden while other interactive surfaces remain available.";
+            ? "Show animated dots to indicate what the assistant is doing."
+            : "Hide the animated dots. You can still use all other windows and controls.";
 
     public string ResponseTimeoutDescription =>
         "Hide an unpinned response window after this many seconds without interaction.";
 
     public string PresenceSizeDescription =>
-        $"Overall presence footprint: {PresenceSizePixels} pixels.";
+        $"Overall size: {PresenceSizePixels} pixels.";
 
     public string PresenceDotSizeDescription =>
-        $"Relative particle diameter: {PresenceDotSizePercent}%.";
+        $"Dot size: {PresenceDotSizePercent}% of normal.";
 
     public string PresenceDotDensityDescription =>
-        $"Relative particle density: {PresenceDotDensityPercent}% ({PresenceSettings.GetParticleCount(PresenceDotDensityPercent)} dots).";
+        $"Number of dots: {PresenceSettings.GetParticleCount(PresenceDotDensityPercent)} ({PresenceDotDensityPercent}% of normal).";
 
     public string PresenceMovementSpeedDescription =>
-        $"Relative particle movement speed: {PresenceMovementSpeedPercent}%.";
+        $"Movement speed: {PresenceMovementSpeedPercent}% of normal.";
 
     public string PresenceSpeechScalingDescription =>
         IsPresenceSpeechScalingEnabled
@@ -1226,10 +1228,10 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             : "The presence stays at its normal size during speech playback.";
 
     public string PresenceSpeechScaleAmountDescription =>
-        $"Relative speech-driven size change: {PresenceSpeechScaleAmountPercent}%.";
+        $"How much the dots grow and shrink with speech: {PresenceSpeechScaleAmountPercent}%.";
 
     public string MainCaptureDescription =>
-        $"{AssistantName} enumerates devices without recording. Capture starts only after you enable listening.";
+        $"{AssistantName} checks for devices without recording. Recording starts only after you enable listening.";
 
     public string SpeechAudioSettingsDescription =>
         $"Choose how {AssistantName} listens and speaks on this device.";
@@ -1238,7 +1240,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         $"Choose when {AssistantName} uses visual text, speech, or both.";
 
     public string ReadinessSettingsDescription =>
-        $"Review local dependencies used by {AssistantName}.";
+        $"Check what {AssistantName} needs and complete setup.";
 
     public ApplicationThemeMode ThemeMode
     {
@@ -1292,10 +1294,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
 
     public Task<bool> SetResponseAlwaysVisibleAsync(
         bool value,
-        SecurityAuditInitiator initiator = SecurityAuditInitiator.LocalUser) =>
+        SecurityAuditInitiator initiator = SecurityAuditInitiator.LocalUser,
+        Action<string, string>? reportFailure = null) =>
         SetResponseWindowSettingsAsync(
             responseWindowSettings with { AlwaysShow = value },
-            initiator);
+            initiator, reportFailure);
 
     public bool IsResponseWindowTopmost
     {
@@ -1305,10 +1308,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
 
     public Task<bool> SetResponseWindowTopmostAsync(
         bool value,
-        SecurityAuditInitiator initiator = SecurityAuditInitiator.LocalUser) =>
+        SecurityAuditInitiator initiator = SecurityAuditInitiator.LocalUser,
+        Action<string, string>? reportFailure = null) =>
         SetResponseWindowSettingsAsync(
             responseWindowSettings with { Topmost = value },
-            initiator);
+            initiator, reportFailure);
 
     public ResponseWindowPosition? ResponseWindowPosition =>
         responseWindowSettings.Position;
@@ -1809,8 +1813,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         : "Show visual text during calls";
 
     public string CallVisualOverrideStatus => ShowVisualTextDuringCalls
-        ? "On · protected calls suppress speech and require full visual output"
-        : "Off · legacy speech policy is relaxed; independent feedback and hard gates still apply";
+        ? "On · Kora stays quiet during protected calls and shows the full response on screen"
+        : "Off · other call, audio and privacy protections still apply";
 
     public string CallVoiceActivationButtonText => AllowVoiceActivationDuringCalls
         ? "Disable voice activation during calls"
@@ -1844,10 +1848,10 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             var fallback = IsVisualResponseVisible
                            && !IsCallVisualOverrideActive
                            && EffectiveResponseMode == ResponseOutputMode.VoiceOnly
-                ? " Visual text is forced because speech output is unavailable or failed."
+                ? " The full response is shown on screen because speech is unavailable or failed."
                 : string.Empty;
             var callOverride = IsCallVisualOverrideActive
-                ? " Call speech protection: speech withheld and full visual required; feedback and voice activation remain independent."
+                ? " Kora stays quiet during this call and shows the full response on screen. Listening has its own setting."
                 : string.Empty;
             var modeLabel = ResponseModeOptions.Single(
                 option => option.Mode == EffectiveResponseMode).Label;
@@ -1905,6 +1909,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         {
             if (SetProperty(ref commandText, value))
             {
+                Interlocked.Increment(ref attachmentCatalogueComposerRevision);
                 RefreshArtifactCommandOptions();
                 RunTypedCommand.NotifyCanExecuteChanged();
             }
@@ -2055,25 +2060,25 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
     public long MicrophoneTopologyRevision => Interlocked.Read(ref microphoneTopologyRevision);
 
     public string VoiceConsentDescription =>
-        "Voice consent is saved for this Windows profile and device. Activated command audio is processed locally. "
-        + "Production wake detection is not available in this build: no ambient audio is recorded or transcribed. "
-        + "Use push-to-talk in the response window when offered; Settings manages consent and readiness only. "
-        + "Disable listening closes capture for this run; "
-        + "Withdraw consent keeps it closed across restart. Normal unlock restores previously enabled readiness after fresh checks, "
-        + "without resuming capture. Disconnect, suspend and device/permission loss require explicit recovery.";
+        "Your listening permission is saved for your Windows account on this device. Voice commands are processed on this device. "
+        + "Wake-word listening is not available: Kora does not record or transcribe background audio. "
+        + "Use push-to-talk in the response window when offered; Settings only manages listening permission and readiness. "
+        + "Disable listening turns the microphone off until you enable it again. Remove listening permission also keeps it off after a restart. "
+        + "Unlocking can restore push-to-talk readiness after safety checks, but never starts recording. "
+        + "After a disconnect, sleep or loss of microphone access, enable listening again.";
 
     public string ListeningButtonText => IsVoiceEnabled ? "Disable listening" : "Enable listening";
 
     public string ListeningStatus => IsListening
         ? SelectedMicrophone is { } activeMicrophone
-            ? $"Push-to-talk capture on {activeMicrophone.Name}"
-            : "Push-to-talk capture active · microphone selection is refreshing"
+            ? $"Recording on {activeMicrophone.Name}"
+            : "Recording · checking microphone selection"
         : IsVoiceEnabled
             ? SelectedMicrophone is { } readyMicrophone
-                ? $"Push-to-talk ready on {readyMicrophone.Name} · microphone closed · production wake unavailable"
+                ? $"Push-to-talk ready on {readyMicrophone.Name} · microphone off"
                 : "Microphone closed · selected microphone is unavailable"
         : !HasVoiceConsent
-            ? "Microphone closed · ongoing voice consent not granted"
+            ? "Microphone closed · listening permission not granted"
         : IsMicrophoneAccessDenied
             ? "Microphone closed · Windows access is blocked"
             : listeningPauseSessionState is { } sessionState
@@ -3122,6 +3127,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
                 nameof(HostedModelsEnabled));
             OnPropertyChanged(nameof(HostedModelExecutionDescription));
 
+            responseWindowPreferencesUnconfirmed = true;
             var savedPresencePosition =
                 appearancePreferences.LoadPresencePosition();
             var savedResponseWindowSettings = appearancePreferences.LoadResponseWindowSettings();
@@ -3136,6 +3142,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
                     savedPresencePosition,
                     nameof(PresencePosition));
                 ApplyResponseWindowSettings(savedResponseWindowSettings ?? ResponseWindowSettings.Default);
+                responseWindowPreferencesUnconfirmed = false;
             }
             finally
             {
@@ -3867,8 +3874,21 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
 
     private async Task<bool> SetResponseWindowSettingsAsync(
         ResponseWindowSettings value,
-        SecurityAuditInitiator initiator)
+        SecurityAuditInitiator initiator,
+        Action<string, string>? reportFailure = null)
     {
+        Action<string, string> notifyFailure = reportFailure ?? ShowFailure;
+        try
+        {
+            ReadConfirmedResponseWindowSettings();
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or InvalidDataException
+            or InvalidOperationException)
+        {
+            ApplicationLog.Error(logger, exception, "Confirming response-window preferences");
+            notifyFailure("The response window settings could not be saved.", exception.Message);
+            return false;
+        }
         if (responseWindowSettings == value)
         {
             return true;
@@ -3876,7 +3896,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
 
         if (!suppressResponseWindowPreferenceSave
             && !await SavePreferenceAsync(() => appearancePreferences.SaveResponseWindowSettings(value),
-                ResponseWindowConfigurationAction, initiator, "response window settings"))
+                ResponseWindowConfigurationAction, initiator, "response window settings", reportFailure: reportFailure))
         {
             OnPropertyChanged(nameof(IsResponseAlwaysVisible));
             OnPropertyChanged(nameof(IsResponseWindowTopmost));
@@ -3997,6 +4017,14 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         try
         {
             var manualInput = CaptureManualCallInput(RequestOrigin.ActivatedVoice, CallPolicyRevision, eventArgs.Generation);
+            if (AttachmentCataloguePreparationCommand.Parse(eventArgs.Transcript, AssistantName) is { } catalogue)
+            {
+                manualInput = manualInput with
+                {
+                    CataloguePreparation = catalogue,
+                    CatalogueEligible = CaptureCatalogueVoiceEligibility(catalogue),
+                };
+            }
             var responseReadInput = CaptureResponseReadInput();
             var reviewEligibility = CaptureSkillReviewEligibility(manualInput);
             await uiDispatcher.InvokeAsync(
@@ -4056,6 +4084,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             { Transcript = "Local clock unavailable: the original voice generation or host was revoked."; }
             if (SettingsSectionCommand.Parse(eventArgs.Transcript, AssistantName) is not null)
             { Transcript = "Settings navigation unavailable: the original voice generation or host was revoked."; }
+            if (manualInput.CataloguePreparation is not null)
+            { Transcript = "Attachment catalogue preparation unavailable: the original voice generation or host was revoked."; }
             return;
         }
         if (Interlocked.CompareExchange(ref acceptedTranscriptGeneration, -1, eventArgs.Generation) != eventArgs.Generation)
@@ -4066,7 +4096,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         ApplicationLog.VoiceDispatchGate(logger, eventArgs.Generation, "Admitted");
         IsListening = voiceRecognition.IsListening;
         if (SettingsSectionCommand.Parse(eventArgs.Transcript, AssistantName) is not null
-            || LocalClockCommand.Parse(eventArgs.Transcript, AssistantName) is not null)
+            || LocalClockCommand.Parse(eventArgs.Transcript, AssistantName) is not null
+            || manualInput.CataloguePreparation is not null)
         {
             await HandleTranscriptAsync(eventArgs.Transcript, eventArgs.Confidence,
                 SecurityAuditInitiator.VoiceCommand, manualInput);
@@ -4113,9 +4144,16 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             ExecuteCalculateCommand(calculateCommand, initiator, manualInput);
             return;
         }
-        if (LocalClockCommand.Parse(spokenText, AssistantName) is { } clockCommand)
+        var sessionCommand = SessionCommand.Parse(spokenText, AssistantName);
+        if (sessionCommand is null && LocalClockCommand.Parse(spokenText, AssistantName) is { } clockCommand)
         {
             ExecuteLocalClockCommand(clockCommand, initiator, manualInput);
+            return;
+        }
+        if ((manualInput?.CataloguePreparation
+            ?? AttachmentCataloguePreparationCommand.Parse(spokenText, AssistantName)) is { } cataloguePreparation)
+        {
+            await PrepareAttachmentCatalogue(cataloguePreparation, initiator, manualInput);
             return;
         }
         if (Kora.Application.Skills.SkillReviewCommand.Parse(spokenText, AssistantName) is { } reviewCommand)
@@ -4144,6 +4182,16 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             await Kora.Application.Hosting.HostRequestRunner.RunAsync(
                 OriginalOrigin(initiator),
                 () => DisableListeningAsync(initiator));
+            return;
+        }
+        if (ResponseWindowCommand.Parse(spokenText, AssistantName) is { } responseWindowCommand)
+        {
+            if (!isAssistantNameAvailable && commandRouter.IsActivationPrefixed(spokenText, AssistantName))
+            {
+                Transcript = "Assistant prefix routing is unavailable; no response-window control was dispatched.";
+                return;
+            }
+            await ExecuteResponseWindowCommandAsync(responseWindowCommand, initiator);
             return;
         }
         Interlocked.Increment(ref dispositionReviewEpoch);
@@ -4344,15 +4392,16 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
                 commandRouter.IsActivationPrefixed(spokenText, AssistantName));
             return;
         }
-        if (SessionCommand.Parse(spokenText, AssistantName) is { } sessionCommand)
+        if (sessionCommand is not null)
         {
             if (initiator == SecurityAuditInitiator.VoiceCommand
                 && (sessionCommand.IsRetentionCommand || sessionCommand.IsConversationSearch
-                    || sessionCommand.Operation is SessionCommandOperation.RequestReview or SessionCommandOperation.RequestConfirm or SessionCommandOperation.RequestCancel)
+                    || sessionCommand.Operation is SessionCommandOperation.RequestReview or SessionCommandOperation.RequestConfirm
+                        or SessionCommandOperation.RequestCancel or SessionCommandOperation.AttachmentInspect)
                 && !commandRouter.IsActivationPrefixed(spokenText, AssistantName))
             {
                 RetireSessionCommandReviews();
-                ShowInformation("Session request denied.", "Use the current assistant-name prefix and exact session request grammar. No pending question or model received this input.");
+                ShowInformation("Session request denied.", "Use the current assistant-name prefix and exact session grammar. No pending question or model received this input.");
                 return;
             }
             await ExecuteSessionCommandAsync(sessionCommand, initiator);
@@ -5649,6 +5698,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
                     + "Use “" + SessionDispositionReviewCommand.Syntax + "” for preview only in private native Sessions; confirmation is a separate native action. "
                     + SessionQueueCancellationReviewCommand.Syntax + ". " + SessionQueueCancellationReviewCommand.Boundary + " "
                     + SessionDiagnosticsPlanCommand.Syntax + ". " + SessionDiagnosticsPlanCommand.Boundary + " "
+                    + "Use “list response window settings” for exact device-local visibility/topmost controls; no response is reopened. "
                     + $"Use “{AssistantName}, list assistant settings” for the display/PTT command-prefix name. "
                     + NaturalAppearanceCommand.Syntax + " "
                     + "Natural name commands: “what is your name”, “call yourself <name>”, “change your name to <name>”, or “reset your name”. "
@@ -6118,6 +6168,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             .Concat(PreparedLocalSearchCommand.DiscoveryPhrases)
             .Concat(Kora.Core.Calculations.CalculateCommand.DiscoveryPhrases)
             .Concat(LocalClockCommand.FixedPhrases)
+            .Concat(AttachmentCataloguePreparationCommand.DiscoveryPhrases)
             .Concat(SessionCommand.DiscoveryPhrases)
             .Concat(WorkspaceSurfaceCommand.FixedPhrases)
             .Concat(MemoryCommand.DiscoveryPhrases)
@@ -6131,6 +6182,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             .Concat(AuditRetentionCommand.FixedPhrases)
             .Concat(ManualCallCommand.FixedPhrases)
             .Concat(ResponseModeCommand.FixedPhrases)
+            .Concat(ResponseWindowCommand.FixedPhrases)
             .Concat(ProviderModeCommand.FixedPhrases)
             .Concat(ProviderProfileCommand.FixedPhrases)
             .Concat(SessionProviderProfileCommand.FixedPhrases)
@@ -6220,7 +6272,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
                 AssistantName,
                 StringComparison.Ordinal)
                 ? $"The current name is {AssistantName}."
-                : $"Apply to use {normalizedName} in the interface, command prefix, and speech.";
+                : $"Apply to use {normalizedName} on screen, in spoken responses and when addressing the assistant.";
         }
         catch (ArgumentException exception)
         {

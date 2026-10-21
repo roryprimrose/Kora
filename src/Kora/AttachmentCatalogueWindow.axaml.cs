@@ -83,4 +83,21 @@ internal sealed partial class AttachmentCatalogueWindow : Window
     }
 
     private static void BlockTransfer(object? sender, RoutedEventArgs args) => args.Handled = true;
+
+    internal void PrepareExactSession(Guid sessionId, Func<bool> admitted)
+    {
+        if (!IsVisible || !admitted() || DataContext is not AttachmentCatalogueViewModel model)
+        { throw new InvalidOperationException("The original native catalogue is unavailable."); }
+        model.PrepareExactSession(sessionId);
+        UpdateLayout();
+        AttachmentQueryText.BringIntoView();
+        if (!IsVisible || !admitted() || !AttachmentQueryText.Focus() || !AttachmentQueryText.IsFocused
+            || !ReferenceEquals(DataContext, model) || model.Mode != AttachmentCatalogueMode.ExactId
+            || !string.Equals(model.QueryText, sessionId.ToString("D"), StringComparison.Ordinal)
+            || !string.Equals(AttachmentQueryText.Text, model.QueryText, StringComparison.Ordinal) || !admitted())
+        {
+            model.PreparationUnavailable();
+            throw new InvalidOperationException("Native exact-session query focus was not acknowledged.");
+        }
+    }
 }

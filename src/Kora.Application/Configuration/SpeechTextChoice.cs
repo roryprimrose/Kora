@@ -19,7 +19,14 @@ public sealed class SpeechTextChoice
     }
     public SpeechTextMode? Mode { get; }
     public SpeechCaptionValue? CaptionValue { get; }
-    public string Label => CaptionValue is { } value ? value.Label : Mode!.Value.ToString();
+    public string Label => CaptionValue is SpeechCaptionValue.Placement placement
+        ? Presentation.SettingsText.CaptionPlacement(placement.Value)
+        : CaptionValue is { } value ? value.Label : Mode switch
+    {
+        SpeechTextMode.Off => "Off",
+        SpeechTextMode.CurrentUtterance => "Show spoken words",
+        _ => throw new InvalidOperationException("A caption mode or option is required."),
+    };
     internal long Revision { get; }
     internal Guid Owner { get; }
     internal WorkSessionAuthorization Session { get; }

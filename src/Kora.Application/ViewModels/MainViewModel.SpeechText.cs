@@ -51,15 +51,28 @@ public sealed partial class MainViewModel : ISpeechCaptionPresentation
         }
     }
     public string SpeechTextConfigurationStatus => speechTextConfiguration is null
-        ? "Speech-text control is unavailable; captions remain off."
-        : SpeechTextState.Serialize(speechTextConfiguration.Get());
+        ? "Caption settings are unavailable; captions remain off."
+        : Presentation.SettingsText.Describe(speechTextConfiguration.Get());
     public AsyncCommand RefreshSpeechTextCommand { get; }
     public AsyncCommand SaveSpeechTextCommand { get; }
     public AsyncCommand ResetSpeechTextCommand { get; }
     public AsyncCommand ToggleSpeechCaptionPinCommand { get; }
     public AsyncCommand SaveSpeechCaptionOptionCommand { get; }
     public AsyncCommand ResetSpeechCaptionOptionCommand { get; }
-    public IReadOnlyList<SpeechCaptionOption> SpeechCaptionOptionsList => Enum.GetValues<SpeechCaptionOption>();
+    public IReadOnlyList<SpeechCaptionOptionChoice> SpeechCaptionOptionsList { get; } =
+    [
+        new(SpeechCaptionOption.Placement, "Position on screen"),
+        new(SpeechCaptionOption.DismissalDelay, "Seconds to keep captions after speech"),
+    ];
+    public SpeechCaptionOptionChoice SelectedSpeechCaptionOptionChoice
+    {
+        get => SpeechCaptionOptionsList.Single(choice => choice.Option == SelectedSpeechCaptionOption);
+        set
+        {
+            ArgumentNullException.ThrowIfNull(value);
+            SelectedSpeechCaptionOption = value.Option;
+        }
+    }
     public SpeechCaptionOption SelectedSpeechCaptionOption
     {
         get => selectedSpeechCaptionOption;
@@ -68,6 +81,7 @@ public sealed partial class MainViewModel : ISpeechCaptionPresentation
             if (SetProperty(ref selectedSpeechCaptionOption, value))
             {
                 SelectedSpeechCaptionChoice = null;
+                OnPropertyChanged(nameof(SelectedSpeechCaptionOptionChoice));
                 OnPropertyChanged(nameof(SpeechCaptionOptionChoices));
             }
         }

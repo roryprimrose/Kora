@@ -18,7 +18,7 @@ public sealed class InCallFeedbackChoice
     }
 
     public InCallFeedbackMode Mode { get; }
-    public string Label => Mode.ToString();
+    public string Label => Presentation.SettingsText.CallFeedback(Mode);
     internal long Revision { get; }
     internal long CallRevision { get; }
     internal WorkSessionAuthorization Session { get; }

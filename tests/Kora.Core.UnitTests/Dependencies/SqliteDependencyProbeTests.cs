@@ -30,13 +30,14 @@ public sealed class SqliteDependencyProbeTests
                 NullLogger<SqliteDependencyProbe>.Instance);
 
             probe.TaskId.Should().Be("kora.sqlite");
-            probe.TaskName.Should().Be("Local SQLite storage");
+            probe.TaskName.Should().Be("Setup record storage");
             var first = await probe.ProbeAsync(TestContext.Current.CancellationToken);
             var second = await probe.ProbeAsync(TestContext.Current.CancellationToken);
 
             first.Readiness.Should().Be(DependencyReadiness.Ready);
             second.Readiness.Should().Be(DependencyReadiness.Ready);
-            first.Detail.Should().Contain("Durable content and authoritative evidence storage remain unavailable");
+            first.Detail.Should().Contain("requires protected storage that is not yet available")
+                .And.NotContain("SQLite").And.NotContain("schema");
             await using var connection = new SqliteConnection(
                 new SqliteConnectionStringBuilder
                 {
@@ -105,7 +106,7 @@ public sealed class SqliteDependencyProbeTests
             var result = await probe.ProbeAsync(TestContext.Current.CancellationToken);
 
             result.Readiness.Should().Be(DependencyReadiness.Incompatible);
-            result.Detail.Should().Contain("version 2");
+            result.Detail.Should().Contain("newer format").And.Contain("Existing data was not modified");
             await using var reopened = new SqliteConnection($"Data Source={path};Pooling=False");
             await reopened.OpenAsync(TestContext.Current.CancellationToken);
             await using var versionCommand = reopened.CreateCommand();
@@ -146,7 +147,7 @@ public sealed class SqliteDependencyProbeTests
             var result = await probe.ProbeAsync(TestContext.Current.CancellationToken);
 
             result.Readiness.Should().Be(DependencyReadiness.Failed);
-            result.Detail.Should().Contain("Database integrity check failed");
+            result.Detail.Should().Contain("Setup record check failed");
             await using var reopened = new SqliteConnection($"Data Source={path};Pooling=False");
             await reopened.OpenAsync(TestContext.Current.CancellationToken);
             await using var read = reopened.CreateCommand();

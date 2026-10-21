@@ -227,7 +227,7 @@ public sealed class NativeReaderTextScaleTests
             try
             {
                 var spinner = window.GetVisualDescendants().OfType<NumericUpDown>().Single(control =>
-                    string.Equals(AutomationProperties.GetName(control), "Native reader text scale percentage", StringComparison.Ordinal));
+                    string.Equals(AutomationProperties.GetName(control), "Reading text size percentage", StringComparison.Ordinal));
                 spinner.Minimum.Should().Be(75);
                 spinner.Maximum.Should().Be(200);
                 spinner.Increment.Should().Be(1);

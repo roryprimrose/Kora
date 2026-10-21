@@ -190,8 +190,8 @@ public sealed partial class MainViewModelTests
         await fixture.ViewModel.InitializeAsync();
         fixture.ViewModel.SelectedSummaryWords.Should().BeNull();
         fixture.ViewModel.SelectedSummarySentences.Should().BeNull();
-        fixture.ViewModel.SpeechSettingStatus.Should().Contain("speech.summary-words = invalid")
-            .And.Contain("speech.summary-sentences = invalid").And.Contain("saved limits").And.Contain("repair");
+        fixture.ViewModel.SpeechSettingStatus.Should().Contain("Spoken summary limits are unavailable")
+            .And.Contain("could not be read or are invalid").And.Contain("repair");
         await fixture.RunAsync("reset speech.summary-words");
         fixture.ViewModel.ResponseTitle.Should().Contain("Choose");
         fixture.ViewModel.DefaultResponseMode = ResponseOutputMode.VoiceOnly;

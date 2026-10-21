@@ -92,6 +92,7 @@ public sealed partial class SessionQueueService
             {
                 throw new InvalidOperationException("The exact one-shot diagnostics review was retired or consumed. Review again.");
             }
+
             diagnosticsReview = null;
             originalAdmission = diagnosticsAdmission;
             diagnosticsAdmission = static () => false;
@@ -113,11 +114,11 @@ public sealed partial class SessionQueueService
             RequireDiagnosticsSnapshot(review.Queue, review.AdmissionRevision);
             var expected = review.Queue;
             // Full preflight before any effect, and again before EVERY authoritative single enqueue.
-            await PreflightAsync(expected, outcomes.Length).ConfigureAwait(false);
+            await PreflightDiagnosticsAsync(review, expected, outcomes.Length, Eligible, token).ConfigureAwait(false);
             for (; index < outcomes.Length; index++)
             {
                 attempted = false;
-                await PreflightAsync(expected, outcomes.Length - index).ConfigureAwait(false);
+                await PreflightDiagnosticsAsync(review, expected, outcomes.Length - index, Eligible, token).ConfigureAwait(false);
                 var work = new HostRequest(new(Guid.NewGuid()), expected.SessionId, new(Guid.NewGuid()), origin);
                 outcomes[index] = outcomes[index] with { Request = work };
                 var command = new SessionCommand(SessionCommandOperation.QueueEnqueue, expected.SessionId.Value,
@@ -171,26 +172,52 @@ public sealed partial class SessionQueueService
             if (index < outcomes.Length) { outcomes[index] = outcomes[index] with { State = state }; }
         }
 
-        Task PreflightAsync(SessionQueueSnapshot expected, int remaining) => WithLimitsAsync(async current =>
-        {
-            token.ThrowIfCancellationRequested();
-            RequireEligible(Eligible);
-            if (current != review.Limits || ConfigurationRevision != review.ConfigurationRevision)
-            {
-                throw new InvalidOperationException("Reviewed queue limits changed; no automatic resizing or retry.");
-            }
-            var observed = await ReadDiagnosticsQueueAsync(expected.SessionId, Eligible, token).ConfigureAwait(false);
-            RequireDiagnosticsSnapshot(observed, review.AdmissionRevision);
-            if (!SameDiagnosticsQueue(expected, observed))
-            {
-                throw new InvalidOperationException("Exact queue, generation, run/control or original deadlines changed.");
-            }
-            RequireDiagnosticsCapacity(review, observed, remaining);
-            token.ThrowIfCancellationRequested();
-            RequireEligible(Eligible);
-            return true;
-        }, token);
     }
+
+    public async Task ValidateDiagnosticsPlanAsync(SessionDiagnosticsPlanReview review, Func<bool> admission, CancellationToken token)
+    {
+        long epoch;
+        Func<bool> originalAdmission;
+        lock (causeGate)
+        {
+            if (applyingDiagnostics || !ReferenceEquals(diagnosticsReview, review))
+            { throw new InvalidOperationException("The original diagnostics review is unavailable. Request a fresh plan."); }
+            epoch = diagnosticsEpoch;
+            originalAdmission = diagnosticsAdmission;
+        }
+        bool Eligible() => DiagnosticsCurrent(epoch, review.AdmissionRevision)
+            && originalAdmission() && admission() && !token.IsCancellationRequested;
+        using var activity = HostActivity.BeginRoot(new(new(Guid.NewGuid()), review.Queue.SessionId,
+            new(Guid.NewGuid()), RequestOrigin.LocalUi), HostActivityLayer.Application, HostOperation.Request);
+        try
+        {
+            await PreflightDiagnosticsAsync(review, review.Queue, review.Profiles.Length, Eligible, token).ConfigureAwait(false);
+            activity.Complete(HostOperationOutcome.Completed);
+        }
+        catch (OperationCanceledException) { activity.Complete(HostOperationOutcome.Cancelled); throw; }
+        catch { activity.Complete(HostOperationOutcome.Failed); throw; }
+    }
+
+    private Task<bool> PreflightDiagnosticsAsync(SessionDiagnosticsPlanReview review, SessionQueueSnapshot expected,
+        int remaining, Func<bool> eligible, CancellationToken token) => WithLimitsAsync(async current =>
+    {
+        token.ThrowIfCancellationRequested();
+        RequireEligible(eligible);
+        if (current != review.Limits || ConfigurationRevision != review.ConfigurationRevision)
+        {
+            throw new InvalidOperationException("Reviewed queue limits changed; no automatic resizing or retry.");
+        }
+        var observed = await ReadDiagnosticsQueueAsync(expected.SessionId, eligible, token).ConfigureAwait(false);
+        RequireDiagnosticsSnapshot(observed, review.AdmissionRevision);
+        if (!SameDiagnosticsQueue(expected, observed))
+        {
+            throw new InvalidOperationException("Exact queue, generation, run/control or original deadlines changed.");
+        }
+        RequireDiagnosticsCapacity(review, observed, remaining);
+        token.ThrowIfCancellationRequested();
+        RequireEligible(eligible);
+        return true;
+    }, token);
 
     private bool DiagnosticsCurrent(long epoch, long admissionRevision)
     {

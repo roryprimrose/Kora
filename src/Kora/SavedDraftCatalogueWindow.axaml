@@ -18,6 +18,12 @@
     <ScrollViewer Grid.Row="1" MaxHeight="240" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto"
                   AutomationProperties.Name="Saved draft query and metadata predicates">
     <StackPanel Spacing="6">
+      <StackPanel>
+        <TextBlock Text="Order this loaded page" />
+        <ComboBox x:Name="DraftPageOrder" ItemsSource="{Binding Orders}" SelectedItem="{Binding OrderChoice, Mode=TwoWay}"
+                  IsEnabled="{Binding CanEditQuery}" AutomationProperties.Name="Order this loaded page; Source order default; no read; not global ordering" />
+        <controls:NamedTextBlock x:Name="DraftPageOrderHint" Text="{Binding OrderHint}" TextWrapping="Wrap" />
+      </StackPanel>
       <WrapPanel>
         <ComboBox x:Name="DraftQueryMode" ItemsSource="{Binding Modes}" SelectedItem="{Binding Mode, Mode=TwoWay}"
                   IsEnabled="{Binding CanEditQuery}" AutomationProperties.Name="Saved draft metadata query mode: Browse, NameSubstring or ExactId" />

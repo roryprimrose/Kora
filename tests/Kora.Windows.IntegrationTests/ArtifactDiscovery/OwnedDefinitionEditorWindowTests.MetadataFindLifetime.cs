@@ -82,7 +82,7 @@ public sealed partial class OwnedDefinitionEditorWindowTests
             foreach (var query in MetadataAbsentText)
             {
                 FindMetadataText(native, query);
-                native.MetadataFindStatus.Text.Should().Contain("0 of 0");
+                native.MetadataFindStatus.Text.Should().Contain("0 nonoverlapping matches").And.Contain("no displayed match");
             }
             foreach (var retire in new Action[]
             {

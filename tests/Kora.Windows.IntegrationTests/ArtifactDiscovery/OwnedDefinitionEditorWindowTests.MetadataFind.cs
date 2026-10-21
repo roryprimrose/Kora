@@ -45,7 +45,7 @@ public sealed partial class OwnedDefinitionEditorWindowTests
                 foreach (var absent in MetadataAbsentText)
                 {
                     FindMetadataText(window, absent);
-                    window.MetadataFindStatus.Text.Should().Contain("0 of 0");
+                    window.MetadataFindStatus.Text.Should().Contain("0 nonoverlapping matches").And.Contain("no displayed match");
                     window.MetadataFindMatch.Text.Should().BeEmpty();
                 }
                 FindMetadataText(window, "aa");
@@ -86,7 +86,7 @@ public sealed partial class OwnedDefinitionEditorWindowTests
                 window.MetadataFindStatus.Text.Should().BeEmpty();
                 window.MetadataFindMatch.Text.Should().BeEmpty();
                 ClickMetadata(window.MetadataFindFirst);
-                window.MetadataFindStatus.Text.Should().Contain("0 of 0");
+                window.MetadataFindStatus.Text.Should().Contain("0 nonoverlapping matches").And.Contain("no displayed match");
                 FindMetadataText(window, "\u200b");
                 window.MetadataFindStatus.Text.Should().StartWith("Invalid");
                 FindMetadataText(window, "aa");

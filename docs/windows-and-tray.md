@@ -358,6 +358,19 @@ In **Sessions**, choose **Browse**, **NameSubstring**, **ExactId** or **ExactNam
 - **Cancel metadata search** suppresses late results. **Clear metadata search** (or Escape in its field) discards the volatile query/results. **Refresh** returns to ordinary list paging. Query, mode, state, privacy, source or host changes require a fresh Search.
 
 Enter in any query/range field searches; Escape or Clear erases all bounds.
+**Order this loaded session page** changes only the current paged metadata
+search result, including empty-text Browse. Choose Source (the unchanged default),
+NameAscending / NameDescending (case-sensitive ordinal, unnamed last in both
+directions), or GenerationAscending / GenerationDescending (actual admitted
+authority generation). Equal keys use canonical session ID ascending.
+**Clear page order to Source** restores the exact original page without reading.
+Ordering preserves the exact selected session, unsaved composer/name text and
+original question/action targets; it never selects a row by its new position.
+The choice is volatile, applies to later explicitly loaded search pages, and
+does not change Next, scan limits, query semantics or the ordinary Refresh list.
+It is not a global ordering or completeness claim. Query/source/privacy retirement
+still clears stale rows; choosing an order cannot recover them.
+
 Editing performs no read and retires prior search results/selection. Numeric
 predicates are bound into Next; changed bounds require a fresh Search.
 This includes both name-length fields: editing retires prior search rows, detail, exact selection, actions and cursor without reading; Clear/Escape resets both bounds ([native checks](../tests/Kora.Windows.IntegrationTests/SessionsListSearchTests.cs), [read-count checks](../tests/Kora.Windows.IntegrationTests/SessionsViewModelTests.ListSearch.cs)).

@@ -405,6 +405,7 @@ public sealed partial class SessionsConversationTests
     [InlineData("control-maximum")]
     [InlineData("ceiling-minimum")]
     [InlineData("ceiling-maximum")]
+    [InlineData("order")]
     public async Task QueryEpochRevocationDuringExactDraftNavigationPreservesTheCurrentDirtyComposer(string boundary)
     {
         using var f = new InteractionStorageFixture();
@@ -447,10 +448,12 @@ public sealed partial class SessionsConversationTests
             else if (boundary is "control-maximum") { model.MaximumControlRevisionText = "1"; }
             else if (boundary is "ceiling-minimum") { model.MinimumAuthorityCeilingText = "1"; }
             else if (boundary is "ceiling-maximum") { model.MaximumAuthorityCeilingText = "1"; }
+            else if (boundary is "order") { model.Order = SavedDraftPageOrder.SessionNameDescending; }
             else { model.Filter = SessionListFilter.Done; }
         };
         await model.Navigate();
-        model.Records.Should().BeEmpty();
+        if (boundary is "order") { model.Records.Should().ContainSingle(); }
+        else { model.Records.Should().BeEmpty(); }
         model.SelectedRecord.Should().BeNull();
         composed.Model.SelectedSessionRecord.Should().BeSameAs(original);
         composed.Model.ComposerBody.Should().Be("unchanged private dirty body");
@@ -482,6 +485,7 @@ public sealed partial class SessionsConversationTests
     [InlineData("control-maximum")]
     [InlineData("ceiling-minimum")]
     [InlineData("ceiling-maximum")]
+    [InlineData("order")]
     public async Task DraftQueryChangesRevokePendingPagesAndKeepLateCallbacksFromRestoringPrivateResults(string boundary)
     {
         using var f = new InteractionStorageFixture();
@@ -537,6 +541,7 @@ public sealed partial class SessionsConversationTests
                 case "control-maximum": model.MaximumControlRevisionText = "1"; break;
                 case "ceiling-minimum": model.MinimumAuthorityCeilingText = "2"; break;
                 case "ceiling-maximum": model.MaximumAuthorityCeilingText = "1"; break;
+                case "order": model.Order = SavedDraftPageOrder.SessionNameDescending; break;
                 case "private": access.CanInspect = false; model.SynchronizeAuthority(); break;
                 case "failure": throw new InvalidDataException("source failed");
                 case "source": model.Revoke(); break;

@@ -30,6 +30,34 @@ Original private host, instance ownership, current-name voice activation and
 call/privacy admission must remain valid; protected or unknown call state
 refuses calculation. This native-only command adds no model descriptor.
 
+## Host-local date and time
+
+Type `what time is it`, `what is today's date`, `what is the date and time`,
+or `help local clock`. Activated voice requires the current assistant name,
+for example `Kora, what time is it?`; renaming replaces that prefix.
+These phrases use the ordinary built-in case/punctuation normalization.
+Control characters and commands over 256 characters are refused.
+Only the reserved normalized families `what time`, `what is today s date`,
+`what is the date and time` and `help local clock` (whole words plus optional
+suffix words) clarify malformed requests instead of sending them to a model.
+For example, `what time is it in Paris` is not a timezone query.
+No other fuzzy date/time grammar is introduced.
+
+Each answer samples one host clock instant and converts it using the host's
+local timezone and culture. The displayed date is the date in that timezone,
+not the UTC date. Every answer includes its UTC offset and timezone ID,
+including at daylight-saving transitions. It reports the host clock, not
+independently verified time.
+
+Answers and help are visual, even in Voice only mode, without automatic
+speech or audio/device discovery. A separate **Read current response aloud**
+request remains subject to the existing speech policy. The clock route never
+uses a model, network, geolocation, calendar, reminder or scheduling service.
+Original private owning-host input and clear call admission must remain current;
+stale/denied/unavailable requests report recovery in status. Pending questions,
+approvals, power proposals, grant editors and native security reviews stay
+unchanged, including for malformed clock commands.
+
 ## Open an exact Settings tab
 
 Use one complete case-insensitive phrase below, optionally prefixed by the current assistant name when typed. Activated voice requires that current-name prefix. Outer spaces are accepted; punctuation, extra words, control characters and input over 256 characters are not ([exact grammar](../src/Kora.Application/Configuration/SettingsSectionCommand.cs)).
@@ -95,6 +123,16 @@ are observed provenance only, not current authority, permission, body integrity,
 device ownership or navigation authority. Editing any of these fields performs
 no read and retires rows, exact selection and Next; Clear/revocation clears them.
 Typing performs no read. Query/mode/lifecycle/revision/byte/scalar edits cancel pending pages and invalidate the catalogue selection and exact navigation without changing the current composer. Use **Search / refresh metadata**, Next, Cancel, or **Clear query (Browse)** explicitly; Clear also empties the metadata fields without reading. A zero-match bounded page may still have Next; there is no global inventory count.
+
+**Order this loaded page** offers **Source order (default)**, **Session name
+ascending/descending** and **Saved revision ascending/descending**. It only reorders
+the complete metadata already admitted on the current page, with no read or refresh.
+Names use ordinal case-sensitive ordering, with unnamed sessions last in both
+directions; all ties use canonical session ID ascending. This is not global ordering,
+completeness or a total. Next uses the original source continuation, not the last
+displayed row. Order edits retire exact selection/details and pending navigation;
+select explicitly again. They never load a draft, change the Sessions target or
+discard the composer. Clear restores Source order without reading.
 
 Select one row and **Open exact session (no body load)**. Changed source/revision/privacy refuses with Refresh. The existing Sessions dirty-buffer Save/Discard/Cancel protection remains; an explicit Save that changes authority requires fresh catalogue observation.
 **Reload saved draft**, Save and Submit are separate Sessions gestures. Done remains Done. See the [canonical scope and limitations](../Design/Interaction_And_Sessions.md#saved-conversation-draft-catalogue--2026-10-13).
@@ -458,6 +496,38 @@ Pending prerequisite inversion and expired/private-retired/previous-run/nonpendi
 Only pending dispatch order changes. Original arrival, enqueue/expiry, active deadlines, results, history and fairness remain intact; new enqueue follows the current pending order. No pause/resume/dispatch or activity renewal follows a move.
 Running callbacks remain independent; previous-run Interrupted/Unknown work never replays. Audit/storage/delivery uncertainty holds admission with explicit recovery, never an optimistic success-shaped list.
 Queue snapshots include at most two latest order lineages with `omittedOrders`; older exact move receipts remain in authoritative audit/history, not fabricated current ordering.
+
+## Prepare an exact local diagnostics plan
+
+Use typed input, or the current assistant-name prefix for activated voice:
+
+```text
+session diagnostics plan <session-id> <profiles>
+session diagnostics plan help
+Kora, session diagnostics plan 12345678-1234-1234-abcd-123456789012 version,readiness
+```
+
+The session ID must be a nonempty lowercase canonical D GUID. Profiles are an
+explicit nonempty comma-separated subset of `version,capabilities,readiness,runtimes`
+in that canonical order. Do not put spaces inside the list. Duplicates, empty
+elements, unknown or targeted profiles, reordered lists, names, `selected`,
+`current`, `all`, inferred defaults and extra confirmation words are rejected.
+Malformed reserved diagnostics input never becomes a model question or approval answer.
+
+This opens only the existing exact private **Sessions** target, prepares the
+chosen profiles and displays its complete diagnostics review: capacity, original
+deadlines, limits, run/private control, explicit None prerequisites and the
+sequential, possibly partial enqueue disclosure. It runs no diagnostic probes,
+model or network request, enqueues nothing and never dispatches, resumes,
+reorders or renews work. **Enqueue reviewed diagnostics plan** remains a separate
+one-shot native confirmation using the existing authoritative single-item enqueues.
+
+An existing dirty composer still requires **Save / Discard / Cancel** before
+navigation. Cancel or an unconfirmed save keeps the original buffer and target.
+Pending questions and approvals must be resolved explicitly. Changed original
+input, host/private/call admission, native navigation source, session generation,
+queue/control or confirmed limits makes the route unavailable; request a fresh
+exact plan. There is no latest, selected-session, name or model fallback.
 
 ## Fixed queue settings
 
@@ -862,6 +932,18 @@ or suppress it. A new capture replaces the prior selection with a new ID.
 
 **Literal Find is native-only**, not a typed/voice command or model tool. Use **Find first / Find next / Find previous / Clear literal Find** in the already captured preview; no clipboard reread, reuse/revoke action or activity renewal occurs.
 Exact case/spaces, one-line strict Unicode, 256 UTF-16 / 512 UTF-8 limits and visible invalid-input rejection apply. See [native clipboard Find](windows-and-tray.md#local-clipboard-preview) and its [contract](../Design/Security_Data_Flows.md#delivered-r07-local-clipboard-preview---2026-10-07).
+
+**Validate this snapshot as XML** is a separate explicit native button, not a
+typed/voice command or model tool. It checks the entire unchanged snapshot in
+memory as one XML document, without rereading the clipboard. DTDs are prohibited,
+external resources are never loaded, and element depth is limited to 64.
+The volatile result is WellFormedXML, Invalid or PolicyRefused with a bounded
+reason and line/column, never a source excerpt. Closing or retiring the preview
+clears it. Encoding declarations are text metadata, not proof of the original
+clipboard encoding. XML well-formedness does **not** establish schema validity,
+safety, trust, uniqueness, absence of secrets, egress approval or permission to
+send the text to a model. Explanation remains unavailable under its source-use
+policy; XML checking does not bypass it.
 
 The whole text must fit 256 KiB UTF-8, with valid paired Unicode surrogates.
 Empty, unsupported, oversize, busy, denied, changed-version and malformed

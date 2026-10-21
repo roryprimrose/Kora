@@ -81,6 +81,7 @@ internal sealed partial class OwnedInstructionEditorController(
         });
         var findOwner = window;
         window.BindBufferFind(() => CaptureBufferFind(findOwner));
+        window.BindGoToLine(CaptureGoToLine);
         window.Source.PropertyChanged += (_, change) =>
         {
             if (change.Property == TextBox.TextProperty) { Interlocked.Increment(ref sourceRevision); window?.CancelRebaseReview(); window?.ClearValidation(); }
@@ -144,6 +145,7 @@ internal sealed partial class OwnedInstructionEditorController(
 
     private async Task Run(string action, string? exactName = null)
     {
+        window?.InvalidateGoToLine();
         if (busy || disposed || window is not { } opened || lifetime is null)
         {
             if (window is not null) { window.SelectKind(kind); }

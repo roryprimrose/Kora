@@ -34,6 +34,17 @@ do not depend on hosted management, and speech preferences do not qualify wake.
 
 ## Current Delivery
 
+### Bounded host-local clock answers
+
+The [clock contract](Commands_Tools_And_Skills.md#bounded-host-local-clock-answers)
+adds three original-input date/time answers and help using one `TimeProvider`
+instant with host-local culture, timezone and explicit UTC offset. Core
+formatting, Tools actions, injected Application admission/workflow and desktop
+context composition form the consumed I subset. Existing model catalogue,
+calendar, scheduling, speech/provider and hardware enablement are unchanged;
+no E/Q or experiment evidence is consumed. Answers remain visual without
+automatic speech or device discovery and preserve pending security interactions.
+
 ### Bounded provider-neutral local-model tool continuation implementation - 2026-10-20
 
 The [tool-loop contract](Internal_Model_Tools.md#bounded-provider-neutral-continuation-implementation---2026-10-20)

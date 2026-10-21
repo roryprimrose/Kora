@@ -14,12 +14,16 @@ public sealed partial class MainViewModelTests
     private const string ReplacementInput = "session queue replacement review 12345678-1234-1234-abcd-123456789012 abcdef12-1234-1234-abcd-123456789012";
 
     [Theory]
-    [InlineData(false, true)]
-    [InlineData(true, true)]
-    [InlineData(false, false)]
-    public async Task ExactQueueReplacementUsesOnlyNativeReviewAndTruthfulLinkedPresentation(bool voice, bool displayed)
+    [InlineData(false, true, "Kora")]
+    [InlineData(true, true, "Kora")]
+    [InlineData(false, false, "Kora")]
+    [InlineData(false, true, "What Time")]
+    [InlineData(true, true, "What Time")]
+    public async Task ExactQueueReplacementUsesOnlyNativeReviewAndTruthfulLinkedPresentation(
+        bool voice, bool displayed, string assistantName)
     {
         var f = await Fixture.CreateInitializedAsync();
+        await f.RunAsync("set assistant name to " + assistantName);
         var presenter = new ReplacementPresenter { Displayed = displayed };
         f.ViewModel.BindSessionQueueReplacementReview(presenter);
         var activities = new List<Activity>();
@@ -30,8 +34,9 @@ public sealed partial class MainViewModelTests
             ActivityStopped = activities.Add,
         };
         ActivitySource.AddActivityListener(listener);
-        if (voice) { await f.RaiseActivatedTranscriptAsync("Kora, " + ReplacementInput, 1); }
-        else { await f.RunAsync(ReplacementInput); }
+        if (voice) { await f.RaiseActivatedTranscriptAsync(assistantName + ", " + ReplacementInput, 1); }
+        else { await f.RunAsync(string.Equals(assistantName, "What Time", StringComparison.Ordinal)
+            ? assistantName + ", " + ReplacementInput : ReplacementInput); }
         presenter.Commands.Should().ContainSingle().Which.TaskId.Should().Be(Guid.Parse("abcdef12-1234-1234-abcd-123456789012"));
         presenter.LastAdmission.Should().BeTrue();
         f.ViewModel.ResponseTitle.Should().Be(displayed ? "Queue replacement review opened." : "Queue replacement review not opened.");

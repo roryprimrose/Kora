@@ -4131,12 +4131,13 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             ExecuteCalculateCommand(calculateCommand, initiator, manualInput);
             return;
         }
-        if (LocalClockCommand.Parse(spokenText, AssistantName) is { } clockCommand)
+        var replacementReviewCommand = SessionQueueReplacementReviewCommand.Parse(spokenText, AssistantName);
+        if (replacementReviewCommand is null && LocalClockCommand.Parse(spokenText, AssistantName) is { } clockCommand)
         {
             ExecuteLocalClockCommand(clockCommand, initiator, manualInput);
             return;
         }
-        if (SessionQueueReplacementReviewCommand.Parse(spokenText, AssistantName) is { } replacementReview)
+        if (replacementReviewCommand is { } replacementReview)
         {
             await ExecuteQueueReplacementReviewAsync(replacementReview, spokenText, initiator, manualInput);
             return;

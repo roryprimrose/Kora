@@ -11,12 +11,15 @@ public sealed class DiagnosticRetentionUiContractTests
         var root = SourceRoot();
         var controls = XDocument.Load(Path.Combine(root, "src", "Kora", "SettingsWindow.axaml")).Descendants().ToArray();
         var selector = controls.Single(control =>
-            string.Equals(control.Attribute("SelectedItem")?.Value, "{Binding SelectedDiagnosticRetentionDays}", StringComparison.Ordinal));
-        selector.Attribute("ItemsSource")!.Value.Should().Be("{Binding DiagnosticRetentionChoices}");
+            string.Equals(control.Attribute("Value")?.Value, "{Binding SelectedDiagnosticRetentionDays}", StringComparison.Ordinal));
+        selector.Name.LocalName.Should().Be("SettingsNumberField");
+        selector.Attribute("Minimum")!.Value.Should().Be("{x:Static configuration:DiagnosticRetentionDays.Minimum}");
+        selector.Attribute("Maximum")!.Value.Should().Be("{x:Static configuration:DiagnosticRetentionDays.Maximum}");
+        selector.Attribute("SavedValue")!.Value.Should().Be("{Binding SavedDiagnosticRetentionDays}");
         selector.Attribute("IsEnabled")!.Value.Should().Be("{Binding CanChangeDiagnosticRetentionNative}");
         foreach (var command in new[] { "SaveDiagnosticRetentionCommand", "ResetDiagnosticRetentionCommand", "RefreshDiagnosticRetentionCommand" })
         {
-            controls.Single(control => string.Equals(control.Attribute("Command")?.Value, "{Binding " + command + "}", StringComparison.Ordinal))
+            controls.Single(control => string.Equals((control.Attribute("Command") ?? control.Attribute("ActionCommand"))?.Value, "{Binding " + command + "}", StringComparison.Ordinal))
                 .Attribute("IsEnabled")!.Value.Should().Be("{Binding CanChangeDiagnosticRetentionNative}");
         }
         controls.Any(control => string.Equals(control.Attribute("Text")?.Value, "{Binding DiagnosticRetentionStatus}", StringComparison.Ordinal))

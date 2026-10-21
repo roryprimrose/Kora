@@ -206,7 +206,7 @@ public sealed partial class MainViewModel
                         : Kora.Core.Diagnostics.HostOperationOutcome.Failed);
                     if (!disposed && next.Value.Eligible())
                     {
-                        AppearanceSettingStatus = result.Succeeded ? DescribeAppearanceState(result.State) : result.Error!;
+                        AppearanceSettingStatus = result.Succeeded ? Presentation.SettingsText.Describe(result.State) : result.Error!;
                         if (!result.Succeeded) { ShowFailure("The appearance setting was not saved.", result.Error!); }
                     }
                 }
@@ -401,11 +401,11 @@ public sealed partial class MainViewModel
 
     private void PresentAppearanceResult(AppearanceApplyResult result)
     {
-        AppearanceSettingStatus = result.Succeeded ? DescribeAppearanceState(result.State) : result.Error!;
+        AppearanceSettingStatus = result.Succeeded ? Presentation.SettingsText.Describe(result.State) : result.Error!;
         if (result.Succeeded)
         {
             ShowSuccess(result.Outcome == AppearanceApplyOutcome.Unchanged
-                ? "Appearance setting unchanged." : "Appearance setting saved.", AppearanceSettingStatus);
+                ? "Appearance setting unchanged." : "Appearance setting saved.", DescribeAppearanceState(result.State));
         }
         else
         {

@@ -21,12 +21,14 @@ public sealed partial class MainViewModelTests
     }
 
     [Fact]
-    public void Keeping_response_visible_does_not_pin_the_presence()
+    public async Task Keeping_response_visible_does_not_pin_the_presence()
     {
-        var fixture = new Fixture();
+        var fixture = await Fixture.CreateInitializedAsync();
         SetPresentationProperty(fixture.ViewModel, nameof(MainViewModel.State), AssistantState.Information);
         fixture.ViewModel.IsResponseAlwaysVisible = true;
+        await fixture.ViewModel.PreferenceUpdate;
 
+        fixture.ViewModel.IsResponseAlwaysVisible.Should().BeTrue();
         fixture.ViewModel.CanAutoHidePresence.Should().BeTrue();
     }
 

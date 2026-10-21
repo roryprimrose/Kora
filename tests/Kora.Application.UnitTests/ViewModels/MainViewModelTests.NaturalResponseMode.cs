@@ -114,7 +114,7 @@ public sealed partial class MainViewModelTests
         await fixture.ViewModel.SaveResponseModeCommand.ExecuteAsync();
         fixture.OutputPreferences.SavedMode.Should().BeNull();
         fixture.ViewModel.ResponseBody.Should().Contain("Inspect and choose again");
-        fixture.ViewModel.ResponseModeConfigurationStatus.Should().Contain("\"available\":false");
+        fixture.ViewModel.ResponseModeConfigurationStatus.Should().StartWith("Setting unavailable.");
 
         await fixture.RunAsync("use spoken responses");
         fixture.OutputPreferences.SavedMode.Should().Be(ResponseOutputMode.VoiceOnly);
@@ -208,7 +208,7 @@ public sealed partial class MainViewModelTests
             SecurityAuditInitiator.TypedCommand, cancellationToken: cancellation.Token);
 
         fixture.OutputPreferences.SavedMode.Should().BeNull();
-        fixture.ViewModel.ResponseModeConfigurationStatus.Should().Contain("\"available\":false").And.Contain("\"effective\":null");
+        fixture.ViewModel.ResponseModeConfigurationStatus.Should().StartWith("Setting unavailable.");
         fixture.ViewModel.ResponseTitle.Should().Be("Response preference not confirmed.");
         fixture.ViewModel.IsVisualResponseVisible.Should().BeTrue();
         fixture.TextToSpeech.SpokenText.Should().BeNull();
@@ -219,7 +219,7 @@ public sealed partial class MainViewModelTests
             fixture.OutputPreferences.SaveException = null;
             await fixture.RunAsync("use spoken and visual responses");
             fixture.OutputPreferences.SavedMode.Should().BeNull();
-            fixture.ViewModel.ResponseModeConfigurationStatus.Should().Contain("\"available\":false");
+            fixture.ViewModel.ResponseModeConfigurationStatus.Should().StartWith("Setting unavailable.");
         }
     }
 

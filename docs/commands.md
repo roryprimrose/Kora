@@ -287,6 +287,38 @@ One immutable UTF-8 `.txt`/`.md`/`.markdown` file per session; maximum 262,144 o
 
 **Inspect retained attachment / remove Kora copies** reads full inert historical source and same lexical-lines exact citations after restart, including retained Done sessions. Browsing/search never resume a session, renew activity or trigger cleanup. The snapshot does not watch, refresh or re-read the original file.
 
+### Inspect one retained attachment by exact session address
+
+| Exact typed command | Result |
+|---|---|
+| `session attachment help` | Discover the bounded grammar |
+| `session attachment inspect <session-id>` | Open the addressed session's currently admitted retained historical attachment in the same private native inert viewer used by Sessions |
+
+For voice, use the **current** assistant-name prefix, for example
+`Kora, session attachment inspect 12345678-1234-1234-1234-123456789012`.
+The address must be a complete nonempty canonical lowercase D GUID.
+Names (including same-name sessions), selected windows, paths, URIs, digest-only
+identity, model targets, extra arguments and mutation verbs are not admitted.
+Invalid reserved input never answers a pending question or falls back to a model.
+
+The host observes exact source/revision/item/digest, session generation and
+storage revision, then re-resolves that same provenance before native disclosure.
+A swap or revision change refuses; it never opens a newer/same-name source.
+Active and retained Done sessions are inspectable; Done stays Done.
+Private ownership, original input/call/name admission and source lifetime remain
+live gates. Protected/Unknown voice input, missing/held/corrupt/stale sources or
+current-work/storage holds report unavailable with native recovery, never
+recapture or read-original fallback. Finish or discard an existing native file
+review explicitly first; inspection cannot silently cancel it.
+
+This command opens an **inspection-only** view: no capture, attach, replacement
+or removal controls/consent are granted. Those remain separate reviewed genuine
+native gestures through Sessions. Bytes stay in the native inert viewer, never
+the command response, transcript, speech/readback, model, log or clipboard.
+Opening does not renew meaningful activity, resume, trigger retention/cleanup,
+enqueue work or replay a request. No provider, hardware or installed-native
+qualification is claimed. See the [source-bound route and evidence](../Design/File_And_Folder_Ingestion.md#delivered-exact-session-retained-attachment-inspection-command---2026-10-20).
+
 Removal reviews the exact session/generation, source/revision/item/digest, storage revision and all owned copies, then requires **Confirm: Remove attachment and Kora copies**. Native use is revoked before secure SQLite body/free-page removal and committed-journal verification. Live/Unknown work and uninventoried copies hold completion; inspect durable state after uncertainty. Original files and unrelated/kept sessions/Perpetual grants remain unchanged.
 
 For an **Active** session with a retained file, choose **Replace retained attachment** from its historical viewer. A fresh picker selects the source; review old identity/digest/captured time/storage and inventory revisions alongside new metadata, persistence and copy-removal consequences.
@@ -1325,6 +1357,29 @@ writes refuse. Input is at most 1,024 UTF-8 bytes including the prefix and
 rejects controls; complete result at most 64 KiB.
 See [controls and option-specific recovery](settings.md#windows-native-speech-rate) and
 [shared preference admission](settings.md#preference-changes-and-recovery).
+
+### Inspect or change Kora's response-window visibility preferences
+
+- **list response window settings**
+- **get response-window.always-show** / **status response window always show**
+- **get response-window.topmost** / **status response window topmost**
+- **set response-window.always-show to true** / **set response-window.always-show to false**
+- **set response-window.topmost to true** / **set response-window.topmost to false**
+- **reset response-window.always-show** / **reset response-window.topmost**
+- **keep responses visible** / **allow responses to hide**
+- **keep response window on top** / **stop keeping response window on top**
+
+These are complete exact utterances, optionally prefixed with the current assistant name: **"Kora, keep responses visible"**. Canonical targets also accept the exact spoken names **response window always show** and **response window topmost**.
+Boolean set accepts only **true** or **false**, not relative/fuzzy targets, implicit selected windows or compound instructions ([grammar](../src/Kora.Application/Configuration/ResponseWindowCommand.cs)).
+
+Results appear in the transcript without speech, reopening a response, replacing a pending question/approval or sending text to a model. Malformed reserved commands clarify before question/approval/model routing.
+Changes require the owning unlocked host and no pending question/approval or competing preference write ([dispatcher](../src/Kora.Application/ViewModels/MainViewModel.ResponseWindowCommands.cs)).
+
+Only Kora's device-local addressed Boolean changes. Reset restores **AlwaysShow=false** or **Topmost=true**, preserving the other Boolean, saved position and response timeout. AlwaysShow prevents inactivity hiding of an already admitted response; it cannot reveal dismissed, private, revoked or retired content.
+Topmost is not a Windows-wide setting or foreground/activation authority ([native window](../src/Kora/ResponseWindow.axaml.cs), [defaults](../src/Kora.Core/Configuration/ResponseWindowSettings.cs)).
+
+Missing preference files use declared defaults without claiming a save. Malformed, externally changed or uncertain saved evidence is explicitly unavailable: inspect the saved state and audit receipts before repair/restart and initiate a fresh request.
+No automatic rewrite, default-save, rollback or retry is claimed ([confirmation and commands](../src/Kora.Application/ViewModels/MainViewModel.ResponseWindowCommands.cs), [audited writer](../src/Kora.Application/ViewModels/MainViewModel.Preferences.cs)).
 
 ### Inspect or change the device-default response mode
 

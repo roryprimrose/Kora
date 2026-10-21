@@ -1,5 +1,6 @@
 using Kora.Application.Configuration;
 using Kora.Application.Infrastructure;
+using Kora.Application.Presentation;
 using Kora.Core;
 using Kora.Core.Auditing;
 using Kora.Core.Configuration;
@@ -14,6 +15,7 @@ public sealed partial class MainViewModel
     private int selectedPlaybackVolume = PlaybackVolume.Default.Percent;
     private bool volumeControlActive;
 
+    public int? SavedPlaybackVolume => playbackVolumeConfiguration?.Get().Effective?.Percent;
     public IReadOnlyList<int> PlaybackVolumeChoices { get; } = Enumerable.Range(0, PlaybackVolume.MaximumPercent + 1).ToArray();
     public int SelectedPlaybackVolume
     {
@@ -26,8 +28,8 @@ public sealed partial class MainViewModel
     public bool CanChangePlaybackVolume => playbackVolumeConfiguration is not null && IsCallMutationHostEligible
         && !volumeControlActive && !IsResponseInteractionPending;
     public string PlaybackVolumeStatus => playbackVolumeConfiguration is null
-        ? "Playback volume admission is unavailable; existing unscaled output is retained."
-        : PlaybackVolumeState.Serialize(playbackVolumeConfiguration.Get(), CallPolicyRevision, "observed");
+        ? "Volume settings are unavailable. Playback volume is unchanged."
+        : SettingsText.Describe(playbackVolumeConfiguration.Get());
 
     private void OnPlaybackVolumeChanged(object? sender, EventArgs args)
     {
@@ -40,6 +42,7 @@ public sealed partial class MainViewModel
         if (disposed) { return; }
         if (playbackVolumeConfiguration!.Get().Desired is { } volume) { SelectedPlaybackVolume = volume.Percent; }
         OnPropertyChanged(nameof(PlaybackVolumeStatus));
+        OnPropertyChanged(nameof(SavedPlaybackVolume));
         OnPropertyChanged(nameof(CanChangePlaybackVolume));
         NotifyOutputPolicyChanged();
     }

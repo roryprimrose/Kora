@@ -338,7 +338,7 @@ public sealed partial class MainViewModelTests
     {
         var missing = new Fixture(enableManualCallControl: false);
         await missing.ViewModel.InitializeAsync();
-        missing.ViewModel.ManualCallConfigurationStatus.Should().Contain("admission is unavailable");
+        missing.ViewModel.ManualCallConfigurationStatus.Should().Contain("controls are unavailable");
         await missing.ViewModel.GetManualCallStatusCommand.ExecuteAsync();
         await missing.RunAsync("turn on manual call protection");
         missing.ViewModel.Transcript.Should().Contain("admission is unavailable");

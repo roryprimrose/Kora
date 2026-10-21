@@ -1005,7 +1005,7 @@ public sealed partial class MainViewModelTests : IDisposable
         fixture.ViewModel.PresencePosition.Should().BeNull();
         fixture.ViewModel.PresenceSizeDescription.Should().Contain("360 pixels");
         fixture.ViewModel.PresenceDotSizeDescription.Should().Contain("100%");
-        fixture.ViewModel.PresenceDotDensityDescription.Should().Contain("100%").And.Contain("150 dots");
+        fixture.ViewModel.PresenceDotDensityDescription.Should().Contain("100%").And.Contain("Number of dots: 150");
         fixture.ViewModel.PresenceMovementSpeedDescription.Should().Contain("100%");
         fixture.ViewModel.PresenceSpeechScalingDescription.Should().Contain("grows and shrinks");
         fixture.ViewModel.PresenceSpeechScaleAmountDescription.Should().Contain("100%");
@@ -2012,7 +2012,7 @@ public sealed partial class MainViewModelTests : IDisposable
         fixture.ViewModel.MainCaptureDescription.Should().StartWith("Nova");
         fixture.ViewModel.SpeechAudioSettingsDescription.Should().Contain("Nova");
         fixture.ViewModel.ResponseSettingsDescription.Should().Contain("Nova");
-        fixture.ViewModel.ReadinessSettingsDescription.Should().EndWith("Nova.");
+        fixture.ViewModel.ReadinessSettingsDescription.Should().Contain("Nova");
         fixture.ViewModel.CommandText.Should().Be("Nova, what can you do?");
         fixture.ViewModel.MicrophoneAvailabilityMessage.Should().Contain("Nova capture");
         fixture.ViewModel.OutputDeviceAvailabilityMessage.Should().Contain("Nova playback");
@@ -3259,11 +3259,11 @@ public sealed partial class MainViewModelTests : IDisposable
             ResponseOutputMode.VoiceOnly,
             ResponseOutputMode.VisualOnly);
         fixture.ViewModel.ResponseModeOptions.Select(option => option.Label).Should().Equal(
-            "Both audible and visual",
-            "Audible only",
-            "Visual only");
+            "Text and speech",
+            "Speech only",
+            "Text only");
         fixture.ViewModel.DefaultResponseModeOption.Label.Should().Be(
-            "Both audible and visual");
+            "Text and speech");
         fixture.ViewModel.IsVisualResponseVisible.Should().BeTrue();
         fixture.ViewModel.IsSpeechResponseEnabled.Should().BeTrue();
 
@@ -3275,7 +3275,7 @@ public sealed partial class MainViewModelTests : IDisposable
         fixture.ViewModel.ConfiguredResponseMode = ResponseOutputMode.VisualOnly;
 
         fixture.ViewModel.ConfiguredResponseMode.Should().Be(ResponseOutputMode.VisualOnly);
-        fixture.ViewModel.DefaultResponseModeOption.Label.Should().Be("Visual only");
+        fixture.ViewModel.DefaultResponseModeOption.Label.Should().Be("Text only");
         fixture.ViewModel.IsVisualResponseVisible.Should().BeTrue();
         fixture.ViewModel.IsSpeechResponseEnabled.Should().BeFalse();
 
@@ -3329,10 +3329,10 @@ public sealed partial class MainViewModelTests : IDisposable
     {
         var fixture = await Fixture.CreateInitializedAsync();
         fixture.ViewModel.ResponseModeOverrideOptions.Select(option => option.Label).Should().Equal(
-            "Inherit",
-            "Both audible and visual",
-            "Audible only",
-            "Visual only");
+            "Use default",
+            "Text and speech",
+            "Speech only",
+            "Text only");
         fixture.ViewModel.DefaultResponseModeOption =
             fixture.ViewModel.ResponseModeOptions.Single(
                 option => option.Mode == ResponseOutputMode.VisualOnly);
@@ -3347,22 +3347,22 @@ public sealed partial class MainViewModelTests : IDisposable
 
         fixture.ViewModel.EffectiveResponseMode.Should().Be(ResponseOutputMode.VoiceOnly);
         fixture.ViewModel.ResponseOutputStatus.Should().StartWith("Current task override");
-        fixture.ViewModel.QueueResponseModeOption.Label.Should().Be("Both audible and visual");
-        fixture.ViewModel.TaskResponseModeOption.Label.Should().Be("Audible only");
+        fixture.ViewModel.QueueResponseModeOption.Label.Should().Be("Text and speech");
+        fixture.ViewModel.TaskResponseModeOption.Label.Should().Be("Speech only");
 
         fixture.ViewModel.TaskResponseModeOption =
             fixture.ViewModel.ResponseModeOverrideOptions[0];
 
         fixture.ViewModel.EffectiveResponseMode.Should().Be(ResponseOutputMode.Hybrid);
         fixture.ViewModel.ResponseOutputStatus.Should().StartWith("Current queue override");
-        fixture.ViewModel.TaskResponseModeOption.Label.Should().Be("Inherit");
+        fixture.ViewModel.TaskResponseModeOption.Label.Should().Be("Use default");
 
         fixture.ViewModel.QueueResponseModeOption =
             fixture.ViewModel.ResponseModeOverrideOptions[0];
 
         fixture.ViewModel.EffectiveResponseMode.Should().Be(ResponseOutputMode.VisualOnly);
         fixture.ViewModel.ResponseOutputStatus.Should().StartWith("Device default");
-        fixture.ViewModel.QueueResponseModeOption.Label.Should().Be("Inherit");
+        fixture.ViewModel.QueueResponseModeOption.Label.Should().Be("Use default");
     }
 
     [Fact]
@@ -3475,7 +3475,7 @@ public sealed partial class MainViewModelTests : IDisposable
         fixture.ViewModel.IsSpeechResponseEnabled.Should().BeFalse();
         fixture.ViewModel.IsVoiceActivationAvailable.Should().BeTrue();
         fixture.ViewModel.ToggleListeningCommand.CanExecute(null).Should().BeTrue();
-        fixture.ViewModel.ResponseOutputStatus.Should().Contain("Call speech protection");
+        fixture.ViewModel.ResponseOutputStatus.Should().Contain("Kora stays quiet during this call");
         fixture.WindowActions.Should().ContainSingle().Which.Should().Be(WindowAction.Show);
 
         await fixture.RunAsync("unsupported");
@@ -3760,7 +3760,7 @@ public sealed partial class MainViewModelTests : IDisposable
 
         fixture.TextToSpeech.SpokenText.Should().Contain("No power action is pending.");
         fixture.ViewModel.IsVisualResponseVisible.Should().BeFalse();
-        fixture.ViewModel.ResponseOutputStatus.Should().Contain("Audible only");
+        fixture.ViewModel.ResponseOutputStatus.Should().Contain("Speech only");
     }
 
     [Theory]
@@ -4289,7 +4289,7 @@ public sealed partial class MainViewModelTests : IDisposable
         fixture.ViewModel.IsSpeechOutputAvailable.Should().BeFalse();
         fixture.ViewModel.IsSpeechResponseEnabled.Should().BeFalse();
         fixture.ViewModel.IsVisualResponseVisible.Should().BeTrue();
-        fixture.ViewModel.ResponseOutputStatus.Should().Contain("Visual text is forced");
+        fixture.ViewModel.ResponseOutputStatus.Should().Contain("full response is shown on screen");
         fixture.WindowActions.Should().ContainSingle().Which.Should().Be(WindowAction.Show);
         fixture.ViewModel.ResponseTitle.Should().Be("Speech output is unavailable.");
     }
@@ -4546,6 +4546,7 @@ public sealed partial class MainViewModelTests : IDisposable
             .Concat(AuditRetentionCommand.FixedPhrases)
             .Concat(Kora.Application.Communication.ManualCallCommand.FixedPhrases)
             .Concat(ResponseModeCommand.FixedPhrases)
+            .Concat(ResponseWindowCommand.FixedPhrases)
             .Concat(ProviderModeCommand.FixedPhrases)
             .Concat(ProviderProfileCommand.FixedPhrases)
             .Concat(SessionProviderProfileCommand.FixedPhrases)
@@ -5375,18 +5376,18 @@ public sealed partial class MainViewModelTests : IDisposable
         await fixture.ViewModel.PreferenceUpdate;
         fixture.Audit.Events.Should().BeEmpty();
         fixture.ViewModel.HostedModelExecutionDescription.Should().StartWith(
-            "Hosted model use is blocked.");
+            "Online AI models are blocked.");
 
         fixture.ViewModel.HostedModelsEnabled = true;
         await fixture.ViewModel.PreferenceUpdate;
         fixture.ViewModel.HostedModelExecutionDescription.Should().StartWith(
-            "Hosted model use is allowed,");
+            "Online AI models are allowed,");
         fixture.ViewModel.HostedModelsEnabled = false;
 
         await fixture.ViewModel.PreferenceUpdate;
         fixture.ViewModel.HostedModelsEnabled.Should().BeFalse();
         fixture.ViewModel.HostedModelExecutionDescription.Should().StartWith(
-            "Hosted model use is blocked.");
+            "Online AI models are blocked.");
         fixture.Audit.Events.Should().HaveCount(4);
     }
 

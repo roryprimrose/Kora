@@ -18,7 +18,7 @@ public sealed class ResponseModeChoice
     }
 
     public ResponseOutputMode Mode { get; }
-    public string Label => Mode.ToString();
+    public string Label => Presentation.SettingsText.ResponseMode(Mode);
     internal long Revision { get; }
     internal Guid Owner { get; }
     internal WorkSessionAuthorization Session { get; }

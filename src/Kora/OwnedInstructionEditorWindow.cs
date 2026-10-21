@@ -153,6 +153,7 @@ internal sealed partial class OwnedInstructionEditorWindow : Window
         BindSourceSize();
         DockPanel.SetDock(SourceSizeStatus, Dock.Bottom);
         panel.Children.Add(SourceSizeStatus);
+        AddGoToLine(panel, controls);
         DockPanel.SetDock(validationStatus, Dock.Bottom);
         panel.Children.Add(validationStatus);
         DockPanel.SetDock(status, Dock.Bottom);
@@ -208,6 +209,7 @@ internal sealed partial class OwnedInstructionEditorWindow : Window
     internal void ClearPrivateText()
     {
         RetireBufferFind(clearQuery: true);
+        CancelGoToLine();
         CancelRebaseReview();
         ClearInventory(); ClearSearch();
         SetUseReviewAvailable(false);

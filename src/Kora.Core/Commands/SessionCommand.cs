@@ -58,6 +58,7 @@ public sealed partial record SessionCommand(
             text = text[prefix.Length..].TrimStart(' ', ',', '\t');
         }
         if (ParseRetention(text, input) is { } retention) { return retention; }
+        if (ParseConversationSearch(text) is { } search) { return search; }
         if (ParseRequest(text) is { } request) { return request; }
         text = text.TrimEnd();
         if (text.Equals("queue", StringComparison.OrdinalIgnoreCase)

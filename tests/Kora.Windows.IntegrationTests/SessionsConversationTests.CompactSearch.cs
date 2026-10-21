@@ -284,6 +284,8 @@ public sealed partial class SessionsConversationTests
         internal int Reads { get; private set; }
         internal int DraftReads { get; private set; }
         internal bool DenyReads { get; set; }
+        internal bool DenyDraftReads { get; set; }
+        internal Func<Task>? AfterDraftRead { get; set; }
         public ValueTask<ConversationPage> ReadConversationPageAsync(HostId<SessionIdentity> session, ConversationCursor? cursor,
             int limit, CancellationToken token)
         {
@@ -292,11 +294,13 @@ public sealed partial class SessionsConversationTests
             return read(session, cursor, limit, token);
         }
 
-        public ValueTask<ConversationDraftSnapshot> ReadConversationDraftAsync(HostId<SessionIdentity> session, CancellationToken token)
+        public async ValueTask<ConversationDraftSnapshot> ReadConversationDraftAsync(HostId<SessionIdentity> session, CancellationToken token)
         {
             DraftReads++;
-            if (DenyReads) { throw new IOException("Synthetic draft-read denial."); }
-            return (readDraft ?? throw new NotSupportedException())(session, token);
+            if (DenyReads || DenyDraftReads) { throw new IOException("Synthetic draft-read denial."); }
+            var result = await (readDraft ?? throw new NotSupportedException())(session, token);
+            if (AfterDraftRead is { } after) { await after(); }
+            return result;
         }
         public ValueTask<ConversationMessage> ReadConversationMessageAsync(HostId<SessionIdentity> session, HostId<RequestIdentity> request, CancellationToken token) => throw new NotSupportedException();
         public ValueTask<HostTaskRecord> RecordConversationCredentialRejectionAsync(HostRequest request, HostRevision generation, Func<bool> admitted, CancellationToken token) => throw new NotSupportedException();

@@ -9,7 +9,6 @@ namespace Kora;
 internal sealed partial class SessionsViewModel
 {
     private string composerBody = string.Empty;
-    private ConversationDraftSnapshot? savedConversationDraft;
     private ConversationPage? conversationPage;
     private ConversationMessage? completedConversationMessage;
     private bool conversationHeld;
@@ -51,12 +50,9 @@ internal sealed partial class SessionsViewModel
     }
     public string ConversationStatus => conversationStatus;
     public string ComposerTarget => selected is { } target
-        ? "Message exact session " + target.Authority.SessionId.Value.ToString("D")
-            + " | name: " + (target.Metadata?.Name.Value ?? "Unnamed")
-            + " | generation " + target.Authority.Generation.Value.ToString(CultureInfo.InvariantCulture)
-            + " | metadata revision " + (target.Metadata?.Revision.Value ?? 0).ToString(CultureInfo.InvariantCulture)
-            + " | private control epoch " + access.ControlRevision.ToString(CultureInfo.InvariantCulture)
-        : "Select an exact session; no global or question-reply target.";
+        ? "Conversation: " + (target.Metadata?.Name.Value ?? "Unnamed conversation")
+            + "\nSession: " + target.Authority.SessionId.Value.ToString("D")
+        : "Select an exact session to write a message.";
     public IReadOnlyList<ConversationMessage> ConversationMessages => conversationPage is { } page ? page.Messages
         : completedConversationMessage is { } completed ? [completed] : [];
     public bool CanReadConversation => CanRead && !conversationBusy && selected is not null && conversation is not null;
@@ -118,13 +114,10 @@ internal sealed partial class SessionsViewModel
         var page = await conversation!.ReadPageAsync(target.Authority.SessionId,
             next ? conversationPage?.Next ?? throw new InvalidOperationException("No conversation continuation; refresh the exact source.") : null,
             25, lifetime.Token);
-        var draft = await conversation.ReadDraftAsync(target.Authority.SessionId, lifetime.Token);
-        if (!live() || page.Session != target.Authority || draft.Session != target.Authority)
+        if (!live() || page.Session != target.Authority)
         { throw new OperationCanceledException("Conversation source or exact selected generation changed."); }
         conversationPage = page;
         completedConversationMessage = null;
-        savedConversationDraft = draft;
-        savedConversationDraftControlRevision = access.ControlRevision;
         conversationSourceHeld = false;
         composerAuthority = target.Authority;
         RememberUnsent();
@@ -160,7 +153,7 @@ internal sealed partial class SessionsViewModel
     }
 
     private async Task RunConversationAsync(Func<Kora.Core.Storage.SessionWorkspaceEntry, Func<bool>, Task> operation,
-        bool submission = false, bool sourceRead = false, long? searchDetailEpoch = null)
+        bool submission = false, bool sourceRead = false, long? searchDetailEpoch = null, bool legacyRecovery = false)
     {
         if (!CanReadConversation) { return; }
         var target = RequireSelected();
@@ -188,6 +181,11 @@ internal sealed partial class SessionsViewModel
             {
                 conversationStatus = "Search match navigation revoked. Composer and saved draft unchanged; explicit fresh Search required.";
             }
+            else if (legacyRecovery && Live())
+            {
+                conversationStatus = "Legacy recovery unavailable: " + exception.Message
+                    + " Unsent input and conversation history unchanged. Nothing saved, removed or submitted; a fresh explicit recovery reads the source again.";
+            }
             else if (sourceRead && exception is ConversationSnapshotChangedException && Live())
             {
                 ClearConversationSearch();
@@ -200,8 +198,6 @@ internal sealed partial class SessionsViewModel
                 ClearConversationSearch();
                 conversationPage = null;
                 completedConversationMessage = null;
-                savedConversationDraft = null;
-                savedConversationDraftControlRevision = 0;
                 conversationSourceHeld = true;
                 conversationStatus = "Exact conversation source unavailable or changed. Unsent input retained and held; refresh the exact session before proceeding.";
             }
@@ -244,8 +240,6 @@ internal sealed partial class SessionsViewModel
         if (selected is { } target) { revokeConversationDetails?.Invoke(target.Authority.SessionId); }
         ClearConversationSearch();
         composerBody = string.Empty;
-        savedConversationDraft = null;
-        savedConversationDraftControlRevision = 0;
         conversationPage = null;
         completedConversationMessage = null;
         conversationHeld = false;

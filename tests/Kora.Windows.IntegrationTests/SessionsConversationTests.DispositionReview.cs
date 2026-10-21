@@ -32,6 +32,8 @@ public sealed partial class SessionsConversationTests
         preview.Should().BeTrue();
         model.SelectedSessionRecord.Should().Be(subject);
         model.Detail.Should().Contain(subject.Authority.SessionId.Value.ToString("D"))
+            .And.Contain("Generation: " + subject.Authority.Generation.Value)
+            .And.Contain("Metadata revision: " + (subject.Metadata?.Revision.Value ?? 0))
             .And.Contain("questions 0").And.Contain("scoped grants 0").And.Contain("observations 1")
             .And.Contain("waits 0").And.Contain("durable file attachments 0")
             .And.Contain("provider overrides 0").And.Contain("conversation messages 0")

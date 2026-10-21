@@ -110,6 +110,15 @@ test('required aggregate skips only an explicitly waiting admission or an alread
   }
 });
 
+test('controller wakes on both priority label additions and removals without trusting event labels', () => {
+  const events = controller.match(/pull_request_target:\n    branches: \[main\]\n    types: \[([^\]]+)\]/);
+  assert.ok(events);
+  const types = events[1].split(',').map(value => value.trim());
+  assert.ok(types.includes('labeled'));
+  assert.ok(types.includes('unlabeled'));
+  assert.doesNotMatch(controller, /github\.event\.label|context\.payload\.label/);
+});
+
 test('privileged controller never checks out PR code, bypasses protection or waits for CI on a runner', () => {
   assert.match(controller, /environment: merge-queue/);
   assert.match(controller, /ref: refs\/heads\/main/);

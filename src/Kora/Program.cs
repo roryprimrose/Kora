@@ -634,6 +634,7 @@ internal static class Program
         services.AddSingleton<Kora.Core.Context.IClipboardExplanationWorkflow>(provider =>
             provider.GetRequiredService<Kora.Application.Context.ClipboardExplanationWorkflow>());
         services.AddSingleton<Kora.Tools.Clipboard.ClipboardExplain>();
+        services.AddSingleton<Kora.Tools.Clipboard.ClipboardValidateJson>();
         services.AddSingleton<Kora.Core.Context.ILocalFileInspector, Kora.Windows.Context.WindowsLocalFileInspector>();
         services.AddSingleton<Kora.Tools.Files.LocalFilePreview>();
         services.AddSingleton<Kora.Tools.Files.LocalSessionFileAttach>();

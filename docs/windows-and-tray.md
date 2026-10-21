@@ -318,6 +318,9 @@ Open **Tray > Sessions > All work / attention overview**, then **Refresh overvie
 - Expand **Optional inclusive observed work metadata ranges** to set minimum/maximum authority revision, queue revision, pending count/capacity, execution slots, observed current fixed reads, or omitted queue-receipt/task/pending-question counts. Empty means Any; endpoints are inclusive and minimum must not exceed maximum. Enter ASCII decimal Int64 only, without signs, whitespace or separators. Authority revision, capacity and slots must be positive; queue revision and counts may be zero. Invalid bounds show recovery and disable Search/Refresh/Next without reading or falling back to Any. **Clear work metadata ranges** clears just these bounds and results without reading.
 - Ranges AND-compose with lifecycle, Browse/name/exact-ID, Needs answer, **Observation availability** and positive **Observed content** choices. Only validated **Observed** work matches an active range; Source changed, Read unavailable and Output bound never do. Matching an omission count supplies no retained records and proves no absence, completeness, success or authority. Zero is just the observed scalar, not all-clear. Edits retire rows/selection/continuation and late callbacks, remain available during reads, and clear on close/private closure.
 - Select a group to read exact IDs/generations, source revisions/UTC time, fixed-profile slots/capacity, observed current fixed reads, queue/task states, scheduler reasons and captured deadlines. Full private bodies, history, attachments, memory and diagnostic text are not collected.
+- **Ctrl+F** focuses native Find for that selected group's **displayed metadata details only**. Enter or **First** finds the first exact case-sensitive literal; **Next / F3** and **Previous / Shift+F3** follow the complete nonoverlapping sequence without wrapping. A native inert match and selected ordinal/count describe only this one captured details string, never page/global inventory, completeness, trust, safety or authority. Match focus requires native acknowledgement; focus failure clears the match/navigation and offers First to retry.
+- Find queries are private one-line, well-formed text, at most 256 UTF-16 units / 512 UTF-8 bytes, without control/format/line/paragraph separators. No case folding, normalization, regex, trimming or truncation occurs. Query edits and **Clear** (or Escape within Find) clear the match/count/navigation without reading; Escape keeps the overview open. Find supplies no new clipboard/copy/paste action and does not change existing metadata-query editing.
+- Find never searches other rows, row labels, hidden metadata, bodies, conversation, original task input, source paths or retired observations. If an unavailable row has only a suppressed safe projection, only that currently displayed text is searchable; old observed details are not recovered. Selection/page/filter/query/source/control/private changes, read/cancel, selection retirement and closure retire its capture and private query. It performs no store read, refresh, scan, session/task navigation, action, persistence, model/device/network work or activity renewal. A Find match is not a row selection or action target.
 - **Observed task state** offers **Any** plus every defined task state, independently AND-composed with all filters above. Only a validated retained task with that exact state matches, including Unknown/Unavailable.
   Missing, unavailable, empty or omitted-only observations cannot match a positive state or prove absence, completion, current dispatch, ownership or authority ([contract](../Design/Work_Management.md#delivered-passive-cross-session-work-observation---2026-10-11)).
 - State edits perform no read and retire results/details/navigation/Next and late callbacks. **Clear query** and Escape in its field retire those results without changing independent filters; close clears the volatile state to Any. The labelled accessible selector grants no task/provider/device action ([native controls](../src/Kora/AllWorkWindow.axaml)).
@@ -355,6 +358,19 @@ In **Sessions**, choose **Browse**, **NameSubstring**, **ExactId** or **ExactNam
 - **Cancel metadata search** suppresses late results. **Clear metadata search** (or Escape in its field) discards the volatile query/results. **Refresh** returns to ordinary list paging. Query, mode, state, privacy, source or host changes require a fresh Search.
 
 Enter in any query/range field searches; Escape or Clear erases all bounds.
+**Order this loaded session page** changes only the current paged metadata
+search result, including empty-text Browse. Choose Source (the unchanged default),
+NameAscending / NameDescending (case-sensitive ordinal, unnamed last in both
+directions), or GenerationAscending / GenerationDescending (actual admitted
+authority generation). Equal keys use canonical session ID ascending.
+**Clear page order to Source** restores the exact original page without reading.
+Ordering preserves the exact selected session, unsaved composer/name text and
+original question/action targets; it never selects a row by its new position.
+The choice is volatile, applies to later explicitly loaded search pages, and
+does not change Next, scan limits, query semantics or the ordinary Refresh list.
+It is not a global ordering or completeness claim. Query/source/privacy retirement
+still clears stale rows; choosing an order cannot recover them.
+
 Editing performs no read and retires prior search results/selection. Numeric
 predicates are bound into Next; changed bounds require a fresh Search.
 This includes both name-length fields: editing retires prior search rows, detail, exact selection, actions and cursor without reading; Clear/Escape resets both bounds ([native checks](../tests/Kora.Windows.IntegrationTests/SessionsListSearchTests.cs), [read-count checks](../tests/Kora.Windows.IntegrationTests/SessionsViewModelTests.ListSearch.cs)).
@@ -989,6 +1005,26 @@ Editing immediately clears count, ordinal and match without I/O. **Clear literal
 Reader text scaling applies to the snapshot body and exact span without changing query text, offsets or focus; query/status controls remain unscaled ([headless scaling contract](../tests/Kora.Windows.IntegrationTests/NativeReaderTextScaleTests.cs)).
 Cut/copy/paste/context routes are blocked, including query shortcuts. Private/owner/call loss, replacement, revoke, close and disposal clear volatile state and fence callbacks. Find never rereads the clipboard or invokes reuse/revoke, inference, persistence, history, activity renewal or a new timer.
 See the [canonical contract and automated evidence](../Design/Security_Data_Flows.md#delivered-r07-local-clipboard-preview---2026-10-07); installed-native accessibility/privacy qualification remains separate.
+
+**Validate this snapshot as JSON** is a separate explicit native button for the
+complete original snapshot, not the Find query or matching span. Opening the
+preview, editing Find and navigating matches do not validate. The source remains
+unchanged, inert and untrusted; validation neither reads the clipboard again nor
+formats, repairs, copies, saves or renews the capture/review.
+
+The separate focusable outcome reports **syntactically valid JSON** and its root
+kind, or an invalid-syntax/depth refusal with zero-based line and UTF-8 byte
+position only. Objects, arrays, strings, numbers, booleans and null can all be
+valid roots. One complete value is required: comments, trailing commas, extra
+values and nesting beyond 64 are refused without truncation. Duplicate property
+names are not checked; this is not semantic or schema validation. Valid does not
+mean safe, trusted, secret-free, schema-approved or approved for models/egress.
+Original capture eligibility and the existing 15-minute review ceiling apply,
+without renewal. Expiry retires only syntax state, not the source. Close,
+replacement, revoke, Cancel task and private/owner/call loss fence late results.
+An internal failure is explicitly unavailable with native recovery, never
+ordinary invalid JSON. No result enters response history, transcripts, speech,
+logs or persistence. No typed, voice or model JSON-validation route is added.
 
 The separate **Review local version (native question)** tray entry opens one
 owned native card bound to the original durable host question, not whichever

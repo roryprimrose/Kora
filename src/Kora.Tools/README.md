@@ -71,6 +71,13 @@ owns immutable reuse/revoke, exact bounds and privacy/quiescence requirements.
 No clipboard write or model submission is delivered; preview is not transmission
 consent. Do not create separate provider or view-model implementations.
 
+The native-only [ClipboardValidateXml](Clipboard/ClipboardValidateXml.cs) action
+checks the exact retained object through the same broker eligibility. Its
+[Core policy](../Kora.Core/Context/ClipboardXmlPolicy.cs) checks one complete XML
+document in memory, prohibits DTDs/external resources, and limits element depth
+to 64. It grants no model source-use or schema/safety authority. See the
+[owning contract](../../Design/Security_Data_Flows.md#native-clipboard-xml-well-formedness).
+
 ### Preapproved network addresses
 
 The Network actions converge settings-window, typed-command and activated-voice

@@ -11,8 +11,10 @@ namespace Kora.Application.UnitTests.ViewModels;
 
 public sealed partial class MainViewModelTests
 {
-    [Fact]
-    public async Task CountdownCommandsAndNativeControlsShareOneRunWithoutSpeechModelStorageOrTranscriptTicks()
+    [Theory]
+    [InlineData("Nova")]
+    [InlineData("What Time")]
+    public async Task CountdownCommandsAndNativeControlsShareOneRunWithoutSpeechModelStorageOrTranscriptTicks(string assistantName)
     {
         var f = await Fixture.CreateInitializedAsync();
         var time = new CountdownTestClock();
@@ -20,12 +22,12 @@ public sealed partial class MainViewModelTests
         f.ViewModel.BindCountdown(timer);
         var opens = 0;
         f.ViewModel.CountdownRequested += (_, _) => opens++;
-        await f.RunAsync("set assistant name to Nova");
+        await f.RunAsync("set assistant name to " + assistantName);
         var events = f.Events.ToArray();
         var title = f.ViewModel.ResponseTitle;
         var body = f.ViewModel.ResponseBody;
         var auditCount = f.Audit.Events.Count;
-        await f.RunAsync("timer start 3");
+        await f.RunAsync(assistantName + ", timer start 3");
         var transcript = f.ViewModel.Transcript;
         time.Advance(TimeSpan.FromSeconds(1));
         timer.Status.Should().Contain("2 seconds");
@@ -52,8 +54,8 @@ public sealed partial class MainViewModelTests
         f.Reasoner.Requests.Should().BeEmpty();
         f.HostStore.Records.Should().BeEmpty();
         f.Audit.Events.Should().HaveCount(auditCount);
-        await f.RaiseActivatedTranscriptAsync("Nova, timer status", 1);
-        f.Voice.StartedPhrases.Should().Contain("timer status").And.Contain("Nova timer status").And.NotContain("Kora timer status");
+        await f.RaiseActivatedTranscriptAsync(assistantName + ", timer status", 1);
+        f.Voice.StartedPhrases.Should().Contain("timer status").And.Contain(assistantName + " timer status").And.NotContain("Kora timer status");
         await f.RaiseActivatedTranscriptAsync("timer status", 1);
         f.ViewModel.Transcript.Should().Contain("unavailable");
         var invalid = () => f.ViewModel.ExecuteNativeCountdown(CountdownOperation.Start);

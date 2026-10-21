@@ -31,7 +31,17 @@ internal sealed partial class SessionsViewModel
         get => !closed && access.CanInspect && composerControl == access.ControlRevision ? composerBody : string.Empty;
         set
         {
-            if (closed || !access.CanInspect || selected is null || conversationBusy || protectingComposer) { return; }
+            if (closed || !access.CanInspect || conversationBusy || protectingComposer) { return; }
+            if (selected is null)
+            {
+                if (value.Length != 0)
+                {
+                    Interlocked.Increment(ref composerBufferRevision);
+                    conversationStatus = "Unsent input refused: select an exact session first. Pending native input admission was retired; nothing saved or submitted.";
+                    NotifyConversation();
+                }
+                return;
+            }
             RestoreUnsent();
             composerBody = value;
             Interlocked.Increment(ref composerBufferRevision);

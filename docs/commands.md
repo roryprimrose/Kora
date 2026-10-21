@@ -96,6 +96,16 @@ device ownership or navigation authority. Editing any of these fields performs
 no read and retires rows, exact selection and Next; Clear/revocation clears them.
 Typing performs no read. Query/mode/lifecycle/revision/byte/scalar edits cancel pending pages and invalidate the catalogue selection and exact navigation without changing the current composer. Use **Search / refresh metadata**, Next, Cancel, or **Clear query (Browse)** explicitly; Clear also empties the metadata fields without reading. A zero-match bounded page may still have Next; there is no global inventory count.
 
+**Order this loaded page** offers **Source order (default)**, **Session name
+ascending/descending** and **Saved revision ascending/descending**. It only reorders
+the complete metadata already admitted on the current page, with no read or refresh.
+Names use ordinal case-sensitive ordering, with unnamed sessions last in both
+directions; all ties use canonical session ID ascending. This is not global ordering,
+completeness or a total. Next uses the original source continuation, not the last
+displayed row. Order edits retire exact selection/details and pending navigation;
+select explicitly again. They never load a draft, change the Sessions target or
+discard the composer. Clear restores Source order without reading.
+
 Select one row and **Open exact session (no body load)**. Changed source/revision/privacy refuses with Refresh. The existing Sessions dirty-buffer Save/Discard/Cancel protection remains; an explicit Save that changes authority requires fresh catalogue observation.
 **Reload saved draft**, Save and Submit are separate Sessions gestures. Done remains Done. See the [canonical scope and limitations](../Design/Interaction_And_Sessions.md#saved-conversation-draft-catalogue--2026-10-13).
 

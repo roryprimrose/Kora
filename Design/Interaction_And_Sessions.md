@@ -264,6 +264,24 @@ Exact ID seeks the existing draft-row primary key after the same mandatory priva
 Each click consumes at most 50 candidate draft slots and returns at most 25 complete rows / 64 KiB. Cleared/null/empty slots consume scan positions but are not saved-content results; never-saved sessions and question/parameter drafts are not sources.
 Empty pages can have Next. End is an observation, not a global count or immutable inventory. Canonical-UUID keyset pages are mutable; changes behind the cursor require Refresh.
 
+**Order this loaded page** is a separate volatile display choice: **Source order
+(default)** preserves the existing source sequence, **Session name ascending /
+descending** compares ordinal case-sensitive names with unnamed last in either
+direction, and **Saved revision ascending / descending** compares positive saved
+revisions. Every non-source order uses canonical lowercase D session ID ascending
+as its deterministic tie break. The pure [loaded-page ordering policy](../src/Kora.Core/Storage/SavedDraftPageOrdering.cs)
+validates the entire original page before projection, without excluding, truncating
+or repairing candidates. The original page, source scan order, query/filter
+contracts, budgets and signed continuation remain unchanged; Next never derives
+its cursor from display order. This is not global ordering, completeness or a count.
+Order edits perform zero I/O, retire exact selection/details/navigation and cancel
+stale callbacks, while retaining the admitted page and its original continuation.
+An in-flight read cannot publish after an order edit; refresh explicitly if its
+page was not yet admitted. Clear restores Source order without reading.
+Source/control/privacy/lifecycle/draft/close revocation still clears page authority.
+No composer discard, body read, saved-draft load, session retarget, command/model
+route or new authority is introduced; dirty-buffer navigation guards are unchanged.
+
 Private signed continuation binds the store/profile/current run, native viewer, private control revision, query kind/digest (or Browse), exact saved revision/byte/scalar bounds, state filter and last consumed exact ID. Complete typed audit-chain validation precedes disclosure in bounded existing 4096-commit segments; pending pages contain no draft rows.
 Any committed authority change invalidates continuation. Existing consolidated whole-store SQL provenance/retention checks remain costs, not per-click body decoding or a performance qualification.
 

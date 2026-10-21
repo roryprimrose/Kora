@@ -1,5 +1,6 @@
 ﻿using Avalonia.Controls;
 using Avalonia.Interactivity;
+using Avalonia.VisualTree;
 
 using AwesomeAssertions;
 
@@ -50,12 +51,19 @@ public sealed partial class NewRequestControllerTests
             opens.Should().Be(1);
             var state = ((NewRequestViewModel)window!.DataContext!).Composer;
             state.Body = "isolated native memory";
+            var query = window.GetVisualDescendants().OfType<TextBox>().Single(control => control.Name is "DraftFindQuery");
+            query.Text = "native";
+            window.GetVisualDescendants().OfType<Button>().Single(control => control.Name is "DraftFindFirst")
+                .RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            window.FindControl<TextBox>("NewRequestBody")!.SelectedText.Should().Be("native");
+            query.Text.Should().Be("native");
             controller.Open();
             opens.Should().Be(1);
             ((NewRequestViewModel)window.DataContext!).Composer.Should().BeSameAs(state);
             state.Body.Should().Be("isolated native memory");
             window.FindControl<Button>("CreateTarget")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             await window.Operation;
+            query.Text.Should().BeEmpty("target creation retires current draft Find");
             var exact = state.Target!.Authority.SessionId;
             named.DecideComposerDraft = () => Task.FromResult(ComposerDraftDecision.Cancel);
             window.FindControl<Button>("OpenNewRequestSession")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));

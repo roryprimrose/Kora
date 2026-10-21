@@ -157,6 +157,9 @@ internal sealed partial class OwnedInstructionEditorWindow : Window
         panel.Children.Add(validationStatus);
         DockPanel.SetDock(status, Dock.Bottom);
         panel.Children.Add(status);
+        var bufferFind = CreateBufferFind();
+        DockPanel.SetDock(bufferFind, Dock.Top);
+        panel.Children.Add(bufferFind);
         panel.Children.Add(Source);
         Content = panel;
     }
@@ -204,6 +207,7 @@ internal sealed partial class OwnedInstructionEditorWindow : Window
     }
     internal void ClearPrivateText()
     {
+        RetireBufferFind(clearQuery: true);
         CancelRebaseReview();
         ClearInventory(); ClearSearch();
         SetUseReviewAvailable(false);

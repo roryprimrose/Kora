@@ -49,7 +49,9 @@ function fixture(overrides = {}) {
   const github = { rest,
     paginate: async (method, args, transform) => {
       const response = await method(args);
-      return transform ? transform(response) : response.data;
+      const data = Array.isArray(response.data) ? response.data : response.data.workflow_runs ?? response.data.jobs;
+      assert.ok(Array.isArray(data), 'Octokit pagination returns a normalized array.');
+      return transform ? transform({ ...response, data }) : data;
     },
     graphql: async (query, args) => {
       calls.push(['graphql', args]);
@@ -207,4 +209,15 @@ test('paginated run and job lookups cannot accidentally select an unrelated work
   }
   value.github.graphql = async () => ({});
   await assert.rejects(value.api.reviewReady(1));
+});
+
+test('normalized pagination preserves empty and multiple workflow run and job records', async () => {
+  for (const records of [[], [{ id: 1 }, { id: 2 }], [{ id: 1 }, { id: 1 }]]) {
+    const value = fixture({
+      listWorkflowRuns: () => ({ total_count: records.length, workflow_runs: records }),
+      listJobsForWorkflowRun: () => ({ total_count: records.length, jobs: records }),
+    });
+    assert.deepEqual(await value.api.runs(candidate()), records);
+    assert.deepEqual(await value.api.jobs(1), records);
+  }
 });

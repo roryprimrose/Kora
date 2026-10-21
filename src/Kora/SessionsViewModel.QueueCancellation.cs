@@ -13,12 +13,14 @@ internal sealed partial class SessionsViewModel
     private SessionQueueCancelReview? queueCancelReview;
     private long pendingCancellationEpoch;
     private long cancellationSessionEpoch;
+    private Func<bool> queueCancellationAdmission = static () => true;
     public IReadOnlyList<SessionQueueEntry> PendingCancellationEntries => queueSnapshot is { DispatchControl: { } control } snapshot
         ? snapshot.Entries.Where(entry => entry.RunId == control.RunId && entry.Generation == snapshot.Generation
             && entry.State is SessionQueueState.Pending or SessionQueueState.Expired).ToArray() : [];
     public bool CanSelectPendingCancellation => CanChangeQueuePause;
     public bool CanReviewPendingCancellation => CanSelectPendingCancellation && !pendingCancellationSelection.IsDefaultOrEmpty;
     public bool CanConfirmPendingCancellation => CanReviewPendingCancellation && queueCancelReview is { } review
+        && queueCancellationAdmission()
         && cancellationSessionEpoch == selectionEpoch && review.AdmissionRevision == access.ControlRevision
         && review.Queue.SessionId == selected?.Authority.SessionId && review.Queue.Generation == selected.Authority.Generation
         && review.Queue.Revision == queueSnapshot?.Revision && review.Queue.DispatchControl == queueSnapshot.DispatchControl
@@ -28,7 +30,8 @@ internal sealed partial class SessionsViewModel
         ? (CanConfirmPendingCancellation ? "Review complete selected pending subset: " : "Stale review; refresh and review the complete subset again: ")
             + review.Entries.Length.ToString(CultureInfo.InvariantCulture) + "\n"
             + string.Join("\n", review.Entries.Select((entry, index) => (index + 1).ToString(CultureInfo.InvariantCulture) + ". " + Describe(entry)
-                + " | original source " + entry.Request.Origin + " | request " + entry.Request.RequestId.Value.ToString("D")))
+                + " | original source " + entry.Request.Origin + " | request " + entry.Request.RequestId.Value.ToString("D")
+                + " | prerequisite " + (entry.Dependency?.Value.ToString("D") ?? "None")))
             + "\nReview " + review.Id.ToString("D") + " | session " + review.Queue.SessionId.Value.ToString("D")
             + " | generation " + review.Queue.Generation.Value.ToString(CultureInfo.InvariantCulture)
             + " | queue revision " + review.Queue.Revision.ToString(CultureInfo.InvariantCulture)
@@ -45,6 +48,11 @@ internal sealed partial class SessionsViewModel
     {
         if (!CanSelectPendingCancellation || entries.Count > SessionQueueLimits.MaximumPendingPerSession
             || entries.Distinct().Count() != entries.Count || entries.Any(entry => !PendingCancellationEntries.Contains(entry))) { return; }
+        SetPendingCancellationEntries(entries);
+    }
+
+    private void SetPendingCancellationEntries(IReadOnlyList<SessionQueueEntry> entries)
+    {
         var selectedIds = entries.Select(entry => entry.Request.TaskId).ToHashSet();
         var next = PendingCancellationEntries.Where(entry => selectedIds.Contains(entry.Request.TaskId))
             .Select(entry => new SessionQueueSelection(entry.Request.TaskId, entry.Revision)).ToImmutableArray();
@@ -52,27 +60,31 @@ internal sealed partial class SessionsViewModel
         pendingCancellationSelection = next;
         pendingCancellationEpoch++;
         queueCancelReview = null;
+        queueCancellationAdmission = static () => true;
         NotifyPendingCancellation();
     }
 
     public Task ReviewPendingCancellationAsync()
     {
+        queueCancellationAdmission = static () => true;
+        return RunAsync(() => ReviewPendingCancellationCoreAsync(lifetime.Token), dispatchControl: true);
+    }
+
+    private async Task ReviewPendingCancellationCoreAsync(CancellationToken token)
+    {
         var snapshot = queueSnapshot;
         var members = pendingCancellationSelection;
         var sessionEpoch = selectionEpoch;
         var subsetEpoch = pendingCancellationEpoch;
-        return RunAsync(async () =>
-        {
-            if (snapshot is null || members.IsDefaultOrEmpty) { throw new InvalidOperationException("Select exact current pending IDs first."); }
-            var command = CancellationCommand(SessionCommandOperation.QueueCancelSelectedReview, snapshot, members);
-            var result = await service.ExecuteCommandAsync(command, RequestOrigin.LocalUi,
-                () => CancellationEligible(snapshot, sessionEpoch, subsetEpoch), lifetime.Token);
-            if (!CancellationEligible(snapshot, sessionEpoch, subsetEpoch)) { throw new OperationCanceledException("Pending selection changed during review."); }
-            queueCancelReview = result.QueueCancelReview ?? throw new InvalidDataException("Complete selected cancellation review is missing.");
-            cancellationSessionEpoch = sessionEpoch;
-            status = "Review only; no write. Confirm these pending entries only or cancel review to keep selection.";
-            NotifyPendingCancellation();
-        }, dispatchControl: true);
+        if (snapshot is null || members.IsDefaultOrEmpty) { throw new InvalidOperationException("Select exact current pending IDs first."); }
+        var command = CancellationCommand(SessionCommandOperation.QueueCancelSelectedReview, snapshot, members);
+        var result = await service.ExecuteCommandAsync(command, RequestOrigin.LocalUi,
+            () => CancellationEligible(snapshot, sessionEpoch, subsetEpoch), token);
+        if (!CancellationEligible(snapshot, sessionEpoch, subsetEpoch)) { throw new OperationCanceledException("Pending selection changed during review."); }
+        queueCancelReview = result.QueueCancelReview ?? throw new InvalidDataException("Complete selected cancellation review is missing.");
+        cancellationSessionEpoch = sessionEpoch;
+        status = "Review only; no write. Confirm these pending entries only or cancel review to keep selection.";
+        NotifyPendingCancellation();
     }
 
     public Task ConfirmPendingCancellationAsync()
@@ -106,6 +118,7 @@ internal sealed partial class SessionsViewModel
         var review = queueCancelReview;
         var epoch = selectionEpoch;
         queueCancelReview = null;
+        queueCancellationAdmission = static () => true;
         NotifyPendingCancellation();
         return RunAsync(async () =>
         {
@@ -119,7 +132,7 @@ internal sealed partial class SessionsViewModel
     }
 
     private bool CancellationEligible(SessionQueueSnapshot snapshot, long epoch, long subsetEpoch) =>
-        !closed && access.CanControl && selectionEpoch == epoch && pendingCancellationEpoch == subsetEpoch
+        !closed && access.CanControl && queueCancellationAdmission() && selectionEpoch == epoch && pendingCancellationEpoch == subsetEpoch
         && selected?.Authority.SessionId == snapshot.SessionId && selected.Authority.Generation == snapshot.Generation;
 
     private static SessionCommand CancellationCommand(SessionCommandOperation operation, SessionQueueSnapshot snapshot,

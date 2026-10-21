@@ -26,7 +26,7 @@ public sealed partial class MainViewModelTests
         await f.RunAsync(command);
 
         f.ViewModel.ResponseTitle.Should().NotBe("Host-local date and time.");
-        if (command == "owned definition help")
+        if (string.Equals(command, "owned definition help", StringComparison.Ordinal))
         {
             f.ViewModel.ResponseTitle.Should().Contain("help");
             native.Captures.Should().Be(0);

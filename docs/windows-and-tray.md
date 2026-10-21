@@ -190,6 +190,10 @@ Typing writes nothing. Switching topics preserves a separate memory-only unsent 
 
 **Discard this unsent message...** requires confirmation and affects only that session's memory input. Last-view/application close protects all nonempty topic buffers with Discard/Cancel. Privacy/ownership/session retirement revokes affected private text without saving ([presentation owner](../src/Kora/SessionsPresentationOwner.cs)).
 
+Deliberate Kora **Exit** and **Restart** review all topic buffers and New request using Discard/Cancel, retaining the instruction-editor guard. Cancelled/failed prompts or changed input/private source do not confirm shutdown; state is rechecked after async work ([host guard](../src/Kora.Application/ViewModels/MainViewModel.ConversationShutdown.cs)).
+
+Mandatory privacy/ownership/session-lock retirement and application/OS-required shutdown do not wait for discard review. Unsent text is volatile: no disk autosave, restart restoration or protection against forced termination is promised ([native lifetime policy](../src/Kora/NativeShutdownPolicy.cs), [native retirement](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.Shutdown.cs)).
+
 **Submit exact message — unavailable provider** retains your original exact
 text and fresh request/task receipt privately. Today the configured production
 catalogue has no qualified model: you receive truthful **HOST Unavailable /

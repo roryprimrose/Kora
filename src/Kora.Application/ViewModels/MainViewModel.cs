@@ -3018,9 +3018,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
 
     public async Task ExitAsync(bool fromModelActionDispatch = false)
     {
-        if (conversationShutdown is not null && !await conversationShutdown()) { return; }
+        var conversationCurrent = await PrepareConversationShutdown();
+        if (conversationCurrent is null) { return; }
         if (instructionEditorShutdown is not null && !await instructionEditorShutdown()) { return; }
         await ClosePromptPreparation();
+        if (!RequireConversationShutdownCurrent(conversationCurrent)) { return; }
         ApplicationLog.Information(logger, "Kora exit was requested");
         hostExitRequested = true;
         lifecycleAdmissionClosed = true;
@@ -3054,6 +3056,12 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         if (clipboardExplanation is not null) { await clipboardExplanation.WaitForQuiescenceAsync(); }
         if (filePreview is not null) { await filePreview.WaitForQuiescenceAsync(); }
         if (sessionFiles is not null) { await sessionFiles.WaitForQuiescence(); }
+        if (!RequireConversationShutdownCurrent(conversationCurrent))
+        {
+            hostExitRequested = false;
+            lifecycleAdmissionClosed = false;
+            return;
+        }
         WindowActionRequested?.Invoke(this, WindowAction.Close);
     }
 
@@ -5854,6 +5862,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
 
     private async Task RestartApplicationAsync(SecurityAuditInitiator initiator, long? observedCallRevision)
     {
+        var restartDispatched = false;
         var callRevision = CallPolicyRevision;
         var privacyRevision = privacyObservation.Current.TopologyRevision;
         bool Eligible() => IsCallMutationHostEligible && CallPolicyRevision == callRevision
@@ -5865,6 +5874,18 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             CurrentApplicationTarget);
         try
         {
+            var conversationCurrent = await PrepareConversationShutdown();
+            if (conversationCurrent is null)
+            {
+                await CompleteAuditAsync(audit, SecurityAuditOutcome.Denied, "conversation-shutdown-not-confirmed");
+                return;
+            }
+            if (instructionEditorShutdown is not null && !await instructionEditorShutdown())
+            {
+                await CompleteAuditAsync(audit, SecurityAuditOutcome.Denied, "editor-shutdown-not-confirmed");
+                return;
+            }
+            await ClosePromptPreparation();
             await StopAudioAsync(initiator == SecurityAuditInitiator.ModelSuggestion
                 && isModelActionDispatchActive);
 #pragma warning disable VSTHRD003 // Join owned appearance writes before requesting process replacement.
@@ -5876,18 +5897,26 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             await AuditPersistence;
 #pragma warning restore VSTHRD003
             await outputCatalog.WaitForQuiescenceAsync();
+            if (!RequireConversationShutdownCurrent(conversationCurrent))
+            {
+                await CompleteAuditAsync(audit, SecurityAuditOutcome.Denied, "conversation-shutdown-changed");
+                return;
+            }
             if (!Eligible() || !IsModelCallDispatchEligible(initiator, observedCallRevision))
             {
                 await CompleteAuditAsync(audit, SecurityAuditOutcome.Denied, "call-policy-changed");
                 ShowInformation("Call policy changed.", "The model authorization became stale before restart; no restart was dispatched.");
                 return;
             }
+            lifecycleAdmissionClosed = true;
             applicationProcessController.RestartCurrentApplication();
+            restartDispatched = true;
             await CompleteAuditAsync(audit, SecurityAuditOutcome.Succeeded);
             WindowActionRequested?.Invoke(this, WindowAction.Close);
         }
         catch (InvalidOperationException exception)
         {
+            if (!restartDispatched) { lifecycleAdmissionClosed = false; }
             await CompleteAuditAsync(audit, SecurityAuditOutcome.Failed, "restart-failed");
             ApplicationLog.Error(logger, exception, "Restarting Kora");
             ShowFailure($"{AssistantName} could not restart.", exception.Message);

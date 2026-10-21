@@ -244,6 +244,12 @@ Unsent input is memory-only and kept per session while switching views/topics. O
 
 Missing or unavailable legacy text leaves history and unsent input unchanged; required conversation/privacy/retention authority still fails closed. Privacy and owner/control/session retirement clear volatile private presentation without persistence ([regressions](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.Unsent.cs)).
 
+Voluntary Exit/Restart protects all session input and New request with Discard/Cancel, preserving the instruction-editor guard. The captured input/private-source receipt is revalidated after editor review and quiescence ([host guard](../src/Kora.Application/ViewModels/MainViewModel.ConversationShutdown.cs)).
+
+Cancelled/failed review, buffer ABA or changed source/control/owner/surface cannot confirm voluntary exit ([native binding](../src/Kora/ConversationShutdownGuard.cs), [host tests](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.ConversationShutdown.cs)).
+
+Mandatory privacy/ownership/session-lock retirement and application/OS-required shutdown bypass discard prompts and retire private memory. No persistence, restart restoration or forced-termination survival is promised ([lifetime policy](../src/Kora/NativeShutdownPolicy.cs), [native tests](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.Shutdown.cs)).
+
 One authoritative [content policy](../src/Kora.Core/Conversation/ConversationText.cs)
 checks **4096 UTF-16 characters and 16384 UTF-8 bytes** independently, preserving
 valid Unicode, combining characters, spaces, tabs and exact CR/LF/newlines.

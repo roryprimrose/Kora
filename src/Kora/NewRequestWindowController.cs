@@ -14,11 +14,26 @@ internal sealed partial class NewRequestWindowController(
     private NewRequestWindow? window;
     private NewRequestComposer? composer;
     private bool disposed;
+    private long windowEpoch;
+    internal Func<bool> CaptureShutdownEligibility()
+    {
+        var admitted = !disposed && access.CanInspect && access.CanControl && window is null && composer is null;
+        var epoch = windowEpoch;
+        var revision = access.ControlRevision;
+        return () => admitted && !disposed && access.ControlRevision == revision
+            && windowEpoch == epoch && window is null && composer is null;
+    }
+
     internal async Task<bool> PrepareShutdown()
     {
         var original = window;
         if (original is null) { return true; }
-        try { return await original.PrepareShutdown(); }
+        try
+        {
+            var revision = access.ControlRevision;
+            return await original.PrepareShutdown() && !disposed && window is null && access.CanInspect
+                && access.CanControl && access.ControlRevision == revision;
+        }
         catch (Exception exception) when (exception is not OutOfMemoryException)
         {
             main.ReportHostInteractionFailure("New request closing failed; unsent input remains open. Failure type: " + exception.GetType().Name);
@@ -48,6 +63,7 @@ internal sealed partial class NewRequestWindowController(
         }
         if (window is null)
         {
+            windowEpoch++;
             var state = seedTarget ?? create();
             var opened = new NewRequestWindow(new(state), () => Navigate(state),
                 exception => main.ReportHostInteractionFailure("New request native navigation/closing failed; memory edits remain recoverable unless privacy revoked. No implicit Save or selection. Failure type: " + exception.GetType().Name),
@@ -59,7 +75,7 @@ internal sealed partial class NewRequestWindowController(
                 });
             opened.Closed += (_, _) =>
             {
-                if (ReferenceEquals(window, opened)) { window = null; composer = null; }
+                if (ReferenceEquals(window, opened)) { windowEpoch++; window = null; composer = null; }
             };
             composer = state;
             window = opened;

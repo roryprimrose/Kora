@@ -4153,18 +4153,21 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             return;
         }
         var sessionCommand = SessionCommand.Parse(spokenText, AssistantName);
-        if (sessionCommand is null && LocalClockCommand.Parse(spokenText, AssistantName) is { } clockCommand)
+        var namePreparationCommand = SessionNamePreparationCommand.Parse(spokenText, AssistantName);
+        var cataloguePreparation = manualInput?.CataloguePreparation
+            ?? AttachmentCataloguePreparationCommand.Parse(spokenText, AssistantName);
+        if (sessionCommand is null && namePreparationCommand is null && cataloguePreparation is null
+            && LocalClockCommand.Parse(spokenText, AssistantName) is { } clockCommand)
         {
             ExecuteLocalClockCommand(clockCommand, initiator, manualInput);
             return;
         }
-        if ((manualInput?.CataloguePreparation
-            ?? AttachmentCataloguePreparationCommand.Parse(spokenText, AssistantName)) is { } cataloguePreparation)
+        if (cataloguePreparation is not null)
         {
             await PrepareAttachmentCatalogue(cataloguePreparation, initiator, manualInput);
             return;
         }
-        if (SessionNamePreparationCommand.Parse(spokenText, AssistantName) is { } namePreparation)
+        if (namePreparationCommand is { } namePreparation)
         {
             await ExecuteSessionNamePreparationAsync(namePreparation, spokenText, initiator, manualInput);
             return;

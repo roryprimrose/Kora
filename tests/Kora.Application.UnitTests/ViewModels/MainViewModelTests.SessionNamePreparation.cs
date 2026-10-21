@@ -33,16 +33,20 @@ public sealed partial class MainViewModelTests
     }
 
     [Theory]
-    [InlineData(false, true)]
-    [InlineData(true, true)]
-    [InlineData(false, false)]
-    public async Task NamePreparationIsNativeOnlyAndNeverEchoesNames(bool voice, bool displayed)
+    [InlineData(false, true, "Kora")]
+    [InlineData(true, true, "Kora")]
+    [InlineData(false, false, "Kora")]
+    [InlineData(false, true, "What Time")]
+    [InlineData(true, true, "What Time")]
+    public async Task NamePreparationIsNativeOnlyAndNeverEchoesNames(bool voice, bool displayed, string assistantName)
     {
         var f = await Fixture.CreateInitializedAsync();
+        await f.RunAsync("set assistant name to " + assistantName);
         var presenter = new NamePreparationPresenter { Displayed = displayed };
         f.ViewModel.BindSessionNamePreparation(presenter);
-        if (voice) { await f.RaiseActivatedTranscriptAsync("Kora, " + NamePreparationInput, 1); }
-        else { await f.RunAsync(NamePreparationInput); }
+        if (voice) { await f.RaiseActivatedTranscriptAsync(assistantName + ", " + NamePreparationInput, 1); }
+        else { await f.RunAsync(string.Equals(assistantName, "What Time", StringComparison.Ordinal)
+            ? assistantName + ", " + NamePreparationInput : NamePreparationInput); }
         presenter.Commands.Should().ContainSingle().Which.Name!.Value.Should().Be("Café 東京 private");
         presenter.LastAdmission.Should().BeTrue();
         presenter.Origins.Should().ContainSingle().Which.Should().Be(voice ? RequestOrigin.ActivatedVoice : RequestOrigin.LocalUi);

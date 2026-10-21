@@ -38,11 +38,13 @@ public sealed partial class MainViewModelTests
         calls.Should().Be(2);
     }
 
-    [Fact]
-    public async Task AllWorkQueryPreparationRequiresNativeAcknowledgementAndNeverReasonsOrStoresInput()
+    [Theory]
+    [InlineData("Nova")]
+    [InlineData("What Time")]
+    public async Task AllWorkQueryPreparationRequiresNativeAcknowledgementAndNeverReasonsOrStoresInput(string assistantName)
     {
         var f = await Fixture.CreateInitializedAsync();
-        await f.RunAsync("set assistant name to Nova");
+        await f.RunAsync("set assistant name to " + assistantName);
         var calls = 0;
         f.ViewModel.AllWorkTaskQueryPreparationRequested += request =>
         {
@@ -57,11 +59,12 @@ public sealed partial class MainViewModelTests
             request.IsPrepared.Should().BeTrue();
             return Task.FromResult(true);
         };
-        await f.RunAsync(PrepareRetainedTaskQuery);
+        await f.RunAsync(string.Equals(assistantName, "What Time", StringComparison.Ordinal)
+            ? assistantName + ", " + PrepareRetainedTaskQuery : PrepareRetainedTaskQuery);
         f.ViewModel.Transcript.Should().Contain("PREPARED / REVIEW NEEDED").And.NotContain(RetainedTaskQueryId);
-        await f.RaiseActivatedTranscriptAsync("Nova, " + PrepareRetainedTaskQuery, 1);
+        await f.RaiseActivatedTranscriptAsync(assistantName + ", " + PrepareRetainedTaskQuery, 1);
         calls.Should().Be(2);
-        f.Voice.StartedPhrases.Should().Contain("Nova all work query help").And.NotContain("Kora all work query help");
+        f.Voice.StartedPhrases.Should().Contain(assistantName + " all work query help").And.NotContain("Kora all work query help");
         await f.RaiseActivatedTranscriptAsync(PrepareRetainedTaskQuery, 1);
         f.ViewModel.Transcript.Should().Contain("current available assistant-name prefix");
         calls.Should().Be(2);

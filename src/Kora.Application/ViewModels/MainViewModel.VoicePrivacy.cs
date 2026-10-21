@@ -57,7 +57,12 @@ public sealed partial class MainViewModel
     private Task voiceUnlockRecoveryTask = Task.CompletedTask;
     private Func<bool> voiceOwnershipEligible = static () => false;
 
-    public void BindVoiceOwnershipGate(Func<bool> gate) => voiceOwnershipEligible = gate;
+    private long voiceOwnershipBindingRevision;
+    public void BindVoiceOwnershipGate(Func<bool> gate)
+    {
+        voiceOwnershipEligible = gate;
+        Interlocked.Increment(ref voiceOwnershipBindingRevision);
+    }
 
     public bool IsPrivacyPresentationHeld => Volatile.Read(ref privacyPresentationHeld) != 0;
 
@@ -75,6 +80,7 @@ public sealed partial class MainViewModel
         sessionRetentionPlanner?.Retire("Private/lock/desktop revision changed; preview retired.");
         RetireQuestionVoiceReply();
         var snapshot = eventArgs.Current;
+        RetireComposerDictation();
         var voicePrivacyChanged = (eventArgs.Reason & (WindowsPrivacyChangeReason.Power
             | WindowsPrivacyChangeReason.MicrophonePermission | WindowsPrivacyChangeReason.InputTopology
             | WindowsPrivacyChangeReason.DefaultMicrophone)) != WindowsPrivacyChangeReason.Unknown
@@ -297,6 +303,9 @@ public sealed partial class MainViewModel
         questionVoiceReplies?.CloseAdmission();
         RetireQuestionVoiceReply();
         PropertyChanged -= OnQuestionVoiceReadinessChanged;
+        PropertyChanged -= ComposerVoiceReadinessChanged;
+        composerDictation?.CloseAdmission();
+        if (dictationQuestions is not null) { dictationQuestions.ReplyTargetChanging -= OnComposerQuestionChanging; }
         // Refresh cancellation can release an awaiting caller before Dispose returns.
         HoldVoiceInput("Microphone closed · host disposed");
         RetireMicrophoneRefresh();
@@ -322,7 +331,6 @@ public sealed partial class MainViewModel
         if (playbackVolumeConfiguration is not null) { playbackVolumeConfiguration.Changed -= OnPlaybackVolumeChanged; }
         if (windowsSpeechRateConfiguration is not null) { windowsSpeechRateConfiguration.Changed -= OnWindowsSpeechRateChanged; }
         if (diagnosticRetentionConfiguration is not null) { diagnosticRetentionConfiguration.Changed -= OnDiagnosticRetentionChanged; }
-        if (queueConfiguration is not null) { queueConfiguration.Changed -= OnQueueConfigurationChanged; }
         if (auditRetentionConfiguration is not null) { auditRetentionConfiguration.Changed -= OnAuditRetentionChanged; }
         if (responseModeConfiguration is not null) { responseModeConfiguration.Changed -= OnResponseModeConfigurationChanged; }
         if (providerModeConfiguration is not null) { providerModeConfiguration.Changed -= OnProviderModeConfigurationChanged; }
@@ -509,6 +517,7 @@ public sealed partial class MainViewModel
         voiceRecognition.InvalidateCapture();
         captureOpenCancellation?.Cancel();
         RetireQuestionVoiceReply();
+        RetireComposerDictation();
         uiDispatcher.Post(() =>
         {
             if (revision != Interlocked.Read(ref voiceRecoveryRevision))
@@ -681,6 +690,10 @@ public sealed partial class MainViewModel
 
     public async Task BeginPushToTalkAsync()
     {
+        RetireComposerDictation();
+#pragma warning disable VSTHRD003 // Explicit command activation joins the independently owned native dictation release first.
+        if (composerDictation is not null) { await composerDictation.Quiescence; }
+#pragma warning restore VSTHRD003
         RetireQuestionVoiceReply();
         if (Volatile.Read(ref listeningStopRequests) != 0 || !listeningStop.CanRecover
             || lifecycleAdmissionClosed || IsBusy && !IsSpeaking
@@ -744,7 +757,11 @@ public sealed partial class MainViewModel
                 // Activated input must not replace the exact source before the user can name it.
                 ReportWebResultDetailStatus("Capturing your command. Release Push to talk to finish.");
             }
-            else if (Volatile.Read(ref ordinaryResponse) is not null && !IsResponseInteractionPending)
+            else if (IsResponseInteractionPending)
+            {
+                Transcript = "Release Push to talk to finish. The pending question or approval remains unchanged.";
+            }
+            else if (Volatile.Read(ref ordinaryResponse) is not null)
             {
                 State = AssistantState.Listening;
                 Transcript = "Release Push to talk to finish. Only this explicitly activated command is transcribed locally. The current response remains unchanged.";

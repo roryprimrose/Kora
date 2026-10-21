@@ -32,12 +32,10 @@ public sealed class WorkspaceSurfaceCommandControllerTests
             SessionsWindow? workspace = null;
             CompactSessionWindow? compact = null;
             AllWorkWindow? all = null;
-            SavedDraftCatalogueWindow? drafts = null;
             var opens = new int[3];
             using var workspaceOpened = Window.WindowOpenedEvent.AddClassHandler<SessionsWindow>((view, _) => workspace = view);
             using var compactOpened = Window.WindowOpenedEvent.AddClassHandler<CompactSessionWindow>((view, _) => { compact = view; opens[2]++; });
             using var allOpened = Window.WindowOpenedEvent.AddClassHandler<AllWorkWindow>((view, _) => { all = view; opens[0]++; });
-            using var draftsOpened = Window.WindowOpenedEvent.AddClassHandler<SavedDraftCatalogueWindow>((view, _) => { drafts = view; opens[1]++; });
             f.Sessions!.Open();
             var model = (SessionsViewModel)workspace!.DataContext!;
             await model.RefreshAsync();
@@ -48,7 +46,6 @@ public sealed class WorkspaceSurfaceCommandControllerTests
             var details = model.Detail;
             var authority = target.Authority;
             await f.Run("open all work");
-            await f.Run("open saved conversation drafts");
             await f.Run("open compact conversation");
             compact!.DataContext.Should().BeSameAs(model);
             model.SelectedSessionRecord.Should().Be(target);
@@ -57,17 +54,15 @@ public sealed class WorkspaceSurfaceCommandControllerTests
             model.ComposerDirty.Should().BeTrue();
             compact.FindControl<TextBox>("ConversationComposer")!.Text.Should().Be(model.ComposerBody);
             all!.DataContext.Should().BeOfType<AllWorkViewModel>().Which.Records.Should().BeEmpty();
-            drafts!.DataContext.Should().BeOfType<SavedDraftCatalogueViewModel>().Which.Records.Should().BeEmpty();
             f.AllWork!.Open();
-            f.Drafts!.Open();
             f.Sessions.OpenCompact();
             await f.Run("open all work");
-            await f.Run("open saved conversation drafts");
             await f.Run("open compact conversation");
-            opens.Should().Equal(1, 1, 1);
+            opens.Should().Equal(1, 0, 1);
             (await f.Native.Interactions.ReadMetadataAsync(authority.SessionId, f.Native.Token)).Authority.Should().Be(authority);
             model.ComposerBody.Should().Be("private unsaved memory only");
-            model.DiscardComposerBuffer();
+            model.DecideComposerDraft = () => Task.FromResult(ComposerDraftDecision.Discard);
+            await model.DiscardComposerBufferAsync();
             workspace.Close();
             f.Sessions.Open();
             workspace!.DataContext.Should().BeSameAs(model);
@@ -166,7 +161,6 @@ public sealed class WorkspaceSurfaceCommandControllerTests
         internal NativeUxFixtureSession Native { get; }
         internal SessionsWindowController? Sessions { get; private set; }
         internal AllWorkWindowController? AllWork { get; private set; }
-        internal SavedDraftCatalogueWindowController? Drafts { get; private set; }
         internal WorkspaceSurfaceCommandController? Commands { get; private set; }
 
         internal NavigationFixture()
@@ -186,8 +180,7 @@ public sealed class WorkspaceSurfaceCommandControllerTests
             Sessions.Bind();
             AllWork = new(Native.Main, service, Native.Access, NullLogger<AllWorkViewModel>.Instance, Sessions);
             AllWork.Bind();
-            Drafts = new(Native.Main, service, Sessions, Native.Access, NullLogger<SavedDraftCatalogueViewModel>.Instance);
-            Commands = new(Native.Main, Native.Access, AllWork, Drafts, Sessions);
+            Commands = new(Native.Main, Native.Access, AllWork, Sessions);
             Commands.Bind();
         }
 
@@ -209,13 +202,12 @@ public sealed class WorkspaceSurfaceCommandControllerTests
         {
             Commands?.Dispose();
             AllWork?.Dispose();
-            Drafts?.Dispose();
             Sessions?.Dispose();
             Native.Dispose();
         }
     }
 
-    private sealed class RefusingWorkspaceStore : ISessionWorkspaceStore, ISessionConversationStore, ISavedDraftCatalogueStore
+    private sealed class RefusingWorkspaceStore : ISessionWorkspaceStore, ISessionConversationStore
     {
         internal int Calls { get; private set; }
         private T Refuse<T>() { Calls++; throw new InvalidOperationException("Opening must not access storage."); }
@@ -239,7 +231,5 @@ public sealed class WorkspaceSurfaceCommandControllerTests
         public ValueTask<Kora.Core.Conversation.ConversationSubmissionReceipt> CompleteConversationSubmissionAsync(HostRequest request, Kora.Core.Dependencies.ModelTurnOutcome outcome, Kora.Core.Dependencies.ModelTurnReason reason, Func<bool> admitted, CancellationToken token) => Refuse<ValueTask<Kora.Core.Conversation.ConversationSubmissionReceipt>>();
         public ValueTask<Kora.Core.Conversation.ConversationPage> ReadConversationPageAsync(HostId<SessionIdentity> session, Kora.Core.Conversation.ConversationCursor? cursor, int limit, CancellationToken token) => Refuse<ValueTask<Kora.Core.Conversation.ConversationPage>>();
         public ValueTask<Kora.Core.Conversation.ConversationMessage> ReadConversationMessageAsync(HostId<SessionIdentity> session, HostId<RequestIdentity> request, CancellationToken token) => Refuse<ValueTask<Kora.Core.Conversation.ConversationMessage>>();
-        public ValueTask<SavedDraftPage> ReadSavedDraftPage(SessionListFilter filter, string? cursor, long controlRevision, Func<bool> admitted, CancellationToken token, SessionListSearch? query = null, SavedDraftMetadataFilter? metadataFilter = null) => Refuse<ValueTask<SavedDraftPage>>();
-        public ValueTask<SessionWorkspaceEntry> ResolveSavedDraft(SavedDraftSummary exact, Func<bool> admitted, CancellationToken token) => Refuse<ValueTask<SessionWorkspaceEntry>>();
     }
 }

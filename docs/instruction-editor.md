@@ -92,6 +92,35 @@ remain outside this owned-editor workflow.
 
 ## Search observed owned metadata
 
+### Find within selected displayed metadata details
+
+After explicitly selecting a current inventory row, **Find in selected metadata**
+focuses a separate private query. It searches only the exact displayed details
+string for that selected owned Instruction or Prompt row. It never searches the
+source editor, unsaved draft, other rows, hidden paths, descriptions,
+declarations, resource bodies or another kind. It does not open or inspect a file.
+
+Enter a case- and space-sensitive one-line literal, at most 256 UTF-16 units
+and 512 UTF-8 bytes. Invalid Unicode, control/format characters and oversized
+queries are rejected without trimming or truncation. **First** (or Enter in
+this query), **Next match** (F3) and **Previous match** (Shift+F3) navigate the
+complete nonoverlapping sequence without wrapping. Count and ordinal describe
+only these selected displayed metadata details, not the inventory or files.
+An exact inert match receives native focus; focus failure explicitly clears
+the match/count and offers First to retry. Matches cannot copy, save, select
+files, enable use or grant read, execution, permission, freshness or integrity
+authority.
+
+**Clear Find**, Escape in these Find controls, or editing this query clears
+its match/navigation state without changing the inventory search or draft.
+Selection, inventory page/filter/kind/source/control changes, review retirement,
+privacy/ownership loss and editor closure retire the private Find state; reselect
+a current row explicitly. Find is local and ephemeral: query, match and count
+are not logged, persisted, copied, sent to a model or spoken. Ctrl+F is not
+assigned by metadata Find; its keyboard handling is confined to these controls.
+
+### Search and filter the observed inventory
+
 **List** / **Refresh** explicitly enumerates the selected kind's existing bounded owned directory and runs the existing source-reconciliation pipeline. That refresh can read source files and reconcile revision preferences; typing a search or changing a use-state filter cannot.
 The inventory contains at most 128 filenames for the explicit Instruction or Prompt kind, defaulting to ordinal filename order. Its source is fixed to Kora-owned roaming data. No profile, bundled, skill, agent or additional-directory inventory is added.
 
@@ -111,20 +140,14 @@ Use **Navigation mode** to choose **Literal** (default), **ExactOwnedId** or **E
 Exact modes require a complete nonempty ID; invalid, uppercase, partial-grammar or whitespace-padded input is rejected, never repaired. A valid but absent ID gives zero matches. Neither exact mode opens a source or grants use authority ([mode tests](../tests/Kora.Application.UnitTests/Definitions/OwnedDefinitionInventoryTests.QueryModes.cs)).
 Queries accept at most 256 UTF-16 units / 512 UTF-8 bytes, with valid single-line Unicode and no control/format characters. Invalid queries show an error and no rows; they are never trimmed or truncated.
 
-**Exact SHA-256** is an optional artifact-digest predicate for both owned kinds. Empty means **Any**; otherwise enter exactly 64 lowercase hexadecimal characters. No whitespace, uppercase, prefixes or partial digests are accepted, and input is never trimmed, case-folded or repaired. It matches only the observed artifact digest with ordinal equality, not the native revision. Unmapped/unknown digests match only Any; an unknown use state can still have a known digest.
-
-**Exact native revision** optionally matches the entire observed native revision with ordinal equality: `64.48.48.64` lowercase hexadecimal characters, separated by three literal dots (artifact digest, directory identity, file identity, filename digest). This is not an artifact digest or a numeric revision. Empty means **Any**; malformed, partial, uppercase or whitespace-padded input is rejected without repair. Only mapped, validated candidates with a native revision can match; unknown/unmapped rows acquire no invented revision.
-
-**Observed UTC From (inclusive)** and **Observed UTC Until (inclusive)** optionally bound the snapshot observation time. Empty means **Any** for that bound; nonempty input must be exact canonical UTC, for example `2026-10-12T00:00:00.0000000+00:00`. `Z`, nonzero offsets, missing fractional digits, whitespace and reversed ranges are rejected. Equal bounds include that exact instant. All rows in one inventory share its observation time, including unmapped rows; this is not source modification time, freshness, trust, approval, ownership or use authority.
-
-The selected query mode, use state, exact digest, exact native revision and both observed-time bounds are AND predicates.
-**Clear search**, or **Escape** while focus is in the metadata toolbar, restores **FileNameAscending**, **Literal**, the empty query, **All** use filter and **Any** digest, revision and time bounds.
-Mode and query controls have explicit accessible labels and are keyboard focusable ([native controls](../src/Kora/OwnedInstructionEditorWindow.cs)).
+The selected name query mode and observed use state are the browsing predicates.
+Digest, native-revision and observation-time query fields are retired; their admitted values remain displayed and internally validated.
+**Clear search** or Escape restores FileNameAscending, Literal, empty query and All use state without reading ([native controls](../src/Kora/OwnedInstructionEditorWindow.cs), [inventory policy](../src/Kora.Application/Definitions/OwnedDefinitionInventory.cs)).
 
 **All**, **UseEnabled**, **ReviewRequired** and **UnavailableOrUnknown** filter only observed catalogue metadata. Held/changed revisions share ReviewRequired; the inventory cannot infer why an approval is absent. Unmapped or unrevisioned files are unknown, never implicitly enabled.
 Rows disclose kind, filename ID, available display name, fixed source, artifact ID, digest, native revision and observed UTC. They contain no body/excerpt, description, attribution or full path.
 The complete visible label/details payload is at most 64 KiB UTF-8. Every enumerated filename and mapped metadata row, including native revision syntax, is validated before any predicate or offset can exclude it.
-**Next** exposes any omitted complete rows in deterministic pages bound to the original inventory and complete order/mode/query/use/digest/revision/time state; editing any predicate or order restarts the visible page. A changed order rejects the previous continuation ([paging and ordering tests](../tests/Kora.Application.UnitTests/Definitions/OwnedDefinitionInventoryTests.Ordering.cs)).
+**Next** exposes any omitted complete rows in deterministic pages bound to the original inventory and complete order/mode/query/use state; editing any predicate or order restarts the visible page. A changed order rejects the previous continuation ([paging and ordering tests](../tests/Kora.Application.UnitTests/Definitions/OwnedDefinitionInventoryTests.Ordering.cs)).
 Zero matches means zero matches, not unavailable or a fallback. No row is silently truncated ([paging](../src/Kora.Application/Definitions/OwnedDefinitionInventory.cs)).
 
 **Observed catalogue use state; inspect revalidates disk and exact revision.** This is not disk-current freshness, compatibility or integrity proof. Select a row and explicitly **Inspect**: admission rechecks the original snapshot/kind/file ID/digest/native revision, not a newly looked-up same-name replacement.

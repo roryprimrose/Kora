@@ -122,7 +122,7 @@ public sealed partial class MainViewModelTests
         fixture.AudioPreferences.OutputDeviceId = "missing";
         await fixture.ViewModel.InitializeAsync();
         fixture.ViewModel.CanChangeAudioOutputDevice.Should().BeTrue();
-        fixture.ViewModel.AudioOutputConfigurationStatus.Should().Contain("\"source\":\"saved\"").And.Contain("\"effective\":null");
+        fixture.ViewModel.AudioOutputConfigurationStatus.Should().Contain("Saved on this device").And.Contain("Speaker unavailable");
         fixture.ViewModel.SelectedOutputChoice.Should().BeNull();
         fixture.ViewModel.SelectedOutputDevice!.Id.Should().Be("missing");
         var notifications = 0;
@@ -141,7 +141,7 @@ public sealed partial class MainViewModelTests
         fixture.ViewModel.SelectedOutputDevice.Should().Be(SystemAudioDevices.Output);
         fixture.TextToSpeech.OutputDevices = [];
         await fixture.ViewModel.RefreshOutputDevicesCommand.ExecuteAsync();
-        fixture.ViewModel.AudioOutputConfigurationStatus.Should().Contain("\"available\":false");
+        fixture.ViewModel.AudioOutputConfigurationStatus.Should().Contain("Speaker unavailable");
         fixture.ViewModel.CanChangeAudioOutputDevice.Should().BeTrue();
         fixture.ViewModel.SelectedOutputDevice = fixture.ViewModel.SelectedOutputDevice;
         notifications.Should().BeGreaterThan(0);
@@ -180,7 +180,7 @@ public sealed partial class MainViewModelTests
         await fixture.ViewModel.RefreshOutputDevicesCommand.ExecuteAsync();
         fixture.ViewModel.State.Should().Be(Kora.Core.AssistantState.Failure);
         fixture.ViewModel.SelectedOutputDevice.Should().BeNull();
-        fixture.ViewModel.AudioOutputConfigurationStatus.Should().Contain("\"source\":\"unavailable\"");
+        fixture.ViewModel.AudioOutputConfigurationStatus.Should().Contain("Speaker unavailable");
         fixture.ViewModel.AudioOutputConfigurationStatus.Should().Contain("not confirmed");
         var privacy = fixture.PrivacyObservation.Current;
         fixture.PrivacyObservation.Publish(new(privacy, privacy, WindowsPrivacyChangeReason.DefaultSpeaker));
@@ -209,7 +209,7 @@ public sealed partial class MainViewModelTests
         await fixture.Dispatcher.LastInvocation;
         await fixture.ViewModel.ExecuteOutputDeviceCommandAsync(new(AppearanceCommandOperation.Reset), SecurityAuditInitiator.VoiceCommand, TestContext.Current.CancellationToken);
         fixture.ViewModel.ResponseTitle.Should().Be("Output preference not confirmed.");
-        fixture.ViewModel.AudioOutputConfigurationStatus.Should().Contain("\"source\":\"default\"");
+        fixture.ViewModel.AudioOutputConfigurationStatus.Should().Contain("Using the default");
         using (HostActivity.BeginRoot(HostRequest.Create(RequestOrigin.LocalUi), HostActivityLayer.Application, HostOperation.Request))
         {
             await fixture.ViewModel.ExecuteOutputDeviceCommandAsync(new(AppearanceCommandOperation.Set, "0"), SecurityAuditInitiator.VoiceCommand, TestContext.Current.CancellationToken);

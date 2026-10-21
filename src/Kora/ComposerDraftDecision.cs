@@ -1,3 +1,3 @@
 namespace Kora;
 
-internal enum ComposerDraftDecision { Save, Discard, Cancel }
+internal enum ComposerDraftDecision { Discard, Cancel }

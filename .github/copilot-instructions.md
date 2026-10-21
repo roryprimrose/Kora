@@ -10,6 +10,18 @@
 
 ## Design and implementation
 
+### Product admission
+
+- Before starting or proposing a feature, apply [approved product scope](../Design/MVP_Scope.md#product-admission-and-realignment). Name its approved outcome, concrete user scenario, host-versus-extension rationale and complete intended interaction. Source layout, available dependencies, tests/coverage and spare capacity are not product approval.
+- Get an explicit product decision for material scope expansion or reopening retired work. Bug fixes, accessibility, reliability and proportionate usability within an approved outcome do not need a new decision for every change.
+- Prefer bounded increments toward voice/model interaction, shared settings proposals, governed tools/MCP/skills/agents/instructions, presence/readable results and session conversations with permissions, audit, logging and retention. An unavailable provider is not a reason to invent unrelated native utilities.
+- Treat unsent conversation text as per-session composer state, not a saved document product. Preserve approved legacy-data recovery and privacy/retention; do not add disk autosave or confuse it with question/definition-editing drafts.
+- Keep identity/revision/digest validation internal unless an explicit diagnostic use justifies exposing it. Do not turn every helper, query predicate or field-preparation step into a user feature.
+- Completion means the approved operation, not merely opening a surface or filling a field. Preserve equivalent voice/UI review where permitted and mandatory authentication/privacy/channel exceptions.
+- Never recreate closed/retired features or fill implementation slots with variants. If no safe approved candidate exists, report the shortage. Keep existing safety and I/E/Q requirements unchanged.
+
+### Implementation rules
+
 - Follow SOLID and DRY pragmatically. Prefer small, cohesive services and consumer-focused interfaces over broad managers, god objects, or speculative abstractions.
 - Put each policy or serialization rule in one authoritative location. Reuse existing domain validation rather than duplicating limits or parsing rules.
 - Keep view models focused on presentation state and delegation. Move device operations, persistence, setup workflows, and policy decisions into injected collaborators.

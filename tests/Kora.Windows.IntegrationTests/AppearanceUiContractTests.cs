@@ -5,6 +5,39 @@ namespace Kora.Windows.IntegrationTests;
 
 public sealed class AppearanceUiContractTests
 {
+    [Fact]
+    public void Settings_omits_general_storage_disclosure_without_leaving_an_empty_layout_row()
+    {
+        var document = XDocument.Load(Path.Combine(FindRepositoryRoot(), "src", "Kora", "SettingsWindow.axaml"));
+        document.Descendants().Attributes().Should().NotContain(attribute =>
+            string.Equals(attribute.Value, "{Binding LocalStorageDisclosure}", StringComparison.Ordinal));
+        var layout = document.Root!.Elements().Single(element =>
+            string.Equals(element.Name.LocalName, "Grid", StringComparison.Ordinal));
+        layout.Attribute("RowDefinitions")!.Value.Should().Be("72,*");
+        layout.Elements().Select(element => element.Name.LocalName)
+            .Should().Equal("Border", "NavigableTabControl");
+        layout.Elements().Single(element =>
+            string.Equals(element.Name.LocalName, "NavigableTabControl", StringComparison.Ordinal))
+            .Attribute("Grid.Row")!.Value.Should().Be("1");
+    }
+
+    [Fact]
+    public void Settings_copy_avoids_internal_implementation_terms()
+    {
+        var document = XDocument.Load(Path.Combine(FindRepositoryRoot(), "src", "Kora", "SettingsWindow.axaml"));
+        var copy = string.Join("\n", document.Descendants().Attributes()
+            .Where(attribute => attribute.Name.LocalName is "Text" or "Content" or "Header" or "SettingName" or "AutomationProperties.Name" or "AutomationProperties.HelpText")
+            .Select(attribute => attribute.Value)
+            .Where(value => !value.StartsWith('{')));
+
+        foreach (var jargon in new[] { "SQLite", "Avalonia", "tuple", "admission", "qualification", "egress", "UTF-16", "PTT" })
+        {
+            copy.Should().NotContain(jargon);
+        }
+        copy.Should().Contain("Keep diagnostic records").And.Contain("new records only")
+            .And.Contain("does not send data").And.Contain("not yet available");
+    }
+
     private static readonly string[] MouseEvents =
     [
         "PointerMovedEvent",
@@ -30,13 +63,13 @@ public sealed class AppearanceUiContractTests
         headings.Should().Equal(
             "Appearance",
             "Application theme",
-            "Native reader text scale",
+            "Reading text size",
             "Always show responses",
             "Keep responses on top",
             "Response timeout",
             "Presence",
             "Show presence",
-            "Presence renderer",
+            "Animation mode",
             "Presence timeout",
             "Presence size",
             "Dot size",
@@ -75,12 +108,12 @@ public sealed class AppearanceUiContractTests
 
     [Theory]
     [InlineData("Application theme", "ResetThemeCommand", "SelectedItem", "ThemeMode")]
-    [InlineData("Native reader text scale", "ResetReaderTextScaleCommand", "Value", "ReaderTextScalePercent")]
+    [InlineData("Reading text size", "ResetReaderTextScaleCommand", "Value", "ReaderTextScalePercent")]
     [InlineData("Always show responses", "ResetResponseAlwaysVisibleCommand", "IsChecked", "IsResponseAlwaysVisible")]
     [InlineData("Keep responses on top", "ResetResponseWindowTopmostCommand", "IsChecked", "IsResponseWindowTopmost")]
     [InlineData("Response timeout", "ResetResponseTimeoutCommand", "Value", "ResponseTimeoutSeconds")]
     [InlineData("Show presence", "ResetPresenceDisplayCommand", "IsChecked", "IsPresenceDisplayEnabled")]
-    [InlineData("Presence renderer", "ResetPresenceRendererCommand", "SelectedItem", "SelectedPresenceRenderer")]
+    [InlineData("Animation mode", "ResetPresenceRendererCommand", "SelectedItem", "SelectedPresenceRenderer")]
     [InlineData("Presence timeout", "ResetPresenceTimeoutCommand", "Value", "PresenceTimeoutSeconds")]
     [InlineData("Presence size", "ResetPresenceSizeCommand", "Value", "PresenceSizePixels")]
     [InlineData("Dot size", "ResetPresenceDotSizeCommand", "Value", "PresenceDotSizePercent")]

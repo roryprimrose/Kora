@@ -14,6 +14,7 @@ public sealed partial class MainViewModel
 {
     private HostQuestionVoiceReplyService? questionVoiceReplies;
     private bool questionSpeech;
+    private HostQuestionService? dictationQuestions;
 
     public HostQuestionVoiceReplyService? BindQuestionVoiceReplies(HostQuestionService questions,
         TimeProvider time, ILogger<HostQuestionVoiceReplyService> replyLogger)
@@ -26,6 +27,8 @@ public sealed partial class MainViewModel
         questionVoiceReplies = new(questions, capture, time, uiDispatcher, ObserveQuestionVoiceAdmission,
             SpeakExactQuestionAsync, replyLogger, TryStopQuestionListeningAsync, GetListeningStopPhrases);
         PropertyChanged += OnQuestionVoiceReadinessChanged;
+        dictationQuestions = questions;
+        questions.ReplyTargetChanging += OnComposerQuestionChanging;
         return questionVoiceReplies;
     }
 
@@ -44,7 +47,7 @@ public sealed partial class MainViewModel
     private QuestionVoiceAdmission? ObserveQuestionVoiceAdmission()
     {
         var privacy = privacyObservation.Current;
-        return IsVoiceEnabled && IsHostInputEligible && voiceOwnershipEligible()
+        return composerDictation?.IsActive != true && IsVoiceEnabled && IsHostInputEligible && voiceOwnershipEligible()
             && microphoneCatalogCurrent && catalogPrivacyRevision == privacy.TopologyRevision
             && IsVoiceReadinessEligible(privacy)
             && communicationPolicy.Current.EffectiveState is CallState.Unavailable or CallState.Clear or CallState.Active or CallState.Suspected
@@ -58,6 +61,8 @@ public sealed partial class MainViewModel
 
     public void RetireQuestionVoiceReply() =>
         questionVoiceReplies?.Retire("Voice admission changed. Microphone closed; native question remains answerable.");
+
+    private void OnComposerQuestionChanging(Kora.Core.Interaction.HostQuestionKey? key) => RetireComposerDictation();
 
     private async Task SpeakExactQuestionAsync(string text, Func<bool> eligible, CancellationToken token)
     {

@@ -66,6 +66,24 @@ This bounded I increment has [portable tests](../tests/Kora.Application.UnitTest
 
 **Tray > Retained session attachments** opens a separate native, content-free catalogue. Opening performs no read; explicit Refresh/Next/Cancel observes already retained private Session slots. It never opens a picker, reopens an original path, reads new file data, captures, replaces, removes, exports or ingests model context.
 
+The bounded command `prepare attachment catalogue <session-id>` is a
+preparation-only route to this same singleton, not typed/voice search. Original
+typed/current-name activated input prepares only ExactId and its canonical
+nonempty lowercase D-format ID; other visible filter drafts remain AND-composed.
+Native preparation uses the same query-edit retirement path as manual editing,
+including page/cursor/selection/details/Find/open revocation and cancellation of
+late pages/opens. No query/count/probe, session resolution, body/path/source read
+or capture runs; explicit native Search is still the only query admission.
+Original input, name, voice, privacy, call, ownership, binding and native-window
+lifetimes are rechecked across queued opening and native focus acknowledgement.
+Missing/stale/unbound/disposed/focus-failed presentation is unavailable, never
+Browse/latest success. Help is constant and reveals no current metadata.
+An ID is future metadata query data, not session selection, authority, freshness
+or proof a retained copy exists. Existing retained Done/tombstone privacy and
+strict field rules remain unchanged. The consumed I subset is the existing
+catalogue/edit/navigation and original-input admission contracts; no unrelated
+provider/hardware/installed or E/Q qualification is required or claimed.
+
 The native **Browse / ExactId** query increment reuses `SessionListSearch` as the sole nonempty canonical lowercase D-GUID policy. ExactId filters only fully validated slots; it never selects session authority or skips irrelevant/corrupt records or audit-prefix admission.
 The exact ID, stored session lifecycle filter and removal flag are bound together in authenticated source/profile/viewer/authority continuations. Nonmatching scans may return empty pages with Next; changed ID/mode/filter/flag retires rows, selection and pending work. Clear returns to Browse without I/O; no automatic selection/navigation or saved query exists.
 See [native query interaction and recovery](../docs/windows-and-tray.md#retained-session-attachments-metadata-only). Names, paths, bodies and excerpts are not searched, and no session-name join/read, persisted schema/index/layout/copy/cache or timeout change is introduced.
@@ -281,6 +299,54 @@ No body, query, excerpt, filename or path enters preferences, logs, audit text, 
 Evidence: [Core exact-byte restoration](../tests/Kora.Core.UnitTests/Context/LocalFileRevisionRestoreTests.cs), [shared capture and release](../tests/Kora.Tools.UnitTests/Files/LocalSessionFileAttachTests.cs), [host fences/quiescence](../tests/Kora.Application.UnitTests/Hosting/SessionWorkspaceServiceTests.Attachments.cs), [real private SQLite/native capture/restart/removal](../tests/Kora.Windows.IntegrationTests/Storage/WindowsSqliteSessionAttachmentTests.cs), and [native inert-source confirmation](../tests/Kora.Windows.IntegrationTests/SessionAttachmentWindowTests.cs).
 
 Experiment assessment: these maintained tests close only this single-file capture/storage/native consumer. They do not supersede unique encrypted-artifact/DPAPI/rekey/backup, actual native/runtime/inference, RT1/RT2/MG1, containment or historical receipt failures. All experiment consumers and proofs remain retained. Full R26, managed knowledge, model use, OCR/vector/egress and installed/accessibility acceptance remain open.
+
+## Delivered Exact-Session Retained Attachment Inspection Command - 2026-10-20
+
+`session attachment inspect <session-id>` (typed or current-name ACTIVATED
+voice) consumes only the existing retained-read **I - Implementation** contract.
+`session attachment help` is included in recognition discovery. The reserved
+session parser admits only a canonical nonempty lowercase D GUID; names,
+paths/URIs, digests, selected windows and model targets are not addresses.
+Malformed reserved input cannot become an answer or model fallback.
+
+The [Application command orchestrator](../src/Kora.Application/Hosting/SessionAttachmentCommandService.cs)
+observes one [exact-ID metadata slot](../src/Kora.Windows/Storage/WindowsSqliteHostInteractionStore.AttachmentInspection.cs), retains its strongly typed source/storage
+identity and uses the [shared provenance resolver](../src/Kora.Application/Hosting/SessionFileAttachmentService.Inspection.cs)
+to verify current session generation, lifecycle, captured generation, source/
+revision/item/digest, original byte length/time and storage observation before
+calling the [existing native controller](../src/Kora/SessionAttachmentWindowController.cs).
+The controller repeats authoritative resolution before showing an inspection-only
+instance of the same inert viewer. No fallback to the latest row or original path
+is allowed after binding. Native source navigation continues to revalidate the
+same retained source, and cancellation/privacy/ownership/source revocation clears
+the native view. An outstanding review/control refuses without retiring it.
+
+[Retained reads](../src/Kora.Application/Hosting/SessionFileAttachmentService.cs)
+accept live original LocalUi or ActivatedVoice authority without invocation
+authority; their trusted audit retains the original channel and content-free
+HostActivity identity. The native-only capture/mutation gate is unchanged.
+The general metadata catalogue remains native-only; command inspection has no
+browse, predicate or continuation capability.
+Retained searches remain separate native viewer gestures, not another voice
+permission or command.
+Command invocation never fabricates LocalUi capture consent. Capture/attach/
+replace/remove are not exposed in the command-opened view and remain separate
+reviewed native gestures. Core/Tools stay portable; Application orchestrates and
+desktop owns windows. There is no new model catalogue or attachment model-use
+policy.
+
+Retained Active/Done inspection is passive: no task commit, activity renewal,
+resume, cleanup, queue, model, transcript/speech/readback or clipboard payload.
+Held/missing/corrupt/stale/current-work copies fail closed with native recovery;
+no capture/read-original or automatic retry. Unknown runtime readiness is not
+success. **E - Enablement / Q - RC** provider, physical storage, acoustic/hardware,
+installed/accessibility and broader R26 qualifications are not asserted or run
+by this bounded deterministic implementation.
+
+Evidence: [strict grammar](../tests/Kora.Core.UnitTests/Commands/SessionAttachmentCommandTests.cs),
+[source/revision/admission and nonmutation tests](../tests/Kora.Application.UnitTests/Hosting/SessionWorkspaceServiceTests.AttachmentCommands.cs),
+[reserved host routing and no content/speech/model tests](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.AttachmentCommands.cs),
+and [private SQLite/headless same-controller inspection and pending-review preservation](../tests/Kora.Windows.IntegrationTests/SessionAttachmentWindowTests.Commands.cs).
 
 ## Delivered Reviewed Retained Attachment Replacement - 2026-10-10
 
@@ -626,11 +692,13 @@ are not implementation prerequisites or newly claimed qualifications.
 
 **Find first / Find next / Find previous / Clear literal Find** navigate only the currently displayed exact immutable text file: volatile single-file preview, the current captured-folder selector item, or an exact retained Session attachment. This native presentation control is separate from ranked lexical/Markdown retrieval and citations. Typing does not scan, change files or move focus.
 
-The one-line literal uses case-sensitive `StringComparison.Ordinal`, without trimming, normalization, token OR, regex, wildcard, fuzzy or semantic interpretation. Spaces and metacharacters are preserved. Shared 256 UTF-16 / 512 strict UTF-8 bounds apply; malformed Unicode, control/format characters and line/paragraph separators reject explicitly. No query enters typed/PTT transcripts.
+The one-line literal defaults to case-sensitive `StringComparison.Ordinal`. The accessible native **Match case** checkbox defaults checked on every new/replaced view; unchecked explicitly selects `StringComparison.OrdinalIgnoreCase` for this original-file Literal Find profile only. Neither mode trims, normalizes, folds accents, uses current culture, token OR, regex, wildcard, word stemming, fuzzy or semantic interpretation. Spaces and metacharacters are preserved. Shared 256 UTF-16 / 512 strict UTF-8 bounds apply; malformed Unicode, control/format characters and line/paragraph separators reject explicitly. No query enters typed/PTT transcripts.
+
+Changing Match case or query retires match/count/ordinal/navigation/focus claims, cancels pending work and advances the invocation generation without I/O or implicit Find. A separate fresh **Find first** is required. Comparison is captured with the exact source, original query and generation; even a mode round trip cannot publish an old callback. Opt-in portable spans bind exact source text, exact query and comparison, and the LocalFile adapter additionally checks the unchanged typed original-byte source identity. Only ordinal and ordinal-ignore-case comparisons are accepted. Shared API defaults and existing case-sensitive results remain unchanged for clipboard, metadata, Details, owned drafts and other consumers. No comparison is added to canonical IDs, digests, paths, source identities, policy matching, model lexical retrieval or citation authority.
 
 First scans from zero. Next starts after the selected match's exclusive end; Previous reverses the same counted forward nonoverlapping sequence, not an overlapping alternative. Next/Previous require a canonical match; exhaustion retains the anchor ordinal and total but clears the span and claims no current match or focus. First alone reports zero matches ([shared policy](../src/Kora.Core/Context/SnapshotLiteralFind.cs)).
 
-One span is selected per action, with the unchanged query's UTF-16 length. No all-occurrence collection or index is built. The inert panel shows literal labels, original end-exclusive UTF-16 offsets and exact source/revision/item/original-byte digest, not a ranked citation or heading. Complete source remains unchanged and non-selectable below ([window](../src/Kora/LocalFilePreviewWindow.Find.cs)).
+One span is selected per action, with the unchanged query's UTF-16 length and the exact original-source substring, not a transformed query, even when case differs. No all-occurrence collection or index is built. The inert panel shows literal labels, original end-exclusive UTF-16 offsets and exact source/revision/item/original-byte digest, not a ranked citation or heading. Complete source remains unchanged and non-selectable below ([window](../src/Kora/LocalFilePreviewWindow.Find.cs)).
 
 ### Exact immutable LocalFile occurrence count and ordinal - 2026-10-18
 

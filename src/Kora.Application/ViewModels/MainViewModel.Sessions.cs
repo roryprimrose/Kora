@@ -15,6 +15,8 @@ public sealed partial class MainViewModel
     private SessionRequestCommandService? sessionRequests;
     private ConversationSearchCommandService? conversationSearchCommands;
     private bool conversationSearchPresentation;
+    private SessionAttachmentCommandService? attachmentCommands;
+    public void BindSessionAttachmentCommands(SessionAttachmentCommandService service) => attachmentCommands = service;
     private readonly HashSet<Guid> sessionPresentationSources = [];
 
     public void RevokeSessionPresentation(HostId<SessionIdentity> session)
@@ -71,7 +73,8 @@ public sealed partial class MainViewModel
         var topologyRevision = privacyObservation.Current.TopologyRevision;
         var requestCommand = command.Operation is SessionCommandOperation.RequestReview
             or SessionCommandOperation.RequestConfirm or SessionCommandOperation.RequestCancel;
-        var sourceBoundCommand = requestCommand || command.IsRetentionCommand;
+        var attachmentCommand = command.Operation == SessionCommandOperation.AttachmentInspect;
+        var sourceBoundCommand = requestCommand || command.IsRetentionCommand || attachmentCommand;
         bool Eligible() => !disposed && IsHostInputEligible && CallPolicyRevision == callRevision
             && (!command.IsRetentionCommand || privacyObservation.Current.TopologyRevision == topologyRevision
                 && Volatile.Read(ref voiceRecoveryRevision) == recoveryRevision
@@ -119,6 +122,17 @@ public sealed partial class MainViewModel
                 sessionPresentationSources.Add(command.SessionId!.Value);
                 return;
             }
+            if (attachmentCommand)
+            {
+                await (attachmentCommands ?? throw new InvalidOperationException("The native retained attachment viewer is unavailable."))
+                    .Execute(command, origin, Eligible, CancellationToken.None);
+                if (Eligible())
+                {
+                    ShowInformation("Retained attachment inspection opened.",
+                        "Exact historical source opened only in the private native inert viewer. No capture, session renewal, model use or speech.");
+                }
+                return;
+            }
             var result = command.IsRetentionCommand
                 ? await ExecuteSessionRetentionCommandAsync(command, origin, Eligible, CancellationToken.None)
                 : requestCommand
@@ -133,6 +147,16 @@ public sealed partial class MainViewModel
         catch (Exception exception) when (exception is InvalidOperationException or IOException
             or UnauthorizedAccessException or OperationCanceledException or ArgumentException)
         {
+            if (attachmentCommand)
+            {
+                RetainedAttachmentInspectionFailed(logger, exception.GetType().Name);
+                if (!disposed && IsHostInputEligible)
+                {
+                    ShowFailure("Retained attachment unavailable.",
+                        "The exact historical source or original private admission is unavailable. Finish any pending native review, then inspect native storage/copy recovery. No alternate source was opened.");
+                }
+                return;
+            }
             ApplicationLog.Error(logger, exception, "Running a bounded session command");
             if (disposed || !IsHostInputEligible) { return; }
             var result = new SessionCommandResult("not-confirmed",

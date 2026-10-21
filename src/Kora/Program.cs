@@ -420,12 +420,6 @@ internal static class Program
             provider.GetRequiredService<ILogger<SessionQueueService>>(),
             configuration: provider.GetRequiredService<SessionQueueConfigurationService>()));
         services.AddSingleton(TimeProvider.System);
-        services.AddSingleton<Kora.Core.Clock.ILocalClockContextProvider, HostLocalClockContextProvider>();
-        services.AddSingleton<Kora.Tools.Clock.LocalClockService>();
-        services.AddSingleton<Kora.Tools.Clock.LocalClockGetTime>();
-        services.AddSingleton<Kora.Tools.Clock.LocalClockGetDate>();
-        services.AddSingleton<Kora.Tools.Clock.LocalClockGetDateAndTime>();
-        services.AddSingleton<Kora.Application.Clock.LocalClockWorkflow>();
         services.AddKeyedSingleton("release-metadata", (_, _) => new HttpClient(new HttpClientHandler
         {
             AllowAutoRedirect = false,
@@ -545,7 +539,18 @@ internal static class Program
         services.AddSingleton<DiagnosticRetentionConfigurationService>();
         services.AddSingleton<ISessionQueuePreferences>(provider =>
             new LocalSessionQueuePreferences(provider.GetRequiredService<IPreferenceStore>()));
-        services.AddSingleton<SessionQueueConfigurationService>();
+        services.AddSingleton(provider =>
+        {
+            var configuration = ActivatorUtilities.CreateInstance<SessionQueueConfigurationService>(provider);
+            try { configuration.Observe(); }
+            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or InvalidDataException)
+            {
+                configuration.HoldUnavailable();
+                ApplicationLog.Error(provider.GetRequiredService<ILogger<SessionQueueConfigurationService>>(),
+                    exception, "Reading fixed local-version queue settings");
+            }
+            return configuration;
+        });
         services.AddSingleton<ISessionRetentionPreferences>(provider =>
             new LocalSessionRetentionPreferences(provider.GetRequiredService<IPreferenceStore>()));
         services.AddSingleton<SessionRetentionConfigurationService>();
@@ -640,7 +645,6 @@ internal static class Program
         services.AddSingleton<Kora.Core.Context.IClipboardExplanationWorkflow>(provider =>
             provider.GetRequiredService<Kora.Application.Context.ClipboardExplanationWorkflow>());
         services.AddSingleton<Kora.Tools.Clipboard.ClipboardExplain>();
-        services.AddSingleton<Kora.Tools.Clipboard.ClipboardValidateJson>();
         services.AddSingleton<Kora.Core.Context.ILocalFileInspector, Kora.Windows.Context.WindowsLocalFileInspector>();
         services.AddSingleton<Kora.Tools.Files.LocalFilePreview>();
         services.AddSingleton<Kora.Tools.Files.LocalSessionFileAttach>();

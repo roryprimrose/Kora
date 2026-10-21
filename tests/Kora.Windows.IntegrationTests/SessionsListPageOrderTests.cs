@@ -66,7 +66,7 @@ public sealed class SessionsListPageOrderTests
                 combo.Focus().Should().BeTrue();
                 combo.IsEnabled.Should().BeTrue();
                 ControlAutomationPeer.CreatePeerForElement(combo)!.GetName().Should().Contain("loaded session page only")
-                    .And.Contain("Source").And.Contain("GenerationDescending").And.Contain("never global");
+                    .And.Contain("Source").And.Contain("NameDescending").And.Contain("never global");
                 ControlAutomationPeer.CreatePeerForElement(clear)!.GetName().Should().Contain("without reading or changing selection");
                 model.ListPageOrderScope.Should().Contain("not the ordinary Refresh list").And.Contain("unnamed last")
                     .And.Contain("canonical session ID").And.Contain("Next keeps the original scan");
@@ -75,7 +75,7 @@ public sealed class SessionsListPageOrderTests
                 {
                     if (!string.Equals(args.PropertyName, nameof(model.Sessions), StringComparison.Ordinal)) { return; }
                     notified = true;
-                    model.ListPageOrder = SessionListPageOrder.GenerationAscending;
+                    model.ListPageOrder = SessionListPageOrder.NameAscending;
                     _ = model.SelectAsync(model.Sessions[0]);
                 }
                 model.PropertyChanged += Reenter;
@@ -141,7 +141,6 @@ public sealed class SessionsListPageOrderTests
             model.ListSearchKind = SessionListSearchKind.Browse;
             await model.SearchListAsync();
             await model.SelectAsync(model.Sessions[0]);
-            var original = model.SelectedSessionRecord;
             var candidate = model.Sessions[1];
             model.ComposerBody = "dirty";
             var decision = new TaskCompletionSource<ComposerDraftDecision>();
@@ -157,8 +156,7 @@ public sealed class SessionsListPageOrderTests
             decision.SetResult(ComposerDraftDecision.Discard);
             await navigation;
             model.SelectedSessionRecord.Should().NotBeSameAs(candidate);
-            if (change is "control") { model.SelectedSessionRecord.Should().BeSameAs(original); }
-            else { model.SelectedSessionRecord.Should().BeNull(); }
+            model.SelectedSessionRecord.Should().BeNull("source/control loss retires pending navigation instead of restoring old selection authority");
             model.ListPageOrder.Should().Be(SessionListPageOrder.Source);
         }
         finally { model.Close(); }

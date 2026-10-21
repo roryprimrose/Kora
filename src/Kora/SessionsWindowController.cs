@@ -19,7 +19,7 @@ internal sealed partial class SessionsWindowController(
     SessionAttachmentWindowController? attachments = null,
     Kora.Application.Configuration.SessionProviderProfileConfigurationService? providers = null,
     SessionConversationService? conversation = null) : IDisposable, ISessionDispositionReviewPresenter,
-    ISessionQueueCancellationReviewPresenter, ISessionDiagnosticsPlanPresenter
+    ISessionQueueCancellationReviewPresenter
 {
     private SessionsWindow? window;
     private CompactSessionWindow? compact;
@@ -39,6 +39,20 @@ internal sealed partial class SessionsWindowController(
     }
     internal Action? OpenAllWork { get; set; }
     internal Action? OpenNewRequest { get; set; }
+    internal Task<bool> PrepareShutdown() => presentation?.PrepareShutdown() ?? Task.FromResult(true);
+    internal Func<bool> CaptureShutdownEligibility()
+    {
+        var state = model;
+        var owner = presentation;
+        var workspaceView = window;
+        var compactView = compact;
+        var revision = access.ControlRevision;
+        var admitted = !disposed && access.CanInspect && access.CanControl;
+        var buffer = state?.CaptureUnsentShutdownEligibility() ?? (static () => true);
+        return () => admitted && !disposed && access.ControlRevision == revision
+            && ReferenceEquals(model, state) && ReferenceEquals(presentation, owner)
+            && ReferenceEquals(window, workspaceView) && ReferenceEquals(compact, compactView) && buffer();
+    }
     internal Func<SessionWorkspaceEntry, Kora.Core.Conversation.ConversationMessage, Avalonia.Controls.Window?,
         Func<bool>, CancellationToken, Task<string>>? ReviewOriginalMessageReuse { get; set; }
 
@@ -47,7 +61,6 @@ internal sealed partial class SessionsWindowController(
         main.SessionsRequested += OnOpen;
         main.BindSessionDispositionReview(this);
         main.BindQueueCancellationReview(this);
-        main.BindSessionDiagnosticsPlan(this);
         main.PrivacyClosureRequested += OnPrivacyClosure;
         service.SessionLifecycleChanged += RevokeSession;
         service.SessionRetired += RevokeSession;
@@ -203,42 +216,6 @@ internal sealed partial class SessionsWindowController(
         return await state.ReviewDispositionAsync(command, origin, admitted, NativeAdmission, token);
     }
 
-    public async Task<bool> PrepareDiagnosticsPlanAsync(SessionDiagnosticsPlanCommand command, RequestOrigin origin,
-        Func<bool> admitted, CancellationToken token)
-    {
-        var source = CaptureCompactNavigationEligibility();
-        var originalInput = model?.CaptureDiagnosticsNavigationEligibility() ?? (static () => true);
-        var revision = access.ControlRevision;
-        bool Eligible() => !disposed && access.CanInspect && access.CanControl && main.CanRevealPrivatePresentation
-            && access.ControlRevision == revision && admitted() && !token.IsCancellationRequested;
-        if (origin is not (RequestOrigin.LocalUi or RequestOrigin.ActivatedVoice)
-            || command.Error is not null || command.IsHelp || !Eligible())
-        { throw new OperationCanceledException("Private native diagnostics preparation is unavailable."); }
-        var preparation = await service.PrepareDiagnosticsPlanAsync(new(command.SessionId), command.Profiles, Eligible, token);
-        var prepared = false;
-        try
-        {
-            await Dispatcher.UIThread.InvokeAsync(async () =>
-            {
-                if (!Eligible() || !source() || !originalInput())
-                { throw new OperationCanceledException("Original diagnostics navigation source changed."); }
-                Open();
-                var owner = window ?? throw new InvalidOperationException("The native Sessions window is unavailable.");
-                var state = model ?? throw new InvalidOperationException("The native Sessions presentation is unavailable.");
-                var ownerEpoch = Volatile.Read(ref dispositionOwnerEpoch);
-                bool NativeAdmission() => Eligible() && ReferenceEquals(window, owner)
-                    && Volatile.Read(ref dispositionOwnerOpen) == 1 && ownerEpoch == Volatile.Read(ref dispositionOwnerEpoch)
-                    && ReferenceEquals(model, state);
-                prepared = await state.PrepareDiagnosticsPlanAsync(preparation, Eligible, NativeAdmission, token, originalInput);
-            });
-            return prepared;
-        }
-        finally
-        {
-            if (!prepared) { service.RetireDiagnosticsPlan(preparation.Review); }
-        }
-    }
-
     internal void RevokeSession(Kora.Core.Hosting.HostId<Kora.Core.Hosting.SessionIdentity> session)
     {
         if (!Dispatcher.UIThread.CheckAccess())
@@ -252,20 +229,10 @@ internal sealed partial class SessionsWindowController(
         details?.RevokeSession(session);
         if (model is { } state)
         {
+            state.RetireUnsent(session);
             if (state.ReferencesSession(session)) { presentation?.Revoke(); }
             else { state.RevokeSessionList(); }
         }
-    }
-
-    internal async Task<bool> NavigateSavedDraftAsync(SavedDraftSummary exact, Func<bool> admitted, CancellationToken token)
-    {
-        token.ThrowIfCancellationRequested();
-        if (disposed || !access.CanInspect || !main.CanRevealPrivatePresentation || !admitted())
-        { throw new OperationCanceledException("Original saved draft navigation was revoked."); }
-        Open();
-        if (window?.DataContext is not SessionsViewModel model)
-        { throw new InvalidOperationException("The native Sessions window is unavailable."); }
-        return await model.SelectSavedDraftAsync(exact, admitted, token);
     }
 
     private void OnOpen(object? sender, EventArgs args) => Open();
@@ -282,7 +249,6 @@ internal sealed partial class SessionsWindowController(
         ReviewOriginalMessageReuse = null;
         main.BindSessionDispositionReview(null);
         main.BindQueueCancellationReview(null);
-        main.BindSessionDiagnosticsPlan(null);
         main.SessionsRequested -= OnOpen;
         main.PrivacyClosureRequested -= OnPrivacyClosure;
         service.SessionLifecycleChanged -= RevokeSession;

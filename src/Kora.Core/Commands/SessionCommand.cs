@@ -16,7 +16,12 @@ public sealed partial record SessionCommand(
     public const int DefaultPageSize = 25;
     public const int MaximumInputBytes = 1024;
     public const int MaximumResultBytes = 65536;
-    public static IReadOnlyList<string> DiscoveryPhrases { get; } = ["session help", "session list", "session request help", "session retention help", "session queue cancellation help", "task help", "queue help"];
+    public static IReadOnlyList<string> DiscoveryPhrases { get; } = ["session help", "session list", "session attachment help", "session request help", "session retention help", "session queue cancellation help", "task help", "queue help"];
+    public const string AttachmentSyntax =
+        "session attachment inspect <session-id> | session attachment help. "
+        + "Use a complete canonical lowercase D GUID, never a name, path, URI or selected window. "
+        + "Voice requires the current assistant-name prefix. Opens only the exact retained historical source "
+        + "in the private native inert viewer; no capture, replacement, removal, model use or speech.";
     public const string Syntax =
         "session help | session list [after <exact-id>] [limit <1-50>] | session status <exact-id> | "
         + "session inspect <exact-id> [tasks|questions] [after <exact-id>] [limit <1-50>] | "
@@ -27,10 +32,9 @@ public sealed partial record SessionCommand(
         + "session search <exact-id> [after <generation>:<snapshot>:<sequence>:<query-digest>] [limit <1-50>] \"<lexical query>\". "
         + "IDs use canonical D GUIDs; revisions use decimal integers. Names use NFC single-line Unicode, "
         + "at most 120 scalars/480 UTF-8 bytes. Inside quotes, double a quote to include it. "
-        + "No name, selected-window, delete, general executor or approval targeting. " + RequestSyntax + " " + RetentionSyntax
+        + "No name, selected-window, delete, general executor or approval targeting. " + AttachmentSyntax + " " + RequestSyntax + " " + RetentionSyntax
         + " " + SessionDispositionReviewCommand.Syntax + ". " + SessionDispositionReviewCommand.Boundary
-        + " " + SessionQueueCancellationReviewCommand.Syntax + ". " + SessionQueueCancellationReviewCommand.Boundary
-        + " " + SessionDiagnosticsPlanCommand.Syntax + ". " + SessionDiagnosticsPlanCommand.Boundary;
+        + " " + SessionQueueCancellationReviewCommand.Syntax + ". " + SessionQueueCancellationReviewCommand.Boundary;
 
     public string PageKind { get; init; } = "tasks";
     public Guid? TaskId { get; init; }
@@ -139,6 +143,16 @@ public sealed partial record SessionCommand(
         var words = text.Split(' ', StringSplitOptions.RemoveEmptyEntries);
         if (words.Length < 2) { return Invalid("Specify a session operation."); }
         var operation = words[1].ToLowerInvariant();
+        if (operation is "attachment")
+        {
+            if (words.Length == 3 && words[2].Equals("help", StringComparison.OrdinalIgnoreCase) && name is null)
+            { return new(SessionCommandOperation.Help); }
+            if (words.Length == 4 && words[2].Equals("inspect", StringComparison.OrdinalIgnoreCase)
+                && name is null && ExactId(words[3], out var attachmentSession)
+                && string.Equals(words[3], attachmentSession.ToString("D"), StringComparison.Ordinal))
+            { return new(SessionCommandOperation.AttachmentInspect, attachmentSession); }
+            return Invalid(AttachmentSyntax);
+        }
         if (string.Equals(operation, "search", StringComparison.Ordinal)) { return ParseHistorySearch(words, query); }
         if (operation is "help" && words.Length == 2 && name is null) { return new(SessionCommandOperation.Help); }
         if (operation is "create" && words.Length == 2 && name is not null) { return new(SessionCommandOperation.Create, Name: name); }

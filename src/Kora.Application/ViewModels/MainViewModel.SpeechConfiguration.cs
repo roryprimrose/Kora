@@ -1,5 +1,6 @@
 using Kora.Application.Configuration;
 using Kora.Application.Infrastructure;
+using Kora.Application.Presentation;
 using Kora.Core.Auditing;
 using Kora.Core.Configuration;
 using Kora.Core.Voice;
@@ -96,7 +97,7 @@ public sealed partial class MainViewModel
         SetActiveSpeechVoice(current.IsAvailable ? current.EffectiveVoice : null);
         VoiceAvailabilityMessage = current.Recovery
             ?? $"{current.EffectiveVoice!.Name} ({current.EffectiveVoice.Culture}) is selected.";
-        SpeechSettingStatus = DescribeSpeechConfiguration(current);
+        SpeechSettingStatus = SettingsText.Describe(current);
         UpdateSpeechProviderAvailability();
     }
 

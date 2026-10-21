@@ -4,28 +4,41 @@
 
 Kora supports three response modes:
 
-- **Both audible and visual** - show text and speak when speech is available.
-- **Audible only** - prefer speech without ordinary response text.
-- **Visual only** - show text and do not speak.
+- **Text and speech** - show text and speak when speech is available.
+- **Speech only** - prefer speech without ordinary response text.
+- **Text only** - show text and do not speak.
 
 Safety and recovery information remains visible even in VoiceOnly mode.
 
 Ordinary speech is additionally admitted only when its complete title/body
 fits the device-local spoken summary caps (default **3 sentences / 80 words**).
 Either cap can be lowered in Speech & audio. Over-cap results retain their full
-visual text, with an explicit **Speech withheld** status even in Audible only
+visual text, with an explicit **Speech withheld** status even in Speech only
 mode; there is no truncation, extra model call or replay.
 Required questions/options and exact security-sensitive readback keep their
 existing mandatory bounds and privacy gates, not ordinary-summary truncation.
 See [the exact counting contract](settings.md#spoken-summary-limits).
 
-The independently stored legacy **Muted speaker fallback** preference remains
+The independently stored **Earlier muted-speaker preference** remains
 outside the delivered mode registry. Its default and storage are unchanged;
 it cannot suppress mandatory complete visual recovery for missing, muted,
 zero-volume, unavailable or failed output. The original response remains available,
 not just a warning. A later eligible response uses the freshly resolved output;
 unmuting or changing configuration never replays retired speech. This applies
 to **System** and a selected speaker. See [the existing fallback boundary](settings.md#muted-speaker-fallback).
+
+## Exact current-response window actions
+
+`dismiss current response` and `open current response details` use the same native
+controllers as **Dismiss** and **Current response details**. `current response help`
+lists the exact grammar. Activated voice requires the current assistant-name prefix.
+Only the original visible ordinary response is eligible: never a question,
+approval, preview, raw source or a newer response selected while work was queued.
+Native acknowledgement is required; privacy/ownership/input/call changes, source
+retirement or an unavailable native host fail closed. Details retire with that
+response and grant no clipboard authority. These actions do not change topmost,
+always-show or any other saved preference, speak, invoke a model or pin content.
+See [exact commands](commands.md#dismiss-or-inspect-the-exact-current-response).
 
 ## Deliberate current-response playback
 
@@ -35,6 +48,16 @@ It retains the complete answer, uses normal speech admission and both summary ca
 The action has no raw-text input and cannot select conversation USER/HOST rows, raw source bodies, questions or approvals. Successful push-to-talk leaves an existing eligible answer intact so an activated read command can target that same answer.
 Every replacement, including identical text, gets a new identity; close, cancellation, stop and privacy/call/ownership retirement prevent late playback.
 Recovery never replays a retired request ([source and capture lifecycle](../src/Kora.Application/ViewModels/MainViewModel.VoicePrivacy.cs), [deterministic tests](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.ResponseRead.cs)).
+
+## Return focus to a pending question
+
+[`open pending question <session-id> <task-id>`](commands.md#focus-the-exact-pending-native-question)
+only focuses the exact still-open, current host-owned native question.
+It cannot reopen dismissed or historical questions, select a different session,
+replace a draft answer or answer/approve by command. `pending question help`
+displays constant syntax, not question content or current IDs.
+Navigation status is separate from the current response and transcript;
+question controls retain their existing explicit one-shot answer behavior.
 
 ## Output precedence
 
@@ -47,14 +70,15 @@ Response selection has this precedence, before all mandatory policy gates:
 4. **Session** - shared resolver seam; no new session control is delivered.
 5. **Device default** - persisted locally.
 
-Choose **Inherit** for the task or queue choice to return to the next broader
+Choose **Use default** for the task or queue choice to return to the next broader
 scope. These presentation controls are outside the admitted device-default
 registry, not delivered durable session/task/queue configuration or execution.
 The device default and independent in-call preference have shared admitted
 native/exact workflows; neither changes call policy or the legacy fallback.
 
-In-call **Voice / UI / Both** map to audible/visual/both preference, never
-speech permission. **Inherit** restores ordinary selection. Unknown/invalid call
+In-call **Speech only / Text only / Text and speech** map to the internal
+Voice/UI/Both preferences, never speech permission. **Use normal response settings**
+(Inherit in typed commands) restores ordinary selection. Unknown/invalid call
 evidence does not activate feedback but always withholds speech and requires
 full visual recovery; Clear/Unavailable uses ordinary output. A Voice/Both choice
 cannot bypass independent call suppression, privacy/lock/capture, mute/zero,

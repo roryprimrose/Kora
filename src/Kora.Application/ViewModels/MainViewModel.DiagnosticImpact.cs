@@ -44,18 +44,18 @@ public sealed partial class MainViewModel
         get
         {
             var preview = diagnosticImpactPreview?.Get();
-            if (preview is null) { return "Diagnostic impact preview unavailable. Save/Reset remain separate; no cleanup or deletion."; }
+            if (preview is null) { return "Diagnostic record preview unavailable. No settings or records were changed."; }
             var status = preview.Status;
             if (preview.ProposedDays is { } days)
             {
-                status += $" Proposed: {days.ToString(CultureInfo.InvariantCulture)} days. Fixed cutoff UTC: {preview.CutoffUtc:O}.";
+                status += $" Proposed storage period: {days.ToString(CultureInfo.InvariantCulture)} days. Preview time: {preview.CutoffUtc:u} (UTC).";
             }
             if (preview.Result is { } result)
             {
                 status += DescribeDiagnosticImpact(result.Logs) + DescribeDiagnosticImpact(result.Spans)
                     + DescribeDiagnosticImpact(result.Links);
             }
-            return status + " Read-only; excludes security audit and session retirement. No physical/forensic deletion or complete trace promised.";
+            return status + " Preview only; excludes security records and sessions. Nothing is deleted. This does not guarantee complete conversations or permanent removal from storage.";
         }
     }
 
@@ -63,16 +63,16 @@ public sealed partial class MainViewModel
     {
         var source = result.Source switch
         {
-            DiagnosticImpactSource.OrdinaryLogs => "Ordinary logs",
-            DiagnosticImpactSource.Spans => "Spans",
-            DiagnosticImpactSource.OwnedLinks => "Owned links",
+            DiagnosticImpactSource.OrdinaryLogs => "Diagnostic records",
+            DiagnosticImpactSource.Spans => "Activity records",
+            DiagnosticImpactSource.OwnedLinks => "Activity connections",
             _ => throw new InvalidDataException("Unknown diagnostic impact source."),
         };
         if (result.Aggregate is not { } aggregate) { return $" {source}: {result.Status}; no count available."; }
-        if (aggregate.NewlyDueCount == 0) { return $" {source}: Complete; 0 newly due records; no timing range."; }
+        if (aggregate.NewlyDueCount == 0) { return $" {source}: Complete; 0 newly due records."; }
         return $" {source}: Complete; {aggregate.NewlyDueCount.ToString(CultureInfo.InvariantCulture)} newly due records."
-            + $" Committed UTC: {aggregate.OldestCommittedUtc:O} to {aggregate.NewestCommittedUtc:O}."
-            + $" Proposed due UTC: {aggregate.EarliestProposedDueUtc:O} to {aggregate.LatestProposedDueUtc:O}.";
+            + $" Recorded between {aggregate.OldestCommittedUtc:u} and {aggregate.NewestCommittedUtc:u}."
+            + $" Proposed deletion dates: {aggregate.EarliestProposedDueUtc:u} to {aggregate.LatestProposedDueUtc:u} (UTC).";
     }
 
     private void OnDiagnosticImpactPreviewChanged(object? sender, EventArgs args) => uiDispatcher.Post(() =>
@@ -93,9 +93,9 @@ public sealed partial class MainViewModel
         OnPropertyChanged(nameof(CanPreviewDiagnosticImpact));
         OnPropertyChanged(nameof(CanCancelDiagnosticImpact));
         OnPropertyChanged(nameof(CanClearDiagnosticImpact));
-        PreviewDiagnosticImpactCommand?.NotifyCanExecuteChanged();
-        CancelDiagnosticImpactCommand?.NotifyCanExecuteChanged();
-        ClearDiagnosticImpactCommand?.NotifyCanExecuteChanged();
+        PreviewDiagnosticImpactCommand.NotifyCanExecuteChanged();
+        CancelDiagnosticImpactCommand.NotifyCanExecuteChanged();
+        ClearDiagnosticImpactCommand.NotifyCanExecuteChanged();
     }
 
     private void RetireIneligibleDiagnosticImpact()

@@ -4,11 +4,8 @@ namespace Kora.Application.ViewModels;
 
 public sealed partial class MainViewModel
 {
-    [LoggerMessage(121, LogLevel.Information, "Local calculator outcome {CalculationOutcome}")]
-    private partial void CalculatorFinished(Kora.Core.Calculations.CalculationOutcome calculationOutcome);
-
-    [LoggerMessage(120, LogLevel.Error, "Native clipboard XML check failed internally; failure type {FailureType}. No XML result claimed.")]
-    private static partial void ClipboardXmlFailed(ILogger logger, string failureType);
+    [LoggerMessage(122, LogLevel.Warning, "Exact retained attachment inspection unavailable; exception type {ExceptionType}.")]
+    private static partial void RetainedAttachmentInspectionFailed(ILogger logger, string exceptionType);
 
     [LoggerMessage(630, LogLevel.Error, "Local web summary was not admitted: {FailureKind}")]
     private partial void WebSummaryFailed(string failureKind);

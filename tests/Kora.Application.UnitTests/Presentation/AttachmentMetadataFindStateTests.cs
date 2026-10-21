@@ -67,6 +67,7 @@ public sealed class AttachmentMetadataFindStateTests
         state.Count.Should().Be(1);
         state.Ordinal.Should().Be(1);
         current = false;
+        state.CheckAdmission().Should().BeFalse();
         state.Count.Should().Be(0);
         state.Ordinal.Should().Be(0);
         state.Query.Should().BeEmpty();
@@ -74,6 +75,59 @@ public sealed class AttachmentMetadataFindStateTests
         state.Find(SnapshotFindDirection.First);
         state.Count.Should().Be(0);
         state.Ordinal.Should().Be(0);
+    }
+
+    [Fact]
+    public void CountedPassivePresentationIsExactNonoverlappingAndDoesNotRetireOrScanOnRead()
+    {
+        var admitted = true;
+        using var state = new AdmittedMetadataFindState("aaaaa Aa Aa aa 😀 e\u0301 é", () => admitted);
+        state.ReadCurrent().Should().Be(new AdmittedMetadataFindSnapshot(true, "", "", null, false, "", 0, 0, false));
+        state.Edit("aa");
+        state.Find(SnapshotFindDirection.First);
+        state.ReadCurrent().Count.Should().Be(3);
+        state.ReadCurrent().HasCount.Should().BeTrue();
+        state.ReadCurrent().Ordinal.Should().Be(1);
+        state.ReadCurrent().Match.Should().Be(new SnapshotLiteralSpan(0, 2));
+        state.Find(SnapshotFindDirection.Next);
+        state.ReadCurrent().Ordinal.Should().Be(2);
+        state.ReadCurrent().Match.Should().Be(new SnapshotLiteralSpan(2, 2));
+        state.Find(SnapshotFindDirection.Previous);
+        state.ReadCurrent().Match.Should().Be(new SnapshotLiteralSpan(0, 2));
+        state.Find(SnapshotFindDirection.Previous);
+        state.ReadCurrent().Match.Should().BeNull();
+        state.ReadCurrent().Count.Should().Be(3);
+        state.ReadCurrent().Ordinal.Should().Be(1);
+        state.ReadCurrent().ExactMatch.Should().BeEmpty();
+        state.Find(SnapshotFindDirection.Next);
+        state.Find(SnapshotFindDirection.Next);
+        state.Find(SnapshotFindDirection.Next);
+        var end = state.ReadCurrent();
+        end.Ordinal.Should().Be(3);
+        end.Count.Should().Be(3);
+        end.Match.Should().BeNull();
+        end.Status.Should().Contain("no wrap");
+        admitted = false;
+        state.ReadCurrent().Should().Be(AdmittedMetadataFindSnapshot.Unavailable);
+        admitted = true;
+        state.ReadCurrent().Should().Be(end, "passive reads neither mutate nor notify; owners explicitly retire revoked lifetimes");
+        state.ReportFocusUnavailable();
+        state.ReadCurrent().Count.Should().Be(0);
+        state.ReadCurrent().HasCount.Should().BeFalse();
+        state.ReadCurrent().Ordinal.Should().Be(0);
+        state.Edit("Aa");
+        state.Find(SnapshotFindDirection.First);
+        state.ReadCurrent().Count.Should().Be(2);
+        state.ReadCurrent().ExactMatch.Should().Be("Aa");
+        state.Clear();
+        state.ReadCurrent().Count.Should().Be(0);
+        state.Edit("\n");
+        state.Find(SnapshotFindDirection.First);
+        state.ReadCurrent().Count.Should().Be(0);
+        var unsupported = () => state.Find((SnapshotFindDirection)1234);
+        unsupported.Should().Throw<ArgumentOutOfRangeException>();
+        state.Dispose();
+        state.ReadCurrent().Should().Be(AdmittedMetadataFindSnapshot.Unavailable);
     }
 
     [Fact]
@@ -138,15 +192,17 @@ public sealed class AttachmentMetadataFindStateTests
         state.CanNavigate.Should().BeFalse();
     }
 
-    [Fact]
-    public void FindUsesAuthoritativeUnicodeAndByteBoundsOverEntireSnapshot()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void FindUsesAuthoritativeUnicodeAndByteBoundsOverEntireSnapshot(bool counted)
     {
         var maximum = new string('x', LocalFileRetrievalPolicy.MaximumQueryCharacters);
         var unicode = string.Concat(Enumerable.Repeat("😀", LocalFileRetrievalPolicy.MaximumQueryUtf8Bytes / 4));
         var suffix = maximum + unicode + " e\u0301 é";
         var text = new string('z', SessionPageBudget - suffix.Length) + suffix;
         text.Length.Should().Be(SessionPageBudget);
-        using var state = new AdmittedMetadataFindState(text, () => true);
+        using var state = new AdmittedMetadataFindState(text, () => true, counted);
         foreach (var query in new[] { maximum, unicode, "e\u0301", "é", " " })
         {
             state.Edit(query);
@@ -180,6 +236,7 @@ public sealed class AttachmentMetadataFindStateTests
         state.CanNavigate.Should().BeFalse();
         state.Find(SnapshotFindDirection.First);
         admitted = false;
+        state.CheckAdmission().Should().BeFalse();
         state.Available.Should().BeFalse();
         admitted = true;
         state.Edit("private");
@@ -220,6 +277,7 @@ public sealed class AttachmentMetadataFindStateTests
         oldIdentity.Find(SnapshotFindDirection.First);
         oldIdentity.ExactMatch.Should().Be("Aa");
         selected = false;
+        oldIdentity.CheckAdmission().Should().BeFalse();
         oldIdentity.Available.Should().BeFalse();
         selected = true;
         using var replacement = new AdmittedMetadataFindState("Replacement identity | Aa", () => selected);

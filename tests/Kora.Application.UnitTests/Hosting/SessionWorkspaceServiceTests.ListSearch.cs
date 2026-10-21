@@ -26,98 +26,6 @@ public sealed partial class SessionWorkspaceServiceTests
         };
     }
 
-    [Fact]
-    public async Task ScalarRangesScanPastFiftyUnknownOrShortNamesAndBindBothBoundsBeforeReading()
-    {
-        using var f = new Fixture();
-        using var root = HostActivity.BeginRoot(f.Request, HostActivityLayer.Application, HostOperation.Request);
-        var maximum = string.Concat(Enumerable.Repeat("\U0001F408", SessionName.MaximumScalars));
-        var rows = Enumerable.Range(1, 51).Select(id =>
-            ListEntry(id, id == 51 ? maximum : id % 2 == 0 ? null : "é")).ToImmutableArray();
-        ListReader(f, rows);
-        var first = await f.Service.SearchListAsync(SessionListSearchKind.Browse, SessionListFilter.Active,
-            "", null, 25, f.Token, 1, 1, minimumNameLength: SessionName.MaximumScalars - 1,
-            maximumNameLength: SessionName.MaximumScalars);
-        first.Records.Should().BeEmpty();
-        first.Scanned.Should().Be(50);
-        first.Unnamed.Should().Be(25);
-        first.OutputLimited.Should().BeFalse();
-        first.Next.Should().NotBeNull();
-        foreach (var minimum in new[] { true, false })
-        {
-            var changed = () => f.Service.SearchListAsync(SessionListSearchKind.Browse, SessionListFilter.Active,
-                "", first.Next, 25, f.Token, 1, 1,
-                minimumNameLength: minimum ? SessionName.MaximumScalars - 2 : SessionName.MaximumScalars - 1,
-                maximumNameLength: minimum ? SessionName.MaximumScalars : SessionName.MaximumScalars - 1);
-            await changed.Should().ThrowAsync<ArgumentException>();
-            f.ListReads.Should().Be(1);
-        }
-        var next = await f.Service.SearchListAsync(SessionListSearchKind.Browse, SessionListFilter.Active,
-            "", first.Next, 25, f.Token, 1, 1, minimumNameLength: SessionName.MaximumScalars - 1,
-            maximumNameLength: SessionName.MaximumScalars);
-        next.Records.Should().Equal(rows[^1]);
-        next.Scanned.Should().Be(1);
-        next.Unnamed.Should().Be(0);
-        next.Next.Should().BeNull();
-        SessionListSearchPage.Serialize(next).Length.Should().BeLessThanOrEqualTo(SessionListSearchPage.MaximumResultBytes);
-        f.TaskWrites.Should().BeEmpty();
-        f.ControlCalls.Should().Be(0);
-    }
-
-    [Theory]
-    [InlineData(SessionListSearchKind.Browse)]
-    [InlineData(SessionListSearchKind.NameSubstring)]
-    [InlineData(SessionListSearchKind.ExactName)]
-    [InlineData(SessionListSearchKind.ExactId)]
-    public async Task ScalarRangesComposeWithExactIdentityLifecycleAndRevisionsWithoutReadingHistory(SessionListSearchKind kind)
-    {
-        using var f = new Fixture();
-        using var root = HostActivity.BeginRoot(f.Request, HostActivityLayer.Application, HostOperation.Request);
-        var row = new SessionWorkspaceEntry(f.Session, new(f.Request.SessionId, new(1), new("é\U0001F408")));
-        f.ListReader = (_, _) => new([row], null);
-        f.ExactListReader = _ => row;
-        var value = kind is SessionListSearchKind.Browse ? ""
-            : kind is SessionListSearchKind.ExactId ? f.Request.SessionId.Value.ToString("D") : row.Metadata!.Name.Value;
-        var page = await f.Service.SearchListAsync(kind, SessionListFilter.Active, value, null, 1, f.Token,
-            1, 1, 1, 1, SessionNameAvailability.Named, 2, 2);
-        page.Records.Should().Equal(row);
-        var excluded = await f.Service.SearchListAsync(kind, SessionListFilter.Active, value, null, 1, f.Token,
-            1, 1, 1, 1, SessionNameAvailability.Named, 3, 3);
-        excluded.Records.Should().BeEmpty();
-        excluded.Scanned.Should().Be(1);
-        f.TaskWrites.Should().BeEmpty();
-        f.ControlCalls.Should().Be(0);
-    }
-
-    [Theory]
-    [InlineData("minimum")]
-    [InlineData("maximum")]
-    [InlineData("inverted")]
-    [InlineData("privacy")]
-    [InlineData("cancel")]
-    [InlineData("late-cancel")]
-    [InlineData("late-privacy")]
-    [InlineData("late-revision")]
-    public async Task InvalidOrRevokedScalarRangeReadsFailClosedWithoutControlOrIntent(string mode)
-    {
-        using var f = new Fixture();
-        using var root = HostActivity.BeginRoot(f.Request, HostActivityLayer.Application, HostOperation.Request);
-        ListReader(f, [ListEntry(1)]);
-        using var cancel = new CancellationTokenSource();
-        if (mode is "privacy") { f.CanInspect = false; }
-        if (mode is "cancel") { cancel.Cancel(); }
-        if (mode is "late-cancel") { f.AfterListRead = cancel.Cancel; }
-        if (mode is "late-privacy") { f.AfterListRead = () => f.CanInspect = false; }
-        if (mode is "late-revision") { f.AfterListRead = f.AdvanceRevision; }
-        var read = () => f.Service.SearchListAsync(SessionListSearchKind.Browse, SessionListFilter.All, "",
-            null, 1, cancel.Token, minimumNameLength: mode is "minimum" ? 0 : mode is "inverted" ? 2 : 1,
-            maximumNameLength: mode is "maximum" ? SessionName.MaximumScalars + 1 : mode is "inverted" ? 1 : SessionName.MaximumScalars);
-        await read.Should().ThrowAsync<Exception>();
-        f.ListReads.Should().Be(mode.StartsWith("late-", StringComparison.Ordinal) ? 1 : 0);
-        f.TaskWrites.Should().BeEmpty();
-        f.ControlCalls.Should().Be(0);
-    }
-
     [Theory]
     [InlineData(SessionNameAvailability.Any, 51)]
     [InlineData(SessionNameAvailability.Named, 1)]
@@ -133,7 +41,7 @@ public sealed partial class SessionWorkspaceServiceTests
         do
         {
             var page = await f.Service.SearchListAsync(SessionListSearchKind.Browse, SessionListFilter.Done,
-                "", cursor, 25, f.Token, 1, 1, nameAvailability: availability);
+                "", cursor, 25, f.Token, nameAvailability: availability);
             page.Records.Length.Should().BeLessThanOrEqualTo(25);
             page.Scanned.Should().BeLessThanOrEqualTo(50);
             SessionListSearchPage.Serialize(page).Length.Should().BeLessThanOrEqualTo(65536);
@@ -180,88 +88,6 @@ public sealed partial class SessionWorkspaceServiceTests
     }
 
     [Theory]
-    [InlineData(SessionListSearchKind.Browse, false)]
-    [InlineData(SessionListSearchKind.Browse, true)]
-    [InlineData(SessionListSearchKind.ExactId, false)]
-    [InlineData(SessionListSearchKind.ExactId, true)]
-    [InlineData(SessionListSearchKind.NameSubstring, false)]
-    [InlineData(SessionListSearchKind.NameSubstring, true)]
-    [InlineData(SessionListSearchKind.ExactName, false)]
-    [InlineData(SessionListSearchKind.ExactName, true)]
-    public async Task UnnamedAvailabilityNeverInventsANameOrRevisionOrSuppressesExactMismatch(
-        SessionListSearchKind kind, bool revisionBound)
-    {
-        using var f = new Fixture();
-        using var root = HostActivity.BeginRoot(f.Request, HostActivityLayer.Application, HostOperation.Request);
-        var row = new SessionWorkspaceEntry(f.Session, null);
-        f.ListReader = (_, _) => new([row], null);
-        f.ExactListReader = _ => row;
-        var value = kind is SessionListSearchKind.Browse ? ""
-            : kind is SessionListSearchKind.ExactId ? f.Request.SessionId.Value.ToString("D") : "needle";
-        var page = await f.Service.SearchListAsync(kind, SessionListFilter.Active, value, null, 1, f.Token,
-            1, 1, maximumMetadataRevision: revisionBound ? 1 : null, nameAvailability: SessionNameAvailability.Unnamed);
-        page.Records.Should().HaveCount(!revisionBound
-            && kind is not (SessionListSearchKind.NameSubstring or SessionListSearchKind.ExactName) ? 1 : 0);
-        page.Unnamed.Should().Be(1);
-        page.Scanned.Should().Be(1);
-        page.Next.Should().BeNull();
-        f.ExactListReader = _ => ListEntry(1);
-        var foreign = () => f.Service.SearchListAsync(SessionListSearchKind.ExactId, SessionListFilter.Done,
-            f.Request.SessionId.Value.ToString("D"), null, 1, f.Token, maximumMetadataRevision: 1,
-            nameAvailability: SessionNameAvailability.Unnamed);
-        await foreign.Should().ThrowAsync<InvalidDataException>();
-        f.ControlCalls.Should().Be(0);
-    }
-
-    [Fact]
-    public async Task NumericRangesPreserveBoundedScansAndExactUnnamedSemanticsWithoutWrites()
-    {
-        using var f = new Fixture();
-        using var root = HostActivity.BeginRoot(f.Request, HostActivityLayer.Application, HostOperation.Request);
-        var rows = Enumerable.Range(1, 51).Select(id => ListEntry(id) with
-        {
-            Authority = ListEntry(id).Authority with { Generation = new(id) },
-            Metadata = ListEntry(id).Metadata! with { Revision = new(id) }
-        }).ToImmutableArray();
-        ListReader(f, rows);
-        var first = await f.Service.SearchListAsync(SessionListSearchKind.NameSubstring, SessionListFilter.Active,
-            "needle", null, 25, f.Token, 51, 51, 51, 51);
-        first.Scanned.Should().Be(50);
-        first.Records.Should().BeEmpty();
-        first.Next.Should().NotBeNull();
-        var next = await f.Service.SearchListAsync(SessionListSearchKind.NameSubstring, SessionListFilter.Active,
-            "needle", first.Next, 25, f.Token, 51, 51, 51, 51);
-        next.Records.Should().Equal(rows[^1]);
-        next.Next.Should().BeNull();
-        SessionListSearchPage.Serialize(next).Length.Should().BeLessThanOrEqualTo(SessionListSearchPage.MaximumResultBytes);
-        foreach (var bounds in new[] { (50L, 51L, 51L, 51L), (51L, 52L, 51L, 51L),
-            (51L, 51L, 50L, 51L), (51L, 51L, 51L, 52L) })
-        {
-            var changed = () => f.Service.SearchListAsync(SessionListSearchKind.NameSubstring, SessionListFilter.Active,
-                "needle", first.Next, 25, f.Token, bounds.Item1, bounds.Item2, bounds.Item3, bounds.Item4);
-            await changed.Should().ThrowAsync<ArgumentException>();
-        }
-        f.ListReads.Should().Be(2);
-        f.ExactListReader = session => new(new(session, new(2), false), null);
-        var exact = await f.Service.SearchListAsync(SessionListSearchKind.ExactId, SessionListFilter.Done,
-            f.Request.SessionId.Value.ToString("D"), null, 25, f.Token, 2, 2);
-        exact.Records.Should().ContainSingle();
-        foreach (var bounds in new (long?, long?)[] { (1, null), (null, 2) })
-        {
-            var unnamed = await f.Service.SearchListAsync(SessionListSearchKind.ExactId, SessionListFilter.Done,
-                f.Request.SessionId.Value.ToString("D"), null, 25, f.Token, 2, 2, bounds.Item1, bounds.Item2);
-            unnamed.Records.Should().BeEmpty();
-            unnamed.Unnamed.Should().Be(1);
-        }
-        f.ExactListReader = _ => rows[0];
-        var foreign = () => f.Service.SearchListAsync(SessionListSearchKind.ExactId, SessionListFilter.Active,
-            f.Request.SessionId.Value.ToString("D"), null, 25, f.Token, 500, 500);
-        await foreign.Should().ThrowAsync<InvalidDataException>();
-        f.TaskWrites.Should().BeEmpty();
-        f.ControlCalls.Should().Be(0);
-    }
-
-    [Theory]
     [InlineData(SessionListSearchKind.NameSubstring)]
     [InlineData(SessionListSearchKind.ExactName)]
     public async Task InvalidCandidateBeyondTheResultLimitIsNotHiddenByNumericOrLifecycleFilters(SessionListSearchKind kind)
@@ -272,7 +98,7 @@ public sealed partial class SessionWorkspaceServiceTests
         invalid = invalid with { Metadata = invalid.Metadata! with { Revision = default } };
         f.ListReader = (_, _) => new([.. Enumerable.Range(1, 49).Select(id => ListEntry(id)), invalid], null);
         var read = () => f.Service.SearchListAsync(kind, SessionListFilter.Active,
-            "needle", null, 1, f.Token, 1, 1, 1, 1, minimumNameLength: 6, maximumNameLength: 6);
+            "needle", null, 1, f.Token);
         await read.Should().ThrowAsync<ArgumentOutOfRangeException>();
         f.ControlCalls.Should().Be(0);
     }
@@ -340,14 +166,12 @@ public sealed partial class SessionWorkspaceServiceTests
         var name = string.Concat(Enumerable.Repeat("🐈", 120));
         ListReader(f, [.. Enumerable.Range(1, 50).Select(id => ListEntry(id, name))]);
         var value = kind is SessionListSearchKind.ExactName ? name : text;
-        var first = await f.Service.SearchListAsync(kind, SessionListFilter.All, value, null, 50, f.Token, 1, 1, 1, 1,
-            minimumNameLength: SessionName.MaximumScalars, maximumNameLength: SessionName.MaximumScalars);
+        var first = await f.Service.SearchListAsync(kind, SessionListFilter.All, value, null, 50, f.Token);
         first.Records.Length.Should().BeInRange(1, 49);
         first.OutputLimited.Should().BeTrue();
         first.Next.Should().NotBeNull();
         SessionListSearchPage.Serialize(first).Length.Should().BeLessThanOrEqualTo(65536);
-        var next = await f.Service.SearchListAsync(kind, SessionListFilter.All, value, first.Next, 50, f.Token, 1, 1, 1, 1,
-            minimumNameLength: SessionName.MaximumScalars, maximumNameLength: SessionName.MaximumScalars);
+        var next = await f.Service.SearchListAsync(kind, SessionListFilter.All, value, first.Next, 50, f.Token);
         first.Records.Concat(next.Records).Select(entry => entry.Authority.SessionId).Should()
             .Equal(Enumerable.Range(1, 50).Select(id => ListEntry(id).Authority.SessionId));
         next.Next.Should().BeNull();
@@ -500,7 +324,7 @@ public sealed partial class SessionWorkspaceServiceTests
         var rows = Enumerable.Range(1, 53).Select(id => ListEntry(id, id <= 50 ? "needle suffix" : "needle")).ToImmutableArray();
         ListReader(f, rows);
         var first = await f.Service.SearchListAsync(SessionListSearchKind.ExactName, SessionListFilter.Active,
-            "needle", null, 25, f.Token, 1, 1, 1, 1, SessionNameAvailability.Named);
+            "needle", null, 25, f.Token, SessionNameAvailability.Named);
         first.Records.Should().BeEmpty();
         first.Scanned.Should().Be(50);
         first.Next.Should().NotBeNull();
@@ -513,14 +337,14 @@ public sealed partial class SessionWorkspaceServiceTests
         var read = () => f.Service.SearchListAsync(
             mode is "kind" ? SessionListSearchKind.NameSubstring : SessionListSearchKind.ExactName,
             SessionListFilter.Active, mode is "value" ? "needle suffix" : "needle", first.Next,
-            1, cancel.Token, 1, 1, 1, 1, SessionNameAvailability.Named);
+            1, cancel.Token, SessionNameAvailability.Named);
         if (mode is "valid")
         {
             var next = await read();
             next.Records.Should().Equal(rows[50]);
             next.OutputLimited.Should().BeTrue();
             var last = await f.Service.SearchListAsync(SessionListSearchKind.ExactName, SessionListFilter.Active,
-                "needle", next.Next, 25, f.Token, 1, 1, 1, 1, SessionNameAvailability.Named);
+                "needle", next.Next, 25, f.Token, SessionNameAvailability.Named);
             last.Records.Should().Equal(rows[51], rows[52]);
             last.Next.Should().BeNull();
             SessionListSearchPage.Serialize(last).Length.Should().BeLessThanOrEqualTo(65536);

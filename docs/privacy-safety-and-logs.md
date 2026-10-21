@@ -65,39 +65,12 @@ replay presented/dismissed/expired effects.
 
 ## Fixed deterministic queue privacy
 
-The [native authoritative work surface](windows-and-tray.md#authoritative-sessions-work)
-reads one bounded atomic queue/task/question snapshot. Session filtering,
-selection, passive refresh and history/immutable-detail inspection do not write intent
-or meaningful activity, change priority, dispatch, resume, renew grants or
-retarget voice/questions/approvals. Controls bind the exact displayed IDs/
-revisions and selection epoch to the existing host command/commit gates.
-Pending-question cards are metadata; only the separate original Questions
-window can answer/review. Background refresh preserves focus, stops on close
-and clears late/private/unavailable records rather than claiming empty success.
-No new persistence, network/model egress or content logging is introduced.
+Normal user routes no longer admit or dispatch diagnostic-only queued reads or expose capacity/prerequisite/reorder/expired-replacement controls.
+Existing records remain inspectable and cancellable under their exact-source policy; retirement does not drop records, rewrite deadlines, replay work or treat Unknown as success ([admission boundary](../src/Kora.Application/Hosting/SessionWorkspaceService.Commands.cs), [queue controls](../src/Kora/SessionsViewModel.Queue.cs)).
 
-The [local-version queue](commands.md#deterministic-local-version-queue) stores
-only host request/task/session IDs, revisions, generation, fixed-profile state,
-dependency identity and eligibility timing in the private schema-v5 interaction
-store. It accepts no utterance, label, source path, clipboard/file preview,
-skill text, caption or model output. Queue management and execution call no
-model/network/audio service, and never create context/egress approval.
-
-Every admission/outcome requires current private ownership, unchanged
-privacy/call/owner epoch and exact durable authority. Lock/unlock, takeover,
-Done/disposition, full capacity, missing audit/storage and stale IDs/revisions
-cannot silently admit or resume work. Deferred traces use host identities and
-causal links, never content-bearing tags or Baggage. Structured failure logs
-contain a fixed exception type, not command text or observations.
-
-Restart never replays queues or grants. Unknown work remains quarantined;
-the independent Perpetual store is not a scheduler credential. Pending
-cancel/remove/confirmed clear retains content-free task/history receipts.
-Logical disposition retains minimal audited queue identities/timing with task
-and audit evidence while redacting retained history content; this is not
-forensic erasure or removal of exported copies. Reads do not extend activity.
-Volatile preview, lexical retrieval, shared-skill inspection and captions
-remain separate and cannot be attached, replayed or reconstructed by queues.
+Internal scheduler/store/domain validation, authoritative audit, ownership/private admission and no-replay policy remain.
+Direct read-only status queries and actual task lifecycle/cancellation are separate.
+Observation remains passive and missing/corrupt authority remains unavailable, not an empty-success inventory ([scheduler](../src/Kora.Application/Hosting/SessionQueueService.cs), [work observation](../src/Kora.Application/Hosting/SessionWorkspaceService.cs)).
 
 ## Bounded passive interaction history
 
@@ -579,6 +552,27 @@ Missing journals, corrupt/unsupported data, permissive permissions or unavailabl
 ownership/access stop admission explicitly, without file replacement or ACL
 repair. Process-interruption tests do not guarantee physical power-loss recovery.
 There is still no durable conversation/history UI or general task executor.
+### Read-only Evidence inspection
+
+Use `prepare evidence trace <trace-id>` to open/focus this same native inspector
+and prepare only its exact **Trace correlation filter**; activated voice requires
+the current assistant-name prefix. The value is exactly 32 lowercase ASCII hex
+characters, nonzero, without trimming or repair; no GUID, span/header, URI or
+inferred trace is accepted. `evidence trace help` is constant, with no current
+trace/source/metadata read ([command details](commands.md#prepare-an-exact-evidence-trace-filter)).
+
+**Every other filter and the selected source remain unchanged and AND-composed.**
+Preparation retires the old page, selection/details, Find, actions and continuation
+and cancels pending pages. It does not read, scan, count or run maintenance.
+Exact native value/focus acknowledgment is required; stale/unavailable admission
+does not fall back to another source or an unfiltered/latest query.
+Choose **Search / refresh** separately to run the existing bounded retained reader.
+Trace text is untrusted correlation only: it is never session selection or
+identity/ownership/permission/approval/authority, cannot set activity context or
+baggage, and cannot promote ordinary logs to the dedicated AuthorityAudit path.
+No source capture, model/provider/network, copy/export/persistence or session
+activity renewal is added.
+
 The tray's **Evidence (read-only)** opens a native inspector for actual
 SQLite diagnostic, typed audit, completed span and explicit link records.
 **DailyLog** additionally inspects existing daily diagnostic JSON independently;

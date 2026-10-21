@@ -151,7 +151,7 @@ public sealed partial class SessionWorkspaceServiceTests
     [InlineData("stopped")]
     [InlineData("completed")]
     [InlineData("ambient-replaced")]
-    public async Task AllNativeAttachmentRoutesRejectOriginInvocationStoppedAndForeignAmbientContext(string boundary)
+    public async Task CaptureMutationAndSearchStayNativeOnlyWhileRetainedReadPreservesOriginalVoiceAuthority(string boundary)
     {
         using var fixture = new Fixture();
         var audit = new FileAudit();
@@ -171,7 +171,10 @@ public sealed partial class SessionWorkspaceServiceTests
         var select = () => service.Select(new(fixture.Session, null), new FilePicker(), () => true, fixture.Token);
         var read = () => service.Read(fixture.Request.SessionId, fixture.Token);
         await select.Should().ThrowAsync<InvalidOperationException>();
-        await read.Should().ThrowAsync<InvalidOperationException>();
+        if (boundary is "voice") { (await read()).Should().BeNull(); }
+        else { await read.Should().ThrowAsync<InvalidOperationException>(); }
+        var search = () => service.Search(FileRecord(fixture.Request), "source", fixture.Token);
+        await search.Should().ThrowAsync<InvalidOperationException>();
         var remove = () => fixture.Service.RemoveAttachment(new(Guid.NewGuid(), fixture.Request.SessionId,
             new(1), new(1), FileRecord(fixture.Request).File.Reference, "inventory"), () => true, fixture.Token);
         await remove.Should().ThrowAsync<InvalidOperationException>();

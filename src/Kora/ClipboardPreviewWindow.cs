@@ -15,14 +15,11 @@ internal sealed partial class ClipboardPreviewWindow(Action<Exception> reportFai
     private readonly NamedTextBlock source = new() { FontFamily = new FontFamily("Consolas") };
     private readonly NamedTextBlock explanation = new() { TextWrapping = TextWrapping.Wrap };
 
-    public void Show(ClipboardSnapshot snapshot, Func<Task> reuse, Func<Task> revoke, Func<bool> isCurrent, Func<Task>? explain = null,
-        Func<CancellationToken, ClipboardJsonSyntaxResult>? validateJson = null, Func<bool>? isJsonCurrent = null,
-        Func<ClipboardSnapshot, Func<bool>, CancellationToken, ClipboardXmlValidationResult>? validateXml = null)
+    public void Show(ClipboardSnapshot snapshot, Func<Task> reuse, Func<Task> revoke, Func<bool> isCurrent, Func<Task>? explain = null)
     {
         typographyHost?.EnsureReaderTypographyAvailable();
         ClearFindState();
-        ClearJsonState();
-        ClearXmlValidation();
+        ClearWrappingState();
         Title = "Local clipboard snapshot (untrusted plain text)";
         Width = 760;
         Height = 600;
@@ -81,17 +78,17 @@ internal sealed partial class ClipboardPreviewWindow(Action<Exception> reportFai
         DockPanel.SetDock(chrome, Dock.Top);
         body.Children.Add(chrome);
         var content = new StackPanel { Spacing = 12 };
-        if (validateJson is not null) { AddJsonValidation(content, isCurrent, isJsonCurrent ?? isCurrent, validateJson); }
         content.Children.Add(source);
         AutomationProperties.SetName(explanation, "Volatile local clipboard explanation; untrusted model response");
         content.Children.Add(explanation);
-        AddXmlValidation(content, snapshot, isCurrent, validateXml);
-        body.Children.Add(new ScrollViewer
+        var sourceScrollViewer = new ScrollViewer
         {
             Content = content,
             HorizontalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Auto,
             VerticalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Auto,
-        });
+        };
+        AddSourceWrapping(chrome, snapshot, sourceScrollViewer);
+        body.Children.Add(sourceScrollViewer);
         Content = body;
         Closed += OnFindClosed;
         base.Show();
@@ -103,9 +100,8 @@ internal sealed partial class ClipboardPreviewWindow(Action<Exception> reportFai
     public void ClearAndClose()
     {
         ClearFindState();
-        ClearJsonState();
-        ClearXmlValidation();
         source.Text = null;
+        ClearWrappingState();
         explanation.Text = null;
         Content = null;
         Close();
@@ -115,9 +111,8 @@ internal sealed partial class ClipboardPreviewWindow(Action<Exception> reportFai
     {
         Closed -= OnFindClosed;
         ClearFindState();
-        ClearJsonState();
-        ClearXmlValidation();
         source.Text = null;
+        ClearWrappingState();
         explanation.Text = null;
         Content = null;
     }

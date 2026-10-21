@@ -74,10 +74,8 @@ public sealed partial class SessionsConversationTests
     [Theory]
     [InlineData(false, 0)]
     [InlineData(false, 1)]
-    [InlineData(false, 2)]
     [InlineData(true, 0)]
     [InlineData(true, 1)]
-    [InlineData(true, 2)]
     public async Task LastNativeOwnerUsesOneCorrectlyOwnedSaveDiscardCancelDecision(bool compactLast, int choice)
     {
         await HeadlessSession.RunAsync(async () =>
@@ -102,7 +100,7 @@ public sealed partial class SessionsConversationTests
                 var decisions = 0;
                 using var opened = Window.WindowOpenedEvent.AddClassHandler<Window>((view, _) =>
                 {
-                    if (!string.Equals(view.Title, "Unsaved exact-session conversation draft", StringComparison.Ordinal)) { return; }
+                    if (!string.Equals(view.Title, "Discard unsent messages?", StringComparison.Ordinal)) { return; }
                     decision = view;
                     decisions++;
                 });
@@ -128,90 +126,8 @@ public sealed partial class SessionsConversationTests
                     model.ComposerBody.Should().Be("original shared dirty body");
                     model.SelectedSessionRecord!.Authority.SessionId.Should().Be(f.Request.SessionId);
                 }
-                (await f.Store.ReadConversationDraftAsync(f.Request.SessionId, f.Token)).Draft.Body.Should()
-                    .Be((ComposerDraftDecision)choice == ComposerDraftDecision.Save ? "original shared dirty body" : null);
+                (await f.Store.ReadConversationDraftAsync(f.Request.SessionId, f.Token)).Draft.Body.Should().BeNull();
                 f.Count("conversation_messages").Should().Be(0);
-            }
-            finally { owner.Revoke(); }
-        });
-    }
-
-    [Theory]
-    [InlineData(0)]
-    [InlineData(1)]
-    [InlineData(2)]
-    public async Task SharedNavigationFreezesOriginalDraftAndRejectsConcurrentEditsAndDecisions(int choice)
-    {
-        using var f = new InteractionStorageFixture();
-        await f.InitializeAsync();
-        await WindowsSqliteConversationTests.FinishInitial(f);
-        var original = f.Request.SessionId;
-        f.Request = InteractionStorageFixture.NewRequest();
-        await f.AdmitAsync(newSession: true);
-        await WindowsSqliteConversationTests.FinishInitial(f);
-        await using var composed = new Composition(f);
-        var model = composed.Model;
-        await model.RefreshAsync();
-        await model.SelectAsync(model.Sessions.Single(entry => entry.Authority.SessionId == original));
-        await model.ReadConversationAsync();
-        model.ComposerBody = "frozen original draft";
-        var decision = new TaskCompletionSource<ComposerDraftDecision>();
-        var decisions = 0;
-        model.DecideComposerDraft = () => { decisions++; return decision.Task; };
-        var next = model.Sessions.Single(entry => entry.Authority.SessionId != original);
-        var switching = model.SelectAsync(next);
-        model.ComposerBody = "must not overwrite the first surface";
-        await model.SelectAsync(next);
-        (await model.ProtectComposerAsync()).Should().BeFalse();
-        decisions.Should().Be(1);
-        model.ComposerBody.Should().Be("frozen original draft");
-        decision.SetResult((ComposerDraftDecision)choice);
-        await switching;
-        if ((ComposerDraftDecision)choice == ComposerDraftDecision.Cancel)
-        {
-            model.SelectedSessionRecord!.Authority.SessionId.Should().Be(original);
-            model.ComposerBody.Should().Be("frozen original draft");
-        }
-        else
-        {
-            model.SelectedSessionRecord!.Authority.SessionId.Should().Be(next.Authority.SessionId);
-            model.ComposerBody.Should().BeEmpty();
-        }
-        (await f.Store.ReadConversationDraftAsync(original, f.Token)).Draft.Body.Should()
-            .Be((ComposerDraftDecision)choice == ComposerDraftDecision.Save ? "frozen original draft" : null);
-    }
-
-    [Fact]
-    public async Task FailedLastOwnerStaleSaveKeepsOriginalDraftAndTargetOpenWithoutFalseSuccessfulClose()
-    {
-        await HeadlessSession.RunAsync(async () =>
-        {
-            using var f = new InteractionStorageFixture();
-            await f.InitializeAsync();
-            await WindowsSqliteConversationTests.FinishInitial(f);
-            await using var composed = new Composition(f);
-            var model = composed.Model;
-            var owner = new SessionsPresentationOwner(model);
-            var compact = new CompactSessionWindow(model, owner);
-            compact.Show();
-            try
-            {
-                await model.RefreshAsync();
-                await model.SelectAsync(model.Sessions.Single());
-                await model.ReadConversationAsync();
-                model.ComposerBody = "original recoverable dirty draft";
-                await composed.Conversation.SaveDraftAsync(await f.Store.ReadConversationDraftAsync(f.Request.SessionId, f.Token),
-                    "independent newer saved revision", () => true, f.Token);
-                model.DecideComposerDraft = () => Task.FromResult(ComposerDraftDecision.Save);
-                compact.Close();
-                await owner.CloseOperation;
-                compact.IsVisible.Should().BeTrue();
-                model.ComposerDirty.Should().BeTrue();
-                model.ComposerBody.Should().Be("original recoverable dirty draft");
-                model.SelectedSessionRecord!.Authority.SessionId.Should().Be(f.Request.SessionId);
-                model.ConversationStatus.Should().Contain("unconfirmed");
-                (await f.Store.ReadConversationDraftAsync(f.Request.SessionId, f.Token)).Draft.Body.Should()
-                    .Be("independent newer saved revision");
             }
             finally { owner.Revoke(); }
         });
@@ -237,9 +153,9 @@ public sealed partial class SessionsConversationTests
             model.ComposerBody = "private shared body";
             var decision = new TaskCompletionSource<ComposerDraftDecision>();
             model.DecideComposerDraft = () => decision.Task;
-            var protect = model.ProtectComposerAsync();
+            var protect = model.ConfirmUnsentDiscardAsync(all: true);
             owner.Revoke();
-            decision.SetResult(ComposerDraftDecision.Save);
+            decision.SetResult(ComposerDraftDecision.Discard);
             (await protect).Should().BeFalse();
             workspace.IsVisible.Should().BeFalse();
             compact.IsVisible.Should().BeFalse();

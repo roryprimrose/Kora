@@ -13,7 +13,8 @@ namespace Kora.Application.ViewModels;
 public sealed partial class MainViewModel : ISpeechReadOncePlayback
 {
     private readonly SpeechReadOnce speechReadOnce;
-    private sealed record CurrentResponseSpeech(Guid Id, long Revision, AssistantState State);
+    private sealed record CurrentResponseSpeech(Guid Id, long Revision, AssistantState State,
+        string Title, string Body, HostRequest? Request);
     private CurrentResponseSpeech? ordinaryResponse;
     private long ordinaryResponseRevision;
     private CancellationTokenSource? responseReadCancellation;
@@ -98,14 +99,18 @@ public sealed partial class MainViewModel : ISpeechReadOncePlayback
         Interlocked.Exchange(ref ordinaryResponse, null);
         Interlocked.Increment(ref ordinaryResponseRevision);
         RetireResponseReadPlayback();
+        uiDispatcher.Post(() => CurrentResponseChanged?.Invoke(this, EventArgs.Empty));
         uiDispatcher.Post(NotifyResponseReadChanged);
     }
+
+    public event EventHandler? CurrentResponseChanged;
 
     private void BindCurrentResponseSpeech(bool eligible)
     {
         if (eligible)
         {
-            Volatile.Write(ref ordinaryResponse, new(Guid.NewGuid(), Interlocked.Read(ref ordinaryResponseRevision), State));
+            Volatile.Write(ref ordinaryResponse, new(Guid.NewGuid(), Interlocked.Read(ref ordinaryResponseRevision),
+                State, ResponseTitle, ResponseBody, HostActivity.Current?.Request));
         }
         ReadCurrentResponseStatus = string.Empty;
         NotifyResponseReadChanged();

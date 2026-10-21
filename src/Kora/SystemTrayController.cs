@@ -54,7 +54,6 @@ public sealed class SystemTrayController : IDisposable
         Func<Task>? returnToCurrentQuestion = null,
         Action? inspectRetainedAttachments = null,
         Action? editOwnedInstructions = null,
-        Action? inspectSavedDrafts = null,
         Action? newRequest = null,
         Action? compactConversation = null)
     {
@@ -84,12 +83,6 @@ public sealed class SystemTrayController : IDisposable
             var newRequestItem = new NativeMenuItem("New request (fresh session only)");
             newRequestItem.Click += (_, _) => RunAfterNativeMenuCloses(newRequest);
             menu.Add(newRequestItem);
-        }
-        if (inspectSavedDrafts is not null)
-        {
-            var draftsItem = new NativeMenuItem("Saved conversation drafts (metadata only)");
-            draftsItem.Click += (_, _) => RunAfterNativeMenuCloses(inspectSavedDrafts);
-            menu.Add(draftsItem);
         }
         if (editOwnedInstructions is not null)
         {

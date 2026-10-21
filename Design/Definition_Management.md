@@ -11,6 +11,20 @@ boundary and skill-specific package/execution rules;
 The existing startup artifact reader and native skill inspection are partial
 deliveries, not evidence that this full contract is implemented.
 
+The owned editor's **Find in selected metadata** is a separate, ephemeral native
+literal Find over exactly one current, selected inventory row's displayed
+metadata details. It reuses admitted metadata state and the shared bounded
+literal/count policy; count/ordinal cover only that string's complete
+nonoverlapping sequence, with no wrap. The source editor/draft, hidden fields,
+other rows/kinds and resource bodies are excluded. Query edits/Clear are
+read-free and do not retarget inventory or modify drafts. Native match focus
+must succeed; failure is explicit, not a success claim. Selection/page/filter,
+source/control/host/privacy epochs and review/window retirement invalidate
+private state and late callbacks. Metadata Find has no discovery, file-read,
+mutation, clipboard, model, execution, trust, saved-revision or use authority.
+It adds no Ctrl+F binding and confines Enter/F3 to its own controls.
+See the [editor guide](../docs/instruction-editor.md#find-within-selected-displayed-metadata-details).
+
 ## Product Roles
 
 | Kind | Value and application |

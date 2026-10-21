@@ -1,7 +1,6 @@
 using System.Collections.ObjectModel;
 
 using Kora.Core.Context;
-using Kora.Core.Artifacts;
 using Kora.Core.Skills;
 
 namespace Kora.Application.Skills;
@@ -11,18 +10,14 @@ public static class SkillCatalogueSearch
 {
     public static IReadOnlyList<SkillPackageSnapshot> Bundled(
         SkillPackageCatalogue catalogue, string query, SkillInvocationFilter filter,
-        string definitionDigest = "", string declaredResourceDigest = "", SkillCatalogueOrder order = SkillCatalogueOrder.Source)
+        SkillCatalogueOrder order = SkillCatalogueOrder.Source)
     {
         ArgumentNullException.ThrowIfNull(catalogue);
         LiteralMetadataQuery.Validate(query);
         if (!Enum.IsDefined(filter)) { throw new ArgumentOutOfRangeException(nameof(filter)); }
         if (!Enum.IsDefined(order)) { throw new ArgumentOutOfRangeException(nameof(order)); }
-        ValidateOptionalDigest(definitionDigest);
-        ValidateOptionalDigest(declaredResourceDigest);
         return Order(catalogue.Packages.Where(package =>
-            (definitionDigest.Length == 0 || string.Equals(package.DefinitionDigest, definitionDigest, StringComparison.Ordinal))
-            && (declaredResourceDigest.Length == 0 || string.Equals(package.DeclaredResourceDigest, declaredResourceDigest, StringComparison.Ordinal))
-            && (filter == SkillInvocationFilter.All
+            (filter == SkillInvocationFilter.All
                 || package.IsAvailableForInvocation == (filter == SkillInvocationFilter.Available))
             && (package.Manifest.Name.Contains(query, StringComparison.OrdinalIgnoreCase)
                 || package.Manifest.Id.Contains(query, StringComparison.OrdinalIgnoreCase)
@@ -31,17 +26,15 @@ public static class SkillCatalogueSearch
     }
 
     public static IReadOnlyList<SharedSkillSnapshot> Shared(
-        SharedSkillCatalogue catalogue, string query, SkillInstructionFilter filter, string revisionDigest = "",
+        SharedSkillCatalogue catalogue, string query, SkillInstructionFilter filter,
         SkillCatalogueOrder order = SkillCatalogueOrder.Source)
     {
         ArgumentNullException.ThrowIfNull(catalogue);
         LiteralMetadataQuery.Validate(query);
         if (!Enum.IsDefined(filter)) { throw new ArgumentOutOfRangeException(nameof(filter)); }
         if (!Enum.IsDefined(order)) { throw new ArgumentOutOfRangeException(nameof(order)); }
-        ValidateOptionalDigest(revisionDigest);
         return Order(catalogue.Packages.Where(package =>
-            (revisionDigest.Length == 0 || string.Equals(package.RevisionDigest, revisionDigest, StringComparison.Ordinal))
-            && (filter == SkillInstructionFilter.All
+            (filter == SkillInstructionFilter.All
                 || package.IsInstructionCompatible == (filter == SkillInstructionFilter.Compatible))
             && (query.Length == 0
                 || package.Name?.Contains(query, StringComparison.OrdinalIgnoreCase) == true
@@ -62,9 +55,4 @@ public static class SkillCatalogueSearch
         return Array.AsReadOnly(named.ThenBy(identity, StringComparer.Ordinal).ToArray());
     }
 
-    private static void ValidateOptionalDigest(string digest)
-    {
-        ArgumentNullException.ThrowIfNull(digest);
-        if (digest.Length != 0) { ArtifactDigest.Validate(digest); }
-    }
 }

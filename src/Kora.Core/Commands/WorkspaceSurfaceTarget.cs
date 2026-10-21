@@ -7,8 +7,6 @@ public enum WorkspaceSurfaceTarget
     Invalid,
     /// <summary>The bounded All work observer.</summary>
     AllWork,
-    /// <summary>The metadata-only saved conversation draft catalogue.</summary>
-    SavedConversationDrafts,
     /// <summary>The existing selected-session compact projection.</summary>
     CompactConversation,
 }

@@ -92,11 +92,13 @@ public sealed partial class MainViewModel
     }
 
     private async Task<bool> SavePreferenceAsync(Action persist, string actionId,
-        SecurityAuditInitiator initiator, string settingName, Func<bool>? additionalEligibility = null)
+        SecurityAuditInitiator initiator, string settingName, Func<bool>? additionalEligibility = null,
+        Action<string, string>? reportFailure = null)
     {
+        Action<string, string> notifyFailure = reportFailure ?? ShowFailure;
         if (preferenceWriteActive)
         {
-            ShowFailure("Preference change busy.", "Wait for the current preference result and explicitly retry this change.");
+            notifyFailure("Preference change busy.", "Wait for the current preference result and explicitly retry this change.");
             return false;
         }
         var eligible = CapturePreferenceEligibility(initiator);
@@ -135,7 +137,7 @@ public sealed partial class MainViewModel
                         ModelExecutionPreferenceAction => "Model settings could not be saved.",
                         _ => $"The {settingName} could not be saved.",
                     };
-                    ShowFailure(title, exception.Message);
+                    notifyFailure(title, exception.Message);
                 }
             }
             return false;

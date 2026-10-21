@@ -27,6 +27,7 @@ public sealed partial class MainViewModelTests
         public long Generation => voice.Generation;
         public long CaptureGeneration => voice.Generation;
         public bool IsAmbientListeningAvailable => false;
+        public bool IsLiteralDictationAvailable => voice.IsLiteralDictationAvailable;
         public bool IsCaptureQuiescent => voice.IsCaptureQuiescent;
         public bool AcceptCaptureGeneration(long generation) => voice.AcceptCaptureGeneration(generation);
         public async Task BeginReplyAsync(MicrophoneDevice microphone, IEnumerable<string> phrases,

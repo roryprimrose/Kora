@@ -35,7 +35,16 @@ public sealed class AuditImpactPreviewService : IDisposable
     }
 
     public event EventHandler? Changed;
-    private void OnSourceChanged(object? sender, EventArgs args) => Retire("Source or preference changed; preview retired. Preview again.");
+    private void OnSourceChanged(object? sender, EventArgs args)
+    {
+        lock (gate)
+        {
+            // Presentation notifications write evidence, so idle source changes must not queue more presentation work.
+            if (disposed || eligible is null) { return; }
+            RetireLocked("Source or preference changed; preview retired. Preview again.");
+        }
+        Changed?.Invoke(this, EventArgs.Empty);
+    }
 
     public AuditImpactPreviewState Get()
     {

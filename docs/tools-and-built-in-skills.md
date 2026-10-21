@@ -31,11 +31,6 @@ registration/inspection, not startup model exposure. See
 local-version queries. Hide does not mute or cancel. Application restart is not
 Windows restart. See [application commands](commands.md).
 
-The bounded [host-local date/time commands](commands.md#host-local-date-and-time)
-answer from one host clock instant with local culture, timezone ID and UTC
-offset. They are visual and model/network/device-discovery free, not calendar,
-reminder, scheduling, geolocation or verified-time services.
-
 The six-ID [read-only host registry](commands.md#read-only-host-discovery)
 returns bounded recorded facts; it does not run fresh probes, qualify a runtime
 or expose the complete planned model catalogue.
@@ -53,14 +48,11 @@ reasoning. Existing receipts do not establish those capabilities.
 
 ## 3. Work management and conversation
 
-**Current bounded:** fixed read-only local-version queues with exact IDs,
-manual dispatch, expiry, fair ordering, revisioned receipts and no-replay
-recovery. See [queue commands](commands.md#deterministic-local-version-queue).
-Cancellation covers only its documented scope, not arbitrary running effects.
+Sessions retain real work observation, exact lifecycle controls and scoped cancellation.
+Diagnostic-only fixed-read queue admission, dispatch and management product controls are retired; existing records remain inspectable/cancellable with original authority and deadlines.
+Useful direct status queries and internal scheduler/store tests remain ([queue boundary](commands.md#deterministic-local-version-queue), [work controls](../src/Kora/SessionsViewModel.Work.cs)).
 
-**Planned:** resource-leased concurrent workers and general task scheduling.
-The design starts with two independently executing sessions within qualified
-provider/hardware budgets; the fixed version queue does not qualify them.
+General concurrent workers/provider scheduling remain unqualified; retiring diagnostic product surfaces does not enable them ([admission boundary](../src/Kora.Application/Hosting/SessionWorkspaceService.Commands.cs)).
 
 ## 4. Audio, listening, calls, and notifications
 
@@ -105,9 +97,9 @@ changes require a new eligible UI request, not a later approval click.
 selection, and bounded native shared-profile registration/inspection/recheck/
 withdrawal. See [shared-profile commands](commands.md#inspect-shared-profile-skills-locally).
 
-The passive inspectors offer exact **Definition digest** / **Declared resource digest** (bundled) and **Revision digest** (shared) filters alongside literal metadata and availability/compatibility filters. Empty means Any; otherwise enter exactly 64 lowercase hexadecimal characters. Invalid input is rejected, not trimmed or treated as an unfiltered search ([filter contract](../Design/Definition_Management.md#delivered-native-skill-metadata-navigation)).
-
-Editing a filter clears selection/details without reading sources; choose **Search**, then explicitly select a result. **Clear** resets all filters without selecting; **Escape** closes and clears private fields. A digest match observes an admitted snapshot only: no live verification, reload, hidden-name search, execution or grant, and no freshness/integrity/authority promotion ([inspection contract](../Design/Skill_Storage.md#delivered-bounded-r21-native-inspection)).
+The passive inspectors retain name/description search, availability/compatibility and ordinary loaded metadata order.
+Digest query fields are retired.
+Source identity, exact digests, provenance and integrity are still displayed and validated internally; browsing does not grant execution or trust ([query policy](../src/Kora.Application/Skills/SkillCatalogueSearch.cs), [bundled inspector](../src/Kora/SkillPackagesWindow.axaml.cs), [shared inspector](../src/Kora/SharedSkillSourcesWindow.axaml.cs)).
 
 **Order** defaults to **Source order**. Choose **Name ascending (ordinal)** or **Name descending (ordinal)** for ordinal names, unknown names last in both directions, with exact canonical identity ascending as the tie-break. All existing filters still apply; incompatible rows are not hidden by ordering ([ordering contract](../Design/Skill_Storage.md#delivered-bounded-r21-native-inspection)).
 

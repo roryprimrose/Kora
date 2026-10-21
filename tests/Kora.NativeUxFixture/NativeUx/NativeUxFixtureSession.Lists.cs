@@ -24,7 +24,7 @@ internal sealed partial class NativeUxFixtureSession
         for (var index = 0; index < 10; index++)
         {
             var snapshot = await Interactions.ReadQueueAsync(target.SessionId, Token);
-            await Sessions.ExecuteCommandAsync(new(SessionCommandOperation.QueueEnqueue, target.SessionId.Value, target.Generation.Value)
+            await Queue.ExecuteCommandAsync(new(SessionCommandOperation.QueueEnqueue, target.SessionId.Value, target.Generation.Value)
             {
                 QueueRevision = snapshot.Revision,
                 WorkRequestId = Guid.NewGuid(),
@@ -33,7 +33,7 @@ internal sealed partial class NativeUxFixtureSession
             if (index < 9)
             {
                 var pending = await Interactions.ReadQueueAsync(target.SessionId, Token);
-                var dispatched = await Sessions.ExecuteCommandAsync(new(SessionCommandOperation.QueueDispatch,
+                var dispatched = await Queue.ExecuteCommandAsync(new(SessionCommandOperation.QueueDispatch,
                     target.SessionId.Value, target.Generation.Value) { QueueRevision = pending.Revision },
                     RequestOrigin.LocalUi, () => Access.CanControl, Token);
                 if (dispatched.QueueDispatch is not { Count: 1 } receipts

@@ -73,13 +73,6 @@ internal sealed partial class SessionsViewModel(
         set
         {
             if (!CanRead || !Enum.IsDefined(value)) { return; }
-            if (ComposerDirty)
-            {
-                status = "Save or explicitly discard the memory-only composer draft before changing the session filter.";
-                OnPropertyChanged(nameof(Status));
-                OnPropertyChanged();
-                return;
-            }
             var searching = listSearchMode;
             InvalidateListSearch();
             sessionFilter = value;
@@ -113,11 +106,7 @@ internal sealed partial class SessionsViewModel(
 
     internal void RevokeSessionList()
     {
-        RetireDraftRecovery();
-        RetireComposerComparison();
-        savedConversationDraftControlRevision = 0;
         ClearLocalEvents();
-        InvalidateQueuePrerequisite(clearSource: true);
         InvalidateListSearch();
         sessions = null;
         status = "Session metadata source/lifecycle changed. Rows and search continuation revoked; Refresh or Search requires fresh private admission.";
@@ -281,8 +270,8 @@ internal sealed partial class SessionsViewModel(
     {
         if (origin is not (RequestOrigin.LocalUi or RequestOrigin.ActivatedVoice) || command.Error is not null)
         { throw new InvalidOperationException("Disposition review requires an original user preview request."); }
-        if (!CanRead || draftRecoveryCancellation is not null)
-        { throw new InvalidOperationException("Sessions is busy, reviewing a saved draft or unavailable; finish the native review and retry the exact disposition review when idle."); }
+        if (!CanRead)
+        { throw new InvalidOperationException("Sessions is busy or unavailable; finish the native operation and retry the exact disposition review when idle."); }
         var displayed = false;
         ActivityLink[] causes = HostActivity.Current?.Activity is { } cause ? [new(cause.Context)] : [];
         await RunAsync(async () =>
@@ -303,7 +292,7 @@ internal sealed partial class SessionsViewModel(
         catch (Exception exception) when (exception is not OutOfMemoryException)
         {
             ReportComposerCloseFailure(exception);
-            status = "Disposition review not opened: the original composer decision/save is unconfirmed. Reconcile the exact saved draft before retrying.";
+            status = "Disposition review not opened: original input admission changed. Unsent messages remain held; inspect the exact source before retrying.";
             return false;
         }
     }
@@ -372,6 +361,7 @@ internal sealed partial class SessionsViewModel(
         revokeHistoryDetails?.Invoke(preview.Session.Authority.SessionId);
         var receipt = await service.ConfirmDispositionAsync(preview, RequestOrigin.LocalUi,
             () => !closed && access.CanControl && nativeAdmission(), lifetime.Token);
+        RetireUnsent(preview.Session.Authority.SessionId);
         sessions = null;
         ClearSelection();
         Detail = SessionDispositionPreview.Scope;
@@ -513,6 +503,7 @@ internal sealed partial class SessionsViewModel(
         var target = RequireSelected();
         var changed = await service.ChangeLifecycleAsync(target.Authority.SessionId, target.Authority.Generation, active,
             RequestOrigin.LocalUi, lifetime.Token);
+        RetireUnsent(target.Authority.SessionId);
         selected = new(changed, target.Metadata);
         questions = await service.ReadQuestionsAsync(changed.SessionId, null, 25, lifetime.Token);
         tasks = await service.ReadTasksAsync(changed.SessionId, null, 25, lifetime.Token);
@@ -595,12 +586,11 @@ internal sealed partial class SessionsViewModel(
 
     private async Task RunAsync(Func<Task> operation, bool passive = false,
         HostId<SessionIdentity>? activitySession = null, bool routineNoticeControl = false,
-        bool dispatchControl = false, bool queueDispatch = false, RequestOrigin origin = RequestOrigin.LocalUi,
+        bool dispatchControl = false, RequestOrigin origin = RequestOrigin.LocalUi,
         IEnumerable<ActivityLink>? activityLinks = null)
     {
-        if (busy && !(passive && dispatchingQueue) && !(dispatchControl && dispatchingQueue) || closed || passive && refreshingWork
+        if (busy || closed || passive && refreshingWork
             || routineNoticeControl && changingRoutineQuiet || dispatchControl && changingQueueControl) { return; }
-        RetireDraftRecovery();
         var subject = selected?.Authority.SessionId;
         var epoch = selectionEpoch;
         var clearedPresentation = false;
@@ -609,7 +599,7 @@ internal sealed partial class SessionsViewModel(
         if (dispatchControl) { changingQueueControl = true; NotifyQueue(); }
         else if (routineNoticeControl) { changingRoutineQuiet = true; NotifyLocalEvents(); }
         else if (passive) { refreshingWork = true; }
-        else { busy = true; dispatchingQueue = queueDispatch; Notify(); }
+        else { busy = true; Notify(); }
         try
         {
             if (!access.CanInspect) { throw new InvalidOperationException("Private desktop ownership is unavailable."); }
@@ -639,6 +629,7 @@ internal sealed partial class SessionsViewModel(
             {
                 sessions = null;
                 RevokeListSearchPresentation();
+                conversationSourceHeld = true;
                 ClearSelection();
                 clearedPresentation = true;
                 status = "Cancelled or privacy closed; no late content or rollback of a possible committed lifecycle is claimed. Refresh durable state before retrying.";
@@ -669,6 +660,7 @@ internal sealed partial class SessionsViewModel(
             {
                 sessions = null;
                 RevokeListSearchPresentation();
+                conversationSourceHeld = true;
                 ClearSelection();
                 clearedPresentation = true;
                 status = "Sessions unavailable/denied: " + exception.Message
@@ -707,7 +699,7 @@ internal sealed partial class SessionsViewModel(
                 OnPropertyChanged(nameof(Detail));
                 NotifyHistory();
             }
-            else { busy = false; dispatchingQueue = false; Notify(); }
+            else { busy = false; Notify(); }
             if (closed && !busy && !refreshingWork && !changingRoutineQuiet && !changingQueueControl) { lifetime.Dispose(); }
         }
     }
@@ -715,7 +707,6 @@ internal sealed partial class SessionsViewModel(
     private void ClearSelection()
     {
         ClearConversation();
-        InvalidateQueuePrerequisite(clearSource: true);
         ClearProviderReview();
         attachments?.Close();
         if (selected is { } previous) { memories?.ClearSessionDrafts(previous.Authority.SessionId); }
@@ -730,8 +721,6 @@ internal sealed partial class SessionsViewModel(
         selectedWork = null;
         queueSnapshot = null;
         selectedQueueEntry = null;
-        queueMoveReview = null;
-        queueRequeueReview = null;
         queueCancelReview = null;
         queueCancellationAdmission = static () => true;
         pendingCancellationSelection = [];
@@ -755,6 +744,8 @@ internal sealed partial class SessionsViewModel(
     {
         if (closed) { return; }
         closed = true;
+        ClearUnsent();
+        composerBody = string.Empty;
         RevokeListSearchPresentation();
         lifetime.Cancel();
         if (!busy && !protectingComposer && !refreshingWork && !changingRoutineQuiet && !changingQueueControl) { lifetime.Dispose(); }

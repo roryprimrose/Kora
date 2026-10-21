@@ -769,7 +769,15 @@ public sealed partial class EvidenceAdvancedFilterTests
     public async Task NewExactFieldsDoNotLeakIntoTraceOrSegmentNavigationQueries()
     {
         using var listener = WindowsDailyEvidenceReaderTests.Listen();
-        var reader = new CapturingReader();
+        var batch = Batch();
+        var candidate = batch.Candidates[0];
+        var segment = new EvidenceSegment(new string('a', 32), new string('b', 16),
+            EvidenceSegmentStatus.Present, candidate.Record.Reference);
+        var reader = new CapturingReader { Held = new(TaskCreationOptions.RunContinuationsAsynchronously) };
+        reader.Held.SetResult(batch with
+        {
+            Candidates = [candidate with { Record = candidate.Record with { RelatedSegments = [segment] } }],
+        });
         var viewer = Viewer(reader);
         viewer.EventIdFilter = "1";
         viewer.SpanFilter = "0123456789abcdef";
@@ -793,7 +801,8 @@ public sealed partial class EvidenceAdvancedFilterTests
         reader.Queries[^1].FromAuditSequence.Should().BeNull();
         reader.Queries[^1].UntilAuditSequence.Should().BeNull();
         var reference = viewer.Records[0].Reference;
-        await viewer.NavigateAsync(new(new string('a', 32), new string('b', 16), EvidenceSegmentStatus.Present, reference));
+        viewer.Select(viewer.Records[0]);
+        await viewer.NavigateAsync(viewer.Segments.Single());
         reader.Queries[^1].Record.Should().Be(reference);
         reader.Queries[^1].SpanId.Should().BeNull();
         reader.Queries[^1].EventId.Should().BeNull();

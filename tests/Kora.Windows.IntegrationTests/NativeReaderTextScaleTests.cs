@@ -150,7 +150,7 @@ public sealed class NativeReaderTextScaleTests
                 var baseline = fileReader.FontSize;
                 var chromeFont = identity.FontSize;
                 var find = fileWindow.GetVisualDescendants().OfType<TextBox>().Single(control =>
-                    AutomationProperties.GetName(control)?.StartsWith("Case-sensitive literal Find", StringComparison.Ordinal) == true);
+                    AutomationProperties.GetName(control)?.StartsWith("Literal Find in", StringComparison.Ordinal) == true);
                 find.Text = "needle";
                 var findButton = fileWindow.GetVisualDescendants().OfType<Button>().Single(control =>
                     string.Equals(control.Content as string, "Find first", StringComparison.Ordinal));
@@ -227,7 +227,7 @@ public sealed class NativeReaderTextScaleTests
             try
             {
                 var spinner = window.GetVisualDescendants().OfType<NumericUpDown>().Single(control =>
-                    string.Equals(AutomationProperties.GetName(control), "Native reader text scale percentage", StringComparison.Ordinal));
+                    string.Equals(AutomationProperties.GetName(control), "Reading text size percentage", StringComparison.Ordinal));
                 spinner.Minimum.Should().Be(75);
                 spinner.Maximum.Should().Be(200);
                 spinner.Increment.Should().Be(1);

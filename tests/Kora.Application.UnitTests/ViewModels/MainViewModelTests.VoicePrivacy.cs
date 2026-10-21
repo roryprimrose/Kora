@@ -356,7 +356,7 @@ public sealed partial class MainViewModelTests
         fixture.VoiceConsent.Consent.Should().BeTrue();
         fixture.ViewModel.IsVoiceEnabled.Should().BeTrue();
         fixture.Voice.StartCalls.Should().Be(0);
-        fixture.ViewModel.ListeningStatus.Should().Contain("production wake unavailable");
+        fixture.ViewModel.ListeningStatus.Should().Contain("microphone off");
 
         await fixture.ViewModel.BeginPushToTalkAsync();
 
@@ -2157,7 +2157,7 @@ public sealed partial class MainViewModelTests
             {
                 fixture.ViewModel.SelectedMicrophone = null;
                 fixture.ViewModel.ListeningStatus.Should().Be(captureActive
-                    ? "Push-to-talk capture active · microphone selection is refreshing"
+                    ? "Recording · checking microphone selection"
                     : "Microphone closed · selected microphone is unavailable");
             }
         };
@@ -2534,13 +2534,13 @@ public sealed partial class MainViewModelTests
     {
         var fixture = CreateVoicePrivacyFixture(false);
         await fixture.ViewModel.InitializeAsync();
-        fixture.ViewModel.ListeningStatus.Should().Be("Microphone closed · ongoing voice consent not granted");
+        fixture.ViewModel.ListeningStatus.Should().Be("Microphone closed · listening permission not granted");
         fixture.Voice.RaiseFailure("unconsented result");
         fixture.ViewModel.HasVoiceConsent.Should().BeFalse();
         await fixture.ViewModel.SetVoiceConsentAsync(true);
         fixture.ViewModel.ListeningStatus.Should().Contain("Push-to-talk ready");
         await fixture.ViewModel.BeginPushToTalkAsync();
-        fixture.ViewModel.ListeningStatus.Should().Contain("Push-to-talk capture");
+        fixture.ViewModel.ListeningStatus.Should().Contain("Recording");
         await fixture.ViewModel.EndPushToTalkAsync();
     }
 }

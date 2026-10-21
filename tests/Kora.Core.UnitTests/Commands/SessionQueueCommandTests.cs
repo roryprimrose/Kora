@@ -14,31 +14,14 @@ public sealed class SessionQueueCommandTests
     [InlineData("queue help", SessionCommandOperation.Help)]
     [InlineData("queue list " + Session, SessionCommandOperation.QueueList)]
     [InlineData("queue status " + Session + " " + TaskId, SessionCommandOperation.QueueStatus)]
-    [InlineData("queue enqueue " + Session + " 1 0 " + Request + " " + TaskId + " version", SessionCommandOperation.QueueEnqueue)]
-    [InlineData("Kora, queue enqueue " + Session + " 1 0 " + Request + " " + TaskId + " version after " + Request, SessionCommandOperation.QueueEnqueue)]
     [InlineData("queue cancel " + Session + " 1 5 " + TaskId + " 1", SessionCommandOperation.QueueCancel)]
     [InlineData("queue remove " + Session + " 1 5 " + TaskId + " 1", SessionCommandOperation.QueueRemove)]
     [InlineData("queue clear " + Session + " 1 5 confirm", SessionCommandOperation.QueueClear)]
-    [InlineData("queue dispatch " + Session + " 1 5", SessionCommandOperation.QueueDispatch)]
     [InlineData("queue pause-status " + Session, SessionCommandOperation.QueuePauseStatus)]
-    [InlineData("queue pause " + Session + " 1 5 " + Request + " 0", SessionCommandOperation.QueuePause)]
-    [InlineData("Kora, queue resume " + Session + " 1 5 " + Request + " 2", SessionCommandOperation.QueueResume)]
     public void Exact_queue_grammar_is_deterministic_without_inference(string input, SessionCommandOperation operation)
     {
         var command = SessionCommand.Parse(input, "Kora")!;
         command.Operation.Should().Be(operation);
-        if (operation == SessionCommandOperation.QueueEnqueue)
-        {
-            command.WorkRequestId.Should().Be(Guid.Parse(Request));
-            command.TaskId.Should().Be(Guid.Parse(TaskId));
-            command.DependencyTaskId.Should().Be(input.Contains(" after ", StringComparison.Ordinal) ? Guid.Parse(Request) : null);
-            command.ExpectedDependencyRevision.Should().BeNull("typed after-task semantics do not require a native observation guard");
-        }
-        if (operation is SessionCommandOperation.QueuePause or SessionCommandOperation.QueueResume)
-        {
-            command.QueueRunId.Should().Be(Guid.Parse(Request));
-            command.QueueControlRevision.Should().Be(operation == SessionCommandOperation.QueuePause ? 0 : 2);
-        }
     }
 
     [Theory]
@@ -67,6 +50,11 @@ public sealed class SessionQueueCommandTests
     [InlineData("queue resume " + Session + " 1 0 00000000-0000-0000-0000-000000000000 0")]
     [InlineData("queue pause " + Session + " 1 0 " + Request + " 0 extra")]
     [InlineData("queue pause-status " + Session + " extra")]
+    [InlineData("queue enqueue " + Session + " 1 0 " + Request + " " + TaskId + " version")]
+    [InlineData("Kora, queue enqueue " + Session + " 1 0 " + Request + " " + TaskId + " version after " + Request)]
+    [InlineData("queue dispatch " + Session + " 1 5")]
+    [InlineData("queue pause " + Session + " 1 5 " + Request + " 0")]
+    [InlineData("Kora, queue resume " + Session + " 1 5 " + Request + " 2")]
     public void Unavailable_effects_names_stale_revisions_and_ambiguous_confirmation_are_rejected(string input) =>
         SessionCommand.Parse(input, "Kora")!.Operation.Should().Be(SessionCommandOperation.Invalid);
 
@@ -74,17 +62,6 @@ public sealed class SessionQueueCommandTests
     public void Oversized_queue_input_is_not_truncated_into_a_committed_request() =>
         SessionCommand.Parse("queue " + new string('x', SessionCommand.MaximumInputBytes), "Kora")!.Operation
             .Should().Be(SessionCommandOperation.Invalid);
-
-    [Fact]
-    public void OptionalNativeGuardCarriesARealRevisionWithoutChangingTypedGrammar()
-    {
-        var parsed = SessionCommand.Parse("queue enqueue " + Session + " 1 0 " + Request + " " + TaskId
-            + " version after " + Request, "Kora")!;
-        var native = parsed with { ExpectedDependencyRevision = new(5) };
-        native.ExpectedDependencyRevision!.Value.Value.Should().Be(5);
-        parsed.ExpectedDependencyRevision.Should().BeNull();
-        native.DependencyTaskId.Should().Be(parsed.DependencyTaskId);
-    }
 
     [Fact]
     public void Assistant_prefix_requires_a_complete_current_name_and_explicit_boundary()

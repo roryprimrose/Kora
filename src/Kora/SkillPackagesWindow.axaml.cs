@@ -42,13 +42,11 @@ public sealed partial class SkillPackagesWindow : Window
         {
             RetireSearch();
             this.FindControl<TextBox>("PackageQuery")!.Text = string.Empty;
-            this.FindControl<TextBox>("PackageDefinitionDigest")!.Text = string.Empty;
-            this.FindControl<TextBox>("PackageDeclaredResourceDigest")!.Text = string.Empty;
             filter.SelectedIndex = 0;
             order.SelectedIndex = 0;
             Search();
         };
-        foreach (var name in new[] { "PackageQuery", "PackageDefinitionDigest", "PackageDeclaredResourceDigest" })
+        foreach (var name in new[] { "PackageQuery" })
         {
             this.FindControl<TextBox>(name)!.PropertyChanged += (_, change) =>
             { if (change.Property == TextBox.TextProperty) { RetireSearch(); } };
@@ -75,8 +73,6 @@ public sealed partial class SkillPackagesWindow : Window
         results = [];
         this.FindControl<ComboBox>("PackageSelector")!.ItemsSource = Array.Empty<string>();
         this.FindControl<TextBox>("PackageQuery")!.Text = string.Empty;
-        this.FindControl<TextBox>("PackageDefinitionDigest")!.Text = string.Empty;
-        this.FindControl<TextBox>("PackageDeclaredResourceDigest")!.Text = string.Empty;
         this.FindControl<ComboBox>("PackageFilter")!.SelectedIndex = 0;
         this.FindControl<ComboBox>("PackageOrder")!.SelectedIndex = 0;
         this.FindControl<TextBlock>("PackageSearchStatus")!.Text = string.Empty;
@@ -102,8 +98,6 @@ public sealed partial class SkillPackagesWindow : Window
             var matching = SkillCatalogueSearch.Bundled(catalogue,
                 this.FindControl<TextBox>("PackageQuery")!.Text ?? string.Empty,
                 (SkillInvocationFilter)this.FindControl<ComboBox>("PackageFilter")!.SelectedIndex,
-                this.FindControl<TextBox>("PackageDefinitionDigest")!.Text ?? string.Empty,
-                this.FindControl<TextBox>("PackageDeclaredResourceDigest")!.Text ?? string.Empty,
                 (SkillCatalogueOrder)this.FindControl<ComboBox>("PackageOrder")!.SelectedIndex);
             SetResults(matching, selected);
             this.FindControl<TextBlock>("PackageSearchStatus")!.Text =

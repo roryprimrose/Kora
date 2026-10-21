@@ -18,7 +18,7 @@ public sealed class ProviderModeChoice
     }
 
     public ModelProviderMode Mode { get; }
-    public string Label => Mode.ToString();
+    public string Label => Presentation.SettingsText.ProviderMode(Mode);
     internal long Revision { get; }
     internal Guid Owner { get; }
     internal WorkSessionAuthorization Session { get; }

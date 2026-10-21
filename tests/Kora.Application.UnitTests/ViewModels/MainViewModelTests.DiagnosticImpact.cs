@@ -39,10 +39,11 @@ public sealed partial class MainViewModelTests
         fixture.ViewModel.CanPreviewDiagnosticImpact.Should().BeTrue();
         fixture.DiagnosticImpactReader.Requests.Should().BeEmpty();
         await fixture.ViewModel.PreviewDiagnosticImpactCommand.ExecuteAsync();
-        fixture.ViewModel.DiagnosticImpactPreviewStatus.Should().Contain("Ordinary logs: Complete; 1 newly due")
-            .And.Contain("Spans: Complete; 1 newly due").And.Contain("Owned links: Complete; 0 newly due")
-            .And.Contain("Committed UTC").And.Contain("Proposed due UTC")
-            .And.NotContain("private-stamp");
+        fixture.ViewModel.DiagnosticImpactPreviewStatus.Should().Contain("Diagnostic records: Complete; 1 newly due")
+            .And.Contain("Activity records: Complete; 1 newly due").And.Contain("Activity connections: Complete; 0 newly due")
+            .And.Contain("Recorded between").And.Contain("Proposed deletion dates")
+            .And.Contain("Preview only").And.Contain("Nothing is deleted")
+            .And.NotContain("private-stamp").And.NotContain("Spans").And.NotContain("Owned links");
         fixture.ViewModel.ResponseTitle.Should().Be(title);
         fixture.ViewModel.ResponseBody.Should().Be(body);
         fixture.ViewModel.Transcript.Should().Be(transcript);
@@ -64,7 +65,7 @@ public sealed partial class MainViewModelTests
         fixture.ViewModel.DiagnosticImpactPreviewStatus.Should().Contain("Proposal edited");
         fixture.DiagnosticImpactReader.LogStatus = DiagnosticImpactStatus.Incomplete;
         await fixture.ViewModel.PreviewDiagnosticImpactCommand.ExecuteAsync();
-        fixture.ViewModel.DiagnosticImpactPreviewStatus.Should().Contain("Ordinary logs: Incomplete; no count");
+        fixture.ViewModel.DiagnosticImpactPreviewStatus.Should().Contain("Diagnostic records: Incomplete; no count");
         await fixture.ViewModel.ClearDiagnosticImpactCommand.ExecuteAsync();
         fixture.ViewModel.ProposedDiagnosticImpactDays.Should().BeNull();
         fixture.ViewModel.DiagnosticImpactPreviewStatus.Should().Contain("cleared");

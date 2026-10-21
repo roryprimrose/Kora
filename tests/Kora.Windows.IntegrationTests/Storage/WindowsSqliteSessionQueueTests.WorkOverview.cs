@@ -88,23 +88,6 @@ public sealed partial class WindowsSqliteSessionQueueTests
         queueRows.Single(row => row.Entry.Request.TaskId == first.Request.TaskId).Entry.Should().Be(running);
         queueRows.Single(row => row.Entry.Request.TaskId == first.Request.TaskId).ActiveDeadline.Should().Be(running.ActiveDeadlineAt);
         rows.Single(row => row.Session.Authority.SessionId == created[5].Authority.SessionId).Work!.OmittedTasks.Should().BeGreaterThan(0);
-        var target = rows.Single(row => row.Session.Authority.SessionId == created[5].Authority.SessionId).Work!;
-        var ranges = new SessionWorkOverviewRanges(new(target.AuthorityRevision, target.AuthorityRevision),
-            new(target.QueueRevision, target.QueueRevision), new(target.PendingCount, target.PendingCount),
-            new(target.PendingCapacity, target.PendingCapacity), new(target.ExecutionSlots, target.ExecutionSlots),
-            new(target.ObservedCurrentFixedReads, target.ObservedCurrentFixedReads),
-            new(target.OmittedQueueRecords, target.OmittedQueueRecords), new(target.OmittedTasks, target.OmittedTasks),
-            new(target.OmittedQuestions, target.OmittedQuestions));
-        var ranged = new List<SessionWorkOverviewRow>();
-        do
-        {
-            var page = await service.ReadWorkOverviewAsync(SessionListFilter.All, false, cursor, f.Token, ranges: ranges);
-            SessionWorkOverviewPage.Serialize(page).Length.Should().BeLessThanOrEqualTo(65536);
-            ranged.AddRange(page.Records);
-            cursor = page.Next;
-        } while (cursor is not null);
-        ranged.Select(row => row.Session).Should().Equal(rows.Where(ranges.Matches).Select(row => row.Session));
-        ranged.Should().NotBeEmpty().And.OnlyContain(row => row.Work!.OmittedTasks == target.OmittedTasks);
         foreach (var state in Enum.GetValues<HostTaskState>())
         {
             var matching = new List<SessionWorkOverviewRow>();

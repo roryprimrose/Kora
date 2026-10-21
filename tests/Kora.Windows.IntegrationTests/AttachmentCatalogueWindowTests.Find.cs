@@ -116,7 +116,6 @@ public sealed partial class AttachmentCatalogueWindowTests
                 model.SelectedRecord.Should().BeSameAs(summary);
                 model.SelectedDetails.Should().Be(snapshot);
                 model.QueryText.Should().BeEmpty();
-                model.MetadataText.Should().BeEmpty();
                 model.CanNavigate.Should().BeTrue();
                 reads.Should().Be(1);
                 foreach (var transfer in new[] { TextBox.CopyingToClipboardEvent, TextBox.CuttingToClipboardEvent, TextBox.PastingFromClipboardEvent })
@@ -223,7 +222,7 @@ public sealed partial class AttachmentCatalogueWindowTests
                 {
                     case "selection": model.Select(null); break;
                     case "filter": model.Filter = SessionAttachmentFilter.Done; break;
-                    case "query": model.MetadataText = "text"; break;
+                    case "query": model.Mode = AttachmentCatalogueMode.ExactId; model.QueryText = Guid.NewGuid().ToString("D"); break;
                     case "page": pending = model.Refresh(next: true); break;
                     case "refresh": pending = model.Refresh(); break;
                     case "cancel": model.Cancel(); break;

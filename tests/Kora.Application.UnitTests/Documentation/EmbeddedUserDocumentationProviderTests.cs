@@ -12,6 +12,24 @@ namespace Kora.Application.UnitTests.Documentation;
 
 public sealed class EmbeddedUserDocumentationProviderTests
 {
+    [Theory]
+    [InlineData("commands")]
+    [InlineData("windows-and-tray")]
+    [InlineData("tools-and-built-in-skills")]
+    public void EmbeddedGuideDoesNotAdvertiseRetiredUtilities(string pageId)
+    {
+        var guide = new EmbeddedUserDocumentationProvider().GetPages()
+            .Single(page => string.Equals(page.Id, pageId, StringComparison.Ordinal)).Markdown;
+
+        guide.Should().NotContain("calculate <expression>")
+            .And.NotContain("calculate help")
+            .And.NotContain("what time is it")
+            .And.NotContain("help local clock")
+            .And.NotContain("host-local-date-and-time")
+            .And.NotContain("Validate this snapshot as JSON")
+            .And.NotContain("Validate this snapshot as XML");
+    }
+
     [Fact]
     public void Embedded_owned_editor_guide_distinguishes_private_displayed_buffer_find_from_metadata_and_mutations()
     {
@@ -28,15 +46,32 @@ public sealed class EmbeddedUserDocumentationProviderTests
     }
 
     [Fact]
-    public void Saved_draft_guide_limits_ordering_to_the_loaded_page_without_reads_or_authority()
+    public void ConversationGuideRetiresSavedDraftManagementAndExplainsReadOnlyLegacyRecovery()
     {
         var commands = new EmbeddedUserDocumentationProvider().GetPages()
             .Single(page => string.Equals(page.Id, "commands", StringComparison.Ordinal)).Markdown;
-        commands.Should().Contain("Order this loaded page").And.Contain("Source order (default)")
-            .And.Contain("ordinal case-sensitive ordering").And.Contain("unnamed sessions last")
-            .And.Contain("canonical session ID ascending").And.Contain("not global ordering")
-            .And.Contain("original source continuation").And.Contain("Clear restores Source order without reading")
-            .And.Contain("dirty-buffer Save/Discard/Cancel protection remains");
+        commands.Should().Contain("Unsent input stays separately in memory for each exact session")
+            .And.Contain("no ordinary draft Save/Reload/Clear")
+            .And.Contain("Recover existing legacy text into empty input")
+            .And.Contain("cannot overwrite nonempty unsent input")
+            .And.Contain("no silent migration or purge")
+            .And.Contain("Switching topics preserves text without prompting")
+            .And.NotContain("open saved conversation drafts");
+    }
+
+    [Fact]
+    public void Embedded_owned_editor_metadata_find_is_displayed_details_only_without_read_or_use_authority()
+    {
+        var guide = new EmbeddedUserDocumentationProvider().GetPages()
+            .Single(page => string.Equals(page.Id, "instruction-editor", StringComparison.Ordinal)).Markdown;
+        guide.Should().Contain("Find in selected metadata")
+            .And.Contain("never searches the")
+            .And.Contain("complete nonoverlapping sequence without wrapping")
+            .And.Contain("source editor, unsaved draft, other rows, hidden paths")
+            .And.Contain("It does not open or inspect a file")
+            .And.Contain("focus failure explicitly clears")
+            .And.Contain("not logged, persisted, copied, sent to a model or spoken")
+            .And.Contain("Ctrl+F is not");
     }
 
     [Fact]
@@ -74,19 +109,16 @@ public sealed class EmbeddedUserDocumentationProviderTests
     }
 
     [Fact]
-    public void Embedded_all_work_guide_explains_inclusive_ranges_and_unavailable_omission_boundaries()
+    public void EmbeddedAllWorkGuideRetiresEngineeringQueriesAndPreservesUnavailableBoundaries()
     {
         var guide = new EmbeddedUserDocumentationProvider().GetPages()
             .Single(page => string.Equals(page.Id, "windows-and-tray", StringComparison.Ordinal)).Markdown;
-        guide.Should().Contain("Optional inclusive observed work metadata ranges")
-            .And.Contain("authority revision, queue revision, pending count/capacity")
-            .And.Contain("execution slots, observed current fixed reads")
-            .And.Contain("omitted queue-receipt/task/pending-question counts")
-            .And.Contain("minimum must not exceed maximum")
-            .And.Contain("queue revision and counts may be zero")
-            .And.Contain("Source changed, Read unavailable and Output bound never do")
-            .And.Contain("proves no absence, completeness, success or authority")
-            .And.Contain("Clear work metadata ranges");
+        guide.Should().Contain("Authority/queue/count ranges and retained task/request-ID query machinery are retired")
+            .And.Contain("unavailable observations remain explicit rather than an empty success")
+            .And.Contain("preserving complete-record byte limits, omissions and continuation")
+            .And.Contain("Order affects only the loaded page")
+            .And.Contain("Neither grants navigation or execution authority")
+            .And.NotContain("Optional inclusive observed work metadata ranges");
     }
 
     [Fact]
@@ -150,7 +182,7 @@ public sealed class EmbeddedUserDocumentationProviderTests
         page.Markdown.Should().Contain("### Read-only integration skill");
         page.Markdown.Should().Contain("## 14. Persistent sessions, history, and shared questions");
         page.Markdown.Should().Contain("## 15. Deferred context, knowledge, and general execution");
-        page.Markdown.Should().Contain("two independently executing sessions");
+        page.Markdown.Should().Contain("General concurrent workers/provider scheduling remain unqualified");
         page.Markdown.Should().Contain("combined script-set hash");
         page.Markdown.Should().Contain("Ignore reusable grants during calls");
     }
@@ -169,7 +201,7 @@ public sealed class EmbeddedUserDocumentationProviderTests
             .Skip(1)
             .ToArray();
 
-        sections.Should().HaveCount(commands.Count + 17);
+        sections.Should().HaveCount(commands.Count + 20);
         var disposition = sections.Single(section => section.StartsWith("Review one exact session's logical disposition", StringComparison.Ordinal));
         disposition.Should().Contain(SessionDispositionReviewCommand.Syntax)
             .And.Contain("Nothing is removed by the command").And.Contain("separate deliberate native action")
@@ -181,10 +213,23 @@ public sealed class EmbeddedUserDocumentationProviderTests
             .And.Contain("conversation search cancel <session-id>")
             .And.Contain("current assistant-name prefix")
             .And.Contain("not a caller-supplied cursor or JSON")
-            .And.Contain("dirty composer buffers")
+            .And.Contain("unsent buffers")
             .And.Contain("visual-only")
             .And.Contain("same")
             .And.Contain("canonical search service");
+        var responseWindow = sections.Single(section => section.StartsWith(
+            "Inspect or change Kora's response-window visibility preferences", StringComparison.Ordinal));
+        var responseWindowPhrases = Regex.Matches(responseWindow[..responseWindow.IndexOf("These are complete", StringComparison.Ordinal)],
+            @"\*\*(?<phrase>[^*]+)\*\*", RegexOptions.None, TimeSpan.FromSeconds(1))
+            .Select(match => match.Groups["phrase"].Value).ToArray();
+        responseWindowPhrases.Should().HaveCount(15).And.OnlyContain(phrase =>
+            ResponseWindowCommand.Parse(phrase, "Kora") != null
+            && ResponseWindowCommand.Parse(phrase, "Kora")!.Operation != AppearanceCommandOperation.Clarify);
+        responseWindow.Should().Contain("No automatic rewrite").And.Contain("pending question/approval")
+            .And.Contain("AlwaysShow=false").And.Contain("Topmost=true");
+        var attachment = sections.Single(section => section.StartsWith("Inspect one retained attachment by exact session address", StringComparison.Ordinal));
+        attachment.Should().Contain("session attachment inspect <session-id>").And.Contain("inspection-only")
+            .And.Contain("never answers a pending question");
         var editor = sections.Single(section => section.StartsWith("Edit an owned instruction or literal prompt without a model", StringComparison.Ordinal));
         editor.Should().Contain("instructions editor").And.Contain("prompts editor")
             .And.Contain("same").And.Contain("Reload/Overwrite/Cancel").And.Contain("No paths or body dictation");
@@ -210,6 +255,10 @@ public sealed class EmbeddedUserDocumentationProviderTests
             RegexOptions.Multiline, TimeSpan.FromSeconds(1))
             .Select(match => match.Groups["phrase"].Value).ToArray();
         sessionPhrases.Should().Equal("open sessions");
+        var newRequest = sections.Single(section => section.StartsWith(
+            "Open the existing New request composer", StringComparison.Ordinal));
+        newRequest.Should().Contain("open new request").And.Contain("Activated voice")
+            .And.Contain("current question or approval").And.Contain("Model-facing opening is unavailable");
         var appearance = sections.Single(section => section.StartsWith(
             "Inspect or change an admitted appearance option", StringComparison.Ordinal));
         var appearancePhrases = Regex.Matches(appearance, @"^- \*\*(?<phrase>.+?)\*\*\r?$",
@@ -306,6 +355,7 @@ public sealed class EmbeddedUserDocumentationProviderTests
         sections = sections.Where(section => !ReferenceEquals(section, appearance)
             && !ReferenceEquals(section, naturalAppearance)
             && !ReferenceEquals(section, disposition)
+            && !ReferenceEquals(section, responseWindow)
             && !ReferenceEquals(section, output)
             && !ReferenceEquals(section, volume)
             && !ReferenceEquals(section, rate)
@@ -313,7 +363,8 @@ public sealed class EmbeddedUserDocumentationProviderTests
             && !ReferenceEquals(section, sessions) && !ReferenceEquals(section, speech)
             && !ReferenceEquals(section, sessionCommands) && !ReferenceEquals(section, summaries)).ToArray();
         sections = sections.Where(section => !ReferenceEquals(section, sharedSkills)
-            && !ReferenceEquals(section, webPage) && !ReferenceEquals(section, conversationSearch)).ToArray();
+            && !ReferenceEquals(section, webPage) && !ReferenceEquals(section, conversationSearch)
+            && !ReferenceEquals(section, attachment) && !ReferenceEquals(section, newRequest)).ToArray();
         for (var index = 0; index < commands.Count; index++)
         {
             var phrases = Regex.Matches(

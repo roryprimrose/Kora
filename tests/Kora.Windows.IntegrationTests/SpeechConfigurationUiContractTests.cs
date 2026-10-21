@@ -29,7 +29,9 @@ public sealed class SpeechConfigurationUiContractTests
         voiceCard.Descendants().Any(control => string.Equals(control.Attribute("Text")?.Value,
             "Speech voice", StringComparison.Ordinal)).Should().BeTrue();
         voice.Descendants().Any(control => string.Equals(control.Attribute("Text")?.Value,
-            "{Binding ConfigurationId}", StringComparison.Ordinal)).Should().BeTrue();
+            "{Binding ConfigurationId}", StringComparison.Ordinal)).Should().BeFalse();
+        voice.Descendants().Any(control => string.Equals(control.Attribute("Text")?.Value,
+            "{Binding ProviderId, StringFormat='Voice source: {0}'}", StringComparison.Ordinal)).Should().BeTrue();
         var assetProvider = controls.Single(control => string.Equals(control.Attribute("SelectedItem")?.Value,
             "{Binding SelectedSpeechProvider}", StringComparison.Ordinal));
         assetProvider.Attribute("ItemsSource")!.Value.Should().Be("{Binding SpeechProviders}");
@@ -50,7 +52,7 @@ public sealed class SpeechConfigurationUiContractTests
         controls.Any(control => string.Equals(control.Attribute("Text")?.Value,
             "{Binding SpeechSettingStatus}", StringComparison.Ordinal)).Should().BeTrue();
         controls.Any(control => string.Equals(control.Attribute("Text")?.Value,
-            "Speech provider assets (review only)", StringComparison.Ordinal)).Should().BeTrue();
+            "Speech downloads", StringComparison.Ordinal)).Should().BeTrue();
         File.ReadAllText(Path.Combine(root, "src", "Kora", "Program.cs"))
             .Should().Contain("AddSingleton<SpeechConfigurationService>()").And.Contain("AddSingleton<ISpeechCatalog>");
     }

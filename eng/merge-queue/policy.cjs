@@ -13,6 +13,8 @@ const STATE_BRANCH = 'automation/merge-queue-state';
 const SHA = /^[0-9a-f]{40}$/;
 const TICKET = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 const PRIORITY_LABELS = Object.freeze(['queue:priority-high', 'queue:priority-normal', 'queue:priority-low']);
+const MERGE_PHASES = Object.freeze(['merging', 'merge-refused', 'merge-unconfirmed']);
+const MERGE_CONFIRMATION_MS = 10 * 60_000;
 
 function invariant(condition, message) {
   if (!condition) throw new Error(message);
@@ -47,15 +49,25 @@ function validateState(state) {
   if (active !== null) {
     invariant(active && Number.isSafeInteger(active.number) && active.number > 0
       && SHA.test(active.head) && SHA.test(active.base) && TICKET.test(active.ticket)
-      && ['updating', 'reserved', 'dispatched', 'retiring'].includes(active.phase)
+      && ['updating', 'reserved', 'dispatched', 'retiring', ...MERGE_PHASES].includes(active.phase)
       && typeof active.dispatchRecorded === 'boolean'
-      && (active.phase === 'retiring' || active.dispatchRecorded === (active.phase === 'dispatched'))
+      && (active.phase === 'retiring'
+        || active.dispatchRecorded === (active.phase === 'dispatched' || MERGE_PHASES.includes(active.phase)))
       && typeof active.created === 'string' && Number.isFinite(Date.parse(active.created))
       && typeof active.enrollment === 'string' && Number.isFinite(Date.parse(active.enrollment)) && active.checks
       && typeof active.checks === 'object' && !Array.isArray(active.checks), 'Invalid active candidate.');
     for (const [name, id] of Object.entries(active.checks)) {
       invariant([...CHECKS, GATE].includes(name) && Number.isSafeInteger(id) && id > 0,
         'Invalid candidate check identity.');
+    }
+    if (MERGE_PHASES.includes(active.phase) || active.mergeStarted !== undefined) {
+      invariant((MERGE_PHASES.includes(active.phase) || active.phase === 'retiring')
+        && active.dispatchRecorded === true
+        && typeof active.mergeStarted === 'string' && Number.isFinite(Date.parse(active.mergeStarted))
+        && new Date(Date.parse(active.mergeStarted)).toISOString() === active.mergeStarted
+        && Date.parse(active.mergeStarted) >= Date.parse(active.created)
+        && [...CHECKS, GATE].every(name => active.checks[name]),
+        'Invalid merge reconciliation identity or timestamp.');
     }
   }
   return state;
@@ -95,5 +107,6 @@ function successfulJobs(jobs) {
   });
 }
 
-module.exports = { CHECKS, GATE, JOBS, STATE_BRANCH, SHA, TICKET, invariant, mode, execution,
+module.exports = { CHECKS, GATE, JOBS, STATE_BRANCH, SHA, TICKET, MERGE_PHASES, MERGE_CONFIRMATION_MS,
+  invariant, mode, execution,
   validateState, ready, priority, title, matchingRuns, successfulJobs };

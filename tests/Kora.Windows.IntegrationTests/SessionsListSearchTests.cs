@@ -29,86 +29,6 @@ public sealed class SessionsListSearchTests
     private static readonly string[] RangeControlNames = ["ListMinimumGeneration", "ListMaximumGeneration",
         "ListMinimumMetadataRevision", "ListMaximumMetadataRevision"];
 
-    [Theory]
-    [InlineData("ListMinimumNameLength")]
-    [InlineData("ListMaximumNameLength")]
-    public async Task NativeScalarLengthFieldsAreAccessibleUntruncatedAndRetireSearchSelectionActionsAndCursorWithoutReads(string fieldName)
-    {
-        await HeadlessSession.RunAsync(async () =>
-        {
-            using var f = new InteractionStorageFixture();
-            await f.InitializeAsync();
-            var access = new Access();
-            var service = new SessionWorkspaceService(f.Store, new(f.Tasks), access, NullLogger<SessionWorkspaceService>.Instance);
-            for (var index = 0; index < 26; index++)
-            {
-                await service.CreateAsync(new("é\U0001F408"), RequestOrigin.LocalUi, f.Token);
-            }
-            var sink = new WindowsSqliteEvidenceSink(f.Paths);
-            sink.Initialize();
-            var model = new SessionsViewModel(service,
-                new(new WindowsSqliteEvidenceReader(sink), access, f.Time, NullLogger<DurableEvidenceQuery>.Instance),
-                access, NullLogger<SessionsViewModel>.Instance);
-            var audits = f.Count("security_audit_events");
-            var tasks = f.Count("host_tasks");
-            var window = new SessionsWindow(model);
-            window.Show();
-            try
-            {
-                model.ListSearchKind = SessionListSearchKind.Browse;
-                model.ListMinimumNameLength = "2";
-                model.ListMaximumNameLength = "2";
-                var minimum = window.FindControl<TextBox>("ListMinimumNameLength")!;
-                var maximum = window.FindControl<TextBox>("ListMaximumNameLength")!;
-                foreach (var range in new[] { minimum, maximum })
-                {
-                    range.Focus().Should().BeTrue();
-                    range.MaxLength.Should().Be(0);
-                    range.Text.Should().Be("2");
-                    range.IsEnabled.Should().BeTrue();
-                    ControlAutomationPeer.CreatePeerForElement(range)!.GetName().Should()
-                        .Contain("Unicode scalars inclusive").And.Contain("empty for Any").And.Contain("unnamed never matches");
-                }
-                var search = Task.CompletedTask;
-                await DispatchWhenReady(model, () => model.CanSearchList, () => search = model.SearchListAsync(), f.Token);
-                await search;
-                model.Sessions.Should().HaveCount(25);
-                model.SelectedSessionRecord.Should().BeNull("a scalar count is not an identity");
-                model.CanNextListSearch.Should().BeTrue();
-                await model.SelectAsync(model.Sessions[0]);
-                model.Detail.Should().NotBeEmpty();
-                var field = window.FindControl<TextBox>(fieldName)!;
-                field.Text = new('9', 1000);
-                Dispatcher.UIThread.RunJobs();
-                field.Text.Should().HaveLength(1000);
-                model.CanSearchList.Should().BeFalse();
-                model.Status.Should().Contain("name-length").And.Contain("Unicode scalars");
-                model.Sessions.Should().BeEmpty();
-                model.SelectedSessionRecord.Should().BeNull();
-                model.Detail.Should().BeEmpty();
-                model.WorkRecords.Should().BeEmpty();
-                model.HistoryRecords.Should().BeEmpty();
-                model.CanCancelWork.Should().BeFalse();
-                model.CanNextListSearch.Should().BeFalse();
-                var escape = new KeyEventArgs { RoutedEvent = InputElement.KeyDownEvent, Key = Key.Escape };
-                field.RaiseEvent(escape);
-                escape.Handled.Should().BeTrue();
-                model.ListMinimumNameLength.Should().BeEmpty();
-                model.ListMaximumNameLength.Should().BeEmpty();
-                model.Sessions.Should().BeEmpty("Escape clears without a read");
-                model.ListMinimumNameLength = "1";
-                model.ListMaximumNameLength = "2";
-                window.FindControl<Button>("ClearListSearch")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-                model.ListMinimumNameLength.Should().BeEmpty();
-                model.ListMaximumNameLength.Should().BeEmpty();
-                model.Sessions.Should().BeEmpty("Clear clears without a read");
-                f.Count("security_audit_events").Should().Be(audits);
-                f.Count("host_tasks").Should().Be(tasks);
-            }
-            finally { window.Close(); }
-        });
-    }
-
     [WindowsFact]
     public async Task ExactNameKeepsDuplicateNamesPassiveAndInvalidEditsRetireSelectionWithoutSearching()
     {
@@ -136,10 +56,7 @@ public sealed class SessionsListSearchTests
                 model.ListNameAvailability.Should().Be(SessionNameAvailability.Any);
                 foreach (var name in RangeControlNames)
                 {
-                    var range = window.FindControl<TextBox>(name)!;
-                    range.Focus().Should().BeTrue();
-                    range.Text.Should().BeEmpty();
-                    ControlAutomationPeer.CreatePeerForElement(range)!.GetName().Should().Contain("empty for Any");
+                    window.FindControl<TextBox>(name).Should().BeNull();
                 }
                 model.ListQuery = "café 100%_";
                 model.Sessions.Should().BeEmpty("edits do not read");
@@ -218,17 +135,12 @@ public sealed class SessionsListSearchTests
                 await model.SearchListAsync();
                 model.Sessions.Should().ContainSingle().Which.Metadata.Should().BeNull();
                 model.SelectedSessionRecord.Should().BeNull();
-                model.ListMaximumMetadataRevision = "1";
-                await model.SearchListAsync();
-                model.Sessions.Should().BeEmpty("Unnamed and a name-revision bound are an empty conjunction");
-                model.Status.Should().Contain("1 unnamed");
                 model.ListQuery = "not empty";
                 model.CanSearchList.Should().BeFalse();
                 model.Status.Should().Contain("Browse requires empty query text");
                 model.ClearListSearch();
                 model.ListNameAvailability.Should().Be(SessionNameAvailability.Any);
                 model.ListQuery.Should().BeEmpty();
-                model.ListMaximumMetadataRevision.Should().BeEmpty();
                 model.Sessions.Should().BeEmpty("Clear never reads");
                 f.Count("security_audit_events").Should().Be(audits);
                 f.Count("host_tasks").Should().Be(tasks);
@@ -284,10 +196,6 @@ public sealed class SessionsListSearchTests
                     SessionListSearchKind.Browse, SessionListSearchKind.ExactName);
                 model.ListSearchKind = kind;
                 model.ListQuery = kind is SessionListSearchKind.ExactName ? "Private café" : "café";
-                model.ListMinimumGeneration = "1";
-                model.ListMaximumGeneration = "1";
-                model.ListMinimumMetadataRevision = "1";
-                model.ListMaximumMetadataRevision = "1";
                 model.SelectedSessionRecord.Should().Be(selected, "editing a draft in ordinary list mode does not target or clear work");
                 var complete = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
                 void OnChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs args)
@@ -322,21 +230,16 @@ public sealed class SessionsListSearchTests
                 ControlAutomationPeer.CreatePeerForElement(field)!.GetName().Should().Contain("not conversation-history");
                 foreach (var name in RangeControlNames)
                 {
-                    var range = window.FindControl<TextBox>(name)!;
-                    range.Focus().Should().BeTrue();
-                    range.Text.Should().Be("1");
-                    range.IsEnabled.Should().BeTrue();
-                    ControlAutomationPeer.CreatePeerForElement(range)!.GetName().Should().Contain("inclusive")
-                        .And.Contain("positive decimal or empty for Any");
+                    window.FindControl<TextBox>(name).Should().BeNull();
                 }
                 window.FindControl<Button>("SearchList")!.IsEnabled.Should().BeTrue();
                 model.Status.Should().Contain("not an atomic snapshot").And.Contain("0 matching records omitted");
                 f.Count("security_audit_events").Should().Be(audits);
                 (await f.Tasks.ReadTaskAsync(f.Request.TaskId, f.Token)).Should().Be(task);
                 (await f.Store.ReadRetentionAsync(f.Request.SessionId, f.Token)).Should().Be(clock);
-                model.ListMinimumMetadataRevision = "2";
+                model.ListQuery = string.Empty;
                 model.CanSearchList.Should().BeFalse();
-                model.Status.Should().Contain("minimum <= maximum");
+                model.Status.Should().Contain("Invalid session metadata query");
                 model.SelectedSessionRecord.Should().BeNull();
                 model.PendingQuestions.Should().BeEmpty();
                 model.WorkRecords.Should().BeEmpty();
@@ -349,10 +252,6 @@ public sealed class SessionsListSearchTests
                 window.IsVisible.Should().BeTrue();
                 field.IsFocused.Should().BeTrue();
                 model.ListQuery.Should().BeEmpty();
-                model.ListMinimumGeneration.Should().BeEmpty();
-                model.ListMaximumGeneration.Should().BeEmpty();
-                model.ListMinimumMetadataRevision.Should().BeEmpty();
-                model.ListMaximumMetadataRevision.Should().BeEmpty();
                 await model.RefreshAsync();
                 model.Sessions.Should().ContainSingle();
                 model.ListSearchKind = SessionListSearchKind.ExactId;

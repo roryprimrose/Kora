@@ -13,7 +13,7 @@ internal sealed partial class SessionsViewModel
     public IReadOnlyList<SessionListPageOrder> ListPageOrders { get; } = Enum.GetValues<SessionListPageOrder>();
     public string ListPageOrderScope => "Order this loaded session page only: paged metadata search (including empty-text Browse), "
         + "not the ordinary Refresh list or all sessions. Source preserves the original page. "
-        + "Names use case-sensitive ordinal order; unnamed last in both directions. Authority generation uses admitted positive revisions. "
+        + "Names use case-sensitive ordinal order; unnamed last in both directions. "
         + "Ties use canonical session ID ascending. No read, selection, saved preference or global completeness claim; Next keeps the original scan.";
     public bool CanOrderListPage => CanRead && !refreshingWork && !conversationBusy
         && listSearchMode && listSearch is not null && sessions?.Records == listSearch.Records

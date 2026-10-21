@@ -316,7 +316,8 @@ public sealed class LocalFileWrappingWindowTests
             ? AutomationProperties.GetName(block)?.StartsWith(name, StringComparison.Ordinal) == true
             : string.Equals(AutomationProperties.GetName(block), name, StringComparison.Ordinal));
     private static TextBox FindQuery(Window window) => window.GetVisualDescendants().OfType<TextBox>().Single(box =>
-        AutomationProperties.GetName(box)?.StartsWith("Case-sensitive literal Find", StringComparison.Ordinal) == true);
+        string.Equals(AutomationProperties.GetName(box), "Literal Find in the currently displayed exact original file only",
+            StringComparison.Ordinal));
     private static Task Press(Window window, string caption)
     {
         window.UpdateLayout();

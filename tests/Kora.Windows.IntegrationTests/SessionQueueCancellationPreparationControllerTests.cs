@@ -28,7 +28,7 @@ public sealed class SessionQueueCancellationPreparationControllerTests
             for (var i = 0; i < 2; i++)
             {
                 var observed = await f.Interactions.ReadQueueAsync(session.SessionId, f.Token);
-                await f.Sessions.ExecuteCommandAsync(new(SessionCommandOperation.QueueEnqueue, session.SessionId.Value, session.Generation.Value)
+                await f.Queue.ExecuteCommandAsync(new(SessionCommandOperation.QueueEnqueue, session.SessionId.Value, session.Generation.Value)
                 {
                     QueueRevision = observed.Revision, WorkRequestId = Guid.NewGuid(), TaskId = Guid.NewGuid(),
                 }, RequestOrigin.LocalUi, () => true, f.Token);
@@ -79,7 +79,7 @@ public sealed class SessionQueueCancellationPreparationControllerTests
             controller.Bind();
             var session = f.LifecycleTarget!;
             var task = Guid.NewGuid();
-            await f.Sessions.ExecuteCommandAsync(new(SessionCommandOperation.QueueEnqueue, session.SessionId.Value, session.Generation.Value)
+            await f.Queue.ExecuteCommandAsync(new(SessionCommandOperation.QueueEnqueue, session.SessionId.Value, session.Generation.Value)
                 { WorkRequestId = Guid.NewGuid(), TaskId = task }, RequestOrigin.LocalUi, () => true, f.Token);
             SessionsViewModel? model = null;
             using var opened = Window.WindowOpenedEvent.AddClassHandler<SessionsWindow>((view, _) =>

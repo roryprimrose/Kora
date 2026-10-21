@@ -119,7 +119,9 @@ public sealed partial class MainViewModelTests
                 SecurityAuditInitiator.TypedCommand, cancellationToken: new CancellationToken(true));
         }
         else { await fixture.RunAsync("turn on speech captions"); }
-        fixture.ViewModel.SpeechTextConfigurationStatus.Should().Contain(stage is "missing" ? "unavailable" : "\"available\":false");
+        fixture.ViewModel.SpeechTextConfigurationStatus.Should().Contain(stage is "missing" ? "unavailable" : "Setting unavailable");
+        fixture.ViewModel.SelectedSpeechTextChoice.Should().BeNull();
+        fixture.ViewModel.SpeechCaptionPlacement.Should().BeNull();
         fixture.ViewModel.IsSpeechCaptionVisible.Should().BeFalse();
         fixture.ViewModel.SpeechCaptionText.Should().BeNull();
         fixture.TextToSpeech.SpokenText.Should().BeNull();

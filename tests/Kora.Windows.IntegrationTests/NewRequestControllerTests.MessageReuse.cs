@@ -51,7 +51,8 @@ public sealed partial class NewRequestControllerTests
             using var sessions = new SessionsWindowController(f.Main, f.Sessions, f.Evidence, f.Access,
                 NullLogger<SessionsViewModel>.Instance, conversation: conversation);
             using var controller = new NewRequestWindowController(f.Main, f.Sessions, f.Access,
-                () => new(f.Sessions, conversation, f.Access, NullLogger<NewRequestComposer>.Instance), sessions);
+                () => new(f.Sessions, conversation, f.Access, NullLogger<NewRequestComposer>.Instance), sessions,
+                new AvaloniaUiDispatcher());
             controller.Bind();
             var owner = new Window();
             owner.Show();
@@ -76,7 +77,6 @@ public sealed partial class NewRequestControllerTests
                 composer.Target.Should().BeNull();
                 composer.Submission.Should().BeNull();
                 composer.CanSubmit.Should().BeFalse();
-                composer.CanSave.Should().BeFalse();
                 (await f.Interactions.ReadMetadataPageAsync(null, 50, f.Token)).Records.Should().HaveCount(count);
                 (await f.Interactions.ReadRetentionAsync(source.Authority.SessionId, f.Token)).Should().Be(before);
                 (await f.Interactions.ReadConversationMessageAsync(source.Authority.SessionId, original.Request.RequestId, f.Token)).Should().Be(original);
@@ -116,7 +116,8 @@ public sealed partial class NewRequestControllerTests
             using var sessions = new SessionsWindowController(f.Main, f.Sessions, f.Evidence, f.Access,
                 NullLogger<SessionsViewModel>.Instance, conversation: conversation);
             using var controller = new NewRequestWindowController(f.Main, f.Sessions, f.Access,
-                () => new(f.Sessions, conversation, f.Access, NullLogger<NewRequestComposer>.Instance), sessions);
+                () => new(f.Sessions, conversation, f.Access, NullLogger<NewRequestComposer>.Instance), sessions,
+                new AvaloniaUiDispatcher());
             controller.Bind();
             var owner = new Window();
             owner.Show();
@@ -161,7 +162,6 @@ public sealed partial class NewRequestControllerTests
                     : decision is "close" ? string.Empty : "existing memory");
                 composer.Submission.Should().BeNull();
                 composer.CanSubmit.Should().BeFalse();
-                composer.CanSave.Should().BeFalse();
             }
             finally { controller.Dispose(); owner.Close(); }
         });
@@ -187,7 +187,8 @@ public sealed partial class NewRequestControllerTests
                 NullLogger<SessionsViewModel>.Instance, conversation: conversation);
             NewRequestComposer? state = null;
             using var controller = new NewRequestWindowController(f.Main, f.Sessions, f.Access,
-                () => state = new(f.Sessions, conversation, f.Access, NullLogger<NewRequestComposer>.Instance), sessions);
+                () => state = new(f.Sessions, conversation, f.Access, NullLogger<NewRequestComposer>.Instance), sessions,
+                new AvaloniaUiDispatcher());
             controller.Bind();
             controller.DecideOriginalReuse = (_, _) => Task.FromResult(true);
             var owner = new Window();

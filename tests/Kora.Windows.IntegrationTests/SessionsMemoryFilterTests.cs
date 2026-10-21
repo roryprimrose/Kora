@@ -461,10 +461,17 @@ public sealed partial class SessionsMemoryFilterTests
                 order.IsEffectivelyVisible.Should().BeTrue();
                 order.Bounds.Width.Should().BeGreaterThan(0).And.BeLessThan(window.ClientSize.Width);
                 var position = order.TranslatePoint(default, window)!.Value;
+                var workPane = window.FindControl<ScrollViewer>("SelectedSessionWorkPane")!;
+                var memoryPane = order.GetVisualAncestors().OfType<ScrollViewer>().First();
                 position.X.Should().BeGreaterThanOrEqualTo(0);
                 position.Y.Should().BeGreaterThanOrEqualTo(0);
                 (position.X + order.Bounds.Width).Should().BeLessThanOrEqualTo(window.ClientSize.Width);
-                (position.Y + order.Bounds.Height).Should().BeLessThanOrEqualTo(window.ClientSize.Height);
+                (position.Y + order.Bounds.Height).Should().BeLessThanOrEqualTo(window.ClientSize.Height,
+                    "work pane origin {0}, bounds {1}, viewport {2}, offset {3}; memory pane origin {4}, bounds {5}, viewport {6}, offset {7}, extent {8}; order position {9}",
+                    workPane.TranslatePoint(default, window), workPane.Bounds, workPane.Viewport, workPane.Offset,
+                    memoryPane.TranslatePoint(default, window), memoryPane.Bounds, memoryPane.Viewport, memoryPane.Offset,
+                    memoryPane.Extent, position);
+                AssertInsideWorkViewport(order, workPane);
                 order.SelectedIndex.Should().Be(0);
                 order.SelectionBoxItem!.ToString().Should().Be("Source order (default)");
                 ControlAutomationPeer.CreatePeerForElement(order)!.GetName().Should()
@@ -477,10 +484,14 @@ public sealed partial class SessionsMemoryFilterTests
                 {
                     range.IsEnabled.Should().BeTrue();
                     range.Focus().Should().BeTrue();
+                    window.UpdateLayout();
+                    AssertInsideWorkViewport(range, workPane);
                     ControlAutomationPeer.CreatePeerForElement(range)!.GetName().Should()
                         .Contain("inclusive").And.Contain("Any").And.Contain("metadata only");
                 }
                 id.Focus().Should().BeTrue();
+                window.UpdateLayout();
+                AssertInsideWorkViewport(id, workPane);
                 scope.SelectedIndex.Should().Be(0);
                 scope.SelectedItem.Should().BeSameAs(f.Model.MemoryScopeFilters[0]);
                 scope.SelectionBoxItem!.ToString().Should().Be("Any");
@@ -608,9 +619,7 @@ public sealed partial class SessionsMemoryFilterTests
                     actions.Bounds.Width.Should().BeLessThanOrEqualTo(pane.Viewport.Width);
                     var buttons = actions.GetLogicalDescendants().OfType<Button>().ToArray();
                     buttons.Select(button => button.Name).Should().Equal("ReadQueue", "InspectWork", "CancelQueueEntry",
-                        "RemoveQueueEntry", "MoveQueueUp", "MoveQueueDown", "EnqueueVersion", "EnqueueCapabilities",
-                        "EnqueueReadiness", "EnqueueRuntimes", "EnqueueCapability", "EnqueueRuntimeStatus",
-                        "DispatchQueue", "PauseQueue", "ResumeQueue", "ClearQueue");
+                        "RemoveQueueEntry", "ClearQueue");
                     foreach (var button in buttons)
                     {
                         if (button.IsEnabled) { button.Focus().Should().BeTrue(); }
@@ -664,6 +673,18 @@ public sealed partial class SessionsMemoryFilterTests
         model.CanAdmitMemory.Should().BeFalse();
         model.CanEditMemory.Should().BeFalse();
         model.CanDisableMemory.Should().BeFalse();
+    }
+
+    private static void AssertInsideWorkViewport(Control control, ScrollViewer workPane)
+    {
+        if (workPane.Presenter is not ScrollContentPresenter presenter)
+        { throw new InvalidOperationException("The native work viewport presenter is unavailable."); }
+        var location = control.TranslatePoint(default, presenter)
+            ?? throw new InvalidOperationException("The control is outside the native work viewport.");
+        location.X.Should().BeGreaterThanOrEqualTo(0);
+        location.Y.Should().BeGreaterThanOrEqualTo(0);
+        (location.X + control.Bounds.Width).Should().BeLessThanOrEqualTo(presenter.Viewport.Width);
+        (location.Y + control.Bounds.Height).Should().BeLessThanOrEqualTo(presenter.Viewport.Height);
     }
 
     private static void AssertVisibleInWindow(Control control, Window window)

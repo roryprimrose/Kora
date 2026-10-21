@@ -160,12 +160,6 @@ public sealed partial class SessionsConversationTests
     [InlineData("submit", "control")]
     [InlineData("submit", "private")]
     [InlineData("submit", "close")]
-    [InlineData("save", "edit")]
-    [InlineData("save", "cancel")]
-    [InlineData("save", "revision")]
-    [InlineData("save", "control")]
-    [InlineData("save", "private")]
-    [InlineData("save", "close")]
     public async Task NewRequestOriginalAdmissionIsFencedAtActualPrivateSqliteCommitAndLateCallbacksCannotRetry(string operation, string revoke)
     {
         using var f = new InteractionStorageFixture();
@@ -178,8 +172,7 @@ public sealed partial class SessionsConversationTests
         using var composer = composed.NewComposer();
         composer.Body = "original exact";
         if (operation is "submit") { await composer.Create(); composer.Review(); }
-        if (operation is "save") { await composer.Create(); await composer.ReviewSave(); }
-        checkpoint.Action = operation is "create" ? "session.create.named" : operation is "save" ? "conversation.draft.save" : "conversation.submit";
+        checkpoint.Action = operation is "create" ? "session.create.named" : "conversation.submit";
         checkpoint.Commit = () =>
         {
             if (revoke is "edit") { composer.Body = "changed at commit"; }
@@ -191,7 +184,6 @@ public sealed partial class SessionsConversationTests
         };
         var sessions = f.Count("work_sessions");
         if (operation is "create") { await composer.Create(); }
-        else if (operation is "save") { (await composer.Save()).Should().BeFalse(); }
         else { await composer.Submit(); }
         checkpoint.Calls.Should().Be(1);
         f.Count("work_sessions").Should().Be(sessions);
@@ -215,8 +207,6 @@ public sealed partial class SessionsConversationTests
     [InlineData("submit")]
     [InlineData("terminal")]
     [InlineData("credential-audit")]
-    [InlineData("save")]
-    [InlineData("save-credential-audit")]
     public async Task RequiredAuditFailurePreservesExactDraftAndKnownOrUnconfirmedRecoveryWithoutRetry(string operation)
     {
         using var f = new InteractionStorageFixture();
@@ -227,20 +217,17 @@ public sealed partial class SessionsConversationTests
         await f.Store.InitializeAsync(f.Token);
         await using var composed = new Composition(f);
         using var composer = composed.NewComposer();
-        composer.Body = operation is "credential-audit" or "save-credential-audit" ? "api_key=synthetic-only-value" : "private recovery draft";
+        composer.Body = operation is "credential-audit" ? "api_key=synthetic-only-value" : "private recovery draft";
         if (operation is not "create") { await composer.Create(); composer.Review(); }
-        if (operation.StartsWith("save", StringComparison.Ordinal)) { await composer.ReviewSave(); }
         checkpoint.Action = operation switch
         {
             "create" => "session.create.named",
             "submit" => "conversation.submit",
             "terminal" => "conversation.terminal",
-            "save" => "conversation.draft.save",
             _ => "conversation.credential-rejected",
         };
         checkpoint.Commit = () => throw new IOException("required audit/commit unavailable");
         if (operation is "create") { await composer.Create(); }
-        else if (operation.StartsWith("save", StringComparison.Ordinal)) { (await composer.Save()).Should().BeFalse(); }
         else { await composer.Submit(); }
         composer.Body.Should().NotBeEmpty();
         composer.CanSubmit.Should().BeFalse();

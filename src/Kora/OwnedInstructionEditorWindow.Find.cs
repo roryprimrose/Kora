@@ -5,6 +5,7 @@ using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Layout;
 using Avalonia.Threading;
+using Avalonia.VisualTree;
 
 using Kora.Controls;
 using Kora.Core.Context;
@@ -125,6 +126,7 @@ internal sealed partial class OwnedInstructionEditorWindow
 
     private void OnBufferFindKeyDown(object? sender, KeyEventArgs args)
     {
+        if (args.Source is Visual source && metadataFindPanel.IsVisualAncestorOf(source)) { return; }
         var findControl = ReferenceEquals(args.Source, BufferFindQuery) || ReferenceEquals(args.Source, BufferFindFirst)
             || ReferenceEquals(args.Source, BufferFindNext) || ReferenceEquals(args.Source, BufferFindPrevious)
             || ReferenceEquals(args.Source, BufferFindClear);

@@ -39,8 +39,6 @@ public sealed class SessionListPageOrderingTests
             SessionListPageOrdering.Apply(source, SessionListPageOrder.Source).Equals(source).Should().BeTrue();
             AssertOrder(SessionListPageOrder.NameAscending, [b, a, c, f, e, d]);
             AssertOrder(SessionListPageOrder.NameDescending, [f, c, b, a, e, d]);
-            AssertOrder(SessionListPageOrder.GenerationAscending, [c, b, a, e, d, f]);
-            AssertOrder(SessionListPageOrder.GenerationDescending, [f, e, d, b, a, c]);
             source.Should().Equal(d, a, f, c, e, b);
 
             void AssertOrder(SessionListPageOrder order, SessionWorkspaceEntry[] expected)

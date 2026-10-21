@@ -92,14 +92,14 @@ public sealed partial class MainViewModelTests
         await f.ViewModel.InitializeAsync();
         await f.ViewModel.Invoking(model => model.SaveProviderModeCommand.ExecuteAsync()).Should().ThrowAsync<InvalidOperationException>();
         await f.ViewModel.RefreshProviderModeCommand.ExecuteAsync();
-        f.ViewModel.ProviderModeConfigurationStatus.Should().Contain("\"available\":true");
+        f.ViewModel.ProviderModeConfigurationStatus.Should().Contain("On-device only for new sessions");
         await f.RunAsync("set providers.default-mode to 1");
         f.ViewModel.ResponseTitle.Should().Be("Clarify the provider setting.");
         using var cancelled = new CancellationTokenSource();
         await cancelled.CancelAsync();
         await f.ViewModel.ExecuteProviderModeCommandAsync(new(AppearanceCommandOperation.Reset),
             SecurityAuditInitiator.TypedCommand, cancellationToken: cancelled.Token);
-        f.ViewModel.ProviderModeConfigurationStatus.Should().Contain("\"available\":false");
+        f.ViewModel.ProviderModeConfigurationStatus.Should().Contain("Setting unavailable");
         f.ViewModel.Dispose();
         await f.ViewModel.ResetProviderModeCommand.ExecuteAsync();
         f.ProviderPreferences.Mode.Should().BeNull();

@@ -20,6 +20,67 @@ ordinary diagnostic pruning, independent daily evidence and native tray/passive
 microphone-card recovery. These foundations do not complete conversations/queues, a model
 tool loop, clipboard answering, ambient wake or full A0-A4 acceptance.
 
+## Product Admission and Realignment
+
+This section is the authoritative product-scope decision for the 2026-10-21 realignment. The [vision](Vision_Statement.md#vision) describes direction; [placement](Extensibility.md#placement-rule) decides host versus extension ownership; [qualification](Acceptance_Criteria.md#three-tier-qualification-policy) decides whether an admitted implementation can be enabled.
+
+### Approved core outcomes
+
+- Control AI interaction through voice, with equivalent typed and accessible native interaction.
+- Let models reason about and propose changes to registered Kora settings through the same host-owned validation and approval path as native controls.
+- Discover and invoke admitted tools, MCP servers, skills, agents and instructions without giving their content host authority.
+- Support useful explicit static commands, qualified local models and explicitly admitted hosted models.
+- Communicate assistant state through the particle-cloud presence.
+- Browse and participate in several independent session conversations.
+- Expand results into readable complex data, Markdown and admitted browser content.
+- Enforce permissions, grants, consent, ownership and privacy.
+- Record inspectable audit outcomes, diagnostics and causal activity.
+- Manage concurrent sessions, their work and their retained data.
+
+Capture, source admission, setup, storage, cancellation, recovery, distribution and accessibility are supporting responsibilities when consumed by these outcomes. Their existence does not justify a separate user-facing toolbox. [Feature placement](Extensibility.md#feature-placement) remains authoritative for those supporting seams.
+
+### Feature admission
+
+Before starting a new feature, identify its approved outcome, concrete user scenario, host-versus-extension rationale, complete intended interaction, smallest useful implementation increment and acceptance evidence.
+Reference this scope or an explicit product decision in the [decision register](Decision_Register.md). A source layout, available dependency, passing tests or free implementation slot is not product approval.
+
+Materially new product scope requires the product owner's decision. Bug fixes, accessibility, reliability and proportionate usability improvements within an approved outcome do not need a new product decision for every change.
+Bounded fail-closed implementation may precede enablement, but must advance the approved outcome rather than invent an unrelated substitute when a provider or runtime is unavailable.
+
+Domain-specific calculations, conversions, format analysis and repeatable workflows belong behind governed tools, MCP or skills when separately selected for delivery. Do not automatically build replacements for retired native features. Static commands are access routes to admitted behavior, not a mandate to add unrelated native utilities.
+
+### Approved retirement and simplification
+
+The table records approved destinations and distinguishes completed removals from remaining targets. Historical source links describe retired behavior, not current availability. The [delivery inventory](Implementation_Roadmap.md#current-delivery) tracks implementation; each removal PR must update its affected user documentation and tests.
+
+| Area | Approved destination | Status and implementation references |
+| --- | --- | --- |
+| Native utilities | Remove standalone calculator and date/time-answer commands; do not add conversion, UUID, calendar arithmetic, stopwatch or timer utilities. Keep internal time, numerical and identity mechanisms. | Removed in [#420][utility-removal]. Historical [calculator][retired-calculator] and [clock][retired-clock]. |
+| Clipboard analysis | Remove standalone JSON/XML analysis controls and reject CSV, Base64, URL-syntax and text-statistics expansions. Keep capture, immutable preview, Find, wrapping and governed source use. | Removed in [#420][utility-removal]. Historical [JSON][retired-json] and [XML][retired-xml]. |
+| Conversation input | Replace saved-draft document management with per-conversation in-memory unsent text. No new disk autosave, catalogue, comparison or rebase workflow. | Merged: [retirement PR #421](https://github.com/roryprimrose/Kora/pull/421). [Session buffers and read-only recovery](../src/Kora/SessionsViewModel.Unsent.cs), [conversation reads](../src/Kora/SessionsViewModel.Conversation.cs). |
+| Normal workspace | Remove engineering-only range/digest/provenance query controls from ordinary browsing; retain useful names, content search, lifecycle/state and readable source details. | [Sessions](../src/Kora/SessionsWindow.axaml), [All Work ranges](../src/Kora/AllWorkViewModel.Ranges.cs), [attachments](../src/Kora/AttachmentCatalogueWindow.axaml) |
+| Diagnostic queue scaffold | Retire normal fixed-job admission and plan/configuration/reordering surfaces; retain internal scheduling, direct status reads and safe existing-work inspection/cancellation. | [Plans](../src/Kora.Application/Hosting/SessionQueueService.DiagnosticsPlan.cs), [controls](../docs/commands.md#deterministic-local-version-queue) |
+
+[utility-removal]: https://github.com/roryprimrose/Kora/pull/420
+[retired-calculator]: https://github.com/roryprimrose/Kora/blob/fb08302d91768a1535d5a536c6f58eeb651f484e/src/Kora.Application/ViewModels/MainViewModel.Calculator.cs
+[retired-clock]: https://github.com/roryprimrose/Kora/blob/fb08302d91768a1535d5a536c6f58eeb651f484e/src/Kora.Application/ViewModels/MainViewModel.LocalClock.cs
+[retired-json]: https://github.com/roryprimrose/Kora/blob/fb08302d91768a1535d5a536c6f58eeb651f484e/src/Kora/ClipboardPreviewWindow.Json.cs
+[retired-xml]: https://github.com/roryprimrose/Kora/blob/fb08302d91768a1535d5a536c6f58eeb651f484e/src/Kora/ClipboardPreviewWindow.Xml.cs
+
+Existing saved text must remain recoverable read-only into its exact conversation's unsent buffer under the current retention/privacy rules. Do not silently purge it or break historical schema/audit validation.
+Preserve question-answer drafts, definition-editing buffers, submitted history, grants and audit. Legacy compatibility is not permission to continue ordinary saved-draft writes or create a new permanent draft-management product.
+
+Keep technical identity, revision, generation, digest and source validation inside the host. Removing a query widget does not remove its underlying security boundary. Explicit Evidence/audit diagnostics may expose technical filters for that purpose; do not recreate removed normal controls in a new diagnostic framework merely to retain them.
+
+### Delivery order
+
+1. Stop retired work and withdraw affected PRs from automatic admission; do not refill their slots with variants.
+2. Merge the product/instruction realignment and implement the bounded removals with truthful current-versus-target documentation.
+3. Prioritize useful conversation turns, shared settings proposals, governed tool/result execution and MCP/skill/agent integration, voice interaction, coordinated sessions and readable results.
+4. Apply existing implementation, enablement and RC gates independently. No priority or scope decision waives required safety, compatibility, review or validation.
+
+Historical implementation receipts remain historical evidence, not continuing feature approval. Closed or retired work requires a new explicit product decision before recreation, reopening or replacement.
+
 ## Product Outcome
 
 A Windows user with current owner presence can say "Kora, explain the clipboard", see the answer, hear a short summary, and interrupt the interaction without typing or pressing an activation control.

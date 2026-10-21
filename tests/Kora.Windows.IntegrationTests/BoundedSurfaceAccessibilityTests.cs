@@ -39,20 +39,20 @@ public sealed class BoundedSurfaceAccessibilityTests
                 var editor = window.GetVisualDescendants().OfType<TextBox>()
                     .Single(control => string.Equals(control.Text, "Kora", StringComparison.Ordinal));
                 var peer = ControlAutomationPeer.CreatePeerForElement(editor)!;
-                peer.GetName().Should().Be("Display and push-to-talk command-prefix name");
+                peer.GetName().Should().Be("Assistant name");
                 peer.GetHelpText().Should().Be(fixture.Main.AssistantNameConfigurationDescription);
 
                 await fixture.Main.SetAssistantNameAsync("Nova Ray");
                 window.UpdateLayout();
                 editor.Text.Should().Be("Nova Ray");
-                peer.GetName().Should().Be("Display and push-to-talk command-prefix name");
+                peer.GetName().Should().Be("Assistant name");
                 peer.GetHelpText().Should().Be(fixture.Main.AssistantNameConfigurationDescription)
                     .And.Contain("Nova Ray");
 
                 await fixture.Main.ResetAssistantNameCommand.ExecuteAsync();
                 window.UpdateLayout();
                 editor.Text.Should().Be("Kora");
-                peer.GetName().Should().Be("Display and push-to-talk command-prefix name");
+                peer.GetName().Should().Be("Assistant name");
                 peer.GetHelpText().Should().Be(fixture.Main.AssistantNameConfigurationDescription);
                 fixture.Main.IsVoiceEnabled.Should().BeFalse();
             }
@@ -140,12 +140,12 @@ public sealed class BoundedSurfaceAccessibilityTests
                 var cycle = ReadCycle(window, first, reverse);
                 cycle.Select(control => ControlAutomationPeer.CreatePeerForElement(control)!.GetName())
                     .Should().BeEquivalentTo(
-                        "Appearance", "Native reader text scale percentage", "Show animated presence", "Application theme",
-                        "Always show", "Stay on top", "Response timeout in seconds", "Presence renderer", "Presence timeout in seconds",
+                        "Appearance", "Reading text size percentage", "Show animated presence", "Application theme",
+                        "Always show", "Stay on top", "Response timeout in seconds", "Animation mode", "Presence timeout in seconds",
                         "Presence size in pixels", "Dot size percent", "Dot density percent", "Movement speed percent",
                         "Scale presence with speech playback", "Speech scale amount percent",
-                        "Application theme actions", "Native reader text scale actions", "Always show responses actions",
-                        "Keep responses on top actions", "Response timeout actions", "Show presence actions", "Presence renderer actions",
+                        "Application theme actions", "Reading text size actions", "Always show responses actions",
+                        "Keep responses on top actions", "Response timeout actions", "Show presence actions", "Animation mode actions",
                         "Presence timeout actions", "Presence size actions", "Dot size actions", "Dot density actions",
                         "Movement speed actions", "Speech sizing actions", "Speech scale amount actions");
                 cycle.Should().Contain(tab);
@@ -178,7 +178,7 @@ public sealed class BoundedSurfaceAccessibilityTests
                 actions.Should().HaveCount(14);
                 foreach (var action in actions)
                 {
-                    action.Content.Should().BeOfType<PathIcon>();
+                    action.Content.Should().BeOfType<Avalonia.Controls.Shapes.Path>();
                     action.HorizontalAlignment.Should().Be(HorizontalAlignment.Right);
                     action.VerticalAlignment.Should().Be(VerticalAlignment.Top);
                     action.Bounds.Top.Should().BeApproximately(0, 0.1);
@@ -237,12 +237,10 @@ public sealed class BoundedSurfaceAccessibilityTests
                 var search = window.FindControl<Button>("SearchPackages")!;
                 var clear = window.FindControl<Button>("ClearPackageSearch")!;
                 var order = window.FindControl<ComboBox>("PackageOrder")!;
-                var definition = window.FindControl<TextBox>("PackageDefinitionDigest")!;
-                var resources = window.FindControl<TextBox>("PackageDeclaredResourceDigest")!;
                 ReadCycle(window, selector, reverse: false).Select(Describe)
-                    .Should().Equal(new Control[] { selected, reader, query, filter, search, clear, order, definition, resources, selector }.Select(Describe));
+                    .Should().Equal(new Control[] { selected, reader, query, filter, search, clear, order, selector }.Select(Describe));
                 ReadCycle(window, selector, reverse: true).Select(Describe)
-                    .Should().Equal(new Control[] { resources, definition, order, clear, search, filter, query, reader, selected, selector }.Select(Describe));
+                    .Should().Equal(new Control[] { order, clear, search, filter, query, reader, selected, selector }.Select(Describe));
                 reader.IsReadOnly.Should().BeTrue();
             }
             finally { window.Close(); }
@@ -329,10 +327,8 @@ public sealed class BoundedSurfaceAccessibilityTests
                 var search = window.FindControl<Button>("SearchPackages")!;
                 var clear = window.FindControl<Button>("ClearPackageSearch")!;
                 var order = window.FindControl<ComboBox>("PackageOrder")!;
-                var definition = window.FindControl<TextBox>("PackageDefinitionDigest")!;
-                var resources = window.FindControl<TextBox>("PackageDeclaredResourceDigest")!;
-                var expected = reverse ? new Control[] { resources, definition, order, clear, search, filter, query, source, tab, selector }
-                    : [tab, source, query, filter, search, clear, order, definition, resources, selector];
+                var expected = reverse ? new Control[] { order, clear, search, filter, query, source, tab, selector }
+                    : [tab, source, query, filter, search, clear, order, selector];
                 ReadCycle(window, selector, reverse).Select(Describe).Should().Equal(expected.Select(Describe));
                 ReadCycle(window, selector, reverse).Select(Describe).Should().Equal(expected.Select(Describe));
                 source.IsReadOnly.Should().BeTrue();

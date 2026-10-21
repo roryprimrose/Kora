@@ -18,6 +18,19 @@ internal sealed partial class SessionsPresentationOwner
     private bool revoked;
     internal Task CloseOperation { get; private set; } = Task.CompletedTask;
     internal Task DetailOperation { get; private set; } = Task.CompletedTask;
+    internal async Task<bool> PrepareShutdown()
+    {
+        try
+        {
+            if (!model.CanRead) { throw new InvalidOperationException("Finish the current native operation before voluntary shutdown."); }
+            return await model.ConfirmUnsentDiscardAsync(all: true);
+        }
+        catch (Exception exception) when (exception is not OutOfMemoryException)
+        {
+            model.ReportComposerCloseFailure(exception);
+            return false;
+        }
+    }
 
     internal SessionsPresentationOwner(SessionsViewModel model)
     {
@@ -69,9 +82,17 @@ internal sealed partial class SessionsPresentationOwner
 
     private void Closing(object? sender, WindowClosingEventArgs args)
     {
+        if (NativeShutdownPolicy.RequiresImmediateRetirement(args.CloseReason))
+        {
+            revoked = true;
+            model.Close();
+            draftDialog?.Close();
+            Release();
+            return;
+        }
         if (revoked) { return; }
         if (draftDialog is not null || closing) { args.Cancel = true; return; }
-        if (surfaces.Count > 1 || !model.ComposerDirty) { return; }
+        if (surfaces.Count > 1 || !model.HasUnsentMessages) { return; }
         args.Cancel = true;
         if (!model.CanRead || sender is not Window surface) { return; }
         active = surface;
@@ -82,7 +103,7 @@ internal sealed partial class SessionsPresentationOwner
     {
         closing = true;
         var protectedDraft = false;
-        try { protectedDraft = await model.ProtectComposerAsync(); }
+        try { protectedDraft = await model.ConfirmUnsentDiscardAsync(all: true); }
         catch (Exception exception) when (exception is not OutOfMemoryException)
         { model.ReportComposerCloseFailure(exception); }
         finally { closing = false; }
@@ -117,11 +138,11 @@ internal sealed partial class SessionsPresentationOwner
     {
         var owner = active is { IsVisible: true } ? active : surfaces.FirstOrDefault(surface => surface.IsVisible);
         if (revoked || owner is null || draftDialog is not null) { return ComposerDraftDecision.Cancel; }
-        var dialog = new Window { Title = "Unsaved exact-session conversation draft", Width = 680, Height = 230 };
+        var dialog = new Window { Title = "Discard unsent messages?", Width = 680, Height = 230 };
         var content = new StackPanel { Margin = new(18), Spacing = 14 };
         content.Children.Add(new TextBlock
         {
-            Text = model.ComposerTarget + "\nSave explicitly, discard the shared memory-only buffer, or cancel switching/closing. Nothing submits a message.",
+            Text = model.ComposerTarget + "\nUnsent messages are memory-only, separately held per session. Discard to continue closing/discarding, or Cancel to keep them. Switching sessions never discards or saves text. Nothing submits a message.",
             TextWrapping = Avalonia.Media.TextWrapping.Wrap,
         });
         var buttons = new StackPanel { Orientation = Avalonia.Layout.Orientation.Horizontal, Spacing = 12 };

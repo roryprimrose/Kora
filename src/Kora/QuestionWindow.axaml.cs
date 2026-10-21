@@ -23,6 +23,9 @@ public sealed partial class QuestionWindow : Window
     private readonly DispatcherTimer expiry = new() { Interval = TimeSpan.FromSeconds(1) };
     private bool refreshing;
     private int foregroundAdmission;
+    private TaskCompletionSource<bool>? focusAcknowledgement;
+    private Func<bool>? focusAdmission;
+    private long focusLifetime;
 
     public QuestionWindow() => throw new InvalidOperationException("A trusted host question is required.");
 
@@ -30,6 +33,10 @@ public sealed partial class QuestionWindow : Window
     {
         this.state = state;
         this.renderer = renderer;
+        PropertyChanged += (_, change) =>
+        {
+            if (change.Property == IsVisibleProperty) { Interlocked.Increment(ref focusLifetime); }
+        };
         AvaloniaXamlLoader.Load(this);
         input = Required<TextBox>("AnswerInput");
         review = Required<TextBox>("ExactReview");
@@ -84,6 +91,22 @@ public sealed partial class QuestionWindow : Window
         Activated += async (_, _) =>
         {
             Interlocked.Exchange(ref foregroundAdmission, 1);
+            if (focusAcknowledgement is { } acknowledgement)
+            {
+                var admitted = focusAdmission;
+                focusAcknowledgement = null;
+                focusAdmission = null;
+                try
+                {
+                    acknowledgement.TrySetResult(admitted?.Invoke() == true && IsVisible && IsActive
+                        && state.HasPresentation && state.IsEditable);
+                }
+                catch (Exception exception) when (exception is not OutOfMemoryException)
+                {
+                    acknowledgement.TrySetException(exception);
+                }
+                return;
+            }
             await RunInteractionAsync(state.RefreshTargetAsync);
         };
         expiry.Tick += OnExpiry;
@@ -95,6 +118,9 @@ public sealed partial class QuestionWindow : Window
         };
         Closed += (_, _) =>
         {
+            focusAcknowledgement?.TrySetResult(false);
+            focusAcknowledgement = null;
+            focusAdmission = null;
             Interlocked.Exchange(ref foregroundAdmission, 0);
             expiry.Stop();
             expiry.Tick -= OnExpiry;
@@ -113,6 +139,30 @@ public sealed partial class QuestionWindow : Window
     }
 
     internal void ReportOutcome(string message) => state.ReportOutcome(message);
+
+    internal Func<bool> CaptureFocusLifetime()
+    {
+        var revision = Interlocked.Read(ref focusLifetime);
+        return () => IsVisible && revision == Interlocked.Read(ref focusLifetime);
+    }
+
+    internal async Task<bool> FocusExistingAsync(Func<bool> admitted)
+    {
+        if (!admitted() || focusAcknowledgement is not null || !IsVisible
+            || !state.HasPresentation || !state.IsEditable) { return false; }
+        if (IsActive) { return admitted(); }
+        var acknowledgement = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        focusAdmission = admitted;
+        focusAcknowledgement = acknowledgement;
+        try
+        {
+            Activate();
+            return await acknowledgement.Task.WaitAsync(TimeSpan.FromSeconds(2))
+                && admitted() && IsVisible && IsActive && state.HasPresentation && state.IsEditable;
+        }
+        // Keep a timed-out activation marked focus-only until its event or closure, never refresh its source.
+        catch (TimeoutException) { return false; }
+    }
 
     private async Task RunInteractionAsync(Func<Task> interaction)
     {

@@ -41,6 +41,7 @@ Each row links to instructions or supporting design and implementation evidence.
 |---|---|---|
 | Windows desktop app | Delivered | Use Kora on Windows 10 build 19041 or later; Windows 11 is recommended. See [requirements](docs/getting-started.md#requirements). |
 | Use without AI | Delivered | Exact built-in commands and visual responses work without a model, cloud account, or network connection. Each command still has its own requirements. See [command-only use](docs/readme.md). |
+| Host-local or explicit UTC clock answers | Delivered | Ask the time, date or both; append `in UTC` for the UTC calendar and zero offset instead of the host-local zone. Typed and current-name activated answers use the host clock and culture, stay visual and do not change settings or call a model/network service. See [clock commands](docs/commands.md#host-local-date-and-time). |
 | Readiness and setup help | Delivered | Inspect missing devices or software. Local-model and PowerShell setup need separate consent; opening setup installs nothing. See [first launch](docs/getting-started.md#first-launch). |
 | Help inside the app | Delivered | Open the user guide from the tray or with `open documentation`; use `what can you do` to see commands. See [opening the guide](docs/readme.md#open-this-guide). |
 | Tray controls | Delivered | Open settings and sessions, recover microphone access, stop speech, or exit without using voice. Hiding a window is not the same as disabling listening or exiting. See [tray controls](docs/windows-and-tray.md#tray-icon). |

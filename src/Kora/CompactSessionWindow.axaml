@@ -27,7 +27,7 @@
           AutomationProperties.Name="Observed exact selected-session work source and time; not inferred execution or current success" />
       <TextBlock Text="No target? Open Sessions and explicitly select one. Opening never selects, loads bodies, resumes work or grants permission. Questions, approvals and voice stay in their existing windows." TextWrapping="Wrap" />
       <WrapPanel>
-        <Button x:Name="ReadConversation" Content="Read exact conversation / legacy availability" IsEnabled="{Binding CanReadConversation}" />
+        <Button x:Name="ReadConversation" Content="Read exact conversation" IsEnabled="{Binding CanReadConversation}" />
         <Button x:Name="NextConversation" Content="Next bounded page" IsEnabled="{Binding CanNextConversation}" />
         <Button x:Name="RefreshWork" Content="Refresh observed work" IsEnabled="{Binding CanRefreshWork}" />
       </WrapPanel>

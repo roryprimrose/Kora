@@ -237,7 +237,9 @@ generation, metadata revision, saved-draft revision and private control epoch.
 Only a fresh explicit native submission to that existing Active session is
 admitted; Done is readable and requires explicit Resume before new work.
 
-Unsent input is memory-only and kept per session while switching views/topics. Reading observes legacy saved text without importing it. Explicit read-only compatibility recovery never overwrites nonempty input; new ordinary saves are unavailable. Privacy and owner/control/session retirement clear volatile private presentation without implicit persistence ([session buffers](../src/Kora/SessionsViewModel.Unsent.cs)).
+Unsent input is memory-only and kept per session while switching views/topics. Ordinary history reads do not read legacy saved text. Explicit read-only compatibility recovery independently validates a stable exact source and never overwrites nonempty input; new ordinary saves remain unavailable ([buffers and recovery](../src/Kora/SessionsViewModel.Unsent.cs), [history reads](../src/Kora/SessionsViewModel.Conversation.cs)).
+
+Missing or unavailable legacy text leaves history and unsent input unchanged; required conversation/privacy/retention authority still fails closed. Privacy and owner/control/session retirement clear volatile private presentation without persistence ([regressions](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.Unsent.cs)).
 
 One authoritative [content policy](../src/Kora.Core/Conversation/ConversationText.cs)
 checks **4096 UTF-16 characters and 16384 UTF-8 bytes** independently, preserving

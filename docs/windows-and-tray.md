@@ -36,7 +36,7 @@ Open **Tray > Compact selected-session conversation** or **Sessions > Compact co
 Reopening activates the same compact window. It shares the exact selected session and memory composer with the workspace, not a copied buffer or an inferred recent target ([native surface](../src/Kora/CompactSessionWindow.axaml)).
 
 With no selected target, open **Sessions / explicit selection**. Selecting metadata does not automatically read conversation bodies or reload a saved draft.
-Use **Read exact conversation / legacy availability**, bounded Next, and **Refresh observed work** explicitly. Original USER, any separately retained genuine ASSISTANT answer and typed HOST status have distinct roles ([shared actions](../src/Kora/CompactSessionWindow.axaml.cs)).
+Use **Read exact conversation**, bounded Next, and **Refresh observed work** explicitly. History reads do not read legacy saved text. Original USER, any separately retained genuine ASSISTANT answer and typed HOST status have distinct roles ([shared actions](../src/Kora/SessionsViewModel.Conversation.cs)).
 
 Unsent text is memory-only and separately retained per session while switching topics. Both windows display edits to the same buffer; only explicit Submit retains a new message ([buffer ownership](../src/Kora/SessionsViewModel.Unsent.cs)).
 New request remains a separate fresh-target workflow; opening it never transfers the shared text ([shared controller](../src/Kora/SessionsWindowController.cs)).
@@ -186,7 +186,9 @@ metadata revision and private control epoch. Read/Next show bounded
 chronological **USER** messages and separate **HOST** statuses; no model answer
 is invented. Done history stays readable, but new work requires explicit Resume.
 
-Typing writes nothing. Switching topics preserves a separate memory-only unsent message per exact session, shared by Sessions and compact views. There is no ordinary Save/Reload/Clear or saved-draft management. **Recover existing legacy text into empty input** is a read-only compatibility action after reading the exact session: it refuses nonempty input and changed source/revision, and never saves, deletes or submits. Existing private data remains under retention/disposition; no migration or purge occurs ([buffer and recovery](../src/Kora/SessionsViewModel.Unsent.cs)).
+Typing writes nothing. Switching topics preserves a separate memory-only unsent message per exact session, shared by Sessions and compact views. No ordinary Save/Reload/Clear or saved-draft management exists ([buffers](../src/Kora/SessionsViewModel.Unsent.cs)).
+
+**Recover existing legacy text into empty input** is a separate read-only action for the selected exact session. It verifies stable source/revision before importing, refuses nonempty input and never saves, deletes or submits. Missing/unavailable legacy text leaves history and unsent input unchanged. Retention and private authority checks remain; no migration or purge occurs ([recovery](../src/Kora/SessionsViewModel.Unsent.cs)).
 
 **Discard this unsent message...** requires confirmation and affects only that session's memory input. Last-view/application close protects all nonempty topic buffers with Discard/Cancel. Privacy/ownership/session retirement revokes affected private text without saving ([presentation owner](../src/Kora/SessionsPresentationOwner.cs)).
 

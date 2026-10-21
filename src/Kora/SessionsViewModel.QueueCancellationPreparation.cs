@@ -15,7 +15,6 @@ internal sealed partial class SessionsViewModel
         var queue = queueSnapshot;
         var subset = pendingCancellationEpoch;
         var selection = selectionEpoch;
-        var draft = savedConversationDraft;
         var buffer = Interlocked.Read(ref composerBufferRevision);
         var review = queueCancelReview;
         var page = sessions;
@@ -23,7 +22,6 @@ internal sealed partial class SessionsViewModel
             && (!requireIdle || !changingQueueControl) && selectionEpoch == selection
             && pendingCancellationEpoch == subset && ReferenceEquals(queueSnapshot, queue)
             && ReferenceEquals(queueCancelReview, review) && ReferenceEquals(sessions, page)
-            && savedConversationDraft == draft
             && Interlocked.Read(ref composerBufferRevision) == buffer
             && string.Equals(composerBody, body, StringComparison.Ordinal);
     }

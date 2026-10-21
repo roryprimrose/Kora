@@ -1,5 +1,7 @@
 # Voice and typed commands
 
+**Product realignment:** standalone utility commands and fixed diagnostic-queue product surfaces are approved for retirement. This guide continues to describe current implementation until each code removal lands; retirement is not permission to bypass existing checks. See the [approved scope](../Design/MVP_Scope.md#approved-retirement-and-simplification).
+
 ## Prepare an exact Evidence trace filter
 
 Type `prepare evidence trace 0123456789abcdef0123456789abcdef`, or use the

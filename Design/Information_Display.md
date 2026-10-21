@@ -13,6 +13,8 @@ native answer/approval controls.
 The separate [exact Settings-section navigation contract](User_Configuration.md#exact-existing-settings-section-navigation) selects an existing named native tab in the singleton Settings surface only.
 Responses-tab navigation is not a retained-body, retired-response, model or private-content disclosure route ([native selection](../src/Kora/SettingsWindow.axaml.cs), [admission](../src/Kora.Application/ViewModels/MainViewModel.SettingsSectionNavigation.cs)).
 
+Apply [product admission](MVP_Scope.md#product-admission-and-realignment) to display additions. Readable complex data, Markdown, admitted browser content, ordinary Find, wrapping and accessibility support the product. Standalone content-analysis buttons and engineering-only normal-workspace filters are not justified by the existence of a viewer or immutable snapshot.
+
 ## Delivered bounded response-window preference commands
 
 The [exact response-window grammar](../src/Kora.Application/Configuration/ResponseWindowCommand.cs) admits inspect/set/per-option reset for existing device-local AlwaysShow and Topmost, plus four explicit natural on/off phrases.

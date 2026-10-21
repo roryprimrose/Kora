@@ -31,6 +31,11 @@ registration/inspection, not startup model exposure. See
 local-version queries. Hide does not mute or cancel. Application restart is not
 Windows restart. See [application commands](commands.md).
 
+The bounded [host-local date/time commands](commands.md#host-local-date-and-time)
+answer from one host clock instant with local culture, timezone ID and UTC
+offset. They are visual and model/network/device-discovery free, not calendar,
+reminder, scheduling, geolocation or verified-time services.
+
 The six-ID [read-only host registry](commands.md#read-only-host-discovery)
 returns bounded recorded facts; it does not run fresh probes, qualify a runtime
 or expose the complete planned model catalogue.

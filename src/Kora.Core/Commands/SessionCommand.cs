@@ -29,7 +29,8 @@ public sealed partial record SessionCommand(
         + "at most 120 scalars/480 UTF-8 bytes. Inside quotes, double a quote to include it. "
         + "No name, selected-window, delete, general executor or approval targeting. " + RequestSyntax + " " + RetentionSyntax
         + " " + SessionDispositionReviewCommand.Syntax + ". " + SessionDispositionReviewCommand.Boundary
-        + " " + SessionQueueCancellationReviewCommand.Syntax + ". " + SessionQueueCancellationReviewCommand.Boundary;
+        + " " + SessionQueueCancellationReviewCommand.Syntax + ". " + SessionQueueCancellationReviewCommand.Boundary
+        + " " + SessionDiagnosticsPlanCommand.Syntax + ". " + SessionDiagnosticsPlanCommand.Boundary;
 
     public string PageKind { get; init; } = "tasks";
     public Guid? TaskId { get; init; }

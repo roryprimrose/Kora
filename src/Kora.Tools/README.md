@@ -21,6 +21,7 @@ helpers and brokers are not separately advertised actions.
 |---|---|---|
 | [Application](Application) | [ApplicationGetVersion](Application/ApplicationGetVersion.cs) | Core `IApplicationVersion`; running-assembly implementation in Application. |
 | [Calculations](Calculations) | [Calculate](Calculations/Calculate.cs) | Core `CalculateCommand` and `DecimalCalculator` own the exact bounded grammar; native Application routing calls the same internal action. No model descriptor. |
+| [Clock](Clock) | [LocalClockGetTime](Clock/LocalClockGetTime.cs), [LocalClockGetDate](Clock/LocalClockGetDate.cs), [LocalClockGetDateAndTime](Clock/LocalClockGetDateAndTime.cs) | [LocalClockService](Clock/LocalClockService.cs) samples one injected `TimeProvider` instant and one host-owned Core `ILocalClockContextProvider` context. Original-command only; no model descriptor. |
 | [Capabilities](Capabilities) | [CapabilitiesList](Capabilities/CapabilitiesList.cs), [CapabilitiesGet](Capabilities/CapabilitiesGet.cs) | [ReadOnlyPage](Capabilities/ReadOnlyPage.cs) and Core descriptor catalogue. |
 | [Readiness](Readiness) | [ReadinessGet](Readiness/ReadinessGet.cs) | [RecordedDependencyObservation](Readiness/RecordedDependencyObservation.cs). |
 | [Runtime](Runtime) | [RuntimeList](Runtime/RuntimeList.cs), [RuntimeGetStatus](Runtime/RuntimeGetStatus.cs) | [RecordedRuntimeObservation](Runtime/RecordedRuntimeObservation.cs), reusing the readiness projection. |
